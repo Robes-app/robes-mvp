@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robes — Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/robes.css">
+<link rel="stylesheet" href="assets/robes-views.css">
+<link rel="stylesheet" href="assets/onboarding.css">
+<link rel="stylesheet" href="assets/tweaks.css">
+</head>
+<body>
+
+<template id="__bundler_thumbnail" data-bg-color="#FAF8F5">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#FAF8F5"/>
+    <text x="600" y="430" text-anchor="middle" font-family="Cormorant, Georgia, serif" font-weight="400" font-size="120" letter-spacing="30" fill="#202021">ROBES</text>
+  </svg>
+</template>
+
+<!-- ══ NAV ══ -->
+<nav class="nav">
+  <div class="nav-l">
+    <span class="wordmark" id="nav-wordmark" onclick="App.goHome()">Robes</span>
+    <button class="nav-breadcrumb" id="nav-breadcrumb" onclick="App.back()">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      <span id="bc-label">Mixboards</span>
+    </button>
+  </div>
+  <div class="nav-r">
+    <div class="nav-weather" id="nav-weather">
+      <span class="wx">🌦</span><span>Thursday</span>
+      <span class="dot"></span><span>Dublin</span>
+      <span class="dot"></span><span>12°C</span>
+    </div>
+    <button class="nav-wbtn" onclick="App.showWardrobe()">
+      <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+      Wardrobe<span class="nav-wbtn-count">10</span>
+    </button>
+    <div class="av-wrap">
+      <div class="avatar" id="avatar" onclick="App.toggleAvatarMenu(event)">A</div>
+      <div class="av-menu" id="av-menu">
+        <div class="av-name"><strong id="av-name">Annie</strong><span>Founding Stylist</span></div>
+        <button class="av-item" onclick="App.replayOnboarding()"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>Replay onboarding</button>
+        <button class="av-item" onclick="App.showWardrobe()"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>My wardrobe</button>
+        <button class="av-item" onclick="App.goHome()"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Style notes</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ ONBOARDING MOUNT ══ -->
+<div id="ob-root" class="hidden"></div>
+
+<!-- ══ HOME ══ -->
+<div class="home-body" id="home-body">
+
+  <!-- LEFT RAIL -->
+  <aside class="left" id="left" data-comment-anchor="564eda0b4f-aside">
+    <div class="greeting" id="greeting">Good evening,<br>Annie.</div>
+    <div class="mode-cards">
+      <button class="mc active-inspire" id="mc-inspire" onclick="App.chooseInspire()">
+        <div class="mc-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg></div>
+        <div class="mc-title">Get inspired</div>
+        <div class="mc-sub">Moodboards &amp; shop</div>
+      </button>
+      <button class="mc" id="mc-dressed" onclick="App.chooseDressed()">
+        <div class="mc-icon"><svg viewBox="0 0 24 24"><path d="M6 2l1.5 4H4l2 14h12l2-14h-3.5L18 2"/><path d="M9 2c0 1.7 1.3 3 3 3s3-1.3 3-3"/></svg></div>
+        <div class="mc-title">Get dressed</div>
+        <div class="mc-sub">Style from your wardrobe</div>
+      </button>
+    </div>
+    <div class="left-rule"></div>
+    <div class="subtabs" id="subtabs" hidden>
+      <button class="subtab active" id="st-today" onclick="App.setSubtab('today')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        Style today
+      </button>
+      <button class="subtab" id="st-week" onclick="App.setSubtab('week')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+        Plan the week
+      </button>
+      <button class="subtab" id="st-trip" onclick="App.setSubtab('trip')">
+        <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        Pack a trip
+      </button>
+    </div>
+    <div class="home-prompt" id="home-prompt">
+      <div class="hp-modes" id="inspire-modes">
+        <button class="hp-mode active" id="im-trip" onclick="App.setIntent('trip')">
+          <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Trip
+        </button>
+        <button class="hp-mode" id="im-capsule" onclick="App.setIntent('capsule')">
+          <svg viewBox="0 0 24 24"><polygon points="12 3 3 7.5 12 12 21 7.5 12 3"/><polyline points="3 12 12 16.5 21 12"/><polyline points="3 16.5 12 21 21 16.5"/></svg>
+          Capsule
+        </button>
+        <button class="hp-mode" id="im-piece" onclick="App.setIntent('piece')">
+          <svg viewBox="0 0 24 24"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1.4"/></svg>
+          Key piece
+        </button>
+      </div>
+      <div class="hp-attached" id="hp-attached" hidden></div>
+      <textarea id="home-ta" placeholder="Where, when, what kind of trip…"></textarea>
+      <div class="hp-foot">
+        <div class="hp-foot-l">
+          <div class="hp-add-wrap">
+            <button class="hp-add" id="hp-add-btn" onclick="App.toggleAddMenu(event)" aria-label="Add an image" aria-haspopup="true">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <div class="hp-addmenu" id="hp-addmenu">
+              <button class="hp-addopt" onclick="App.pickUpload(event)">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Upload
+              </button>
+              <button class="hp-addopt" onclick="App.pickCamera(event)">
+                <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Take a picture
+              </button>
+            </div>
+          </div>
+          <span class="hp-hint" id="hp-hint">Trip moodboard from your wardrobe</span>
+        </div>
+        <button class="hp-send" onclick="App.submitHomePrompt()" aria-label="Generate">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        </button>
+      </div>
+      <input type="file" id="hp-file" accept="image/*" hidden onchange="App.onPhotoPicked(event)">
+    </div>
+    <div class="quick-pills" id="quick-pills" data-comment-anchor="5a3a443ee8-div"></div>
+  </aside>
+
+  <!-- RIGHT / MAIN -->
+  <main class="right" id="right">
+
+    <!-- MIXBOARDS GALLERY -->
+    <section class="gallery visible" id="gallery">
+      <div class="gallery-head">
+        <div class="gallery-eyebrow">Your Moodboards</div>
+        <div class="gallery-sort">Recent first</div>
+      </div>
+      <div class="mix-grid" id="mix-grid"></div>
+    </section>
+
+    <!-- RECENT LOOKS (Get dressed · Style today) -->
+    <section class="looks-panel" id="looks">
+      <div class="gallery-head">
+        <div class="gallery-eyebrow">Recent looks</div>
+        <div class="gallery-sort">Styled from your wardrobe</div>
+      </div>
+      <div class="mix-grid" id="looks-grid"></div>
+    </section>
+
+    <!-- THIS WEEK (Get dressed · Plan the week) -->
+    <section class="week-panel" id="week">
+      <div class="gallery-head">
+        <div class="gallery-eyebrow">This week</div>
+        <div class="gallery-sort">Dublin · your plan</div>
+      </div>
+      <div class="week-strip" id="week-strip"></div>
+      <div class="week-foot">
+        <div class="week-foot-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><path d="M9 14l2 2 4-4"/></svg></div>
+        <div class="week-foot-text"><strong>6 of 7 days planned</strong> — every look pulled from the 10 pieces you own. Tap a day to restyle it, or fill Saturday.</div>
+      </div>
+    </section>
+
+    <!-- PACK A TRIP · LANDING (saved trips) -->
+    <section class="trip-list-panel" id="trip-list">
+      <div class="gallery-head">
+        <div class="gallery-eyebrow">Pack a trip</div>
+        <div class="gallery-sort">Your saved trips</div>
+      </div>
+      <div class="trips-grid" id="trips-grid"></div>
+    </section>
+
+    <!-- PACK A TRIP (Get dressed · Pack a trip) -->
+    <section class="trip-panel" id="trip">
+      <div class="gallery-head">
+        <div class="gallery-eyebrow">Pack a trip</div>
+        <div class="gallery-sort">From your wardrobe</div>
+      </div>
+      <div class="trip-card">
+        <div class="trip-card-l">
+          <div class="trip-dest" id="trip-dest">Wimbledon · <em>London</em></div>
+          <div class="trip-dates" id="trip-dates">18–25 July · 7 days</div>
+          <div class="trip-weatherrow">
+            <span class="trip-wchip">⛅ 14°–23°C</span>
+            <span class="trip-wchip">🌦 Showers midweek</span>
+            <span class="trip-wchip">Smart-casual · garden</span>
+          </div>
+        </div>
+        <div class="trip-card-r">
+          <div class="trip-stat"><strong id="trip-count">10</strong>pieces</div>
+          <div class="trip-substat"><span class="s" id="trip-yours">7</span> yours · <span class="r" id="trip-find">3</span> to find</div>
+          <button class="trip-adjust" onclick="App.openPack()">Adjust trip</button>
+        </div>
+      </div>
+      <div class="trip-sec-label">Taking from your wardrobe</div>
+      <div class="trip-take" id="trip-take"></div>
+      <div class="trip-sec-label gap-label">Worth adding <span>— for the gaps</span></div>
+      <div class="trip-gaps" id="trip-gaps"></div>
+      <div class="trip-foot">
+        <button class="trip-foot-btn trip-foot-primary" onclick="App.toast('Packing list saved')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Save packing list</button>
+        <button class="trip-foot-btn trip-foot-ghost" onclick="App.openShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"/><line x1="3" y1="12" x2="21" y2="12"/></svg>Share</button>
+      </div>
+    </section>
+
+    <!-- GENERATING -->
+    <section class="gen-panel" id="gen-panel">
+      <div class="gen-spinner"></div>
+      <div class="gen-label" id="gen-label">Building your Wimbledon Moodboard…</div>
+      <div class="gen-sublabel" id="gen-sublabel">Reading the prompt, checking the forecast</div>
+      <div class="gen-steps" id="gen-steps">
+        <div class="gen-step" data-i="0"><span class="gs-dot"></span>Reading your prompt</div>
+        <div class="gen-step" data-i="1"><span class="gs-dot"></span>Pulling references &amp; the forecast</div>
+        <div class="gen-step" data-i="2"><span class="gs-dot"></span>Matching against your wardrobe</div>
+        <div class="gen-step" data-i="3"><span class="gs-dot"></span>Composing the look</div>
+      </div>
+    </section>
+
+    <!-- MOODBOARD OUTPUT (Wimbledon) -->
+    <section class="subpage" id="moodboard-panel">
+      <div class="mb-full-body">
+        <div class="mb-main">
+          <div>
+            <div class="mb-out-eyebrow">Your Moodboard</div>
+            <div class="mb-out-title" id="mb-out-title">Wimbledon,<br>London in July</div>
+            <div class="mb-out-kws" id="mb-out-kws">
+              <span class="mb-kw">Minimalist</span><span class="mb-kw-dot">·</span>
+              <span class="mb-kw">Chic</span><span class="mb-kw-dot">·</span>
+              <span class="mb-kw">Refined</span><span class="mb-kw-dot">·</span>
+              <span class="mb-kw">Tennis whites</span>
+            </div>
+          </div>
+          <div class="mb-meta-row">
+            <div class="weather-strip" id="mb-wx">
+              <span class="w-icon">⛅</span>
+              <span class="w-info"><strong>London · July</strong></span>
+              <div class="w-divider"></div><span class="w-info">14°C – 23°C</span>
+              <div class="w-divider"></div><span class="w-info">Bring a light layer</span>
+            </div>
+            <div class="aesthetic-tag">
+              <span class="aesthetic-tag-label">Aesthetic</span>
+              <span class="aesthetic-tag-value" id="mb-aesthetic">Classic &amp; Sophisticated</span>
+            </div>
+          </div>
+          <div class="mb-mosaic" id="mb-mosaic">
+            <img class="mme-hero" src="images/wimbledon/courtside-hero.png" alt="Court-side look — blazer, skirt, bag">
+            <img src="images/wimbledon/london-street.png" alt="London street look">
+            <img src="images/wimbledon/oncourt-tank.png" alt="On court — visor and tank">
+            <img src="images/wimbledon/tennis-whites-flatlay.png" alt="Tennis whites flat lay">
+            <img src="images/wimbledon/tan-tote.png" alt="Tan tote">
+            <img src="images/wimbledon/clay-linen.png" alt="Clay court sneakers">
+            <img src="images/wimbledon/court-sneakers.png" alt="Court sneakers">
+            <img src="images/wimbledon/silk-scarf.png" alt="Printed silk scarf">
+            <img src="images/wimbledon/watch-necklace.png" alt="Watch and necklace">
+          </div>
+          <div class="mb-actions">
+            <button class="mb-btn mb-btn-primary" onclick="App.packFromBoard()"><svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>Pack this trip</button>
+            <button class="mb-btn" onclick="App.openShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"/><line x1="3" y1="12" x2="21" y2="12"/></svg>Share</button>
+            <button class="mb-btn" onclick="App.openRename()"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Rename</button>
+            <button class="mb-btn" onclick="App.chooseInspire()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 5 19 12"/></svg>New</button>
+          </div>
+        </div>
+        <aside class="mb-rail">
+          <div class="mb-rail-hd">
+            <div class="mb-rail-ey">The look</div>
+            <div class="mb-rail-sub" id="mb-rail-sub">9 pieces · 2 from your wardrobe</div>
+          </div>
+          <div class="mb-rail-pieces" id="mb-rail-pieces"></div>
+          <button class="mb-rail-nudge" onclick="App.showWardrobe()">
+            <div class="nudge-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+            <div class="nudge-text"><strong>Add from your wardrobe</strong>Photograph or upload to replace any item</div>
+          </button>
+          <div class="mb-rail-footer">
+            <span class="rail-stat" id="mb-rail-stat"><span class="s">2</span> yours · <span class="r">7</span> to shop</span>
+            <span class="rail-shopall" onclick="App.toast('Opening 7 items at their retailers')">Shop all →</span>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- STYLE A PIECE · RESULT (worn three ways) -->
+    <section class="piece-panel" id="piece-panel">
+      <div class="piece-body">
+        <div class="piece-head">
+          <div class="mb-out-eyebrow">Style a piece</div>
+          <div class="piece-title">Your piece,<br><em>worn three ways</em></div>
+          <div class="piece-intro" id="piece-intro"></div>
+          <div class="piece-yourpiece">
+            <image-slot id="piece-your" class="piece-slot" shape="rounded" radius="3" placeholder="Drop photo"></image-slot>
+            <div class="pyp-info">
+              <div class="pyp-label">Your piece</div>
+              <div class="pyp-name" id="pyp-name">Balmain waistcoat</div>
+              <div class="pyp-owned"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>In your wardrobe</div>
+              <div class="pyp-hint">Drag your own photo onto the frame to make it yours.</div>
+            </div>
+          </div>
+        </div>
+        <div class="ways" id="ways"></div>
+        <div class="piece-actions">
+          <button class="mb-btn mb-btn-primary" onclick="App.toast('All three looks saved to your style notes')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Save all three</button>
+          <button class="mb-btn" onclick="App.openShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"/><line x1="3" y1="12" x2="21" y2="12"/></svg>Share</button>
+          <button class="mb-btn" onclick="App.chooseInspire()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 5 19 12"/></svg>New</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- GET DRESSED · RESULT -->
+    <section class="gd-result" id="gd-result">
+      <div class="look-wrap">
+        <header class="look-head">
+          <div class="look-eyebrow" id="gd-hero-eyebrow">Today · Garden party</div>
+          <h1 class="look-title" id="gd-hero-title">Cream on cream,<br>quietly done.</h1>
+          <div class="look-meta">
+            <span class="look-allyours"><span class="ay-dot"></span>All from your wardrobe</span>
+            <div class="look-palette" id="look-palette"></div>
+          </div>
+        </header>
+        <div class="look-board" id="look-board"></div>
+      </div>
+      <div class="look-bar">
+        <div class="look-bar-inner">
+          <div class="look-bar-meta"><span id="gd-piececount">6 pieces</span> · all yours</div>
+          <div class="look-bar-btns">
+            <button class="lb-btn lb-ghost" onclick="App.shuffleOutfit()"><svg viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>Shuffle</button>
+            <button class="lb-btn lb-ghost" onclick="App.openShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"/><line x1="3" y1="12" x2="21" y2="12"/></svg>Share</button>
+            <button class="lb-btn lb-ghost" onclick="App.chooseInspire()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 5 19 12"/></svg>New</button>
+            <button class="lb-btn lb-primary" onclick="App.toast('Look saved — laid out for today')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Wear this today</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WARDROBE -->
+    <section class="wardrobe-panel" id="wardrobe-panel">
+      <div class="wg-header">
+        <div class="wg-title">Your wardrobe</div>
+        <div class="wg-count" id="wg-count">10 pieces</div>
+      </div>
+      <div class="wg-sub">Everything Robes styles from. Add more and the looks get sharper.</div>
+      <div class="wg-filters" id="wg-filters"></div>
+      <div class="wg-grid" id="wg-grid"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ══ PACK SHEET ══ -->
+<div class="sheet-overlay" id="pack-sheet">
+  <div class="sheet-bd" onclick="App.closeSheet('pack-sheet')"></div>
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Pack this trip</div>
+    <div class="sheet-sub">Robes matches your wardrobe against the Moodboard and shows what's missing.</div>
+    <div class="field-label">Destination</div>
+    <input class="field-input" id="pack-dest" value="Wimbledon, London" placeholder="Where to?" style="margin-bottom:22px">
+    <div class="field-label">Dates</div>
+    <div class="field-row">
+      <input class="field-input field-date" type="date" id="pack-date-from" value="2026-07-18">
+      <input class="field-input field-date" type="date" id="pack-date-to" value="2026-07-25">
+    </div>
+    <div class="field-label">Item limit</div>
+    <div class="limit-row">
+      <button class="limit-btn" onclick="App.changeLimit(-1)">−</button>
+      <span class="limit-val" id="limit-val">10</span>
+      <button class="limit-btn" onclick="App.changeLimit(1)">+</button>
+      <div class="limit-track-wrap">
+        <div class="limit-track"><div class="limit-fill" id="limit-fill" style="width:50%"></div></div>
+        <div class="limit-stops">
+          <span class="lstop" data-v="5">5</span><span class="lstop" data-v="8">8</span>
+          <span class="lstop on" data-v="10">10</span><span class="lstop" data-v="12">12</span><span class="lstop" data-v="15">15</span>
+        </div>
+      </div>
+    </div>
+    <button class="sheet-cta" onclick="App.buildPackingList()">Build my packing list →</button>
+  </div>
+</div>
+
+<!-- ══ SHARE ══ -->
+<div class="sheet-overlay" id="share-sheet">
+  <div class="sheet-bd" onclick="App.closeSheet('share-sheet')"></div>
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="share-preview">
+      <img class="share-thumb" id="share-thumb" src="images/wimbledon/courtside-hero.png" alt="">
+      <div><div class="share-ey">Share</div><div class="share-name" id="share-name">Wimbledon, London in July</div></div>
+    </div>
+    <div class="platforms" id="share-platforms"></div>
+    <div class="copy-row" onclick="App.copyLink()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9A9694" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      <span class="copy-url">my-robes.com/board/wimbledon-july</span>
+      <button class="copy-btn" id="copy-btn">Copy link</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ RENAME ══ -->
+<div class="rename-overlay" id="rename-overlay">
+  <div class="sheet-bd" onclick="App.closeRename()"></div>
+  <div class="rename-card">
+    <div class="rename-title">Rename Moodboard</div>
+    <input class="rename-input" id="rename-input" value="Wimbledon, London in July" placeholder="Moodboard name">
+    <div class="rename-actions">
+      <button class="rename-cancel" onclick="App.closeRename()">Cancel</button>
+      <button class="rename-save" onclick="App.saveRename()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══ -->
+<div class="toast" id="toast"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span id="toast-msg"></span></div>
+
+<!-- ══ TWEAKS ══ -->
+<div class="tw-panel" id="tw-panel"></div>
+
+<script src="assets/onboarding.js"></script>
+<script src="assets/image-slot.js"></script>
+<script src="assets/app.js"></script>
+<script src="assets/tweaks.js"></script>
+</body>
+</html>

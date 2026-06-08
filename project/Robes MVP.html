@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robes — Style your key piece</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="mvp/robes-mvp.css">
+</head>
+<body>
+
+<template id="__bundler_thumbnail" data-bg-color="#FAF8F5">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#FAF8F5"/>
+    <text x="600" y="430" text-anchor="middle" font-family="Cormorant, Georgia, serif" font-weight="400" font-size="120" letter-spacing="30" fill="#202021">ROBES</text>
+  </svg>
+</template>
+
+<!-- ══ NAV ══ -->
+<nav class="nav" id="nav">
+  <span class="wordmark" onclick="App.restart()">Robes</span>
+  <div class="nav-progress" id="nav-progress"></div>
+  <button class="nav-cta" id="nav-cta" onclick="App.focusEmail()">Join the waitlist</button>
+</nav>
+
+<div class="flow">
+
+  <!-- ════ SCREEN 1 · LANDING ════ -->
+  <section class="screen" id="s-landing" data-screen-label="Landing">
+
+    <!-- hero -->
+    <div class="land-hero">
+      <div class="radials"></div>
+      <div class="grain"></div>
+      <div class="land-hero-inner">
+        <div class="land-hero-copy">
+          <span class="eyebrow land-eyebrow rise d1"><span class="eb-rule"></span>Your personal stylist</span>
+          <h1 class="land-h1 rise d2">One prompt.<br><em>Dressed for anything.</em></h1>
+          <p class="land-sub rise d3">Your wardrobe, the brands you love, and the looks that inspire you — one prompt pulls it all together. </p>
+          <form class="land-form rise d4" id="land-form" onsubmit="return App.submitLandingEmail(event)">
+            <input class="land-input" id="land-email" type="email" placeholder="your@email.com" autocomplete="email">
+            <button class="land-submit" id="land-submit" type="submit">Join the waitlist</button>
+          </form>
+        </div>
+
+        <!-- floating prompt card -->
+        <div class="land-card rise d3" aria-hidden="true" data-comment-anchor="b74303722b-div">
+          <div class="lc-head"><span class="lc-dot"></span>Robes</div>
+          <div class="lc-prompt" data-comment-anchor="97c3d4dded-div"><span class="lc-spark">✦</span><span class="lc-typed" id="lc-typed">Style my Balmain waistcoat three</span><span class="lc-caret"></span></div>
+        </div>
+      </div>
+      <div class="land-scroll">
+        <span>How it works</span>
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+      </div>
+    </div>
+
+    <!-- how it works -->
+    <div class="land-how reveal">
+      <div class="land-how-inner">
+        <div class="how-left">
+          <span class="eyebrow"><span class="eb-rule"></span>How it works</span>
+          <h2 class="how-h">Simple.<br><em>Intelligent.</em><br>Yours.</h2>
+          <p class="how-sub">Define your style. Photograph your wardrobe. Tell Robes where you're going. The rest is done.</p>
+        </div>
+        <div class="how-rows">
+          <div class="how-row">
+            <span class="how-num">01</span>
+            <div class="how-row-body">
+              <div class="how-row-h">Define your style</div>
+              <p class="how-row-t">Your style has a signature. Robes finds it, saves it, and builds every outfit around it. Getting dressed always feels intentional.</p>
+            </div>
+          </div>
+          <div class="how-row">
+            <span class="how-num">02</span>
+            <div class="how-row-body">
+              <div class="how-row-h">Ask Robes</div>
+              <p class="how-row-t">One prompt. Tonight's dinner or next month's trip. Robes reads the occasion, checks the weather, and understands your style.</p>
+            </div>
+          </div>
+          <div class="how-row">
+            <span class="how-num">03</span>
+            <div class="how-row-body">
+              <div class="how-row-h">Get dressed</div>
+              <p class="how-row-t">A moodboard for your next trip. A week of outfits planned. A packing list. From your wardrobe, or curated pieces ready to shop.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- what do you need today -->
+    <div class="land-uses reveal">
+      <div class="land-uses-inner">
+        <div class="uses-head">
+          <span class="uh-rule"></span>
+          <span class="eyebrow uses-eyebrow">What do you need today?</span>
+          <span class="uh-rule"></span>
+        </div>
+        <div class="uses-grid">
+          <button class="use-card active" onclick="App.pickNeed(this,'What should I wear today — smart but effortless.')">
+            <div class="use-head">
+              <span class="use-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg></span>
+              <span class="use-label">Daily</span>
+            </div>
+            <p class="use-quote">&ldquo;What should I wear today — smart but effortless.&rdquo;</p>
+            <span class="use-arrow"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+          </button>
+          <button class="use-card" onclick="App.pickNeed(this,'Plan my outfits for the whole week — three office days and a client dinner.')">
+            <div class="use-head">
+              <span class="use-ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="5"/><line x1="16" y1="2" x2="16" y2="5"/></svg></span>
+              <span class="use-label">This week</span>
+            </div>
+            <p class="use-quote">&ldquo;Plan my outfits for the whole week — three office days and a client dinner.&rdquo;</p>
+            <span class="use-arrow"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+          </button>
+          <button class="use-card" onclick="App.pickNeed(this,'Help me pack for a long weekend in Paris. One bag.')">
+            <div class="use-head">
+              <span class="use-ico"><svg viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5a2.12 2.12 0 0 0-3-3L13 8 4.8 6.2a.5.5 0 0 0-.5.8l3.2 4-2.5 2.5-2-.5a.5.5 0 0 0-.5.8L4 17l1.7 2.2a.5.5 0 0 0 .8 0l2.5-2.5 4 3.2a.5.5 0 0 0 .8-.5z"/></svg></span>
+              <span class="use-label">Travel</span>
+            </div>
+            <p class="use-quote" data-comment-anchor="60b0e141bb-p">&ldquo;Help me pack for a long weekend in Paris. One bag.&rdquo;</p>
+            <span class="use-arrow"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+          </button>
+          <button class="use-card" onclick="App.pickNeed(this,'Build me a summer capsule from what I own, with shopping suggestions for what I’m missing.')">
+            <div class="use-head">
+              <span class="use-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg></span>
+              <span class="use-label">Seasonal</span>
+            </div>
+            <p class="use-quote" data-comment-anchor="a45794a273-p">&ldquo;Build me a summer capsule from what I own, with shopping suggestions for what I&rsquo;m missing.&rdquo;</p>
+            <span class="use-arrow"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- quote -->
+    <div class="land-quote reveal">
+      <span class="lq-mark">&ldquo;</span>
+      <blockquote class="lq-text">Every day is a fashion show, and the world is your runway.</blockquote>
+      <span class="eyebrow lq-attr">— Coco Chanel</span>
+    </div>
+
+    <!-- footer -->
+    <footer class="land-footer reveal">
+      <div class="grain"></div>
+      <div class="lf-inner" data-comment-anchor="e34e5b10f6-div">
+        <div class="lf-brand">
+          <div class="lf-mark">Robes</div>
+          <div class="lf-tagline">The world is your runway</div>
+        </div>
+        <div class="lf-right">
+          <span class="lf-cities">Dublin · London · Paris · New York · LA</span>
+          <span class="lf-copy">© 2026 Robes. All rights reserved.</span>
+        </div>
+      </div>
+    </footer>
+
+  </section>
+
+  <!-- ════ SCREEN 2 · CONFIRMATION ════ -->
+  <section class="screen" id="s-confirm" data-screen-label="Confirmation">
+    <div class="grain"></div>
+    <div class="confirm-inner">
+      <div class="confirm-splash rise d1">
+        <span class="confirm-mark">Robes</span>
+        <span class="confirm-rule"></span>
+      </div>
+      <h2 class="confirm-h rise d2">You're on the list.</h2>
+      <p class="confirm-sub rise d3">Robes is almost ready, but while you wait, style a key piece and get a glimpse of what's to come.</p>
+      <button class="btn btn-light rise d4" onclick="App.next()">STYLE A KEY PIECE</button>
+    </div>
+  </section>
+
+  <!-- ════ SCREEN 3 · NAME (onboarding step) ════ -->
+  <section class="screen" id="s-name" data-screen-label="Name">
+    <div class="grain"></div>
+    <div class="ob-inner">
+      <button class="ob-back" onclick="App.back()">
+        <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back
+      </button>
+      <div class="ob-body">
+        <span class="eyebrow ob-eyebrow rise d1">First things first</span>
+        <h2 class="ob-h rise d2">What should<br><em>we call you?</em></h2>
+        <p class="ob-sub rise d3">A name for your style notes.</p>
+        <form class="ob-field rise d4" onsubmit="App.submitName(event); return false;">
+          <input class="ob-input" id="name-input" placeholder="Your name" autocomplete="given-name" maxlength="32">
+        </form>
+      </div>
+      <div class="ob-footer rise d4">
+        <button class="ob-continue" onclick="App.submitName()">Continue</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SCREEN 4 · CAPTURE (key piece) ════ -->
+  <section class="screen" id="s-capture" data-screen-label="Capture">
+    <div class="radials"></div>
+    <div class="grain"></div>
+    <div class="cap-inner">
+      <div class="cap-cols">
+
+        <!-- LEFT · the prompt -->
+        <div class="cap-prompt-col">
+          <h2 class="cap-h rise d2" id="cap-h">Good afternoon.</h2>
+          <p class="cap-lead rise d3">One piece. A little context. Robes will style your key piece.</p>
+
+          <!-- prompt box -->
+          <div class="promptbox rise d3" id="promptbox" data-comment-anchor="10fd0991d4-div">
+            <textarea class="pb-input" id="pb-input" rows="3" placeholder="The piece, the occasion, how you like to feel in it…" maxlength="240" oninput="App.syncPrompt()" onfocus="App.syncPrompt()"></textarea>
+
+            <!-- link field (revealed by the + menu) -->
+            <div class="pb-link" id="pb-link" hidden>
+              <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <input class="pb-link-input" id="pb-link-input" type="url" placeholder="Paste a link to an item on sale…" oninput="App.syncPrompt()">
+              <button class="pb-link-x" onclick="App.removeLink()" aria-label="Remove link">×</button>
+            </div>
+
+            <div class="pb-bar" data-comment-anchor="8487416f91-div">
+              <div class="pb-add-wrap">
+                <button class="pb-add" id="pb-add" onclick="App.toggleAddMenu(event)" aria-label="Add a piece" aria-haspopup="true">
+                  <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+                <div class="pb-menu" id="pb-menu" hidden>
+                  <button onclick="App.menuUpload()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload</button>
+                  <button onclick="App.menuCamera()"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Take a picture</button>
+                  <button onclick="App.menuLink()"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Add a link</button>
+                </div>
+              </div>
+              <button class="pb-send" id="pb-send" onclick="App.submitPrompt()" aria-label="Style it three ways" disabled>
+                <span class="pb-send-label">Style it three ways</span>
+                <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT · the photo -->
+        <div class="cap-upload-col rise d3">
+          <div class="dropzone" id="dropzone" onclick="document.getElementById('cap-file').click()">
+            <div class="dz-clear" onclick="App.clearPhoto(event)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+            <div id="dz-empty" style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+              <div class="dz-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+              <div class="dz-title">Drop your key piece here</div>
+              <div class="dz-actions">
+                <button class="dz-pill" onclick="event.stopPropagation();document.getElementById('cap-file').click()">
+                  <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload
+                </button>
+                <button class="dz-pill" onclick="event.stopPropagation();document.getElementById('cap-cam').click()">
+                  <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Take a photo
+                </button>
+                <button class="dz-pill" onclick="event.stopPropagation();App.menuLink()">
+                  <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Paste a link
+                </button>
+              </div>
+            </div>
+            <div id="dz-fill" style="display:none;position:absolute;inset:0;">
+              <img class="dz-preview" id="dz-preview" alt="Your key piece">
+            </div>
+          </div>
+          <input type="file" id="cap-file" accept="image/*" hidden onchange="App.onFile(this)">
+          <input type="file" id="cap-cam" accept="image/*" capture="environment" hidden onchange="App.onFile(this)">
+        </div>
+
+      </div>
+      <div class="cap-foot rise d5">
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SCREEN 5 · GENERATING ════ -->
+  <section class="screen" id="s-gen" data-screen-label="Generating">
+    <div class="radials"></div>
+    <div class="grain"></div>
+    <div class="screen-inner">
+      <div class="gen-piece rise d1"><img id="gen-piece-img" alt=""><div class="gen-sheen"></div></div>
+      <h2 class="gen-h rise d2" id="gen-h">Styling<br><em>your key piece.</em></h2>
+      <p class="gen-sub rise d2">Three ways to wear it — from your wardrobe out.</p>
+      <div class="gen-steps rise d3" id="gen-steps">
+        <div class="gen-step"><span class="gs-dot"></span>Reading colour, cut and fabric</div>
+        <div class="gen-step"><span class="gs-dot"></span>Pulling references it pairs with</div>
+        <div class="gen-step"><span class="gs-dot"></span>Building three distinct looks</div>
+        <div class="gen-step"><span class="gs-dot"></span>Composing your edit</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ SCREEN 6 · RESULT ════ -->
+  <section class="screen" id="s-result" data-screen-label="Result">
+    <div class="screen-inner">
+      <div class="res-head rise d1">
+        <span class="eyebrow">Your edit</span>
+        <h2 class="res-h" id="res-h">Slatteryannie, your key piece —
+worn three ways.</h2>
+        <p class="res-intro" id="res-intro">Here are three different styling suggestions for your Balmain waistcoat, ranging from sharp tailoring to casual sophistication and high-glamour evening wear.</p>
+        <div class="yourpiece">
+          <img class="yp-img" id="yp-img" alt="Your key piece">
+          <div class="yp-info">
+            <div class="yp-label">Your piece</div>
+            <div class="yp-name" id="yp-name">Your key piece</div>
+            <div class="yp-owned"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>The one you uploaded</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mvp-banner rise d2">
+        <div class="mvp-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg></div>
+        <p class="mvp-text">This is Robes, in its earliest edition. Today, styling a key piece. Soon — style inspiration, shoppable edits, and daily outfits built from the wardrobe you own. You're first on the list.</p>
+      </div>
+
+      <div class="ways rise d3" id="ways"></div>
+
+      <div class="res-actions rise d3">
+        <button class="btn btn-primary" onclick="App.openShare()">
+          <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          Share to Instagram
+        </button>
+        <button class="btn btn-ghost" onclick="App.toast('All three looks saved')">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Save my edit
+        </button>
+        <button class="btn btn-ghost" onclick="App.restart()" data-comment-anchor="8358068b5f-button">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 5 19 12"/></svg>Style another
+        </button>
+      </div>
+
+      <div class="res-foot rise d4" data-comment-anchor="87bacdcb15-div">
+        <p class="res-foot-txt">Warm. Intelligent. Effortless.  The full Robes is coming. Your wardrobe, your style, your edge. We'll email you when it lands.</p>
+        <span class="eyebrow">BYROBES.COM</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ══ SHARE MODAL · Instagram 1:1 carousel ══ -->
+<div class="modal" id="share-modal">
+  <div class="modal-bd" onclick="App.closeShare()"></div>
+  <div class="share">
+    <div class="share-left">
+      <div class="share-stage">
+        <div class="share-track"><div class="share-cards" id="share-cards"></div></div>
+        <div class="share-arrows">
+          <button class="sa-btn" id="sa-prev" onclick="App.sharePrev()"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <button class="sa-btn" id="sa-next" onclick="App.shareNext()"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </div>
+      <div class="share-dots" id="share-dots"></div>
+    </div>
+    <div class="share-right">
+      <button class="share-close" onclick="App.closeShare()">×</button>
+      <span class="eyebrow share-eyebrow">Ready for the grid</span>
+      <h3 class="share-h">Post it as a<br><em>three-slide carousel.</em></h3>
+      <p class="share-desc">Three square cards — one per look — each carrying your Robes wordmark. Swipe to preview, then share.</p>
+      <div class="share-platforms">
+        <button class="platform primary" onclick="App.shareTo('Instagram')">
+          <span class="pf-ico"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></span>
+          <span class="pf-meta"><span class="pf-name">Share to Instagram</span><span class="pf-sub">Opens a 3-slide carousel post</span></span>
+          <span class="pf-arrow">→</span>
+        </button>
+        <button class="platform" onclick="App.shareTo('Instagram Stories')">
+          <span class="pf-ico"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" stroke-dasharray="2 2"/></svg></span>
+          <span class="pf-meta"><span class="pf-name">Add to your Story</span><span class="pf-sub">One look at a time</span></span>
+          <span class="pf-arrow">→</span>
+        </button>
+        <button class="platform" onclick="App.shareTo('Download')">
+          <span class="pf-ico"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+          <span class="pf-meta"><span class="pf-name">Save all three</span><span class="pf-sub">Download the squares to your camera roll</span></span>
+          <span class="pf-arrow">→</span>
+        </button>
+      </div>
+      <div class="share-copy" onclick="App.copyLink()">
+        <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span class="share-url">my-robes.com/look/your-key-piece</span>
+        <button class="share-copybtn">Copy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══ -->
+<div class="toast" id="toast"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span id="toast-msg"></span></div>
+
+<!-- ══ TWEAKS ══ -->
+<div class="tw-panel" id="tw-panel"></div>
+
+<script src="mvp/robes-mvp.js"></script>
+</body>
+</html>

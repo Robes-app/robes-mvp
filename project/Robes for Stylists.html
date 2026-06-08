@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robes Studio — for Stylists</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="studio-assets/studio.css">
+<link rel="stylesheet" href="studio-assets/tweaks.css">
+</head>
+<body>
+
+<template id="__bundler_thumbnail" data-bg-color="#FAF8F5">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#FAF8F5"/>
+    <text x="600" y="400" text-anchor="middle" font-family="Cormorant, Georgia, serif" font-weight="400" font-size="96" letter-spacing="26" fill="#202021">ROBES</text>
+    <text x="600" y="470" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="22" letter-spacing="14" fill="#9C5B43">STUDIO</text>
+  </svg>
+</template>
+
+<!-- ══ TOP BAR ══ -->
+<header class="topbar">
+  <div class="tb-l">
+    <span class="wordmark" onclick="Studio.go('clients')">Robes</span>
+    <span class="tb-studio">Studio</span>
+    <button class="tb-crumb" id="tb-crumb" onclick="Studio.back()">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      <span id="tb-crumb-label">Clients</span>
+    </button>
+  </div>
+  <div class="tb-r">
+    <label class="tb-search">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+      <input type="text" placeholder="Search clients, pieces, lookbooks…" id="tb-search-input">
+    </label>
+    <div class="av-wrap">
+      <div class="avatar" id="avatar" onclick="Studio.toggleAvatar(event)">EH</div>
+      <div class="av-menu" id="av-menu">
+        <div class="av-name"><strong>Elodie Hart</strong><span>Studio plan · Personal styling</span></div>
+        <button class="av-item" onclick="Studio.go('brand')"><svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="12" r="2.5"/><circle cx="15" cy="17.5" r="2.5"/><path d="M11 7.5 8.5 11M11 16.5 13 13"/></svg>Brand kit</button>
+        <button class="av-item" onclick="Studio.go('lookbooks')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>All lookbooks</button>
+        <button class="av-item" onclick="Studio.toast('Settings — not in this prototype')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 6 9.4l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 11 4.6V4a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 11h.6a2 2 0 0 1 0 4z"/></svg>Settings</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ══ SHELL ══ -->
+<div class="shell" id="shell">
+
+  <!-- SIDE NAV -->
+  <aside class="sidenav" id="sidenav">
+    <div class="sn-brand">
+      <div class="sn-logo" id="sn-logo">E</div>
+      <div class="sn-brand-info">
+        <div class="sn-brand-name" id="sn-brand-name">Elodie Hart</div>
+        <div class="sn-brand-sub">Personal styling</div>
+      </div>
+    </div>
+    <nav class="sn-nav">
+      <button class="sn-item active" id="nav-clients" onclick="Studio.go('clients')">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clients<span class="sn-count" id="nav-clients-c">8</span>
+      </button>
+      <button class="sn-item" id="nav-lookbooks" onclick="Studio.go('lookbooks')">
+        <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        Lookbooks<span class="sn-count" id="nav-lookbooks-c">14</span>
+      </button>
+      <button class="sn-item" id="nav-brand" onclick="Studio.go('brand')">
+        <svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="12" r="2.5"/><circle cx="15" cy="17.5" r="2.5"/><path d="M11 7.5 8.5 11M11 16.5 13 13"/></svg>
+        Brand kit
+      </button>
+    </nav>
+    <div class="sn-spacer"></div>
+    <div class="sn-plan">
+      <div class="sn-plan-ey">Your plan</div>
+      <div class="sn-plan-name">Studio</div>
+      <div class="sn-plan-bar"><div class="sn-plan-fill" style="width:53%"></div></div>
+      <div class="sn-plan-meta">8 of 15 active clients · renews 1 Jul</div>
+    </div>
+  </aside>
+
+  <!-- WORKSPACE -->
+  <main class="workspace" id="workspace">
+
+    <!-- CLIENTS -->
+    <section class="view active" id="v-clients">
+      <div class="wrap">
+        <div class="page-head">
+          <div>
+            <div class="ph-eyebrow">Your studio</div>
+            <h1 class="ph-title">Good afternoon, <em>Elodie.</em></h1>
+          </div>
+          <button class="btn btn-dark" onclick="Studio.newClient()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New client</button>
+        </div>
+        <div class="stat-strip" id="stat-strip"></div>
+        <div class="filter-row" id="client-filters"></div>
+        <div class="client-grid" id="client-grid"></div>
+      </div>
+    </section>
+
+    <!-- ALL LOOKBOOKS -->
+    <section class="view" id="v-lookbooks">
+      <div class="wrap">
+        <div class="page-head">
+          <div>
+            <div class="ph-eyebrow">Across every client</div>
+            <h1 class="ph-title">Lookbooks</h1>
+          </div>
+        </div>
+        <div class="filter-row" id="lb-filters"></div>
+        <div class="lb-grid" id="all-lb-grid"></div>
+      </div>
+    </section>
+
+    <!-- BRAND KIT -->
+    <section class="view" id="v-brand">
+      <div class="wrap" id="brand-wrap"></div>
+    </section>
+
+    <!-- CLIENT DETAIL -->
+    <section class="view" id="v-client">
+      <div class="wrap">
+        <div class="cd-head" id="cd-head"></div>
+        <div class="cd-tabs">
+          <button class="cd-tab active" id="cdt-wardrobe" onclick="Studio.clientTab('wardrobe')">Wardrobe<span class="c" id="cdt-wardrobe-c"></span></button>
+          <button class="cd-tab" id="cdt-lookbooks" onclick="Studio.clientTab('lookbooks')">Lookbooks<span class="c" id="cdt-lookbooks-c"></span></button>
+          <button class="cd-tab" id="cdt-notes" onclick="Studio.clientTab('notes')">Notes</button>
+        </div>
+        <div class="cd-pane active" id="cdp-wardrobe">
+          <div class="filter-row" id="cat-filters"></div>
+          <div class="cat-grid" id="cat-grid"></div>
+        </div>
+        <div class="cd-pane" id="cdp-lookbooks">
+          <div class="lb-grid" id="client-lb-grid"></div>
+        </div>
+        <div class="cd-pane" id="cdp-notes">
+          <div class="notes" id="notes-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOOKBOOK BUILDER -->
+    <section class="view" id="v-builder">
+      <div class="builder">
+        <div class="bld-col bld-wardrobe">
+          <div class="bld-colhd">
+            <div class="bld-colhd-ey">Pull from</div>
+            <div class="bld-colhd-t" id="bld-ward-name">Sophie's wardrobe</div>
+            <div class="bld-colhd-sub" id="bld-ward-sub">Tap a piece to add it</div>
+          </div>
+          <div class="bld-scroll">
+            <div class="bld-tray" id="bld-tray"></div>
+          </div>
+        </div>
+        <div class="bld-col bld-canvas">
+          <div class="canvas-inner">
+            <input class="canvas-ttl-input" id="cv-title" placeholder="Untitled lookbook" value="Wimbledon week">
+            <input class="canvas-occ-input" id="cv-occ" placeholder="Add the occasion or season…" value="Garden-party week · London · smart-casual">
+            <div class="canvas-rule"></div>
+            <div class="canvas-sec"><span>The capsule</span><span id="cv-counter">0 pieces</span></div>
+            <div class="canvas-grid" id="cv-grid"></div>
+          </div>
+        </div>
+        <div class="bld-col bld-settings">
+          <div class="bld-colhd">
+            <div class="bld-colhd-ey">Deliver</div>
+            <div class="bld-colhd-t">Moodboard settings</div>
+          </div>
+          <div class="set-scroll">
+            <div class="set-field">
+              <label class="set-label">A note to the client</label>
+              <textarea class="set-textarea" id="set-note">Pulled this together for the week ahead — everything works back to the linen and the tan. Wear the blazer to the members' enclosure, lose it for the garden. — E</textarea>
+            </div>
+            <div class="set-field">
+              <label class="set-label">Co-branding</label>
+              <div class="set-cobrand">
+                <div class="cb-logo" id="set-cb-logo">E</div>
+                <span class="cb-x">×</span>
+                <span class="cb-robes">Robes</span>
+              </div>
+              <p class="set-hint">Your studio leads. Robes signs quietly in the footer — and invites Sophie to keep her wardrobe.</p>
+            </div>
+            <div class="set-field">
+              <label class="set-label">When Sophie opens it</label>
+              <div class="set-cobrand" style="gap:9px">
+                <span style="font-size:12px;color:var(--ink-soft);line-height:1.5" id="set-acq-preview"></span>
+              </div>
+            </div>
+          </div>
+          <div class="set-foot">
+            <button class="btn btn-brand" onclick="Studio.openPreview()"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>Preview as client</button>
+            <button class="btn btn-dark" onclick="Studio.openShare()"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>Share moodboard</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ══ CLIENT MOODBOARD PREVIEW (shared link) ══ -->
+<div class="preview-stage" id="preview-stage">
+  <div class="pv-bar">
+    <div class="pv-bar-l">
+      <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <span>The link your client receives — <strong id="pv-link">my-robes.com/elodie/sophie</strong></span>
+    </div>
+    <div class="pv-toggle">
+      <button class="pv-tg active" id="pv-desktop" onclick="Studio.pvDevice('desktop')"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Desktop</button>
+      <button class="pv-tg" id="pv-mobile" onclick="Studio.pvDevice('mobile')"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>Mobile</button>
+    </div>
+    <button class="pv-close" onclick="Studio.closePreview()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Close preview</button>
+  </div>
+  <div class="pv-scroll">
+    <div class="pv-frame" id="pv-frame">
+      <div class="mb layout-editorial" id="mb-root"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SHARE MODAL ══ -->
+<div class="sheet-overlay" id="share-sheet">
+  <div class="sheet-bd" onclick="Studio.closeSheet('share-sheet')"></div>
+  <div class="modal">
+    <div class="modal-ttl">Share this moodboard</div>
+    <div class="modal-sub">Sophie gets a branded link by text or email. When she opens it, she can claim her wardrobe on Robes — free.</div>
+    <div class="share-link-row">
+      <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <span class="share-link-url">my-robes.com/elodie/sophie-wimbledon</span>
+      <button class="btn btn-ghost" id="copy-btn" onclick="Studio.copyLink()">Copy</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="Studio.closeSheet('share-sheet')">Cancel</button>
+      <button class="btn btn-dark" onclick="Studio.sendMoodboard()"><svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>Send to Sophie</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NEW CLIENT MODAL ══ -->
+<div class="sheet-overlay" id="newclient-sheet">
+  <div class="sheet-bd" onclick="Studio.closeSheet('newclient-sheet')"></div>
+  <div class="modal">
+    <div class="modal-ttl">Add a client</div>
+    <div class="modal-sub">Start a wardrobe and they'll get an invite to add pieces themselves — or you catalogue it for them.</div>
+    <div class="set-field"><label class="set-label">Name</label><input class="set-input" id="nc-name" placeholder="Client name"></div>
+    <div class="set-field"><label class="set-label">Aesthetic in a phrase</label><input class="set-input" id="nc-aesthetic" placeholder="e.g. Classic & refined"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="Studio.closeSheet('newclient-sheet')">Cancel</button>
+      <button class="btn btn-dark" onclick="Studio.createClient()">Create client</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══ -->
+<div class="toast" id="toast"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span id="toast-msg"></span></div>
+
+<!-- ══ TWEAKS ══ -->
+<div class="tw-panel" id="tw-panel"></div>
+
+<script src="studio-assets/data.js"></script>
+<script src="studio-assets/studio.js"></script>
+<script src="studio-assets/tweaks.js"></script>
+</body>
+</html>
