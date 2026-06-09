@@ -342,30 +342,23 @@
     </div>
     <div class="share-right">
       <button class="share-close" onclick="App.closeShare()">×</button>
-      <span class="eyebrow share-eyebrow">Ready for the grid</span>
-      <h3 class="share-h">Post it as a<br><em>three-slide carousel.</em></h3>
-      <p class="share-desc">Three square cards — one per look — each carrying your Robes wordmark. Swipe to preview, then share.</p>
-      <div class="share-platforms">
-        <button class="platform primary" onclick="App.shareTo('Instagram')">
-          <span class="pf-ico"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></span>
-          <span class="pf-meta"><span class="pf-name">Share to Instagram</span><span class="pf-sub">Opens a 3-slide carousel post</span></span>
-          <span class="pf-arrow">→</span>
-        </button>
-        <button class="platform" onclick="App.shareTo('Instagram Stories')">
-          <span class="pf-ico"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" stroke-dasharray="2 2"/></svg></span>
-          <span class="pf-meta"><span class="pf-name">Add to your Story</span><span class="pf-sub">One look at a time</span></span>
-          <span class="pf-arrow">→</span>
-        </button>
-        <button class="platform" onclick="App.shareTo('Download')">
-          <span class="pf-ico"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
-          <span class="pf-meta"><span class="pf-name">Save all three</span><span class="pf-sub">Download the squares to your camera roll</span></span>
-          <span class="pf-arrow">→</span>
-        </button>
+      <h3 class="share-h">A small favour..</h3>
+      <p class="share-desc">We're building our Instagram from scratch. Add your handle and we'll tag you — every post helps us grow..</p>
+      <div class="share-handle">
+        <span class="share-at">@</span>
+        <input class="share-handle-input" id="share-handle-input" type="text" placeholder="yourhandle" autocomplete="off">
       </div>
+      <button class="share-cta" onclick="App.shareTo('Instagram')">SHARE MY LOOK</button>
+      <div class="share-divider"></div>
+      <button class="share-action-row" onclick="App.shareTo('Download')">
+        <span class="sar-ico"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+        <span class="sar-meta"><span class="sar-title">Save all three</span><span class="sar-sub">Download looks to your camera roll</span></span>
+        <span class="sar-arrow">→</span>
+      </button>
       <div class="share-copy" onclick="App.copyLink()">
         <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         <span class="share-url">my-robes.com/look/your-key-piece</span>
-        <button class="share-copybtn">Copy</button>
+        <button class="share-copybtn">COPY</button>
       </div>
     </div>
   </div>
