@@ -12,6 +12,7 @@ const App = (function () {
     name: '', email: '', pieceName: '', prompt: '', link: '', photo: null,
     ways: null,          // AI response: array of 3 look objects
     history: [],         // archived results from previous styling sessions
+    fromHistory: false,  // true when current result was reopened from history (don't re-archive)
     resultLayout: 'stack',
     shareIdx: 0, idx: 0,
   };
@@ -65,10 +66,10 @@ const App = (function () {
   }
 
   function styleAnother() {
-    if (st.ways) {
+    if (st.ways && !st.fromHistory) {
       st.history.unshift({ photo: st.photo, pieceName: st.pieceName, ways: st.ways, ts: Date.now() });
     }
-    st.photo = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null;
+    st.photo = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null; st.fromHistory = false;
     persist();
     go('capture');
   }
@@ -77,6 +78,7 @@ const App = (function () {
     const item = st.history[idx];
     if (!item) return;
     st.photo = item.photo; st.pieceName = item.pieceName; st.ways = item.ways;
+    st.fromHistory = true;
     go('result');
   }
 
