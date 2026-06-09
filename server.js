@@ -22,6 +22,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 /* ── Airtable ────────────────────────────────────────────────────── */
 const AT_TOKEN = process.env.AIRTABLE_TOKEN;
 const AT_BASE  = process.env.AIRTABLE_BASE_ID;
+console.log('Airtable config — base:', AT_BASE, '| token prefix:', AT_TOKEN ? AT_TOKEN.slice(0, 12) + '...' : 'MISSING');
 
 async function airtableUpsert(table, fields) {
   if (!AT_TOKEN || !AT_BASE) { console.warn('Airtable: missing token or base ID'); return; }
