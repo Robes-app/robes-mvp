@@ -304,28 +304,34 @@ const App = (function () {
     if (errEl) errEl.style.display = 'none';
 
     const steps = $$('#gen-steps .gen-step');
-    steps.forEach(s => s.classList.remove('on', 'done'));
-    genStepIdx = 0;
+    steps.forEach(s => { s.textContent = ''; s.classList.remove('on', 'done'); });
     apiDone = false;
     animDone = false;
 
-    // animate steps — cycles until the API is done
-    function tickStep() {
-      if (genStepIdx > 0) {
-        const prev = steps[genStepIdx - 1];
-        if (prev) { prev.classList.remove('on'); prev.classList.add('done'); }
-      }
-      if (genStepIdx < steps.length) {
-        steps[genStepIdx].classList.add('on');
-        genStepIdx++;
-        genTimer = setTimeout(tickStep, 750);
-      } else {
-        // all steps done — wait for API if not already
+    // typewriter — one step at a time, character by character
+    function typeStep(si) {
+      if (si >= steps.length) {
         animDone = true;
         if (apiDone) advance();
+        return;
       }
+      const el = steps[si];
+      const text = el.dataset.text || '';
+      el.classList.add('on');
+      let ci = 0;
+      function typeChar() {
+        ci++;
+        el.textContent = text.slice(0, ci);
+        if (ci < text.length) {
+          genTimer = setTimeout(typeChar, 32);
+        } else {
+          el.classList.replace('on', 'done');
+          genTimer = setTimeout(() => typeStep(si + 1), 320);
+        }
+      }
+      typeChar();
     }
-    tickStep();
+    typeStep(0);
 
     // real API call
     callStyle().then(ways => {

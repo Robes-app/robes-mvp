@@ -434,15 +434,13 @@ em{font-style:italic}
   line-height:1.08;color:var(--ink);margin-bottom:10px}
 .gen-h em{color:var(--ink-faint)}
 .gen-sub{font-size:13.5px;color:var(--ink-faint);margin-bottom:34px;letter-spacing:.01em}
-.gen-steps{display:flex;flex-direction:column;gap:13px;text-align:left;min-width:300px}
-.gen-step{display:flex;align-items:center;gap:13px;font-size:13.5px;color:var(--ink-faint);
-  opacity:.4;transition:opacity .4s,color .4s}
-.gen-step.on{opacity:1;color:var(--ink-soft)}
-.gen-step.done{opacity:1;color:var(--ink)}
-.gs-dot{width:7px;height:7px;border-radius:50%;border:1px solid var(--cream-400);flex-shrink:0;transition:all .3s}
-.gen-step.on .gs-dot{border-color:var(--rose);background:var(--rose);animation:pulse 1s infinite}
-.gen-step.done .gs-dot{border-color:var(--ink);background:var(--ink)}
-@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.7);opacity:.5}}
+.gen-steps{display:flex;flex-direction:column;gap:14px;text-align:left;min-width:300px}
+.gen-step{font-size:14px;line-height:1.5;min-height:21px;opacity:0;transition:opacity .2s}
+.gen-step.on{opacity:1;color:var(--ink)}
+.gen-step.on::after{content:'▋';font-size:10px;margin-left:2px;color:var(--ink-faint);
+  animation:blink .8s step-end infinite;vertical-align:1px}
+.gen-step.done{opacity:.35;color:var(--ink-soft)}
+@keyframes blink{50%{opacity:0}}
 
 /* ════ SCREEN 6 · RESULT ════════════════════════════════════════ */
 #s-result{display:none}
