@@ -9,7 +9,13 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '20mb' }));
-app.use(express.static(join(__dirname, 'public')));
+app.use(express.static(join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  },
+}));
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -18,7 +24,8 @@ const AT_TOKEN = process.env.AIRTABLE_TOKEN;
 const AT_BASE  = process.env.AIRTABLE_BASE_ID;
 
 async function airtableUpsert(table, fields) {
-  if (!AT_TOKEN || !AT_BASE) return;
+  if (!AT_TOKEN || !AT_BASE) { console.warn('Airtable: missing token or base ID'); return; }
+  console.log(`Airtable: upserting to ${table}`, JSON.stringify(fields));
   try {
     const res = await fetch(`https://api.airtable.com/v0/${AT_BASE}/${encodeURIComponent(table)}`, {
       method: 'PATCH',
@@ -28,8 +35,10 @@ async function airtableUpsert(table, fields) {
         records: [{ fields }],
       }),
     });
-    if (!res.ok) console.warn(`Airtable ${table} error:`, await res.text());
-  } catch (err) { console.warn('Airtable error:', err.message); }
+    const body = await res.text();
+    if (!res.ok) console.warn(`Airtable ${table} error ${res.status}:`, body);
+    else console.log(`Airtable ${table}: ok`);
+  } catch (err) { console.warn('Airtable fetch error:', err.message); }
 }
 
 async function airtableCreate(table, fields) {
