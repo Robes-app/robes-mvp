@@ -408,6 +408,18 @@ em{font-style:italic}
 .dz-clear svg{width:15px;height:15px;fill:none;stroke:#fff;stroke-width:1.6;stroke-linecap:round}
 
 .cap-foot{margin-top:44px;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.cap-history{margin-top:48px;border-top:1px solid var(--rule);padding-top:28px}
+.prev-label{margin-bottom:16px;display:block}
+.prev-card{display:flex;align-items:center;gap:16px;width:100%;max-width:360px;padding:12px;
+  border:1px solid var(--rule);border-radius:4px;background:var(--bg);text-align:left;
+  transition:border-color .2s,transform .2s}
+.prev-card:hover{border-color:var(--ink-faint);transform:translateY(-1px)}
+.prev-thumb{width:56px;height:56px;object-fit:cover;border-radius:3px;flex-shrink:0}
+.prev-info{flex:1;min-width:0}
+.prev-name{font-family:var(--font-serif);font-weight:400;font-size:17px;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prev-meta{font-size:11px;color:var(--ink-faint);margin-top:3px;letter-spacing:.02em}
+.prev-arrow{font-size:16px;color:var(--ink-faint);flex-shrink:0}
 
 /* ════ SCREEN 5 · GENERATING ════════════════════════════════════ */
 #s-gen .screen-inner{align-items:center;text-align:center;max-width:560px}

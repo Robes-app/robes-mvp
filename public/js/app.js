@@ -11,6 +11,7 @@ const App = (function () {
   const st = {
     name: '', email: '', pieceName: '', prompt: '', link: '', photo: null,
     ways: null,          // AI response: array of 3 look objects
+    history: [],         // archived results from previous styling sessions
     resultLayout: 'stack',
     shareIdx: 0, idx: 0,
   };
@@ -59,7 +60,31 @@ const App = (function () {
   function restart() {
     st.name = ''; st.email = ''; st.pieceName = ''; st.prompt = '';
     st.link = ''; st.photo = null; st.ways = null; st.shareIdx = 0;
+    st.history = [];
     go('landing');
+  }
+
+  function styleAnother() {
+    if (st.ways) {
+      st.history.unshift({ photo: st.photo, pieceName: st.pieceName, ways: st.ways, ts: Date.now() });
+    }
+    st.photo = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null;
+    go('capture');
+  }
+
+  function reopenResult(idx) {
+    const item = st.history[idx];
+    if (!item) return;
+    st.photo = item.photo; st.pieceName = item.pieceName; st.ways = item.ways;
+    go('result');
+  }
+
+  function relativeTime(ts) {
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
   }
 
   /* ── landing ────────────────────────────────────────────────────── */
@@ -156,6 +181,23 @@ const App = (function () {
     closeAddMenu();
     paintDrop();
     syncPrompt();
+    paintHistory();
+  }
+
+  function paintHistory() {
+    const el = $('#cap-history');
+    if (!el || !st.history.length) { if (el) el.innerHTML = ''; return; }
+    el.innerHTML = `
+      <div class="prev-label eyebrow">Previously styled</div>
+      ${st.history.map((item, i) => `
+        <button class="prev-card" onclick="App.reopenResult(${i})">
+          <img class="prev-thumb" src="${item.photo || SAMPLE}" alt="">
+          <div class="prev-info">
+            <div class="prev-name">${item.pieceName || 'Key piece'}</div>
+            <div class="prev-meta">3 looks · ${relativeTime(item.ts)}</div>
+          </div>
+          <span class="prev-arrow">→</span>
+        </button>`).join('')}`;
   }
   function syncPrompt() {
     st.prompt = ($('#pb-input') ? $('#pb-input').value : '').trim();
@@ -439,7 +481,7 @@ const App = (function () {
   }
 
   return {
-    init, next, go, restart, startFlow, back,
+    init, next, go, restart, startFlow, back, styleAnother, reopenResult,
     submitLandingEmail, focusEmail, pickNeed, submitName,
     onFile, clearPhoto, syncPrompt, submitPrompt,
     toggleAddMenu, menuUpload, menuCamera, menuLink, removeLink,
