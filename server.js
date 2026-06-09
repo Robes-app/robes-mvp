@@ -129,7 +129,6 @@ Style this key piece three ways. Make each look genuinely distinct — different
       output_config: {
         format: {
           type: 'json_schema',
-          name: 'styling_looks',
           schema: STYLE_SCHEMA,
         },
       },
