@@ -14,6 +14,37 @@ app.use(express.static(join(__dirname, 'public')));
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+/* ── Airtable ────────────────────────────────────────────────────── */
+const AT_TOKEN = process.env.AIRTABLE_TOKEN;
+const AT_BASE  = process.env.AIRTABLE_BASE_ID;
+
+async function airtableUpsert(table, fields) {
+  if (!AT_TOKEN || !AT_BASE) return;
+  try {
+    const res = await fetch(`https://api.airtable.com/v0/${AT_BASE}/${encodeURIComponent(table)}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        performUpsert: { fieldsToMergeOn: ['Email'] },
+        records: [{ fields }],
+      }),
+    });
+    if (!res.ok) console.warn(`Airtable ${table} error:`, await res.text());
+  } catch (err) { console.warn('Airtable error:', err.message); }
+}
+
+async function airtableCreate(table, fields) {
+  if (!AT_TOKEN || !AT_BASE) return;
+  try {
+    const res = await fetch(`https://api.airtable.com/v0/${AT_BASE}/${encodeURIComponent(table)}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records: [{ fields }] }),
+    });
+    if (!res.ok) console.warn(`Airtable ${table} error:`, await res.text());
+  } catch (err) { console.warn('Airtable error:', err.message); }
+}
+
 /* ── waitlist ────────────────────────────────────────────────────── */
 const WAITLIST_FILE = join(__dirname, 'data', 'waitlist.json');
 
@@ -21,41 +52,54 @@ function loadWaitlist() {
   if (!existsSync(WAITLIST_FILE)) return [];
   try { return JSON.parse(readFileSync(WAITLIST_FILE, 'utf8')); } catch { return []; }
 }
-
 function saveWaitlist(list) {
   writeFileSync(WAITLIST_FILE, JSON.stringify(list, null, 2));
 }
 
 app.post('/api/waitlist', async (req, res) => {
-  const { email } = req.body;
+  const { email, name } = req.body;
   if (!email || !/.+@.+\..+/.test(email)) {
     return res.status(400).json({ error: 'Invalid email' });
   }
 
+  // local backup (best-effort)
   const list = loadWaitlist();
-  const existing = list.find(e => e.email.toLowerCase() === email.toLowerCase());
-  if (!existing) {
-    list.push({ email, joinedAt: new Date().toISOString() });
+  if (!list.find(e => e.email.toLowerCase() === email.toLowerCase())) {
+    list.push({ email, name: name || '', joinedAt: new Date().toISOString() });
     saveWaitlist(list);
   }
 
-  // Optional: send confirmation email via Resend
-  if (process.env.RESEND_API_KEY) {
-    try {
-      const { Resend } = await import('resend');
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
-        from: process.env.RESEND_FROM || 'Robes <hello@my-robes.com>',
-        to: email,
-        subject: "You're on the Robes waitlist",
-        html: `<p>You're on the list. We'll be in touch soon.</p><p>— Robes</p>`,
-      });
-    } catch (err) {
-      console.warn('Resend error (non-fatal):', err.message);
-    }
-  }
+  // Airtable — upsert by email so re-submits just update the record
+  const fields = { 'Email': email, 'Joined At': new Date().toISOString().split('T')[0] };
+  if (name) fields['Name'] = name;
+  await airtableUpsert('Contacts', fields);
 
   res.json({ ok: true, position: list.length });
+});
+
+/* ── instagram handle ────────────────────────────────────────────── */
+app.post('/api/instagram', async (req, res) => {
+  const { email, handle } = req.body;
+  if (!handle) return res.status(400).json({ error: 'No handle provided' });
+  const clean = handle.replace(/^@+/, '');
+  await airtableUpsert('Contacts', {
+    'Email': email || '',
+    'Instagram Handle': clean,
+  });
+  res.json({ ok: true });
+});
+
+/* ── feedback ────────────────────────────────────────────────────── */
+app.post('/api/feedback', async (req, res) => {
+  const { email, type, rating, comment } = req.body;
+  await airtableCreate('Feedback', {
+    'Email': email || '',
+    'Type': type || '',
+    ...(rating != null ? { 'Rating': Number(rating) } : {}),
+    'Comment': comment || '',
+    'Created At': new Date().toISOString().split('T')[0],
+  });
+  res.json({ ok: true });
 });
 
 /* ── style ───────────────────────────────────────────────────────── */

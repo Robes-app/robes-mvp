@@ -170,6 +170,14 @@ const App = (function () {
     const v = ($('#name-input').value || '').trim();
     st.name = v ? v.replace(/\s+.*$/, '') : '';
     persist();
+    // update Airtable contact with the name now that we have it
+    if (st.name && st.email) {
+      fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: st.email, name: st.name }),
+      }).catch(() => {});
+    }
     next();
   }
 
@@ -456,6 +464,14 @@ const App = (function () {
     moveCarousel();
   }
   function shareTo(label) {
+    const handle = ($('#share-handle-input') ? $('#share-handle-input').value : '').trim();
+    if (handle) {
+      fetch('/api/instagram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: st.email, handle }),
+      }).catch(() => {});
+    }
     closeShare();
     toast(label === 'Download' ? 'All three saved to your camera roll' : `Shared to ${label}`);
   }
