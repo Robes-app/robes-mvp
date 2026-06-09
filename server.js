@@ -64,8 +64,6 @@ const STYLE_SCHEMA = {
   properties: {
     ways: {
       type: 'array',
-      minItems: 3,
-      maxItems: 3,
       items: {
         type: 'object',
         properties: {
@@ -74,7 +72,7 @@ const STYLE_SCHEMA = {
           outfit:      { type: 'string', description: 'How the piece is worn — what it\'s paired with and why' },
           details:     { type: 'string', description: 'What makes this look work stylistically' },
           accessories: { type: 'string', description: 'Specific accessories to complete the look' },
-          tags:        { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 3,
+          tags:        { type: 'array', items: { type: 'string' },
                          description: 'Three key items/concepts for this look' },
         },
         required: ['eyebrow', 'title', 'outfit', 'details', 'accessories', 'tags'],
