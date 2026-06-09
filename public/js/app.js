@@ -69,6 +69,7 @@ const App = (function () {
       st.history.unshift({ photo: st.photo, pieceName: st.pieceName, ways: st.ways, ts: Date.now() });
     }
     st.photo = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null;
+    persist();
     go('capture');
   }
 
@@ -128,6 +129,7 @@ const App = (function () {
     if (!v || !/.+@.+\..+/.test(v)) { inp.focus(); return false; }
     st.email = v;
     st.emailGuess = guessName(v);
+    persist();
 
     // fire-and-forget: save to waitlist (non-blocking so UX stays snappy)
     fetch('/api/waitlist', {
@@ -167,6 +169,7 @@ const App = (function () {
     if (e) e.preventDefault();
     const v = ($('#name-input').value || '').trim();
     st.name = v ? v.replace(/\s+.*$/, '') : '';
+    persist();
     next();
   }
 
@@ -467,6 +470,36 @@ const App = (function () {
     toastTimer = setTimeout(() => $('#toast').classList.remove('show'), 2400);
   }
 
+  /* ── persistence ────────────────────────────────────────────────── */
+  const STORE_KEY = 'robes-v1';
+
+  function persist() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        name: st.name, email: st.email, history: st.history.slice(0, 5),
+      }));
+    } catch {
+      try {
+        // if storage is full (large base64 photos), strip photos and retry
+        localStorage.setItem(STORE_KEY, JSON.stringify({
+          name: st.name, email: st.email,
+          history: st.history.slice(0, 5).map(h => ({ ...h, photo: null })),
+        }));
+      } catch { /* give up silently */ }
+    }
+  }
+
+  function loadPersisted() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.name)  st.name  = d.name;
+      if (d.email) st.email = d.email;
+      if (Array.isArray(d.history)) st.history = d.history;
+    } catch { /* ignore corrupt data */ }
+  }
+
   /* ── tweaks ──────────────────────────────────────────────────────── */
   function setResultLayout(v) {
     st.resultLayout = v;
@@ -475,13 +508,19 @@ const App = (function () {
   }
 
   /* ── boot ───────────────────────────────────────────────────────── */
+  function goHome() {
+    if (st.name || st.history.length) go('capture');
+    else go('landing');
+  }
+
   function init() {
     wireDrop();
-    go('landing');
+    loadPersisted();
+    goHome();
   }
 
   return {
-    init, next, go, restart, startFlow, back, styleAnother, reopenResult,
+    init, next, go, restart, goHome, startFlow, back, styleAnother, reopenResult,
     submitLandingEmail, focusEmail, pickNeed, submitName,
     onFile, clearPhoto, syncPrompt, submitPrompt,
     toggleAddMenu, menuUpload, menuCamera, menuLink, removeLink,
