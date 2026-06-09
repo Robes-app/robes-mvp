@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import express from 'express';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import Anthropic from '@anthropic-ai/sdk';
@@ -46,35 +45,17 @@ async function airtableCreate(table, fields) {
 }
 
 /* ── waitlist ────────────────────────────────────────────────────── */
-const WAITLIST_FILE = join(__dirname, 'data', 'waitlist.json');
-
-function loadWaitlist() {
-  if (!existsSync(WAITLIST_FILE)) return [];
-  try { return JSON.parse(readFileSync(WAITLIST_FILE, 'utf8')); } catch { return []; }
-}
-function saveWaitlist(list) {
-  writeFileSync(WAITLIST_FILE, JSON.stringify(list, null, 2));
-}
-
 app.post('/api/waitlist', async (req, res) => {
   const { email, name } = req.body;
   if (!email || !/.+@.+\..+/.test(email)) {
     return res.status(400).json({ error: 'Invalid email' });
   }
 
-  // local backup (best-effort)
-  const list = loadWaitlist();
-  if (!list.find(e => e.email.toLowerCase() === email.toLowerCase())) {
-    list.push({ email, name: name || '', joinedAt: new Date().toISOString() });
-    saveWaitlist(list);
-  }
-
-  // Airtable — upsert by email so re-submits just update the record
   const fields = { 'Email': email, 'Joined At': new Date().toISOString().split('T')[0] };
   if (name) fields['Name'] = name;
   await airtableUpsert('Contacts', fields);
 
-  res.json({ ok: true, position: list.length });
+  res.json({ ok: true });
 });
 
 /* ── instagram handle ────────────────────────────────────────────── */
