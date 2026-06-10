@@ -12,6 +12,7 @@ const App = (function () {
     name: '', email: '', pieceName: '', prompt: '', link: '', photo: null,
     photoUrl: null,        // Cloudinary URL for the uploaded photo
     ways: null,            // AI response: array of 3 look objects
+    generatedImages: null, // Nano Banana generated outfit images [img0, img1, img2]
     history: [],           // archived results from previous styling sessions
     fromHistory: false,    // true when current result was reopened from history (don't re-archive)
     resultLayout: 'stack',
@@ -61,17 +62,17 @@ const App = (function () {
   }
   function restart() {
     st.name = ''; st.email = ''; st.pieceName = ''; st.prompt = '';
-    st.link = ''; st.photo = null; st.photoUrl = null; st.ways = null; st.shareIdx = 0;
-    st.history = [];
+    st.link = ''; st.photo = null; st.photoUrl = null; st.ways = null;
+    st.generatedImages = null; st.shareIdx = 0; st.history = [];
     closeModal();
     go('landing');
   }
 
   function styleAnother() {
     if (st.ways && !st.fromHistory) {
-      st.history.unshift({ photo: st.photo, photoUrl: st.photoUrl, pieceName: st.pieceName, ways: st.ways, ts: Date.now() });
+      st.history.unshift({ photo: st.photo, photoUrl: st.photoUrl, pieceName: st.pieceName, ways: st.ways, generatedImages: st.generatedImages, ts: Date.now() });
     }
-    st.photo = null; st.photoUrl = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null; st.fromHistory = false;
+    st.photo = null; st.photoUrl = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null; st.generatedImages = null; st.fromHistory = false;
     persist();
     go('landing');
     openModal();
@@ -82,6 +83,7 @@ const App = (function () {
     if (!item) return;
     st.photo = item.photo; st.photoUrl = item.photoUrl || null;
     st.pieceName = item.pieceName; st.ways = item.ways;
+    st.generatedImages = item.generatedImages || null;
     st.fromHistory = true;
     go('result');
   }
@@ -383,6 +385,7 @@ const App = (function () {
     const data = await res.json();
     if (!data.ways || !Array.isArray(data.ways)) throw new Error('Unexpected response');
     if (data.photoUrl) st.photoUrl = data.photoUrl;
+    if (Array.isArray(data.generatedImages)) st.generatedImages = data.generatedImages;
     return data.ways;
   }
 
@@ -409,10 +412,10 @@ const App = (function () {
 
     const host = $('#ways');
     host.classList.toggle('grid', st.resultLayout === 'grid');
-    // use the uploaded photo for all three look images (no generated images)
-    const imgSrc = st.photo || SAMPLE;
 
-    host.innerHTML = ways.map((w, i) => `
+    host.innerHTML = ways.map((w, i) => {
+      const imgSrc = (st.generatedImages && st.generatedImages[i]) || st.photo || SAMPLE;
+      return `
       <article class="way">
         <div class="way-img">
           <img src="${imgSrc}" style="object-position:50% ${[24, 28, 22][i]}%" alt="">
@@ -436,7 +439,8 @@ const App = (function () {
             </div>
           </div>
         </div>
-      </article>`).join('');
+      </article>`;
+    }).join('');
   }
 
   /* ── flow modal ─────────────────────────────────────────────────── */
@@ -651,9 +655,10 @@ const App = (function () {
   function buildCarousel() {
     const piece = st.pieceName || 'key piece';
     const ways = st.ways || [];
-    const imgSrc = st.photo || SAMPLE;
 
-    $('#share-cards').innerHTML = ways.map((w, i) => `
+    $('#share-cards').innerHTML = ways.map((w, i) => {
+      const imgSrc = (st.generatedImages && st.generatedImages[i]) || st.photo || SAMPLE;
+      return `
       <div class="ig">
         <div class="ig-grain"></div>
         <div class="ig-inner">
@@ -675,7 +680,8 @@ const App = (function () {
             <span class="ig-foot-r">my-robes.com</span>
           </div>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
     $('#share-dots').innerHTML = ways.map((_, i) => `<span class="sd ${i === 0 ? 'on' : ''}" onclick="App.goShare(${i})"></span>`).join('');
   }

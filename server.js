@@ -3,7 +3,7 @@ import express from 'express';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash } from 'crypto';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -18,7 +18,7 @@ app.use(express.static(join(__dirname, 'public'), {
   },
 }));
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 /* ── Airtable ────────────────────────────────────────────────────── */
 const AT_TOKEN = process.env.AIRTABLE_TOKEN;
@@ -146,21 +146,18 @@ const STYLE_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          eyebrow:     { type: 'string', description: 'Short mood/occasion label e.g. "Corporate to cocktails"' },
-          title:       { type: 'string', description: 'Look title e.g. "The sharp three-piece"' },
-          outfit:      { type: 'string', description: 'How the piece is worn — what it\'s paired with and why' },
-          details:     { type: 'string', description: 'What makes this look work stylistically' },
-          accessories: { type: 'string', description: 'Specific accessories to complete the look' },
-          tags:        { type: 'array', items: { type: 'string' },
-                         description: 'Three key items/concepts for this look' },
+          eyebrow:     { type: 'string' },
+          title:       { type: 'string' },
+          outfit:      { type: 'string' },
+          details:     { type: 'string' },
+          accessories: { type: 'string' },
+          tags:        { type: 'array', items: { type: 'string' } },
         },
         required: ['eyebrow', 'title', 'outfit', 'details', 'accessories', 'tags'],
-        additionalProperties: false,
       },
     },
   },
   required: ['ways'],
-  additionalProperties: false,
 };
 
 app.post('/api/style', async (req, res) => {
@@ -175,7 +172,7 @@ app.post('/api/style', async (req, res) => {
   const context = prompt ? `Additional context from the user: "${prompt}".` : '';
   const linkCtx = link ? `The user provided a product link for reference: ${link}.` : '';
 
-  const systemPrompt = `You are an expert fashion stylist known for elegant, directional styling advice. Your tone is warm, precise, and editorial — like a trusted stylist who truly understands clothes. ${who}
+  const systemInstruction = `You are an expert fashion stylist known for elegant, directional styling advice. Your tone is warm, precise, and editorial — like a trusted stylist who truly understands clothes. ${who}
 
 When given a key fashion piece, you create three distinct, wearable looks around it — each with a clear occasion and mood. Your descriptions are specific: you name real item types, describe drape and texture, and explain why each pairing works.`;
 
@@ -183,45 +180,63 @@ When given a key fashion piece, you create three distinct, wearable looks around
 
 Style this key piece three ways. Make each look genuinely distinct — different occasions, moods, and dressing codes. Be specific about how the piece is worn and what surrounds it. Each look should feel complete and real.`;
 
-  const content = [];
   let photoMatch = null;
+  const textParts = [];
 
   if (photo) {
     photoMatch = photo.match(/^data:([^;]+);base64,(.+)$/);
     if (photoMatch) {
-      content.push({
-        type: 'image',
-        source: { type: 'base64', media_type: photoMatch[1], data: photoMatch[2] },
-      });
+      textParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
     }
   }
-
-  content.push({ type: 'text', text: userText });
+  textParts.push({ text: userText });
 
   try {
-    // run Claude API + Cloudinary upload in parallel
-    const [message, photoUrl] = await Promise.all([
-      client.messages.create({
-        model: 'claude-opus-4-8',
-        max_tokens: 2048,
-        thinking: { type: 'adaptive' },
-        system: systemPrompt,
-        messages: [{ role: 'user', content }],
-        output_config: {
-          format: {
-            type: 'json_schema',
-            schema: STYLE_SCHEMA,
-          },
+    // Run text generation + Cloudinary upload in parallel
+    const [textResponse, photoUrl] = await Promise.all([
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: textParts }],
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: STYLE_SCHEMA,
         },
       }),
       photoMatch ? cloudinaryUpload(photoMatch[2], photoMatch[1]) : Promise.resolve(null),
     ]);
 
-    const text = message.content.find(b => b.type === 'text')?.text ?? '{}';
-    const data = JSON.parse(text);
-    res.json({ ...data, photoUrl });
+    const ways = JSON.parse(textResponse.text).ways;
+
+    // Generate 3 outfit images in parallel using Nano Banana
+    const generatedImages = await Promise.all(ways.map((w) => {
+      const imgParts = [];
+      if (photoMatch) {
+        imgParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
+      }
+      const pieceLabel = pieceName || 'the clothing item';
+      imgParts.push({
+        text: `Fashion editorial photograph. The key piece is ${pieceLabel}. Style it as: "${w.title}" — ${w.eyebrow}. Outfit: ${w.outfit}. Preserve the key piece accurately. Clean editorial style, full outfit visible, studio or lifestyle setting.`,
+      });
+
+      return ai.models.generateContent({
+        model: 'gemini-3.1-flash-image',
+        contents: [{ role: 'user', parts: imgParts }],
+        config: { responseModalities: ['TEXT', 'IMAGE'] },
+      }).then(r => {
+        const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        if (!part?.inlineData) return null;
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }).catch(err => {
+        console.warn('Image generation failed for a look:', err.message);
+        return null;
+      });
+    }));
+
+    console.log(`Generated images: ${generatedImages.filter(Boolean).length}/3 succeeded`);
+    res.json({ ways, generatedImages, photoUrl });
   } catch (err) {
-    console.error('Claude API error:', err.message);
+    console.error('Gemini API error:', err.message);
     res.status(500).json({ error: err.message || 'Styling failed' });
   }
 });
