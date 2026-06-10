@@ -439,11 +439,13 @@ const App = (function () {
   function feedbackRate(val) {
     fbRating = val;
     $('#fb-up').classList.toggle('sel-up', val === 1);
-    $('#fb-up').classList.toggle('sel-dn', false);
+    $('#fb-up').classList.remove('sel-dn');
     $('#fb-dn').classList.toggle('sel-dn', val === 0);
-    $('#fb-dn').classList.toggle('sel-up', false);
+    $('#fb-dn').classList.remove('sel-up');
+    // reveal text input, keep thanks hidden
     $('#fb-expand').hidden = false;
-    setTimeout(() => { if ($('#fb-text')) { $('#fb-text').focus(); } }, 60);
+    $('#fb-done').hidden = true;
+    setTimeout(() => { if ($('#fb-text')) $('#fb-text').focus(); }, 60);
   }
 
   function feedbackSubmit() {
@@ -464,9 +466,10 @@ const App = (function () {
         looksOutput,
       }),
     }).catch(() => {});
-    if ($('#fb-prompt')) $('#fb-prompt').hidden = true;
-    if ($('#fb-expand')) $('#fb-expand').hidden = true;
-    if ($('#fb-done')) $('#fb-done').hidden = false;
+    // only now show thanks
+    $('#fb-prompt').hidden = true;
+    $('#fb-expand').hidden = true;
+    $('#fb-done').hidden = false;
   }
 
   /* ── share — Instagram 1:1 carousel ─────────────────────────────── */
