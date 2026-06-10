@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createHash } from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -52,6 +53,45 @@ async function airtableCreate(table, fields) {
     });
     if (!res.ok) console.warn(`Airtable ${table} error:`, await res.text());
   } catch (err) { console.warn('Airtable error:', err.message); }
+}
+
+/* ── Cloudinary ──────────────────────────────────────────────────── */
+const CLD_CLOUD  = process.env.CLOUDINARY_CLOUD_NAME;
+const CLD_KEY    = process.env.CLOUDINARY_API_KEY;
+const CLD_SECRET = process.env.CLOUDINARY_API_SECRET;
+console.log('Cloudinary config — cloud:', CLD_CLOUD || 'MISSING');
+
+async function cloudinaryUpload(base64Data, mimeType) {
+  if (!CLD_CLOUD || !CLD_KEY || !CLD_SECRET) {
+    console.warn('Cloudinary: missing config, skipping upload');
+    return null;
+  }
+  try {
+    const timestamp = Math.round(Date.now() / 1000);
+    const folder = 'robes';
+    const signature = createHash('sha256')
+      .update(`folder=${folder}&timestamp=${timestamp}${CLD_SECRET}`)
+      .digest('hex');
+
+    const form = new FormData();
+    form.append('file', `data:${mimeType};base64,${base64Data}`);
+    form.append('api_key', CLD_KEY);
+    form.append('timestamp', String(timestamp));
+    form.append('signature', signature);
+    form.append('folder', folder);
+
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLD_CLOUD}/image/upload`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!res.ok) { console.warn('Cloudinary upload error:', await res.text()); return null; }
+    const data = await res.json();
+    console.log('Cloudinary upload ok:', data.secure_url);
+    return data.secure_url;
+  } catch (err) {
+    console.warn('Cloudinary error:', err.message);
+    return null;
+  }
 }
 
 /* ── waitlist ────────────────────────────────────────────────────── */
@@ -143,14 +183,14 @@ When given a key fashion piece, you create three distinct, wearable looks around
 Style this key piece three ways. Make each look genuinely distinct — different occasions, moods, and dressing codes. Be specific about how the piece is worn and what surrounds it. Each look should feel complete and real.`;
 
   const content = [];
+  let photoMatch = null;
 
-  // attach image if present
   if (photo) {
-    const match = photo.match(/^data:([^;]+);base64,(.+)$/);
-    if (match) {
+    photoMatch = photo.match(/^data:([^;]+);base64,(.+)$/);
+    if (photoMatch) {
       content.push({
         type: 'image',
-        source: { type: 'base64', media_type: match[1], data: match[2] },
+        source: { type: 'base64', media_type: photoMatch[1], data: photoMatch[2] },
       });
     }
   }
@@ -158,23 +198,27 @@ Style this key piece three ways. Make each look genuinely distinct — different
   content.push({ type: 'text', text: userText });
 
   try {
-    const message = await client.messages.create({
-      model: 'claude-opus-4-8',
-      max_tokens: 2048,
-      thinking: { type: 'adaptive' },
-      system: systemPrompt,
-      messages: [{ role: 'user', content }],
-      output_config: {
-        format: {
-          type: 'json_schema',
-          schema: STYLE_SCHEMA,
+    // run Claude API + Cloudinary upload in parallel
+    const [message, photoUrl] = await Promise.all([
+      client.messages.create({
+        model: 'claude-opus-4-8',
+        max_tokens: 2048,
+        thinking: { type: 'adaptive' },
+        system: systemPrompt,
+        messages: [{ role: 'user', content }],
+        output_config: {
+          format: {
+            type: 'json_schema',
+            schema: STYLE_SCHEMA,
+          },
         },
-      },
-    });
+      }),
+      photoMatch ? cloudinaryUpload(photoMatch[2], photoMatch[1]) : Promise.resolve(null),
+    ]);
 
     const text = message.content.find(b => b.type === 'text')?.text ?? '{}';
     const data = JSON.parse(text);
-    res.json(data);
+    res.json({ ...data, photoUrl });
   } catch (err) {
     console.error('Claude API error:', err.message);
     res.status(500).json({ error: err.message || 'Styling failed' });

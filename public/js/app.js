@@ -10,9 +10,10 @@ const App = (function () {
   /* ── state ──────────────────────────────────────────────────────── */
   const st = {
     name: '', email: '', pieceName: '', prompt: '', link: '', photo: null,
-    ways: null,          // AI response: array of 3 look objects
-    history: [],         // archived results from previous styling sessions
-    fromHistory: false,  // true when current result was reopened from history (don't re-archive)
+    photoUrl: null,        // Cloudinary URL for the uploaded photo
+    ways: null,            // AI response: array of 3 look objects
+    history: [],           // archived results from previous styling sessions
+    fromHistory: false,    // true when current result was reopened from history (don't re-archive)
     resultLayout: 'stack',
     shareIdx: 0, idx: 0,
   };
@@ -67,9 +68,9 @@ const App = (function () {
 
   function styleAnother() {
     if (st.ways && !st.fromHistory) {
-      st.history.unshift({ photo: st.photo, pieceName: st.pieceName, ways: st.ways, ts: Date.now() });
+      st.history.unshift({ photo: st.photo, photoUrl: st.photoUrl, pieceName: st.pieceName, ways: st.ways, ts: Date.now() });
     }
-    st.photo = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null; st.fromHistory = false;
+    st.photo = null; st.photoUrl = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null; st.fromHistory = false;
     persist();
     go('capture');
   }
@@ -77,7 +78,8 @@ const App = (function () {
   function reopenResult(idx) {
     const item = st.history[idx];
     if (!item) return;
-    st.photo = item.photo; st.pieceName = item.pieceName; st.ways = item.ways;
+    st.photo = item.photo; st.photoUrl = item.photoUrl || null;
+    st.pieceName = item.pieceName; st.ways = item.ways;
     st.fromHistory = true;
     go('result');
   }
@@ -374,6 +376,7 @@ const App = (function () {
     }
     const data = await res.json();
     if (!data.ways || !Array.isArray(data.ways)) throw new Error('Unexpected response');
+    if (data.photoUrl) st.photoUrl = data.photoUrl;
     return data.ways;
   }
 
@@ -457,7 +460,7 @@ const App = (function () {
         comment,
         prompt: st.prompt || '',
         pieceName: st.pieceName || '',
-        pieceLink: st.link || '',
+        pieceLink: st.photoUrl || st.link || '',
         looksOutput,
       }),
     }).catch(() => {});
