@@ -61,8 +61,9 @@ const App = (function () {
   }
   function restart() {
     st.name = ''; st.email = ''; st.pieceName = ''; st.prompt = '';
-    st.link = ''; st.photo = null; st.ways = null; st.shareIdx = 0;
+    st.link = ''; st.photo = null; st.photoUrl = null; st.ways = null; st.shareIdx = 0;
     st.history = [];
+    closeModal();
     go('landing');
   }
 
@@ -72,7 +73,8 @@ const App = (function () {
     }
     st.photo = null; st.photoUrl = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null; st.fromHistory = false;
     persist();
-    go('capture');
+    go('landing');
+    openModal();
   }
 
   function reopenResult(idx) {
@@ -142,7 +144,7 @@ const App = (function () {
       body: JSON.stringify({ email: v }),
     }).catch(() => {}); // swallow errors — waitlist is best-effort
 
-    startFlow();
+    openModal();
     return false;
   }
   function focusEmail() {
@@ -215,22 +217,25 @@ const App = (function () {
         </button>`).join('')}`;
   }
   function syncPrompt() {
-    st.prompt = ($('#pb-input') ? $('#pb-input').value : '').trim();
+    const fmInput = $('#fm-input');
+    const pbInput = $('#pb-input');
+    st.prompt = (fmInput ? fmInput.value : pbInput ? pbInput.value : '').trim();
     st.link = ($('#pb-link') && !$('#pb-link').hidden) ? ($('#pb-link-input').value || '').trim() : '';
     if (st.prompt) {
       st.pieceName = st.prompt.split(',')[0].replace(/^(style |dress |my |the |a |an )+/i, '').trim().slice(0, 40);
     }
     const ready = !!(st.photo || st.link || st.prompt);
+    if ($('#fm-style-cta')) $('#fm-style-cta').toggleAttribute('disabled', !ready);
     if ($('#pb-send')) $('#pb-send').toggleAttribute('disabled', !ready);
   }
   function onFile(input) {
     const f = input.files && input.files[0];
     if (!f) return;
     const r = new FileReader();
-    r.onload = () => { st.photo = r.result; paintDrop(); syncPrompt(); };
+    r.onload = () => { st.photo = r.result; paintDrop(); paintFmTile(); syncPrompt(); };
     r.readAsDataURL(f);
   }
-  function clearPhoto(e) { if (e) e.stopPropagation(); st.photo = null; paintDrop(); syncPrompt(); }
+  function clearPhoto(e) { if (e) e.stopPropagation(); st.photo = null; paintDrop(); paintFmTile(); syncPrompt(); }
   function paintDrop() {
     const dz = $('#dropzone');
     if (st.photo) {
@@ -295,6 +300,7 @@ const App = (function () {
   let genStepIdx = 0;
   let apiDone = false;
   let animDone = false;
+  let fmStep = 0;
 
   function runGen() {
     $('#gen-piece-img').src = st.photo || SAMPLE;
@@ -431,6 +437,168 @@ const App = (function () {
           </div>
         </div>
       </article>`).join('');
+  }
+
+  /* ── flow modal ─────────────────────────────────────────────────── */
+  function openModal() {
+    fmStep = 0;
+    st.photo = null; st.photoUrl = null; st.prompt = ''; st.pieceName = '';
+    paintFmTile();
+    if ($('#fm-input')) $('#fm-input').value = '';
+    if ($('#fm-name-input')) $('#fm-name-input').value = st.name || '';
+    renderFmDots();
+    showFmStep('fms-style');
+    paintFmRecent();
+    syncPrompt();
+    document.getElementById('flow-modal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    const m = document.getElementById('flow-modal');
+    if (m) m.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function showFmStep(id) {
+    $$('.fm-step').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
+  }
+
+  function renderFmDots() {
+    const steps = ['fms-style', 'fms-name', 'fms-gen'];
+    const el = document.getElementById('fm-dots');
+    if (!el) return;
+    el.innerHTML = steps.map((_, i) => {
+      const cls = i < fmStep ? 'done' : i === fmStep ? 'cur' : '';
+      return `<span class="fmd ${cls}"></span>`;
+    }).join('');
+  }
+
+  function pickFile() { document.getElementById('fm-file').click(); }
+
+  function paintFmTile() {
+    const tile = document.getElementById('fm-tile');
+    if (!tile) return;
+    if (st.photo) {
+      tile.classList.add('filled');
+      document.getElementById('fm-tile-empty').style.display = 'none';
+      document.getElementById('fm-tile-fill').style.display = 'block';
+      document.getElementById('fm-tile-img').src = st.photo;
+    } else {
+      tile.classList.remove('filled');
+      document.getElementById('fm-tile-empty').style.display = 'flex';
+      document.getElementById('fm-tile-fill').style.display = 'none';
+    }
+  }
+
+  function paintFmRecent() {
+    const el = document.getElementById('fm-recent');
+    if (!el) return;
+    if (!st.history.length) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = `
+      <div class="fm-recent-label">Previously styled</div>
+      <div class="fm-recent-row">
+        ${st.history.slice(0, 3).map((item, i) => `
+          <button class="fm-recent-card" onclick="App.reopenResult(${i}); App.closeModal();">
+            <img class="frc-img" src="${item.photo || SAMPLE}" alt="">
+            <div class="frc-meta">
+              <div class="frc-name">${item.pieceName || 'Key piece'}</div>
+              <div class="frc-sub">3 looks · ${relativeTime(item.ts)}</div>
+            </div>
+          </button>`).join('')}
+      </div>`;
+  }
+
+  function submitStyle() {
+    syncPrompt();
+    if (!st.photo && !st.prompt) return;
+    fmStep = 1;
+    renderFmDots();
+    showFmStep('fms-name');
+    const nameInput = document.getElementById('fm-name-input');
+    if (nameInput && st.name) nameInput.value = st.name;
+    setTimeout(() => { if (nameInput) nameInput.focus(); }, 180);
+  }
+
+  function submitNameModal(e) {
+    if (e) e.preventDefault();
+    const v = (document.getElementById('fm-name-input').value || '').trim();
+    st.name = v ? v.replace(/\s+.*$/, '') : '';
+    persist();
+    if (st.name && st.email) {
+      fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: st.email, name: st.name }),
+      }).catch(() => {});
+    }
+    startGenModal();
+  }
+
+  function skipName() { startGenModal(); }
+
+  function styleLater() { closeModal(); }
+
+  function startGenModal() {
+    fmStep = 2;
+    renderFmDots();
+    showFmStep('fms-gen');
+    runGenModal();
+  }
+
+  function runGenModal() {
+    const img = document.getElementById('fm-gen-img');
+    if (img) img.src = st.photo || SAMPLE;
+
+    const h = document.getElementById('fm-gen-h');
+    if (h) {
+      const who = st.name ? `${st.name}, styling` : 'Styling';
+      const what = st.pieceName ? `your ${st.pieceName.toLowerCase()}` : 'your key piece';
+      h.innerHTML = `${who}<br><em>${what}.</em>`;
+    }
+
+    const steps = $$('#fm-gen-steps .gen-step');
+    steps.forEach(s => { s.textContent = ''; s.classList.remove('on', 'done'); });
+    const errEl = document.getElementById('fm-gen-err');
+    if (errEl) errEl.style.display = 'none';
+    apiDone = false;
+    animDone = false;
+
+    function typeStep(si) {
+      if (si >= steps.length) { animDone = true; if (apiDone) advanceModal(); return; }
+      const el = steps[si];
+      const text = el.dataset.text || '';
+      el.classList.add('on');
+      let ci = 0;
+      function typeChar() {
+        ci++;
+        el.textContent = text.slice(0, ci);
+        if (ci < text.length) { genTimer = setTimeout(typeChar, 32); }
+        else { el.classList.replace('on', 'done'); genTimer = setTimeout(() => typeStep(si + 1), 320); }
+      }
+      typeChar();
+    }
+    typeStep(0);
+
+    callStyle().then(ways => {
+      st.ways = ways;
+      apiDone = true;
+      if (animDone) advanceModal();
+    }).catch(err => {
+      clearTimeout(genTimer);
+      steps.forEach(s => s.classList.remove('on', 'done'));
+      if (errEl) { errEl.textContent = 'Styling failed — ' + (err.message || 'please try again.'); errEl.style.display = 'block'; }
+      toast('Something went wrong. Please try again.');
+      setTimeout(() => { fmStep = 0; renderFmDots(); showFmStep('fms-style'); }, 2000);
+    });
+  }
+
+  function advanceModal() {
+    clearTimeout(genTimer);
+    genTimer = setTimeout(() => { closeModal(); go('result'); }, 400);
   }
 
   /* ── feedback ───────────────────────────────────────────────────── */
@@ -585,14 +753,14 @@ const App = (function () {
 
   /* ── boot ───────────────────────────────────────────────────────── */
   function goHome() {
-    if (st.name || st.history.length) go('capture');
-    else go('landing');
+    closeModal();
+    go('landing');
   }
 
   function init() {
     wireDrop();
     loadPersisted();
-    goHome();
+    go('landing');
   }
 
   return {
@@ -603,6 +771,7 @@ const App = (function () {
     openShare, closeShare, goShare,
     shareNext: () => goShare(st.shareIdx + 1),
     sharePrev: () => goShare(st.shareIdx - 1),
+    openModal, closeModal, pickFile, submitStyle, submitNameModal, skipName, styleLater,
     shareTo, copyLink, toast, feedbackRate, feedbackSubmit,
     setResultLayout,
     _st: st,

@@ -36,6 +36,10 @@
             <input class="land-input" id="land-email" type="email" placeholder="your@email.com" autocomplete="off">
             <button class="land-submit" id="land-submit" type="submit">Join the waitlist</button>
           </form>
+          <div class="land-bonus rise d4">
+            <span class="land-bonus-mark">✦</span>
+            <span>Join today and style a key piece three ways — a small taste of Robes while you wait.</span>
+          </div>
         </div>
 
         <!-- floating prompt card -->
@@ -349,6 +353,100 @@
     </div>
   </section>
 
+</div>
+
+<!-- ══ FLOW MODAL · Style → Name → Generating ══ -->
+<div class="fm" id="flow-modal" aria-hidden="true">
+  <div class="fm-bd" onclick="App.closeModal()"></div>
+  <div class="fm-dialog" id="fm-dialog" role="dialog" aria-modal="true" aria-label="Style a key piece">
+    <div class="grain"></div>
+
+    <div class="fm-rail">
+      <span class="fm-mark">Robes</span>
+      <div class="fm-dots" id="fm-dots"></div>
+      <button class="fm-x" onclick="App.closeModal()" aria-label="Close">×</button>
+    </div>
+
+    <div class="fm-stage">
+
+      <!-- STEP · STYLE -->
+      <section class="fm-step" id="fms-style">
+        <span class="fm-confirm">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          You're on the list
+        </span>
+        <h2 class="fm-h">Style a key piece,<br><em>three ways.</em></h2>
+        <p class="fm-sub">A little gift while you wait. Show me one piece you love — I'll show you three ways to wear it.</p>
+
+        <div class="fm-compose">
+          <button class="fm-tile" id="fm-tile" onclick="App.pickFile()" aria-label="Add your key piece">
+            <div class="fm-tile-x" onclick="App.clearPhoto(event)" aria-label="Remove photo">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </div>
+            <div id="fm-tile-empty" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+              <span class="fm-tile-ico"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.2"/></svg></span>
+              <span class="fm-tile-label">Snap or attach<br>your key piece</span>
+            </div>
+            <div id="fm-tile-fill" style="display:none;position:absolute;inset:0;">
+              <img class="fm-tile-img" id="fm-tile-img" alt="Your key piece">
+            </div>
+          </button>
+
+          <div class="fm-prompt-wrap">
+            <textarea id="fm-input" rows="4" placeholder="The piece, the occasion, how you like to feel in it…" maxlength="240" oninput="App.syncPrompt()"></textarea>
+            <div class="fm-prompt-hint">
+              <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+              A photo makes it sharper — but a few words is plenty.
+            </div>
+          </div>
+        </div>
+
+        <button class="fm-cta" id="fm-style-cta" onclick="App.submitStyle()" disabled>
+          Style it three ways
+          <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+
+        <button class="fm-later" onclick="App.styleLater()">
+          <svg viewBox="0 0 24 24"><path d="M12 8v4l2.5 2.5"/><circle cx="12" cy="12" r="9"/></svg>
+          <span>No piece on hand? <em>Come back later</em> with this email.</span>
+        </button>
+
+        <div class="fm-recent" id="fm-recent" hidden></div>
+
+        <input type="file" id="fm-file" accept="image/*" hidden onchange="App.onFile(this)">
+        <input type="file" id="fm-cam" accept="image/*" capture="environment" hidden onchange="App.onFile(this)">
+      </section>
+
+      <!-- STEP · NAME -->
+      <section class="fm-step" id="fms-name">
+        <span class="eyebrow fm-eyebrow">One last thing</span>
+        <h2 class="fm-h">Who am I<br><em>styling?</em></h2>
+        <p class="fm-sub">So your edit feels like it was made for you.</p>
+        <form class="fm-namefield" onsubmit="App.submitNameModal(event); return false;">
+          <input class="fm-name-input" id="fm-name-input" placeholder="Your name" autocomplete="given-name" maxlength="32">
+        </form>
+        <button class="fm-cta" onclick="App.submitNameModal()">
+          See my edit
+          <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+        <button class="fm-skip" onclick="App.skipName()">Skip for now</button>
+      </section>
+
+      <!-- STEP · GENERATING -->
+      <section class="fm-step" id="fms-gen">
+        <div class="fm-gen-piece"><img id="fm-gen-img" alt=""><div class="gen-sheen"></div></div>
+        <h2 class="fm-h fm-gen-h" id="fm-gen-h">Styling<br><em>your key piece.</em></h2>
+        <div class="fm-gen-steps gen-steps" id="fm-gen-steps">
+          <div class="gen-step" data-text="Reading colour, cut and fabric"></div>
+          <div class="gen-step" data-text="Pulling references it pairs with"></div>
+          <div class="gen-step" data-text="Building three distinct looks"></div>
+          <div class="gen-step" data-text="Composing your edit"></div>
+        </div>
+        <p class="fm-gen-err" id="fm-gen-err" style="display:none;color:#8E7077;font-size:14px;margin-top:20px;text-align:center;"></p>
+      </section>
+
+    </div>
+  </div>
 </div>
 
 <!-- ══ SHARE MODAL · Instagram 1:1 carousel ══ -->
