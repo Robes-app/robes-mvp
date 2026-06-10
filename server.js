@@ -122,7 +122,7 @@ app.post('/api/instagram', async (req, res) => {
 
 /* ── feedback ────────────────────────────────────────────────────── */
 app.post('/api/feedback', async (req, res) => {
-  const { email, rating, comment, prompt, pieceName, pieceLink, looksOutput } = req.body;
+  const { email, rating, comment, prompt, pieceName, pieceLink, photoUrl, looksOutput } = req.body;
   await airtableCreate('Feedback', {
     'Email': email || '',
     ...(rating != null ? { 'Rating': Number(rating) } : {}),
@@ -130,6 +130,7 @@ app.post('/api/feedback', async (req, res) => {
     'Prompt': prompt || '',
     'Piece Name': pieceName || '',
     'Piece Link': pieceLink || '',
+    ...(photoUrl ? { 'Photo': [{ url: photoUrl }] } : {}),
     'Looks Output': looksOutput || '',
     'Created At': new Date().toISOString().split('T')[0],
   });

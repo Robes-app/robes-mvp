@@ -462,7 +462,8 @@ const App = (function () {
         comment,
         prompt: st.prompt || '',
         pieceName: st.pieceName || '',
-        pieceLink: st.photoUrl || st.link || '',
+        pieceLink: st.link || '',
+        photoUrl: st.photoUrl || '',
         looksOutput,
       }),
     }).catch(() => {});
