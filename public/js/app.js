@@ -382,6 +382,15 @@ const App = (function () {
     const ways = st.ways;
     if (!ways) return; // shouldn't happen
 
+    // reset feedback bar
+    fbRating = null;
+    if ($('#fb-prompt')) $('#fb-prompt').hidden = false;
+    if ($('#fb-expand')) $('#fb-expand').hidden = true;
+    if ($('#fb-done'))   $('#fb-done').hidden   = true;
+    if ($('#fb-up'))     { $('#fb-up').classList.remove('sel-up','sel-dn'); }
+    if ($('#fb-dn'))     { $('#fb-dn').classList.remove('sel-up','sel-dn'); }
+    if ($('#fb-text'))   $('#fb-text').value = '';
+
     const who = st.name ? `${st.name}, your piece —` : 'Your piece,';
     $('#res-h').innerHTML = `${who}<br><em>worn three ways.</em>`;
     $('#res-intro').textContent = 'A sharp piece does the most work in a wardrobe. Here it is three ways — none of them the obvious one.';
@@ -419,6 +428,31 @@ const App = (function () {
           </div>
         </div>
       </article>`).join('');
+  }
+
+  /* ── feedback ───────────────────────────────────────────────────── */
+  let fbRating = null;
+
+  function feedbackRate(val) {
+    fbRating = val;
+    $('#fb-up').classList.toggle('sel-up', val === 1);
+    $('#fb-up').classList.toggle('sel-dn', false);
+    $('#fb-dn').classList.toggle('sel-dn', val === 0);
+    $('#fb-dn').classList.toggle('sel-up', false);
+    $('#fb-expand').hidden = false;
+    setTimeout(() => { if ($('#fb-text')) $('#fb-text').focus(); }, 60);
+  }
+
+  function feedbackSubmit() {
+    const comment = ($('#fb-text') ? $('#fb-text').value : '').trim();
+    fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: st.email || '', type: 'style_rating', rating: fbRating, comment }),
+    }).catch(() => {});
+    if ($('#fb-prompt')) $('#fb-prompt').hidden = true;
+    if ($('#fb-expand')) $('#fb-expand').hidden = true;
+    if ($('#fb-done')) $('#fb-done').hidden = false;
   }
 
   /* ── share — Instagram 1:1 carousel ─────────────────────────────── */
@@ -551,7 +585,7 @@ const App = (function () {
     openShare, closeShare, goShare,
     shareNext: () => goShare(st.shareIdx + 1),
     sharePrev: () => goShare(st.shareIdx - 1),
-    shareTo, copyLink, toast,
+    shareTo, copyLink, toast, feedbackRate, feedbackSubmit,
     setResultLayout,
     _st: st,
   };

@@ -495,6 +495,32 @@ em{font-style:italic}
 
 .res-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:34px}
 
+/* ── feedback bar ── */
+.feedback-bar{margin:28px 0 0;padding:16px 20px;border:1px solid var(--rule);border-radius:3px;background:#fff}
+.fb-prompt{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.fb-label{font-size:12px;color:var(--ink-soft)}
+.fb-btns{display:flex;gap:8px}
+.fb-btn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--rule);transition:all .18s var(--ease)}
+.fb-btn svg{width:15px;height:15px;fill:none;stroke:var(--ink-soft);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.fb-btn:hover{border-color:var(--ink);background:var(--cream-100)}
+.fb-btn.sel-up{border-color:var(--sage);background:rgba(126,124,90,.08)}
+.fb-btn.sel-up svg{stroke:var(--sage)}
+.fb-btn.sel-dn{border-color:var(--rose);background:rgba(142,112,119,.08)}
+.fb-btn.sel-dn svg{stroke:var(--rose)}
+.fb-expand{display:flex;gap:10px;align-items:flex-start;margin-top:14px}
+.fb-text{flex:1;resize:none;border:1px solid var(--rule);border-radius:2px;padding:9px 12px;
+  font-family:var(--font-sans);font-size:13px;font-weight:300;background:#fff;color:var(--ink);
+  outline:none;line-height:1.5}
+.fb-text:focus{border-color:var(--ink-soft)}
+.fb-submit{padding:10px 16px;background:var(--ink);color:var(--on-dark-1);border-radius:2px;
+  font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;
+  transition:background .18s var(--ease)}
+.fb-submit:hover{background:var(--ink-2)}
+.fb-done{display:flex;align-items:center;gap:8px;padding:2px 0}
+.fb-done svg{width:14px;height:14px;fill:none;stroke:var(--sage);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.fb-done span{font-size:12px;color:var(--ink-faint)}
+
 /* ── footer line ── */
 .res-foot{margin-top:46px;padding-top:26px;border-top:1px solid var(--rule);
   display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
