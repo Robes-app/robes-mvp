@@ -396,7 +396,7 @@ const App = (function () {
 
     const who = st.name ? `${st.name}, your piece —` : 'Your piece,';
     $('#res-h').innerHTML = `${who}<br><em>worn three ways.</em>`;
-    $('#res-intro').textContent = 'A sharp piece does the most work in a wardrobe. Here it is three ways — none of them the obvious one.';
+    $('#res-intro').textContent = 'Here are three different styling suggestions for your key piece, ranging from sharp tailoring to casual sophistication and high-glamour evening wear.';
 
     $('#yp-img').src = st.photo || SAMPLE;
     $('#yp-name').textContent = st.pieceName || 'Your key piece';

@@ -145,7 +145,7 @@
           <div class="lf-tagline">The world is your runway</div>
         </div>
         <div class="lf-right">
-          <span class="lf-cities">Dublin · London · Paris · New York · LA</span>
+          <span class="lf-cities">Dublin · London · Paris · New York · LA · Sydney · Melbourne</span>
           <span class="lf-copy">© 2026 Robes. All rights reserved.</span>
         </div>
       </div>
@@ -185,6 +185,7 @@
       </div>
       <div class="ob-footer rise d4">
         <button class="ob-continue" onclick="App.submitName()">Continue</button>
+        <button class="ob-skip" onclick="App.submitName()">Skip for now</button>
       </div>
     </div>
   </section>
@@ -372,6 +373,11 @@
         <span class="share-at">@</span>
         <input class="share-handle-input" id="share-handle-input" type="text" placeholder="yourhandle" autocomplete="off">
       </div>
+      <label class="share-consent">
+        <input class="share-consent-input" id="share-consent" type="checkbox">
+        <span class="share-consent-box"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+        <span class="share-consent-text">I'm happy for Robes to tag me on Instagram</span>
+      </label>
       <button class="share-cta" onclick="App.shareTo('Instagram')">SHARE MY LOOK</button>
       <div class="share-divider"></div>
       <button class="share-action-row" onclick="App.shareTo('Download')">
