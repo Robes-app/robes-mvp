@@ -82,12 +82,15 @@ app.post('/api/instagram', async (req, res) => {
 
 /* ── feedback ────────────────────────────────────────────────────── */
 app.post('/api/feedback', async (req, res) => {
-  const { email, type, rating, comment } = req.body;
+  const { email, rating, comment, prompt, pieceName, pieceLink, looksOutput } = req.body;
   await airtableCreate('Feedback', {
     'Email': email || '',
-    'Type': type || '',
     ...(rating != null ? { 'Rating': Number(rating) } : {}),
-    'Comment': comment || '',
+    'User Feedback': comment || '',
+    'Prompt': prompt || '',
+    'Piece Name': pieceName || '',
+    'Piece Link': pieceLink || '',
+    'Looks Output': looksOutput || '',
     'Created At': new Date().toISOString().split('T')[0],
   });
   res.json({ ok: true });

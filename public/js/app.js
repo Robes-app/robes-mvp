@@ -445,10 +445,21 @@ const App = (function () {
 
   function feedbackSubmit() {
     const comment = ($('#fb-text') ? $('#fb-text').value : '').trim();
+    const looksOutput = st.ways ? st.ways.map((w, i) =>
+      `Look ${i + 1}: ${w.title} (${w.eyebrow})\n${w.outfit}\n${w.details}\n${w.accessories}`
+    ).join('\n\n') : '';
     fetch('/api/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: st.email || '', type: 'style_rating', rating: fbRating, comment }),
+      body: JSON.stringify({
+        email: st.email || '',
+        rating: fbRating,
+        comment,
+        prompt: st.prompt || '',
+        pieceName: st.pieceName || '',
+        pieceLink: st.link || '',
+        looksOutput,
+      }),
     }).catch(() => {});
     if ($('#fb-prompt')) $('#fb-prompt').hidden = true;
     if ($('#fb-expand')) $('#fb-expand').hidden = true;
