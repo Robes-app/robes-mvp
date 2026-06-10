@@ -443,7 +443,7 @@ const App = (function () {
     $('#fb-dn').classList.toggle('sel-dn', val === 0);
     $('#fb-dn').classList.toggle('sel-up', false);
     $('#fb-expand').hidden = false;
-    setTimeout(() => { if ($('#fb-text')) $('#fb-text').focus(); }, 60);
+    setTimeout(() => { if ($('#fb-text')) { $('#fb-text').focus(); } }, 60);
   }
 
   function feedbackSubmit() {

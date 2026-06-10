@@ -316,7 +316,13 @@
 
       <div class="feedback-bar rise d4" id="feedback-bar">
         <div class="fb-prompt" id="fb-prompt">
-          <span class="fb-label">How were these looks?</span>
+          <div class="fb-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+          </div>
+          <div class="fb-copy">
+            <span class="fb-q">How were these looks?</span>
+            <em class="fb-nudge">Tell us — it shapes what comes next.</em>
+          </div>
           <div class="fb-btns">
             <button class="fb-btn" id="fb-up" onclick="App.feedbackRate(1)" aria-label="Good">
               <svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
@@ -327,18 +333,13 @@
           </div>
         </div>
         <div class="fb-expand" id="fb-expand" hidden>
-          <textarea class="fb-text" id="fb-text" placeholder="Anything to add? (optional)" maxlength="280" rows="2"></textarea>
+          <input class="fb-text" id="fb-text" type="text" placeholder="Please share feedback to help us improve" maxlength="280">
           <button class="fb-submit" onclick="App.feedbackSubmit()">Send</button>
         </div>
         <div class="fb-done" id="fb-done" hidden>
           <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
           <span>Thanks — that helps us improve.</span>
         </div>
-      </div>
-
-      <div class="mvp-banner rise d4">
-        <div class="mvp-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg></div>
-        <p class="mvp-text">This is Robes, in its earliest edition. Today, styling a key piece. Soon — style inspiration, shoppable edits, and daily outfits built from the wardrobe you own. You're first on the list.</p>
       </div>
 
       <div class="res-foot rise d5">
