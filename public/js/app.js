@@ -213,7 +213,7 @@ const App = (function () {
       <div class="prev-label eyebrow">Previously styled</div>
       ${st.history.map((item, i) => `
         <button class="prev-card" onclick="App.reopenResult(${i})">
-          <img class="prev-thumb" src="${item.photo || SAMPLE}" alt="">
+          <img class="prev-thumb" src="${item.generatedImages?.[0] || item.photo || SAMPLE}" alt="">
           <div class="prev-info">
             <div class="prev-name">${item.pieceName || 'Key piece'}</div>
             <div class="prev-meta">3 looks · ${relativeTime(item.ts)}</div>
@@ -536,7 +536,7 @@ const App = (function () {
       <div class="fm-recent-row">
         ${st.history.slice(0, 3).map((item, i) => `
           <button class="fm-recent-card" onclick="App.reopenResult(${i}); App.closeModal();">
-            <img class="frc-img" src="${item.photo || SAMPLE}" alt="">
+            <img class="frc-img" src="${item.generatedImages?.[0] || item.photo || SAMPLE}" alt="">
             <div class="frc-meta">
               <div class="frc-name">${item.pieceName || 'Key piece'}</div>
               <div class="frc-sub">3 looks · ${relativeTime(item.ts)}</div>
@@ -793,10 +793,10 @@ const App = (function () {
       }));
     } catch {
       try {
-        // if storage is full (large base64 photos), strip photos and retry
+        // if storage is full, strip base64 binary data and retry
         localStorage.setItem(STORE_KEY, JSON.stringify({
           name: st.name, email: st.email,
-          history: st.history.slice(0, 5).map(h => ({ ...h, photo: null })),
+          history: st.history.slice(0, 5).map(h => ({ ...h, photo: null, generatedImages: null })),
         }));
       } catch { /* give up silently */ }
     }
