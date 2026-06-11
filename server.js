@@ -268,6 +268,7 @@ Style this key piece three ways. Make each look genuinely distinct — different
     console.log(`Total: ${Date.now() - t0}ms`);
     res.json({ ways, generatedImages, photoUrl, fallback });
   } catch (err) {
+    if (res.headersSent) return; // client already disconnected
     console.error('Gemini API error:', err.message);
     res.status(500).json({ error: err.message || 'Styling failed' });
   }

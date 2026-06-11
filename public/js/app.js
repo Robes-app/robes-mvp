@@ -16,7 +16,8 @@ const App = (function () {
     fallback: false,       // true when AI couldn't recognise the input and used the default piece
     history: [],           // archived results from previous styling sessions
     fromHistory: false,    // true when current result was reopened from history (don't re-archive)
-    stylingPromise: null,  // pre-fired API promise (started during name entry)
+    stylingPromise: null,   // pre-fired API promise (started during name entry)
+    styleController: null, // AbortController for the in-flight /api/style fetch
     lookId: null,          // pre-generated share URL id
     resultLayout: 'stack',
     shareIdx: 0, idx: 0,
@@ -65,7 +66,7 @@ const App = (function () {
   function restart() {
     st.name = ''; st.email = ''; st.pieceName = ''; st.prompt = '';
     st.link = ''; st.photo = null; st.photoUrl = null; st.ways = null;
-    st.generatedImages = null; st.fallback = false; st.shareIdx = 0; st.history = []; st.stylingPromise = null; st.lookId = null;
+    st.generatedImages = null; st.fallback = false; st.shareIdx = 0; st.history = []; st.stylingPromise = null; st.styleController = null; st.lookId = null;
     closeModal();
     go('landing');
   }
@@ -354,7 +355,8 @@ const App = (function () {
       st.ways = ways;
       apiDone = true;
       if (animDone) advance();
-    }).catch(() => {
+    }).catch(err => {
+      if (err.name === 'AbortError') return;
       clearTimeout(genTimer);
       steps.forEach(s => s.classList.remove('on', 'done'));
       if (errEl) errEl.hidden = false;
@@ -385,6 +387,8 @@ const App = (function () {
   }
 
   async function callStyle() {
+    const controller = new AbortController();
+    st.styleController = controller;
     const body = {
       photo: st.photo || null,
       link: st.link || null,
@@ -392,7 +396,6 @@ const App = (function () {
       name: st.name || null,
       pieceName: st.pieceName || null,
     };
-    const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 90000);
     let res;
     try {
@@ -404,6 +407,7 @@ const App = (function () {
       });
     } finally {
       clearTimeout(timer);
+      if (st.styleController === controller) st.styleController = null;
     }
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -481,6 +485,7 @@ const App = (function () {
 
   /* ── flow modal ─────────────────────────────────────────────────── */
   function openModal() {
+    if (st.styleController) { st.styleController.abort(); st.styleController = null; }
     fmStep = 0;
     st.photo = null; st.photoUrl = null; st.prompt = ''; st.pieceName = ''; st.stylingPromise = null; st.lookId = null;
     paintFmTile();
@@ -495,6 +500,7 @@ const App = (function () {
   }
 
   function closeModal() {
+    if (st.styleController) { st.styleController.abort(); st.styleController = null; }
     const m = document.getElementById('flow-modal');
     if (m) m.classList.remove('open');
     document.body.style.overflow = '';
@@ -637,7 +643,8 @@ const App = (function () {
       st.ways = ways;
       apiDone = true;
       if (animDone) advanceModal();
-    }).catch(() => {
+    }).catch(err => {
+      if (err.name === 'AbortError') return;
       clearTimeout(genTimer);
       steps.forEach(s => s.classList.remove('on', 'done'));
       if (errEl) errEl.hidden = false;
