@@ -829,7 +829,13 @@ const App = (function () {
   function init() {
     wireDrop();
     loadPersisted();
-    go('landing');
+    const params = new URLSearchParams(location.search);
+    if (params.get('from') === 'share' && st.email) {
+      history.replaceState({}, '', '/');
+      go('confirm');
+    } else {
+      go('landing');
+    }
   }
 
   return {

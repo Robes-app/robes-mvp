@@ -349,11 +349,11 @@ const View = (function () {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: v }),
     }).catch(() => {});
-    submitted = true;
-    const actions = $('v-hero-actions');
-    if (actions) actions.innerHTML = `<p style="font-family:var(--font-serif);font-weight:300;font-size:22px;color:var(--ink);margin-top:4px">You're on the list. <em style="color:var(--ink-faint)">We'll be in touch.</em></p>`;
-    const bar = $('v-bar');
-    if (bar) bar.classList.remove('show');
+    try {
+      const existing = JSON.parse(localStorage.getItem('robes-v1') || '{}');
+      localStorage.setItem('robes-v1', JSON.stringify({ ...existing, email: v }));
+    } catch {}
+    location.href = '/?from=share';
     return false;
   }
 
