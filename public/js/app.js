@@ -318,11 +318,13 @@ const App = (function () {
     apiDone = false;
     animDone = false;
 
-    // typewriter — one step at a time, character by character
+    // typewriter — one step at a time, loops until API responds
     function typeStep(si) {
       if (si >= steps.length) {
-        animDone = true;
-        if (apiDone) advance();
+        if (apiDone) { animDone = true; advance(); return; }
+        // API still working — reset and loop
+        steps.forEach(s => { s.textContent = ''; s.classList.remove('on', 'done'); });
+        genTimer = setTimeout(() => typeStep(0), 400);
         return;
       }
       const el = steps[si];
@@ -572,7 +574,13 @@ const App = (function () {
     animDone = false;
 
     function typeStep(si) {
-      if (si >= steps.length) { animDone = true; if (apiDone) advanceModal(); return; }
+      if (si >= steps.length) {
+        if (apiDone) { animDone = true; advanceModal(); return; }
+        // API still working — reset and loop
+        steps.forEach(s => { s.textContent = ''; s.classList.remove('on', 'done'); });
+        genTimer = setTimeout(() => typeStep(0), 400);
+        return;
+      }
       const el = steps[si];
       const text = el.dataset.text || '';
       el.classList.add('on');
