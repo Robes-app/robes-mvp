@@ -685,7 +685,6 @@ const App = (function () {
         rating: fbRating,
         comment,
         prompt: st.prompt || '',
-        pieceName: st.pieceName || '',
         pieceLink: st.lookId ? `${location.origin}/look/${st.lookId}` : (st.link || ''),
         photoUrl: st.photoUrl || '',
         looksOutput,

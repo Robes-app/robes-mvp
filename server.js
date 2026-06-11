@@ -131,13 +131,12 @@ app.post('/api/instagram', async (req, res) => {
 
 /* ── feedback ────────────────────────────────────────────────────── */
 app.post('/api/feedback', async (req, res) => {
-  const { email, rating, comment, prompt, pieceName, pieceLink, photoUrl, looksOutput } = req.body;
+  const { email, rating, comment, prompt, pieceLink, photoUrl, looksOutput } = req.body;
   await airtableCreate('Feedback', {
     'Email': email || '',
     ...(rating != null ? { 'Rating': Number(rating) } : {}),
     'User Feedback': comment || '',
     'Prompt': prompt || '',
-    'Piece Name': pieceName || '',
     'Piece Link': pieceLink || '',
     ...(photoUrl ? { 'Photo': [{ url: photoUrl }] } : {}),
     'Looks Output': looksOutput || '',
@@ -302,9 +301,8 @@ app.post('/api/look', (req, res) => {
     ).join('\n\n');
 
     await airtableCreate('Feedback', {
-      ...(email ? { 'Email': email } : {}),
+      'Email': email || '',
       'Prompt': prompt || '',
-      'Piece Name': piece || '',
       'Piece Link': lookUrl,
       ...(photoAttachments.length ? { 'Photo': photoAttachments } : {}),
       'Looks Output': looksOutput,
