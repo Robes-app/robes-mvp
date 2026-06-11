@@ -798,8 +798,13 @@ em{font-style:italic}
   .dropzone{aspect-ratio:4/3}
   .way{grid-template-columns:1fr;gap:18px}
   .ways.grid{grid-template-columns:1fr}
-  .share{grid-template-columns:1fr;max-height:94vh}
-  .share-right{order:-1}
+  .share{grid-template-columns:1fr;max-height:94vh;width:100%;border-radius:0;border-left:none;border-right:none}
+  .share-left{padding:20px;border-right:none;border-bottom:1px solid var(--rule)}
+  .share-stage{max-width:340px}
+  .share-right{order:-1;padding:20px 20px 18px}
+  .share-h{font-size:26px}
+  .share-desc{margin-bottom:16px}
+  .share-divider{display:none}
   .nav-progress{display:none}
   .land-hero-inner{grid-template-columns:1fr;gap:44px;padding-top:104px}
   .land-card{justify-self:stretch;max-width:none;order:2}
@@ -818,4 +823,10 @@ em{font-style:italic}
   .fm-dialog{max-height:100vh;height:100%;border-radius:0;border:none;width:100%}
   .fm-compose{grid-template-columns:1fr}
   .fm-tile{aspect-ratio:16/10;max-height:200px}
+  .share-left{padding:16px}
+  .share-stage{max-width:none}
+  .share-right{padding:16px 16px 12px}
+  .share-h{font-size:22px}
+  .share-copy{margin-top:12px}
+  .share-action-row{padding:12px}
 }
