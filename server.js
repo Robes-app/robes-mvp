@@ -188,7 +188,7 @@ app.post('/api/style', async (req, res) => {
 
 When given a key fashion piece, you create three distinct, wearable looks around it — each with a clear occasion and mood. Your descriptions are specific: you name real item types, describe drape and texture, and explain why each pairing works.
 
-IMPORTANT: If the user's input is complete nonsense, gibberish, or contains no identifiable fashion piece or styling request, set "fallback": true and style a ${FALLBACK_PIECE} instead. For any reasonable fashion input — even vague — set "fallback": false.`;
+IMPORTANT: You must set "fallback": true if ANY of these apply — the input is gibberish or random characters; no specific clothing item, garment, or accessory can be identified; the request is too vague to style (e.g. just a colour, a single generic word, or a non-fashion concept). When fallback is true, style a ${FALLBACK_PIECE} instead. Only set "fallback": false when a real, nameable fashion piece is clearly present.`;
 
   const userText = `${piece} ${context} ${linkCtx}
 
