@@ -17,6 +17,7 @@ const App = (function () {
     history: [],           // archived results from previous styling sessions
     fromHistory: false,    // true when current result was reopened from history (don't re-archive)
     stylingPromise: null,  // pre-fired API promise (started during name entry)
+    lookId: null,          // pre-generated share URL id
     resultLayout: 'stack',
     shareIdx: 0, idx: 0,
   };
@@ -65,7 +66,7 @@ const App = (function () {
   function restart() {
     st.name = ''; st.email = ''; st.pieceName = ''; st.prompt = '';
     st.link = ''; st.photo = null; st.photoUrl = null; st.ways = null;
-    st.generatedImages = null; st.fallback = false; st.shareIdx = 0; st.history = []; st.stylingPromise = null;
+    st.generatedImages = null; st.fallback = false; st.shareIdx = 0; st.history = []; st.stylingPromise = null; st.lookId = null;
     closeModal();
     go('landing');
   }
@@ -74,7 +75,7 @@ const App = (function () {
     if (st.ways && !st.fromHistory) {
       st.history.unshift({ photo: st.photo, photoUrl: st.photoUrl, pieceName: st.pieceName, ways: st.ways, generatedImages: st.generatedImages, ts: Date.now() });
     }
-    st.photo = null; st.photoUrl = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null; st.generatedImages = null; st.fallback = false; st.fromHistory = false;
+    st.photo = null; st.photoUrl = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null; st.generatedImages = null; st.fallback = false; st.fromHistory = false; st.lookId = null;
     persist();
     go('landing');
     openModal();
@@ -371,9 +372,17 @@ const App = (function () {
     })));
   }
 
+  function saveLook() {
+    if (!st.ways) return;
+    fetch('/api/look', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: st.name || '', piece: st.pieceName || '', photoUrl: st.photoUrl || null, ways: st.ways, generatedImages: st.generatedImages || [], fallback: st.fallback }),
+    }).then(r => r.ok ? r.json() : null).then(data => { if (data?.id) st.lookId = data.id; }).catch(() => {});
+  }
   function advance() {
     clearTimeout(genTimer);
-    genTimer = setTimeout(() => preloadGeneratedImages().then(() => next()), 400);
+    genTimer = setTimeout(() => preloadGeneratedImages().then(() => { saveLook(); next(); }), 400);
   }
 
   async function callStyle() {
@@ -466,7 +475,7 @@ const App = (function () {
   /* ── flow modal ─────────────────────────────────────────────────── */
   function openModal() {
     fmStep = 0;
-    st.photo = null; st.photoUrl = null; st.prompt = ''; st.pieceName = ''; st.stylingPromise = null;
+    st.photo = null; st.photoUrl = null; st.prompt = ''; st.pieceName = ''; st.stylingPromise = null; st.lookId = null;
     paintFmTile();
     if ($('#fm-input')) $('#fm-input').value = '';
     if ($('#fm-name-input')) $('#fm-name-input').value = st.name || '';
@@ -630,7 +639,7 @@ const App = (function () {
 
   function advanceModal() {
     clearTimeout(genTimer);
-    genTimer = setTimeout(() => preloadGeneratedImages().then(() => { closeModal(); go('result'); }), 400);
+    genTimer = setTimeout(() => preloadGeneratedImages().then(() => { saveLook(); closeModal(); go('result'); }), 400);
   }
 
   function retryStyle() {
@@ -692,9 +701,8 @@ const App = (function () {
   function openShare() {
     buildCarousel();
     st.shareIdx = 0; moveCarousel();
-    const slug = (st.pieceName || 'your-look').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     const urlEl = $('#share-url');
-    if (urlEl) urlEl.textContent = `${location.host}/look/${slug}`;
+    if (urlEl) urlEl.textContent = st.lookId ? `${location.host}/look/${st.lookId}` : 'generating link…';
     $('#share-modal').classList.add('open');
   }
   function closeShare() { $('#share-modal').classList.remove('open'); }
@@ -757,26 +765,10 @@ const App = (function () {
     toast(label === 'Download' ? 'All three saved to your camera roll' : `Queued for ${label}`);
   }
   async function copyLink() {
-    if (!st.ways) return;
+    if (!st.lookId) { toast('Link not ready yet'); return; }
     try {
-      const res = await fetch('/api/look', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: st.name || '',
-          piece: st.pieceName || '',
-          photoUrl: st.photoUrl || null,
-          ways: st.ways,
-          generatedImages: st.generatedImages || [],
-          fallback: st.fallback,
-        }),
-      });
-      if (!res.ok) throw new Error();
-      const { id } = await res.json();
-      const url = `${location.origin}/look/${id}`;
+      const url = `${location.origin}/look/${st.lookId}`;
       await navigator.clipboard.writeText(url);
-      const urlEl = $('#share-url');
-      if (urlEl) urlEl.textContent = url.replace(/^https?:\/\//, '');
       toast('Link copied');
     } catch {
       toast('Could not copy link');
