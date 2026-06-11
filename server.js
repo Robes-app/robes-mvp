@@ -208,6 +208,8 @@ Style this key piece three ways. Make each look genuinely distinct — different
   }
 
   try {
+    const t0 = Date.now();
+
     // Run text generation + Cloudinary upload in parallel, with retry on text
     const [textResponse, photoUrl] = await Promise.all([
       withRetry(() => ai.models.generateContent({
@@ -217,14 +219,20 @@ Style this key piece three ways. Make each look genuinely distinct — different
           systemInstruction,
           responseMimeType: 'application/json',
           responseSchema: STYLE_SCHEMA,
+          thinkingConfig: { thinkingBudget: 0 },
+          maxOutputTokens: 2000,
         },
       })),
       photoMatch ? cloudinaryUpload(photoMatch[2], photoMatch[1]) : Promise.resolve(null),
     ]);
 
+    console.log(`Text generation: ${Date.now() - t0}ms`);
+
     const parsed = JSON.parse(textResponse.text);
     const fallback = parsed.fallback === true;
     const ways = parsed.ways;
+
+    const t1 = Date.now();
 
     // Generate 3 outfit images in parallel using Nano Banana
     const generatedImages = await Promise.all(ways.map((w) => {
@@ -237,11 +245,11 @@ Style this key piece three ways. Make each look genuinely distinct — different
         text: `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one person, one scene, no collage, no split panels, no side-by-side images. The key piece is ${pieceLabel}. Look: "${w.title}" — ${w.eyebrow}. Outfit: ${w.outfit}. Show the full outfit clearly. Tall portrait crop, subject centred.`,
       });
 
-      return withRetry(() => ai.models.generateContent({
+      return ai.models.generateContent({
         model: 'gemini-3.1-flash-image',
         contents: [{ role: 'user', parts: imgParts }],
         config: { responseModalities: ['TEXT', 'IMAGE'] },
-      })).then(r => {
+      }).then(r => {
         const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
         if (!part?.inlineData) return null;
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
@@ -251,6 +259,7 @@ Style this key piece three ways. Make each look genuinely distinct — different
       });
     }));
 
+    console.log(`Image generation: ${Date.now() - t1}ms | Total: ${Date.now() - t0}ms`);
     console.log(`Generated images: ${generatedImages.filter(Boolean).length}/3 succeeded`);
     res.json({ ways, generatedImages, photoUrl, fallback });
   } catch (err) {
