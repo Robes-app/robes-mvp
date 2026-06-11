@@ -687,7 +687,6 @@ const App = (function () {
     $('#share-cards').innerHTML = ways.map((w, i) => {
       const genImg = st.generatedImages && st.generatedImages[i];
       const imgSrc = genImg || st.photo || SAMPLE;
-      const objPos = genImg ? 'object-position:25% top' : `object-position:50% ${[24, 28, 22][i]}%`;
       return `
       <div class="ig">
         <div class="ig-grain"></div>
@@ -697,7 +696,7 @@ const App = (function () {
             <span class="ig-idx">0${i + 1} / 03</span>
           </div>
           <div class="ig-photo">
-            <img src="${imgSrc}" style="${objPos}" alt="">
+            <img src="${imgSrc}" alt="">
             <span class="ig-num">${String(i + 1).padStart(2, '0')}</span>
           </div>
           <div class="ig-cap">
