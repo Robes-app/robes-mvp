@@ -196,10 +196,21 @@ Style this key piece three ways. Make each look genuinely distinct — different
   }
   textParts.push({ text: userText });
 
+  // retry wrapper — attempt up to 3 times with exponential backoff
+  async function withRetry(fn, attempts = 3) {
+    for (let i = 0; i < attempts; i++) {
+      try { return await fn(); } catch (err) {
+        if (i === attempts - 1) throw err;
+        await new Promise(r => setTimeout(r, 800 * Math.pow(2, i)));
+        console.warn(`Retrying (attempt ${i + 2})...`);
+      }
+    }
+  }
+
   try {
-    // Run text generation + Cloudinary upload in parallel
+    // Run text generation + Cloudinary upload in parallel, with retry on text
     const [textResponse, photoUrl] = await Promise.all([
-      ai.models.generateContent({
+      withRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: [{ role: 'user', parts: textParts }],
         config: {
@@ -207,7 +218,7 @@ Style this key piece three ways. Make each look genuinely distinct — different
           responseMimeType: 'application/json',
           responseSchema: STYLE_SCHEMA,
         },
-      }),
+      })),
       photoMatch ? cloudinaryUpload(photoMatch[2], photoMatch[1]) : Promise.resolve(null),
     ]);
 
@@ -223,14 +234,14 @@ Style this key piece three ways. Make each look genuinely distinct — different
       }
       const pieceLabel = fallback ? FALLBACK_PIECE : (pieceName || 'the clothing item');
       imgParts.push({
-        text: `Fashion editorial photograph. The key piece is ${pieceLabel}. Style it as: "${w.title}" — ${w.eyebrow}. Outfit: ${w.outfit}. Preserve the key piece accurately. Clean editorial style, full outfit visible, studio or lifestyle setting.`,
+        text: `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one person, one scene, no collage, no split panels, no side-by-side images. The key piece is ${pieceLabel}. Look: "${w.title}" — ${w.eyebrow}. Outfit: ${w.outfit}. Show the full outfit clearly. Tall portrait crop, subject centred.`,
       });
 
-      return ai.models.generateContent({
+      return withRetry(() => ai.models.generateContent({
         model: 'gemini-3.1-flash-image',
         contents: [{ role: 'user', parts: imgParts }],
         config: { responseModalities: ['TEXT', 'IMAGE'] },
-      }).then(r => {
+      })).then(r => {
         const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
         if (!part?.inlineData) return null;
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;

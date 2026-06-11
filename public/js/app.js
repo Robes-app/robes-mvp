@@ -424,7 +424,7 @@ const App = (function () {
     host.innerHTML = ways.map((w, i) => {
       const genImg = st.generatedImages && st.generatedImages[i];
       const imgSrc = genImg || st.photo || SAMPLE;
-      const objPos = genImg ? 'object-position:50% center' : `object-position:50% ${[24, 28, 22][i]}%`;
+      const objPos = genImg ? 'object-position:25% top' : `object-position:50% ${[24, 28, 22][i]}%`;
       return `
       <article class="way">
         <div class="way-img">
@@ -675,7 +675,7 @@ const App = (function () {
     $('#share-cards').innerHTML = ways.map((w, i) => {
       const genImg = st.generatedImages && st.generatedImages[i];
       const imgSrc = genImg || st.photo || SAMPLE;
-      const objPos = genImg ? 'object-position:50% center' : `object-position:50% ${[24, 28, 22][i]}%`;
+      const objPos = genImg ? 'object-position:25% top' : `object-position:50% ${[24, 28, 22][i]}%`;
       return `
       <div class="ig">
         <div class="ig-grain"></div>
