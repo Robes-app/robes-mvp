@@ -377,7 +377,7 @@ const App = (function () {
     fetch('/api/look', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: st.name || '', piece: st.pieceName || '', photoUrl: st.photoUrl || null, ways: st.ways, generatedImages: st.generatedImages || [], fallback: st.fallback }),
+      body: JSON.stringify({ name: st.name || '', piece: st.pieceName || '', photoUrl: st.photoUrl || null, ways: st.ways, generatedImages: st.generatedImages || [], fallback: st.fallback, prompt: st.prompt || '', email: st.email || '' }),
     }).then(r => r.ok ? r.json() : null).then(data => { if (data?.id) st.lookId = data.id; }).catch(() => {});
   }
   function advance() {
@@ -686,7 +686,7 @@ const App = (function () {
         comment,
         prompt: st.prompt || '',
         pieceName: st.pieceName || '',
-        pieceLink: st.link || '',
+        pieceLink: st.lookId ? `${location.origin}/look/${st.lookId}` : (st.link || ''),
         photoUrl: st.photoUrl || '',
         looksOutput,
       }),

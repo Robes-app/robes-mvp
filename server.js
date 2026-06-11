@@ -271,15 +271,46 @@ Style this key piece three ways. Make each look genuinely distinct — different
 });
 
 /* ── look share ──────────────────────────────────────────────────── */
+const BASE_URL = process.env.PUBLIC_URL || 'https://www.byrobes.com';
+
 app.post('/api/look', (req, res) => {
-  const { name, piece, photoUrl, ways, generatedImages, fallback } = req.body;
+  const { name, piece, photoUrl, ways, generatedImages, fallback, prompt, email } = req.body;
   if (!ways || !Array.isArray(ways) || ways.length === 0) {
     return res.status(400).json({ error: 'No look data' });
   }
-  const id = randomBytes(5).toString('hex'); // 10-char random ID
+  const id = randomBytes(5).toString('hex');
   lookStore.set(id, { name: name || '', piece: piece || '', photoUrl: photoUrl || null, ways, generatedImages: generatedImages || [], fallback: !!fallback, created: Date.now() });
   console.log(`Look saved: ${id} — ${piece || 'untitled'}`);
   res.json({ id });
+
+  // async: upload generated images to Cloudinary, then log to Airtable
+  (async () => {
+    const lookUrl = `${BASE_URL}/look/${id}`;
+    const photoAttachments = [];
+    if (photoUrl) photoAttachments.push({ url: photoUrl });
+
+    const genUrls = await Promise.all(
+      (generatedImages || []).filter(Boolean).map(src => {
+        const m = src.match(/^data:([^;]+);base64,(.+)$/);
+        return m ? cloudinaryUpload(m[2], m[1]) : Promise.resolve(null);
+      })
+    );
+    genUrls.filter(Boolean).forEach(url => photoAttachments.push({ url }));
+
+    const looksOutput = ways.map((w, i) =>
+      `Look ${i + 1}: ${w.title} (${w.eyebrow})\n${w.outfit}\n${w.details}\n${w.accessories}`
+    ).join('\n\n');
+
+    await airtableCreate('Feedback', {
+      ...(email ? { 'Email': email } : {}),
+      'Prompt': prompt || '',
+      'Piece Name': piece || '',
+      'Piece Link': lookUrl,
+      ...(photoAttachments.length ? { 'Photo': photoAttachments } : {}),
+      'Looks Output': looksOutput,
+      'Created At': new Date().toISOString().split('T')[0],
+    });
+  })().catch(err => console.warn('Look log error:', err.message));
 });
 
 app.get('/api/look/:id', (req, res) => {
