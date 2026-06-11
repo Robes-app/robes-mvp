@@ -312,7 +312,7 @@ const App = (function () {
     $('#gen-h').innerHTML = `${who}<br><em>${what}.</em>`;
 
     const errEl = $('#gen-err');
-    if (errEl) errEl.style.display = 'none';
+    if (errEl) errEl.hidden = true;
 
     const steps = $$('#gen-steps .gen-step');
     steps.forEach(s => { s.textContent = ''; s.classList.remove('on', 'done'); });
@@ -351,15 +351,10 @@ const App = (function () {
       st.ways = ways;
       apiDone = true;
       if (animDone) advance();
-    }).catch(err => {
+    }).catch(() => {
       clearTimeout(genTimer);
       steps.forEach(s => s.classList.remove('on', 'done'));
-      if (errEl) {
-        errEl.textContent = 'Styling failed — ' + (err.message || 'please try again.');
-        errEl.style.display = 'block';
-      }
-      toast('Something went wrong. Please try again.');
-      setTimeout(() => go('capture'), 2000);
+      if (errEl) errEl.hidden = false;
     });
   }
 
@@ -577,7 +572,7 @@ const App = (function () {
     const steps = $$('#fm-gen-steps .gen-step');
     steps.forEach(s => { s.textContent = ''; s.classList.remove('on', 'done'); });
     const errEl = document.getElementById('fm-gen-err');
-    if (errEl) errEl.style.display = 'none';
+    if (errEl) errEl.hidden = true;
     apiDone = false;
     animDone = false;
 
@@ -607,18 +602,31 @@ const App = (function () {
       st.ways = ways;
       apiDone = true;
       if (animDone) advanceModal();
-    }).catch(err => {
+    }).catch(() => {
       clearTimeout(genTimer);
       steps.forEach(s => s.classList.remove('on', 'done'));
-      if (errEl) { errEl.textContent = 'Styling failed — ' + (err.message || 'please try again.'); errEl.style.display = 'block'; }
-      toast('Something went wrong. Please try again.');
-      setTimeout(() => { fmStep = 0; renderFmDots(); showFmStep('fms-style'); }, 2000);
+      if (errEl) errEl.hidden = false;
     });
   }
 
   function advanceModal() {
     clearTimeout(genTimer);
     genTimer = setTimeout(() => { closeModal(); go('result'); }, 400);
+  }
+
+  function retryStyle() {
+    // hide error blocks and re-run whichever gen step is active
+    const fmErr = document.getElementById('fm-gen-err');
+    const pgErr = document.getElementById('gen-err');
+    if (fmErr) fmErr.hidden = true;
+    if (pgErr) pgErr.hidden = true;
+    apiDone = false; animDone = false;
+    // if modal is open, re-run modal gen; otherwise re-run page gen
+    if (document.getElementById('flow-modal').classList.contains('open')) {
+      runGenModal();
+    } else {
+      runGen();
+    }
   }
 
   /* ── feedback ───────────────────────────────────────────────────── */
@@ -796,7 +804,7 @@ const App = (function () {
     shareNext: () => goShare(st.shareIdx + 1),
     sharePrev: () => goShare(st.shareIdx - 1),
     openModal, closeModal, pickFile, submitStyle, submitNameModal, skipName, styleLater,
-    shareTo, copyLink, toast, feedbackRate, feedbackSubmit,
+    retryStyle, shareTo, copyLink, toast, feedbackRate, feedbackSubmit,
     setResultLayout,
     _st: st,
   };

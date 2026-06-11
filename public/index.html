@@ -279,7 +279,10 @@
         <div class="gen-step" data-text="Building three distinct looks"></div>
         <div class="gen-step" data-text="Composing your edit"></div>
       </div>
-      <p class="gen-err" id="gen-err" style="display:none;color:#8E7077;font-size:14px;margin-top:24px;text-align:center;"></p>
+      <div class="gen-err-block" id="gen-err" hidden>
+        <p class="gen-err-msg" id="gen-err-msg">Something went wrong — please try again.</p>
+        <button class="gen-retry-btn" onclick="App.retryStyle()">Try again</button>
+      </div>
     </div>
   </section>
 
@@ -438,7 +441,10 @@
           <div class="gen-step" data-text="Building three distinct looks"></div>
           <div class="gen-step" data-text="Composing your edit"></div>
         </div>
-        <p class="fm-gen-err" id="fm-gen-err" style="display:none;color:#8E7077;font-size:14px;margin-top:20px;text-align:center;"></p>
+        <div class="gen-err-block" id="fm-gen-err" hidden>
+          <p class="gen-err-msg" id="fm-gen-err-msg">Something went wrong — please try again.</p>
+          <button class="gen-retry-btn" onclick="App.retryStyle()">Try again</button>
+        </div>
       </section>
 
     </div>
