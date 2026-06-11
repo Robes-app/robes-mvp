@@ -59,10 +59,8 @@ em{font-style:italic}
 .wordmark{font-family:var(--font-serif);font-weight:400;font-size:21px;
   letter-spacing:.26em;text-transform:uppercase;color:var(--ink);cursor:pointer}
 .nav.on-dark .wordmark{color:var(--on-dark-1)}
-.nav-progress{display:flex;align-items:center;gap:7px}
-.np-dot{width:6px;height:6px;border-radius:50%;background:var(--cream-400);transition:all .4s var(--ease)}
-.np-dot.done{background:var(--ink)}
-.np-dot.cur{background:var(--rose);transform:scale(1.5)}
+.nav-shape-link{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);text-decoration:none;transition:color .2s}
+.nav-shape-link:hover{color:var(--ink-soft)}
 .nav.on-dark .np-dot{background:rgba(250,248,245,.22)}
 .nav.on-dark .np-dot.done{background:var(--on-dark-1)}
 .nav.on-dark .np-dot.cur{background:var(--accent)}
@@ -817,7 +815,7 @@ em{font-style:italic}
   .share-h{font-size:26px}
   .share-desc{margin-bottom:16px}
   .share-divider{display:none}
-  .nav-progress{display:none}
+  .nav-shape-link{display:none}
   .land-hero-inner{grid-template-columns:1fr;gap:44px;padding-top:104px}
   .land-card{justify-self:stretch;max-width:none;order:2}
   .land-how-inner{grid-template-columns:1fr;gap:42px}
