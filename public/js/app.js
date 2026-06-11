@@ -34,7 +34,8 @@ const App = (function () {
     $('#nav').classList.toggle('on-dark', id === 'confirm' || id === 'name');
     $('#nav').classList.toggle('on-landing', id === 'landing');
     const splash = id === 'landing' || id === 'confirm' || id === 'name';
-    $('#nav-progress').style.display = splash ? 'none' : '';
+    const navShape = document.querySelector('.nav-shape-link');
+    if (navShape) navShape.style.display = splash ? 'none' : '';
     $('#nav-cta').style.display = id === 'landing' ? '' : 'none';
     paintProgress(id);
     if (id === 'landing') prepLanding();
@@ -832,7 +833,8 @@ const App = (function () {
     const params = new URLSearchParams(location.search);
     if (params.get('from') === 'share' && st.email) {
       history.replaceState({}, '', '/');
-      go('confirm');
+      go('landing');
+      openModal();
     } else {
       go('landing');
     }
