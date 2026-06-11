@@ -101,11 +101,11 @@
 .v-done-h em { color:var(--accent) }
 .v-done-t { font-size:13.5px; line-height:1.7; color:var(--on-dark-2); max-width:300px }
 
-/* "how robes works" link below card */
-.v-how-link { display:inline-flex; align-items:center; gap:8px; margin-top:22px;
+/* "how robes works" link */
+.v-how-link { display:inline-flex; align-items:center; gap:8px;
   font-size:10px; font-weight:500; letter-spacing:.18em; text-transform:uppercase;
-  color:var(--on-dark-2); text-decoration:none; transition:color .2s }
-.v-how-link:hover { color:var(--on-dark-1) }
+  color:var(--ink-faint); text-decoration:none; transition:color .2s }
+.v-how-link:hover { color:var(--ink-soft) }
 .v-how-link svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round }
 
 /* sticky join bar */
@@ -155,7 +155,7 @@
       <div class="v-hero-copy rise d1">
         <span class="v-eyebrow eyebrow"><span class="eb-rule"></span><span id="v-eyebrow-text">A Robes edit — shared with you</span></span>
         <h1 class="v-h1">One piece.<br><em>Three ways.</em></h1>
-        <p class="v-lede" id="v-lede">Someone styled a key piece with Robes. Join the waitlist to access your own AI stylist and style your key wardrobe pieces today.</p>
+        <p class="v-lede">Join the waitlist and style a key piece three ways — a beautiful first edit, while you wait for Robes.</p>
         <div class="v-piece" id="v-piece">
           <img id="v-piece-img" src="" alt="The styled piece">
           <div class="v-piece-info">
@@ -163,11 +163,15 @@
             <span class="v-piece-name" id="v-piece-name">Key piece</span>
           </div>
         </div>
-        <div class="v-hero-actions">
-          <button class="btn btn-primary" onclick="View.jump()">
-            Style your key piece
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          </button>
+        <div class="v-hero-actions" id="v-hero-actions">
+          <form class="land-form" id="v-hero-form" onsubmit="return View.submit(event)">
+            <input class="land-input" id="v-email" type="email" placeholder="your@email.com" autocomplete="email">
+            <button class="land-submit" type="submit">Join the waitlist</button>
+          </form>
+          <a class="v-how-link" href="/" style="margin-top:16px">
+            How Robes works
+            <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </a>
         </div>
       </div>
       <div class="v-hero-art rise d2">
@@ -194,32 +198,6 @@
     <span class="lq-mark">&ldquo;</span>
     <blockquote class="v-quote-text">Every day is a fashion show, and the world is your runway.</blockquote>
     <span class="eyebrow" style="color:var(--ink-faint)">— Coco Chanel</span>
-  </section>
-
-  <!-- CTA · waitlist -->
-  <section class="v-cta" id="v-cta">
-    <div class="grain"></div>
-    <div class="v-cta-inner">
-      <div class="v-join-card" id="v-join-card">
-        <h3 class="v-join-h">Style your<br><em>key piece.</em></h3>
-        <p class="v-join-sub">Join the waitlist and style a key piece three ways — a beautiful first edit, while you wait.</p>
-        <form class="v-form" id="v-form" onsubmit="return View.submit(event)">
-          <input class="v-input" id="v-email" type="email" placeholder="your@email.com" autocomplete="email">
-          <button class="v-submit" type="submit">Join the waitlist</button>
-        </form>
-        <p class="v-fine">No spam, ever. <strong>Just one note when your invitation is ready.</strong></p>
-        <div class="v-done">
-          <div class="v-done-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-          <div class="v-done-h">You're on<br><em>the list.</em></div>
-          <p class="v-done-t">We'll be in touch. Style a key piece three ways while you wait.</p>
-          <button class="btn btn-outline-light" style="margin-top:4px" onclick="location.href='/'">Try it now</button>
-        </div>
-      </div>
-      <a class="v-how-link" href="/">
-        How Robes works
-        <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-      </a>
-    </div>
   </section>
 
   <!-- FOOTER -->
@@ -285,13 +263,10 @@ const View = (function () {
       ? `${owner}'s Robes edit — shared with you`
       : 'A Robes edit — shared with you';
 
-    // Eyebrow + lede
+    // Eyebrow
     $('v-eyebrow-text').textContent = owner
       ? `${owner}'s edit — shared with you`
       : 'A Robes edit — shared with you';
-    $('v-lede').innerHTML = owner
-      ? `${esc(owner)} styled ${aOrTheir(piece)} with Robes. Join the waitlist to get your own AI stylist and style your key wardrobe pieces today.`
-      : `Someone styled ${aOrTheir(piece)} with Robes. Join the waitlist to get your own AI stylist and style your key wardrobe pieces today.`;
 
     // Piece chip
     $('v-piece-name').textContent = piece;
@@ -355,10 +330,13 @@ const View = (function () {
     }).join('');
   }
 
+  let submitted = false;
+
   function jump() {
-    const ctaEl = $('v-cta');
-    window.scrollTo({ top: ctaEl.offsetTop - 40, behavior: 'smooth' });
-    setTimeout(() => { const e = $('v-email'); if (e) e.focus(); }, 480);
+    const e = $('v-email');
+    if (!e) return;
+    e.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => e.focus(), 320);
   }
 
   function submit(e) {
@@ -371,21 +349,22 @@ const View = (function () {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: v }),
     }).catch(() => {});
-    $('v-join-card').classList.add('sent');
-    $('v-bar').classList.remove('show');
+    submitted = true;
+    const actions = $('v-hero-actions');
+    if (actions) actions.innerHTML = `<p style="font-family:var(--font-serif);font-weight:300;font-size:22px;color:var(--ink);margin-top:4px">You're on the list. <em style="color:var(--ink-faint)">We'll be in touch.</em></p>`;
+    const bar = $('v-bar');
+    if (bar) bar.classList.remove('show');
     return false;
   }
 
   function wireBar() {
     const bar = $('v-bar');
-    const cta = $('v-cta');
-    if (!bar || !cta) return;
+    if (!bar) return;
+    const hero = $('v-hero');
     const onScroll = () => {
-      const past = window.scrollY > window.innerHeight * 0.7;
-      const ctaTop = cta.getBoundingClientRect().top;
-      const overCta = ctaTop < window.innerHeight * 0.9;
-      const sent = $('v-join-card') && $('v-join-card').classList.contains('sent');
-      bar.classList.toggle('show', past && !overCta && !sent);
+      if (submitted) { bar.classList.remove('show'); return; }
+      const heroBottom = hero ? hero.getBoundingClientRect().bottom : 0;
+      bar.classList.toggle('show', heroBottom < 0);
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
