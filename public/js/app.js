@@ -706,7 +706,7 @@ const App = (function () {
           </div>
           <div class="ig-foot">
             <span class="ig-foot-l">Styled around ${st.name ? st.name + "'s " : 'your '}${piece}</span>
-            <span class="ig-foot-r">my-robes.com</span>
+            <span class="ig-foot-r">byrobes.com</span>
           </div>
         </div>
       </div>`;
