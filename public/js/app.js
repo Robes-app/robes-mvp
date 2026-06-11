@@ -13,6 +13,7 @@ const App = (function () {
     photoUrl: null,        // Cloudinary URL for the uploaded photo
     ways: null,            // AI response: array of 3 look objects
     generatedImages: null, // Nano Banana generated outfit images [img0, img1, img2]
+    fallback: false,       // true when AI couldn't recognise the input and used the default piece
     history: [],           // archived results from previous styling sessions
     fromHistory: false,    // true when current result was reopened from history (don't re-archive)
     resultLayout: 'stack',
@@ -63,7 +64,7 @@ const App = (function () {
   function restart() {
     st.name = ''; st.email = ''; st.pieceName = ''; st.prompt = '';
     st.link = ''; st.photo = null; st.photoUrl = null; st.ways = null;
-    st.generatedImages = null; st.shareIdx = 0; st.history = [];
+    st.generatedImages = null; st.fallback = false; st.shareIdx = 0; st.history = [];
     closeModal();
     go('landing');
   }
@@ -72,7 +73,7 @@ const App = (function () {
     if (st.ways && !st.fromHistory) {
       st.history.unshift({ photo: st.photo, photoUrl: st.photoUrl, pieceName: st.pieceName, ways: st.ways, generatedImages: st.generatedImages, ts: Date.now() });
     }
-    st.photo = null; st.photoUrl = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null; st.generatedImages = null; st.fromHistory = false;
+    st.photo = null; st.photoUrl = null; st.link = ''; st.prompt = ''; st.pieceName = ''; st.ways = null; st.generatedImages = null; st.fallback = false; st.fromHistory = false;
     persist();
     go('landing');
     openModal();
@@ -388,6 +389,8 @@ const App = (function () {
     if (!data.ways || !Array.isArray(data.ways)) throw new Error('Unexpected response');
     if (data.photoUrl) st.photoUrl = data.photoUrl;
     if (Array.isArray(data.generatedImages)) st.generatedImages = data.generatedImages;
+    st.fallback = data.fallback === true;
+    if (st.fallback) { st.photo = null; st.pieceName = 'Balmain waistcoat'; }
     return data.ways;
   }
 
@@ -407,20 +410,25 @@ const App = (function () {
 
     const who = st.name ? `${st.name}, your piece —` : 'Your piece,';
     $('#res-h').innerHTML = `${who}<br><em>worn three ways.</em>`;
-    $('#res-intro').textContent = 'Here are three different styling suggestions for your key piece, ranging from sharp tailoring to casual sophistication and high-glamour evening wear.';
+    $('#res-intro').textContent = st.fallback
+      ? 'We didn\'t recognise your request, so we\'ve styled a Balmain waistcoat for you instead — here\'s how it could work across three very different occasions.'
+      : 'Here are three different styling suggestions for your key piece, ranging from sharp tailoring to casual sophistication and high-glamour evening wear.';
 
-    $('#yp-img').src = st.photo || SAMPLE;
+    const piecePhoto = st.fallback ? '/images/balmain-waistcoat.jpg' : (st.photo || SAMPLE);
+    $('#yp-img').src = piecePhoto;
     $('#yp-name').textContent = st.pieceName || 'Your key piece';
 
     const host = $('#ways');
     host.classList.toggle('grid', st.resultLayout === 'grid');
 
     host.innerHTML = ways.map((w, i) => {
-      const imgSrc = (st.generatedImages && st.generatedImages[i]) || st.photo || SAMPLE;
+      const genImg = st.generatedImages && st.generatedImages[i];
+      const imgSrc = genImg || st.photo || SAMPLE;
+      const objPos = genImg ? 'object-position:50% center' : `object-position:50% ${[24, 28, 22][i]}%`;
       return `
       <article class="way">
         <div class="way-img">
-          <img src="${imgSrc}" style="object-position:50% ${[24, 28, 22][i]}%" alt="">
+          <img src="${imgSrc}" style="${objPos}" alt="">
           <span class="way-num">${String(i + 1).padStart(2, '0')}</span>
         </div>
         <div class="way-body">
@@ -665,7 +673,9 @@ const App = (function () {
     const ways = st.ways || [];
 
     $('#share-cards').innerHTML = ways.map((w, i) => {
-      const imgSrc = (st.generatedImages && st.generatedImages[i]) || st.photo || SAMPLE;
+      const genImg = st.generatedImages && st.generatedImages[i];
+      const imgSrc = genImg || st.photo || SAMPLE;
+      const objPos = genImg ? 'object-position:50% center' : `object-position:50% ${[24, 28, 22][i]}%`;
       return `
       <div class="ig">
         <div class="ig-grain"></div>
@@ -675,7 +685,7 @@ const App = (function () {
             <span class="ig-idx">0${i + 1} / 03</span>
           </div>
           <div class="ig-photo">
-            <img src="${imgSrc}" style="object-position:50% ${[24, 28, 22][i]}%" alt="">
+            <img src="${imgSrc}" style="${objPos}" alt="">
             <span class="ig-num">${String(i + 1).padStart(2, '0')}</span>
           </div>
           <div class="ig-cap">

@@ -138,9 +138,12 @@ app.post('/api/feedback', async (req, res) => {
 });
 
 /* ── style ───────────────────────────────────────────────────────── */
+const FALLBACK_PIECE = 'black Balmain waistcoat with gold buttons';
+
 const STYLE_SCHEMA = {
   type: 'object',
   properties: {
+    fallback: { type: 'boolean' },
     ways: {
       type: 'array',
       items: {
@@ -157,7 +160,7 @@ const STYLE_SCHEMA = {
       },
     },
   },
-  required: ['ways'],
+  required: ['fallback', 'ways'],
 };
 
 app.post('/api/style', async (req, res) => {
@@ -174,7 +177,9 @@ app.post('/api/style', async (req, res) => {
 
   const systemInstruction = `You are an expert fashion stylist known for elegant, directional styling advice. Your tone is warm, precise, and editorial — like a trusted stylist who truly understands clothes. ${who}
 
-When given a key fashion piece, you create three distinct, wearable looks around it — each with a clear occasion and mood. Your descriptions are specific: you name real item types, describe drape and texture, and explain why each pairing works.`;
+When given a key fashion piece, you create three distinct, wearable looks around it — each with a clear occasion and mood. Your descriptions are specific: you name real item types, describe drape and texture, and explain why each pairing works.
+
+IMPORTANT: If the user's input is complete nonsense, gibberish, or contains no identifiable fashion piece or styling request, set "fallback": true and style a ${FALLBACK_PIECE} instead. For any reasonable fashion input — even vague — set "fallback": false.`;
 
   const userText = `${piece} ${context} ${linkCtx}
 
@@ -206,15 +211,17 @@ Style this key piece three ways. Make each look genuinely distinct — different
       photoMatch ? cloudinaryUpload(photoMatch[2], photoMatch[1]) : Promise.resolve(null),
     ]);
 
-    const ways = JSON.parse(textResponse.text).ways;
+    const parsed = JSON.parse(textResponse.text);
+    const fallback = parsed.fallback === true;
+    const ways = parsed.ways;
 
     // Generate 3 outfit images in parallel using Nano Banana
     const generatedImages = await Promise.all(ways.map((w) => {
       const imgParts = [];
-      if (photoMatch) {
+      if (!fallback && photoMatch) {
         imgParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
       }
-      const pieceLabel = pieceName || 'the clothing item';
+      const pieceLabel = fallback ? FALLBACK_PIECE : (pieceName || 'the clothing item');
       imgParts.push({
         text: `Fashion editorial photograph. The key piece is ${pieceLabel}. Style it as: "${w.title}" — ${w.eyebrow}. Outfit: ${w.outfit}. Preserve the key piece accurately. Clean editorial style, full outfit visible, studio or lifestyle setting.`,
       });
@@ -234,7 +241,7 @@ Style this key piece three ways. Make each look genuinely distinct — different
     }));
 
     console.log(`Generated images: ${generatedImages.filter(Boolean).length}/3 succeeded`);
-    res.json({ ways, generatedImages, photoUrl });
+    res.json({ ways, generatedImages, photoUrl, fallback });
   } catch (err) {
     console.error('Gemini API error:', err.message);
     res.status(500).json({ error: err.message || 'Styling failed' });
