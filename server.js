@@ -2,12 +2,21 @@ import 'dotenv/config';
 import express from 'express';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { GoogleGenAI } from '@google/genai';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = process.env.PORT || 3000;
+
+/* ── look store (in-memory, 48h TTL) ────────────────────────────── */
+const lookStore = new Map();
+setInterval(() => {
+  const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+  for (const [id, look] of lookStore) {
+    if (look.created < cutoff) lookStore.delete(id);
+  }
+}, 60 * 60 * 1000);
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(join(__dirname, 'public'), {
@@ -196,13 +205,6 @@ Style this key piece three ways. Make each look genuinely distinct — different
   }
   textParts.push({ text: userText });
 
-  // SSE helpers
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders();
-  const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-
   // retry wrapper
   async function withRetry(fn, attempts = 3) {
     for (let i = 0; i < attempts; i++) {
@@ -216,7 +218,6 @@ Style this key piece three ways. Make each look genuinely distinct — different
   try {
     const t0 = Date.now();
 
-    // Phase 1: text + Cloudinary in parallel
     const [textResponse, photoUrl] = await Promise.all([
       withRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -238,12 +239,8 @@ Style this key piece three ways. Make each look genuinely distinct — different
     const fallback = parsed.fallback === true;
     const ways = parsed.ways;
 
-    // Send ways immediately — client advances to result screen now
-    send('ways', { ways, fallback, photoUrl });
-
-    // Phase 2: generate images and stream each one as it completes
     const t1 = Date.now();
-    await Promise.all(ways.map((w, i) => {
+    const generatedImages = await Promise.all(ways.map((w, i) => {
       const imgParts = [];
       if (!fallback && photoMatch) {
         imgParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
@@ -259,21 +256,40 @@ Style this key piece three ways. Make each look genuinely distinct — different
         config: { responseModalities: ['TEXT', 'IMAGE'] },
       }).then(r => {
         const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-        if (!part?.inlineData) return;
-        const src = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        send('image', { index: i, src });
-        console.log(`Image ${i} ready: ${Date.now() - t1}ms`);
-      }).catch(err => console.warn(`Image ${i} failed:`, err.message));
+        if (!part?.inlineData) return null;
+        console.log(`Image ${i}: ${Date.now() - t1}ms`);
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }).catch(err => { console.warn(`Image ${i} failed:`, err.message); return null; });
     }));
 
     console.log(`Total: ${Date.now() - t0}ms`);
-    send('done', {});
+    res.json({ ways, generatedImages, photoUrl, fallback });
   } catch (err) {
     console.error('Gemini API error:', err.message);
-    send('error', { error: err.message || 'Styling failed' });
-  } finally {
-    res.end();
+    res.status(500).json({ error: err.message || 'Styling failed' });
   }
+});
+
+/* ── look share ──────────────────────────────────────────────────── */
+app.post('/api/look', (req, res) => {
+  const { name, piece, photoUrl, ways, generatedImages, fallback } = req.body;
+  if (!ways || !Array.isArray(ways) || ways.length === 0) {
+    return res.status(400).json({ error: 'No look data' });
+  }
+  const id = randomBytes(5).toString('hex'); // 10-char random ID
+  lookStore.set(id, { name: name || '', piece: piece || '', photoUrl: photoUrl || null, ways, generatedImages: generatedImages || [], fallback: !!fallback, created: Date.now() });
+  console.log(`Look saved: ${id} — ${piece || 'untitled'}`);
+  res.json({ id });
+});
+
+app.get('/api/look/:id', (req, res) => {
+  const look = lookStore.get(req.params.id);
+  if (!look) return res.status(404).json({ error: 'Look not found or expired' });
+  res.json(look);
+});
+
+app.get('/look/:id', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'look.html'));
 });
 
 app.listen(port, () => {

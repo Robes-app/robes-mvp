@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A Robes edit — shared with you</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/robes-mvp.css">
+<style>
+/* ══ Visitor landing — public shared look ══ */
+.v-page { min-height:100vh; background:var(--bg) }
+
+/* hero */
+.v-hero { position:relative; overflow:hidden }
+.v-hero-inner { position:relative; z-index:1; max-width:1240px; margin:0 auto;
+  padding:140px clamp(20px,6vw,80px) clamp(60px,7vw,96px);
+  display:grid; grid-template-columns:1.1fr .9fr; gap:clamp(40px,6vw,84px); align-items:center }
+.v-hero-copy { max-width:560px }
+.v-eyebrow { display:flex; align-items:center; gap:14px; margin-bottom:30px }
+.v-eyebrow .eb-rule { display:inline-block; width:34px; height:1px; background:var(--rose) }
+.v-h1 { font-family:var(--font-serif); font-weight:300; font-size:clamp(48px,6.6vw,92px);
+  line-height:.97; letter-spacing:-.014em; color:var(--ink); margin-bottom:26px }
+.v-h1 em { color:var(--rose) }
+.v-lede { font-size:16px; line-height:1.85; color:var(--ink-soft); max-width:476px; margin-bottom:28px }
+.v-lede strong { font-weight:500; color:var(--ink) }
+.v-piece { display:inline-flex; align-items:center; gap:16px; padding:12px 18px 12px 12px;
+  border:1px solid var(--rule); border-radius:3px; background:#fff; max-width:380px }
+.v-piece img { width:54px; height:68px; border-radius:2px; object-fit:cover;
+  background:var(--cream-200); flex-shrink:0; border:1px solid var(--rule) }
+.v-piece-info { display:flex; flex-direction:column; gap:4px; min-width:0 }
+.v-piece-label { font-size:9px; font-weight:500; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-faint) }
+.v-piece-name { font-family:var(--font-serif); font-weight:400; font-size:21px; color:var(--ink); line-height:1.05; text-transform:capitalize }
+.v-hero-actions { margin-top:28px }
+
+/* hero collage (right) */
+.v-hero-art { position:relative; justify-self:end; width:100%; max-width:440px }
+.v-art-grid { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:auto auto; gap:12px }
+.v-art-tall { grid-row:1 / span 2; aspect-ratio:3/5 }
+.v-art-cell { position:relative; overflow:hidden; border-radius:3px; background:var(--cream-200); border:1px solid var(--rule) }
+.v-art-cell.s { aspect-ratio:4/5 }
+.v-art-cell img { width:100%; height:100%; object-fit:cover }
+.v-art-num { position:absolute; top:10px; left:12px; font-family:var(--font-serif); font-weight:300;
+  font-size:24px; line-height:1; color:#fff; text-shadow:0 1px 12px rgba(32,32,33,.55) }
+
+/* looks section */
+.v-looks { max-width:1080px; margin:0 auto;
+  padding:clamp(40px,5vw,64px) clamp(20px,6vw,80px) clamp(70px,8vw,110px) }
+.v-looks-head { display:flex; align-items:center; gap:clamp(18px,3vw,40px); margin-bottom:clamp(36px,4vw,52px) }
+.v-looks-head .uh-rule { flex:1; height:1px; background:var(--rule-mid) }
+.v-stack { display:flex; flex-direction:column; gap:clamp(20px,2.4vw,30px) }
+
+/* quote */
+.v-quote { background:var(--cream-100); border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+  padding:clamp(56px,7vw,96px) clamp(20px,6vw,80px); text-align:center;
+  display:flex; flex-direction:column; align-items:center; gap:16px }
+.v-quote .lq-mark { font-family:var(--font-serif); font-size:56px; line-height:.4; color:var(--secondary) }
+.v-quote-text { font-family:var(--font-serif); font-style:italic; font-weight:300;
+  font-size:clamp(24px,3vw,38px); line-height:1.24; color:var(--ink); max-width:720px }
+
+/* CTA — dark, centered */
+.v-cta { position:relative; background:var(--primary); overflow:hidden }
+.v-cta .grain { opacity:.06 }
+.v-cta-inner { position:relative; z-index:1; max-width:560px; margin:0 auto;
+  padding:clamp(80px,10vw,140px) clamp(20px,6vw,80px);
+  display:flex; flex-direction:column; align-items:center }
+
+/* waitlist card */
+.v-join-card { width:100%; background:rgba(250,248,245,.04); border:1px solid var(--border-on-dark);
+  border-radius:4px; padding:clamp(28px,3vw,40px) }
+.v-join-h { font-family:var(--font-serif); font-weight:300; font-size:clamp(26px,3vw,36px);
+  line-height:1.08; color:var(--on-dark-1); margin-bottom:12px }
+.v-join-h em { color:var(--accent) }
+.v-join-sub { font-size:13.5px; line-height:1.7; color:var(--on-dark-2); margin-bottom:26px }
+.v-form { display:flex; flex-direction:column; gap:10px }
+.v-input { width:100%; background:rgba(250,248,245,.05); border:1px solid var(--border-on-dark);
+  border-radius:2px; padding:0 16px; height:52px; font-family:var(--font-sans); font-size:14px;
+  font-weight:300; color:var(--on-dark-1); outline:none; transition:border-color .2s }
+.v-input::placeholder { color:rgba(168,152,128,.7) }
+.v-input:focus { border-color:rgba(250,248,245,.42) }
+.v-submit { height:52px; background:var(--on-dark-1); color:var(--ink); border-radius:2px;
+  font-family:var(--font-sans); font-weight:500; font-size:10px; letter-spacing:.2em;
+  text-transform:uppercase; transition:all .2s var(--ease) }
+.v-submit:hover { background:#fff }
+.v-fine { margin-top:16px; font-size:11px; line-height:1.6; color:rgba(168,152,128,.72) }
+.v-fine strong { color:var(--on-dark-2); font-weight:400 }
+
+/* success state */
+.v-done { display:none; flex-direction:column; align-items:flex-start; gap:14px }
+.v-join-card.sent .v-form,
+.v-join-card.sent .v-fine,
+.v-join-card.sent .v-join-h,
+.v-join-card.sent .v-join-sub { display:none }
+.v-join-card.sent .v-done { display:flex; animation:fbIn .4s var(--ease) both }
+@keyframes fbIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+.v-done-check { width:42px; height:42px; border-radius:50%; border:1px solid var(--border-on-dark);
+  display:flex; align-items:center; justify-content:center }
+.v-done-check svg { width:18px; height:18px; fill:none; stroke:var(--accent); stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round }
+.v-done-h { font-family:var(--font-serif); font-weight:300; font-size:28px; line-height:1.1; color:var(--on-dark-1) }
+.v-done-h em { color:var(--accent) }
+.v-done-t { font-size:13.5px; line-height:1.7; color:var(--on-dark-2); max-width:300px }
+
+/* "how robes works" link below card */
+.v-how-link { display:inline-flex; align-items:center; gap:8px; margin-top:22px;
+  font-size:10px; font-weight:500; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--on-dark-2); text-decoration:none; transition:color .2s }
+.v-how-link:hover { color:var(--on-dark-1) }
+.v-how-link svg { width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round }
+
+/* sticky join bar */
+.v-bar { position:fixed; left:0; right:0; bottom:0; z-index:120; transform:translateY(110%);
+  transition:transform .4s var(--ease);
+  background:rgba(32,32,33,.92); backdrop-filter:blur(16px); border-top:1px solid var(--border-on-dark);
+  display:flex; align-items:center; justify-content:space-between; gap:18px;
+  padding:14px clamp(16px,5vw,40px) }
+.v-bar.show { transform:none }
+.v-bar-txt { display:flex; flex-direction:column; gap:2px; min-width:0 }
+.v-bar-h { font-family:var(--font-serif); font-style:italic; font-weight:300; font-size:18px; color:var(--on-dark-1); line-height:1.1 }
+.v-bar-s { font-size:11px; letter-spacing:.04em; color:var(--on-dark-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.v-bar-cta { flex-shrink:0; padding:13px 22px; background:var(--on-dark-1); color:var(--ink); border-radius:2px;
+  font-weight:500; font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; transition:background .2s }
+.v-bar-cta:hover { background:#fff }
+
+/* not found state */
+.v-notfound { max-width:540px; margin:0 auto; padding:clamp(80px,12vw,160px) clamp(20px,6vw,80px);
+  text-align:center; display:flex; flex-direction:column; align-items:center; gap:18px }
+.v-notfound .v-h1 { font-size:clamp(36px,5vw,64px) }
+
+@media (max-width:860px) {
+  .v-hero-inner { grid-template-columns:1fr; gap:40px; padding-top:108px }
+  .v-hero-art { justify-self:stretch; max-width:none; order:-1 }
+  .v-bar-s { display:none }
+}
+@media (max-width:520px) {
+  .v-art-grid { gap:8px }
+  .v-quote-text { font-size:22px }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav">
+  <span class="wordmark" onclick="location.href='/'">Robes</span>
+  <button class="nav-cta" onclick="View.jump()">Join the waitlist</button>
+</nav>
+
+<main class="v-page" id="v-page">
+
+  <!-- HERO -->
+  <section class="v-hero" id="v-hero">
+    <div class="radials"></div>
+    <div class="grain"></div>
+    <div class="v-hero-inner">
+      <div class="v-hero-copy rise d1">
+        <span class="v-eyebrow eyebrow"><span class="eb-rule"></span><span id="v-eyebrow-text">A Robes edit — shared with you</span></span>
+        <h1 class="v-h1">One piece.<br><em>Three ways.</em></h1>
+        <p class="v-lede" id="v-lede">Someone styled a key piece with Robes. Join the waitlist to access your own AI stylist and style your key wardrobe pieces today.</p>
+        <div class="v-piece" id="v-piece">
+          <img id="v-piece-img" src="" alt="The styled piece">
+          <div class="v-piece-info">
+            <span class="v-piece-label">The piece</span>
+            <span class="v-piece-name" id="v-piece-name">Key piece</span>
+          </div>
+        </div>
+        <div class="v-hero-actions">
+          <button class="btn btn-primary" onclick="View.jump()">
+            Style your key piece
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="v-hero-art rise d2">
+        <div class="v-art-grid" id="v-art-grid">
+          <div class="v-art-cell v-art-tall"><div style="width:100%;height:100%;background:var(--cream-300)"></div></div>
+          <div class="v-art-cell s"><div style="width:100%;height:100%;background:var(--cream-200)"></div></div>
+          <div class="v-art-cell s"><div style="width:100%;height:100%;background:var(--cream-200)"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE LOOKS -->
+  <section class="v-looks">
+    <div class="v-looks-head">
+      <span class="eyebrow">The edit · three looks</span>
+      <span class="uh-rule"></span>
+    </div>
+    <div class="v-stack ways" id="v-stack"></div>
+  </section>
+
+  <!-- QUOTE -->
+  <section class="v-quote">
+    <span class="lq-mark">&ldquo;</span>
+    <blockquote class="v-quote-text">Every day is a fashion show, and the world is your runway.</blockquote>
+    <span class="eyebrow" style="color:var(--ink-faint)">— Coco Chanel</span>
+  </section>
+
+  <!-- CTA · waitlist -->
+  <section class="v-cta" id="v-cta">
+    <div class="grain"></div>
+    <div class="v-cta-inner">
+      <div class="v-join-card" id="v-join-card">
+        <h3 class="v-join-h">Style your<br><em>key piece.</em></h3>
+        <p class="v-join-sub">Join the waitlist and style a key piece three ways — a beautiful first edit, while you wait.</p>
+        <form class="v-form" id="v-form" onsubmit="return View.submit(event)">
+          <input class="v-input" id="v-email" type="email" placeholder="your@email.com" autocomplete="email">
+          <button class="v-submit" type="submit">Join the waitlist</button>
+        </form>
+        <p class="v-fine">No spam, ever. <strong>Just one note when your invitation is ready.</strong></p>
+        <div class="v-done">
+          <div class="v-done-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="v-done-h">You're on<br><em>the list.</em></div>
+          <p class="v-done-t">We'll be in touch. Style a key piece three ways while you wait.</p>
+          <button class="btn btn-outline-light" style="margin-top:4px" onclick="location.href='/'">Try it now</button>
+        </div>
+      </div>
+      <a class="v-how-link" href="/">
+        How Robes works
+        <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="land-footer">
+    <div class="grain"></div>
+    <div class="lf-inner">
+      <div class="lf-brand">
+        <div class="lf-mark">Robes</div>
+        <div class="lf-tagline">The world is your runway</div>
+      </div>
+      <div class="lf-right">
+        <span class="lf-copy">© 2026 Robes. All rights reserved.</span>
+      </div>
+    </div>
+  </footer>
+
+</main>
+
+<!-- sticky bar -->
+<div class="v-bar" id="v-bar">
+  <div class="v-bar-txt">
+    <span class="v-bar-h">Get dressed by Robes.</span>
+    <span class="v-bar-s">Style your own wardrobe — one prompt at a time.</span>
+  </div>
+  <button class="v-bar-cta" onclick="View.jump()">Join the waitlist</button>
+</div>
+
+<!-- toast -->
+<div class="toast" id="toast"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span id="toast-msg"></span></div>
+
+<script>
+const View = (function () {
+  const $ = (id) => document.getElementById(id);
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  }
+  function aOrTheir(piece) {
+    const e = esc(piece);
+    return /^(a |an |the |their |her |his |my )/i.test(e) ? e : `their ${e}`;
+  }
+
+  function renderNotFound() {
+    $('v-page').innerHTML = `
+      <section class="v-notfound">
+        <span class="eyebrow"><span class="eb-rule" style="display:inline-block;width:34px;height:1px;background:var(--rose);vertical-align:middle;margin-right:14px"></span>Robes</span>
+        <h1 class="v-h1">This look has<br><em>expired.</em></h1>
+        <p style="font-size:15px;line-height:1.7;color:var(--ink-soft)">Shared looks are available for 48 hours. Style your own key piece to get started.</p>
+        <a class="btn btn-primary" href="/" style="margin-top:8px">Style your key piece</a>
+      </section>`;
+    $('v-bar').remove();
+  }
+
+  function renderLook(data) {
+    const owner = (data.name || '').trim();
+    const piece = (data.piece || '').trim() || 'key piece';
+    const ways = data.ways || [];
+    const genImgs = data.generatedImages || [];
+    const heroImg = data.photoUrl || (data.fallback ? '/images/balmain-waistcoat.jpg' : null);
+
+    // Update page title
+    document.title = owner
+      ? `${owner}'s Robes edit — shared with you`
+      : 'A Robes edit — shared with you';
+
+    // Eyebrow + lede
+    $('v-eyebrow-text').textContent = owner
+      ? `${owner}'s edit — shared with you`
+      : 'A Robes edit — shared with you';
+    $('v-lede').innerHTML = owner
+      ? `${esc(owner)} styled ${aOrTheir(piece)} with Robes. Join the waitlist to get your own AI stylist and style your key wardrobe pieces today.`
+      : `Someone styled ${aOrTheir(piece)} with Robes. Join the waitlist to get your own AI stylist and style your key wardrobe pieces today.`;
+
+    // Piece chip
+    $('v-piece-name').textContent = piece;
+    const pieceImgEl = $('v-piece-img');
+    if (heroImg) {
+      pieceImgEl.src = heroImg;
+    } else {
+      pieceImgEl.closest('.v-piece').style.display = 'none';
+    }
+
+    // Hero collage
+    const imgs = ways.map((w, i) => genImgs[i] || heroImg || '');
+    $('v-art-grid').innerHTML = `
+      <div class="v-art-cell v-art-tall">
+        ${imgs[0] ? `<img src="${esc(imgs[0])}" style="object-position:50% 24%" alt="">` : ''}
+        <span class="v-art-num">01</span>
+      </div>
+      <div class="v-art-cell s">
+        ${imgs[1] ? `<img src="${esc(imgs[1])}" style="object-position:50% 28%" alt="">` : ''}
+        <span class="v-art-num">02</span>
+      </div>
+      <div class="v-art-cell s">
+        ${imgs[2] ? `<img src="${esc(imgs[2])}" style="object-position:50% 22%" alt="">` : ''}
+        <span class="v-art-num">03</span>
+      </div>`;
+
+    // The looks — read-only editorial stack
+    $('v-stack').innerHTML = ways.map((w, i) => {
+      const img = genImgs[i] || heroImg || '';
+      const objPos = genImgs[i] ? 'object-position:25% top' : 'object-position:50% 25%';
+      return `
+      <article class="way">
+        <div class="way-img">
+          ${img ? `<img src="${esc(img)}" style="${objPos}" alt="">` : ''}
+          <span class="way-num">${String(i + 1).padStart(2, '0')}</span>
+        </div>
+        <div class="way-body">
+          <div class="way-eyebrow">${esc(w.eyebrow || '')}</div>
+          <div class="way-title">${esc(w.title || '')}</div>
+          <div class="way-sections">
+            <div class="way-sec">
+              <span class="way-sec-label">The Outfit</span>
+              <p class="way-sec-text">${esc(w.outfit || '')}</p>
+            </div>
+            <div class="way-sec">
+              <span class="way-sec-label">Key Details</span>
+              <p class="way-sec-text">${esc(w.details || '')}</p>
+            </div>
+            <div class="way-sec">
+              <span class="way-sec-label">Accessories</span>
+              <p class="way-sec-text">${esc(w.accessories || '')}</p>
+            </div>
+            ${w.tags && w.tags.length ? `
+            <div class="way-sec">
+              <span class="way-sec-label">Styled with</span>
+              <div class="ig-pieces" style="margin-top:4px">${w.tags.map(t => `<span class="ig-chip">${esc(t)}</span>`).join('')}</div>
+            </div>` : ''}
+          </div>
+        </div>
+      </article>`;
+    }).join('');
+  }
+
+  function jump() {
+    const ctaEl = $('v-cta');
+    window.scrollTo({ top: ctaEl.offsetTop - 40, behavior: 'smooth' });
+    setTimeout(() => { const e = $('v-email'); if (e) e.focus(); }, 480);
+  }
+
+  function submit(e) {
+    if (e) e.preventDefault();
+    const inp = $('v-email');
+    const v = (inp.value || '').trim();
+    if (!v || !/.+@.+\..+/.test(v)) { inp.focus(); return false; }
+    fetch('/api/waitlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: v }),
+    }).catch(() => {});
+    $('v-join-card').classList.add('sent');
+    $('v-bar').classList.remove('show');
+    return false;
+  }
+
+  function wireBar() {
+    const bar = $('v-bar');
+    const cta = $('v-cta');
+    if (!bar || !cta) return;
+    const onScroll = () => {
+      const past = window.scrollY > window.innerHeight * 0.7;
+      const ctaTop = cta.getBoundingClientRect().top;
+      const overCta = ctaTop < window.innerHeight * 0.9;
+      const sent = $('v-join-card') && $('v-join-card').classList.contains('sent');
+      bar.classList.toggle('show', past && !overCta && !sent);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
+  async function init() {
+    const id = location.pathname.split('/').filter(Boolean).pop();
+    if (id && id !== 'look') {
+      try {
+        const res = await fetch(`/api/look/${id}`);
+        if (res.ok) {
+          renderLook(await res.json());
+        } else {
+          renderNotFound();
+          return;
+        }
+      } catch {
+        renderNotFound();
+        return;
+      }
+    }
+    wireBar();
+  }
+
+  return { init, jump, submit };
+})();
+
+document.addEventListener('DOMContentLoaded', View.init);
+</script>
+</body>
+</html>

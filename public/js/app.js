@@ -16,6 +16,7 @@ const App = (function () {
     fallback: false,       // true when AI couldn't recognise the input and used the default piece
     history: [],           // archived results from previous styling sessions
     fromHistory: false,    // true when current result was reopened from history (don't re-archive)
+    stylingPromise: null,  // pre-fired API promise (started during name entry)
     resultLayout: 'stack',
     shareIdx: 0, idx: 0,
   };
@@ -64,7 +65,7 @@ const App = (function () {
   function restart() {
     st.name = ''; st.email = ''; st.pieceName = ''; st.prompt = '';
     st.link = ''; st.photo = null; st.photoUrl = null; st.ways = null;
-    st.generatedImages = null; st.fallback = false; st.shareIdx = 0; st.history = [];
+    st.generatedImages = null; st.fallback = false; st.shareIdx = 0; st.history = []; st.stylingPromise = null;
     closeModal();
     go('landing');
   }
@@ -378,71 +379,17 @@ const App = (function () {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-
-    // Non-streaming error (e.g. validation failure)
-    const ct = res.headers.get('content-type') || '';
-    if (!res.ok || !ct.includes('text/event-stream')) {
+    if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || `Server error ${res.status}`);
     }
-
-    // Parse SSE stream — resolve as soon as 'ways' event arrives,
-    // then keep reading in background to fade images in as they complete
-    return new Promise((resolve, reject) => {
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
-
-      function parseChunk(chunk) {
-        buf += chunk;
-        const parts = buf.split('\n\n');
-        buf = parts.pop(); // keep any incomplete tail
-        for (const part of parts) {
-          const evtMatch = part.match(/^event: (\w+)/m);
-          const datMatch = part.match(/^data: (.+)/m);
-          if (!evtMatch || !datMatch) continue;
-          const event = evtMatch[1];
-          let data;
-          try { data = JSON.parse(datMatch[1]); } catch { continue; }
-
-          if (event === 'ways') {
-            if (!data.ways || !Array.isArray(data.ways)) { reject(new Error('Unexpected response')); return; }
-            if (data.photoUrl) st.photoUrl = data.photoUrl;
-            st.fallback = data.fallback === true;
-            if (st.fallback) { st.photo = null; st.pieceName = 'Balmain waistcoat'; }
-            st.generatedImages = [null, null, null];
-            resolve(data.ways); // advance to result screen immediately
-          } else if (event === 'image') {
-            if (!st.generatedImages) st.generatedImages = [null, null, null];
-            st.generatedImages[data.index] = data.src;
-            updateLookImage(data.index, data.src);
-          } else if (event === 'error') {
-            reject(new Error(data.error || 'Styling failed'));
-          }
-        }
-      }
-
-      function pump() {
-        reader.read().then(({ done, value }) => {
-          if (done) return;
-          parseChunk(decoder.decode(value, { stream: true }));
-          pump();
-        }).catch(err => console.warn('Stream read error:', err.message));
-      }
-      pump();
-    });
-  }
-
-  function updateLookImage(index, src) {
-    // Fade in a generated image on the result screen once it arrives
-    const imgs = $$('#ways .way-img img');
-    if (!imgs[index]) return;
-    const img = imgs[index];
-    img.style.transition = 'opacity 0.5s';
-    img.style.opacity = '0';
-    img.onload = () => { img.style.opacity = '1'; };
-    img.src = src;
-    img.style.objectPosition = '25% top';
+    const data = await res.json();
+    if (!data.ways || !Array.isArray(data.ways)) throw new Error('Unexpected response');
+    if (data.photoUrl) st.photoUrl = data.photoUrl;
+    if (Array.isArray(data.generatedImages)) st.generatedImages = data.generatedImages;
+    st.fallback = data.fallback === true;
+    if (st.fallback) { st.photo = null; st.pieceName = 'Balmain waistcoat'; }
+    return data.ways;
   }
 
   /* ── result ─────────────────────────────────────────────────────── */
@@ -509,7 +456,7 @@ const App = (function () {
   /* ── flow modal ─────────────────────────────────────────────────── */
   function openModal() {
     fmStep = 0;
-    st.photo = null; st.photoUrl = null; st.prompt = ''; st.pieceName = '';
+    st.photo = null; st.photoUrl = null; st.prompt = ''; st.pieceName = ''; st.stylingPromise = null;
     paintFmTile();
     if ($('#fm-input')) $('#fm-input').value = '';
     if ($('#fm-name-input')) $('#fm-name-input').value = st.name || '';
@@ -582,6 +529,8 @@ const App = (function () {
   function submitStyle() {
     syncPrompt();
     if (!st.photo && !st.prompt) return;
+    // Fire API call now so it runs in parallel with name entry (5–15s free processing)
+    st.stylingPromise = callStyle();
     fmStep = 1;
     renderFmDots();
     showFmStep('fms-name');
@@ -656,7 +605,9 @@ const App = (function () {
     }
     typeStep(0);
 
-    callStyle().then(ways => {
+    const p = st.stylingPromise || callStyle();
+    st.stylingPromise = null;
+    p.then(ways => {
       st.ways = ways;
       apiDone = true;
       if (animDone) advanceModal();
@@ -731,6 +682,9 @@ const App = (function () {
   function openShare() {
     buildCarousel();
     st.shareIdx = 0; moveCarousel();
+    const slug = (st.pieceName || 'your-look').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const urlEl = $('#share-url');
+    if (urlEl) urlEl.textContent = `${location.host}/look/${slug}`;
     $('#share-modal').classList.add('open');
   }
   function closeShare() { $('#share-modal').classList.remove('open'); }
@@ -790,9 +744,34 @@ const App = (function () {
       }).catch(() => {});
     }
     closeShare();
-    toast(label === 'Download' ? 'All three saved to your camera roll' : `Shared to ${label}`);
+    toast(label === 'Download' ? 'All three saved to your camera roll' : `Queued for ${label}`);
   }
-  function copyLink() { toast('Link copied'); }
+  async function copyLink() {
+    if (!st.ways) return;
+    try {
+      const res = await fetch('/api/look', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: st.name || '',
+          piece: st.pieceName || '',
+          photoUrl: st.photoUrl || null,
+          ways: st.ways,
+          generatedImages: st.generatedImages || [],
+          fallback: st.fallback,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const { id } = await res.json();
+      const url = `${location.origin}/look/${id}`;
+      await navigator.clipboard.writeText(url);
+      const urlEl = $('#share-url');
+      if (urlEl) urlEl.textContent = url.replace(/^https?:\/\//, '');
+      toast('Link copied');
+    } catch {
+      toast('Could not copy link');
+    }
+  }
 
   /* ── toast ──────────────────────────────────────────────────────── */
   let toastTimer = null;
