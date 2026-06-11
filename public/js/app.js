@@ -378,17 +378,71 @@ const App = (function () {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (!res.ok) {
+
+    // Non-streaming error (e.g. validation failure)
+    const ct = res.headers.get('content-type') || '';
+    if (!res.ok || !ct.includes('text/event-stream')) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || `Server error ${res.status}`);
     }
-    const data = await res.json();
-    if (!data.ways || !Array.isArray(data.ways)) throw new Error('Unexpected response');
-    if (data.photoUrl) st.photoUrl = data.photoUrl;
-    if (Array.isArray(data.generatedImages)) st.generatedImages = data.generatedImages;
-    st.fallback = data.fallback === true;
-    if (st.fallback) { st.photo = null; st.pieceName = 'Balmain waistcoat'; }
-    return data.ways;
+
+    // Parse SSE stream — resolve as soon as 'ways' event arrives,
+    // then keep reading in background to fade images in as they complete
+    return new Promise((resolve, reject) => {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      function parseChunk(chunk) {
+        buf += chunk;
+        const parts = buf.split('\n\n');
+        buf = parts.pop(); // keep any incomplete tail
+        for (const part of parts) {
+          const evtMatch = part.match(/^event: (\w+)/m);
+          const datMatch = part.match(/^data: (.+)/m);
+          if (!evtMatch || !datMatch) continue;
+          const event = evtMatch[1];
+          let data;
+          try { data = JSON.parse(datMatch[1]); } catch { continue; }
+
+          if (event === 'ways') {
+            if (!data.ways || !Array.isArray(data.ways)) { reject(new Error('Unexpected response')); return; }
+            if (data.photoUrl) st.photoUrl = data.photoUrl;
+            st.fallback = data.fallback === true;
+            if (st.fallback) { st.photo = null; st.pieceName = 'Balmain waistcoat'; }
+            st.generatedImages = [null, null, null];
+            resolve(data.ways); // advance to result screen immediately
+          } else if (event === 'image') {
+            if (!st.generatedImages) st.generatedImages = [null, null, null];
+            st.generatedImages[data.index] = data.src;
+            updateLookImage(data.index, data.src);
+          } else if (event === 'error') {
+            reject(new Error(data.error || 'Styling failed'));
+          }
+        }
+      }
+
+      function pump() {
+        reader.read().then(({ done, value }) => {
+          if (done) return;
+          parseChunk(decoder.decode(value, { stream: true }));
+          pump();
+        }).catch(err => console.warn('Stream read error:', err.message));
+      }
+      pump();
+    });
+  }
+
+  function updateLookImage(index, src) {
+    // Fade in a generated image on the result screen once it arrives
+    const imgs = $$('#ways .way-img img');
+    if (!imgs[index]) return;
+    const img = imgs[index];
+    img.style.transition = 'opacity 0.5s';
+    img.style.opacity = '0';
+    img.onload = () => { img.style.opacity = '1'; };
+    img.src = src;
+    img.style.objectPosition = '25% top';
   }
 
   /* ── result ─────────────────────────────────────────────────────── */

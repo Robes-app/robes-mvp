@@ -196,13 +196,19 @@ Style this key piece three ways. Make each look genuinely distinct — different
   }
   textParts.push({ text: userText });
 
-  // retry wrapper — attempt up to 3 times with exponential backoff
+  // SSE helpers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+
+  // retry wrapper
   async function withRetry(fn, attempts = 3) {
     for (let i = 0; i < attempts; i++) {
       try { return await fn(); } catch (err) {
         if (i === attempts - 1) throw err;
         await new Promise(r => setTimeout(r, 800 * Math.pow(2, i)));
-        console.warn(`Retrying (attempt ${i + 2})...`);
       }
     }
   }
@@ -210,7 +216,7 @@ Style this key piece three ways. Make each look genuinely distinct — different
   try {
     const t0 = Date.now();
 
-    // Run text generation + Cloudinary upload in parallel, with retry on text
+    // Phase 1: text + Cloudinary in parallel
     const [textResponse, photoUrl] = await Promise.all([
       withRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -226,16 +232,18 @@ Style this key piece three ways. Make each look genuinely distinct — different
       photoMatch ? cloudinaryUpload(photoMatch[2], photoMatch[1]) : Promise.resolve(null),
     ]);
 
-    console.log(`Text generation: ${Date.now() - t0}ms`);
+    console.log(`Text: ${Date.now() - t0}ms`);
 
     const parsed = JSON.parse(textResponse.text);
     const fallback = parsed.fallback === true;
     const ways = parsed.ways;
 
-    const t1 = Date.now();
+    // Send ways immediately — client advances to result screen now
+    send('ways', { ways, fallback, photoUrl });
 
-    // Generate 3 outfit images in parallel using Nano Banana
-    const generatedImages = await Promise.all(ways.map((w) => {
+    // Phase 2: generate images and stream each one as it completes
+    const t1 = Date.now();
+    await Promise.all(ways.map((w, i) => {
       const imgParts = [];
       if (!fallback && photoMatch) {
         imgParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
@@ -251,20 +259,20 @@ Style this key piece three ways. Make each look genuinely distinct — different
         config: { responseModalities: ['TEXT', 'IMAGE'] },
       }).then(r => {
         const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-        if (!part?.inlineData) return null;
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-      }).catch(err => {
-        console.warn('Image generation failed for a look:', err.message);
-        return null;
-      });
+        if (!part?.inlineData) return;
+        const src = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        send('image', { index: i, src });
+        console.log(`Image ${i} ready: ${Date.now() - t1}ms`);
+      }).catch(err => console.warn(`Image ${i} failed:`, err.message));
     }));
 
-    console.log(`Image generation: ${Date.now() - t1}ms | Total: ${Date.now() - t0}ms`);
-    console.log(`Generated images: ${generatedImages.filter(Boolean).length}/3 succeeded`);
-    res.json({ ways, generatedImages, photoUrl, fallback });
+    console.log(`Total: ${Date.now() - t0}ms`);
+    send('done', {});
   } catch (err) {
     console.error('Gemini API error:', err.message);
-    res.status(500).json({ error: err.message || 'Styling failed' });
+    send('error', { error: err.message || 'Styling failed' });
+  } finally {
+    res.end();
   }
 });
 
