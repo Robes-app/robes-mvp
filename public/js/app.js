@@ -361,9 +361,19 @@ const App = (function () {
     });
   }
 
+  function preloadGeneratedImages() {
+    const srcs = (st.generatedImages || []).filter(Boolean);
+    if (!srcs.length) return Promise.resolve();
+    return Promise.all(srcs.map(src => new Promise(resolve => {
+      const img = new Image();
+      img.onload = img.onerror = resolve;
+      img.src = src;
+    })));
+  }
+
   function advance() {
     clearTimeout(genTimer);
-    genTimer = setTimeout(() => next(), 400);
+    genTimer = setTimeout(() => preloadGeneratedImages().then(() => next()), 400);
   }
 
   async function callStyle() {
@@ -620,7 +630,7 @@ const App = (function () {
 
   function advanceModal() {
     clearTimeout(genTimer);
-    genTimer = setTimeout(() => { closeModal(); go('result'); }, 400);
+    genTimer = setTimeout(() => preloadGeneratedImages().then(() => { closeModal(); go('result'); }), 400);
   }
 
   function retryStyle() {
