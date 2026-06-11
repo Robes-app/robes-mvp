@@ -142,7 +142,7 @@
 
 <nav class="nav" id="nav">
   <span class="wordmark" onclick="location.href='/'">Robes</span>
-  <button class="nav-cta" onclick="View.jump()">Join the waitlist</button>
+  <a class="nav-cta" href="https://www.byrobes.com">Join the waitlist</a>
 </nav>
 
 <main class="v-page" id="v-page">
@@ -164,11 +164,8 @@
           </div>
         </div>
         <div class="v-hero-actions" id="v-hero-actions">
-          <form class="land-form" id="v-hero-form" onsubmit="return View.submit(event)">
-            <input class="land-input" id="v-email" type="email" placeholder="your@email.com" autocomplete="email">
-            <button class="land-submit" type="submit">Join the waitlist</button>
-          </form>
-          <a class="v-how-link" href="/" style="margin-top:16px">
+          <a class="btn btn-primary" href="https://www.byrobes.com">Join the waitlist</a>
+          <a class="v-how-link" href="https://www.byrobes.com" style="margin-top:16px">
             How Robes works
             <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
           </a>
@@ -222,7 +219,7 @@
     <span class="v-bar-h">Get dressed by Robes.</span>
     <span class="v-bar-s">Style your own wardrobe — one prompt at a time.</span>
   </div>
-  <button class="v-bar-cta" onclick="View.jump()">Join the waitlist</button>
+  <a class="v-bar-cta" href="https://www.byrobes.com">Join the waitlist</a>
 </div>
 
 <!-- toast -->
@@ -330,39 +327,11 @@ const View = (function () {
     }).join('');
   }
 
-  let submitted = false;
-
-  function jump() {
-    const e = $('v-email');
-    if (!e) return;
-    e.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => e.focus(), 320);
-  }
-
-  function submit(e) {
-    if (e) e.preventDefault();
-    const inp = $('v-email');
-    const v = (inp.value || '').trim();
-    if (!v || !/.+@.+\..+/.test(v)) { inp.focus(); return false; }
-    fetch('/api/waitlist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: v }),
-    }).catch(() => {});
-    try {
-      const existing = JSON.parse(localStorage.getItem('robes-v1') || '{}');
-      localStorage.setItem('robes-v1', JSON.stringify({ ...existing, email: v }));
-    } catch {}
-    location.href = '/?from=share';
-    return false;
-  }
-
   function wireBar() {
     const bar = $('v-bar');
     if (!bar) return;
     const hero = $('v-hero');
     const onScroll = () => {
-      if (submitted) { bar.classList.remove('show'); return; }
       const heroBottom = hero ? hero.getBoundingClientRect().bottom : 0;
       bar.classList.toggle('show', heroBottom < 0);
     };
@@ -389,7 +358,7 @@ const View = (function () {
     wireBar();
   }
 
-  return { init, jump, submit };
+  return { init };
 })();
 
 document.addEventListener('DOMContentLoaded', View.init);
