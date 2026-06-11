@@ -260,8 +260,8 @@ Style this key piece three ways. Make each look genuinely distinct — different
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
       }).catch(err => { console.warn(`Image ${i} failed:`, err.message); return null; });
 
-      // Never wait more than 25s for any single image
-      const timeout = new Promise(resolve => setTimeout(() => { console.warn(`Image ${i} timed out`); resolve(null); }, 25000));
+      // Never wait more than 40s for any single image
+      const timeout = new Promise(resolve => setTimeout(() => { console.warn(`Image ${i} timed out`); resolve(null); }, 40000));
       return Promise.race([imgCall, timeout]);
     }));
 
