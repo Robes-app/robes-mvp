@@ -249,7 +249,7 @@ Style this key piece three ways. Make each look genuinely distinct — different
         text: `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one person, one scene, no collage, no split panels, no side-by-side images. The key piece is ${pieceLabel}. Look: "${w.title}" — ${w.eyebrow}. Outfit: ${w.outfit}. Show the full outfit clearly. Tall portrait crop, subject centred.`,
       });
 
-      return ai.models.generateContent({
+      const imgCall = ai.models.generateContent({
         model: 'gemini-3.1-flash-image',
         contents: [{ role: 'user', parts: imgParts }],
         config: { responseModalities: ['TEXT', 'IMAGE'] },
@@ -259,6 +259,10 @@ Style this key piece three ways. Make each look genuinely distinct — different
         console.log(`Image ${i}: ${Date.now() - t1}ms`);
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
       }).catch(err => { console.warn(`Image ${i} failed:`, err.message); return null; });
+
+      // Never wait more than 25s for any single image
+      const timeout = new Promise(resolve => setTimeout(() => { console.warn(`Image ${i} timed out`); resolve(null); }, 25000));
+      return Promise.race([imgCall, timeout]);
     }));
 
     console.log(`Total: ${Date.now() - t0}ms`);

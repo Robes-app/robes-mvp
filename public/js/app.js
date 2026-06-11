@@ -392,11 +392,19 @@ const App = (function () {
       name: st.name || null,
       pieceName: st.pieceName || null,
     };
-    const res = await fetch('/api/style', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 90000);
+    let res;
+    try {
+      res = await fetch('/api/style', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || `Server error ${res.status}`);
