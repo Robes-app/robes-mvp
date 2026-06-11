@@ -44,9 +44,11 @@ const App = (function () {
     if (id === 'result') renderResult();
   }
   function paintProgress(id) {
+    const el = $('#nav-progress');
+    if (!el) return;
     const seq = order().filter(s => s !== 'gen' && s !== 'landing' && s !== 'confirm' && s !== 'name');
     const curPos = seq.indexOf(id);
-    $('#nav-progress').innerHTML = seq.map((s, i) => {
+    el.innerHTML = seq.map((s, i) => {
       const cls = i < curPos ? 'done' : i === curPos ? 'cur' : '';
       return `<span class="np-dot ${cls}"></span>`;
     }).join('');
