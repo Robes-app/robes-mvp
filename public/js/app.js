@@ -306,7 +306,9 @@ const App = (function () {
   let fmStep = 0;
 
   function runGen() {
-    $('#gen-piece-img').src = st.photo || SAMPLE;
+    const gpImg = $('#gen-piece-img');
+    gpImg.src = st.photo || '';
+    gpImg.hidden = !st.photo;
     const who = st.name ? `${st.name}, styling` : 'Styling';
     const what = st.pieceName ? `your ${st.pieceName.toLowerCase()}` : 'your key piece';
     $('#gen-h').innerHTML = `${who}<br><em>${what}.</em>`;
@@ -409,8 +411,10 @@ const App = (function () {
       ? 'We didn\'t recognise your request, so we\'ve styled a Balmain waistcoat for you instead — here\'s how it could work across three very different occasions.'
       : 'Here are three different styling suggestions for your key piece, ranging from sharp tailoring to casual sophistication and high-glamour evening wear.';
 
-    const piecePhoto = st.fallback ? '/images/balmain-waistcoat.jpg' : (st.photo || SAMPLE);
-    $('#yp-img').src = piecePhoto;
+    const piecePhoto = st.fallback ? '/images/balmain-waistcoat.jpg' : (st.photo || null);
+    const ypImg = $('#yp-img');
+    ypImg.src = piecePhoto || '';
+    ypImg.hidden = !piecePhoto;
     $('#yp-name').textContent = st.pieceName || 'Your key piece';
 
     const host = $('#ways');
@@ -560,7 +564,7 @@ const App = (function () {
 
   function runGenModal() {
     const img = document.getElementById('fm-gen-img');
-    if (img) img.src = st.photo || SAMPLE;
+    if (img) { img.src = st.photo || ''; img.hidden = !st.photo; }
 
     const h = document.getElementById('fm-gen-h');
     if (h) {
