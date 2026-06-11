@@ -12,7 +12,7 @@ const port = process.env.PORT || 3000;
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+    if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
   },
