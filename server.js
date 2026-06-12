@@ -287,39 +287,75 @@ app.post('/api/look', (req, res) => {
   console.log(`Look saved: ${id} — ${piece || 'untitled'}`);
   res.json({ id });
 
-  // async: upload generated images to Cloudinary, then log to Airtable
+  // async: upload generated images to Cloudinary, then persist to Airtable as structured JSON
   (async () => {
     const lookUrl = `${BASE_URL}/look/${id}`;
     const photoAttachments = [];
     if (photoUrl) photoAttachments.push({ url: photoUrl });
 
     const genUrls = await Promise.all(
-      (generatedImages || []).filter(Boolean).map(src => {
+      (generatedImages || []).map(src => {
+        if (!src) return Promise.resolve(null);
         const m = src.match(/^data:([^;]+);base64,(.+)$/);
         return m ? cloudinaryUpload(m[2], m[1]) : Promise.resolve(null);
       })
     );
     genUrls.filter(Boolean).forEach(url => photoAttachments.push({ url }));
 
-    const looksOutput = ways.map((w, i) =>
-      `Look ${i + 1}: ${w.title} (${w.eyebrow})\n${w.outfit}\n${w.details}\n${w.accessories}`
-    ).join('\n\n');
+    // store full structured data so the look can be rebuilt after a server restart
+    const lookData = JSON.stringify({ name: name || '', piece: piece || '', fallback: !!fallback, photoUrl: photoUrl || null, genImageUrls: genUrls, ways });
 
     await airtableCreate('Feedback', {
       'Email': email || '',
       'Prompt': prompt || '',
       'Piece Link': lookUrl,
       ...(photoAttachments.length ? { 'Photo': photoAttachments } : {}),
-      'Looks Output': looksOutput,
+      'Looks Output': lookData,
       'Created At': new Date().toISOString().split('T')[0],
     });
+    console.log(`Look persisted to Airtable: ${id}`);
   })().catch(err => console.warn('Look log error:', err.message));
 });
 
-app.get('/api/look/:id', (req, res) => {
-  const look = lookStore.get(req.params.id);
-  if (!look) return res.status(404).json({ error: 'Look not found or expired' });
-  res.json(look);
+app.get('/api/look/:id', async (req, res) => {
+  const cached = lookStore.get(req.params.id);
+  if (cached) return res.json(cached);
+
+  // not in memory (server restarted) — try Airtable
+  if (AT_TOKEN && AT_BASE) {
+    try {
+      const lookUrl = `${BASE_URL}/look/${req.params.id}`;
+      const filter = encodeURIComponent(`{Piece Link} = "${lookUrl}"`);
+      const atRes = await fetch(
+        `https://api.airtable.com/v0/${AT_BASE}/${encodeURIComponent('Feedback')}?filterByFormula=${filter}&maxRecords=1`,
+        { headers: { 'Authorization': `Bearer ${AT_TOKEN}` } }
+      );
+      if (atRes.ok) {
+        const data = await atRes.json();
+        if (data.records && data.records.length > 0) {
+          const fields = data.records[0].fields;
+          let lookData = {};
+          try { lookData = JSON.parse(fields['Looks Output'] || '{}'); } catch { /* old text format */ }
+          if (lookData.ways && Array.isArray(lookData.ways)) {
+            const look = {
+              name: lookData.name || '',
+              piece: lookData.piece || '',
+              photoUrl: lookData.photoUrl || null,
+              ways: lookData.ways,
+              generatedImages: lookData.genImageUrls || [],
+              fallback: lookData.fallback || false,
+              created: Date.now(),
+            };
+            lookStore.set(req.params.id, look); // re-cache
+            console.log(`Look restored from Airtable: ${req.params.id}`);
+            return res.json(look);
+          }
+        }
+      }
+    } catch (err) { console.warn('Airtable look lookup error:', err.message); }
+  }
+
+  res.status(404).json({ error: 'Look not found or expired' });
 });
 
 app.get('/look/:id', (req, res) => {
