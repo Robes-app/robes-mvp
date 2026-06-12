@@ -21,7 +21,7 @@
 
 *{box-sizing:border-box;margin:0;padding:0}
 [hidden]{display:none!important}
-html,body{height:100%}
+html,body{height:100%;overflow-x:hidden;max-width:100%}
 body{
   background:var(--bg);color:var(--ink);
   font-family:var(--font-sans);font-weight:300;
@@ -120,7 +120,7 @@ em{font-style:italic}
 .eb-rule{display:inline-block;width:34px;height:1px;background:var(--rose);vertical-align:middle;margin-right:14px}
 .land-eyebrow{display:block;margin-bottom:30px}
 .land-h1{font-family:var(--font-serif);font-weight:300;
-  font-size:clamp(52px,7.4vw,104px);line-height:.96;letter-spacing:-.014em;
+  font-size:clamp(32px,7.4vw,104px);line-height:.96;letter-spacing:-.014em;
   color:var(--ink);margin-bottom:28px}
 .land-h1 em{color:var(--rose)}
 .land-sub{font-size:16px;line-height:1.85;color:var(--ink-soft);max-width:452px;margin-bottom:36px}
