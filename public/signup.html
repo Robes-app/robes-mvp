@@ -447,7 +447,7 @@
     const SUPABASE_URL  = 'https://ayowpaknssulsqqvwpqx.supabase.co';
     const SUPABASE_ANON = 'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ';
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
     // ─── UI refs ────────────────────────────────────────────────────────────
     const firstNameEl = document.getElementById('first-name');
@@ -485,7 +485,7 @@
     // ─── Google OAuth ───────────────────────────────────────────────────────
     btnGoogle.addEventListener('click', async () => {
       clearMessage();
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await sbClient.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: window.location.origin + '/dashboard' }
       });
@@ -507,7 +507,7 @@
 
       setLoading(true);
 
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await sbClient.auth.signUp({
         email,
         password,
         options: {
