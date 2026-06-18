@@ -362,6 +362,10 @@ app.get('/look/:id', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'look.html'));
 });
 
+app.get('/dashboard', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
 app.listen(port, () => {
   console.log(`Robes running at http://localhost:${port}`);
 });
