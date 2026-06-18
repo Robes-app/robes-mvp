@@ -88,6 +88,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         walk(document.body);
       }
 
+      // Time-based greeting
+      const hour = new Date().getHours();
+      const tod = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+      const greetingEl = document.getElementById('greeting');
+      const dashGreetEl = document.getElementById('dash-greet');
+      if (greetingEl) greetingEl.innerHTML = 'Good ' + tod + ',<br>' + name + '.';
+      if (dashGreetEl) dashGreetEl.textContent = 'Good ' + tod + ', ' + name + '.';
+
       // Live weather — request geolocation then fetch Open-Meteo
       const weatherEl = document.getElementById('nav-weather');
       if (!weatherEl) return;
