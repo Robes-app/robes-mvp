@@ -224,8 +224,9 @@ document.addEventListener('DOMContentLoaded', async function() {
       // ── Wardrobe wiring ──────────────────────────────────────────
       const _SUPA_URL = 'https://ayowpaknssulsqqvwpqx.supabase.co';
       const _SUPA_KEY = 'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ';
-      const _uid = window.__robes_session && window.__robes_session.user && window.__robes_session.user.id;
-      const _token = window.__robes_session && window.__robes_session.access_token;
+      // Read session lazily so we always have a fresh token (session loads async)
+      function _waUid()   { return window.__robes_session && window.__robes_session.user && window.__robes_session.user.id; }
+      function _waToken() { return window.__robes_session && window.__robes_session.access_token; }
 
       const WA_CATS = ['All','Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear','Other'];
 
@@ -246,7 +247,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const r = await fetch(_SUPA_URL + '/rest/v1/' + path, {
           method,
           headers: {
-            'apikey': _SUPA_KEY, 'Authorization': 'Bearer ' + _token,
+            'apikey': _SUPA_KEY, 'Authorization': 'Bearer ' + _waToken(),
             'Content-Type': 'application/json', 'Prefer': 'return=representation'
           },
           body: body !== undefined ? JSON.stringify(body) : undefined
@@ -257,7 +258,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       async function _waLoad() {
         try {
-          const data = await _waFetch('GET', 'wardrobe_items?user_id=eq.' + _uid + '&order=created_at.desc&select=*');
+          const data = await _waFetch('GET', 'wardrobe_items?user_id=eq.' + _waUid() + '&order=created_at.desc&select=*');
           _waItems = data || [];
         } catch(e) { console.error('wardrobe load:', e); }
         _waRender();
@@ -302,6 +303,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       function _waBuildFilters() {
         const container = document.getElementById('wg-filters');
         if (!container) return;
+        container.innerHTML = '';
         WA_CATS.forEach(cat => {
           const btn = document.createElement('button');
           btn.className = 'wg-pill' + (cat === 'All' ? ' active' : '');
@@ -409,7 +411,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             const colorName = (document.getElementById('wa-sw-name') || {}).textContent && document.getElementById('wa-sw-name').textContent.trim();
             const payload = {
-              user_id:   _uid,
+              user_id:   _waUid(),
               label,
               category:  (document.getElementById('wa-cat')   || {}).value || 'Other',
               color:     colorName || null,
