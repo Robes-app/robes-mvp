@@ -27,43 +27,7 @@
 </div>
   <div id="__bundler_loading">Unpacking...</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
-  // Auth guard: runs before bundler, stores session in window globals
-  (async () => {
-    const SUPA_URL = 'https://ayowpaknssulsqqvwpqx.supabase.co';
-    const SUPA_KEY = 'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ';
-    const sbClient = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-    const { data: { session } } = await sbClient.auth.getSession();
-    if (!session) { window.location.href = '/'; return; }
-    window.__robes_session = session;
-    const { data: profile } = await sbClient
-      .from('profiles')
-      .select('first_name, style_icons, budget, wardrobe_description')
-      .eq('id', session.user.id)
-      .single();
-    window.__robes_profile = profile || {};
-    // After bundler injects template, personalise the DOM
-    window.__robes_personalize = function() {
-      const name = (window.__robes_profile && window.__robes_profile.first_name) || 'Annie';
-      if (name === 'Annie') return;
-      const walk = (node) => {
-        if (node.nodeType === 3) {
-          node.textContent = node.textContent.replace(/\bAnnie\b/g, name);
-        } else {
-          for (const child of node.childNodes) walk(child);
-        }
-      };
-      walk(document.body);
-      // Also fix placeholder/aria attrs
-      document.querySelectorAll('[placeholder],[aria-label],[title]').forEach(el => {
-        if (el.placeholder) el.placeholder = el.placeholder.replace(/\bAnnie\b/g, name);
-        if (el.title) el.title = el.title.replace(/\bAnnie\b/g, name);
-      });
-    };
-  })();
-  </script>
-    <script>
     
 document.addEventListener('DOMContentLoaded', async function() {
   const loading = document.getElementById('__bundler_loading');
@@ -81,6 +45,35 @@ document.addEventListener('DOMContentLoaded', async function() {
   }, true);
 
   try {
+    // Auth guard — must resolve before unpacking
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    const _sb = window.supabase.createClient(
+      'https://ayowpaknssulsqqvwpqx.supabase.co',
+      'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ'
+    );
+    const { data: { session: _sess } } = await _sb.auth.getSession();
+    if (!_sess) { window.location.href = '/'; return; }
+    window.__robes_session = _sess;
+    const { data: _profile } = await _sb.from('profiles')
+      .select('first_name, style_icons, budget, wardrobe_description')
+      .eq('id', _sess.user.id).single();
+    window.__robes_profile = _profile || {};
+    window.__robes_personalize = function() {
+      const name = (window.__robes_profile && window.__robes_profile.first_name) || 'Annie';
+      if (name === 'Annie') return;
+      const walk = (node) => {
+        if (node.nodeType === 3) {
+          node.textContent = node.textContent.replace(/\bAnnie\b/g, name);
+        } else { for (const c of node.childNodes) walk(c); }
+      };
+      walk(document.body);
+    };
     const manifestEl = document.querySelector('script[type="__bundler/manifest"]');
     const templateEl = document.querySelector('script[type="__bundler/template"]');
     if (!manifestEl || !templateEl) {
