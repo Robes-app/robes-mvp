@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wardrobe — Robes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/robes-mvp.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+
+<!-- nav -->
+<nav class="dash-nav">
+  <div class="dash-nav-left">
+    <a class="back-link" href="/">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Robes
+    </a>
+  </div>
+  <div class="dash-nav-meta" id="nav-meta">
+    <!-- date/weather injected by personalize -->
+  </div>
+  <div class="dash-nav-right">
+    <div class="wardrobe-badge">
+      <div class="wardrobe-badge-count" id="badge-count">0</div>
+      Wardrobe
+    </div>
+    <div class="avatar" id="avatar">?</div>
+  </div>
+</nav>
+
+<!-- main -->
+<main class="dash-main">
+  <div class="dash-top-row">
+    <div>
+      <div class="dash-heading">
+        <h1>Your wardrobe</h1>
+      </div>
+      <p class="dash-sub">Everything Robes styles from. Add more and the looks get sharper.</p>
+    </div>
+    <div class="piece-count" id="piece-count">0 pieces</div>
+  </div>
+
+  <!-- category filters -->
+  <div class="cat-filters" id="cat-filters"></div>
+
+  <!-- wardrobe grid -->
+  <div class="wardrobe-grid" id="wardrobe-grid"></div>
+</main>
+
+<!-- floating add button (mobile) -->
+<button class="btn btn-primary" id="open-add-modal"
+  style="display:none;position:fixed;bottom:24px;right:24px;z-index:300;border-radius:999px;padding:14px 24px;">
+  + Add piece
+</button>
+
+<!-- add / edit modal -->
+<div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-label="Add piece">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-wordmark">ROBES</div>
+      <div class="modal-drag"></div>
+      <button class="modal-close" id="modal-close" aria-label="Close">&#x2715;</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- photo upload -->
+      <div class="photo-upload" id="photo-upload" role="button" tabindex="0"
+           aria-label="Upload photo">
+        <img class="preview" id="photo-preview" alt="" style="display:none">
+        <div id="photo-icon">
+          <div class="photo-upload-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </div>
+          <div class="photo-upload-label">Snap or attach<br>the piece</div>
+        </div>
+        <input type="file" id="photo-input" accept="image/*" capture="environment">
+      </div>
+
+      <!-- right side fields -->
+      <div class="form-fields">
+        <div class="field-group">
+          <label class="field-label" for="modal-label">LABEL</label>
+          <input class="field-input" id="modal-label" type="text"
+                 placeholder="e.g. Cream linen blazer" autocomplete="off">
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="modal-category">CATEGORY</label>
+          <div class="field-select-wrap">
+            <select class="field-input field-select" id="modal-category">
+              <option>Outerwear</option>
+              <option>Tops</option>
+              <option>Bottoms</option>
+              <option>Shoes</option>
+              <option>Accessories</option>
+              <option>Dresses</option>
+              <option>Bags</option>
+              <option>Swimwear</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- colour swatches — full width -->
+      <div class="swatch-section">
+        <div class="field-label">COLOUR</div>
+        <div class="swatch-grid" id="swatch-grid"></div>
+      </div>
+
+      <!-- brand — full width -->
+      <div class="brand-row field-group">
+        <label class="field-label" for="modal-brand">BRAND</label>
+        <input class="field-input" id="modal-brand" type="text"
+               placeholder="Start typing…" autocomplete="off">
+      </div>
+
+      <!-- notes — full width -->
+      <div class="notes-row field-group">
+        <label class="field-label" for="modal-notes">
+          NOTES <span class="optional">optional</span>
+        </label>
+        <textarea class="field-input" id="modal-notes" rows="3"
+                  placeholder="Fit, fabric, how you like to wear it — anything worth remembering."
+                  style="resize:vertical"></textarea>
+      </div>
+
+      <!-- submit -->
+      <div class="modal-footer">
+        <button class="btn-add" id="btn-add">
+          ADD TO WARDROBE <span class="arrow">→</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Supabase CDN (must be named supabase globally) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

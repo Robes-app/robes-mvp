@@ -274,6 +274,15 @@ Style this key piece three ways. Make each look genuinely distinct — different
   }
 });
 
+/* ── wardrobe photo upload ───────────────────────────────────────── */
+app.post('/api/wardrobe/upload', async (req, res) => {
+  const { data, mimeType } = req.body;
+  if (!data || !mimeType) return res.status(400).json({ error: 'Missing data or mimeType' });
+  const url = await cloudinaryUpload(data, mimeType);
+  if (!url) return res.status(500).json({ error: 'Upload failed' });
+  res.json({ url });
+});
+
 /* ── look share ──────────────────────────────────────────────────── */
 const BASE_URL = process.env.PUBLIC_URL || 'https://www.byrobes.com';
 
@@ -360,6 +369,10 @@ app.get('/api/look/:id', async (req, res) => {
 
 app.get('/look/:id', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'look.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
 
 app.listen(port, () => {
