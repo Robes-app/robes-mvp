@@ -58,12 +58,22 @@ document.addEventListener('DOMContentLoaded', async function() {
       'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ'
     );
     const { data: { session: _sess } } = await _sb.auth.getSession();
-    window.__robes_session = _sess || null;
+    // Use onAuthStateChange + getSession together to reliably catch both
+    // localStorage sessions and fresh OAuth redirects (URL hash tokens)
+    const _sess2 = await new Promise((resolve) => {
+      let done = false;
+      const finish = (s) => { if (!done) { done = true; resolve(s); } };
+      _sb.auth.onAuthStateChange((_, s) => finish(s));
+      _sb.auth.getSession().then(({ data: { session: s } }) => finish(s));
+      setTimeout(() => finish(null), 5000);
+    });
+    if (!_sess2) { window.location.href = '/signup.html'; return; }
+    window.__robes_session = _sess2;
     window.__robes_profile = {};
-    if (_sess && _sess.user) {
+    if (_sess2.user) {
       const { data: _profile } = await _sb.from('profiles')
         .select('first_name, style_icons, budget, wardrobe_description')
-        .eq('id', _sess.user.id).single();
+        .eq('id', _sess2.user.id).single();
       window.__robes_profile = _profile || {};
     }
     window.__robes_personalize = function() {
