@@ -227,31 +227,19 @@ document.addEventListener('DOMContentLoaded', async function() {
       const _uid = window.__robes_session && window.__robes_session.user && window.__robes_session.user.id;
       const _token = window.__robes_session && window.__robes_session.access_token;
 
-      const WA_COLORS = [
-        {n:'Cream',h:'#F0EDE6'},{n:'Beige',h:'#D4BEA0'},{n:'Tan',h:'#C09060'},
-        {n:'Camel',h:'#A87840'},{n:'Khaki',h:'#8A8455'},{n:'Olive',h:'#4E5030'},
-        {n:'Blush',h:'#DCC0C4'},{n:'Lavender',h:'#B8B0BC'},{n:'Mauve',h:'#8E7077'},
-        {n:'Burgundy',h:'#6C2030'},{n:'Rust',h:'#B85030'},{n:'Brown',h:'#5A3820'},
-        {n:'Navy',h:'#1A2848'},{n:'Steel',h:'#3A5878'},{n:'Grey',h:'#888888'},
-        {n:'Charcoal',h:'#404040'},{n:'Black',h:'#1A1A1A'},{n:'White',h:'#FFFFFF'},
-        {n:'Pink',h:'#F020A0'},{n:'Green',h:'#20C020'},{n:'Blue',h:'#2050F0'},
-        {n:'Yellow',h:'#E0D000'},{n:'Orange',h:'#E85020'},
-        {n:'Multi',h:'multi'},{n:'Print',h:'print'},
-      ];
-
       const WA_CATS = ['All','Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear','Other'];
 
-      let _waItems = [], _waCat = 'All', _waEditId = null, _waColor = null, _waPendingPhoto = null;
+      let _waItems = [], _waCat = 'All', _waEditId = null;
 
-      function _waEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+      function _waEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
       function _waShowToast(msg) {
         const t = document.getElementById('toast-msg') || document.getElementById('toast');
         if (!t) return;
-        const container = t.id === 'toast-msg' ? t.parentElement : t;
+        const wrap = t.id === 'toast-msg' ? t.parentElement : t;
         if (t.id === 'toast-msg') t.textContent = msg; else t.textContent = msg;
-        container.classList.add('show');
-        setTimeout(() => container.classList.remove('show'), 2800);
+        wrap.classList.add('show');
+        setTimeout(() => wrap.classList.remove('show'), 2800);
       }
 
       async function _waFetch(method, path, body) {
@@ -261,7 +249,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             'apikey': _SUPA_KEY, 'Authorization': 'Bearer ' + _token,
             'Content-Type': 'application/json', 'Prefer': 'return=representation'
           },
-          body: body ? JSON.stringify(body) : undefined
+          body: body !== undefined ? JSON.stringify(body) : undefined
         });
         if (!r.ok) throw new Error(await r.text());
         return r.status === 204 ? null : r.json();
@@ -271,11 +259,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         try {
           const data = await _waFetch('GET', 'wardrobe_items?user_id=eq.' + _uid + '&order=created_at.desc&select=*');
           _waItems = data || [];
-          _waRender();
-        } catch(e) {
-          console.error('wardrobe load:', e);
-          _waRender(); // still render (empty or stale) so grid isn't left blank
-        }
+        } catch(e) { console.error('wardrobe load:', e); }
+        _waRender();
       }
 
       function _waRender() {
@@ -294,14 +279,14 @@ document.addEventListener('DOMContentLoaded', async function() {
       function _waCard(it) {
         const div = document.createElement('div');
         div.className = 'wg-item';
-        const meta = [it.brand, it.times_worn > 0 ? it.times_worn + '× worn' : null].filter(Boolean).join(' · ');
+        const meta = [it.brand, it.times_worn > 0 ? it.times_worn + '\xd7 worn' : null].filter(Boolean).join(' \xb7 ');
         div.innerHTML = '<div class="wg-img-wrap">' +
           (it.image_url ? '<img src="' + _waEsc(it.image_url) + '" alt="' + _waEsc(it.label) + '" loading="lazy">' :
-            '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);opacity:.35"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>') +
+            '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:.3"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>') +
           (it.times_worn === 0 ? '<div class="wg-owned-badge">Never worn</div>' : '') +
           '</div><div class="wg-info"><div class="wg-name">' + _waEsc(it.label) + '</div>' +
           (meta ? '<div class="wg-metar">' + _waEsc(meta) + '</div>' : '') + '</div>';
-        div.addEventListener('click', () => WA.open(it));
+        div.addEventListener('click', () => _waOpenEdit(it));
         return div;
       }
 
@@ -310,14 +295,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         div.className = 'wg-item wg-add wg-img-wrap';
         div.style.cursor = 'pointer';
         div.innerHTML = '<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-        div.addEventListener('click', () => WA.open());
+        div.addEventListener('click', () => { _waEditId = null; window.WA && WA.open(); });
         return div;
       }
 
       function _waBuildFilters() {
         const container = document.getElementById('wg-filters');
         if (!container) return;
-        container.innerHTML = '';
         WA_CATS.forEach(cat => {
           const btn = document.createElement('button');
           btn.className = 'wg-pill' + (cat === 'All' ? ' active' : '');
@@ -331,200 +315,136 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
       }
 
-      function _waBuildSwatches() {
-        const container = document.getElementById('wa-swatches');
-        if (!container) return;
-        container.innerHTML = '';
-        WA_COLORS.forEach(c => {
-          const sw = document.createElement('div');
-          sw.className = 'wa-sw';
-          sw.title = c.n;
-          sw.dataset.color = c.n;
-          if (c.h === 'multi') {
-            sw.style.background = 'conic-gradient(red,orange,yellow,green,blue,violet,red)';
-          } else if (c.h === 'print') {
-            sw.style.background = 'repeating-linear-gradient(45deg,#888 0 3px,#ddd 3px 6px)';
-          } else {
-            sw.style.background = c.h;
-            if (c.h === '#FFFFFF') sw.style.boxShadow = 'inset 0 0 0 1px rgba(32,32,33,.2)';
-          }
-          sw.addEventListener('click', () => {
-            _waColor = _waColor === c.n ? null : c.n;
-            container.querySelectorAll('.wa-sw').forEach(s => s.classList.remove('sel'));
-            if (_waColor) { sw.classList.add('sel'); }
-            const nameEl = document.getElementById('wa-sw-name');
-            if (nameEl) nameEl.textContent = _waColor || '';
-          });
-          container.appendChild(sw);
-        });
+      function _waShowDeleteBtn(show) {
+        let btn = document.getElementById('wa-del-btn');
+        if (!btn && show) {
+          btn = document.createElement('button');
+          btn.id = 'wa-del-btn';
+          btn.style.cssText = 'display:block;width:100%;margin-top:10px;padding:12px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--ink-faint);letter-spacing:.06em;transition:color .2s';
+          btn.textContent = 'Remove from wardrobe';
+          btn.onmouseover = () => { btn.style.color = '#b03030'; };
+          btn.onmouseout  = () => { btn.style.color = ''; };
+          btn.onclick = _waDelete;
+          const cta = document.getElementById('wa-cta');
+          if (cta && cta.parentNode) cta.parentNode.insertBefore(btn, cta.nextSibling);
+        }
+        if (btn) btn.style.display = show ? 'block' : 'none';
       }
 
-      window.WA = {
-        open(item) {
-          _waEditId = item ? item.id : null;
-          _waColor = item ? (item.color || null) : null;
-          _waPendingPhoto = null;
-
+      function _waOpenEdit(it) {
+        _waEditId = it.id;
+        if (!window.WA) return;
+        WA.open(); // uses original open — clears fields
+        setTimeout(() => {
           const label = document.getElementById('wa-label-in');
-          const cat = document.getElementById('wa-cat');
+          const cat   = document.getElementById('wa-cat');
           const brand = document.getElementById('wa-brand');
           const notes = document.getElementById('wa-notes');
-          const cta = document.getElementById('wa-cta');
-          const tileEmpty = document.getElementById('wa-tile-empty');
-          const tileFill = document.getElementById('wa-tile-fill');
-          const tileImg = document.getElementById('wa-tile-img');
+          const cta   = document.getElementById('wa-cta');
+          if (label) label.value = it.label  || '';
+          if (cat)   cat.value   = it.category || '';
+          if (brand) brand.value = it.brand   || '';
+          if (notes) notes.value = it.notes   || '';
+          if (cta)   cta.textContent = 'Update piece';
 
-          if (label) label.value = item ? (item.label || '') : '';
-          if (cat) cat.value = item ? (item.category || '') : '';
-          if (brand) brand.value = item ? (item.brand || '') : '';
-          if (notes) notes.value = item ? (item.notes || '') : '';
-
-          if (item && item.image_url && tileImg && tileEmpty && tileFill) {
-            tileImg.src = item.image_url;
-            tileEmpty.style.display = 'none';
-            tileFill.style.display = '';
-          } else if (tileEmpty && tileFill) {
-            tileEmpty.style.display = '';
-            tileFill.style.display = 'none';
-            if (tileImg) tileImg.src = '';
+          // Pre-select colour swatch by name
+          if (it.color) {
+            const swatches = [...document.querySelectorAll('#wa-swatches .wa-sw')];
+            const idx = swatches.findIndex(s => s.title === it.color || s.getAttribute('aria-label') === it.color);
+            if (idx >= 0 && WA.pickColour) WA.pickColour(idx);
           }
 
-          // Swatches
-          document.querySelectorAll('.wa-sw').forEach(s => s.classList.toggle('sel', s.dataset.color === _waColor));
-          const nameEl = document.getElementById('wa-sw-name');
-          if (nameEl) nameEl.textContent = _waColor || '';
-
-          if (cta) {
-            cta.textContent = item ? 'Update piece' : 'Add to wardrobe';
-            cta.disabled = !(item && item.label);
-            if (item) cta.disabled = false;
+          // Show existing photo
+          if (it.image_url) {
+            const tileImg   = document.getElementById('wa-tile-img');
+            const tileEmpty = document.getElementById('wa-tile-empty');
+            const tileFill  = document.getElementById('wa-tile-fill');
+            if (tileImg)   tileImg.src = it.image_url;
+            if (tileEmpty) tileEmpty.style.display = 'none';
+            if (tileFill)  tileFill.style.display  = 'block';
           }
 
-          // Delete button
-          let delBtn = document.getElementById('wa-del-btn');
-          if (!delBtn && item) {
-            delBtn = document.createElement('button');
-            delBtn.id = 'wa-del-btn';
-            delBtn.style.cssText = 'display:block;width:100%;margin-top:10px;padding:12px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--ink-faint);letter-spacing:.06em;transition:color .2s';
-            delBtn.textContent = 'Remove from wardrobe';
-            delBtn.onmouseover = () => { delBtn.style.color = '#b03030'; };
-            delBtn.onmouseout = () => { delBtn.style.color = 'var(--ink-faint)'; };
-            delBtn.onclick = () => WA.delete();
-            if (cta) cta.parentNode.insertBefore(delBtn, cta.nextSibling);
-          }
-          if (delBtn) delBtn.style.display = item ? 'block' : 'none';
+          _waShowDeleteBtn(true);
+          WA.validate && WA.validate();
+        }, 60);
+      }
 
-          const modal = document.getElementById('wa-modal');
-          if (modal) { modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false'); }
-        },
+      // Patch WA.submit — keep all other WA methods untouched
+      const _origWAClose = () => window.WA && WA.close();
+      const _origWASubmit = window.WA && WA.submit;
 
-        close() {
-          const modal = document.getElementById('wa-modal');
-          if (modal) { modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); }
-          _waEditId = null; _waPendingPhoto = null;
-        },
+      if (window.WA) {
+        WA.submit = async function() {
+          const label = (document.getElementById('wa-label-in') || {}).value && document.getElementById('wa-label-in').value.trim();
+          if (!label) { const l = document.getElementById('wa-label-in'); if (l) l.focus(); return; }
 
-        pickFile() { const f = document.getElementById('wa-file'); if (f) f.click(); },
-
-        clearPhoto(e) {
-          if (e) e.stopPropagation();
-          _waPendingPhoto = null;
-          const tileEmpty = document.getElementById('wa-tile-empty');
-          const tileFill = document.getElementById('wa-tile-fill');
-          const tileImg = document.getElementById('wa-tile-img');
-          if (tileEmpty) tileEmpty.style.display = '';
-          if (tileFill) tileFill.style.display = 'none';
-          if (tileImg) tileImg.src = '';
-        },
-
-        validate() {
-          const label = document.getElementById('wa-label-in');
-          const cta = document.getElementById('wa-cta');
-          if (cta && label) cta.disabled = !label.value.trim();
-        },
-
-        async submit() {
-          const label = (document.getElementById('wa-label-in') || {}).value?.trim();
-          if (!label) return;
+          const editId = _waEditId;
           const cta = document.getElementById('wa-cta');
           if (cta) { cta.disabled = true; cta.textContent = 'Saving…'; }
 
           try {
-            let imageUrl = _waEditId ? (_waItems.find(i => i.id === _waEditId)?.image_url || null) : null;
+            let imageUrl = editId ? (_waItems.find(i => i.id === editId) || {}).image_url || null : null;
 
-            if (_waPendingPhoto) {
-              const r = await fetch('/api/wardrobe/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: _waPendingPhoto.data, mimeType: _waPendingPhoto.mimeType })
-              });
-              const j = await r.json();
-              if (j.url) imageUrl = j.url;
+            // Upload new photo if one was selected (data URL in tile)
+            const tileImg  = document.getElementById('wa-tile-img');
+            const tileFill = document.getElementById('wa-tile-fill');
+            if (tileFill && tileFill.style.display !== 'none' && tileImg && tileImg.src && tileImg.src.startsWith('data:')) {
+              const match = tileImg.src.match(/^data:([^;]+);base64,(.+)$/);
+              if (match) {
+                try {
+                  const res = await fetch('/api/wardrobe/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: match[2], mimeType: match[1] })
+                  });
+                  const j = await res.json();
+                  if (j.url) imageUrl = j.url;
+                } catch(uploadErr) { console.warn('Photo upload failed:', uploadErr); }
+              }
             }
 
+            const colorName = (document.getElementById('wa-sw-name') || {}).textContent && document.getElementById('wa-sw-name').textContent.trim();
             const payload = {
-              user_id: _uid,
+              user_id:   _uid,
               label,
-              category: (document.getElementById('wa-cat') || {}).value || 'Other',
-              color: _waColor || null,
-              brand: (document.getElementById('wa-brand') || {}).value?.trim() || null,
-              notes: (document.getElementById('wa-notes') || {}).value?.trim() || null,
+              category:  (document.getElementById('wa-cat')   || {}).value || 'Other',
+              color:     colorName || null,
+              brand:     ((document.getElementById('wa-brand') || {}).value || '').trim() || null,
+              notes:     ((document.getElementById('wa-notes') || {}).value || '').trim() || null,
               image_url: imageUrl,
             };
 
-            if (_waEditId) {
-              await _waFetch('PATCH', 'wardrobe_items?id=eq.' + _waEditId, payload);
+            if (editId) {
+              await _waFetch('PATCH', 'wardrobe_items?id=eq.' + editId, payload);
             } else {
               await _waFetch('POST', 'wardrobe_items', payload);
             }
 
-            WA.close();
+            _origWAClose();
+            _waEditId = null;
             await _waLoad();
-            _waShowToast(_waEditId ? 'Piece updated' : 'Added to wardrobe');
+            _waShowToast(editId ? 'Piece updated' : 'Added to wardrobe');
           } catch(e) {
             console.error('WA submit:', e);
             _waShowToast('Something went wrong — try again');
-          } finally {
-            const c = document.getElementById('wa-cta');
-            if (c) { c.disabled = false; c.textContent = _waEditId ? 'Update piece' : 'Add to wardrobe'; }
+            if (cta) { cta.disabled = false; cta.textContent = editId ? 'Update piece' : 'Add to wardrobe'; }
           }
-        },
-
-        async delete() {
-          if (!_waEditId) return;
-          if (!confirm('Remove this piece from your wardrobe?')) return;
-          try {
-            await _waFetch('DELETE', 'wardrobe_items?id=eq.' + _waEditId, undefined);
-            WA.close();
-            await _waLoad();
-            _waShowToast('Piece removed');
-          } catch(e) { _waShowToast('Could not remove piece'); }
-        }
-      };
-
-      // WA.onFile — called by template's onchange="WA.onFile(this)"
-      window.WA.onFile = function(input) {
-        const file = input && input.files && input.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = ev => {
-          const match = ev.target.result.match(/^data:([^;]+);base64,(.+)$/);
-          if (!match) return;
-          _waPendingPhoto = { data: match[2], mimeType: match[1] };
-          const tileImg = document.getElementById('wa-tile-img');
-          const tileEmpty = document.getElementById('wa-tile-empty');
-          const tileFill = document.getElementById('wa-tile-fill');
-          if (tileImg) tileImg.src = ev.target.result;
-          if (tileEmpty) tileEmpty.style.display = 'none';
-          if (tileFill) tileFill.style.display = '';
-          WA.validate();
         };
-        reader.readAsDataURL(file);
-        input.value = '';
-      };
+      }
+
+      async function _waDelete() {
+        if (!_waEditId) return;
+        if (!confirm('Remove this piece from your wardrobe?')) return;
+        try {
+          await _waFetch('DELETE', 'wardrobe_items?id=eq.' + _waEditId, undefined);
+          _origWAClose();
+          _waEditId = null;
+          await _waLoad();
+          _waShowToast('Piece removed');
+        } catch(e) { _waShowToast('Could not remove piece'); }
+      }
 
       _waBuildFilters();
-      _waBuildSwatches();
       _waLoad();
     };
     const manifestEl = document.querySelector('script[type="__bundler/manifest"]');
