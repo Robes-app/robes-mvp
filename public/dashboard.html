@@ -272,7 +272,10 @@ document.addEventListener('DOMContentLoaded', async function() {
           const data = await _waFetch('GET', 'wardrobe_items?user_id=eq.' + _uid + '&order=created_at.desc&select=*');
           _waItems = data || [];
           _waRender();
-        } catch(e) { console.error('wardrobe load:', e); }
+        } catch(e) {
+          console.error('wardrobe load:', e);
+          _waRender(); // still render (empty or stale) so grid isn't left blank
+        }
       }
 
       function _waRender() {
@@ -280,9 +283,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         const countEl = document.getElementById('wg-count');
         if (!grid) return;
         const filtered = _waCat === 'All' ? _waItems : _waItems.filter(i => i.category === _waCat);
+        const frag = document.createDocumentFragment();
+        filtered.forEach(it => frag.appendChild(_waCard(it)));
+        frag.appendChild(_waAddCard());
         grid.innerHTML = '';
-        filtered.forEach(it => grid.appendChild(_waCard(it)));
-        grid.appendChild(_waAddCard());
+        grid.appendChild(frag);
         if (countEl) countEl.textContent = _waItems.length + ' piece' + (_waItems.length !== 1 ? 's' : '');
       }
 
@@ -497,29 +502,26 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
       };
 
-      // Wire up file input
-      const _waFileInput = document.getElementById('wa-file');
-      if (_waFileInput) {
-        _waFileInput.addEventListener('change', (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = ev => {
-            const match = ev.target.result.match(/^data:([^;]+);base64,(.+)$/);
-            if (!match) return;
-            _waPendingPhoto = { data: match[2], mimeType: match[1] };
-            const tileImg = document.getElementById('wa-tile-img');
-            const tileEmpty = document.getElementById('wa-tile-empty');
-            const tileFill = document.getElementById('wa-tile-fill');
-            if (tileImg) tileImg.src = ev.target.result;
-            if (tileEmpty) tileEmpty.style.display = 'none';
-            if (tileFill) tileFill.style.display = '';
-            WA.validate();
-          };
-          reader.readAsDataURL(file);
-          e.target.value = '';
-        });
-      }
+      // WA.onFile — called by template's onchange="WA.onFile(this)"
+      window.WA.onFile = function(input) {
+        const file = input && input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const match = ev.target.result.match(/^data:([^;]+);base64,(.+)$/);
+          if (!match) return;
+          _waPendingPhoto = { data: match[2], mimeType: match[1] };
+          const tileImg = document.getElementById('wa-tile-img');
+          const tileEmpty = document.getElementById('wa-tile-empty');
+          const tileFill = document.getElementById('wa-tile-fill');
+          if (tileImg) tileImg.src = ev.target.result;
+          if (tileEmpty) tileEmpty.style.display = 'none';
+          if (tileFill) tileFill.style.display = '';
+          WA.validate();
+        };
+        reader.readAsDataURL(file);
+        input.value = '';
+      };
 
       _waBuildFilters();
       _waBuildSwatches();
