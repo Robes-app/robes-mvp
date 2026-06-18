@@ -238,6 +238,9 @@ function openModal(existing) {
     ? `UPDATE PIECE <span class="arrow">→</span>`
     : `ADD TO WARDROBE <span class="arrow">→</span>`;
 
+  const delBtn = document.getElementById('btn-delete');
+  delBtn.style.display = existing ? '' : 'none';
+
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('modal-label').focus();
 }
@@ -261,6 +264,7 @@ function bindEvents() {
   });
   document.getElementById('photo-input').addEventListener('change', handlePhotoSelect);
   document.getElementById('btn-add').addEventListener('click', submitPiece);
+  document.getElementById('btn-delete').addEventListener('click', deletePiece);
   document.getElementById('open-add-modal').addEventListener('click', () => openModal());
 }
 
@@ -335,6 +339,19 @@ async function submitPiece() {
     btn.disabled = false;
     btn.innerHTML = editingId ? 'UPDATE PIECE <span class="arrow">→</span>' : 'ADD TO WARDROBE <span class="arrow">→</span>';
   }
+}
+
+async function deletePiece() {
+  if (!editingId) return;
+  if (!confirm('Remove this piece from your wardrobe?')) return;
+  const btn = document.getElementById('btn-delete');
+  btn.textContent = 'Removing…';
+  btn.disabled = true;
+  const { error } = await sb.from('wardrobe_items').delete().eq('id', editingId);
+  if (error) { showToast('Could not remove piece'); btn.textContent = 'Remove from wardrobe'; btn.disabled = false; return; }
+  closeModal();
+  await loadItems();
+  showToast('Piece removed');
 }
 
 /* ── helpers ────────────────────────────────────────────────────── */

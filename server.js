@@ -375,6 +375,10 @@ app.get('/dashboard', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
 
+app.get('/wardrobe', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
 app.listen(port, () => {
   console.log(`Robes running at http://localhost:${port}`);
 });

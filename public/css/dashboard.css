@@ -271,6 +271,14 @@
 .btn-add:hover { background: var(--cream-300); }
 .btn-add:disabled { opacity: .5; cursor: not-allowed; }
 .btn-add .arrow { font-size: 14px; font-weight: 300; }
+.btn-delete {
+  width: 100%; padding: 12px; margin-top: 10px;
+  background: transparent; border: none; cursor: pointer;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 400;
+  letter-spacing: .08em; color: var(--ink-faint);
+  transition: color .2s;
+}
+.btn-delete:hover { color: #b03030; }
 
 /* ── empty state ────────────────────────────────────────────────── */
 .wardrobe-empty {
