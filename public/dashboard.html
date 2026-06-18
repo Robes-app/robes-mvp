@@ -261,6 +261,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           const data = await _waFetch('GET', 'wardrobe_items?user_id=eq.' + _waUid() + '&order=created_at.desc&select=*');
           _waItems = data || [];
         } catch(e) { console.error('wardrobe load:', e); }
+        _waBuildFilters(); // always replace bundle's pills with ours
         _waRender();
       }
 
@@ -450,8 +451,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         } catch(e) { _waShowToast('Could not remove piece'); }
       }
 
-      _waBuildFilters();
-      _waLoad();
+      // Poll until Supabase session is ready, then load real wardrobe data.
+      // __robes_session is set asynchronously by the bundle after auth resolves.
+      (function _waInit() {
+        if (_waUid()) { _waLoad(); }
+        else { setTimeout(_waInit, 250); }
+      })();
 
       // Intercept App.showWardrobe and filterWardrobe so Supabase data
       // is used instead of the bundle's in-memory mock W store.
