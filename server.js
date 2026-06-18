@@ -366,6 +366,18 @@ app.get('/dashboard', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
 
+app.get('/wardrobe', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.post('/api/wardrobe/upload', async (req, res) => {
+  const { data, mimeType } = req.body;
+  if (!data || !mimeType) return res.status(400).json({ error: 'Missing data or mimeType' });
+  const url = await cloudinaryUpload(data, mimeType);
+  if (!url) return res.status(500).json({ error: 'Upload failed' });
+  res.json({ url });
+});
+
 app.listen(port, () => {
   console.log(`Robes running at http://localhost:${port}`);
 });

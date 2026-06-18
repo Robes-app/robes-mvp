@@ -220,6 +220,310 @@ document.addEventListener('DOMContentLoaded', async function() {
           if (code !== undefined && wxIcon) wxIcon.textContent = WX_ICONS[code] || '🌤';
         } catch (e) { /* keep defaults on error */ }
       }, () => { /* permission denied — keep defaults */ });
+
+      // ── Wardrobe wiring ──────────────────────────────────────────
+      const _SUPA_URL = 'https://ayowpaknssulsqqvwpqx.supabase.co';
+      const _SUPA_KEY = 'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ';
+      const _uid = window.__robes_session && window.__robes_session.user && window.__robes_session.user.id;
+      const _token = window.__robes_session && window.__robes_session.access_token;
+
+      const WA_COLORS = [
+        {n:'Cream',h:'#F0EDE6'},{n:'Beige',h:'#D4BEA0'},{n:'Tan',h:'#C09060'},
+        {n:'Camel',h:'#A87840'},{n:'Khaki',h:'#8A8455'},{n:'Olive',h:'#4E5030'},
+        {n:'Blush',h:'#DCC0C4'},{n:'Lavender',h:'#B8B0BC'},{n:'Mauve',h:'#8E7077'},
+        {n:'Burgundy',h:'#6C2030'},{n:'Rust',h:'#B85030'},{n:'Brown',h:'#5A3820'},
+        {n:'Navy',h:'#1A2848'},{n:'Steel',h:'#3A5878'},{n:'Grey',h:'#888888'},
+        {n:'Charcoal',h:'#404040'},{n:'Black',h:'#1A1A1A'},{n:'White',h:'#FFFFFF'},
+        {n:'Pink',h:'#F020A0'},{n:'Green',h:'#20C020'},{n:'Blue',h:'#2050F0'},
+        {n:'Yellow',h:'#E0D000'},{n:'Orange',h:'#E85020'},
+        {n:'Multi',h:'multi'},{n:'Print',h:'print'},
+      ];
+
+      const WA_CATS = ['All','Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear','Other'];
+
+      let _waItems = [], _waCat = 'All', _waEditId = null, _waColor = null, _waPendingPhoto = null;
+
+      function _waEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      function _waShowToast(msg) {
+        const t = document.getElementById('toast-msg') || document.getElementById('toast');
+        if (!t) return;
+        const container = t.id === 'toast-msg' ? t.parentElement : t;
+        if (t.id === 'toast-msg') t.textContent = msg; else t.textContent = msg;
+        container.classList.add('show');
+        setTimeout(() => container.classList.remove('show'), 2800);
+      }
+
+      async function _waFetch(method, path, body) {
+        const r = await fetch(_SUPA_URL + '/rest/v1/' + path, {
+          method,
+          headers: {
+            'apikey': _SUPA_KEY, 'Authorization': 'Bearer ' + _token,
+            'Content-Type': 'application/json', 'Prefer': 'return=representation'
+          },
+          body: body ? JSON.stringify(body) : undefined
+        });
+        if (!r.ok) throw new Error(await r.text());
+        return r.status === 204 ? null : r.json();
+      }
+
+      async function _waLoad() {
+        try {
+          const data = await _waFetch('GET', 'wardrobe_items?user_id=eq.' + _uid + '&order=created_at.desc&select=*');
+          _waItems = data || [];
+          _waRender();
+        } catch(e) { console.error('wardrobe load:', e); }
+      }
+
+      function _waRender() {
+        const grid = document.getElementById('wg-grid');
+        const countEl = document.getElementById('wg-count');
+        if (!grid) return;
+        const filtered = _waCat === 'All' ? _waItems : _waItems.filter(i => i.category === _waCat);
+        grid.innerHTML = '';
+        filtered.forEach(it => grid.appendChild(_waCard(it)));
+        grid.appendChild(_waAddCard());
+        if (countEl) countEl.textContent = _waItems.length + ' piece' + (_waItems.length !== 1 ? 's' : '');
+      }
+
+      function _waCard(it) {
+        const div = document.createElement('div');
+        div.className = 'wg-item';
+        const meta = [it.brand, it.times_worn > 0 ? it.times_worn + '× worn' : null].filter(Boolean).join(' · ');
+        div.innerHTML = '<div class="wg-img-wrap">' +
+          (it.image_url ? '<img src="' + _waEsc(it.image_url) + '" alt="' + _waEsc(it.label) + '" loading="lazy">' :
+            '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);opacity:.35"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>') +
+          (it.times_worn === 0 ? '<div class="wg-owned-badge">Never worn</div>' : '') +
+          '</div><div class="wg-info"><div class="wg-name">' + _waEsc(it.label) + '</div>' +
+          (meta ? '<div class="wg-metar">' + _waEsc(meta) + '</div>' : '') + '</div>';
+        div.addEventListener('click', () => WA.open(it));
+        return div;
+      }
+
+      function _waAddCard() {
+        const div = document.createElement('div');
+        div.className = 'wg-item wg-add wg-img-wrap';
+        div.style.cursor = 'pointer';
+        div.innerHTML = '<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+        div.addEventListener('click', () => WA.open());
+        return div;
+      }
+
+      function _waBuildFilters() {
+        const container = document.getElementById('wg-filters');
+        if (!container) return;
+        container.innerHTML = '';
+        WA_CATS.forEach(cat => {
+          const btn = document.createElement('button');
+          btn.className = 'wg-pill' + (cat === 'All' ? ' active' : '');
+          btn.textContent = cat;
+          btn.addEventListener('click', () => {
+            _waCat = cat;
+            container.querySelectorAll('.wg-pill').forEach(p => p.classList.toggle('active', p.textContent === cat));
+            _waRender();
+          });
+          container.appendChild(btn);
+        });
+      }
+
+      function _waBuildSwatches() {
+        const container = document.getElementById('wa-swatches');
+        if (!container) return;
+        container.innerHTML = '';
+        WA_COLORS.forEach(c => {
+          const sw = document.createElement('div');
+          sw.className = 'wa-sw';
+          sw.title = c.n;
+          sw.dataset.color = c.n;
+          if (c.h === 'multi') {
+            sw.style.background = 'conic-gradient(red,orange,yellow,green,blue,violet,red)';
+          } else if (c.h === 'print') {
+            sw.style.background = 'repeating-linear-gradient(45deg,#888 0 3px,#ddd 3px 6px)';
+          } else {
+            sw.style.background = c.h;
+            if (c.h === '#FFFFFF') sw.style.boxShadow = 'inset 0 0 0 1px rgba(32,32,33,.2)';
+          }
+          sw.addEventListener('click', () => {
+            _waColor = _waColor === c.n ? null : c.n;
+            container.querySelectorAll('.wa-sw').forEach(s => s.classList.remove('sel'));
+            if (_waColor) { sw.classList.add('sel'); }
+            const nameEl = document.getElementById('wa-sw-name');
+            if (nameEl) nameEl.textContent = _waColor || '';
+          });
+          container.appendChild(sw);
+        });
+      }
+
+      window.WA = {
+        open(item) {
+          _waEditId = item ? item.id : null;
+          _waColor = item ? (item.color || null) : null;
+          _waPendingPhoto = null;
+
+          const label = document.getElementById('wa-label-in');
+          const cat = document.getElementById('wa-cat');
+          const brand = document.getElementById('wa-brand');
+          const notes = document.getElementById('wa-notes');
+          const cta = document.getElementById('wa-cta');
+          const tileEmpty = document.getElementById('wa-tile-empty');
+          const tileFill = document.getElementById('wa-tile-fill');
+          const tileImg = document.getElementById('wa-tile-img');
+
+          if (label) label.value = item ? (item.label || '') : '';
+          if (cat) cat.value = item ? (item.category || '') : '';
+          if (brand) brand.value = item ? (item.brand || '') : '';
+          if (notes) notes.value = item ? (item.notes || '') : '';
+
+          if (item && item.image_url && tileImg && tileEmpty && tileFill) {
+            tileImg.src = item.image_url;
+            tileEmpty.style.display = 'none';
+            tileFill.style.display = '';
+          } else if (tileEmpty && tileFill) {
+            tileEmpty.style.display = '';
+            tileFill.style.display = 'none';
+            if (tileImg) tileImg.src = '';
+          }
+
+          // Swatches
+          document.querySelectorAll('.wa-sw').forEach(s => s.classList.toggle('sel', s.dataset.color === _waColor));
+          const nameEl = document.getElementById('wa-sw-name');
+          if (nameEl) nameEl.textContent = _waColor || '';
+
+          if (cta) {
+            cta.textContent = item ? 'Update piece' : 'Add to wardrobe';
+            cta.disabled = !(item && item.label);
+            if (item) cta.disabled = false;
+          }
+
+          // Delete button
+          let delBtn = document.getElementById('wa-del-btn');
+          if (!delBtn && item) {
+            delBtn = document.createElement('button');
+            delBtn.id = 'wa-del-btn';
+            delBtn.style.cssText = 'display:block;width:100%;margin-top:10px;padding:12px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--ink-faint);letter-spacing:.06em;transition:color .2s';
+            delBtn.textContent = 'Remove from wardrobe';
+            delBtn.onmouseover = () => { delBtn.style.color = '#b03030'; };
+            delBtn.onmouseout = () => { delBtn.style.color = 'var(--ink-faint)'; };
+            delBtn.onclick = () => WA.delete();
+            if (cta) cta.parentNode.insertBefore(delBtn, cta.nextSibling);
+          }
+          if (delBtn) delBtn.style.display = item ? 'block' : 'none';
+
+          const modal = document.getElementById('wa-modal');
+          if (modal) { modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false'); }
+        },
+
+        close() {
+          const modal = document.getElementById('wa-modal');
+          if (modal) { modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); }
+          _waEditId = null; _waPendingPhoto = null;
+        },
+
+        pickFile() { const f = document.getElementById('wa-file'); if (f) f.click(); },
+
+        clearPhoto(e) {
+          if (e) e.stopPropagation();
+          _waPendingPhoto = null;
+          const tileEmpty = document.getElementById('wa-tile-empty');
+          const tileFill = document.getElementById('wa-tile-fill');
+          const tileImg = document.getElementById('wa-tile-img');
+          if (tileEmpty) tileEmpty.style.display = '';
+          if (tileFill) tileFill.style.display = 'none';
+          if (tileImg) tileImg.src = '';
+        },
+
+        validate() {
+          const label = document.getElementById('wa-label-in');
+          const cta = document.getElementById('wa-cta');
+          if (cta && label) cta.disabled = !label.value.trim();
+        },
+
+        async submit() {
+          const label = (document.getElementById('wa-label-in') || {}).value?.trim();
+          if (!label) return;
+          const cta = document.getElementById('wa-cta');
+          if (cta) { cta.disabled = true; cta.textContent = 'Saving…'; }
+
+          try {
+            let imageUrl = _waEditId ? (_waItems.find(i => i.id === _waEditId)?.image_url || null) : null;
+
+            if (_waPendingPhoto) {
+              const r = await fetch('/api/wardrobe/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: _waPendingPhoto.data, mimeType: _waPendingPhoto.mimeType })
+              });
+              const j = await r.json();
+              if (j.url) imageUrl = j.url;
+            }
+
+            const payload = {
+              user_id: _uid,
+              label,
+              category: (document.getElementById('wa-cat') || {}).value || 'Other',
+              color: _waColor || null,
+              brand: (document.getElementById('wa-brand') || {}).value?.trim() || null,
+              notes: (document.getElementById('wa-notes') || {}).value?.trim() || null,
+              image_url: imageUrl,
+            };
+
+            if (_waEditId) {
+              await _waFetch('PATCH', 'wardrobe_items?id=eq.' + _waEditId, payload);
+            } else {
+              await _waFetch('POST', 'wardrobe_items', payload);
+            }
+
+            WA.close();
+            await _waLoad();
+            _waShowToast(_waEditId ? 'Piece updated' : 'Added to wardrobe');
+          } catch(e) {
+            console.error('WA submit:', e);
+            _waShowToast('Something went wrong — try again');
+          } finally {
+            const c = document.getElementById('wa-cta');
+            if (c) { c.disabled = false; c.textContent = _waEditId ? 'Update piece' : 'Add to wardrobe'; }
+          }
+        },
+
+        async delete() {
+          if (!_waEditId) return;
+          if (!confirm('Remove this piece from your wardrobe?')) return;
+          try {
+            await _waFetch('DELETE', 'wardrobe_items?id=eq.' + _waEditId, undefined);
+            WA.close();
+            await _waLoad();
+            _waShowToast('Piece removed');
+          } catch(e) { _waShowToast('Could not remove piece'); }
+        }
+      };
+
+      // Wire up file input
+      const _waFileInput = document.getElementById('wa-file');
+      if (_waFileInput) {
+        _waFileInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = ev => {
+            const match = ev.target.result.match(/^data:([^;]+);base64,(.+)$/);
+            if (!match) return;
+            _waPendingPhoto = { data: match[2], mimeType: match[1] };
+            const tileImg = document.getElementById('wa-tile-img');
+            const tileEmpty = document.getElementById('wa-tile-empty');
+            const tileFill = document.getElementById('wa-tile-fill');
+            if (tileImg) tileImg.src = ev.target.result;
+            if (tileEmpty) tileEmpty.style.display = 'none';
+            if (tileFill) tileFill.style.display = '';
+            WA.validate();
+          };
+          reader.readAsDataURL(file);
+          e.target.value = '';
+        });
+      }
+
+      _waBuildFilters();
+      _waBuildSwatches();
+      _waLoad();
     };
     const manifestEl = document.querySelector('script[type="__bundler/manifest"]');
     const templateEl = document.querySelector('script[type="__bundler/template"]');
