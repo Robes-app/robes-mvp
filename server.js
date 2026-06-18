@@ -373,8 +373,11 @@ app.get('/wardrobe', (req, res) => {
 app.post('/api/wardrobe/upload', async (req, res) => {
   const { data, mimeType } = req.body;
   if (!data || !mimeType) return res.status(400).json({ error: 'Missing data or mimeType' });
+  if (!CLD_CLOUD || !CLD_KEY || !CLD_SECRET) {
+    return res.status(500).json({ error: 'Cloudinary env vars not set on this deployment' });
+  }
   const url = await cloudinaryUpload(data, mimeType);
-  if (!url) return res.status(500).json({ error: 'Upload failed' });
+  if (!url) return res.status(500).json({ error: 'Cloudinary upload failed — check server logs' });
   res.json({ url });
 });
 
