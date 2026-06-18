@@ -266,23 +266,39 @@ document.addEventListener('DOMContentLoaded', async function() {
         _waRender();
       }
 
-      let _waLoaded = false; // true after first successful Supabase fetch
+      let _waLoaded = false;
+      let _waRendering = false; // guard against observer re-entrancy
+
+      // Watch the grid for any external writes (bundle's renderWardrobe) and
+      // immediately restore our content whenever they happen.
+      const _waObserver = new MutationObserver(() => {
+        if (_waRendering) return;
+        _waRender();
+      });
+
+      function _waObserveGrid() {
+        const grid = document.getElementById('wg-grid');
+        if (grid) _waObserver.observe(grid, { childList: true });
+      }
 
       function _waRender() {
         const grid = document.getElementById('wg-grid');
         if (!grid) return;
+        _waRendering = true;
+        _waObserver.disconnect();
         if (!_waLoaded) {
-          // Session not ready yet — blank the mock items, show spinner
           grid.innerHTML = '<div style="padding:48px;text-align:center;opacity:.4;font-size:13px;letter-spacing:.04em">Loading…</div>';
-          return;
+        } else {
+          const filtered = _waCat === 'All' ? _waItems : _waItems.filter(i => i.category === _waCat);
+          const frag = document.createDocumentFragment();
+          filtered.forEach(it => frag.appendChild(_waCard(it)));
+          frag.appendChild(_waAddCard());
+          grid.innerHTML = '';
+          grid.appendChild(frag);
+          _waSyncCounts();
         }
-        const filtered = _waCat === 'All' ? _waItems : _waItems.filter(i => i.category === _waCat);
-        const frag = document.createDocumentFragment();
-        filtered.forEach(it => frag.appendChild(_waCard(it)));
-        frag.appendChild(_waAddCard());
-        grid.innerHTML = '';
-        grid.appendChild(frag);
-        _waSyncCounts();
+        _waObserver.observe(grid, { childList: true });
+        _waRendering = false;
       }
 
       const _WA_TARGET = 15;
@@ -493,8 +509,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         } catch(e) { _waShowToast('Could not remove piece'); }
       }
 
+      _waObserveGrid();
+
       // Poll until Supabase session is ready, then load real wardrobe data.
-      // __robes_session is set asynchronously by the bundle after auth resolves.
       (function _waInit() {
         if (_waUid()) { _waLoad(); }
         else { setTimeout(_waInit, 250); }
