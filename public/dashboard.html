@@ -77,14 +77,59 @@ document.addEventListener('DOMContentLoaded', async function() {
       window.__robes_profile = _profile || {};
     }
     window.__robes_personalize = function() {
+      // Personalise name
       const name = (window.__robes_profile && window.__robes_profile.first_name) || 'Annie';
-      if (name === 'Annie') return;
-      const walk = (node) => {
-        if (node.nodeType === 3) {
-          node.textContent = node.textContent.replace(/\bAnnie\b/g, name);
-        } else { for (const c of node.childNodes) walk(c); }
-      };
-      walk(document.body);
+      if (name !== 'Annie') {
+        const walk = (node) => {
+          if (node.nodeType === 3) {
+            node.textContent = node.textContent.replace(/\bAnnie\b/g, name);
+          } else { for (const c of node.childNodes) walk(c); }
+        };
+        walk(document.body);
+      }
+
+      // Live weather — request geolocation then fetch Open-Meteo
+      const weatherEl = document.getElementById('nav-weather');
+      if (!weatherEl) return;
+      const spans = weatherEl.querySelectorAll('span:not(.dot):not(.wx)');
+      const daySpan  = spans[0];  // Thursday
+      const citySpan = spans[1];  // Dublin
+      const tempSpan = spans[2];  // 12°C
+      const wxIcon   = weatherEl.querySelector('.wx');
+
+      const WX_ICONS = {0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',
+        61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',80:'🌦',81:'🌧',82:'🌧',
+        95:'⛈',96:'⛈',99:'⛈'};
+      const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+      if (daySpan) daySpan.textContent = DAYS[new Date().getDay()];
+
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        try {
+          // Reverse geocode with Open-Meteo geocoding
+          const geoRes = await fetch(
+            'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon,
+            { headers: { 'Accept-Language': 'en' } }
+          );
+          const geoData = await geoRes.json();
+          const city = geoData.address?.city || geoData.address?.town ||
+                       geoData.address?.village || geoData.address?.county || '';
+          if (city && citySpan) citySpan.textContent = city;
+
+          // Weather from Open-Meteo (free, no API key)
+          const wxRes = await fetch(
+            'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
+            '&longitude=' + lon + '&current=temperature_2m,weather_code&temperature_unit=celsius'
+          );
+          const wxData = await wxRes.json();
+          const temp = Math.round(wxData.current?.temperature_2m);
+          const code = wxData.current?.weather_code;
+          if (!isNaN(temp) && tempSpan) tempSpan.textContent = temp + '°C';
+          if (code !== undefined && wxIcon) wxIcon.textContent = WX_ICONS[code] || '🌤';
+        } catch (e) { /* keep defaults on error */ }
+      }, () => { /* permission denied — keep defaults */ });
     };
     const manifestEl = document.querySelector('script[type="__bundler/manifest"]');
     const templateEl = document.querySelector('script[type="__bundler/template"]');
