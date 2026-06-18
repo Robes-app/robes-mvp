@@ -357,13 +357,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         return div;
       }
 
+      let _waFiltersBuilt = false;
       function _waBuildFilters() {
         const container = document.getElementById('wg-filters');
         if (!container) return;
+        // Only rebuild if the bundle has overwritten our pills (check for onclick attr)
+        const existing = container.querySelector('.wg-pill');
+        if (_waFiltersBuilt && existing && !existing.getAttribute('onclick')) return;
         container.innerHTML = '';
+        _waFiltersBuilt = true;
         WA_CATS.forEach(cat => {
           const btn = document.createElement('button');
-          btn.className = 'wg-pill' + (cat === 'All' ? ' active' : '');
+          btn.className = 'wg-pill' + (cat === _waCat ? ' active' : '');
           btn.textContent = cat;
           btn.addEventListener('click', () => {
             _waCat = cat;
