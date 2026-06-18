@@ -267,7 +267,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       function _waRender() {
         const grid = document.getElementById('wg-grid');
-        const countEl = document.getElementById('wg-count');
         if (!grid) return;
         const filtered = _waCat === 'All' ? _waItems : _waItems.filter(i => i.category === _waCat);
         const frag = document.createDocumentFragment();
@@ -275,7 +274,40 @@ document.addEventListener('DOMContentLoaded', async function() {
         frag.appendChild(_waAddCard());
         grid.innerHTML = '';
         grid.appendChild(frag);
-        if (countEl) countEl.textContent = _waItems.length + ' piece' + (_waItems.length !== 1 ? 's' : '');
+        _waSyncCounts();
+      }
+
+      const _WA_TARGET = 15;
+      const _WA_TITLES = [
+        [0,  'Your wardrobe is empty.', 'Add your first piece and Robes will style only from what you own.'],
+        [1,  'Nice start.', 'Keep adding — the more you log, the sharper every look gets.'],
+        [5,  'Getting there.', 'Add a few more pieces and your looks will start to feel personal.'],
+        [10, 'You\'re nearly there.', 'Add five more and every look gets sharper. Robes styles only from what you own.'],
+        [15, 'Your wardrobe is complete.', 'Robes now styles every look entirely from what you own.'],
+      ];
+      function _waSyncCounts() {
+        const n = _waItems.length;
+        const label = n + ' piece' + (n !== 1 ? 's' : '');
+
+        // wg-count pill inside the wardrobe panel
+        const countEl = document.getElementById('wg-count');
+        if (countEl) countEl.textContent = label;
+
+        // nav badge
+        const navBadge = document.querySelector('.nav-wbtn-count');
+        if (navBadge) navBadge.textContent = n;
+
+        // dashboard tracker widget
+        const trackerNum  = document.querySelector('.tracker-num');
+        const trackerTitle = document.querySelector('.tracker-title');
+        const trackerSub  = document.querySelector('.tracker-sub');
+        const trackerFill = document.querySelector('.tracker-fill');
+        if (trackerNum) trackerNum.innerHTML = n + '<span> / ' + _WA_TARGET + '</span>';
+        if (trackerFill) trackerFill.style.width = Math.min(100, Math.round(n / _WA_TARGET * 100)) + '%';
+        const copy = [..._WA_TITLES].reverse().find(([min]) => n >= min) || _WA_TITLES[0];
+        if (trackerTitle) trackerTitle.textContent = copy[1];
+        if (trackerSub)   trackerSub.textContent   = copy[2];
+
       }
 
       function _waCard(it) {
@@ -466,10 +498,11 @@ document.addEventListener('DOMContentLoaded', async function() {
       const _origShowWardrobe = window.App && App.showWardrobe && App.showWardrobe.bind(App);
       const _origFilterWardrobe = window.App && App.filterWardrobe && App.filterWardrobe.bind(App);
       if (window.App) {
+        // Silence the bundle's renderWardrobe entirely — we own the grid.
+        if (typeof App.renderWardrobe === 'function') App.renderWardrobe = function() {};
+
         App.showWardrobe = function() {
           if (_origShowWardrobe) _origShowWardrobe(); // handles view switching / breadcrumb
-          // renderWardrobe() inside _origShowWardrobe rebuilds filter pills with
-          // bundle onclick handlers and fills the grid with mock data — overwrite both.
           _waBuildFilters();
           _waRender(); // immediate sync render from cached _waItems
           _waLoad();   // async refresh from Supabase
