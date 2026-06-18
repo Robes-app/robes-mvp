@@ -392,7 +392,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             const tileImg  = document.getElementById('wa-tile-img');
             const tileFill = document.getElementById('wa-tile-fill');
             const tileSrc  = tileImg ? tileImg.src : '';
-            const isFilled = tileFill && (tileFill.style.display === 'block' || tileFill.style.display === '');
+            const tileEl   = document.getElementById('wa-tile');
+            const isFilled = (tileEl && tileEl.classList.contains('filled')) ||
+                             (tileFill && tileFill.style.display === 'block');
             const isDataUrl = tileSrc && tileSrc.startsWith('data:');
             if (isFilled && isDataUrl) {
               const match = tileSrc.match(/^data:([^;]+);base64,(.+)$/);
