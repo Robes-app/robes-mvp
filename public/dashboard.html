@@ -388,8 +388,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Upload new photo if one was selected (data URL in tile)
             const tileImg  = document.getElementById('wa-tile-img');
             const tileFill = document.getElementById('wa-tile-fill');
-            if (tileFill && tileFill.style.display !== 'none' && tileImg && tileImg.src && tileImg.src.startsWith('data:')) {
-              const match = tileImg.src.match(/^data:([^;]+);base64,(.+)$/);
+            const tileSrc  = tileImg ? tileImg.src : '';
+            const isFilled = tileFill && (tileFill.style.display === 'block' || tileFill.style.display === '');
+            const isDataUrl = tileSrc && tileSrc.startsWith('data:');
+            if (isFilled && isDataUrl) {
+              const match = tileSrc.match(/^data:([^;]+);base64,(.+)$/);
               if (match) {
                 try {
                   const res = await fetch('/api/wardrobe/upload', {
@@ -399,6 +402,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                   });
                   const j = await res.json();
                   if (j.url) imageUrl = j.url;
+                  else console.warn('Upload returned no URL:', j);
                 } catch(uploadErr) { console.warn('Photo upload failed:', uploadErr); }
               }
             }
@@ -446,6 +450,29 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       _waBuildFilters();
       _waLoad();
+
+      // Intercept App.showWardrobe and filterWardrobe so Supabase data
+      // is used instead of the bundle's in-memory mock W store.
+      // App is defined in the bundle scripts so we patch after they run.
+      const _origShowWardrobe = window.App && App.showWardrobe && App.showWardrobe.bind(App);
+      const _origFilterWardrobe = window.App && App.filterWardrobe && App.filterWardrobe.bind(App);
+      if (window.App) {
+        App.showWardrobe = function() {
+          if (_origShowWardrobe) _origShowWardrobe(); // handles view switching / breadcrumb
+          _waLoad(); // overwrite grid with real Supabase data
+        };
+        App.filterWardrobe = function(f) {
+          _waCat = f;
+          document.querySelectorAll('#wg-filters .wg-pill').forEach(p =>
+            p.classList.toggle('active', p.textContent === f));
+          _waRender();
+        };
+      }
+
+      // Auto-open wardrobe panel when URL is /wardrobe
+      if (window.location.pathname === '/wardrobe' && window.App && App.showWardrobe) {
+        setTimeout(() => App.showWardrobe(), 100);
+      }
     };
     const manifestEl = document.querySelector('script[type="__bundler/manifest"]');
     const templateEl = document.querySelector('script[type="__bundler/template"]');
