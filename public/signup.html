@@ -374,10 +374,7 @@
       <em>style notes…</em>
     </h1>
 
-    <!-- Subtext -->
-    <p class="subtext" id="form-subtext">
-      We've parsed your prompt. Where should we save your look — and the digital wardrobe it starts?
-    </p>
+    <p class="subtext" id="form-subtext"></p>
 
     <!-- Error / success message -->
     <div class="message" id="message"></div>
@@ -459,7 +456,7 @@
     if (isSignIn) {
       firstNameField.style.display = 'none';
       heading.innerHTML = 'Welcome<br><em>back.</em>';
-      subtext.textContent = 'Sign in to access your wardrobe and dashboard.';
+      subtext.textContent = '';
       document.getElementById('btn-submit').innerHTML = 'Sign in <span>→</span>';
       toggle.innerHTML = 'New to Robes? <a href="?mode=signup">Create an account</a>';
       document.title = 'Sign In — Robes';
