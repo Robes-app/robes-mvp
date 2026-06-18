@@ -459,7 +459,11 @@ document.addEventListener('DOMContentLoaded', async function() {
       if (window.App) {
         App.showWardrobe = function() {
           if (_origShowWardrobe) _origShowWardrobe(); // handles view switching / breadcrumb
-          _waLoad(); // overwrite grid with real Supabase data
+          // renderWardrobe() inside _origShowWardrobe rebuilds filter pills with
+          // bundle onclick handlers and fills the grid with mock data — overwrite both.
+          _waBuildFilters();
+          _waRender(); // immediate sync render from cached _waItems
+          _waLoad();   // async refresh from Supabase
         };
         App.filterWardrobe = function(f) {
           _waCat = f;
