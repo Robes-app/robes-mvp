@@ -260,14 +260,22 @@ document.addEventListener('DOMContentLoaded', async function() {
         try {
           const data = await _waFetch('GET', 'wardrobe_items?user_id=eq.' + _waUid() + '&order=created_at.desc&select=*');
           _waItems = data || [];
+          _waLoaded = true;
         } catch(e) { console.error('wardrobe load:', e); }
-        _waBuildFilters(); // always replace bundle's pills with ours
+        _waBuildFilters();
         _waRender();
       }
+
+      let _waLoaded = false; // true after first successful Supabase fetch
 
       function _waRender() {
         const grid = document.getElementById('wg-grid');
         if (!grid) return;
+        if (!_waLoaded) {
+          // Session not ready yet — blank the mock items, show spinner
+          grid.innerHTML = '<div style="padding:48px;text-align:center;opacity:.4;font-size:13px;letter-spacing:.04em">Loading…</div>';
+          return;
+        }
         const filtered = _waCat === 'All' ? _waItems : _waItems.filter(i => i.category === _waCat);
         const frag = document.createDocumentFragment();
         filtered.forEach(it => frag.appendChild(_waCard(it)));
@@ -498,14 +506,13 @@ document.addEventListener('DOMContentLoaded', async function() {
       const _origShowWardrobe = window.App && App.showWardrobe && App.showWardrobe.bind(App);
       const _origFilterWardrobe = window.App && App.filterWardrobe && App.filterWardrobe.bind(App);
       if (window.App) {
-        // Silence the bundle's renderWardrobe entirely — we own the grid.
-        if (typeof App.renderWardrobe === 'function') App.renderWardrobe = function() {};
-
         App.showWardrobe = function() {
-          if (_origShowWardrobe) _origShowWardrobe(); // handles view switching / breadcrumb
+          if (_origShowWardrobe) _origShowWardrobe(); // showView + closeAvatarMenu (also calls private renderWardrobe)
+          // Immediately overwrite what renderWardrobe just wrote with real data.
+          // This runs synchronously before the browser paints, so mock items never show.
           _waBuildFilters();
-          _waRender(); // immediate sync render from cached _waItems
-          _waLoad();   // async refresh from Supabase
+          _waRender();
+          _waLoad(); // async refresh from Supabase
         };
         App.filterWardrobe = function(f) {
           _waCat = f;
