@@ -8,6 +8,8 @@
 create table if not exists public.profiles (
   id                  uuid        primary key references auth.users(id) on delete cascade,
   first_name          text,
+  last_name           text,
+  mobile              text,
   style_icons         text[]      default '{}',
   budget              text,
   wardrobe_description text,

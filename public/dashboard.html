@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     window.__robes_profile = {};
     if (_sess2.user) {
       const { data: _profile } = await _sb.from('profiles')
-        .select('first_name, style_icons, budget, wardrobe_description')
+        .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description')
         .eq('id', _sess2.user.id).single();
       window.__robes_profile = _profile || {};
     }
@@ -87,6 +87,88 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
         walk(document.body);
       }
+
+      // Avatar dropdown — remove "Founding Stylist", add Account Details
+      const avSubtitle = document.querySelector('#av-menu .av-name span');
+      if (avSubtitle) avSubtitle.remove();
+
+      // Populate av-name with real name
+      const avNameEl = document.getElementById('av-name');
+      if (avNameEl) avNameEl.textContent = name;
+
+      // Insert Account Details button before My wardrobe
+      const avMenu = document.getElementById('av-menu');
+      if (avMenu) {
+        const firstBtn = avMenu.querySelector('.av-item');
+        const acctBtn = document.createElement('button');
+        acctBtn.className = 'av-item';
+        acctBtn.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path></svg>Account details';
+        acctBtn.onclick = () => { document.getElementById('av-menu').classList.remove('open'); document.getElementById('acct-modal').style.display = 'flex'; };
+        avMenu.insertBefore(acctBtn, firstBtn);
+      }
+
+      // Build Account Details modal
+      const acctModal = document.createElement('div');
+      acctModal.id = 'acct-modal';
+      acctModal.style.cssText = 'display:none;position:fixed;inset:0;z-index:9000;background:rgba(32,32,33,0.32);align-items:center;justify-content:center;backdrop-filter:blur(4px)';
+      const userEmail = (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '';
+      const prof = window.__robes_profile || {};
+      acctModal.innerHTML = \`
+        <div style="background:#FAF8F5;border-radius:16px;padding:36px 32px;width:100%;max-width:420px;position:relative;box-shadow:0 8px 40px rgba(32,32,33,0.14)">
+          <button onclick="document.getElementById('acct-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;color:#A89880;cursor:pointer;padding:4px">✕</button>
+          <h2 style="font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:26px;margin:0 0 4px;color:#202021">Account details</h2>
+          <p style="font-size:12px;color:#A89880;margin:0 0 28px;letter-spacing:.04em">\${userEmail}</p>
+          <div id="acct-msg" style="font-size:13px;margin-bottom:16px;min-height:18px"></div>
+          <label style="display:block;margin-bottom:16px">
+            <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">First name</span>
+            <input id="acct-first" value="\${prof.first_name||''}" style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
+          </label>
+          <label style="display:block;margin-bottom:16px">
+            <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">Last name</span>
+            <input id="acct-last" value="\${prof.last_name||''}" style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
+          </label>
+          <label style="display:block;margin-bottom:28px">
+            <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">Mobile number</span>
+            <input id="acct-mobile" type="tel" value="\${prof.mobile||''}" placeholder="+353..." style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
+          </label>
+          <button onclick="window.__saveAcctDetails()" style="width:100%;height:48px;background:#202021;color:#fff;border:none;border-radius:8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;font-weight:500">Save changes</button>
+        </div>\`;
+      document.body.appendChild(acctModal);
+      acctModal.addEventListener('click', (e) => { if (e.target === acctModal) acctModal.style.display = 'none'; });
+
+      // Save handler — updates Supabase profiles
+      window.__saveAcctDetails = async () => {
+        const msgEl = document.getElementById('acct-msg');
+        msgEl.style.color = '#6E6A64';
+        msgEl.textContent = 'Saving…';
+        const SUPA_URL = 'https://ayowpaknssulsqqvwpqx.supabase.co';
+        const SUPA_KEY = 'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ';
+        const token = window.__robes_session && window.__robes_session.access_token;
+        const userId = window.__robes_session && window.__robes_session.user && window.__robes_session.user.id;
+        try {
+          const res = await fetch(SUPA_URL + '/rest/v1/profiles?id=eq.' + userId, {
+            method: 'PATCH',
+            headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + token,
+              'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+            body: JSON.stringify({
+              first_name: document.getElementById('acct-first').value.trim(),
+              last_name: document.getElementById('acct-last').value.trim(),
+              mobile: document.getElementById('acct-mobile').value.trim()
+            })
+          });
+          if (res.ok) {
+            msgEl.style.color = '#7E7C5A';
+            msgEl.textContent = 'Saved.';
+            setTimeout(() => { msgEl.textContent = ''; }, 2000);
+          } else {
+            msgEl.style.color = '#A4453A';
+            msgEl.textContent = 'Error saving — please try again.';
+          }
+        } catch(e) {
+          msgEl.style.color = '#A4453A';
+          msgEl.textContent = 'Error saving — please try again.';
+        }
+      };
 
       // Time-based greeting
       const hour = new Date().getHours();
