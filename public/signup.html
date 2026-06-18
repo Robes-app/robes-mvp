@@ -369,13 +369,13 @@
     </div>
 
     <!-- Hero -->
-    <h1>
+    <h1 id="form-heading">
       Creating your<br>
       <em>style notes…</em>
     </h1>
 
     <!-- Subtext -->
-    <p class="subtext">
+    <p class="subtext" id="form-subtext">
       We've parsed your prompt. Where should we save your look — and the digital wardrobe it starts?
     </p>
 
@@ -402,8 +402,8 @@
       <span class="divider-line"></span>
     </div>
 
-    <!-- First name -->
-    <label class="field">
+    <!-- First name (sign-up only) -->
+    <label class="field" id="field-first-name">
       <span class="field-label">First name</span>
       <input type="text" id="first-name" placeholder="Annie" autocomplete="given-name">
     </label>
@@ -420,7 +420,7 @@
         <span class="field-label">Password</span>
         <button class="btn-show" id="btn-show" type="button">Show</button>
       </div>
-      <input type="password" id="password" placeholder="Enter your password" autocomplete="new-password">
+      <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password">
     </label>
 
     <!-- CTA -->
@@ -428,9 +428,9 @@
       Reveal my dashboard <span>→</span>
     </button>
 
-    <!-- Sign in link -->
-    <p class="signin-prompt">
-      Already have a wardrobe? <a href="/signin.html" id="link-signin">Sign in</a>
+    <!-- Sign in / sign up toggle -->
+    <p class="signin-prompt" id="mode-toggle">
+      Already have an account? <a href="?mode=signin" id="link-signin">Sign in</a>
     </p>
 
     <!-- Legal -->
@@ -448,6 +448,22 @@
     const SUPABASE_ANON = 'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ';
 
     const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    // ─── Mode: sign-up vs sign-in ────────────────────────────────────────────
+    const isSignIn = new URLSearchParams(window.location.search).get('mode') === 'signin';
+    const firstNameField = document.getElementById('field-first-name');
+    const heading  = document.getElementById('form-heading');
+    const subtext  = document.getElementById('form-subtext');
+    const toggle   = document.getElementById('mode-toggle');
+
+    if (isSignIn) {
+      firstNameField.style.display = 'none';
+      heading.innerHTML = 'Welcome<br><em>back.</em>';
+      subtext.textContent = 'Sign in to access your wardrobe and dashboard.';
+      document.getElementById('btn-submit').innerHTML = 'Sign in <span>→</span>';
+      toggle.innerHTML = 'New to Robes? <a href="?mode=signup">Create an account</a>';
+      document.title = 'Sign In — Robes';
+    }
 
     // ─── UI refs ────────────────────────────────────────────────────────────
     const firstNameEl = document.getElementById('first-name');
@@ -478,8 +494,8 @@
     function setLoading(loading) {
       btnSubmit.disabled = loading;
       btnSubmit.innerHTML = loading
-        ? 'Creating your wardrobe…'
-        : 'Reveal my dashboard <span>→</span>';
+        ? (isSignIn ? 'Signing in…' : 'Creating your wardrobe…')
+        : (isSignIn ? 'Sign in <span>→</span>' : 'Reveal my dashboard <span>→</span>');
     }
 
     // ─── Google OAuth ───────────────────────────────────────────────────────
@@ -492,20 +508,29 @@
       if (error) showMessage(error.message);
     });
 
-    // ─── Email / password signup ────────────────────────────────────────────
+    // ─── Email / password submit (sign-up or sign-in) ───────────────────────
     btnSubmit.addEventListener('click', async () => {
       clearMessage();
 
-      const firstName = firstNameEl.value.trim();
-      const email     = emailEl.value.trim();
-      const password  = passwordEl.value;
+      const email    = emailEl.value.trim();
+      const password = passwordEl.value;
 
-      if (!firstName) { showMessage('Please enter your first name.'); return; }
-      if (!email)     { showMessage('Please enter your email address.'); return; }
-      if (!password)  { showMessage('Please enter a password.'); return; }
-      if (password.length < 8) { showMessage('Password must be at least 8 characters.'); return; }
+      if (!email)    { showMessage('Please enter your email address.'); return; }
+      if (!password) { showMessage('Please enter a password.'); return; }
 
       setLoading(true);
+
+      if (isSignIn) {
+        const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
+        setLoading(false);
+        if (error) { showMessage(error.message); return; }
+        window.location.href = '/dashboard';
+        return;
+      }
+
+      const firstName = firstNameEl.value.trim();
+      if (!firstName) { showMessage('Please enter your first name.'); return; }
+      if (password.length < 8) { showMessage('Password must be at least 8 characters.'); return; }
 
       const { data, error } = await sbClient.auth.signUp({
         email,
@@ -518,13 +543,8 @@
 
       setLoading(false);
 
-      if (error) {
-        showMessage(error.message);
-        return;
-      }
+      if (error) { showMessage(error.message); return; }
 
-      // Supabase may require email confirmation depending on your project settings.
-      // If email confirmation is disabled, data.session will be set and you can redirect.
       if (data.session) {
         window.location.href = '/dashboard';
       } else {
@@ -536,7 +556,7 @@
     });
 
     // ─── Enter key submits form ─────────────────────────────────────────────
-    [firstNameEl, emailEl, passwordEl].forEach(el => {
+    [firstNameEl, emailEl, passwordEl].filter(Boolean).forEach(el => {
       el.addEventListener('keydown', e => {
         if (e.key === 'Enter') btnSubmit.click();
       });

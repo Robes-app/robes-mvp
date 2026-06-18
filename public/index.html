@@ -14,7 +14,7 @@
 <!-- ══ NAV ══ -->
 <nav class="nav" id="nav">
   <span class="wordmark" onclick="App.goHome()">Robes</span>
-  <button class="nav-cta" id="nav-cta" onclick="App.focusEmail()">Join the waitlist</button>
+  <button class="nav-cta" id="nav-cta" onclick="window.location.href='/signup.html'">Sign in</button>
 </nav>
 
 <div class="flow">
@@ -31,10 +31,10 @@
           <span class="eyebrow land-eyebrow rise d1"><span class="eb-rule"></span>Your personal stylist</span>
           <h1 class="land-h1 rise d2">One prompt.<br><em>Dressed for anything.</em></h1>
           <p class="land-sub rise d3">Your wardrobe, the brands you love, and the looks that inspire you — one prompt pulls it all together.</p>
-          <form class="land-form rise d4" id="land-form" onsubmit="return App.submitLandingEmail(event)">
-            <input class="land-input" id="land-email" type="email" placeholder="your@email.com" autocomplete="off">
-            <button class="land-submit" id="land-submit" type="submit">Join the waitlist</button>
-          </form>
+          <div class="land-auth-btns rise d4">
+            <a class="land-signup-btn" href="/signup.html">Get started — it's free</a>
+            <a class="land-signin-link" href="/signup.html?mode=signin">Already have an account? <em>Sign in</em></a>
+          </div>
         </div>
 
         <!-- floating prompt card -->
