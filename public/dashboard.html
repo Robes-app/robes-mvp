@@ -504,8 +504,16 @@ document.addEventListener('DOMContentLoaded', async function() {
       // is used instead of the bundle's in-memory mock W store.
       // App is defined in the bundle scripts so we patch after they run.
       const _origShowWardrobe = window.App && App.showWardrobe && App.showWardrobe.bind(App);
-      const _origFilterWardrobe = window.App && App.filterWardrobe && App.filterWardrobe.bind(App);
       if (window.App) {
+        // Neutralise bundle methods that call the private renderWardrobe with mock data
+        App.addPiece = function() {};
+        App.filterWardrobe = function(f) {
+          _waCat = f;
+          document.querySelectorAll('#wg-filters .wg-pill').forEach(p =>
+            p.classList.toggle('active', p.textContent === f));
+          _waRender();
+        };
+
         App.showWardrobe = function() {
           if (_origShowWardrobe) _origShowWardrobe(); // showView + closeAvatarMenu (also calls private renderWardrobe)
           // Immediately overwrite what renderWardrobe just wrote with real data.
@@ -513,12 +521,6 @@ document.addEventListener('DOMContentLoaded', async function() {
           _waBuildFilters();
           _waRender();
           _waLoad(); // async refresh from Supabase
-        };
-        App.filterWardrobe = function(f) {
-          _waCat = f;
-          document.querySelectorAll('#wg-filters .wg-pill').forEach(p =>
-            p.classList.toggle('active', p.textContent === f));
-          _waRender();
         };
       }
 
