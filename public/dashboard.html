@@ -58,12 +58,14 @@ document.addEventListener('DOMContentLoaded', async function() {
       'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ'
     );
     const { data: { session: _sess } } = await _sb.auth.getSession();
-    if (!_sess) { console.warn('ROBES: no session found, proceeding anyway for debug'); }
-    window.__robes_session = _sess;
-    const { data: _profile } = await _sb.from('profiles')
-      .select('first_name, style_icons, budget, wardrobe_description')
-      .eq('id', _sess.user.id).single();
-    window.__robes_profile = _profile || {};
+    window.__robes_session = _sess || null;
+    window.__robes_profile = {};
+    if (_sess && _sess.user) {
+      const { data: _profile } = await _sb.from('profiles')
+        .select('first_name, style_icons, budget, wardrobe_description')
+        .eq('id', _sess.user.id).single();
+      window.__robes_profile = _profile || {};
+    }
     window.__robes_personalize = function() {
       const name = (window.__robes_profile && window.__robes_profile.first_name) || 'Annie';
       if (name === 'Annie') return;
