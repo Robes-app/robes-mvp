@@ -703,32 +703,31 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
       }
 
-      // Wire "Style notes" avatar menu item + save buttons via delegation
-      // (use setTimeout so bundle's own script wiring completes first)
+      // Wire "Style notes" avatar menu item after bundle settles
       setTimeout(() => {
         const snAvItem = Array.from(document.querySelectorAll('.av-item')).find(b => b.textContent.includes('Style notes'));
         if (snAvItem) snAvItem.onclick = () => window.__snOpen();
-
-        const kpSaveBtn = document.querySelector('.mb-btn.mb-btn-primary');
-        if (kpSaveBtn) {
-          kpSaveBtn.onclick = function() {
-            const titleEl = document.querySelector('.mb-h');
-            const imgEl = document.querySelector('.mb-img img');
-            snAdd({ type: 'key-piece', title: titleEl ? titleEl.textContent.trim() : 'Key piece', subtitle: 'Worn three ways · Today', img: imgEl ? imgEl.src : null });
-            _waShowToast('Saved to your style notes');
-          };
-        }
-
-        const lookSaveBtn = document.querySelector('.lb-btn.lb-primary');
-        if (lookSaveBtn) {
-          lookSaveBtn.onclick = function() {
-            const titleEl = document.querySelector('.today-title');
-            const imgEl = document.querySelector('.today-img img');
-            snAdd({ type: 'look', title: titleEl ? titleEl.textContent.trim() : "Today's look", subtitle: new Date().toLocaleDateString('en-GB', { weekday: 'long' }) + ' · Today', img: imgEl ? imgEl.src : null });
-            _waShowToast('Look saved to your style notes');
-          };
-        }
       }, 500);
+
+      // Save buttons appear dynamically after AI generates results — use delegation
+      document.addEventListener('click', function(e) {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+
+        if (btn.matches('.mb-btn.mb-btn-primary') || btn.closest('.mb-btn.mb-btn-primary')) {
+          const titleEl = document.querySelector('.mb-h');
+          const imgEl = document.querySelector('.mb-img img');
+          snAdd({ type: 'key-piece', title: titleEl ? titleEl.textContent.trim() : 'Key piece', subtitle: 'Worn three ways · Today', img: imgEl ? imgEl.src : null });
+          _waShowToast('Saved to your style notes');
+        }
+
+        if (btn.matches('.lb-btn.lb-primary') || btn.closest('.lb-btn.lb-primary')) {
+          const titleEl = document.querySelector('.today-title');
+          const imgEl = document.querySelector('.today-img img');
+          snAdd({ type: 'look', title: titleEl ? titleEl.textContent.trim() : "Today's look", subtitle: new Date().toLocaleDateString('en-GB', { weekday: 'long' }) + ' · Today', img: imgEl ? imgEl.src : null });
+          _waShowToast('Look saved to your style notes');
+        }
+      }, true);
 
       // Render the row on load (in case there are already saved items)
       snRefreshRow();
