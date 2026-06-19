@@ -712,16 +712,45 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (window.KP && KP.submitStyle) {
           KP.submitStyle = async function() {
             const input = document.getElementById('kp-input');
-            const fileInput = document.getElementById('kp-file');
             const prompt = input ? input.value.trim() : '';
 
-            // Read photo if one was attached
-            let photoData = null;
-            if (window.__kp_photo_data) photoData = window.__kp_photo_data;
+            // Read photo from the preview tile the bundle already populated
+            const tileImg = document.getElementById('kp-tile-img');
+            const photoData = (tileImg && tileImg.src && tileImg.src.startsWith('data:')) ? tileImg.src : null;
 
-            // Show loading state
-            const cta = document.getElementById('kp-cta');
-            if (cta) { cta.disabled = true; cta.textContent = 'Styling…'; }
+            if (!prompt && !photoData) {
+              _waShowToast('Add a piece description or photo first');
+              return;
+            }
+
+            // Show full-page loading overlay
+            let overlay = document.getElementById('kp-loading-overlay');
+            if (!overlay) {
+              overlay = document.createElement('div');
+              overlay.id = 'kp-loading-overlay';
+              overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
+              overlay.innerHTML = `
+                <div style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center">Styling your piece<br><em>three ways…</em></div>
+                <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+                <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
+                  <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
+                </div>`;
+              const style = document.createElement('style');
+              style.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}'
+              document.head.appendChild(style);
+              document.body.appendChild(overlay);
+            }
+            overlay.style.display = 'flex';
+            KP.closeKeyPiece();
+
+            // Update message after a few seconds
+            const msgs = ['Generating editorial looks', 'Composing outfits…', 'Creating images…', 'Almost ready…'];
+            let mi = 0;
+            const msgInterval = setInterval(() => {
+              mi = Math.min(mi + 1, msgs.length - 1);
+              const el = document.getElementById('kp-load-msg');
+              if (el) el.textContent = msgs[mi];
+            }, 8000);
 
             try {
               const res = await fetch('/api/style', {
@@ -729,29 +758,16 @@ document.addEventListener('DOMContentLoaded', async function() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt, photo: photoData }),
               });
-              if (!res.ok) throw new Error('Styling failed');
-              const data = await res.json();
-
-              // Close modal, render results
-              KP.closeKeyPiece();
-              window.__kpRenderResult(data);
+              clearInterval(msgInterval);
+              overlay.style.display = 'none';
+              if (!res.ok) throw new Error(await res.text());
+              window.__kpRenderResult(await res.json(), prompt);
             } catch (err) {
+              clearInterval(msgInterval);
+              overlay.style.display = 'none';
               _waShowToast('Something went wrong — please try again');
-              if (cta) { cta.disabled = false; cta.textContent = 'Style it three ways'; }
             }
           };
-        }
-
-        // Capture photo data when user picks a file
-        const kpFile = document.getElementById('kp-file');
-        if (kpFile) {
-          kpFile.addEventListener('change', function() {
-            const file = this.files[0];
-            if (!file) { window.__kp_photo_data = null; return; }
-            const reader = new FileReader();
-            reader.onload = e => { window.__kp_photo_data = e.target.result; };
-            reader.readAsDataURL(file);
-          });
         }
       }, 600);
 
