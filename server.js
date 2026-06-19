@@ -145,6 +145,30 @@ app.post('/api/feedback', async (req, res) => {
   res.json({ ok: true });
 });
 
+/* ── rate limiting ───────────────────────────────────────────────── */
+const rateLimitMap = new Map();
+
+function rateLimit({ windowMs, max }) {
+  return (req, res, next) => {
+    const key = req.ip;
+    const now = Date.now();
+    const entry = rateLimitMap.get(key) || { count: 0, start: now };
+    if (now - entry.start > windowMs) { entry.count = 0; entry.start = now; }
+    entry.count++;
+    rateLimitMap.set(key, entry);
+    if (entry.count > max) return res.status(429).json({ error: 'Too many requests — please wait a minute.' });
+    next();
+  };
+}
+
+// prune stale entries hourly
+setInterval(() => {
+  const cutoff = Date.now() - 60 * 60 * 1000;
+  for (const [key, entry] of rateLimitMap) {
+    if (entry.start < cutoff) rateLimitMap.delete(key);
+  }
+}, 60 * 60 * 1000);
+
 /* ── style ───────────────────────────────────────────────────────── */
 const FALLBACK_PIECE = 'black Balmain waistcoat with gold buttons';
 
@@ -171,7 +195,7 @@ const STYLE_SCHEMA = {
   required: ['fallback', 'ways'],
 };
 
-app.post('/api/style', async (req, res) => {
+app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
   const { photo, link, prompt, name, pieceName } = req.body;
 
   if (!photo && !link && !prompt) {
