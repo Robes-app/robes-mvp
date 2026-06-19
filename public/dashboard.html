@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8">
   <title>Robes — Dashboard</title>
-  <link rel="stylesheet" href="/css/robes-mvp.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #FAF8F5; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -797,7 +796,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       // Store last result so saved items can be re-opened
       window.__lastKpData = null;
 
-      // Full-page result overlay — mirrors production index.html exactly
+      // Full-page result overlay — 100% inline styles, no external CSS classes
       let kpResultPage = null;
       window.__lastKpData = null;
 
@@ -810,97 +809,93 @@ document.addEventListener('DOMContentLoaded', async function() {
         window.__lastKpData = data;
         const { ways, generatedImages, fallback, photoUrl } = data;
         const pieceName = fallback ? 'Balmain waistcoat' : (promptText || 'Your piece');
+        const serif = "'Cormorant',Georgia,serif";
+        const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
 
-        // Build or reuse full-page overlay
         if (!kpResultPage) {
           kpResultPage = document.createElement('div');
           kpResultPage.id = 'kp-result-page';
-          kpResultPage.style.cssText = 'position:fixed;inset:0;z-index:800;background:#FAF8F5;overflow-y:auto';
+          kpResultPage.style.cssText = 'position:fixed;inset:0;z-index:800;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
           document.body.appendChild(kpResultPage);
         }
 
         kpResultPage.innerHTML = `
-          <nav style="position:sticky;top:0;z-index:10;background:rgba(250,248,245,0.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(32,32,33,0.06);padding:0 24px;height:48px;display:flex;align-items:center">
-            <button onclick="window.__kpGoBack()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6E6A64;padding:0">
+          <nav style="position:sticky;top:0;z-index:10;background:rgba(250,248,245,0.95);backdrop-filter:blur(8px);border-bottom:1px solid rgba(32,32,33,0.08);padding:0 24px;height:48px;display:flex;align-items:center">
+            <button onclick="window.__kpGoBack()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6E6A64;padding:0;font-family:${sans}">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
               Dashboard
             </button>
           </nav>
           <div style="max-width:860px;margin:0 auto;padding:40px 24px 80px">
-            <div class="res-head">
-              <h1 class="res-h">Your piece,<br><em>worn three ways.</em></h1>
-              <p class="res-intro">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
-              <div class="yp-card" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);background:#fff;max-width:400px">
-                ${photoUrl ? `<img src="${photoUrl}" class="yp-img" alt="Your piece">` : ''}
-                <div>
-                  <div style="font-size:9.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px">Your piece</div>
-                  <div class="yp-name">${pieceName}</div>
-                  ${photoUrl ? '<div style="font-size:12px;color:var(--ink-faint);margin-top:3px">✓ The one you uploaded</div>' : ''}
-                </div>
+
+            <h1 style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0 0 12px">Your piece,<br><em style="color:#A89880">worn three ways.</em></h1>
+            <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
+
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:12px;background:#fff;max-width:400px;margin-bottom:40px">
+              ${photoUrl ? `<img src="${photoUrl}" style="width:64px;height:80px;border-radius:4px;object-fit:cover;flex-shrink:0" alt="">` : ''}
+              <div>
+                <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#A89880;margin-bottom:4px">Your piece</div>
+                <div style="font-family:${serif};font-size:22px;font-weight:400;color:#202021;line-height:1.1">${pieceName}</div>
+                ${photoUrl ? '<div style="font-size:12px;color:#A89880;margin-top:4px">✓ The one you uploaded</div>' : ''}
               </div>
             </div>
-            <div class="ways" id="kp-ways">
+
+            <div style="display:flex;flex-direction:column;gap:32px">
               ${ways.map((w, i) => {
                 const genImg = generatedImages && generatedImages[i];
                 return `
-                <article class="way">
-                  <div class="way-img">
-                    ${genImg ? `<img src="${genImg}" alt="">` : '<div class="way-img-placeholder"></div>'}
-                    <span class="way-num">${String(i + 1).padStart(2, '0')}</span>
+                <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:24px;background:#fff;border-radius:12px;overflow:hidden;border:0.5px solid rgba(32,32,33,0.08)">
+                  <div style="position:relative;background:#EDE9E2;min-height:340px">
+                    ${genImg ? `<img src="${genImg}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">` : ''}
+                    <span style="position:absolute;top:14px;left:16px;font-family:${serif};font-weight:300;font-size:20px;color:rgba(255,255,255,0.8)">${String(i+1).padStart(2,'0')}</span>
                   </div>
-                  <div class="way-body">
-                    <div class="way-eyebrow">${w.eyebrow}</div>
-                    <div class="way-title">${w.title}</div>
-                    <div class="way-sections">
-                      <div class="way-sec"><span class="way-sec-label">The Outfit</span><p class="way-sec-text">${w.outfit}</p></div>
-                      <div class="way-sec"><span class="way-sec-label">Key Details</span><p class="way-sec-text">${w.details}</p></div>
-                      <div class="way-sec"><span class="way-sec-label">Accessories</span><p class="way-sec-text">${w.accessories}</p></div>
+                  <div style="padding:28px 28px 28px 4px;display:flex;flex-direction:column;gap:16px">
+                    <div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#B8A898">${w.eyebrow}</div>
+                    <div style="font-family:${serif};font-weight:300;font-size:28px;color:#202021;line-height:1.08">${w.title}</div>
+                    <div style="display:flex;flex-direction:column;gap:14px;margin-top:4px">
+                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">The Outfit</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${w.outfit}</p></div>
+                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Key Details</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${w.details}</p></div>
+                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Accessories</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${w.accessories}</p></div>
                     </div>
                   </div>
-                </article>`;
+                </div>`;
               }).join('')}
             </div>
-            <div id="kp-fb" style="margin-top:48px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center">
-              <div style="font-family:var(--font-serif);font-size:22px;font-weight:300;color:var(--ink);margin-bottom:6px">How were these looks?</div>
+
+            <div style="margin-top:48px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center">
+              <div style="font-family:${serif};font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How were these looks?</div>
               <div id="kp-fb-prompt">
-                <div style="font-size:13px;color:var(--ink-faint);margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
-                <div style="display:flex;gap:10px;justify-content:center">
-                  <button id="kp-fb-up" onclick="window.__kpFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:var(--ink);transition:background .15s">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"></path><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
-                    Loved them
-                  </button>
-                  <button id="kp-fb-dn" onclick="window.__kpFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:var(--ink);transition:background .15s">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"></path><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path></svg>
-                    Not quite
-                  </button>
+                <div style="font-size:13px;color:#A89880;margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
+                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+                  <button id="kp-fb-up" onclick="window.__kpFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">👍 Loved them</button>
+                  <button id="kp-fb-dn" onclick="window.__kpFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Not quite</button>
                 </div>
               </div>
               <div id="kp-fb-expand" hidden style="margin-top:16px">
-                <textarea id="kp-fb-text" placeholder="What would have made them better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--ink);resize:none;outline:none;box-sizing:border-box;font-family:inherit"></textarea>
-                <button onclick="window.__kpFbSubmit()" style="margin-top:10px;padding:10px 28px;background:var(--ink);color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer">Send feedback</button>
+                <textarea id="kp-fb-text" placeholder="What would have made them better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
+                <button onclick="window.__kpFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:${sans}">Send feedback</button>
               </div>
               <div id="kp-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
             </div>
+
             <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap">
-              <button onclick="window.__kpGoBack()" style="display:flex;align-items:center;gap:8px;padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:var(--ink)">Back to dashboard</button>
-              <button onclick="KP && KP.openKeyPiece ? KP.openKeyPiece() : null; window.__kpGoBack();" style="display:flex;align-items:center;gap:8px;padding:12px 24px;border:none;border-radius:40px;background:var(--ink);font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff">Style another piece</button>
+              <button onclick="window.__kpGoBack()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">← Dashboard</button>
+              <button onclick="window.__kpGoBack();setTimeout(()=>{KP&&KP.openKeyPiece&&KP.openKeyPiece()},200)" style="padding:12px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}">Style another piece</button>
             </div>
           </div>`;
 
         kpResultPage.style.display = 'block';
         kpResultPage.scrollTo({ top: 0 });
 
-        // Auto-save to style notes (strip images to protect localStorage quota)
-        const kpDataToSave = { ways, fallback, photoUrl };
+        // Auto-save (no images — protect localStorage)
         snAdd({
           type: 'key-piece',
           title: pieceName,
           subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
           img: photoUrl || null,
-          kpData: kpDataToSave,
+          kpData: { ways, fallback, photoUrl },
         });
 
-        // Feedback handlers
         let kpFbRating = null;
         window.__kpFbRate = function(val) {
           kpFbRating = val;
@@ -911,11 +906,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
         window.__kpFbSubmit = function() {
           const comment = (document.getElementById('kp-fb-text').value || '').trim();
-          fetch('/api/feedback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rating: kpFbRating, comment, prompt: promptText || '' }),
-          }).catch(() => {});
+          fetch('/api/feedback', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ rating: kpFbRating, comment, prompt: promptText || '' }) }).catch(()=>{});
           document.getElementById('kp-fb-prompt').hidden = true;
           document.getElementById('kp-fb-expand').hidden = true;
           document.getElementById('kp-fb-done').hidden = false;
