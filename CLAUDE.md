@@ -34,7 +34,21 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 
 ## Branches
 - `main` — live production (www.byrobes.com)
-- `signup-flow` — Supabase auth + dashboard work (test at robes-mvp-co1h-production.up.railway.app)
+- `signup-flow` — Supabase auth + dashboard work (staging at robes-mvp-co1h-production.up.railway.app)
+
+## What's live vs in development
+**Live on byrobes.com (`main` branch)**
+- Landing page + styling flow (prompt/photo/link → 3 Gemini looks)
+- Shareable look pages (`/look/:id`)
+- Airtable CRM logging
+
+**In development on `signup-flow` branch only — NOT on byrobes.com yet**
+- `/signup` — Supabase email + Google OAuth sign-up
+- `/dashboard` — protected SPA (the bundled `dashboard.html`)
+- `/wardrobe` — wardrobe panel URL alias
+- Wardrobe feature: add/edit/delete items, photo upload to Cloudinary, category filtering
+- Account details modal (edit first/last name, mobile)
+- `wardrobe_items` Supabase table (schema in `supabase/wardrobe_schema.sql`)
 
 ## Deploying
 ```bash
