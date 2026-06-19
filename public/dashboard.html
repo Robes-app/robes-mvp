@@ -674,7 +674,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         row.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
             <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880">Style notes</span>
-            <button onclick="window.__snOpen()" style="background:none;border:none;cursor:pointer;font-size:11px;color:#A89880;letter-spacing:.04em;padding:0">${allItems.length} kept</button>
+            <button onclick="window.__snOpen()" style="background:none;border:none;cursor:pointer;font-size:11px;color:#A89880;letter-spacing:.04em;padding:0;text-decoration:underline;text-underline-offset:3px">View all</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
             ${items.map(item => `
