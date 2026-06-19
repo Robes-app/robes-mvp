@@ -796,94 +796,135 @@ document.addEventListener('DOMContentLoaded', async function() {
       // Store last result so saved items can be re-opened
       window.__lastKpData = null;
 
-      // Render real Gemini results into the piece panel
-      window.__kpRenderResult = function(data) {
-        window.__lastKpData = data;
-        const { ways, generatedImages, fallback, photoUrl } = data;
+      // Full-page result overlay — mirrors production index.html exactly
+      let kpResultPage = null;
+      window.__lastKpData = null;
 
-        // Update piece name
-        const pypName = document.getElementById('pyp-name');
-        const pieceLabelText = fallback ? 'Balmain waistcoat' : (document.getElementById('kp-input') ? document.getElementById('kp-input').value.trim() || 'Your piece' : 'Your piece');
-        if (pypName) pypName.textContent = pieceLabelText;
-
-        // Populate the piece thumbnail slot (image-slot web component — inject img inside)
-        const pieceSlot = document.getElementById('piece-your');
-        if (pieceSlot) {
-          const thumbSrc = photoUrl || (generatedImages && generatedImages[0]) || null;
-          if (thumbSrc) {
-            let slotImg = pieceSlot.querySelector('img.kp-slot-img');
-            if (!slotImg) {
-              slotImg = document.createElement('img');
-              slotImg.className = 'kp-slot-img';
-              slotImg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:3px';
-              pieceSlot.style.position = 'relative';
-              pieceSlot.appendChild(slotImg);
-            }
-            slotImg.src = thumbSrc;
-          }
-        }
-
-        // Render the 3 ways
-        const waysEl = document.getElementById('ways');
-        if (waysEl) {
-          waysEl.innerHTML = ways.map((w, i) => {
-            const img = generatedImages && generatedImages[i];
-            return `
-              <div class="way">
-                <div class="way-img">
-                  ${img ? `<img src="${img}" alt="${w.title}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background:var(--cream-200);display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:12px">Image generating…</div>`}
-                  <span class="way-num">0${i + 1}</span>
-                </div>
-                <div class="way-body">
-                  <div class="way-eyebrow">${w.eyebrow}</div>
-                  <div class="way-title">${w.title}</div>
-                  <div class="way-note">${w.details}</div>
-                  <div class="way-outfit">
-                    <div class="way-outfit-label">The outfit</div>
-                    <p style="font-size:13px;line-height:1.6;color:var(--ink-soft);margin:0 0 10px">${w.outfit}</p>
-                    <div class="way-outfit-label" style="margin-top:12px">Accessories</div>
-                    <p style="font-size:13px;line-height:1.6;color:var(--ink-soft);margin:0">${w.accessories}</p>
-                  </div>
-                  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
-                    ${(w.tags || []).map(t => `<span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border:0.5px solid var(--rule-mid);border-radius:100px;color:var(--ink-soft)">${t}</span>`).join('')}
-                  </div>
-                </div>
-              </div>`;
-          }).join('');
-        }
-
-        // Show the piece panel
-        document.querySelectorAll('.subtab-panel, section[id]').forEach(s => s.classList.remove('visible'));
-        const panel = document.getElementById('piece-panel');
-        if (panel) {
-          panel.classList.add('visible');
-
-          // Inject breadcrumb back nav (once only)
-          if (!document.getElementById('kp-back-nav')) {
-            const backNav = document.createElement('div');
-            backNav.id = 'kp-back-nav';
-            backNav.style.cssText = 'position:sticky;top:0;z-index:50;background:rgba(250,248,245,0.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(32,32,33,0.06);padding:0 24px;height:48px;display:flex;align-items:center';
-            backNav.innerHTML = `<button onclick="window.__kpGoBack()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6E6A64;padding:0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
-              Dashboard
-            </button>`;
-            panel.insertBefore(backNav, panel.firstChild);
-          }
-
-          window.__kpGoBack = function() {
-            panel.classList.remove('visible');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          };
-
-          panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+      window.__kpGoBack = function() {
+        if (kpResultPage) kpResultPage.style.display = 'none';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
-      // ── Watch piece-panel becoming visible → auto-save + inject feedback UI ──
+      window.__kpRenderResult = function(data, promptText) {
+        window.__lastKpData = data;
+        const { ways, generatedImages, fallback, photoUrl } = data;
+        const pieceName = fallback ? 'Balmain waistcoat' : (promptText || 'Your piece');
+
+        // Build or reuse full-page overlay
+        if (!kpResultPage) {
+          kpResultPage = document.createElement('div');
+          kpResultPage.id = 'kp-result-page';
+          kpResultPage.style.cssText = 'position:fixed;inset:0;z-index:800;background:#FAF8F5;overflow-y:auto';
+          document.body.appendChild(kpResultPage);
+        }
+
+        kpResultPage.innerHTML = `
+          <nav style="position:sticky;top:0;z-index:10;background:rgba(250,248,245,0.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(32,32,33,0.06);padding:0 24px;height:48px;display:flex;align-items:center">
+            <button onclick="window.__kpGoBack()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6E6A64;padding:0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
+              Dashboard
+            </button>
+          </nav>
+          <div style="max-width:860px;margin:0 auto;padding:40px 24px 80px">
+            <div class="res-head">
+              <h1 class="res-h">Your piece,<br><em>worn three ways.</em></h1>
+              <p class="res-intro">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
+              <div class="yp-card" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);background:#fff;max-width:400px">
+                ${photoUrl ? `<img src="${photoUrl}" class="yp-img" alt="Your piece">` : ''}
+                <div>
+                  <div style="font-size:9.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px">Your piece</div>
+                  <div class="yp-name">${pieceName}</div>
+                  ${photoUrl ? '<div style="font-size:12px;color:var(--ink-faint);margin-top:3px">✓ The one you uploaded</div>' : ''}
+                </div>
+              </div>
+            </div>
+            <div class="ways" id="kp-ways">
+              ${ways.map((w, i) => {
+                const genImg = generatedImages && generatedImages[i];
+                return `
+                <article class="way">
+                  <div class="way-img">
+                    ${genImg ? `<img src="${genImg}" alt="">` : '<div class="way-img-placeholder"></div>'}
+                    <span class="way-num">${String(i + 1).padStart(2, '0')}</span>
+                  </div>
+                  <div class="way-body">
+                    <div class="way-eyebrow">${w.eyebrow}</div>
+                    <div class="way-title">${w.title}</div>
+                    <div class="way-sections">
+                      <div class="way-sec"><span class="way-sec-label">The Outfit</span><p class="way-sec-text">${w.outfit}</p></div>
+                      <div class="way-sec"><span class="way-sec-label">Key Details</span><p class="way-sec-text">${w.details}</p></div>
+                      <div class="way-sec"><span class="way-sec-label">Accessories</span><p class="way-sec-text">${w.accessories}</p></div>
+                    </div>
+                  </div>
+                </article>`;
+              }).join('')}
+            </div>
+            <div id="kp-fb" style="margin-top:48px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center">
+              <div style="font-family:var(--font-serif);font-size:22px;font-weight:300;color:var(--ink);margin-bottom:6px">How were these looks?</div>
+              <div id="kp-fb-prompt">
+                <div style="font-size:13px;color:var(--ink-faint);margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
+                <div style="display:flex;gap:10px;justify-content:center">
+                  <button id="kp-fb-up" onclick="window.__kpFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:var(--ink);transition:background .15s">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"></path><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                    Loved them
+                  </button>
+                  <button id="kp-fb-dn" onclick="window.__kpFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:var(--ink);transition:background .15s">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"></path><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path></svg>
+                    Not quite
+                  </button>
+                </div>
+              </div>
+              <div id="kp-fb-expand" hidden style="margin-top:16px">
+                <textarea id="kp-fb-text" placeholder="What would have made them better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--ink);resize:none;outline:none;box-sizing:border-box;font-family:inherit"></textarea>
+                <button onclick="window.__kpFbSubmit()" style="margin-top:10px;padding:10px 28px;background:var(--ink);color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer">Send feedback</button>
+              </div>
+              <div id="kp-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap">
+              <button onclick="window.__kpGoBack()" style="display:flex;align-items:center;gap:8px;padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:var(--ink)">Back to dashboard</button>
+              <button onclick="KP && KP.openKeyPiece ? KP.openKeyPiece() : null; window.__kpGoBack();" style="display:flex;align-items:center;gap:8px;padding:12px 24px;border:none;border-radius:40px;background:var(--ink);font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff">Style another piece</button>
+            </div>
+          </div>`;
+
+        kpResultPage.style.display = 'block';
+        kpResultPage.scrollTo({ top: 0 });
+
+        // Auto-save to style notes (strip images to protect localStorage quota)
+        const kpDataToSave = { ways, fallback, photoUrl };
+        snAdd({
+          type: 'key-piece',
+          title: pieceName,
+          subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
+          img: photoUrl || null,
+          kpData: kpDataToSave,
+        });
+
+        // Feedback handlers
+        let kpFbRating = null;
+        window.__kpFbRate = function(val) {
+          kpFbRating = val;
+          document.getElementById('kp-fb-up').style.background = val === 1 ? '#F0EDE8' : '#fff';
+          document.getElementById('kp-fb-dn').style.background = val === 0 ? '#F0EDE8' : '#fff';
+          document.getElementById('kp-fb-expand').hidden = false;
+          setTimeout(() => { const t = document.getElementById('kp-fb-text'); if (t) t.focus(); }, 60);
+        };
+        window.__kpFbSubmit = function() {
+          const comment = (document.getElementById('kp-fb-text').value || '').trim();
+          fetch('/api/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating: kpFbRating, comment, prompt: promptText || '' }),
+          }).catch(() => {});
+          document.getElementById('kp-fb-prompt').hidden = true;
+          document.getElementById('kp-fb-expand').hidden = true;
+          document.getElementById('kp-fb-done').hidden = false;
+        };
+      };
+
+      // ── Legacy snOnPieceResult removed — auto-save + feedback now in __kpRenderResult ──
       function snOnPieceResult() {
-        const actionsEl = document.querySelector('#piece-panel .piece-actions');
-        if (!actionsEl || actionsEl.dataset.snWired) return;
-        actionsEl.dataset.snWired = '1';
+        // no-op — kept to avoid errors if called from old MutationObserver path
+        return;
 
         // Auto-save once, inside the wired guard
         const pieceName = document.querySelector('#pyp-name');
