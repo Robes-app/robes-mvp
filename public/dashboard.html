@@ -765,7 +765,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             } catch (err) {
               clearInterval(msgInterval);
               overlay.style.display = 'none';
-              _waShowToast('Something went wrong — please try again');
+              console.error('[Robes] /api/style error:', err.message);
+              _waShowToast(err.message && err.message.length < 120 ? err.message : 'Something went wrong — please try again');
             }
           };
         }

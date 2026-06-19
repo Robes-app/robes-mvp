@@ -104,6 +104,16 @@ async function cloudinaryUpload(base64Data, mimeType) {
 }
 
 /* ── waitlist ────────────────────────────────────────────────────── */
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    gemini: !!process.env.GEMINI_API_KEY,
+    airtable: !!process.env.AIRTABLE_TOKEN,
+    cloudinary: !!process.env.CLOUDINARY_API_KEY,
+    supabase: !!process.env.SUPABASE_ANON_KEY,
+  });
+});
+
 app.post('/api/waitlist', async (req, res) => {
   const { email, name } = req.body;
   if (!email || !/.+@.+\..+/.test(email)) {
