@@ -13,8 +13,9 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
   - Google OAuth + email/password auth
   - `profiles` table — first_name, style_icons[], budget, wardrobe_description
   - `prompt_history` table — logs every Anthropic API call per user
+  - `wardrobe_items` table — per-user clothing pieces with image, category, colour, brand, notes
 - **AI (wardrobe context)**: Anthropic `claude-sonnet-4-6` via Supabase Edge Function
-- **Storage**: Cloudinary (photo uploads + generated images), in-memory `lookStore` Map (48h TTL)
+- **Storage**: Cloudinary (photo uploads + generated images + wardrobe item photos), in-memory `lookStore` Map (48h TTL)
 - **CRM**: Airtable — `Contacts` table (email/name), `Feedback` table (every prompt logged)
 
 ## Key files
@@ -26,7 +27,9 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 | `public/js/app.js` | All client logic — state, flow, rendering |
 | `public/css/robes-mvp.css` | All styles |
 | `public/look.html` | Shareable look page (static, loads `/api/look/:id`) |
+| `public/dashboard.html` | Protected dashboard SPA — wardrobe, styling, account |
 | `supabase/schema.sql` | DB schema — run once in Supabase SQL editor |
+| `supabase/wardrobe_schema.sql` | Wardrobe items table + RLS — run once in Supabase SQL editor |
 | `supabase/functions/wardrobe-context/index.ts` | Edge Function — assembles user profile, calls Anthropic, writes to prompt_history |
 
 ## Branches
@@ -49,6 +52,8 @@ No build step. Railway picks up `npm start` → `node server.js`.
 - `PUBLIC_URL` = `https://www.byrobes.com`
 - `PORT` (Railway sets automatically)
 
+Note: Cloudinary vars must be set on **both** production and staging Railway services for wardrobe photo uploads to work.
+
 ## Supabase config
 - Project: `Robes_p0`
 - URL: `https://ayowpaknssulsqqvwpqx.supabase.co`
@@ -65,6 +70,11 @@ No build step. Railway picks up `npm start` → `node server.js`.
 **prompt_history**: `id`, `user_id` (FK → profiles), `prompt`, `response`, `tokens_used`, `model`, `created_at`
 - RLS: users can only read/write their own rows
 
+**wardrobe_items**: `id`, `user_id` (FK → auth.users), `label`, `category`, `color`, `brand`, `notes`, `image_url`, `times_worn`, `created_at`
+- Schema in `supabase/wardrobe_schema.sql` — run once in Supabase SQL editor
+- RLS: users can only read/write their own rows
+- CRUD via direct Supabase REST API (not Edge Function) using user JWT
+
 ## Edge Function: wardrobe-context
 - URL: `https://ayowpaknssulsqqvwpqx.supabase.co/functions/v1/wardrobe-context`
 - Auth: pass user's JWT in `Authorization: Bearer <token>` header
@@ -77,11 +87,38 @@ No build step. Railway picks up `npm start` → `node server.js`.
 - Google OAuth redirects to `/dashboard` after auth
 - Email signup: sends confirmation email; if `data.session` exists, redirects immediately
 
-## What's next to build (dashboard)
-- `public/dashboard.html` — protected page, checks Supabase session on load
-- Show user's first name, allow them to fill in style_icons, budget, wardrobe_description → saves to `profiles` table
-- Input field to send a prompt to the `wardrobe-context` Edge Function and display the response
-- If no session → redirect to `/signup.html`
+## Dashboard wardrobe feature (signup-flow branch)
+`public/dashboard.html` is a ~4MB self-contained bundled SPA. All customisation runs via `window.__robes_personalize`, called after all bundle scripts execute.
+
+### Wardrobe wiring (inside `__robes_personalize`)
+- `_waUid()` / `_waToken()` — read `window.__robes_session` lazily on each call (session loads async after bundle auth)
+- `_waFetch(method, path, body)` — direct Supabase REST with user JWT
+- `_waLoad()` — fetches `wardrobe_items`, sets `_waLoaded = true`, rebuilds pills, re-renders grid
+- `_waRender()` — builds grid from `_waItems`; shows "Loading…" until `_waLoaded` is true
+- `_waBuildFilters()` — builds category pill buttons; skips rebuild if our pills (no `onclick` attr) already exist; marks current `_waCat` as active
+- `_waSyncCounts()` — updates nav badge (`.nav-wbtn-count`), `#wg-count`, and the `.tracker-*` dashboard widget
+- `_waObserver` — MutationObserver on `#wg-grid`: any time the bundle's `renderWardrobe()` overwrites the grid with mock data, we immediately restore real items. Disconnected during our own renders to avoid re-entrancy.
+- `_waInit()` — polls every 250ms until `_waUid()` is truthy, then calls `_waLoad()`
+
+### Bundle interception
+The dashboard bundle has private functions (`renderWardrobe`, `showView`, etc.) that can't be patched directly. Instead:
+- `App.showWardrobe` is patched to call original (for view switching) then immediately restore our grid + pills
+- `App.filterWardrobe` is patched to update `_waCat` and call `_waRender()`
+- `App.addPiece` is patched to no-op (prevents bundle's mock-data path after WA modal submit)
+- `WA.submit` is replaced entirely — saves to Supabase, uploads photo to Cloudinary, then reloads grid
+- `WA.open/close/onFile/pickColour/hover/validate` are kept from the bundle untouched
+
+### Wardrobe photo upload
+- Client: `WA.submit` reads data URL from `#wa-tile-img` (set by bundle's `WA.onFile` via `FileReader.readAsDataURL`)
+- Detection: checks `#wa-tile.filled` class (added by bundle when photo is selected)
+- Server: `POST /api/wardrobe/upload` — accepts `{ data: base64, mimeType }`, uploads to Cloudinary, returns `{ url }`
+- Saved as `image_url` on the `wardrobe_items` row
+
+### `/wardrobe` URL
+`server.js` serves `dashboard.html` for `GET /wardrobe`. On load, `__robes_personalize` detects `pathname === '/wardrobe'` and calls `App.showWardrobe()` after 100ms.
+
+### Wardrobe dashboard tracker widget
+The `.tracker-num`, `.tracker-title`, `.tracker-sub`, `.tracker-fill` elements are updated by `_waSyncCounts()` to reflect real item count toward a 15-piece target with copy that scales with progress.
 
 ## App flow (modal path — primary)
 1. **Landing** — email capture → `submitLandingEmail()` → Airtable `Contacts`
@@ -125,3 +162,6 @@ No build step. Railway picks up `npm start` → `node server.js`.
 - `persist()` strips `photo` and `generatedImages` from history when localStorage is full
 - Look share page (`/look/:id`) serves `look.html` which fetches `/api/look/:id` — data lives in-memory, expires 48h
 - Supabase client must be named `sbClient` not `supabase` to avoid conflict with `window.supabase` CDN global
+- Dashboard `window.__robes_session` is set async by the bundle — always read uid/token via `_waUid()`/`_waToken()` helpers, never capture them once at init time
+- Dashboard bundle's `renderWardrobe()` is a private closure — `App.renderWardrobe` does not exist; use MutationObserver on `#wg-grid` to defend against it
+- `_waBuildFilters()` checks for existing non-onclick pills before rebuilding to avoid resetting active filter state on async reloads
