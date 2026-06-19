@@ -664,19 +664,23 @@ document.addEventListener('DOMContentLoaded', async function() {
           }
         }
 
+        const allItems = snLoad();
         row.style.display = 'block';
         row.innerHTML = `
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-top:28px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-top:32px">
             <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880">Style notes</span>
-            <button onclick="window.__snOpen()" style="background:none;border:none;cursor:pointer;font-size:11px;color:#6E6A64;letter-spacing:.04em;text-decoration:underline;text-underline-offset:3px;padding:0">View all</button>
+            <button onclick="window.__snOpen()" style="background:none;border:none;cursor:pointer;font-size:11px;color:#A89880;letter-spacing:.04em;padding:0">${allItems.length} kept</button>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">
             ${items.map(item => `
-              <div onclick="window.__snOpenItem(${item.id})" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(32,32,33,0.07)">
-                ${item.img ? `<img src="${item.img}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block" alt="">` : `<div style="width:100%;aspect-ratio:1/1;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
-                <div style="padding:8px 10px">
-                  <div style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#A89880;margin-bottom:2px">${item.type === 'look' ? 'Look' : 'Key piece'}</div>
-                  <div style="font-size:12px;color:#202021;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title}</div>
+              <div onclick="window.__snOpenItem(${item.id})" style="cursor:pointer;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(32,32,33,0.08)">
+                ${item.img
+                  ? `<img src="${item.img}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block" alt="">`
+                  : `<div style="width:100%;aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
+                <div style="padding:12px 14px 14px">
+                  <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:5px">${item.type === 'look' ? 'Look' : 'Key piece'}</div>
+                  <div style="font-family:'Cormorant',Georgia,serif;font-size:16px;font-weight:300;color:#202021;line-height:1.3;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title}</div>
+                  <div style="font-size:11px;color:#A89880">${item.subtitle || ''}</div>
                 </div>
               </div>`).join('')}
           </div>`;
