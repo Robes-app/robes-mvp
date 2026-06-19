@@ -604,6 +604,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         snRenderPage();
       };
       window.__snRemove = function(id) { snRemove(id); };
+      window.__snOpenItem = function(id) {
+        const item = snLoad().find(i => i.id === id);
+        if (!item) return;
+        // Close sn-page if open
+        document.getElementById('sn-page').style.display = 'none';
+        if (item.type === 'key-piece' && item.kpData) {
+          window.__kpRenderResult(item.kpData);
+        } else {
+          // Fallback: just open style notes page
+          window.__snOpen();
+        }
+      };
 
       function snRenderPage() {
         const items = snLoad();
@@ -618,7 +630,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         grid.style.display = 'grid';
         empty.style.display = 'none';
         grid.innerHTML = items.map(item => `
-          <div style="position:relative;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08)" onmouseenter="this.querySelector('.sn-rm').style.opacity='1'" onmouseleave="this.querySelector('.sn-rm').style.opacity='0'">
+          <div onclick="window.__snOpenItem(${item.id})" style="position:relative;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08);cursor:pointer" onmouseenter="this.querySelector('.sn-rm').style.opacity='1'" onmouseleave="this.querySelector('.sn-rm').style.opacity='0'">
             <button class="sn-rm" onclick="event.stopPropagation();window.__snRemove(${item.id})" style="position:absolute;top:10px;right:10px;opacity:0;transition:opacity .15s;background:rgba(32,32,33,0.55);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
@@ -660,7 +672,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
             ${items.map(item => `
-              <div onclick="window.__snOpen()" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(32,32,33,0.07)">
+              <div onclick="window.__snOpenItem(${item.id})" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(32,32,33,0.07)">
                 ${item.img ? `<img src="${item.img}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block" alt="">` : `<div style="width:100%;aspect-ratio:1/1;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
                 <div style="padding:8px 10px">
                   <div style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#A89880;margin-bottom:2px">${item.type === 'look' ? 'Look' : 'Key piece'}</div>
@@ -772,8 +784,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
       }, 600);
 
+      // Store last result so saved items can be re-opened
+      window.__lastKpData = null;
+
       // Render real Gemini results into the piece panel
       window.__kpRenderResult = function(data) {
+        window.__lastKpData = data;
         const { ways, generatedImages, fallback, photoUrl } = data;
 
         // Update piece name
@@ -826,12 +842,15 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         // Auto-save once, inside the wired guard
         const pieceName = document.querySelector('#pyp-name');
-        const imgEl = document.querySelector('#piece-panel .piece-slot img, #piece-panel image-slot img');
+        const kpData = window.__lastKpData;
+        const thumbImg = (kpData && kpData.generatedImages && kpData.generatedImages[0]) ||
+                         (() => { const el = document.querySelector('#piece-panel .way-img img'); return el ? el.src : null; })();
         snAdd({
           type: 'key-piece',
           title: pieceName ? pieceName.textContent.trim() : 'Key piece',
           subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
-          img: imgEl ? imgEl.src : null,
+          img: thumbImg,
+          kpData: kpData || null,
         });
         actionsEl.innerHTML = `
           <div id="sn-fb" style="width:100%;background:rgba(32,32,33,0.03);border-radius:12px;padding:28px 24px;text-align:center;margin-bottom:8px">
