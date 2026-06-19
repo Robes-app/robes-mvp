@@ -704,10 +704,102 @@ document.addEventListener('DOMContentLoaded', async function() {
       }
 
       // Wire "Style notes" avatar menu item after bundle settles
+      // Also override KP.submitStyle to call the real /api/style endpoint
       setTimeout(() => {
         const snAvItem = Array.from(document.querySelectorAll('.av-item')).find(b => b.textContent.includes('Style notes'));
         if (snAvItem) snAvItem.onclick = () => window.__snOpen();
-      }, 500);
+
+        if (window.KP && KP.submitStyle) {
+          KP.submitStyle = async function() {
+            const input = document.getElementById('kp-input');
+            const fileInput = document.getElementById('kp-file');
+            const prompt = input ? input.value.trim() : '';
+
+            // Read photo if one was attached
+            let photoData = null;
+            if (window.__kp_photo_data) photoData = window.__kp_photo_data;
+
+            // Show loading state
+            const cta = document.getElementById('kp-cta');
+            if (cta) { cta.disabled = true; cta.textContent = 'Styling…'; }
+
+            try {
+              const res = await fetch('/api/style', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, photo: photoData }),
+              });
+              if (!res.ok) throw new Error('Styling failed');
+              const data = await res.json();
+
+              // Close modal, render results
+              KP.closeKeyPiece();
+              window.__kpRenderResult(data);
+            } catch (err) {
+              _waShowToast('Something went wrong — please try again');
+              if (cta) { cta.disabled = false; cta.textContent = 'Style it three ways'; }
+            }
+          };
+        }
+
+        // Capture photo data when user picks a file
+        const kpFile = document.getElementById('kp-file');
+        if (kpFile) {
+          kpFile.addEventListener('change', function() {
+            const file = this.files[0];
+            if (!file) { window.__kp_photo_data = null; return; }
+            const reader = new FileReader();
+            reader.onload = e => { window.__kp_photo_data = e.target.result; };
+            reader.readAsDataURL(file);
+          });
+        }
+      }, 600);
+
+      // Render real Gemini results into the piece panel
+      window.__kpRenderResult = function(data) {
+        const { ways, generatedImages, fallback, photoUrl } = data;
+
+        // Update piece name
+        const pypName = document.getElementById('pyp-name');
+        if (pypName) pypName.textContent = fallback ? 'Balmain waistcoat' : (document.getElementById('kp-input') ? document.getElementById('kp-input').value.trim() || 'Your piece' : 'Your piece');
+
+        // Render the 3 ways
+        const waysEl = document.getElementById('ways');
+        if (waysEl) {
+          waysEl.innerHTML = ways.map((w, i) => {
+            const img = generatedImages && generatedImages[i];
+            return `
+              <div class="way">
+                <div class="way-img">
+                  ${img ? `<img src="${img}" alt="${w.title}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;background:var(--cream-200);display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:12px">Image generating…</div>`}
+                  <span class="way-num">0${i + 1}</span>
+                </div>
+                <div class="way-body">
+                  <div class="way-eyebrow">${w.eyebrow}</div>
+                  <div class="way-title">${w.title}</div>
+                  <div class="way-note">${w.details}</div>
+                  <div class="way-outfit">
+                    <div class="way-outfit-label">The outfit</div>
+                    <p style="font-size:13px;line-height:1.6;color:var(--ink-soft);margin:0 0 10px">${w.outfit}</p>
+                    <div class="way-outfit-label" style="margin-top:12px">Accessories</div>
+                    <p style="font-size:13px;line-height:1.6;color:var(--ink-soft);margin:0">${w.accessories}</p>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
+                    ${(w.tags || []).map(t => `<span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border:0.5px solid var(--rule-mid);border-radius:100px;color:var(--ink-soft)">${t}</span>`).join('')}
+                  </div>
+                </div>
+              </div>`;
+          }).join('');
+        }
+
+        // Show the piece panel
+        document.querySelectorAll('.subtab-panel, section[id]').forEach(s => s.classList.remove('visible'));
+        const panel = document.getElementById('piece-panel');
+        if (panel) {
+          panel.classList.add('visible');
+          panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      };
 
       // ── Watch piece-panel becoming visible → auto-save + inject feedback UI ──
       function snOnPieceResult() {
