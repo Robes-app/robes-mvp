@@ -798,7 +798,25 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         // Update piece name
         const pypName = document.getElementById('pyp-name');
-        if (pypName) pypName.textContent = fallback ? 'Balmain waistcoat' : (document.getElementById('kp-input') ? document.getElementById('kp-input').value.trim() || 'Your piece' : 'Your piece');
+        const pieceLabelText = fallback ? 'Balmain waistcoat' : (document.getElementById('kp-input') ? document.getElementById('kp-input').value.trim() || 'Your piece' : 'Your piece');
+        if (pypName) pypName.textContent = pieceLabelText;
+
+        // Populate the piece thumbnail slot (image-slot web component — inject img inside)
+        const pieceSlot = document.getElementById('piece-your');
+        if (pieceSlot) {
+          const thumbSrc = photoUrl || (generatedImages && generatedImages[0]) || null;
+          if (thumbSrc) {
+            let slotImg = pieceSlot.querySelector('img.kp-slot-img');
+            if (!slotImg) {
+              slotImg = document.createElement('img');
+              slotImg.className = 'kp-slot-img';
+              slotImg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:3px';
+              pieceSlot.style.position = 'relative';
+              pieceSlot.appendChild(slotImg);
+            }
+            slotImg.src = thumbSrc;
+          }
+        }
 
         // Render the 3 ways
         const waysEl = document.getElementById('ways');
@@ -834,6 +852,24 @@ document.addEventListener('DOMContentLoaded', async function() {
         const panel = document.getElementById('piece-panel');
         if (panel) {
           panel.classList.add('visible');
+
+          // Inject breadcrumb back nav (once only)
+          if (!document.getElementById('kp-back-nav')) {
+            const backNav = document.createElement('div');
+            backNav.id = 'kp-back-nav';
+            backNav.style.cssText = 'position:sticky;top:0;z-index:50;background:rgba(250,248,245,0.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(32,32,33,0.06);padding:0 24px;height:48px;display:flex;align-items:center';
+            backNav.innerHTML = `<button onclick="window.__kpGoBack()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6E6A64;padding:0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
+              Dashboard
+            </button>`;
+            panel.insertBefore(backNav, panel.firstChild);
+          }
+
+          window.__kpGoBack = function() {
+            panel.classList.remove('visible');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          };
+
           panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       };
