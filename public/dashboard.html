@@ -725,9 +725,26 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       // Wire "Style notes" avatar menu item after bundle settles
       // Also override KP.submitStyle to call the real /api/style endpoint
+      // + reorder Styling Concierge cards: Key Piece → Weekly Planner → Travel Edit
       setTimeout(() => {
         const snAvItem = Array.from(document.querySelectorAll('.av-item')).find(b => b.textContent.includes('Style notes'));
         if (snAvItem) snAvItem.onclick = () => window.__snOpen();
+
+        // Reorder services: bundle has [Weekly Planner, Travel Edit, Key Piece] → want [Key Piece, Weekly Planner, Travel Edit]
+        const grid = document.querySelector('.services-grid');
+        if (grid) {
+          const svcs = Array.from(grid.querySelectorAll('.svc'));
+          if (svcs.length === 3) {
+            // svcs[0]=Weekly Planner, svcs[1]=Travel Edit, svcs[2]=Key Piece
+            const [weekly, travel, keyPiece] = svcs;
+            grid.innerHTML = '';
+            [keyPiece, weekly, travel].forEach((el, i) => {
+              const num = el.querySelector('.svc-num');
+              if (num) num.textContent = String(i + 1).padStart(2, '0');
+              grid.appendChild(el);
+            });
+          }
+        }
 
         if (window.KP && KP.submitStyle) {
           KP.submitStyle = async function() {
