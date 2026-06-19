@@ -559,7 +559,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         try { return JSON.parse(localStorage.getItem(SN_KEY) || '[]'); } catch { return []; }
       }
       function snSave(items) {
-        localStorage.setItem(SN_KEY, JSON.stringify(items));
+        try {
+          localStorage.setItem(SN_KEY, JSON.stringify(items));
+        } catch (e) {
+          // Storage full — drop oldest items until it fits
+          if (items.length > 1) snSave(items.slice(0, items.length - 1));
+        }
       }
       function snAdd(item) {
         const items = snLoad();
@@ -883,14 +888,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Auto-save once, inside the wired guard
         const pieceName = document.querySelector('#pyp-name');
         const kpData = window.__lastKpData;
-        const thumbImg = (kpData && kpData.generatedImages && kpData.generatedImages[0]) ||
-                         (() => { const el = document.querySelector('#piece-panel .way-img img'); return el ? el.src : null; })();
+        // Use photoUrl (a small Cloudinary URL) as thumbnail — never store base64 images in localStorage
+        const thumbImg = (kpData && kpData.photoUrl) || null;
+        // Strip generatedImages before saving — each is ~500KB and blows localStorage quota
+        const kpDataToSave = kpData ? { ways: kpData.ways, fallback: kpData.fallback, photoUrl: kpData.photoUrl } : null;
         snAdd({
           type: 'key-piece',
           title: pieceName ? pieceName.textContent.trim() : 'Key piece',
           subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
           img: thumbImg,
-          kpData: kpData || null,
+          kpData: kpDataToSave,
         });
         actionsEl.innerHTML = `
           <div id="sn-fb" style="width:100%;background:rgba(32,32,33,0.03);border-radius:12px;padding:28px 24px;text-align:center;margin-bottom:8px">
