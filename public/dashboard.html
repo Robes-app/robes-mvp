@@ -709,24 +709,107 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (snAvItem) snAvItem.onclick = () => window.__snOpen();
       }, 500);
 
-      // Save buttons appear dynamically after AI generates results — use delegation
+      // ── Watch piece-panel becoming visible → auto-save + inject feedback UI ──
+      function snOnPieceResult() {
+        // Auto-save the key piece result
+        const titleEl = document.querySelector('#piece-panel .piece-title');
+        const imgEl = document.querySelector('#piece-panel .piece-slot img, #piece-panel image-slot img');
+        const pieceName = document.querySelector('#pyp-name');
+        snAdd({
+          type: 'key-piece',
+          title: pieceName ? pieceName.textContent.trim() : (titleEl ? titleEl.textContent.trim() : 'Key piece'),
+          subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
+          img: imgEl ? imgEl.src : null,
+        });
+
+        // Replace .piece-actions with production-style feedback + CTA bar
+        const actionsEl = document.querySelector('#piece-panel .piece-actions');
+        if (!actionsEl || actionsEl.dataset.snWired) return;
+        actionsEl.dataset.snWired = '1';
+        actionsEl.innerHTML = `
+          <div id="sn-fb" style="width:100%;background:rgba(32,32,33,0.03);border-radius:12px;padding:28px 24px;text-align:center;margin-bottom:8px">
+            <div style="font-family:'Cormorant',Georgia,serif;font-size:20px;font-weight:300;color:#202021;margin-bottom:6px">How were these looks?</div>
+            <div id="sn-fb-prompt">
+              <div style="font-size:12px;color:#A89880;margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
+              <div style="display:flex;gap:10px;justify-content:center">
+                <button id="sn-fb-up" onclick="window.__snFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;transition:all .15s">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"></path><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                  Loved them
+                </button>
+                <button id="sn-fb-dn" onclick="window.__snFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;transition:all .15s">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"></path><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path></svg>
+                  Not quite
+                </button>
+              </div>
+            </div>
+            <div id="sn-fb-expand" hidden style="margin-top:16px">
+              <textarea id="sn-fb-text" placeholder="What would have made them better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:inherit"></textarea>
+              <button onclick="window.__snFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer">Send feedback</button>
+            </div>
+            <div id="sn-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <button class="mb-btn" onclick="App.openShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg>Share my look</button>
+            <button class="mb-btn mb-btn-primary" onclick="KP.openKeyPiece ? KP.openKeyPiece() : App.chooseInspire()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="5 12 12 5 19 12"></polyline></svg>Style another</button>
+          </div>`;
+
+        let snFbRating = null;
+        window.__snFbRate = function(val) {
+          snFbRating = val;
+          document.getElementById('sn-fb-up').style.background = val === 1 ? '#F0EDE8' : '#fff';
+          document.getElementById('sn-fb-dn').style.background = val === 0 ? '#F0EDE8' : '#fff';
+          document.getElementById('sn-fb-expand').hidden = false;
+          document.getElementById('sn-fb-done').hidden = true;
+          setTimeout(() => { const t = document.getElementById('sn-fb-text'); if (t) t.focus(); }, 60);
+        };
+        window.__snFbSubmit = function() {
+          const comment = (document.getElementById('sn-fb-text').value || '').trim();
+          fetch('/api/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '',
+              rating: snFbRating,
+              comment,
+              prompt: document.getElementById('kp-input') ? document.getElementById('kp-input').value : '',
+            }),
+          }).catch(() => {});
+          document.getElementById('sn-fb-prompt').hidden = true;
+          document.getElementById('sn-fb-expand').hidden = true;
+          document.getElementById('sn-fb-done').hidden = false;
+        };
+      }
+
+      // "Wear this today" on the look bar — auto-save + feedback
+      function snOnLookResult() {
+        const titleEl = document.querySelector('#gd-hero-title');
+        const imgEl = document.querySelector('#look-board img');
+        snAdd({
+          type: 'look',
+          title: titleEl ? titleEl.textContent.trim() : "Today's look",
+          subtitle: new Date().toLocaleDateString('en-GB', { weekday: 'long' }) + ' · Today',
+          img: imgEl ? imgEl.src : null,
+        });
+        _waShowToast('Look saved to your style notes');
+      }
+
+      // Watch for panels becoming visible
+      const snPanelObserver = new MutationObserver(() => {
+        const piecePanel = document.getElementById('piece-panel');
+        if (piecePanel && piecePanel.classList.contains('visible')) {
+          const actionsEl = piecePanel.querySelector('.piece-actions');
+          if (actionsEl && !actionsEl.dataset.snWired) snOnPieceResult();
+        }
+      });
+      setTimeout(() => {
+        const main = document.querySelector('main') || document.body;
+        snPanelObserver.observe(main, { attributes: true, subtree: true, attributeFilter: ['class'] });
+      }, 600);
+
+      // "Wear this today" — delegated click
       document.addEventListener('click', function(e) {
-        const btn = e.target.closest('button');
-        if (!btn) return;
-
-        if (btn.matches('.mb-btn.mb-btn-primary') || btn.closest('.mb-btn.mb-btn-primary')) {
-          const titleEl = document.querySelector('.mb-h');
-          const imgEl = document.querySelector('.mb-img img');
-          snAdd({ type: 'key-piece', title: titleEl ? titleEl.textContent.trim() : 'Key piece', subtitle: 'Worn three ways · Today', img: imgEl ? imgEl.src : null });
-          _waShowToast('Saved to your style notes');
-        }
-
-        if (btn.matches('.lb-btn.lb-primary') || btn.closest('.lb-btn.lb-primary')) {
-          const titleEl = document.querySelector('.today-title');
-          const imgEl = document.querySelector('.today-img img');
-          snAdd({ type: 'look', title: titleEl ? titleEl.textContent.trim() : "Today's look", subtitle: new Date().toLocaleDateString('en-GB', { weekday: 'long' }) + ' · Today', img: imgEl ? imgEl.src : null });
-          _waShowToast('Look saved to your style notes');
-        }
+        const btn = e.target.closest('.lb-btn.lb-primary');
+        if (btn) snOnLookResult();
       }, true);
 
       // Render the row on load (in case there are already saved items)
