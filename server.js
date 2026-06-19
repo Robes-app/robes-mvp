@@ -9,14 +9,41 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = process.env.PORT || 3000;
 
-/* ── look store (in-memory, 48h TTL) ────────────────────────────── */
-const lookStore = new Map();
-setInterval(() => {
-  const cutoff = Date.now() - 48 * 60 * 60 * 1000;
-  for (const [id, look] of lookStore) {
-    if (look.created < cutoff) lookStore.delete(id);
-  }
-}, 60 * 60 * 1000);
+/* ── Supabase look store ─────────────────────────────────────────── */
+const SB_URL = process.env.SUPABASE_URL || 'https://ayowpaknssulsqqvwpqx.supabase.co';
+const SB_KEY = process.env.SUPABASE_ANON_KEY;
+
+async function lookSave(id, look) {
+  if (!SB_KEY) { lookCache.set(id, look); return; }
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/looks`, {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ id, data: look }),
+    });
+    if (!res.ok) console.warn('Supabase look save error:', await res.text());
+  } catch (err) { console.warn('Supabase look save error:', err.message); }
+  lookCache.set(id, look);
+}
+
+async function lookGet(id) {
+  if (lookCache.has(id)) return lookCache.get(id);
+  if (!SB_KEY) return null;
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/looks?id=eq.${id}&select=data,created_at&limit=1`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` },
+    });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    if (!rows.length) return null;
+    const look = rows[0].data;
+    lookCache.set(id, look);
+    return look;
+  } catch (err) { console.warn('Supabase look get error:', err.message); return null; }
+}
+
+// in-process cache to avoid redundant DB reads within a single server session
+const lookCache = new Map();
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(join(__dirname, 'public'), {
@@ -277,13 +304,14 @@ Style this key piece three ways. Make each look genuinely distinct — different
 /* ── look share ──────────────────────────────────────────────────── */
 const BASE_URL = process.env.PUBLIC_URL || 'https://www.byrobes.com';
 
-app.post('/api/look', (req, res) => {
+app.post('/api/look', async (req, res) => {
   const { name, piece, photoUrl, ways, generatedImages, fallback, prompt, email } = req.body;
   if (!ways || !Array.isArray(ways) || ways.length === 0) {
     return res.status(400).json({ error: 'No look data' });
   }
   const id = randomBytes(5).toString('hex');
-  lookStore.set(id, { name: name || '', piece: piece || '', photoUrl: photoUrl || null, ways, generatedImages: generatedImages || [], fallback: !!fallback, created: Date.now() });
+  const look = { name: name || '', piece: piece || '', photoUrl: photoUrl || null, ways, generatedImages: generatedImages || [], fallback: !!fallback, created: Date.now() };
+  await lookSave(id, look);
   console.log(`Look saved: ${id} — ${piece || 'untitled'}`);
   res.json({ id });
 
@@ -318,43 +346,8 @@ app.post('/api/look', (req, res) => {
 });
 
 app.get('/api/look/:id', async (req, res) => {
-  const cached = lookStore.get(req.params.id);
-  if (cached) return res.json(cached);
-
-  // not in memory (server restarted) — try Airtable
-  if (AT_TOKEN && AT_BASE) {
-    try {
-      const lookUrl = `${BASE_URL}/look/${req.params.id}`;
-      const filter = encodeURIComponent(`{Piece Link} = "${lookUrl}"`);
-      const atRes = await fetch(
-        `https://api.airtable.com/v0/${AT_BASE}/${encodeURIComponent('Feedback')}?filterByFormula=${filter}&maxRecords=1`,
-        { headers: { 'Authorization': `Bearer ${AT_TOKEN}` } }
-      );
-      if (atRes.ok) {
-        const data = await atRes.json();
-        if (data.records && data.records.length > 0) {
-          const fields = data.records[0].fields;
-          let lookData = {};
-          try { lookData = JSON.parse(fields['Looks Output'] || '{}'); } catch { /* old text format */ }
-          if (lookData.ways && Array.isArray(lookData.ways)) {
-            const look = {
-              name: lookData.name || '',
-              piece: lookData.piece || '',
-              photoUrl: lookData.photoUrl || null,
-              ways: lookData.ways,
-              generatedImages: lookData.genImageUrls || [],
-              fallback: lookData.fallback || false,
-              created: Date.now(),
-            };
-            lookStore.set(req.params.id, look); // re-cache
-            console.log(`Look restored from Airtable: ${req.params.id}`);
-            return res.json(look);
-          }
-        }
-      }
-    } catch (err) { console.warn('Airtable look lookup error:', err.message); }
-  }
-
+  const look = await lookGet(req.params.id);
+  if (look) return res.json(look);
   res.status(404).json({ error: 'Look not found or expired' });
 });
 
