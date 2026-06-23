@@ -581,30 +581,47 @@ document.addEventListener('DOMContentLoaded', async function() {
           const tile = document.getElementById('wa-tile');
           const tileImg = document.getElementById('wa-tile-img');
           if (!tile || !tileImg) return;
+          console.log('[robes-autotag] tile mutation fired. filled:', tile.classList.contains('filled'), 'src prefix:', tileImg.src && tileImg.src.substring(0, 30));
           if (tile.classList.contains('filled') && tileImg.src && tileImg.src.startsWith('data:')) {
             _runAutoTag(tileImg.src);
           }
         });
 
         function _startObserving() {
-          if (_observing) return;
+          tileObserver.disconnect();
           const tile = document.getElementById('wa-tile');
           if (!tile) return;
           tileObserver.observe(tile, { attributes: true, attributeFilter: ['class'] });
-          _observing = true;
         }
 
         // Start observing when modal opens — patch WA.open
         if (window.WA && WA.open) {
+          console.log('[robes-autotag] WA.open available at init — patching now');
           const _origOpen = WA.open;
           WA.open = function() {
             _lastSrc = '';
+            _origStepHTML = '';
             _origOpen.apply(this, arguments);
-            setTimeout(_startObserving, 100);
+            setTimeout(_startObserving, 150);
           };
+          WA.open._rbPatched = true;
         } else {
-          // Fallback: start observing immediately if WA.open isn't available yet
-          setTimeout(_startObserving, 500);
+          console.log('[robes-autotag] WA.open not ready — polling');
+          // WA not ready — retry until it is (bundle may call __robes_personalize before WA is defined)
+          const _waOpenPoll = setInterval(function() {
+            if (window.WA && WA.open && !WA.open._rbPatched) {
+              clearInterval(_waOpenPoll);
+              console.log('[robes-autotag] WA.open found via poll — patching');
+              const _origOpen = WA.open;
+              WA.open = function() {
+                _lastSrc = '';
+                _origStepHTML = '';
+                _origOpen.apply(this, arguments);
+                setTimeout(_startObserving, 150);
+              };
+              WA.open._rbPatched = true;
+            }
+          }, 200);
         }
 
         // Also reset on close
@@ -612,6 +629,8 @@ document.addEventListener('DOMContentLoaded', async function() {
           const _origClose = WA.close;
           WA.close = function() {
             _lastSrc = '';
+            _origStepHTML = '';
+            tileObserver.disconnect();
             _origClose.apply(this, arguments);
           };
         }
