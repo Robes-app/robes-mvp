@@ -442,9 +442,10 @@ document.addEventListener('DOMContentLoaded', async function() {
       const _origWAClose = () => window.WA && WA.close();
       const _origWASubmit = window.WA && WA.submit;
 
-      // 3-step wardrobe add flow — swap .fm-step content directly (no overlay positioning needed)
+      // 3-step wardrobe add flow: (1) our photo-capture UI, (2) Reading…, (3) Here's what Robes saw.
+      // We own all 3 steps — replace .fm-step on WA.open, use our own file input.
       (function _waSetupAutoTag() {
-        let _lastSrc = '';
+        let _photoDataUrl = '';
         let _origStepHTML = '';
 
         if (!document.getElementById('wa-spin-style')) {
@@ -461,24 +462,40 @@ document.addEventListener('DOMContentLoaded', async function() {
           dots.forEach((d, i) => d.classList.toggle('cur', i === n - 1));
         }
 
-        function _restoreStep() {
+        function _showStep1() {
           const step = document.querySelector('#wa-modal .fm-step');
-          if (step && _origStepHTML) { step.innerHTML = _origStepHTML; _origStepHTML = ''; }
-          _lastSrc = '';
+          if (!step) return;
+          step.innerHTML = `
+            <h2 class="fm-h">Add a piece.</h2>
+            <p style="font-size:14px;color:#9A8E82;margin:0 0 20px;">Snap it or attach it. Robes reads the colour, the cut and the label — and fills in the rest.</p>
+            <label id="wa-rb-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:240px;border:1.5px dashed #C8B8A2;border-radius:12px;background:#FAF8F5;cursor:pointer;text-align:center;padding:20px;box-sizing:border-box;">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span style="font-size:16px;color:#6A5E54;letter-spacing:0.01em;">Snap or attach the piece</span>
+              <span style="font-size:13px;color:#B0A090;">Take a photo, or drop an image here</span>
+              <input id="wa-rb-file" type="file" accept="image/*" capture="environment" style="display:none;">
+            </label>`;
           _setDot(1);
+
+          const fileInput = document.getElementById('wa-rb-file');
+          if (fileInput) {
+            fileInput.addEventListener('change', function() {
+              const file = this.files && this.files[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = function(e) { _runStep2(e.target.result); };
+              reader.readAsDataURL(file);
+            });
+          }
         }
 
-        function _runAutoTag(dataUrl) {
-          if (!dataUrl || !dataUrl.startsWith('data:') || dataUrl === _lastSrc) return;
-          _lastSrc = dataUrl;
+        function _runStep2(dataUrl) {
+          _photoDataUrl = dataUrl;
           const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
           if (!match) return;
 
           const step = document.querySelector('#wa-modal .fm-step');
           if (!step) return;
-          if (!_origStepHTML) _origStepHTML = step.innerHTML;
 
-          // Step 2: Reading screen
           step.innerHTML = `
             <h2 class="fm-h">Reading your piece…</h2>
             <p style="font-size:14px;color:#9A8E82;margin:0 0 20px;">One moment — Robes is looking at the photo.</p>
@@ -507,141 +524,112 @@ document.addEventListener('DOMContentLoaded', async function() {
           .then(r => r.json())
           .then(tag => {
             clearInterval(txtInterval);
-            // Fill hidden original form fields (restored when overlay removed)
-            if (_origStepHTML) {
-              const tmp = document.createElement('div'); tmp.innerHTML = _origStepHTML;
-              const lEl = tmp.querySelector('#wa-label-in'); if (lEl && tag.label) lEl.value = tag.label;
-              const cEl = tmp.querySelector('#wa-cat');      if (cEl && tag.category) cEl.value = tag.category;
-              const bEl = tmp.querySelector('#wa-brand');    if (bEl && tag.brand) bEl.value = tag.brand;
-              _origStepHTML = tmp.innerHTML;
-            }
-            _setDot(3);
-            const cats = ['Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear'];
-            // Step 3: "Here's what Robes saw."
-            step.innerHTML = `
-              <h2 class="fm-h" style="margin-bottom:4px;">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
-              <p style="font-size:13px;color:#9A8E82;margin:0 0 16px;">Pre-filled from your photo. Adjust anything that isn't quite right.</p>
-              <div style="display:flex;align-items:center;gap:12px;background:#F0EBE3;border-radius:10px;padding:10px 14px;margin-bottom:16px;">
-                <img src="${dataUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">
-                <div style="flex:1;min-width:0;">
-                  <div style="font-size:10px;letter-spacing:0.12em;color:#9A8070;margin-bottom:2px;">✦ ROBES FILLED THIS IN</div>
-                  <div style="font-size:12px;color:#6A5E54;">Glance over it, tweak anything, then save.</div>
-                </div>
-                <button onclick="window.__waRetake&&window.__waRetake()" style="background:#fff;border:1px solid #D8CEBC;border-radius:20px;padding:6px 14px;font-size:12px;color:#6A5E54;cursor:pointer;white-space:nowrap;font-family:inherit;">↺ Retake</button>
-              </div>
-              <div style="margin-bottom:12px;">
-                <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">ITEM NAME</label>
-                <input id="wa-saw-label" value="${(tag.label||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawLabel=this.value">
-              </div>
-              <div style="display:flex;gap:10px;margin-bottom:12px;">
-                <div style="flex:1;">
-                  <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">CATEGORY</label>
-                  <select id="wa-saw-cat" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" onchange="window.__waSawCat=this.value">
-                    ${cats.map(o => `<option${tag.category===o?' selected':''}>${o}</option>`).join('')}
-                  </select>
-                </div>
-                <div style="flex:1;">
-                  <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">BRAND</label>
-                  <input id="wa-saw-brand" value="${(tag.brand||'').replace(/"/g,'&quot;')}" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawBrand=this.value">
-                </div>
-              </div>
-              <button onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
-
-            window.__waSawLabel = tag.label || '';
-            window.__waSawCat   = tag.category || '';
-            window.__waSawBrand = tag.brand || '';
-            window.__waSawImg   = dataUrl;
-            window.__waRetake   = function() { _restoreStep(); if (window.WA && WA.clearPhoto) WA.clearPhoto(); };
-            window.__waSawSubmit = function() {
-              // Write saw-screen values back into the (now-restored) form and submit
-              const lEl = document.getElementById('wa-label-in');
-              const cEl = document.getElementById('wa-cat');
-              const bEl = document.getElementById('wa-brand');
-              if (lEl) lEl.value = window.__waSawLabel || '';
-              if (cEl) cEl.value = window.__waSawCat   || '';
-              if (bEl) bEl.value = window.__waSawBrand || '';
-              if (tag.color) {
-                const sw = [...document.querySelectorAll('#wa-swatches .wa-sw')];
-                const idx = sw.findIndex(s => s.title === tag.color || s.getAttribute('aria-label') === tag.color);
-                if (idx >= 0 && window.WA && WA.pickColour) WA.pickColour(idx);
-              }
-              _restoreStep();
-              setTimeout(() => { window.WA && WA.submit && WA.submit(); }, 50);
-            };
+            _runStep3(dataUrl, tag);
           })
           .catch(err => {
             clearInterval(txtInterval);
-            _restoreStep();
-            console.warn('Auto-tag failed:', err);
+            console.warn('[robes-autotag] analyse failed:', err);
+            _showStep1();
           });
         }
 
-        // MutationObserver on #wa-tile — fires when bundle adds 'filled' class after photo selection
-        const tileObserver = new MutationObserver(function() {
-          const tile = document.getElementById('wa-tile');
-          const tileImg = document.getElementById('wa-tile-img');
-          if (!tile || !tileImg) return;
-          console.log('[robes-autotag] tile mutation fired. filled:', tile.classList.contains('filled'), 'src prefix:', tileImg.src && tileImg.src.substring(0, 40));
-          if (tile.classList.contains('filled') && tileImg.src && (tileImg.src.startsWith('data:') || tileImg.src.startsWith('blob:'))) {
-            if (tileImg.src.startsWith('blob:')) {
-              // Bundle used blob URL — convert to data URL first
-              fetch(tileImg.src).then(r => r.blob()).then(blob => {
-                const reader = new FileReader();
-                reader.onload = () => _runAutoTag(reader.result);
-                reader.readAsDataURL(blob);
-              });
-            } else {
-              _runAutoTag(tileImg.src);
-            }
-          }
-        });
+        function _runStep3(dataUrl, tag) {
+          const step = document.querySelector('#wa-modal .fm-step');
+          if (!step) return;
+          _setDot(3);
+          const cats = ['Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear'];
+          step.innerHTML = `
+            <h2 class="fm-h" style="margin-bottom:4px;">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
+            <p style="font-size:13px;color:#9A8E82;margin:0 0 16px;">Pre-filled from your photo. Adjust anything that isn't quite right.</p>
+            <div style="display:flex;align-items:center;gap:12px;background:#F0EBE3;border-radius:10px;padding:10px 14px;margin-bottom:16px;">
+              <img src="${dataUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:10px;letter-spacing:0.12em;color:#9A8070;margin-bottom:2px;">✦ ROBES FILLED THIS IN</div>
+                <div style="font-size:12px;color:#6A5E54;">Glance over it, tweak anything, then save.</div>
+              </div>
+              <button onclick="window.__waRetake&&window.__waRetake()" style="background:#fff;border:1px solid #D8CEBC;border-radius:20px;padding:6px 14px;font-size:12px;color:#6A5E54;cursor:pointer;white-space:nowrap;font-family:inherit;">↺ Retake</button>
+            </div>
+            <div style="margin-bottom:12px;">
+              <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">ITEM NAME</label>
+              <input id="wa-saw-label" value="${(tag.label||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawLabel=this.value">
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:16px;">
+              <div style="flex:1;">
+                <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">CATEGORY</label>
+                <select id="wa-saw-cat" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" onchange="window.__waSawCat=this.value">
+                  ${cats.map(o => `<option${tag.category===o?' selected':''}>${o}</option>`).join('')}
+                </select>
+              </div>
+              <div style="flex:1;">
+                <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">BRAND</label>
+                <input id="wa-saw-brand" value="${(tag.brand||'').replace(/"/g,'&quot;')}" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawBrand=this.value">
+              </div>
+            </div>
+            <button onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
 
-        function _startObserving() {
-          tileObserver.disconnect();
-          const tile = document.getElementById('wa-tile');
-          if (!tile) return;
-          tileObserver.observe(tile, { attributes: true, attributeFilter: ['class'] });
+          window.__waSawLabel = tag.label || '';
+          window.__waSawCat   = tag.category || '';
+          window.__waSawBrand = tag.brand || '';
+          window.__waRetake   = function() { _showStep1(); };
+          window.__waSawSubmit = function() {
+            // Write values into the hidden bundle form fields, set tile photo, then submit
+            if (_origStepHTML) {
+              const step = document.querySelector('#wa-modal .fm-step');
+              if (step) { step.innerHTML = _origStepHTML; }
+            }
+            const lEl = document.getElementById('wa-label-in');
+            const cEl = document.getElementById('wa-cat');
+            const bEl = document.getElementById('wa-brand');
+            const tileImg = document.getElementById('wa-tile-img');
+            const tileEl  = document.getElementById('wa-tile');
+            const tileFill = document.getElementById('wa-tile-fill');
+            const tileEmpty = document.getElementById('wa-tile-empty');
+            if (lEl) lEl.value = window.__waSawLabel || '';
+            if (cEl) cEl.value = window.__waSawCat   || '';
+            if (bEl) bEl.value = window.__waSawBrand || '';
+            if (tileImg && _photoDataUrl) { tileImg.src = _photoDataUrl; }
+            if (tileEl)   { tileEl.classList.add('filled'); }
+            if (tileFill)  { tileFill.style.display = 'block'; }
+            if (tileEmpty) { tileEmpty.style.display = 'none'; }
+            if (tag.color) {
+              const sw = [...document.querySelectorAll('#wa-swatches .wa-sw')];
+              const idx = sw.findIndex(s => s.title === tag.color || s.getAttribute('aria-label') === tag.color);
+              if (idx >= 0 && window.WA && WA.pickColour) WA.pickColour(idx);
+            }
+            setTimeout(() => { window.WA && WA.submit && WA.submit(); }, 50);
+          };
         }
 
-        // Start observing when modal opens — patch WA.open
-        if (window.WA && WA.open) {
-          console.log('[robes-autotag] WA.open available at init — patching now');
+        function _patchWA() {
+          if (!window.WA || !WA.open || WA.open._rbPatched) return false;
           const _origOpen = WA.open;
           WA.open = function() {
-            _lastSrc = '';
+            _photoDataUrl = '';
             _origStepHTML = '';
             _origOpen.apply(this, arguments);
-            setTimeout(_startObserving, 150);
+            setTimeout(function() {
+              // Save bundle's form HTML before we replace it
+              const step = document.querySelector('#wa-modal .fm-step');
+              if (step) _origStepHTML = step.innerHTML;
+              _showStep1();
+            }, 150);
           };
           WA.open._rbPatched = true;
-        } else {
-          console.log('[robes-autotag] WA.open not ready — polling');
-          // WA not ready — retry until it is (bundle may call __robes_personalize before WA is defined)
-          const _waOpenPoll = setInterval(function() {
-            if (window.WA && WA.open && !WA.open._rbPatched) {
-              clearInterval(_waOpenPoll);
-              console.log('[robes-autotag] WA.open found via poll — patching');
-              const _origOpen = WA.open;
-              WA.open = function() {
-                _lastSrc = '';
-                _origStepHTML = '';
-                _origOpen.apply(this, arguments);
-                setTimeout(_startObserving, 150);
-              };
-              WA.open._rbPatched = true;
-            }
-          }, 200);
+          if (WA.close && !WA.close._rbPatched) {
+            const _origClose = WA.close;
+            WA.close = function() {
+              _photoDataUrl = '';
+              _origStepHTML = '';
+              _origClose.apply(this, arguments);
+            };
+            WA.close._rbPatched = true;
+          }
+          console.log('[robes-autotag] WA patched');
+          return true;
         }
 
-        // Also reset on close
-        if (window.WA && WA.close) {
-          const _origClose = WA.close;
-          WA.close = function() {
-            _lastSrc = '';
-            _origStepHTML = '';
-            tileObserver.disconnect();
-            _origClose.apply(this, arguments);
-          };
+        if (!_patchWA()) {
+          const poll = setInterval(function() { if (_patchWA()) clearInterval(poll); }, 200);
         }
       })();
 
