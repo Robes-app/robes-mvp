@@ -581,9 +581,18 @@ document.addEventListener('DOMContentLoaded', async function() {
           const tile = document.getElementById('wa-tile');
           const tileImg = document.getElementById('wa-tile-img');
           if (!tile || !tileImg) return;
-          console.log('[robes-autotag] tile mutation fired. filled:', tile.classList.contains('filled'), 'src prefix:', tileImg.src && tileImg.src.substring(0, 30));
-          if (tile.classList.contains('filled') && tileImg.src && tileImg.src.startsWith('data:')) {
-            _runAutoTag(tileImg.src);
+          console.log('[robes-autotag] tile mutation fired. filled:', tile.classList.contains('filled'), 'src prefix:', tileImg.src && tileImg.src.substring(0, 40));
+          if (tile.classList.contains('filled') && tileImg.src && (tileImg.src.startsWith('data:') || tileImg.src.startsWith('blob:'))) {
+            if (tileImg.src.startsWith('blob:')) {
+              // Bundle used blob URL — convert to data URL first
+              fetch(tileImg.src).then(r => r.blob()).then(blob => {
+                const reader = new FileReader();
+                reader.onload = () => _runAutoTag(reader.result);
+                reader.readAsDataURL(blob);
+              });
+            } else {
+              _runAutoTag(tileImg.src);
+            }
           }
         });
 
