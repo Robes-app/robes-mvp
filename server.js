@@ -404,6 +404,30 @@ app.get('/wardrobe', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
 
+app.post('/api/wardrobe/analyse', async (req, res) => {
+  const { data, mimeType } = req.body;
+  if (!data || !mimeType) return res.status(400).json({ error: 'Missing data or mimeType' });
+  try {
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType, data } },
+          { text: 'You are the data engine for a fashion wardrobe app. Analyze this clothing item photo. Return a strict JSON object with exactly four keys: "label" (string, concise item name e.g. "Grey cashmere crewneck"), "category" (string, one of: Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Other), "color" (string, dominant color name matching one of: Cream, Light grey, Tan, Sand, Khaki, Sage, Blush, Mauve, Dusty rose, Burgundy, Rust, Chocolate, Dark green, Navy, Denim blue, Royal blue, White, Black, Hot pink, Green, Blue, Yellow, Orange, Multi, Stripe), "brand" (string, brand name if a logo is clearly visible, otherwise empty string). Return only the JSON object, no markdown.' }
+        ]
+      }],
+      config: { responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 200 }
+    });
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    res.json({ label: parsed.label || '', category: parsed.category || 'Other', color: parsed.color || '', brand: parsed.brand || '' });
+  } catch (err) {
+    console.error('Gemini wardrobe analyse error:', err.message);
+    res.status(500).json({ error: 'Analysis failed' });
+  }
+});
+
 app.post('/api/wardrobe/upload', async (req, res) => {
   const { data, mimeType } = req.body;
   if (!data || !mimeType) return res.status(400).json({ error: 'Missing data or mimeType' });

@@ -442,6 +442,45 @@ document.addEventListener('DOMContentLoaded', async function() {
       const _origWAClose = () => window.WA && WA.close();
       const _origWASubmit = window.WA && WA.submit;
 
+      // Patch WA.onFile — after bundle sets the tile image, fire Gemini auto-tag
+      if (window.WA && WA.onFile) {
+        const _origWAOnFile = WA.onFile;
+        WA.onFile = function(file) {
+          _origWAOnFile.call(this, file);
+          // Read file and call Gemini analyse endpoint
+          const reader = new FileReader();
+          reader.onload = async function(e) {
+            const dataUrl = e.target.result;
+            const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+            if (!match) return;
+            const labelEl = document.getElementById('wa-label-in');
+            const catEl   = document.getElementById('wa-cat');
+            const brandEl = document.getElementById('wa-brand');
+            // Show analysing state on label field
+            if (labelEl && !labelEl.value) { labelEl.placeholder = 'Analysing photo…'; }
+            try {
+              const res = await fetch('/api/wardrobe/analyse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: match[2], mimeType: match[1] })
+              });
+              const tag = await res.json();
+              if (tag.label  && labelEl && !labelEl.value) { labelEl.value = tag.label; }
+              if (tag.category && catEl  && !catEl.value)  { catEl.value  = tag.category; }
+              if (tag.brand  && brandEl && !brandEl.value) { brandEl.value = tag.brand; }
+              if (tag.color) {
+                const swatches = [...document.querySelectorAll('#wa-swatches .wa-sw')];
+                const idx = swatches.findIndex(s => s.title === tag.color || s.getAttribute('aria-label') === tag.color);
+                if (idx >= 0 && WA.pickColour) WA.pickColour(idx);
+              }
+              WA.validate && WA.validate();
+            } catch(err) { console.warn('Auto-tag failed:', err); }
+            finally { if (labelEl) labelEl.placeholder = ''; }
+          };
+          reader.readAsDataURL(file);
+        };
+      }
+
       if (window.WA) {
         WA.submit = async function() {
           const label = (document.getElementById('wa-label-in') || {}).value && document.getElementById('wa-label-in').value.trim();
