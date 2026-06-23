@@ -1044,6 +1044,325 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       // Render the row on load (in case there are already saved items)
       snRefreshRow();
+
+      // ── v2 Dashboard Layout ──────────────────────────────────────────
+      // Inject CSS matching the Claude Design system from the uploaded prototype
+      (function _rbInjectStyles() {
+        if (document.getElementById('rb-v2-styles')) return;
+        const s = document.createElement('style');
+        s.id = 'rb-v2-styles';
+        s.textContent = `
+          /* Design system tokens (matching uploaded Claude Design file) */
+          :root {
+            --rb-mauve: #C4B0B4;
+            --rb-sage-mid: #B4C2B0;
+            --rb-rose-mid: #C4AEAD;
+            --rb-rose-bg: #EEE5E4;
+            --rb-sage-bg: #E4EDE6;
+            --rb-cream: #FAF8F5;
+            --rb-cream-100: #F2EDE8;
+            --rb-rule: rgba(32,32,33,0.1);
+            --rb-rule-mid: rgba(32,32,33,0.14);
+            --rb-ink: #202021;
+            --rb-ink-soft: #6E6A64;
+            --rb-rose-ey: #A89880;
+            --rb-sage-ey: #7E8C7A;
+            --rb-rad-lg: 14px;
+          }
+
+          .rb-section { margin-bottom: 52px; }
+          .rb-sec-head { display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px; }
+          .rb-sec-ey { font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--rb-rose-ey); }
+          .rb-sec-meta { font-size:11px;color:var(--rb-rose-ey);letter-spacing:.03em; }
+          .rb-sec-link { background:none;border:none;cursor:pointer;font-size:11px;color:var(--rb-rose-ey);letter-spacing:.04em;padding:0;text-decoration:underline;text-underline-offset:3px; }
+          .rb-sec-h { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:clamp(22px,2.6vw,28px);color:var(--rb-ink);line-height:1.15;margin:0 0 16px; }
+          .rb-sec-h em { font-style:italic; }
+
+          /* ES card — shared art+body layout (matches .es-card in uploaded design) */
+          .rb-es-card { display:flex;width:100%;text-align:left;cursor:pointer;overflow:hidden;
+            border:0.5px solid var(--rb-rule-mid);border-radius:var(--rb-rad-lg);background:#fff;
+            transition:border-color .22s,box-shadow .22s; }
+          .rb-es-card:hover { border-color:rgba(32,32,33,0.2);box-shadow:0 22px 54px -30px rgba(32,32,33,0.24); }
+          .rb-es-art { flex:1 1 46%;min-width:0;min-height:248px;padding:20px;display:grid;gap:10px;
+            background:linear-gradient(150deg,var(--rb-cream-100),var(--rb-cream)); }
+
+          /* Moodboard art: 2-col grid, hero spans 2 rows */
+          .rb-es-art-board { grid-template-columns:1.35fr 1fr;grid-template-rows:1fr 1fr; }
+          .rb-es-art-board .rb-esb { border-radius:9px;border:0.5px solid var(--rb-rule); }
+          .rb-es-art-board .rb-esb-hero { grid-row:1 / span 2;background:var(--rb-mauve); }
+          .rb-es-art-board .rb-esb-2 { background:var(--rb-sage-mid); }
+          .rb-es-art-board .rb-esb-3 { background:var(--rb-rose-mid); }
+
+          /* Style-notes art: 3 staggered frames */
+          .rb-es-art-ways { grid-template-columns:repeat(3,1fr);align-items:start; }
+          .rb-es-frame { border-radius:9px;border:0.5px solid var(--rb-rule);aspect-ratio:3/4;padding:13px; }
+          .rb-es-frame.f1 { background:var(--rb-rose-bg); }
+          .rb-es-frame.f2 { background:var(--rb-sage-bg);margin-top:18px; }
+          .rb-es-frame.f3 { background:var(--rb-rose-mid);margin-top:36px; }
+          .rb-es-frame-num { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:23px;line-height:1;color:rgba(32,32,33,0.46); }
+
+          /* ES body (text panel) */
+          .rb-es-body { flex:1 1 54%;min-width:0;padding:38px 42px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center; }
+          .rb-es-eyebrow { font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rb-rose-ey);margin-bottom:16px; }
+          .rb-es-eyebrow.sage { color:var(--rb-sage-ey); }
+          .rb-es-h { font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:33px;line-height:1.04;color:var(--rb-ink);margin:0; }
+          .rb-es-h em { font-style:italic;color:var(--rb-ink-soft); }
+          .rb-es-sub { font-size:13.5px;line-height:1.62;color:var(--rb-ink-soft);margin-top:14px;max-width:38ch; }
+          .rb-es-cta { margin-top:26px;display:inline-flex;align-items:center;gap:9px;padding:12px 22px;
+            border-radius:100px;background:var(--rb-ink);color:var(--rb-cream);font-size:11px;font-weight:500;
+            letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer;
+            transition:opacity .18s,transform .18s; }
+          .rb-es-card:hover .rb-es-cta { opacity:.9;transform:translateY(-1px); }
+          .rb-es-cta svg { width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round; }
+
+          /* Populated: moodboard 2-up grid */
+          .rb-mb-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+          .rb-mb-card { cursor:pointer;border-radius:var(--rb-rad-lg);overflow:hidden;background:#fff;border:0.5px solid var(--rb-rule);transition:border-color .2s,box-shadow .2s; }
+          .rb-mb-card:hover { border-color:rgba(32,32,33,0.2);box-shadow:0 12px 32px -16px rgba(32,32,33,0.18); }
+          .rb-mb-imgs { display:grid;grid-template-columns:1.35fr 1fr;grid-template-rows:1fr 1fr;gap:3px;min-height:200px;background:var(--rb-cream-100); }
+          .rb-mb-img-main { grid-row:1/3;width:100%;height:100%;object-fit:cover;display:block; }
+          .rb-mb-img-ph-main { grid-row:1/3;background:var(--rb-mauve); }
+          .rb-mb-img-ph-sm { background:var(--rb-sage-mid); }
+          .rb-mb-img-ph-sm:nth-child(3) { background:var(--rb-rose-mid); }
+          .rb-mb-foot { padding:14px 16px 16px;position:relative; }
+          .rb-mb-foot-title { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:16px;color:var(--rb-ink);line-height:1.25;margin-bottom:3px; }
+          .rb-mb-foot-meta { font-size:10px;color:var(--rb-rose-ey);letter-spacing:.02em; }
+          .rb-mb-new { position:absolute;top:14px;right:16px;font-size:9px;font-weight:600;letter-spacing:.14em;color:var(--rb-rose-ey);text-transform:uppercase; }
+
+          /* Populated: style notes 4-up grid */
+          .rb-sn-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:12px; }
+          .rb-sn-card { cursor:pointer;border-radius:10px;overflow:hidden;background:#fff;border:0.5px solid var(--rb-rule);transition:border-color .2s; }
+          .rb-sn-card:hover { border-color:rgba(32,32,33,0.2); }
+          .rb-sn-img { width:100%;aspect-ratio:3/4;object-fit:cover;display:block; }
+          .rb-sn-img-ph { aspect-ratio:3/4;background:var(--rb-cream-100); }
+          .rb-sn-body { padding:11px 13px 13px; }
+          .rb-sn-type { font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--rb-rose-ey);margin-bottom:4px; }
+          .rb-sn-title { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:15px;color:var(--rb-ink);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+          .rb-sn-meta { font-size:10px;color:var(--rb-rose-ey);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+
+          /* Daily outfit lock — matches .lock-pill in uploaded design */
+          .rb-lock-pill { display:inline-flex;align-items:center;gap:5px;padding:5px 10px;
+            background:rgba(250,248,245,0.88);backdrop-filter:blur(4px);
+            border-radius:20px;font-size:9.5px;font-weight:500;letter-spacing:.1em;
+            text-transform:uppercase;color:#6E6A64;border:0.5px solid rgba(32,32,33,0.12); }
+          .rb-lock-pill svg { width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round; }
+          .rb-lock-wrap { position:absolute;top:10px;left:12px;z-index:2;pointer-events:none; }
+
+          @media(max-width:760px){
+            .rb-es-card { flex-direction:column; }
+            .rb-es-art { flex-basis:auto;min-height:210px; }
+            .rb-es-body { padding:28px 26px 32px; }
+            .rb-sn-grid { grid-template-columns:repeat(2,1fr); }
+            .rb-mb-grid { grid-template-columns:1fr; }
+          }
+        `;
+        document.head.appendChild(s);
+      })();
+
+      function _rbTimeAgo(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        const mins = Math.floor((Date.now() - d) / 60000);
+        if (mins < 2) return 'Just now';
+        if (mins < 60) return mins + 'm ago';
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return hrs === 1 ? '1 hour ago' : hrs + ' hours ago';
+        const days = Math.floor(hrs / 24);
+        if (days === 1) return 'Yesterday';
+        if (days < 7) return days + ' days ago';
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      }
+
+      function _rbRenderMoodboards() {
+        const el = document.getElementById('rb-mb');
+        if (!el) return;
+        const items = snLoad().slice(0, 4);
+        const arrowSvg = `<svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+        if (!items.length) {
+          el.innerHTML = `
+            <div class="rb-sec-head">
+              <span class="rb-sec-ey">Moodboards for you</span>
+            </div>
+            <h2 class="rb-sec-h">Dress the season,<br><em>before you dress the day.</em></h2>
+            <button class="rb-es-card" onclick="window.__rbStartMoodboard()">
+              <div class="rb-es-art rb-es-art-board" aria-hidden="true">
+                <div class="rb-esb rb-esb-hero"></div>
+                <div class="rb-esb rb-esb-2"></div>
+                <div class="rb-esb rb-esb-3"></div>
+              </div>
+              <div class="rb-es-body">
+                <span class="rb-es-eyebrow">Moodboards</span>
+                <h3 class="rb-es-h">Create your first<br><em>moodboard.</em></h3>
+                <p class="rb-es-sub">Describe a trip, a season, or a piece you love. Robes builds the board — and pulls in what you already own.</p>
+                <span class="rb-es-cta">Start a moodboard${arrowSvg}</span>
+              </div>
+            </button>`;
+          return;
+        }
+        const displayed = items.slice(0, 2);
+        el.innerHTML = `
+          <div class="rb-sec-head">
+            <span class="rb-sec-ey">Moodboards for you</span>
+            <button class="rb-sec-link" onclick="window.__snOpen()">View all</button>
+          </div>
+          <h2 class="rb-sec-h">Dress the season,<br><em>before you dress the day.</em></h2>
+          <div class="rb-mb-grid">
+            ${displayed.map(item => `
+              <div class="rb-mb-card" onclick="window.__snOpenItem(${item.id})">
+                <div class="rb-mb-imgs">
+                  ${item.img
+                    ? `<img src="${_waEsc(item.img)}" class="rb-mb-img-main" alt="">`
+                    : '<div class="rb-mb-img-ph-main"></div>'}
+                  <div class="rb-mb-img-ph-sm"></div>
+                  <div class="rb-mb-img-ph-sm"></div>
+                </div>
+                <div class="rb-mb-foot">
+                  <div class="rb-mb-foot-title">${_waEsc(item.title)}</div>
+                  <div class="rb-mb-foot-meta">${_rbTimeAgo(item.saved_at)}</div>
+                  ${!item.saved_at || (Date.now() - new Date(item.saved_at)) < 86400000 ? '<div class="rb-mb-new">New</div>' : ''}
+                </div>
+              </div>`).join('')}
+          </div>`;
+      }
+
+      function _rbRenderStyleNotes() {
+        const el = document.getElementById('rb-sn');
+        if (!el) return;
+        const items = snLoad().slice(0, 4);
+        const arrowSvg = `<svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+        if (!items.length) {
+          el.innerHTML = `
+            <div class="rb-sec-head">
+              <span class="rb-sec-ey">Style notes</span>
+              <span class="rb-sec-meta">A little gift to begin</span>
+            </div>
+            <button class="rb-es-card" onclick="window.KP && KP.openKeyPiece ? KP.openKeyPiece() : void 0">
+              <div class="rb-es-art rb-es-art-ways" aria-hidden="true">
+                <div class="rb-es-frame f1"><span class="rb-es-frame-num">01</span></div>
+                <div class="rb-es-frame f2"><span class="rb-es-frame-num">02</span></div>
+                <div class="rb-es-frame f3"><span class="rb-es-frame-num">03</span></div>
+              </div>
+              <div class="rb-es-body">
+                <span class="rb-es-eyebrow sage">Style a piece</span>
+                <h3 class="rb-es-h">Your piece,<br><em>worn three ways.</em></h3>
+                <p class="rb-es-sub">Show Robes one piece you love. You'll get three ways to wear it — none of them the obvious one, each styled around your wardrobe.</p>
+                <span class="rb-es-cta">Style a key piece${arrowSvg}</span>
+              </div>
+            </button>`;
+          return;
+        }
+        el.innerHTML = `
+          <div class="rb-sec-head">
+            <span class="rb-sec-ey">Style notes</span>
+            <button class="rb-sec-link" onclick="window.__snOpen()">${snLoad().length} kept</button>
+          </div>
+          <div class="rb-sn-grid">
+            ${items.map(item => `
+              <div class="rb-sn-card" onclick="window.__snOpenItem(${item.id})">
+                ${item.img
+                  ? `<img src="${_waEsc(item.img)}" class="rb-sn-img" alt="">`
+                  : '<div class="rb-sn-img-ph"></div>'}
+                <div class="rb-sn-body">
+                  <div class="rb-sn-type">${item.type === 'look' ? 'Look' : 'Key piece'}</div>
+                  <div class="rb-sn-title">${_waEsc(item.title)}</div>
+                  <div class="rb-sn-meta">${_waEsc(item.subtitle || '')}</div>
+                </div>
+              </div>`).join('')}
+          </div>`;
+      }
+
+      function _rbUpdateDailyOutfitLock() {
+        // Target the daily outfit card (first .svc in services-grid after reorder)
+        const grid = document.querySelector('.services-grid');
+        if (!grid) return;
+        const dailyCard = grid.querySelector('.svc-daily') || grid.querySelector('.svc');
+        if (!dailyCard) return;
+        const svcImg = dailyCard.querySelector('.svc-img');
+        if (!svcImg) return;
+        const isLocked = _waItems.length < _WA_TARGET;
+        let pill = svcImg.querySelector('.rb-lock-wrap');
+        if (isLocked && !pill) {
+          pill = document.createElement('div');
+          pill.className = 'rb-lock-wrap';
+          pill.innerHTML = `<span class="rb-lock-pill"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="1.5"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Unlocks at 15 items</span>`;
+          svcImg.appendChild(pill);
+        } else if (!isLocked && pill) {
+          pill.remove();
+        }
+      }
+
+      window.__rbStartMoodboard = function() {
+        const inp = document.getElementById('cp-in') || document.querySelector('.cp-input') || document.querySelector('[placeholder*="piece"]');
+        if (inp) { inp.focus(); inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        else { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+      };
+
+      // Patch snRefreshRow to also refresh v2 sections
+      const _origSnRefreshRow = snRefreshRow;
+      snRefreshRow = function() {
+        _origSnRefreshRow();
+        _rbRenderMoodboards();
+        _rbRenderStyleNotes();
+      };
+
+      // Apply layout restructure after bundle finishes rendering
+      setTimeout(function _rbApplyLayout() {
+        const dash = document.getElementById('dash');
+        if (!dash) return;
+
+        // Remove bundle's dual section (Today + Inspiration)
+        const dual = document.getElementById('dual');
+        if (dual) dual.remove();
+
+        // Remove old sn-row (injected by snRefreshRow above) — we replace it
+        const oldSn = document.getElementById('sn-row');
+        if (oldSn) oldSn.remove();
+
+        // Find insertion anchor
+        const tracker = dash.querySelector('.tracker');
+        const services = dash.querySelector('.services');
+        const anchor = tracker || services;
+
+        if (!document.getElementById('rb-mb')) {
+          const mbEl = document.createElement('section');
+          mbEl.id = 'rb-mb';
+          mbEl.className = 'rb-section';
+          if (anchor) dash.insertBefore(mbEl, anchor);
+          else dash.appendChild(mbEl);
+        }
+        if (!document.getElementById('rb-sn')) {
+          const snEl = document.createElement('section');
+          snEl.id = 'rb-sn';
+          snEl.className = 'rb-section';
+          const mbEl = document.getElementById('rb-mb');
+          const insertAfterMb = mbEl ? mbEl.nextSibling : (anchor || null);
+          if (insertAfterMb && insertAfterMb !== anchor) dash.insertBefore(snEl, insertAfterMb);
+          else if (anchor) dash.insertBefore(snEl, anchor);
+          else dash.appendChild(snEl);
+        }
+
+        _rbRenderMoodboards();
+        _rbRenderStyleNotes();
+        _rbUpdateDailyOutfitLock();
+      }, 900);
+
+      // Also update lock state whenever wardrobe count changes
+      const _origWaSyncCounts = _waSyncCounts;
+      // Note: _waSyncCounts is a local function so we patch by wrapping _waLoad/_waRender instead
+      // We hook _waSyncCounts in-place since it's in our closure scope
+      const _rbOrigSyncCounts = _waSyncCounts;
+      // Override via the already-defined function reference
+      // The cleanest hook point is _waLoad (called after any wardrobe change)
+      const _rbOrigWaLoad = _waLoad;
+      // Cannot reassign `_waLoad` (const in some JS engines) — hook via _waSyncCounts call
+      // Instead, patch the MutationObserver callback which fires after each render
+      const _rbPostRenderObserver = new MutationObserver(function() {
+        _rbUpdateDailyOutfitLock();
+      });
+      setTimeout(function() {
+        const svcGrid = document.querySelector('.services-grid');
+        if (svcGrid) _rbPostRenderObserver.observe(svcGrid, { childList: true, subtree: false });
+      }, 1200);
     };
     const manifestEl = document.querySelector('script[type="__bundler/manifest"]');
     const templateEl = document.querySelector('script[type="__bundler/template"]');
