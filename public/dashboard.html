@@ -442,20 +442,58 @@ document.addEventListener('DOMContentLoaded', async function() {
       const _origWAClose = () => window.WA && WA.close();
       const _origWASubmit = window.WA && WA.submit;
 
-      // Auto-tag on photo selection — use event delegation so it works regardless of WA.onFile timing
+      // 3-step wardrobe add flow: upload → "Reading your piece…" → "Here's what Robes saw."
       document.addEventListener('change', function _waAutoTag(e) {
         if (e.target.id !== 'wa-file') return;
         const file = e.target.files && e.target.files[0];
         if (!file) return;
-        const labelEl = document.getElementById('wa-label-in');
-        const catEl   = document.getElementById('wa-cat');
-        const brandEl = document.getElementById('wa-brand');
-        if (labelEl && !labelEl.value) { labelEl.placeholder = 'Analysing photo…'; }
+
+        const dialog = document.querySelector('#wa-modal .fm-dialog');
+        if (!dialog) return;
+
+        // Helper: set active dot (1-based)
+        function _setDot(n) {
+          const dotsWrap = dialog.querySelector('.fm-dots');
+          if (!dotsWrap) return;
+          let dots = dotsWrap.querySelectorAll('.fmd');
+          // ensure we have 3 dots
+          while (dots.length < 3) { const d = document.createElement('span'); d.className = 'fmd'; dotsWrap.appendChild(d); dots = dotsWrap.querySelectorAll('.fmd'); }
+          dots.forEach((d, i) => d.classList.toggle('cur', i === n - 1));
+        }
+
         const reader = new FileReader();
         reader.onload = async function(ev) {
           const dataUrl = ev.target.result;
           const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
           if (!match) return;
+
+          // Step 2 — inject "Reading your piece…" overlay
+          let overlay = document.getElementById('wa-reading-overlay');
+          if (!overlay) { overlay = document.createElement('div'); overlay.id = 'wa-reading-overlay'; dialog.appendChild(overlay); }
+          overlay.style.cssText = 'position:absolute;inset:0;background:#F8F5F0;z-index:20;display:flex;flex-direction:column;padding:20px 32px 32px;border-radius:inherit;';
+          overlay.innerHTML = `
+            <h2 style="font-family:Cormorant,Georgia,serif;font-size:2.2rem;font-weight:400;margin:0 0 6px;color:#2A2520">Reading your piece…</h2>
+            <p style="font-size:14px;color:#9A8E82;margin:0 0 20px;font-family:inherit">One moment — Robes is looking at the photo.</p>
+            <div style="position:relative;flex:1;min-height:0;border-radius:12px;overflow:hidden;background:#E8E2DA;">
+              <img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;display:block;">
+              <div style="position:absolute;bottom:0;left:0;right:0;padding:20px 18px 18px;background:linear-gradient(to top,rgba(30,24,18,0.55),transparent);display:flex;align-items:center;gap:10px;">
+                <div id="wa-spin" style="width:18px;height:18px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:wa-spin 0.8s linear infinite;flex-shrink:0;"></div>
+                <span id="wa-read-txt" style="color:#fff;font-size:13px;letter-spacing:0.03em;font-family:inherit">Identifying colour and fabric…</span>
+              </div>
+            </div>`;
+          if (!document.getElementById('wa-spin-style')) {
+            const st = document.createElement('style'); st.id = 'wa-spin-style';
+            st.textContent = '@keyframes wa-spin{to{transform:rotate(360deg)}}';
+            document.head.appendChild(st);
+          }
+          _setDot(2);
+
+          // Rotate loading text
+          const readTexts = ['Identifying colour and fabric…','Reading the silhouette…','Checking for brand details…'];
+          let ti = 0;
+          const txtEl = overlay.querySelector('#wa-read-txt');
+          const txtInterval = setInterval(() => { ti = (ti + 1) % readTexts.length; if (txtEl) txtEl.textContent = readTexts[ti]; }, 1800);
+
           try {
             const res = await fetch('/api/wardrobe/analyse', {
               method: 'POST',
@@ -463,17 +501,57 @@ document.addEventListener('DOMContentLoaded', async function() {
               body: JSON.stringify({ data: match[2], mimeType: match[1] })
             });
             const tag = await res.json();
-            if (tag.label    && labelEl && !labelEl.value) { labelEl.value = tag.label; }
-            if (tag.category && catEl   && !catEl.value)   { catEl.value   = tag.category; }
-            if (tag.brand    && brandEl && !brandEl.value) { brandEl.value = tag.brand; }
+            clearInterval(txtInterval);
+
+            // Fill hidden form fields
+            const labelEl = document.getElementById('wa-label-in');
+            const catEl   = document.getElementById('wa-cat');
+            const brandEl = document.getElementById('wa-brand');
+            if (tag.label    && labelEl) { labelEl.value = tag.label; }
+            if (tag.category && catEl)   { catEl.value   = tag.category; }
+            if (tag.brand    && brandEl) { brandEl.value = tag.brand; }
             if (tag.color) {
               const swatches = [...document.querySelectorAll('#wa-swatches .wa-sw')];
               const idx = swatches.findIndex(s => s.title === tag.color || s.getAttribute('aria-label') === tag.color);
               if (idx >= 0 && window.WA && WA.pickColour) WA.pickColour(idx);
             }
             window.WA && WA.validate && WA.validate();
-          } catch(err) { console.warn('Auto-tag failed:', err); }
-          finally { if (labelEl) labelEl.placeholder = ''; }
+
+            // Step 3 — transform overlay to "Here's what Robes saw."
+            _setDot(3);
+            overlay.innerHTML = `
+              <h2 style="font-family:Cormorant,Georgia,serif;font-size:2rem;font-weight:400;margin:0 0 4px;color:#2A2520">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
+              <p style="font-size:13px;color:#9A8E82;margin:0 0 16px;font-family:inherit">Pre-filled from your photo. Adjust anything that isn't quite right.</p>
+              <div style="display:flex;align-items:center;gap:12px;background:#F0EBE3;border-radius:10px;padding:10px 14px;margin-bottom:20px;">
+                <img src="${dataUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:10px;letter-spacing:0.12em;color:#9A8070;margin-bottom:2px;font-family:inherit">✦ ROBES FILLED THIS IN</div>
+                  <div style="font-size:12px;color:#6A5E54;font-family:inherit">Glance over it, tweak anything, then save.</div>
+                </div>
+                <button onclick="document.getElementById('wa-reading-overlay').remove();document.getElementById('wa-file').click();" style="background:#fff;border:1px solid #D8CEBC;border-radius:20px;padding:6px 14px;font-size:12px;color:#6A5E54;cursor:pointer;font-family:inherit;white-space:nowrap;">↺ Retake</button>
+              </div>
+              <div style="margin-bottom:14px;">
+                <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:6px;font-family:inherit">ITEM NAME</label>
+                <input id="wa-saw-label" value="${(tag.label||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:#2A2520;" oninput="var l=document.getElementById('wa-label-in');if(l)l.value=this.value;">
+              </div>
+              <div style="display:flex;gap:12px;margin-bottom:14px;">
+                <div style="flex:1;">
+                  <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:6px;font-family:inherit">CATEGORY</label>
+                  <select id="wa-saw-cat" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;appearance:none;" onchange="var c=document.getElementById('wa-cat');if(c)c.value=this.value;">
+                    ${['Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear'].map(o=>`<option${tag.category===o?' selected':''}>${o}</option>`).join('')}
+                  </select>
+                </div>
+                <div style="flex:1;">
+                  <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:6px;font-family:inherit">BRAND</label>
+                  <input id="wa-saw-brand" value="${(tag.brand||'').replace(/"/g,'&quot;')}" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" oninput="var b=document.getElementById('wa-brand');if(b)b.value=this.value;">
+                </div>
+              </div>
+              <button onclick="document.getElementById('wa-reading-overlay').remove();window.WA&&WA.submit();" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;margin-top:auto;">ADD TO WARDROBE →</button>`;
+          } catch(err) {
+            clearInterval(txtInterval);
+            overlay.remove();
+            console.warn('Auto-tag failed:', err);
+          }
         };
         reader.readAsDataURL(file);
       });
