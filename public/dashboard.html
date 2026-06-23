@@ -1333,9 +1333,13 @@ document.addEventListener('DOMContentLoaded', async function() {
       }
 
       window.__rbStartMoodboard = function() {
-        const inp = document.getElementById('cp-in') || document.querySelector('.cp-input') || document.querySelector('[placeholder*="piece"]');
-        if (inp) { inp.focus(); inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-        else { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+        const ta = document.getElementById('cb-ta');
+        if (ta) {
+          ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          ta.focus();
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       };
 
       // Patch snRefreshRow to also refresh v2 sections
