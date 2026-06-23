@@ -445,9 +445,11 @@ document.addEventListener('DOMContentLoaded', async function() {
       // Patch WA.onFile — after bundle sets the tile image, fire Gemini auto-tag
       if (window.WA && WA.onFile) {
         const _origWAOnFile = WA.onFile;
-        WA.onFile = function(file) {
-          _origWAOnFile.call(this, file);
-          // Read file and call Gemini analyse endpoint
+        WA.onFile = function(input) {
+          _origWAOnFile.call(this, input);
+          // Bundle passes the <input type="file"> element, not a File object
+          const file = input && input.files ? input.files[0] : input;
+          if (!file || !(file instanceof File)) return;
           const reader = new FileReader();
           reader.onload = async function(e) {
             const dataUrl = e.target.result;
