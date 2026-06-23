@@ -49,6 +49,8 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 - Wardrobe feature: add/edit/delete items, photo upload to Cloudinary, category filtering
 - Account details modal (edit first/last name, mobile)
 - `wardrobe_items` Supabase table (schema in `supabase/wardrobe_schema.sql`)
+- Dashboard v2 layout: Wardrobe tracker → Styling Concierge (Moodboards + Style Notes sections in progress)
+- Daily Outfit concierge card: locked until 15 wardrobe items, then CTA becomes "Style today →" prefilling prompt
 
 ## Deploying
 ```bash
@@ -134,6 +136,24 @@ The dashboard bundle has private functions (`renderWardrobe`, `showView`, etc.) 
 ### Wardrobe dashboard tracker widget
 The `.tracker-num`, `.tracker-title`, `.tracker-sub`, `.tracker-fill` elements are updated by `_waSyncCounts()` to reflect real item count toward a 15-piece target with copy that scales with progress.
 
+`_WA_TITLES` milestones (0 / 1 / 5 / 10 / 15 items) control the tracker copy. At 0 items the full string is used verbatim; at 1+ items it is prefixed with `n + ' / 15 '`. The CTA reads "Add your first piece +" at 0 items and "Add pieces +" thereafter.
+
+### Dashboard v2 — Styling Concierge cards
+The bundle ships with the **old** card order: `[Weekly Planner(01), Travel Edit(02), Key Piece(03)]`. `__robes_personalize` transforms this at runtime:
+- Destructures as `const [weekly, travel, keyPiece] = svcs`
+- Relabels `keyPiece` → "Daily outfit" (title + description + adds `.svc-daily` class, clears onclick)
+- Applies inline SVG data URLs: `calSvg` → Weekly Planner image, `suitSvg` → Travel Edit image
+- Reorders DOM to `[keyPiece, weekly, travel]` and renumbers badges 01→02→03
+- `_rbUpdateDailyOutfitLock()` then adds the lock pill overlay and manages the CTA state
+
+**Critical**: do NOT use XML comments (`<!-- -->`) inside SVG data URLs — they break the URI encoding and cause the image to fail silently.
+
+### Daily Outfit lock / unlock (`_rbUpdateDailyOutfitLock`)
+- Targets `.svc-daily` card (the relabelled Key Piece card after reorder)
+- Locked state (`_waItems.length < 15`): adds `.rb-lock-wrap` pill overlay, CTA shows "N pieces to go" with lock icon, onclick shows toast
+- Unlocked state: removes pill, CTA becomes "Style today →", onclick fills `#cb-ta` with `"Dress me for a day in the city today"` and scrolls/focuses the textarea
+- Called on every `_waLoad()` completion and wardrobe item add/delete
+
 ## App flow (modal path — primary)
 1. **Landing** — email capture → `submitLandingEmail()` → Airtable `Contacts`
 2. **Flow modal opens** → Step 1: prompt/photo input
@@ -179,3 +199,5 @@ The `.tracker-num`, `.tracker-title`, `.tracker-sub`, `.tracker-fill` elements a
 - Dashboard `window.__robes_session` is set async by the bundle — always read uid/token via `_waUid()`/`_waToken()` helpers, never capture them once at init time
 - Dashboard bundle's `renderWardrobe()` is a private closure — `App.renderWardrobe` does not exist; use MutationObserver on `#wg-grid` to defend against it
 - `_waBuildFilters()` checks for existing non-onclick pills before rebuilding to avoid resetting active filter state on async reloads
+- Dashboard bundle ships `[Weekly Planner, Travel Edit, Key Piece]` — always destructure in that order; the v2 layout reorders them at runtime
+- SVG data URLs must not contain XML comments (`<!-- -->`) — they break URI encoding silently
