@@ -451,12 +451,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         const dialog = document.querySelector('#wa-modal .fm-dialog');
         if (!dialog) return;
 
+        // Ensure dialog is positioned so our fixed-inside-modal overlay works
+        if (!dialog.style.position) dialog.style.position = 'relative';
+        dialog.style.overflow = 'hidden';
+
         // Helper: set active dot (1-based)
         function _setDot(n) {
           const dotsWrap = dialog.querySelector('.fm-dots');
           if (!dotsWrap) return;
           let dots = dotsWrap.querySelectorAll('.fmd');
-          // ensure we have 3 dots
           while (dots.length < 3) { const d = document.createElement('span'); d.className = 'fmd'; dotsWrap.appendChild(d); dots = dotsWrap.querySelectorAll('.fmd'); }
           dots.forEach((d, i) => d.classList.toggle('cur', i === n - 1));
         }
@@ -467,10 +470,10 @@ document.addEventListener('DOMContentLoaded', async function() {
           const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
           if (!match) return;
 
-          // Step 2 — inject "Reading your piece…" overlay
+          // Step 2 — inject "Reading your piece…" overlay that covers the whole dialog
           let overlay = document.getElementById('wa-reading-overlay');
           if (!overlay) { overlay = document.createElement('div'); overlay.id = 'wa-reading-overlay'; dialog.appendChild(overlay); }
-          overlay.style.cssText = 'position:absolute;inset:0;background:#F8F5F0;z-index:20;display:flex;flex-direction:column;padding:20px 32px 32px;border-radius:inherit;';
+          overlay.style.cssText = 'position:absolute;inset:0;background:#F8F5F0;z-index:999;display:flex;flex-direction:column;padding:24px 32px 32px;';
           overlay.innerHTML = `
             <h2 style="font-family:Cormorant,Georgia,serif;font-size:2.2rem;font-weight:400;margin:0 0 6px;color:#2A2520">Reading your piece…</h2>
             <p style="font-size:14px;color:#9A8E82;margin:0 0 20px;font-family:inherit">One moment — Robes is looking at the photo.</p>
