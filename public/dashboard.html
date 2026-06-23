@@ -335,6 +335,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (trackerCta) {
           const ctaText = n === 0 ? 'Add your first piece' : 'Add pieces';
           trackerCta.childNodes[0].textContent = ctaText;
+          trackerCta.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            _waEditId = null;
+            if (window.WA && WA.open) WA.open();
+          };
         }
 
       }
