@@ -1836,17 +1836,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         window.__mbRunGeneration(prompt);
       }
 
-      // Replace .cb-send onclick directly — the bundle uses class="cb-send", NOT id="cb-send"
-      setTimeout(() => {
-        const sendBtn = document.querySelector('.cb-send');
-        if (sendBtn) {
-          sendBtn.onclick = function(e) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            _mbFireFromTextarea();
-          };
+      // Use capture-phase event delegation — intercepts .cb-send clicks before any onclick
+      // fires regardless of when the button is rendered or re-rendered by the bundle
+      document.addEventListener('click', function(e) {
+        if (e.target.closest('.cb-send')) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          _mbFireFromTextarea();
         }
-      }, 1200);
+      }, true);
 
       window.__rbStartMoodboard = function() {
         const ta = document.getElementById('cb-ta');
