@@ -1604,6 +1604,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             .rb-sn-grid { grid-template-columns:repeat(2,1fr); }
             .rb-mb-grid { grid-template-columns:1fr; }
           }
+          #mb-result-page .mb-main-grid { grid-template-columns:1fr !important; }
+          @media(max-width:860px){
+            #mb-result-page .mb-two-col { grid-template-columns:1fr !important; }
+            #mb-result-page .mb-sidebar { position:static !important; }
+          }
         `;
         document.head.appendChild(s);
       })();
@@ -1625,7 +1630,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       function _rbRenderMoodboards() {
         const el = document.getElementById('rb-mb');
         if (!el) return;
-        const items = snLoad().slice(0, 4);
+        const items = _mbLoad().slice(0, 2);
         const arrowSvg = `<svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
         if (!items.length) {
           el.innerHTML = `
@@ -1648,16 +1653,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             </button>`;
           return;
         }
-        const displayed = items.slice(0, 2);
         el.innerHTML = `
           <div class="rb-sec-head">
             <span class="rb-sec-ey">Moodboards for you</span>
-            <button class="rb-sec-link" onclick="window.__snOpen()">View all</button>
+            <button class="rb-sec-link" onclick="window.__mbOpenList()">View all</button>
           </div>
           <h2 class="rb-sec-h">Dress the season,<br><em>before you dress the day.</em></h2>
           <div class="rb-mb-grid">
-            ${displayed.map(item => `
-              <div class="rb-mb-card" onclick="window.__snOpenItem(${item.id})">
+            ${items.map(item => `
+              <div class="rb-mb-card" onclick="window.__mbOpenSaved(${item.id})">
                 <div class="rb-mb-imgs">
                   ${item.img
                     ? `<img src="${_waEsc(item.img)}" class="rb-mb-img-main" alt="">`
@@ -1766,14 +1770,303 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
       }
 
+      // ── Moodboard system ─────────────────────────────────────────────
+
+      // Storage (localStorage, mirrors snLoad pattern but keyed separately)
+      const MB_KEY = 'robes_moodboards';
+      function _mbLoad() { try { return JSON.parse(localStorage.getItem(MB_KEY) || '[]'); } catch { return []; } }
+      function _mbSave(items) {
+        try { localStorage.setItem(MB_KEY, JSON.stringify(items)); }
+        catch (e) { if (items.length > 1) _mbSave(items.slice(0, items.length - 1)); }
+      }
+      function _mbAdd(item) {
+        const items = _mbLoad();
+        items.unshift({ ...item, id: Date.now(), saved_at: new Date().toISOString() });
+        _mbSave(items);
+        _rbRenderMoodboards();
+      }
+      function _mbRemove(id) {
+        _mbSave(_mbLoad().filter(i => i.id !== id));
+        _rbRenderMoodboards();
+        _mbRenderPage();
+      }
+
+      // ── Prompt modal ─────────────────────────────────────────────────
+      const _mbPromptModal = document.createElement('div');
+      _mbPromptModal.id = 'mb-prompt-modal';
+      _mbPromptModal.style.cssText = 'display:none;position:fixed;inset:0;z-index:900;background:rgba(32,32,33,0.48);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:24px';
+      _mbPromptModal.style.display = 'none';
+      _mbPromptModal.innerHTML = `
+        <div style="background:#FAF8F5;border-radius:20px;padding:48px 44px 44px;max-width:560px;width:100%;position:relative;box-shadow:0 32px 80px -24px rgba(32,32,33,0.32)">
+          <button onclick="window.__mbClosePrompt()" style="position:absolute;top:18px;right:18px;background:none;border:none;cursor:pointer;color:#9E9A94;padding:4px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+          <p style="font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880;margin:0 0 14px">Moodboards</p>
+          <h2 style="font-family:'Cormorant',Georgia,serif;font-size:34px;font-weight:300;line-height:1.1;color:#202021;margin:0 0 10px">Describe a moment,<br><em style="color:#6E6A64">a trip, or a feeling.</em></h2>
+          <p style="font-size:13.5px;line-height:1.65;color:#9E9A94;margin:0 0 30px">Robes builds the board — then matches it to what you already own.</p>
+          <textarea id="mb-prompt-ta" rows="3" placeholder="e.g. Wimbledon in July, London · or · Paris Fashion Week · or · A coastal weekend in September"
+            style="width:100%;box-sizing:border-box;padding:16px 18px;border:1px solid rgba(32,32,33,0.14);border-radius:12px;background:#fff;font-family:inherit;font-size:14px;line-height:1.6;color:#202021;resize:none;outline:none;transition:border-color .18s"
+            onfocus="this.style.borderColor='rgba(32,32,33,0.32)'" onblur="this.style.borderColor='rgba(32,32,33,0.14)'"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();window.__mbSubmitPrompt()}"
+          ></textarea>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
+            <p style="font-size:11.5px;color:#B8B0A6;margin:0;line-height:1.5">Robes will match pieces<br>to your wardrobe automatically.</p>
+            <button id="mb-submit-btn" onclick="window.__mbSubmitPrompt()" style="display:inline-flex;align-items:center;gap:9px;padding:14px 26px;border-radius:100px;background:#202021;color:#FAF8F5;font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;border:none;cursor:pointer;transition:opacity .18s">
+              Build board
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+          </div>
+        </div>`;
+      document.body.appendChild(_mbPromptModal);
+
+      window.__mbClosePrompt = function() { _mbPromptModal.style.display = 'none'; };
+      _mbPromptModal.addEventListener('click', e => { if (e.target === _mbPromptModal) window.__mbClosePrompt(); });
+
       window.__rbStartMoodboard = function() {
-        const ta = document.getElementById('cb-ta');
-        if (ta) {
-          ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          ta.focus();
-        } else {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+        _mbPromptModal.style.display = 'flex';
+        setTimeout(() => document.getElementById('mb-prompt-ta')?.focus(), 60);
+      };
+
+      window.__mbSubmitPrompt = async function() {
+        const ta = document.getElementById('mb-prompt-ta');
+        const prompt = ta?.value?.trim();
+        if (!prompt) { ta?.focus(); return; }
+
+        const btn = document.getElementById('mb-submit-btn');
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Building…'; }
+
+        window.__mbClosePrompt();
+        _mbShowGenerating(prompt);
+
+        try {
+          const token = _waToken();
+          const wardrobeItems = _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, image_url: i.image_url }));
+          const headers = { 'Content-Type': 'application/json' };
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+
+          const res = await fetch('/api/moodboard', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ prompt, wardrobeItems }),
+          });
+          if (!res.ok) throw new Error('Generation failed');
+          const data = await res.json();
+          _mbShowResult({ ...data, prompt });
+        } catch (e) {
+          _mbHideGenerating();
+          _waShowToast('Could not build moodboard — please try again');
+          if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = 'Build board <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>'; }
         }
+      };
+
+      // ── Generating overlay ────────────────────────────────────────────
+      const _mbGenOverlay = document.createElement('div');
+      _mbGenOverlay.id = 'mb-gen-overlay';
+      _mbGenOverlay.style.cssText = 'display:none;position:fixed;inset:0;z-index:880;background:#FAF8F5;align-items:center;justify-content:center;flex-direction:column;gap:20px';
+      _mbGenOverlay.innerHTML = `
+        <div style="text-align:center;max-width:340px">
+          <div id="mb-gen-spinner" style="width:48px;height:48px;border:1.5px solid rgba(32,32,33,0.12);border-top-color:#202021;border-radius:50%;animation:mbSpin 0.9s linear infinite;margin:0 auto 28px"></div>
+          <p style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 12px">Robes is building your board</p>
+          <p id="mb-gen-prompt" style="font-family:'Cormorant',Georgia,serif;font-size:26px;font-weight:300;line-height:1.25;color:#202021;margin:0 0 16px"></p>
+          <p style="font-size:13px;color:#B8B0A6;line-height:1.6;margin:0">Curating the look · matching your wardrobe<br>generating the editorial image…</p>
+        </div>`;
+      document.head.insertAdjacentHTML('beforeend', '<style>@keyframes mbSpin{to{transform:rotate(360deg)}}</style>');
+      document.body.appendChild(_mbGenOverlay);
+
+      function _mbShowGenerating(prompt) {
+        const el = document.getElementById('mb-gen-prompt');
+        if (el) el.textContent = prompt;
+        _mbGenOverlay.style.display = 'flex';
+      }
+      function _mbHideGenerating() { _mbGenOverlay.style.display = 'none'; }
+
+      // ── Result page ───────────────────────────────────────────────────
+      const _mbResultPage = document.createElement('div');
+      _mbResultPage.id = 'mb-result-page';
+      _mbResultPage.style.cssText = 'display:none;position:fixed;inset:0;z-index:870;background:#FAF8F5;overflow-y:auto';
+      document.body.appendChild(_mbResultPage);
+
+      function _mbEsc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      function _mbShowResult(data) {
+        _mbHideGenerating();
+        const { title, location_context, aesthetic_tags, editorial_direction, the_look = [], hero_image, prompt } = data;
+        const tags = Array.isArray(aesthetic_tags) ? aesthetic_tags : [];
+        const matchedCount = the_look.filter(i => i.wardrobe_match).length;
+
+        _mbResultPage.innerHTML = `
+          <nav style="position:sticky;top:0;z-index:10;background:#FAF8F5;border-bottom:1px solid rgba(32,32,33,0.07);display:flex;align-items:center;gap:12px;padding:0 24px;height:56px">
+            <button onclick="window.__mbCloseResult()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6E6A64;padding:8px 0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
+              Back
+            </button>
+            <span style="font-family:'Cormorant',Georgia,serif;font-size:18px;font-weight:300;color:#202021;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_mbEsc(title)}</span>
+            <button id="mb-save-btn" onclick="window.__mbSaveMoodboard()" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:100px;background:#202021;color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer">
+              Save board
+            </button>
+          </nav>
+
+          <div style="max-width:1080px;margin:0 auto;padding:40px 24px 80px">
+
+            <!-- Context header -->
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px">
+              <div>
+                ${location_context ? `<p style="font-size:12px;font-weight:500;letter-spacing:.06em;color:#9E9A94;margin:0 0 10px">${_mbEsc(location_context)}</p>` : ''}
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  ${tags.map(t => `<span style="font-size:9.5px;font-weight:600;letter-spacing:.18em;color:#202021;background:rgba(32,32,33,0.07);padding:5px 10px;border-radius:20px">${_mbEsc(t)}</span>`).join('')}
+                </div>
+              </div>
+              ${matchedCount > 0 ? `<span style="font-size:11px;color:#5A8A5A;background:rgba(90,138,90,0.1);padding:6px 14px;border-radius:20px;white-space:nowrap">${matchedCount} piece${matchedCount > 1 ? 's' : ''} in your wardrobe</span>` : ''}
+            </div>
+
+            ${editorial_direction ? `<p style="font-size:14px;line-height:1.75;color:#6E6A64;max-width:620px;margin:0 0 36px;font-style:italic">${_mbEsc(editorial_direction)}</p>` : ''}
+
+            <!-- Main grid + sidebar -->
+            <div style="display:grid;grid-template-columns:1fr 380px;gap:40px;align-items:start">
+
+              <!-- Image grid -->
+              <div>
+                <div style="display:grid;grid-template-columns:1.4fr 1fr;grid-template-rows:auto auto;gap:10px;margin-bottom:10px">
+                  <!-- Hero image -->
+                  <div style="grid-row:1/3;border-radius:14px;overflow:hidden;background:var(--rb-mauve,#C8B8C8);min-height:480px">
+                    ${hero_image
+                      ? `<img src="${hero_image}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`
+                      : `<div style="width:100%;height:100%;min-height:480px;display:flex;align-items:flex-end;padding:24px;box-sizing:border-box">
+                           <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:rgba(32,32,33,0.55);line-height:1.3;margin:0">${_mbEsc(title)}</p>
+                         </div>`}
+                  </div>
+                  <!-- Detail tiles -->
+                  <div style="border-radius:14px;overflow:hidden;background:var(--rb-sage-mid,#A8B8A0);min-height:230px"></div>
+                  <div style="border-radius:14px;overflow:hidden;background:var(--rb-rose-mid,#C8A8A0);min-height:230px"></div>
+                </div>
+                <!-- Two atmosphere tiles -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div style="border-radius:14px;overflow:hidden;background:#E8E0D8;min-height:160px"></div>
+                  <div style="border-radius:14px;overflow:hidden;background:#D8D0C8;min-height:160px"></div>
+                </div>
+              </div>
+
+              <!-- The Look sidebar -->
+              <div style="position:sticky;top:72px">
+                <p style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 18px">The Look</p>
+                <div id="mb-look-list" style="display:flex;flex-direction:column;gap:1px;border:0.5px solid rgba(32,32,33,0.1);border-radius:14px;overflow:hidden;background:rgba(32,32,33,0.06)">
+                  ${the_look.map((item, idx) => {
+                    const m = item.wardrobe_match;
+                    return `
+                    <div style="background:#FAF8F5;padding:14px 16px;display:flex;align-items:center;gap:12px">
+                      <!-- Wardrobe thumbnail or category pill -->
+                      ${m?.image_url
+                        ? `<img src="${_mbEsc(m.image_url)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0;border:0.5px solid rgba(32,32,33,0.1)" alt="">`
+                        : `<div style="width:44px;height:44px;border-radius:8px;background:rgba(32,32,33,0.06);flex-shrink:0;display:flex;align-items:center;justify-content:center">
+                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                           </div>`}
+                      <div style="flex:1;min-width:0">
+                        <div style="font-size:12.5px;font-weight:500;color:#202021;line-height:1.3;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_mbEsc(item.name)}</div>
+                        ${m
+                          ? `<div style="font-size:10.5px;color:#5A8A5A;display:flex;align-items:center;gap:4px">
+                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                               ${_mbEsc(m.label)}
+                             </div>`
+                          : `<div style="font-size:10.5px;color:#B8B0A6">${_mbEsc(item.category)}</div>`}
+                      </div>
+                      ${!m ? `<button onclick="window.__mbSwap(${idx})" style="flex-shrink:0;padding:6px 12px;border-radius:20px;background:rgba(32,32,33,0.07);border:none;font-size:10px;font-weight:500;letter-spacing:.08em;color:#202021;cursor:pointer;white-space:nowrap">Swap</button>` : ''}
+                    </div>`;
+                  }).join('')}
+                </div>
+                ${matchedCount === 0 && _waItems.length === 0
+                  ? `<p style="font-size:12px;color:#B8B0A6;line-height:1.6;margin:16px 0 0;text-align:center">Add pieces to your wardrobe<br>and Robes will match them here.</p>`
+                  : ''}
+              </div>
+            </div>
+
+          </div>`;
+
+        // Store data for save
+        _mbResultPage._currentData = data;
+        _mbResultPage.style.display = 'block';
+        _mbResultPage.scrollTop = 0;
+      }
+
+      window.__mbCloseResult = function() { _mbResultPage.style.display = 'none'; };
+
+      window.__mbSaveMoodboard = function() {
+        const data = _mbResultPage._currentData;
+        if (!data) return;
+        _mbAdd({
+          type: 'moodboard',
+          title: data.title || data.prompt || 'Moodboard',
+          subtitle: data.location_context || '',
+          img: data.hero_image || null,
+          prompt: data.prompt,
+          the_look: data.the_look,
+          aesthetic_tags: data.aesthetic_tags,
+          location_context: data.location_context,
+          editorial_direction: data.editorial_direction,
+        });
+        const btn = document.getElementById('mb-save-btn');
+        if (btn) { btn.textContent = 'Saved ✓'; btn.style.background = '#5A8A5A'; btn.disabled = true; }
+        _waShowToast('Moodboard saved');
+      };
+
+      // ── Swap placeholder (Phase 2) ────────────────────────────────────
+      window.__mbSwap = function(idx) {
+        _waShowToast('Swap wardrobe matching — coming soon');
+      };
+
+      // ── Moodboard full list page ─────────────────────────────────────
+      const _mbListPage = document.createElement('div');
+      _mbListPage.id = 'mb-list-page';
+      _mbListPage.style.cssText = 'display:none;position:fixed;inset:0;z-index:860;background:#FAF8F5;overflow-y:auto';
+      _mbListPage.innerHTML = `
+        <nav style="position:sticky;top:0;z-index:10;background:#FAF8F5;border-bottom:1px solid rgba(32,32,33,0.07);display:flex;align-items:center;gap:12px;padding:0 24px;height:56px">
+          <button onclick="window.__mbCloseList()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6E6A64;padding:8px 0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
+            Back
+          </button>
+          <span style="font-family:'Cormorant',Georgia,serif;font-size:18px;font-weight:300;color:#202021">Your moodboards</span>
+          <button onclick="window.__rbStartMoodboard()" style="margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:100px;background:#202021;color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer">+ New</button>
+        </nav>
+        <div style="padding:32px 24px 80px;max-width:960px;margin:0 auto">
+          <div id="mb-list-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
+          <div id="mb-list-empty" style="display:none;padding:80px 0;text-align:center">
+            <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">No moodboards yet.</p>
+            <p style="font-size:13px;color:#A89880;line-height:1.6">Describe a trip or season and Robes<br>will build the board.</p>
+          </div>
+        </div>`;
+      document.body.appendChild(_mbListPage);
+
+      function _mbRenderPage() {
+        const items = _mbLoad();
+        const grid = document.getElementById('mb-list-grid');
+        const empty = document.getElementById('mb-list-empty');
+        if (!grid) return;
+        if (!items.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
+        grid.style.display = 'grid'; empty.style.display = 'none';
+        grid.innerHTML = items.map(item => `
+          <div onclick="window.__mbOpenSaved(${item.id})" style="cursor:pointer;border-radius:14px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.1);transition:box-shadow .2s" onmouseenter="this.style.boxShadow='0 12px 32px -16px rgba(32,32,33,0.18)'" onmouseleave="this.style.boxShadow='none'">
+            <div style="position:relative">
+              ${item.img
+                ? `<img src="${_mbEsc(item.img)}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" alt="">`
+                : `<div style="width:100%;aspect-ratio:4/3;background:linear-gradient(135deg,#C8B8C8,#A8B8A0)"></div>`}
+              <button onclick="event.stopPropagation();window.__mbRemoveSaved(${item.id})" style="position:absolute;top:10px;right:10px;opacity:0;transition:opacity .15s;background:rgba(32,32,33,0.55);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0'">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            <div style="padding:14px 16px 18px">
+              <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;font-weight:300;color:#202021;line-height:1.3;margin-bottom:4px">${_mbEsc(item.title)}</div>
+              <div style="font-size:11px;color:#A89880">${_mbEsc(item.subtitle || '')}</div>
+            </div>
+          </div>`).join('');
+      }
+
+      window.__mbOpenList = function() { _mbListPage.style.display = 'block'; _mbRenderPage(); };
+      window.__mbCloseList = function() { _mbListPage.style.display = 'none'; };
+      window.__mbRemoveSaved = function(id) { _mbRemove(id); };
+      window.__mbOpenSaved = function(id) {
+        const item = _mbLoad().find(i => i.id === id);
+        if (!item) return;
+        _mbListPage.style.display = 'none';
+        _mbShowResult(item);
       };
 
       // Patch snRefreshRow to also refresh v2 sections

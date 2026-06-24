@@ -473,6 +473,100 @@ Return only valid JSON, no markdown.` }
   }
 });
 
+/* ── moodboard ───────────────────────────────────────────────────── */
+app.post('/api/moodboard', rateLimit({ windowMs: 60_000, max: 5 }), async (req, res) => {
+  const { prompt, wardrobeItems = [] } = req.body;
+  if (!prompt?.trim()) return res.status(400).json({ error: 'prompt required' });
+
+  const wardrobeCtx = wardrobeItems.length
+    ? `The user's wardrobe contains these pieces: ${wardrobeItems.map(i => `${i.label} (${i.category}${i.color ? ', ' + i.color : ''})`).join('; ')}.`
+    : 'The user has not yet digitised their wardrobe.';
+
+  const systemPrompt = `You are Robes, an elite personal stylist AI. Generate a complete editorial moodboard brief. Return ONLY valid JSON with no markdown fences.`;
+
+  const userPrompt = `Styling brief: "${prompt}"
+
+${wardrobeCtx}
+
+Return exactly this JSON shape:
+{
+  "title": "Short poetic moodboard title (max 6 words)",
+  "location_context": "City · Month | temp range | short directive (e.g. London · July | 14°C–23°C | Bring a light layer)",
+  "aesthetic_tags": ["TAG1","TAG2","TAG3","TAG4"],
+  "editorial_direction": "2-sentence editorial direction. Hyper-specific — references fashion house DNA or iconic muse.",
+  "the_look": [
+    {
+      "name": "Item name",
+      "category": "Exact category matching one of: Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories",
+      "description": "Hyper-specific: cut, fabric, colour",
+      "styling_note": "One sentence on how to wear it in this context"
+    }
+  ],
+  "image_prompt": "Rich editorial fashion photography brief: garments, setting, lighting, mood. No text overlays. Portrait orientation."
+}
+
+Rules:
+- the_look: exactly 8 items
+- aesthetic_tags: ALL CAPS, 3–5 tags
+- Never use generic descriptions — name cuts, fabrics, colours precisely`;
+
+  let moodboardData;
+  try {
+    const textResult = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: 'application/json',
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: 1500,
+      },
+    });
+    const raw = textResult.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    moodboardData = JSON.parse(raw.replace(/```json|```/g, '').trim());
+  } catch (e) {
+    console.error('[moodboard] text gen failed:', e.message);
+    return res.status(500).json({ error: 'Failed to generate moodboard brief' });
+  }
+
+  // Match wardrobe items by category to look items
+  const lookItems = Array.isArray(moodboardData.the_look) ? moodboardData.the_look : [];
+  for (const lookItem of lookItems) {
+    const catLower = (lookItem.category || '').toLowerCase();
+    const match = wardrobeItems.find(wi => {
+      const wiCat = (wi.category || '').toLowerCase();
+      const wiLabel = (wi.label || '').toLowerCase();
+      return wiCat === catLower || catLower.includes(wiCat) || wiCat.includes(catLower) ||
+             wiLabel.includes(catLower.replace(/s$/, ''));
+    });
+    lookItem.wardrobe_match = match
+      ? { id: match.id, label: match.label, image_url: match.image_url || null, color: match.color || '' }
+      : null;
+  }
+
+  // Generate hero editorial image (best-effort, 40s timeout)
+  let heroImage = null;
+  try {
+    const imgCall = ai.models.generateContent({
+      model: 'gemini-3.1-flash-image',
+      contents: [{ role: 'user', parts: [{ text: `Editorial fashion photography, portrait orientation, no text. ${moodboardData.image_prompt}` }] }],
+      config: { responseModalities: ['TEXT', 'IMAGE'] },
+    }).then(r => {
+      const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      if (!part?.inlineData) return null;
+      return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+    }).catch(err => { console.warn('[moodboard] image failed:', err.message); return null; });
+
+    const timeout = new Promise(resolve => setTimeout(() => resolve(null), 40000));
+    heroImage = await Promise.race([imgCall, timeout]);
+  } catch (e) {
+    console.warn('[moodboard] image error:', e.message);
+  }
+
+  console.log('[moodboard] done — image:', heroImage ? 'yes' : 'no');
+  res.json({ ...moodboardData, the_look: lookItems, hero_image: heroImage });
+});
+
 app.post('/api/wardrobe/upload', async (req, res) => {
   const { data, mimeType } = req.body;
   if (!data || !mimeType) return res.status(400).json({ error: 'Missing data or mimeType' });
