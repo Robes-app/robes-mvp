@@ -518,10 +518,11 @@ Rules:
   let moodboardData;
   try {
     const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    // No responseMimeType — JSON mode can truncate responses; parse manually instead
     const geminiCall = (model) => ai.models.generateContent({
       model,
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      config: { systemInstruction: systemPrompt, responseMimeType: 'application/json', maxOutputTokens: 3000 },
+      config: { systemInstruction: systemPrompt, maxOutputTokens: 4000 },
     });
     let textResult;
     let lastErr;
@@ -531,7 +532,11 @@ Rules:
         try {
           const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('text gen timeout')), 35000));
           textResult = await Promise.race([geminiCall(model), timeout]);
-          console.log(`[moodboard] text ok with ${model}`);
+          const finishReason = textResult.candidates?.[0]?.finishReason;
+          console.log(`[moodboard] text ok with ${model}, finishReason: ${finishReason}`);
+          if (finishReason && finishReason !== 'STOP' && finishReason !== 'MAX_TOKENS') {
+            throw new Error(`Gemini stopped: ${finishReason}`);
+          }
           break;
         } catch (err) {
           lastErr = err;
@@ -546,9 +551,13 @@ Rules:
     }
     if (!textResult) throw lastErr || new Error('All models unavailable');
     const raw = textResult.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    console.log('[moodboard] raw response length:', raw.length, '| preview:', raw.slice(0, 300));
+    console.log('[moodboard] raw response length:', raw.length, '| preview:', raw.slice(0, 200));
     if (!raw) throw new Error('Empty response from Gemini');
-    moodboardData = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    let jsonStr = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    // Extract JSON object if model wrapped it in prose
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+    moodboardData = JSON.parse(jsonStr);
     console.log('[moodboard] parsed ok — title:', moodboardData.title);
   } catch (e) {
     console.error('[moodboard] text gen failed:', e.message, e.stack?.split('\n')[1]);
