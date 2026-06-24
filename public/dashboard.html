@@ -545,34 +545,31 @@ document.addEventListener('DOMContentLoaded', async function() {
           _setDot(3);
           const cats = ['Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear'];
 
-          const COLOUR_ROWS = [
-            { label: 'Foundations', swatches: [
-              { name: 'White',     hex: '#FFFFFF' },
-              { name: 'Cream',     hex: '#F5F0DC' },
-              { name: 'Navy',      hex: '#2C3E50' },
-              { name: 'Charcoal',  hex: '#4A4A4A' },
-              { name: 'Black',     hex: '#1A1A1A' },
-              { name: 'Espresso',  hex: '#2B1E18' },
-            ]},
-            { label: 'Dimension Builders', swatches: [
-              { name: 'Camel',     hex: '#D2B48C' },
-              { name: 'Taupe',     hex: '#8B8589' },
-              { name: 'Olive',     hex: '#556B2F' },
-              { name: 'Aubergine', hex: '#4B0082' },
-              { name: 'Forest',    hex: '#123524' },
-              { name: 'Bordeaux',  hex: '#4A0E17' },
-              { name: 'Blush',     hex: '#E6C2B6' },
-            ]},
-            { label: 'Exclamation Points', swatches: [
-              { name: 'Ochre',      hex: '#D4AF37' },
-              { name: 'Magenta',    hex: '#E8206B' },
-              { name: 'Cobalt',     hex: '#0047AB' },
-              { name: 'Emerald',    hex: '#00A86B' },
-              { name: 'Vermillion', hex: '#E8420E' },
-              { name: 'Acid',       hex: '#E1FD2E' },
-              { name: 'Print',      hex: null      },
-            ]},
+          // Flat ordered swatch list — grouped logically but displayed as 2 clean rows
+          const ALL_SWATCHES = [
+            { name: 'White',      hex: '#FFFFFF', tier: 'Foundations' },
+            { name: 'Cream',      hex: '#F5F0DC', tier: 'Foundations' },
+            { name: 'Navy',       hex: '#2C3E50', tier: 'Foundations' },
+            { name: 'Charcoal',   hex: '#4A4A4A', tier: 'Foundations' },
+            { name: 'Black',      hex: '#1A1A1A', tier: 'Foundations' },
+            { name: 'Espresso',   hex: '#2B1E18', tier: 'Foundations' },
+            { name: 'Camel',      hex: '#D2B48C', tier: 'Dimension Builders' },
+            { name: 'Taupe',      hex: '#8B8589', tier: 'Dimension Builders' },
+            { name: 'Olive',      hex: '#556B2F', tier: 'Dimension Builders' },
+            { name: 'Aubergine',  hex: '#4B0082', tier: 'Dimension Builders' },
+            { name: 'Forest',     hex: '#123524', tier: 'Dimension Builders' },
+            { name: 'Bordeaux',   hex: '#4A0E17', tier: 'Dimension Builders' },
+            { name: 'Blush',      hex: '#E6C2B6', tier: 'Dimension Builders' },
+            { name: 'Ochre',      hex: '#D4AF37', tier: 'Exclamation Points' },
+            { name: 'Magenta',    hex: '#E8206B', tier: 'Exclamation Points' },
+            { name: 'Cobalt',     hex: '#0047AB', tier: 'Exclamation Points' },
+            { name: 'Emerald',    hex: '#00A86B', tier: 'Exclamation Points' },
+            { name: 'Vermillion', hex: '#E8420E', tier: 'Exclamation Points' },
+            { name: 'Acid',       hex: '#E1FD2E', tier: 'Exclamation Points' },
+            { name: 'Print',      hex: null,      tier: 'Exclamation Points' },
           ];
+          const ROW1 = ALL_SWATCHES.slice(0, 10);
+          const ROW2 = ALL_SWATCHES.slice(10);
 
           // Map Gemini's returned colour names → our fashion names
           const GEMINI_MAP = {
@@ -606,7 +603,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
           const printBg = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M-1,1 l2,-2 M0,8 l8,-8 M7,9 l2,-2' stroke='%23A89880' stroke-width='1.5'/%3E%3C/svg%3E\") #EDE8E0";
 
-          function _swHTML(sw, ri, si) {
+          function _swHTML(sw) {
             const sel = sw.name === initColor;
             const lum = _lum(sw.hex);
             const chkColor = lum < 130 ? '#fff' : '#2A2520';
@@ -616,16 +613,12 @@ document.addEventListener('DOMContentLoaded', async function() {
               : 'box-shadow:inset 0 1px 3px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.07)';
             const outline = sel ? 'outline:2.5px solid #2A2520;outline-offset:2.5px' : '';
             const chk = sel ? `<svg style="position:absolute;inset:0;margin:auto;display:block;pointer-events:none" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="${chkColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` : '';
-            return `<button title="${sw.name}" onclick="window.__rbPickSwatch(this,'${sw.name}')" style="position:relative;width:28px;height:28px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0;${bg};${shadow};${outline}" aria-label="${sw.name}">${chk}</button>`;
+            return `<button aria-label="${sw.name}" onclick="window.__rbPickSwatch(this,'${sw.name}')" onmouseenter="var l=document.getElementById('rb-sw-label');if(l)l.textContent='${sw.name}'" onmouseleave="var l=document.getElementById('rb-sw-label');if(l)l.textContent=window.__waSawColor||''" style="position:relative;width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0;${bg};${shadow};${outline}">${chk}</button>`;
           }
 
-          const rowsHTML = COLOUR_ROWS.map((row, ri) => `
-            <div style="margin-bottom:10px;">
-              <div style="font-size:9px;letter-spacing:0.12em;color:#B0A090;margin-bottom:6px;text-transform:uppercase;">${row.label}</div>
-              <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                ${row.swatches.map((sw,si) => _swHTML(sw,ri,si)).join('')}
-              </div>
-            </div>`).join('');
+          const rowsHTML = `
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">${ROW1.map(_swHTML).join('')}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">${ROW2.map(_swHTML).join('')}</div>`;
 
           step.innerHTML = `
             <h2 class="fm-h" style="margin-bottom:4px;">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
@@ -670,13 +663,13 @@ document.addEventListener('DOMContentLoaded', async function() {
           window.__rbPickSwatch = function(el, name) {
             window.__waSawColor = name;
             document.querySelectorAll('#wa-modal button[aria-label]').forEach(function(b) {
-              b.style.outline = '';
-              const chk = b.querySelector('svg');
-              if (chk) chk.remove();
+              b.style.outline = ''; b.style.outlineOffset = '';
+              const chk = b.querySelector('svg'); if (chk) chk.remove();
             });
             el.style.outline = '2.5px solid #2A2520';
             el.style.outlineOffset = '2.5px';
-            const lum = _lum(el.style.background.match(/#([0-9a-fA-F]{6})/)?.[1] ? '#'+el.style.background.match(/#([0-9a-fA-F]{6})/)[1] : null);
+            const hexMatch = el.style.background && el.style.background.match(/#([0-9a-fA-F]{6})/);
+            const lum = _lum(hexMatch ? '#' + hexMatch[1] : null);
             const chkColor = lum < 130 ? '#fff' : '#2A2520';
             const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
             svg.setAttribute('width','11'); svg.setAttribute('height','11'); svg.setAttribute('viewBox','0 0 11 11');
@@ -685,8 +678,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             path.setAttribute('d','M1.5 5.5l3 3 5-5'); path.setAttribute('stroke',chkColor);
             path.setAttribute('stroke-width','1.8'); path.setAttribute('stroke-linecap','round'); path.setAttribute('stroke-linejoin','round');
             svg.appendChild(path); el.appendChild(svg);
-            const lbl = document.getElementById('rb-sw-label');
-            if (lbl) lbl.textContent = name;
+            // Update label on click too (covers mobile where hover never fires)
+            const lbl = document.getElementById('rb-sw-label'); if (lbl) lbl.textContent = name;
           };
 
           window.__waSawLabel = tag.label || '';

@@ -414,7 +414,26 @@ app.post('/api/wardrobe/analyse', async (req, res) => {
         role: 'user',
         parts: [
           { inlineData: { mimeType, data } },
-          { text: 'You are the data engine for a fashion wardrobe app. Analyze this clothing item photo. Return a strict JSON object with exactly five keys: "label" (string, concise item name e.g. "Grey cashmere crewneck"), "category" (string, one of: Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Other), "color" (string, pick the CLOSEST match to the dominant color from ONLY these exact options — White, Cream, Navy, Charcoal, Black, Espresso, Camel, Taupe, Olive, Aubergine, Forest, Bordeaux, Blush, Ochre, Magenta, Cobalt, Emerald, Vermillion, Acid, Print — never return a value outside this list; use Print for patterns, stripes, or multi-color), "brand" (string, brand name if a logo or label is clearly visible, otherwise empty string), "notes" (string, one short editorial sentence about the piece — fabric, silhouette, or occasion — max 12 words, e.g. "Double-faced wool. The cold-weather anchor." — empty string if uncertain). Return only the JSON object, no markdown.' }
+          { text: `You are the color intelligence engine for a luxury fashion wardrobe app. Analyze this clothing item photo using color theory, saturation, and fabric coverage.
+
+Return a strict JSON object with exactly five keys:
+
+"label": concise item name (e.g. "Cream wool overcoat", "Yellow flared maxi skirt")
+
+"category": one of exactly — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Other
+
+"color": apply these three extraction rules in order, then pick from the allowed list:
+  RULE 1 — FOUNDATIONS (high coverage, anchor pieces, high contrast): if the dominant color maps to near-white, near-black, deep navy, charcoal grey, or dark brown → pick from: White, Cream, Navy, Charcoal, Black, Espresso
+  RULE 2 — DIMENSION BUILDERS (low-to-mid saturation, earthy depth, muted richness): if the color has brown, grey or muted undertones at mid-range value → pick from: Camel, Taupe, Olive, Aubergine, Forest, Bordeaux, Blush
+  RULE 3 — EXCLAMATION POINTS (high vibrancy/saturation, statement accents): if the color is clearly saturated or bright → pick from: Ochre, Magenta, Cobalt, Emerald, Vermillion, Acid
+  RULE 4 — PRINT: if the garment has multiple contrasting colors, stripes, florals, houndstooth, or any pattern → always return: Print
+  NEVER return a value outside this complete allowed list: White, Cream, Navy, Charcoal, Black, Espresso, Camel, Taupe, Olive, Aubergine, Forest, Bordeaux, Blush, Ochre, Magenta, Cobalt, Emerald, Vermillion, Acid, Print
+
+"brand": brand name if a logo or label is clearly visible, otherwise empty string
+
+"notes": one short editorial sentence about fabric, silhouette, or occasion — max 12 words (e.g. "Double-faced wool. The cold-weather anchor.") — empty string if uncertain
+
+Return only the JSON object, no markdown.` }
         ]
       }],
       config: { responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 200 }
