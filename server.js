@@ -517,25 +517,34 @@ Rules:
 
   let moodboardData;
   try {
-    const geminiCall = () => ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    const geminiCall = (model) => ai.models.generateContent({
+      model,
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      config: { systemInstruction: systemPrompt, responseMimeType: 'application/json', maxOutputTokens: 1500 },
+      config: { systemInstruction: systemPrompt, responseMimeType: 'application/json', maxOutputTokens: 3000 },
     });
     let textResult;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt > 0) await new Promise(r => setTimeout(r, attempt * 2000));
-      try {
-        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('text gen timeout')), 30000));
-        textResult = await Promise.race([geminiCall(), timeout]);
-        break;
-      } catch (err) {
-        const errStr = err.message || '';
-        const is503 = errStr.includes('503') || errStr.includes('UNAVAILABLE') || errStr.includes('high demand') || errStr.includes('currently experiencing');
-        if (is503 && attempt < 2) { console.warn(`[moodboard] 503 attempt ${attempt + 1}, retrying...`); continue; }
-        throw err;
+    let lastErr;
+    for (const model of MODELS) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+        try {
+          const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('text gen timeout')), 35000));
+          textResult = await Promise.race([geminiCall(model), timeout]);
+          console.log(`[moodboard] text ok with ${model}`);
+          break;
+        } catch (err) {
+          lastErr = err;
+          const errStr = err.message || '';
+          const is503 = errStr.includes('503') || errStr.includes('UNAVAILABLE') || errStr.includes('high demand') || errStr.includes('currently experiencing');
+          if (is503) { console.warn(`[moodboard] 503 on ${model} attempt ${attempt + 1}`); continue; }
+          throw err;
+        }
       }
+      if (textResult) break;
+      console.warn(`[moodboard] falling back from ${model}`);
     }
+    if (!textResult) throw lastErr || new Error('All models unavailable');
     const raw = textResult.candidates?.[0]?.content?.parts?.[0]?.text || '';
     console.log('[moodboard] raw response length:', raw.length, '| preview:', raw.slice(0, 300));
     if (!raw) throw new Error('Empty response from Gemini');

@@ -1836,19 +1836,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         window.__mbRunGeneration(prompt);
       }
 
-      // Intercept Dash.send so typing directly in the concierge box and hitting STYLE ME
-      // also routes through our moodboard generation instead of the bundle's mock flow.
+      // Replace #cb-send onclick directly — more reliable than patching window.Dash
+      // (Dash may be a local bundle variable, not on window)
       setTimeout(() => {
-        if (window.Dash && typeof window.Dash.send === 'function') {
-          const _origDashSend = window.Dash.send.bind(window.Dash);
-          window.Dash.send = function() {
-            const ta = document.getElementById('cb-ta');
-            const prompt = ta && ta.value.trim();
-            if (prompt) {
-              _mbFireFromTextarea();
-            } else {
-              _origDashSend();
-            }
+        const sendBtn = document.getElementById('cb-send');
+        if (sendBtn) {
+          sendBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            _mbFireFromTextarea();
           };
         }
       }, 1200);
