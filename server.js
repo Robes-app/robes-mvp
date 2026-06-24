@@ -414,33 +414,60 @@ app.post('/api/wardrobe/analyse', async (req, res) => {
         role: 'user',
         parts: [
           { inlineData: { mimeType, data } },
-          { text: `You are the color intelligence engine for a luxury fashion wardrobe app. Analyze this clothing item photo using color theory, saturation, and fabric coverage.
+          { text: `You are a fashion intelligence engine for a luxury wardrobe app. Analyze this clothing item photo and return a single strict JSON object with exactly these keys:
 
-Return a strict JSON object with exactly five keys:
+"label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans")
+"category": one of exactly — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other
+"color": apply rules in order, return ONLY from the allowed list:
+  RULE 1 — FOUNDATIONS (near-white/black/navy/charcoal/dark brown): White, Cream, Navy, Charcoal, Black, Espresso
+  RULE 2 — DIMENSION BUILDERS (earthy, muted, mid-saturation): Camel, Taupe, Olive, Aubergine, Forest, Bordeaux, Blush
+  RULE 3 — EXCLAMATION POINTS (high vibrancy): Ochre, Magenta, Cobalt, Emerald, Vermillion, Acid
+  RULE 4 — PRINT (patterns, stripes, florals, houndstooth, multiple contrasting colors): Print
+"primary_color_hex": the closest solid hex code for the dominant color (e.g. "#D2B48C")
+"editorial_color_name": an evocative editorial name for the color (e.g. "Washed Slate", "Warm Caramel", "Deep Espresso")
+"brand": brand name if clearly visible, else empty string
+"silhouette_fit": array of up to 4 descriptors from the GUARDRAIL TAXONOMY below
+"ai_generated_notes": one editorial sentence, max 15 words, on fabric, silhouette, or how to style it
 
-"label": concise item name (e.g. "Cream wool overcoat", "Yellow flared maxi skirt")
-
-"category": one of exactly — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Other
-
-"color": apply these three extraction rules in order, then pick from the allowed list:
-  RULE 1 — FOUNDATIONS (high coverage, anchor pieces, high contrast): if the dominant color maps to near-white, near-black, deep navy, charcoal grey, or dark brown → pick from: White, Cream, Navy, Charcoal, Black, Espresso
-  RULE 2 — DIMENSION BUILDERS (low-to-mid saturation, earthy depth, muted richness): if the color has brown, grey or muted undertones at mid-range value → pick from: Camel, Taupe, Olive, Aubergine, Forest, Bordeaux, Blush
-  RULE 3 — EXCLAMATION POINTS (high vibrancy/saturation, statement accents): if the color is clearly saturated or bright → pick from: Ochre, Magenta, Cobalt, Emerald, Vermillion, Acid
-  RULE 4 — PRINT: if the garment has multiple contrasting colors, stripes, florals, houndstooth, or any pattern → always return: Print
-  NEVER return a value outside this complete allowed list: White, Cream, Navy, Charcoal, Black, Espresso, Camel, Taupe, Olive, Aubergine, Forest, Bordeaux, Blush, Ochre, Magenta, Cobalt, Emerald, Vermillion, Acid, Print
-
-"brand": brand name if a logo or label is clearly visible, otherwise empty string
-
-"notes": one short editorial sentence about fabric, silhouette, or occasion — max 12 words (e.g. "Double-faced wool. The cold-weather anchor.") — empty string if uncertain
+GUARDRAIL TAXONOMY for silhouette_fit:
+Tops: sub-type from [Shirt, Blouse, T-Shirt, Knitwear/Sweater, Camisole, Sweatshirt] + fit from [Fitted, Oversized, Boxy, Tailored, Cropped, Regular]
+Bottoms: sub-type from [Jeans, Trousers, Skirt, Shorts] + silhouette from [Straight-leg, Wide-leg, Flare, Slim, Tailored, Pleated] + rise from [High-rise, Mid-rise]
+Outerwear: sub-type from [Coat, Blazer, Jacket, Trench] + details from [Double-breasted, Single-breasted, Oversized, Cropped, Belted, Unlined, Lined]
+Dresses: sub-type from [Mini, Midi, Maxi, Wrap, Shirt dress] + silhouette from [Fitted, A-line, Slip, Structured, Oversized]
+Shoes: sub-type from [Heels, Boots, Loafers, Sneakers, Sandals, Flats, Mules] + heel from [Flat, Block heel, Stiletto, Wedge] if applicable
+Bags: sub-type from [Tote, Shoulder bag, Clutch, Crossbody, Bucket bag, Backpack]
+Accessories: sub-type from [Belt, Scarf, Hat, Jewellery, Sunglasses, Other]
 
 Return only the JSON object, no markdown.` }
         ]
       }],
-      config: { responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 200 }
+      config: { responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 500 }
     });
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
     const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
-    res.json({ label: parsed.label || '', category: parsed.category || 'Other', color: parsed.color || '', brand: parsed.brand || '', notes: parsed.notes || '' });
+
+    const item_dna = {
+      display: {
+        title: parsed.label || '',
+        editorial_color_name: parsed.editorial_color_name || '',
+        primary_color_hex: parsed.primary_color_hex || '',
+        brand_raw: parsed.brand || '',
+      },
+      structural_dna: {
+        silhouette_fit: Array.isArray(parsed.silhouette_fit) ? parsed.silhouette_fit : [],
+      },
+      llm_styling_context: {},
+      ai_generated_notes: parsed.ai_generated_notes || '',
+    };
+
+    res.json({
+      label: parsed.label || '',
+      category: parsed.category || 'Other',
+      color: parsed.color || '',
+      brand: parsed.brand || '',
+      notes: parsed.ai_generated_notes || '',
+      item_dna,
+    });
   } catch (err) {
     console.error('Gemini wardrobe analyse error:', err.message);
     res.status(500).json({ error: 'Analysis failed' });

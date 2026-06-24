@@ -422,8 +422,42 @@ document.addEventListener('DOMContentLoaded', async function() {
           if (notes) notes.value = it.notes   || '';
           if (cta)   cta.textContent = 'Update piece';
 
+          // Store item_dna for WA.submit to save back
+          window.__waSawItemDna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : {};
+
           // Inject custom swatches + pre-select the saved colour
           if (window.__rbInjectSwatches) window.__rbInjectSwatches(it.color || '');
+
+          // Render silhouette pills from item_dna if present
+          const dnaFit = it.item_dna && it.item_dna.structural_dna && Array.isArray(it.item_dna.structural_dna.silhouette_fit)
+            ? it.item_dna.structural_dna.silhouette_fit : [];
+          if (dnaFit.length) {
+            window.__waSawFit = dnaFit.slice();
+            // Inject pills section after swatch container
+            const swatchContainer = document.getElementById('wa-swatches');
+            if (swatchContainer && !document.getElementById('rb-fit-pills-wrap')) {
+              const wrap = document.createElement('div');
+              wrap.id = 'rb-fit-pills-wrap';
+              wrap.style.cssText = 'margin-top:12px;';
+              wrap.innerHTML = `<label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:8px;">SILHOUETTE &amp; FIT</label><div id="rb-fit-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>`;
+              swatchContainer.parentNode.insertBefore(wrap, swatchContainer.nextSibling);
+            }
+            window.__rbRemovePill = function(i) {
+              window.__waSawFit.splice(i, 1);
+              if (window.__waSawItemDna && window.__waSawItemDna.structural_dna) {
+                window.__waSawItemDna.structural_dna.silhouette_fit = window.__waSawFit.slice();
+              }
+              _rbRenderEditPills();
+            };
+            function _rbRenderEditPills() {
+              const c = document.getElementById('rb-fit-pills');
+              if (!c) return;
+              c.innerHTML = window.__waSawFit.map(function(p, i) {
+                return `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C8B8A2;border-radius:20px;font-size:12px;color:#4A3F35;background:#FAF8F5;white-space:nowrap;">${p}<button onclick="window.__rbRemovePill(${i})" style="background:none;border:none;cursor:pointer;color:#9A8E82;font-size:13px;line-height:1;padding:0;margin-left:2px;">×</button></span>`;
+              }).join('');
+            }
+            _rbRenderEditPills();
+          }
 
           // Show existing photo
           if (it.image_url) {
@@ -648,8 +682,32 @@ document.addEventListener('DOMContentLoaded', async function() {
 
           const initColor = GEMINI_MAP[tag.color] || tag.color || '';
           window.__waSawColor = initColor;
+          window.__waSawItemDna = tag.item_dna || {};
 
           const rowsHTML = _buildSwatchRows(initColor);
+
+          // Silhouette & fit pills from structural_dna
+          const fitPills = (tag.item_dna && tag.item_dna.structural_dna && Array.isArray(tag.item_dna.structural_dna.silhouette_fit))
+            ? tag.item_dna.structural_dna.silhouette_fit
+            : [];
+          window.__waSawFit = fitPills.slice();
+
+          function _renderFitPills() {
+            const container = document.getElementById('rb-fit-pills');
+            if (!container) return;
+            container.innerHTML = window.__waSawFit.map(function(p, i) {
+              return `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C8B8A2;border-radius:20px;font-size:12px;color:#4A3F35;background:#FAF8F5;white-space:nowrap;">${p}<button onclick="window.__rbRemovePill(${i})" style="background:none;border:none;cursor:pointer;color:#9A8E82;font-size:13px;line-height:1;padding:0;margin-left:2px;">×</button></span>`;
+            }).join('');
+          }
+          window.__rbRemovePill = function(i) {
+            window.__waSawFit.splice(i, 1);
+            if (window.__waSawItemDna && window.__waSawItemDna.structural_dna) {
+              window.__waSawItemDna.structural_dna.silhouette_fit = window.__waSawFit.slice();
+            }
+            _renderFitPills();
+          };
+
+          const aiNotes = (tag.item_dna && tag.item_dna.ai_generated_notes) || tag.notes || '';
 
           step.innerHTML = `
             <h2 class="fm-h" style="margin-bottom:4px;">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
@@ -685,16 +743,23 @@ document.addEventListener('DOMContentLoaded', async function() {
               </div>
               ${rowsHTML}
             </div>
+            ${fitPills.length ? `<div style="margin-bottom:12px;">
+              <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:8px;">SILHOUETTE &amp; FIT</label>
+              <div id="rb-fit-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+            </div>` : ''}
             <div style="margin-bottom:16px;">
               <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">NOTES <span style="font-weight:400;letter-spacing:0;text-transform:none;color:#B0A090;">optional</span></label>
-              <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${(tag.notes||'').replace(/</g,'&lt;')}</textarea>
+              <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${aiNotes.replace(/</g,'&lt;')}</textarea>
             </div>
             <button onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
+
+          // Render pills after innerHTML is set
+          _renderFitPills();
 
           window.__waSawLabel = tag.label || '';
           window.__waSawCat   = tag.category || '';
           window.__waSawBrand = tag.brand || '';
-          window.__waSawNotes = tag.notes  || '';
+          window.__waSawNotes = aiNotes;
           window.__waRetake   = function() { _showStep1(); };
           window.__waSawSubmit = function() {
             const step = document.querySelector('#wa-modal .fm-step');
@@ -802,14 +867,23 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
 
             const colorName = (document.getElementById('wa-sw-name') || {}).textContent && document.getElementById('wa-sw-name').textContent.trim();
+            // Merge current colour + notes into item_dna before saving
+            const savedDna = window.__waSawItemDna || {};
+            if (colorName) {
+              savedDna.display = Object.assign({}, savedDna.display || {}, { editorial_color_name: colorName });
+            }
+            const notesVal = ((document.getElementById('wa-notes') || {}).value || '').trim() || null;
+            if (notesVal) savedDna.ai_generated_notes = notesVal;
+
             const payload = {
               user_id:   _waUid(),
               label,
               category:  (document.getElementById('wa-cat')   || {}).value || 'Other',
               color:     colorName || null,
               brand:     ((document.getElementById('wa-brand') || {}).value || '').trim() || null,
-              notes:     ((document.getElementById('wa-notes') || {}).value || '').trim() || null,
+              notes:     notesVal,
               image_url: imageUrl,
+              item_dna:  Object.keys(savedDna).length ? savedDna : undefined,
             };
 
             if (editId) {
