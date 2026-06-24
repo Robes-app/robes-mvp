@@ -1794,44 +1794,48 @@ document.addEventListener('DOMContentLoaded', async function() {
       // ── Moodboard entry: scroll + prefill the main concierge textarea ──
       const _MB_PLACEHOLDER = 'A week in the South of France in August…';
       const _CB_PLACEHOLDER = "Tell Robes where you're going, or the look you're after…";
-      let _mbIntercepting = false;
 
-      function _mbArmIntercept() {
-        if (_mbIntercepting) return;
-        _mbIntercepting = true;
+      // Inject a dedicated moodboard submit button once, hidden by default
+      const _mbInlineBtn = document.createElement('button');
+      _mbInlineBtn.id = 'mb-inline-btn';
+      _mbInlineBtn.textContent = 'Build moodboard';
+      _mbInlineBtn.style.cssText = 'display:none;position:absolute;bottom:12px;right:12px;z-index:10;' +
+        'padding:10px 20px;border-radius:100px;background:#202021;color:#FAF8F5;' +
+        'font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;' +
+        'border:none;cursor:pointer;box-shadow:0 4px 16px -4px rgba(32,32,33,0.28);' +
+        'transition:opacity .18s';
+      _mbInlineBtn.onclick = function() { _mbFireFromTextarea(); };
+      // Append to body; we'll reposition it over the textarea on show
+      document.body.appendChild(_mbInlineBtn);
 
+      function _mbShowInlineBtn() {
         const ta = document.getElementById('cb-ta');
-        const sendBtn = document.getElementById('cb-send');
-        if (!ta || !sendBtn) { _mbIntercepting = false; return; }
+        if (!ta) return;
+        const rect = ta.getBoundingClientRect();
+        _mbInlineBtn.style.cssText = _mbInlineBtn.style.cssText
+          .replace(/top:[^;]+;?/, '').replace(/left:[^;]+;?/, '')
+          .replace(/bottom:[^;]+;?/, '').replace(/right:[^;]+;?/, '');
+        _mbInlineBtn.style.position = 'fixed';
+        _mbInlineBtn.style.bottom = (window.innerHeight - rect.bottom + 12) + 'px';
+        _mbInlineBtn.style.right = (window.innerWidth - rect.right + 12) + 'px';
+        _mbInlineBtn.style.display = 'block';
+      }
 
-        function _disarm() {
-          sendBtn.onclick = _origOnclick;
-          ta.removeEventListener('keydown', _onKeydown);
+      function _mbHideInlineBtn() {
+        _mbInlineBtn.style.display = 'none';
+      }
+
+      function _mbFireFromTextarea() {
+        const ta = document.getElementById('cb-ta');
+        const prompt = (ta && ta.value.trim()) || '';
+        _mbHideInlineBtn();
+        if (ta) {
           ta.placeholder = _CB_PLACEHOLDER;
-          _mbIntercepting = false;
-        }
-
-        const _origOnclick = sendBtn.onclick;
-
-        function _fire() {
-          const prompt = ta.value.trim();
-          _disarm();
-          if (!prompt) return;
           ta.value = '';
           ta.dispatchEvent(new Event('input'));
-          window.__mbRunGeneration(prompt);
         }
-
-        function _onKeydown(e) {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            _fire();
-          }
-        }
-
-        sendBtn.onclick = function(e) { e.preventDefault(); e.stopImmediatePropagation(); _fire(); };
-        ta.addEventListener('keydown', _onKeydown, { capture: true });
+        if (!prompt) return;
+        window.__mbRunGeneration(prompt);
       }
 
       window.__rbStartMoodboard = function() {
@@ -1842,9 +1846,34 @@ document.addEventListener('DOMContentLoaded', async function() {
         ta.placeholder = _MB_PLACEHOLDER;
         ta.dispatchEvent(new Event('input'));
         ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setTimeout(() => ta.focus(), 320);
+        setTimeout(() => {
+          ta.focus();
+          _mbShowInlineBtn();
+        }, 320);
 
-        _mbArmIntercept();
+        // Capture Enter key in the textarea to also fire moodboard
+        function _mbTaKeydown(e) {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            ta.removeEventListener('keydown', _mbTaKeydown, true);
+            _mbFireFromTextarea();
+          }
+        }
+        ta.addEventListener('keydown', _mbTaKeydown, true);
+
+        // Dismiss inline button if user clicks elsewhere
+        setTimeout(() => {
+          function _mbOutsideClick(e) {
+            if (!_mbInlineBtn.contains(e.target) && e.target !== ta) {
+              _mbHideInlineBtn();
+              ta.placeholder = _CB_PLACEHOLDER;
+              ta.removeEventListener('keydown', _mbTaKeydown, true);
+              document.removeEventListener('click', _mbOutsideClick, true);
+            }
+          }
+          document.addEventListener('click', _mbOutsideClick, true);
+        }, 400);
       };
 
       window.__mbRunGeneration = async function(prompt) {
