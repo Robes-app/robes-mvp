@@ -422,12 +422,8 @@ document.addEventListener('DOMContentLoaded', async function() {
           if (notes) notes.value = it.notes   || '';
           if (cta)   cta.textContent = 'Update piece';
 
-          // Pre-select colour swatch by name
-          if (it.color) {
-            const swatches = [...document.querySelectorAll('#wa-swatches .wa-sw')];
-            const idx = swatches.findIndex(s => s.title === it.color || s.getAttribute('aria-label') === it.color);
-            if (idx >= 0 && WA.pickColour) WA.pickColour(idx);
-          }
+          // Inject custom swatches + pre-select the saved colour
+          if (window.__rbInjectSwatches) window.__rbInjectSwatches(it.color || '');
 
           // Show existing photo
           if (it.image_url) {
@@ -459,6 +455,90 @@ document.addEventListener('DOMContentLoaded', async function() {
           st.textContent = '@keyframes wa-spin{to{transform:rotate(360deg)}}';
           document.head.appendChild(st);
         }
+
+        // Shared swatch data + renderer — used by both add (step 3) and edit modal
+        const _ALL_SWATCHES = [
+          { name: 'White',      hex: '#FFFFFF', tier: 'Foundations' },
+          { name: 'Cream',      hex: '#F5F5DC', tier: 'Foundations' },
+          { name: 'Navy',       hex: '#2C3E50', tier: 'Foundations' },
+          { name: 'Charcoal',   hex: '#4A4A4A', tier: 'Foundations' },
+          { name: 'Black',      hex: '#000000', tier: 'Foundations' },
+          { name: 'Espresso',   hex: '#2B1E18', tier: 'Foundations' },
+          { name: 'Camel',      hex: '#D2B48C', tier: 'Dimension Builders' },
+          { name: 'Taupe',      hex: '#8B8589', tier: 'Dimension Builders' },
+          { name: 'Olive',      hex: '#556B2F', tier: 'Dimension Builders' },
+          { name: 'Aubergine',  hex: '#4B0082', tier: 'Dimension Builders' },
+          { name: 'Forest',     hex: '#123524', tier: 'Dimension Builders' },
+          { name: 'Bordeaux',   hex: '#4A0E17', tier: 'Dimension Builders' },
+          { name: 'Blush',      hex: '#E6C2B6', tier: 'Dimension Builders' },
+          { name: 'Ochre',      hex: '#D4AF37', tier: 'Exclamation Points' },
+          { name: 'Magenta',    hex: '#FF1493', tier: 'Exclamation Points' },
+          { name: 'Cobalt',     hex: '#0047AB', tier: 'Exclamation Points' },
+          { name: 'Emerald',    hex: '#00A86B', tier: 'Exclamation Points' },
+          { name: 'Vermillion', hex: '#FF4500', tier: 'Exclamation Points' },
+          { name: 'Acid',       hex: '#E1FD2E', tier: 'Exclamation Points' },
+          { name: 'Multi',      hex: null,      tier: 'Exclamation Points' },
+          { name: 'Print',      hex: null,      tier: 'Exclamation Points' },
+        ];
+        const _printBg = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M-1,1 l2,-2 M0,8 l8,-8 M7,9 l2,-2' stroke='%23A89880' stroke-width='1.5'/%3E%3C/svg%3E\") #EDE8E0";
+        const _multiBg = "conic-gradient(#FF1493,#FF4500,#E1FD2E,#00A86B,#0047AB,#4B0082,#FF1493)";
+        function _swLum(hex) {
+          if (!hex) return 200;
+          const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+          return r*0.299 + g*0.587 + b*0.114;
+        }
+        function _buildSwatchRows(selectedColor) {
+          function _swBtn(sw) {
+            const sel = sw.name === selectedColor;
+            const lum = _swLum(sw.hex);
+            const chkColor = lum < 130 ? '#fff' : '#2A2520';
+            const bg = sw.hex ? `background:${sw.hex}` : sw.name === 'Multi' ? `background:${_multiBg}` : `background:${_printBg}`;
+            const shadow = sw.hex === '#FFFFFF'
+              ? 'box-shadow:inset 0 0 0 1.5px #D0C8BC,0 1px 3px rgba(0,0,0,0.1)'
+              : 'box-shadow:inset 0 1px 3px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.07)';
+            const outline = sel ? 'outline:2.5px solid #2A2520;outline-offset:2.5px' : '';
+            const chk = sel ? `<svg style="position:absolute;inset:0;margin:auto;display:block;pointer-events:none" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="${chkColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` : '';
+            return `<button aria-label="${sw.name}" onclick="window.__rbPickSwatch(this,'${sw.name}')" onmouseenter="var l=document.getElementById('rb-sw-label');if(l)l.textContent='${sw.name}'" onmouseleave="var l=document.getElementById('rb-sw-label');if(l)l.textContent=window.__waSawColor||''" style="position:relative;width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0;${bg};${shadow};${outline}">${chk}</button>`;
+          }
+          return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">${_ALL_SWATCHES.slice(0,10).map(_swBtn).join('')}</div><div style="display:flex;flex-wrap:wrap;gap:8px;">${_ALL_SWATCHES.slice(10).map(_swBtn).join('')}</div>`;
+        }
+
+        // Inject custom swatches into any open modal form (used by edit mode)
+        window.__rbInjectSwatches = function(selectedColor) {
+          window.__waSawColor = selectedColor || '';
+          // Also write to #wa-sw-name so WA.submit can read the colour
+          const swNameEl = document.getElementById('wa-sw-name');
+          if (swNameEl) swNameEl.textContent = selectedColor || '';
+          // Replace bundle swatch container with our custom rows
+          const swatchContainer = document.getElementById('wa-swatches');
+          if (swatchContainer) {
+            swatchContainer.innerHTML = `<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;"><span style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;">COLOUR</span><span id="rb-sw-label" style="font-size:12px;color:#6A5E54;font-style:italic;">${selectedColor||''}</span></div>${_buildSwatchRows(selectedColor)}`;
+            swatchContainer.style.cssText = 'display:block';
+            return;
+          }
+        };
+
+        window.__rbPickSwatch = function(el, name) {
+          window.__waSawColor = name;
+          const swEl = document.getElementById('wa-sw-name');
+          if (swEl) swEl.textContent = name;
+          const lbl = document.getElementById('rb-sw-label');
+          if (lbl) lbl.textContent = name;
+          // Update outlines on all swatch buttons in both step-3 and edit modal
+          document.querySelectorAll('#wa-modal button[aria-label]').forEach(function(btn) {
+            const isThis = btn === el;
+            btn.style.outline = isThis ? '2.5px solid #2A2520' : '';
+            btn.style.outlineOffset = isThis ? '2.5px' : '';
+            const chkSvg = btn.querySelector('svg');
+            if (isThis && !chkSvg) {
+              const lum = _swLum(btn.style.background.includes('#') ? btn.style.background.trim() : null);
+              const chkColor = lum < 130 ? '#fff' : '#2A2520';
+              btn.insertAdjacentHTML('beforeend', `<svg style="position:absolute;inset:0;margin:auto;display:block;pointer-events:none" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="${chkColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
+            } else if (!isThis && chkSvg) {
+              chkSvg.remove();
+            }
+          });
+        };
 
         function _setDot(n) {
           const dotsWrap = document.querySelector('#wa-modal .fm-dots');
@@ -545,33 +625,6 @@ document.addEventListener('DOMContentLoaded', async function() {
           _setDot(3);
           const cats = ['Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear'];
 
-          // Flat ordered swatch list — grouped logically but displayed as 2 clean rows
-          const ALL_SWATCHES = [
-            { name: 'White',      hex: '#FFFFFF', tier: 'Foundations' },
-            { name: 'Cream',      hex: '#F5F5DC', tier: 'Foundations' },
-            { name: 'Navy',       hex: '#2C3E50', tier: 'Foundations' },
-            { name: 'Charcoal',   hex: '#4A4A4A', tier: 'Foundations' },
-            { name: 'Black',      hex: '#000000', tier: 'Foundations' },
-            { name: 'Espresso',   hex: '#2B1E18', tier: 'Foundations' },
-            { name: 'Camel',      hex: '#D2B48C', tier: 'Dimension Builders' },
-            { name: 'Taupe',      hex: '#8B8589', tier: 'Dimension Builders' },
-            { name: 'Olive',      hex: '#556B2F', tier: 'Dimension Builders' },
-            { name: 'Aubergine',  hex: '#4B0082', tier: 'Dimension Builders' },
-            { name: 'Forest',     hex: '#123524', tier: 'Dimension Builders' },
-            { name: 'Bordeaux',   hex: '#4A0E17', tier: 'Dimension Builders' },
-            { name: 'Blush',      hex: '#E6C2B6', tier: 'Dimension Builders' },
-            { name: 'Ochre',      hex: '#D4AF37', tier: 'Exclamation Points' },
-            { name: 'Magenta',    hex: '#FF1493', tier: 'Exclamation Points' },
-            { name: 'Cobalt',     hex: '#0047AB', tier: 'Exclamation Points' },
-            { name: 'Emerald',    hex: '#00A86B', tier: 'Exclamation Points' },
-            { name: 'Vermillion', hex: '#FF4500', tier: 'Exclamation Points' },
-            { name: 'Acid',       hex: '#E1FD2E', tier: 'Exclamation Points' },
-            { name: 'Multi',      hex: null,      tier: 'Exclamation Points' },
-            { name: 'Print',      hex: null,      tier: 'Exclamation Points' },
-          ];
-          const ROW1 = ALL_SWATCHES.slice(0, 10);
-          const ROW2 = ALL_SWATCHES.slice(10);
-
           // Map Gemini's returned colour names → our fashion names
           const GEMINI_MAP = {
             'White':'White','Cream':'Cream','Alabaster':'Cream',
@@ -596,31 +649,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           const initColor = GEMINI_MAP[tag.color] || tag.color || '';
           window.__waSawColor = initColor;
 
-          function _lum(hex) {
-            if (!hex) return 200;
-            const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-            return r*0.299 + g*0.587 + b*0.114;
-          }
-
-          const printBg  = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M-1,1 l2,-2 M0,8 l8,-8 M7,9 l2,-2' stroke='%23A89880' stroke-width='1.5'/%3E%3C/svg%3E\") #EDE8E0";
-          const multiBg  = "conic-gradient(#FF1493,#FF4500,#E1FD2E,#00A86B,#0047AB,#4B0082,#FF1493)";
-
-          function _swHTML(sw) {
-            const sel = sw.name === initColor;
-            const lum = _lum(sw.hex);
-            const chkColor = lum < 130 ? '#fff' : '#2A2520';
-            const bg = sw.hex ? `background:${sw.hex}` : sw.name === 'Multi' ? `background:${multiBg}` : `background:${printBg}`;
-            const shadow = sw.hex === '#FFFFFF'
-              ? 'box-shadow:inset 0 0 0 1.5px #D0C8BC,0 1px 3px rgba(0,0,0,0.1)'
-              : 'box-shadow:inset 0 1px 3px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.07)';
-            const outline = sel ? 'outline:2.5px solid #2A2520;outline-offset:2.5px' : '';
-            const chk = sel ? `<svg style="position:absolute;inset:0;margin:auto;display:block;pointer-events:none" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="${chkColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` : '';
-            return `<button aria-label="${sw.name}" onclick="window.__rbPickSwatch(this,'${sw.name}')" onmouseenter="var l=document.getElementById('rb-sw-label');if(l)l.textContent='${sw.name}'" onmouseleave="var l=document.getElementById('rb-sw-label');if(l)l.textContent=window.__waSawColor||''" style="position:relative;width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0;${bg};${shadow};${outline}">${chk}</button>`;
-          }
-
-          const rowsHTML = `
-            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">${ROW1.map(_swHTML).join('')}</div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">${ROW2.map(_swHTML).join('')}</div>`;
+          const rowsHTML = _buildSwatchRows(initColor);
 
           step.innerHTML = `
             <h2 class="fm-h" style="margin-bottom:4px;">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
@@ -661,28 +690,6 @@ document.addEventListener('DOMContentLoaded', async function() {
               <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${(tag.notes||'').replace(/</g,'&lt;')}</textarea>
             </div>
             <button onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
-
-          window.__rbPickSwatch = function(el, name) {
-            window.__waSawColor = name;
-            document.querySelectorAll('#wa-modal button[aria-label]').forEach(function(b) {
-              b.style.outline = ''; b.style.outlineOffset = '';
-              const chk = b.querySelector('svg'); if (chk) chk.remove();
-            });
-            el.style.outline = '2.5px solid #2A2520';
-            el.style.outlineOffset = '2.5px';
-            const hexMatch = el.style.background && el.style.background.match(/#([0-9a-fA-F]{6})/);
-            const lum = _lum(hexMatch ? '#' + hexMatch[1] : null);
-            const chkColor = lum < 130 ? '#fff' : '#2A2520';
-            const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
-            svg.setAttribute('width','11'); svg.setAttribute('height','11'); svg.setAttribute('viewBox','0 0 11 11');
-            svg.setAttribute('fill','none'); svg.style.cssText='position:absolute;inset:0;margin:auto;display:block;pointer-events:none';
-            const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-            path.setAttribute('d','M1.5 5.5l3 3 5-5'); path.setAttribute('stroke',chkColor);
-            path.setAttribute('stroke-width','1.8'); path.setAttribute('stroke-linecap','round'); path.setAttribute('stroke-linejoin','round');
-            svg.appendChild(path); el.appendChild(svg);
-            // Update label on click too (covers mobile where hover never fires)
-            const lbl = document.getElementById('rb-sw-label'); if (lbl) lbl.textContent = name;
-          };
 
           window.__waSawLabel = tag.label || '';
           window.__waSawCat   = tag.category || '';
