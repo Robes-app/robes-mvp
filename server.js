@@ -414,14 +414,14 @@ app.post('/api/wardrobe/analyse', async (req, res) => {
         role: 'user',
         parts: [
           { inlineData: { mimeType, data } },
-          { text: 'You are the data engine for a fashion wardrobe app. Analyze this clothing item photo. Return a strict JSON object with exactly four keys: "label" (string, concise item name e.g. "Grey cashmere crewneck"), "category" (string, one of: Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Other), "color" (string, dominant color name matching one of: Cream, Light grey, Tan, Sand, Khaki, Sage, Blush, Mauve, Dusty rose, Burgundy, Rust, Chocolate, Dark green, Navy, Denim blue, Royal blue, White, Black, Hot pink, Green, Blue, Yellow, Orange, Multi, Stripe), "brand" (string, brand name if a logo is clearly visible, otherwise empty string). Return only the JSON object, no markdown.' }
+          { text: 'You are the data engine for a fashion wardrobe app. Analyze this clothing item photo. Return a strict JSON object with exactly five keys: "label" (string, concise item name e.g. "Grey cashmere crewneck"), "category" (string, one of: Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Other), "color" (string, pick the CLOSEST match to the dominant color from ONLY these exact options — Cream, Light grey, Tan, Sand, Khaki, Sage, Blush, Mauve, Dusty rose, Burgundy, Rust, Chocolate, Dark green, Navy, Denim blue, Royal blue, White, Black, Hot pink, Green, Blue, Yellow, Orange, Multi, Stripe — never return a value outside this list), "brand" (string, brand name if a logo or label is clearly visible, otherwise empty string), "notes" (string, one short editorial sentence about the piece — fabric, silhouette, or occasion — max 12 words, e.g. "Double-faced wool. The cold-weather anchor." — empty string if uncertain). Return only the JSON object, no markdown.' }
         ]
       }],
       config: { responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 200 }
     });
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
     const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
-    res.json({ label: parsed.label || '', category: parsed.category || 'Other', color: parsed.color || '', brand: parsed.brand || '' });
+    res.json({ label: parsed.label || '', category: parsed.category || 'Other', color: parsed.color || '', brand: parsed.brand || '', notes: parsed.notes || '' });
   } catch (err) {
     console.error('Gemini wardrobe analyse error:', err.message);
     res.status(500).json({ error: 'Analysis failed' });

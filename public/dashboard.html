@@ -544,6 +544,12 @@ document.addEventListener('DOMContentLoaded', async function() {
           if (!step) return;
           _setDot(3);
           const cats = ['Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear'];
+
+          // Extract swatches + colour label from the saved bundle form
+          const tmp = document.createElement('div'); tmp.innerHTML = _origStepHTML;
+          const swatchesEl = tmp.querySelector('#wa-swatches');
+          const swNameEl   = tmp.querySelector('#wa-sw-name');
+
           step.innerHTML = `
             <h2 class="fm-h" style="margin-bottom:4px;">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
             <p style="font-size:13px;color:#9A8E82;margin:0 0 16px;">Pre-filled from your photo. Adjust anything that isn't quite right.</p>
@@ -559,7 +565,7 @@ document.addEventListener('DOMContentLoaded', async function() {
               <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">ITEM NAME</label>
               <input id="wa-saw-label" value="${(tag.label||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawLabel=this.value">
             </div>
-            <div style="display:flex;gap:10px;margin-bottom:16px;">
+            <div style="display:flex;gap:10px;margin-bottom:12px;">
               <div style="flex:1;">
                 <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">CATEGORY</label>
                 <select id="wa-saw-cat" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" onchange="window.__waSawCat=this.value">
@@ -571,36 +577,60 @@ document.addEventListener('DOMContentLoaded', async function() {
                 <input id="wa-saw-brand" value="${(tag.brand||'').replace(/"/g,'&quot;')}" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawBrand=this.value">
               </div>
             </div>
+            <div style="margin-bottom:12px;">
+              <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">COLOUR</label>
+              <div id="wa-saw-swatches-wrap"></div>
+            </div>
+            <div style="margin-bottom:16px;">
+              <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">NOTES <span style="font-weight:400;letter-spacing:0;text-transform:none;color:#B0A090;">optional</span></label>
+              <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${(tag.notes||'').replace(/</g,'&lt;')}</textarea>
+            </div>
             <button onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
+
+          // Inject real swatch grid from bundle form so WA.pickColour works on them
+          const swWrap = document.getElementById('wa-saw-swatches-wrap');
+          if (swWrap && swatchesEl) swWrap.appendChild(swatchesEl);
+          if (swWrap && swNameEl)   swWrap.appendChild(swNameEl);
+
+          // Pre-select Gemini's colour
+          if (tag.color && window.WA && WA.pickColour) {
+            const sw = [...document.querySelectorAll('#wa-swatches .wa-sw')];
+            const idx = sw.findIndex(s => s.title === tag.color || s.getAttribute('aria-label') === tag.color);
+            if (idx >= 0) WA.pickColour(idx);
+          }
 
           window.__waSawLabel = tag.label || '';
           window.__waSawCat   = tag.category || '';
           window.__waSawBrand = tag.brand || '';
+          window.__waSawNotes = tag.notes  || '';
           window.__waRetake   = function() { _showStep1(); };
           window.__waSawSubmit = function() {
-            // Write values into the hidden bundle form fields, set tile photo, then submit
-            if (_origStepHTML) {
-              const step = document.querySelector('#wa-modal .fm-step');
-              if (step) { step.innerHTML = _origStepHTML; }
-            }
+            // Restore bundle form, write our values into it, then submit
+            const step = document.querySelector('#wa-modal .fm-step');
+            if (step && _origStepHTML) { step.innerHTML = _origStepHTML; }
             const lEl = document.getElementById('wa-label-in');
             const cEl = document.getElementById('wa-cat');
             const bEl = document.getElementById('wa-brand');
-            const tileImg = document.getElementById('wa-tile-img');
-            const tileEl  = document.getElementById('wa-tile');
-            const tileFill = document.getElementById('wa-tile-fill');
+            const nEl = document.getElementById('wa-notes');
+            const tileImg  = document.getElementById('wa-tile-img');
+            const tileEl   = document.getElementById('wa-tile');
+            const tileFill  = document.getElementById('wa-tile-fill');
             const tileEmpty = document.getElementById('wa-tile-empty');
             if (lEl) lEl.value = window.__waSawLabel || '';
             if (cEl) cEl.value = window.__waSawCat   || '';
             if (bEl) bEl.value = window.__waSawBrand || '';
-            if (tileImg && _photoDataUrl) { tileImg.src = _photoDataUrl; }
-            if (tileEl)   { tileEl.classList.add('filled'); }
-            if (tileFill)  { tileFill.style.display = 'block'; }
-            if (tileEmpty) { tileEmpty.style.display = 'none'; }
-            if (tag.color) {
+            if (nEl) nEl.value = window.__waSawNotes  || '';
+            if (tileImg && _photoDataUrl) tileImg.src = _photoDataUrl;
+            if (tileEl)   tileEl.classList.add('filled');
+            if (tileFill)  tileFill.style.display  = 'block';
+            if (tileEmpty) tileEmpty.style.display = 'none';
+            // Re-apply colour selection on the now-restored swatches
+            const sawCat = document.getElementById('wa-saw-cat');
+            const selectedColor = (document.getElementById('wa-sw-name') || {}).textContent || tag.color || '';
+            if (selectedColor && window.WA && WA.pickColour) {
               const sw = [...document.querySelectorAll('#wa-swatches .wa-sw')];
-              const idx = sw.findIndex(s => s.title === tag.color || s.getAttribute('aria-label') === tag.color);
-              if (idx >= 0 && window.WA && WA.pickColour) WA.pickColour(idx);
+              const idx = sw.findIndex(s => s.title === selectedColor || s.getAttribute('aria-label') === selectedColor);
+              if (idx >= 0) WA.pickColour(idx);
             }
             setTimeout(() => { window.WA && WA.submit && WA.submit(); }, 50);
           };
