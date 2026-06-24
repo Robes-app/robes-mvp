@@ -441,9 +441,10 @@ Accessories: sub-type from [Belt, Scarf, Hat, Jewellery, Sunglasses, Other]
 Return only the JSON object, no markdown.` }
         ]
       }],
-      config: { responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 500 }
+      config: { responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 800 }
     });
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    console.log('[analyse] Gemini raw:', text.slice(0, 300));
     const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
 
     const item_dna = {
@@ -469,8 +470,8 @@ Return only the JSON object, no markdown.` }
       item_dna,
     });
   } catch (err) {
-    console.error('Gemini wardrobe analyse error:', err.message);
-    res.status(500).json({ error: 'Analysis failed' });
+    console.error('Gemini wardrobe analyse error:', err.message, err.stack?.split('\n')[1]);
+    res.status(500).json({ error: 'Analysis failed', detail: err.message });
   }
 });
 
