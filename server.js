@@ -482,33 +482,38 @@ app.post('/api/moodboard', rateLimit({ windowMs: 60_000, max: 5 }), async (req, 
     ? `The user's wardrobe contains these pieces: ${wardrobeItems.map(i => `${i.label} (${i.category}${i.color ? ', ' + i.color : ''})`).join('; ')}.`
     : 'The user has not yet digitised their wardrobe.';
 
-  const systemPrompt = `You are Robes, an elite personal stylist AI. Generate a complete editorial moodboard brief. Return ONLY valid JSON with no markdown fences.`;
+  const systemPrompt = `You are Robes, an elite personal stylist AI. The user has given you a specific styling brief — your entire response must be tailored to THAT brief. Return ONLY valid JSON with no markdown fences.`;
 
-  const userPrompt = `Styling brief: "${prompt}"
+  const userPrompt = `USER'S STYLING BRIEF: "${prompt}"
+
+Everything you generate must be specific to the brief above — destination, climate, occasion, and aesthetic must all reflect it directly.
 
 ${wardrobeCtx}
 
-Return exactly this JSON shape:
+Return this JSON shape (all fields must reflect the user's brief, not a generic example):
 {
-  "title": "Short poetic moodboard title (max 6 words)",
-  "location_context": "City · Month | temp range | short directive (e.g. London · July | 14°C–23°C | Bring a light layer)",
+  "title": "Short poetic moodboard title (max 6 words, specific to the brief)",
+  "location_context": "Location from the brief · Month | estimated temp range | one-line styling directive",
   "aesthetic_tags": ["TAG1","TAG2","TAG3","TAG4"],
-  "editorial_direction": "2-sentence editorial direction. Hyper-specific — references fashion house DNA or iconic muse.",
+  "editorial_direction": "2 sentences of hyper-specific editorial direction for THIS brief — reference relevant fashion house DNA or style muse.",
   "the_look": [
     {
       "name": "Item name",
-      "category": "Exact category matching one of: Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories",
-      "description": "Hyper-specific: cut, fabric, colour",
-      "styling_note": "One sentence on how to wear it in this context"
+      "category": "One of: Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories",
+      "description": "Hyper-specific: cut, fabric, colour — suited to this brief",
+      "styling_note": "One sentence on how to wear it in this specific context"
     }
   ],
-  "image_prompt": "Rich editorial fashion photography brief: garments, setting, lighting, mood. No text overlays. Portrait orientation."
+  "image_prompt": "Detailed editorial fashion photography brief reflecting the user's destination and brief: garments, setting, lighting, mood. Portrait orientation. No text overlays."
 }
 
 Rules:
 - the_look: exactly 8 items
-- aesthetic_tags: ALL CAPS, 3–5 tags
-- Never use generic descriptions — name cuts, fabrics, colours precisely`;
+- aesthetic_tags: ALL CAPS, 3–5 tags, relevant to THIS brief
+- Never use generic descriptions — name cuts, fabrics, colours precisely
+- Do NOT default to a London or Wimbledon aesthetic unless the brief says so`;
+
+  console.log('[moodboard] prompt received:', prompt);
 
   let moodboardData;
   try {
