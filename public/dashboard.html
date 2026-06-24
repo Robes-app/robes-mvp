@@ -1836,16 +1836,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         window.__mbRunGeneration(prompt);
       }
 
-      // Use capture-phase event delegation — intercepts .cb-send clicks before any onclick
-      // fires regardless of when the button is rendered or re-rendered by the bundle
+      // Intercept both button click and Enter key — bundle handles both paths
       document.addEventListener('click', function(e) {
-        const btn = e.target.closest('.cb-send');
-        console.log('[robes] click captured, .cb-send match:', !!btn, 'target:', e.target.tagName, e.target.className);
-        if (btn) {
+        if (e.target.closest('.cb-send')) {
           e.preventDefault();
           e.stopImmediatePropagation();
           e.stopPropagation();
-          console.log('[robes] intercepted .cb-send click, firing moodboard');
+          _mbFireFromTextarea();
+        }
+      }, true);
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey && e.target && e.target.id === 'cb-ta') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          e.stopPropagation();
           _mbFireFromTextarea();
         }
       }, true);
