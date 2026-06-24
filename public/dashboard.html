@@ -2057,13 +2057,15 @@ document.addEventListener('DOMContentLoaded', async function() {
           breadcrumb.onclick = function() { window.__mbCloseResult(); };
         }
 
-        // Show the bundle's moodboard panel — hide home-body (it's a block sibling, not overlay)
-        document.querySelectorAll('.subpage').forEach(s => s.classList.remove('visible'));
-        const homeBody = document.getElementById('home-body');
-        if (homeBody) homeBody.style.display = 'none';
+        // Panel is INSIDE home-body — use position:fixed to overlay instead of hiding parent
+        document.querySelectorAll('.subpage').forEach(s => { s.classList.remove('visible'); s.style.cssText = ''; });
         const panel = document.getElementById('moodboard-panel');
-        console.log('[robes] moodboard-panel el:', !!panel, 'home-body hidden:', homeBody?.style.display);
-        if (panel) { panel.classList.add('visible'); panel.scrollTop = 0; }
+        console.log('[robes] moodboard-panel el:', !!panel);
+        if (panel) {
+          panel.classList.add('visible');
+          panel.style.cssText = 'position:fixed;inset:0;top:60px;z-index:400;background:var(--cream,#FAF8F5);overflow-y:auto';
+          panel.scrollTop = 0;
+        }
         window.scrollTo(0, 0);
         console.log('[robes] panel classes after:', panel?.className);
 
@@ -2073,9 +2075,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       window.__mbCloseResult = function() {
         const panel = document.getElementById('moodboard-panel');
-        if (panel) panel.classList.remove('visible');
-        const homeBody = document.getElementById('home-body');
-        if (homeBody) homeBody.style.display = '';
+        if (panel) { panel.classList.remove('visible'); panel.style.cssText = ''; }
         const breadcrumb = document.getElementById('nav-breadcrumb');
         if (breadcrumb) breadcrumb.style.display = 'none';
       };
