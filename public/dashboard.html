@@ -643,12 +643,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             _photoDataUrl = '';
             _origStepHTML = '';
             _origOpen.apply(this, arguments);
-            setTimeout(function() {
-              // Save bundle's form HTML before we replace it
-              const step = document.querySelector('#wa-modal .fm-step');
-              if (step) _origStepHTML = step.innerHTML;
-              _showStep1();
-            }, 150);
+            // Only inject photo-capture step 1 for new items — edit mode uses the bundle form directly
+            if (!_waEditId) {
+              setTimeout(function() {
+                const step = document.querySelector('#wa-modal .fm-step');
+                if (step) _origStepHTML = step.innerHTML;
+                _showStep1();
+              }, 150);
+            }
           };
           WA.open._rbPatched = true;
           if (WA.close && !WA.close._rbPatched) {
