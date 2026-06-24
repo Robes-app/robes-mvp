@@ -1951,15 +1951,19 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       function _mbShowResult(data) {
         _mbHideGenerating();
-        const { title, location_context, aesthetic_tags, editorial_direction, the_look = [], hero_image, prompt } = data;
+        const { title, aesthetic_tags, editorial_direction, the_look = [], hero_image, prompt } = data;
+        const location_context = data.location_context || data.subtitle || '';
+        const heroUrl = hero_image || data.img || null;
         const tags = Array.isArray(aesthetic_tags) ? aesthetic_tags : [];
         const matchedCount = the_look.filter(i => i.wardrobe_match).length;
         const shopCount = the_look.length - matchedCount;
+        console.log('[robes] _mbShowResult title:', title, 'tags:', tags.length, 'look:', the_look.length, 'hero:', !!heroUrl);
 
         // ── Populate the bundle's native moodboard panel ─────────────────
 
         // Title: split into destination + place if comma-separated, else full title
         const titleEl = document.getElementById('mb-out-title');
+        console.log('[robes] mb-out-title el:', !!titleEl);
         if (titleEl) titleEl.innerHTML = _mbEsc(title).replace(',', ',<br>');
 
         // Keyword tags
@@ -1991,8 +1995,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Mosaic — hero image + editorial direction text tile
         const mosaicEl = document.getElementById('mb-mosaic');
         if (mosaicEl) {
-          const heroHtml = hero_image
-            ? `<img class="mme-hero" src="${hero_image}" alt="${_mbEsc(title)}" style="width:100%;height:100%;object-fit:cover">`
+          const heroHtml = heroUrl
+            ? `<img class="mme-hero" src="${heroUrl}" alt="${_mbEsc(title)}" style="width:100%;height:100%;object-fit:cover">`
             : `<div class="mme-hero" style="display:flex;align-items:flex-end;padding:24px;box-sizing:border-box;background:var(--cream-200)"><p style="font-family:var(--font-serif);font-size:22px;font-weight:300;color:var(--ink-faint);line-height:1.3;margin:0">${_mbEsc(title)}</p></div>`;
           const editorialHtml = editorial_direction
             ? `<div style="background:var(--cream-100);padding:20px;display:flex;align-items:center;box-sizing:border-box"><p style="font-family:var(--font-serif);font-style:italic;font-size:15px;font-weight:300;color:var(--ink-soft);line-height:1.6;margin:0">${_mbEsc(editorial_direction)}</p></div>`
@@ -2058,7 +2062,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         const homeBody = document.getElementById('home-body');
         if (homeBody) homeBody.style.display = 'none';
         const panel = document.getElementById('moodboard-panel');
+        console.log('[robes] moodboard-panel el:', !!panel, 'home-body hidden:', homeBody?.style.display);
         if (panel) { panel.classList.add('visible'); panel.scrollTop = 0; }
+        console.log('[robes] panel classes after:', panel?.className);
 
         // Store for save
         if (panel) panel._currentData = data;
