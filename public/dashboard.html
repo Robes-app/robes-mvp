@@ -409,14 +409,16 @@ document.addEventListener('DOMContentLoaded', async function() {
       function _waOpenEdit(it) {
         _waEditId = it.id;
         if (!window.WA) return;
-        WA.open(); // uses original open — clears fields
+        WA.open();
+        // Use 100ms — enough time for both _patchWA's 50ms restore and any bundle timers to settle
         setTimeout(() => {
           const label = document.getElementById('wa-label-in');
           const cat   = document.getElementById('wa-cat');
           const brand = document.getElementById('wa-brand');
           const notes = document.getElementById('wa-notes');
           const cta   = document.getElementById('wa-cta');
-          if (label) label.value = it.label  || '';
+          if (!label) { console.warn('[robes] edit: #wa-label-in still missing at 100ms'); return; }
+          label.value = it.label  || '';
           if (cat)   cat.value   = it.category || '';
           if (brand) brand.value = it.brand   || '';
           if (notes) notes.value = it.notes   || '';
@@ -661,13 +663,12 @@ document.addEventListener('DOMContentLoaded', async function() {
           })
           .then(tag => {
             clearInterval(txtInterval);
-            if (tag.error) throw new Error(tag.error);
             _runStep3(dataUrl, tag);
           })
           .catch(err => {
             clearInterval(txtInterval);
-            console.warn('[robes-autotag] analyse failed:', err);
-            _showStep1();
+            console.warn('[robes-autotag] analyse network error, showing empty step 3:', err);
+            _runStep3(dataUrl, { label: '', category: 'Other', color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, ai_generated_notes: '' } });
           });
         }
 
@@ -811,13 +812,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             _photoDataUrl = '';
             _origOpen.apply(this, arguments);
             if (_waEditId) {
-              // Edit mode: restore bundle form if step 1 replaced it
+              // Edit mode: restore bundle form at 60ms (before _waOpenEdit's 100ms field population)
               setTimeout(function() {
                 const step = document.querySelector('#wa-modal .fm-step');
                 if (step && _origStepHTML && !step.querySelector('#wa-label-in')) {
                   step.innerHTML = _origStepHTML;
                 }
-              }, 50);
+              }, 60);
             } else {
               // Add mode: capture bundle form HTML once, then show photo step
               setTimeout(function() {

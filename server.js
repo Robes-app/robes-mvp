@@ -414,38 +414,35 @@ app.post('/api/wardrobe/analyse', async (req, res) => {
         role: 'user',
         parts: [
           { inlineData: { mimeType, data } },
-          { text: `You are a fashion intelligence engine for a luxury wardrobe app. Analyze this clothing item photo and return a single strict JSON object with exactly these keys:
+          { text: `You are a fashion intelligence engine for a luxury wardrobe app. Analyze this clothing item photo and return a JSON object with these keys:
 
 "label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans")
-"category": one of exactly — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other
-"color": apply rules in order, return ONLY from the allowed list:
-  RULE 1 — FOUNDATIONS (near-white/black/navy/charcoal/dark brown): White, Cream, Navy, Charcoal, Black, Espresso
-  RULE 2 — DIMENSION BUILDERS (earthy, muted, mid-saturation): Camel, Taupe, Olive, Aubergine, Forest, Bordeaux, Blush
-  RULE 3 — EXCLAMATION POINTS (high vibrancy): Ochre, Magenta, Cobalt, Emerald, Vermillion, Acid
-  RULE 4 — PRINT (patterns, stripes, florals, houndstooth, multiple contrasting colors): Print
-"primary_color_hex": the closest solid hex code for the dominant color (e.g. "#D2B48C")
-"editorial_color_name": an evocative editorial name for the color (e.g. "Washed Slate", "Warm Caramel", "Deep Espresso")
-"brand": brand name if clearly visible, else empty string
-"silhouette_fit": array of up to 4 descriptors from the GUARDRAIL TAXONOMY below
-"ai_generated_notes": one editorial sentence, max 15 words, on fabric, silhouette, or how to style it
+"category": one of — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other
+"color": pick ONE from this list only —
+  Foundations: White, Cream, Navy, Charcoal, Black, Espresso
+  Dimension Builders: Camel, Taupe, Olive, Aubergine, Forest, Bordeaux, Blush
+  Exclamation Points: Ochre, Magenta, Cobalt, Emerald, Vermillion, Acid
+  Multi-pattern: Print
+"primary_color_hex": hex code of the dominant color (e.g. "#D2B48C")
+"editorial_color_name": evocative color name (e.g. "Warm Caramel", "Washed Slate")
+"brand": brand if visible, else ""
+"silhouette_fit": array of 2-4 short descriptors (e.g. ["Blazer", "Single-breasted", "Relaxed"])
+"ai_generated_notes": one editorial sentence under 15 words
 
-GUARDRAIL TAXONOMY for silhouette_fit:
-Tops: sub-type from [Shirt, Blouse, T-Shirt, Knitwear/Sweater, Camisole, Sweatshirt] + fit from [Fitted, Oversized, Boxy, Tailored, Cropped, Regular]
-Bottoms: sub-type from [Jeans, Trousers, Skirt, Shorts] + silhouette from [Straight-leg, Wide-leg, Flare, Slim, Tailored, Pleated] + rise from [High-rise, Mid-rise]
-Outerwear: sub-type from [Coat, Blazer, Jacket, Trench] + details from [Double-breasted, Single-breasted, Oversized, Cropped, Belted, Unlined, Lined]
-Dresses: sub-type from [Mini, Midi, Maxi, Wrap, Shirt dress] + silhouette from [Fitted, A-line, Slip, Structured, Oversized]
-Shoes: sub-type from [Heels, Boots, Loafers, Sneakers, Sandals, Flats, Mules] + heel from [Flat, Block heel, Stiletto, Wedge] if applicable
-Bags: sub-type from [Tote, Shoulder bag, Clutch, Crossbody, Bucket bag, Backpack]
-Accessories: sub-type from [Belt, Scarf, Hat, Jewellery, Sunglasses, Other]
-
-Return only the JSON object, no markdown.` }
+Return only valid JSON, no markdown.` }
         ]
       }],
-      config: { responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 800 }
+      config: { responseMimeType: 'application/json', maxOutputTokens: 600 }
     });
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    console.log('[analyse] Gemini raw:', text.slice(0, 300));
-    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    console.log('[analyse] raw:', text.slice(0, 400));
+
+    let parsed = {};
+    try {
+      parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    } catch (parseErr) {
+      console.warn('[analyse] JSON parse failed, returning partial:', parseErr.message);
+    }
 
     const item_dna = {
       display: {
@@ -470,8 +467,9 @@ Return only the JSON object, no markdown.` }
       item_dna,
     });
   } catch (err) {
-    console.error('Gemini wardrobe analyse error:', err.message, err.stack?.split('\n')[1]);
-    res.status(500).json({ error: 'Analysis failed', detail: err.message });
+    console.error('[analyse] Gemini error:', err.message);
+    // Return empty-field response so step 3 still renders rather than bouncing back to step 1
+    res.json({ label: '', category: 'Other', color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, llm_styling_context: {}, ai_generated_notes: '' } });
   }
 });
 
