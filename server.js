@@ -517,17 +517,24 @@ Rules:
 
   let moodboardData;
   try {
-    const textCall = ai.models.generateContent({
+    const geminiCall = () => ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: 'application/json',
-        maxOutputTokens: 1500,
-      },
+      config: { systemInstruction: systemPrompt, responseMimeType: 'application/json', maxOutputTokens: 1500 },
     });
-    const textTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('text gen timeout')), 30000));
-    const textResult = await Promise.race([textCall, textTimeout]);
+    let textResult;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, attempt * 2000));
+      try {
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('text gen timeout')), 30000));
+        textResult = await Promise.race([geminiCall(), timeout]);
+        break;
+      } catch (err) {
+        const is503 = err.message?.includes('503') || err.message?.includes('UNAVAILABLE') || err.message?.includes('high demand');
+        if (is503 && attempt < 2) { console.warn(`[moodboard] 503 attempt ${attempt + 1}, retrying...`); continue; }
+        throw err;
+      }
+    }
     const raw = textResult.candidates?.[0]?.content?.parts?.[0]?.text || '';
     console.log('[moodboard] raw response length:', raw.length, '| preview:', raw.slice(0, 300));
     if (!raw) throw new Error('Empty response from Gemini');
