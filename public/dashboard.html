@@ -1899,7 +1899,9 @@ document.addEventListener('DOMContentLoaded', async function() {
           _mbShowResult({ ...data, prompt });
         } catch (e) {
           _mbHideGenerating();
-          _waShowToast(e.name === 'AbortError' ? 'Moodboard timed out — please try again' : 'Could not build moodboard — please try again');
+          const msg = e.name === 'AbortError' ? 'Moodboard timed out — please try again' : (e.message && e.message !== 'Failed to fetch' ? e.message : 'Could not build moodboard — please try again');
+          _waShowToast(msg);
+          console.error('[moodboard] client error:', e.message, e.stack);
         }
       };
 
