@@ -1804,22 +1804,22 @@ document.addEventListener('DOMContentLoaded', async function() {
         'letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer;' +
         'white-space:nowrap;flex-shrink:0';
       _mbInlineBtn.onclick = function() { _mbFireFromTextarea(); };
-      // Insert next to #cb-send after bundle renders
+      // Bundle uses class="cb-send" (not id) — insert our button next to it
       setTimeout(() => {
-        const sendBtn = document.getElementById('cb-send');
+        const sendBtn = document.querySelector('.cb-send');
         if (sendBtn && sendBtn.parentNode) sendBtn.parentNode.insertBefore(_mbInlineBtn, sendBtn);
         else document.body.appendChild(_mbInlineBtn);
       }, 1000);
 
       function _mbShowInlineBtn() {
-        const sendBtn = document.getElementById('cb-send');
+        const sendBtn = document.querySelector('.cb-send');
         if (sendBtn) sendBtn.style.visibility = 'hidden';
         _mbInlineBtn.style.display = 'block';
       }
 
       function _mbHideInlineBtn() {
         _mbInlineBtn.style.display = 'none';
-        const sendBtn = document.getElementById('cb-send');
+        const sendBtn = document.querySelector('.cb-send');
         if (sendBtn) sendBtn.style.visibility = '';
       }
 
@@ -1836,10 +1836,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         window.__mbRunGeneration(prompt);
       }
 
-      // Replace #cb-send onclick directly — more reliable than patching window.Dash
-      // (Dash may be a local bundle variable, not on window)
+      // Replace .cb-send onclick directly — the bundle uses class="cb-send", NOT id="cb-send"
       setTimeout(() => {
-        const sendBtn = document.getElementById('cb-send');
+        const sendBtn = document.querySelector('.cb-send');
         if (sendBtn) {
           sendBtn.onclick = function(e) {
             e.preventDefault();
