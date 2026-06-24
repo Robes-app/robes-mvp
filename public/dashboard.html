@@ -566,6 +566,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             { name: 'Emerald',    hex: '#00A86B', tier: 'Exclamation Points' },
             { name: 'Vermillion', hex: '#FF4500', tier: 'Exclamation Points' },
             { name: 'Acid',       hex: '#E1FD2E', tier: 'Exclamation Points' },
+            { name: 'Multi',      hex: null,      tier: 'Exclamation Points' },
             { name: 'Print',      hex: null,      tier: 'Exclamation Points' },
           ];
           const ROW1 = ALL_SWATCHES.slice(0, 10);
@@ -601,13 +602,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             return r*0.299 + g*0.587 + b*0.114;
           }
 
-          const printBg = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M-1,1 l2,-2 M0,8 l8,-8 M7,9 l2,-2' stroke='%23A89880' stroke-width='1.5'/%3E%3C/svg%3E\") #EDE8E0";
+          const printBg  = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M-1,1 l2,-2 M0,8 l8,-8 M7,9 l2,-2' stroke='%23A89880' stroke-width='1.5'/%3E%3C/svg%3E\") #EDE8E0";
+          const multiBg  = "conic-gradient(#FF1493,#FF4500,#E1FD2E,#00A86B,#0047AB,#4B0082,#FF1493)";
 
           function _swHTML(sw) {
             const sel = sw.name === initColor;
             const lum = _lum(sw.hex);
             const chkColor = lum < 130 ? '#fff' : '#2A2520';
-            const bg = sw.hex ? `background:${sw.hex}` : `background:${printBg}`;
+            const bg = sw.hex ? `background:${sw.hex}` : sw.name === 'Multi' ? `background:${multiBg}` : `background:${printBg}`;
             const shadow = sw.hex === '#FFFFFF'
               ? 'box-shadow:inset 0 0 0 1.5px #D0C8BC,0 1px 3px rgba(0,0,0,0.1)'
               : 'box-shadow:inset 0 1px 3px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.07)';
@@ -717,13 +719,20 @@ document.addEventListener('DOMContentLoaded', async function() {
           const _origOpen = WA.open;
           WA.open = function() {
             _photoDataUrl = '';
-            _origStepHTML = '';
             _origOpen.apply(this, arguments);
-            // Only inject photo-capture step 1 for new items — edit mode uses the bundle form directly
-            if (!_waEditId) {
+            if (_waEditId) {
+              // Edit mode: restore bundle form if step 1 replaced it
               setTimeout(function() {
                 const step = document.querySelector('#wa-modal .fm-step');
-                if (step) _origStepHTML = step.innerHTML;
+                if (step && _origStepHTML && !step.querySelector('#wa-label-in')) {
+                  step.innerHTML = _origStepHTML;
+                }
+              }, 50);
+            } else {
+              // Add mode: capture bundle form HTML once, then show photo step
+              setTimeout(function() {
+                const step = document.querySelector('#wa-modal .fm-step');
+                if (step && !_origStepHTML) _origStepHTML = step.innerHTML;
                 _showStep1();
               }, 150);
             }
@@ -733,7 +742,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             const _origClose = WA.close;
             WA.close = function() {
               _photoDataUrl = '';
-              _origStepHTML = '';
               _origClose.apply(this, arguments);
             };
             WA.close._rbPatched = true;
