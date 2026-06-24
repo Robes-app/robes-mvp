@@ -1836,6 +1836,23 @@ document.addEventListener('DOMContentLoaded', async function() {
         window.__mbRunGeneration(prompt);
       }
 
+      // Intercept Dash.send so typing directly in the concierge box and hitting STYLE ME
+      // also routes through our moodboard generation instead of the bundle's mock flow.
+      setTimeout(() => {
+        if (window.Dash && typeof window.Dash.send === 'function') {
+          const _origDashSend = window.Dash.send.bind(window.Dash);
+          window.Dash.send = function() {
+            const ta = document.getElementById('cb-ta');
+            const prompt = ta && ta.value.trim();
+            if (prompt) {
+              _mbFireFromTextarea();
+            } else {
+              _origDashSend();
+            }
+          };
+        }
+      }, 1200);
+
       window.__rbStartMoodboard = function() {
         const ta = document.getElementById('cb-ta');
         if (!ta) return;

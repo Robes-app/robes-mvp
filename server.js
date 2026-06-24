@@ -530,7 +530,8 @@ Rules:
         textResult = await Promise.race([geminiCall(), timeout]);
         break;
       } catch (err) {
-        const is503 = err.message?.includes('503') || err.message?.includes('UNAVAILABLE') || err.message?.includes('high demand');
+        const errStr = err.message || '';
+        const is503 = errStr.includes('503') || errStr.includes('UNAVAILABLE') || errStr.includes('high demand') || errStr.includes('currently experiencing');
         if (is503 && attempt < 2) { console.warn(`[moodboard] 503 attempt ${attempt + 1}, retrying...`); continue; }
         throw err;
       }
