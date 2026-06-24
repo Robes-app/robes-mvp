@@ -1946,10 +1946,6 @@ document.addEventListener('DOMContentLoaded', async function() {
       function _mbHideGenerating() { _mbGenOverlay.style.display = 'none'; }
 
       // ── Result page ───────────────────────────────────────────────────
-      const _mbResultPage = document.createElement('div');
-      _mbResultPage.id = 'mb-result-page';
-      _mbResultPage.style.cssText = 'display:none;position:fixed;inset:0;z-index:870;background:#FAF8F5;overflow-y:auto';
-      document.body.appendChild(_mbResultPage);
 
       function _mbEsc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -1958,104 +1954,119 @@ document.addEventListener('DOMContentLoaded', async function() {
         const { title, location_context, aesthetic_tags, editorial_direction, the_look = [], hero_image, prompt } = data;
         const tags = Array.isArray(aesthetic_tags) ? aesthetic_tags : [];
         const matchedCount = the_look.filter(i => i.wardrobe_match).length;
+        const shopCount = the_look.length - matchedCount;
 
-        _mbResultPage.innerHTML = `
-          <nav style="position:sticky;top:0;z-index:10;background:#FAF8F5;border-bottom:1px solid rgba(32,32,33,0.07);display:flex;align-items:center;gap:12px;padding:0 24px;height:56px">
-            <button onclick="window.__mbCloseResult()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6E6A64;padding:8px 0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
-              Back
-            </button>
-            <span style="font-family:'Cormorant',Georgia,serif;font-size:18px;font-weight:300;color:#202021;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_mbEsc(title)}</span>
-            <button id="mb-save-btn" onclick="window.__mbSaveMoodboard()" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:100px;background:#202021;color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer">
-              Save board
-            </button>
-          </nav>
+        // ── Populate the bundle's native moodboard panel ─────────────────
 
-          <div style="max-width:1080px;margin:0 auto;padding:40px 24px 80px">
+        // Title: split into destination + place if comma-separated, else full title
+        const titleEl = document.getElementById('mb-out-title');
+        if (titleEl) titleEl.innerHTML = _mbEsc(title).replace(',', ',<br>');
 
-            <!-- Context header -->
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px">
-              <div>
-                ${location_context ? `<p style="font-size:12px;font-weight:500;letter-spacing:.06em;color:#9E9A94;margin:0 0 10px">${_mbEsc(location_context)}</p>` : ''}
-                <div style="display:flex;flex-wrap:wrap;gap:6px">
-                  ${tags.map(t => `<span style="font-size:9.5px;font-weight:600;letter-spacing:.18em;color:#202021;background:rgba(32,32,33,0.07);padding:5px 10px;border-radius:20px">${_mbEsc(t)}</span>`).join('')}
-                </div>
+        // Keyword tags
+        const kwsEl = document.getElementById('mb-out-kws');
+        if (kwsEl) {
+          kwsEl.innerHTML = tags.map((t, i) =>
+            `<span class="mb-kw">${_mbEsc(t)}</span>${i < tags.length - 1 ? '<span class="mb-kw-dot">·</span>' : ''}`
+          ).join('');
+        }
+
+        // Weather / location strip — parse from location_context "Place · Month | temp | directive"
+        const wxEl = document.getElementById('mb-wx');
+        if (wxEl && location_context) {
+          const parts = location_context.split('|').map(s => s.trim());
+          const locPart = parts[0] || location_context;
+          const tempPart = parts[1] || '';
+          const directivePart = parts[2] || '';
+          wxEl.innerHTML =
+            `<span class="w-icon">🌤</span>` +
+            `<span class="w-info"><strong>${_mbEsc(locPart)}</strong></span>` +
+            (tempPart ? `<div class="w-divider"></div><span class="w-info">${_mbEsc(tempPart)}</span>` : '') +
+            (directivePart ? `<div class="w-divider"></div><span class="w-info">${_mbEsc(directivePart)}</span>` : '');
+        }
+
+        // Aesthetic tag
+        const aestheticEl = document.getElementById('mb-aesthetic');
+        if (aestheticEl) aestheticEl.textContent = tags[0] || '';
+
+        // Mosaic — hero image + editorial direction text tile
+        const mosaicEl = document.getElementById('mb-mosaic');
+        if (mosaicEl) {
+          const heroHtml = hero_image
+            ? `<img class="mme-hero" src="${hero_image}" alt="${_mbEsc(title)}" style="width:100%;height:100%;object-fit:cover">`
+            : `<div class="mme-hero" style="display:flex;align-items:flex-end;padding:24px;box-sizing:border-box;background:var(--cream-200)"><p style="font-family:var(--font-serif);font-size:22px;font-weight:300;color:var(--ink-faint);line-height:1.3;margin:0">${_mbEsc(title)}</p></div>`;
+          const editorialHtml = editorial_direction
+            ? `<div style="background:var(--cream-100);padding:20px;display:flex;align-items:center;box-sizing:border-box"><p style="font-family:var(--font-serif);font-style:italic;font-size:15px;font-weight:300;color:var(--ink-soft);line-height:1.6;margin:0">${_mbEsc(editorial_direction)}</p></div>`
+            : `<div style="background:var(--cream-200)"></div>`;
+          // Fill remaining slots with colour-palette tiles drawn from tags
+          const palette = ['var(--cream-200)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-100)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-200)'];
+          const extras = palette.map(bg => `<div style="background:${bg}"></div>`).join('');
+          mosaicEl.innerHTML = heroHtml + editorialHtml + extras;
+        }
+
+        // The Look sidebar
+        const railEl = document.getElementById('mb-rail-pieces');
+        if (railEl) {
+          railEl.innerHTML = the_look.map((item, idx) => {
+            const m = item.wardrobe_match;
+            const imgHtml = m?.image_url
+              ? `<img src="${_mbEsc(m.image_url)}" style="width:44px;height:44px;object-fit:cover;border-radius:var(--rad-sm,6px);flex-shrink:0" alt="">`
+              : `<div class="rp-img-ph" style="width:44px;height:44px;border-radius:var(--rad-sm,6px);background:var(--cream-200);flex-shrink:0;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-faint)" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`;
+            const badgeHtml = m
+              ? `<div class="rp-badge rp-badge-yours">
+                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                   Yours
+                 </div>
+                 <div class="rp-sub" style="font-size:10px;color:var(--sage)">In your wardrobe</div>`
+              : `<button class="rp-swap-btn" onclick="window.__mbSwap(${idx})">
+                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/></svg>
+                   Swap
+                 </button>`;
+            return `<div class="rail-piece">
+              ${imgHtml}
+              <div class="rp-info">
+                <div class="rp-name">${_mbEsc(item.name)}</div>
+                <div class="rp-cat">${_mbEsc(item.category)}</div>
               </div>
-              ${matchedCount > 0 ? `<span style="font-size:11px;color:#5A8A5A;background:rgba(90,138,90,0.1);padding:6px 14px;border-radius:20px;white-space:nowrap">${matchedCount} piece${matchedCount > 1 ? 's' : ''} in your wardrobe</span>` : ''}
-            </div>
+              <div class="rp-action">${badgeHtml}</div>
+            </div>`;
+          }).join('');
+        }
 
-            ${editorial_direction ? `<p style="font-size:14px;line-height:1.75;color:#6E6A64;max-width:620px;margin:0 0 36px;font-style:italic">${_mbEsc(editorial_direction)}</p>` : ''}
+        // Sidebar counts
+        const railSubEl = document.getElementById('mb-rail-sub');
+        if (railSubEl) railSubEl.textContent = `${the_look.length} pieces · ${matchedCount} from your wardrobe`;
 
-            <!-- Main grid + sidebar -->
-            <div style="display:grid;grid-template-columns:1fr 380px;gap:40px;align-items:start">
+        const railStatEl = document.getElementById('mb-rail-stat');
+        if (railStatEl) railStatEl.innerHTML = `<span class="s">${matchedCount}</span> yours · <span class="r">${shopCount}</span> to shop`;
 
-              <!-- Image grid -->
-              <div>
-                <div style="display:grid;grid-template-columns:1.4fr 1fr;grid-template-rows:auto auto;gap:10px;margin-bottom:10px">
-                  <!-- Hero image -->
-                  <div style="grid-row:1/3;border-radius:14px;overflow:hidden;background:var(--rb-mauve,#C8B8C8);min-height:480px">
-                    ${hero_image
-                      ? `<img src="${hero_image}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`
-                      : `<div style="width:100%;height:100%;min-height:480px;display:flex;align-items:flex-end;padding:24px;box-sizing:border-box">
-                           <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:rgba(32,32,33,0.55);line-height:1.3;margin:0">${_mbEsc(title)}</p>
-                         </div>`}
-                  </div>
-                  <!-- Detail tiles -->
-                  <div style="border-radius:14px;overflow:hidden;background:var(--rb-sage-mid,#A8B8A0);min-height:230px"></div>
-                  <div style="border-radius:14px;overflow:hidden;background:var(--rb-rose-mid,#C8A8A0);min-height:230px"></div>
-                </div>
-                <!-- Two atmosphere tiles -->
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                  <div style="border-radius:14px;overflow:hidden;background:#E8E0D8;min-height:160px"></div>
-                  <div style="border-radius:14px;overflow:hidden;background:#D8D0C8;min-height:160px"></div>
-                </div>
-              </div>
+        // Breadcrumb nav
+        const bcLabel = document.getElementById('bc-label');
+        if (bcLabel) bcLabel.textContent = title;
+        const breadcrumb = document.getElementById('nav-breadcrumb');
+        if (breadcrumb) {
+          breadcrumb.style.display = 'inline-flex';
+          breadcrumb.onclick = function() { window.__mbCloseResult(); };
+        }
 
-              <!-- The Look sidebar -->
-              <div style="position:sticky;top:72px">
-                <p style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 18px">The Look</p>
-                <div id="mb-look-list" style="display:flex;flex-direction:column;gap:1px;border:0.5px solid rgba(32,32,33,0.1);border-radius:14px;overflow:hidden;background:rgba(32,32,33,0.06)">
-                  ${the_look.map((item, idx) => {
-                    const m = item.wardrobe_match;
-                    return `
-                    <div style="background:#FAF8F5;padding:14px 16px;display:flex;align-items:center;gap:12px">
-                      <!-- Wardrobe thumbnail or category pill -->
-                      ${m?.image_url
-                        ? `<img src="${_mbEsc(m.image_url)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0;border:0.5px solid rgba(32,32,33,0.1)" alt="">`
-                        : `<div style="width:44px;height:44px;border-radius:8px;background:rgba(32,32,33,0.06);flex-shrink:0;display:flex;align-items:center;justify-content:center">
-                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                           </div>`}
-                      <div style="flex:1;min-width:0">
-                        <div style="font-size:12.5px;font-weight:500;color:#202021;line-height:1.3;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_mbEsc(item.name)}</div>
-                        ${m
-                          ? `<div style="font-size:10.5px;color:#5A8A5A;display:flex;align-items:center;gap:4px">
-                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                               ${_mbEsc(m.label)}
-                             </div>`
-                          : `<div style="font-size:10.5px;color:#B8B0A6">${_mbEsc(item.category)}</div>`}
-                      </div>
-                      ${!m ? `<button onclick="window.__mbSwap(${idx})" style="flex-shrink:0;padding:6px 12px;border-radius:20px;background:rgba(32,32,33,0.07);border:none;font-size:10px;font-weight:500;letter-spacing:.08em;color:#202021;cursor:pointer;white-space:nowrap">Swap</button>` : ''}
-                    </div>`;
-                  }).join('')}
-                </div>
-                ${matchedCount === 0 && _waItems.length === 0
-                  ? `<p style="font-size:12px;color:#B8B0A6;line-height:1.6;margin:16px 0 0;text-align:center">Add pieces to your wardrobe<br>and Robes will match them here.</p>`
-                  : ''}
-              </div>
-            </div>
+        // Show the bundle's moodboard panel, hide all other subpages
+        document.querySelectorAll('.subpage').forEach(s => s.classList.remove('visible'));
+        const panel = document.getElementById('moodboard-panel');
+        if (panel) { panel.classList.add('visible'); panel.scrollTop = 0; }
 
-          </div>`;
-
-        // Store data for save
-        _mbResultPage._currentData = data;
-        _mbResultPage.style.display = 'block';
-        _mbResultPage.scrollTop = 0;
+        // Store for save
+        if (panel) panel._currentData = data;
       }
 
-      window.__mbCloseResult = function() { _mbResultPage.style.display = 'none'; };
+      window.__mbCloseResult = function() {
+        const panel = document.getElementById('moodboard-panel');
+        if (panel) panel.classList.remove('visible');
+        const breadcrumb = document.getElementById('nav-breadcrumb');
+        if (breadcrumb) breadcrumb.style.display = 'none';
+      };
 
       window.__mbSaveMoodboard = function() {
-        const data = _mbResultPage._currentData;
+        const panel = document.getElementById('moodboard-panel');
+        const data = panel && panel._currentData;
         if (!data) return;
         _mbAdd({
           type: 'moodboard',
@@ -2068,8 +2079,6 @@ document.addEventListener('DOMContentLoaded', async function() {
           location_context: data.location_context,
           editorial_direction: data.editorial_direction,
         });
-        const btn = document.getElementById('mb-save-btn');
-        if (btn) { btn.textContent = 'Saved ✓'; btn.style.background = '#5A8A5A'; btn.disabled = true; }
         _waShowToast('Moodboard saved');
       };
 
