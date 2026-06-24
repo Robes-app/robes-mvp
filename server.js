@@ -517,17 +517,19 @@ Rules:
 
   let moodboardData;
   try {
-    const textResult = await ai.models.generateContent({
+    const textCall = ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: 'application/json',
-        thinkingConfig: { thinkingBudget: 0 },
         maxOutputTokens: 1500,
       },
     });
+    const textTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('text gen timeout')), 30000));
+    const textResult = await Promise.race([textCall, textTimeout]);
     const raw = textResult.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    console.log('[moodboard] raw response:', raw.slice(0, 200));
     moodboardData = JSON.parse(raw.replace(/```json|```/g, '').trim());
   } catch (e) {
     console.error('[moodboard] text gen failed:', e.message);

@@ -1844,12 +1844,19 @@ document.addEventListener('DOMContentLoaded', async function() {
           const headers = { 'Content-Type': 'application/json' };
           if (token) headers['Authorization'] = `Bearer ${token}`;
 
+          const controller = new AbortController();
+          const clientTimeout = setTimeout(() => controller.abort(), 75000);
           const res = await fetch('/api/moodboard', {
             method: 'POST',
             headers,
             body: JSON.stringify({ prompt, wardrobeItems }),
+            signal: controller.signal,
           });
-          if (!res.ok) throw new Error('Generation failed');
+          clearTimeout(clientTimeout);
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Server error ${res.status}`);
+          }
           const data = await res.json();
           _mbShowResult({ ...data, prompt });
         } catch (e) {
