@@ -601,6 +601,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             </label>`;
           _setDot(1);
 
+          // Bundle's validate() calls #wa-label-in.focus() via closure — keep a hidden one so it never throws
+          const _dummyLbl = document.createElement('input');
+          _dummyLbl.id = 'wa-label-in'; _dummyLbl.type = 'text'; _dummyLbl.style.display = 'none';
+          step.appendChild(_dummyLbl);
+
           const fileInput = document.getElementById('wa-rb-file');
           if (fileInput) {
             fileInput.addEventListener('change', function() {
@@ -642,6 +647,11 @@ document.addEventListener('DOMContentLoaded', async function() {
               </div>
             </div>`;
           _setDot(2);
+
+          // Keep hidden #wa-label-in so bundle's validate closure never throws
+          const _dummyLbl2 = document.createElement('input');
+          _dummyLbl2.id = 'wa-label-in'; _dummyLbl2.type = 'text'; _dummyLbl2.style.display = 'none';
+          step.appendChild(_dummyLbl2);
 
           const readTexts = ['Identifying colour and fabric…','Reading the silhouette…','Checking for brand details…'];
           let ti = 0;
