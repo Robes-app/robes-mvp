@@ -2064,6 +2064,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const panel = document.getElementById('moodboard-panel');
         console.log('[robes] moodboard-panel el:', !!panel, 'home-body hidden:', homeBody?.style.display);
         if (panel) { panel.classList.add('visible'); panel.scrollTop = 0; }
+        window.scrollTo(0, 0);
         console.log('[robes] panel classes after:', panel?.className);
 
         // Store for save
