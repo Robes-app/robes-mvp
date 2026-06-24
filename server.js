@@ -474,7 +474,7 @@ Return only valid JSON, no markdown.` }
 });
 
 /* ── moodboard ───────────────────────────────────────────────────── */
-app.post('/api/moodboard', rateLimit({ windowMs: 60_000, max: 5 }), async (req, res) => {
+app.post('/api/moodboard', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
   const { prompt, wardrobeItems = [] } = req.body;
   if (!prompt?.trim()) return res.status(400).json({ error: 'prompt required' });
 
@@ -528,12 +528,14 @@ Rules:
     });
     const textTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('text gen timeout')), 30000));
     const textResult = await Promise.race([textCall, textTimeout]);
-    const raw = textResult.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    console.log('[moodboard] raw response:', raw.slice(0, 200));
+    const raw = textResult.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    console.log('[moodboard] raw response length:', raw.length, '| preview:', raw.slice(0, 300));
+    if (!raw) throw new Error('Empty response from Gemini');
     moodboardData = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    console.log('[moodboard] parsed ok — title:', moodboardData.title);
   } catch (e) {
-    console.error('[moodboard] text gen failed:', e.message);
-    return res.status(500).json({ error: 'Failed to generate moodboard brief' });
+    console.error('[moodboard] text gen failed:', e.message, e.stack?.split('\n')[1]);
+    return res.status(500).json({ error: e.message || 'Failed to generate moodboard brief' });
   }
 
   // Match wardrobe items by category to look items
