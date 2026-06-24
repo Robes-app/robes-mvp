@@ -472,8 +472,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           }
 
           _waShowDeleteBtn(true);
-          WA.validate && WA.validate();
-        }, 60);
+        }, 100);
       }
 
       // Patch WA.submit — keep all other WA methods untouched
@@ -810,16 +809,16 @@ document.addEventListener('DOMContentLoaded', async function() {
           const _origOpen = WA.open;
           WA.open = function() {
             _photoDataUrl = '';
-            _origOpen.apply(this, arguments);
             if (_waEditId) {
-              // Edit mode: restore bundle form at 60ms (before _waOpenEdit's 100ms field population)
-              setTimeout(function() {
-                const step = document.querySelector('#wa-modal .fm-step');
-                if (step && _origStepHTML && !step.querySelector('#wa-label-in')) {
-                  step.innerHTML = _origStepHTML;
-                }
-              }, 60);
-            } else {
+              // Edit mode: restore bundle form SYNCHRONOUSLY before _origOpen fires
+              // so the bundle finds #wa-label-in and doesn't throw on validate/focus
+              const step = document.querySelector('#wa-modal .fm-step');
+              if (step && _origStepHTML && !step.querySelector('#wa-label-in')) {
+                step.innerHTML = _origStepHTML;
+              }
+            }
+            _origOpen.apply(this, arguments);
+            if (!_waEditId) {
               // Add mode: capture bundle form HTML once, then show photo step
               setTimeout(function() {
                 const step = document.querySelector('#wa-modal .fm-step');
