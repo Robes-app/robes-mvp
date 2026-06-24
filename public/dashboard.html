@@ -1792,21 +1792,21 @@ document.addEventListener('DOMContentLoaded', async function() {
       }
 
       // ── Moodboard entry: scroll + prefill the main concierge textarea ──
-      const _MB_PLACEHOLDER = ‘A week in the South of France in August…’;
-      const _CB_PLACEHOLDER = "Tell Robes where you’re going, or the look you’re after…";
+      const _MB_PLACEHOLDER = 'A week in the South of France in August…';
+      const _CB_PLACEHOLDER = "Tell Robes where you're going, or the look you're after…";
       let _mbIntercepting = false;
 
       function _mbArmIntercept() {
         if (_mbIntercepting) return;
         _mbIntercepting = true;
 
-        const ta = document.getElementById(‘cb-ta’);
-        const sendBtn = document.getElementById(‘cb-send’);
+        const ta = document.getElementById('cb-ta');
+        const sendBtn = document.getElementById('cb-send');
         if (!ta || !sendBtn) { _mbIntercepting = false; return; }
 
         function _disarm() {
           sendBtn.onclick = _origOnclick;
-          ta.removeEventListener(‘keydown’, _onKeydown);
+          ta.removeEventListener('keydown', _onKeydown);
           ta.placeholder = _CB_PLACEHOLDER;
           _mbIntercepting = false;
         }
@@ -1817,13 +1817,13 @@ document.addEventListener('DOMContentLoaded', async function() {
           const prompt = ta.value.trim();
           _disarm();
           if (!prompt) return;
-          ta.value = ‘’;
-          ta.dispatchEvent(new Event(‘input’));
+          ta.value = '';
+          ta.dispatchEvent(new Event('input'));
           window.__mbRunGeneration(prompt);
         }
 
         function _onKeydown(e) {
-          if (e.key === ‘Enter’ && !e.shiftKey) {
+          if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             e.stopImmediatePropagation();
             _fire();
@@ -1831,17 +1831,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         sendBtn.onclick = function(e) { e.preventDefault(); e.stopImmediatePropagation(); _fire(); };
-        ta.addEventListener(‘keydown’, _onKeydown, { capture: true });
+        ta.addEventListener('keydown', _onKeydown, { capture: true });
       }
 
       window.__rbStartMoodboard = function() {
-        const ta = document.getElementById(‘cb-ta’);
+        const ta = document.getElementById('cb-ta');
         if (!ta) return;
 
-        ta.value = ‘’;
+        ta.value = '';
         ta.placeholder = _MB_PLACEHOLDER;
-        ta.dispatchEvent(new Event(‘input’));
-        ta.scrollIntoView({ behavior: ‘smooth’, block: ‘center’ });
+        ta.dispatchEvent(new Event('input'));
+        ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setTimeout(() => ta.focus(), 320);
 
         _mbArmIntercept();
