@@ -1792,39 +1792,59 @@ document.addEventListener('DOMContentLoaded', async function() {
       }
 
       // ── Moodboard entry: scroll + prefill the main concierge textarea ──
-      const _MB_PLACEHOLDER = 'A week in the South of France in August…';
+      const _MB_PLACEHOLDER = ‘A week in the South of France in August…’;
+      const _CB_PLACEHOLDER = ‘Tell Robes where you’re going, or the look you’re after…’;
       let _mbIntercepting = false;
 
+      function _mbArmIntercept() {
+        if (_mbIntercepting) return;
+        _mbIntercepting = true;
+
+        const ta = document.getElementById(‘cb-ta’);
+        const sendBtn = document.getElementById(‘cb-send’);
+        if (!ta || !sendBtn) { _mbIntercepting = false; return; }
+
+        function _disarm() {
+          sendBtn.onclick = _origOnclick;
+          ta.removeEventListener(‘keydown’, _onKeydown);
+          ta.placeholder = _CB_PLACEHOLDER;
+          _mbIntercepting = false;
+        }
+
+        const _origOnclick = sendBtn.onclick;
+
+        function _fire() {
+          const prompt = ta.value.trim();
+          _disarm();
+          if (!prompt) return;
+          ta.value = ‘’;
+          ta.dispatchEvent(new Event(‘input’));
+          window.__mbRunGeneration(prompt);
+        }
+
+        function _onKeydown(e) {
+          if (e.key === ‘Enter’ && !e.shiftKey) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            _fire();
+          }
+        }
+
+        sendBtn.onclick = function(e) { e.preventDefault(); e.stopImmediatePropagation(); _fire(); };
+        ta.addEventListener(‘keydown’, _onKeydown, { capture: true });
+      }
+
       window.__rbStartMoodboard = function() {
-        const ta = document.getElementById('cb-ta');
+        const ta = document.getElementById(‘cb-ta’);
         if (!ta) return;
 
-        // Clear any prior value, pre-fill with moodboard example prompt
-        ta.value = '';
+        ta.value = ‘’;
         ta.placeholder = _MB_PLACEHOLDER;
-        ta.dispatchEvent(new Event('input'));
-
-        ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        ta.dispatchEvent(new Event(‘input’));
+        ta.scrollIntoView({ behavior: ‘smooth’, block: ‘center’ });
         setTimeout(() => ta.focus(), 320);
 
-        // Arm a one-shot intercept of Dash.send so this submit builds a moodboard
-        if (!_mbIntercepting) {
-          _mbIntercepting = true;
-          const _origDashSend = Dash.send.bind(Dash);
-          Dash.send = function() {
-            const prompt = ta.value.trim();
-            // Disarm immediately — next submit goes back to default
-            Dash.send = _origDashSend;
-            _mbIntercepting = false;
-            // Restore original placeholder
-            ta.placeholder = 'Tell Robes where you’re going, or the look you’re after…';
-
-            if (!prompt) { _origDashSend(); return; }
-            ta.value = '';
-            ta.dispatchEvent(new Event('input'));
-            window.__mbRunGeneration(prompt);
-          };
-        }
+        _mbArmIntercept();
       };
 
       window.__mbRunGeneration = async function(prompt) {
