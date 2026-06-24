@@ -7,13 +7,13 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 - **Backend**: Node.js + Express, ES modules (`"type":"module"`), `server.js`
 - **Frontend**: Vanilla HTML/CSS/JS SPA — no framework, no build step
 - **AI (styling)**: Google Gemini via `@google/genai`
-  - `gemini-2.5-flash` — JSON styling text (3 looks)
+  - `gemini-2.5-flash` — JSON styling text (3 looks) + wardrobe item analysis
   - `gemini-3.1-flash-image` — editorial outfit images (1 per look)
 - **Auth + DB**: Supabase (project: `Robes_p0`, URL: `https://ayowpaknssulsqqvwpqx.supabase.co`)
   - Google OAuth + email/password auth
   - `profiles` table — first_name, style_icons[], budget, wardrobe_description
   - `prompt_history` table — logs every Anthropic API call per user
-  - `wardrobe_items` table — per-user clothing pieces with image, category, colour, brand, notes
+  - `wardrobe_items` table — per-user clothing pieces with image, category, colour, brand, notes, item_dna
 - **AI (wardrobe context)**: Anthropic `claude-sonnet-4-6` via Supabase Edge Function
 - **Storage**: Cloudinary (photo uploads + generated images + wardrobe item photos), in-memory `lookStore` Map (48h TTL)
 - **CRM**: Airtable — `Contacts` table (email/name), `Feedback` table (every prompt logged)
@@ -30,6 +30,7 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 | `public/dashboard.html` | Protected dashboard SPA — wardrobe, styling, account |
 | `supabase/schema.sql` | DB schema — run once in Supabase SQL editor |
 | `supabase/wardrobe_schema.sql` | Wardrobe items table + RLS — run once in Supabase SQL editor |
+| `supabase/item_dna_migration.sql` | Adds `item_dna JSONB` column — run once in Supabase SQL editor |
 | `supabase/functions/wardrobe-context/index.ts` | Edge Function — assembles user profile, calls Anthropic, writes to prompt_history |
 
 ## Branches
@@ -86,8 +87,9 @@ Note: Cloudinary vars must be set on **both** production and staging Railway ser
 **prompt_history**: `id`, `user_id` (FK → profiles), `prompt`, `response`, `tokens_used`, `model`, `created_at`
 - RLS: users can only read/write their own rows
 
-**wardrobe_items**: `id`, `user_id` (FK → auth.users), `label`, `category`, `color`, `brand`, `notes`, `image_url`, `times_worn`, `created_at`
+**wardrobe_items**: `id`, `user_id` (FK → auth.users), `label`, `category`, `color`, `brand`, `notes`, `image_url`, `times_worn`, `item_dna`, `created_at`
 - Schema in `supabase/wardrobe_schema.sql` — run once in Supabase SQL editor
+- `item_dna` JSONB column added via `supabase/item_dna_migration.sql` — run once
 - RLS: users can only read/write their own rows
 - CRUD via direct Supabase REST API (not Edge Function) using user JWT
 
@@ -138,6 +140,8 @@ The `.tracker-num`, `.tracker-title`, `.tracker-sub`, `.tracker-fill` elements a
 
 `_WA_TITLES` milestones (0 / 1 / 5 / 10 / 15 items) control the tracker copy. At 0 items the full string is used verbatim; at 1+ items it is prefixed with `n + ' / 15 '`. The CTA reads "Add your first piece +" at 0 items and "Add pieces +" thereafter.
 
+The tracker CTA (`onclick` on `.tracker-cta`) opens the wardrobe add modal directly — it does NOT navigate to `/wardrobe`.
+
 ### Dashboard v2 — Styling Concierge cards
 The bundle ships with the **old** card order: `[Weekly Planner(01), Travel Edit(02), Key Piece(03)]`. `__robes_personalize` transforms this at runtime:
 - Destructures as `const [weekly, travel, keyPiece] = svcs`
@@ -153,6 +157,71 @@ The bundle ships with the **old** card order: `[Weekly Planner(01), Travel Edit(
 - Locked state (`_waItems.length < 15`): adds `.rb-lock-wrap` pill overlay, CTA shows "N pieces to go" with lock icon, onclick shows toast
 - Unlocked state: removes pill, CTA becomes "Style today →", onclick fills `#cb-ta` with `"Dress me for a day in the city today"` and scrolls/focuses the textarea
 - Called on every `_waLoad()` completion and wardrobe item add/delete
+
+### 3-step wardrobe add flow
+We own all 3 steps — the bundle's `.fm-step` content is replaced entirely on `WA.open` for new items.
+
+- **Step 1** (`_showStep1`): our own photo capture UI (file input + drop zone). No bundle involvement.
+- **Step 2** (`_runStep2`): "Reading your piece…" spinner + progress text while `POST /api/wardrobe/analyse` runs.
+- **Step 3** (`_runStep3`): "Here's what Robes saw." — review form with AI-extracted fields, colour swatches, silhouette pills, and pre-filled notes.
+
+On step 3 submit (`window.__waSawSubmit`): restores `_origStepHTML` (bundle form) into the DOM, populates its hidden fields (`#wa-label-in`, `#wa-cat`, `#wa-brand`, `#wa-notes`, `#wa-sw-name`), then calls `WA.submit` after 50ms.
+
+`_origStepHTML` is captured once on first `WA.open` call (add mode). It is **never** cleared on `WA.close` — preserving it means edit mode can always restore the bundle form even after an add flow.
+
+Edit mode (`_waEditId !== null`): `WA.open` skips step 1 and instead restores `_origStepHTML` at 50ms if `#wa-label-in` is missing from DOM (handles the case where step 1 replaced it).
+
+### Colour picker (`_ALL_SWATCHES` + `_buildSwatchRows`)
+Editorial tri-tier swatch system. All swatch data is defined at IIFE scope (not inside `_runStep3`) so it can be shared between the add flow and edit modal.
+
+- `_ALL_SWATCHES` — 21 swatches: Foundations (6) → Dimension Builders (7) → Exclamation Points (6) → Multi + Print
+- `_buildSwatchRows(selectedColor)` — returns two-row HTML; the selected swatch gets outline + checkmark
+- `window.__rbPickSwatch(el, name)` — global click handler; updates outline/checkmark on all swatch buttons, writes to `#wa-sw-name` and `window.__waSawColor`
+- `window.__rbInjectSwatches(selectedColor)` — replaces `#wa-swatches` (bundle's swatch container) with our rows; used by edit modal. Also sets `#wa-sw-name` textContent so `WA.submit` reads the right colour
+- Colour is submitted via `#wa-sw-name` textContent — `WA.submit` reads this directly
+- `Multi` swatch: `conic-gradient(#FF1493,#FF4500,#E1FD2E,#00A86B,#0047AB,#4B0082,#FF1493)`
+- `Print` swatch: diagonal SVG stripe on `#EDE8E0` background
+- White swatch uses inset border shadow to show its edge
+- Hover reveals colour name in `#rb-sw-label`; click also updates it (covers mobile)
+
+### Gemini wardrobe analysis (`POST /api/wardrobe/analyse`)
+Returns structured JSON used to populate step 3 and saved to `item_dna`:
+```json
+{
+  "label": "...",
+  "category": "...",
+  "color": "...",
+  "brand": "...",
+  "notes": "...",
+  "item_dna": {
+    "display": {
+      "title": "...",
+      "editorial_color_name": "Washed Slate",
+      "primary_color_hex": "#6B6B6B",
+      "brand_raw": "..."
+    },
+    "structural_dna": {
+      "silhouette_fit": ["Relaxed", "Single-breasted", "Unlined"]
+    },
+    "llm_styling_context": {},
+    "ai_generated_notes": "..."
+  }
+}
+```
+
+Guardrail taxonomy enforced in prompt — `silhouette_fit` values map to controlled terms per category (Tops/Bottoms/Outerwear/Dresses/Shoes/Bags/Accessories). `maxOutputTokens` is 500 (increased from 200 to fit the richer response).
+
+### item_dna JSONB column
+- Added via `supabase/item_dna_migration.sql` (backward-compatible — existing rows get `{}`)
+- GIN index: `idx_wardrobe_item_dna` for efficient JSONB queries
+- `WA.submit` merges current colour + notes into `item_dna` before saving
+- `window.__waSawItemDna` holds the in-flight item_dna object during the add/edit flow — always a deep copy
+
+### Silhouette & Fit pills
+- Rendered from `item_dna.structural_dna.silhouette_fit` (array of strings)
+- Dismissible with × button — `window.__rbRemovePill(i)` splices the array and re-renders
+- Shown in step 3 (add flow) and in the edit modal (loaded from saved `item_dna`)
+- `window.__waSawFit` tracks the current pill state during the modal session
 
 ## App flow (modal path — primary)
 1. **Landing** — email capture → `submitLandingEmail()` → Airtable `Contacts`
@@ -201,3 +270,7 @@ The bundle ships with the **old** card order: `[Weekly Planner(01), Travel Edit(
 - `_waBuildFilters()` checks for existing non-onclick pills before rebuilding to avoid resetting active filter state on async reloads
 - Dashboard bundle ships `[Weekly Planner, Travel Edit, Key Piece]` — always destructure in that order; the v2 layout reorders them at runtime
 - SVG data URLs must not contain XML comments (`<!-- -->`) — they break URI encoding silently
+- `_origStepHTML` must NOT be cleared on `WA.close` — it is captured once and reused across all subsequent edit opens
+- Edit modal: bundle form is restored at 50ms (inside patched `WA.open`), field population at 60ms (inside `_waOpenEdit` setTimeout) — order matters
+- `window.__waSawItemDna` is set by `_runStep3` (add flow) and `_waOpenEdit` (edit flow); always a deep copy so mutations don't affect `_waItems`
+- `#wa-swatches` is the bundle's swatch container — `__rbInjectSwatches` replaces its innerHTML with our two-row layout
