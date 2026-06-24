@@ -2053,8 +2053,10 @@ document.addEventListener('DOMContentLoaded', async function() {
           breadcrumb.onclick = function() { window.__mbCloseResult(); };
         }
 
-        // Show the bundle's moodboard panel, hide all other subpages
+        // Show the bundle's moodboard panel — hide home-body (it's a block sibling, not overlay)
         document.querySelectorAll('.subpage').forEach(s => s.classList.remove('visible'));
+        const homeBody = document.getElementById('home-body');
+        if (homeBody) homeBody.style.display = 'none';
         const panel = document.getElementById('moodboard-panel');
         if (panel) { panel.classList.add('visible'); panel.scrollTop = 0; }
 
@@ -2065,6 +2067,8 @@ document.addEventListener('DOMContentLoaded', async function() {
       window.__mbCloseResult = function() {
         const panel = document.getElementById('moodboard-panel');
         if (panel) panel.classList.remove('visible');
+        const homeBody = document.getElementById('home-body');
+        if (homeBody) homeBody.style.display = '';
         const breadcrumb = document.getElementById('nav-breadcrumb');
         if (breadcrumb) breadcrumb.style.display = 'none';
       };
