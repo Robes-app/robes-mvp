@@ -986,6 +986,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           _waBuildFilters();
           _waRender();
           _waLoad(); // async refresh from Supabase
+          window.rbSetCrumb && window.rbSetCrumb([{ label: 'Wardrobe' }]);
         };
       }
 
@@ -1304,9 +1305,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           <nav style="position:sticky;top:0;z-index:10;background:rgba(250,248,245,0.95);backdrop-filter:blur(8px);border-bottom:1px solid rgba(32,32,33,0.08);padding:0 24px;height:48px;display:flex;align-items:center;gap:0;font-size:12px;font-family:${sans};letter-spacing:.01em">
             <button onclick="window.__kpGoBack()" style="background:none;border:none;cursor:pointer;font-size:12px;font-family:${sans};color:#202021;font-weight:600;padding:0;letter-spacing:.02em">ROBES</button>
             <span style="color:rgba(32,32,33,0.3);margin:0 1px"> / </span>
-            <button onclick="window.__kpGoBack()" style="background:none;border:none;cursor:pointer;font-size:12px;font-family:${sans};color:rgba(32,32,33,0.65);padding:0" onmouseenter="this.style.color='#202021'" onmouseleave="this.style.color='rgba(32,32,33,0.65)'">Get inspired</button>
-            <span style="color:rgba(32,32,33,0.3);margin:0 1px"> / </span>
-            <span style="color:rgba(32,32,33,0.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px" title="${pieceName.replace(/"/g,'&quot;')}">${pieceName}</span>
+            <span style="color:rgba(32,32,33,0.4)">Style a piece</span>
           </nav>
           <div style="max-width:860px;margin:0 auto;padding:40px 24px 80px">
 
@@ -1675,15 +1674,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                 { label: 'Your look' }
               ]);
             } else if (tab === 'trip') {
-              window.rbSetCrumb && window.rbSetCrumb([
-                { label: 'Pack a trip', action: function() { App.setSubtab('trip'); } },
-                { label: 'Planning' }
-              ]);
+              window.rbSetCrumb && window.rbSetCrumb([{ label: 'Pack a trip' }]);
             } else if (tab === 'week') {
-              window.rbSetCrumb && window.rbSetCrumb([
-                { label: 'Plan the week', action: function() { App.setSubtab('week'); } },
-                { label: 'Your week' }
-              ]);
+              window.rbSetCrumb && window.rbSetCrumb([{ label: 'Plan the week' }]);
             } else {
               window.rbClearCrumb && window.rbClearCrumb();
             }
@@ -2135,11 +2128,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         const railStatEl = document.getElementById('mb-rail-stat');
         if (railStatEl) railStatEl.innerHTML = `<span class="s">${matchedCount}</span> yours · <span class="r">${shopCount}</span> to shop`;
 
-        // Breadcrumb nav — ROBES / Get inspired / {title}
-        window.rbSetCrumb([
-          { label: 'Get inspired', action: function() { window.__mbCloseResult(); } },
-          { label: title },
-        ]);
+        // Breadcrumb: ROBES / {title} when opened from dashboard,
+        // or ROBES / Your Moodboards / {title} when opened from the full list
+        if (window._mbOpenedFromList) {
+          window.rbSetCrumb([
+            { label: 'Your Moodboards', action: function() { window.__mbCloseResult(); window._mbOpenedFromList = false; if (window._mbShowAllPage) window._mbShowAllPage(); } },
+            { label: title },
+          ]);
+        } else {
+          window.rbSetCrumb([{ label: title }]);
+        }
 
         // Panel is INSIDE home-body — use position:fixed to overlay instead of hiding parent
         document.querySelectorAll('.subpage').forEach(s => { s.classList.remove('visible'); s.style.cssText = ''; });
@@ -2173,6 +2171,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       window.__mbCloseResult = function() {
         const panel = document.getElementById('moodboard-panel');
         if (panel) { panel.classList.remove('visible'); panel.style.cssText = ''; }
+        window._mbOpenedFromList = false;
         window.rbClearCrumb && window.rbClearCrumb();
       };
 
@@ -2232,13 +2231,22 @@ document.addEventListener('DOMContentLoaded', async function() {
           </div>`).join('');
       }
 
-      window.__mbOpenList = function() { _mbListPage.style.display = 'block'; _mbRenderPage(); };
-      window.__mbCloseList = function() { _mbListPage.style.display = 'none'; };
+      window._mbShowAllPage = function() { _mbListPage.style.display = 'block'; _mbRenderPage(); };
+      window.__mbOpenList = function() {
+        window._mbShowAllPage();
+        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Your Moodboards' }]);
+      };
+      window.__mbCloseList = function() {
+        _mbListPage.style.display = 'none';
+        window.rbClearCrumb && window.rbClearCrumb();
+      };
       window.__mbRemoveSaved = function(id) { _mbRemove(id); };
       window.__mbOpenSaved = function(id) {
         const item = _mbLoad().find(i => i.id === id);
         if (!item) return;
+        const fromList = _mbListPage.style.display !== 'none';
         _mbListPage.style.display = 'none';
+        window._mbOpenedFromList = fromList;
         _mbShowResult(item);
       };
 
