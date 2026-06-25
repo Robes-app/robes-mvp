@@ -636,7 +636,7 @@ Rules:
       : null;
   }
 
-  // Generate hero editorial image (best-effort, 40s timeout)
+  // Generate hero editorial image (best-effort, 40s timeout) then upload to Cloudinary
   const t1 = Date.now();
   let heroImage = null;
   try {
@@ -644,14 +644,21 @@ Rules:
       model: 'gemini-3.1-flash-image',
       contents: [{ role: 'user', parts: [{ text: `Editorial fashion photography, portrait orientation, no text. ${moodboardData.image_prompt}` }] }],
       config: { responseModalities: ['TEXT', 'IMAGE'] },
-    }).then(r => {
+    }).then(async r => {
       const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
       if (!part?.inlineData) {
         logAI({ feature: 'moodboard', stage: 'image', success: false, reason: 'no_inline_data' });
         return null;
       }
-      logAI({ feature: 'moodboard', stage: 'image', success: true, ms: Date.now() - t1 });
-      return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      // Upload to Cloudinary — return URL, never base64
+      try {
+        const url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+        logAI({ feature: 'moodboard', stage: 'image', success: true, ms: Date.now() - t1 });
+        return url;
+      } catch (uploadErr) {
+        logAI({ feature: 'moodboard', stage: 'image', success: false, reason: 'cloudinary: ' + uploadErr.message });
+        return null;
+      }
     }).catch(err => {
       logAI({ feature: 'moodboard', stage: 'image', success: false, reason: err.message });
       return null;

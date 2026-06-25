@@ -1568,7 +1568,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           .rb-es-card:hover .rb-es-cta { opacity:.9;transform:translateY(-1px); }
           .rb-es-cta svg { width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round; }
 
-          /* Populated: moodboard 2-up grid */
+          /* Populated: moodboard 4-up grid (2×2) */
           .rb-mb-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
           .rb-mb-card { cursor:pointer;border-radius:var(--rb-rad-lg);overflow:hidden;background:#fff;border:0.5px solid var(--rb-rule);transition:border-color .2s,box-shadow .2s; }
           .rb-mb-card:hover { border-color:rgba(32,32,33,0.2);box-shadow:0 12px 32px -16px rgba(32,32,33,0.18); }
@@ -1634,7 +1634,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       function _rbRenderMoodboards() {
         const el = document.getElementById('rb-mb');
         if (!el) return;
-        const items = _mbLoad().slice(0, 2);
+        const items = _mbLoad().slice(0, 4);
         const arrowSvg = `<svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
         if (!items.length) {
           el.innerHTML = `
@@ -1999,16 +1999,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Mosaic — hero image + editorial direction text tile
         const mosaicEl = document.getElementById('mb-mosaic');
         if (mosaicEl) {
+          // Never bake heroUrl into innerHTML — set img.src via DOM to avoid base64 truncation errors
           const heroHtml = heroUrl
-            ? `<img class="mme-hero" src="${heroUrl}" alt="${_mbEsc(title)}" style="width:100%;height:100%;object-fit:cover">`
+            ? `<img id="mb-mosaic-hero" class="mme-hero" alt="${_mbEsc(title)}" style="width:100%;height:100%;object-fit:cover">`
             : `<div class="mme-hero" style="display:flex;align-items:flex-end;padding:24px;box-sizing:border-box;background:var(--cream-200)"><p style="font-family:var(--font-serif);font-size:22px;font-weight:300;color:var(--ink-faint);line-height:1.3;margin:0">${_mbEsc(title)}</p></div>`;
           const editorialHtml = editorial_direction
             ? `<div style="background:var(--cream-100);padding:20px;display:flex;align-items:center;box-sizing:border-box"><p style="font-family:var(--font-serif);font-style:italic;font-size:15px;font-weight:300;color:var(--ink-soft);line-height:1.6;margin:0">${_mbEsc(editorial_direction)}</p></div>`
             : `<div style="background:var(--cream-200)"></div>`;
-          // Fill remaining slots with colour-palette tiles drawn from tags
           const palette = ['var(--cream-200)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-100)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-200)'];
           const extras = palette.map(bg => `<div style="background:${bg}"></div>`).join('');
           mosaicEl.innerHTML = heroHtml + editorialHtml + extras;
+          if (heroUrl) {
+            const heroImg = document.getElementById('mb-mosaic-hero');
+            if (heroImg) heroImg.src = heroUrl;
+          }
         }
 
         // The Look sidebar — uses bundle CSS classes (.piece, .piece-img-wrap, etc.)
@@ -2075,19 +2079,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         // Store for save
         if (panel) panel._currentData = data;
-      }
 
-      window.__mbCloseResult = function() {
-        const panel = document.getElementById('moodboard-panel');
-        if (panel) { panel.classList.remove('visible'); panel.style.cssText = ''; }
-        const breadcrumb = document.getElementById('nav-breadcrumb');
-        if (breadcrumb) breadcrumb.style.display = 'none';
-      };
-
-      window.__mbSaveMoodboard = function() {
-        const panel = document.getElementById('moodboard-panel');
-        const data = panel && panel._currentData;
-        if (!data) return;
+        // Auto-save immediately — no manual tap required
         _mbAdd({
           type: 'moodboard',
           title: data.title || data.prompt || 'Moodboard',
@@ -2099,7 +2092,18 @@ document.addEventListener('DOMContentLoaded', async function() {
           location_context: data.location_context,
           editorial_direction: data.editorial_direction,
         });
-        _waShowToast('Moodboard saved');
+      }
+
+      window.__mbCloseResult = function() {
+        const panel = document.getElementById('moodboard-panel');
+        if (panel) { panel.classList.remove('visible'); panel.style.cssText = ''; }
+        const breadcrumb = document.getElementById('nav-breadcrumb');
+        if (breadcrumb) breadcrumb.style.display = 'none';
+      };
+
+      window.__mbSaveMoodboard = function() {
+        // Auto-saved on generation — this is a no-op but kept for bundle compat
+        _waShowToast('Saved to your moodboards');
       };
 
       // ── Swap placeholder (Phase 2) ────────────────────────────────────
