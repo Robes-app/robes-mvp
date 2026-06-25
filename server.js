@@ -18,6 +18,15 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
+/* ── image job store (in-memory, 10min TTL) ──────────────────────── */
+const imageJobs = new Map();
+setInterval(() => {
+  const cutoff = Date.now() - 10 * 60 * 1000;
+  for (const [id, job] of imageJobs) {
+    if (job.created < cutoff) imageJobs.delete(id);
+  }
+}, 5 * 60 * 1000);
+
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
@@ -277,8 +286,14 @@ Style this key piece three ways. Make each look genuinely distinct — different
     const ways = parsed.ways;
     logAI({ feature: 'style', stage: 'text', model: 'gemini-2.5-flash', ms: textMs, fallback });
 
+    // Create image job and respond immediately — images generate in background
+    const jobId = randomBytes(6).toString('hex');
+    imageJobs.set(jobId, { images: [null, null, null], done: false, created: Date.now() });
+    res.json({ ways, jobId, photoUrl, fallback });
+
+    // Background image generation — never blocks the client
     const t1 = Date.now();
-    const generatedImages = await Promise.all(ways.map((w, i) => {
+    Promise.all(ways.map((w, i) => {
       const imgParts = [];
       if (!fallback && photoMatch) {
         imgParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
@@ -298,8 +313,11 @@ Style this key piece three ways. Make each look genuinely distinct — different
           logAI({ feature: 'style', stage: 'image', index: i, success: false, reason: 'no_inline_data' });
           return null;
         }
+        const src = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         logAI({ feature: 'style', stage: 'image', index: i, success: true, ms: Date.now() - t1 });
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        const job = imageJobs.get(jobId);
+        if (job) job.images[i] = src;
+        return src;
       }).catch(err => {
         logAI({ feature: 'style', stage: 'image', index: i, success: false, reason: err.message });
         return null;
@@ -310,16 +328,23 @@ Style this key piece three ways. Make each look genuinely distinct — different
         resolve(null);
       }, 40000));
       return Promise.race([imgCall, timeout]);
-    }));
-
-    const imageSuccessCount = generatedImages.filter(Boolean).length;
-    logAI({ feature: 'style', stage: 'complete', totalMs: Date.now() - t0, imageSuccessCount, imageTotal: 3 });
-    res.json({ ways, generatedImages, photoUrl, fallback });
+    })).then(images => {
+      const job = imageJobs.get(jobId);
+      if (job) { job.images = images; job.done = true; }
+      logAI({ feature: 'style', stage: 'images_complete', jobId, totalMs: Date.now() - t0, successCount: images.filter(Boolean).length });
+    });
   } catch (err) {
     if (res.headersSent) return; // client already disconnected
     console.error('Gemini API error:', err.message);
     res.status(500).json({ error: err.message || 'Styling failed' });
   }
+});
+
+/* ── image job polling ───────────────────────────────────────────── */
+app.get('/api/images/:jobId', (req, res) => {
+  const job = imageJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job not found or expired' });
+  res.json({ images: job.images, done: job.done });
 });
 
 /* ── look share ──────────────────────────────────────────────────── */

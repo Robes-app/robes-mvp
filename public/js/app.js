@@ -68,7 +68,7 @@ const App = (function () {
   function restart() {
     st.name = ''; st.email = ''; st.pieceName = ''; st.prompt = '';
     st.link = ''; st.photo = null; st.photoUrl = null; st.ways = null;
-    st.generatedImages = null; st.fallback = false; st.shareIdx = 0; st.history = []; st.stylingPromise = null; st.styleController = null; st.lookId = null;
+    st.generatedImages = null; st.fallback = false; st.shareIdx = 0; st.history = []; st.stylingPromise = null; st.styleController = null; st.lookId = null; st.imageJobId = null;
     closeModal();
     go('landing');
   }
@@ -384,7 +384,7 @@ const App = (function () {
   }
   function advance() {
     clearTimeout(genTimer);
-    genTimer = setTimeout(() => preloadGeneratedImages().then(() => { saveLook(); next(); }), 400);
+    genTimer = setTimeout(() => { saveLook(); next(); pollImages(st.imageJobId); }, 400);
   }
 
   async function callStyle() {
@@ -417,10 +417,48 @@ const App = (function () {
     const data = await res.json();
     if (!data.ways || !Array.isArray(data.ways)) throw new Error('Unexpected response');
     if (data.photoUrl) st.photoUrl = data.photoUrl;
-    if (Array.isArray(data.generatedImages)) st.generatedImages = data.generatedImages;
+    if (data.jobId) st.imageJobId = data.jobId;
+    // images arrive async — start with empty array
+    st.generatedImages = [null, null, null];
     st.fallback = data.fallback === true;
     if (st.fallback) { st.photo = null; st.pieceName = 'Balmain waistcoat'; }
     return data.ways;
+  }
+
+  function pollImages(jobId) {
+    if (!jobId) return;
+    let attempts = 0;
+    const maxAttempts = 60; // 2 min ceiling at 2s intervals
+    function tick() {
+      if (attempts++ >= maxAttempts) return;
+      fetch(`/api/images/${jobId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data) return;
+          data.images.forEach((src, i) => {
+            if (!src || st.generatedImages[i]) return; // skip nulls and already-set
+            st.generatedImages[i] = src;
+            // swap placeholder → real image in result and share carousel
+            const containers = document.querySelectorAll(`.way-img[data-idx="${i}"], .ig-photo[data-idx="${i}"]`);
+            containers.forEach(el => {
+              const placeholder = el.querySelector('.way-img-placeholder');
+              if (placeholder) {
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = '';
+                placeholder.replaceWith(img);
+              }
+            });
+          });
+          if (!data.done) setTimeout(tick, 2000);
+          else {
+            // update saveLook now that we have images
+            saveLook();
+          }
+        })
+        .catch(() => { if (attempts < maxAttempts) setTimeout(tick, 3000); });
+    }
+    setTimeout(tick, 1500); // first poll after 1.5s — give server a head start
   }
 
   /* ── result ─────────────────────────────────────────────────────── */
@@ -459,7 +497,7 @@ const App = (function () {
         : `<div class="way-img-placeholder"></div>`;
       return `
       <article class="way">
-        <div class="way-img">
+        <div class="way-img" data-idx="${i}">
           ${imgContent}
           <span class="way-num">${String(i + 1).padStart(2, '0')}</span>
         </div>
@@ -489,7 +527,7 @@ const App = (function () {
   function openModal() {
     if (st.styleController) { st.styleController.abort(); st.styleController = null; }
     fmStep = 0;
-    st.photo = null; st.photoUrl = null; st.prompt = ''; st.pieceName = ''; st.stylingPromise = null; st.lookId = null;
+    st.photo = null; st.photoUrl = null; st.prompt = ''; st.pieceName = ''; st.stylingPromise = null; st.lookId = null; st.imageJobId = null;
     paintFmTile();
     if ($('#fm-input')) $('#fm-input').value = '';
     if ($('#fm-name-input')) $('#fm-name-input').value = st.name || '';
@@ -655,7 +693,7 @@ const App = (function () {
 
   function advanceModal() {
     clearTimeout(genTimer);
-    genTimer = setTimeout(() => preloadGeneratedImages().then(() => { saveLook(); closeModal(); go('result'); }), 400);
+    genTimer = setTimeout(() => { saveLook(); closeModal(); go('result'); pollImages(st.imageJobId); }, 400);
   }
 
   function retryStyle() {
@@ -738,7 +776,7 @@ const App = (function () {
             <span class="ig-wm">Robes</span>
             <span class="ig-idx">0${i + 1} / 03</span>
           </div>
-          <div class="ig-photo">
+          <div class="ig-photo" data-idx="${i}">
             ${igImgContent}
             <span class="ig-num">${String(i + 1).padStart(2, '0')}</span>
           </div>
