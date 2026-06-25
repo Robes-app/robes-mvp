@@ -1282,6 +1282,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       window.__kpGoBack = function() {
         if (kpResultPage) kpResultPage.style.display = 'none';
+        window.rbClearCrumb && window.rbClearCrumb();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
@@ -1300,11 +1301,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         kpResultPage.innerHTML = `
-          <nav style="position:sticky;top:0;z-index:10;background:rgba(250,248,245,0.95);backdrop-filter:blur(8px);border-bottom:1px solid rgba(32,32,33,0.08);padding:0 24px;height:48px;display:flex;align-items:center">
-            <button onclick="window.__kpGoBack()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6E6A64;padding:0;font-family:${sans}">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
-              Dashboard
-            </button>
+          <nav style="position:sticky;top:0;z-index:10;background:rgba(250,248,245,0.95);backdrop-filter:blur(8px);border-bottom:1px solid rgba(32,32,33,0.08);padding:0 24px;height:48px;display:flex;align-items:center;gap:0;font-size:12px;font-family:${sans};letter-spacing:.01em">
+            <button onclick="window.__kpGoBack()" style="background:none;border:none;cursor:pointer;font-size:12px;font-family:${sans};color:#202021;font-weight:600;padding:0;letter-spacing:.02em">ROBES</button>
+            <span style="color:rgba(32,32,33,0.3);margin:0 1px"> / </span>
+            <button onclick="window.__kpGoBack()" style="background:none;border:none;cursor:pointer;font-size:12px;font-family:${sans};color:rgba(32,32,33,0.65);padding:0" onmouseenter="this.style.color='#202021'" onmouseleave="this.style.color='rgba(32,32,33,0.65)'">Get inspired</button>
+            <span style="color:rgba(32,32,33,0.3);margin:0 1px"> / </span>
+            <span style="color:rgba(32,32,33,0.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px" title="${pieceName.replace(/"/g,'&quot;')}">${pieceName}</span>
           </nav>
           <div style="max-width:860px;margin:0 auto;padding:40px 24px 80px">
 
@@ -1617,7 +1619,82 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.head.appendChild(s);
       })();
 
-      function _rbTimeAgo(iso) {
+      // ── Global breadcrumb system ──────────────────────────────────────
+      // Renders ROBES / Parent / Current in the nav, replacing the bundle's
+      // single back-button with independently clickable segments.
+      (function _rbInitBreadcrumb() {
+        // Suppress bundle's single back-button permanently
+        const bundleCrumb = document.getElementById('nav-breadcrumb');
+        if (bundleCrumb) bundleCrumb.style.display = 'none';
+
+        // Inject our container into nav-l after the wordmark
+        const navL = document.querySelector('.nav-l');
+        if (!navL) return;
+        const sep = ' / '; // " / "
+        const container = document.createElement('span');
+        container.id = 'rb-crumb';
+        container.style.cssText = 'display:none;align-items:center;font-size:12px;font-family:var(--font-sans,inherit);letter-spacing:.01em;gap:0';
+        navL.appendChild(container);
+
+        // Ensure wordmark always routes home
+        const wm = document.getElementById('nav-wordmark');
+        if (wm) wm.onclick = function() {
+          window.rbClearCrumb();
+          if (window.App && App.goHome) App.goHome();
+        };
+
+        window.rbSetCrumb = function(segments) {
+          // segments: [{label, action}] — last item has no action (current page)
+          container.style.display = 'inline-flex';
+          container.innerHTML = segments.map(function(seg, i) {
+            const isLast = i === segments.length - 1;
+            const sepHtml = `<span style="color:rgba(32,32,33,0.3);margin:0 1px">${sep}</span>`;
+            const labelHtml = isLast
+              ? `<span style="color:rgba(32,32,33,0.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px" title="${seg.label.replace(/"/g,'&quot;')}">${seg.label}</span>`
+              : `<button onclick="(${seg.action.toString()})()" style="background:none;border:none;padding:0;cursor:pointer;font-size:12px;font-family:inherit;color:rgba(32,32,33,0.65);white-space:nowrap;transition:color .15s" onmouseenter="this.style.color='#202021'" onmouseleave="this.style.color='rgba(32,32,33,0.65)'">${seg.label}</button>`;
+            return sepHtml + labelHtml;
+          }).join('');
+        };
+
+        window.rbClearCrumb = function() {
+          container.style.display = 'none';
+          container.innerHTML = '';
+        };
+      })();
+
+      // Patch App.setSubtab to wire breadcrumbs for subtab sub-panels
+      (function _rbPatchSubtabs() {
+        function _tryPatch() {
+          if (!window.App || !App.setSubtab) return false;
+          const _origSetSubtab = App.setSubtab.bind(App);
+          App.setSubtab = function(tab) {
+            _origSetSubtab(tab);
+            if (tab === 'today') {
+              window.rbSetCrumb && window.rbSetCrumb([
+                { label: 'Recent looks', action: function() { App.setSubtab('today'); } },
+                { label: 'Your look' }
+              ]);
+            } else if (tab === 'trip') {
+              window.rbSetCrumb && window.rbSetCrumb([
+                { label: 'Pack a trip', action: function() { App.setSubtab('trip'); } },
+                { label: 'Planning' }
+              ]);
+            } else if (tab === 'week') {
+              window.rbSetCrumb && window.rbSetCrumb([
+                { label: 'Plan the week', action: function() { App.setSubtab('week'); } },
+                { label: 'Your week' }
+              ]);
+            } else {
+              window.rbClearCrumb && window.rbClearCrumb();
+            }
+          };
+          return true;
+        }
+        if (!_tryPatch()) {
+          const t = setInterval(function() { if (_tryPatch()) clearInterval(t); }, 250);
+        }
+      })();
+
         if (!iso) return '';
         const d = new Date(iso);
         const mins = Math.floor((Date.now() - d) / 60000);
@@ -1946,6 +2023,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const el = document.getElementById('mb-gen-prompt');
         if (el) el.textContent = prompt;
         _mbGenOverlay.style.display = 'flex';
+        window.rbClearCrumb && window.rbClearCrumb(); // wordmark alone during generation
       }
       function _mbHideGenerating() { _mbGenOverlay.style.display = 'none'; }
 
@@ -2056,14 +2134,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         const railStatEl = document.getElementById('mb-rail-stat');
         if (railStatEl) railStatEl.innerHTML = `<span class="s">${matchedCount}</span> yours · <span class="r">${shopCount}</span> to shop`;
 
-        // Breadcrumb nav
-        const bcLabel = document.getElementById('bc-label');
-        if (bcLabel) bcLabel.textContent = title;
-        const breadcrumb = document.getElementById('nav-breadcrumb');
-        if (breadcrumb) {
-          breadcrumb.style.display = 'inline-flex';
-          breadcrumb.onclick = function() { window.__mbCloseResult(); };
-        }
+        // Breadcrumb nav — ROBES / Get inspired / {title}
+        window.rbSetCrumb([
+          { label: 'Get inspired', action: function() { window.__mbCloseResult(); } },
+          { label: title },
+        ]);
 
         // Panel is INSIDE home-body — use position:fixed to overlay instead of hiding parent
         document.querySelectorAll('.subpage').forEach(s => { s.classList.remove('visible'); s.style.cssText = ''; });
@@ -2097,8 +2172,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       window.__mbCloseResult = function() {
         const panel = document.getElementById('moodboard-panel');
         if (panel) { panel.classList.remove('visible'); panel.style.cssText = ''; }
-        const breadcrumb = document.getElementById('nav-breadcrumb');
-        if (breadcrumb) breadcrumb.style.display = 'none';
+        window.rbClearCrumb && window.rbClearCrumb();
       };
 
       window.__mbSaveMoodboard = function() {
