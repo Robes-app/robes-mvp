@@ -29,6 +29,11 @@ app.use(express.static(join(__dirname, 'public'), {
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+/* ── structured AI logging ───────────────────────────────────────── */
+function logAI(event) {
+  console.log(JSON.stringify({ ts: new Date().toISOString(), ...event }));
+}
+
 /* ── Airtable ────────────────────────────────────────────────────── */
 const AT_TOKEN = process.env.AIRTABLE_TOKEN;
 const AT_BASE  = process.env.AIRTABLE_BASE_ID;
@@ -266,11 +271,11 @@ Style this key piece three ways. Make each look genuinely distinct — different
       photoMatch ? cloudinaryUpload(photoMatch[2], photoMatch[1]) : Promise.resolve(null),
     ]);
 
-    console.log(`Text: ${Date.now() - t0}ms`);
-
+    const textMs = Date.now() - t0;
     const parsed = JSON.parse(textResponse.text);
     const fallback = parsed.fallback === true;
     const ways = parsed.ways;
+    logAI({ feature: 'style', stage: 'text', model: 'gemini-2.5-flash', ms: textMs, fallback });
 
     const t1 = Date.now();
     const generatedImages = await Promise.all(ways.map((w, i) => {
@@ -289,17 +294,26 @@ Style this key piece three ways. Make each look genuinely distinct — different
         config: { responseModalities: ['TEXT', 'IMAGE'] },
       }).then(r => {
         const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-        if (!part?.inlineData) return null;
-        console.log(`Image ${i}: ${Date.now() - t1}ms`);
+        if (!part?.inlineData) {
+          logAI({ feature: 'style', stage: 'image', index: i, success: false, reason: 'no_inline_data' });
+          return null;
+        }
+        logAI({ feature: 'style', stage: 'image', index: i, success: true, ms: Date.now() - t1 });
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-      }).catch(err => { console.warn(`Image ${i} failed:`, err.message); return null; });
+      }).catch(err => {
+        logAI({ feature: 'style', stage: 'image', index: i, success: false, reason: err.message });
+        return null;
+      });
 
-      // Never wait more than 40s for any single image
-      const timeout = new Promise(resolve => setTimeout(() => { console.warn(`Image ${i} timed out`); resolve(null); }, 40000));
+      const timeout = new Promise(resolve => setTimeout(() => {
+        logAI({ feature: 'style', stage: 'image', index: i, success: false, reason: 'timeout_40s' });
+        resolve(null);
+      }, 40000));
       return Promise.race([imgCall, timeout]);
     }));
 
-    console.log(`Total: ${Date.now() - t0}ms`);
+    const imageSuccessCount = generatedImages.filter(Boolean).length;
+    logAI({ feature: 'style', stage: 'complete', totalMs: Date.now() - t0, imageSuccessCount, imageTotal: 3 });
     res.json({ ways, generatedImages, photoUrl, fallback });
   } catch (err) {
     if (res.headersSent) return; // client already disconnected
@@ -404,9 +418,26 @@ app.get('/wardrobe', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
 
+const ANALYSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    no_item_detected: { type: 'boolean' },
+    label:                { type: 'string' },
+    category:             { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Swimwear', 'Other'] },
+    color:                { type: 'string' },
+    primary_color_hex:    { type: 'string' },
+    editorial_color_name: { type: 'string' },
+    brand:                { type: 'string' },
+    silhouette_fit:       { type: 'array', items: { type: 'string' } },
+    ai_generated_notes:   { type: 'string' },
+  },
+  required: ['no_item_detected', 'label', 'category', 'color', 'primary_color_hex', 'editorial_color_name', 'brand', 'silhouette_fit', 'ai_generated_notes'],
+};
+
 app.post('/api/wardrobe/analyse', async (req, res) => {
   const { data, mimeType } = req.body;
   if (!data || !mimeType) return res.status(400).json({ error: 'Missing data or mimeType' });
+  const t0 = Date.now();
   try {
     const result = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -414,8 +445,11 @@ app.post('/api/wardrobe/analyse', async (req, res) => {
         role: 'user',
         parts: [
           { inlineData: { mimeType, data } },
-          { text: `You are a fashion intelligence engine for a luxury wardrobe app. Analyze this clothing item photo and return a JSON object with these keys:
+          { text: `You are a fashion intelligence engine for a luxury wardrobe app. Analyze this photo.
 
+IMPORTANT: If no clothing item, garment, or accessory is clearly visible (e.g. the photo shows a face, a room, a screenshot, or unidentifiable content), set "no_item_detected": true and return all other fields as empty strings or empty arrays.
+
+If a clothing item IS present, set "no_item_detected": false and fill every field:
 "label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans")
 "category": one of — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other
 "color": pick ONE from this list only —
@@ -427,21 +461,18 @@ app.post('/api/wardrobe/analyse', async (req, res) => {
 "editorial_color_name": evocative color name (e.g. "Warm Caramel", "Washed Slate")
 "brand": brand if visible, else ""
 "silhouette_fit": array of 2-4 short descriptors (e.g. ["Blazer", "Single-breasted", "Relaxed"])
-"ai_generated_notes": one editorial sentence under 15 words
-
-Return only valid JSON, no markdown.` }
+"ai_generated_notes": one editorial sentence under 15 words` }
         ]
       }],
-      config: { responseMimeType: 'application/json', maxOutputTokens: 600 }
+      config: { responseMimeType: 'application/json', responseSchema: ANALYSE_SCHEMA, maxOutputTokens: 600 },
     });
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    console.log('[analyse] raw:', text.slice(0, 400));
 
-    let parsed = {};
-    try {
-      parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
-    } catch (parseErr) {
-      console.warn('[analyse] JSON parse failed, returning partial:', parseErr.message);
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const parsed = JSON.parse(text);
+    logAI({ feature: 'wardrobe_analyse', ms: Date.now() - t0, no_item_detected: parsed.no_item_detected, success: true });
+
+    if (parsed.no_item_detected) {
+      return res.json({ noItemDetected: true, label: '', category: 'Other', color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, llm_styling_context: {}, ai_generated_notes: '' } });
     }
 
     const item_dna = {
@@ -467,8 +498,8 @@ Return only valid JSON, no markdown.` }
       item_dna,
     });
   } catch (err) {
+    logAI({ feature: 'wardrobe_analyse', ms: Date.now() - t0, success: false, reason: err.message });
     console.error('[analyse] Gemini error:', err.message);
-    // Return empty-field response so step 3 still renders rather than bouncing back to step 1
     res.json({ label: '', category: 'Other', color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, llm_styling_context: {}, ai_generated_notes: '' } });
   }
 });
@@ -513,12 +544,11 @@ Rules:
 - Never use generic descriptions — name cuts, fabrics, colours precisely
 - Do NOT default to a London or Wimbledon aesthetic unless the brief says so`;
 
-  console.log('[moodboard] prompt received:', prompt);
+  const t0 = Date.now();
 
   let moodboardData;
   try {
     const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-    // No responseMimeType — JSON mode can truncate responses; parse manually instead
     const geminiCall = (model) => ai.models.generateContent({
       model,
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
@@ -533,7 +563,7 @@ Rules:
           const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('text gen timeout')), 35000));
           textResult = await Promise.race([geminiCall(model), timeout]);
           const finishReason = textResult.candidates?.[0]?.finishReason;
-          console.log(`[moodboard] text ok with ${model}, finishReason: ${finishReason}`);
+          logAI({ feature: 'moodboard', stage: 'text', model, ms: Date.now() - t0, finishReason });
           if (finishReason && finishReason !== 'STOP' && finishReason !== 'MAX_TOKENS') {
             throw new Error(`Gemini stopped: ${finishReason}`);
           }
@@ -542,7 +572,9 @@ Rules:
           lastErr = err;
           const errStr = err.message || '';
           const is503 = errStr.includes('503') || errStr.includes('UNAVAILABLE') || errStr.includes('high demand') || errStr.includes('currently experiencing');
-          if (is503) { console.warn(`[moodboard] 503 on ${model} attempt ${attempt + 1}`); continue; }
+          const is429 = errStr.includes('429') || errStr.includes('RESOURCE_EXHAUSTED') || errStr.includes('quota');
+          const isTimeout = errStr.includes('timeout');
+          if (is503 || is429 || isTimeout) { console.warn(`[moodboard] retryable error on ${model} attempt ${attempt + 1}: ${errStr.slice(0, 80)}`); continue; }
           throw err;
         }
       }
@@ -551,21 +583,21 @@ Rules:
     }
     if (!textResult) throw lastErr || new Error('All models unavailable');
     const raw = textResult.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    console.log('[moodboard] raw response length:', raw.length, '| preview:', raw.slice(0, 200));
     if (!raw) throw new Error('Empty response from Gemini');
     let jsonStr = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-    // Extract JSON object if model wrapped it in prose
     const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
     if (jsonMatch) jsonStr = jsonMatch[0];
     moodboardData = JSON.parse(jsonStr);
-    console.log('[moodboard] parsed ok — title:', moodboardData.title);
+    if (!Array.isArray(moodboardData.the_look) || moodboardData.the_look.length < 6) {
+      throw new Error(`Incomplete look data — got ${moodboardData.the_look?.length ?? 0} items`);
+    }
   } catch (e) {
-    console.error('[moodboard] text gen failed:', e.message, e.stack?.split('\n')[1]);
+    logAI({ feature: 'moodboard', stage: 'text', success: false, ms: Date.now() - t0, reason: e.message });
     return res.status(500).json({ error: e.message || 'Failed to generate moodboard brief' });
   }
 
   // Match wardrobe items by category to look items
-  const lookItems = Array.isArray(moodboardData.the_look) ? moodboardData.the_look : [];
+  const lookItems = moodboardData.the_look;
   for (const lookItem of lookItems) {
     const catLower = (lookItem.category || '').toLowerCase();
     const match = wardrobeItems.find(wi => {
@@ -580,6 +612,7 @@ Rules:
   }
 
   // Generate hero editorial image (best-effort, 40s timeout)
+  const t1 = Date.now();
   let heroImage = null;
   try {
     const imgCall = ai.models.generateContent({
@@ -588,17 +621,27 @@ Rules:
       config: { responseModalities: ['TEXT', 'IMAGE'] },
     }).then(r => {
       const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-      if (!part?.inlineData) return null;
+      if (!part?.inlineData) {
+        logAI({ feature: 'moodboard', stage: 'image', success: false, reason: 'no_inline_data' });
+        return null;
+      }
+      logAI({ feature: 'moodboard', stage: 'image', success: true, ms: Date.now() - t1 });
       return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-    }).catch(err => { console.warn('[moodboard] image failed:', err.message); return null; });
+    }).catch(err => {
+      logAI({ feature: 'moodboard', stage: 'image', success: false, reason: err.message });
+      return null;
+    });
 
-    const timeout = new Promise(resolve => setTimeout(() => resolve(null), 40000));
+    const timeout = new Promise(resolve => setTimeout(() => {
+      logAI({ feature: 'moodboard', stage: 'image', success: false, reason: 'timeout_40s' });
+      resolve(null);
+    }, 40000));
     heroImage = await Promise.race([imgCall, timeout]);
   } catch (e) {
-    console.warn('[moodboard] image error:', e.message);
+    logAI({ feature: 'moodboard', stage: 'image', success: false, reason: e.message });
   }
 
-  console.log('[moodboard] done — image:', heroImage ? 'yes' : 'no');
+  logAI({ feature: 'moodboard', stage: 'complete', totalMs: Date.now() - t0, hasImage: !!heroImage });
   res.json({ ...moodboardData, the_look: lookItems, hero_image: heroImage });
 });
 

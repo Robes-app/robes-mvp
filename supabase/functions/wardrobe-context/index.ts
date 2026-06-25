@@ -53,16 +53,29 @@ Deno.serve(async (req) => {
 
   const systemPrompt = assembleSystemPrompt(profile);
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 1024,
-    system: systemPrompt,
-    messages: [{ role: "user", content: prompt }],
-  });
+  let message;
+  try {
+    const anthropicCall = anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const timeout = new Promise<never>((_, rej) =>
+      setTimeout(() => rej(new Error("Anthropic API timeout after 30s")), 30000)
+    );
+    message = await Promise.race([anthropicCall, timeout]);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "AI request failed";
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 503,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   const responseText = message.content
     .filter((b) => b.type === "text")
-    .map((b) => b.text)
+    .map((b) => (b as { type: "text"; text: string }).text)
     .join("");
 
   const tokensUsed = message.usage.input_tokens + message.usage.output_tokens;
