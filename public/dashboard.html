@@ -1645,6 +1645,8 @@ document.addEventListener('DOMContentLoaded', async function() {
           window.__mbCloseResult && window.__mbCloseResult();
           window.__mbCloseList && window.__mbCloseList();
           if (kpResultPage) kpResultPage.style.display = 'none';
+          const wp = document.querySelector('.wardrobe-panel');
+          if (wp && wp.classList.contains('visible')) wp.classList.remove('visible');
           if (window.App && App.goHome) App.goHome();
         };
 
