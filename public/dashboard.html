@@ -985,8 +985,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           // This runs synchronously before the browser paints, so mock items never show.
           _waBuildFilters();
           _waRender();
-          _waLoad(); // async refresh from Supabase
-          window.rbSetCrumb && window.rbSetCrumb([{ label: 'Wardrobe' }]);
+          _waLoad(); // async refresh from Supabase — crumb set by MutationObserver on .wardrobe-panel.visible
         };
       }
 
@@ -1288,6 +1287,10 @@ document.addEventListener('DOMContentLoaded', async function() {
       };
 
       window.__kpRenderResult = function(data, promptText) {
+        if (!data || !Array.isArray(data.ways) || !data.ways.length) {
+          _waShowToast('Could not render looks — please try again');
+          return;
+        }
         window.__lastKpData = data;
         const { ways, generatedImages, fallback, photoUrl } = data;
         const pieceName = fallback ? 'Balmain waistcoat' : (promptText || 'Your piece');
@@ -1301,7 +1304,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           document.body.appendChild(kpResultPage);
         }
 
-        kpResultPage.innerHTML = `
+        try { kpResultPage.innerHTML = `
           <nav style="position:sticky;top:0;z-index:10;background:rgba(250,248,245,0.95);backdrop-filter:blur(8px);border-bottom:1px solid rgba(32,32,33,0.08);padding:0 24px;height:48px;display:flex;align-items:center;gap:0;font-size:12px;font-family:${sans};letter-spacing:.01em">
             <button onclick="window.__kpGoBack()" style="background:none;border:none;cursor:pointer;font-size:12px;font-family:${sans};color:#202021;font-weight:600;padding:0;letter-spacing:.02em">ROBES</button>
             <span style="color:rgba(32,32,33,0.3);margin:0 1px"> / </span>
@@ -1363,7 +1366,10 @@ document.addEventListener('DOMContentLoaded', async function() {
               <button onclick="window.__kpGoBack()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">← Dashboard</button>
               <button onclick="window.__kpGoBack();setTimeout(()=>{KP&&KP.openKeyPiece&&KP.openKeyPiece()},200)" style="padding:12px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}">Style another piece</button>
             </div>
-          </div>`;
+          </div>`; } catch(e) {
+          console.error('[Robes] kpResultPage render error:', e);
+          kpResultPage.innerHTML = `<div style="padding:80px 24px;text-align:center;font-family:${sans};color:#6E6A64">Something went wrong rendering your looks — please try again.</div>`;
+        }
 
         kpResultPage.style.display = 'block';
         kpResultPage.scrollTo({ top: 0 });
@@ -1639,6 +1645,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         const wm = document.getElementById('nav-wordmark');
         if (wm) wm.onclick = function() {
           window.rbClearCrumb();
+          window.__mbCloseResult && window.__mbCloseResult();
+          window.__mbCloseList && window.__mbCloseList();
+          if (kpResultPage) kpResultPage.style.display = 'none';
           if (window.App && App.goHome) App.goHome();
         };
 
@@ -1701,6 +1710,29 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (days < 7) return days + ' days ago';
         return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
       }
+
+      // MutationObserver: set crumb whenever wardrobe panel becomes visible
+      (function _rbObserveWardrobe() {
+        function _tryObserve() {
+          const panel = document.querySelector('.wardrobe-panel');
+          if (!panel) return false;
+          new MutationObserver(function(mutations) {
+            mutations.forEach(function(m) {
+              if (m.type === 'attributes' && m.attributeName === 'class') {
+                if (panel.classList.contains('visible')) {
+                  window.rbSetCrumb && window.rbSetCrumb([{ label: 'Wardrobe' }]);
+                } else {
+                  window.rbClearCrumb && window.rbClearCrumb();
+                }
+              }
+            });
+          }).observe(panel, { attributes: true, attributeFilter: ['class'] });
+          return true;
+        }
+        if (!_tryObserve()) {
+          const t = setInterval(function() { if (_tryObserve()) clearInterval(t); }, 300);
+        }
+      })();
 
       function _rbRenderMoodboards() {
         const el = document.getElementById('rb-mb');
