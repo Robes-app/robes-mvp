@@ -1695,6 +1695,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
       })();
 
+      function _rbTimeAgo(iso) {
         if (!iso) return '';
         const d = new Date(iso);
         const mins = Math.floor((Date.now() - d) / 60000);
