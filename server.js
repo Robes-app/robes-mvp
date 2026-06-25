@@ -560,7 +560,21 @@ Return this JSON shape (all fields must reflect the user's brief, not a generic 
       "styling_note": "One sentence on how to wear it in this specific context"
     }
   ],
-  "image_prompt": "Detailed editorial fashion photography brief reflecting the user's destination and brief: garments, setting, lighting, mood. Portrait orientation. No text overlays."
+  "image_prompts": {
+    "hero_looks": [
+      "Editorial campaign shot 1 — full outfit formula on model in a setting specific to this brief, with garments, environment, and lighting described in precise detail. Portrait orientation. No text overlays.",
+      "Editorial campaign shot 2 — second angle or styling variant specific to this brief. Different environment or lighting mood from shot 1. Portrait orientation. No text overlays.",
+      "Editorial campaign shot 3 — third outfit formula or close campaign frame specific to this brief. Portrait orientation. No text overlays."
+    ],
+    "flat_lays": [
+      "Studio flat-lay — key garments from this look arranged artfully on a surface, highlighting fabric drape and construction detail specific to this brief. Top-down. No text.",
+      "Accessory or texture flat-lay — specific bag, shoes, or luxury accessory from this look in a studio setting. Surface texture and lighting mood specific to this brief. No text."
+    ],
+    "atmosphere": [
+      "Macro detail crop — specific hardware buckle, stitching, fabric weave, or luxury accessory texture from this look. Square crop. Extreme detail. No text.",
+      "Atmosphere scene — destination or mood-setting location texture specific to this brief (e.g. a terracotta wall, sun-bleached cobblestone, sea light on linen). Cinematic crop. No text."
+    ]
+  }
 }
 
 Rules:
@@ -636,45 +650,46 @@ Rules:
       : null;
   }
 
-  // Generate hero editorial image (best-effort, 40s timeout) then upload to Cloudinary
+  // Generate editorial grid images in parallel (best-effort, 45s per image)
   const t1 = Date.now();
-  let heroImage = null;
-  try {
-    const imgCall = ai.models.generateContent({
-      model: 'gemini-3.1-flash-image',
-      contents: [{ role: 'user', parts: [{ text: `Editorial fashion photography, portrait orientation, no text. ${moodboardData.image_prompt}` }] }],
-      config: { responseModalities: ['TEXT', 'IMAGE'] },
-    }).then(async r => {
+  const ip = moodboardData.image_prompts || {};
+  const heroPrompts = Array.isArray(ip.hero_looks) ? ip.hero_looks.slice(0, 3) : [];
+  const flatPrompts = Array.isArray(ip.flat_lays) ? ip.flat_lays.slice(0, 2) : [];
+  const atmPrompts = Array.isArray(ip.atmosphere) ? ip.atmosphere.slice(0, 2) : [];
+
+  const imageJobs = [
+    ...heroPrompts.map(p => ({ type: 'hero_look', prompt: p })),
+    ...flatPrompts.map(p => ({ type: 'flat_lay', prompt: p })),
+    ...atmPrompts.map(p => ({ type: 'atmosphere', prompt: p })),
+  ];
+
+  const generateOneImage = async ({ type, prompt }) => {
+    try {
+      const r = await Promise.race([
+        ai.models.generateContent({
+          model: 'gemini-3.1-flash-image',
+          contents: [{ role: 'user', parts: [{ text: `Editorial fashion photography. No text overlays. ${prompt}` }] }],
+          config: { responseModalities: ['TEXT', 'IMAGE'] },
+        }),
+        new Promise(resolve => setTimeout(() => resolve(null), 45000)),
+      ]);
+      if (!r) { logAI({ feature: 'moodboard', stage: 'image', type, success: false, reason: 'timeout' }); return { type, url: null }; }
       const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-      if (!part?.inlineData) {
-        logAI({ feature: 'moodboard', stage: 'image', success: false, reason: 'no_inline_data' });
-        return null;
-      }
-      // Upload to Cloudinary — return URL, never base64
-      try {
-        const url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
-        logAI({ feature: 'moodboard', stage: 'image', success: true, ms: Date.now() - t1 });
-        return url;
-      } catch (uploadErr) {
-        logAI({ feature: 'moodboard', stage: 'image', success: false, reason: 'cloudinary: ' + uploadErr.message });
-        return null;
-      }
-    }).catch(err => {
-      logAI({ feature: 'moodboard', stage: 'image', success: false, reason: err.message });
-      return null;
-    });
+      if (!part?.inlineData) { logAI({ feature: 'moodboard', stage: 'image', type, success: false, reason: 'no_inline_data' }); return { type, url: null }; }
+      const url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+      logAI({ feature: 'moodboard', stage: 'image', type, success: true, ms: Date.now() - t1 });
+      return { type, url };
+    } catch (err) {
+      logAI({ feature: 'moodboard', stage: 'image', type, success: false, reason: err.message });
+      return { type, url: null };
+    }
+  };
 
-    const timeout = new Promise(resolve => setTimeout(() => {
-      logAI({ feature: 'moodboard', stage: 'image', success: false, reason: 'timeout_40s' });
-      resolve(null);
-    }, 40000));
-    heroImage = await Promise.race([imgCall, timeout]);
-  } catch (e) {
-    logAI({ feature: 'moodboard', stage: 'image', success: false, reason: e.message });
-  }
+  const gridImages = imageJobs.length ? await Promise.all(imageJobs.map(generateOneImage)) : [];
+  const heroImage = gridImages.find(g => g.type === 'hero_look' && g.url)?.url || null;
 
-  logAI({ feature: 'moodboard', stage: 'complete', totalMs: Date.now() - t0, hasImage: !!heroImage });
-  res.json({ ...moodboardData, the_look: lookItems, hero_image: heroImage });
+  logAI({ feature: 'moodboard', stage: 'complete', totalMs: Date.now() - t0, imageCount: gridImages.filter(g => g.url).length });
+  res.json({ ...moodboardData, the_look: lookItems, hero_image: heroImage, grid_images: gridImages });
 });
 
 app.post('/api/wardrobe/upload', async (req, res) => {
