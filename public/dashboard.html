@@ -2154,36 +2154,19 @@ document.addEventListener('DOMContentLoaded', async function() {
           }
         }
 
-        // The Look sidebar — uses bundle CSS classes (.piece, .piece-img-wrap, etc.)
+        // The Look sidebar — Gemini recommendations only, no wardrobe matching yet
         const railEl = document.getElementById('mb-rail-pieces');
         if (railEl) {
-          railEl.innerHTML = the_look.map((item, idx) => {
-            const m = item.wardrobe_match;
-            const imgWrap = m?.image_url
-              ? `<div class="piece-img-wrap">
-                   <img class="piece-img" src="${_mbEsc(m.image_url)}" alt="">
-                   <div class="owned-tick"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-                 </div>`
-              : `<div class="piece-img-wrap">
+          railEl.innerHTML = the_look.map((item) => {
+            const imgWrap = `<div class="piece-img-wrap">
                    <div class="piece-ph"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
                  </div>`;
-            const actionsHtml = m
-              ? `<div class="owned-status">
-                   <div class="owned-badge"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Yours</div>
-                 </div>`
-              : `<div class="piece-actions">
-                   <button class="swap-cta" onclick="window.__mbSwap(${idx})">
-                     <svg viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/></svg>
-                     Swap
-                   </button>
-                 </div>`;
-            return `<div class="piece${m ? ' owned' : ''}">
+            return `<div class="piece">
               ${imgWrap}
               <div class="piece-info">
                 <div class="piece-name">${_mbEsc(item.name)}</div>
                 <div class="piece-brand">${_mbEsc(item.category)}${item.description ? ' · ' + _mbEsc(item.description) : ''}</div>
                 ${item.styling_note ? `<div class="piece-note" style="font-size:11px;font-style:italic;color:var(--ink-faint,#A89880);line-height:1.4;margin-top:3px">${_mbEsc(item.styling_note)}</div>` : ''}
-                ${actionsHtml}
               </div>
             </div>`;
           }).join('');
@@ -2191,10 +2174,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         // Sidebar counts
         const railSubEl = document.getElementById('mb-rail-sub');
-        if (railSubEl) railSubEl.textContent = `${the_look.length} pieces · ${matchedCount} from your wardrobe`;
+        if (railSubEl) railSubEl.textContent = `${the_look.length} pieces`;
 
         const railStatEl = document.getElementById('mb-rail-stat');
-        if (railStatEl) railStatEl.innerHTML = `<span class="s">${matchedCount}</span> yours · <span class="r">${shopCount}</span> to shop`;
+        if (railStatEl) railStatEl.textContent = '';
 
         // Breadcrumb: ROBES / {title} when opened from dashboard,
         // or ROBES / Your Moodboards / {title} when opened from the full list
