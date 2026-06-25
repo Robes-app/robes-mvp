@@ -650,46 +650,59 @@ Rules:
       : null;
   }
 
-  // Generate editorial grid images in parallel (best-effort, 45s per image)
+  // Respond immediately with text + look data — generate images in background
+  // to avoid blocking the request and exhausting Gemini image quota during the
+  // same window the style endpoint needs it.
+  const mbJobId = randomBytes(6).toString('hex');
+  imageJobs.set(mbJobId, { images: [], done: false, created: Date.now() });
+  logAI({ feature: 'moodboard', stage: 'text_complete', totalMs: Date.now() - t0 });
+  res.json({ ...moodboardData, the_look: lookItems, hero_image: null, grid_images: [], mb_job_id: mbJobId });
+
+  // Background image generation — staggered to avoid bursting the Gemini rate limit
   const t1 = Date.now();
   const ip = moodboardData.image_prompts || {};
   const heroPrompts = Array.isArray(ip.hero_looks) ? ip.hero_looks.slice(0, 3) : [];
   const flatPrompts = Array.isArray(ip.flat_lays) ? ip.flat_lays.slice(0, 2) : [];
   const atmPrompts = Array.isArray(ip.atmosphere) ? ip.atmosphere.slice(0, 2) : [];
 
-  const imageJobs = [
+  const mbImageJobs = [
     ...heroPrompts.map(p => ({ type: 'hero_look', prompt: p })),
     ...flatPrompts.map(p => ({ type: 'flat_lay', prompt: p })),
     ...atmPrompts.map(p => ({ type: 'atmosphere', prompt: p })),
   ];
 
-  const generateOneImage = async ({ type, prompt }) => {
-    try {
-      const r = await Promise.race([
-        ai.models.generateContent({
-          model: 'gemini-3.1-flash-image',
-          contents: [{ role: 'user', parts: [{ text: `Editorial fashion photography. No text overlays. ${prompt}` }] }],
-          config: { responseModalities: ['TEXT', 'IMAGE'] },
-        }),
-        new Promise(resolve => setTimeout(() => resolve(null), 45000)),
-      ]);
-      if (!r) { logAI({ feature: 'moodboard', stage: 'image', type, success: false, reason: 'timeout' }); return { type, url: null }; }
-      const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-      if (!part?.inlineData) { logAI({ feature: 'moodboard', stage: 'image', type, success: false, reason: 'no_inline_data' }); return { type, url: null }; }
-      const url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
-      logAI({ feature: 'moodboard', stage: 'image', type, success: true, ms: Date.now() - t1 });
-      return { type, url };
-    } catch (err) {
-      logAI({ feature: 'moodboard', stage: 'image', type, success: false, reason: err.message });
-      return { type, url: null };
+  (async () => {
+    const results = [];
+    for (let i = 0; i < mbImageJobs.length; i++) {
+      const { type, prompt } = mbImageJobs[i];
+      if (i > 0) await new Promise(r => setTimeout(r, 3000)); // 3s stagger between requests
+      try {
+        const r = await Promise.race([
+          ai.models.generateContent({
+            model: 'gemini-3.1-flash-image',
+            contents: [{ role: 'user', parts: [{ text: `Editorial fashion photography. No text overlays. ${prompt}` }] }],
+            config: { responseModalities: ['TEXT', 'IMAGE'] },
+          }),
+          new Promise(resolve => setTimeout(() => resolve(null), 45000)),
+        ]);
+        if (!r) { logAI({ feature: 'moodboard', stage: 'image', type, success: false, reason: 'timeout' }); results.push({ type, url: null }); continue; }
+        const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        if (!part?.inlineData) { logAI({ feature: 'moodboard', stage: 'image', type, success: false, reason: 'no_inline_data' }); results.push({ type, url: null }); continue; }
+        const url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+        logAI({ feature: 'moodboard', stage: 'image', type, success: true, ms: Date.now() - t1 });
+        results.push({ type, url });
+        // Update job incrementally so client can poll for partial results
+        const job = imageJobs.get(mbJobId);
+        if (job) job.images = [...results];
+      } catch (err) {
+        logAI({ feature: 'moodboard', stage: 'image', type, success: false, reason: err.message });
+        results.push({ type, url: null });
+      }
     }
-  };
-
-  const gridImages = imageJobs.length ? await Promise.all(imageJobs.map(generateOneImage)) : [];
-  const heroImage = gridImages.find(g => g.type === 'hero_look' && g.url)?.url || null;
-
-  logAI({ feature: 'moodboard', stage: 'complete', totalMs: Date.now() - t0, imageCount: gridImages.filter(g => g.url).length });
-  res.json({ ...moodboardData, the_look: lookItems, hero_image: heroImage, grid_images: gridImages });
+    const job = imageJobs.get(mbJobId);
+    if (job) { job.images = results; job.done = true; }
+    logAI({ feature: 'moodboard', stage: 'images_complete', totalMs: Date.now() - t0, count: results.filter(g => g.url).length });
+  })();
 });
 
 app.post('/api/wardrobe/upload', async (req, res) => {

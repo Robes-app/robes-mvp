@@ -2048,6 +2048,8 @@ document.addEventListener('DOMContentLoaded', async function() {
           }
           const data = await res.json();
           _mbShowResult({ ...data, prompt });
+          // Poll for background images if server returned a job id
+          if (data.mb_job_id) _mbPollImages(data.mb_job_id);
         } catch (e) {
           _mbHideGenerating();
           const msg = e.name === 'AbortError' ? 'Moodboard timed out — please try again' : (e.message && e.message !== 'Failed to fetch' ? e.message : 'Could not build moodboard — please try again');
@@ -2055,6 +2057,59 @@ document.addEventListener('DOMContentLoaded', async function() {
           console.error('[moodboard] client error:', e.message, e.stack);
         }
       };
+
+      // ── Moodboard image polling ───────────────────────────────────────
+      function _mbPollImages(jobId) {
+        let attempts = 0;
+        const maxAttempts = 90; // 7.5 min ceiling — staggered gen takes longer
+        function tick() {
+          if (attempts++ >= maxAttempts) return;
+          fetch(`/api/images/${jobId}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (!data || !Array.isArray(data.images)) return;
+              // data.images is an array of {type, url} from the moodboard background job
+              const panel = document.getElementById('moodboard-panel');
+              if (!panel || !panel._currentData) return;
+              const currentGridImages = panel._currentData.grid_images || [];
+              let updated = false;
+              data.images.forEach(img => {
+                if (!img?.url) return;
+                const already = currentGridImages.find(g => g.type === img.type && g.url === img.url);
+                if (!already) { currentGridImages.push(img); updated = true; }
+              });
+              if (updated) {
+                panel._currentData.grid_images = currentGridImages;
+                panel._currentData.hero_image = panel._currentData.hero_image || currentGridImages.find(g => g.type === 'hero_look' && g.url)?.url || null;
+                // Re-render mosaic with new images without closing panel
+                const mosaicEl = document.getElementById('mb-mosaic');
+                if (mosaicEl) {
+                  const byType = { hero_look: [], flat_lay: [], atmosphere: [] };
+                  currentGridImages.forEach(g => { if (g?.url && byType[g.type]) byType[g.type].push(g.url); });
+                  const heroUrl = panel._currentData.hero_image;
+                  const title = panel._currentData.title || '';
+                  const editorial_direction = panel._currentData.editorial_direction || '';
+                  const heroHtml = heroUrl
+                    ? `<img id="mb-mosaic-hero" class="mme-hero" alt="${_mbEsc(title)}" style="width:100%;height:100%;object-fit:cover">`
+                    : `<div class="mme-hero" style="display:flex;align-items:flex-end;padding:24px;box-sizing:border-box;background:var(--cream-200)"><p style="font-family:var(--font-serif);font-size:22px;font-weight:300;color:var(--ink-faint);line-height:1.3;margin:0">${_mbEsc(title)}</p></div>`;
+                  const editorialHtml = editorial_direction
+                    ? `<div style="background:var(--cream-100);padding:20px;display:flex;align-items:center;box-sizing:border-box"><p style="font-family:var(--font-serif);font-style:italic;font-size:15px;font-weight:300;color:var(--ink-soft);line-height:1.6;margin:0">${_mbEsc(editorial_direction)}</p></div>`
+                    : `<div style="background:var(--cream-200)"></div>`;
+                  const palette = ['var(--cream-200)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-100)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-200)'];
+                  const extraUrls = [byType.hero_look[1], byType.flat_lay[0], byType.hero_look[2], byType.flat_lay[1], byType.atmosphere[0], byType.atmosphere[1], null];
+                  const extras = extraUrls.map((url, i) =>
+                    url ? `<img src="${_mbEsc(url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" alt="">` : `<div style="background:${palette[i]}"></div>`
+                  ).join('');
+                  mosaicEl.innerHTML = heroHtml + editorialHtml + extras;
+                  if (heroUrl) { const h = document.getElementById('mb-mosaic-hero'); if (h) h.src = heroUrl; }
+                }
+              }
+              if (!data.done) setTimeout(tick, 4000);
+            })
+            .catch(() => { if (attempts < maxAttempts) setTimeout(tick, 6000); });
+        }
+        setTimeout(tick, 5000); // first poll after 5s — let style image gen breathe
+      }
 
       // ── Generating overlay ────────────────────────────────────────────
       const _mbGenOverlay = document.createElement('div');
