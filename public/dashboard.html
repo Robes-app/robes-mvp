@@ -1284,6 +1284,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (kpResultPage) kpResultPage.style.display = 'none';
         window.rbClearCrumb && window.rbClearCrumb();
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        // kpResultPage is now z-index:40 (below nav:50) — crumb lives in main nav
       };
 
       window.__kpRenderResult = function(data, promptText) {
@@ -1300,16 +1301,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (!kpResultPage) {
           kpResultPage = document.createElement('div');
           kpResultPage.id = 'kp-result-page';
-          kpResultPage.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;width:100%;z-index:800;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
+          kpResultPage.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;width:100%;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
           document.body.appendChild(kpResultPage);
         }
 
+        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Style a piece' }]);
         try { kpResultPage.innerHTML = `
-          <nav style="position:sticky;top:0;z-index:10;background:rgba(250,248,245,0.95);backdrop-filter:blur(8px);border-bottom:1px solid rgba(32,32,33,0.08);padding:0 24px;height:48px;display:flex;align-items:center;gap:0;font-size:12px;font-family:${sans};letter-spacing:.01em">
-            <button onclick="window.__kpGoBack()" style="background:none;border:none;cursor:pointer;font-size:12px;font-family:${sans};color:#202021;font-weight:600;padding:0;letter-spacing:.02em">ROBES</button>
-            <span style="color:rgba(32,32,33,0.3);margin:0 1px"> / </span>
-            <span style="color:rgba(32,32,33,0.4)">Style a piece</span>
-          </nav>
           <div style="width:100%;max-width:900px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
 
             <h1 style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0 0 12px">Your piece,<br><em style="color:#A89880">worn three ways.</em></h1>
@@ -1718,17 +1715,31 @@ document.addEventListener('DOMContentLoaded', async function() {
         function _tryObserve() {
           const panel = document.querySelector('.wardrobe-panel');
           if (!panel) return false;
+          let _wmObserver = null;
+          function _rbForceWordmark() {
+            const wm = document.getElementById('nav-wordmark');
+            if (!wm) return;
+            wm.style.setProperty('display', 'inline', 'important');
+            if (!_wmObserver) {
+              _wmObserver = new MutationObserver(function() {
+                if (panel.classList.contains('visible')) {
+                  wm.style.setProperty('display', 'inline', 'important');
+                }
+              });
+              _wmObserver.observe(wm, { attributes: true, attributeFilter: ['style'] });
+            }
+          }
           new MutationObserver(function(mutations) {
             mutations.forEach(function(m) {
               if (m.type === 'attributes' && m.attributeName === 'class') {
                 if (panel.classList.contains('visible')) {
-                  // Bundle may hide #nav-wordmark when showing subpages — restore after its sync code
-                  setTimeout(function() {
-                    const wm = document.getElementById('nav-wordmark');
-                    if (wm) wm.style.display = '';
-                    window.rbSetCrumb && window.rbSetCrumb([{ label: 'Wardrobe' }]);
-                  }, 0);
+                  setTimeout(_rbForceWordmark, 50);
+                  setTimeout(_rbForceWordmark, 200);
+                  window.rbSetCrumb && window.rbSetCrumb([{ label: 'Wardrobe' }]);
                 } else {
+                  if (_wmObserver) { _wmObserver.disconnect(); _wmObserver = null; }
+                  const wm = document.getElementById('nav-wordmark');
+                  if (wm) wm.style.removeProperty('display');
                   window.rbClearCrumb && window.rbClearCrumb();
                 }
               }
