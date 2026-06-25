@@ -1646,8 +1646,13 @@ document.addEventListener('DOMContentLoaded', async function() {
           window.__mbCloseList && window.__mbCloseList();
           if (kpResultPage) kpResultPage.style.display = 'none';
           const wp = document.querySelector('.wardrobe-panel');
-          if (wp && wp.classList.contains('visible')) wp.classList.remove('visible');
-          if (window.App && App.goHome) App.goHome();
+          if (wp && wp.classList.contains('visible')) {
+            // Bundle's showWardrobe does a view-switch (hides main content).
+            // Click the nav wardrobe toggle to properly reverse it.
+            const wbtnCount = document.querySelector('.nav-wbtn-count');
+            const wbtn = wbtnCount ? wbtnCount.closest('button') : null;
+            if (wbtn) { wbtn.click(); } else { wp.classList.remove('visible'); }
+          }
         };
 
         window.rbSetCrumb = function(segments) {
