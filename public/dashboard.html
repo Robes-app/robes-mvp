@@ -1300,7 +1300,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (!kpResultPage) {
           kpResultPage = document.createElement('div');
           kpResultPage.id = 'kp-result-page';
-          kpResultPage.style.cssText = 'position:fixed;inset:0;z-index:800;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
+          kpResultPage.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;width:100%;z-index:800;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
           document.body.appendChild(kpResultPage);
         }
 
@@ -1310,7 +1310,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             <span style="color:rgba(32,32,33,0.3);margin:0 1px"> / </span>
             <span style="color:rgba(32,32,33,0.4)">Style a piece</span>
           </nav>
-          <div style="max-width:860px;margin:0 auto;padding:40px 24px 80px">
+          <div style="width:100%;max-width:900px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
 
             <h1 style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0 0 12px">Your piece,<br><em style="color:#A89880">worn three ways.</em></h1>
             <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
@@ -1667,6 +1667,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         window.rbClearCrumb = function() {
           container.style.display = 'none';
           container.innerHTML = '';
+          const wm = document.getElementById('nav-wordmark');
+          if (wm) wm.style.display = '';
         };
       })();
 
@@ -1720,7 +1722,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             mutations.forEach(function(m) {
               if (m.type === 'attributes' && m.attributeName === 'class') {
                 if (panel.classList.contains('visible')) {
-                  window.rbSetCrumb && window.rbSetCrumb([{ label: 'Wardrobe' }]);
+                  // Bundle may hide #nav-wordmark when showing subpages — restore after its sync code
+                  setTimeout(function() {
+                    const wm = document.getElementById('nav-wordmark');
+                    if (wm) wm.style.display = '';
+                    window.rbSetCrumb && window.rbSetCrumb([{ label: 'Wardrobe' }]);
+                  }, 0);
                 } else {
                   window.rbClearCrumb && window.rbClearCrumb();
                 }
