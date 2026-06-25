@@ -258,6 +258,47 @@ Guardrail taxonomy enforced in prompt — `silhouette_fit` values map to control
 **Contacts**: `Email`, `Name`, `Instagram Handle`, `Joined At`
 **Feedback**: `Email`, `Prompt`, `Piece Link` (look URL), `Photo` (attachments), `Looks Output`, `Rating`, `User Feedback`, `Created At`
 
+## Dashboard breadcrumb system (`_rbInitBreadcrumb`)
+
+Injected as an IIFE inside `__robes_personalize`. Appends a `#rb-crumb` span to `.nav-l` (the left side of the main nav). The bundle's own `#nav-breadcrumb` is hidden on init.
+
+### Finalized breadcrumb pattern
+- **Wordmark** (`ROBES`) is always permanent — routes home, never replaced
+- Trail is appended only on sub-pages:
+  - `ROBES / Wardrobe` — when wardrobe panel is open
+  - `ROBES / Style a piece` — when kpResultPage overlay is showing
+  - `ROBES / {Title}` — moodboard opened from dashboard
+  - `ROBES / Your Moodboards / {Title}` — moodboard opened from full list
+  - `ROBES / Recent looks / Your look` — today's looks subtab
+  - `ROBES / Pack a trip` — trip subtab
+  - `ROBES / Plan the week` — week subtab
+
+### API
+- `window.rbSetCrumb(segments)` — segments is an array of `{ label, action? }`. Last segment is plain text; earlier ones are clickable buttons.
+- `window.rbClearCrumb()` — hides crumb, restores wordmark display
+
+### Wordmark onclick
+Wired in `_rbInitBreadcrumb` to: clear crumb, close moodboard result + list, hide kpResultPage, close wardrobe panel (removes `.visible` class), then call `App.goHome()`.
+
+### Wardrobe crumb (`_rbObserveWardrobe` IIFE)
+MutationObserver on `.wardrobe-panel` watches for the `.visible` class being added/removed.
+- **Wordmark visibility**: the bundle hides `#nav-wordmark` when showing subpages. Fix uses `wm.style.setProperty('display', 'inline', 'important')` plus a second MutationObserver on the wordmark itself that immediately restores it if the bundle re-hides it. Both are torn down when panel closes.
+- `rbClearCrumb()` + `wm.style.removeProperty('display')` on panel close.
+
+### Style a piece crumb (`kpResultPage`)
+- `kpResultPage` is `z-index:40` — deliberately below the main nav's `z-index:50` so the nav sits on top of the overlay
+- No inline nav inside kpResultPage — crumb lives in the real main nav with correct serif font
+- `rbSetCrumb([{ label: 'Style a piece' }])` called when kpResultPage renders
+- `rbClearCrumb()` called in `__kpGoBack()`
+
+### Moodboard crumb (`_mbOpenedFromList` flag)
+- `window._mbOpenedFromList` — set true when `__mbOpenSaved` is called while the list page is visible
+- `_mbShowResult` reads this flag to decide between 1-segment and 2-segment crumb
+- `__mbCloseResult` resets the flag and clears crumb
+
+### Subtab crumbs (`_rbPatchSubtabs` IIFE)
+Patches `App.setSubtab` to set/clear crumb based on which tab is active. Polls 250ms until `App.setSubtab` exists.
+
 ## Common gotchas
 - `paintProgress()` guards for missing `#nav-progress` — don't add back the null check removal
 - `gemini-3.1-flash-image` is slow (~30s) and occasionally times out — 40s server timeout, images run in parallel
@@ -274,3 +315,7 @@ Guardrail taxonomy enforced in prompt — `silhouette_fit` values map to control
 - Edit modal: bundle form is restored at 50ms (inside patched `WA.open`), field population at 60ms (inside `_waOpenEdit` setTimeout) — order matters
 - `window.__waSawItemDna` is set by `_runStep3` (add flow) and `_waOpenEdit` (edit flow); always a deep copy so mutations don't affect `_waItems`
 - `#wa-swatches` is the bundle's swatch container — `__rbInjectSwatches` replaces its innerHTML with our two-row layout
+- `kpResultPage` z-index is 40 (below nav's 50) — main nav floats above the overlay. Never raise it above 50 or the crumb styling breaks
+- Bundle hides `#nav-wordmark` when wardrobe opens — use `setProperty('display','inline','important')` + a second MutationObserver on the wordmark to defend against re-hiding; `removeProperty('display')` on close
+- Wordmark onclick must close the wardrobe panel (`wp.classList.remove('visible')`) — without this, clicking ROBES clears the crumb but the panel stays open
+- `_rbTimeAgo(iso)` must be declared as a named `function` declaration (not an expression) — if the declaration is lost, JS throws on the body's `return` statements and the whole dashboard fails to load
