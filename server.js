@@ -593,15 +593,14 @@ Rules:
     const geminiCall = (model) => ai.models.generateContent({
       model,
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      config: { systemInstruction: systemPrompt, maxOutputTokens: 6000 },
+      config: { systemInstruction: systemPrompt, maxOutputTokens: 5000 },
     });
     let textResult;
     let lastErr;
     for (const model of MODELS) {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+      for (let attempt = 0; attempt < 1; attempt++) {
         try {
-          const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('text gen timeout')), 35000));
+          const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('text gen timeout')), 22000));
           textResult = await Promise.race([geminiCall(model), timeout]);
           const finishReason = textResult.candidates?.[0]?.finishReason;
           logAI({ feature: 'moodboard', stage: 'text', model, ms: Date.now() - t0, finishReason });
