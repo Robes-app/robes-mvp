@@ -299,6 +299,60 @@ MutationObserver on `.wardrobe-panel` watches for the `.visible` class being add
 ### Subtab crumbs (`_rbPatchSubtabs` IIFE)
 Patches `App.setSubtab` to set/clear crumb based on which tab is active. Polls 250ms until `App.setSubtab` exists.
 
+## Moodboard item interactivity & swap modal (PRD 3.B)
+
+### Cold-Start Wardrobe Threshold
+`isColdStart = _waItems.length < 15` is evaluated at render time in `_mbShowResult`.
+
+- **State A (< 15 items)**: Pure editorial mode. Rail shows retailer + price pills, circular 32px dark Swap button on every item.
+- **State B (≥ 15 items)**: Living lookbook. Items matched from wardrobe show "✓ Yours" green badge + "Swap out" link. Unmatched items show circular Swap button.
+
+### `the_look` Gemini schema additions
+Two new fields added to every item in `the_look` array (in `server.js` system prompt):
+- `retailer_hint` — best retailer for the piece (e.g. `"Net-a-Porter"`, `"ASOS"`)
+- `price_point` — realistic EUR price (e.g. `"€89"`, `"€245"`)
+
+`maxOutputTokens` raised from 4000 → 5000 to fit the richer output without truncation.
+
+### Gemini model chain (`server.js`)
+Final working fallback chain (as of 2026-06-29):
+```javascript
+const MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro'];
+// timeout: 30000ms per model, 1 attempt per model
+```
+Removed deprecated models: `gemini-2.0-flash` (404), `gemini-2.5-flash-lite-preview-06-17` (404), `gemini-1.5-flash` (404). Never add these back.
+
+### Rail rendering (`_mbShowResult`)
+Each row in `#mb-rail-pieces`: 44×44px thumbnail (wardrobe photo or `#EDE8E0` placeholder) + name/brand + pills + CTA. Padding `10px 20px` to match bundle's 20px horizontal standard.
+
+Pills (one set, chosen by state):
+- **Wardrobe matched** (State B only): green "In your wardrobe" pill + "Worn N×" text — `times_worn` looked up from `_waItems.find(w => w.id === match.id)` at render time, NOT stored on `wardrobe_match`
+- **Unmatched**: retailer pill (max-width 90px, ellipsis) + price pill
+
+Sidebar subtitle: `"N pieces · M from your wardrobe"` when matches exist, else `"N pieces"`.
+
+### Overflow fix for Swap buttons
+Bundle ancestor elements have `overflow:hidden` set via inline styles that CSS `!important` overrides cannot beat. Fix: after building `railEl.innerHTML`, walk 8 ancestor elements and call `el.style.setProperty('overflow', 'visible', 'important')` on each. This must run on every re-render of the rail.
+
+### Swap modal (`window.__mbSwap(idx)`)
+Centered dialog (`position:fixed;inset:0;align-items:center;justify-content:center;padding:24px`), `z-index:950`, `border-radius:20px`, `max-width:480px`, `max-height:80vh`, overflow-y:auto.
+
+Structure:
+1. Header: "SWAP THIS PIECE" label + item name (serif) + italic brand/retailer
+2. "FROM YOUR WARDROBE" — 4-col grid of `_waItems` filtered by matching category; tap a card to call `__mbSwapApply`
+3. If no wardrobe items in category: AI alternative suggestion copy
+4. Two side-by-side CTAs: **[Snap mine]** (calls `__mbSnapMine`) + **[Shop via Affiliate →]**
+5. "Opens [retailer] · [price]" centered text below CTAs
+
+### `window.__mbSwapApply(lookIdx, wardrobeId)`
+Mutates `window.__mbCurrentLook[lookIdx].wardrobe_match = { id, label, image_url, color }`, removes modal, re-renders rail, shows toast.
+
+### `window.__mbSnapMine()`
+Closes swap modal, opens `WA.open()` to add a new wardrobe item.
+
+### `wardrobe_match` object
+Stored on each `the_look` item after a swap. Shape: `{ id, label, image_url, color }`. Never stores `times_worn` — always look that up from `_waItems` at render time.
+
 ## Common gotchas
 - `paintProgress()` guards for missing `#nav-progress` — don't add back the null check removal
 - `gemini-3.1-flash-image` is slow (~30s) and occasionally times out — 40s server timeout, images run in parallel
