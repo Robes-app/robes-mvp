@@ -589,7 +589,7 @@ Rules:
 
   let moodboardData;
   try {
-    const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite-preview-06-17', 'gemini-2.5-pro'];
+    const MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro'];
     const geminiCall = (model) => ai.models.generateContent({
       model,
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
@@ -600,7 +600,7 @@ Rules:
     for (const model of MODELS) {
       for (let attempt = 0; attempt < 1; attempt++) {
         try {
-          const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('text gen timeout')), 22000));
+          const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('text gen timeout')), 30000));
           textResult = await Promise.race([geminiCall(model), timeout]);
           const finishReason = textResult.candidates?.[0]?.finishReason;
           logAI({ feature: 'moodboard', stage: 'text', model, ms: Date.now() - t0, finishReason });
