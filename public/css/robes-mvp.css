@@ -270,11 +270,6 @@ em{font-style:italic}
   font-size:clamp(26px,3.4vw,42px);line-height:1.22;color:var(--ink);max-width:760px}
 .lq-attr{color:var(--ink-faint)}
 
-/* — nav cta — */
-.nav-cta{padding:11px 22px;background:var(--ink);color:var(--on-dark-1);border-radius:100px;
-  font-family:var(--font-sans);font-weight:500;font-size:9.5px;letter-spacing:.18em;
-  text-transform:uppercase;transition:background .2s}
-.nav-cta:hover{background:var(--ink-2)}
 
 /* ════ SCREEN · CONFIRMATION (dark splash) ══════════════════════ */
 #s-confirm{background:var(--primary)}
@@ -819,7 +814,6 @@ em{font-style:italic}
   .land-card{justify-self:stretch;max-width:none;order:2}
   .land-how-inner{grid-template-columns:1fr;gap:42px}
   .land-scroll{display:none}
-  .nav-cta{padding:9px 16px;font-size:9px}
   .uses-grid{grid-template-columns:1fr 1fr;gap:16px}
   .use-card{min-height:0;padding:24px}
   .lf-inner{flex-direction:column;align-items:flex-start;gap:22px}

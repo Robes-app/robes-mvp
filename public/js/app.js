@@ -111,7 +111,6 @@ const App = (function () {
   let lcTimer = null, lcRevealed = false;
   function prepLanding() {
     if ($('#land-submit')) $('#land-submit').textContent = 'Join the waitlist';
-    if ($('#nav-cta')) $('#nav-cta').textContent = 'Join the waitlist';
     clearInterval(lcTimer); clearTimeout(lcTimer);
     const el = $('#lc-typed');
     if (el) {
