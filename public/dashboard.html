@@ -2269,6 +2269,13 @@ document.addEventListener('DOMContentLoaded', async function() {
               ${ctaHtml}
             </div>`;
           }).join('');
+
+          // Force overflow:visible up the ancestor chain so buttons aren't clipped
+          let el = railEl;
+          for (let i = 0; i < 8 && el; i++) {
+            el.style.setProperty('overflow', 'visible', 'important');
+            el = el.parentElement;
+          }
         }
 
         // Sidebar subtitle
