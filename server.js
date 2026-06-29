@@ -593,7 +593,7 @@ Rules:
     const geminiCall = (model) => ai.models.generateContent({
       model,
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      config: { systemInstruction: systemPrompt, maxOutputTokens: 4000 },
+      config: { systemInstruction: systemPrompt, maxOutputTokens: 6000 },
     });
     let textResult;
     let lastErr;
