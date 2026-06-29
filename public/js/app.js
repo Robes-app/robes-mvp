@@ -35,7 +35,6 @@ const App = (function () {
     $('#nav').classList.toggle('on-dark', id === 'confirm' || id === 'name');
     $('#nav').classList.toggle('on-landing', id === 'landing');
     const splash = id === 'landing' || id === 'confirm' || id === 'name';
-    $('#nav-cta').style.display = id === 'landing' ? '' : 'none';
     paintProgress(id);
     if (id === 'landing') prepLanding();
     if (id === 'name') prepName();
