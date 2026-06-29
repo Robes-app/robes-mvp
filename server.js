@@ -589,7 +589,7 @@ Rules:
 
   let moodboardData;
   try {
-    const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
     const geminiCall = (model) => ai.models.generateContent({
       model,
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
