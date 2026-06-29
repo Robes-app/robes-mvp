@@ -557,7 +557,9 @@ Return this JSON shape (all fields must reflect the user's brief, not a generic 
       "name": "Item name",
       "category": "One of: Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories",
       "description": "Hyper-specific: cut, fabric, colour — suited to this brief",
-      "styling_note": "One sentence on how to wear it in this specific context"
+      "styling_note": "One sentence on how to wear it in this specific context",
+      "retailer_hint": "Best contemporary/luxury retailer for this piece (e.g. 'Net-a-Porter', 'ASOS', 'Zara', 'Matches', 'MatchesFashion', 'Mytheresa')",
+      "price_point": "Realistic price in EUR with € symbol (e.g. '€89', '€245', '€1,200')"
     }
   ],
   "image_prompts": {
