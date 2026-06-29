@@ -137,7 +137,8 @@ const App = (function () {
     if (e) e.preventDefault();
     const inp = $('#land-email');
     const v = (inp.value || '').trim();
-    if (!v || !/.+@.+\..+/.test(v)) { inp.focus(); return false; }
+    if (!v) { toast('Please enter your email to join'); inp.focus(); return false; }
+    if (!/.+@.+\..+/.test(v)) { toast('Please enter a valid email address'); inp.focus(); return false; }
     st.email = v;
     st.emailGuess = guessName(v);
     persist();
