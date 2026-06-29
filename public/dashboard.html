@@ -2242,9 +2242,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Pills row: wardrobe badge OR retailer + price
             let pillsHtml = '';
             if (!isColdStart && match) {
+              const waItem = _waItems.find(w => w.id === match.id);
+              const timesWorn = waItem?.times_worn || 0;
               pillsHtml = `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap">
                 <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#4A7C59;background:rgba(74,124,89,0.08);border-radius:20px;padding:2px 7px">${checkSvg} In your wardrobe</span>
-                ${match.times_worn ? `<span style="font-size:10px;color:#A89880">Worn ${match.times_worn}×</span>` : ''}
+                ${timesWorn > 0 ? `<span style="font-size:10px;color:#A89880">Worn ${timesWorn}×</span>` : ''}
               </div>`;
             } else if (retailer || price) {
               pillsHtml = `<div style="display:flex;align-items:center;gap:5px;margin-top:4px">
