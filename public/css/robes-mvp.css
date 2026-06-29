@@ -839,7 +839,8 @@ em{font-style:italic}
   .fm-sub{font-size:13px;margin-bottom:20px}
   .fm-confirm{margin-bottom:16px}
   .fm-compose{grid-template-columns:1fr;gap:12px}
-  .fm-tile{aspect-ratio:16/9;max-height:160px}
+  .fm-tile{width:100%;aspect-ratio:3/2}
+  .fm-tile.filled .fm-tile-x{opacity:1}
   .fm-prompt-wrap textarea{font-size:14px;min-height:80px}
   .fm-cta{padding:16px;font-size:12px}
   .fm-later{margin-top:12px}
