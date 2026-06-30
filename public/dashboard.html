@@ -1903,7 +1903,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           dressChip.style.opacity = isLocked ? '0.5' : '1';
           const countSpan = dressChip.querySelector('span');
           if (isLocked) {
-            if (!countSpan) dressChip.insertAdjacentHTML('beforeend', `<span style="font-size:10px;opacity:.7">${_waItems.length}/15</span>`);
+            if (!countSpan) dressChip.insertAdjacentHTML('beforeend', `<span style="font-size:11px;opacity:.6;margin-left:2px">${_waItems.length}/15</span>`);
             else countSpan.textContent = `${_waItems.length}/15`;
           } else if (countSpan) {
             countSpan.remove();
@@ -1940,22 +1940,28 @@ document.addEventListener('DOMContentLoaded', async function() {
       let _cbIntent = null; // null | 'style' | 'moodboard' | 'dress-me'
       let _cbPhotoData = null;
 
+      const _CHIP_ICONS = {
+        style: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"></path></svg>`,
+        'dress-me': `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5l3 9H5l7 9 7-9h-3l3-9h-4"></path><path d="M9 3c0 1.7 1.3 3 3 3s3-1.3 3-3"></path></svg>`,
+        moodboard: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>`,
+      };
+
       const _CHIP_DEFS = [
-        { id: 'chip-style',  emoji: '✨', label: 'Style a key piece',
+        { id: 'chip-style',  label: 'Style a key piece',
           cta: 'STYLE IT',
           inject: 'Style my [oversized cream blazer] 3 ways',
           placeholder: 'Describe your key piece…',
           intent: 'style' },
-        { id: 'chip-mood',   emoji: '🖼️', label: 'Create Moodboard',
-          cta: 'BUILD BOARD',
-          inject: 'Build a moodboard for [a late summer weekend in Ibiza] with a vibe that is [minimalist, editorial, and effortless].',
-          placeholder: 'Describe your moodboard vibe…',
-          intent: 'moodboard' },
-        { id: 'chip-dress',  emoji: '👗', label: 'Dress Me Today',
+        { id: 'chip-dress',  label: 'Dress me today',
           cta: 'DRESS ME',
           inject: 'I need an outfit for [Sunday brunch in Dublin] using my [favorite trench coat] mixed with editorial pieces.',
           placeholder: 'Describe your occasion or mood…',
           intent: 'dress-me' },
+        { id: 'chip-mood',   label: 'Create a moodboard',
+          cta: 'BUILD BOARD',
+          inject: 'Build a moodboard for [a late summer weekend in Ibiza] with a vibe that is [minimalist, editorial, and effortless].',
+          placeholder: 'Describe your moodboard vibe…',
+          intent: 'moodboard' },
       ];
 
       function _cbGetSendBtn() { return document.querySelector('.cb-send'); }
@@ -1992,7 +1998,8 @@ document.addEventListener('DOMContentLoaded', async function() {
           const active = c.intent === intent;
           chip.style.background = active ? '#202021' : '#fff';
           chip.style.color = active ? '#FAF8F5' : '#2A2520';
-          chip.style.borderColor = active ? '#202021' : 'rgba(32,32,33,0.18)';
+          chip.style.borderColor = active ? '#202021' : 'rgba(32,32,33,0.16)';
+          chip.style.fontWeight = active ? '500' : '400';
         });
       }
 
@@ -2120,18 +2127,18 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
         ta.parentNode.insertBefore(photoZone, ta.nextSibling);
 
-        // Chip row
+        // Chip row — below the concierge box, outside of it
         const chipRow = document.createElement('div');
         chipRow.id = 'cb-chips';
-        chipRow.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap';
+        chipRow.style.cssText = 'display:flex;gap:8px;margin-top:12px;flex-wrap:wrap';
         _CHIP_DEFS.forEach(def => {
           const chip = document.createElement('button');
           chip.id = def.id;
           chip.type = 'button';
-          const isDress = def.intent === 'dress-me';
-          const locked = isDress && _waItems.length < 15;
-          chip.style.cssText = `display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:100px;border:1px solid rgba(32,32,33,0.18);background:#fff;color:#2A2520;font-size:11px;font-weight:500;letter-spacing:.08em;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s,border-color .15s;${locked ? 'opacity:.5;' : ''}`;
-          chip.innerHTML = `${def.emoji} ${def.label}${locked ? ` <span style="font-size:10px;opacity:.7">${_waItems.length}/15</span>` : ''}`;
+          const locked = def.intent === 'dress-me' && _waItems.length < 15;
+          const icon = _CHIP_ICONS[def.intent] || '';
+          chip.style.cssText = `display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:100px;border:1px solid rgba(32,32,33,0.16);background:#fff;color:#2A2520;font-size:13px;font-weight:400;letter-spacing:0;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s,border-color .15s;font-family:inherit;${locked ? 'opacity:.5;' : ''}`;
+          chip.innerHTML = `${icon}${def.label}${locked ? `<span style="font-size:11px;opacity:.6;margin-left:2px">${_waItems.length}/15</span>` : ''}`;
           chip.onclick = function() {
             const nowLocked = def.intent === 'dress-me' && _waItems.length < 15;
             if (nowLocked) {
@@ -2144,7 +2151,9 @@ document.addEventListener('DOMContentLoaded', async function() {
           };
           chipRow.appendChild(chip);
         });
-        photoZone.parentNode.insertBefore(chipRow, photoZone.nextSibling);
+        // Insert chip row after the concierge box wrapper, not inside it
+        const cbWrap = ta.closest('.cb-wrap, .concierge-bar, [class*="cb-"], [class*="concierge"]') || ta.parentNode;
+        cbWrap.parentNode.insertBefore(chipRow, cbWrap.nextSibling);
       }, 1000);
 
       // Intercept send button click and Enter key — routes via _cbSubmit
