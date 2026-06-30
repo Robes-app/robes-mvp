@@ -1986,8 +1986,12 @@ document.addEventListener('DOMContentLoaded', async function() {
           _cbPhotoData = null;
           const preview = document.getElementById('cb-photo-preview');
           const hint = document.getElementById('cb-photo-hint');
+          const icon = document.getElementById('cb-photo-icon');
           if (preview) { preview.src = ''; preview.style.display = 'none'; }
-          if (hint) hint.style.display = '';
+          if (hint) { hint.textContent = "Show me the piece, and I'll style it three ways."; hint.style.display = ''; }
+          if (icon) icon.style.display = '';
+          const inp = document.getElementById('cb-photo-input');
+          if (inp) inp.value = '';
         }
       }
 
@@ -2102,14 +2106,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         const sendBtn = document.querySelector('.cb-send');
         if (sendBtn && !sendBtn.dataset.origText) sendBtn.dataset.origText = sendBtn.textContent || 'Send';
 
-        // Photo zone — hidden until 'style' chip selected
+        // Attach suggestion row — appears inside the card when 'style' chip active
         const photoZone = document.createElement('div');
         photoZone.id = 'cb-photo-zone';
-        photoZone.style.cssText = 'display:none;align-items:center;gap:12px;padding:10px 16px;background:#F4F0E8;border-radius:12px;margin-top:8px;cursor:pointer;border:1.5px dashed rgba(32,32,33,0.18);box-sizing:border-box;width:100%';
+        photoZone.style.cssText = 'display:none;align-items:center;gap:10px;padding:10px 15px;cursor:pointer;border-top:0.5px solid rgba(32,32,33,0.08)';
         photoZone.innerHTML = `
           <input type="file" id="cb-photo-input" accept="image/*" capture="environment" style="display:none">
-          <img id="cb-photo-preview" src="" alt="" style="display:none;width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0">
-          <span id="cb-photo-hint" style="font-size:12px;color:#7A6E63;letter-spacing:.04em">📎 Upload or drag a photo <span style="opacity:.6;font-size:11px">(optional)</span></span>`;
+          <span id="cb-photo-icon" style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:rgba(142,112,119,0.1);display:flex;align-items:center;justify-content:center;color:#8E7077">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          </span>
+          <span id="cb-photo-hint" style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:rgba(32,32,33,0.38)">Show me the piece, and I'll style it three ways.</span>
+          <img id="cb-photo-preview" src="" alt="" style="display:none;width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0;margin-left:auto">`;
         photoZone.onclick = function(e) {
           if (!e.target.closest('#cb-photo-preview')) document.getElementById('cb-photo-input').click();
         };
@@ -2121,12 +2128,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             _cbPhotoData = ev.target.result;
             const preview = document.getElementById('cb-photo-preview');
             const hint = document.getElementById('cb-photo-hint');
+            const icon = document.getElementById('cb-photo-icon');
             if (preview) { preview.src = _cbPhotoData; preview.style.display = 'block'; }
-            if (hint) hint.style.display = 'none';
+            if (hint) hint.textContent = 'Photo attached — tap to change';
+            if (icon) icon.style.display = 'none';
           };
           reader.readAsDataURL(file);
         };
-        // Insert photo zone inside the concierge-box, below the textarea row
+        // Insert inside concierge-box, between textarea and the footer row
         const cbFoot = document.querySelector('.cb-foot') || ta.parentNode;
         cbFoot.parentNode.insertBefore(photoZone, cbFoot);
 
