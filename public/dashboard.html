@@ -1996,10 +1996,11 @@ document.addEventListener('DOMContentLoaded', async function() {
           const chip = document.getElementById(c.id);
           if (!chip) return;
           const active = c.intent === intent;
-          chip.style.background = active ? '#202021' : '#fff';
-          chip.style.color = active ? '#FAF8F5' : '#2A2520';
-          chip.style.borderColor = active ? '#202021' : 'rgba(32,32,33,0.16)';
-          chip.style.fontWeight = active ? '500' : '400';
+          // Override bundle's .cb-pill defaults inline so specificity wins
+          chip.style.background = active ? '#202021' : '';
+          chip.style.color = active ? '#FAF8F5' : '';
+          chip.style.borderColor = active ? '#202021' : '';
+          chip.style.fontWeight = active ? '500' : '';
         });
       }
 
@@ -2125,19 +2126,22 @@ document.addEventListener('DOMContentLoaded', async function() {
           };
           reader.readAsDataURL(file);
         };
-        ta.parentNode.insertBefore(photoZone, ta.nextSibling);
+        // Insert photo zone inside the concierge-box, below the textarea row
+        const cbFoot = document.querySelector('.cb-foot') || ta.parentNode;
+        cbFoot.parentNode.insertBefore(photoZone, cbFoot);
 
-        // Chip row — below the concierge box, outside of it
+        // Chip row — uses bundle's .cb-pills / .cb-pill classes, inserted after .concierge-box
         const chipRow = document.createElement('div');
         chipRow.id = 'cb-chips';
-        chipRow.style.cssText = 'display:flex;gap:8px;margin-top:12px;flex-wrap:wrap';
+        chipRow.className = 'cb-pills';
         _CHIP_DEFS.forEach(def => {
           const chip = document.createElement('button');
           chip.id = def.id;
           chip.type = 'button';
+          chip.className = 'cb-pill';
           const locked = def.intent === 'dress-me' && _waItems.length < 15;
+          chip.style.cssText = `display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:inherit;${locked ? 'opacity:.5;' : ''}`;
           const icon = _CHIP_ICONS[def.intent] || '';
-          chip.style.cssText = `display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:100px;border:1px solid rgba(32,32,33,0.16);background:#fff;color:#2A2520;font-size:13px;font-weight:400;letter-spacing:0;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s,border-color .15s;font-family:inherit;${locked ? 'opacity:.5;' : ''}`;
           chip.innerHTML = `${icon}${def.label}${locked ? `<span style="font-size:11px;opacity:.6;margin-left:2px">${_waItems.length}/15</span>` : ''}`;
           chip.onclick = function() {
             const nowLocked = def.intent === 'dress-me' && _waItems.length < 15;
@@ -2151,9 +2155,14 @@ document.addEventListener('DOMContentLoaded', async function() {
           };
           chipRow.appendChild(chip);
         });
-        // Insert chip row after the concierge box wrapper, not inside it
-        const cbWrap = ta.closest('.cb-wrap, .concierge-bar, [class*="cb-"], [class*="concierge"]') || ta.parentNode;
-        cbWrap.parentNode.insertBefore(chipRow, cbWrap.nextSibling);
+        // Insert after .concierge-box (the white prompt card)
+        const conciergeBox = document.querySelector('.concierge-box');
+        if (conciergeBox && conciergeBox.parentNode) {
+          conciergeBox.parentNode.insertBefore(chipRow, conciergeBox.nextSibling);
+        } else {
+          // Fallback: after the textarea's closest ancestor outside the card
+          (ta.closest('.concierge') || ta.parentNode.parentNode).appendChild(chipRow);
+        }
       }, 1000);
 
       // Intercept send button click and Enter key — routes via _cbSubmit
