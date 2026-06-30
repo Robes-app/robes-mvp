@@ -1031,7 +1031,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
             Back
           </button>
-          <span style="font-family:'Cormorant',Georgia,serif;font-size:18px;font-weight:300;color:#202021;letter-spacing:.01em">Style notes</span>
+          <span style="font-family:'Cormorant',Georgia,serif;font-size:18px;font-weight:300;color:#202021;letter-spacing:.01em">Lookbook</span>
         </nav>
         <div style="padding:32px 24px 24px;max-width:960px;margin:0 auto">
           <p style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;margin:0 0 24px">Saved looks & key pieces</p>
@@ -1116,7 +1116,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         row.style.display = 'block';
         row.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-            <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880">Style notes</span>
+            <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880">Lookbook</span>
             <button onclick="window.__snOpen()" style="background:none;border:none;cursor:pointer;font-size:11px;color:#A89880;letter-spacing:.04em;padding:0;text-decoration:underline;text-underline-offset:3px">View all</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
@@ -1166,12 +1166,46 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
       }
 
-      // Wire "Style notes" avatar menu item after bundle settles
+      // Patch avatar dropdown: rename items + add Moodboards link
       // Also override KP.submitStyle to call the real /api/style endpoint
       // + reorder Styling Concierge cards: Key Piece → Weekly Planner → Travel Edit
       setTimeout(() => {
-        const snAvItem = Array.from(document.querySelectorAll('.av-item')).find(b => b.textContent.includes('Style notes'));
-        if (snAvItem) snAvItem.onclick = () => window.__snOpen();
+        // Rename bundle's "My wardrobe" → "Wardrobe"
+        Array.from(document.querySelectorAll('.av-item')).forEach(btn => {
+          if (btn.textContent.includes('My wardrobe') || btn.textContent.includes('My Wardrobe')) {
+            const txt = btn.childNodes[btn.childNodes.length - 1];
+            if (txt && txt.nodeType === Node.TEXT_NODE) txt.textContent = 'Wardrobe';
+            else btn.innerHTML = btn.innerHTML.replace(/My [Ww]ardrobe/, 'Wardrobe');
+          }
+        });
+
+        // Rename "Style notes" → "Lookbook" and wire onclick
+        const snAvItem = Array.from(document.querySelectorAll('.av-item')).find(b => b.textContent.includes('Style notes') || b.textContent.includes('Lookbook'));
+        if (snAvItem) {
+          const txt = snAvItem.childNodes[snAvItem.childNodes.length - 1];
+          if (txt && txt.nodeType === Node.TEXT_NODE) txt.textContent = 'Lookbook';
+          else snAvItem.innerHTML = snAvItem.innerHTML.replace(/Style notes/, 'Lookbook');
+          snAvItem.onclick = () => window.__snOpen();
+        }
+
+        // Add Moodboards item to av-menu after Lookbook
+        const avMenu = document.getElementById('av-menu');
+        if (avMenu && !document.getElementById('av-moodboards')) {
+          const mbBtn = document.createElement('button');
+          mbBtn.id = 'av-moodboards';
+          mbBtn.className = 'av-item';
+          mbBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>Moodboards`;
+          mbBtn.onclick = () => {
+            avMenu.classList.remove('open');
+            if (window._mbShowAllPage) window._mbShowAllPage();
+          };
+          // Insert after snAvItem if found, else append
+          if (snAvItem && snAvItem.parentNode === avMenu) {
+            avMenu.insertBefore(mbBtn, snAvItem.nextSibling);
+          } else {
+            avMenu.appendChild(mbBtn);
+          }
+        }
 
         // Reorder + relabel concierge cards — bundle order: Weekly(01), Travel(02), Key Piece(03)
         // Target order: Daily Outfit(01), Weekly Planner(02), Travel Edit(03)
@@ -1822,7 +1856,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (!items.length) {
           el.innerHTML = `
             <div class="rb-sec-head">
-              <span class="rb-sec-ey">Style notes</span>
+              <span class="rb-sec-ey">Lookbook</span>
               <span class="rb-sec-meta">A little gift to begin</span>
             </div>
             <button class="rb-es-card" onclick="window.KP && KP.openKeyPiece ? KP.openKeyPiece() : void 0">
