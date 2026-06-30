@@ -1893,15 +1893,20 @@ document.addEventListener('DOMContentLoaded', async function() {
           } else {
             svcCta.classList.remove('svc-cta-locked');
             svcCta.innerHTML = `Style today<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
-            dailyCard.onclick = () => {
-              const ta = document.getElementById('cb-ta');
-              if (ta) {
-                ta.value = 'Dress me for a day in the city today';
-                ta.dispatchEvent(new Event('input'));
-                ta.focus();
-                ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-            };
+            dailyCard.onclick = () => { if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me'); };
+          }
+        }
+
+        // Refresh chip lock state to reflect current wardrobe count
+        const dressChip = document.getElementById('chip-dress');
+        if (dressChip) {
+          dressChip.style.opacity = isLocked ? '0.5' : '1';
+          const countSpan = dressChip.querySelector('span');
+          if (isLocked) {
+            if (!countSpan) dressChip.insertAdjacentHTML('beforeend', `<span style="font-size:10px;opacity:.7">${_waItems.length}/15</span>`);
+            else countSpan.textContent = `${_waItems.length}/15`;
+          } else if (countSpan) {
+            countSpan.remove();
           }
         }
       }
@@ -1931,54 +1936,224 @@ document.addEventListener('DOMContentLoaded', async function() {
       const _MB_PLACEHOLDER = 'A week in the South of France in August…';
       const _CB_PLACEHOLDER = "Tell Robes where you're going, or the look you're after…";
 
-      // Inject a moodboard submit button — inserted next to #cb-send, hidden by default
-      const _mbInlineBtn = document.createElement('button');
-      _mbInlineBtn.id = 'mb-inline-btn';
-      _mbInlineBtn.textContent = 'Build moodboard';
-      _mbInlineBtn.style.cssText = 'display:none;padding:10px 20px;border-radius:100px;' +
-        'background:#202021;color:#FAF8F5;font-size:10px;font-weight:500;' +
-        'letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer;' +
-        'white-space:nowrap;flex-shrink:0';
-      _mbInlineBtn.onclick = function() { _mbFireFromTextarea(); };
-      // Bundle uses class="cb-send" (not id) — insert our button next to it
-      setTimeout(() => {
-        const sendBtn = document.querySelector('.cb-send');
-        if (sendBtn && sendBtn.parentNode) sendBtn.parentNode.insertBefore(_mbInlineBtn, sendBtn);
-        else document.body.appendChild(_mbInlineBtn);
-      }, 1000);
+      // ── Intent chip system ────────────────────────────────────────────
+      let _cbIntent = null; // null | 'style' | 'moodboard' | 'dress-me'
+      let _cbPhotoData = null;
 
-      function _mbShowInlineBtn() {
-        const sendBtn = document.querySelector('.cb-send');
-        if (sendBtn) sendBtn.style.visibility = 'hidden';
-        _mbInlineBtn.style.display = 'block';
+      const _CHIP_DEFS = [
+        { id: 'chip-style',  emoji: '✨', label: 'Style a key piece',
+          cta: 'STYLE IT',
+          inject: 'Style my [oversized cream blazer] 3 ways',
+          placeholder: 'Describe your key piece…',
+          intent: 'style' },
+        { id: 'chip-mood',   emoji: '🖼️', label: 'Create Moodboard',
+          cta: 'BUILD BOARD',
+          inject: 'Build a moodboard for [a late summer weekend in Ibiza] with a vibe that is [minimalist, editorial, and effortless].',
+          placeholder: 'Describe your moodboard vibe…',
+          intent: 'moodboard' },
+        { id: 'chip-dress',  emoji: '👗', label: 'Dress Me Today',
+          cta: 'DRESS ME',
+          inject: 'I need an outfit for [Sunday brunch in Dublin] using my [favorite trench coat] mixed with editorial pieces.',
+          placeholder: 'Describe your occasion or mood…',
+          intent: 'dress-me' },
+      ];
+
+      function _cbGetSendBtn() { return document.querySelector('.cb-send'); }
+
+      function _cbSetCta(text) {
+        const btn = _cbGetSendBtn();
+        if (!btn) return;
+        if (!btn.dataset.origText) btn.dataset.origText = btn.textContent || 'Send';
+        btn.textContent = text;
       }
 
-      function _mbHideInlineBtn() {
-        _mbInlineBtn.style.display = 'none';
-        const sendBtn = document.querySelector('.cb-send');
-        if (sendBtn) sendBtn.style.visibility = '';
+      function _cbResetCta() {
+        const btn = _cbGetSendBtn();
+        if (btn && btn.dataset.origText) btn.textContent = btn.dataset.origText;
       }
 
-      function _mbFireFromTextarea() {
+      function _cbShowPhotoZone(show) {
+        const zone = document.getElementById('cb-photo-zone');
+        if (!zone) return;
+        zone.style.display = show ? 'flex' : 'none';
+        if (!show) {
+          _cbPhotoData = null;
+          const preview = document.getElementById('cb-photo-preview');
+          const hint = document.getElementById('cb-photo-hint');
+          if (preview) { preview.src = ''; preview.style.display = 'none'; }
+          if (hint) hint.style.display = '';
+        }
+      }
+
+      function _cbSetChipActive(intent) {
+        _CHIP_DEFS.forEach(c => {
+          const chip = document.getElementById(c.id);
+          if (!chip) return;
+          const active = c.intent === intent;
+          chip.style.background = active ? '#202021' : '#fff';
+          chip.style.color = active ? '#FAF8F5' : '#2A2520';
+          chip.style.borderColor = active ? '#202021' : 'rgba(32,32,33,0.18)';
+        });
+      }
+
+      function _cbSetIntent(intent) {
+        _cbIntent = intent;
+        const ta = document.getElementById('cb-ta');
+        const def = _CHIP_DEFS.find(c => c.intent === intent);
+        _cbSetChipActive(intent);
+        if (!def || !ta) return;
+        ta.value = def.inject;
+        ta.placeholder = def.placeholder;
+        ta.dispatchEvent(new Event('input'));
+        _cbSetCta(def.cta);
+        _cbShowPhotoZone(intent === 'style');
+        ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 300);
+      }
+
+      function _cbReset() {
+        _cbIntent = null;
+        _cbPhotoData = null;
+        const ta = document.getElementById('cb-ta');
+        if (ta) { ta.value = ''; ta.placeholder = _CB_PLACEHOLDER; ta.dispatchEvent(new Event('input')); }
+        _cbResetCta();
+        _cbShowPhotoZone(false);
+        _cbSetChipActive(null);
+      }
+
+      // Reusable inline style overlay — shared between chip 'style', 'dress-me', and KP card
+      async function _cbStyleSubmit(prompt, photoData) {
+        let overlay = document.getElementById('kp-loading-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'kp-loading-overlay';
+          overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
+          overlay.innerHTML = `
+            <div style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center">Styling your piece<br><em>three ways…</em></div>
+            <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+            <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
+              <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
+            </div>`;
+          const ks = document.createElement('style');
+          ks.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}';
+          document.head.appendChild(ks);
+          document.body.appendChild(overlay);
+        }
+        overlay.style.display = 'flex';
+        const msgs = ['Generating editorial looks', 'Composing outfits…', 'Creating images…', 'Almost ready…'];
+        let mi = 0;
+        const msgInterval = setInterval(() => {
+          mi = Math.min(mi + 1, msgs.length - 1);
+          const el = document.getElementById('kp-load-msg');
+          if (el) el.textContent = msgs[mi];
+        }, 8000);
+        try {
+          const res = await fetch('/api/style', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, photo: photoData || null }),
+          });
+          clearInterval(msgInterval);
+          overlay.style.display = 'none';
+          if (!res.ok) throw new Error(await res.text());
+          window.__kpRenderResult(await res.json(), prompt);
+        } catch (err) {
+          clearInterval(msgInterval);
+          overlay.style.display = 'none';
+          _waShowToast(err.message && err.message.length < 120 ? err.message : 'Something went wrong — please try again');
+        }
+      }
+
+      // Central submit handler — routes based on active intent
+      function _cbSubmit() {
         const ta = document.getElementById('cb-ta');
         const prompt = (ta && ta.value.trim()) || '';
-        _mbHideInlineBtn();
-        if (ta) {
-          ta.placeholder = _CB_PLACEHOLDER;
-          ta.value = '';
-          ta.dispatchEvent(new Event('input'));
+        if (_cbIntent === 'style' || _cbIntent === 'dress-me') {
+          if (!prompt && !_cbPhotoData) { _waShowToast('Describe your piece or upload a photo first'); return; }
+          const photo = _cbPhotoData;
+          _cbReset();
+          _cbStyleSubmit(prompt, photo);
+        } else {
+          // moodboard (intent null or 'moodboard')
+          if (ta) { ta.placeholder = _CB_PLACEHOLDER; ta.value = ''; ta.dispatchEvent(new Event('input')); }
+          _cbReset();
+          if (!prompt) return;
+          window.__mbRunGeneration(prompt);
         }
-        if (!prompt) return;
-        window.__mbRunGeneration(prompt);
       }
 
-      // Intercept both button click and Enter key — bundle handles both paths
+      // Legacy helper kept for _mbInlineBtn.onclick compat
+      function _mbHideInlineBtn() {}
+      function _mbShowInlineBtn() {}
+      function _mbFireFromTextarea() { _cbSubmit(); }
+
+      // Inject chips + photo attachment zone after bundle renders
+      setTimeout(() => {
+        const ta = document.getElementById('cb-ta');
+        if (!ta) return;
+        const sendBtn = document.querySelector('.cb-send');
+        if (sendBtn && !sendBtn.dataset.origText) sendBtn.dataset.origText = sendBtn.textContent || 'Send';
+
+        // Photo zone — hidden until 'style' chip selected
+        const photoZone = document.createElement('div');
+        photoZone.id = 'cb-photo-zone';
+        photoZone.style.cssText = 'display:none;align-items:center;gap:12px;padding:10px 16px;background:#F4F0E8;border-radius:12px;margin-top:8px;cursor:pointer;border:1.5px dashed rgba(32,32,33,0.18);box-sizing:border-box;width:100%';
+        photoZone.innerHTML = `
+          <input type="file" id="cb-photo-input" accept="image/*" capture="environment" style="display:none">
+          <img id="cb-photo-preview" src="" alt="" style="display:none;width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0">
+          <span id="cb-photo-hint" style="font-size:12px;color:#7A6E63;letter-spacing:.04em">📎 Upload or drag a photo <span style="opacity:.6;font-size:11px">(optional)</span></span>`;
+        photoZone.onclick = function(e) {
+          if (!e.target.closest('#cb-photo-preview')) document.getElementById('cb-photo-input').click();
+        };
+        photoZone.querySelector('#cb-photo-input').onchange = function(e) {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = function(ev) {
+            _cbPhotoData = ev.target.result;
+            const preview = document.getElementById('cb-photo-preview');
+            const hint = document.getElementById('cb-photo-hint');
+            if (preview) { preview.src = _cbPhotoData; preview.style.display = 'block'; }
+            if (hint) hint.style.display = 'none';
+          };
+          reader.readAsDataURL(file);
+        };
+        ta.parentNode.insertBefore(photoZone, ta.nextSibling);
+
+        // Chip row
+        const chipRow = document.createElement('div');
+        chipRow.id = 'cb-chips';
+        chipRow.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap';
+        _CHIP_DEFS.forEach(def => {
+          const chip = document.createElement('button');
+          chip.id = def.id;
+          chip.type = 'button';
+          const isDress = def.intent === 'dress-me';
+          const locked = isDress && _waItems.length < 15;
+          chip.style.cssText = `display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:100px;border:1px solid rgba(32,32,33,0.18);background:#fff;color:#2A2520;font-size:11px;font-weight:500;letter-spacing:.08em;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s,border-color .15s;${locked ? 'opacity:.5;' : ''}`;
+          chip.innerHTML = `${def.emoji} ${def.label}${locked ? ` <span style="font-size:10px;opacity:.7">${_waItems.length}/15</span>` : ''}`;
+          chip.onclick = function() {
+            const nowLocked = def.intent === 'dress-me' && _waItems.length < 15;
+            if (nowLocked) {
+              const rem = 15 - _waItems.length;
+              _waShowToast(`Add ${rem} more ${rem === 1 ? 'item' : 'items'} to unlock daily styling, or style a single piece 3 ways right now!`);
+              return;
+            }
+            if (_cbIntent === def.intent) { _cbReset(); return; }
+            _cbSetIntent(def.intent);
+          };
+          chipRow.appendChild(chip);
+        });
+        photoZone.parentNode.insertBefore(chipRow, photoZone.nextSibling);
+      }, 1000);
+
+      // Intercept send button click and Enter key — routes via _cbSubmit
       document.addEventListener('click', function(e) {
         if (e.target.closest('.cb-send')) {
           e.preventDefault();
           e.stopImmediatePropagation();
           e.stopPropagation();
-          _mbFireFromTextarea();
+          _cbSubmit();
         }
       }, true);
 
@@ -1987,46 +2162,12 @@ document.addEventListener('DOMContentLoaded', async function() {
           e.preventDefault();
           e.stopImmediatePropagation();
           e.stopPropagation();
-          _mbFireFromTextarea();
+          _cbSubmit();
         }
       }, true);
 
       window.__rbStartMoodboard = function() {
-        const ta = document.getElementById('cb-ta');
-        if (!ta) return;
-
-        ta.value = '';
-        ta.placeholder = _MB_PLACEHOLDER;
-        ta.dispatchEvent(new Event('input'));
-        ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setTimeout(() => {
-          ta.focus();
-          _mbShowInlineBtn();
-        }, 320);
-
-        // Capture Enter key in the textarea to also fire moodboard
-        function _mbTaKeydown(e) {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            ta.removeEventListener('keydown', _mbTaKeydown, true);
-            _mbFireFromTextarea();
-          }
-        }
-        ta.addEventListener('keydown', _mbTaKeydown, true);
-
-        // Dismiss inline button if user clicks elsewhere
-        setTimeout(() => {
-          function _mbOutsideClick(e) {
-            if (!_mbInlineBtn.contains(e.target) && e.target !== ta) {
-              _mbHideInlineBtn();
-              ta.placeholder = _CB_PLACEHOLDER;
-              ta.removeEventListener('keydown', _mbTaKeydown, true);
-              document.removeEventListener('click', _mbOutsideClick, true);
-            }
-          }
-          document.addEventListener('click', _mbOutsideClick, true);
-        }, 400);
+        _cbSetIntent('moodboard');
       };
 
       window.__mbRunGeneration = async function(prompt) {
