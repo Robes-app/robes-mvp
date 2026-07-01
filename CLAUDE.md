@@ -27,7 +27,9 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 | `public/js/app.js` | All client logic — state, flow, rendering |
 | `public/css/robes-mvp.css` | All styles |
 | `public/look.html` | Shareable look page (static, loads `/api/look/:id`) |
-| `public/dashboard.html` | Protected dashboard SPA — wardrobe, styling, account |
+| `public/dashboard.html` | Protected dashboard SPA — wardrobe, styling, account (ejected from Claude Design bundle) |
+| `public/dashboard-assets/` | Dashboard fonts/images/app JS extracted from the bundle (uuid filenames) |
+| `public/js/dashboard-personalize.js` | The `__robes_personalize` customisation layer for the dashboard |
 | `supabase/schema.sql` | DB schema — run once in Supabase SQL editor |
 | `supabase/wardrobe_schema.sql` | Wardrobe items table + RLS — run once in Supabase SQL editor |
 | `supabase/item_dna_migration.sql` | Adds `item_dna JSONB` column — run once in Supabase SQL editor |
@@ -121,7 +123,13 @@ Entry point: the dashboard avatar dropdown — `__robes_personalize` appends an 
 - Email signup: sends confirmation email; if `data.session` exists, redirects immediately
 
 ## Dashboard wardrobe feature (signup-flow branch)
-`public/dashboard.html` is a ~4MB self-contained bundled SPA. All customisation runs via `window.__robes_personalize`, called after all bundle scripts execute.
+The dashboard was originally a ~4MB self-contained Claude Design bundle; it has been **ejected** into plain files:
+- `public/dashboard.html` (~150KB) — plain HTML page. Head carries `window.__resources` (id → asset path map the app JS reads for runtime imagery) and a `#rb-boot` style that hides the body until boot completes.
+- `public/dashboard-assets/` — 43 extracted assets (fonts, images, the 6 app JS files), named by their original bundle uuid. Fetched on demand and cached individually.
+- `public/js/dashboard-personalize.js` — the entire `window.__robes_personalize` customisation layer.
+- Boot sequence (inline script at end of body): load supabase-js CDN → auth guard (no session → `/signup.html`) → set `window.__robes_session`/`__robes_profile` → load the 6 app scripts **sequentially in order** → call `__robes_personalize()` → remove `#rb-boot`. Do not reorder; the app scripts depend on session being set first and on each other's order.
+
+"The bundle" below refers to the minified app JS in `dashboard-assets/` — its functions are still private closures, so the whole interception layer is unchanged. All customisation runs via `window.__robes_personalize`, called after all bundle scripts execute.
 
 ### Wardrobe wiring (inside `__robes_personalize`)
 - `_waUid()` / `_waToken()` — read `window.__robes_session` lazily on each call (session loads async after bundle auth)

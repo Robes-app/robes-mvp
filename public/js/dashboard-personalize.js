@@ -1,0 +1,2711 @@
+    window.__robes_personalize = function() {
+      // Personalise name
+      const name = (window.__robes_profile && window.__robes_profile.first_name) || 'Annie';
+      if (name !== 'Annie') {
+        const walk = (node) => {
+          if (node.nodeType === 3) {
+            node.textContent = node.textContent.replace(/\bAnnie\b/g, name);
+          } else { for (const c of node.childNodes) walk(c); }
+        };
+        walk(document.body);
+      }
+
+      // Avatar dropdown — remove "Founding Stylist", add Account Details
+      const avSubtitle = document.querySelector('#av-menu .av-name span');
+      if (avSubtitle) avSubtitle.remove();
+
+      // Populate av-name with real name
+      const avNameEl = document.getElementById('av-name');
+      if (avNameEl) avNameEl.textContent = name;
+
+      // Insert Account Details button before My wardrobe
+      const avMenu = document.getElementById('av-menu');
+      if (avMenu) {
+        const firstBtn = avMenu.querySelector('.av-item');
+        const acctBtn = document.createElement('button');
+        acctBtn.className = 'av-item';
+        acctBtn.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path></svg>Account details';
+        acctBtn.onclick = () => { document.getElementById('av-menu').classList.remove('open'); document.getElementById('acct-modal').style.display = 'flex'; };
+        avMenu.insertBefore(acctBtn, firstBtn);
+      }
+
+      // Build Account Details modal
+      const acctModal = document.createElement('div');
+      acctModal.id = 'acct-modal';
+      acctModal.style.cssText = 'display:none;position:fixed;inset:0;z-index:9000;background:rgba(32,32,33,0.32);align-items:center;justify-content:center;backdrop-filter:blur(4px)';
+      const userEmail = (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '';
+      const prof = window.__robes_profile || {};
+      acctModal.innerHTML = `
+        <div style="background:#FAF8F5;border-radius:16px;padding:36px 32px;width:100%;max-width:420px;position:relative;box-shadow:0 8px 40px rgba(32,32,33,0.14)">
+          <button onclick="document.getElementById('acct-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;color:#A89880;cursor:pointer;padding:4px">✕</button>
+          <h2 style="font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:26px;margin:0 0 4px;color:#202021">Account details</h2>
+          <p style="font-size:12px;color:#A89880;margin:0 0 28px;letter-spacing:.04em">\${userEmail}</p>
+          <div id="acct-msg" style="font-size:13px;margin-bottom:16px;min-height:18px"></div>
+          <label style="display:block;margin-bottom:16px">
+            <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">First name</span>
+            <input id="acct-first" value="\${prof.first_name||''}" style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
+          </label>
+          <label style="display:block;margin-bottom:16px">
+            <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">Last name</span>
+            <input id="acct-last" value="\${prof.last_name||''}" style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
+          </label>
+          <label style="display:block;margin-bottom:28px">
+            <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">Mobile number</span>
+            <input id="acct-mobile" type="tel" value="\${prof.mobile||''}" placeholder="+353..." style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
+          </label>
+          <button onclick="window.__saveAcctDetails()" style="width:100%;height:48px;background:#202021;color:#fff;border:none;border-radius:8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;font-weight:500">Save changes</button>
+        </div>`;
+      document.body.appendChild(acctModal);
+      acctModal.addEventListener('click', (e) => { if (e.target === acctModal) acctModal.style.display = 'none'; });
+
+      // Save handler — updates Supabase profiles
+      window.__saveAcctDetails = async () => {
+        const msgEl = document.getElementById('acct-msg');
+        msgEl.style.color = '#6E6A64';
+        msgEl.textContent = 'Saving…';
+        const SUPA_URL = 'https://ayowpaknssulsqqvwpqx.supabase.co';
+        const SUPA_KEY = 'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ';
+        const token = window.__robes_session && window.__robes_session.access_token;
+        const userId = window.__robes_session && window.__robes_session.user && window.__robes_session.user.id;
+        try {
+          const res = await fetch(SUPA_URL + '/rest/v1/profiles?id=eq.' + userId, {
+            method: 'PATCH',
+            headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + token,
+              'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+            body: JSON.stringify({
+              first_name: document.getElementById('acct-first').value.trim(),
+              last_name: document.getElementById('acct-last').value.trim(),
+              mobile: document.getElementById('acct-mobile').value.trim()
+            })
+          });
+          if (res.ok) {
+            msgEl.style.color = '#7E7C5A';
+            msgEl.textContent = 'Saved.';
+            setTimeout(() => { msgEl.textContent = ''; }, 2000);
+          } else {
+            msgEl.style.color = '#A4453A';
+            msgEl.textContent = 'Error saving — please try again.';
+          }
+        } catch(e) {
+          msgEl.style.color = '#A4453A';
+          msgEl.textContent = 'Error saving — please try again.';
+        }
+      };
+
+      // Time-based greeting
+      const hour = new Date().getHours();
+      const tod = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+      const greetingEl = document.getElementById('greeting');
+      const dashGreetEl = document.getElementById('dash-greet');
+      if (greetingEl) greetingEl.innerHTML = 'Good ' + tod + ',<br>' + name + '.';
+      if (dashGreetEl) dashGreetEl.textContent = 'Good ' + tod + ', ' + name + '.';
+
+      // Live weather — request geolocation then fetch Open-Meteo
+      const weatherEl = document.getElementById('nav-weather');
+      if (!weatherEl) return;
+      const spans = weatherEl.querySelectorAll('span:not(.dot):not(.wx)');
+      const daySpan  = spans[0];  // Thursday
+      const citySpan = spans[1];  // Dublin
+      const tempSpan = spans[2];  // 12°C
+      const wxIcon   = weatherEl.querySelector('.wx');
+
+      const WX_ICONS = {0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',
+        61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',80:'🌦',81:'🌧',82:'🌧',
+        95:'⛈',96:'⛈',99:'⛈'};
+      const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+      if (daySpan) daySpan.textContent = DAYS[new Date().getDay()];
+
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        try {
+          // Reverse geocode with Open-Meteo geocoding
+          const geoRes = await fetch(
+            'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon,
+            { headers: { 'Accept-Language': 'en' } }
+          );
+          const geoData = await geoRes.json();
+          const city = geoData.address?.city || geoData.address?.town ||
+                       geoData.address?.village || geoData.address?.county || '';
+          if (city && citySpan) citySpan.textContent = city;
+
+          // Weather from Open-Meteo (free, no API key)
+          const wxRes = await fetch(
+            'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
+            '&longitude=' + lon + '&current=temperature_2m,weather_code&temperature_unit=celsius'
+          );
+          const wxData = await wxRes.json();
+          const temp = Math.round(wxData.current?.temperature_2m);
+          const code = wxData.current?.weather_code;
+          if (!isNaN(temp) && tempSpan) tempSpan.textContent = temp + '°C';
+          if (code !== undefined && wxIcon) wxIcon.textContent = WX_ICONS[code] || '🌤';
+        } catch (e) { /* keep defaults on error */ }
+      }, () => { /* permission denied — keep defaults */ });
+
+      // ── Wardrobe wiring ──────────────────────────────────────────
+      const _SUPA_URL = 'https://ayowpaknssulsqqvwpqx.supabase.co';
+      const _SUPA_KEY = 'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ';
+      // Read session lazily so we always have a fresh token (session loads async)
+      function _waUid()   { return window.__robes_session && window.__robes_session.user && window.__robes_session.user.id; }
+      function _waToken() { return window.__robes_session && window.__robes_session.access_token; }
+
+      const WA_CATS = ['All','Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear','Other'];
+
+      let _waItems = [], _waCat = 'All', _waEditId = null;
+
+      function _waEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+      function _waShowToast(msg) {
+        const t = document.getElementById('toast-msg') || document.getElementById('toast');
+        if (!t) return;
+        const wrap = t.id === 'toast-msg' ? t.parentElement : t;
+        if (t.id === 'toast-msg') t.textContent = msg; else t.textContent = msg;
+        wrap.classList.add('show');
+        setTimeout(() => wrap.classList.remove('show'), 2800);
+      }
+
+      async function _waFetch(method, path, body) {
+        const r = await fetch(_SUPA_URL + '/rest/v1/' + path, {
+          method,
+          headers: {
+            'apikey': _SUPA_KEY, 'Authorization': 'Bearer ' + _waToken(),
+            'Content-Type': 'application/json', 'Prefer': 'return=representation'
+          },
+          body: body !== undefined ? JSON.stringify(body) : undefined
+        });
+        if (!r.ok) throw new Error(await r.text());
+        return r.status === 204 ? null : r.json();
+      }
+
+      async function _waLoad() {
+        try {
+          const data = await _waFetch('GET', 'wardrobe_items?user_id=eq.' + _waUid() + '&order=created_at.desc&select=*');
+          _waItems = data || [];
+          _waLoaded = true;
+        } catch(e) { console.error('wardrobe load:', e); }
+        _waBuildFilters();
+        _waRender();
+      }
+
+      let _waLoaded = false;
+      let _waRendering = false; // guard against observer re-entrancy
+
+      // Watch the grid for any external writes (bundle's renderWardrobe) and
+      // immediately restore our content whenever they happen.
+      const _waObserver = new MutationObserver(() => {
+        if (_waRendering) return;
+        _waRender();
+      });
+
+      function _waObserveGrid() {
+        const grid = document.getElementById('wg-grid');
+        if (grid) _waObserver.observe(grid, { childList: true });
+      }
+
+      function _waRender() {
+        const grid = document.getElementById('wg-grid');
+        if (!grid) return;
+        _waRendering = true;
+        _waObserver.disconnect();
+        if (!_waLoaded) {
+          grid.innerHTML = '<div style="padding:48px;text-align:center;opacity:.4;font-size:13px;letter-spacing:.04em">Loading…</div>';
+        } else {
+          const filtered = _waCat === 'All' ? _waItems : _waItems.filter(i => i.category === _waCat);
+          const frag = document.createDocumentFragment();
+          filtered.forEach(it => frag.appendChild(_waCard(it)));
+          frag.appendChild(_waAddCard());
+          grid.innerHTML = '';
+          grid.appendChild(frag);
+          _waSyncCounts();
+        }
+        _waObserver.observe(grid, { childList: true });
+        _waRendering = false;
+      }
+
+      const _WA_TARGET = 15;
+      const _WA_TITLES = [
+        [0,  '0 / 15 pieces catalogued — Snap your first item to unlock beautiful, curated daily looks.', ''],
+        [1,  'pieces catalogued — keep going. Robes styles only from what you own.', ''],
+        [5,  'pieces catalogued — getting there. A few more and your looks get sharper.', ''],
+        [10, 'pieces catalogued — you\'re nearly there. Five more unlocks your Daily Outfit.', ''],
+        [15, 'pieces catalogued — your wardrobe is complete. Robes styles every look from what you own.', ''],
+      ];
+      function _waSyncCounts() {
+        const n = _waItems.length;
+        const label = n + ' piece' + (n !== 1 ? 's' : '');
+
+        // wg-count pill inside the wardrobe panel
+        const countEl = document.getElementById('wg-count');
+        if (countEl) countEl.textContent = label;
+
+        // nav badge
+        const navBadge = document.querySelector('.nav-wbtn-count');
+        if (navBadge) navBadge.textContent = n;
+
+        // dashboard tracker widget
+        const trackerNum  = document.querySelector('.tracker-num');
+        const trackerTitle = document.querySelector('.tracker-title');
+        const trackerSub  = document.querySelector('.tracker-sub');
+        const trackerFill = document.querySelector('.tracker-fill');
+        if (trackerNum) trackerNum.innerHTML = n + '<span> / ' + _WA_TARGET + '</span>';
+        if (trackerFill) trackerFill.style.width = Math.min(100, Math.round(n / _WA_TARGET * 100)) + '%';
+        const copy = [..._WA_TITLES].reverse().find(([min]) => n >= min) || _WA_TITLES[0];
+        if (trackerTitle) trackerTitle.textContent = n === 0 ? copy[1] : n + ' / ' + _WA_TARGET + ' ' + copy[1];
+        if (trackerSub)   trackerSub.textContent   = copy[2];
+        const trackerCta = document.querySelector('.tracker-cta');
+        if (trackerCta) {
+          const ctaText = n === 0 ? 'Add your first piece' : 'Add pieces';
+          trackerCta.childNodes[0].textContent = ctaText;
+          trackerCta.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            _waEditId = null;
+            if (window.WA && WA.open) WA.open();
+          };
+        }
+
+      }
+
+      function _waCard(it) {
+        const div = document.createElement('div');
+        div.className = 'wg-item';
+        const meta = [it.brand, it.times_worn > 0 ? it.times_worn + '\xd7 worn' : null].filter(Boolean).join(' \xb7 ');
+        div.innerHTML = '<div class="wg-img-wrap">' +
+          (it.image_url ? '<img src="' + _waEsc(it.image_url) + '" alt="' + _waEsc(it.label) + '" loading="lazy">' :
+            '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:.3"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>') +
+          (it.times_worn === 0 ? '<div class="wg-owned-badge">Never worn</div>' : '') +
+          '</div><div class="wg-info"><div class="wg-name">' + _waEsc(it.label) + '</div>' +
+          (meta ? '<div class="wg-metar">' + _waEsc(meta) + '</div>' : '') + '</div>';
+        div.addEventListener('click', () => _waOpenEdit(it));
+        return div;
+      }
+
+      function _waAddCard() {
+        const div = document.createElement('div');
+        div.className = 'wg-item wg-add wg-img-wrap';
+        div.style.cursor = 'pointer';
+        div.innerHTML = '<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+        div.addEventListener('click', () => { _waEditId = null; window.WA && WA.open(); });
+        return div;
+      }
+
+      let _waFiltersBuilt = false;
+      function _waBuildFilters() {
+        const container = document.getElementById('wg-filters');
+        if (!container) return;
+        // Only rebuild if the bundle has overwritten our pills (check for onclick attr)
+        const existing = container.querySelector('.wg-pill');
+        if (_waFiltersBuilt && existing && !existing.getAttribute('onclick')) return;
+        container.innerHTML = '';
+        _waFiltersBuilt = true;
+        WA_CATS.forEach(cat => {
+          const btn = document.createElement('button');
+          btn.className = 'wg-pill' + (cat === _waCat ? ' active' : '');
+          btn.textContent = cat;
+          btn.addEventListener('click', () => {
+            _waCat = cat;
+            container.querySelectorAll('.wg-pill').forEach(p => p.classList.toggle('active', p.textContent === cat));
+            _waRender();
+          });
+          container.appendChild(btn);
+        });
+      }
+
+      function _waShowDeleteBtn(show) {
+        let btn = document.getElementById('wa-del-btn');
+        if (!btn && show) {
+          btn = document.createElement('button');
+          btn.id = 'wa-del-btn';
+          btn.style.cssText = 'display:block;width:100%;margin-top:10px;padding:12px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--ink-faint);letter-spacing:.06em;transition:color .2s';
+          btn.textContent = 'Remove from wardrobe';
+          btn.onmouseover = () => { btn.style.color = '#b03030'; };
+          btn.onmouseout  = () => { btn.style.color = ''; };
+          btn.onclick = _waDelete;
+          const cta = document.getElementById('wa-cta');
+          if (cta && cta.parentNode) cta.parentNode.insertBefore(btn, cta.nextSibling);
+        }
+        if (btn) btn.style.display = show ? 'block' : 'none';
+      }
+
+      function _waOpenEdit(it) {
+        _waEditId = it.id;
+        if (!window.WA) return;
+        WA.open();
+        // Use 100ms — enough time for both _patchWA's 50ms restore and any bundle timers to settle
+        setTimeout(() => {
+          const label = document.getElementById('wa-label-in');
+          const cat   = document.getElementById('wa-cat');
+          const brand = document.getElementById('wa-brand');
+          const notes = document.getElementById('wa-notes');
+          const cta   = document.getElementById('wa-cta');
+          if (!label) { console.warn('[robes] edit: #wa-label-in still missing at 100ms'); return; }
+          label.value = it.label  || '';
+          if (cat)   cat.value   = it.category || '';
+          if (brand) brand.value = it.brand   || '';
+          if (notes) notes.value = it.notes   || '';
+          if (cta)   cta.textContent = 'Update piece';
+
+          // Store item_dna for WA.submit to save back
+          window.__waSawItemDna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : {};
+
+          // Inject custom swatches + pre-select the saved colour
+          if (window.__rbInjectSwatches) window.__rbInjectSwatches(it.color || '');
+
+          // Render silhouette pills from item_dna if present
+          const dnaFit = it.item_dna && it.item_dna.structural_dna && Array.isArray(it.item_dna.structural_dna.silhouette_fit)
+            ? it.item_dna.structural_dna.silhouette_fit : [];
+          if (dnaFit.length) {
+            window.__waSawFit = dnaFit.slice();
+            // Inject pills section after swatch container
+            const swatchContainer = document.getElementById('wa-swatches');
+            if (swatchContainer && !document.getElementById('rb-fit-pills-wrap')) {
+              const wrap = document.createElement('div');
+              wrap.id = 'rb-fit-pills-wrap';
+              wrap.style.cssText = 'margin-top:12px;';
+              wrap.innerHTML = `<label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:8px;">SILHOUETTE &amp; FIT</label><div id="rb-fit-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>`;
+              swatchContainer.parentNode.insertBefore(wrap, swatchContainer.nextSibling);
+            }
+            window.__rbRemovePill = function(i) {
+              window.__waSawFit.splice(i, 1);
+              if (window.__waSawItemDna && window.__waSawItemDna.structural_dna) {
+                window.__waSawItemDna.structural_dna.silhouette_fit = window.__waSawFit.slice();
+              }
+              _rbRenderEditPills();
+            };
+            function _rbRenderEditPills() {
+              const c = document.getElementById('rb-fit-pills');
+              if (!c) return;
+              c.innerHTML = window.__waSawFit.map(function(p, i) {
+                return `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C8B8A2;border-radius:20px;font-size:12px;color:#4A3F35;background:#FAF8F5;white-space:nowrap;">${p}<button onclick="window.__rbRemovePill(${i})" style="background:none;border:none;cursor:pointer;color:#9A8E82;font-size:13px;line-height:1;padding:0;margin-left:2px;">×</button></span>`;
+              }).join('');
+            }
+            _rbRenderEditPills();
+          }
+
+          // Show existing photo
+          if (it.image_url) {
+            const tileImg   = document.getElementById('wa-tile-img');
+            const tileEmpty = document.getElementById('wa-tile-empty');
+            const tileFill  = document.getElementById('wa-tile-fill');
+            if (tileImg)   tileImg.src = it.image_url;
+            if (tileEmpty) tileEmpty.style.display = 'none';
+            if (tileFill)  tileFill.style.display  = 'block';
+          }
+
+          _waShowDeleteBtn(true);
+        }, 100);
+      }
+
+      // Patch WA.submit — keep all other WA methods untouched
+      const _origWAClose = () => window.WA && WA.close();
+      const _origWASubmit = window.WA && WA.submit;
+
+      // 3-step wardrobe add flow: (1) our photo-capture UI, (2) Reading…, (3) Here's what Robes saw.
+      // We own all 3 steps — replace .fm-step on WA.open, use our own file input.
+      (function _waSetupAutoTag() {
+        let _photoDataUrl = '';
+        let _origStepHTML = '';
+
+        if (!document.getElementById('wa-spin-style')) {
+          const st = document.createElement('style'); st.id = 'wa-spin-style';
+          st.textContent = [
+            '@keyframes wa-spin{to{transform:rotate(360deg)}}',
+            '@keyframes rb-scan-line{0%{top:0%;opacity:1}80%{top:100%;opacity:1}81%{top:0%;opacity:0}100%{top:0%;opacity:1}}',
+            '@keyframes rb-scan-glow{0%,100%{opacity:.7}50%{opacity:1}}',
+          ].join('');
+          document.head.appendChild(st);
+        }
+
+        // Shared swatch data + renderer — used by both add (step 3) and edit modal
+        const _ALL_SWATCHES = [
+          { name: 'White',      hex: '#FFFFFF', tier: 'Foundations' },
+          { name: 'Cream',      hex: '#F5F5DC', tier: 'Foundations' },
+          { name: 'Navy',       hex: '#2C3E50', tier: 'Foundations' },
+          { name: 'Charcoal',   hex: '#4A4A4A', tier: 'Foundations' },
+          { name: 'Black',      hex: '#000000', tier: 'Foundations' },
+          { name: 'Espresso',   hex: '#2B1E18', tier: 'Foundations' },
+          { name: 'Camel',      hex: '#D2B48C', tier: 'Dimension Builders' },
+          { name: 'Taupe',      hex: '#8B8589', tier: 'Dimension Builders' },
+          { name: 'Olive',      hex: '#556B2F', tier: 'Dimension Builders' },
+          { name: 'Aubergine',  hex: '#4B0082', tier: 'Dimension Builders' },
+          { name: 'Forest',     hex: '#123524', tier: 'Dimension Builders' },
+          { name: 'Bordeaux',   hex: '#4A0E17', tier: 'Dimension Builders' },
+          { name: 'Blush',      hex: '#E6C2B6', tier: 'Dimension Builders' },
+          { name: 'Ochre',      hex: '#D4AF37', tier: 'Exclamation Points' },
+          { name: 'Magenta',    hex: '#FF1493', tier: 'Exclamation Points' },
+          { name: 'Cobalt',     hex: '#0047AB', tier: 'Exclamation Points' },
+          { name: 'Emerald',    hex: '#00A86B', tier: 'Exclamation Points' },
+          { name: 'Vermillion', hex: '#FF4500', tier: 'Exclamation Points' },
+          { name: 'Acid',       hex: '#E1FD2E', tier: 'Exclamation Points' },
+          { name: 'Multi',      hex: null,      tier: 'Exclamation Points' },
+          { name: 'Print',      hex: null,      tier: 'Exclamation Points' },
+        ];
+        const _printBg = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M-1,1 l2,-2 M0,8 l8,-8 M7,9 l2,-2' stroke='%23A89880' stroke-width='1.5'/%3E%3C/svg%3E\") #EDE8E0";
+        const _multiBg = "conic-gradient(#FF1493,#FF4500,#E1FD2E,#00A86B,#0047AB,#4B0082,#FF1493)";
+        function _swLum(hex) {
+          if (!hex) return 200;
+          const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+          return r*0.299 + g*0.587 + b*0.114;
+        }
+        function _buildSwatchRows(selectedColor) {
+          function _swBtn(sw) {
+            const sel = sw.name === selectedColor;
+            const lum = _swLum(sw.hex);
+            const chkColor = lum < 130 ? '#fff' : '#2A2520';
+            const bg = sw.hex ? `background:${sw.hex}` : sw.name === 'Multi' ? `background:${_multiBg}` : `background:${_printBg}`;
+            const shadow = sw.hex === '#FFFFFF'
+              ? 'box-shadow:inset 0 0 0 1.5px #D0C8BC,0 1px 3px rgba(0,0,0,0.1)'
+              : 'box-shadow:inset 0 1px 3px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.07)';
+            const outline = sel ? 'outline:2.5px solid #2A2520;outline-offset:2.5px' : '';
+            const chk = sel ? `<svg style="position:absolute;inset:0;margin:auto;display:block;pointer-events:none" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="${chkColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` : '';
+            return `<button aria-label="${sw.name}" onclick="window.__rbPickSwatch(this,'${sw.name}')" onmouseenter="var l=document.getElementById('rb-sw-label');if(l)l.textContent='${sw.name}'" onmouseleave="var l=document.getElementById('rb-sw-label');if(l)l.textContent=window.__waSawColor||''" style="position:relative;width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0;${bg};${shadow};${outline}">${chk}</button>`;
+          }
+          return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">${_ALL_SWATCHES.slice(0,10).map(_swBtn).join('')}</div><div style="display:flex;flex-wrap:wrap;gap:8px;">${_ALL_SWATCHES.slice(10).map(_swBtn).join('')}</div>`;
+        }
+
+        // Inject custom swatches into any open modal form (used by edit mode)
+        window.__rbInjectSwatches = function(selectedColor) {
+          window.__waSawColor = selectedColor || '';
+          // Also write to #wa-sw-name so WA.submit can read the colour
+          const swNameEl = document.getElementById('wa-sw-name');
+          if (swNameEl) swNameEl.textContent = selectedColor || '';
+          // Replace bundle swatch container with our custom rows
+          const swatchContainer = document.getElementById('wa-swatches');
+          if (swatchContainer) {
+            swatchContainer.innerHTML = `<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;"><span style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;">COLOUR</span><span id="rb-sw-label" style="font-size:12px;color:#6A5E54;font-style:italic;">${selectedColor||''}</span></div>${_buildSwatchRows(selectedColor)}`;
+            swatchContainer.style.cssText = 'display:block';
+            return;
+          }
+        };
+
+        window.__rbPickSwatch = function(el, name) {
+          window.__waSawColor = name;
+          const swEl = document.getElementById('wa-sw-name');
+          if (swEl) swEl.textContent = name;
+          const lbl = document.getElementById('rb-sw-label');
+          if (lbl) lbl.textContent = name;
+          // Update outlines on all swatch buttons in both step-3 and edit modal
+          document.querySelectorAll('#wa-modal button[aria-label]').forEach(function(btn) {
+            const isThis = btn === el;
+            btn.style.outline = isThis ? '2.5px solid #2A2520' : '';
+            btn.style.outlineOffset = isThis ? '2.5px' : '';
+            const chkSvg = btn.querySelector('svg');
+            if (isThis && !chkSvg) {
+              const lum = _swLum(btn.style.background.includes('#') ? btn.style.background.trim() : null);
+              const chkColor = lum < 130 ? '#fff' : '#2A2520';
+              btn.insertAdjacentHTML('beforeend', `<svg style="position:absolute;inset:0;margin:auto;display:block;pointer-events:none" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="${chkColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
+            } else if (!isThis && chkSvg) {
+              chkSvg.remove();
+            }
+          });
+        };
+
+        function _setDot(n) {
+          const dotsWrap = document.querySelector('#wa-modal .fm-dots');
+          if (!dotsWrap) return;
+          let dots = dotsWrap.querySelectorAll('.fmd');
+          while (dots.length < 3) { const d = document.createElement('span'); d.className = 'fmd'; dotsWrap.appendChild(d); dots = dotsWrap.querySelectorAll('.fmd'); }
+          dots.forEach((d, i) => d.classList.toggle('cur', i === n - 1));
+        }
+
+        function _showStep1() {
+          const step = document.querySelector('#wa-modal .fm-step');
+          if (!step) return;
+          step.innerHTML = `
+            <h2 class="fm-h">Add a piece.</h2>
+            <p style="font-size:14px;color:#9A8E82;margin:0 0 20px;">Snap it or attach it. Robes reads the colour, the cut and the label — and fills in the rest.</p>
+            <label id="wa-rb-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:240px;border:1.5px dashed #C8B8A2;border-radius:12px;background:#FAF8F5;cursor:pointer;text-align:center;padding:20px;box-sizing:border-box;">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span style="font-size:16px;color:#6A5E54;letter-spacing:0.01em;">Snap or attach the piece</span>
+              <span style="font-size:13px;color:#B0A090;">Take a photo, or drop an image here</span>
+              <input id="wa-rb-file" type="file" accept="image/*" capture="environment" style="display:none;">
+            </label>`;
+          _setDot(1);
+
+          // Bundle's validate() calls #wa-label-in.focus() via closure — keep a hidden one so it never throws
+          const _dummyLbl = document.createElement('input');
+          _dummyLbl.id = 'wa-label-in'; _dummyLbl.type = 'text'; _dummyLbl.style.display = 'none';
+          step.appendChild(_dummyLbl);
+
+          const fileInput = document.getElementById('wa-rb-file');
+          if (fileInput) {
+            fileInput.addEventListener('change', function() {
+              const file = this.files && this.files[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = function(e) { _runStep2(e.target.result); };
+              reader.readAsDataURL(file);
+            });
+          }
+        }
+
+        function _runStep2(dataUrl) {
+          _photoDataUrl = dataUrl;
+          const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+          if (!match) return;
+
+          const step = document.querySelector('#wa-modal .fm-step');
+          if (!step) return;
+
+          const bracketW = 18, bracketT = 2, bracketC = 'rgba(255,255,255,0.9)';
+          const bStyle = `position:absolute;width:${bracketW}px;height:${bracketW}px;`;
+          step.innerHTML = `
+            <h2 class="fm-h" style="margin-bottom:4px;">Reading your piece…</h2>
+            <p style="font-size:14px;color:#9A8E82;margin:0 0 16px;">One moment — Robes is looking at the photo.</p>
+            <div style="position:relative;height:280px;border-radius:12px;overflow:hidden;background:#1A1410;">
+              <img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;display:block;opacity:0.85;">
+              <div style="position:absolute;inset:0;background:rgba(10,8,6,0.18);pointer-events:none;"></div>
+              <div style="position:absolute;left:0;right:0;height:2px;animation:rb-scan-line 2.2s linear infinite;pointer-events:none;">
+                <div style="height:2px;background:linear-gradient(to right,transparent,rgba(255,255,255,0.9),transparent);box-shadow:0 0 12px 3px rgba(255,255,255,0.35);animation:rb-scan-glow 2.2s ease-in-out infinite;"></div>
+                <div style="height:32px;margin-top:-2px;background:linear-gradient(to bottom,rgba(255,255,255,0.06),transparent);pointer-events:none;"></div>
+              </div>
+              <div style="${bStyle}top:14px;left:14px;border-top:${bracketT}px solid ${bracketC};border-left:${bracketT}px solid ${bracketC};border-radius:2px 0 0 0;"></div>
+              <div style="${bStyle}top:14px;right:14px;border-top:${bracketT}px solid ${bracketC};border-right:${bracketT}px solid ${bracketC};border-radius:0 2px 0 0;"></div>
+              <div style="${bStyle}bottom:14px;left:14px;border-bottom:${bracketT}px solid ${bracketC};border-left:${bracketT}px solid ${bracketC};border-radius:0 0 0 2px;"></div>
+              <div style="${bStyle}bottom:14px;right:14px;border-bottom:${bracketT}px solid ${bracketC};border-right:${bracketT}px solid ${bracketC};border-radius:0 0 2px 0;"></div>
+              <div style="position:absolute;bottom:0;left:0;right:0;padding:14px 16px;background:linear-gradient(to top,rgba(10,8,6,0.75) 60%,transparent);">
+                <span id="wa-read-txt" style="color:rgba(255,255,255,0.9);font-size:13px;letter-spacing:0.04em;">Identifying colour and fabric…</span>
+              </div>
+            </div>`;
+          _setDot(2);
+
+          // Keep hidden #wa-label-in so bundle's validate closure never throws
+          const _dummyLbl2 = document.createElement('input');
+          _dummyLbl2.id = 'wa-label-in'; _dummyLbl2.type = 'text'; _dummyLbl2.style.display = 'none';
+          step.appendChild(_dummyLbl2);
+
+          const readTexts = ['Identifying colour and fabric…','Reading the silhouette…','Checking for brand details…'];
+          let ti = 0;
+          const txtInterval = setInterval(() => {
+            ti = (ti + 1) % readTexts.length;
+            const el = document.getElementById('wa-read-txt');
+            if (el) el.textContent = readTexts[ti];
+          }, 1800);
+
+          fetch('/api/wardrobe/analyse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: match[2], mimeType: match[1] })
+          })
+          .then(r => {
+            if (!r.ok) throw new Error('analyse ' + r.status);
+            return r.json();
+          })
+          .then(tag => {
+            clearInterval(txtInterval);
+            _runStep3(dataUrl, tag);
+          })
+          .catch(err => {
+            clearInterval(txtInterval);
+            console.warn('[robes-autotag] analyse network error, showing empty step 3:', err);
+            _runStep3(dataUrl, { label: '', category: 'Other', color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, ai_generated_notes: '' } });
+          });
+        }
+
+        function _runStep3(dataUrl, tag) {
+          const step = document.querySelector('#wa-modal .fm-step');
+          if (!step) return;
+          _setDot(3);
+          const cats = ['Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear'];
+
+          // Map Gemini's returned colour names → our fashion names
+          const GEMINI_MAP = {
+            'White':'White','Cream':'Cream','Alabaster':'Cream',
+            'Navy':'Navy','Denim blue':'Navy','Royal blue':'Cobalt','Blue':'Cobalt',
+            'Light grey':'Charcoal','Charcoal':'Charcoal',
+            'Black':'Black','Chocolate':'Espresso',
+            'Tan':'Camel','Sand':'Camel','Camel':'Camel',
+            'Taupe':'Taupe','Mauve':'Taupe',
+            'Khaki':'Olive','Sage':'Olive','Olive':'Olive',
+            'Aubergine':'Aubergine',
+            'Dark green':'Forest','Forest':'Forest',
+            'Burgundy':'Bordeaux','Bordeaux':'Bordeaux',
+            'Blush':'Blush','Dusty rose':'Blush',
+            'Yellow':'Ochre','Ochre':'Ochre',
+            'Hot pink':'Magenta','Magenta':'Magenta',
+            'Cobalt':'Cobalt','Emerald':'Emerald','Green':'Emerald',
+            'Rust':'Vermillion','Orange':'Vermillion','Vermillion':'Vermillion',
+            'Acid':'Acid',
+            'Multi':'Print','Stripe':'Print','Print':'Print',
+          };
+
+          const initColor = GEMINI_MAP[tag.color] || tag.color || '';
+          window.__waSawColor = initColor;
+          window.__waSawItemDna = tag.item_dna || {};
+
+          const rowsHTML = _buildSwatchRows(initColor);
+
+          // Silhouette & fit pills from structural_dna
+          const fitPills = (tag.item_dna && tag.item_dna.structural_dna && Array.isArray(tag.item_dna.structural_dna.silhouette_fit))
+            ? tag.item_dna.structural_dna.silhouette_fit
+            : [];
+          window.__waSawFit = fitPills.slice();
+
+          function _renderFitPills() {
+            const container = document.getElementById('rb-fit-pills');
+            if (!container) return;
+            container.innerHTML = window.__waSawFit.map(function(p, i) {
+              return `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C8B8A2;border-radius:20px;font-size:12px;color:#4A3F35;background:#FAF8F5;white-space:nowrap;">${p}<button onclick="window.__rbRemovePill(${i})" style="background:none;border:none;cursor:pointer;color:#9A8E82;font-size:13px;line-height:1;padding:0;margin-left:2px;">×</button></span>`;
+            }).join('');
+          }
+          window.__rbRemovePill = function(i) {
+            window.__waSawFit.splice(i, 1);
+            if (window.__waSawItemDna && window.__waSawItemDna.structural_dna) {
+              window.__waSawItemDna.structural_dna.silhouette_fit = window.__waSawFit.slice();
+            }
+            _renderFitPills();
+          };
+
+          const aiNotes = (tag.item_dna && tag.item_dna.ai_generated_notes) || tag.notes || '';
+
+          step.innerHTML = `
+            <h2 class="fm-h" style="margin-bottom:4px;">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
+            <p style="font-size:13px;color:#9A8E82;margin:0 0 16px;">Pre-filled from your photo. Adjust anything that isn't quite right.</p>
+            <div style="display:flex;align-items:center;gap:12px;background:#F0EBE3;border-radius:10px;padding:10px 14px;margin-bottom:16px;">
+              <img id="wa-saw-thumb" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:10px;letter-spacing:0.12em;color:#9A8070;margin-bottom:2px;">✦ ROBES FILLED THIS IN</div>
+                <div style="font-size:12px;color:#6A5E54;">Glance over it, tweak anything, then save.</div>
+              </div>
+              <button onclick="window.__waRetake&&window.__waRetake()" style="background:#fff;border:1px solid #D8CEBC;border-radius:20px;padding:6px 14px;font-size:12px;color:#6A5E54;cursor:pointer;white-space:nowrap;font-family:inherit;">↺ Retake</button>
+            </div>
+            <div style="margin-bottom:12px;">
+              <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">ITEM NAME</label>
+              <input id="wa-saw-label" value="${(tag.label||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawLabel=this.value">
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:12px;">
+              <div style="flex:1;">
+                <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">CATEGORY</label>
+                <select id="wa-saw-cat" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" onchange="window.__waSawCat=this.value">
+                  ${cats.map(o => `<option${tag.category===o?' selected':''}>${o}</option>`).join('')}
+                </select>
+              </div>
+              <div style="flex:1;">
+                <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">BRAND</label>
+                <input id="wa-saw-brand" value="${(tag.brand||'').replace(/"/g,'&quot;')}" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawBrand=this.value">
+              </div>
+            </div>
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;">
+                <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;">COLOUR</label>
+                <span id="rb-sw-label" style="font-size:12px;color:#6A5E54;font-style:italic;">${initColor}</span>
+              </div>
+              ${rowsHTML}
+            </div>
+            ${fitPills.length ? `<div style="margin-bottom:12px;">
+              <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:8px;">SILHOUETTE &amp; FIT</label>
+              <div id="rb-fit-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+            </div>` : ''}
+            <div style="margin-bottom:16px;">
+              <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">NOTES <span style="font-weight:400;letter-spacing:0;text-transform:none;color:#B0A090;">optional</span></label>
+              <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${aiNotes.replace(/</g,'&lt;')}</textarea>
+            </div>
+            <button onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
+
+          // Set thumbnail src via DOM (not innerHTML) so large data URLs aren't truncated
+          const thumbEl = document.getElementById('wa-saw-thumb');
+          if (thumbEl) thumbEl.src = dataUrl;
+
+          // Render pills after innerHTML is set
+          _renderFitPills();
+
+          window.__waSawLabel = tag.label || '';
+          window.__waSawCat   = tag.category || '';
+          window.__waSawBrand = tag.brand || '';
+          window.__waSawNotes = aiNotes;
+          window.__waRetake   = function() { _showStep1(); };
+          window.__waSawSubmit = function() {
+            const step = document.querySelector('#wa-modal .fm-step');
+            if (step && _origStepHTML) step.innerHTML = _origStepHTML;
+            const lEl  = document.getElementById('wa-label-in');
+            const cEl  = document.getElementById('wa-cat');
+            const bEl  = document.getElementById('wa-brand');
+            const nEl  = document.getElementById('wa-notes');
+            const swEl = document.getElementById('wa-sw-name');
+            const tileImg  = document.getElementById('wa-tile-img');
+            const tileEl   = document.getElementById('wa-tile');
+            const tileFill  = document.getElementById('wa-tile-fill');
+            const tileEmpty = document.getElementById('wa-tile-empty');
+            if (lEl)  lEl.value        = window.__waSawLabel || '';
+            if (cEl)  cEl.value        = window.__waSawCat   || '';
+            if (bEl)  bEl.value        = window.__waSawBrand || '';
+            if (nEl)  nEl.value        = window.__waSawNotes  || '';
+            if (swEl) swEl.textContent = window.__waSawColor  || '';
+            if (tileImg && _photoDataUrl) tileImg.src = _photoDataUrl;
+            if (tileEl)   tileEl.classList.add('filled');
+            if (tileFill)  tileFill.style.display  = 'block';
+            if (tileEmpty) tileEmpty.style.display = 'none';
+            setTimeout(() => { window.WA && WA.submit && WA.submit(); }, 50);
+          };
+        }
+
+        function _patchWA() {
+          if (!window.WA || !WA.open || WA.open._rbPatched) return false;
+          const _origOpen = WA.open;
+          WA.open = function() {
+            _photoDataUrl = '';
+            if (_waEditId) {
+              // Edit mode: restore bundle form SYNCHRONOUSLY before _origOpen fires
+              // so the bundle finds #wa-label-in and doesn't throw on validate/focus
+              const step = document.querySelector('#wa-modal .fm-step');
+              if (step && _origStepHTML && !step.querySelector('#wa-label-in')) {
+                step.innerHTML = _origStepHTML;
+              }
+            }
+            _origOpen.apply(this, arguments);
+            if (!_waEditId) {
+              // Add mode: capture bundle form HTML once, then show photo step
+              setTimeout(function() {
+                const step = document.querySelector('#wa-modal .fm-step');
+                if (step && !_origStepHTML) _origStepHTML = step.innerHTML;
+                _showStep1();
+              }, 150);
+            }
+          };
+          WA.open._rbPatched = true;
+          if (WA.close && !WA.close._rbPatched) {
+            const _origClose = WA.close;
+            WA.close = function() {
+              _photoDataUrl = '';
+              _origClose.apply(this, arguments);
+            };
+            WA.close._rbPatched = true;
+          }
+          // Guard validate — bundle tries to focus #wa-label-in which doesn't exist on steps 1-3
+          if (WA.validate && !WA.validate._rbPatched) {
+            const _origValidate = WA.validate;
+            WA.validate = function() {
+              if (!document.getElementById('wa-label-in')) return;
+              _origValidate.apply(this, arguments);
+            };
+            WA.validate._rbPatched = true;
+          }
+          console.log('[robes-autotag] WA patched');
+          return true;
+        }
+
+        if (!_patchWA()) {
+          const poll = setInterval(function() { if (_patchWA()) clearInterval(poll); }, 200);
+        }
+      })();
+
+
+
+
+      if (window.WA) {
+        WA.submit = async function() {
+          const label = (document.getElementById('wa-label-in') || {}).value && document.getElementById('wa-label-in').value.trim();
+          if (!label) { const l = document.getElementById('wa-label-in'); if (l) l.focus(); return; }
+
+          const editId = _waEditId;
+          const cta = document.getElementById('wa-cta');
+          if (cta) { cta.disabled = true; cta.textContent = 'Saving…'; }
+
+          try {
+            let imageUrl = editId ? (_waItems.find(i => i.id === editId) || {}).image_url || null : null;
+
+            // Upload new photo if one was selected (data URL in tile)
+            const tileImg  = document.getElementById('wa-tile-img');
+            const tileFill = document.getElementById('wa-tile-fill');
+            const tileSrc  = tileImg ? tileImg.src : '';
+            const tileEl   = document.getElementById('wa-tile');
+            const isFilled = (tileEl && tileEl.classList.contains('filled')) ||
+                             (tileFill && tileFill.style.display === 'block');
+            const isDataUrl = tileSrc && tileSrc.startsWith('data:');
+            if (isFilled && isDataUrl) {
+              const match = tileSrc.match(/^data:([^;]+);base64,(.+)$/);
+              if (match) {
+                try {
+                  const res = await fetch('/api/wardrobe/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: match[2], mimeType: match[1] })
+                  });
+                  const j = await res.json();
+                  if (j.url) imageUrl = j.url;
+                  else console.warn('Upload returned no URL:', j);
+                } catch(uploadErr) { console.warn('Photo upload failed:', uploadErr); }
+              }
+            }
+
+            const colorName = (document.getElementById('wa-sw-name') || {}).textContent && document.getElementById('wa-sw-name').textContent.trim();
+            // Merge current colour + notes into item_dna before saving
+            const savedDna = window.__waSawItemDna || {};
+            if (colorName) {
+              savedDna.display = Object.assign({}, savedDna.display || {}, { editorial_color_name: colorName });
+            }
+            const notesVal = ((document.getElementById('wa-notes') || {}).value || '').trim() || null;
+            if (notesVal) savedDna.ai_generated_notes = notesVal;
+
+            const payload = {
+              user_id:   _waUid(),
+              label,
+              category:  (document.getElementById('wa-cat')   || {}).value || 'Other',
+              color:     colorName || null,
+              brand:     ((document.getElementById('wa-brand') || {}).value || '').trim() || null,
+              notes:     notesVal,
+              image_url: imageUrl,
+              item_dna:  Object.keys(savedDna).length ? savedDna : undefined,
+            };
+
+            if (editId) {
+              await _waFetch('PATCH', 'wardrobe_items?id=eq.' + editId, payload);
+            } else {
+              await _waFetch('POST', 'wardrobe_items', payload);
+            }
+
+            _origWAClose();
+            _waEditId = null;
+            await _waLoad();
+            _waShowToast(editId ? 'Piece updated' : 'Added to wardrobe');
+          } catch(e) {
+            console.error('WA submit:', e);
+            _waShowToast('Something went wrong — try again');
+            if (cta) { cta.disabled = false; cta.textContent = editId ? 'Update piece' : 'Add to wardrobe'; }
+          }
+        };
+      }
+
+      async function _waDelete() {
+        if (!_waEditId) return;
+        if (!confirm('Remove this piece from your wardrobe?')) return;
+        try {
+          await _waFetch('DELETE', 'wardrobe_items?id=eq.' + _waEditId, undefined);
+          _origWAClose();
+          _waEditId = null;
+          await _waLoad();
+          _waShowToast('Piece removed');
+        } catch(e) { _waShowToast('Could not remove piece'); }
+      }
+
+      _waObserveGrid();
+
+      // Poll until Supabase session is ready, then load real wardrobe data.
+      (function _waInit() {
+        if (_waUid()) { _waLoad(); }
+        else { setTimeout(_waInit, 250); }
+      })();
+
+      // Intercept App.showWardrobe and filterWardrobe so Supabase data
+      // is used instead of the bundle's in-memory mock W store.
+      // App is defined in the bundle scripts so we patch after they run.
+      const _origShowWardrobe = window.App && App.showWardrobe && App.showWardrobe.bind(App);
+      if (window.App) {
+        // Neutralise bundle methods that call the private renderWardrobe with mock data
+        App.addPiece = function() {};
+        App.filterWardrobe = function(f) {
+          _waCat = f;
+          document.querySelectorAll('#wg-filters .wg-pill').forEach(p =>
+            p.classList.toggle('active', p.textContent === f));
+          _waRender();
+        };
+
+        App.showWardrobe = function() {
+          if (_origShowWardrobe) _origShowWardrobe(); // showView + closeAvatarMenu (also calls private renderWardrobe)
+          // Immediately overwrite what renderWardrobe just wrote with real data.
+          // This runs synchronously before the browser paints, so mock items never show.
+          _waBuildFilters();
+          _waRender();
+          _waLoad(); // async refresh from Supabase — crumb set by MutationObserver on .wardrobe-panel.visible
+        };
+      }
+
+      // Auto-open wardrobe panel when URL is /wardrobe
+      if (window.location.pathname === '/wardrobe' && window.App && App.showWardrobe) {
+        setTimeout(() => App.showWardrobe(), 100);
+      }
+
+      // ── Style Notes ─────────────────────────────────────────────────
+      // localStorage key
+      const SN_KEY = 'robes_style_notes';
+
+      function snLoad() {
+        try { return JSON.parse(localStorage.getItem(SN_KEY) || '[]'); } catch { return []; }
+      }
+      function snSave(items) {
+        try {
+          localStorage.setItem(SN_KEY, JSON.stringify(items));
+        } catch (e) {
+          // Storage full — drop oldest items until it fits
+          if (items.length > 1) snSave(items.slice(0, items.length - 1));
+        }
+      }
+      function snAdd(item) {
+        const items = snLoad();
+        items.unshift({ ...item, id: Date.now(), saved_at: new Date().toISOString() });
+        snSave(items);
+        snRefreshRow();
+      }
+      function snRemove(id) {
+        snSave(snLoad().filter(i => i.id !== id));
+        snRefreshRow();
+        snRenderPage();
+      }
+
+      // ── Inject Style Notes page ──────────────────────────────────────
+      const snPage = document.createElement('div');
+      snPage.id = 'sn-page';
+      snPage.style.cssText = 'display:none;position:fixed;inset:0;z-index:800;background:#FAF8F5;overflow-y:auto';
+      snPage.innerHTML = `
+        <nav style="position:sticky;top:0;z-index:10;background:#FAF8F5;border-bottom:1px solid rgba(32,32,33,0.07);display:flex;align-items:center;gap:12px;padding:0 24px;height:56px">
+          <button onclick="window.__snClose()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6E6A64;padding:8px 0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
+            Back
+          </button>
+          <span style="font-family:'Cormorant',Georgia,serif;font-size:18px;font-weight:300;color:#202021;letter-spacing:.01em">Lookbook</span>
+        </nav>
+        <div style="padding:32px 24px 24px;max-width:960px;margin:0 auto">
+          <p style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;margin:0 0 24px">Saved looks & key pieces</p>
+          <div id="sn-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
+          <div id="sn-empty" style="display:none;padding:80px 0;text-align:center">
+            <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">Nothing saved yet.</p>
+            <p style="font-size:13px;color:#A89880;line-height:1.6">Style a key piece or save today's look<br>and it will appear here.</p>
+          </div>
+        </div>`;
+      document.body.appendChild(snPage);
+
+      window.__snClose = function() {
+        document.getElementById('sn-page').style.display = 'none';
+      };
+      window.__snOpen = function() {
+        document.getElementById('av-menu').classList.remove('open');
+        document.getElementById('sn-page').style.display = 'block';
+        snRenderPage();
+      };
+      window.__snRemove = function(id) { snRemove(id); };
+      window.__snOpenItem = function(id) {
+        const item = snLoad().find(i => i.id === id);
+        if (!item) return;
+        // Close sn-page if open
+        document.getElementById('sn-page').style.display = 'none';
+        if (item.type === 'key-piece' && item.kpData) {
+          window.__kpRenderResult(item.kpData);
+        } else {
+          // Fallback: just open style notes page
+          window.__snOpen();
+        }
+      };
+
+      function snRenderPage() {
+        const items = snLoad();
+        const grid = document.getElementById('sn-grid');
+        const empty = document.getElementById('sn-empty');
+        if (!grid) return;
+        if (!items.length) {
+          grid.style.display = 'none';
+          empty.style.display = 'block';
+          return;
+        }
+        grid.style.display = 'grid';
+        empty.style.display = 'none';
+        grid.innerHTML = items.map(item => `
+          <div onclick="window.__snOpenItem(${item.id})" style="position:relative;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08);cursor:pointer" onmouseenter="this.querySelector('.sn-rm').style.opacity='1'" onmouseleave="this.querySelector('.sn-rm').style.opacity='0'">
+            <button class="sn-rm" onclick="event.stopPropagation();window.__snRemove(${item.id})" style="position:absolute;top:10px;right:10px;opacity:0;transition:opacity .15s;background:rgba(32,32,33,0.55);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            ${item.img ? `<img src="${item.img}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block" alt="">` : `<div style="width:100%;aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
+            <div style="padding:14px 16px 16px">
+              <span style="display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:6px">${item.type === 'look' ? 'Look' : 'Key piece'}</span>
+              <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;font-weight:300;color:#202021;line-height:1.3;margin-bottom:4px">${item.title}</div>
+              <div style="font-size:11px;color:#A89880">${item.subtitle || ''}</div>
+            </div>
+          </div>`).join('');
+      }
+
+      // ── Conditional dashboard row ────────────────────────────────────
+      function snRefreshRow() {
+        const items = snLoad().slice(0, 4);
+        let row = document.getElementById('sn-row');
+
+        if (!items.length) {
+          if (row) row.style.display = 'none';
+          return;
+        }
+
+        if (!row) {
+          row = document.createElement('section');
+          row.id = 'sn-row';
+          // Match the surrounding sections' padding — no extra indent
+          row.style.cssText = 'margin:32px 0;';
+          const dual = document.getElementById('dual');
+          if (dual && dual.parentNode) {
+            dual.parentNode.insertBefore(row, dual.nextSibling);
+          }
+        }
+
+        const allItems = snLoad();
+        row.style.display = 'block';
+        row.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880">Lookbook</span>
+            <button onclick="window.__snOpen()" style="background:none;border:none;cursor:pointer;font-size:11px;color:#A89880;letter-spacing:.04em;padding:0;text-decoration:underline;text-underline-offset:3px">View all</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+            ${items.map(item => `
+              <div onclick="window.__snOpenItem(${item.id})" style="cursor:pointer;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(32,32,33,0.07)">
+                ${item.img
+                  ? `<img src="${item.img}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block" alt="">`
+                  : `<div style="width:100%;aspect-ratio:1/1;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
+                <div style="padding:10px 12px 12px">
+                  <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:3px">${item.type === 'look' ? 'Look' : 'Key piece'}</div>
+                  <div style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title}</div>
+                </div>
+              </div>`).join('')}
+          </div>`;
+      }
+
+      // ── Wire save buttons ────────────────────────────────────────────
+      // "Save all three" on the Key Piece results panel
+      const kpSaveBtn = document.querySelector('.mb-btn.mb-btn-primary');
+      if (kpSaveBtn) {
+        kpSaveBtn.onclick = function() {
+          const titleEl = document.querySelector('.mb-h');
+          const imgEl = document.querySelector('.mb-img img');
+          snAdd({
+            type: 'key-piece',
+            title: titleEl ? titleEl.textContent.trim() : 'Key piece',
+            subtitle: 'Worn three ways · Today',
+            img: imgEl ? imgEl.src : null,
+          });
+          _waShowToast('Saved to your style notes');
+        };
+      }
+
+      // "Wear this today" on the look builder
+      const lookSaveBtn = document.querySelector('.lb-btn.lb-primary');
+      if (lookSaveBtn) {
+        lookSaveBtn.onclick = function() {
+          const titleEl = document.querySelector('.today-title');
+          const imgEl = document.querySelector('.today-img img');
+          snAdd({
+            type: 'look',
+            title: titleEl ? titleEl.textContent.trim() : 'Today\'s look',
+            subtitle: new Date().toLocaleDateString('en-GB', { weekday: 'long' }) + ' · Today',
+            img: imgEl ? imgEl.src : null,
+          });
+          _waShowToast('Look saved to your style notes');
+        };
+      }
+
+      // Patch avatar dropdown: rename items + add Moodboards link
+      // Also override KP.submitStyle to call the real /api/style endpoint
+      // + reorder Styling Concierge cards: Key Piece → Weekly Planner → Travel Edit
+      setTimeout(() => {
+        // Rename bundle's "My wardrobe" → "Wardrobe"
+        Array.from(document.querySelectorAll('.av-item')).forEach(btn => {
+          if (btn.textContent.includes('My wardrobe') || btn.textContent.includes('My Wardrobe')) {
+            const txt = btn.childNodes[btn.childNodes.length - 1];
+            if (txt && txt.nodeType === Node.TEXT_NODE) txt.textContent = 'Wardrobe';
+            else btn.innerHTML = btn.innerHTML.replace(/My [Ww]ardrobe/, 'Wardrobe');
+          }
+        });
+
+        // Rename "Style notes" → "Lookbook" and wire onclick
+        const snAvItem = Array.from(document.querySelectorAll('.av-item')).find(b => b.textContent.includes('Style notes') || b.textContent.includes('Lookbook'));
+        if (snAvItem) {
+          const txt = snAvItem.childNodes[snAvItem.childNodes.length - 1];
+          if (txt && txt.nodeType === Node.TEXT_NODE) txt.textContent = 'Lookbook';
+          else snAvItem.innerHTML = snAvItem.innerHTML.replace(/Style notes/, 'Lookbook');
+          snAvItem.onclick = () => window.__snOpen();
+        }
+
+        // Add Moodboards item to av-menu after Lookbook
+        const avMenu = document.getElementById('av-menu');
+        if (avMenu && !document.getElementById('av-moodboards')) {
+          const mbBtn = document.createElement('button');
+          mbBtn.id = 'av-moodboards';
+          mbBtn.className = 'av-item';
+          mbBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>Moodboards`;
+          mbBtn.onclick = () => {
+            avMenu.classList.remove('open');
+            if (window._mbShowAllPage) window._mbShowAllPage();
+          };
+          // Insert after snAvItem if found, else append
+          if (snAvItem && snAvItem.parentNode === avMenu) {
+            avMenu.insertBefore(mbBtn, snAvItem.nextSibling);
+          } else {
+            avMenu.appendChild(mbBtn);
+          }
+        }
+
+        // Add Style Notes item to av-menu after Moodboards
+        if (avMenu && !document.getElementById('av-stylenotes')) {
+          const snBtn = document.createElement('button');
+          snBtn.id = 'av-stylenotes';
+          snBtn.className = 'av-item';
+          snBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3.5 4.2 6 7.5 6 10.2a6 6 0 0 1-12 0C6 10.5 8.5 7.2 12 3z"></path></svg>Style notes`;
+          snBtn.onclick = () => { avMenu.classList.remove('open'); window.location.href = '/stylenotes'; };
+          const mbItem = document.getElementById('av-moodboards');
+          if (mbItem && mbItem.parentNode === avMenu) {
+            avMenu.insertBefore(snBtn, mbItem.nextSibling);
+          } else {
+            avMenu.appendChild(snBtn);
+          }
+        }
+
+        // Reorder + relabel concierge cards — bundle order: Weekly(01), Travel(02), Key Piece(03)
+        // Target order: Daily Outfit(01), Weekly Planner(02), Travel Edit(03)
+        const grid = document.querySelector('.services-grid');
+        if (grid) {
+          const svcs = Array.from(grid.querySelectorAll('.svc'));
+          if (svcs.length === 3) {
+            const [weekly, travel, keyPiece] = svcs;
+
+            // Transform Key Piece → Daily Outfit
+            keyPiece.classList.add('svc-daily');
+            keyPiece.onclick = null;
+            const kpTitle = keyPiece.querySelector('.svc-title');
+            if (kpTitle) kpTitle.textContent = 'Daily outfit';
+            const kpDesc = keyPiece.querySelector('.svc-desc');
+            if (kpDesc) kpDesc.textContent = 'A fresh look styled from your wardrobe each morning, synced to the forecast and your calendar. ';
+
+            // Calendar illustration for Weekly Planner
+            const calSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" width="400" height="280"><rect width="400" height="280" fill="%23F5F1EB"/><g fill="none" stroke="%23D4C8B8" stroke-width="0.8"><line x1="57" y1="40" x2="57" y2="260"/><line x1="114" y1="40" x2="114" y2="260"/><line x1="171" y1="40" x2="171" y2="260"/><line x1="228" y1="40" x2="228" y2="260"/><line x1="285" y1="40" x2="285" y2="260"/><line x1="342" y1="40" x2="342" y2="260"/><line x1="28" y1="80" x2="372" y2="80"/><line x1="28" y1="140" x2="372" y2="140"/><line x1="28" y1="200" x2="372" y2="200"/><line x1="28" y1="40" x2="372" y2="40"/><line x1="28" y1="260" x2="372" y2="260"/><line x1="28" y1="40" x2="28" y2="260"/><line x1="372" y1="40" x2="372" y2="260"/></g><g font-family="Georgia,serif" font-size="11" fill="%23B0A090" text-anchor="middle"><text x="42" y="30">M</text><text x="85" y="30">T</text><text x="142" y="30">W</text><text x="199" y="30">T</text><text x="256" y="30">F</text><text x="313" y="30">S</text><text x="357" y="30">S</text></g><g font-family="Georgia,serif" font-size="10" fill="%23C8B8A8" text-anchor="middle"><text x="42" y="58">14</text><text x="99" y="58">15</text><text x="156" y="58">16</text><text x="213" y="58">17</text><text x="270" y="58">18</text><text x="327" y="58">19</text><text x="357" y="58">20</text></g><rect x="31" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.9"/><rect x="4" y="86" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="86" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="231" y="66" width="50" height="104" rx="4" fill="%23E8DEDD" opacity="0.85"/><rect x="227" y="66" width="3" height="104" rx="1.5" fill="%23789060"/><rect x="88" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="84" y="146" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="174" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="170" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="345" y="146" width="22" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="341" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="206" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="288" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="284" y="206" width="3" height="44" rx="1.5" fill="%23A89878"/></svg>`;
+
+            // Premium suitcase illustration for Travel Edit
+            const suitSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280"><rect width="400" height="280" fill="%23EEE8E4"/><rect x="62" y="62" width="276" height="178" rx="22" fill="%23E8E0D6" stroke="%23C8BAB0" stroke-width="1.4"/><rect x="74" y="74" width="252" height="154" rx="16" fill="%23E2D8CE" stroke="%23C0B4A8" stroke-width="0.7"/><path d="M168 62 C168 38 232 38 232 62" fill="none" stroke="%23C0B0A6" stroke-width="2" stroke-linecap="round"/><rect x="158" y="56" width="14" height="10" rx="4" fill="%23D0C4BA"/><rect x="228" y="56" width="14" height="10" rx="4" fill="%23D0C4BA"/><rect x="62" y="62" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="328" y="62" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="62" y="230" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="328" y="230" width="10" height="10" rx="3" fill="%23D4C8BC"/><line x1="74" y1="156" x2="326" y2="156" stroke="%23C0B4A8" stroke-width="0.8"/><rect x="186" y="150" width="28" height="12" rx="5" fill="%23D8CCBF" stroke="%23C0B0A4" stroke-width="1"/><rect x="192" y="154" width="16" height="5" rx="2" fill="%23C8BBB0"/><rect x="86" y="84" width="110" height="62" rx="10" fill="%23DDD4C8" stroke="%23C4B8AC" stroke-width="0.8"/><line x1="98" y1="99" x2="184" y2="99" stroke="%23C8BCAF" stroke-width="0.9"/><line x1="98" y1="112" x2="178" y2="112" stroke="%23C8BCAF" stroke-width="0.7"/><line x1="98" y1="124" x2="170" y2="124" stroke="%23C8BCAF" stroke-width="0.6" opacity="0.7"/><rect x="206" y="84" width="110" height="62" rx="10" fill="%23E4DAD0" stroke="%23C4B4A8" stroke-width="0.8"/><ellipse cx="237" cy="105" rx="18" ry="14" fill="%23D8CEBE" stroke="%23C0B2A4" stroke-width="0.9"/><ellipse cx="278" cy="105" rx="18" ry="14" fill="%23D4CAB8" stroke="%23BCAE9E" stroke-width="0.9"/><ellipse cx="257" cy="130" rx="18" ry="14" fill="%23DCD2C0" stroke="%23C0B2A4" stroke-width="0.9"/><ellipse cx="237" cy="105" rx="7" ry="5" fill="none" stroke="%23C8BAA8" stroke-width="0.7"/><ellipse cx="278" cy="105" rx="7" ry="5" fill="none" stroke="%23C0B2A0" stroke-width="0.7"/><rect x="86" y="164" width="52" height="58" rx="10" fill="%23DAD0C4" stroke="%23C4B8AC" stroke-width="0.8"/><path d="M96 202 Q108 192 126 196 Q130 197 130 202" fill="none" stroke="%23C0B4A8" stroke-width="1.1" stroke-linecap="round"/><rect x="148" y="164" width="58" height="58" rx="10" fill="%23D8CEC2" stroke="%23C0B4A8" stroke-width="0.8"/><line x1="160" y1="184" x2="194" y2="184" stroke="%23C4B8AC" stroke-width="0.9"/><line x1="160" y1="196" x2="188" y2="196" stroke="%23C4B8AC" stroke-width="0.7"/><rect x="216" y="164" width="100" height="58" rx="10" fill="%23E0D6CA" stroke="%23C8BCAE" stroke-width="0.8"/><rect x="228" y="177" width="36" height="32" rx="6" fill="%23D4CAB8" stroke="%23C0B4A4" stroke-width="0.8"/><rect x="272" y="177" width="32" height="32" rx="6" fill="%23D0C6B4" stroke="%23BCAE9E" stroke-width="0.8"/></svg>`;
+
+            const weeklyImg = weekly.querySelector('.svc-img img');
+            if (weeklyImg) weeklyImg.src = calSvg;
+            const travelImg = travel.querySelector('.svc-img img');
+            if (travelImg) travelImg.src = suitSvg;
+
+            // Reorder: [Daily Outfit, Weekly Planner, Travel Edit]
+            grid.innerHTML = '';
+            [keyPiece, weekly, travel].forEach((el, i) => {
+              const num = el.querySelector('.svc-num');
+              if (num) num.textContent = String(i + 1).padStart(2, '0');
+              grid.appendChild(el);
+            });
+          }
+        }
+
+        if (window.KP && KP.submitStyle) {
+          KP.submitStyle = async function() {
+            const input = document.getElementById('kp-input');
+            const prompt = input ? input.value.trim() : '';
+
+            // Read photo from the preview tile the bundle already populated
+            const tileImg = document.getElementById('kp-tile-img');
+            const photoData = (tileImg && tileImg.src && tileImg.src.startsWith('data:')) ? tileImg.src : null;
+
+            if (!prompt && !photoData) {
+              _waShowToast('Add a piece description or photo first');
+              return;
+            }
+
+            // Show full-page loading overlay
+            let overlay = document.getElementById('kp-loading-overlay');
+            if (!overlay) {
+              overlay = document.createElement('div');
+              overlay.id = 'kp-loading-overlay';
+              overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
+              overlay.innerHTML = `
+                <div style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center">Styling your piece<br><em>three ways…</em></div>
+                <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+                <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
+                  <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
+                </div>`;
+              const style = document.createElement('style');
+              style.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}'
+              document.head.appendChild(style);
+              document.body.appendChild(overlay);
+            }
+            overlay.style.display = 'flex';
+            KP.closeKeyPiece();
+
+            // Update message after a few seconds
+            const msgs = ['Generating editorial looks', 'Composing outfits…', 'Creating images…', 'Almost ready…'];
+            let mi = 0;
+            const msgInterval = setInterval(() => {
+              mi = Math.min(mi + 1, msgs.length - 1);
+              const el = document.getElementById('kp-load-msg');
+              if (el) el.textContent = msgs[mi];
+            }, 8000);
+
+            try {
+              const res = await fetch('/api/style', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, photo: photoData }),
+              });
+              clearInterval(msgInterval);
+              overlay.style.display = 'none';
+              if (!res.ok) throw new Error(await res.text());
+              window.__kpRenderResult(await res.json(), prompt);
+            } catch (err) {
+              clearInterval(msgInterval);
+              overlay.style.display = 'none';
+              console.error('[Robes] /api/style error:', err.message);
+              _waShowToast(err.message && err.message.length < 120 ? err.message : 'Something went wrong — please try again');
+            }
+          };
+        }
+      }, 600);
+
+      // Store last result so saved items can be re-opened
+      window.__lastKpData = null;
+
+      // Full-page result overlay — 100% inline styles, no external CSS classes
+      let kpResultPage = null;
+      window.__lastKpData = null;
+
+      window.__kpGoBack = function() {
+        if (kpResultPage) kpResultPage.style.display = 'none';
+        window.rbClearCrumb && window.rbClearCrumb();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // kpResultPage is now z-index:40 (below nav:50) — crumb lives in main nav
+      };
+
+      window.__kpRenderResult = function(data, promptText) {
+        if (!data || !Array.isArray(data.ways) || !data.ways.length) {
+          _waShowToast('Could not render looks — please try again');
+          return;
+        }
+        window.__lastKpData = data;
+        const { ways, generatedImages, fallback, photoUrl } = data;
+        const pieceName = fallback ? 'Balmain waistcoat' : (promptText || 'Your piece');
+        const serif = "'Cormorant',Georgia,serif";
+        const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
+
+        if (!kpResultPage) {
+          kpResultPage = document.createElement('div');
+          kpResultPage.id = 'kp-result-page';
+          kpResultPage.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;width:100%;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
+          document.body.appendChild(kpResultPage);
+        }
+
+        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Style a piece' }]);
+        try { kpResultPage.innerHTML = `
+          <div style="width:100%;max-width:900px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
+
+            <h1 style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0 0 12px">Your piece,<br><em style="color:#A89880">worn three ways.</em></h1>
+            <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
+
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:12px;background:#fff;max-width:400px;margin-bottom:40px">
+              ${photoUrl ? `<img src="${photoUrl}" style="width:64px;height:80px;border-radius:4px;object-fit:cover;flex-shrink:0" alt="">` : ''}
+              <div>
+                <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#A89880;margin-bottom:4px">Your piece</div>
+                <div style="font-family:${serif};font-size:22px;font-weight:400;color:#202021;line-height:1.1">${pieceName}</div>
+                ${photoUrl ? '<div style="font-size:12px;color:#A89880;margin-top:4px">✓ The one you uploaded</div>' : ''}
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:32px">
+              ${ways.map((w, i) => {
+                const genImg = generatedImages && generatedImages[i];
+                return `
+                <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:24px;background:#fff;border-radius:12px;overflow:hidden;border:0.5px solid rgba(32,32,33,0.08)">
+                  <div style="position:relative;background:#EDE9E2;min-height:340px">
+                    ${genImg ? `<img src="${genImg}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">` : ''}
+                    <span style="position:absolute;top:14px;left:16px;font-family:${serif};font-weight:300;font-size:20px;color:rgba(255,255,255,0.8)">${String(i+1).padStart(2,'0')}</span>
+                  </div>
+                  <div style="padding:28px 28px 28px 4px;display:flex;flex-direction:column;gap:16px">
+                    <div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#B8A898">${w.eyebrow}</div>
+                    <div style="font-family:${serif};font-weight:300;font-size:28px;color:#202021;line-height:1.08">${w.title}</div>
+                    <div style="display:flex;flex-direction:column;gap:14px;margin-top:4px">
+                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">The Outfit</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${w.outfit}</p></div>
+                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Key Details</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${w.details}</p></div>
+                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Accessories</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${w.accessories}</p></div>
+                    </div>
+                  </div>
+                </div>`;
+              }).join('')}
+            </div>
+
+            <div style="margin-top:48px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center">
+              <div style="font-family:${serif};font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How were these looks?</div>
+              <div id="kp-fb-prompt">
+                <div style="font-size:13px;color:#A89880;margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
+                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+                  <button id="kp-fb-up" onclick="window.__kpFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">👍 Loved them</button>
+                  <button id="kp-fb-dn" onclick="window.__kpFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Not quite</button>
+                </div>
+              </div>
+              <div id="kp-fb-expand" hidden style="margin-top:16px">
+                <textarea id="kp-fb-text" placeholder="What would have made them better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
+                <button onclick="window.__kpFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:${sans}">Send feedback</button>
+              </div>
+              <div id="kp-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
+            </div>
+
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap">
+              <button onclick="window.__kpGoBack()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">← Dashboard</button>
+              <button onclick="window.__kpGoBack();setTimeout(()=>{KP&&KP.openKeyPiece&&KP.openKeyPiece()},200)" style="padding:12px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}">Style another piece</button>
+            </div>
+          </div>`; } catch(e) {
+          console.error('[Robes] kpResultPage render error:', e);
+          kpResultPage.innerHTML = `<div style="padding:80px 24px;text-align:center;font-family:${sans};color:#6E6A64">Something went wrong rendering your looks — please try again.</div>`;
+        }
+
+        kpResultPage.style.display = 'block';
+        kpResultPage.scrollTo({ top: 0 });
+
+        // Auto-save (no images — protect localStorage)
+        snAdd({
+          type: 'key-piece',
+          title: pieceName,
+          subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
+          img: photoUrl || null,
+          kpData: { ways, fallback, photoUrl },
+        });
+
+        let kpFbRating = null;
+        window.__kpFbRate = function(val) {
+          kpFbRating = val;
+          document.getElementById('kp-fb-up').style.background = val === 1 ? '#F0EDE8' : '#fff';
+          document.getElementById('kp-fb-dn').style.background = val === 0 ? '#F0EDE8' : '#fff';
+          document.getElementById('kp-fb-expand').hidden = false;
+          setTimeout(() => { const t = document.getElementById('kp-fb-text'); if (t) t.focus(); }, 60);
+        };
+        window.__kpFbSubmit = function() {
+          const comment = (document.getElementById('kp-fb-text').value || '').trim();
+          fetch('/api/feedback', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ rating: kpFbRating, comment, prompt: promptText || '' }) }).catch(()=>{});
+          document.getElementById('kp-fb-prompt').hidden = true;
+          document.getElementById('kp-fb-expand').hidden = true;
+          document.getElementById('kp-fb-done').hidden = false;
+        };
+      };
+
+      // ── Legacy snOnPieceResult removed — auto-save + feedback now in __kpRenderResult ──
+      function snOnPieceResult() {
+        // no-op — kept to avoid errors if called from old MutationObserver path
+        return;
+
+        // Auto-save once, inside the wired guard
+        const pieceName = document.querySelector('#pyp-name');
+        const kpData = window.__lastKpData;
+        // Use photoUrl (a small Cloudinary URL) as thumbnail — never store base64 images in localStorage
+        const thumbImg = (kpData && kpData.photoUrl) || null;
+        // Strip generatedImages before saving — each is ~500KB and blows localStorage quota
+        const kpDataToSave = kpData ? { ways: kpData.ways, fallback: kpData.fallback, photoUrl: kpData.photoUrl } : null;
+        snAdd({
+          type: 'key-piece',
+          title: pieceName ? pieceName.textContent.trim() : 'Key piece',
+          subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
+          img: thumbImg,
+          kpData: kpDataToSave,
+        });
+        actionsEl.innerHTML = `
+          <div id="sn-fb" style="width:100%;background:rgba(32,32,33,0.03);border-radius:12px;padding:28px 24px;text-align:center;margin-bottom:8px">
+            <div style="font-family:'Cormorant',Georgia,serif;font-size:20px;font-weight:300;color:#202021;margin-bottom:6px">How were these looks?</div>
+            <div id="sn-fb-prompt">
+              <div style="font-size:12px;color:#A89880;margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
+              <div style="display:flex;gap:10px;justify-content:center">
+                <button id="sn-fb-up" onclick="window.__snFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;transition:all .15s">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"></path><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                  Loved them
+                </button>
+                <button id="sn-fb-dn" onclick="window.__snFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;transition:all .15s">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"></path><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path></svg>
+                  Not quite
+                </button>
+              </div>
+            </div>
+            <div id="sn-fb-expand" hidden style="margin-top:16px">
+              <textarea id="sn-fb-text" placeholder="What would have made them better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:inherit"></textarea>
+              <button onclick="window.__snFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer">Send feedback</button>
+            </div>
+            <div id="sn-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <button class="mb-btn" onclick="App.openShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg>Share my look</button>
+            <button class="mb-btn mb-btn-primary" onclick="KP.openKeyPiece ? KP.openKeyPiece() : App.chooseInspire()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="5 12 12 5 19 12"></polyline></svg>Style another</button>
+          </div>`;
+
+        let snFbRating = null;
+        window.__snFbRate = function(val) {
+          snFbRating = val;
+          document.getElementById('sn-fb-up').style.background = val === 1 ? '#F0EDE8' : '#fff';
+          document.getElementById('sn-fb-dn').style.background = val === 0 ? '#F0EDE8' : '#fff';
+          document.getElementById('sn-fb-expand').hidden = false;
+          document.getElementById('sn-fb-done').hidden = true;
+          setTimeout(() => { const t = document.getElementById('sn-fb-text'); if (t) t.focus(); }, 60);
+        };
+        window.__snFbSubmit = function() {
+          const comment = (document.getElementById('sn-fb-text').value || '').trim();
+          fetch('/api/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '',
+              rating: snFbRating,
+              comment,
+              prompt: document.getElementById('kp-input') ? document.getElementById('kp-input').value : '',
+            }),
+          }).catch(() => {});
+          document.getElementById('sn-fb-prompt').hidden = true;
+          document.getElementById('sn-fb-expand').hidden = true;
+          document.getElementById('sn-fb-done').hidden = false;
+        };
+      }
+
+      // "Wear this today" on the look bar — auto-save + feedback
+      function snOnLookResult() {
+        const titleEl = document.querySelector('#gd-hero-title');
+        const imgEl = document.querySelector('#look-board img');
+        snAdd({
+          type: 'look',
+          title: titleEl ? titleEl.textContent.trim() : "Today's look",
+          subtitle: new Date().toLocaleDateString('en-GB', { weekday: 'long' }) + ' · Today',
+          img: imgEl ? imgEl.src : null,
+        });
+        _waShowToast('Look saved to your style notes');
+      }
+
+      // Watch piece-panel element directly for class changes
+      const snPanelObserver = new MutationObserver(() => {
+        const piecePanel = document.getElementById('piece-panel');
+        if (piecePanel && piecePanel.classList.contains('visible')) snOnPieceResult();
+      });
+      setTimeout(() => {
+        const piecePanel = document.getElementById('piece-panel');
+        if (piecePanel) snPanelObserver.observe(piecePanel, { attributes: true, attributeFilter: ['class'] });
+      }, 600);
+
+      // "Wear this today" — delegated click
+      document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.lb-btn.lb-primary');
+        if (btn) snOnLookResult();
+      }, true);
+
+      // Render the row on load (in case there are already saved items)
+      snRefreshRow();
+
+      // ── v2 Dashboard Layout ──────────────────────────────────────────
+      // Inject CSS matching the Claude Design system from the uploaded prototype
+      (function _rbInjectStyles() {
+        if (document.getElementById('rb-v2-styles')) return;
+        const s = document.createElement('style');
+        s.id = 'rb-v2-styles';
+        s.textContent = `
+          /* Design system tokens (matching uploaded Claude Design file) */
+          :root {
+            --rb-mauve: #C4B0B4;
+            --rb-sage-mid: #B4C2B0;
+            --rb-rose-mid: #C4AEAD;
+            --rb-rose-bg: #EEE5E4;
+            --rb-sage-bg: #E4EDE6;
+            --rb-cream: #FAF8F5;
+            --rb-cream-100: #F2EDE8;
+            --rb-rule: rgba(32,32,33,0.1);
+            --rb-rule-mid: rgba(32,32,33,0.14);
+            --rb-ink: #202021;
+            --rb-ink-soft: #6E6A64;
+            --rb-rose-ey: #A89880;
+            --rb-sage-ey: #7E8C7A;
+            --rb-rad-lg: 14px;
+          }
+
+          .rb-section { margin-bottom: 52px; }
+          .rb-sec-head { display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px; }
+          .rb-sec-ey { font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--rb-rose-ey); }
+          .rb-sec-meta { font-size:11px;color:var(--rb-rose-ey);letter-spacing:.03em; }
+          .rb-sec-link { background:none;border:none;cursor:pointer;font-size:11px;color:var(--rb-rose-ey);letter-spacing:.04em;padding:0;text-decoration:underline;text-underline-offset:3px; }
+          .rb-sec-h { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:clamp(22px,2.6vw,28px);color:var(--rb-ink);line-height:1.15;margin:0 0 16px; }
+          .rb-sec-h em { font-style:italic; }
+
+          /* ES card — shared art+body layout (matches .es-card in uploaded design) */
+          .rb-es-card { display:flex;width:100%;text-align:left;cursor:pointer;overflow:hidden;
+            border:0.5px solid var(--rb-rule-mid);border-radius:var(--rb-rad-lg);background:#fff;
+            transition:border-color .22s,box-shadow .22s; }
+          .rb-es-card:hover { border-color:rgba(32,32,33,0.2);box-shadow:0 22px 54px -30px rgba(32,32,33,0.24); }
+          .rb-es-art { flex:1 1 46%;min-width:0;min-height:248px;padding:20px;display:grid;gap:10px;
+            background:linear-gradient(150deg,var(--rb-cream-100),var(--rb-cream)); }
+
+          /* Moodboard art: 2-col grid, hero spans 2 rows */
+          .rb-es-art-board { grid-template-columns:1.35fr 1fr;grid-template-rows:1fr 1fr; }
+          .rb-es-art-board .rb-esb { border-radius:9px;border:0.5px solid var(--rb-rule); }
+          .rb-es-art-board .rb-esb-hero { grid-row:1 / span 2;background:var(--rb-mauve); }
+          .rb-es-art-board .rb-esb-2 { background:var(--rb-sage-mid); }
+          .rb-es-art-board .rb-esb-3 { background:var(--rb-rose-mid); }
+
+          /* Style-notes art: 3 staggered frames */
+          .rb-es-art-ways { grid-template-columns:repeat(3,1fr);align-items:start; }
+          .rb-es-frame { border-radius:9px;border:0.5px solid var(--rb-rule);aspect-ratio:3/4;padding:13px; }
+          .rb-es-frame.f1 { background:var(--rb-rose-bg); }
+          .rb-es-frame.f2 { background:var(--rb-sage-bg);margin-top:18px; }
+          .rb-es-frame.f3 { background:var(--rb-rose-mid);margin-top:36px; }
+          .rb-es-frame-num { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:23px;line-height:1;color:rgba(32,32,33,0.46); }
+
+          /* ES body (text panel) */
+          .rb-es-body { flex:1 1 54%;min-width:0;padding:38px 42px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center; }
+          .rb-es-eyebrow { font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rb-rose-ey);margin-bottom:16px; }
+          .rb-es-eyebrow.sage { color:var(--rb-sage-ey); }
+          .rb-es-h { font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:33px;line-height:1.04;color:var(--rb-ink);margin:0; }
+          .rb-es-h em { font-style:italic;color:var(--rb-ink-soft); }
+          .rb-es-sub { font-size:13.5px;line-height:1.62;color:var(--rb-ink-soft);margin-top:14px;max-width:38ch; }
+          .rb-es-cta { margin-top:26px;display:inline-flex;align-items:center;gap:9px;padding:12px 22px;
+            border-radius:100px;background:var(--rb-ink);color:var(--rb-cream);font-size:11px;font-weight:500;
+            letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer;
+            transition:opacity .18s,transform .18s; }
+          .rb-es-card:hover .rb-es-cta { opacity:.9;transform:translateY(-1px); }
+          .rb-es-cta svg { width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round; }
+
+          /* Populated: moodboard 4-up grid (2×2) */
+          .rb-mb-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+          .rb-mb-card { cursor:pointer;border-radius:var(--rb-rad-lg);overflow:hidden;background:#fff;border:0.5px solid var(--rb-rule);transition:border-color .2s,box-shadow .2s; }
+          .rb-mb-card:hover { border-color:rgba(32,32,33,0.2);box-shadow:0 12px 32px -16px rgba(32,32,33,0.18); }
+          .rb-mb-imgs { display:grid;grid-template-columns:1.35fr 1fr;grid-template-rows:1fr 1fr;gap:3px;min-height:200px;background:var(--rb-cream-100); }
+          .rb-mb-img-main { grid-row:1/3;width:100%;height:100%;object-fit:cover;display:block; }
+          .rb-mb-img-ph-main { grid-row:1/3;background:var(--rb-mauve); }
+          .rb-mb-img-ph-sm { background:var(--rb-sage-mid); }
+          .rb-mb-img-ph-sm:nth-child(3) { background:var(--rb-rose-mid); }
+          .rb-mb-foot { padding:14px 16px 16px;position:relative; }
+          .rb-mb-foot-title { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:16px;color:var(--rb-ink);line-height:1.25;margin-bottom:3px; }
+          .rb-mb-foot-meta { font-size:10px;color:var(--rb-rose-ey);letter-spacing:.02em; }
+          .rb-mb-new { position:absolute;top:14px;right:16px;font-size:9px;font-weight:600;letter-spacing:.14em;color:var(--rb-rose-ey);text-transform:uppercase; }
+
+          /* Populated: style notes 4-up grid */
+          .rb-sn-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:12px; }
+          .rb-sn-card { cursor:pointer;border-radius:10px;overflow:hidden;background:#fff;border:0.5px solid var(--rb-rule);transition:border-color .2s; }
+          .rb-sn-card:hover { border-color:rgba(32,32,33,0.2); }
+          .rb-sn-img { width:100%;aspect-ratio:3/4;object-fit:cover;display:block; }
+          .rb-sn-img-ph { aspect-ratio:3/4;background:var(--rb-cream-100); }
+          .rb-sn-body { padding:11px 13px 13px; }
+          .rb-sn-type { font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--rb-rose-ey);margin-bottom:4px; }
+          .rb-sn-title { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:15px;color:var(--rb-ink);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+          .rb-sn-meta { font-size:10px;color:var(--rb-rose-ey);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+
+          /* Daily outfit lock — matches .lock-pill in uploaded design */
+          .rb-lock-pill { display:inline-flex;align-items:center;gap:5px;padding:5px 10px;
+            background:rgba(250,248,245,0.88);backdrop-filter:blur(4px);
+            border-radius:20px;font-size:9.5px;font-weight:500;letter-spacing:.1em;
+            text-transform:uppercase;color:#6E6A64;border:0.5px solid rgba(32,32,33,0.12); }
+          .rb-lock-pill svg { width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round; }
+          .rb-lock-wrap { position:absolute;top:10px;left:12px;z-index:2;pointer-events:none; }
+
+          @media(max-width:760px){
+            .rb-es-card { flex-direction:column; }
+            .rb-es-art { flex-basis:auto;min-height:210px; }
+            .rb-es-body { padding:28px 26px 32px; }
+            .rb-sn-grid { grid-template-columns:repeat(2,1fr); }
+            .rb-mb-grid { grid-template-columns:1fr; }
+          }
+          #mb-result-page .mb-main-grid { grid-template-columns:1fr !important; }
+          @media(max-width:860px){
+            #mb-result-page .mb-two-col { grid-template-columns:1fr !important; }
+            #mb-result-page .mb-sidebar { position:static !important; }
+          }
+          /* Rail: prevent bundle clipping the swap buttons */
+          #mb-rail-pieces { overflow:visible !important; }
+          .mb-sidebar { overflow:visible !important; }
+          .mb-rail { overflow:visible !important; }
+        `;
+        document.head.appendChild(s);
+      })();
+
+      // ── Global breadcrumb system ──────────────────────────────────────
+      // Renders ROBES / Parent / Current in the nav, replacing the bundle's
+      // single back-button with independently clickable segments.
+      (function _rbInitBreadcrumb() {
+        // Suppress bundle's single back-button permanently
+        const bundleCrumb = document.getElementById('nav-breadcrumb');
+        if (bundleCrumb) bundleCrumb.style.display = 'none';
+
+        // Inject our container into nav-l after the wordmark
+        const navL = document.querySelector('.nav-l');
+        if (!navL) return;
+        const sep = ' / '; // " / "
+        const container = document.createElement('span');
+        container.id = 'rb-crumb';
+        container.style.cssText = 'display:none;align-items:center;font-size:12px;font-family:var(--font-sans,inherit);letter-spacing:.01em;gap:0';
+        navL.appendChild(container);
+
+        // Ensure wordmark always routes home
+        const wm = document.getElementById('nav-wordmark');
+        if (wm) wm.onclick = function() {
+          window.rbClearCrumb();
+          window.__mbCloseResult && window.__mbCloseResult();
+          window.__mbCloseList && window.__mbCloseList();
+          if (kpResultPage) kpResultPage.style.display = 'none';
+          const wp = document.querySelector('.wardrobe-panel');
+          if (wp && wp.classList.contains('visible')) {
+            // Bundle's showWardrobe does a view-switch (hides main content).
+            // Click the nav wardrobe toggle to properly reverse it.
+            const wbtnCount = document.querySelector('.nav-wbtn-count');
+            const wbtn = wbtnCount ? wbtnCount.closest('button') : null;
+            if (wbtn) { wbtn.click(); } else { wp.classList.remove('visible'); }
+          }
+        };
+
+        window.rbSetCrumb = function(segments) {
+          // segments: [{label, action}] — last item has no action (current page)
+          container.style.display = 'inline-flex';
+          container.innerHTML = segments.map(function(seg, i) {
+            const isLast = i === segments.length - 1;
+            const sepHtml = `<span style="color:rgba(32,32,33,0.3);margin:0 1px">${sep}</span>`;
+            const labelHtml = isLast
+              ? `<span style="color:rgba(32,32,33,0.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px" title="${seg.label.replace(/"/g,'&quot;')}">${seg.label}</span>`
+              : `<button onclick="(${seg.action.toString()})()" style="background:none;border:none;padding:0;cursor:pointer;font-size:12px;font-family:inherit;color:rgba(32,32,33,0.65);white-space:nowrap;transition:color .15s" onmouseenter="this.style.color='#202021'" onmouseleave="this.style.color='rgba(32,32,33,0.65)'">${seg.label}</button>`;
+            return sepHtml + labelHtml;
+          }).join('');
+        };
+
+        window.rbClearCrumb = function() {
+          container.style.display = 'none';
+          container.innerHTML = '';
+          const wm = document.getElementById('nav-wordmark');
+          if (wm) wm.style.display = '';
+        };
+      })();
+
+      // Patch App.setSubtab to wire breadcrumbs for subtab sub-panels
+      (function _rbPatchSubtabs() {
+        function _tryPatch() {
+          if (!window.App || !App.setSubtab) return false;
+          const _origSetSubtab = App.setSubtab.bind(App);
+          App.setSubtab = function(tab) {
+            _origSetSubtab(tab);
+            if (tab === 'today') {
+              window.rbSetCrumb && window.rbSetCrumb([
+                { label: 'Recent looks', action: function() { App.setSubtab('today'); } },
+                { label: 'Your look' }
+              ]);
+            } else if (tab === 'trip') {
+              window.rbSetCrumb && window.rbSetCrumb([{ label: 'Pack a trip' }]);
+            } else if (tab === 'week') {
+              window.rbSetCrumb && window.rbSetCrumb([{ label: 'Plan the week' }]);
+            } else {
+              window.rbClearCrumb && window.rbClearCrumb();
+            }
+          };
+          return true;
+        }
+        if (!_tryPatch()) {
+          const t = setInterval(function() { if (_tryPatch()) clearInterval(t); }, 250);
+        }
+      })();
+
+      function _rbTimeAgo(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        const mins = Math.floor((Date.now() - d) / 60000);
+        if (mins < 2) return 'Just now';
+        if (mins < 60) return mins + 'm ago';
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return hrs === 1 ? '1 hour ago' : hrs + ' hours ago';
+        const days = Math.floor(hrs / 24);
+        if (days === 1) return 'Yesterday';
+        if (days < 7) return days + ' days ago';
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      }
+
+      // MutationObserver: set crumb whenever wardrobe panel becomes visible
+      (function _rbObserveWardrobe() {
+        function _tryObserve() {
+          const panel = document.querySelector('.wardrobe-panel');
+          if (!panel) return false;
+          let _wmObserver = null;
+          function _rbForceWordmark() {
+            const wm = document.getElementById('nav-wordmark');
+            if (!wm) return;
+            wm.style.setProperty('display', 'inline', 'important');
+            if (!_wmObserver) {
+              _wmObserver = new MutationObserver(function() {
+                if (panel.classList.contains('visible')) {
+                  wm.style.setProperty('display', 'inline', 'important');
+                }
+              });
+              _wmObserver.observe(wm, { attributes: true, attributeFilter: ['style'] });
+            }
+          }
+          new MutationObserver(function(mutations) {
+            mutations.forEach(function(m) {
+              if (m.type === 'attributes' && m.attributeName === 'class') {
+                if (panel.classList.contains('visible')) {
+                  setTimeout(_rbForceWordmark, 50);
+                  setTimeout(_rbForceWordmark, 200);
+                  window.rbSetCrumb && window.rbSetCrumb([{ label: 'Wardrobe' }]);
+                } else {
+                  if (_wmObserver) { _wmObserver.disconnect(); _wmObserver = null; }
+                  const wm = document.getElementById('nav-wordmark');
+                  if (wm) wm.style.removeProperty('display');
+                  window.rbClearCrumb && window.rbClearCrumb();
+                }
+              }
+            });
+          }).observe(panel, { attributes: true, attributeFilter: ['class'] });
+          return true;
+        }
+        if (!_tryObserve()) {
+          const t = setInterval(function() { if (_tryObserve()) clearInterval(t); }, 300);
+        }
+      })();
+
+      function _rbRenderMoodboards() {
+        const el = document.getElementById('rb-mb');
+        if (!el) return;
+        const items = _mbLoad().slice(0, 4);
+        const arrowSvg = `<svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+        if (!items.length) {
+          el.innerHTML = `
+            <div class="rb-sec-head">
+              <span class="rb-sec-ey">Moodboards for you</span>
+            </div>
+            <h2 class="rb-sec-h">Dress the season,<br><em>before you dress the day.</em></h2>
+            <button class="rb-es-card" onclick="window.__rbStartMoodboard()">
+              <div class="rb-es-art rb-es-art-board" aria-hidden="true">
+                <div class="rb-esb rb-esb-hero"></div>
+                <div class="rb-esb rb-esb-2"></div>
+                <div class="rb-esb rb-esb-3"></div>
+              </div>
+              <div class="rb-es-body">
+                <span class="rb-es-eyebrow">Moodboards</span>
+                <h3 class="rb-es-h">Create your first<br><em>moodboard.</em></h3>
+                <p class="rb-es-sub">Describe a trip, a season, or a piece you love. Robes builds the board — and pulls in what you already own.</p>
+                <span class="rb-es-cta">Start a moodboard${arrowSvg}</span>
+              </div>
+            </button>`;
+          return;
+        }
+        el.innerHTML = `
+          <div class="rb-sec-head">
+            <span class="rb-sec-ey">Moodboards for you</span>
+            <button class="rb-sec-link" onclick="window.__mbOpenList()">View all</button>
+          </div>
+          <h2 class="rb-sec-h">Dress the season,<br><em>before you dress the day.</em></h2>
+          <div class="rb-mb-grid">
+            ${items.map(item => `
+              <div class="rb-mb-card" onclick="window.__mbOpenSaved(${item.id})">
+                <div class="rb-mb-imgs">
+                  ${item.img
+                    ? `<img src="${_waEsc(item.img)}" class="rb-mb-img-main" alt="">`
+                    : '<div class="rb-mb-img-ph-main"></div>'}
+                  <div class="rb-mb-img-ph-sm"></div>
+                  <div class="rb-mb-img-ph-sm"></div>
+                </div>
+                <div class="rb-mb-foot">
+                  <div class="rb-mb-foot-title">${_waEsc(item.title)}</div>
+                  <div class="rb-mb-foot-meta">${_rbTimeAgo(item.saved_at)}</div>
+                  ${!item.saved_at || (Date.now() - new Date(item.saved_at)) < 86400000 ? '<div class="rb-mb-new">New</div>' : ''}
+                </div>
+              </div>`).join('')}
+          </div>`;
+      }
+
+      function _rbRenderStyleNotes() {
+        const el = document.getElementById('rb-sn');
+        if (!el) return;
+        const items = snLoad().slice(0, 4);
+        const arrowSvg = `<svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+        if (!items.length) {
+          el.innerHTML = `
+            <div class="rb-sec-head">
+              <span class="rb-sec-ey">Lookbook</span>
+              <span class="rb-sec-meta">A little gift to begin</span>
+            </div>
+            <button class="rb-es-card" onclick="window.KP && KP.openKeyPiece ? KP.openKeyPiece() : void 0">
+              <div class="rb-es-art rb-es-art-ways" aria-hidden="true">
+                <div class="rb-es-frame f1"><span class="rb-es-frame-num">01</span></div>
+                <div class="rb-es-frame f2"><span class="rb-es-frame-num">02</span></div>
+                <div class="rb-es-frame f3"><span class="rb-es-frame-num">03</span></div>
+              </div>
+              <div class="rb-es-body">
+                <span class="rb-es-eyebrow sage">Style a piece</span>
+                <h3 class="rb-es-h">Your piece,<br><em>worn three ways.</em></h3>
+                <p class="rb-es-sub">Show Robes one piece you love. You'll get three ways to wear it — none of them the obvious one, each styled around your wardrobe.</p>
+                <span class="rb-es-cta">Style a key piece${arrowSvg}</span>
+              </div>
+            </button>`;
+          return;
+        }
+        el.innerHTML = `
+          <div class="rb-sec-head">
+            <span class="rb-sec-ey">Lookbook</span>
+            <button class="rb-sec-link" onclick="window.__snOpen()">${snLoad().length} kept</button>
+          </div>
+          <div class="rb-sn-grid">
+            ${items.map(item => `
+              <div class="rb-sn-card" onclick="window.__snOpenItem(${item.id})">
+                ${item.img
+                  ? `<img src="${_waEsc(item.img)}" class="rb-sn-img" alt="">`
+                  : '<div class="rb-sn-img-ph"></div>'}
+                <div class="rb-sn-body">
+                  <div class="rb-sn-type">${item.type === 'look' ? 'Look' : 'Key piece'}</div>
+                  <div class="rb-sn-title">${_waEsc(item.title)}</div>
+                  <div class="rb-sn-meta">${_waEsc(item.subtitle || '')}</div>
+                </div>
+              </div>`).join('')}
+          </div>`;
+      }
+
+      function _rbUpdateDailyOutfitLock() {
+        const grid = document.querySelector('.services-grid');
+        if (!grid) return;
+        const dailyCard = grid.querySelector('.svc-daily') || grid.querySelector('.svc');
+        if (!dailyCard) return;
+        const svcImg = dailyCard.querySelector('.svc-img');
+        const svcCta = dailyCard.querySelector('.svc-cta');
+        if (!svcImg) return;
+        const isLocked = _waItems.length < _WA_TARGET;
+        const remaining = _WA_TARGET - _waItems.length;
+
+        // Lock pill in image area
+        let pill = svcImg.querySelector('.rb-lock-wrap');
+        if (isLocked && !pill) {
+          pill = document.createElement('div');
+          pill.className = 'rb-lock-wrap';
+          pill.innerHTML = `<span class="rb-lock-pill"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="1.5"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Unlocks at 15 items</span>`;
+          svcImg.appendChild(pill);
+        } else if (!isLocked && pill) {
+          pill.remove();
+        }
+
+        // CTA and button behaviour
+        if (svcCta) {
+          if (isLocked) {
+            svcCta.classList.add('svc-cta-locked');
+            svcCta.innerHTML = `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="1.5"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>${remaining} ${remaining === 1 ? 'piece' : 'pieces'} to go`;
+            dailyCard.onclick = () => {
+              if (window.App && App.toast) App.toast('Daily outfit unlocks once you\'ve catalogued 15 pieces — ' + remaining + ' to go');
+            };
+          } else {
+            svcCta.classList.remove('svc-cta-locked');
+            svcCta.innerHTML = `Style today<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+            dailyCard.onclick = () => { if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me'); };
+          }
+        }
+
+        // Refresh chip lock state to reflect current wardrobe count
+        const dressChip = document.getElementById('chip-dress');
+        if (dressChip) {
+          dressChip.style.opacity = isLocked ? '0.5' : '1';
+          const countSpan = dressChip.querySelector('span');
+          if (isLocked) {
+            if (!countSpan) dressChip.insertAdjacentHTML('beforeend', `<span style="font-size:11px;opacity:.6;margin-left:2px">${_waItems.length}/15</span>`);
+            else countSpan.textContent = `${_waItems.length}/15`;
+          } else if (countSpan) {
+            countSpan.remove();
+          }
+        }
+      }
+
+      // ── Moodboard system ─────────────────────────────────────────────
+
+      // Storage (localStorage, mirrors snLoad pattern but keyed separately)
+      const MB_KEY = 'robes_moodboards';
+      function _mbLoad() { try { return JSON.parse(localStorage.getItem(MB_KEY) || '[]'); } catch { return []; } }
+      function _mbSave(items) {
+        try { localStorage.setItem(MB_KEY, JSON.stringify(items)); }
+        catch (e) { if (items.length > 1) _mbSave(items.slice(0, items.length - 1)); }
+      }
+      function _mbAdd(item) {
+        const items = _mbLoad();
+        items.unshift({ ...item, id: Date.now(), saved_at: new Date().toISOString() });
+        _mbSave(items);
+        _rbRenderMoodboards();
+      }
+      function _mbRemove(id) {
+        _mbSave(_mbLoad().filter(i => i.id !== id));
+        _rbRenderMoodboards();
+        _mbRenderPage();
+      }
+
+      // ── Moodboard entry: scroll + prefill the main concierge textarea ──
+      const _MB_PLACEHOLDER = 'A week in the South of France in August…';
+      const _CB_PLACEHOLDER = "Tell Robes where you're going, or the look you're after…";
+
+      // ── Intent chip system ────────────────────────────────────────────
+      let _cbIntent = null; // null | 'style' | 'moodboard' | 'dress-me'
+      let _cbPhotoData = null;
+
+      const _CHIP_ICONS = {
+        style: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"></path></svg>`,
+        'dress-me': `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5l3 9H5l7 9 7-9h-3l3-9h-4"></path><path d="M9 3c0 1.7 1.3 3 3 3s3-1.3 3-3"></path></svg>`,
+        moodboard: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>`,
+      };
+
+      const _CHIP_DEFS = [
+        { id: 'chip-style',  label: 'Style a key piece',
+          cta: 'STYLE IT',
+          inject: 'Style my [oversized cream blazer] 3 ways',
+          placeholder: 'Describe your key piece…',
+          intent: 'style' },
+        { id: 'chip-dress',  label: 'Dress me today',
+          cta: 'DRESS ME',
+          inject: 'I need an outfit for [Sunday brunch in Dublin] using my [favorite trench coat] mixed with editorial pieces.',
+          placeholder: 'Describe your occasion or mood…',
+          intent: 'dress-me' },
+        { id: 'chip-mood',   label: 'Create a moodboard',
+          cta: 'BUILD BOARD',
+          inject: 'Build a moodboard for [a late summer weekend in Ibiza] with a vibe that is [minimalist, editorial, and effortless].',
+          placeholder: 'Describe your moodboard vibe…',
+          intent: 'moodboard' },
+      ];
+
+      function _cbGetSendBtn() { return document.querySelector('.cb-send'); }
+
+      function _cbSetCta(text) {
+        const btn = _cbGetSendBtn();
+        if (!btn) return;
+        if (!btn.dataset.origText) btn.dataset.origText = btn.textContent || 'Send';
+        btn.textContent = text;
+      }
+
+      function _cbResetCta() {
+        const btn = _cbGetSendBtn();
+        if (btn && btn.dataset.origText) btn.textContent = btn.dataset.origText;
+      }
+
+      function _cbShowPhotoZone(show) {
+        const zone = document.getElementById('cb-photo-zone');
+        if (!zone) return;
+        zone.style.display = show ? 'flex' : 'none';
+        if (!show) {
+          _cbPhotoData = null;
+          const preview = document.getElementById('cb-photo-preview');
+          const hint = document.getElementById('cb-photo-hint');
+          const icon = document.getElementById('cb-photo-icon');
+          if (preview) { preview.src = ''; preview.style.display = 'none'; }
+          if (hint) { hint.textContent = "Show me the piece, and I'll style it three ways."; hint.style.display = ''; }
+          if (icon) icon.style.display = '';
+          const inp = document.getElementById('cb-photo-input');
+          if (inp) inp.value = '';
+        }
+      }
+
+      function _cbSetChipActive(intent) {
+        _CHIP_DEFS.forEach(c => {
+          const chip = document.getElementById(c.id);
+          if (!chip) return;
+          const active = c.intent === intent;
+          // Override bundle's .cb-pill defaults inline so specificity wins
+          chip.style.background = active ? '#202021' : '';
+          chip.style.color = active ? '#FAF8F5' : '';
+          chip.style.borderColor = active ? '#202021' : '';
+          chip.style.fontWeight = active ? '500' : '';
+        });
+      }
+
+      function _cbSetIntent(intent) {
+        _cbIntent = intent;
+        const ta = document.getElementById('cb-ta');
+        const def = _CHIP_DEFS.find(c => c.intent === intent);
+        _cbSetChipActive(intent);
+        if (!def || !ta) return;
+        ta.value = def.inject;
+        ta.placeholder = def.placeholder;
+        ta.dispatchEvent(new Event('input'));
+        _cbSetCta(def.cta);
+        _cbShowPhotoZone(intent === 'style');
+        ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 300);
+      }
+
+      function _cbReset() {
+        _cbIntent = null;
+        _cbPhotoData = null;
+        const ta = document.getElementById('cb-ta');
+        if (ta) { ta.value = ''; ta.placeholder = _CB_PLACEHOLDER; ta.dispatchEvent(new Event('input')); }
+        _cbResetCta();
+        _cbShowPhotoZone(false);
+        _cbSetChipActive(null);
+      }
+
+      // Reusable inline style overlay — shared between chip 'style', 'dress-me', and KP card
+      async function _cbStyleSubmit(prompt, photoData) {
+        let overlay = document.getElementById('kp-loading-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'kp-loading-overlay';
+          overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
+          overlay.innerHTML = `
+            <div style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center">Styling your piece<br><em>three ways…</em></div>
+            <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+            <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
+              <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
+            </div>`;
+          const ks = document.createElement('style');
+          ks.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}';
+          document.head.appendChild(ks);
+          document.body.appendChild(overlay);
+        }
+        overlay.style.display = 'flex';
+        const msgs = ['Generating editorial looks', 'Composing outfits…', 'Creating images…', 'Almost ready…'];
+        let mi = 0;
+        const msgInterval = setInterval(() => {
+          mi = Math.min(mi + 1, msgs.length - 1);
+          const el = document.getElementById('kp-load-msg');
+          if (el) el.textContent = msgs[mi];
+        }, 8000);
+        try {
+          const res = await fetch('/api/style', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, photo: photoData || null }),
+          });
+          clearInterval(msgInterval);
+          overlay.style.display = 'none';
+          if (!res.ok) throw new Error(await res.text());
+          window.__kpRenderResult(await res.json(), prompt);
+        } catch (err) {
+          clearInterval(msgInterval);
+          overlay.style.display = 'none';
+          _waShowToast(err.message && err.message.length < 120 ? err.message : 'Something went wrong — please try again');
+        }
+      }
+
+      // Central submit handler — routes based on active intent
+      function _cbSubmit() {
+        const ta = document.getElementById('cb-ta');
+        const prompt = (ta && ta.value.trim()) || '';
+        if (_cbIntent === 'style' || _cbIntent === 'dress-me') {
+          if (!prompt && !_cbPhotoData) { _waShowToast('Describe your piece or upload a photo first'); return; }
+          const photo = _cbPhotoData;
+          _cbReset();
+          _cbStyleSubmit(prompt, photo);
+        } else {
+          // moodboard (intent null or 'moodboard')
+          if (ta) { ta.placeholder = _CB_PLACEHOLDER; ta.value = ''; ta.dispatchEvent(new Event('input')); }
+          _cbReset();
+          if (!prompt) return;
+          window.__mbRunGeneration(prompt);
+        }
+      }
+
+      // Legacy helper kept for _mbInlineBtn.onclick compat
+      function _mbHideInlineBtn() {}
+      function _mbShowInlineBtn() {}
+      function _mbFireFromTextarea() { _cbSubmit(); }
+
+      // Inject chips + photo attachment zone after bundle renders
+      setTimeout(() => {
+        const ta = document.getElementById('cb-ta');
+        if (!ta) return;
+        const sendBtn = document.querySelector('.cb-send');
+        if (sendBtn && !sendBtn.dataset.origText) sendBtn.dataset.origText = sendBtn.textContent || 'Send';
+
+        // Attach suggestion row — appears inside the card when 'style' chip active
+        const photoZone = document.createElement('div');
+        photoZone.id = 'cb-photo-zone';
+        photoZone.style.cssText = 'display:none;align-items:center;gap:10px;padding:10px 15px;cursor:pointer;border-top:0.5px solid rgba(32,32,33,0.08)';
+        photoZone.innerHTML = `
+          <input type="file" id="cb-photo-input" accept="image/*" capture="environment" style="display:none">
+          <span id="cb-photo-icon" style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:rgba(142,112,119,0.1);display:flex;align-items:center;justify-content:center;color:#8E7077">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          </span>
+          <span id="cb-photo-hint" style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:rgba(32,32,33,0.38)">Show me the piece, and I'll style it three ways.</span>
+          <img id="cb-photo-preview" src="" alt="" style="display:none;width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0;margin-left:auto">`;
+        photoZone.onclick = function(e) {
+          if (!e.target.closest('#cb-photo-preview')) document.getElementById('cb-photo-input').click();
+        };
+        photoZone.querySelector('#cb-photo-input').onchange = function(e) {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = function(ev) {
+            _cbPhotoData = ev.target.result;
+            const preview = document.getElementById('cb-photo-preview');
+            const hint = document.getElementById('cb-photo-hint');
+            const icon = document.getElementById('cb-photo-icon');
+            if (preview) { preview.src = _cbPhotoData; preview.style.display = 'block'; }
+            if (hint) hint.textContent = 'Photo attached — tap to change';
+            if (icon) icon.style.display = 'none';
+          };
+          reader.readAsDataURL(file);
+        };
+        // Insert inside concierge-box, between textarea and the footer row
+        const cbFoot = document.querySelector('.cb-foot') || ta.parentNode;
+        cbFoot.parentNode.insertBefore(photoZone, cbFoot);
+
+        // Chip row — uses bundle's .cb-pills / .cb-pill classes, inserted after .concierge-box
+        const chipRow = document.createElement('div');
+        chipRow.id = 'cb-chips';
+        chipRow.className = 'cb-pills';
+        _CHIP_DEFS.forEach(def => {
+          const chip = document.createElement('button');
+          chip.id = def.id;
+          chip.type = 'button';
+          chip.className = 'cb-pill';
+          const locked = def.intent === 'dress-me' && _waItems.length < 15;
+          chip.style.cssText = `display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:inherit;${locked ? 'opacity:.5;' : ''}`;
+          const icon = _CHIP_ICONS[def.intent] || '';
+          chip.innerHTML = `${icon}${def.label}${locked ? `<span style="font-size:11px;opacity:.6;margin-left:2px">${_waItems.length}/15</span>` : ''}`;
+          chip.onclick = function() {
+            const nowLocked = def.intent === 'dress-me' && _waItems.length < 15;
+            if (nowLocked) {
+              const rem = 15 - _waItems.length;
+              _waShowToast(`Add ${rem} more ${rem === 1 ? 'item' : 'items'} to unlock daily styling, or style a single piece 3 ways right now!`);
+              return;
+            }
+            if (_cbIntent === def.intent) { _cbReset(); return; }
+            _cbSetIntent(def.intent);
+          };
+          chipRow.appendChild(chip);
+        });
+        // Insert after .concierge-box (the white prompt card)
+        const conciergeBox = document.querySelector('.concierge-box');
+        if (conciergeBox && conciergeBox.parentNode) {
+          conciergeBox.parentNode.insertBefore(chipRow, conciergeBox.nextSibling);
+        } else {
+          // Fallback: after the textarea's closest ancestor outside the card
+          (ta.closest('.concierge') || ta.parentNode.parentNode).appendChild(chipRow);
+        }
+      }, 1000);
+
+      // Intercept send button click and Enter key — routes via _cbSubmit
+      document.addEventListener('click', function(e) {
+        if (e.target.closest('.cb-send')) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          e.stopPropagation();
+          _cbSubmit();
+        }
+      }, true);
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey && e.target && e.target.id === 'cb-ta') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          e.stopPropagation();
+          _cbSubmit();
+        }
+      }, true);
+
+      window.__rbStartMoodboard = function() {
+        _cbSetIntent('moodboard');
+      };
+
+      window.__mbRunGeneration = async function(prompt) {
+        _mbShowGenerating(prompt);
+        try {
+          const token = _waToken();
+          const wardrobeItems = _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, image_url: i.image_url }));
+          const headers = { 'Content-Type': 'application/json' };
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+
+          const controller = new AbortController();
+          const clientTimeout = setTimeout(() => controller.abort(), 90000);
+          const res = await fetch('/api/moodboard', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ prompt, wardrobeItems }),
+            signal: controller.signal,
+          });
+          clearTimeout(clientTimeout);
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Server error ${res.status}`);
+          }
+          const data = await res.json();
+          _mbShowResult({ ...data, prompt });
+          // Poll for background images if server returned a job id
+          if (data.mb_job_id) _mbPollImages(data.mb_job_id);
+        } catch (e) {
+          _mbHideGenerating();
+          const msg = e.name === 'AbortError' ? 'Moodboard timed out — please try again' : (e.message && e.message !== 'Failed to fetch' ? e.message : 'Could not build moodboard — please try again');
+          _waShowToast(msg);
+          console.error('[moodboard] client error:', e.message, e.stack);
+        }
+      };
+
+      // ── Moodboard image polling ───────────────────────────────────────
+      function _mbPollImages(jobId) {
+        let attempts = 0;
+        const maxAttempts = 90; // 7.5 min ceiling — staggered gen takes longer
+        function tick() {
+          if (attempts++ >= maxAttempts) return;
+          fetch(`/api/images/${jobId}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (!data || !Array.isArray(data.images)) return;
+              // data.images is an array of {type, url} from the moodboard background job
+              const panel = document.getElementById('moodboard-panel');
+              if (!panel || !panel._currentData) return;
+              const currentGridImages = panel._currentData.grid_images || [];
+              let updated = false;
+              data.images.forEach(img => {
+                if (!img?.url) return;
+                const already = currentGridImages.find(g => g.type === img.type && g.url === img.url);
+                if (!already) { currentGridImages.push(img); updated = true; }
+              });
+              if (updated) {
+                panel._currentData.grid_images = currentGridImages;
+                panel._currentData.hero_image = panel._currentData.hero_image || currentGridImages.find(g => g.type === 'hero_look' && g.url)?.url || null;
+                // Re-render mosaic with new images without closing panel
+                const mosaicEl = document.getElementById('mb-mosaic');
+                if (mosaicEl) {
+                  const byType = { hero_look: [], flat_lay: [], atmosphere: [] };
+                  currentGridImages.forEach(g => { if (g?.url && byType[g.type]) byType[g.type].push(g.url); });
+                  const heroUrl = panel._currentData.hero_image;
+                  const title = panel._currentData.title || '';
+                  const editorial_direction = panel._currentData.editorial_direction || '';
+                  const heroHtml = heroUrl
+                    ? `<img id="mb-mosaic-hero" class="mme-hero" alt="${_mbEsc(title)}" style="width:100%;height:100%;object-fit:cover">`
+                    : `<div class="mme-hero" style="display:flex;align-items:flex-end;padding:24px;box-sizing:border-box;background:var(--cream-200)"><p style="font-family:var(--font-serif);font-size:22px;font-weight:300;color:var(--ink-faint);line-height:1.3;margin:0">${_mbEsc(title)}</p></div>`;
+                  const editorialHtml = editorial_direction
+                    ? `<div style="background:var(--cream-100);padding:20px;display:flex;align-items:center;box-sizing:border-box"><p style="font-family:var(--font-serif);font-style:italic;font-size:15px;font-weight:300;color:var(--ink-soft);line-height:1.6;margin:0">${_mbEsc(editorial_direction)}</p></div>`
+                    : `<div style="background:var(--cream-200)"></div>`;
+                  const palette = ['var(--cream-200)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-100)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-200)'];
+                  const extraUrls = [byType.hero_look[1], byType.flat_lay[0], byType.hero_look[2], byType.flat_lay[1], byType.atmosphere[0], byType.atmosphere[1], null];
+                  const extras = extraUrls.map((url, i) =>
+                    url ? `<img src="${_mbEsc(url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" alt="">` : `<div style="background:${palette[i]}"></div>`
+                  ).join('');
+                  mosaicEl.innerHTML = heroHtml + editorialHtml + extras;
+                  if (heroUrl) { const h = document.getElementById('mb-mosaic-hero'); if (h) h.src = heroUrl; }
+                }
+              }
+              if (!data.done) setTimeout(tick, 4000);
+            })
+            .catch(() => { if (attempts < maxAttempts) setTimeout(tick, 6000); });
+        }
+        setTimeout(tick, 5000); // first poll after 5s — let style image gen breathe
+      }
+
+      // ── Generating overlay ────────────────────────────────────────────
+      const _mbGenOverlay = document.createElement('div');
+      _mbGenOverlay.id = 'mb-gen-overlay';
+      _mbGenOverlay.style.cssText = 'display:none;position:fixed;inset:0;z-index:880;background:#FAF8F5;align-items:center;justify-content:center;flex-direction:column;gap:20px';
+      _mbGenOverlay.innerHTML = `
+        <div style="text-align:center;max-width:340px">
+          <div id="mb-gen-spinner" style="width:48px;height:48px;border:1.5px solid rgba(32,32,33,0.12);border-top-color:#202021;border-radius:50%;animation:mbSpin 0.9s linear infinite;margin:0 auto 28px"></div>
+          <p style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 12px">Robes is building your board</p>
+          <p id="mb-gen-prompt" style="font-family:'Cormorant',Georgia,serif;font-size:26px;font-weight:300;line-height:1.25;color:#202021;margin:0 0 16px"></p>
+          <p style="font-size:13px;color:#B8B0A6;line-height:1.6;margin:0">Curating the look · matching your wardrobe<br>generating editorial images…</p>
+        </div>`;
+      document.head.insertAdjacentHTML('beforeend', '<style>@keyframes mbSpin{to{transform:rotate(360deg)}}</style>');
+      document.body.appendChild(_mbGenOverlay);
+
+      function _mbShowGenerating(prompt) {
+        const el = document.getElementById('mb-gen-prompt');
+        if (el) el.textContent = prompt;
+        _mbGenOverlay.style.display = 'flex';
+        window.rbClearCrumb && window.rbClearCrumb(); // wordmark alone during generation
+      }
+      function _mbHideGenerating() { _mbGenOverlay.style.display = 'none'; }
+
+      // ── Result page ───────────────────────────────────────────────────
+
+      function _mbEsc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+      window.__mbThumbErr = function(el) {
+        el.outerHTML = '<div style="width:44px;height:44px;border-radius:7px;background:#EDE8E0;flex-shrink:0;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C8C0B8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
+      };
+
+      function _mbShowResult(data) {
+        _mbHideGenerating();
+        const { title, aesthetic_tags, editorial_direction, the_look = [], hero_image, grid_images = [], prompt } = data;
+        const location_context = data.location_context || data.subtitle || '';
+        const heroUrl = hero_image || data.img || null;
+        const tags = Array.isArray(aesthetic_tags) ? aesthetic_tags : [];
+        const matchedCount = the_look.filter(i => i.wardrobe_match).length;
+        const shopCount = the_look.length - matchedCount;
+        window.__mbCurrentLook = the_look;
+        console.log('[robes] _mbShowResult title:', title, 'tags:', tags.length, 'look:', the_look.length, 'hero:', !!heroUrl, 'grid:', grid_images.filter(g => g?.url).length);
+
+        // ── Populate the bundle's native moodboard panel ─────────────────
+
+        // Title: split into destination + place if comma-separated, else full title
+        const titleEl = document.getElementById('mb-out-title');
+        console.log('[robes] mb-out-title el:', !!titleEl);
+        if (titleEl) titleEl.innerHTML = _mbEsc(title).replace(',', ',<br>');
+
+        // Keyword tags
+        const kwsEl = document.getElementById('mb-out-kws');
+        if (kwsEl) {
+          kwsEl.innerHTML = tags.map((t, i) =>
+            `<span class="mb-kw">${_mbEsc(t)}</span>${i < tags.length - 1 ? '<span class="mb-kw-dot">·</span>' : ''}`
+          ).join('');
+        }
+
+        // Weather / location strip — parse from location_context "Place · Month | temp | directive"
+        const wxEl = document.getElementById('mb-wx');
+        if (wxEl && location_context) {
+          const parts = location_context.split('|').map(s => s.trim());
+          const locPart = parts[0] || location_context;
+          const tempPart = parts[1] || '';
+          const directivePart = parts[2] || '';
+          wxEl.innerHTML =
+            `<span class="w-icon">🌤</span>` +
+            `<span class="w-info"><strong>${_mbEsc(locPart)}</strong></span>` +
+            (tempPart ? `<div class="w-divider"></div><span class="w-info">${_mbEsc(tempPart)}</span>` : '') +
+            (directivePart ? `<div class="w-divider"></div><span class="w-info">${_mbEsc(directivePart)}</span>` : '');
+        }
+
+        // Aesthetic tag
+        const aestheticEl = document.getElementById('mb-aesthetic');
+        if (aestheticEl) aestheticEl.textContent = tags[0] || '';
+
+        // Mosaic — hero image + editorial direction text tile
+        const mosaicEl = document.getElementById('mb-mosaic');
+        if (mosaicEl) {
+          // Never bake heroUrl into innerHTML — set img.src via DOM to avoid base64 truncation errors
+          const heroHtml = heroUrl
+            ? `<img id="mb-mosaic-hero" class="mme-hero" alt="${_mbEsc(title)}" style="width:100%;height:100%;object-fit:cover">`
+            : `<div class="mme-hero" style="display:flex;align-items:flex-end;padding:24px;box-sizing:border-box;background:var(--cream-200)"><p style="font-family:var(--font-serif);font-size:22px;font-weight:300;color:var(--ink-faint);line-height:1.3;margin:0">${_mbEsc(title)}</p></div>`;
+          const editorialHtml = editorial_direction
+            ? `<div style="background:var(--cream-100);padding:20px;display:flex;align-items:center;box-sizing:border-box"><p style="font-family:var(--font-serif);font-style:italic;font-size:15px;font-weight:300;color:var(--ink-soft);line-height:1.6;margin:0">${_mbEsc(editorial_direction)}</p></div>`
+            : `<div style="background:var(--cream-200)"></div>`;
+          // Map grid_images by type — fill extra mosaic cells with real images, fall back to palette
+          const byType = { hero_look: [], flat_lay: [], atmosphere: [] };
+          (Array.isArray(grid_images) ? grid_images : []).forEach(g => { if (g?.url && byType[g.type]) byType[g.type].push(g.url); });
+          const palette = ['var(--cream-200)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-100)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-200)'];
+          // Cell order mirrors the bundle's mosaic grid: look2, flat1, look3, flat2, atm1, atm2, spare
+          const extraUrls = [byType.hero_look[1], byType.flat_lay[0], byType.hero_look[2], byType.flat_lay[1], byType.atmosphere[0], byType.atmosphere[1], null];
+          const extras = extraUrls.map((url, i) =>
+            url
+              ? `<img src="${_mbEsc(url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" alt="">`
+              : `<div style="background:${palette[i]}"></div>`
+          ).join('');
+          mosaicEl.innerHTML = heroHtml + editorialHtml + extras;
+          if (heroUrl) {
+            const heroImg = document.getElementById('mb-mosaic-hero');
+            if (heroImg) heroImg.src = heroUrl;
+          }
+        }
+
+        // The Look sidebar — compact thumbnail row design
+        const isColdStart = _waItems.length < 15;
+        const swapSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
+        const checkSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        const railEl = document.getElementById('mb-rail-pieces');
+        if (railEl) {
+          railEl.innerHTML = the_look.map((item, idx) => {
+            const match = item.wardrobe_match;
+            const retailer = item.retailer_hint || '';
+            const price = item.price_point || '';
+            const brand = item.brand_name || retailer || '';
+
+            const thumbHtml = match?.image_url
+              ? `<img src="${_mbEsc(match.image_url)}" style="width:44px;height:44px;object-fit:cover;border-radius:7px;flex-shrink:0;display:block" alt="" onerror="window.__mbThumbErr(this)">`
+              : `<div style="width:44px;height:44px;border-radius:7px;background:#EDE8E0;flex-shrink:0;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C8C0B8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`;
+
+            // Right-side CTA — compact to avoid overflow in narrow sidebar
+            let ctaHtml;
+            if (!isColdStart && match) {
+              ctaHtml = `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
+                <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:500;color:#4A7C59;background:rgba(74,124,89,0.10);border-radius:20px;padding:3px 8px;white-space:nowrap">${checkSvg} Yours</span>
+                <button onclick="window.__mbSwap(${idx})" style="font-size:10px;color:#A89880;background:none;border:none;cursor:pointer;padding:0;white-space:nowrap;text-decoration:underline;text-underline-offset:2px">Swap out</button>
+              </div>`;
+            } else {
+              ctaHtml = `<button onclick="window.__mbSwap(${idx})" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;color:#FAF8F5;background:#202021;border:none;border-radius:50%;cursor:pointer;flex-shrink:0" title="Swap">${swapSvg}</button>`;
+            }
+
+            // Pills row: wardrobe badge OR retailer + price (no wrapping)
+            let pillsHtml = '';
+            if (!isColdStart && match) {
+              const waItem = _waItems.find(w => w.id === match.id);
+              const timesWorn = waItem?.times_worn || 0;
+              pillsHtml = `<div style="display:flex;align-items:center;gap:5px;margin-top:3px;overflow:hidden">
+                <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#4A7C59;background:rgba(74,124,89,0.08);border-radius:20px;padding:2px 7px;white-space:nowrap">${checkSvg} In your wardrobe</span>
+                ${timesWorn > 0 ? `<span style="font-size:10px;color:#A89880;white-space:nowrap;flex-shrink:0">Worn ${timesWorn}×</span>` : ''}
+              </div>`;
+            } else if (retailer || price) {
+              pillsHtml = `<div style="display:flex;align-items:center;gap:4px;margin-top:3px;overflow:hidden">
+                ${retailer ? `<span style="font-size:10px;color:#6E6A64;background:#EDE8E0;border-radius:20px;padding:2px 7px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis">${_mbEsc(retailer)}</span>` : ''}
+                ${price ? `<span style="font-size:10px;color:#6E6A64;background:#EDE8E0;border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${_mbEsc(price)}</span>` : ''}
+              </div>`;
+            }
+
+            return `<div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid rgba(32,32,33,0.06)">
+              ${thumbHtml}
+              <div style="flex:1;min-width:0;overflow:hidden">
+                <div style="font-size:13px;font-weight:500;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_mbEsc(item.name)}</div>
+                ${brand ? `<div style="font-size:11px;color:#A89880;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_mbEsc(brand)}</div>` : ''}
+                ${pillsHtml}
+              </div>
+              ${ctaHtml}
+            </div>`;
+          }).join('');
+
+          // Force overflow:visible up the ancestor chain so buttons aren't clipped
+          let el = railEl;
+          for (let i = 0; i < 8 && el; i++) {
+            el.style.setProperty('overflow', 'visible', 'important');
+            el = el.parentElement;
+          }
+        }
+
+        // Sidebar subtitle
+        const railSubEl = document.getElementById('mb-rail-sub');
+        if (railSubEl) {
+          const matchedCount = the_look.filter(i => i.wardrobe_match).length;
+          railSubEl.textContent = matchedCount > 0
+            ? `${the_look.length} pieces · ${matchedCount} from your wardrobe`
+            : `${the_look.length} pieces`;
+        }
+
+        const railStatEl = document.getElementById('mb-rail-stat');
+        if (railStatEl) railStatEl.textContent = '';
+
+        // Breadcrumb: ROBES / {title} when opened from dashboard,
+        // or ROBES / Your Moodboards / {title} when opened from the full list
+        if (window._mbOpenedFromList) {
+          window.rbSetCrumb([
+            { label: 'Your Moodboards', action: function() { window.__mbCloseResult(); window._mbOpenedFromList = false; if (window._mbShowAllPage) window._mbShowAllPage(); } },
+            { label: title },
+          ]);
+        } else {
+          window.rbSetCrumb([{ label: title }]);
+        }
+
+        // Panel is INSIDE home-body — use position:fixed to overlay instead of hiding parent
+        document.querySelectorAll('.subpage').forEach(s => { s.classList.remove('visible'); s.style.cssText = ''; });
+        const panel = document.getElementById('moodboard-panel');
+        console.log('[robes] moodboard-panel el:', !!panel);
+        if (panel) {
+          panel.classList.add('visible');
+          panel.style.cssText = 'position:fixed;inset:0;top:60px;z-index:400;background:var(--cream,#FAF8F5);overflow-y:auto';
+          panel.scrollTop = 0;
+        }
+        window.scrollTo(0, 0);
+        console.log('[robes] panel classes after:', panel?.className);
+
+        // Store for save
+        if (panel) panel._currentData = data;
+
+        // Auto-save immediately — no manual tap required
+        _mbAdd({
+          type: 'moodboard',
+          title: data.title || data.prompt || 'Moodboard',
+          subtitle: data.location_context || '',
+          img: grid_images.find(g => g?.type === 'hero_look' && g?.url)?.url || data.hero_image || null,
+          prompt: data.prompt,
+          the_look: data.the_look,
+          aesthetic_tags: data.aesthetic_tags,
+          location_context: data.location_context,
+          editorial_direction: data.editorial_direction,
+          grid_images: grid_images,
+        });
+      }
+
+      window.__mbCloseResult = function() {
+        const panel = document.getElementById('moodboard-panel');
+        if (panel) { panel.classList.remove('visible'); panel.style.cssText = ''; }
+        window._mbOpenedFromList = false;
+        window.rbClearCrumb && window.rbClearCrumb();
+      };
+
+      window.__mbSaveMoodboard = function() {
+        // Auto-saved on generation — this is a no-op but kept for bundle compat
+        _waShowToast('Saved to your moodboards');
+      };
+
+      // ── Snap Mine: open wardrobe add flow ────────────────────────────────
+      window.__mbSnapMine = function() {
+        document.getElementById('mb-swap-modal')?.remove();
+        if (window.WA && WA.open) WA.open();
+      };
+
+      // ── Swap Modal: PRD 3.B — wardrobe grid + Snap Mine + Shop CTA ───────
+      window.__mbSwap = function(idx) {
+        const look = window.__mbCurrentLook || [];
+        const item = look[idx];
+        if (!item) return;
+        document.getElementById('mb-swap-modal')?.remove();
+
+        const catLower = (item.category || '').toLowerCase();
+        const candidates = _waItems.filter(wi => {
+          const wiCat = (wi.category || '').toLowerCase();
+          return wiCat === catLower || catLower.includes(wiCat) || wiCat.includes(catLower) || wiCat.replace(/s$/,'') === catLower.replace(/s$/,'');
+        });
+        const retailer = item.retailer_hint || '';
+        const price = item.price_point || '';
+
+        // AI alternative: closest non-exact match when wardrobe has items but none in this category
+        let aiAlt = null;
+        if (!candidates.length && _waItems.length > 0) {
+          aiAlt = _waItems[0];
+        }
+
+        const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        const cameraSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+        const arrowSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+
+        // Wardrobe section — 4-col grid or AI alternative
+        let wardrobeSection = '';
+        if (candidates.length > 0) {
+          const itemsHtml = candidates.slice(0, 8).map(wi => `
+            <div onclick="window.__mbSwapApply(${idx},'${_mbEsc(wi.id)}')" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
+              ${wi.image_url
+                ? `<img src="${_mbEsc(wi.image_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" alt="">`
+                : `<div style="aspect-ratio:1;background:#EDE8E0;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8C0B8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`}
+            </div>`).join('');
+          wardrobeSection = `
+            <div style="margin-bottom:24px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 10px">From your wardrobe</p>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${itemsHtml}</div>
+            </div>`;
+        } else if (aiAlt) {
+          wardrobeSection = `
+            <div style="margin-bottom:24px;background:#F5F2EE;border-radius:12px;padding:14px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">AI alternative</p>
+              <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don't have a ${_mbEsc(item.category.toLowerCase())}, but your <em>${_mbEsc(aiAlt.label)}</em> creates a similar outline.</p>
+              <button onclick="window.__mbSwapApply(${idx},'${_mbEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
+            </div>`;
+        }
+
+        const modal = document.createElement('div');
+        modal.id = 'mb-swap-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28)">
+            <div style="position:sticky;top:0;background:#FAF8F5;padding:20px 20px 0;z-index:2">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
+                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">Swap this piece</p>
+                <button onclick="document.getElementById('mb-swap-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+              </div>
+              <p style="font-family:'Cormorant',Georgia,serif;font-size:26px;font-weight:300;color:#202021;margin:0 0 2px;line-height:1.15">${_mbEsc(item.name)}</p>
+              ${retailer ? `<p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 18px">${_mbEsc(retailer)}</p>` : `<div style="height:18px"></div>`}
+              <div style="height:1px;background:rgba(32,32,33,0.08);margin:0 -20px 20px"></div>
+            </div>
+            <div style="padding:0 20px 32px">
+              ${wardrobeSection}
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${(retailer || price) ? '10px' : '0'}">
+                <button onclick="window.__mbSnapMine()" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#EDE8E0;border:none;border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
+                  ${cameraSvg} Snap mine
+                </button>
+                <button onclick="_waShowToast('Affiliate links coming soon')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
+                  Shop via Affiliate ${arrowSvg}
+                </button>
+              </div>
+              ${(retailer || price) ? `<p style="text-align:center;font-size:11px;color:#A89880;margin:0">Opens ${_mbEsc(retailer)}${price ? ' · ' + _mbEsc(price) : ''}</p>` : ''}
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+      };
+
+      window.__mbSwapApply = function(lookIdx, wardrobeId) {
+        const wi = _waItems.find(i => i.id === wardrobeId);
+        if (!wi || !window.__mbCurrentLook?.[lookIdx]) return;
+        window.__mbCurrentLook[lookIdx].wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
+        document.getElementById('mb-swap-modal')?.remove();
+        const panel = document.getElementById('moodboard-panel');
+        if (panel?._currentData) { panel._currentData.the_look = window.__mbCurrentLook; _mbShowResult(panel._currentData); }
+        _waShowToast(wi.label + ' swapped in');
+      };
+
+      // ── Moodboard full list page ─────────────────────────────────────
+      const _mbListPage = document.createElement('div');
+      _mbListPage.id = 'mb-list-page';
+      _mbListPage.style.cssText = 'display:none;position:fixed;inset:0;z-index:860;background:#FAF8F5;overflow-y:auto';
+      _mbListPage.innerHTML = `
+        <nav style="position:sticky;top:0;z-index:10;background:#FAF8F5;border-bottom:1px solid rgba(32,32,33,0.07);display:flex;align-items:center;gap:12px;padding:0 24px;height:56px">
+          <button onclick="window.__mbCloseList()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6E6A64;padding:8px 0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
+            Back
+          </button>
+          <span style="font-family:'Cormorant',Georgia,serif;font-size:18px;font-weight:300;color:#202021">Your moodboards</span>
+          <button onclick="window.__rbStartMoodboard()" style="margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:100px;background:#202021;color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer">+ New</button>
+        </nav>
+        <div style="padding:32px 24px 80px;max-width:960px;margin:0 auto">
+          <div id="mb-list-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
+          <div id="mb-list-empty" style="display:none;padding:80px 0;text-align:center">
+            <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">No moodboards yet.</p>
+            <p style="font-size:13px;color:#A89880;line-height:1.6">Describe a trip or season and Robes<br>will build the board.</p>
+          </div>
+        </div>`;
+      document.body.appendChild(_mbListPage);
+
+      function _mbRenderPage() {
+        const items = _mbLoad();
+        const grid = document.getElementById('mb-list-grid');
+        const empty = document.getElementById('mb-list-empty');
+        if (!grid) return;
+        if (!items.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
+        grid.style.display = 'grid'; empty.style.display = 'none';
+        grid.innerHTML = items.map(item => `
+          <div onclick="window.__mbOpenSaved(${item.id})" style="cursor:pointer;border-radius:14px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.1);transition:box-shadow .2s" onmouseenter="this.style.boxShadow='0 12px 32px -16px rgba(32,32,33,0.18)'" onmouseleave="this.style.boxShadow='none'">
+            <div style="position:relative">
+              ${item.img
+                ? `<img src="${_mbEsc(item.img)}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" alt="">`
+                : `<div style="width:100%;aspect-ratio:4/3;background:linear-gradient(135deg,#C8B8C8,#A8B8A0)"></div>`}
+              <button onclick="event.stopPropagation();window.__mbRemoveSaved(${item.id})" style="position:absolute;top:10px;right:10px;opacity:0;transition:opacity .15s;background:rgba(32,32,33,0.55);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0'">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            <div style="padding:14px 16px 18px">
+              <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;font-weight:300;color:#202021;line-height:1.3;margin-bottom:4px">${_mbEsc(item.title)}</div>
+              <div style="font-size:11px;color:#A89880">${_mbEsc(item.subtitle || '')}</div>
+            </div>
+          </div>`).join('');
+      }
+
+      window._mbShowAllPage = function() { _mbListPage.style.display = 'block'; _mbRenderPage(); };
+      window.__mbOpenList = function() {
+        window._mbShowAllPage();
+        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Your Moodboards' }]);
+      };
+      window.__mbCloseList = function() {
+        _mbListPage.style.display = 'none';
+        window.rbClearCrumb && window.rbClearCrumb();
+      };
+      window.__mbRemoveSaved = function(id) { _mbRemove(id); };
+      window.__mbOpenSaved = function(id) {
+        const item = _mbLoad().find(i => i.id === id);
+        if (!item) return;
+        const fromList = _mbListPage.style.display !== 'none';
+        _mbListPage.style.display = 'none';
+        window._mbOpenedFromList = fromList;
+        _mbShowResult(item);
+      };
+
+      // Patch snRefreshRow to also refresh v2 sections
+      const _origSnRefreshRow = snRefreshRow;
+      snRefreshRow = function() {
+        _origSnRefreshRow();
+        _rbRenderMoodboards();
+        _rbRenderStyleNotes();
+      };
+
+      // Apply layout restructure after bundle finishes rendering
+      setTimeout(function _rbApplyLayout() {
+        const dash = document.getElementById('dash');
+        if (!dash) return;
+
+        // Remove bundle's dual section (Today + Inspiration)
+        const dual = document.getElementById('dual');
+        if (dual) dual.remove();
+
+        // Remove old sn-row (injected by snRefreshRow above) — we replace it
+        const oldSn = document.getElementById('sn-row');
+        if (oldSn) oldSn.remove();
+
+        // Find insertion anchor
+        const tracker = dash.querySelector('.tracker');
+        const services = dash.querySelector('.services');
+        const anchor = tracker || services;
+
+        if (!document.getElementById('rb-mb')) {
+          const mbEl = document.createElement('section');
+          mbEl.id = 'rb-mb';
+          mbEl.className = 'rb-section';
+          if (anchor) dash.insertBefore(mbEl, anchor);
+          else dash.appendChild(mbEl);
+        }
+        if (!document.getElementById('rb-sn')) {
+          const snEl = document.createElement('section');
+          snEl.id = 'rb-sn';
+          snEl.className = 'rb-section';
+          const mbEl = document.getElementById('rb-mb');
+          const insertAfterMb = mbEl ? mbEl.nextSibling : (anchor || null);
+          if (insertAfterMb && insertAfterMb !== anchor) dash.insertBefore(snEl, insertAfterMb);
+          else if (anchor) dash.insertBefore(snEl, anchor);
+          else dash.appendChild(snEl);
+        }
+
+        _rbRenderMoodboards();
+        _rbRenderStyleNotes();
+        _rbUpdateDailyOutfitLock();
+      }, 900);
+
+      // Also update lock state whenever wardrobe count changes
+      const _origWaSyncCounts = _waSyncCounts;
+      // Note: _waSyncCounts is a local function so we patch by wrapping _waLoad/_waRender instead
+      // We hook _waSyncCounts in-place since it's in our closure scope
+      const _rbOrigSyncCounts = _waSyncCounts;
+      // Override via the already-defined function reference
+      // The cleanest hook point is _waLoad (called after any wardrobe change)
+      const _rbOrigWaLoad = _waLoad;
+      // Cannot reassign `_waLoad` (const in some JS engines) — hook via _waSyncCounts call
+      // Instead, patch the MutationObserver callback which fires after each render
+      const _rbPostRenderObserver = new MutationObserver(function() {
+        _rbUpdateDailyOutfitLock();
+      });
+      setTimeout(function() {
+        const svcGrid = document.querySelector('.services-grid');
+        if (svcGrid) _rbPostRenderObserver.observe(svcGrid, { childList: true, subtree: false });
+      }, 1200);
+    };
