@@ -443,6 +443,10 @@ app.get('/wardrobe', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
 
+app.get('/stylenotes', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'stylenotes.html'));
+});
+
 const ANALYSE_SCHEMA = {
   type: 'object',
   properties: {

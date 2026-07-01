@@ -31,6 +31,8 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 | `supabase/schema.sql` | DB schema — run once in Supabase SQL editor |
 | `supabase/wardrobe_schema.sql` | Wardrobe items table + RLS — run once in Supabase SQL editor |
 | `supabase/item_dna_migration.sql` | Adds `item_dna JSONB` column — run once in Supabase SQL editor |
+| `public/stylenotes.html` | Protected Style Notes page — colour harmony / silhouette / taste & budget, saves to `profiles` |
+| `supabase/style_notes_migration.sql` | Adds Style Notes columns to `profiles` — run once in Supabase SQL editor |
 | `supabase/functions/wardrobe-context/index.ts` | Edge Function — assembles user profile, calls Anthropic, writes to prompt_history |
 
 ## Branches
@@ -52,6 +54,7 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 - `wardrobe_items` Supabase table (schema in `supabase/wardrobe_schema.sql`)
 - Dashboard v2 layout: Wardrobe tracker → Styling Concierge (Moodboards + Style Notes sections in progress)
 - Daily Outfit concierge card: locked until 15 wardrobe items, then CTA becomes "Style today →" prefilling prompt
+- `/stylenotes` — Style Notes page (standalone `stylenotes.html`, not part of the dashboard bundle)
 
 ## Deploying
 ```bash
@@ -99,6 +102,16 @@ Note: Cloudinary vars must be set on **both** production and staging Railway ser
 - Body: `{ "prompt": "..." }`
 - Reads user profile, assembles system prompt, calls `claude-sonnet-4-6`, writes to prompt_history
 - Returns: `{ "response": "...", "tokens_used": N }`
+
+## Style Notes page (`/stylenotes`, signup-flow branch)
+`public/stylenotes.html` is a standalone protected page (NOT part of the dashboard bundle). Session check via `sbClient.auth.getSession()`; no session → redirect to `/signup.html`.
+
+- Three tabs: 01 Colour harmony, 02 Silhouette & proportions, 03 Taste & budget. Breadcrumb `ROBES | Style notes / [chapter]` is pure hierarchy, never a control.
+- Loads/saves to `profiles`: `season`, `undertone`, `contrast`, `body_type` (read-only readouts, defaults Soft autumn / Warm / Medium / Hourglass), `style_icons`, `budget` (tier name), `splurge_categories`, `annual_spend`, `headshot_url`, `full_length_url`. Columns added via `supabase/style_notes_migration.sql` — run once.
+- Saves fire immediately on each interaction (`update … eq('id', uid)`); `#save-state` in the top bar shows Saving…/Saved/Couldn't save.
+- Only two upload affordances exist: headshot (tab 01, 300×380) and full-length photo (tab 02, 300×520) — upload via `POST /api/wardrobe/upload` (Cloudinary). All analysis/try-on imagery is placeholder frames (`.ph` warm radial-gradient cards) representing future LLM image outputs — never make them uploadable.
+- No hex labels under clothing colours, no Accessories/Jewellery/Makeup sections, no "Read once"/privacy strings (explicit design exclusions).
+- Selected states are warm cream `#F3EFE6` with `#C9BCA6` border + small dark dot/check — never heavy black fills.
 
 ## signup.html conventions
 - Supabase client instantiated as `sbClient` (not `supabase` — conflicts with `window.supabase` global from CDN)

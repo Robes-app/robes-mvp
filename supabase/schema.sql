@@ -13,9 +13,19 @@ create table if not exists public.profiles (
   style_icons         text[]      default '{}',
   budget              text,
   wardrobe_description text,
+  season              text,
+  undertone           text,
+  contrast            text,
+  body_type           text,
+  splurge_categories  text[]      default '{}',
+  annual_spend        text,
+  headshot_url        text,
+  full_length_url     text,
   created_at          timestamptz default now() not null,
   updated_at          timestamptz default now() not null
 );
+
+-- Existing databases: run supabase/style_notes_migration.sql instead.
 
 -- Auto-populate a profile row when a user signs up
 create or replace function public.handle_new_user()
