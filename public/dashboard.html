@@ -1207,6 +1207,21 @@ document.addEventListener('DOMContentLoaded', async function() {
           }
         }
 
+        // Add Style Notes item to av-menu after Moodboards
+        if (avMenu && !document.getElementById('av-stylenotes')) {
+          const snBtn = document.createElement('button');
+          snBtn.id = 'av-stylenotes';
+          snBtn.className = 'av-item';
+          snBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3.5 4.2 6 7.5 6 10.2a6 6 0 0 1-12 0C6 10.5 8.5 7.2 12 3z"></path></svg>Style notes`;
+          snBtn.onclick = () => { avMenu.classList.remove('open'); window.location.href = '/stylenotes'; };
+          const mbItem = document.getElementById('av-moodboards');
+          if (mbItem && mbItem.parentNode === avMenu) {
+            avMenu.insertBefore(snBtn, mbItem.nextSibling);
+          } else {
+            avMenu.appendChild(snBtn);
+          }
+        }
+
         // Reorder + relabel concierge cards — bundle order: Weekly(01), Travel(02), Key Piece(03)
         // Target order: Daily Outfit(01), Weekly Planner(02), Travel Edit(03)
         const grid = document.querySelector('.services-grid');

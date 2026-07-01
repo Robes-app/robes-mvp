@@ -106,6 +106,8 @@ Note: Cloudinary vars must be set on **both** production and staging Railway ser
 ## Style Notes page (`/stylenotes`, signup-flow branch)
 `public/stylenotes.html` is a standalone protected page (NOT part of the dashboard bundle). Session check via `sbClient.auth.getSession()`; no session → redirect to `/signup.html`.
 
+Entry point: the dashboard avatar dropdown — `__robes_personalize` appends an `#av-stylenotes` item after Moodboards (menu order: Account details / Wardrobe / Lookbook / Moodboards / Style notes) that navigates to `/stylenotes`. The page's ROBES wordmark routes back to `/dashboard`, keeping it inside the dashboard experience.
+
 - Three tabs: 01 Colour harmony, 02 Silhouette & proportions, 03 Taste & budget. Breadcrumb `ROBES | Style notes / [chapter]` is pure hierarchy, never a control.
 - Loads/saves to `profiles`: `season`, `undertone`, `contrast`, `body_type` (read-only readouts, defaults Soft autumn / Warm / Medium / Hourglass), `style_icons`, `budget` (tier name), `splurge_categories`, `annual_spend`, `headshot_url`, `full_length_url`. Columns added via `supabase/style_notes_migration.sql` — run once.
 - Saves fire immediately on each interaction (`update … eq('id', uid)`); `#save-state` in the top bar shows Saving…/Saved/Couldn't save.
