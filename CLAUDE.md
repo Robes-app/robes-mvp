@@ -35,6 +35,7 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 | `supabase/item_dna_migration.sql` | Adds `item_dna JSONB` column — run once in Supabase SQL editor |
 | `public/stylenotes.html` | Protected Style Notes page — colour harmony / silhouette / taste & budget, saves to `profiles` |
 | `supabase/style_notes_migration.sql` | Adds Style Notes columns to `profiles` — run once in Supabase SQL editor |
+| `supabase/style_notes_analysis_migration.sql` | Adds `colour_analysis` + `silhouette_analysis` JSONB columns — run once in Supabase SQL editor |
 | `supabase/functions/wardrobe-context/index.ts` | Edge Function — assembles user profile, calls Anthropic, writes to prompt_history |
 
 ## Branches
@@ -56,7 +57,9 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 - `wardrobe_items` Supabase table (schema in `supabase/wardrobe_schema.sql`)
 - Dashboard v2 layout: Wardrobe tracker → Styling Concierge (Moodboards + Style Notes sections in progress)
 - Daily Outfit concierge card: locked until 15 wardrobe items, then CTA becomes "Style today →" prefilling prompt
-- `/stylenotes` — Style Notes page (standalone `stylenotes.html`, not part of the dashboard bundle)
+- `/stylenotes` — Style Notes page (standalone `stylenotes.html`, not part of the dashboard bundle): Colour harmony + Silhouette tabs are Gemini-analysis-driven with empty states; Taste & budget is manual input
+- Dashboard **ejected** from the 4.4MB Claude Design bundle into plain files (`dashboard.html` ~150KB + `dashboard-assets/` + `js/dashboard-personalize.js`) — revert = `git revert 63dda67`
+- Avatar dropdown grew Style notes + Log out items (`#av-stylenotes`, `#av-logout`)
 
 ## Deploying
 ```bash
@@ -108,11 +111,13 @@ Note: Cloudinary vars must be set on **both** production and staging Railway ser
 ## Style Notes page (`/stylenotes`, signup-flow branch)
 `public/stylenotes.html` is a standalone protected page (NOT part of the dashboard bundle). Session check via `sbClient.auth.getSession()`; no session → redirect to `/signup.html`.
 
-Entry point: the dashboard avatar dropdown — `__robes_personalize` appends an `#av-stylenotes` item after Moodboards (menu order: Account details / Wardrobe / Lookbook / Moodboards / Style notes) that navigates to `/stylenotes`. The page's ROBES wordmark routes back to `/dashboard`, keeping it inside the dashboard experience.
+Entry point: the dashboard avatar dropdown — `__robes_personalize` appends an `#av-stylenotes` item after Moodboards (menu order: Account details / Wardrobe / Lookbook / Moodboards / Style notes / Log out) that navigates to `/stylenotes`. The page's ROBES wordmark routes back to `/dashboard`, keeping it inside the dashboard experience.
 
 - Three tabs: 01 Colour harmony, 02 Silhouette & proportions, 03 Taste & budget. Breadcrumb `ROBES | Style notes / [chapter]` is pure hierarchy, never a control.
 - Tabs 01 + 02 are **analysis-driven with empty states**: before a photo is uploaded the hero shows only the headline + invite copy; every section below is hidden. Presence of `profiles.colour_analysis` / `profiles.silhouette_analysis` (JSONB, via `supabase/style_notes_analysis_migration.sql` — run once) decides empty vs filled — never the scalar columns.
 - Photo upload runs two parallel requests: `POST /api/stylenotes/analyse` (`{kind: 'colour'|'silhouette', data, mimeType}` → Gemini `gemini-2.5-flash` structured JSON) and `POST /api/wardrobe/upload` (Cloudinary). On success the analysis fills all sections and saves: full JSON to the `*_analysis` column + derived scalars (`season`/`undertone`/`contrast` or `body_type`) + photo URL. On `no_face_detected`/`no_person_detected` an inline error shows under the slot and nothing is saved.
+- The client downscales photos to max 1600px JPEG before sending (`createImageBitmap` → canvas, FileReader fallback) — keeps analyse + Cloudinary fast and clear of the 20mb body limit.
+- `/api/stylenotes/analyse` resilience: `thinkingConfig: { thinkingBudget: 0 }` + `maxOutputTokens` 8192 (colour) / 4096 (silhouette). Attempt 1 sends the `responseSchema`; on any Gemini error attempt 2 retries **without** the schema (JSON mode + the prompt's field spec — renderers validate shape anyway). Both failing → 502 `{ error: 'analysis_failed', reason }`; the client logs `reason` to the console and Railway logs carry `[stylenotes/analyse] attempt N failed`.
 - Colour analysis JSON drives: 18-hex palette, undertone rows + note, 6 neutrals, 8 best colours, 7 avoid colours + note, proof captions, 3 seen-on-you label pairs, 3 metals (name + 3 gradient hexes) + note. Silhouette drives: body type, 4 traits, 4 dress cards, 5 necklines, 5 tips. All LLM strings pass through `esc()`, hexes through `hex()` validation.
 - Loads/saves to `profiles`: `season`, `undertone`, `contrast`, `body_type`, `colour_analysis`, `silhouette_analysis`, `style_icons`, `budget` (tier name), `splurge_categories`, `annual_spend`, `headshot_url`, `full_length_url`. Base columns via `supabase/style_notes_migration.sql` — run once.
 - Saves fire immediately on each interaction (`update … eq('id', uid)`); `#save-state` in the top bar shows Saving…/Saved/Couldn't save.
@@ -401,3 +406,5 @@ Stored on each `the_look` item after a swap. Shape: `{ id, label, image_url, col
 - Bundle hides `#nav-wordmark` when wardrobe opens — use `setProperty('display','inline','important')` + a second MutationObserver on the wordmark to defend against re-hiding; `removeProperty('display')` on close
 - Wordmark onclick must close the wardrobe panel (`wp.classList.remove('visible')`) — without this, clicking ROBES clears the crumb but the panel stays open
 - `_rbTimeAgo(iso)` must be declared as a named `function` declaration (not an expression) — if the declaration is lost, JS throws on the body's `return` statements and the whole dashboard fails to load
+- `gemini-2.5-flash` **thinking tokens count inside `maxOutputTokens`** — structured-output endpoints returning large JSON must set `thinkingConfig: { thinkingBudget: 0 }` or the response truncates mid-JSON and the parse throws (this is why wardrobe analyse went 200 → 500 tokens, and why stylenotes analyse disables thinking)
+- A Gemini account **out of credit/quota** surfaces as 502 `analysis_failed` from `/api/stylenotes/analyse` — check the `reason` field in the response body (browser console) or Railway logs before debugging code
