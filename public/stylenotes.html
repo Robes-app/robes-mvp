@@ -82,6 +82,10 @@
     .slot-title { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-weight: 300; font-size: 20px; color: #A89880; }
     .slot-hint { font: 500 9px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: #C4B8A4; border: 1px solid #E0D8C8; border-radius: 4px; padding: 6px 10px; }
     .photo-slot:hover .slot-hint { color: #202021; border-color: #A89880; }
+    .photo-slot.busy { pointer-events: none; }
+    .photo-slot.busy .slot-hint { color: #A89880; border-color: transparent; animation: rb-pulse 1.4s ease-in-out infinite; }
+    @keyframes rb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    .slot-scrim { position: absolute; inset: 0; background: rgba(243,239,230,0.82); display: flex; align-items: center; justify-content: center; }
     .slot-replace {
       position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
       font: 500 8px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase;
@@ -89,6 +93,8 @@
       opacity: 0; transition: opacity 0.2s;
     }
     .photo-slot:hover .slot-replace { opacity: 1; }
+    .slot-err { font: 300 12px/1.5 'Inter'; color: #8B3A30; margin-top: 10px; max-width: 300px; display: none; }
+    .slot-err.on { display: block; }
 
     .sw { border-radius: 6px; }
     .sw-name { font-family: 'Cormorant', Georgia, serif; font-size: 16px; color: #202021; margin-top: 9px; }
@@ -194,22 +200,25 @@
     <div id="tab-colour">
 
       <section class="g-hero">
-        <button class="photo-slot" id="headshot-slot" style="height:380px;" aria-label="Add your close-up photo">
-          <span class="slot-empty">
-            <span class="slot-title">Your close-up</span>
-            <span class="slot-hint" id="headshot-hint">Add photo</span>
-          </span>
-        </button>
-        <input type="file" id="headshot-file" accept="image/*" hidden>
+        <div>
+          <button class="photo-slot" id="headshot-slot" style="height:380px;" aria-label="Add your close-up photo">
+            <span class="slot-empty">
+              <span class="slot-title">Your close-up</span>
+              <span class="slot-hint" id="headshot-hint">Add photo</span>
+            </span>
+          </button>
+          <input type="file" id="headshot-file" accept="image/*" hidden>
+          <p class="slot-err" id="headshot-err"></p>
+        </div>
         <div style="display:flex;flex-direction:column;justify-content:center;">
           <div class="eyebrow">Style notes — 01</div>
           <h1 class="chapter-h1">Colour<br>harmony.</h1>
-          <div style="display:flex;align-items:baseline;gap:14px;margin-top:26px;padding-top:22px;border-top:1px solid #E7E0CF;">
+          <div id="ch-season-row" style="display:none;align-items:baseline;gap:14px;margin-top:26px;padding-top:22px;border-top:1px solid #E7E0CF;">
             <span style="font:400 9px/1 'Inter';letter-spacing:0.22em;text-transform:uppercase;color:#C4B8A4;">Your season</span>
             <span style="font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:30px;color:#202021;" id="season-hero"></span>
           </div>
-          <p class="lead">Warm, low in contrast, a little dusty. Read from one photograph and held for you — Robes leans on it every time it styles a look, so the shades that make you the focus arrive without asking.</p>
-          <div style="display:flex;gap:40px;margin-top:24px;">
+          <p class="lead" id="ch-lead"></p>
+          <div id="ch-metrics" style="display:none;gap:40px;margin-top:24px;">
             <div>
               <div class="eyebrow-sm">Undertone</div>
               <div class="metric-val" id="undertone-metric"></div>
@@ -226,277 +235,147 @@
         </div>
       </section>
 
-      <section style="margin-top:72px;">
-        <div class="sec-head">
-          <div class="eyebrow">Seasonal palette</div>
-          <div class="note-it">Eighteen shades that are yours</div>
-        </div>
-        <div style="margin-top:18px;display:flex;flex-direction:column;gap:9px;">
-          <div class="g-6">
-            <div style="height:62px;border-radius:6px;background:#DCC8AC;"></div>
-            <div style="height:62px;border-radius:6px;background:#C8A982;"></div>
-            <div style="height:62px;border-radius:6px;background:#C2925A;"></div>
-            <div style="height:62px;border-radius:6px;background:#B5774A;"></div>
-            <div style="height:62px;border-radius:6px;background:#9C5638;"></div>
-            <div style="height:62px;border-radius:6px;background:#8A8048;"></div>
+      <div id="colour-sections" hidden>
+
+        <section style="margin-top:72px;">
+          <div class="sec-head">
+            <div class="eyebrow">Seasonal palette</div>
+            <div class="note-it">Eighteen shades that are yours</div>
           </div>
-          <div class="g-6">
-            <div style="height:62px;border-radius:6px;background:#7E8E6E;"></div>
-            <div style="height:62px;border-radius:6px;background:#5A6E50;"></div>
-            <div style="height:62px;border-radius:6px;background:#3E5E48;"></div>
-            <div style="height:62px;border-radius:6px;background:#2E6A66;"></div>
-            <div style="height:62px;border-radius:6px;background:#2C5E66;"></div>
-            <div style="height:62px;border-radius:6px;background:#355A66;"></div>
-          </div>
-          <div class="g-6">
-            <div style="height:62px;border-radius:6px;background:#2E3A52;"></div>
-            <div style="height:62px;border-radius:6px;background:#3A3450;"></div>
-            <div style="height:62px;border-radius:6px;background:#4E3A50;"></div>
-            <div style="height:62px;border-radius:6px;background:#5E3340;"></div>
-            <div style="height:62px;border-radius:6px;background:#7A3A42;"></div>
-            <div style="height:62px;border-radius:6px;background:#9A5A4E;"></div>
-          </div>
-        </div>
-      </section>
+          <div style="margin-top:18px;display:flex;flex-direction:column;gap:9px;" id="palette-grid"></div>
+        </section>
 
-      <section class="g-side" style="margin-top:64px;">
-        <div>
-          <div class="eyebrow">Undertone</div>
-          <div style="margin-top:20px;display:flex;flex-direction:column;" id="undertone-rows"></div>
-          <p style="font:300 12px/1.6 'Inter';font-style:italic;color:#C4B8A4;margin:16px 0 0;">Gold sits closer to your skin than silver. Warmth reads first.</p>
-        </div>
-        <div>
-          <div class="eyebrow">Best neutrals</div>
-          <div style="margin-top:20px;display:grid;grid-template-columns:repeat(6,1fr);gap:0;border:1px solid #E7E0CF;border-radius:6px;overflow:hidden;">
-            <div style="height:140px;background:#EDE5D5;"></div>
-            <div style="height:140px;background:#D8C7AC;"></div>
-            <div style="height:140px;background:#B89A78;"></div>
-            <div style="height:140px;background:#8E7458;"></div>
-            <div style="height:140px;background:#6E6A52;"></div>
-            <div style="height:140px;background:#4A3A2C;"></div>
-          </div>
-          <div style="margin-top:11px;display:grid;grid-template-columns:repeat(6,1fr);gap:0;">
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:14px;color:#202021;">Cream</div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:14px;color:#202021;">Oat</div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:14px;color:#202021;">Wheat</div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:14px;color:#202021;">Taupe</div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:14px;color:#202021;">Olive grey</div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:14px;color:#202021;">Cocoa</div>
-          </div>
-          <p style="font:300 12px/1.6 'Inter';color:#A89880;margin:18px 0 0;max-width:440px;">Build from these. They carry a whole outfit and let one of your colours do the talking.</p>
-        </div>
-      </section>
-
-      <div class="hr"></div>
-
-      <section>
-        <div class="sec-head">
-          <div class="eyebrow">Best clothing colours</div>
-          <div class="note-it">Reach for these first</div>
-        </div>
-        <div class="g-8" style="margin-top:20px;">
-          <div><div class="sw" style="height:96px;background:#6E7E64;"></div><div class="sw-name">Sage</div></div>
-          <div><div class="sw" style="height:96px;background:#5A5836;"></div><div class="sw-name">Olive</div></div>
-          <div><div class="sw" style="height:96px;background:#2C6066;"></div><div class="sw-name">Teal</div></div>
-          <div><div class="sw" style="height:96px;background:#A8603C;"></div><div class="sw-name">Rust</div></div>
-          <div><div class="sw" style="height:96px;background:#C97A5E;"></div><div class="sw-name">Muted coral</div></div>
-          <div><div class="sw" style="height:96px;background:#C2925A;"></div><div class="sw-name">Camel</div></div>
-          <div><div class="sw" style="height:96px;background:#8A7458;"></div><div class="sw-name">Warm taupe</div></div>
-          <div><div class="sw" style="height:96px;background:#33405C;"></div><div class="sw-name">Soft navy</div></div>
-        </div>
-      </section>
-
-      <section style="margin-top:48px;">
-        <div style="display:flex;align-items:baseline;gap:16px;">
-          <div class="eyebrow">Colours that fight you</div>
-          <div class="note-it">They pull focus from your warmth.</div>
-        </div>
-        <div class="g-7" style="margin-top:18px;">
-          <div><div class="sw" style="height:72px;background:#FFFFFF;border:1px solid #E7E0CF;"></div><div class="sw-name-muted">Bright white</div></div>
-          <div><div class="sw" style="height:72px;background:#F2D6DF;"></div><div class="sw-name-muted">Icy pink</div></div>
-          <div><div class="sw" style="height:72px;background:#C9C2E0;"></div><div class="sw-name-muted">Cool lavender</div></div>
-          <div><div class="sw" style="height:72px;background:#2E54C8;"></div><div class="sw-name-muted">Bright blue</div></div>
-          <div><div class="sw" style="height:72px;background:#B23A72;"></div><div class="sw-name-muted">Fuchsia</div></div>
-          <div><div class="sw" style="height:72px;background:#9AA0A6;"></div><div class="sw-name-muted">Cool grey</div></div>
-          <div><div class="sw" style="height:72px;background:#111111;"></div><div class="sw-name-muted">Jet black</div></div>
-        </div>
-      </section>
-
-      <div class="hr"></div>
-
-      <section>
-        <div class="eyebrow">The proof</div>
-        <h2 style="font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:34px;line-height:1.08;color:#202021;margin:14px 0 0;">The same face,<br><span style="font-style:italic;color:#A89880;">two colours apart.</span></h2>
-        <div class="g-2" style="margin-top:26px;">
+        <section class="g-side" style="margin-top:64px;">
           <div>
-            <div class="ph" style="width:100%;height:300px;border-radius:8px;"></div>
-            <div style="display:flex;align-items:center;gap:9px;margin-top:12px;">
-              <span class="tag" style="color:#202021;border:1px solid #D8CFC0;">Best</span>
-              <span style="font:300 13px/1.5 'Inter';color:#A89880;">Warmer, healthier, more even.</span>
-            </div>
+            <div class="eyebrow">Undertone</div>
+            <div style="margin-top:20px;display:flex;flex-direction:column;" id="undertone-rows"></div>
+            <p style="font:300 12px/1.6 'Inter';font-style:italic;color:#C4B8A4;margin:16px 0 0;" id="undertone-note"></p>
           </div>
           <div>
-            <div class="ph" style="width:100%;height:300px;border-radius:8px;"></div>
-            <div style="display:flex;align-items:center;gap:9px;margin-top:12px;">
-              <span class="tag" style="color:#C4B8A4;border:1px solid #E7E0CF;">Less so</span>
-              <span style="font:300 13px/1.5 'Inter';color:#C4B8A4;">Cooler, duller, more redness.</span>
-            </div>
+            <div class="eyebrow">Best neutrals</div>
+            <div style="margin-top:20px;display:grid;grid-template-columns:repeat(6,1fr);gap:0;border:1px solid #E7E0CF;border-radius:6px;overflow:hidden;" id="neutrals-grid"></div>
+            <div style="margin-top:11px;display:grid;grid-template-columns:repeat(6,1fr);gap:0;" id="neutrals-names"></div>
+            <p style="font:300 12px/1.6 'Inter';color:#A89880;margin:18px 0 0;max-width:440px;">Build from these. They carry a whole outfit and let one of your colours do the talking.</p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section style="margin-top:56px;">
-        <div class="sec-head">
-          <div class="eyebrow">Seen on you</div>
-          <div class="note-it">Left lifts you. Right flattens you.</div>
-        </div>
-        <div class="g-3" style="margin-top:22px;">
-          <div class="card-frame">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-              <div class="ph" style="width:100%;height:184px;"></div>
-              <div class="ph" style="width:100%;height:184px;"></div>
-            </div>
-            <div class="pair-labels">
-              <span style="color:#202021;">Olive shirt</span><span style="color:#C4B8A4;">Pale blue</span>
-            </div>
-          </div>
-          <div class="card-frame">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-              <div class="ph" style="width:100%;height:184px;"></div>
-              <div class="ph" style="width:100%;height:184px;"></div>
-            </div>
-            <div class="pair-labels">
-              <span style="color:#202021;">Rust knit</span><span style="color:#C4B8A4;">Hot pink</span>
-            </div>
-          </div>
-          <div class="card-frame">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-              <div class="ph" style="width:100%;height:184px;"></div>
-              <div class="ph" style="width:100%;height:184px;"></div>
-            </div>
-            <div class="pair-labels">
-              <span style="color:#202021;">Camel blazer</span><span style="color:#C4B8A4;">Cool grey</span>
-            </div>
-          </div>
-        </div>
-      </section>
+        <div class="hr"></div>
 
-      <div class="hr"></div>
+        <section>
+          <div class="sec-head">
+            <div class="eyebrow">Best clothing colours</div>
+            <div class="note-it">Reach for these first</div>
+          </div>
+          <div class="g-8" style="margin-top:20px;" id="best-grid"></div>
+        </section>
 
-      <section class="g-side" style="align-items:center;">
-        <div>
-          <div class="eyebrow">Best metals</div>
-          <p style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:20px;line-height:1.4;color:#A89880;margin:16px 0 0;">Brushed, not bright. Warm metals settle into your skin instead of sitting on top of it.</p>
-        </div>
-        <div style="display:flex;gap:40px;">
-          <div style="text-align:center;">
-            <div style="width:96px;height:96px;border-radius:50%;background:radial-gradient(circle at 36% 32%,#E4C878,#C6A24C 55%,#9C7E36);"></div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;color:#202021;margin-top:12px;">Gold</div>
+        <section style="margin-top:48px;">
+          <div style="display:flex;align-items:baseline;gap:16px;">
+            <div class="eyebrow">Colours that fight you</div>
+            <div class="note-it" id="avoid-note"></div>
           </div>
-          <div style="text-align:center;">
-            <div style="width:96px;height:96px;border-radius:50%;background:radial-gradient(circle at 36% 32%,#C99670,#A9744E 55%,#7E5436);"></div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;color:#202021;margin-top:12px;">Bronze</div>
-          </div>
-          <div style="text-align:center;">
-            <div style="width:96px;height:96px;border-radius:50%;background:radial-gradient(circle at 36% 32%,#E0AE98,#C98F78 55%,#A06B58);"></div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;color:#202021;margin-top:12px;">Rose gold</div>
-          </div>
-        </div>
-      </section>
+          <div class="g-7" style="margin-top:18px;" id="avoid-grid"></div>
+        </section>
 
+        <div class="hr"></div>
+
+        <section>
+          <div class="eyebrow">The proof</div>
+          <h2 style="font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:34px;line-height:1.08;color:#202021;margin:14px 0 0;">The same face,<br><span style="font-style:italic;color:#A89880;">two colours apart.</span></h2>
+          <div class="g-2" style="margin-top:26px;">
+            <div>
+              <div class="ph" style="width:100%;height:300px;border-radius:8px;"></div>
+              <div style="display:flex;align-items:center;gap:9px;margin-top:12px;">
+                <span class="tag" style="color:#202021;border:1px solid #D8CFC0;">Best</span>
+                <span style="font:300 13px/1.5 'Inter';color:#A89880;" id="proof-best"></span>
+              </div>
+            </div>
+            <div>
+              <div class="ph" style="width:100%;height:300px;border-radius:8px;"></div>
+              <div style="display:flex;align-items:center;gap:9px;margin-top:12px;">
+                <span class="tag" style="color:#C4B8A4;border:1px solid #E7E0CF;">Less so</span>
+                <span style="font:300 13px/1.5 'Inter';color:#C4B8A4;" id="proof-less"></span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section style="margin-top:56px;">
+          <div class="sec-head">
+            <div class="eyebrow">Seen on you</div>
+            <div class="note-it">Left lifts you. Right flattens you.</div>
+          </div>
+          <div class="g-3" style="margin-top:22px;" id="seen-cards"></div>
+        </section>
+
+        <div class="hr"></div>
+
+        <section class="g-side" style="align-items:center;">
+          <div>
+            <div class="eyebrow">Best metals</div>
+            <p style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:20px;line-height:1.4;color:#A89880;margin:16px 0 0;" id="metals-note"></p>
+          </div>
+          <div style="display:flex;gap:40px;" id="metals-row"></div>
+        </section>
+
+      </div>
     </div>
 
     <!-- ============ TAB 02 — SILHOUETTE & PROPORTIONS ============ -->
     <div id="tab-silhouette" hidden>
 
       <section class="g-hero">
-        <button class="photo-slot" id="full-slot" style="height:520px;" aria-label="Add your full-length photo">
-          <span class="slot-empty">
-            <span class="slot-title">Your full-length photo</span>
-            <span class="slot-hint" id="full-hint">Add photo</span>
-          </span>
-        </button>
-        <input type="file" id="full-file" accept="image/*" hidden>
+        <div>
+          <button class="photo-slot" id="full-slot" style="height:520px;" aria-label="Add your full-length photo">
+            <span class="slot-empty">
+              <span class="slot-title">Your full-length photo</span>
+              <span class="slot-hint" id="full-hint">Add photo</span>
+            </span>
+          </button>
+          <input type="file" id="full-file" accept="image/*" hidden>
+          <p class="slot-err" id="full-err"></p>
+        </div>
         <div style="display:flex;flex-direction:column;justify-content:center;">
           <div class="eyebrow">Style notes — 02</div>
           <h1 class="chapter-h1">Silhouette<br>&amp; proportions.</h1>
-          <div style="display:flex;align-items:baseline;gap:14px;margin-top:26px;padding-top:22px;border-top:1px solid #E7E0CF;">
+          <div id="sil-type-row" style="display:none;align-items:baseline;gap:14px;margin-top:26px;padding-top:22px;border-top:1px solid #E7E0CF;">
             <span style="font:400 9px/1 'Inter';letter-spacing:0.22em;text-transform:uppercase;color:#C4B8A4;">Your body type</span>
             <span style="font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:30px;color:#202021;" id="bodytype-hero"></span>
           </div>
-          <p class="lead">Balanced top to bottom with a waist that wants showing. Robes reads your line once and cuts toward it — pieces that mark the middle and keep your proportions even, so you never have to guess what flatters.</p>
+          <p class="lead" id="sil-lead"></p>
           <div style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:0 36px;" id="trait-grid"></div>
         </div>
       </section>
 
-      <section style="margin-top:64px;">
-        <div class="sec-head">
-          <div class="eyebrow">Best dress silhouettes</div>
-          <div class="note-it">Cut for your waist, every time</div>
-        </div>
-        <div class="g-4" style="margin-top:22px;">
-          <div>
-            <div class="ph" style="width:100%;height:300px;"></div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:18px;color:#202021;margin-top:11px;">Wrap dress</div>
-            <div style="font:300 12px/1.5 'Inter';color:#A89880;margin-top:2px;">Marks the waist</div>
-          </div>
-          <div>
-            <div class="ph" style="width:100%;height:300px;"></div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:18px;color:#202021;margin-top:11px;">Fit &amp; flare</div>
-            <div style="font:300 12px/1.5 'Inter';color:#A89880;margin-top:2px;">Curves, kept</div>
-          </div>
-          <div>
-            <div class="ph" style="width:100%;height:300px;"></div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:18px;color:#202021;margin-top:11px;">A-line</div>
-            <div style="font:300 12px/1.5 'Inter';color:#A89880;margin-top:2px;">Skims the hip</div>
-          </div>
-          <div>
-            <div class="ph" style="width:100%;height:300px;"></div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:18px;color:#202021;margin-top:11px;">Belted midi</div>
-            <div style="font:300 12px/1.5 'Inter';color:#A89880;margin-top:2px;">Defined, easy</div>
-          </div>
-        </div>
-      </section>
+      <div id="sil-sections" hidden>
 
-      <section style="margin-top:56px;">
-        <div class="sec-head">
-          <div class="eyebrow">Neckline recommendations</div>
-          <div class="note-it">Open lines that lengthen and frame</div>
-        </div>
-        <div class="g-5" style="margin-top:20px;">
-          <div>
-            <div class="ph" style="width:100%;height:210px;"></div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:16px;color:#202021;margin-top:10px;text-align:center;">V-neck</div>
+        <section style="margin-top:64px;">
+          <div class="sec-head">
+            <div class="eyebrow">Best dress silhouettes</div>
+            <div class="note-it">Cut for your waist, every time</div>
           </div>
-          <div>
-            <div class="ph" style="width:100%;height:210px;"></div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:16px;color:#202021;margin-top:10px;text-align:center;">Scoop neck</div>
-          </div>
-          <div>
-            <div class="ph" style="width:100%;height:210px;"></div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:16px;color:#202021;margin-top:10px;text-align:center;">Square neck</div>
-          </div>
-          <div>
-            <div class="ph" style="width:100%;height:210px;"></div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:16px;color:#202021;margin-top:10px;text-align:center;">Surplice</div>
-          </div>
-          <div>
-            <div class="ph" style="width:100%;height:210px;"></div>
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:16px;color:#202021;margin-top:10px;text-align:center;">Collared V</div>
-          </div>
-        </div>
-      </section>
+          <div class="g-4" style="margin-top:22px;" id="dress-grid"></div>
+        </section>
 
-      <div class="hr"></div>
+        <section style="margin-top:56px;">
+          <div class="sec-head">
+            <div class="eyebrow">Neckline recommendations</div>
+            <div class="note-it">Open lines that lengthen and frame</div>
+          </div>
+          <div class="g-5" style="margin-top:20px;" id="neck-grid"></div>
+        </section>
 
-      <section>
-        <div class="sec-head">
-          <div class="eyebrow">Styling tips that flatter</div>
-          <div class="note-it">Five moves that always work on you</div>
-        </div>
-        <div class="g-5" style="margin-top:24px;gap:16px;" id="tips-grid"></div>
-      </section>
+        <div class="hr"></div>
 
+        <section>
+          <div class="sec-head">
+            <div class="eyebrow">Styling tips that flatter</div>
+            <div class="note-it">Five moves that always work on you</div>
+          </div>
+          <div class="g-5" style="margin-top:24px;gap:16px;" id="tips-grid"></div>
+        </section>
+
+      </div>
     </div>
 
     <!-- ============ TAB 03 — TASTE & BUDGET ============ -->
@@ -602,23 +481,18 @@
       { label: 'Prefer not to say', note: '' },
     ];
     const POPULAR_ICONS = ['Carolyn Bessette-Kennedy', 'The Row', 'Hailey Bieber', 'Jane Birkin', 'Sézane', 'Zoë Kravitz', 'Acne Studios', 'Isabel Marant', 'Sofia Loren', 'Jacquemus'];
-    const BODY_TRAITS = {
-      'Hourglass': ['Balanced shoulders & hips', 'Defined waist', 'Proportional curves', 'Strong lower body'],
-      'Pear': ['Narrower shoulders', 'Defined waist', 'Fuller hips & thigh', 'Strong lower body'],
-      'Rectangle': ['Even shoulders & hips', 'Soft waist line', 'Straight, lean frame', 'Athletic balance'],
-      'Inverted triangle': ['Broader shoulders', 'Narrower hips', 'Lean lower body', 'Strong upper line'],
-      'Apple': ['Fuller midsection', 'Soft waist line', 'Slimmer legs', 'Balanced shoulders'],
-    };
-    const STYLING_TIPS = ['Define the waist', 'Structured layers', 'High-waist bottoms', 'Show some skin', 'Long vertical lines'];
     const CHAPTERS = { colour: 'Colour harmony', silhouette: 'Silhouette & proportions', taste: 'Taste & budget' };
+
+    const INVITE_COLOUR = 'Upload a close-up and Robes reads your colouring — your season, undertone, contrast and the eighteen shades that are yours.';
+    const INVITE_SIL = 'Upload a full-length photo and Robes reads your line — your body type, the cuts that flatter and the moves that always work on you.';
+    const LEAD_COLOUR_TAIL = ' Read from one photograph and held for you — Robes leans on it every time it styles a look, so the shades that make you the focus arrive without asking.';
+    const LEAD_SIL_TAIL = ' Robes reads your line once and cuts toward it — so you never have to guess what flatters.';
 
     const st = {
       uid: null,
       tab: 'colour',
-      season: 'Soft autumn',
-      undertone: 'Warm',
-      contrast: 'Medium',
-      bodyType: 'Hourglass',
+      colour: null,
+      sil: null,
       icons: ['Totême', 'Sienna Miller'],
       tier: 'Contemporary',
       splurge: ['Shoes', 'Bags'],
@@ -629,6 +503,10 @@
 
     function esc(s) {
       return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function hex(h) {
+      return /^#[0-9a-fA-F]{3,8}$/.test(String(h || '').trim()) ? String(h).trim() : '#D8CFC0';
     }
 
     const saveEl = document.getElementById('save-state');
@@ -661,40 +539,141 @@
       window.scrollTo(0, 0);
     };
 
-    function renderReadouts() {
-      document.getElementById('season-hero').textContent = st.season;
-      document.getElementById('season-metric').textContent = st.season;
-      document.getElementById('undertone-metric').textContent = st.undertone;
-      document.getElementById('contrast-metric').textContent = st.contrast;
-      document.getElementById('bodytype-hero').textContent = st.bodyType;
-    }
+    /* ── Tab 01 — colour harmony ─────────────────────────────────── */
 
-    function renderUndertone() {
+    function renderColour() {
+      const a = st.colour;
+      const seasonRow = document.getElementById('ch-season-row');
+      const metrics = document.getElementById('ch-metrics');
+      const sections = document.getElementById('colour-sections');
+      if (!a) {
+        seasonRow.style.display = 'none';
+        metrics.style.display = 'none';
+        sections.hidden = true;
+        document.getElementById('ch-lead').textContent = INVITE_COLOUR;
+        return;
+      }
+      seasonRow.style.display = 'flex';
+      metrics.style.display = 'flex';
+      sections.hidden = false;
+
+      document.getElementById('season-hero').textContent = a.season;
+      document.getElementById('season-metric').textContent = a.season;
+      document.getElementById('undertone-metric').textContent = a.undertone;
+      document.getElementById('contrast-metric').textContent = a.contrast;
+      document.getElementById('ch-lead').textContent = a.summary + LEAD_COLOUR_TAIL;
+
+      const pal = (a.palette || []).slice(0, 18);
+      let rows = '';
+      for (let r = 0; r < 3; r++) {
+        rows += '<div class="g-6">' + pal.slice(r * 6, r * 6 + 6).map(h =>
+          '<div style="height:62px;border-radius:6px;background:' + hex(h) + ';"></div>'
+        ).join('') + '</div>';
+      }
+      document.getElementById('palette-grid').innerHTML = rows;
+
       document.getElementById('undertone-rows').innerHTML = UNDERTONES.map(u => {
-        const on = u === st.undertone;
+        const on = u === a.undertone;
         return '<div class="ut-row">' +
           '<span class="ut-label" style="color:' + (on ? '#202021' : '#C4B8A4') + ';">' + u + '</span>' +
           (on ? '<span class="ut-yours"><span class="dot"></span>Yours</span>' : '') +
         '</div>';
       }).join('');
+      document.getElementById('undertone-note').textContent = a.undertone_note;
+
+      const neutrals = (a.neutrals || []).slice(0, 6);
+      document.getElementById('neutrals-grid').innerHTML = neutrals.map(n =>
+        '<div style="height:140px;background:' + hex(n.hex) + ';"></div>'
+      ).join('');
+      document.getElementById('neutrals-names').innerHTML = neutrals.map(n =>
+        '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:14px;color:#202021;">' + esc(n.name) + '</div>'
+      ).join('');
+
+      document.getElementById('best-grid').innerHTML = (a.best_colours || []).slice(0, 8).map(c =>
+        '<div><div class="sw" style="height:96px;background:' + hex(c.hex) + ';"></div><div class="sw-name">' + esc(c.name) + '</div></div>'
+      ).join('');
+
+      document.getElementById('avoid-note').textContent = a.avoid_note;
+      document.getElementById('avoid-grid').innerHTML = (a.avoid_colours || []).slice(0, 7).map(c => {
+        const h = hex(c.hex);
+        const border = /^#f/i.test(h) || h.toUpperCase() === '#FFFFFF' ? 'border:1px solid #E7E0CF;' : '';
+        return '<div><div class="sw" style="height:72px;background:' + h + ';' + border + '"></div><div class="sw-name-muted">' + esc(c.name) + '</div></div>';
+      }).join('');
+
+      document.getElementById('proof-best').textContent = a.proof_best;
+      document.getElementById('proof-less').textContent = a.proof_less;
+
+      document.getElementById('seen-cards').innerHTML = (a.seen_on_you || []).slice(0, 3).map(p =>
+        '<div class="card-frame">' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
+            '<div class="ph" style="width:100%;height:184px;"></div>' +
+            '<div class="ph" style="width:100%;height:184px;"></div>' +
+          '</div>' +
+          '<div class="pair-labels">' +
+            '<span style="color:#202021;">' + esc(p.lifts) + '</span><span style="color:#C4B8A4;">' + esc(p.flattens) + '</span>' +
+          '</div>' +
+        '</div>'
+      ).join('');
+
+      document.getElementById('metals-note').textContent = a.metals_note;
+      document.getElementById('metals-row').innerHTML = (a.metals || []).slice(0, 3).map(m => {
+        const hx = (m.hexes || []).map(hex);
+        while (hx.length < 3) hx.push('#C4B8A4');
+        return '<div style="text-align:center;">' +
+          '<div style="width:96px;height:96px;border-radius:50%;background:radial-gradient(circle at 36% 32%,' + hx[0] + ',' + hx[1] + ' 55%,' + hx[2] + ');"></div>' +
+          '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:17px;color:#202021;margin-top:12px;">' + esc(m.name) + '</div>' +
+        '</div>';
+      }).join('');
     }
 
-    function renderTraits() {
-      const traits = BODY_TRAITS[st.bodyType] || BODY_TRAITS['Hourglass'];
-      document.getElementById('trait-grid').innerHTML = traits.map(t =>
+    /* ── Tab 02 — silhouette ─────────────────────────────────────── */
+
+    function renderSil() {
+      const a = st.sil;
+      const typeRow = document.getElementById('sil-type-row');
+      const sections = document.getElementById('sil-sections');
+      if (!a) {
+        typeRow.style.display = 'none';
+        sections.hidden = true;
+        document.getElementById('sil-lead').textContent = INVITE_SIL;
+        document.getElementById('trait-grid').innerHTML = '';
+        return;
+      }
+      typeRow.style.display = 'flex';
+      sections.hidden = false;
+
+      document.getElementById('bodytype-hero').textContent = a.body_type;
+      document.getElementById('sil-lead').textContent = a.summary + LEAD_SIL_TAIL;
+
+      document.getElementById('trait-grid').innerHTML = (a.traits || []).slice(0, 4).map(t =>
         '<div class="trait-row"><span class="dot"></span><span class="trait-label">' + esc(t) + '</span></div>'
       ).join('');
-    }
 
-    function renderTips() {
-      document.getElementById('tips-grid').innerHTML = STYLING_TIPS.map(label =>
+      document.getElementById('dress-grid').innerHTML = (a.dress_silhouettes || []).slice(0, 4).map(d =>
+        '<div>' +
+          '<div class="ph" style="width:100%;height:300px;"></div>' +
+          '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:18px;color:#202021;margin-top:11px;">' + esc(d.name) + '</div>' +
+          '<div style="font:300 12px/1.5 \'Inter\';color:#A89880;margin-top:2px;">' + esc(d.note) + '</div>' +
+        '</div>'
+      ).join('');
+
+      document.getElementById('neck-grid').innerHTML = (a.neckline_recommendations || []).slice(0, 5).map(n =>
+        '<div>' +
+          '<div class="ph" style="width:100%;height:210px;"></div>' +
+          '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:16px;color:#202021;margin-top:10px;text-align:center;">' + esc(n) + '</div>' +
+        '</div>'
+      ).join('');
+
+      document.getElementById('tips-grid').innerHTML = (a.styling_tips || []).slice(0, 5).map(label =>
         '<div style="display:flex;flex-direction:column;align-items:center;">' +
           '<div class="ph" style="width:100%;height:300px;"></div>' +
-          '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:16px;color:#202021;margin-top:13px;text-align:center;">' + label + '</div>' +
+          '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:16px;color:#202021;margin-top:13px;text-align:center;">' + esc(label) + '</div>' +
           '<span class="check-circle"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>' +
         '</div>'
       ).join('');
     }
+
+    /* ── Tab 03 — taste & budget ─────────────────────────────────── */
 
     function renderStats() {
       document.getElementById('tier-metric').textContent = st.tier;
@@ -787,6 +766,8 @@
       save({ annual_spend: v });
     };
 
+    /* ── Photo slots + analysis ──────────────────────────────────── */
+
     function renderSlot(slotId, url) {
       const slot = document.getElementById(slotId);
       let img = slot.querySelector('img');
@@ -803,39 +784,89 @@
       img.src = url;
     }
 
-    function wireSlot(slotId, fileId, hintId, column, stateKey) {
+    function slotBusy(slotId, hintId, msg) {
       const slot = document.getElementById(slotId);
-      const input = document.getElementById(fileId);
+      const hint = document.getElementById(hintId);
+      if (msg) {
+        slot.classList.add('busy');
+        if (slot.querySelector('img') && !slot.querySelector('.slot-scrim')) {
+          const scrim = document.createElement('span');
+          scrim.className = 'slot-scrim';
+          scrim.innerHTML = '<span class="slot-hint" style="animation:rb-pulse 1.4s ease-in-out infinite;border-color:transparent;color:#A89880;">' + msg + '</span>';
+          slot.appendChild(scrim);
+        }
+        hint.textContent = msg;
+      } else {
+        slot.classList.remove('busy');
+        const scrim = slot.querySelector('.slot-scrim');
+        if (scrim) scrim.remove();
+        hint.textContent = 'Add photo';
+      }
+    }
+
+    function slotError(errId, msg) {
+      const el = document.getElementById(errId);
+      el.textContent = msg || '';
+      el.className = 'slot-err' + (msg ? ' on' : '');
+    }
+
+    function wireSlot(cfg) {
+      const slot = document.getElementById(cfg.slotId);
+      const input = document.getElementById(cfg.fileId);
       slot.addEventListener('click', () => input.click());
       input.addEventListener('change', () => {
         const file = input.files[0];
         if (!file) return;
-        const hint = document.getElementById(hintId);
-        hint.textContent = 'Uploading…';
+        slotError(cfg.errId, '');
         const reader = new FileReader();
         reader.onload = async () => {
+          const m = String(reader.result).match(/^data:(.+?);base64,(.+)$/);
+          if (!m) { slotError(cfg.errId, 'Couldn’t read that image — try another file.'); input.value = ''; return; }
+          slotBusy(cfg.slotId, cfg.hintId, cfg.busyMsg);
           try {
-            const m = String(reader.result).match(/^data:(.+?);base64,(.+)$/);
-            if (!m) throw new Error('Could not read image');
-            const res = await fetch('/api/wardrobe/upload', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ data: m[2], mimeType: m[1] }),
-            });
-            const json = await res.json();
-            if (!res.ok || !json.url) throw new Error(json.error || 'Upload failed');
-            st[stateKey] = json.url;
-            renderSlot(slotId, json.url);
+            const [analysis, upload] = await Promise.all([
+              fetch('/api/stylenotes/analyse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ kind: cfg.kind, data: m[2], mimeType: m[1] }),
+              }).then(r => r.ok ? r.json() : Promise.reject(new Error('analysis_failed'))),
+              fetch('/api/wardrobe/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: m[2], mimeType: m[1] }),
+              }).then(r => r.json()).catch(() => ({})),
+            ]);
+            if (cfg.kind === 'colour' ? analysis.no_face_detected : analysis.no_person_detected) {
+              slotError(cfg.errId, cfg.rejectMsg);
+              return;
+            }
+            const url = upload.url || null;
             const patch = {};
-            patch[column] = json.url;
+            if (cfg.kind === 'colour') {
+              st.colour = analysis;
+              if (url) st.headshotUrl = url;
+              patch.colour_analysis = analysis;
+              patch.season = analysis.season;
+              patch.undertone = analysis.undertone;
+              patch.contrast = analysis.contrast;
+              if (url) patch.headshot_url = url;
+              renderSlot(cfg.slotId, st.headshotUrl);
+              renderColour();
+            } else {
+              st.sil = analysis;
+              if (url) st.fullLengthUrl = url;
+              patch.silhouette_analysis = analysis;
+              patch.body_type = analysis.body_type;
+              if (url) patch.full_length_url = url;
+              renderSlot(cfg.slotId, st.fullLengthUrl);
+              renderSil();
+            }
             save(patch);
           } catch (err) {
-            console.error('Photo upload failed:', err.message);
-            saveEl.textContent = 'Upload failed';
-            saveEl.className = 'on err';
-            setTimeout(() => { saveEl.className = ''; }, 3000);
+            console.error('Analysis failed:', err.message);
+            slotError(cfg.errId, 'Robes couldn’t read that photo just now — try again in a moment.');
           } finally {
-            hint.textContent = 'Add photo';
+            slotBusy(cfg.slotId, cfg.hintId, null);
             input.value = '';
           }
         };
@@ -844,10 +875,8 @@
     }
 
     function renderAll() {
-      renderReadouts();
-      renderUndertone();
-      renderTraits();
-      renderTips();
+      renderColour();
+      renderSil();
       renderIcons();
       renderTiers();
       renderSplurge();
@@ -864,10 +893,8 @@
       const { data: profile, error } = await sbClient
         .from('profiles').select('*').eq('id', st.uid).single();
       if (!error && profile) {
-        if (profile.season) st.season = profile.season;
-        if (profile.undertone) st.undertone = profile.undertone;
-        if (profile.contrast) st.contrast = profile.contrast;
-        if (profile.body_type) st.bodyType = profile.body_type;
+        if (profile.colour_analysis && profile.colour_analysis.season) st.colour = profile.colour_analysis;
+        if (profile.silhouette_analysis && profile.silhouette_analysis.body_type) st.sil = profile.silhouette_analysis;
         if (profile.style_icons && profile.style_icons.length) st.icons = profile.style_icons;
         if (profile.budget) st.tier = profile.budget;
         if (profile.splurge_categories && profile.splurge_categories.length) st.splurge = profile.splurge_categories;
@@ -882,8 +909,16 @@
       if (e.key === 'Enter') { e.preventDefault(); addIcon(e.target.value); }
     });
 
-    wireSlot('headshot-slot', 'headshot-file', 'headshot-hint', 'headshot_url', 'headshotUrl');
-    wireSlot('full-slot', 'full-file', 'full-hint', 'full_length_url', 'fullLengthUrl');
+    wireSlot({
+      kind: 'colour', slotId: 'headshot-slot', fileId: 'headshot-file', hintId: 'headshot-hint', errId: 'headshot-err',
+      busyMsg: 'Reading your colouring…',
+      rejectMsg: 'Robes couldn’t find a face in that photo — try a clearer close-up.',
+    });
+    wireSlot({
+      kind: 'silhouette', slotId: 'full-slot', fileId: 'full-file', hintId: 'full-hint', errId: 'full-err',
+      busyMsg: 'Reading your line…',
+      rejectMsg: 'Robes couldn’t read a full-length figure — try a head-to-toe photo.',
+    });
 
     renderAll();
     init();

@@ -21,6 +21,8 @@ create table if not exists public.profiles (
   annual_spend        text,
   headshot_url        text,
   full_length_url     text,
+  colour_analysis     jsonb,
+  silhouette_analysis jsonb,
   created_at          timestamptz default now() not null,
   updated_at          timestamptz default now() not null
 );

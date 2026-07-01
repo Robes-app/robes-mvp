@@ -533,6 +533,110 @@ If a clothing item IS present, set "no_item_detected": false and fill every fiel
   }
 });
 
+const STYLE_COLOUR_SCHEMA = {
+  type: 'object',
+  properties: {
+    no_face_detected: { type: 'boolean' },
+    season:    { type: 'string', enum: ['Soft autumn', 'True autumn', 'Warm spring', 'Soft summer'] },
+    undertone: { type: 'string', enum: ['Warm', 'Neutral', 'Cool'] },
+    contrast:  { type: 'string', enum: ['Low, blended', 'Medium', 'High contrast'] },
+    summary:        { type: 'string' },
+    undertone_note: { type: 'string' },
+    palette:  { type: 'array', items: { type: 'string' } },
+    neutrals: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, hex: { type: 'string' } }, required: ['name', 'hex'] } },
+    best_colours:  { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, hex: { type: 'string' } }, required: ['name', 'hex'] } },
+    avoid_colours: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, hex: { type: 'string' } }, required: ['name', 'hex'] } },
+    avoid_note: { type: 'string' },
+    proof_best: { type: 'string' },
+    proof_less: { type: 'string' },
+    seen_on_you: { type: 'array', items: { type: 'object', properties: { lifts: { type: 'string' }, flattens: { type: 'string' } }, required: ['lifts', 'flattens'] } },
+    metals: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, hexes: { type: 'array', items: { type: 'string' } } }, required: ['name', 'hexes'] } },
+    metals_note: { type: 'string' },
+  },
+  required: ['no_face_detected', 'season', 'undertone', 'contrast', 'summary', 'undertone_note', 'palette', 'neutrals', 'best_colours', 'avoid_colours', 'avoid_note', 'proof_best', 'proof_less', 'seen_on_you', 'metals', 'metals_note'],
+};
+
+const STYLE_SILHOUETTE_SCHEMA = {
+  type: 'object',
+  properties: {
+    no_person_detected: { type: 'boolean' },
+    body_type: { type: 'string', enum: ['Hourglass', 'Pear', 'Rectangle', 'Inverted triangle', 'Apple'] },
+    summary: { type: 'string' },
+    traits:  { type: 'array', items: { type: 'string' } },
+    dress_silhouettes: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, note: { type: 'string' } }, required: ['name', 'note'] } },
+    neckline_recommendations: { type: 'array', items: { type: 'string' } },
+    styling_tips: { type: 'array', items: { type: 'string' } },
+  },
+  required: ['no_person_detected', 'body_type', 'summary', 'traits', 'dress_silhouettes', 'neckline_recommendations', 'styling_tips'],
+};
+
+const STYLE_COLOUR_PROMPT = `You are the colour analyst for Robes, a luxury personal styling service. Analyse the person in this portrait — skin undertone, hair, eyes, overall contrast — and produce their personal colour analysis. Voice: editorial magazine — short, confident, warm; no hedging, no exclamation marks.
+
+IMPORTANT: If no human face is clearly visible (a garment, a room, a screenshot), set "no_face_detected": true and return every other field as an empty string or empty array.
+
+Otherwise set "no_face_detected": false and fill every field:
+"season": one of — Soft autumn, True autumn, Warm spring, Soft summer
+"undertone": Warm, Neutral or Cool
+"contrast": "Low, blended", "Medium" or "High contrast"
+"summary": one clause under 12 words describing their colouring (e.g. "Warm, low in contrast, a little dusty.")
+"undertone_note": one short sentence on their metals vs skin (e.g. "Gold sits closer to your skin than silver. Warmth reads first.")
+"palette": exactly 18 hex codes, their seasonal palette as 3 rows of 6 — row 1 earth/warm tones light to deep, row 2 greens into teals and blues, row 3 deep blues and plums into berry and terracotta. Muted, harmonious, editorial. Never neon.
+"neutrals": exactly 6 {name, hex}, light to dark (Cream through Cocoa territory). Names 1–2 words.
+"best_colours": exactly 8 {name, hex} — their most flattering clothing colours.
+"avoid_colours": exactly 7 {name, hex} — colours that fight their colouring.
+"avoid_note": one short clause on why (e.g. "They pull focus from your warmth.")
+"proof_best": caption for their best-colour draping, 3–6 words (e.g. "Warmer, healthier, more even.")
+"proof_less": caption for the unflattering draping, 3–6 words (e.g. "Cooler, duller, more redness.")
+"seen_on_you": exactly 3 pairs {lifts, flattens}, each a garment-plus-colour label of 2–3 words (e.g. lifts "Olive shirt", flattens "Pale blue")
+"metals": exactly 3 {name, hexes} — their best metals, hexes is [light, mid, deep] for a disc gradient (e.g. Gold ["#E4C878","#C6A24C","#9C7E36"])
+"metals_note": one sentence in the register of "Brushed, not bright. Warm metals settle into your skin instead of sitting on top of it."`;
+
+const STYLE_SILHOUETTE_PROMPT = `You are the silhouette analyst for Robes, a luxury personal styling service. Analyse the person in this full-length photograph — shoulder line, waist definition, hip line, overall proportions — and produce their silhouette guidance. Voice: editorial magazine — short, confident, warm; always flattering, never clinical.
+
+IMPORTANT: If no full-length human figure is clearly visible, set "no_person_detected": true and return every other field as an empty string or empty array.
+
+Otherwise set "no_person_detected": false and fill every field:
+"body_type": one of — Hourglass, Pear, Rectangle, Inverted triangle, Apple
+"summary": one sentence under 14 words describing their line (e.g. "Balanced top to bottom with a waist that wants showing.")
+"traits": exactly 4 short traits, 2–4 words each (e.g. "Balanced shoulders & hips")
+"dress_silhouettes": exactly 4 {name, note} — their best dress cuts, note under 4 words (e.g. name "Wrap dress", note "Marks the waist")
+"neckline_recommendations": exactly 5 neckline names (e.g. "V-neck", "Square neck")
+"styling_tips": exactly 5 short imperative tips, 2–4 words (e.g. "Define the waist")`;
+
+app.post('/api/stylenotes/analyse', async (req, res) => {
+  const { kind, data, mimeType } = req.body;
+  if (!data || !mimeType || !['colour', 'silhouette'].includes(kind)) {
+    return res.status(400).json({ error: 'Missing kind, data or mimeType' });
+  }
+  const colour = kind === 'colour';
+  const t0 = Date.now();
+  try {
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType, data } },
+          { text: colour ? STYLE_COLOUR_PROMPT : STYLE_SILHOUETTE_PROMPT },
+        ],
+      }],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: colour ? STYLE_COLOUR_SCHEMA : STYLE_SILHOUETTE_SCHEMA,
+        maxOutputTokens: colour ? 2500 : 900,
+      },
+    });
+    const parsed = JSON.parse(result.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+    const rejected = colour ? parsed.no_face_detected : parsed.no_person_detected;
+    logAI({ feature: 'stylenotes_analyse', kind, ms: Date.now() - t0, rejected: !!rejected, success: true });
+    res.json(parsed);
+  } catch (err) {
+    logAI({ feature: 'stylenotes_analyse', kind, ms: Date.now() - t0, success: false, reason: err.message });
+    console.error('[stylenotes/analyse] Gemini error:', err.message);
+    res.status(502).json({ error: 'analysis_failed' });
+  }
+});
+
 /* ── moodboard ───────────────────────────────────────────────────── */
 app.post('/api/moodboard', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
   const { prompt, wardrobeItems = [] } = req.body;
