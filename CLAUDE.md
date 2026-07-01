@@ -127,7 +127,8 @@ The dashboard was originally a ~4MB self-contained Claude Design bundle; it has 
 - `public/dashboard.html` (~150KB) — plain HTML page. Head carries `window.__resources` (id → asset path map the app JS reads for runtime imagery) and a `#rb-boot` style that hides the body until boot completes.
 - `public/dashboard-assets/` — 43 extracted assets (fonts, images, the 6 app JS files), named by their original bundle uuid. Fetched on demand and cached individually.
 - `public/js/dashboard-personalize.js` — the entire `window.__robes_personalize` customisation layer.
-- Boot sequence (inline script at end of body): load supabase-js CDN → auth guard (no session → `/signup.html`) → set `window.__robes_session`/`__robes_profile` → load the 6 app scripts **sequentially in order** → call `__robes_personalize()` → remove `#rb-boot`. Do not reorder; the app scripts depend on session being set first and on each other's order.
+- Boot sequence (inline script at end of body): load supabase-js CDN → auth guard (no session → `/signup.html`) → set `window.__robes_session`/`__robes_sb`/`__robes_profile` → load the 6 app scripts **sequentially in order** → call `__robes_personalize()` → remove `#rb-boot`. Do not reorder; the app scripts depend on session being set first and on each other's order.
+- `window.__robes_sb` is the authenticated Supabase client — used by the avatar dropdown's Log out item (`#av-logout`: `signOut()` then redirect to `/signup.html?mode=signin`). Dropdown order: Account details / Wardrobe / Lookbook / Moodboards / Style notes / Log out.
 
 "The bundle" below refers to the minified app JS in `dashboard-assets/` — its functions are still private closures, so the whole interception layer is unchanged. All customisation runs via `window.__robes_personalize`, called after all bundle scripts execute.
 

@@ -1144,6 +1144,31 @@
           }
         }
 
+        // Add Log out item at the bottom of av-menu
+        if (avMenu && !document.getElementById('av-logout')) {
+          const loBtn = document.createElement('button');
+          loBtn.id = 'av-logout';
+          loBtn.className = 'av-item';
+          loBtn.style.cssText = 'border-top:0.5px solid var(--rule);border-radius:0;margin-top:4px;padding-top:12px';
+          loBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>Log out`;
+          loBtn.onclick = async () => {
+            avMenu.classList.remove('open');
+            loBtn.textContent = 'Signing out…';
+            try {
+              const sb = window.__robes_sb ||
+                (window.supabase && window.supabase.createClient(
+                  'https://ayowpaknssulsqqvwpqx.supabase.co',
+                  'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ'
+                ));
+              if (sb) await sb.auth.signOut();
+            } catch (e) {
+              console.error('Sign out failed:', e);
+            }
+            window.location.href = '/signup.html?mode=signin';
+          };
+          avMenu.appendChild(loBtn);
+        }
+
         // Reorder + relabel concierge cards — bundle order: Weekly(01), Travel(02), Key Piece(03)
         // Target order: Daily Outfit(01), Weekly Planner(02), Travel Edit(03)
         const grid = document.querySelector('.services-grid');
