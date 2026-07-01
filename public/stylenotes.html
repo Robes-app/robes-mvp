@@ -858,7 +858,11 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ kind: cfg.kind, data: payload.data, mimeType: payload.mimeType }),
-              }).then(r => r.ok ? r.json() : Promise.reject(new Error('analysis_failed'))),
+              }).then(async r => {
+                if (r.ok) return r.json();
+                const body = await r.json().catch(() => ({}));
+                throw new Error(body.reason || 'analysis_failed (' + r.status + ')');
+              }),
               fetch('/api/wardrobe/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

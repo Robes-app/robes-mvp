@@ -611,22 +611,36 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
   const colour = kind === 'colour';
   const t0 = Date.now();
   try {
-    const result = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{
-        role: 'user',
-        parts: [
-          { inlineData: { mimeType, data } },
-          { text: colour ? STYLE_COLOUR_PROMPT : STYLE_SILHOUETTE_PROMPT },
-        ],
-      }],
-      config: {
+    // Attempt 1 uses a responseSchema; if Gemini rejects it (schema too
+    // complex) or hiccups, attempt 2 drops the schema and trusts JSON mode +
+    // the prompt's explicit field spec.
+    let result, lastErr;
+    for (let attempt = 0; attempt < 2 && !result; attempt++) {
+      const config = {
         responseMimeType: 'application/json',
-        responseSchema: colour ? STYLE_COLOUR_SCHEMA : STYLE_SILHOUETTE_SCHEMA,
         maxOutputTokens: colour ? 8192 : 4096,
         thinkingConfig: { thinkingBudget: 0 },
-      },
-    });
+      };
+      if (attempt === 0) config.responseSchema = colour ? STYLE_COLOUR_SCHEMA : STYLE_SILHOUETTE_SCHEMA;
+      try {
+        result = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [{
+            role: 'user',
+            parts: [
+              { inlineData: { mimeType, data } },
+              { text: colour ? STYLE_COLOUR_PROMPT : STYLE_SILHOUETTE_PROMPT },
+            ],
+          }],
+          config,
+        });
+      } catch (e) {
+        lastErr = e;
+        console.error(`[stylenotes/analyse] attempt ${attempt + 1} (${attempt === 0 ? 'with' : 'without'} schema) failed:`, e.message);
+        if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+    if (!result) throw lastErr;
     const finishReason = result.candidates?.[0]?.finishReason;
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
     let parsed;
