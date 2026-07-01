@@ -810,30 +810,59 @@
       el.className = 'slot-err' + (msg ? ' on' : '');
     }
 
+    async function fileToPayload(file) {
+      try {
+        const bmp = await createImageBitmap(file);
+        const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bmp.width * scale);
+        canvas.height = Math.round(bmp.height * scale);
+        canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+        bmp.close();
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        return { mimeType: 'image/jpeg', data: dataUrl.split(',')[1] };
+      } catch (e) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const m = String(reader.result).match(/^data:(.+?);base64,(.+)$/);
+            if (m) resolve({ mimeType: m[1], data: m[2] });
+            else reject(new Error('unreadable'));
+          };
+          reader.onerror = () => reject(new Error('unreadable'));
+          reader.readAsDataURL(file);
+        });
+      }
+    }
+
     function wireSlot(cfg) {
       const slot = document.getElementById(cfg.slotId);
       const input = document.getElementById(cfg.fileId);
       slot.addEventListener('click', () => input.click());
-      input.addEventListener('change', () => {
+      input.addEventListener('change', async () => {
         const file = input.files[0];
         if (!file) return;
         slotError(cfg.errId, '');
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const m = String(reader.result).match(/^data:(.+?);base64,(.+)$/);
-          if (!m) { slotError(cfg.errId, 'Couldn’t read that image — try another file.'); input.value = ''; return; }
-          slotBusy(cfg.slotId, cfg.hintId, cfg.busyMsg);
-          try {
+        let payload;
+        try {
+          payload = await fileToPayload(file);
+        } catch (e) {
+          slotError(cfg.errId, 'Couldn’t read that image — try another file.');
+          input.value = '';
+          return;
+        }
+        slotBusy(cfg.slotId, cfg.hintId, cfg.busyMsg);
+        try {
             const [analysis, upload] = await Promise.all([
               fetch('/api/stylenotes/analyse', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ kind: cfg.kind, data: m[2], mimeType: m[1] }),
+                body: JSON.stringify({ kind: cfg.kind, data: payload.data, mimeType: payload.mimeType }),
               }).then(r => r.ok ? r.json() : Promise.reject(new Error('analysis_failed'))),
               fetch('/api/wardrobe/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: m[2], mimeType: m[1] }),
+                body: JSON.stringify({ data: payload.data, mimeType: payload.mimeType }),
               }).then(r => r.json()).catch(() => ({})),
             ]);
             if (cfg.kind === 'colour' ? analysis.no_face_detected : analysis.no_person_detected) {
@@ -869,8 +898,6 @@
             slotBusy(cfg.slotId, cfg.hintId, null);
             input.value = '';
           }
-        };
-        reader.readAsDataURL(file);
       });
     }
 

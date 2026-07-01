@@ -623,17 +623,26 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
       config: {
         responseMimeType: 'application/json',
         responseSchema: colour ? STYLE_COLOUR_SCHEMA : STYLE_SILHOUETTE_SCHEMA,
-        maxOutputTokens: colour ? 2500 : 900,
+        maxOutputTokens: colour ? 8192 : 4096,
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
-    const parsed = JSON.parse(result.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+    const finishReason = result.candidates?.[0]?.finishReason;
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (parseErr) {
+      console.error('[stylenotes/analyse] JSON parse failed —', { kind, finishReason, textLength: text.length, tail: text.slice(-120) });
+      throw new Error('truncated_response:' + finishReason);
+    }
     const rejected = colour ? parsed.no_face_detected : parsed.no_person_detected;
-    logAI({ feature: 'stylenotes_analyse', kind, ms: Date.now() - t0, rejected: !!rejected, success: true });
+    logAI({ feature: 'stylenotes_analyse', kind, ms: Date.now() - t0, finishReason, rejected: !!rejected, success: true });
     res.json(parsed);
   } catch (err) {
     logAI({ feature: 'stylenotes_analyse', kind, ms: Date.now() - t0, success: false, reason: err.message });
     console.error('[stylenotes/analyse] Gemini error:', err.message);
-    res.status(502).json({ error: 'analysis_failed' });
+    res.status(502).json({ error: 'analysis_failed', reason: String(err.message || '').slice(0, 200) });
   }
 });
 
