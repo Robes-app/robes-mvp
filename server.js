@@ -445,6 +445,14 @@ app.get('/wardrobe', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
 
+app.get('/lookbook', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.get('/moodboards', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
 app.get('/stylenotes', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'stylenotes.html'));
 });

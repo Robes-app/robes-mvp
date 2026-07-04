@@ -2408,6 +2408,21 @@ worn three ways</div>
     if (!_sess2) { window.location.href = '/signup.html'; return; }
     window.__robes_session = _sess2;
     window.__robes_sb = _sb;
+    // Onboarding handoff: show the styling overlay immediately — body is
+    // hidden until boot completes, so attach to <html> for a seamless
+    // "See it styled" → "Styling your piece…" transition with no dashboard flash
+    try {
+      if (sessionStorage.getItem('rb_onboard_piece') && !document.getElementById('kp-loading-overlay')) {
+        const ov = document.createElement('div');
+        ov.id = 'kp-loading-overlay';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.98);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
+        ov.innerHTML = '<style>@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}</style>' +
+          '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center">Styling your piece<br><em>three ways…</em></div>' +
+          '<div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>' +
+          '<div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px"><div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div></div>';
+        document.documentElement.appendChild(ov);
+      }
+    } catch (e) {}
     window.__robes_profile = {};
     if (_sess2.user) {
       let { data: _profile, error: _pErr } = await _sb.from('profiles')

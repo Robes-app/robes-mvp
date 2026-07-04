@@ -87,6 +87,23 @@
             msgEl.style.color = '#7E7C5A';
             msgEl.textContent = 'Saved.';
             setTimeout(() => { msgEl.textContent = ''; }, 2000);
+            // Keep the in-memory profile + visible name in sync
+            const newFirst = document.getElementById('acct-first').value.trim();
+            if (window.__robes_profile) {
+              window.__robes_profile.first_name = newFirst;
+              window.__robes_profile.last_name = document.getElementById('acct-last').value.trim();
+              window.__robes_profile.mobile = document.getElementById('acct-mobile').value.trim();
+            }
+            if (newFirst) {
+              const avN = document.getElementById('av-name');
+              if (avN) avN.textContent = newFirst;
+              const hr = new Date().getHours();
+              const t = hr < 12 ? 'morning' : hr < 18 ? 'afternoon' : 'evening';
+              const g1 = document.getElementById('greeting');
+              const g2 = document.getElementById('dash-greet');
+              if (g1) g1.innerHTML = 'Good ' + t + ',<br>' + newFirst + '.';
+              if (g2) g2.textContent = 'Good ' + t + ', ' + newFirst + '.';
+            }
           } else {
             msgEl.style.color = '#A4453A';
             msgEl.textContent = 'Error saving — please try again.';
@@ -183,14 +200,22 @@
         return r.status === 204 ? null : r.json();
       }
 
+      let _waLoadRetries = 0;
       async function _waLoad() {
         try {
           const data = await _waFetch('GET', 'wardrobe_items?user_id=eq.' + _waUid() + '&order=created_at.desc&select=*');
           _waItems = data || [];
           _waLoaded = true;
-        } catch(e) { console.error('wardrobe load:', e); }
+          _waLoadRetries = 0;
+        } catch(e) {
+          console.error('wardrobe load:', e);
+          // Transient failure (token refresh, network) — retry so the UI
+          // never sits on the bundle's mock counts indefinitely
+          if (_waLoadRetries < 3) { _waLoadRetries++; setTimeout(_waLoad, 1500 * _waLoadRetries); }
+        }
         _waBuildFilters();
         _waRender();
+        _waSyncCounts();
       }
 
       let _waLoaded = false;
@@ -214,7 +239,7 @@
         _waRendering = true;
         _waObserver.disconnect();
         if (!_waLoaded) {
-          grid.innerHTML = '<div style="padding:48px;text-align:center;opacity:.4;font-size:13px;letter-spacing:.04em">Loading…</div>';
+          grid.innerHTML = '<div style="padding:56px 24px;text-align:center"><div style="font-family:\'Cormorant\',Georgia,serif;font-style:italic;font-weight:300;font-size:18px;color:#A89880">Opening your wardrobe…</div></div>';
         } else {
           const filtered = _waCat === 'All' ? _waItems : _waItems.filter(i => i.category === _waCat);
           const frag = document.createDocumentFragment();
@@ -886,6 +911,11 @@
 
       _waObserveGrid();
 
+      // Zero out the bundle's mock counts (nav badge "10", tracker "10 / 15")
+      // immediately — a new user must never see test data while the real
+      // wardrobe loads. _waLoad() re-syncs with real numbers when it lands.
+      _waSyncCounts();
+
       // Poll until Supabase session is ready, then load real wardrobe data.
       (function _waInit() {
         if (_waUid()) { _waLoad(); }
@@ -916,14 +946,25 @@
         };
       }
 
-      // Auto-open wardrobe panel when URL is /wardrobe
+      // Deep links: /wardrobe, /lookbook and /moodboards serve the dashboard
+      // and auto-open the matching page
       if (window.location.pathname === '/wardrobe' && window.App && App.showWardrobe) {
         setTimeout(() => App.showWardrobe(), 100);
       }
+      if (window.location.pathname === '/lookbook') {
+        setTimeout(() => window.__snOpen && window.__snOpen(), 400);
+      }
+      if (window.location.pathname === '/moodboards') {
+        setTimeout(() => window._mbShowAllPage && window._mbShowAllPage(), 400);
+      }
 
       // ── Style Notes ─────────────────────────────────────────────────
-      // localStorage key
-      const SN_KEY = 'robes_style_notes';
+      // localStorage keys are namespaced per user — a shared browser must
+      // never leak one account's lookbook/moodboards into another. Legacy
+      // global keys are removed so old test data can't resurface.
+      const _rbUid = (window.__robes_session && window.__robes_session.user && window.__robes_session.user.id) || 'anon';
+      try { localStorage.removeItem('robes_style_notes'); localStorage.removeItem('robes_moodboards'); } catch (e) {}
+      const SN_KEY = 'robes_style_notes__' + _rbUid;
 
       function snLoad() {
         try { return JSON.parse(localStorage.getItem(SN_KEY) || '[]'); } catch { return []; }
@@ -953,12 +994,10 @@
       snPage.id = 'sn-page';
       snPage.style.cssText = 'display:none;position:fixed;inset:0;z-index:800;background:#FAF8F5;overflow-y:auto';
       snPage.innerHTML = `
-        <nav style="position:sticky;top:0;z-index:10;background:#FAF8F5;border-bottom:1px solid rgba(32,32,33,0.07);display:flex;align-items:center;gap:12px;padding:0 24px;height:56px">
-          <button onclick="window.__snClose()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6E6A64;padding:8px 0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
-            Back
-          </button>
-          <span style="font-family:'Cormorant',Georgia,serif;font-size:18px;font-weight:300;color:#202021;letter-spacing:.01em">Lookbook</span>
+        <nav style="position:sticky;top:0;z-index:10;background:#FAF8F5;border-bottom:1px solid rgba(32,32,33,0.07);display:flex;align-items:center;padding:0 24px;height:56px">
+          <button onclick="window.__snClose()" style="background:none;border:none;cursor:pointer;padding:8px 0;font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:15px;letter-spacing:.24em;text-transform:uppercase;color:#202021">Robes</button>
+          <span style="color:rgba(32,32,33,0.3);margin:0 10px;font-size:12px">/</span>
+          <span style="font-size:12px;color:rgba(32,32,33,0.45);letter-spacing:.01em">Lookbook</span>
         </nav>
         <div style="padding:32px 24px 24px;max-width:960px;margin:0 auto">
           <p style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;margin:0 0 24px">Saved looks & key pieces</p>
@@ -1732,6 +1771,7 @@
           window.rbClearCrumb();
           window.__mbCloseResult && window.__mbCloseResult();
           window.__mbCloseList && window.__mbCloseList();
+          window.__snClose && window.__snClose();
           if (kpResultPage) kpResultPage.style.display = 'none';
           const wp = document.querySelector('.wardrobe-panel');
           if (wp && wp.classList.contains('visible')) {
@@ -1741,6 +1781,9 @@
             const wbtn = wbtnCount ? wbtnCount.closest('button') : null;
             if (wbtn) { wbtn.click(); } else { wp.classList.remove('visible'); }
           }
+          // Always land back on the dashboard home view
+          if (window.App && App.goHome) { try { App.goHome(); } catch (e) {} }
+          window.scrollTo(0, 0);
         };
 
         window.rbSetCrumb = function(segments) {
@@ -1997,8 +2040,8 @@
 
       // ── Moodboard system ─────────────────────────────────────────────
 
-      // Storage (localStorage, mirrors snLoad pattern but keyed separately)
-      const MB_KEY = 'robes_moodboards';
+      // Storage (localStorage, mirrors snLoad pattern but keyed separately, per user)
+      const MB_KEY = 'robes_moodboards__' + _rbUid;
       function _mbLoad() { try { return JSON.parse(localStorage.getItem(MB_KEY) || '[]'); } catch { return []; } }
       function _mbSave(items) {
         try { localStorage.setItem(MB_KEY, JSON.stringify(items)); }
@@ -2396,7 +2439,7 @@
         el.outerHTML = '<div style="width:44px;height:44px;border-radius:7px;background:#EDE8E0;flex-shrink:0;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C8C0B8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
       };
 
-      function _mbShowResult(data) {
+      function _mbShowResult(data, opts) {
         _mbHideGenerating();
         const { title, aesthetic_tags, editorial_direction, the_look = [], hero_image, grid_images = [], prompt } = data;
         const location_context = data.location_context || data.subtitle || '';
@@ -2545,12 +2588,12 @@
         // Breadcrumb: ROBES / {title} when opened from dashboard,
         // or ROBES / Your Moodboards / {title} when opened from the full list
         if (window._mbOpenedFromList) {
-          window.rbSetCrumb([
+          window.rbSetCrumb && window.rbSetCrumb([
             { label: 'Your Moodboards', action: function() { window.__mbCloseResult(); window._mbOpenedFromList = false; if (window._mbShowAllPage) window._mbShowAllPage(); } },
             { label: title },
           ]);
         } else {
-          window.rbSetCrumb([{ label: title }]);
+          window.rbSetCrumb && window.rbSetCrumb([{ label: title }]);
         }
 
         // Panel is INSIDE home-body — use position:fixed to overlay instead of hiding parent
@@ -2568,7 +2611,10 @@
         // Store for save
         if (panel) panel._currentData = data;
 
-        // Auto-save immediately — no manual tap required
+        // Auto-save immediately — no manual tap required. Skipped when
+        // re-opening a saved board or re-rendering after a swap, else
+        // every open/swap creates a duplicate entry.
+        if (opts && opts.skipSave) return;
         _mbAdd({
           type: 'moodboard',
           title: data.title || data.prompt || 'Moodboard',
@@ -2686,7 +2732,7 @@
         window.__mbCurrentLook[lookIdx].wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
         document.getElementById('mb-swap-modal')?.remove();
         const panel = document.getElementById('moodboard-panel');
-        if (panel?._currentData) { panel._currentData.the_look = window.__mbCurrentLook; _mbShowResult(panel._currentData); }
+        if (panel?._currentData) { panel._currentData.the_look = window.__mbCurrentLook; _mbShowResult(panel._currentData, { skipSave: true }); }
         _waShowToast(wi.label + ' swapped in');
       };
 
@@ -2695,13 +2741,11 @@
       _mbListPage.id = 'mb-list-page';
       _mbListPage.style.cssText = 'display:none;position:fixed;inset:0;z-index:860;background:#FAF8F5;overflow-y:auto';
       _mbListPage.innerHTML = `
-        <nav style="position:sticky;top:0;z-index:10;background:#FAF8F5;border-bottom:1px solid rgba(32,32,33,0.07);display:flex;align-items:center;gap:12px;padding:0 24px;height:56px">
-          <button onclick="window.__mbCloseList()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6E6A64;padding:8px 0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
-            Back
-          </button>
-          <span style="font-family:'Cormorant',Georgia,serif;font-size:18px;font-weight:300;color:#202021">Your moodboards</span>
-          <button onclick="window.__rbStartMoodboard()" style="margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:100px;background:#202021;color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer">+ New</button>
+        <nav style="position:sticky;top:0;z-index:10;background:#FAF8F5;border-bottom:1px solid rgba(32,32,33,0.07);display:flex;align-items:center;padding:0 24px;height:56px">
+          <button onclick="window.__mbCloseList()" style="background:none;border:none;cursor:pointer;padding:8px 0;font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:15px;letter-spacing:.24em;text-transform:uppercase;color:#202021">Robes</button>
+          <span style="color:rgba(32,32,33,0.3);margin:0 10px;font-size:12px">/</span>
+          <span style="font-size:12px;color:rgba(32,32,33,0.45);letter-spacing:.01em">Moodboards</span>
+          <button onclick="window.__mbCloseList();window.__rbStartMoodboard()" style="margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:100px;background:#202021;color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer">+ New</button>
         </nav>
         <div style="padding:32px 24px 80px;max-width:960px;margin:0 auto">
           <div id="mb-list-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
@@ -2752,7 +2796,7 @@
         const fromList = _mbListPage.style.display !== 'none';
         _mbListPage.style.display = 'none';
         window._mbOpenedFromList = fromList;
-        _mbShowResult(item);
+        _mbShowResult(item, { skipSave: true });
       };
 
       // Patch snRefreshRow to also refresh v2 sections
@@ -2824,7 +2868,8 @@
 
       // ── Onboarding handoff — style the key piece three ways on arrival ──
       // /onboarding step 04 stores {prompt, photo} then lands here; run it
-      // through the same overlay + result page as the concierge flow.
+      // through the same overlay + result page as the concierge flow. The
+      // boot script already shows the loading overlay, so start immediately.
       (function _rbOnboardHandoff() {
         let piece = null;
         try {
@@ -2833,8 +2878,43 @@
           sessionStorage.removeItem('rb_onboard_piece');
         } catch (e) { piece = null; }
         if (!piece || (!piece.prompt && !piece.photo)) return;
-        setTimeout(function() {
-          _cbStyleSubmit(piece.prompt || '', piece.photo || null);
-        }, 1200);
+        _cbStyleSubmit(piece.prompt || '', piece.photo || null);
+
+        // Persist the key piece to the wardrobe in the background — the
+        // first item a user shows Robes should count toward their 15.
+        if (piece.photo) (async function() {
+          try {
+            const m = String(piece.photo).match(/^data:([^;]+);base64,(.+)$/);
+            if (!m) return;
+            const [tag, up] = await Promise.all([
+              fetch('/api/wardrobe/analyse', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: m[2], mimeType: m[1] }),
+              }).then(r => r.ok ? r.json() : null).catch(() => null),
+              fetch('/api/wardrobe/upload', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: m[2], mimeType: m[1] }),
+              }).then(r => r.ok ? r.json() : null).catch(() => null),
+            ]);
+            if (tag && tag.noItemDetected) return; // face/room photo — not a wardrobe piece
+            const label = (tag && tag.label) || (piece.prompt || '').slice(0, 60) || 'Key piece';
+            // Wait for the session-dependent fetch helper to be usable
+            let tries = 0;
+            while (!_waUid() && tries++ < 20) await new Promise(r => setTimeout(r, 250));
+            if (!_waUid()) return;
+            await _waFetch('POST', 'wardrobe_items', {
+              user_id: _waUid(),
+              label,
+              category: (tag && tag.category) || 'Other',
+              color: (tag && tag.color) || null,
+              brand: (tag && tag.brand) || null,
+              notes: (tag && tag.notes) || null,
+              image_url: (up && up.url) || null,
+              item_dna: (tag && tag.item_dna) || undefined,
+            });
+            await _waLoad();
+            console.log('[robes] onboarding key piece saved to wardrobe:', label);
+          } catch (e) { console.warn('[robes] onboarding wardrobe persist failed:', e); }
+        })();
       })();
     };
