@@ -2737,4 +2737,20 @@
         const svcGrid = document.querySelector('.services-grid');
         if (svcGrid) _rbPostRenderObserver.observe(svcGrid, { childList: true, subtree: false });
       }, 1200);
+
+      // ── Onboarding handoff — style the key piece three ways on arrival ──
+      // /onboarding step 04 stores {prompt, photo} then lands here; run it
+      // through the same overlay + result page as the concierge flow.
+      (function _rbOnboardHandoff() {
+        let piece = null;
+        try {
+          const raw = sessionStorage.getItem('rb_onboard_piece');
+          if (raw) piece = JSON.parse(raw);
+          sessionStorage.removeItem('rb_onboard_piece');
+        } catch (e) { piece = null; }
+        if (!piece || (!piece.prompt && !piece.photo)) return;
+        setTimeout(function() {
+          _cbStyleSubmit(piece.prompt || '', piece.photo || null);
+        }, 1200);
+      })();
     };
