@@ -567,15 +567,20 @@ const COLOUR_EXTRACT_PROMPT = `You are a colour-measurement vision system for a 
 
 IMPORTANT: If no human face is clearly visible (a garment, a room, a screenshot), set "no_face_detected": true and return every other field as empty string / false / any enum value.
 
+MEASUREMENT PROTOCOL — follow strictly:
+1. First neutralise ambient lighting: look at the whites of the eyes (sclera) and any visible teeth. These are naturally near-neutral — if they appear yellow/orange the photo has a warm colour cast; if bluish, a cool cast. Mentally subtract that cast from ALL judgements below.
+2. Judge ONLY from skin, hair and iris. Completely ignore the background, clothing colours, lipstick and any makeup — none of these are evidence of undertone.
+3. Base the undertone on cast-corrected skin, favouring evidence from: visible veins on skin (greenish veins → warm, bluish/purple veins → cool), how golden vs rosy the cast-corrected skin reads, and the depth of any natural flush.
+
 Otherwise set "no_face_detected": false and measure:
-"undertone": the thermal base of the skin. Golden, yellow or peach-leaning skin → "Warm". Pink, blue or rosy-leaning → "Cool". Balanced with a slight warm bias → "Neutral-Warm". Balanced with a slight cool bias → "Neutral-Cool".
+"undertone": the thermal base of the cast-corrected skin. Golden, yellow or peach-leaning → "Warm". Pink, blue or rosy-leaning → "Cool". Balanced with a slight warm bias → "Neutral-Warm". Balanced with a slight cool bias → "Neutral-Cool".
 "contrast": the value gap between skin and hair/eyes. Very dark hair against fair skin → "High" or "Extremely High". Blended, similar values throughout → "Low". Otherwise "Medium".
-"chroma": how clear and saturated the natural colouring is. Vivid, bright features → "High". Soft, dusty, greyed features → "Low". Otherwise "Medium".
+"chroma": how clear and saturated the natural colouring is (after cast correction). Vivid, bright features → "High". Soft, dusty, greyed features → "Low". Otherwise "Medium".
 "lightness": the overall depth of the colouring. Fair skin and light hair → "High". Deep skin or very dark hair → "Low". Otherwise "Medium".
 "skin_tone_hex": average skin hex sampled from an evenly lit cheek area (e.g. "#E0D6C4").
 "hair_color_hex": dominant hair hex (e.g. "#8A7458").
 "eye_color_hex": dominant iris hex (e.g. "#5A5836").
-"low_confidence": true if strong colour-cast lighting, heavy filters, or shadows make undertone judgement unreliable.`;
+"low_confidence": true if the sclera/teeth check reveals a strong colour cast, or heavy filters, mixed lighting, or shadows make undertone judgement unreliable even after correction.`;
 
 const SIL_EXTRACT_PROMPT = `You are a body-geometry vision system for a personal styling engine. Measure the person in this full-length photograph. Output measurements only — no styling advice.
 
@@ -603,6 +608,7 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
       const config = {
         responseMimeType: 'application/json',
         maxOutputTokens: 1024,
+        temperature: 0,
         thinkingConfig: { thinkingBudget: 0 },
       };
       if (attempt === 0) config.responseSchema = colour ? COLOUR_EXTRACT_SCHEMA : SIL_EXTRACT_SCHEMA;

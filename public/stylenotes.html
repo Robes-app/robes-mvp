@@ -95,6 +95,7 @@
     .photo-slot:hover .slot-replace { opacity: 1; }
     .slot-err { font: 300 12px/1.5 'Inter'; color: #8B3A30; margin-top: 10px; max-width: 300px; display: none; }
     .slot-err.on { display: block; }
+    .slot-guide { font: 300 11px/1.6 'Inter'; color: #C4B8A4; margin: 10px 0 0; max-width: 300px; }
 
     .sw { border-radius: 6px; }
     .sw-name { font-family: 'Cormorant', Georgia, serif; font-size: 16px; color: #202021; margin-top: 9px; }
@@ -208,6 +209,7 @@
             </span>
           </button>
           <input type="file" id="headshot-file" accept="image/*" hidden>
+          <p class="slot-guide">Best in soft daylight, facing a window. No filters, no direct sun, no coloured lighting.</p>
           <p class="slot-err" id="headshot-err"></p>
         </div>
         <div style="display:flex;flex-direction:column;justify-content:center;">
@@ -333,6 +335,7 @@
             </span>
           </button>
           <input type="file" id="full-file" accept="image/*" hidden>
+          <p class="slot-guide">Straight-on, head to toe. Fitted clothing reads best — oversized pieces hide your line.</p>
           <p class="slot-err" id="full-err"></p>
         </div>
         <div style="display:flex;flex-direction:column;justify-content:center;">
