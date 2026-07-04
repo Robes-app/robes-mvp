@@ -541,7 +541,14 @@
 
       setLoading(false);
 
-      if (error) { showMessage(error.message); return; }
+      if (error) {
+        let msg = error.message;
+        if (msg.includes('rate limit') || msg.includes('too many')) {
+          msg = 'Too many signup attempts. Please wait 1 hour and try again, or use a different email address.';
+        }
+        showMessage(msg);
+        return;
+      }
 
       if (data.session) {
         window.location.href = '/onboarding';
