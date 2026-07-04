@@ -39,6 +39,8 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 | `style_dna.js` | Deterministic Style DNA engine — 12-season + 5-body catalogs, classifiers, prompt injection |
 | `supabase/style_dna_migration.sql` | Adds `style_dna` JSONB + `wardrobe_items_count` + triggers — run once in Supabase SQL editor |
 | `supabase/functions/wardrobe-context/index.ts` | Edge Function — assembles user profile, calls Anthropic, writes to prompt_history |
+| `public/onboarding.html` | First-time-user onboarding flow — splash/intro/name + 4 steps + done, saves to `profiles` |
+| `supabase/onboarding_migration.sql` | Adds `onboarded_at timestamptz` to `profiles` + backfills existing rows — run once in Supabase SQL editor |
 
 ## Branches
 - `main` — live production (www.byrobes.com)
@@ -63,6 +65,7 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 - Dashboard **ejected** from the 4.4MB Claude Design bundle into plain files (`dashboard.html` ~150KB + `dashboard-assets/` + `js/dashboard-personalize.js`) — revert = `git revert 63dda67`
 - Avatar dropdown grew Style notes + Log out items (`#av-stylenotes`, `#av-logout`)
 - Style DNA engine (`style_dna.js`): deterministic 12-season + 5-body archetype mapping from photo primitives, saved to `profiles.style_dna` and injected into `/api/style` + `/api/moodboard` prompts (migrations run on Supabase: style_notes, analysis, style_dna)
+- `/onboarding` — first-time-user onboarding flow (standalone `onboarding.html`, see its section below)
 
 ## Deploying
 ```bash
@@ -137,6 +140,22 @@ The analyse endpoint is **deterministic**: Gemini (`gemini-2.5-flash`) extracts 
 - Only two upload affordances exist: headshot (tab 01, 300×380) and full-length photo (tab 02, 300×520). All analysis/try-on imagery is placeholder frames (`.ph` warm radial-gradient cards) representing future LLM image outputs — never make them uploadable.
 - No hex labels under clothing colours, no Accessories/Jewellery/Makeup sections, no "Read once"/privacy strings (explicit design exclusions).
 - Selected states are warm cream `#F3EFE6` with `#C9BCA6` border + small dark dot/check — never heavy black fills.
+
+## Onboarding flow (`/onboarding`, signup-flow branch)
+`public/onboarding.html` is a standalone protected page (vanilla, no framework) ported from the Claude Design "Robes Onboarding Flow v2" bundle. One state machine (`st.stage`): dark splash (auto-advances 2s) → intro → name → 4 cream working steps → dark done screen. All copy/tokens come from the mockup — Cormorant + Inter, `--primary` ink dark arc, cream `#FAF8F5` steps, 2px radii, hairline borders.
+
+**Gating**: `profiles.onboarded_at` (via `supabase/onboarding_migration.sql` — run once; backfills existing users so only new signups see the flow). Dashboard boot selects it and redirects to `/onboarding` when the profile row loaded AND `onboarded_at` is null AND `sessionStorage.rb_onboarded` is unset (the session flag is a loop guard in case the DB write fails). If the select errors (migration not run), boot retries without the column and does NOT redirect. Email signup with an immediate session goes straight to `/onboarding`; Google OAuth + email-confirmation links still land on `/dashboard` and bounce via the boot check.
+
+**Steps + persistence** (all saves fire immediately via `sbClient.from('profiles').update`):
+- Name (dark screen) — prefilled from `profiles.first_name`, falling back to auth `user_metadata` (`first_name`/`given_name`/first token of `full_name`). Saves `first_name` (first word) only when changed.
+- Step 01 Icons — typeahead + chips over the `ROBES_ICONS` pool, saves `style_icons` on continue.
+- Steps 02/03 Colour + Silhouette — same pipeline as stylenotes: downscale to 1600px JPEG, parallel `POST /api/stylenotes/analyse` + `POST /api/wardrobe/upload`, save `colour_analysis`/`silhouette_analysis` + `style_dna` merge + scalars + photo URLs. The "What Robes reads" ledger flips Awaiting → Reading → real values (season/undertone/contrast, body type). `no_face_detected`/`no_person_detected` shows an inline error and saves nothing.
+- Step 04 Key piece — photo (downscaled to 1200px) + textarea; CTA "Style it three ways" writes `sessionStorage.rb_onboard_piece = {prompt, photo}` (photo dropped on quota errors). Empty input shows a nudge; Skip goes to done without a handoff.
+- Done screen — sets `onboarded_at` + `sessionStorage.rb_onboarded`, CTA → `/dashboard`.
+
+**Dashboard handoff**: `_rbOnboardHandoff` IIFE at the end of `__robes_personalize` reads + clears `rb_onboard_piece` and calls `_cbStyleSubmit(prompt, photo)` after 1200ms — the user lands on the dashboard, sees the existing "Styling your piece three ways…" overlay, then `__kpRenderResult`. Reuses the whole concierge pipeline; no new result rendering.
+
+Every working step has "Skip for now" — the flow never blocks. Only the name screen gates its Continue (disabled until non-empty).
 
 ## signup.html conventions
 - Supabase client instantiated as `sbClient` (not `supabase` — conflicts with `window.supabase` global from CDN)
