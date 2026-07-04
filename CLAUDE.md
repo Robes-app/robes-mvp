@@ -52,7 +52,7 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 
 **In development on `signup-flow` branch only — NOT on byrobes.com yet**
 - `/signup` — Supabase email + Google OAuth sign-up
-- `/dashboard` — protected SPA (the bundled `dashboard.html`)
+- `/dashboard` — protected SPA (plain `dashboard.html`, ejected from the Claude Design bundle)
 - `/wardrobe` — wardrobe panel URL alias
 - Wardrobe feature: add/edit/delete items, photo upload to Cloudinary, category filtering
 - Account details modal (edit first/last name, mobile)
@@ -62,6 +62,7 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 - `/stylenotes` — Style Notes page (standalone `stylenotes.html`, not part of the dashboard bundle): Colour harmony + Silhouette tabs are Gemini-analysis-driven with empty states; Taste & budget is manual input
 - Dashboard **ejected** from the 4.4MB Claude Design bundle into plain files (`dashboard.html` ~150KB + `dashboard-assets/` + `js/dashboard-personalize.js`) — revert = `git revert 63dda67`
 - Avatar dropdown grew Style notes + Log out items (`#av-stylenotes`, `#av-logout`)
+- Style DNA engine (`style_dna.js`): deterministic 12-season + 5-body archetype mapping from photo primitives, saved to `profiles.style_dna` and injected into `/api/style` + `/api/moodboard` prompts (migrations run on Supabase: style_notes, analysis, style_dna)
 
 ## Deploying
 ```bash
@@ -128,7 +129,7 @@ The analyse endpoint is **deterministic**: Gemini (`gemini-2.5-flash`) extracts 
 - Migration `supabase/style_dna_migration.sql` — run once: `style_dna JSONB` + GIN index, `wardrobe_items_count` + insert/delete trigger on `wardrobe_items` + backfill, vector extension. Deviation from PRD §3.1: existing text columns are NOT converted to Postgres enums (live RLS table); value sets are enforced by the engine.
 - Tuning palettes/copy/rules = edit `style_dna.js` only; no prompt or client changes needed.
 - The client downscales photos to max 1600px JPEG before sending (`createImageBitmap` → canvas, FileReader fallback) — keeps analyse + Cloudinary fast and clear of the 20mb body limit.
-- `/api/stylenotes/analyse` resilience: `thinkingConfig: { thinkingBudget: 0 }` + `maxOutputTokens` 8192 (colour) / 4096 (silhouette). Attempt 1 sends the `responseSchema`; on any Gemini error attempt 2 retries **without** the schema (JSON mode + the prompt's field spec — renderers validate shape anyway). Both failing → 502 `{ error: 'analysis_failed', reason }`; the client logs `reason` to the console and Railway logs carry `[stylenotes/analyse] attempt N failed`.
+- `/api/stylenotes/analyse` resilience: `thinkingConfig: { thinkingBudget: 0 }` + `maxOutputTokens` 1024 (extraction JSON is small since the deterministic engine took over). Attempt 1 sends the `responseSchema`; on any Gemini error attempt 2 retries **without** the schema (JSON mode + the prompt's field spec — renderers validate shape anyway). Both failing → 502 `{ error: 'analysis_failed', reason }`; the client logs `reason` to the console and Railway logs carry `[stylenotes/analyse] attempt N failed`.
 - Colour analysis JSON drives: 18-hex palette, undertone rows + note, 6 neutrals, 8 best colours, 7 avoid colours + note, proof captions, 3 seen-on-you label pairs, 3 metals (name + 3 gradient hexes) + note. Silhouette drives: body type, 4 traits, 4 dress cards, 5 necklines, 5 tips. All LLM strings pass through `esc()`, hexes through `hex()` validation.
 - Loads/saves to `profiles`: `season`, `undertone`, `contrast`, `body_type`, `colour_analysis`, `silhouette_analysis`, `style_icons`, `budget` (tier name), `splurge_categories`, `annual_spend`, `headshot_url`, `full_length_url`. Base columns via `supabase/style_notes_migration.sql` — run once.
 - Saves fire immediately on each interaction (`update … eq('id', uid)`); `#save-state` in the top bar shows Saving…/Saved/Couldn't save.
