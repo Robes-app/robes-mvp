@@ -453,6 +453,18 @@ app.get('/onboarding', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'onboarding.html'));
 });
 
+app.get('/signup', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'signup.html'));
+});
+
+app.get('/terms', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'terms.html'));
+});
+
+app.get('/privacy', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'privacy.html'));
+});
+
 const ANALYSE_SCHEMA = {
   type: 'object',
   properties: {

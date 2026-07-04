@@ -39,23 +39,24 @@
       acctModal.style.cssText = 'display:none;position:fixed;inset:0;z-index:9000;background:rgba(32,32,33,0.32);align-items:center;justify-content:center;backdrop-filter:blur(4px)';
       const userEmail = (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '';
       const prof = window.__robes_profile || {};
+      const _acctEsc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
       acctModal.innerHTML = `
         <div style="background:#FAF8F5;border-radius:16px;padding:36px 32px;width:100%;max-width:420px;position:relative;box-shadow:0 8px 40px rgba(32,32,33,0.14)">
           <button onclick="document.getElementById('acct-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;color:#A89880;cursor:pointer;padding:4px">✕</button>
           <h2 style="font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:26px;margin:0 0 4px;color:#202021">Account details</h2>
-          <p style="font-size:12px;color:#A89880;margin:0 0 28px;letter-spacing:.04em">\${userEmail}</p>
+          <p style="font-size:12px;color:#A89880;margin:0 0 28px;letter-spacing:.04em">${_acctEsc(userEmail)}</p>
           <div id="acct-msg" style="font-size:13px;margin-bottom:16px;min-height:18px"></div>
           <label style="display:block;margin-bottom:16px">
             <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">First name</span>
-            <input id="acct-first" value="\${prof.first_name||''}" style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
+            <input id="acct-first" value="${_acctEsc(prof.first_name)}" style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
           </label>
           <label style="display:block;margin-bottom:16px">
             <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">Last name</span>
-            <input id="acct-last" value="\${prof.last_name||''}" style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
+            <input id="acct-last" value="${_acctEsc(prof.last_name)}" style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
           </label>
           <label style="display:block;margin-bottom:28px">
             <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">Mobile number</span>
-            <input id="acct-mobile" type="tel" value="\${prof.mobile||''}" placeholder="+353..." style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
+            <input id="acct-mobile" type="tel" value="${_acctEsc(prof.mobile)}" placeholder="+353..." style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
           </label>
           <button onclick="window.__saveAcctDetails()" style="width:100%;height:48px;background:#202021;color:#fff;border:none;border-radius:8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;font-weight:500">Save changes</button>
         </div>`;
@@ -984,7 +985,7 @@
         // Close sn-page if open
         document.getElementById('sn-page').style.display = 'none';
         if (item.type === 'key-piece' && item.kpData) {
-          window.__kpRenderResult(item.kpData);
+          window.__kpRenderResult(item.kpData, item.title, { skipSave: true });
         } else {
           // Fallback: just open style notes page
           window.__snOpen();
@@ -1287,11 +1288,77 @@
         // kpResultPage is now z-index:40 (below nav:50) — crumb lives in main nav
       };
 
-      window.__kpRenderResult = function(data, promptText) {
+      // Poll the /api/style background image job and slot images in as they land
+      let _kpPollTimer = null;
+      function _kpStopPolling() { if (_kpPollTimer) { clearTimeout(_kpPollTimer); _kpPollTimer = null; } }
+      function _kpSetLookImage(i, src) {
+        const wrap = document.getElementById('kp-look-imgwrap-' + i);
+        if (!wrap) return;
+        const ph = wrap.querySelector('.kp-img-ph');
+        if (ph) ph.remove();
+        if (!wrap.querySelector('img')) {
+          const img = document.createElement('img');
+          img.src = src;
+          img.alt = '';
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;opacity:0;transition:opacity .5s ease';
+          wrap.insertBefore(img, wrap.firstChild);
+          requestAnimationFrame(() => { img.style.opacity = '1'; });
+          const num = wrap.querySelector('span');
+          if (num) { num.style.color = 'rgba(255,255,255,0.85)'; num.style.textShadow = '0 1px 8px rgba(32,32,33,0.35)'; }
+        }
+      }
+      function _kpSettlePlaceholder(i) {
+        const wrap = document.getElementById('kp-look-imgwrap-' + i);
+        if (!wrap || wrap.querySelector('img')) return;
+        const ph = wrap.querySelector('.kp-img-ph');
+        if (ph) {
+          ph.style.animation = 'none';
+          ph.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+        }
+      }
+      function _kpPollImages(jobId, count) {
+        _kpStopPolling();
+        const t0 = Date.now();
+        function tick() {
+          fetch('/api/images/' + jobId)
+            .then(r => r.ok ? r.json() : null)
+            .then(job => {
+              if (job && Array.isArray(job.images)) {
+                job.images.forEach((src, i) => {
+                  if (src) {
+                    _kpSetLookImage(i, src);
+                    if (window.__lastKpData) {
+                      if (!Array.isArray(window.__lastKpData.generatedImages)) window.__lastKpData.generatedImages = [];
+                      window.__lastKpData.generatedImages[i] = src;
+                    }
+                  }
+                });
+                if (job.done) {
+                  for (let i = 0; i < count; i++) _kpSettlePlaceholder(i);
+                  return;
+                }
+              } else if (!job) {
+                // job expired/unknown — settle whatever is still waiting
+                for (let i = 0; i < count; i++) _kpSettlePlaceholder(i);
+                return;
+              }
+              if (Date.now() - t0 < 90000) _kpPollTimer = setTimeout(tick, 3500);
+              else for (let i = 0; i < count; i++) _kpSettlePlaceholder(i);
+            })
+            .catch(() => {
+              if (Date.now() - t0 < 90000) _kpPollTimer = setTimeout(tick, 5000);
+              else for (let i = 0; i < count; i++) _kpSettlePlaceholder(i);
+            });
+        }
+        _kpPollTimer = setTimeout(tick, 2500);
+      }
+
+      window.__kpRenderResult = function(data, promptText, opts) {
         if (!data || !Array.isArray(data.ways) || !data.ways.length) {
           _waShowToast('Could not render looks — please try again');
           return;
         }
+        _kpStopPolling();
         window.__lastKpData = data;
         const { ways, generatedImages, fallback, photoUrl } = data;
         const pieceName = fallback ? 'Balmain waistcoat' : (promptText || 'Your piece');
@@ -1304,6 +1371,14 @@
           kpResultPage.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;width:100%;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
           document.body.appendChild(kpResultPage);
         }
+        if (!document.getElementById('kp-img-style')) {
+          const kis = document.createElement('style');
+          kis.id = 'kp-img-style';
+          kis.textContent = '@keyframes kpPhPulse{0%,100%{opacity:1}50%{opacity:.55}}' +
+            '@media(max-width:700px){.kp-look-card{grid-template-columns:1fr !important}.kp-look-card>div:last-child{padding:20px 22px 26px !important}.kp-look-imgwrap{min-height:300px !important}}';
+          document.head.appendChild(kis);
+        }
+        const imagesPending = !!data.jobId;
 
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Style a piece' }]);
         try { kpResultPage.innerHTML = `
@@ -1324,11 +1399,16 @@
             <div style="display:flex;flex-direction:column;gap:32px">
               ${ways.map((w, i) => {
                 const genImg = generatedImages && generatedImages[i];
+                const phInner = imagesPending
+                  ? `<span style="font-family:${serif};font-style:italic;font-size:15px;color:#B8AC9C;text-align:center;padding:0 24px">Creating your editorial image…</span>`
+                  : `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
                 return `
-                <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:24px;background:#fff;border-radius:12px;overflow:hidden;border:0.5px solid rgba(32,32,33,0.08)">
-                  <div style="position:relative;background:#EDE9E2;min-height:340px">
-                    ${genImg ? `<img src="${genImg}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">` : ''}
-                    <span style="position:absolute;top:14px;left:16px;font-family:${serif};font-weight:300;font-size:20px;color:rgba(255,255,255,0.8)">${String(i+1).padStart(2,'0')}</span>
+                <div class="kp-look-card" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:24px;background:#fff;border-radius:12px;overflow:hidden;border:0.5px solid rgba(32,32,33,0.08)">
+                  <div class="kp-look-imgwrap" id="kp-look-imgwrap-${i}" style="position:relative;background:#EDE9E2;min-height:340px">
+                    ${genImg
+                      ? `<img src="${genImg}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
+                      : `<div class="kp-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${imagesPending ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${phInner}</div>`}
+                    <span style="position:absolute;top:14px;left:16px;font-family:${serif};font-weight:300;font-size:20px;color:${genImg ? 'rgba(255,255,255,0.85);text-shadow:0 1px 8px rgba(32,32,33,0.35)' : 'rgba(32,32,33,0.35)'}">${String(i+1).padStart(2,'0')}</span>
                   </div>
                   <div style="padding:28px 28px 28px 4px;display:flex;flex-direction:column;gap:16px">
                     <div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#B8A898">${w.eyebrow}</div>
@@ -1371,8 +1451,12 @@
         kpResultPage.style.display = 'block';
         kpResultPage.scrollTo({ top: 0 });
 
-        // Auto-save (no images — protect localStorage)
-        snAdd({
+        // Images generate in the background on the server — poll and slot them in
+        if (imagesPending) _kpPollImages(data.jobId, ways.length);
+
+        // Auto-save (no images — protect localStorage). Skipped when re-opening
+        // an already-saved look from the lookbook, else entries duplicate.
+        if (!opts || !opts.skipSave) snAdd({
           type: 'key-piece',
           title: pieceName,
           subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),

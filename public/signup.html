@@ -515,9 +515,8 @@
       if (!email)    { showMessage('Please enter your email address.'); return; }
       if (!password) { showMessage('Please enter a password.'); return; }
 
-      setLoading(true);
-
       if (isSignIn) {
+        setLoading(true);
         const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
         setLoading(false);
         if (error) { showMessage(error.message); return; }
@@ -528,6 +527,8 @@
       const firstName = firstNameEl.value.trim();
       if (!firstName) { showMessage('Please enter your first name.'); return; }
       if (password.length < 8) { showMessage('Password must be at least 8 characters.'); return; }
+
+      setLoading(true);
 
       const { data, error } = await sbClient.auth.signUp({
         email,
