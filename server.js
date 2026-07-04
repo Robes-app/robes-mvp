@@ -4,6 +4,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash, randomBytes } from 'crypto';
 import { GoogleGenAI } from '@google/genai';
+import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock } from './style_dna.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -220,7 +221,7 @@ const STYLE_SCHEMA = {
 };
 
 app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { photo, link, prompt, name, pieceName } = req.body;
+  const { photo, link, prompt, name, pieceName, styleDna, wardrobeCount } = req.body;
 
   if (!photo && !link && !prompt) {
     return res.status(400).json({ error: 'Provide at least a photo, link, or prompt.' });
@@ -230,12 +231,13 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
   const piece = pieceName ? `The key piece is described as: "${pieceName}".` : '';
   const context = prompt ? `Additional context from the user: "${prompt}".` : '';
   const linkCtx = link ? `The user provided a product link for reference: ${link}.` : '';
+  const dnaBlock = styleDnaPromptBlock(styleDna, Number(wardrobeCount) || 0);
 
   const systemInstruction = `You are an expert fashion stylist known for elegant, directional styling advice. Your tone is warm, precise, and editorial — like a trusted stylist who truly understands clothes. Your user is a stylish, fashion-forward woman — unless the input clearly indicates a male wearer, style all looks for a woman. ${who}
 
 When given a key fashion piece, you create three distinct, wearable looks around it — each with a clear occasion and mood. Your descriptions are specific: you name real item types, describe drape and texture, and explain why each pairing works.
 
-IMPORTANT: You must set "fallback": true if ANY of these apply — the input is gibberish or random characters; no specific clothing item, garment, or accessory can be identified; the request is too vague to style (e.g. just a colour, a single generic word, or a non-fashion concept). When fallback is true, style a ${FALLBACK_PIECE} instead. Only set "fallback": false when a real, nameable fashion piece is clearly present.`;
+IMPORTANT: You must set "fallback": true if ANY of these apply — the input is gibberish or random characters; no specific clothing item, garment, or accessory can be identified; the request is too vague to style (e.g. just a colour, a single generic word, or a non-fashion concept). When fallback is true, style a ${FALLBACK_PIECE} instead. Only set "fallback": false when a real, nameable fashion piece is clearly present.${dnaBlock ? '\n\n' + dnaBlock : ''}`;
 
   const userText = `${piece} ${context} ${linkCtx}
 
@@ -533,75 +535,57 @@ If a clothing item IS present, set "no_item_detected": false and fill every fiel
   }
 });
 
-const STYLE_COLOUR_SCHEMA = {
+const COLOUR_EXTRACT_SCHEMA = {
   type: 'object',
   properties: {
     no_face_detected: { type: 'boolean' },
-    season:    { type: 'string', enum: ['Soft autumn', 'True autumn', 'Warm spring', 'Soft summer'] },
-    undertone: { type: 'string', enum: ['Warm', 'Neutral', 'Cool'] },
-    contrast:  { type: 'string', enum: ['Low, blended', 'Medium', 'High contrast'] },
-    summary:        { type: 'string' },
-    undertone_note: { type: 'string' },
-    palette:  { type: 'array', items: { type: 'string' } },
-    neutrals: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, hex: { type: 'string' } }, required: ['name', 'hex'] } },
-    best_colours:  { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, hex: { type: 'string' } }, required: ['name', 'hex'] } },
-    avoid_colours: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, hex: { type: 'string' } }, required: ['name', 'hex'] } },
-    avoid_note: { type: 'string' },
-    proof_best: { type: 'string' },
-    proof_less: { type: 'string' },
-    seen_on_you: { type: 'array', items: { type: 'object', properties: { lifts: { type: 'string' }, flattens: { type: 'string' } }, required: ['lifts', 'flattens'] } },
-    metals: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, hexes: { type: 'array', items: { type: 'string' } } }, required: ['name', 'hexes'] } },
-    metals_note: { type: 'string' },
+    undertone: { type: 'string', enum: ['Warm', 'Cool', 'Neutral-Warm', 'Neutral-Cool'] },
+    contrast:  { type: 'string', enum: ['Low', 'Medium', 'High', 'Extremely High'] },
+    chroma:    { type: 'string', enum: ['Low', 'Medium', 'High'] },
+    lightness: { type: 'string', enum: ['Low', 'Medium', 'High'] },
+    skin_tone_hex:  { type: 'string' },
+    hair_color_hex: { type: 'string' },
+    eye_color_hex:  { type: 'string' },
+    low_confidence: { type: 'boolean' },
   },
-  required: ['no_face_detected', 'season', 'undertone', 'contrast', 'summary', 'undertone_note', 'palette', 'neutrals', 'best_colours', 'avoid_colours', 'avoid_note', 'proof_best', 'proof_less', 'seen_on_you', 'metals', 'metals_note'],
+  required: ['no_face_detected', 'undertone', 'contrast', 'chroma', 'lightness', 'skin_tone_hex', 'hair_color_hex', 'eye_color_hex', 'low_confidence'],
 };
 
-const STYLE_SILHOUETTE_SCHEMA = {
+const SIL_EXTRACT_SCHEMA = {
   type: 'object',
   properties: {
     no_person_detected: { type: 'boolean' },
-    body_type: { type: 'string', enum: ['Hourglass', 'Pear', 'Rectangle', 'Inverted triangle', 'Apple'] },
-    summary: { type: 'string' },
-    traits:  { type: 'array', items: { type: 'string' } },
-    dress_silhouettes: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, note: { type: 'string' } }, required: ['name', 'note'] } },
-    neckline_recommendations: { type: 'array', items: { type: 'string' } },
-    styling_tips: { type: 'array', items: { type: 'string' } },
+    shoulder_waist: { type: 'number' },
+    hip_waist:      { type: 'number' },
+    shoulder_hip:   { type: 'number' },
+    loose_clothing: { type: 'boolean' },
   },
-  required: ['no_person_detected', 'body_type', 'summary', 'traits', 'dress_silhouettes', 'neckline_recommendations', 'styling_tips'],
+  required: ['no_person_detected', 'shoulder_waist', 'hip_waist', 'shoulder_hip', 'loose_clothing'],
 };
 
-const STYLE_COLOUR_PROMPT = `You are the colour analyst for Robes, a luxury personal styling service. Analyse the person in this portrait — skin undertone, hair, eyes, overall contrast — and produce their personal colour analysis. Voice: editorial magazine — short, confident, warm; no hedging, no exclamation marks.
+const COLOUR_EXTRACT_PROMPT = `You are a colour-measurement vision system for a personal styling engine. Measure the person in this portrait. Output measurements only — no styling advice.
 
-IMPORTANT: If no human face is clearly visible (a garment, a room, a screenshot), set "no_face_detected": true and return every other field as an empty string or empty array.
+IMPORTANT: If no human face is clearly visible (a garment, a room, a screenshot), set "no_face_detected": true and return every other field as empty string / false / any enum value.
 
-Otherwise set "no_face_detected": false and fill every field:
-"season": one of — Soft autumn, True autumn, Warm spring, Soft summer
-"undertone": Warm, Neutral or Cool
-"contrast": "Low, blended", "Medium" or "High contrast"
-"summary": one clause under 12 words describing their colouring (e.g. "Warm, low in contrast, a little dusty.")
-"undertone_note": one short sentence on their metals vs skin (e.g. "Gold sits closer to your skin than silver. Warmth reads first.")
-"palette": exactly 18 hex codes, their seasonal palette as 3 rows of 6 — row 1 earth/warm tones light to deep, row 2 greens into teals and blues, row 3 deep blues and plums into berry and terracotta. Muted, harmonious, editorial. Never neon.
-"neutrals": exactly 6 {name, hex}, light to dark (Cream through Cocoa territory). Names 1–2 words.
-"best_colours": exactly 8 {name, hex} — their most flattering clothing colours.
-"avoid_colours": exactly 7 {name, hex} — colours that fight their colouring.
-"avoid_note": one short clause on why (e.g. "They pull focus from your warmth.")
-"proof_best": caption for their best-colour draping, 3–6 words (e.g. "Warmer, healthier, more even.")
-"proof_less": caption for the unflattering draping, 3–6 words (e.g. "Cooler, duller, more redness.")
-"seen_on_you": exactly 3 pairs {lifts, flattens}, each a garment-plus-colour label of 2–3 words (e.g. lifts "Olive shirt", flattens "Pale blue")
-"metals": exactly 3 {name, hexes} — their best metals, hexes is [light, mid, deep] for a disc gradient (e.g. Gold ["#E4C878","#C6A24C","#9C7E36"])
-"metals_note": one sentence in the register of "Brushed, not bright. Warm metals settle into your skin instead of sitting on top of it."`;
+Otherwise set "no_face_detected": false and measure:
+"undertone": the thermal base of the skin. Golden, yellow or peach-leaning skin → "Warm". Pink, blue or rosy-leaning → "Cool". Balanced with a slight warm bias → "Neutral-Warm". Balanced with a slight cool bias → "Neutral-Cool".
+"contrast": the value gap between skin and hair/eyes. Very dark hair against fair skin → "High" or "Extremely High". Blended, similar values throughout → "Low". Otherwise "Medium".
+"chroma": how clear and saturated the natural colouring is. Vivid, bright features → "High". Soft, dusty, greyed features → "Low". Otherwise "Medium".
+"lightness": the overall depth of the colouring. Fair skin and light hair → "High". Deep skin or very dark hair → "Low". Otherwise "Medium".
+"skin_tone_hex": average skin hex sampled from an evenly lit cheek area (e.g. "#E0D6C4").
+"hair_color_hex": dominant hair hex (e.g. "#8A7458").
+"eye_color_hex": dominant iris hex (e.g. "#5A5836").
+"low_confidence": true if strong colour-cast lighting, heavy filters, or shadows make undertone judgement unreliable.`;
 
-const STYLE_SILHOUETTE_PROMPT = `You are the silhouette analyst for Robes, a luxury personal styling service. Analyse the person in this full-length photograph — shoulder line, waist definition, hip line, overall proportions — and produce their silhouette guidance. Voice: editorial magazine — short, confident, warm; always flattering, never clinical.
+const SIL_EXTRACT_PROMPT = `You are a body-geometry vision system for a personal styling engine. Measure the person in this full-length photograph. Output measurements only — no styling advice.
 
-IMPORTANT: If no full-length human figure is clearly visible, set "no_person_detected": true and return every other field as an empty string or empty array.
+IMPORTANT: If no full-length human figure is clearly visible (head-and-shoulders only, a garment, a room), set "no_person_detected": true and return 1 for every ratio.
 
-Otherwise set "no_person_detected": false and fill every field:
-"body_type": one of — Hourglass, Pear, Rectangle, Inverted triangle, Apple
-"summary": one sentence under 14 words describing their line (e.g. "Balanced top to bottom with a waist that wants showing.")
-"traits": exactly 4 short traits, 2–4 words each (e.g. "Balanced shoulders & hips")
-"dress_silhouettes": exactly 4 {name, note} — their best dress cuts, note under 4 words (e.g. name "Wrap dress", note "Marks the waist")
-"neckline_recommendations": exactly 5 neckline names (e.g. "V-neck", "Square neck")
-"styling_tips": exactly 5 short imperative tips, 2–4 words (e.g. "Define the waist")`;
+Otherwise set "no_person_detected": false and estimate, from visible landmarks (outer shoulder margins, narrowest natural waist plane, widest hip boundary):
+"shoulder_waist": shoulder width divided by waist width (e.g. 1.35)
+"hip_waist": hip width divided by waist width (e.g. 1.32)
+"shoulder_hip": shoulder width divided by hip width (e.g. 1.02)
+"loose_clothing": true if oversized or loose garments hide the natural waistline, making ratios unreliable.`;
 
 app.post('/api/stylenotes/analyse', async (req, res) => {
   const { kind, data, mimeType } = req.body;
@@ -611,17 +595,17 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
   const colour = kind === 'colour';
   const t0 = Date.now();
   try {
-    // Attempt 1 uses a responseSchema; if Gemini rejects it (schema too
-    // complex) or hiccups, attempt 2 drops the schema and trusts JSON mode +
-    // the prompt's explicit field spec.
+    // Gemini extracts measurable primitives only; the deterministic engine in
+    // style_dna.js maps them to archetypes and design rules (PRD: Style DNA).
+    // Attempt 1 uses a responseSchema; attempt 2 drops it and trusts JSON mode.
     let result, lastErr;
     for (let attempt = 0; attempt < 2 && !result; attempt++) {
       const config = {
         responseMimeType: 'application/json',
-        maxOutputTokens: colour ? 8192 : 4096,
+        maxOutputTokens: 1024,
         thinkingConfig: { thinkingBudget: 0 },
       };
-      if (attempt === 0) config.responseSchema = colour ? STYLE_COLOUR_SCHEMA : STYLE_SILHOUETTE_SCHEMA;
+      if (attempt === 0) config.responseSchema = colour ? COLOUR_EXTRACT_SCHEMA : SIL_EXTRACT_SCHEMA;
       try {
         result = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
@@ -629,7 +613,7 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
             role: 'user',
             parts: [
               { inlineData: { mimeType, data } },
-              { text: colour ? STYLE_COLOUR_PROMPT : STYLE_SILHOUETTE_PROMPT },
+              { text: colour ? COLOUR_EXTRACT_PROMPT : SIL_EXTRACT_PROMPT },
             ],
           }],
           config,
@@ -651,8 +635,13 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
       throw new Error('truncated_response:' + finishReason);
     }
     const rejected = colour ? parsed.no_face_detected : parsed.no_person_detected;
-    logAI({ feature: 'stylenotes_analyse', kind, ms: Date.now() - t0, finishReason, rejected: !!rejected, success: true });
-    res.json(parsed);
+    if (rejected) {
+      logAI({ feature: 'stylenotes_analyse', kind, ms: Date.now() - t0, finishReason, rejected: true, success: true });
+      return res.json(colour ? { no_face_detected: true } : { no_person_detected: true });
+    }
+    const { render, dna } = colour ? buildColorHarmony(parsed) : buildSilhouette(parsed);
+    logAI({ feature: 'stylenotes_analyse', kind, ms: Date.now() - t0, finishReason, rejected: false, success: true, archetype: colour ? dna.archetype_name : dna.body_type });
+    res.json({ ...render, style_dna: dna });
   } catch (err) {
     logAI({ feature: 'stylenotes_analyse', kind, ms: Date.now() - t0, success: false, reason: err.message });
     console.error('[stylenotes/analyse] Gemini error:', err.message);
@@ -662,7 +651,7 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
 
 /* ── moodboard ───────────────────────────────────────────────────── */
 app.post('/api/moodboard', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { prompt, wardrobeItems = [] } = req.body;
+  const { prompt, wardrobeItems = [], styleDna = null } = req.body;
   if (!prompt?.trim()) return res.status(400).json({ error: 'prompt required' });
 
   const wardrobeCtx = wardrobeItems.length
@@ -676,6 +665,7 @@ app.post('/api/moodboard', rateLimit({ windowMs: 60_000, max: 10 }), async (req,
 Everything you generate must be specific to the brief above — destination, climate, occasion, and aesthetic must all reflect it directly.
 
 ${wardrobeCtx}
+${styleDnaPromptBlock(styleDna, wardrobeItems.length)}
 
 Return this JSON shape (all fields must reflect the user's brief, not a generic example):
 {

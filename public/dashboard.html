@@ -2411,7 +2411,7 @@ worn three ways</div>
     window.__robes_profile = {};
     if (_sess2.user) {
       const { data: _profile } = await _sb.from('profiles')
-        .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description')
+        .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description, style_dna, wardrobe_items_count')
         .eq('id', _sess2.user.id).single();
       window.__robes_profile = _profile || {};
     }

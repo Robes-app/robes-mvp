@@ -1,4 +1,8 @@
     window.__robes_personalize = function() {
+      const _rbStyleDna = () => {
+        const dna = (window.__robes_profile || {}).style_dna;
+        return dna && typeof dna === 'object' && (dna.color_harmony || dna.silhouette_proportions) ? dna : null;
+      };
       // Personalise name
       const name = (window.__robes_profile && window.__robes_profile.first_name) || 'Annie';
       if (name !== 'Annie') {
@@ -1253,7 +1257,7 @@
               const res = await fetch('/api/style', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, photo: photoData }),
+                body: JSON.stringify({ prompt, photo: photoData, styleDna: _rbStyleDna(), wardrobeCount: _waItems.length }),
               });
               clearInterval(msgInterval);
               overlay.style.display = 'none';
@@ -2059,7 +2063,7 @@
           const res = await fetch('/api/style', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, photo: photoData || null }),
+            body: JSON.stringify({ prompt, photo: photoData || null, styleDna: _rbStyleDna(), wardrobeCount: _waItems.length }),
           });
           clearInterval(msgInterval);
           overlay.style.display = 'none';
@@ -2206,7 +2210,7 @@
           const res = await fetch('/api/moodboard', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ prompt, wardrobeItems }),
+            body: JSON.stringify({ prompt, wardrobeItems, styleDna: _rbStyleDna() }),
             signal: controller.signal,
           });
           clearTimeout(clientTimeout);
