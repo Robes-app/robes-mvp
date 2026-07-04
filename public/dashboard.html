@@ -2410,10 +2410,24 @@ worn three ways</div>
     window.__robes_sb = _sb;
     window.__robes_profile = {};
     if (_sess2.user) {
-      const { data: _profile } = await _sb.from('profiles')
-        .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description, style_dna, wardrobe_items_count')
+      let { data: _profile, error: _pErr } = await _sb.from('profiles')
+        .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description, style_dna, wardrobe_items_count, onboarded_at')
         .eq('id', _sess2.user.id).single();
+      if (_pErr) {
+        // onboarding_migration.sql not run yet — retry without onboarded_at
+        const retry = await _sb.from('profiles')
+          .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description, style_dna, wardrobe_items_count')
+          .eq('id', _sess2.user.id).single();
+        _profile = retry.data ? { ...retry.data, onboarded_at: 'unknown' } : null;
+      }
       window.__robes_profile = _profile || {};
+      // First-time users go through onboarding. Only redirect when the profile
+      // row actually loaded (a failed select must never bounce users), and the
+      // rb_onboarded session flag guards against loops if the DB write failed.
+      if (_profile && !_profile.onboarded_at && !sessionStorage.getItem('rb_onboarded')) {
+        window.location.href = '/onboarding';
+        return;
+      }
     }
     // App scripts must run in order, after auth — mirrors the old bundler loader
     for (const src of ["/dashboard-assets/2586a7a2-4d41-43f0-90ce-80ec6502215e.js", "/dashboard-assets/063068d4-0195-4637-885a-dd24d868e3f7.js", "/dashboard-assets/144529f6-c392-4028-a27b-ed2c35c4bdd8.js", "/dashboard-assets/8c8db126-15d1-4ca1-acda-9a26416d22c0.js", "/dashboard-assets/a4efbfe6-b88a-4f1c-8794-722875add3c5.js", "/dashboard-assets/3cfe34e4-1506-4127-bd28-beebfa51e587.js"]) {
