@@ -309,14 +309,17 @@ Style this key piece three ways. Make each look genuinely distinct — different
         model: 'gemini-3.1-flash-image',
         contents: [{ role: 'user', parts: imgParts }],
         config: { responseModalities: ['TEXT', 'IMAGE'] },
-      }).then(r => {
+      }).then(async r => {
         const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
         if (!part?.inlineData) {
           logAI({ feature: 'style', stage: 'image', index: i, success: false, reason: 'no_inline_data' });
           return null;
         }
-        const src = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        logAI({ feature: 'style', stage: 'image', index: i, success: true, ms: Date.now() - t1 });
+        // Host on Cloudinary so the client can persist a small URL in the
+        // lookbook instead of a multi-MB base64 blob; fall back to data URL
+        const hosted = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+        const src = hosted || `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        logAI({ feature: 'style', stage: 'image', index: i, success: true, hosted: !!hosted, ms: Date.now() - t1 });
         const job = imageJobs.get(jobId);
         if (job) job.images[i] = src;
         return src;
@@ -326,13 +329,14 @@ Style this key piece three ways. Make each look genuinely distinct — different
       });
 
       const timeout = new Promise(resolve => setTimeout(() => {
-        logAI({ feature: 'style', stage: 'image', index: i, success: false, reason: 'timeout_40s' });
+        logAI({ feature: 'style', stage: 'image', index: i, success: false, reason: 'timeout_50s' });
         resolve(null);
-      }, 40000));
+      }, 50000));
       return Promise.race([imgCall, timeout]);
     })).then(images => {
       const job = imageJobs.get(jobId);
-      if (job) { job.images = images; job.done = true; }
+      // Merge — an image may have landed on the job after its race timed out
+      if (job) { job.images = job.images.map((v, i) => v || images[i]); job.done = true; }
       logAI({ feature: 'style', stage: 'images_complete', jobId, totalMs: Date.now() - t0, successCount: images.filter(Boolean).length });
     });
   } catch (err) {
@@ -519,7 +523,7 @@ If a clothing item IS present, set "no_item_detected": false and fill every fiel
 "ai_generated_notes": one editorial sentence under 15 words` }
         ]
       }],
-      config: { responseMimeType: 'application/json', responseSchema: ANALYSE_SCHEMA, maxOutputTokens: 600 },
+      config: { responseMimeType: 'application/json', responseSchema: ANALYSE_SCHEMA, maxOutputTokens: 600, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
     });
 
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
@@ -555,7 +559,7 @@ If a clothing item IS present, set "no_item_detected": false and fill every fiel
   } catch (err) {
     logAI({ feature: 'wardrobe_analyse', ms: Date.now() - t0, success: false, reason: err.message });
     console.error('[analyse] Gemini error:', err.message);
-    res.json({ label: '', category: 'Other', color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, llm_styling_context: {}, ai_generated_notes: '' } });
+    res.json({ analysisFailed: true, label: '', category: 'Other', color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, llm_styling_context: {}, ai_generated_notes: '' } });
   }
 });
 

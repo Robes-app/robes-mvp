@@ -41,6 +41,7 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 | `supabase/functions/wardrobe-context/index.ts` | Edge Function — assembles user profile, calls Anthropic, writes to prompt_history |
 | `public/onboarding.html` | First-time-user onboarding flow — splash/intro/name + 4 steps + done, saves to `profiles` |
 | `supabase/onboarding_migration.sql` | Adds `onboarded_at timestamptz` to `profiles` + backfills existing rows — run once in Supabase SQL editor |
+| `supabase/lookbook_migration.sql` | `lookbook_items` table (saved looks + moodboards, RLS, PK `(user_id, id)` with client `Date.now()` ids) — run once in Supabase SQL editor. The dashboard keeps per-user localStorage as an instant cache and syncs through this table (`_lbCloudPull/Push/Patch/Delete` in `dashboard-personalize.js`); if the migration hasn't run the app silently degrades to local-only |
 
 ## Branches
 - `main` — live production (www.byrobes.com)

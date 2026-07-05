@@ -3,6 +3,16 @@
         const dna = (window.__robes_profile || {}).style_dna;
         return dna && typeof dna === 'object' && (dna.color_harmony || dna.silhouette_proportions) ? dna : null;
       };
+      // Kill the bundle's mock "Today / Cream on cream" section instantly —
+      // _rbApplyLayout removes it at 900ms, but on slow loads the mock look
+      // flashes (or lingers) before that. Hide it before first paint.
+      if (!document.getElementById('rb-instant-style')) {
+        const ris = document.createElement('style');
+        ris.id = 'rb-instant-style';
+        ris.textContent = '#dual{display:none !important}' +
+          '@keyframes kpPhPulse{0%,100%{opacity:1}50%{opacity:.55}}';
+        document.head.appendChild(ris);
+      }
       // Personalise name
       const name = (window.__robes_profile && window.__robes_profile.first_name) || 'Annie';
       if (name !== 'Annie') {
@@ -86,7 +96,7 @@
           if (res.ok) {
             msgEl.style.color = '#7E7C5A';
             msgEl.textContent = 'Saved.';
-            setTimeout(() => { msgEl.textContent = ''; }, 2000);
+            setTimeout(() => { msgEl.textContent = ''; acctModal.style.display = 'none'; }, 900);
             // Keep the in-memory profile + visible name in sync
             const newFirst = document.getElementById('acct-first').value.trim();
             if (window.__robes_profile) {
@@ -122,7 +132,11 @@
       if (greetingEl) greetingEl.innerHTML = 'Good ' + tod + ',<br>' + name + '.';
       if (dashGreetEl) dashGreetEl.textContent = 'Good ' + tod + ', ' + name + '.';
 
-      // Live weather — request geolocation then fetch Open-Meteo
+      // Live weather — request geolocation then fetch Open-Meteo.
+      // Scoped IIFE: its early exits must NEVER abort the rest of
+      // personalize (a missing weather strip used to silently kill the
+      // wardrobe/lookbook/moodboard wiring below).
+      (function _rbWeather() {
       const weatherEl = document.getElementById('nav-weather');
       if (!weatherEl) return;
       const spans = weatherEl.querySelectorAll('span:not(.dot):not(.wx)');
@@ -164,6 +178,7 @@
           if (code !== undefined && wxIcon) wxIcon.textContent = WX_ICONS[code] || '🌤';
         } catch (e) { /* keep defaults on error */ }
       }, () => { /* permission denied — keep defaults */ });
+      })();
 
       // ── Wardrobe wiring ──────────────────────────────────────────
       const _SUPA_URL = 'https://ayowpaknssulsqqvwpqx.supabase.co';
@@ -977,28 +992,94 @@
           if (items.length > 1) snSave(items.slice(0, items.length - 1));
         }
       }
+      // ── Cloud persistence (lookbook_items table) ─────────────────────
+      // localStorage stays as the instant cache; Supabase is the durable
+      // copy so looks + moodboards survive devices, reloads and storage
+      // clears. If the migration hasn't run yet every call fails silently
+      // and the app behaves exactly as before (local-only).
+      function _lbRowToItem(r) {
+        return { id: Number(r.id), type: r.type || 'key-piece', title: r.title || '', subtitle: r.subtitle || '', img: r.img || null, saved_at: r.created_at, ...(r.data && typeof r.data === 'object' ? r.data : {}) };
+      }
+      function _lbItemToRow(item) {
+        const { id, type, title, subtitle, img, saved_at, ...data } = item;
+        return { id, user_id: _waUid(), type: type || 'key-piece', title: title || '', subtitle: subtitle || '', img: img || null, data };
+      }
+      function _lbCloudPush(item) {
+        if (!_waUid()) return;
+        _waFetch('POST', 'lookbook_items', _lbItemToRow(item))
+          .catch(e => console.warn('[robes] lookbook cloud push failed:', String(e.message || e).slice(0, 120)));
+      }
+      function _lbCloudPatch(item) {
+        if (!_waUid()) return;
+        const row = _lbItemToRow(item);
+        delete row.id; delete row.user_id;
+        _waFetch('PATCH', 'lookbook_items?id=eq.' + item.id + '&user_id=eq.' + _waUid(), row)
+          .catch(e => console.warn('[robes] lookbook cloud patch failed:', String(e.message || e).slice(0, 120)));
+      }
+      function _lbCloudDelete(id) {
+        if (!_waUid()) return;
+        _waFetch('DELETE', 'lookbook_items?id=eq.' + id + '&user_id=eq.' + _waUid())
+          .catch(() => {});
+      }
+      async function _lbCloudPull() {
+        // Wait for the session-dependent helpers (same lazy pattern as _waInit)
+        let tries = 0;
+        while (!_waUid() && tries++ < 40) await new Promise(r => setTimeout(r, 250));
+        if (!_waUid()) return;
+        try {
+          const rows = await _waFetch('GET', 'lookbook_items?user_id=eq.' + _waUid() + '&order=created_at.desc&limit=100&select=*');
+          if (!Array.isArray(rows)) return;
+          const cloudSn = [], cloudMb = [];
+          rows.forEach(r => (r.type === 'moodboard' ? cloudMb : cloudSn).push(_lbRowToItem(r)));
+          // Local-only entries (saved offline / pre-migration) sync up
+          snLoad().forEach(i => { if (!cloudSn.find(c => c.id === i.id)) { cloudSn.push(i); _lbCloudPush(i); } });
+          _mbLoad().forEach(i => { if (!cloudMb.find(c => c.id === i.id)) { cloudMb.push(i); _lbCloudPush(i); } });
+          cloudSn.sort((a, b) => b.id - a.id);
+          cloudMb.sort((a, b) => b.id - a.id);
+          snSave(cloudSn);
+          _mbSave(cloudMb);
+          snRefreshRow();
+          snRenderPage();
+          _mbRenderPage();
+          console.log('[robes] lookbook cloud sync: ' + cloudSn.length + ' looks, ' + cloudMb.length + ' moodboards');
+        } catch (e) {
+          console.warn('[robes] lookbook cloud pull skipped:', String(e.message || e).slice(0, 120));
+        }
+      }
+
       function snAdd(item) {
         const items = snLoad();
-        items.unshift({ ...item, id: Date.now(), saved_at: new Date().toISOString() });
+        const rec = { ...item, id: Date.now(), saved_at: new Date().toISOString() };
+        items.unshift(rec);
         snSave(items);
         snRefreshRow();
+        _lbCloudPush(rec);
+        return rec.id;
+      }
+      function snUpdate(id, patch) {
+        const items = snLoad();
+        const it = items.find(i => i.id === id);
+        if (!it) return;
+        Object.assign(it, patch);
+        snSave(items);
+        snRefreshRow();
+        _lbCloudPatch(it);
       }
       function snRemove(id) {
         snSave(snLoad().filter(i => i.id !== id));
         snRefreshRow();
         snRenderPage();
+        _lbCloudDelete(id);
       }
 
       // ── Inject Style Notes page ──────────────────────────────────────
       const snPage = document.createElement('div');
       snPage.id = 'sn-page';
-      snPage.style.cssText = 'display:none;position:fixed;inset:0;z-index:800;background:#FAF8F5;overflow-y:auto';
+      // top:60px + z-index below the main nav (50) so weather / wardrobe
+      // count / avatar stay visible and usable — the page must never
+      // strip the global context (same pattern as the moodboard panel).
+      snPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:60px;z-index:45;background:#FAF8F5;overflow-y:auto';
       snPage.innerHTML = `
-        <nav style="position:sticky;top:0;z-index:10;background:#FAF8F5;border-bottom:1px solid rgba(32,32,33,0.07);display:flex;align-items:center;padding:0 24px;height:56px">
-          <button onclick="window.__snClose()" style="background:none;border:none;cursor:pointer;padding:8px 0;font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:15px;letter-spacing:.24em;text-transform:uppercase;color:#202021">Robes</button>
-          <span style="color:rgba(32,32,33,0.3);margin:0 10px;font-size:12px">/</span>
-          <span style="font-size:12px;color:rgba(32,32,33,0.45);letter-spacing:.01em">Lookbook</span>
-        </nav>
         <div style="padding:32px 24px 24px;max-width:960px;margin:0 auto">
           <p style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;margin:0 0 24px">Saved looks & key pieces</p>
           <div id="sn-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
@@ -1011,11 +1092,16 @@
 
       window.__snClose = function() {
         document.getElementById('sn-page').style.display = 'none';
+        window.rbClearCrumb && window.rbClearCrumb();
+        window._rbNav && window._rbNav('/dashboard');
       };
       window.__snOpen = function() {
-        document.getElementById('av-menu').classList.remove('open');
+        const av = document.getElementById('av-menu');
+        if (av) av.classList.remove('open');
         document.getElementById('sn-page').style.display = 'block';
         snRenderPage();
+        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Lookbook' }]);
+        window._rbNav && window._rbNav('/lookbook');
       };
       window.__snRemove = function(id) { snRemove(id); };
       window.__snOpenItem = function(id) {
@@ -1329,7 +1415,21 @@
 
       // Poll the /api/style background image job and slot images in as they land
       let _kpPollTimer = null;
+      let _kpActiveSaveId = null; // lookbook id of the look being rendered — images patch into it
       function _kpStopPolling() { if (_kpPollTimer) { clearTimeout(_kpPollTimer); _kpPollTimer = null; } }
+      function _kpPersistImages() {
+        // Write hosted image URLs into the saved lookbook entry so tiles
+        // survive navigation + reload (server uploads to Cloudinary first)
+        if (!_kpActiveSaveId || !window.__lastKpData) return;
+        const urls = (window.__lastKpData.generatedImages || []).map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
+        if (!urls.some(Boolean)) return;
+        const it = snLoad().find(x => x.id === _kpActiveSaveId);
+        if (!it) return;
+        snUpdate(_kpActiveSaveId, {
+          img: urls.find(Boolean) || it.img || null,
+          kpData: { ...(it.kpData || {}), generatedImages: urls },
+        });
+      }
       function _kpSetLookImage(i, src) {
         const wrap = document.getElementById('kp-look-imgwrap-' + i);
         if (!wrap) return;
@@ -1363,15 +1463,17 @@
             .then(r => r.ok ? r.json() : null)
             .then(job => {
               if (job && Array.isArray(job.images)) {
+                let changed = false;
                 job.images.forEach((src, i) => {
                   if (src) {
                     _kpSetLookImage(i, src);
                     if (window.__lastKpData) {
                       if (!Array.isArray(window.__lastKpData.generatedImages)) window.__lastKpData.generatedImages = [];
-                      window.__lastKpData.generatedImages[i] = src;
+                      if (window.__lastKpData.generatedImages[i] !== src) { window.__lastKpData.generatedImages[i] = src; changed = true; }
                     }
                   }
                 });
+                if (changed) _kpPersistImages();
                 if (job.done) {
                   for (let i = 0; i < count; i++) _kpSettlePlaceholder(i);
                   return;
@@ -1493,15 +1595,22 @@
         // Images generate in the background on the server — poll and slot them in
         if (imagesPending) _kpPollImages(data.jobId, ways.length);
 
-        // Auto-save (no images — protect localStorage). Skipped when re-opening
-        // an already-saved look from the lookbook, else entries duplicate.
-        if (!opts || !opts.skipSave) snAdd({
-          type: 'key-piece',
-          title: pieceName,
-          subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
-          img: photoUrl || null,
-          kpData: { ways, fallback, photoUrl },
-        });
+        // Auto-save. Generated images are patched in by _kpPollImages once
+        // they land as hosted URLs (base64 is never persisted — it would
+        // blow the localStorage quota). Skipped when re-opening an
+        // already-saved look from the lookbook, else entries duplicate.
+        if (!opts || !opts.skipSave) {
+          const persistable = (generatedImages || []).map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
+          _kpActiveSaveId = snAdd({
+            type: 'key-piece',
+            title: pieceName,
+            subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
+            img: persistable.find(Boolean) || photoUrl || null,
+            kpData: { ways, fallback, photoUrl, generatedImages: persistable },
+          });
+        } else {
+          _kpActiveSaveId = data.id || null;
+        }
 
         let kpFbRating = null;
         window.__kpFbRate = function(val) {
@@ -1874,11 +1983,13 @@
                   setTimeout(_rbForceWordmark, 50);
                   setTimeout(_rbForceWordmark, 200);
                   window.rbSetCrumb && window.rbSetCrumb([{ label: 'Wardrobe' }]);
+                  window._rbNav && window._rbNav('/wardrobe');
                 } else {
                   if (_wmObserver) { _wmObserver.disconnect(); _wmObserver = null; }
                   const wm = document.getElementById('nav-wordmark');
                   if (wm) wm.style.removeProperty('display');
                   window.rbClearCrumb && window.rbClearCrumb();
+                  if (window.location.pathname === '/wardrobe') window._rbNav && window._rbNav('/dashboard');
                 }
               }
             });
@@ -2049,14 +2160,27 @@
       }
       function _mbAdd(item) {
         const items = _mbLoad();
-        items.unshift({ ...item, id: Date.now(), saved_at: new Date().toISOString() });
+        const rec = { ...item, id: Date.now(), saved_at: new Date().toISOString(), type: 'moodboard' };
+        items.unshift(rec);
         _mbSave(items);
         _rbRenderMoodboards();
+        _lbCloudPush(rec);
+        return rec.id;
+      }
+      function _mbUpdate(id, patch) {
+        const items = _mbLoad();
+        const it = items.find(i => i.id === id);
+        if (!it) return;
+        Object.assign(it, patch);
+        _mbSave(items);
+        _rbRenderMoodboards();
+        _lbCloudPatch(it);
       }
       function _mbRemove(id) {
         _mbSave(_mbLoad().filter(i => i.id !== id));
         _rbRenderMoodboards();
         _mbRenderPage();
+        _lbCloudDelete(id);
       }
 
       // ── Moodboard entry: scroll + prefill the main concierge textarea ──
@@ -2380,6 +2504,13 @@
               if (updated) {
                 panel._currentData.grid_images = currentGridImages;
                 panel._currentData.hero_image = panel._currentData.hero_image || currentGridImages.find(g => g.type === 'hero_look' && g.url)?.url || null;
+                // Persist into the saved moodboard so the board keeps its
+                // imagery when reopened later (tile + list card too)
+                if (panel._savedId) _mbUpdate(panel._savedId, {
+                  grid_images: currentGridImages,
+                  hero_image: panel._currentData.hero_image,
+                  img: currentGridImages.find(g => g.type === 'hero_look' && g.url)?.url || panel._currentData.hero_image || null,
+                });
                 // Re-render mosaic with new images without closing panel
                 const mosaicEl = document.getElementById('mb-mosaic');
                 if (mosaicEl) {
@@ -2404,6 +2535,7 @@
                 }
               }
               if (!data.done) setTimeout(tick, 4000);
+              else document.querySelectorAll('#mb-mosaic .mb-ph-cell, #mb-mosaic .mme-hero:not(img)').forEach(el => { el.style.animation = 'none'; const s = el.querySelector('span'); if (s && s.textContent === 'Creating imagery…') s.remove(); });
             })
             .catch(() => { if (attempts < maxAttempts) setTimeout(tick, 6000); });
         }
@@ -2499,15 +2631,22 @@
           const palette = ['var(--cream-200)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-100)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-200)'];
           // Cell order mirrors the bundle's mosaic grid: look2, flat1, look3, flat2, atm1, atm2, spare
           const extraUrls = [byType.hero_look[1], byType.flat_lay[0], byType.hero_look[2], byType.flat_lay[1], byType.atmosphere[0], byType.atmosphere[1], null];
+          // Fresh generation (mb_job_id set) — empty cells are loading, not
+          // decorative: pulse them and label the first so blanks read as
+          // "imagery on its way", not broken tiles
+          const mbPending = !!data.mb_job_id;
           const extras = extraUrls.map((url, i) =>
             url
               ? `<img src="${_mbEsc(url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" alt="">`
-              : `<div style="background:${palette[i]}"></div>`
+              : `<div class="mb-ph-cell" style="background:${palette[i]};${mbPending ? 'animation:kpPhPulse 1.8s ease-in-out infinite;' : ''}display:flex;align-items:center;justify-content:center">${mbPending && i === 0 ? '<span style="font-family:var(--font-serif,Georgia,serif);font-style:italic;font-size:13px;color:rgba(32,32,33,0.35);padding:0 14px;text-align:center">Creating imagery…</span>' : ''}</div>`
           ).join('');
           mosaicEl.innerHTML = heroHtml + editorialHtml + extras;
           if (heroUrl) {
             const heroImg = document.getElementById('mb-mosaic-hero');
             if (heroImg) heroImg.src = heroUrl;
+          } else if (mbPending) {
+            const heroPh = mosaicEl.querySelector('.mme-hero');
+            if (heroPh && heroPh.tagName !== 'IMG') heroPh.style.animation = 'kpPhPulse 1.8s ease-in-out infinite';
           }
         }
 
@@ -2613,10 +2752,14 @@
 
         // Auto-save immediately — no manual tap required. Skipped when
         // re-opening a saved board or re-rendering after a swap, else
-        // every open/swap creates a duplicate entry.
-        if (opts && opts.skipSave) return;
-        _mbAdd({
-          type: 'moodboard',
+        // every open/swap creates a duplicate entry. The saved id is kept
+        // on the panel so _mbPollImages can patch images into the saved
+        // entry once they finish generating.
+        if (opts && opts.skipSave) {
+          if (panel && data.id) panel._savedId = data.id;
+          return;
+        }
+        const mbSavedId = _mbAdd({
           title: data.title || data.prompt || 'Moodboard',
           subtitle: data.location_context || '',
           img: grid_images.find(g => g?.type === 'hero_look' && g?.url)?.url || data.hero_image || null,
@@ -2627,6 +2770,7 @@
           editorial_direction: data.editorial_direction,
           grid_images: grid_images,
         });
+        if (panel) panel._savedId = mbSavedId;
       }
 
       window.__mbCloseResult = function() {
@@ -2732,22 +2876,26 @@
         window.__mbCurrentLook[lookIdx].wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
         document.getElementById('mb-swap-modal')?.remove();
         const panel = document.getElementById('moodboard-panel');
-        if (panel?._currentData) { panel._currentData.the_look = window.__mbCurrentLook; _mbShowResult(panel._currentData, { skipSave: true }); }
+        if (panel?._currentData) {
+          panel._currentData.the_look = window.__mbCurrentLook;
+          _mbShowResult(panel._currentData, { skipSave: true });
+          if (panel._savedId) _mbUpdate(panel._savedId, { the_look: window.__mbCurrentLook });
+        }
         _waShowToast(wi.label + ' swapped in');
       };
 
       // ── Moodboard full list page ─────────────────────────────────────
       const _mbListPage = document.createElement('div');
       _mbListPage.id = 'mb-list-page';
-      _mbListPage.style.cssText = 'display:none;position:fixed;inset:0;z-index:860;background:#FAF8F5;overflow-y:auto';
+      // Under the main nav (top:60px, z below nav's 50) so weather /
+      // wardrobe / avatar stay visible — no separate mini-nav of its own
+      _mbListPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:60px;z-index:45;background:#FAF8F5;overflow-y:auto';
       _mbListPage.innerHTML = `
-        <nav style="position:sticky;top:0;z-index:10;background:#FAF8F5;border-bottom:1px solid rgba(32,32,33,0.07);display:flex;align-items:center;padding:0 24px;height:56px">
-          <button onclick="window.__mbCloseList()" style="background:none;border:none;cursor:pointer;padding:8px 0;font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:15px;letter-spacing:.24em;text-transform:uppercase;color:#202021">Robes</button>
-          <span style="color:rgba(32,32,33,0.3);margin:0 10px;font-size:12px">/</span>
-          <span style="font-size:12px;color:rgba(32,32,33,0.45);letter-spacing:.01em">Moodboards</span>
-          <button onclick="window.__mbCloseList();window.__rbStartMoodboard()" style="margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:100px;background:#202021;color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer">+ New</button>
-        </nav>
         <div style="padding:32px 24px 80px;max-width:960px;margin:0 auto">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+            <p style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;margin:0">Your moodboards</p>
+            <button onclick="window.__mbCloseList();window.__rbStartMoodboard()" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:100px;background:#202021;color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer">+ New</button>
+          </div>
           <div id="mb-list-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
           <div id="mb-list-empty" style="display:none;padding:80px 0;text-align:center">
             <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">No moodboards yet.</p>
@@ -2780,14 +2928,19 @@
           </div>`).join('');
       }
 
-      window._mbShowAllPage = function() { _mbListPage.style.display = 'block'; _mbRenderPage(); };
+      window._mbShowAllPage = function() {
+        _mbListPage.style.display = 'block';
+        _mbRenderPage();
+        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Your Moodboards' }]);
+        window._rbNav && window._rbNav('/moodboards');
+      };
       window.__mbOpenList = function() {
         window._mbShowAllPage();
-        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Your Moodboards' }]);
       };
       window.__mbCloseList = function() {
         _mbListPage.style.display = 'none';
         window.rbClearCrumb && window.rbClearCrumb();
+        window._rbNav && window._rbNav('/dashboard');
       };
       window.__mbRemoveSaved = function(id) { _mbRemove(id); };
       window.__mbOpenSaved = function(id) {
@@ -2866,6 +3019,42 @@
         if (svcGrid) _rbPostRenderObserver.observe(svcGrid, { childList: true, subtree: false });
       }, 1200);
 
+      // ── URL routing — clean paths for wardrobe / lookbook / moodboards ──
+      // pushState keeps the address bar honest and makes views shareable;
+      // popstate makes the browser back button actually walk the views.
+      let _rbRouting = false;
+      window._rbNav = function(path) {
+        if (_rbRouting) return;
+        try { if (window.location.pathname !== path) history.pushState({ rb: path }, '', path); } catch (e) {}
+      };
+      window.addEventListener('popstate', function() {
+        _rbRouting = true;
+        try {
+          const p = window.location.pathname;
+          const snEl = document.getElementById('sn-page');
+          if (snEl && p !== '/lookbook') { snEl.style.display = 'none'; }
+          if (p !== '/moodboards') _mbListPage.style.display = 'none';
+          window.__mbCloseResult && window.__mbCloseResult();
+          if (kpResultPage) kpResultPage.style.display = 'none';
+          const wp = document.querySelector('.wardrobe-panel');
+          const wpOpen = wp && wp.classList.contains('visible');
+          if (wpOpen && p !== '/wardrobe') {
+            const wbtnCount = document.querySelector('.nav-wbtn-count');
+            const wbtn = wbtnCount ? wbtnCount.closest('button') : null;
+            if (wbtn) wbtn.click(); else wp.classList.remove('visible');
+          }
+          if (p === '/lookbook') window.__snOpen && window.__snOpen();
+          else if (p === '/moodboards') window._mbShowAllPage && window._mbShowAllPage();
+          else if (p === '/wardrobe') { if (!wpOpen && window.App && App.showWardrobe) App.showWardrobe(); }
+          else window.rbClearCrumb && window.rbClearCrumb();
+        } catch (e) {} finally { _rbRouting = false; }
+      });
+
+      // Pull the durable lookbook/moodboards from Supabase — refreshes all
+      // dashboard rows once the cloud copy lands (and syncs up any
+      // local-only entries from before the migration).
+      _lbCloudPull();
+
       // ── Onboarding handoff — style the key piece three ways on arrival ──
       // /onboarding step 04 stores {prompt, photo} then lands here; run it
       // through the same overlay + result page as the concierge flow. The
@@ -2886,16 +3075,21 @@
           try {
             const m = String(piece.photo).match(/^data:([^;]+);base64,(.+)$/);
             if (!m) return;
-            const [tag, up] = await Promise.all([
-              fetch('/api/wardrobe/analyse', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: m[2], mimeType: m[1] }),
-              }).then(r => r.ok ? r.json() : null).catch(() => null),
+            const analyse = () => fetch('/api/wardrobe/analyse', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ data: m[2], mimeType: m[1] }),
+            }).then(r => r.ok ? r.json() : null).catch(() => null);
+            let [tag, up] = await Promise.all([
+              analyse(),
               fetch('/api/wardrobe/upload', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ data: m[2], mimeType: m[1] }),
               }).then(r => r.ok ? r.json() : null).catch(() => null),
             ]);
+            if (!tag || tag.analysisFailed || (!tag.noItemDetected && !tag.label)) {
+              await new Promise(r => setTimeout(r, 1500));
+              tag = (await analyse()) || tag;
+            }
             if (tag && tag.noItemDetected) return; // face/room photo — not a wardrobe piece
             const label = (tag && tag.label) || (piece.prompt || '').slice(0, 60) || 'Key piece';
             // Wait for the session-dependent fetch helper to be usable
