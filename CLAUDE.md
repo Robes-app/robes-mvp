@@ -27,6 +27,8 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 | `public/js/app.js` | All client logic — state, flow, rendering |
 | `public/css/robes-mvp.css` | All styles |
 | `public/look.html` | Shareable look page (static, loads `/api/look/:id`) |
+| `public/terms.html` | Beta terms — plain-English, linked from signup legal footer |
+| `public/privacy.html` | Privacy notice — plain-English, linked from signup legal footer |
 | `public/dashboard.html` | Protected dashboard SPA — wardrobe, styling, account (ejected from Claude Design bundle) |
 | `public/dashboard-assets/` | Dashboard fonts/images/app JS extracted from the bundle (uuid filenames) |
 | `public/js/dashboard-personalize.js` | The `__robes_personalize` customisation layer for the dashboard |
@@ -67,6 +69,8 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 - Avatar dropdown grew Style notes + Log out items (`#av-stylenotes`, `#av-logout`)
 - Style DNA engine (`style_dna.js`): deterministic 12-season + 5-body archetype mapping from photo primitives, saved to `profiles.style_dna` and injected into `/api/style` + `/api/moodboard` prompts (migrations run on Supabase: style_notes, analysis, style_dna)
 - `/onboarding` — first-time-user onboarding flow (standalone `onboarding.html`, see its section below)
+- `/terms`, `/privacy` — beta legal pages, linked from the signup footer
+- Lookbook + moodboards sync to Supabase (`lookbook_items` table, see its section below) — previously localStorage-only
 
 ## Deploying
 ```bash
@@ -164,6 +168,27 @@ Every working step has "Skip for now" — the flow never blocks. Only the name s
 - Supabase client instantiated as `sbClient` (not `supabase` — conflicts with `window.supabase` global from CDN)
 - Google OAuth redirects to `/dashboard` after auth
 - Email signup: sends confirmation email; if `data.session` exists, redirects immediately
+- `setLoading(true)` fires only **after** all client-side validation passes (email/password/firstName/password length) — putting it earlier leaves the submit button stuck on "Creating your wardrobe…" when validation fails
+- Supabase applies its own signup rate limit (~3/hour per email) independent of app code. On error, `rate limit`/`too many` in `error.message` swaps in a friendly message telling the user to wait an hour or use a different email — surfaces during repeated beta-testing with the same address, not a bug
+
+## Background image generation (`/api/style`, `/api/moodboard`)
+Gemini image generation (`gemini-3.1-flash-image`) takes 20–40s per image — both endpoints respond immediately with text/layout data plus a `jobId`/`mb_job_id`, then generate images in a background `imageJobs` Map (in-memory, 10min TTL) that the client polls via `GET /api/images/:jobId`.
+- `/api/style`: images upload to Cloudinary as they land (`cloudinaryUpload` before writing to the job) — the client only ever receives hosted URLs, never base64, so results can be persisted (lookbook) without blowing storage quotas. Falls back to a raw `data:` URL only if the Cloudinary upload itself fails.
+- Client polling: `_kpPollImages` (dashboard-personalize.js) starts ~2.5s after render, ticks every 3.5s, swaps each placeholder for the arriving `<img>` with a fade-in, and calls `_kpPersistImages()` on every new URL so the saved lookbook entry gets the images even if the user navigates away before the job finishes.
+- `/api/moodboard`: images generate staggered (3s apart) to stay under Gemini's rate limit; `_mbPollImages` ticks every 4s (first poll at 5s) and patches arriving images into the on-screen mosaic **and** the saved moodboard (`panel._savedId`) so a reopened board keeps its imagery.
+- Empty mosaic cells pulse (`kpPhPulse` keyframe, shared with the style result placeholders) while `mb_job_id`/`jobId` is present — they read as loading, not broken.
+
+## Lookbook + moodboard cloud persistence
+Saved looks and moodboards were originally localStorage-only per browser — testing surfaced "Nothing saved yet" after reload and blank image tiles on revisit. Now backed by `lookbook_items` (`supabase/lookbook_migration.sql`, `type` = `'key-piece'` or `'moodboard'`, PK `(user_id, id)` using the client's `Date.now()` id).
+- localStorage (`robes_style_notes__<uid>` / `robes_moodboards__<uid>`) stays the instant read/write cache; every mutation also fires an async Supabase call so the UI never blocks on network.
+- `_lbCloudPush(item)` — POST on `snAdd`/`_mbAdd` (new entries)
+- `_lbCloudPatch(item)` — PATCH on `snUpdate`/`_mbUpdate` (image URLs landing late, swaps)
+- `_lbCloudDelete(id)` — DELETE on `snRemove`/`_mbRemove`
+- `_lbCloudPull()` — runs once per boot (after the session helpers are ready, same lazy-poll pattern as `_waInit`): fetches the cloud copy, merges in any local-only entries from before the migration (or from offline saves) and re-pushes them, then overwrites both localStorage caches and re-renders every dashboard row
+- If the migration hasn't run, every cloud call fails silently (caught + `console.warn`) and the app behaves exactly as before — local-only, no user-facing error
+
+## URL routing (`window._rbNav`)
+Lookbook, moodboards and wardrobe are `position:fixed` overlays, not real navigations, so the address bar needs to be driven manually. `window._rbNav(path)` calls `history.pushState` when the pathname differs; a single `popstate` listener closes whatever overlay is open and re-opens the one matching the new path (or clears the crumb for `/dashboard`). A `_rbRouting` guard stops the popstate handler's own view changes from re-triggering `_rbNav` pushes.
 
 ## Dashboard wardrobe feature (signup-flow branch)
 The dashboard was originally a ~4MB self-contained Claude Design bundle; it has been **ejected** into plain files:
@@ -184,6 +209,9 @@ The dashboard was originally a ~4MB self-contained Claude Design bundle; it has 
 - `_waSyncCounts()` — updates nav badge (`.nav-wbtn-count`), `#wg-count`, and the `.tracker-*` dashboard widget
 - `_waObserver` — MutationObserver on `#wg-grid`: any time the bundle's `renderWardrobe()` overwrites the grid with mock data, we immediately restore real items. Disconnected during our own renders to avoid re-entrancy.
 - `_waInit()` — polls every 250ms until `_waUid()` is truthy, then calls `_waLoad()`
+
+### Account details modal
+All user-supplied/profile values injected into `acct-modal`'s template literal (`prof.first_name`, `userEmail`, etc.) must pass through `_acctEsc()` — the raw template literal previously leaked as literal `${userEmail}` text when values contained characters that broke the interpolation. `window.__saveAcctDetails()` PATCHes `profiles`, syncs `window.__robes_profile` + the visible avatar name/greeting, then closes the modal ~900ms after showing "Saved." (it used to stay open indefinitely after a successful save).
 
 ### Bundle interception
 The dashboard bundle has private functions (`renderWardrobe`, `showView`, etc.) that can't be patched directly. Instead:
@@ -276,7 +304,7 @@ Returns structured JSON used to populate step 3 and saved to `item_dna`:
 }
 ```
 
-Guardrail taxonomy enforced in prompt — `silhouette_fit` values map to controlled terms per category (Tops/Bottoms/Outerwear/Dresses/Shoes/Bags/Accessories). `maxOutputTokens` is 500 (increased from 200 to fit the richer response).
+Guardrail taxonomy enforced in prompt — `silhouette_fit` values map to controlled terms per category (Tops/Bottoms/Outerwear/Dresses/Shoes/Bags/Accessories). `maxOutputTokens` is 500 (increased from 200 to fit the richer response). Runs at `temperature: 0` + `thinkingConfig: { thinkingBudget: 0 }` — same truncation/nondeterminism trap as stylenotes analyse (see Common gotchas). On any Gemini error the response still resolves 200 with `analysisFailed: true` and empty fields (never blocks the caller); the onboarding handoff (`_rbOnboardHandoff` in `dashboard-personalize.js`) checks for `analysisFailed` or a missing `label` and retries the analysis once after a 1.5s pause before saving to `wardrobe_items` — a first-attempt truncation used to silently save the key piece with blank category/brand.
 
 ### item_dna JSONB column
 - Added via `supabase/item_dna_migration.sql` (backward-compatible — existing rows get `{}`)
@@ -443,3 +471,7 @@ Stored on each `the_look` item after a swap. Shape: `{ id, label, image_url, col
 - `gemini-2.5-flash` **thinking tokens count inside `maxOutputTokens`** — structured-output endpoints returning large JSON must set `thinkingConfig: { thinkingBudget: 0 }` or the response truncates mid-JSON and the parse throws (this is why wardrobe analyse went 200 → 500 tokens, and why stylenotes analyse disables thinking)
 - A Gemini account **out of credit/quota** surfaces as 502 `analysis_failed` from `/api/stylenotes/analyse` — check the `reason` field in the response body (browser console) or Railway logs before debugging code
 - Vision-extraction endpoints that map to enums MUST set `temperature: 0` — at the default 1.0 the same photo samples different enum values across runs, which the deterministic engine then turns into different archetypes (looks like a mapping bug but is really nondeterministic extraction)
+- The wardrobe category `<select>` (`#wa-cat` in dashboard.html) must always include an `Other` option matching the server's `category` fallback — without it, any item analysed/saved with `category: 'Other'` renders as a blank dropdown that looks broken
+- `window.__robes_personalize`'s weather block (geolocation + Open-Meteo) must stay wrapped in its own IIFE with its own early returns — an early `return` written directly in the outer function body (e.g. `if (!weatherEl) return;`) silently aborts every wiring after it (wardrobe, lookbook, moodboards, breadcrumbs), which is invisible unless you check `typeof window.__kpRenderResult` after boot
+- Saved lookbook/moodboard entries never store base64 image data (`snAdd`/`_mbAdd`/`_kpPersistImages` only accept strings starting with `http`) — base64 blows the localStorage quota and can't sync to the `lookbook_items.data` jsonb column at any reasonable size
+- `_kpActiveSaveId` / `panel._savedId` track which lookbook/moodboard row is "live" during a render so background image polling (`_kpPollImages`/`_mbPollImages`) patches the *saved* entry, not just the on-screen DOM — skip this wiring and reopening a look/board after generation finishes shows blanks again
