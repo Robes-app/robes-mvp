@@ -137,6 +137,9 @@
       // personalize (a missing weather strip used to silently kill the
       // wardrobe/lookbook/moodboard wiring below).
       (function _rbWeather() {
+      // Shared real-time context — the Daily Look track (PRD: Dynamic Contextual
+      // Metadata Header) reads this when submitting a dress-me prompt
+      window.__rbCtx = window.__rbCtx || {};
       const weatherEl = document.getElementById('nav-weather');
       if (!weatherEl) return;
       const spans = weatherEl.querySelectorAll('span:not(.dot):not(.wx)');
@@ -148,9 +151,21 @@
       const WX_ICONS = {0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',
         61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',80:'🌦',81:'🌧',82:'🌧',
         95:'⛈',96:'⛈',99:'⛈'};
+      const WX_TEXT = {0:'Clear skies',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Fog',
+        51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',
+        71:'Light snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Showers',82:'Heavy showers',
+        95:'Thunderstorms',96:'Thunderstorms',99:'Thunderstorms'};
       const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
       if (daySpan) daySpan.textContent = DAYS[new Date().getDay()];
+
+      function layerHint(tmin, tmax, code) {
+        if (code >= 51 && code <= 99) return 'Bring a shell for the rain';
+        if (!isNaN(tmax) && tmax < 10) return 'Wrap up warm';
+        if (!isNaN(tmax) && tmax >= 25) return 'Keep it breathable';
+        if (!isNaN(tmin) && tmin < 14) return 'Bring a light layer';
+        return 'Light layers work today';
+      }
 
       if (!navigator.geolocation) return;
       navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -165,17 +180,24 @@
           const city = geoData.address?.city || geoData.address?.town ||
                        geoData.address?.village || geoData.address?.county || '';
           if (city && citySpan) citySpan.textContent = city;
+          if (city) window.__rbCtx.city = city;
 
           // Weather from Open-Meteo (free, no API key)
           const wxRes = await fetch(
             'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
-            '&longitude=' + lon + '&current=temperature_2m,weather_code&temperature_unit=celsius'
+            '&longitude=' + lon + '&current=temperature_2m,weather_code&daily=temperature_2m_min,temperature_2m_max&forecast_days=1&temperature_unit=celsius'
           );
           const wxData = await wxRes.json();
           const temp = Math.round(wxData.current?.temperature_2m);
           const code = wxData.current?.weather_code;
           if (!isNaN(temp) && tempSpan) tempSpan.textContent = temp + '°C';
           if (code !== undefined && wxIcon) wxIcon.textContent = WX_ICONS[code] || '🌤';
+          const tmin = Math.round(wxData.daily?.temperature_2m_min?.[0]);
+          const tmax = Math.round(wxData.daily?.temperature_2m_max?.[0]);
+          if (!isNaN(temp)) window.__rbCtx.tempC = temp;
+          if (!isNaN(tmin) && !isNaN(tmax)) window.__rbCtx.tempRange = tmin + '°C – ' + tmax + '°C';
+          if (code !== undefined && WX_TEXT[code]) window.__rbCtx.condition = WX_TEXT[code];
+          window.__rbCtx.hint = layerHint(tmin, tmax, code);
         } catch (e) { /* keep defaults on error */ }
       }, () => { /* permission denied — keep defaults */ });
       })();
@@ -1383,7 +1405,7 @@
               const res = await fetch('/api/style', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, photo: photoData, styleDna: _rbStyleDna(), wardrobeCount: _waItems.length }),
+                body: JSON.stringify({ prompt, photo: photoData, styleDna: _rbStyleDna(), wardrobeCount: _waItems.length, wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })), intent: 'style' }),
               });
               clearInterval(msgInterval);
               overlay.style.display = 'none';
@@ -1502,6 +1524,9 @@
         _kpStopPolling();
         window.__lastKpData = data;
         const { ways, generatedImages, fallback, photoUrl } = data;
+        const kpIntent = (opts && opts.intent) || data.intent || 'style';
+        const kpCtx = (opts && opts.context) || data.context || null;
+        const kpDaily = kpIntent === 'dress-me';
         const pieceName = fallback ? 'Balmain waistcoat' : (promptText || 'Your piece');
         const serif = "'Cormorant',Georgia,serif";
         const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
@@ -1525,13 +1550,21 @@
         try { kpResultPage.innerHTML = `
           <div style="width:100%;max-width:900px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
 
-            <h1 style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0 0 12px">Your piece,<br><em style="color:#A89880">worn three ways.</em></h1>
-            <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
+            <h1 style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0 0 12px">${kpDaily ? 'Your day,<br><em style="color:#A89880">dressed three ways.</em>' : 'Your piece,<br><em style="color:#A89880">worn three ways.</em>'}</h1>
+            <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : kpDaily ? 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.' : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
+
+            ${kpDaily && kpCtx && (kpCtx.city || kpCtx.tempRange) ? `
+            <div style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#6E6A64;letter-spacing:.04em;border:0.5px solid rgba(32,32,33,0.12);border-radius:40px;padding:9px 18px;margin:0 0 28px;background:#fff">
+              <span>🌤</span>
+              <strong style="font-weight:500;color:#202021">${_waEsc([kpCtx.city, kpCtx.month].filter(Boolean).join(' · '))}</strong>
+              ${kpCtx.tempRange ? `<span style="color:rgba(32,32,33,0.2)">|</span><span>${_waEsc(kpCtx.tempRange)}</span>` : ''}
+              ${kpCtx.hint ? `<span style="color:rgba(32,32,33,0.2)">|</span><span style="font-style:italic">${_waEsc(kpCtx.hint)}</span>` : ''}
+            </div>` : ''}
 
             <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:12px;background:#fff;max-width:400px;margin-bottom:40px">
               ${photoUrl ? `<img src="${photoUrl}" style="width:64px;height:80px;border-radius:4px;object-fit:cover;flex-shrink:0" alt="">` : ''}
               <div>
-                <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#A89880;margin-bottom:4px">Your piece</div>
+                <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#A89880;margin-bottom:4px">${kpDaily ? "Today's brief" : 'Your piece'}</div>
                 <div style="font-family:${serif};font-size:22px;font-weight:400;color:#202021;line-height:1.1">${pieceName}</div>
                 ${photoUrl ? '<div style="font-size:12px;color:#A89880;margin-top:4px">✓ The one you uploaded</div>' : ''}
               </div>
@@ -1604,9 +1637,9 @@
           _kpActiveSaveId = snAdd({
             type: 'key-piece',
             title: pieceName,
-            subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
+            subtitle: (kpDaily ? "Today's outfits · " : 'Worn three ways · ') + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
             img: persistable.find(Boolean) || photoUrl || null,
-            kpData: { ways, fallback, photoUrl, generatedImages: persistable },
+            kpData: { ways, fallback, photoUrl, generatedImages: persistable, intent: kpIntent, context: kpCtx },
           });
         } else {
           _kpActiveSaveId = data.id || null;
@@ -1622,7 +1655,14 @@
         };
         window.__kpFbSubmit = function() {
           const comment = (document.getElementById('kp-fb-text').value || '').trim();
-          fetch('/api/feedback', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ rating: kpFbRating, comment, prompt: promptText || '' }) }).catch(()=>{});
+          // PRD §4: feedback maps to user, prompt, timestamp + active payload vars
+          fetch('/api/feedback', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+            email: (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '',
+            rating: kpFbRating,
+            comment,
+            prompt: promptText || '',
+            looksOutput: JSON.stringify({ surface: kpDaily ? 'daily-look' : 'key-piece', intent: kpIntent, context: kpCtx, titles: ways.map(w => w.title), ts: new Date().toISOString() }),
+          }) }).catch(()=>{});
           document.getElementById('kp-fb-prompt').hidden = true;
           document.getElementById('kp-fb-expand').hidden = true;
           document.getElementById('kp-fb-done').hidden = false;
@@ -2261,6 +2301,7 @@
 
       function _cbSetIntent(intent) {
         _cbIntent = intent;
+        _cbHideClarify();
         const ta = document.getElementById('cb-ta');
         const def = _CHIP_DEFS.find(c => c.intent === intent);
         _cbSetChipActive(intent);
@@ -2285,14 +2326,16 @@
       }
 
       // Reusable inline style overlay — shared between chip 'style', 'dress-me', and KP card
-      async function _cbStyleSubmit(prompt, photoData) {
+      async function _cbStyleSubmit(prompt, photoData, meta) {
+        const intent = (meta && meta.intent) || 'style';
+        const daily = intent === 'dress-me';
         let overlay = document.getElementById('kp-loading-overlay');
         if (!overlay) {
           overlay = document.createElement('div');
           overlay.id = 'kp-loading-overlay';
           overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
           overlay.innerHTML = `
-            <div style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center">Styling your piece<br><em>three ways…</em></div>
+            <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center">Styling your piece<br><em>three ways…</em></div>
             <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
             <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
               <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
@@ -2302,6 +2345,10 @@
           document.head.appendChild(ks);
           document.body.appendChild(overlay);
         }
+        const loadTitle = document.getElementById('kp-load-title');
+        if (loadTitle) loadTitle.innerHTML = daily
+          ? 'Dressing you<br><em>for today…</em>'
+          : 'Styling your piece<br><em>three ways…</em>';
         overlay.style.display = 'flex';
         const msgs = ['Generating editorial looks', 'Composing outfits…', 'Creating images…', 'Almost ready…'];
         let mi = 0;
@@ -2310,16 +2357,33 @@
           const el = document.getElementById('kp-load-msg');
           if (el) el.textContent = msgs[mi];
         }, 8000);
+        // Daily Look track carries the real-time context captured by _rbWeather
+        const rc = window.__rbCtx || {};
+        const context = daily ? {
+          city: rc.city || '',
+          month: new Date().toLocaleDateString('en-GB', { month: 'long' }),
+          tempRange: rc.tempRange || (rc.tempC != null ? rc.tempC + '°C' : ''),
+          condition: rc.condition || '',
+          hint: rc.hint || '',
+        } : null;
         try {
           const res = await fetch('/api/style', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, photo: photoData || null, styleDna: _rbStyleDna(), wardrobeCount: _waItems.length }),
+            body: JSON.stringify({
+              prompt,
+              photo: photoData || null,
+              styleDna: _rbStyleDna(),
+              wardrobeCount: _waItems.length,
+              wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })),
+              intent,
+              context,
+            }),
           });
           clearInterval(msgInterval);
           overlay.style.display = 'none';
           if (!res.ok) throw new Error(await res.text());
-          window.__kpRenderResult(await res.json(), prompt);
+          window.__kpRenderResult(await res.json(), prompt, { intent, context });
         } catch (err) {
           clearInterval(msgInterval);
           overlay.style.display = 'none';
@@ -2327,22 +2391,89 @@
         }
       }
 
-      // Central submit handler — routes based on active intent
-      function _cbSubmit() {
-        const ta = document.getElementById('cb-ta');
-        const prompt = (ta && ta.value.trim()) || '';
-        if (_cbIntent === 'style' || _cbIntent === 'dress-me') {
+      // ── Conversational intent extraction (PRD §2) ────────────────────
+      // A chip is an explicit override; free-typed prompts are classified
+      // from natural language. Ambiguous prompts get a clarifying question.
+      const _GARMENT_RE = /(blazer|coat|jacket|trench|dress|gown|skirt|jeans|denim|trousers?|pants|shorts|shirt|blouse|top|tee|t-shirt|knit|sweater|jumper|cardigan|waistcoat|vest|suit|boots?|loafers?|heels?|sneakers?|trainers|flats|sandals|mules|pumps|slingbacks?|bag|tote|clutch|scarf|belt)/;
+
+      function _cbDetectIntent(text, hasPhoto) {
+        const t = ' ' + (text || '').toLowerCase().replace(/[^\w\s'’-]/g, ' ') + ' ';
+        const piece = hasPhoto ||
+          /\bstyle (my|this|these)\b/.test(t) || /\bways to wear\b/.test(t) || /\b(three|3) ways\b/.test(t) ||
+          /\bhow (should|do|can|would) i (wear|style)\b/.test(t) ||
+          (/\b(my|this|these)\b/.test(t) && _GARMENT_RE.test(t));
+        const mood = /\b(mood ?board|capsule|lookbook|look book|aesthetic|vibes?|inspiration|inspo|palette)\b/.test(t) ||
+          /\b(build|create|curate|make)\b[\s\S]*\b(wardrobe|edit|board|capsule)\b/.test(t);
+        const daily = /\bdress me\b/.test(t) || /\bwhat (should|do|can) i wear\b/.test(t) ||
+          /\b(outfit|look) for\b/.test(t) || /\bwear (to|for)\b/.test(t) ||
+          /\b(today|tonight|tomorrow|this (morning|afternoon|evening|weekend))\b/.test(t) ||
+          /\b(brunch|dinner|lunch|meeting|wedding|date night|office|workday|interview|party|drinks|gallery|school run)\b/.test(t);
+        const hits = [piece && 'style', mood && 'moodboard', daily && 'dress-me'].filter(Boolean);
+        if (hits.length === 1) return hits[0];
+        // A named piece beats the occasion around it (PRD: "my Prada shoes
+        // to the office today" is Key Piece, not Daily Look)
+        if (piece && !mood) return 'style';
+        if (mood && !daily) return 'moodboard';
+        return null;
+      }
+
+      function _cbHideClarify() {
+        const el = document.getElementById('cb-clarify');
+        if (el) el.remove();
+      }
+
+      function _cbShowClarify(prompt) {
+        _cbHideClarify();
+        const anchor = document.getElementById('cb-chips') || document.querySelector('.concierge-box');
+        if (!anchor || !anchor.parentNode) { _cbReset(); window.__mbRunGeneration(prompt); return; }
+        const row = document.createElement('div');
+        row.id = 'cb-clarify';
+        row.style.cssText = 'margin:12px 0 0;padding:16px 18px;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px';
+        row.innerHTML = `
+          <div style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#6E6A64;margin-bottom:10px">Lovely — should I dress you for the day, style one piece three ways, or build a moodboard?</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button data-intent="dress-me" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">An outfit for my day</button>
+            <button data-intent="style" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Style one piece 3 ways</button>
+            <button data-intent="moodboard" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">A moodboard</button>
+          </div>`;
+        anchor.parentNode.insertBefore(row, anchor.nextSibling);
+        row.querySelectorAll('button').forEach(b => {
+          b.onclick = function() { _cbHideClarify(); _cbResolve(b.dataset.intent, prompt); };
+        });
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      function _cbResolve(intent, prompt) {
+        if (intent === 'dress-me' && _waItems.length < 15) {
+          // Cold-start gamification (PRD §1): serve the editorial track and
+          // invite swap-ins instead of refusing the daily brief outright
+          _waShowToast(`Your closet is still growing (${_waItems.length}/15) — here's an editorial take. Swap in pieces you own.`);
+          intent = 'moodboard';
+        }
+        if (intent === 'style' || intent === 'dress-me') {
           if (!prompt && !_cbPhotoData) { _waShowToast('Describe your piece or upload a photo first'); return; }
           const photo = _cbPhotoData;
           _cbReset();
-          _cbStyleSubmit(prompt, photo);
+          _cbStyleSubmit(prompt, photo, { intent });
         } else {
-          // moodboard (intent null or 'moodboard')
-          if (ta) { ta.placeholder = _CB_PLACEHOLDER; ta.value = ''; ta.dispatchEvent(new Event('input')); }
           _cbReset();
           if (!prompt) return;
           window.__mbRunGeneration(prompt);
         }
+      }
+
+      // Central submit handler — chip override or NL intent extraction
+      function _cbSubmit() {
+        const ta = document.getElementById('cb-ta');
+        const prompt = (ta && ta.value.trim()) || '';
+        _cbHideClarify();
+        let intent = _cbIntent;
+        if (!intent) {
+          if (!prompt && !_cbPhotoData) return;
+          intent = _cbDetectIntent(prompt, !!_cbPhotoData);
+          if (!intent) { _cbShowClarify(prompt); return; }
+        }
+        _cbResolve(intent, prompt);
       }
 
       // Legacy helper kept for _mbInlineBtn.onclick compat
@@ -2750,6 +2881,9 @@
         // Store for save
         if (panel) panel._currentData = data;
 
+        // Inline feedback loop — every generated board carries it (PRD §4)
+        if (panel) _mbInjectFeedback(panel, data);
+
         // Auto-save immediately — no manual tap required. Skipped when
         // re-opening a saved board or re-rendering after a swap, else
         // every open/swap creates a duplicate entry. The saved id is kept
@@ -2771,6 +2905,50 @@
           grid_images: grid_images,
         });
         if (panel) panel._savedId = mbSavedId;
+      }
+
+      function _mbInjectFeedback(panel, data) {
+        const old = panel.querySelector('#mb-fb');
+        if (old) old.remove();
+        const fb = document.createElement('div');
+        fb.id = 'mb-fb';
+        fb.style.cssText = 'margin:36px auto 70px;max-width:640px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center';
+        fb.innerHTML = `
+          <div style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How is this board?</div>
+          <div id="mb-fb-prompt">
+            <div style="font-size:13px;color:#A89880;margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+              <button id="mb-fb-up" onclick="window.__mbFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">👍 Love it</button>
+              <button id="mb-fb-dn" onclick="window.__mbFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">Not quite</button>
+            </div>
+          </div>
+          <div id="mb-fb-expand" hidden style="margin-top:16px">
+            <textarea id="mb-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:inherit"></textarea>
+            <button onclick="window.__mbFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit">Send feedback</button>
+          </div>
+          <div id="mb-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>`;
+        panel.appendChild(fb);
+        let mbFbRating = null;
+        window.__mbFbRate = function(val) {
+          mbFbRating = val;
+          document.getElementById('mb-fb-up').style.background = val === 1 ? '#F0EDE8' : '#fff';
+          document.getElementById('mb-fb-dn').style.background = val === 0 ? '#F0EDE8' : '#fff';
+          document.getElementById('mb-fb-expand').hidden = false;
+          setTimeout(() => { const t = document.getElementById('mb-fb-text'); if (t) t.focus(); }, 60);
+        };
+        window.__mbFbSubmit = function() {
+          const comment = (document.getElementById('mb-fb-text').value || '').trim();
+          fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+            email: (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '',
+            rating: mbFbRating,
+            comment,
+            prompt: data.prompt || data.title || '',
+            looksOutput: JSON.stringify({ surface: 'moodboard', title: data.title || '', tags: data.aesthetic_tags || [], location_context: data.location_context || '', ts: new Date().toISOString() }),
+          }) }).catch(() => {});
+          document.getElementById('mb-fb-prompt').hidden = true;
+          document.getElementById('mb-fb-expand').hidden = true;
+          document.getElementById('mb-fb-done').hidden = false;
+        };
       }
 
       window.__mbCloseResult = function() {

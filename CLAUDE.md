@@ -171,6 +171,25 @@ Every working step has "Skip for now" — the flow never blocks. Only the name s
 - `setLoading(true)` fires only **after** all client-side validation passes (email/password/firstName/password length) — putting it earlier leaves the submit button stuck on "Creating your wardrobe…" when validation fails
 - Supabase applies its own signup rate limit (~3/hour per email) independent of app code. On error, `rate limit`/`too many` in `error.message` swaps in a friendly message telling the user to wait an hour or use a different email — surfaces during repeated beta-testing with the same address, not a bug
 
+## Conversational intent routing (PRD §2 — the three inspiration tracks)
+The concierge textarea (`#cb-ta`) routes every submit through `_cbSubmit` → `_cbResolve` in `dashboard-personalize.js`:
+- **Chip = explicit override.** The three chips (Style a key piece / Dress me today / Create a moodboard) still exist as prompt scaffolds and manual overrides — a deliberate deviation from the PRD's "remove the pills": they double as the clarifying affordance and the dress-me lock display.
+- **No chip = NL intent extraction.** `_cbDetectIntent(text, hasPhoto)` classifies the free-typed prompt into `'style' | 'dress-me' | 'moodboard' | null`. Priority: a named piece beats the occasion around it ("my Prada shoes to the office today" → key piece, per PRD). A photo attachment always means `'style'`.
+- **null = clarifying loop.** `_cbShowClarify(prompt)` renders `#cb-clarify` (three tap options) under the chip row; the typed prompt is preserved and submitted with the chosen track via `_cbResolve`. Never clobber the textarea in this path — `_cbSetIntent` (chips) injects template text, `_cbResolve` does not.
+- **Cold-start reroute.** A detected `dress-me` with `_waItems.length < 15` is served as a **moodboard** (editorial track with swap-in gamification, PRD §1) plus an explanatory toast — never a refusal. Chip-level dress-me stays hard-locked as before.
+
+## Daily Look context + closet injection (`/api/style`)
+`/api/style` now accepts `intent` (`'style'` default | `'dress-me'`), `context` (`{city, month, tempRange, condition, hint}`) and `wardrobeItems` (label/category/color/times_worn, capped at 60 server-side):
+- `_rbWeather` stores what it fetches in `window.__rbCtx` (`city`, `tempC`, `tempRange` from daily min/max, `condition`, `hint` via `layerHint()`), which `_cbStyleSubmit` snapshots into `context` for dress-me submits. Nav strip painting is unchanged.
+- Server: `intent === 'dress-me'` swaps the system brief (three complete outfits for a real day, not three ways around one piece), relaxes the fallback rule (a plain occasion is a valid brief — only gibberish falls back), injects the real-time context line, and — at ≥15 closet items — directs Gemini to build primarily from the digitised wardrobe, referencing owned pieces by exact label.
+- Both `/api/style` briefs carry the PRD §3.2 four-tier layer formula (Anchor / Canvas / Texture / Exclamation Point) + hyper-specificity directive.
+- `__kpRenderResult(data, promptText, opts)` takes `opts.intent`/`opts.context`: dress-me gets the "Your day, dressed three ways" header, the contextual metadata pill (city · month | temp range | layer hint), and "Today's brief" instead of "Your piece". `intent`+`context` are persisted inside `kpData` so reopened lookbook entries keep the daily framing.
+
+## Feedback loop (PRD §4 — every output)
+All three generated surfaces carry the inline 👍/👎 + comment block posting to `/api/feedback` → Airtable `Feedback`:
+- Key piece / daily look: block inside `__kpRenderResult`; payload includes `email` (Supabase session), `prompt`, and `looksOutput` JSON (`surface`, `intent`, `context`, look titles, timestamp).
+- Moodboard: `_mbInjectFeedback(panel, data)` appends `#mb-fb` to `#moodboard-panel` on every `_mbShowResult` (including saved-board reopens); payload includes `email`, `prompt`, and board metadata in `looksOutput`.
+
 ## Background image generation (`/api/style`, `/api/moodboard`)
 Gemini image generation (`gemini-3.1-flash-image`) takes 20–40s per image — both endpoints respond immediately with text/layout data plus a `jobId`/`mb_job_id`, then generate images in a background `imageJobs` Map (in-memory, 10min TTL) that the client polls via `GET /api/images/:jobId`.
 - `/api/style`: images upload to Cloudinary as they land (`cloudinaryUpload` before writing to the job) — the client only ever receives hosted URLs, never base64, so results can be persisted (lookbook) without blowing storage quotas. Falls back to a raw `data:` URL only if the Cloudinary upload itself fails.
