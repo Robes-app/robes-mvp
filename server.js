@@ -662,13 +662,13 @@ THE THREE DIMENSIONS:
 "lightness": overall depth. Fair skin + light hair → "High". Deep skin or very dark hair → "Low". Otherwise "Medium".
 
 THE 12 SEASONS — pick the single best fit:
-- Light Spring: warm, light, fresh — light golden blonde, fair warm skin, low-medium contrast.
+- Light Spring: warm, VERY light, luminous — pale clear golden blonde, porcelain-fair warm skin, fresh and bright with zero mutedness.
 - Warm Spring: distinctly golden, mid-toned, clear — golden blonde/copper hair, warm glow.
 - Clear Spring: warm-leaning, HIGH chroma, high contrast — bright, vivid features.
 - Light Summer: cool, very light, delicate — ash blonde, cool fair skin, low contrast.
 - True Summer: fully cool, mid-toned, soft — ash hair, rosy skin, grey/blue eyes, no warmth anywhere.
 - Soft Summer: cool-neutral and MUTED — greyed, misty colouring, low chroma.
-- Soft Autumn: warm-neutral and MUTED — dark blonde/soft brown hair with a golden cast, low-medium contrast, dusty warmth. The most common season for warm-leaning blondes whose colouring is soft rather than vivid.
+- Soft Autumn: warm-neutral and MUTED — dark blonde/soft brown hair whose gold is blended with beige or ash, low-medium contrast, dusty warmth. The most common season for warm-leaning blondes whose colouring is soft rather than vivid.
 - True Autumn: fully warm, rich, earthy — red/auburn/golden brown hair, golden skin.
 - Dark Autumn: warm and DEEP — dark brown hair with warmth, deep eyes, high contrast.
 - Clear Winter: cool, HIGH chroma, very high contrast — dark hair, bright eyes, vivid.
@@ -677,7 +677,10 @@ THE 12 SEASONS — pick the single best fit:
 
 DISCIPLINE RULES:
 - A blonde with ANY golden or honey quality to her hair is warm-family (a Spring or Autumn), not a Summer — never read sun-lightened or highlighted golden blonde as ash.
+- WITHIN the warm family, chroma is the axis that separates Spring from Autumn: genuinely clear, luminous, fresh colouring → a Spring; ANY dustiness, ashiness or mutedness blended with the warmth → an Autumn. Mutedness outranks lightness: a muted warm blonde is Soft Autumn, never Light Spring, no matter how light her hair.
 - Muted + warm → Soft Autumn, not a Summer. Muted + cool → Soft Summer.
+- "lightness": "High" requires very light blonde hair AND porcelain-fair skin together; mid-depth dark blonde is "Medium".
+- Transient facial redness, flush, sunburn or rosacea is NOT evidence of coolness, brightness or high chroma — look past it to the underlying tone and judge chroma from hair and eyes.
 - High contrast is impossible for blended blonde colouring — reserve it for genuinely dark hair on light skin.
 - The final "undertone", "contrast", "chroma", "lightness" and "season" fields MUST be consistent with each other and with your written reasoning.
 
@@ -725,19 +728,26 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
     // measurable primitives; style_dna.js reconciles them (holistic call wins,
     // the primitive mapping is the deterministic fallback + cross-check) and
     // owns every palette/design rule the user sees (PRD: Style DNA).
-    // Attempt 1 uses a responseSchema; attempt 2 drops it and trusts JSON mode.
-    let result, lastErr;
-    for (let attempt = 0; attempt < 2 && !result; attempt++) {
+    // Pro leads (this is a once-per-user judgement call worth the latency and
+    // it cannot disable thinking, so its budget is bounded instead); flash is
+    // the fallback, last attempt drops the schema and trusts JSON mode.
+    const ATTEMPTS = [
+      { model: 'gemini-2.5-pro', schema: true },
+      { model: 'gemini-2.5-flash', schema: true },
+      { model: 'gemini-2.5-flash', schema: false },
+    ];
+    let parsed, lastErr, used, finishReason;
+    for (const a of ATTEMPTS) {
       const config = {
         responseMimeType: 'application/json',
-        maxOutputTokens: 2048,
+        maxOutputTokens: a.model === 'gemini-2.5-pro' ? 4096 : 2048,
         temperature: 0,
-        thinkingConfig: { thinkingBudget: 0 },
+        thinkingConfig: { thinkingBudget: a.model === 'gemini-2.5-pro' ? 1024 : 0 },
       };
-      if (attempt === 0) config.responseSchema = colour ? COLOUR_EXTRACT_SCHEMA : SIL_EXTRACT_SCHEMA;
+      if (a.schema) config.responseSchema = colour ? COLOUR_EXTRACT_SCHEMA : SIL_EXTRACT_SCHEMA;
       try {
-        result = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+        const result = await ai.models.generateContent({
+          model: a.model,
           contents: [{
             role: 'user',
             parts: [
@@ -747,29 +757,30 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
           }],
           config,
         });
+        finishReason = result.candidates?.[0]?.finishReason;
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        try {
+          parsed = JSON.parse(text);
+        } catch (parseErr) {
+          console.error('[stylenotes/analyse] JSON parse failed —', { kind, model: a.model, finishReason, textLength: text.length, tail: text.slice(-120) });
+          throw new Error('truncated_response:' + finishReason);
+        }
+        used = a;
+        break;
       } catch (e) {
         lastErr = e;
-        console.error(`[stylenotes/analyse] attempt ${attempt + 1} (${attempt === 0 ? 'with' : 'without'} schema) failed:`, e.message);
-        if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
+        console.error(`[stylenotes/analyse] ${a.model} (${a.schema ? 'with' : 'without'} schema) failed:`, e.message);
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
-    if (!result) throw lastErr;
-    const finishReason = result.candidates?.[0]?.finishReason;
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch (parseErr) {
-      console.error('[stylenotes/analyse] JSON parse failed —', { kind, finishReason, textLength: text.length, tail: text.slice(-120) });
-      throw new Error('truncated_response:' + finishReason);
-    }
+    if (!parsed) throw lastErr;
     const rejected = colour ? parsed.no_face_detected : parsed.no_person_detected;
     if (rejected) {
-      logAI({ feature: 'stylenotes_analyse', kind, ms: Date.now() - t0, finishReason, rejected: true, success: true });
+      logAI({ feature: 'stylenotes_analyse', kind, model: used.model, ms: Date.now() - t0, finishReason, rejected: true, success: true });
       return res.json(colour ? { no_face_detected: true } : { no_person_detected: true });
     }
     const { render, dna } = colour ? buildColorHarmony(parsed) : buildSilhouette(parsed);
-    logAI({ feature: 'stylenotes_analyse', kind, ms: Date.now() - t0, finishReason, rejected: false, success: true, archetype: colour ? dna.archetype_name : dna.body_type });
+    logAI({ feature: 'stylenotes_analyse', kind, model: used.model, ms: Date.now() - t0, finishReason, rejected: false, success: true, archetype: colour ? dna.archetype_name : dna.body_type });
     res.json({ ...render, style_dna: dna });
   } catch (err) {
     logAI({ feature: 'stylenotes_analyse', kind, ms: Date.now() - t0, success: false, reason: err.message });
