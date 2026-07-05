@@ -468,6 +468,10 @@ Closes swap modal, opens `WA.open()` to add a new wardrobe item.
 Stored on each `the_look` item after a swap. Shape: `{ id, label, image_url, color }`. Never stores `times_worn` — always look that up from `_waItems` at render time.
 
 ## Common gotchas
+- Edit modal "Update piece" button: the bundle's `validate()` only enables `#wa-cta` when `#wa-label-in` is non-empty, and it last runs inside `open()` while the field is still blank. `_waOpenEdit` must re-run `WA.validate()` (or dispatch `input`) after populating the saved label, or the button stays greyed out.
+- `#wa-sw-name` is a data-only carrier that `WA.submit` reads for the colour — `__rbInjectSwatches` sets its text **and** `display:none`, because the colour is shown in the injected `#rb-sw-label` header and the raw span otherwise leaks ("Black") as stray text under the silhouette pills in the edit modal.
+- Moodboard mosaic on mobile (`@media(max-width:620px)`): the hero and the editorial-text tile each span the full width (`grid-column:1/-1`) so the long editorial copy can't stretch the hero into a giant block; the remaining images/`.mb-ph-cell` placeholders are forced square. The renderer sets inline `height:100%` on mosaic imgs, so the mobile rules use `height:auto !important` to win. Both mosaic render paths (`_mbShowResult` + `_mbPollImages` re-render) must give empty cells the `mb-ph-cell` class or they collapse on mobile.
+- Moodboard rail: shop (unmatched) items have no photo — the thumbnail is a serif monogram of the item name's first letter on a cream tile, **not** a generic image-icon SVG (which reads as a broken/loading thumbnail).
 - `paintProgress()` guards for missing `#nav-progress` — don't add back the null check removal
 - `gemini-3.1-flash-image` is slow (~30s) and occasionally times out — 40s server timeout, images run in parallel
 - `callStyle()` fires early from `submitStyle()` — don't move it later or users wait longer

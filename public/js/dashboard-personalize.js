@@ -412,6 +412,12 @@
           if (brand) brand.value = it.brand   || '';
           if (notes) notes.value = it.notes   || '';
           if (cta)   cta.textContent = 'Update piece';
+          // Bundle's validate() only enables #wa-cta when the label is non-empty,
+          // and it last ran during open() while the field was still blank — re-run
+          // it now that the saved label is populated, else "Update piece" stays disabled.
+          label.dispatchEvent(new Event('input', { bubbles: true }));
+          if (window.WA && typeof WA.validate === 'function') WA.validate();
+          else if (cta) cta.removeAttribute('disabled');
 
           // Store item_dna for WA.submit to save back
           window.__waSawItemDna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : {};
@@ -534,9 +540,11 @@
         // Inject custom swatches into any open modal form (used by edit mode)
         window.__rbInjectSwatches = function(selectedColor) {
           window.__waSawColor = selectedColor || '';
-          // Also write to #wa-sw-name so WA.submit can read the colour
+          // #wa-sw-name is now only a data carrier for WA.submit — the colour
+          // name is shown in the injected #rb-sw-label header, so hide the span
+          // to stop the raw colour ("Black") leaking as stray text under the pills.
           const swNameEl = document.getElementById('wa-sw-name');
-          if (swNameEl) swNameEl.textContent = selectedColor || '';
+          if (swNameEl) { swNameEl.textContent = selectedColor || ''; swNameEl.style.display = 'none'; }
           // Replace bundle swatch container with our custom rows
           const swatchContainer = document.getElementById('wa-swatches');
           if (swatchContainer) {
@@ -2659,7 +2667,7 @@
                   const palette = ['var(--cream-200)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-100)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-200)'];
                   const extraUrls = [byType.hero_look[1], byType.flat_lay[0], byType.hero_look[2], byType.flat_lay[1], byType.atmosphere[0], byType.atmosphere[1], null];
                   const extras = extraUrls.map((url, i) =>
-                    url ? `<img src="${_mbEsc(url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" alt="">` : `<div style="background:${palette[i]}"></div>`
+                    url ? `<img src="${_mbEsc(url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" alt="">` : `<div class="mb-ph-cell" style="background:${palette[i]}"></div>`
                   ).join('');
                   mosaicEl.innerHTML = heroHtml + editorialHtml + extras;
                   if (heroUrl) { const h = document.getElementById('mb-mosaic-hero'); if (h) h.src = heroUrl; }
@@ -2793,9 +2801,12 @@
             const price = item.price_point || '';
             const brand = item.brand_name || retailer || '';
 
+            // Shop items have no photo — show a tasteful serif monogram tile
+            // rather than a generic image icon (which reads as a broken thumbnail).
+            const _mbInitial = (_mbEsc(item.name || '').trim().charAt(0) || '·').toUpperCase();
             const thumbHtml = match?.image_url
               ? `<img src="${_mbEsc(match.image_url)}" style="width:44px;height:44px;object-fit:cover;border-radius:7px;flex-shrink:0;display:block" alt="" onerror="window.__mbThumbErr(this)">`
-              : `<div style="width:44px;height:44px;border-radius:7px;background:#EDE8E0;flex-shrink:0;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C8C0B8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`;
+              : `<div style="width:44px;height:44px;border-radius:7px;background:linear-gradient(135deg,#EFE9DC,#E3D9CB);flex-shrink:0;display:flex;align-items:center;justify-content:center"><span style="font-family:var(--font-serif),Georgia,serif;font-size:19px;font-weight:300;color:#B8A898;line-height:1">${_mbInitial}</span></div>`;
 
             // Right-side CTA — compact to avoid overflow in narrow sidebar
             let ctaHtml;
