@@ -286,14 +286,14 @@
           <h2 style="font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:34px;line-height:1.08;color:#202021;margin:14px 0 0;">The same face,<br><span style="font-style:italic;color:#A89880;">two colours apart.</span></h2>
           <div class="g-2" style="margin-top:26px;">
             <div>
-              <div class="ph" style="width:100%;height:300px;border-radius:8px;"></div>
+              <div class="ph" id="proof-frame-best" style="width:100%;height:300px;border-radius:8px;"></div>
               <div style="display:flex;align-items:center;gap:9px;margin-top:12px;">
                 <span class="tag" style="color:#202021;border:1px solid #D8CFC0;">Best</span>
                 <span style="font:300 13px/1.5 'Inter';color:#A89880;" id="proof-best"></span>
               </div>
             </div>
             <div>
-              <div class="ph" style="width:100%;height:300px;border-radius:8px;"></div>
+              <div class="ph" id="proof-frame-less" style="width:100%;height:300px;border-radius:8px;"></div>
               <div style="display:flex;align-items:center;gap:9px;margin-top:12px;">
                 <span class="tag" style="color:#C4B8A4;border:1px solid #E7E0CF;">Less so</span>
                 <span style="font:300 13px/1.5 'Inter';color:#C4B8A4;" id="proof-less"></span>
@@ -513,6 +513,88 @@
       return /^#[0-9a-fA-F]{3,8}$/.test(String(h || '').trim()) ? String(h).trim() : '#D8CFC0';
     }
 
+    function imgUrl(u) {
+      return typeof u === 'string' && u.indexOf('https://') === 0 ? u : null;
+    }
+
+    /* ── Try-on imagery (background job, same polling as the dashboard) ── */
+
+    const tryonBusy = { colour: false, silhouette: false };
+    const tryonPolls = {};
+
+    function phFill(el, url, busy) {
+      if (!el) return;
+      const u = imgUrl(url);
+      if (u) {
+        if (!el.querySelector('img[src="' + u + '"]')) {
+          el.innerHTML = '<img src="' + esc(u) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;">';
+        }
+        el.style.animation = '';
+      } else {
+        el.innerHTML = '';
+        el.style.animation = busy ? 'rb-pulse 1.4s ease-in-out infinite' : '';
+      }
+    }
+
+    async function startTryon(kind, photo) {
+      const colour = kind === 'colour';
+      const a = colour ? st.colour : st.sil;
+      if (!a) return;
+      clearInterval(tryonPolls[kind]);
+      tryonBusy[kind] = false;
+      const analysis = colour
+        ? { best_colours: a.best_colours, avoid_colours: a.avoid_colours }
+        : {
+            dress_silhouettes: a.dress_silhouettes,
+            dress_colour: st.colour && (st.colour.best_colours || [])[0] ? st.colour.best_colours[0].name : '',
+          };
+      try {
+        const r = await fetch('/api/stylenotes/tryon', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.assign({ kind, analysis }, photo)),
+        });
+        if (!r.ok) return;
+        const { jobId } = await r.json();
+        if (!jobId) return;
+        tryonBusy[kind] = true;
+        colour ? renderColour() : renderSil();
+        pollTryon(kind, jobId);
+      } catch (e) {
+        console.warn('[tryon] start failed:', e.message);
+      }
+    }
+
+    function pollTryon(kind, jobId) {
+      const colour = kind === 'colour';
+      const key = colour ? 'proof_images' : 'dress_images';
+      let ticks = 0;
+      clearInterval(tryonPolls[kind]);
+      const stop = () => {
+        clearInterval(tryonPolls[kind]);
+        tryonBusy[kind] = false;
+        colour ? renderColour() : renderSil();
+      };
+      tryonPolls[kind] = setInterval(async () => {
+        if (++ticks > 90) return stop();
+        try {
+          const r = await fetch('/api/images/' + jobId);
+          if (r.status === 404) return stop();
+          if (!r.ok) return;
+          const { images, done } = await r.json();
+          const urls = (images || []).map(imgUrl);
+          const a = colour ? st.colour : st.sil;
+          if (!a) return stop();
+          if (urls.some(Boolean) && JSON.stringify(urls) !== JSON.stringify(a[key] || [])) {
+            a[key] = urls;
+            colour ? renderColour() : renderSil();
+            save(colour ? { colour_analysis: st.colour } : { silhouette_analysis: st.sil });
+          }
+          if (done) stop();
+        } catch (e) {}
+      }, 4000);
+    }
+
     const saveEl = document.getElementById('save-state');
     let saveTimer = null;
     async function save(patch) {
@@ -606,6 +688,9 @@
 
       document.getElementById('proof-best').textContent = a.proof_best;
       document.getElementById('proof-less').textContent = a.proof_less;
+      const proof = a.proof_images || [];
+      phFill(document.getElementById('proof-frame-best'), proof[0], tryonBusy.colour);
+      phFill(document.getElementById('proof-frame-less'), proof[1], tryonBusy.colour);
 
       document.getElementById('seen-cards').innerHTML = (a.seen_on_you || []).slice(0, 3).map(p =>
         '<div class="card-frame">' +
@@ -653,13 +738,18 @@
         '<div class="trait-row"><span class="dot"></span><span class="trait-label">' + esc(t) + '</span></div>'
       ).join('');
 
-      document.getElementById('dress-grid').innerHTML = (a.dress_silhouettes || []).slice(0, 4).map(d =>
-        '<div>' +
-          '<div class="ph" style="width:100%;height:300px;"></div>' +
+      const dressImgs = a.dress_images || [];
+      document.getElementById('dress-grid').innerHTML = (a.dress_silhouettes || []).slice(0, 4).map((d, i) => {
+        const u = imgUrl(dressImgs[i]);
+        const frame = u
+          ? '<img src="' + esc(u) + '" alt="" style="width:100%;height:300px;object-fit:cover;border-radius:6px;display:block;">'
+          : '<div class="ph" style="width:100%;height:300px;' + (tryonBusy.silhouette ? 'animation:rb-pulse 1.4s ease-in-out infinite;' : '') + '"></div>';
+        return '<div>' +
+          frame +
           '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:18px;color:#202021;margin-top:11px;">' + esc(d.name) + '</div>' +
           '<div style="font:300 12px/1.5 \'Inter\';color:#A89880;margin-top:2px;">' + esc(d.note) + '</div>' +
-        '</div>'
-      ).join('');
+        '</div>';
+      }).join('');
 
       const necks = (a.neckline_recommendations || []).slice(0, 5);
       document.getElementById('neck-grid').style.gridTemplateColumns = 'repeat(' + Math.max(necks.length, 1) + ',1fr)';
@@ -908,6 +998,7 @@
               renderSil();
             }
             save(patch);
+            startTryon(cfg.kind, { data: payload.data, mimeType: payload.mimeType });
           } catch (err) {
             console.error('Analysis failed:', err.message);
             slotError(cfg.errId, 'Robes couldn’t read that photo just now — try again in a moment.');
@@ -948,6 +1039,16 @@
         if (profile.full_length_url) st.fullLengthUrl = profile.full_length_url;
       }
       renderAll();
+      // Backfill try-on imagery for analyses saved before it existed (or whose
+      // generation failed) — once per session so a flaky job can't loop.
+      if (st.colour && !(st.colour.proof_images || []).some(imgUrl) && st.headshotUrl && !sessionStorage.rb_tryon_colour) {
+        sessionStorage.rb_tryon_colour = '1';
+        startTryon('colour', { photoUrl: st.headshotUrl });
+      }
+      if (st.sil && !(st.sil.dress_images || []).some(imgUrl) && st.fullLengthUrl && !sessionStorage.rb_tryon_sil) {
+        sessionStorage.rb_tryon_sil = '1';
+        startTryon('silhouette', { photoUrl: st.fullLengthUrl });
+      }
     }
 
     document.getElementById('icon-input').addEventListener('keydown', e => {

@@ -595,62 +595,123 @@ If a clothing item IS present, set "no_item_detected": false and fill every fiel
   }
 });
 
+const SEASON_ENUM = ['Light Spring', 'Warm Spring', 'Clear Spring', 'Light Summer', 'True Summer', 'Soft Summer', 'Soft Autumn', 'True Autumn', 'Dark Autumn', 'Clear Winter', 'True Winter', 'Dark Winter'];
+const BODY_ENUM = ['Hourglass', 'Pear', 'Rectangle', 'Inverted Triangle', 'Apple'];
+
+// Observation fields come FIRST (propertyOrdering) so the model commits to
+// evidence before classifying — the JSON doubles as its chain of reasoning.
 const COLOUR_EXTRACT_SCHEMA = {
   type: 'object',
   properties: {
     no_face_detected: { type: 'boolean' },
+    lighting_assessment: { type: 'string' },
+    hair_observation: { type: 'string' },
+    skin_observation: { type: 'string' },
+    eye_observation:  { type: 'string' },
+    undertone_reasoning: { type: 'string' },
+    season_reasoning: { type: 'string' },
     undertone: { type: 'string', enum: ['Warm', 'Cool', 'Neutral-Warm', 'Neutral-Cool'] },
     contrast:  { type: 'string', enum: ['Low', 'Medium', 'High', 'Extremely High'] },
     chroma:    { type: 'string', enum: ['Low', 'Medium', 'High'] },
     lightness: { type: 'string', enum: ['Low', 'Medium', 'High'] },
+    season:    { type: 'string', enum: SEASON_ENUM },
     skin_tone_hex:  { type: 'string' },
     hair_color_hex: { type: 'string' },
     eye_color_hex:  { type: 'string' },
     low_confidence: { type: 'boolean' },
   },
-  required: ['no_face_detected', 'undertone', 'contrast', 'chroma', 'lightness', 'skin_tone_hex', 'hair_color_hex', 'eye_color_hex', 'low_confidence'],
+  propertyOrdering: ['no_face_detected', 'lighting_assessment', 'hair_observation', 'skin_observation', 'eye_observation', 'undertone_reasoning', 'season_reasoning', 'undertone', 'contrast', 'chroma', 'lightness', 'season', 'skin_tone_hex', 'hair_color_hex', 'eye_color_hex', 'low_confidence'],
+  required: ['no_face_detected', 'lighting_assessment', 'hair_observation', 'skin_observation', 'eye_observation', 'undertone_reasoning', 'season_reasoning', 'undertone', 'contrast', 'chroma', 'lightness', 'season', 'skin_tone_hex', 'hair_color_hex', 'eye_color_hex', 'low_confidence'],
 };
 
 const SIL_EXTRACT_SCHEMA = {
   type: 'object',
   properties: {
     no_person_detected: { type: 'boolean' },
+    pose_assessment: { type: 'string' },
+    shoulder_observation: { type: 'string' },
+    waist_observation: { type: 'string' },
+    hip_observation: { type: 'string' },
+    shape_reasoning: { type: 'string' },
     shoulder_waist: { type: 'number' },
     hip_waist:      { type: 'number' },
     shoulder_hip:   { type: 'number' },
+    body_shape:     { type: 'string', enum: BODY_ENUM },
     loose_clothing: { type: 'boolean' },
   },
-  required: ['no_person_detected', 'shoulder_waist', 'hip_waist', 'shoulder_hip', 'loose_clothing'],
+  propertyOrdering: ['no_person_detected', 'pose_assessment', 'shoulder_observation', 'waist_observation', 'hip_observation', 'shape_reasoning', 'shoulder_waist', 'hip_waist', 'shoulder_hip', 'body_shape', 'loose_clothing'],
+  required: ['no_person_detected', 'pose_assessment', 'shoulder_observation', 'waist_observation', 'hip_observation', 'shape_reasoning', 'shoulder_waist', 'hip_waist', 'shoulder_hip', 'body_shape', 'loose_clothing'],
 };
 
-const COLOUR_EXTRACT_PROMPT = `You are a colour-measurement vision system for a personal styling engine. Measure the person in this portrait. Output measurements only — no styling advice.
+const COLOUR_EXTRACT_PROMPT = `You are a master personal colour analyst trained in 12-season analysis. Analyse the person in this portrait the way you would in a live draping consultation.
 
 IMPORTANT: If no human face is clearly visible (a garment, a room, a screenshot), set "no_face_detected": true and return every other field as empty string / false / any enum value.
 
-MEASUREMENT PROTOCOL — follow strictly:
-1. First neutralise ambient lighting: look at the whites of the eyes (sclera) and any visible teeth. These are naturally near-neutral — if they appear yellow/orange the photo has a warm colour cast; if bluish, a cool cast. Mentally subtract that cast from ALL judgements below.
-2. Judge ONLY from skin, hair and iris. Completely ignore the background, clothing colours, lipstick and any makeup — none of these are evidence of undertone.
-3. Base the undertone on cast-corrected skin, favouring evidence from: visible veins on skin (greenish veins → warm, bluish/purple veins → cool), how golden vs rosy the cast-corrected skin reads, and the depth of any natural flush.
+ANALYSIS PROTOCOL — work through it in this exact order, writing your observations into the corresponding fields BEFORE committing to any classification:
 
-Otherwise set "no_face_detected": false and measure:
-"undertone": the thermal base of the cast-corrected skin. Golden, yellow or peach-leaning → "Warm". Pink, blue or rosy-leaning → "Cool". Balanced with a slight warm bias → "Neutral-Warm". Balanced with a slight cool bias → "Neutral-Cool".
-"contrast": the value gap between skin and hair/eyes. Very dark hair against fair skin → "High" or "Extremely High". Blended, similar values throughout → "Low". Otherwise "Medium".
-"chroma": how clear and saturated the natural colouring is (after cast correction). Vivid, bright features → "High". Soft, dusty, greyed features → "Low". Otherwise "Medium".
-"lightness": the overall depth of the colouring. Fair skin and light hair → "High". Deep skin or very dark hair → "Low". Otherwise "Medium".
-"skin_tone_hex": average skin hex sampled from an evenly lit cheek area (e.g. "#E0D6C4").
+1. "lighting_assessment": judge the photo's colour cast against the sclera (whites of the eyes) and any visible teeth — they are naturally near-neutral. Note any warm/cool cast, filters, mixed light or shadows, and mentally subtract that cast from every judgement below.
+2. "hair_observation": describe the NATURAL hair colour and — critically — its temperature. Golden, honey, strawberry, caramel or copper tones → warm evidence. Ash, mousy, cool-beige, blue-black or silvery tones → cool evidence. Hair temperature is one of the strongest undertone signals; visible roots are the most natural reference.
+3. "skin_observation": describe the cast-corrected skin — golden/peachy/olive vs rosy/pink/bluish; how it flushes; freckles (warm evidence) vs an even porcelain quality. Ignore clothing, background and makeup entirely.
+4. "eye_observation": describe iris colour AND pattern. Warm eyes: golden brown, amber, hazel with gold flecks, warm green. Cool eyes: clear blue, grey-blue, grey, cool dark brown.
+5. "undertone_reasoning": weigh ALL the evidence above (never a single cue) and argue for the undertone the way an analyst would.
+6. "season_reasoning": combine undertone with the three dimensions below and argue for ONE of the 12 seasons.
+
+THE THREE DIMENSIONS:
+"contrast": value gap between skin, hair and eyes. Very dark hair on fair skin → "High"/"Extremely High". Blended values (e.g. blonde hair, light-to-medium skin) → "Low". Otherwise "Medium".
+"chroma": clarity of the colouring after cast correction. Vivid, jewel-like, saturated features → "High". Soft, dusty, muted, greyed features → "Low". Otherwise "Medium".
+"lightness": overall depth. Fair skin + light hair → "High". Deep skin or very dark hair → "Low". Otherwise "Medium".
+
+THE 12 SEASONS — pick the single best fit:
+- Light Spring: warm, light, fresh — light golden blonde, fair warm skin, low-medium contrast.
+- Warm Spring: distinctly golden, mid-toned, clear — golden blonde/copper hair, warm glow.
+- Clear Spring: warm-leaning, HIGH chroma, high contrast — bright, vivid features.
+- Light Summer: cool, very light, delicate — ash blonde, cool fair skin, low contrast.
+- True Summer: fully cool, mid-toned, soft — ash hair, rosy skin, grey/blue eyes, no warmth anywhere.
+- Soft Summer: cool-neutral and MUTED — greyed, misty colouring, low chroma.
+- Soft Autumn: warm-neutral and MUTED — dark blonde/soft brown hair with a golden cast, low-medium contrast, dusty warmth. The most common season for warm-leaning blondes whose colouring is soft rather than vivid.
+- True Autumn: fully warm, rich, earthy — red/auburn/golden brown hair, golden skin.
+- Dark Autumn: warm and DEEP — dark brown hair with warmth, deep eyes, high contrast.
+- Clear Winter: cool, HIGH chroma, very high contrast — dark hair, bright eyes, vivid.
+- True Winter: fully cool, saturated, stark — blue-black/dark ash hair, high contrast.
+- Dark Winter: cool and DEEP — near-black hair, deep cool eyes, extremely high contrast.
+
+DISCIPLINE RULES:
+- A blonde with ANY golden or honey quality to her hair is warm-family (a Spring or Autumn), not a Summer — never read sun-lightened or highlighted golden blonde as ash.
+- Muted + warm → Soft Autumn, not a Summer. Muted + cool → Soft Summer.
+- High contrast is impossible for blended blonde colouring — reserve it for genuinely dark hair on light skin.
+- The final "undertone", "contrast", "chroma", "lightness" and "season" fields MUST be consistent with each other and with your written reasoning.
+
+Also sample:
+"skin_tone_hex": average cast-corrected skin hex from an evenly lit cheek (e.g. "#E0D6C4").
 "hair_color_hex": dominant hair hex (e.g. "#8A7458").
 "eye_color_hex": dominant iris hex (e.g. "#5A5836").
-"low_confidence": true if the sclera/teeth check reveals a strong colour cast, or heavy filters, mixed lighting, or shadows make undertone judgement unreliable even after correction.`;
+"low_confidence": true if a strong colour cast, heavy filter, mixed lighting or shadow makes the analysis unreliable even after correction.`;
 
-const SIL_EXTRACT_PROMPT = `You are a body-geometry vision system for a personal styling engine. Measure the person in this full-length photograph. Output measurements only — no styling advice.
+const SIL_EXTRACT_PROMPT = `You are a master stylist assessing body architecture from a full-length photograph, the way you would in a live fitting.
 
-IMPORTANT: If no full-length human figure is clearly visible (head-and-shoulders only, a garment, a room), set "no_person_detected": true and return 1 for every ratio.
+IMPORTANT: If no full-length human figure is clearly visible (head-and-shoulders only, a garment, a room), set "no_person_detected": true, return 1 for every ratio and any enum value for "body_shape".
 
-Otherwise set "no_person_detected": false and estimate, from visible landmarks (outer shoulder margins, narrowest natural waist plane, widest hip boundary):
-"shoulder_waist": shoulder width divided by waist width (e.g. 1.35)
-"hip_waist": hip width divided by waist width (e.g. 1.32)
-"shoulder_hip": shoulder width divided by hip width (e.g. 1.02)
-"loose_clothing": true if oversized or loose garments hide the natural waistline, making ratios unreliable.`;
+ANALYSIS PROTOCOL — write your observations into the corresponding fields BEFORE committing to any numbers or classification:
+
+1. "pose_assessment": describe the pose and its distortions. CRITICAL: in mirror selfies one arm is raised to hold the phone — a raised arm lifts and visually widens that shoulder and can make balanced shoulders read broad. Judge shoulder width from the BONE STRUCTURE of the resting shoulder line, never from a raised arm, a hand on a hip, or a twisted torso. Note camera angle (a low camera widens hips, a high camera widens shoulders) and correct for it.
+2. "shoulder_observation": the corrected skeletal shoulder width and slope.
+3. "waist_observation": whether the waist visibly nips in relative to ribcage and hips ("defined"), curves gently ("soft"), or runs straight ("undefined"). Fitted clothing (leggings, tucked or close-fitting tops) makes this readable; note if loose garments hide it.
+4. "hip_observation": the widest hip/thigh line relative to the corrected shoulder line.
+5. "shape_reasoning": weigh the corrected observations and argue for ONE archetype.
+
+THE 5 ARCHETYPES:
+- Hourglass: shoulders and hips visually balanced, waist clearly narrower and defined. A defined waist with balanced shoulders and hips is Hourglass even when the shoulders look athletic.
+- Pear: hips clearly wider than shoulders, defined waist, fuller hips/thighs.
+- Rectangle: shoulders, waist and hips on one line — minimal waist definition, lean and straight.
+- Inverted Triangle: shoulders GENUINELY and skeletally broader than hips (swimmer's build), narrow lean hips, little waist emphasis. Do NOT choose this just because an arm is raised or the person is lean — it requires an unmistakably broader corrected shoulder line AND a waist that does not nip in.
+- Apple: volume carried at the midsection, waist wider than or equal to hips, lean legs.
+
+Then estimate the CORRECTED ratios from visible landmarks (outer shoulder margins at rest, narrowest natural waist plane, widest hip boundary):
+"shoulder_waist": shoulder width ÷ waist width (e.g. 1.35)
+"hip_waist": hip width ÷ waist width (e.g. 1.32)
+"shoulder_hip": shoulder width ÷ hip width (e.g. 1.02)
+"body_shape": the archetype your reasoning concluded — it MUST be consistent with your written observations and ratios.
+"loose_clothing": true if oversized or loose garments hide the natural waistline, making the read unreliable.`;
 
 app.post('/api/stylenotes/analyse', async (req, res) => {
   const { kind, data, mimeType } = req.body;
@@ -660,14 +721,16 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
   const colour = kind === 'colour';
   const t0 = Date.now();
   try {
-    // Gemini extracts measurable primitives only; the deterministic engine in
-    // style_dna.js maps them to archetypes and design rules (PRD: Style DNA).
+    // Gemini writes stylist-grade observations, a direct archetype call AND the
+    // measurable primitives; style_dna.js reconciles them (holistic call wins,
+    // the primitive mapping is the deterministic fallback + cross-check) and
+    // owns every palette/design rule the user sees (PRD: Style DNA).
     // Attempt 1 uses a responseSchema; attempt 2 drops it and trusts JSON mode.
     let result, lastErr;
     for (let attempt = 0; attempt < 2 && !result; attempt++) {
       const config = {
         responseMimeType: 'application/json',
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
         temperature: 0,
         thinkingConfig: { thinkingBudget: 0 },
       };
@@ -713,6 +776,90 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
     console.error('[stylenotes/analyse] Gemini error:', err.message);
     res.status(502).json({ error: 'analysis_failed', reason: String(err.message || '').slice(0, 200) });
   }
+});
+
+/* ── style notes try-on imagery ──────────────────────────────────── */
+// Fills the Style Notes placeholder frames with real imagery of the user:
+// colour → the proof pair (best vs avoid drape), silhouette → the four dress
+// silhouettes. Same background-job + Cloudinary + polling infra as /api/style;
+// only hosted URLs are written to the job so results can persist in profiles.
+app.post('/api/stylenotes/tryon', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
+  const { kind, data, mimeType, photoUrl, analysis } = req.body;
+  if (!['colour', 'silhouette'].includes(kind) || !analysis || typeof analysis !== 'object') {
+    return res.status(400).json({ error: 'Missing kind or analysis' });
+  }
+
+  let photo = data && mimeType ? { data, mimeType } : null;
+  if (!photo && typeof photoUrl === 'string' && /^https:\/\/res\.cloudinary\.com\//.test(photoUrl)) {
+    try {
+      const r = await fetch(photoUrl);
+      if (r.ok) {
+        const buf = Buffer.from(await r.arrayBuffer());
+        photo = { data: buf.toString('base64'), mimeType: r.headers.get('content-type') || 'image/jpeg' };
+      }
+    } catch (err) {
+      console.error('[stylenotes/tryon] photo fetch failed:', err.message);
+    }
+  }
+  if (!photo) return res.status(400).json({ error: 'Missing photo' });
+
+  const IDENTITY = 'Edit the provided photograph. Keep the SAME person — identical face, hair and skin; a faithful likeness. Photorealistic editorial photography, soft even daylight, clean warm-grey studio backdrop, no text overlays, no collage, one single image.';
+  let prompts;
+  if (kind === 'colour') {
+    const best = (analysis.best_colours || [])[0];
+    const avoid = (analysis.avoid_colours || [])[0];
+    if (!best || !avoid) return res.status(400).json({ error: 'Missing colours' });
+    prompts = [best, avoid].map(c =>
+      `${IDENTITY} Chest-up portrait, facing the camera with a calm expression. Change only the clothing: an elegant simple crew-neck knit top in ${c.name} (${c.hex}). The top must fill the frame below the face so its colour reads clearly against the skin.`);
+  } else {
+    const dresses = (analysis.dress_silhouettes || []).slice(0, 4);
+    if (!dresses.length) return res.status(400).json({ error: 'Missing dress silhouettes' });
+    const tone = typeof analysis.dress_colour === 'string' && analysis.dress_colour ? analysis.dress_colour : 'a deep elegant neutral tone';
+    prompts = dresses.map(d =>
+      `${IDENTITY} Full-length editorial photograph, head to toe, standing naturally. Change only the clothing: a ${String(d.name || '').toLowerCase()} — ${String(d.note || '').toLowerCase()} — in ${tone}, styled with simple elegant shoes. The dress silhouette must read clearly.`);
+  }
+
+  const jobId = randomBytes(6).toString('hex');
+  imageJobs.set(jobId, { images: prompts.map(() => null), done: false, created: Date.now() });
+  res.json({ jobId, count: prompts.length });
+
+  const t0 = Date.now();
+  (async () => {
+    for (let i = 0; i < prompts.length; i++) {
+      if (i > 0) await new Promise(r => setTimeout(r, 3000)); // stagger under Gemini's rate limit
+      try {
+        const r = await Promise.race([
+          ai.models.generateContent({
+            model: 'gemini-3.1-flash-image',
+            contents: [{ role: 'user', parts: [
+              { inlineData: { mimeType: photo.mimeType, data: photo.data } },
+              { text: prompts[i] },
+            ] }],
+            config: { responseModalities: ['TEXT', 'IMAGE'] },
+          }),
+          new Promise(resolve => setTimeout(() => resolve(null), 50000)),
+        ]);
+        const part = r?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        if (!part?.inlineData) {
+          logAI({ feature: 'stylenotes_tryon', kind, index: i, success: false, reason: r ? 'no_inline_data' : 'timeout_50s' });
+          continue;
+        }
+        const url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+        if (!url) {
+          logAI({ feature: 'stylenotes_tryon', kind, index: i, success: false, reason: 'cloudinary_failed' });
+          continue;
+        }
+        logAI({ feature: 'stylenotes_tryon', kind, index: i, success: true, ms: Date.now() - t0 });
+        const job = imageJobs.get(jobId);
+        if (job) job.images[i] = url;
+      } catch (err) {
+        logAI({ feature: 'stylenotes_tryon', kind, index: i, success: false, reason: err.message });
+      }
+    }
+    const job = imageJobs.get(jobId);
+    if (job) job.done = true;
+    logAI({ feature: 'stylenotes_tryon', kind, stage: 'complete', totalMs: Date.now() - t0 });
+  })();
 });
 
 /* ── moodboard ───────────────────────────────────────────────────── */

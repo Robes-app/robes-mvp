@@ -424,7 +424,7 @@ export function classifyBody({ shoulder_waist, hip_waist, shoulder_hip, loose_cl
   const sw = Number(shoulder_waist) || 1;
   const hw = Number(hip_waist) || 1;
   const sh = Number(shoulder_hip) || 1;
-  if (sw >= 1.25 && hw >= 1.25 && sh >= 0.95 && sh <= 1.05) return { body_type: 'Hourglass', fallback_applied: false };
+  if (sw >= 1.2 && hw >= 1.2 && sh >= 0.9 && sh <= 1.1) return { body_type: 'Hourglass', fallback_applied: false };
   if (1 / sh >= 1.10 && hw >= 1.20) return { body_type: 'Pear', fallback_applied: false };
   if (sh >= 1.15 && sw >= 1.20) return { body_type: 'Inverted Triangle', fallback_applied: false };
   if (sw <= 1 && hw <= 1) return { body_type: 'Apple', fallback_applied: false };
@@ -444,10 +444,17 @@ const CONTRAST_DISPLAY = { 'Low': 'Low, blended', 'Medium': 'Medium', 'High': 'H
 const UNDERTONE_DISPLAY = { 'Warm': 'Warm', 'Cool': 'Cool', 'Neutral-Warm': 'Neutral', 'Neutral-Cool': 'Neutral' };
 
 export function buildColorHarmony(x) {
-  const undertone = UNDERTONE_COPY[x.undertone] ? x.undertone : (x.low_confidence ? 'Neutral-Warm' : 'Warm');
+  let undertone = UNDERTONE_COPY[x.undertone] ? x.undertone : (x.low_confidence ? 'Neutral-Warm' : 'Warm');
   const contrast = CONTRAST_COPY[x.contrast] ? x.contrast : 'Medium';
-  const season = classifySeason({ undertone, contrast, chroma: x.chroma, lightness: x.lightness });
+  const primitiveSeason = classifySeason({ undertone, contrast, chroma: x.chroma, lightness: x.lightness });
+  // The model's holistic season call (reasoned against the full 12-season
+  // rubric) wins over the coarse primitive mapping; the mapping stays as the
+  // deterministic fallback and a cross-check recorded in the DNA.
+  const season = SEASONS[x.season] ? x.season : primitiveSeason;
   const s = SEASONS[season];
+  const warmSeason = s.family === 'warm';
+  const warmUndertone = undertone === 'Warm' || undertone === 'Neutral-Warm';
+  if (warmSeason !== warmUndertone) undertone = warmSeason ? 'Neutral-Warm' : 'Neutral-Cool';
   const best = s.stars.concat(s.accents);
   const render = {
     season,
@@ -471,6 +478,12 @@ export function buildColorHarmony(x) {
     verified_undertone: undertone,
     calculated_contrast: contrast,
     refinement_needed: !!x.low_confidence,
+    classification: {
+      source: SEASONS[x.season] ? 'holistic' : 'primitive_mapping',
+      primitive_season: primitiveSeason,
+      agreement: primitiveSeason === season,
+      reasoning: x.season_reasoning || null,
+    },
     extracted_values: {
       skin_tone_hex: x.skin_tone_hex || null,
       hair_color_hex: x.hair_color_hex || null,
@@ -498,7 +511,13 @@ export function buildColorHarmony(x) {
 }
 
 export function buildSilhouette(x) {
-  const { body_type, fallback_applied } = classifyBody(x);
+  const ratioResult = classifyBody(x);
+  // The model's holistic, pose-corrected shape call wins over the raw width
+  // ratios (which mirror-selfie arms and camera angle distort); ratios remain
+  // the deterministic fallback and a cross-check recorded in the DNA.
+  const holistic = BODIES[x.body_shape] ? x.body_shape : null;
+  const body_type = holistic || ratioResult.body_type;
+  const fallback_applied = holistic ? false : ratioResult.fallback_applied;
   const b = BODIES[body_type];
   const render = {
     body_type: body_type,
@@ -512,6 +531,12 @@ export function buildSilhouette(x) {
   const dna = {
     body_type,
     fallback_applied,
+    classification: {
+      source: holistic ? 'holistic' : 'ratio_thresholds',
+      ratio_body_type: ratioResult.body_type,
+      agreement: ratioResult.body_type === body_type,
+      reasoning: x.shape_reasoning || null,
+    },
     geometric_ratios: {
       shoulder_to_waist: round(x.shoulder_waist),
       hip_to_waist: round(x.hip_waist),
@@ -547,6 +572,18 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0) {
     const ar = sp.architectural_rules || {};
     lines.push(`Body architecture: ${sp.body_type}. Best dress silhouettes: ${(ar.dress_silhouettes || []).join(', ')}. Best necklines: ${(ar.necklines || []).join(', ')}.`);
     if (ar.styling_maxims) lines.push(`Styling maxims: ${ar.styling_maxims.join(' ')}`);
+  }
+  // User corrections always outrank the photo-derived profile.
+  const uo = styleDna.user_overrides || {};
+  if (Array.isArray(uo.loved_colors) && uo.loved_colors.length) {
+    lines.push(`The user has personally confirmed these colours work on them (they override the avoid list on conflict): ${uo.loved_colors.join(', ')}.`);
+  }
+  if (Array.isArray(uo.rejected_colors) && uo.rejected_colors.length) {
+    lines.push(`The user has personally rejected these colours — never style them in: ${uo.rejected_colors.join(', ')}.`);
+  }
+  if (uo.measurements && typeof uo.measurements === 'object') {
+    const m = Object.entries(uo.measurements).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(', ');
+    if (m) lines.push(`Exact measurements supplied by the user — trust these over any photo estimate: ${m}.`);
   }
   lines.push(wardrobeCount >= 15
     ? `SYSTEM DIRECTIVE: The user has a mature digital closet (${wardrobeCount} items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that obey the silhouette maxims above.`
