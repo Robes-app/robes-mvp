@@ -2308,20 +2308,110 @@
         el.textContent = Math.min(15, Math.max(8, (parseInt(el.textContent, 10) || 13) + d));
       };
 
+      // Brief-modal state — survives the "snap a new anchor" round trip
+      // through the wardrobe add modal (growth PRD epic 1).
+      let _tvBrief = null;
+
+      function _tvCaptureBrief() {
+        if (!document.getElementById('tv-brief-modal')) return;
+        _tvBrief = {
+          dest: ((document.getElementById('tv-dest') || {}).value || '').trim(),
+          dateFrom: (document.getElementById('tv-from') || {}).value || '',
+          dateTo: (document.getElementById('tv-to') || {}).value || '',
+          brief: ((document.getElementById('tv-brief-ta') || {}).value || '').trim(),
+          limit: parseInt((document.getElementById('tv-limit') || {}).textContent, 10) || 13,
+          anchors: (_tvBrief && _tvBrief.anchors) || [],
+        };
+      }
+
+      function _tvAnchorPaint() {
+        const sel = (_tvBrief && _tvBrief.anchors) || [];
+        document.querySelectorAll('[data-anc]').forEach(el => {
+          const on = sel.indexOf(el.dataset.anc) !== -1;
+          el.style.outline = on ? '2px solid #202021' : '1px solid rgba(32,32,33,0.1)';
+          const chk = el.querySelector('.tv-anc-chk');
+          if (chk) chk.style.display = on ? 'flex' : 'none';
+        });
+        const hint = document.getElementById('tv-anchor-hint');
+        if (hint) hint.textContent = sel.length
+          ? sel.length + ' of 3 anchored — the capsule is built around ' + (sel.length === 1 ? 'this piece' : 'these pieces')
+          : 'Already know what you’re bringing? Anchor up to 3 pieces and the capsule is built around them.';
+      }
+
+      window.__tvAnchorToggle = function(id) {
+        if (!_tvBrief) _tvBrief = { anchors: [] };
+        if (!Array.isArray(_tvBrief.anchors)) _tvBrief.anchors = [];
+        id = String(id);
+        const a = _tvBrief.anchors;
+        const i = a.indexOf(id);
+        if (i !== -1) a.splice(i, 1);
+        else {
+          if (a.length >= 3) { _waShowToast('Three anchors is the limit — remove one first'); return; }
+          a.push(id);
+        }
+        _tvAnchorPaint();
+      };
+
+      // "Snap new" inside the anchor row — the wardrobe add flow runs, the
+      // fresh piece lands back here already selected as an anchor.
+      window.__tvAnchorSnap = function() {
+        _tvCaptureBrief();
+        document.getElementById('tv-brief-modal')?.remove();
+        _waEditId = null;
+        _waAfterAdd = function(newId) {
+          window.__tvOpen({ restore: true });
+          setTimeout(function() { window.__tvAnchorToggle(newId); }, 150);
+        };
+        if (window.WA && WA.open) WA.open();
+      };
+
       // The Natural Language Destination Brief (PRD step 1) — a structured
       // modal rather than pure chat so dates + item limit are never fuzzy.
       window.__tvOpen = function(opts) {
         document.getElementById('tv-brief-modal')?.remove();
         const serif = "'Cormorant',Georgia,serif";
         const iso = d => d.toISOString().slice(0, 10);
-        const dfrom = iso(new Date(Date.now() + 14 * 86400000));
-        const dto = iso(new Date(Date.now() + 21 * 86400000));
         const rawBrief = (opts && opts.brief) || '';
-        // Light heuristic prefill — the user reviews everything in the modal
-        const destGuess = (rawBrief.match(/\b(?:to|in|for)\s+([A-Z][A-Za-z'’-]+(?:\s+[A-Z][A-Za-z'’-]+){0,2})/) || [])[1] || '';
+        const restore = !!(opts && opts.restore && _tvBrief);
+        if (!restore) {
+          // Light heuristic prefill — the user reviews everything in the modal
+          const destGuess = (rawBrief.match(/\b(?:to|in|for)\s+([A-Z][A-Za-z'’-]+(?:\s+[A-Z][A-Za-z'’-]+){0,2})/) || [])[1] || '';
+          _tvBrief = {
+            dest: destGuess,
+            dateFrom: iso(new Date(Date.now() + 14 * 86400000)),
+            dateTo: iso(new Date(Date.now() + 21 * 86400000)),
+            brief: rawBrief,
+            limit: 13,
+            anchors: [],
+          };
+        }
+        const st = _tvBrief;
         const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:11px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit';
         const labelCss = 'font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 8px';
         const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        const cameraSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+
+        // Anchor Items row (growth PRD epic 1): a snap-new tile + the
+        // wardrobe, tap to anchor up to 3 pieces the capsule must pack.
+        const ancTiles = _waItems.slice(0, 24).map(wi => `
+          <div data-anc="${_waEsc(String(wi.id))}" onclick="window.__tvAnchorToggle('${_waEsc(String(wi.id))}')" style="flex:0 0 72px;cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;outline:1px solid rgba(32,32,33,0.1);outline-offset:-1px;position:relative">
+            <span class="tv-anc-chk" style="display:none;position:absolute;top:5px;right:5px;width:16px;height:16px;border-radius:50%;background:#202021;color:#fff;font-size:9px;align-items:center;justify-content:center;z-index:2;line-height:1">✓</span>
+            ${wi.image_url
+              ? `<img src="${_waEsc(wi.image_url)}" style="width:72px;height:72px;object-fit:cover;display:block" alt="">`
+              : `<div style="width:72px;height:72px;background:#EDE8E0;display:flex;align-items:center;justify-content:center;font-family:${serif};font-size:22px;color:#B8AC9C">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</div>`}
+            <div style="padding:4px 6px;font-size:9px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
+          </div>`).join('');
+        const anchorRow = `
+          <p style="${labelCss}">Anchor pieces · optional</p>
+          <p id="tv-anchor-hint" style="font-size:11px;color:#A89880;font-style:italic;margin:0 0 10px">Already know what you’re bringing? Anchor up to 3 pieces and the capsule is built around them.</p>
+          <div id="tv-anchor-row" style="display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;margin-bottom:16px">
+            <div onclick="window.__tvAnchorSnap()" style="flex:0 0 72px;cursor:pointer;border-radius:8px;background:#F0EAE0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:94px;color:#8A7B62">
+              ${cameraSvg}
+              <span style="font-size:9px;font-weight:500;letter-spacing:.08em;text-transform:uppercase">Snap new</span>
+            </div>
+            ${ancTiles}
+          </div>`;
+
         const modal = document.createElement('div');
         modal.id = 'tv-brief-modal';
         modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
@@ -2335,34 +2425,39 @@
             <p style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin:0 0 4px;line-height:1.15">Where are we packing for?</p>
             <p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 20px">A high-yield capsule from your wardrobe — every piece earns at least three wears.</p>
             <p style="${labelCss}">Destination</p>
-            <input id="tv-dest" value="${_waEsc(destGuess)}" placeholder="Ibiza, Spain" style="${inputCss};margin-bottom:16px">
+            <input id="tv-dest" value="${_waEsc(st.dest || '')}" placeholder="Ibiza, Spain" style="${inputCss};margin-bottom:16px">
             <p style="${labelCss}">Dates</p>
             <div style="display:flex;gap:10px;margin-bottom:16px">
-              <input id="tv-from" type="date" value="${dfrom}" style="${inputCss}">
-              <input id="tv-to" type="date" value="${dto}" style="${inputCss}">
+              <input id="tv-from" type="date" value="${_waEsc(st.dateFrom || '')}" style="${inputCss}">
+              <input id="tv-to" type="date" value="${_waEsc(st.dateTo || '')}" style="${inputCss}">
             </div>
             <p style="${labelCss}">The brief</p>
-            <textarea id="tv-brief-ta" rows="3" placeholder="Staying at Six Senses — refined Mediterranean minimalism. Think Loewe’s Paula’s Ibiza, Rosie Huntington-Whiteley." style="${inputCss};resize:none;margin-bottom:16px;line-height:1.55">${_waEsc(rawBrief)}</textarea>
+            <textarea id="tv-brief-ta" rows="3" placeholder="Staying at Six Senses — refined Mediterranean minimalism. Think Loewe’s Paula’s Ibiza, Rosie Huntington-Whiteley." style="${inputCss};resize:none;margin-bottom:16px;line-height:1.55">${_waEsc(st.brief || '')}</textarea>
+            ${anchorRow}
             <p style="${labelCss}">Item limit</p>
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px">
               <button onclick="window.__tvLimitStep(-1)" style="width:32px;height:32px;border:1px solid rgba(32,32,33,0.18);border-radius:50%;background:#fff;font-size:15px;cursor:pointer;color:#202021;line-height:1">−</button>
-              <span id="tv-limit" style="font-family:${serif};font-size:24px;font-weight:400;color:#202021;min-width:30px;text-align:center">13</span>
+              <span id="tv-limit" style="font-family:${serif};font-size:24px;font-weight:400;color:#202021;min-width:30px;text-align:center">${Math.min(15, Math.max(8, st.limit || 13))}</span>
               <button onclick="window.__tvLimitStep(1)" style="width:32px;height:32px;border:1px solid rgba(32,32,33,0.18);border-radius:50%;background:#fff;font-size:15px;cursor:pointer;color:#202021;line-height:1">+</button>
               <span style="font-size:11px;color:#A89880;font-style:italic">12–15 pieces is the high-yield sweet spot</span>
             </div>
             <button onclick="window.__tvSubmit()" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Build my travel edit →</button>
           </div>`;
         document.body.appendChild(modal);
-        setTimeout(() => { const el = document.getElementById('tv-dest'); if (el) el.focus(); }, 60);
+        _tvAnchorPaint();
+        setTimeout(() => { const el = document.getElementById('tv-dest'); if (el && !el.value) el.focus(); }, 60);
       };
 
       window.__tvSubmit = async function() {
-        const dest = ((document.getElementById('tv-dest') || {}).value || '').trim();
+        _tvCaptureBrief();
+        const st = _tvBrief || {};
+        const dest = st.dest || '';
         if (!dest) { _waShowToast('Tell us where you’re going first'); return; }
-        const dateFrom = (document.getElementById('tv-from') || {}).value || '';
-        const dateTo = (document.getElementById('tv-to') || {}).value || '';
-        const brief = ((document.getElementById('tv-brief-ta') || {}).value || '').trim();
-        const limit = parseInt((document.getElementById('tv-limit') || {}).textContent, 10) || 13;
+        const dateFrom = st.dateFrom || '';
+        const dateTo = st.dateTo || '';
+        const brief = st.brief || '';
+        const limit = st.limit || 13;
+        const anchorIds = (st.anchors || []).slice(0, 3);
         const bm = document.getElementById('tv-brief-modal');
         if (bm) bm.remove();
 
@@ -2404,6 +2499,7 @@
               dateTo,
               brief,
               itemLimit: limit,
+              anchorIds,
               name,
               styleDna: _rbStyleDna(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
@@ -2414,6 +2510,7 @@
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
           data.brief = brief;
+          _tvBrief = null;
           window.__tvRenderResult(data);
         } catch (err) {
           clearInterval(msgInterval);
@@ -2455,6 +2552,8 @@
 
         const owned = data.capsule.filter(it => it.wardrobe_match).length;
         const total = data.capsule.length;
+        const compPct = total ? Math.round((owned / total) * 100) : 0;
+        const toAuth = total - owned;
         const lookCount = data.days.reduce((acc, d) => acc + (d.slots || []).length, 0);
         const lead = owned === total && total > 0
           ? 'Packed from your wardrobe, ' + name + '.'
@@ -2520,7 +2619,13 @@
                   <span style="display:inline-flex;align-items:center;gap:6px">${badge}</span>
                   ${wears ? `<span style="font-size:9.5px;font-weight:500;letter-spacing:.08em;color:#8A7B62;background:#F0EAE0;border-radius:20px;padding:2px 8px;white-space:nowrap">× ${wears} looks</span>` : ''}
                 </div>
-                <button class="tv-noprint" onclick="event.stopPropagation();window.__tvSwap(${ci})" style="margin-top:9px;display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:0.5px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:8.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">${swapSvg} Swap</button>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px">
+                  <button id="tv-pack-${ci}" onclick="event.stopPropagation();window.__tvPackToggle(${ci})" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:${it.packed ? '#202021' : '#6E6A64'};font-family:${sans}">
+                    <span class="tv-pack-box" style="width:15px;height:15px;border-radius:4px;border:1.5px solid ${it.packed ? '#202021' : 'rgba(32,32,33,0.3)'};background:${it.packed ? '#202021' : '#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1;box-sizing:border-box">${it.packed ? '✓' : ''}</span>
+                    Packed
+                  </button>
+                  <button class="tv-noprint" onclick="event.stopPropagation();window.__tvSwap(${ci})" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:0.5px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:8.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">${swapSvg} Swap</button>
+                </div>
               </div>
             </div>`;
           }).join('');
@@ -2591,6 +2696,17 @@
                   <span style="font-size:11px;letter-spacing:.05em;color:#6E6A64">${_waEsc(provenance)}</span>
                   ${palette.length ? `<span style="display:inline-flex;gap:5px;margin-left:2px">${palette.map(h => `<span style="width:13px;height:13px;border-radius:50%;background:${h};border:0.5px solid rgba(32,32,33,0.15)"></span>`).join('')}</span>` : ''}
                 </div>
+                <div id="tv-comp" style="margin:2px 0 16px;max-width:420px">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#A89880;margin-bottom:6px">
+                    <span>Suitcase completeness</span><span style="color:${compPct === 100 ? '#4A7C59' : '#202021'};font-weight:600;font-size:11px">${compPct}% yours</span>
+                  </div>
+                  <div style="height:4px;border-radius:4px;background:rgba(32,32,33,0.08);overflow:hidden">
+                    <div style="height:100%;width:${compPct}%;background:${compPct === 100 ? '#4A7C59' : '#8A7B62'};border-radius:4px;transition:width .4s"></div>
+                  </div>
+                  <div style="font-size:11px;color:#A89880;font-style:italic;margin-top:6px">${compPct === 100
+                    ? 'Fully yours — every piece lives in your digital wardrobe.'
+                    : toAuth + (toAuth === 1 ? ' piece' : ' pieces') + ' to make yours — swap in what you own, or tick them off as you pack.'}</div>
+                </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
                   ${wx || data.dateLine ? `
                   <div style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#6E6A64;letter-spacing:.04em;border:0.5px solid rgba(32,32,33,0.12);border-radius:40px;padding:8px 16px;background:#fff">
@@ -2612,7 +2728,13 @@
             </div>
 
             <div style="height:0.5px;background:rgba(32,32,33,0.1);margin:26px 0 28px"></div>
-            <div style="font-family:${serif};font-weight:400;font-size:27px;color:#202021;line-height:1.1;margin-bottom:6px">The capsule</div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:6px">
+              <div style="font-family:${serif};font-weight:400;font-size:27px;color:#202021;line-height:1.1">The capsule</div>
+              <div id="tv-pack-progress" style="display:flex;align-items:center;gap:10px">
+                <span id="tv-pack-count" style="font-size:11px;color:#6E6A64;letter-spacing:.04em"></span>
+                <span style="width:90px;height:3px;border-radius:3px;background:rgba(32,32,33,0.08);overflow:hidden;display:inline-block"><span id="tv-pack-bar" style="display:block;height:100%;width:0%;background:#202021;border-radius:3px;transition:width .3s"></span></span>
+              </div>
+            </div>
             <div id="tv-matrix-note" style="font-size:12px;color:#A89880;font-style:italic;margin-bottom:18px;min-height:18px">Tap any piece to see how it multiplies across the week.</div>
             ${tiersHtml}
 
@@ -2649,6 +2771,7 @@
 
         tvResultPage.style.display = 'block';
         tvResultPage.scrollTo({ top: 0 });
+        _tvPaintPackProgress();
 
         if (data.jobId) _tvPollImages(data.jobId, data.imageCount || 1);
 
@@ -2685,7 +2808,7 @@
             rating: tvFbRating,
             comment,
             prompt: [data.destination, data.dateLine, data.brief].filter(Boolean).join(' · '),
-            looksOutput: JSON.stringify({ surface: 'travel-edit', destination: data.destination || '', trip_label: data.trip_label || '', owned, total, looks: lookCount, ts: new Date().toISOString() }),
+            looksOutput: JSON.stringify({ surface: 'travel-edit', destination: data.destination || '', trip_label: data.trip_label || '', owned: data.capsule.filter(c => c.wardrobe_match).length, total, packed: data.capsule.filter(c => c.packed).length, looks: lookCount, ts: new Date().toISOString() }),
           }) }).catch(() => {});
           document.getElementById('tv-fb-prompt').hidden = true;
           document.getElementById('tv-fb-expand').hidden = true;
@@ -2704,6 +2827,116 @@
         const open = x.style.display !== 'none';
         x.style.display = open ? 'none' : 'block';
         if (caret) caret.style.transform = open ? '' : 'rotate(180deg)';
+      };
+
+      function _tvPatchSaved() {
+        const savedId = _tvActiveSaveId;
+        if (!savedId || !window.__lastTvData) return;
+        const saved = snLoad().find(x => x.id === savedId);
+        if (saved) snUpdate(savedId, { tvData: { ...(saved.tvData || {}), capsule: window.__lastTvData.capsule } });
+      }
+
+      function _tvPaintPackProgress() {
+        const data = window.__lastTvData;
+        if (!data || !Array.isArray(data.capsule)) return;
+        const packedN = data.capsule.filter(it => it.packed).length;
+        const totalN = data.capsule.length;
+        const count = document.getElementById('tv-pack-count');
+        const bar = document.getElementById('tv-pack-bar');
+        if (count) count.textContent = totalN > 0 && packedN === totalN
+          ? 'Suitcase closed — bon voyage ✈'
+          : 'Packed ' + packedN + ' of ' + totalN;
+        if (bar) bar.style.width = (totalN ? Math.round((packedN / totalN) * 100) : 0) + '%';
+      }
+
+      // The "Packed It" checkbox (growth PRD epic 3). Surgical DOM update —
+      // no re-render, so scroll position and the 1:3 selection survive
+      // mid-packing. Packing a curated (unowned) piece is the conversion
+      // moment: she owns it in the real world, so invite the record.
+      window.__tvPackToggle = function(ci) {
+        const data = window.__lastTvData;
+        const it = data && data.capsule[ci];
+        if (!it) return;
+        it.packed = !it.packed;
+        const btn = document.getElementById('tv-pack-' + ci);
+        const box = btn && btn.querySelector('.tv-pack-box');
+        if (box) {
+          box.style.border = '1.5px solid ' + (it.packed ? '#202021' : 'rgba(32,32,33,0.3)');
+          box.style.background = it.packed ? '#202021' : '#fff';
+          box.textContent = it.packed ? '✓' : '';
+        }
+        if (btn) btn.style.color = it.packed ? '#202021' : '#6E6A64';
+        _tvPaintPackProgress();
+        _tvPatchSaved();
+        if (it.packed && !it.wardrobe_match) _tvShowOwnPrompt(ci);
+      };
+
+      function _tvShowOwnPrompt(ci) {
+        const data = window.__lastTvData;
+        const it = data && data.capsule[ci];
+        if (!it) return;
+        document.getElementById('tv-own-modal')?.remove();
+        const serif = "'Cormorant',Georgia,serif";
+        const modal = document.createElement('div');
+        modal.id = 'tv-own-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:420px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:28px 26px;text-align:center">
+            <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 8px">In the bag</p>
+            <p style="font-family:${serif};font-size:25px;font-weight:300;color:#202021;margin:0 0 8px;line-height:1.2">Make it officially yours?</p>
+            <p style="font-size:12.5px;color:#6E6A64;line-height:1.65;margin:0 0 20px">You’re packing the <em>${_waEsc(it.name)}</em> — add it to your wardrobe and every future look can style it.</p>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <button onclick="window.__tvOwnSnap(${ci})" style="width:100%;padding:13px 20px;border:none;border-radius:40px;background:#202021;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">📷 Snap it now</button>
+              <button onclick="window.__tvQuickOwn(${ci})" style="width:100%;padding:13px 20px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#fff;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">Add without a photo</button>
+              <button onclick="document.getElementById('tv-own-modal').remove()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;color:#A89880;text-decoration:underline;text-underline-offset:3px;font-family:inherit">Just packing</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+      }
+
+      window.__tvOwnSnap = function(ci) {
+        document.getElementById('tv-own-modal')?.remove();
+        _waAfterAdd = (newId) => window.__tvSwapApply(ci, newId);
+        _waEditId = null;
+        if (window.WA && WA.open) WA.open();
+      };
+
+      // Zero-friction capture: the curated piece becomes a real
+      // wardrobe_items row from the capsule's own metadata — photo can
+      // follow later via the wardrobe edit flow.
+      window.__tvQuickOwn = async function(ci) {
+        const data = window.__lastTvData;
+        const it = data && data.capsule[ci];
+        if (!it) return;
+        document.getElementById('tv-own-modal')?.remove();
+        try {
+          const created = await _waFetch('POST', 'wardrobe_items', {
+            user_id: _waUid(),
+            label: it.name,
+            category: it.category === 'Swim' ? 'Swimwear' : (it.category || 'Other'),
+            color: null,
+            brand: it.brand || null,
+            notes: 'Packed for ' + (data.destination || 'a trip') + ' — add a photo when you can.',
+            image_url: null,
+            item_dna: { display: { title: it.name }, ai_generated_notes: it.description || '' },
+          });
+          const newId = Array.isArray(created) && created[0] ? created[0].id : null;
+          if (newId == null) throw new Error('no id returned');
+          await _waLoad();
+          it.wardrobe_match = { id: newId, label: it.name, image_url: null, color: '' };
+          it.retailer_hint = '';
+          it.price_point = '';
+          const savedId = _tvActiveSaveId;
+          const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
+          window.__tvRenderResult(data, { skipSave: true, savedId });
+          if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
+          _tvPatchSaved();
+          _waShowToast(it.name + ' added to your wardrobe');
+        } catch (e) {
+          console.warn('[robes] quick-own failed:', e);
+          _waShowToast('Couldn’t add it — try again');
+        }
       };
 
       // The Interactive Multiplier (PRD §5) — tapping an item maps its
@@ -2848,11 +3081,10 @@
         // Capsule items are shared references — re-render picks up the swap
         // everywhere (capsule card, lookbook chips, 4-step details).
         const savedId = _tvActiveSaveId;
+        const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
         window.__tvRenderResult(window.__lastTvData, { skipSave: true, savedId });
-        if (savedId) {
-          const saved = snLoad().find(x => x.id === savedId);
-          if (saved) snUpdate(savedId, { tvData: { ...(saved.tvData || {}), capsule: window.__lastTvData.capsule } });
-        }
+        if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
+        _tvPatchSaved();
         _waShowToast(wi.label + ' packed instead');
       };
 

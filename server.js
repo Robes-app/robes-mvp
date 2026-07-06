@@ -754,7 +754,7 @@ function travelUnderusedItems(capsule, days) {
 }
 
 app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
-  const { destination, dateFrom, dateTo, brief, itemLimit, name, styleDna, wardrobeItems } = req.body;
+  const { destination, dateFrom, dateTo, brief, itemLimit, name, styleDna, wardrobeItems, anchorIds } = req.body;
   if (!destination || !String(destination).trim()) {
     return res.status(400).json({ error: 'Tell us where you’re going first.' });
   }
@@ -764,6 +764,14 @@ app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
   const n = closetItems.length;
   const dnaBlock = styleDnaPromptBlock(styleDna, n);
   const limit = Math.min(15, Math.max(8, parseInt(itemLimit, 10) || 13));
+
+  // Anchor Items (growth PRD epic 1) — pieces the user has committed to
+  // packing. Resolved to closet indexes; the prompt makes them
+  // non-negotiable and the validation pass retries if one is dropped.
+  const anchorIdxs = (Array.isArray(anchorIds) ? anchorIds : [])
+    .map(id => closetItems.findIndex(it => String(it.id) === String(id)))
+    .filter(i => i >= 0)
+    .slice(0, 3);
 
   const from = new Date(String(dateFrom || '') + 'T00:00:00Z');
   const to = new Date(String(dateTo || '') + 'T00:00:00Z');
@@ -819,7 +827,11 @@ FIELD RULES:
 - Capsule items: "name" is the piece (for owned pieces the exact owned label); "brand" ONE real brand (owned brand or ""); "description" one hyper-specific sentence — cut, fabrication, colour, why it earns its place. Owned: wardrobe_index set, retailer_hint and price_point "". New: wardrobe_index -1, real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and realistic EUR "price_point" (e.g. "€145").
 - "fallback": true ONLY if the destination/brief is gibberish — then pack for a pleasant week away somewhere temperate instead.${dnaBlock ? '\n\n' + dnaBlock : ''}
 
-${closetBlock}${correctiveNote ? '\n\n' + correctiveNote : ''}`;
+${anchorIdxs.length ? `ANCHOR ITEMS — NON-NEGOTIABLE. The user has committed to packing these owned pieces:
+${anchorIdxs.map(i => `${i}: ${closetItems[i].label}${closetItems[i].category ? ' [' + closetItems[i].category + ']' : ''}${closetItems[i].color ? ', ' + closetItems[i].color : ''}`).join('\n')}
+Every anchor MUST appear in the capsule (with its wardrobe_index and exact owned label) and MUST feature in at least 3 outfits. Build the palette, the supporting capsule and the lookbook around these pieces FIRST — they are the suitcase's centre of gravity.
+
+` : ''}${closetBlock}${correctiveNote ? '\n\n' + correctiveNote : ''}`;
   }
 
   const userText = `${wxLine ? wxLine + '\n\n' : ''}THE TRIP BRIEF: ${dest}${dateLine ? ', ' + dateLine : ''}${monthName ? ' (' + monthName + ')' : ''}, ${tripDays} day${tripDays > 1 ? 's' : ''}. ${String(brief || '').trim() || 'No further notes — read the destination and season for the vibe.'}
@@ -878,24 +890,37 @@ Build the ${limit}-piece capsule and the full ${tripDays}-day lookbook.`;
     return JSON.parse(r.text);
   }
 
+  // Anchors the model failed to pack (closet indexes not found in the capsule)
+  function missingAnchors(capsule) {
+    return anchorIdxs.filter(ai =>
+      !capsule.some(it => it.wardrobe_match && String(it.wardrobe_match.id) === String(closetItems[ai].id)));
+  }
+
   try {
     const t0 = Date.now();
     let parsed = await generate();
     let { capsule, days } = normalise(parsed);
 
     // PRD §2 validation parser: one corrective pass when the 1:3 matrix
-    // is materially violated (more than two under-used items).
+    // is materially violated (more than two under-used items) or a
+    // committed anchor item was dropped from the capsule.
     const under = travelUnderusedItems(capsule, days);
-    if (!capsule.length || !days.length || under.length > 2) {
+    const missing = missingAnchors(capsule);
+    if (!capsule.length || !days.length || under.length > 2 || missing.length) {
       const note = capsule.length && days.length
-        ? `VALIDATION FAILURE ON YOUR LAST ATTEMPT — these packed items were worn in fewer than 3 outfits: ${under.map(i => capsule[i].name).join(', ')}. Rework the lookbook (or swap those items) so EVERY capsule item earns at least three wears.`
+        ? `VALIDATION FAILURE ON YOUR LAST ATTEMPT — ${[
+            under.length ? `these packed items were worn in fewer than 3 outfits: ${under.map(i => capsule[i].name).join(', ')}` : '',
+            missing.length ? `these NON-NEGOTIABLE anchor items were missing from the capsule: ${missing.map(i => closetItems[i].label).join(', ')}` : '',
+          ].filter(Boolean).join('; ')}. Rework the capsule and lookbook so every anchor is packed and EVERY capsule item earns at least three wears.`
         : '';
-      logAI({ feature: 'travel', stage: 'validate', retry: true, underused: under.length, empty: !capsule.length || !days.length });
+      logAI({ feature: 'travel', stage: 'validate', retry: true, underused: under.length, missingAnchors: missing.length, empty: !capsule.length || !days.length });
       try {
         const second = await generate(note);
         const norm2 = normalise(second);
         const under2 = travelUnderusedItems(norm2.capsule, norm2.days);
-        if (norm2.capsule.length && norm2.days.length && (under2.length < under.length || !capsule.length || !days.length)) {
+        const missing2 = missingAnchors(norm2.capsule);
+        if (norm2.capsule.length && norm2.days.length &&
+            (!capsule.length || !days.length || (missing2.length + under2.length) < (missing.length + under.length))) {
           parsed = second; capsule = norm2.capsule; days = norm2.days;
         }
       } catch { /* keep first attempt */ }
