@@ -1,6 +1,6 @@
     window.__robes_personalize = function() {
       // Build marker — verify which version is live from the browser console.
-      console.log('[robes] personalize build: daily-look + snap-mine-swap + waopen-hardening (2026-07-06c)');
+      console.log('[robes] personalize build: snap-mine crash-proof + field-shim (2026-07-06d)');
       const _rbStyleDna = () => {
         const dna = (window.__robes_profile || {}).style_dna;
         return dna && typeof dna === 'object' && (dna.color_harmony || dna.silhouette_proportions) ? dna : null;
@@ -847,10 +847,30 @@
             // _origStepHTML is empty and the bundle form is already present,
             // so this is a no-op and the form is captured at line ~843.
             const step = document.querySelector('#wa-modal .fm-step');
-            if (step && _origStepHTML && !step.querySelector('#wa-label-in')) {
-              step.innerHTML = _origStepHTML;
+            if (step && !document.getElementById('wa-label-in')) {
+              if (_origStepHTML) {
+                step.innerHTML = _origStepHTML;
+              } else {
+                // Last resort — capture never ran and the bundle form is gone.
+                // Inject the exact fields the bundle's open()/validate() write
+                // to so _origOpen physically cannot hit a null element.
+                // _showStep1 replaces this content 150ms later regardless.
+                const shim = document.createElement('div');
+                shim.style.display = 'none';
+                step.appendChild(shim);
+                [['input','wa-label-in'],['select','wa-cat'],['input','wa-brand'],['textarea','wa-notes'],['span','wa-sw-name'],['div','wa-swatches'],['button','wa-cta']]
+                  .forEach(([tag, id]) => { if (!document.getElementById(id)) { const el = document.createElement(tag); el.id = id; shim.appendChild(el); } });
+              }
             }
-            _origOpen.apply(this, arguments);
+            try {
+              _origOpen.apply(this, arguments);
+            } catch (e) {
+              // Absolute backstop — the bundle open() must never break Snap Mine.
+              console.warn('[robes] bundle WA.open threw, opening modal directly:', e);
+              const m = document.getElementById('wa-modal');
+              if (m) m.classList.add('open');
+              document.body.classList.add('modal-open');
+            }
             if (!_waEditId) {
               // Add mode: capture bundle form HTML once, then show photo step
               setTimeout(function() {
