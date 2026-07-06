@@ -2324,6 +2324,11 @@
         };
       }
 
+      // Mandatory core, no cap (growth PRD revision — Editorial Integration
+      // Model): at least 2 packed pieces unlock the build; the more she
+      // packs, the more the AI acts as editor instead of inventor.
+      const _TV_MIN_ANCHORS = 2;
+
       function _tvAnchorPaint() {
         const sel = (_tvBrief && _tvBrief.anchors) || [];
         document.querySelectorAll('[data-anc]').forEach(el => {
@@ -2333,9 +2338,25 @@
           if (chk) chk.style.display = on ? 'flex' : 'none';
         });
         const hint = document.getElementById('tv-anchor-hint');
-        if (hint) hint.textContent = sel.length
-          ? sel.length + ' of 3 anchored — the capsule is built around ' + (sel.length === 1 ? 'this piece' : 'these pieces')
-          : 'Already know what you’re bringing? Anchor up to 3 pieces and the capsule is built around them.';
+        if (hint) {
+          hint.textContent = sel.length === 0
+            ? (_waItems.length
+              ? 'Tap everything you’re definitely bringing — at least two pieces — and Robes builds the rest of the case around them.'
+              : 'Snap the two pieces you know you’re bringing — they start your digital wardrobe.')
+            : sel.length < _TV_MIN_ANCHORS
+              ? '1 piece packed — one more to start.'
+              : sel.length + ' pieces packed — Robes validates your core and fills the gaps.';
+        }
+        const cta = document.getElementById('tv-cta');
+        if (cta) {
+          const ready = sel.length >= _TV_MIN_ANCHORS;
+          cta.disabled = !ready;
+          cta.style.opacity = ready ? '1' : '0.45';
+          cta.style.cursor = ready ? 'pointer' : 'default';
+          cta.textContent = ready
+            ? 'Build my travel edit →'
+            : 'Pack at least ' + _TV_MIN_ANCHORS + ' pieces to start';
+        }
       }
 
       window.__tvAnchorToggle = function(id) {
@@ -2345,10 +2366,7 @@
         const a = _tvBrief.anchors;
         const i = a.indexOf(id);
         if (i !== -1) a.splice(i, 1);
-        else {
-          if (a.length >= 3) { _waShowToast('Three anchors is the limit — remove one first'); return; }
-          a.push(id);
-        }
+        else a.push(id);
         _tvAnchorPaint();
       };
 
@@ -2391,9 +2409,10 @@
         const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
         const cameraSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
 
-        // Anchor Items row (growth PRD epic 1): a snap-new tile + the
-        // wardrobe, tap to anchor up to 3 pieces the capsule must pack.
-        const ancTiles = _waItems.slice(0, 24).map(wi => `
+        // The core row (growth PRD epic 1, aggressive-capture revision):
+        // a snap-new tile + the wardrobe, tap everything she's bringing —
+        // no cap, minimum 2 to unlock the build.
+        const ancTiles = _waItems.slice(0, 60).map(wi => `
           <div data-anc="${_waEsc(String(wi.id))}" onclick="window.__tvAnchorToggle('${_waEsc(String(wi.id))}')" style="flex:0 0 72px;cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;outline:1px solid rgba(32,32,33,0.1);outline-offset:-1px;position:relative">
             <span class="tv-anc-chk" style="display:none;position:absolute;top:5px;right:5px;width:16px;height:16px;border-radius:50%;background:#202021;color:#fff;font-size:9px;align-items:center;justify-content:center;z-index:2;line-height:1">✓</span>
             ${wi.image_url
@@ -2402,8 +2421,8 @@
             <div style="padding:4px 6px;font-size:9px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
           </div>`).join('');
         const anchorRow = `
-          <p style="${labelCss}">Anchor pieces · optional</p>
-          <p id="tv-anchor-hint" style="font-size:11px;color:#A89880;font-style:italic;margin:0 0 10px">Already know what you’re bringing? Anchor up to 3 pieces and the capsule is built around them.</p>
+          <p style="${labelCss}">What’s already going in your suitcase?</p>
+          <p id="tv-anchor-hint" style="font-size:11px;color:#A89880;font-style:italic;margin:0 0 10px"></p>
           <div id="tv-anchor-row" style="display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;margin-bottom:16px">
             <div onclick="window.__tvAnchorSnap()" style="flex:0 0 72px;cursor:pointer;border-radius:8px;background:#F0EAE0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:94px;color:#8A7B62">
               ${cameraSvg}
@@ -2441,7 +2460,7 @@
               <button onclick="window.__tvLimitStep(1)" style="width:32px;height:32px;border:1px solid rgba(32,32,33,0.18);border-radius:50%;background:#fff;font-size:15px;cursor:pointer;color:#202021;line-height:1">+</button>
               <span style="font-size:11px;color:#A89880;font-style:italic">12–15 pieces is the high-yield sweet spot</span>
             </div>
-            <button onclick="window.__tvSubmit()" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Build my travel edit →</button>
+            <button id="tv-cta" onclick="window.__tvSubmit()" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit;transition:opacity .2s">Build my travel edit →</button>
           </div>`;
         document.body.appendChild(modal);
         _tvAnchorPaint();
@@ -2453,11 +2472,15 @@
         const st = _tvBrief || {};
         const dest = st.dest || '';
         if (!dest) { _waShowToast('Tell us where you’re going first'); return; }
+        const anchorIds = st.anchors || [];
+        if (anchorIds.length < _TV_MIN_ANCHORS) {
+          _waShowToast('Pack at least ' + _TV_MIN_ANCHORS + ' pieces you’re bringing first');
+          return;
+        }
         const dateFrom = st.dateFrom || '';
         const dateTo = st.dateTo || '';
         const brief = st.brief || '';
         const limit = st.limit || 13;
-        const anchorIds = (st.anchors || []).slice(0, 3);
         const bm = document.getElementById('tv-brief-modal');
         if (bm) bm.remove();
 
@@ -2619,6 +2642,7 @@
                   <span style="display:inline-flex;align-items:center;gap:6px">${badge}</span>
                   ${wears ? `<span style="font-size:9.5px;font-weight:500;letter-spacing:.08em;color:#8A7B62;background:#F0EAE0;border-radius:20px;padding:2px 8px;white-space:nowrap">× ${wears} looks</span>` : ''}
                 </div>
+                ${(!it.wardrobe_match && it.bridge) ? `<div style="font-family:${serif};font-style:italic;font-size:11.5px;line-height:1.5;color:#8A7B62;margin-top:6px">${_waEsc(it.bridge)}</div>` : ''}
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px">
                   <button id="tv-pack-${ci}" onclick="event.stopPropagation();window.__tvPackToggle(${ci})" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:${it.packed ? '#202021' : '#6E6A64'};font-family:${sans}">
                     <span class="tv-pack-box" style="width:15px;height:15px;border-radius:4px;border:1.5px solid ${it.packed ? '#202021' : 'rgba(32,32,33,0.3)'};background:${it.packed ? '#202021' : '#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1;box-sizing:border-box">${it.packed ? '✓' : ''}</span>

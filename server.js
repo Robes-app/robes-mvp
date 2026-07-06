@@ -625,6 +625,7 @@ const TRAVEL_SCHEMA = {
           category: { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Swim', 'Other'] },
           brand: { type: 'string' },
           description: { type: 'string' },
+          bridge: { type: 'string' },
           wardrobe_index: { type: 'integer' },
           retailer_hint: { type: 'string' },
           price_point: { type: 'string' },
@@ -763,15 +764,18 @@ app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
   const n = closetItems.length;
   const dnaBlock = styleDnaPromptBlock(styleDna, n);
-  const limit = Math.min(15, Math.max(8, parseInt(itemLimit, 10) || 13));
+  let limit = Math.min(15, Math.max(8, parseInt(itemLimit, 10) || 13));
 
-  // Anchor Items (growth PRD epic 1) — pieces the user has committed to
-  // packing. Resolved to closet indexes; the prompt makes them
-  // non-negotiable and the validation pass retries if one is dropped.
+  // The packed core (growth PRD, aggressive-capture revision) — every
+  // piece the user says is already going in the suitcase. No cap; the
+  // prompt makes each one non-negotiable and the validation pass retries
+  // if one is dropped. A core near/over the item limit expands the limit
+  // so the AI always has at least a couple of gap slots to fill.
   const anchorIdxs = (Array.isArray(anchorIds) ? anchorIds : [])
     .map(id => closetItems.findIndex(it => String(it.id) === String(id)))
-    .filter(i => i >= 0)
-    .slice(0, 3);
+    .filter(i => i >= 0);
+  if (anchorIdxs.length + 2 > limit) limit = Math.min(16, anchorIdxs.length + 2);
+  const gapCount = Math.max(1, limit - anchorIdxs.length);
 
   const from = new Date(String(dateFrom || '') + 'T00:00:00Z');
   const to = new Date(String(dateTo || '') + 'T00:00:00Z');
@@ -810,7 +814,7 @@ app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
 
 THE PILLARS — all four are hard constraints:
 1. THE 1:3 HIGH-YIELD RULE. Every capsule item must appear in AT LEAST THREE different outfits across the lookbook, in at least two distinct dress codes. No single-outfit passengers — if a piece can't earn three wears, it doesn't get packed.
-2. THE CAPSULE MATRIX. Exactly ${limit} items in "capsule", split across the three tiers: "${TRAVEL_TIERS[0]}" (~${foundations} items — architectural basics, tailoring, versatile one-pieces), "${TRAVEL_TIERS[1]}" (~${statements} items — the tactile hero pieces: statement dresses, crochet, plissé, prints), "${TRAVEL_TIERS[2]}" (~${hardware} items — shoes, bags, belts, jewellery that seal silhouettes).
+2. THE CAPSULE MATRIX. Exactly ${limit} items in "capsule", split across the three tiers: "${TRAVEL_TIERS[0]}" (~${foundations} items — architectural basics, tailoring, versatile one-pieces), "${TRAVEL_TIERS[1]}" (~${statements} items — the tactile hero pieces: statement dresses, crochet, plissé, prints), "${TRAVEL_TIERS[2]}" (~${hardware} items — shoes, bags, belts, jewellery that seal silhouettes).${anchorIdxs.length ? ' The packed core sits in whichever tiers its pieces belong — the tier targets guide the pieces YOU add around it.' : ''}
 3. THE 4-STEP DRESSING FORMULA. Every outfit's "formula" is built ONLY from capsule items referenced by "item_index" (0-based index into the capsule array — never invent an item that isn't packed): "The Anchor" ×1 (the context-driven hero), "The Canvas" ×1–2 (the grounding basics), "The Texture" ×1 (the tactile dimension layer), "The Exclamation Point" ×1–2 (footwear/hardware that finish it). Swim or sleep-adjacent looks may drop to 3 entries, never fewer. Each entry's "note" says how that piece is worn in THIS look.
 4. CONTEXT ENGINEERING. Ingest three vectors at once: the Location Vibe (name it in "location_vibe", e.g. "Refined Mediterranean Minimalism"), the Micro-Climate provided, and the client's proportional architecture / style DNA below. Everything packed answers to all three.
 
@@ -821,15 +825,16 @@ ${stateDirective}
 FIELD RULES:
 - "trip_label": destination + month, ALL CAPS (e.g. "IBIZA · JULY").
 - "headline": a short serif-worthy line naming the trip, sentence case, full stop, max 9 words (e.g. "A week in Ibiza, packed once.").
-- "stylist_summary": 2–3 sentences opening with the climate + vibe read, then how the capsule multiplies (reference the 1:3 maths — ${limit} pieces, ${tripDays * 2} looks).
+- "stylist_summary": 2–3 sentences opening with the climate + vibe read, then how the capsule multiplies (reference the 1:3 maths — ${limit} pieces, ${tripDays * 2} looks).${anchorIdxs.length ? ' Open by VALIDATING the packed core ("Your ' + closetItems[anchorIdxs[0]].label.toLowerCase() + ' is exactly right for…") before describing what the added pieces unlock.' : ''}
+- "bridge": for NEW pieces only (wardrobe_index -1) — one clause naming what it connects in the capsule and how many looks it unlocks. Owned pieces: "".
 - "suitcase_note": ONE practical packing move (rolling, garment bags, what flies in what) in stylist voice.
 - "palette": exactly 3 hex colours the capsule is built on, neutral to accent.
 - Capsule items: "name" is the piece (for owned pieces the exact owned label); "brand" ONE real brand (owned brand or ""); "description" one hyper-specific sentence — cut, fabrication, colour, why it earns its place. Owned: wardrobe_index set, retailer_hint and price_point "". New: wardrobe_index -1, real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and realistic EUR "price_point" (e.g. "€145").
 - "fallback": true ONLY if the destination/brief is gibberish — then pack for a pleasant week away somewhere temperate instead.${dnaBlock ? '\n\n' + dnaBlock : ''}
 
-${anchorIdxs.length ? `ANCHOR ITEMS — NON-NEGOTIABLE. The user has committed to packing these owned pieces:
+${anchorIdxs.length ? `THE PACKED CORE — NON-NEGOTIABLE. These ${anchorIdxs.length} owned pieces are ALREADY GOING IN THE SUITCASE:
 ${anchorIdxs.map(i => `${i}: ${closetItems[i].label}${closetItems[i].category ? ' [' + closetItems[i].category + ']' : ''}${closetItems[i].color ? ', ' + closetItems[i].color : ''}`).join('\n')}
-Every anchor MUST appear in the capsule (with its wardrobe_index and exact owned label) and MUST feature in at least 3 outfits. Build the palette, the supporting capsule and the lookbook around these pieces FIRST — they are the suitcase's centre of gravity.
+YOUR JOB IS EDITORIAL INTEGRATION, NOT REINVENTION. Every core piece MUST appear in the capsule (with its wardrobe_index and exact owned label) and MUST feature in at least 3 outfits — build the palette and the lookbook around the core FIRST. Then fill the remaining ~${gapCount} capsule slots: first with other owned wardrobe pieces that multiply the core, then — only for true gaps — with new pieces. Every NEW piece must justify itself as a bridge: set its "bridge" field to one clause naming what it connects and how many looks it unlocks (e.g. "Bridges the linen tailoring and the evening slip — unlocks 5 looks"). ${anchorIdxs.length >= 8 ? 'The core is large: act as the editor. Validate what she has packed, and suggest only the FEW exact gap pieces with the highest look-multiplying power.' : ''}
 
 ` : ''}${closetBlock}${correctiveNote ? '\n\n' + correctiveNote : ''}`;
   }
