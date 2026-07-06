@@ -3434,6 +3434,7 @@
         const panel = document.getElementById('moodboard-panel');
         if (panel) { panel.classList.remove('visible'); panel.style.cssText = ''; }
         window._mbOpenedFromList = false;
+        _waAfterAdd = null; // leaving the board cancels any armed snap-mine swap
         window.rbClearCrumb && window.rbClearCrumb();
       };
 
@@ -3443,8 +3444,13 @@
       };
 
       // ── Snap Mine: open wardrobe add flow ────────────────────────────────
+      let _mbSwapIdx = null; // item index the open swap modal is targeting
       window.__mbSnapMine = function() {
-        _waAfterAdd = null; // moodboard snap-mine doesn't auto-apply — clear any daily-look hook
+        // Arm the post-add hook so the snapped piece lands into this look's
+        // slot (its rail thumbnail then shows the new item's photo).
+        const idx = _mbSwapIdx;
+        _waAfterAdd = (newId) => window.__mbSwapApply(idx, newId);
+        _waEditId = null;
         document.getElementById('mb-swap-modal')?.remove();
         if (window.WA && WA.open) WA.open();
       };
@@ -3454,6 +3460,7 @@
         const look = window.__mbCurrentLook || [];
         const item = look[idx];
         if (!item) return;
+        _mbSwapIdx = idx;
         document.getElementById('mb-swap-modal')?.remove();
 
         const catLower = (item.category || '').toLowerCase();
