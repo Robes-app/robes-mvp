@@ -599,7 +599,7 @@
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               <span style="font-size:16px;color:#6A5E54;letter-spacing:0.01em;">Snap or attach the piece</span>
               <span style="font-size:13px;color:#B0A090;">Take a photo, or drop an image here</span>
-              <input id="wa-rb-file" type="file" accept="image/*" capture="environment" style="display:none;">
+              <input id="wa-rb-file" type="file" accept="image/*" style="display:none;">
             </label>`;
           _setDot(1);
 
@@ -825,13 +825,17 @@
           const _origOpen = WA.open;
           WA.open = function() {
             _photoDataUrl = '';
-            if (_waEditId) {
-              // Edit mode: restore bundle form SYNCHRONOUSLY before _origOpen fires
-              // so the bundle finds #wa-label-in and doesn't throw on validate/focus
-              const step = document.querySelector('#wa-modal .fm-step');
-              if (step && _origStepHTML && !step.querySelector('#wa-label-in')) {
-                step.innerHTML = _origStepHTML;
-              }
+            // The bundle's open() does $('wa-label-in').value = '' etc. — it
+            // needs the bundle form present in .fm-step. If a prior flow left
+            // our custom step content there (e.g. a swap → Snap Mine, or the
+            // modal closed mid-add without submitting), restore the bundle
+            // form first so _origOpen doesn't crash on a null #wa-label-in.
+            // Runs in BOTH add and edit modes. On the very first open
+            // _origStepHTML is empty and the bundle form is already present,
+            // so this is a no-op and the form is captured at line ~843.
+            const step = document.querySelector('#wa-modal .fm-step');
+            if (step && _origStepHTML && !step.querySelector('#wa-label-in')) {
+              step.innerHTML = _origStepHTML;
             }
             _origOpen.apply(this, arguments);
             if (!_waEditId) {
@@ -2974,7 +2978,7 @@
         photoZone.id = 'cb-photo-zone';
         photoZone.style.cssText = 'display:none;align-items:center;gap:10px;padding:10px 15px;cursor:pointer;border-top:0.5px solid rgba(32,32,33,0.08)';
         photoZone.innerHTML = `
-          <input type="file" id="cb-photo-input" accept="image/*" capture="environment" style="display:none">
+          <input type="file" id="cb-photo-input" accept="image/*" style="display:none">
           <span id="cb-photo-icon" style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:rgba(142,112,119,0.1);display:flex;align-items:center;justify-content:center;color:#8E7077">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
           </span>
