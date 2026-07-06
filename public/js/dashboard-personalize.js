@@ -1,4 +1,6 @@
     window.__robes_personalize = function() {
+      // Build marker — verify which version is live from the browser console.
+      console.log('[robes] personalize build: daily-look + snap-mine-swap + waopen-hardening (2026-07-06c)');
       const _rbStyleDna = () => {
         const dna = (window.__robes_profile || {}).style_dna;
         return dna && typeof dna === 'object' && (dna.color_harmony || dna.silhouette_proportions) ? dna : null;
@@ -822,6 +824,17 @@
 
         function _patchWA() {
           if (!window.WA || !WA.open || WA.open._rbPatched) return false;
+          // Capture the pristine bundle add-form NOW, while .fm-step still
+          // holds the static HTML. Without this, _origStepHTML stays empty
+          // until the first add-flow open captures it — so a Snap Mine that
+          // is the very first WA.open of the session had nothing to restore,
+          // and the bundle's open() crashed on a null #wa-label-in whenever
+          // a prior flow had already replaced .fm-step. Guarded on the label
+          // so we never snapshot our own custom step content.
+          if (!_origStepHTML) {
+            const step0 = document.querySelector('#wa-modal .fm-step');
+            if (step0 && step0.querySelector('#wa-label-in')) _origStepHTML = step0.innerHTML;
+          }
           const _origOpen = WA.open;
           WA.open = function() {
             _photoDataUrl = '';
