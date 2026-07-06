@@ -1207,6 +1207,8 @@
         document.getElementById('sn-page').style.display = 'none';
         if (item.type === 'daily-look' && item.dlData) {
           window.__dlRenderResult(item.dlData, item.dlData.prompt || item.title, { skipSave: true, savedId: item.id });
+        } else if (item.type === 'travel-edit' && item.tvData) {
+          window.__tvRenderResult(item.tvData, { skipSave: true, savedId: item.id });
         } else if (item.type === 'key-piece' && item.kpData) {
           window.__kpRenderResult(item.kpData, item.title, { skipSave: true });
         } else {
@@ -1234,7 +1236,7 @@
             </button>
             ${item.img ? `<img src="${item.img}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block" alt="">` : `<div style="width:100%;aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
             <div style="padding:14px 16px 16px">
-              <span style="display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:6px">${item.type === 'daily-look' ? 'Daily look' : item.type === 'look' ? 'Look' : 'Key piece'}</span>
+              <span style="display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:6px">${item.type === 'daily-look' ? 'Daily look' : item.type === 'travel-edit' ? 'Travel edit' : item.type === 'look' ? 'Look' : 'Key piece'}</span>
               <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;font-weight:300;color:#202021;line-height:1.3;margin-bottom:4px">${item.title}</div>
               <div style="font-size:11px;color:#A89880">${item.subtitle || ''}</div>
             </div>
@@ -1276,7 +1278,7 @@
                   ? `<img src="${item.img}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block" alt="">`
                   : `<div style="width:100%;aspect-ratio:1/1;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
                 <div style="padding:10px 12px 12px">
-                  <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:3px">${item.type === 'daily-look' ? 'Daily look' : item.type === 'look' ? 'Look' : 'Key piece'}</div>
+                  <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:3px">${item.type === 'daily-look' ? 'Daily look' : item.type === 'travel-edit' ? 'Travel edit' : item.type === 'look' ? 'Look' : 'Key piece'}</div>
                   <div style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title}</div>
                 </div>
               </div>`).join('')}
@@ -1424,6 +1426,12 @@
             const travelImg = travel.querySelector('.svc-img img');
             if (travelImg) travelImg.src = suitSvg;
 
+            // Travel Edit is live — replace the bundle's comingSoon with the
+            // capsule packing brief modal
+            travel.onclick = function() { window.__tvOpen && window.__tvOpen(); };
+            const tvDesc = travel.querySelector('.svc-desc');
+            if (tvDesc) tvDesc.textContent = 'A high-yield capsule for your next trip — every piece worn three ways, weather-checked, mapped day by day.';
+
             // Reorder: [Daily Outfit, Weekly Planner, Travel Edit]
             grid.innerHTML = '';
             [keyPiece, weekly, travel].forEach((el, i) => {
@@ -1503,6 +1511,7 @@
       // Full-page result overlay — 100% inline styles, no external CSS classes
       let kpResultPage = null;
       let dlResultPage = null; // Daily Look page (Context-to-Core render)
+      let tvResultPage = null; // Travel Edit page (capsule + lookbook render)
       window.__lastKpData = null;
 
       window.__kpGoBack = function() {
@@ -2204,6 +2213,660 @@
         _waShowToast(wi.label + ' swapped in');
       };
 
+      // ── Travel Edit — Capsule Packing & Lookbook (PRD: AI-Powered Capsule Packing) ──
+      // A trip brief (destination + dates + vibe) becomes a 12–15 piece
+      // high-yield capsule in three functional tiers plus a Day/Evening
+      // lookbook across the trip. Every outfit is a 4-step formula that
+      // references capsule items by index, which is what makes the 1:3
+      // matrix interactive: tapping a piece lights up every look it earns.
+      let _tvPollTimer = null;
+      let _tvActiveSaveId = null; // lookbook id of the live travel edit
+      let _tvSelected = null;     // capsule index highlighted in the 1:3 matrix
+      let _tvSwapIdx = null;
+      window.__lastTvData = null;
+      function _tvStopPolling() { if (_tvPollTimer) { clearTimeout(_tvPollTimer); _tvPollTimer = null; } }
+
+      function _tvPersistImages() {
+        if (!_tvActiveSaveId || !window.__lastTvData) return;
+        const urls = (window.__lastTvData.generatedImages || []).map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
+        if (!urls.some(Boolean)) return;
+        const it = snLoad().find(x => x.id === _tvActiveSaveId);
+        if (!it) return;
+        snUpdate(_tvActiveSaveId, {
+          img: urls[0] || it.img || null,
+          tvData: { ...(it.tvData || {}), generatedImages: urls },
+        });
+      }
+
+      function _tvSetImage(i, src) {
+        const wrap = document.getElementById('tv-imgwrap-' + i);
+        if (!wrap || wrap.querySelector('img')) return;
+        const ph = wrap.querySelector('.tv-img-ph');
+        if (ph) ph.remove();
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = '';
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;opacity:0;transition:opacity .5s ease';
+        wrap.insertBefore(img, wrap.firstChild);
+        requestAnimationFrame(() => { img.style.opacity = '1'; });
+      }
+
+      function _tvSettlePlaceholder(i) {
+        const wrap = document.getElementById('tv-imgwrap-' + i);
+        if (!wrap || wrap.querySelector('img')) return;
+        const ph = wrap.querySelector('.tv-img-ph');
+        if (ph) {
+          ph.style.animation = 'none';
+          ph.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+        }
+      }
+
+      function _tvPollImages(jobId, count) {
+        _tvStopPolling();
+        const t0 = Date.now();
+        function settleAll() { for (let i = 0; i < count; i++) _tvSettlePlaceholder(i); }
+        function tick() {
+          fetch('/api/images/' + jobId)
+            .then(r => r.ok ? r.json() : null)
+            .then(job => {
+              if (job && Array.isArray(job.images)) {
+                let changed = false;
+                job.images.forEach((src, i) => {
+                  if (src) {
+                    _tvSetImage(i, src);
+                    if (window.__lastTvData) {
+                      if (!Array.isArray(window.__lastTvData.generatedImages)) window.__lastTvData.generatedImages = [];
+                      if (window.__lastTvData.generatedImages[i] !== src) { window.__lastTvData.generatedImages[i] = src; changed = true; }
+                    }
+                  }
+                });
+                if (changed) _tvPersistImages();
+                if (job.done) { settleAll(); return; }
+              } else if (!job) { settleAll(); return; }
+              if (Date.now() - t0 < 300000) _tvPollTimer = setTimeout(tick, 4000);
+              else settleAll();
+            })
+            .catch(() => {
+              if (Date.now() - t0 < 300000) _tvPollTimer = setTimeout(tick, 6000);
+              else settleAll();
+            });
+        }
+        _tvPollTimer = setTimeout(tick, 3000);
+      }
+
+      window.__tvGoBack = function() {
+        if (tvResultPage) tvResultPage.style.display = 'none';
+        _waAfterAdd = null; // leaving the edit cancels any armed snap-mine swap
+        window.rbClearCrumb && window.rbClearCrumb();
+        window._rbNav && window._rbNav('/dashboard');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      window.__tvLimitStep = function(d) {
+        const el = document.getElementById('tv-limit');
+        if (!el) return;
+        el.textContent = Math.min(15, Math.max(8, (parseInt(el.textContent, 10) || 13) + d));
+      };
+
+      // The Natural Language Destination Brief (PRD step 1) — a structured
+      // modal rather than pure chat so dates + item limit are never fuzzy.
+      window.__tvOpen = function(opts) {
+        document.getElementById('tv-brief-modal')?.remove();
+        const serif = "'Cormorant',Georgia,serif";
+        const iso = d => d.toISOString().slice(0, 10);
+        const dfrom = iso(new Date(Date.now() + 14 * 86400000));
+        const dto = iso(new Date(Date.now() + 21 * 86400000));
+        const rawBrief = (opts && opts.brief) || '';
+        // Light heuristic prefill — the user reviews everything in the modal
+        const destGuess = (rawBrief.match(/\b(?:to|in|for)\s+([A-Z][A-Za-z'’-]+(?:\s+[A-Z][A-Za-z'’-]+){0,2})/) || [])[1] || '';
+        const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:11px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit';
+        const labelCss = 'font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 8px';
+        const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        const modal = document.createElement('div');
+        modal.id = 'tv-brief-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:86vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 24px 28px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">Travel edit</p>
+              <button onclick="document.getElementById('tv-brief-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+            </div>
+            <p style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin:0 0 4px;line-height:1.15">Where are we packing for?</p>
+            <p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 20px">A high-yield capsule from your wardrobe — every piece earns at least three wears.</p>
+            <p style="${labelCss}">Destination</p>
+            <input id="tv-dest" value="${_waEsc(destGuess)}" placeholder="Ibiza, Spain" style="${inputCss};margin-bottom:16px">
+            <p style="${labelCss}">Dates</p>
+            <div style="display:flex;gap:10px;margin-bottom:16px">
+              <input id="tv-from" type="date" value="${dfrom}" style="${inputCss}">
+              <input id="tv-to" type="date" value="${dto}" style="${inputCss}">
+            </div>
+            <p style="${labelCss}">The brief</p>
+            <textarea id="tv-brief-ta" rows="3" placeholder="Staying at Six Senses — refined Mediterranean minimalism. Think Loewe’s Paula’s Ibiza, Rosie Huntington-Whiteley." style="${inputCss};resize:none;margin-bottom:16px;line-height:1.55">${_waEsc(rawBrief)}</textarea>
+            <p style="${labelCss}">Item limit</p>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px">
+              <button onclick="window.__tvLimitStep(-1)" style="width:32px;height:32px;border:1px solid rgba(32,32,33,0.18);border-radius:50%;background:#fff;font-size:15px;cursor:pointer;color:#202021;line-height:1">−</button>
+              <span id="tv-limit" style="font-family:${serif};font-size:24px;font-weight:400;color:#202021;min-width:30px;text-align:center">13</span>
+              <button onclick="window.__tvLimitStep(1)" style="width:32px;height:32px;border:1px solid rgba(32,32,33,0.18);border-radius:50%;background:#fff;font-size:15px;cursor:pointer;color:#202021;line-height:1">+</button>
+              <span style="font-size:11px;color:#A89880;font-style:italic">12–15 pieces is the high-yield sweet spot</span>
+            </div>
+            <button onclick="window.__tvSubmit()" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Build my travel edit →</button>
+          </div>`;
+        document.body.appendChild(modal);
+        setTimeout(() => { const el = document.getElementById('tv-dest'); if (el) el.focus(); }, 60);
+      };
+
+      window.__tvSubmit = async function() {
+        const dest = ((document.getElementById('tv-dest') || {}).value || '').trim();
+        if (!dest) { _waShowToast('Tell us where you’re going first'); return; }
+        const dateFrom = (document.getElementById('tv-from') || {}).value || '';
+        const dateTo = (document.getElementById('tv-to') || {}).value || '';
+        const brief = ((document.getElementById('tv-brief-ta') || {}).value || '').trim();
+        const limit = parseInt((document.getElementById('tv-limit') || {}).textContent, 10) || 13;
+        const bm = document.getElementById('tv-brief-modal');
+        if (bm) bm.remove();
+
+        let overlay = document.getElementById('kp-loading-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'kp-loading-overlay';
+          overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
+          overlay.innerHTML = `
+            <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
+            <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+            <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
+              <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
+            </div>`;
+          const ks = document.createElement('style');
+          ks.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}';
+          document.head.appendChild(ks);
+          document.body.appendChild(overlay);
+        }
+        const loadTitle = document.getElementById('kp-load-title');
+        if (loadTitle) loadTitle.innerHTML = 'Packing you for<br><em>' + _waEsc(dest) + '…</em>';
+        overlay.style.display = 'flex';
+        const msgs = ['Reading the destination & forecast', 'Building the high-yield capsule…', 'Mapping every look, day by evening…', 'Checking each piece earns three wears…', 'Almost ready…'];
+        let mi = 0;
+        const msgEl0 = document.getElementById('kp-load-msg');
+        if (msgEl0) msgEl0.textContent = msgs[0];
+        const msgInterval = setInterval(() => {
+          mi = Math.min(mi + 1, msgs.length - 1);
+          const el = document.getElementById('kp-load-msg');
+          if (el) el.textContent = msgs[mi];
+        }, 9000);
+        try {
+          const res = await fetch('/api/travel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              destination: dest,
+              dateFrom,
+              dateTo,
+              brief,
+              itemLimit: limit,
+              name,
+              styleDna: _rbStyleDna(),
+              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
+            }),
+          });
+          clearInterval(msgInterval);
+          overlay.style.display = 'none';
+          if (!res.ok) throw new Error(await res.text());
+          const data = await res.json();
+          data.brief = brief;
+          window.__tvRenderResult(data);
+        } catch (err) {
+          clearInterval(msgInterval);
+          overlay.style.display = 'none';
+          console.error('[Robes] /api/travel error:', err.message);
+          _waShowToast(err.message && err.message.length < 120 ? err.message : 'Something went wrong — please try again');
+        }
+      };
+
+      window.__tvRenderResult = function(data, opts) {
+        if (!data || !Array.isArray(data.capsule) || !data.capsule.length || !Array.isArray(data.days) || !data.days.length) {
+          _waShowToast('Could not build this trip — please try again');
+          return;
+        }
+        _tvStopPolling();
+        _tvSelected = null;
+        window.__lastTvData = data;
+        const serif = "'Cormorant',Georgia,serif";
+        const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
+        const wx = data.weather || null;
+        const images = Array.isArray(data.generatedImages) ? data.generatedImages : [];
+        const imagesPending = !!data.jobId && !images.some(Boolean);
+        const hexOk = h => typeof h === 'string' && /^#[0-9A-Fa-f]{6}$/.test(h);
+        const palette = (Array.isArray(data.palette) ? data.palette : []).filter(hexOk).slice(0, 3);
+
+        // The 1:3 matrix — which looks each capsule item appears in.
+        // Rebuilt on every render, never persisted.
+        const usage = data.capsule.map(() => []);
+        data.days.forEach((d, di) => (d.slots || []).forEach((s, si) => {
+          const seen = new Set();
+          (s.formula || []).forEach(f => {
+            if (Number.isInteger(f.item_index) && usage[f.item_index] && !seen.has(f.item_index)) {
+              seen.add(f.item_index);
+              usage[f.item_index].push([di, si]);
+            }
+          });
+        }));
+        data._usage = usage;
+
+        const owned = data.capsule.filter(it => it.wardrobe_match).length;
+        const total = data.capsule.length;
+        const lookCount = data.days.reduce((acc, d) => acc + (d.slots || []).length, 0);
+        const lead = owned === total && total > 0
+          ? 'Packed from your wardrobe, ' + name + '.'
+          : owned > 0 ? 'Nearly all packed from yours, ' + name + '.' : 'Your capsule, curated, ' + name + '.';
+        const provenance = `${total} pieces · ${lookCount} looks` + (owned > 0 ? ` · ${owned} from your wardrobe` : '');
+
+        if (!tvResultPage) {
+          tvResultPage = document.createElement('div');
+          tvResultPage.id = 'tv-result-page';
+          tvResultPage.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;width:100%;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
+          document.body.appendChild(tvResultPage);
+        }
+        if (!document.getElementById('tv-style')) {
+          const s = document.createElement('style');
+          s.id = 'tv-style';
+          s.textContent =
+            '@media(max-width:700px){.tv-head{grid-template-columns:1fr !important}.tv-hero{max-width:320px}}' +
+            '@media print{body>*:not(#tv-result-page){display:none !important}#tv-result-page{position:static !important;overflow:visible !important}' +
+            '.tv-noprint{display:none !important}.tv-days{flex-wrap:wrap !important;overflow:visible !important}.tv-slotx{display:block !important}}';
+          document.head.appendChild(s);
+        }
+        if (kpResultPage) kpResultPage.style.display = 'none';
+        if (dlResultPage) dlResultPage.style.display = 'none';
+        window.__mbCloseResult && window.__mbCloseResult();
+
+        const swapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
+        const checkSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        const phSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+        const frameFor = (it) => {
+          const wmImg = it.wardrobe_match && it.wardrobe_match.image_url;
+          const src = wmImg || (Number.isInteger(it.image_index) ? images[it.image_index] : null);
+          const wrapId = (!wmImg && Number.isInteger(it.image_index)) ? `id="tv-imgwrap-${it.image_index}"` : '';
+          const pulse = !src && !wmImg && Number.isInteger(it.image_index) && imagesPending;
+          const phInner = pulse
+            ? `<span style="font-family:${serif};font-style:italic;font-size:12px;color:#B8AC9C;text-align:center;padding:0 12px">Creating imagery…</span>`
+            : phSvg;
+          return `<div ${wrapId} style="position:relative;background:#EDE9E2;overflow:hidden;aspect-ratio:4/5">
+            ${src && typeof src === 'string'
+              ? `<img src="${_waEsc(src)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
+              : `<div class="tv-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${pulse ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${phInner}</div>`}
+          </div>`;
+        };
+
+        // Interactive High-Yield Capsule Matrix (PRD step 2) — grouped by
+        // the three functional tiers
+        const TIERS = ['Foundations & Tailoring', 'Statement & Texture', 'Footwear & Hardware'];
+        const tiersHtml = TIERS.map(tier => {
+          const members = data.capsule.map((it, ci) => ({ it, ci })).filter(x => x.it.tier === tier);
+          if (!members.length) return '';
+          const cards = members.map(({ it, ci }) => {
+            const wears = (usage[ci] || []).length;
+            const badge = it.wardrobe_match
+              ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:500;color:#4A7C59;background:rgba(74,124,89,0.10);border-radius:20px;padding:2px 7px;white-space:nowrap">${checkSvg} Yours</span>`
+              : (it.retailer_hint || it.price_point)
+                ? `<span style="font-size:10px;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;display:inline-block;vertical-align:bottom">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>`
+                : '';
+            return `<div id="tv-cap-${ci}" onclick="window.__tvSelectItem(${ci})" style="background:#fff;border:0.5px solid rgba(32,32,33,0.1);border-radius:10px;overflow:hidden;cursor:pointer;transition:opacity .2s,outline-color .2s;outline:2px solid transparent;outline-offset:-2px">
+              ${frameFor(it)}
+              <div style="padding:10px 12px 12px">
+                <div style="font-size:12.5px;font-weight:500;color:#202021;line-height:1.35">${_waEsc(it.name)}</div>
+                ${it.brand ? `<div style="font-family:${serif};font-style:italic;font-size:12px;color:#A89880;margin-top:1px">${_waEsc(it.brand)}</div>` : ''}
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px;flex-wrap:wrap">
+                  <span style="display:inline-flex;align-items:center;gap:6px">${badge}</span>
+                  ${wears ? `<span style="font-size:9.5px;font-weight:500;letter-spacing:.08em;color:#8A7B62;background:#F0EAE0;border-radius:20px;padding:2px 8px;white-space:nowrap">× ${wears} looks</span>` : ''}
+                </div>
+                <button class="tv-noprint" onclick="event.stopPropagation();window.__tvSwap(${ci})" style="margin-top:9px;display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:0.5px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:8.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">${swapSvg} Swap</button>
+              </div>
+            </div>`;
+          }).join('');
+          return `<div style="margin-bottom:26px">
+            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px">
+              <span style="font-family:${serif};font-size:19px;font-weight:400;color:#202021">${_waEsc(tier)}</span>
+              <span style="font-size:10.5px;color:#A89880;letter-spacing:.06em">${members.length} ${members.length === 1 ? 'piece' : 'pieces'}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px">${cards}</div>
+          </div>`;
+        }).join('');
+
+        // The Systematic Itinerary Lookbook (PRD step 3) — horizontal day
+        // columns; tap a look to inspect its 4-step structure
+        const daysHtml = data.days.map((d, di) => {
+          const slotsHtml = (d.slots || []).map((s, si) => {
+            const isEve = s.slot === 'Evening';
+            const chips = (s.formula || []).map(f => {
+              const it = data.capsule[f.item_index];
+              return it ? `<span style="font-size:10px;color:#6E6A64;background:#F0EDE8;border-radius:20px;padding:2px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${_waEsc(it.name)}</span>` : '';
+            }).join('');
+            const detail = (s.formula || []).map(f => {
+              const it = data.capsule[f.item_index];
+              if (!it) return '';
+              return `<div style="padding:7px 0;border-top:0.5px solid rgba(32,32,33,0.07)">
+                <div style="font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:2px">${_waEsc(f.role)}</div>
+                <div style="font-size:12px;font-weight:500;color:#202021">${_waEsc(it.name)}${it.wardrobe_match ? ` <span style="color:#4A7C59;font-size:10px">✓</span>` : ''}</div>
+                ${f.note ? `<div style="font-size:11px;line-height:1.55;color:#6E6A64;margin-top:2px">${_waEsc(f.note)}</div>` : ''}
+              </div>`;
+            }).join('');
+            return `<div id="tv-slot-${di}-${si}" onclick="window.__tvToggleSlot(${di},${si})" style="background:#fff;border:0.5px solid rgba(32,32,33,0.1);border-radius:12px;padding:14px 15px;cursor:pointer;transition:opacity .2s,outline-color .2s;outline:2px solid transparent;outline-offset:-2px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <span style="font-size:8.5px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:${isEve ? '#202021' : '#A89880'};${isEve ? 'background:#F0EAE0;border-radius:20px;padding:2px 8px' : ''}">${_waEsc(s.slot || 'Day')}</span>
+                <span class="tv-noprint" id="tv-caret-${di}-${si}" style="font-size:11px;color:#B8AC9C;transition:transform .2s">▾</span>
+              </div>
+              <div style="font-family:${serif};font-size:17px;font-weight:400;color:#202021;line-height:1.2;margin-bottom:8px">${_waEsc(s.title || '')}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:5px">${chips}</div>
+              <div class="tv-slotx" id="tv-slotx-${di}-${si}" style="display:none;margin-top:10px">
+                ${s.how ? `<div style="font-family:${serif};font-style:italic;font-size:13px;line-height:1.6;color:#3A3733;margin-bottom:6px">${_waEsc(s.how)}</div>` : ''}
+                ${detail}
+              </div>
+            </div>`;
+          }).join('');
+          return `<div style="flex:0 0 258px;scroll-snap-align:start;display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#8A7B62;padding:0 2px">${_waEsc(d.day_label || 'Day ' + (di + 1))}</div>
+            ${slotsHtml}
+          </div>`;
+        }).join('');
+
+        const heroSrc = images[0];
+        const heroHtml = `<div class="tv-hero" style="align-self:start;width:100%">
+          <div id="tv-imgwrap-0" style="position:relative;background:#EDE9E2;border-radius:12px;overflow:hidden;aspect-ratio:3/4">
+            ${heroSrc && typeof heroSrc === 'string'
+              ? `<img src="${_waEsc(heroSrc)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
+              : `<div class="tv-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${imagesPending ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${imagesPending ? `<span style="font-family:${serif};font-style:italic;font-size:13px;color:#B8AC9C;text-align:center;padding:0 16px">Creating imagery…</span>` : phSvg}</div>`}
+          </div>
+        </div>`;
+
+        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Travel edit' }]);
+        try { tvResultPage.innerHTML = `
+          <div style="width:100%;max-width:1020px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
+            <div style="font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880;margin-bottom:14px">Travel edit${data.trip_label ? ' · ' + _waEsc(data.trip_label) : ''}</div>
+            <div class="tv-head" style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:34px;align-items:start;margin-bottom:8px">
+              <div>
+                <h1 style="font-family:${serif};font-weight:300;font-style:italic;font-size:clamp(30px,4vw,46px);color:#202021;line-height:1.15;margin:0 0 14px">${_waEsc(lead)}<br>${_waEsc(data.headline || '')}</h1>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+                  <span style="width:6px;height:6px;border-radius:50%;background:${owned > 0 ? '#4A7C59' : '#C8B8A2'};flex-shrink:0"></span>
+                  <span style="font-size:11px;letter-spacing:.05em;color:#6E6A64">${_waEsc(provenance)}</span>
+                  ${palette.length ? `<span style="display:inline-flex;gap:5px;margin-left:2px">${palette.map(h => `<span style="width:13px;height:13px;border-radius:50%;background:${h};border:0.5px solid rgba(32,32,33,0.15)"></span>`).join('')}</span>` : ''}
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+                  ${wx || data.dateLine ? `
+                  <div style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#6E6A64;letter-spacing:.04em;border:0.5px solid rgba(32,32,33,0.12);border-radius:40px;padding:8px 16px;background:#fff">
+                    <span>✈</span>
+                    <strong style="font-weight:500;color:#202021">${_waEsc([wx && wx.city ? wx.city + (wx.country ? ', ' + wx.country : '') : data.destination, data.dateLine].filter(Boolean).join(' · '))}</strong>
+                    ${wx && wx.tempRange ? `<span style="color:rgba(32,32,33,0.2)">|</span><span>${_waEsc(wx.tempRange)}</span>` : ''}
+                    ${wx && wx.condition ? `<span style="color:rgba(32,32,33,0.2)">|</span><span style="font-style:italic">${_waEsc(wx.condition)}${wx.seasonal ? ' · seasonal read' : ''}</span>` : ''}
+                  </div>` : ''}
+                  ${data.location_vibe ? `<div style="display:inline-flex;align-items:center;font-family:${serif};font-style:italic;font-size:13px;color:#8A7B62;border:0.5px solid rgba(32,32,33,0.12);border-radius:40px;padding:8px 16px;background:#F3EFE7">${_waEsc(data.location_vibe)}</div>` : ''}
+                </div>
+                <div style="background:#F3EFE7;border-radius:12px;padding:20px 22px">
+                  <div style="font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880;margin-bottom:10px">Stylist summary</div>
+                  <p style="font-size:13.5px;line-height:1.75;color:#3A3733;margin:0">${_waEsc(data.stylist_summary || '')}</p>
+                  ${data.suitcase_note ? `<div style="margin-top:14px;padding-top:14px;border-top:0.5px solid rgba(32,32,33,0.09);display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><span style="font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#A89880;white-space:nowrap">Suitcase note</span><span style="font-size:12.5px;line-height:1.6;color:#6E6A64;font-style:italic;flex:1;min-width:200px">${_waEsc(data.suitcase_note)}</span></div>` : ''}
+                </div>
+                ${data.fallback ? `<p style="font-size:12px;color:#A89880;font-style:italic;margin:12px 0 0">We couldn’t quite read the brief, so we’ve packed you for a lovely week away instead.</p>` : ''}
+              </div>
+              ${heroHtml}
+            </div>
+
+            <div style="height:0.5px;background:rgba(32,32,33,0.1);margin:26px 0 28px"></div>
+            <div style="font-family:${serif};font-weight:400;font-size:27px;color:#202021;line-height:1.1;margin-bottom:6px">The capsule</div>
+            <div id="tv-matrix-note" style="font-size:12px;color:#A89880;font-style:italic;margin-bottom:18px;min-height:18px">Tap any piece to see how it multiplies across the week.</div>
+            ${tiersHtml}
+
+            <div style="height:0.5px;background:rgba(32,32,33,0.1);margin:16px 0 28px"></div>
+            <div style="font-family:${serif};font-weight:400;font-size:27px;color:#202021;line-height:1.1;margin-bottom:6px">The lookbook</div>
+            <div style="font-size:12px;color:#A89880;font-style:italic;margin-bottom:18px">Day by day — tap a look to see its four-step build.</div>
+            <div class="tv-days" style="display:flex;gap:14px;overflow-x:auto;padding:4px 2px 18px;scroll-snap-type:x mandatory;align-items:flex-start">${daysHtml}</div>
+
+            <div class="tv-noprint" style="margin-top:42px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center">
+              <div style="font-family:${serif};font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How is this edit?</div>
+              <div id="tv-fb-prompt">
+                <div style="font-size:13px;color:#A89880;margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
+                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+                  <button id="tv-fb-up" onclick="window.__tvFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">👍 I’d pack it</button>
+                  <button id="tv-fb-dn" onclick="window.__tvFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Not quite</button>
+                </div>
+              </div>
+              <div id="tv-fb-expand" hidden style="margin-top:16px">
+                <textarea id="tv-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
+                <button onclick="window.__tvFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:${sans}">Send feedback</button>
+              </div>
+              <div id="tv-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
+            </div>
+
+            <div class="tv-noprint" style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap">
+              <button onclick="window.__tvGoBack()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">← Dashboard</button>
+              <button onclick="window.__tvExport()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Export PDF</button>
+              <button onclick="window.__tvGoBack();setTimeout(()=>{window.__tvOpen()},200)" style="padding:12px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}">Pack another trip</button>
+            </div>
+          </div>`; } catch (e) {
+          console.error('[Robes] tvResultPage render error:', e);
+          tvResultPage.innerHTML = `<div style="padding:80px 24px;text-align:center;font-family:${sans};color:#6E6A64">Something went wrong rendering this trip — please try again.</div>`;
+        }
+
+        tvResultPage.style.display = 'block';
+        tvResultPage.scrollTo({ top: 0 });
+
+        if (data.jobId) _tvPollImages(data.jobId, data.imageCount || 1);
+
+        // Auto-save (the PRD §6 offline cache — localStorage + lookbook_items).
+        // jobId is stripped so a reopened entry never polls a dead job; the
+        // computed usage matrix is rebuilt on every render, never stored.
+        if (!opts || !opts.skipSave) {
+          const persistable = images.map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
+          const ownedThumb = data.capsule.filter(c => c.wardrobe_match && c.wardrobe_match.image_url)[0];
+          const saveCopy = { ...data, jobId: undefined, _usage: undefined, generatedImages: persistable };
+          _tvActiveSaveId = snAdd({
+            type: 'travel-edit',
+            title: data.headline || ('Travel edit — ' + (data.destination || '')),
+            subtitle: [data.destination, data.dateLine].filter(Boolean).join(' · ') || 'Travel edit',
+            img: persistable[0] || (ownedThumb ? ownedThumb.wardrobe_match.image_url : null),
+            tvData: saveCopy,
+          });
+        } else {
+          _tvActiveSaveId = (opts && opts.savedId) || null;
+        }
+
+        let tvFbRating = null;
+        window.__tvFbRate = function(val) {
+          tvFbRating = val;
+          document.getElementById('tv-fb-up').style.background = val === 1 ? '#F0EDE8' : '#fff';
+          document.getElementById('tv-fb-dn').style.background = val === 0 ? '#F0EDE8' : '#fff';
+          document.getElementById('tv-fb-expand').hidden = false;
+          setTimeout(() => { const t = document.getElementById('tv-fb-text'); if (t) t.focus(); }, 60);
+        };
+        window.__tvFbSubmit = function() {
+          const comment = (document.getElementById('tv-fb-text').value || '').trim();
+          fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+            email: (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '',
+            rating: tvFbRating,
+            comment,
+            prompt: [data.destination, data.dateLine, data.brief].filter(Boolean).join(' · '),
+            looksOutput: JSON.stringify({ surface: 'travel-edit', destination: data.destination || '', trip_label: data.trip_label || '', owned, total, looks: lookCount, ts: new Date().toISOString() }),
+          }) }).catch(() => {});
+          document.getElementById('tv-fb-prompt').hidden = true;
+          document.getElementById('tv-fb-expand').hidden = true;
+          document.getElementById('tv-fb-done').hidden = false;
+        };
+      };
+
+      // One-Click Export (PRD §5) — the print stylesheet in #tv-style turns
+      // the page into a clean PDF via the browser's print-to-PDF.
+      window.__tvExport = function() { window.print(); };
+
+      window.__tvToggleSlot = function(di, si) {
+        const x = document.getElementById('tv-slotx-' + di + '-' + si);
+        const caret = document.getElementById('tv-caret-' + di + '-' + si);
+        if (!x) return;
+        const open = x.style.display !== 'none';
+        x.style.display = open ? 'none' : 'block';
+        if (caret) caret.style.transform = open ? '' : 'rotate(180deg)';
+      };
+
+      // The Interactive Multiplier (PRD §5) — tapping an item maps its
+      // versatility: the looks it appears in and the pieces it pairs with.
+      window.__tvSelectItem = function(ci) {
+        const data = window.__lastTvData;
+        if (!data || !data.capsule[ci]) return;
+        _tvSelected = _tvSelected === ci ? null : ci;
+        const sel = _tvSelected;
+        const usage = data._usage || [];
+        const related = new Set();
+        if (sel != null) {
+          (usage[sel] || []).forEach(u => {
+            (((data.days[u[0]] || {}).slots || [])[u[1]] || { formula: [] }).formula.forEach(f => related.add(f.item_index));
+          });
+        }
+        data.capsule.forEach((it, i) => {
+          const el = document.getElementById('tv-cap-' + i);
+          if (!el) return;
+          if (sel == null) { el.style.opacity = '1'; el.style.outlineColor = 'transparent'; }
+          else if (i === sel) { el.style.opacity = '1'; el.style.outlineColor = '#202021'; }
+          else if (related.has(i)) { el.style.opacity = '1'; el.style.outlineColor = '#C9BCA6'; }
+          else { el.style.opacity = '.3'; el.style.outlineColor = 'transparent'; }
+        });
+        data.days.forEach((d, di) => (d.slots || []).forEach((s, si) => {
+          const el = document.getElementById('tv-slot-' + di + '-' + si);
+          if (!el) return;
+          const active = sel != null && (usage[sel] || []).some(u => u[0] === di && u[1] === si);
+          if (sel == null) { el.style.opacity = '1'; el.style.outlineColor = 'transparent'; }
+          else if (active) { el.style.opacity = '1'; el.style.outlineColor = '#202021'; }
+          else { el.style.opacity = '.3'; el.style.outlineColor = 'transparent'; }
+        }));
+        const noteEl = document.getElementById('tv-matrix-note');
+        if (noteEl) {
+          if (sel == null) {
+            noteEl.innerHTML = 'Tap any piece to see how it multiplies across the week.';
+          } else {
+            const labels = (usage[sel] || []).map(u => {
+              const day = data.days[u[0]] || {};
+              const slot = ((day.slots || [])[u[1]]) || {};
+              return _waEsc(((day.day_label || 'Day ' + (u[0] + 1)).split('·')[0] || '').trim() + ' ' + (slot.slot === 'Evening' ? 'evening' : 'day'));
+            });
+            noteEl.innerHTML = `<strong style="color:#202021;font-style:normal">${_waEsc(data.capsule[sel].name)}</strong> earns ${labels.length} wear${labels.length === 1 ? '' : 's'}${labels.length ? ' — ' + labels.join(', ') : ''} · <button onclick="window.__tvSelectItem(${sel})" style="background:none;border:none;padding:0;cursor:pointer;font-size:12px;color:#A89880;text-decoration:underline;text-underline-offset:2px;font-family:inherit;font-style:italic">clear</button>`;
+          }
+        }
+      };
+
+      // ── Travel Edit swap — same PRD 3.B pattern as daily look/moodboard ──
+      window.__tvSnapMine = function() {
+        const idx = _tvSwapIdx;
+        _waAfterAdd = (newId) => window.__tvSwapApply(idx, newId);
+        _waEditId = null;
+        document.getElementById('tv-swap-modal')?.remove();
+        if (window.WA && WA.open) WA.open();
+      };
+
+      window.__tvSwap = function(idx) {
+        const item = window.__lastTvData && window.__lastTvData.capsule[idx];
+        if (!item) return;
+        _tvSwapIdx = idx;
+        document.getElementById('tv-swap-modal')?.remove();
+
+        const catLower = (item.category || '').toLowerCase();
+        const candidates = _waItems.filter(wi => {
+          const wiCat = (wi.category || '').toLowerCase();
+          return wiCat === catLower || catLower.includes(wiCat) || wiCat.includes(catLower) || wiCat.replace(/s$/, '') === catLower.replace(/s$/, '');
+        });
+        const retailer = item.retailer_hint || '';
+        const price = item.price_point || '';
+
+        let aiAlt = null;
+        if (!candidates.length && _waItems.length > 0) aiAlt = _waItems[0];
+
+        const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        const cameraSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+        const arrowSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+
+        let wardrobeSection = '';
+        if (candidates.length > 0) {
+          const itemsHtml = candidates.slice(0, 8).map(wi => `
+            <div onclick="window.__tvSwapApply(${idx},'${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
+              ${wi.image_url
+                ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" alt="">`
+                : `<div style="aspect-ratio:1;background:#EDE8E0;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8C0B8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`}
+              <div style="padding:7px 8px;font-size:10.5px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
+            </div>`).join('');
+          wardrobeSection = `
+            <div style="margin-bottom:24px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 10px">From your wardrobe</p>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${itemsHtml}</div>
+            </div>`;
+        } else if (aiAlt) {
+          wardrobeSection = `
+            <div style="margin-bottom:24px;background:#F5F2EE;border-radius:12px;padding:14px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">AI alternative</p>
+              <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don’t have a ${_waEsc((item.category || 'piece').toLowerCase())}, but your <em>${_waEsc(aiAlt.label)}</em> creates a similar outline.</p>
+              <button onclick="window.__tvSwapApply(${idx},'${_waEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
+            </div>`;
+        }
+
+        const modal = document.createElement('div');
+        modal.id = 'tv-swap-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28)">
+            <div style="position:sticky;top:0;background:#FAF8F5;padding:20px 20px 0;z-index:2">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
+                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">Swap this piece</p>
+                <button onclick="document.getElementById('tv-swap-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+              </div>
+              <p style="font-family:'Cormorant',Georgia,serif;font-size:26px;font-weight:300;color:#202021;margin:0 0 2px;line-height:1.15">${_waEsc(item.name)}</p>
+              ${(item.brand || retailer) ? `<p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 18px">${_waEsc(item.brand || retailer)}</p>` : `<div style="height:18px"></div>`}
+              <div style="height:1px;background:rgba(32,32,33,0.08);margin:0 -20px 20px"></div>
+            </div>
+            <div style="padding:0 20px 32px">
+              ${wardrobeSection}
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${(retailer || price) ? '10px' : '0'}">
+                <button onclick="window.__tvSnapMine()" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#EDE8E0;border:none;border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
+                  ${cameraSvg} Snap mine
+                </button>
+                <button onclick="_waShowToast('Affiliate links coming soon')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
+                  Shop via Affiliate ${arrowSvg}
+                </button>
+              </div>
+              ${(retailer || price) ? `<p style="text-align:center;font-size:11px;color:#A89880;margin:0">Opens ${_waEsc(retailer)}${price ? ' · ' + _waEsc(price) : ''}</p>` : ''}
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+      };
+
+      window.__tvSwapApply = function(idx, wardrobeId) {
+        const wi = _waItems.find(i => i.id === wardrobeId);
+        const item = window.__lastTvData && window.__lastTvData.capsule[idx];
+        if (!wi || !item) return;
+        item.wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
+        item.name = wi.label;
+        item.brand = wi.brand || '';
+        item.retailer_hint = '';
+        item.price_point = '';
+        document.getElementById('tv-swap-modal')?.remove();
+        // Capsule items are shared references — re-render picks up the swap
+        // everywhere (capsule card, lookbook chips, 4-step details).
+        const savedId = _tvActiveSaveId;
+        window.__tvRenderResult(window.__lastTvData, { skipSave: true, savedId });
+        if (savedId) {
+          const saved = snLoad().find(x => x.id === savedId);
+          if (saved) snUpdate(savedId, { tvData: { ...(saved.tvData || {}), capsule: window.__lastTvData.capsule } });
+        }
+        _waShowToast(wi.label + ' packed instead');
+      };
+
+      // The moodboard's "Pack this trip" CTA feeds the real Travel Edit —
+      // the board's mood becomes the brief (the bundle's mock pack-sheet
+      // is bypassed entirely).
+      if (window.App && App.packFromBoard) {
+        App.packFromBoard = function() {
+          const t = document.getElementById('mb-out-title');
+          const boardTitle = t && t.textContent ? t.textContent.trim() : '';
+          window.__tvOpen({ brief: boardTitle ? 'Channel the mood of my “' + boardTitle + '” board.' : '' });
+        };
+      }
+
       // ── Legacy snOnPieceResult removed — auto-save + feedback now in __kpRenderResult ──
       function snOnPieceResult() {
         // no-op — kept to avoid errors if called from old MutationObserver path
@@ -2458,6 +3121,7 @@
           window.__snClose && window.__snClose();
           if (kpResultPage) kpResultPage.style.display = 'none';
           if (dlResultPage) dlResultPage.style.display = 'none';
+          if (tvResultPage) tvResultPage.style.display = 'none';
           const wp = document.querySelector('.wardrobe-panel');
           if (wp && wp.classList.contains('visible')) {
             // Bundle's showWardrobe does a view-switch (hides main content).
@@ -2666,7 +3330,7 @@
                   ? `<img src="${_waEsc(item.img)}" class="rb-sn-img" alt="">`
                   : '<div class="rb-sn-img-ph"></div>'}
                 <div class="rb-sn-body">
-                  <div class="rb-sn-type">${item.type === 'daily-look' ? 'Daily look' : item.type === 'look' ? 'Look' : 'Key piece'}</div>
+                  <div class="rb-sn-type">${item.type === 'daily-look' ? 'Daily look' : item.type === 'travel-edit' ? 'Travel edit' : item.type === 'look' ? 'Look' : 'Key piece'}</div>
                   <div class="rb-sn-title">${_waEsc(item.title)}</div>
                   <div class="rb-sn-meta">${_waEsc(item.subtitle || '')}</div>
                 </div>
@@ -2933,11 +3597,15 @@
           /\b(outfit|look) for\b/.test(t) || /\bwear (to|for)\b/.test(t) ||
           /\b(today|tonight|tomorrow|this (morning|afternoon|evening|weekend))\b/.test(t) ||
           /\b(brunch|dinner|lunch|meeting|wedding|date night|office|workday|interview|party|drinks|gallery|school run)\b/.test(t);
-        const hits = [piece && 'style', mood && 'moodboard', daily && 'dress-me'].filter(Boolean);
+        const travel = /\b(pack(ing)?|suitcase|luggage|trip|travel(ling|ing)?|holiday|vacation|getaway|city break|honeymoon|weekend away|nights? in)\b/.test(t);
+        const hits = [piece && 'style', mood && 'moodboard', daily && 'dress-me', travel && 'travel'].filter(Boolean);
         if (hits.length === 1) return hits[0];
         // A named piece beats the occasion around it (PRD: "my Prada shoes
         // to the office today" is Key Piece, not Daily Look)
         if (piece && !mood) return 'style';
+        // A trip beats the occasions inside it ("dinners on my Ibiza trip"
+        // is the Travel Edit) — unless a moodboard is asked for by name
+        if (travel) return /\bmood ?board\b/.test(t) ? 'moodboard' : 'travel';
         if (mood && !daily) return 'moodboard';
         return null;
       }
@@ -2955,10 +3623,11 @@
         row.id = 'cb-clarify';
         row.style.cssText = 'margin:12px 0 0;padding:16px 18px;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px';
         row.innerHTML = `
-          <div style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#6E6A64;margin-bottom:10px">Lovely — should I dress you for the day, style one piece three ways, or build a moodboard?</div>
+          <div style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#6E6A64;margin-bottom:10px">Lovely — should I dress you for the day, style one piece three ways, pack a trip, or build a moodboard?</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button data-intent="dress-me" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">An outfit for my day</button>
             <button data-intent="style" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Style one piece 3 ways</button>
+            <button data-intent="travel" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Pack for a trip</button>
             <button data-intent="moodboard" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">A moodboard</button>
           </div>`;
         anchor.parentNode.insertBefore(row, anchor.nextSibling);
@@ -2969,6 +3638,13 @@
       }
 
       function _cbResolve(intent, prompt) {
+        if (intent === 'travel') {
+          // The Travel Edit needs a structured brief (destination + dates) —
+          // the typed prompt lands in the modal's notes field
+          _cbReset();
+          window.__tvOpen({ brief: prompt });
+          return;
+        }
         if (intent === 'dress-me') {
           // The Daily Look track works at every wardrobe count — fully
           // aspirational when the closet is empty, closet-first at ≥15
@@ -3751,6 +4427,7 @@
           window.__mbCloseResult && window.__mbCloseResult();
           if (kpResultPage) kpResultPage.style.display = 'none';
           if (dlResultPage) dlResultPage.style.display = 'none';
+          if (tvResultPage) tvResultPage.style.display = 'none';
           const wp = document.querySelector('.wardrobe-panel');
           const wpOpen = wp && wp.classList.contains('visible');
           if (wpOpen && p !== '/wardrobe') {

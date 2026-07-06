@@ -72,6 +72,7 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 - Dashboard v2 layout: Wardrobe tracker → Styling Concierge (Moodboards + Style Notes sections in progress)
 - Daily Outfit concierge card: always unlocked ("Style today →" prefills the dress-me prompt); below 15 items it carries an "Editorial until 15 pieces · n/15" progress pill instead of a lock
 - Daily Look page: `/api/daily` + `__dlRenderResult` — Context-to-Core framework render (Anchor → Canvas → Texture → Accents) with per-item swap, see its section below
+- Travel Edit: `/api/travel` + `__tvRenderResult` — capsule packing & lookbook generator (brief modal → 12–15 piece capsule in three tiers + day-by-day Day/Evening lookbook with 4-step formulas, 1:3 interactive multiplier, PDF export), see its section below
 - `/stylenotes` — Style Notes page (standalone `stylenotes.html`, not part of the dashboard bundle): Colour harmony + Silhouette tabs are Gemini-analysis-driven with empty states; Taste & budget is manual input
 - Dashboard **ejected** from the 4.4MB Claude Design bundle into plain files (`dashboard.html` ~150KB + `dashboard-assets/` + `js/dashboard-personalize.js`) — revert = `git revert 63dda67`
 - Avatar dropdown grew Style notes + Log out items (`#av-stylenotes`, `#av-logout`)
@@ -184,12 +185,13 @@ Every working step has "Skip for now" — the flow never blocks. Only the name s
 - `setLoading(true)` fires only **after** all client-side validation passes (email/password/firstName/password length) — putting it earlier leaves the submit button stuck on "Creating your wardrobe…" when validation fails
 - Supabase applies its own signup rate limit (~3/hour per email) independent of app code. On error, `rate limit`/`too many` in `error.message` swaps in a friendly message telling the user to wait an hour or use a different email — surfaces during repeated beta-testing with the same address, not a bug
 
-## Conversational intent routing (PRD §2 — the three inspiration tracks)
+## Conversational intent routing (PRD §2 — the inspiration tracks)
 The concierge textarea (`#cb-ta`) routes every submit through `_cbSubmit` → `_cbResolve` in `dashboard-personalize.js`:
 - **Chip = explicit override.** The three chips (Style a key piece / Dress me today / Create a moodboard) still exist as prompt scaffolds and manual overrides — a deliberate deviation from the PRD's "remove the pills": they double as the clarifying affordance.
-- **No chip = NL intent extraction.** `_cbDetectIntent(text, hasPhoto)` classifies the free-typed prompt into `'style' | 'dress-me' | 'moodboard' | null`. Priority: a named piece beats the occasion around it ("my Prada shoes to the office today" → key piece, per PRD). A photo attachment always means `'style'`.
-- **null = clarifying loop.** `_cbShowClarify(prompt)` renders `#cb-clarify` (three tap options) under the chip row; the typed prompt is preserved and submitted with the chosen track via `_cbResolve`. Never clobber the textarea in this path — `_cbSetIntent` (chips) injects template text, `_cbResolve` does not.
+- **No chip = NL intent extraction.** `_cbDetectIntent(text, hasPhoto)` classifies the free-typed prompt into `'style' | 'dress-me' | 'moodboard' | 'travel' | null`. Priority: a named piece beats the occasion around it ("my Prada shoes to the office today" → key piece, per PRD); a trip beats the occasions inside it ("dinners on my Ibiza trip" → travel), except an explicit "moodboard" ask. A photo attachment always means `'style'`.
+- **null = clarifying loop.** `_cbShowClarify(prompt)` renders `#cb-clarify` (four tap options, incl. "Pack for a trip") under the chip row; the typed prompt is preserved and submitted with the chosen track via `_cbResolve`. Never clobber the textarea in this path — `_cbSetIntent` (chips) injects template text, `_cbResolve` does not.
 - **Dress-me routes to `/api/daily` at every wardrobe count.** `_cbResolve('dress-me', …)` calls `window.__dlSubmit(prompt)` — the Daily Look track itself handles cold-start (fully aspirational at 0 items, hybrid below 15 with an explanatory toast, closet-first at ≥15). The chip is never locked; the old moodboard reroute is gone.
+- **Travel routes to the brief modal, not straight to the API.** `_cbResolve('travel', …)` calls `window.__tvOpen({brief: prompt})` — destination + dates need structure, so the typed prompt lands in the modal's notes field (with a light destination-prefill heuristic).
 
 ## Daily Look context + closet injection (`/api/style`)
 `/api/style` now accepts `intent` (`'style'` default | `'dress-me'`), `context` (`{city, month, tempRange, condition, hint}`) and `wardrobeItems` (label/category/color/times_worn, capped at 60 server-side):
@@ -208,6 +210,20 @@ The dress-me track's own surface: ONE complete outfit for the real day, rendered
 - **Persistence**: auto-saved to the lookbook as `type: 'daily-look'` with `dlData` (jobId stripped so a reopened entry never polls a dead job); `__snOpenItem` re-opens via `__dlRenderResult(..., {skipSave: true, savedId})`. Card labels read "Daily look" in all three lookbook surfaces.
 - Feedback block posts `surface: 'daily-look'` with occasion/ownership counts to `/api/feedback`.
 
+## Travel Edit (`/api/travel` + `__tvRenderResult`) — Capsule Packing & Lookbook
+PRD: AI-Powered Capsule Packing & Lookbook Generator. Replaces the Travel Edit card's `KP.comingSoon` — the card, the concierge `'travel'` intent, and the moodboard's "Pack this trip" CTA (`App.packFromBoard` is repatched, bypassing the bundle's mock pack-sheet) all open the same brief modal.
+- **Brief modal (`__tvOpen({brief})`, `#tv-brief-modal`)**: destination, from/to date inputs (default +14/+21 days), free-text brief (PRD step 1's NL trip profile), item-limit stepper 8–15 (default 13). `__tvSubmit` posts `{destination, dateFrom, dateTo, brief, itemLimit, name, styleDna, wardrobeItems (id/label/category/color/brand/image_url/times_worn)}` to `/api/travel`.
+- **Server weather (FR-101)**: `fetchTripWeather` geocodes via Open-Meteo, then uses the real forecast when the window is within 16 days, else last year's same dates from the archive API (`seasonal: true`, surfaced as "seasonal read" in the pill). Any failure → `weather: null`, trip still generates. This is destination weather — separate from the client's `_rbWeather` current-city strip.
+- **The rules engine**: system prompt encodes the StyleAlchemist 4-Core Pillars — 1:3 high-yield rule, exactly N capsule items across the three tiers (`Foundations & Tailoring` / `Statement & Texture` / `Footwear & Hardware`, targets scaled ~36/28/36% from the PRD's 5/4/5 Ibiza reference), 4-step formula per outfit (`The Anchor` ×1 / `The Canvas` ×1–2 / `The Texture` ×1 / `The Exclamation Point` ×1–2, every entry an `item_index` into the capsule — never an unpacked item), context engineering (location vibe + micro-climate + style DNA), anti-generic constraint. Same 0 / 1–14 / ≥15 wardrobe-state directive as `/api/daily`.
+- **Lookbook**: one `days` entry per trip day (capped at 10), each with exactly 2 slots (`Day` / `Evening`), each slot `title` + hyper-specific `how` line + `formula`. `TRAVEL_SCHEMA`, gemini-2.5-flash, `thinkingBudget: 0`, 8000 tokens (big JSON — don't lower it).
+- **1:3 validation (PRD §2 "validation parser")**: `travelUnderusedItems` counts distinct outfits per capsule item (only enforced when the lookbook has ≥6 outfits); >2 under-used items triggers ONE corrective regeneration with the offending pieces named. The better attempt wins; no infinite loops.
+- **Imagery**: frame 0 = hero editorial shot at the destination; then one still-life per capsule item *without* a wardrobe photo (owned photos are truthful and free), capped at 8 frames total so staggered gen stays under the client's 5-min polling ceiling. `image_index` assigned server-side; `_tvPollImages`/`_tvPersistImages` mirror the dl pattern.
+- **Client render (`__tvRenderResult(data, opts)`, `#tv-result-page`, z-index 40)**: header (lead varies with ownership, provenance dot, palette, weather pill ✈, location-vibe pill, stylist summary + suitcase note, hero frame), then the capsule grouped by tier — each card shows photo, "✓ Yours" or retailer · price, an "× N looks" versatility pill and a Swap pill — then the horizontal day-column lookbook (scroll-snap; tap a look to expand its 4-step build via `__tvToggleSlot`).
+- **Interactive multiplier (PRD §5)**: `__tvSelectItem(ci)` — tapping a capsule card outlines it, keeps co-worn pieces + the looks it appears in at full opacity (looks outlined dark), dims everything else to 0.3, and writes "{name} earns N wears — Day 1 day, …" into `#tv-matrix-note`. The usage matrix (`data._usage`) is rebuilt on every render and never persisted.
+- **Swap**: `__tvSwap`/`__tvSwapApply`/`__tvSnapMine` — same PRD 3.B modal as daily look (category grid, AI alternative, Snap mine arms `_waAfterAdd`). Apply patches the saved entry's `tvData.capsule`; capsule items are shared references so lookbook chips + 4-step details update on re-render.
+- **PDF export (PRD §5)**: `__tvExport` = `window.print()`; the `#tv-style` print stylesheet hides everything but `#tv-result-page`, strips `.tv-noprint` chrome, wraps the day columns and force-expands every `.tv-slotx` 4-step detail.
+- **Persistence**: auto-saved as `type: 'travel-edit'` with `tvData` (jobId + `_usage` stripped); `__snOpenItem` reopens via `__tvRenderResult(tvData, {skipSave, savedId})`; card labels read "Travel edit" in all three lookbook surfaces. Feedback posts `surface: 'travel-edit'`.
+
 ## Feedback loop (PRD §4 — every output)
 All three generated surfaces carry the inline 👍/👎 + comment block posting to `/api/feedback` → Airtable `Feedback`:
 - Key piece / daily look: block inside `__kpRenderResult`; payload includes `email` (Supabase session), `prompt`, and `looksOutput` JSON (`surface`, `intent`, `context`, look titles, timestamp).
@@ -221,7 +237,7 @@ Gemini image generation (`gemini-3.1-flash-image`) takes 20–40s per image — 
 - Empty mosaic cells pulse (`kpPhPulse` keyframe, shared with the style result placeholders) while `mb_job_id`/`jobId` is present — they read as loading, not broken.
 
 ## Lookbook + moodboard cloud persistence
-Saved looks and moodboards were originally localStorage-only per browser — testing surfaced "Nothing saved yet" after reload and blank image tiles on revisit. Now backed by `lookbook_items` (`supabase/lookbook_migration.sql`, `type` = `'key-piece'`, `'daily-look'` or `'moodboard'`, PK `(user_id, id)` using the client's `Date.now()` id).
+Saved looks and moodboards were originally localStorage-only per browser — testing surfaced "Nothing saved yet" after reload and blank image tiles on revisit. Now backed by `lookbook_items` (`supabase/lookbook_migration.sql`, `type` = `'key-piece'`, `'daily-look'`, `'travel-edit'` or `'moodboard'`, PK `(user_id, id)` using the client's `Date.now()` id — the column is unconstrained text, so new types need no migration).
 - localStorage (`robes_style_notes__<uid>` / `robes_moodboards__<uid>`) stays the instant read/write cache; every mutation also fires an async Supabase call so the UI never blocks on network.
 - `_lbCloudPush(item)` — POST on `snAdd`/`_mbAdd` (new entries)
 - `_lbCloudPatch(item)` — PATCH on `snUpdate`/`_mbUpdate` (image URLs landing late, swaps)
@@ -284,6 +300,7 @@ The bundle ships with the **old** card order: `[Weekly Planner(01), Travel Edit(
 - Destructures as `const [weekly, travel, keyPiece] = svcs`
 - Relabels `keyPiece` → "Daily outfit" (title + description + adds `.svc-daily` class, clears onclick)
 - Applies inline SVG data URLs: `calSvg` → Weekly Planner image, `suitSvg` → Travel Edit image
+- Rewires the Travel Edit card's onclick from the bundle's `KP.comingSoon` to `window.__tvOpen()` (the feature is live — see its section)
 - Reorders DOM to `[keyPiece, weekly, travel]` and renumbers badges 01→02→03
 - `_rbUpdateDailyOutfitLock()` then adds the lock pill overlay and manages the CTA state
 

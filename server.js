@@ -594,6 +594,395 @@ Dress her for this exact day, start to finish, through the four architectural st
   }
 });
 
+/* ── travel edit (PRD: AI-Powered Capsule Packing & Lookbook) ────── */
+// Natural-language trip brief → 12–15 item high-yield capsule (three
+// functional tiers) + a day-by-day morning/evening lookbook where every
+// outfit is a 4-step formula referencing capsule items by index. The
+// 1:3 rule (every item worn in ≥3 outfits) is demanded in the prompt and
+// validated server-side with one corrective regeneration. Weather for
+// the destination + date window is fetched here (FR-101), not on the
+// client — the client's weather strip is the user's current city.
+const TRAVEL_TIERS = ['Foundations & Tailoring', 'Statement & Texture', 'Footwear & Hardware'];
+const TRAVEL_ROLES = ['The Anchor', 'The Canvas', 'The Texture', 'The Exclamation Point'];
+
+const TRAVEL_SCHEMA = {
+  type: 'object',
+  properties: {
+    fallback: { type: 'boolean' },
+    trip_label: { type: 'string' },
+    headline: { type: 'string' },
+    location_vibe: { type: 'string' },
+    stylist_summary: { type: 'string' },
+    suitcase_note: { type: 'string' },
+    palette: { type: 'array', items: { type: 'string' } },
+    capsule: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          tier: { type: 'string', enum: TRAVEL_TIERS },
+          category: { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Swim', 'Other'] },
+          brand: { type: 'string' },
+          description: { type: 'string' },
+          wardrobe_index: { type: 'integer' },
+          retailer_hint: { type: 'string' },
+          price_point: { type: 'string' },
+        },
+        required: ['name', 'tier', 'category', 'brand', 'description', 'wardrobe_index', 'retailer_hint', 'price_point'],
+      },
+    },
+    days: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          day_label: { type: 'string' },
+          slots: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                slot: { type: 'string', enum: ['Day', 'Evening'] },
+                title: { type: 'string' },
+                how: { type: 'string' },
+                formula: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      role: { type: 'string', enum: TRAVEL_ROLES },
+                      item_index: { type: 'integer' },
+                      note: { type: 'string' },
+                    },
+                    required: ['role', 'item_index', 'note'],
+                  },
+                },
+              },
+              required: ['slot', 'title', 'how', 'formula'],
+            },
+          },
+        },
+        required: ['day_label', 'slots'],
+      },
+    },
+  },
+  required: ['fallback', 'trip_label', 'headline', 'location_vibe', 'stylist_summary', 'suitcase_note', 'palette', 'capsule', 'days'],
+};
+
+const WX_CODE_TEXT = [
+  [0, 'clear skies'], [1, 'mostly clear'], [2, 'partly cloudy'], [3, 'overcast'],
+  [45, 'foggy'], [51, 'light drizzle'], [61, 'rain'], [71, 'snow'], [80, 'passing showers'], [95, 'thunderstorms'],
+];
+function wxCondition(code) {
+  if (!Number.isFinite(code)) return '';
+  let text = '';
+  for (const [c, t] of WX_CODE_TEXT) { if (code >= c) text = t; }
+  return text;
+}
+
+async function fetchJson(url, ms = 6000) {
+  const r = await Promise.race([
+    fetch(url),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('weather timeout')), ms)),
+  ]);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+// FR-101: geocode the destination, then real forecast when the window is
+// inside Open-Meteo's 16-day horizon, else last year's same dates as a
+// seasonal read. Any failure returns null — the trip still generates.
+async function fetchTripWeather(destination, dateFrom, dateTo) {
+  try {
+    const geo = await fetchJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}&count=1&language=en`);
+    const loc = geo?.results?.[0];
+    if (!loc) return null;
+    const from = new Date(dateFrom + 'T00:00:00Z');
+    const to = new Date(dateTo + 'T00:00:00Z');
+    if (isNaN(from) || isNaN(to)) return { city: loc.name, country: loc.country || '' };
+    const daysAhead = Math.round((to - Date.now()) / 86400000);
+    const daily = 'temperature_2m_max,temperature_2m_min,weather_code';
+    let data, seasonal = false;
+    if (daysAhead >= 0 && daysAhead <= 14 && from >= new Date(Date.now() - 86400000)) {
+      data = await fetchJson(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=${daily}&start_date=${dateFrom}&end_date=${dateTo}&temperature_unit=celsius`);
+    } else {
+      seasonal = true;
+      const shift = d => { const x = new Date(d); x.setUTCFullYear(x.getUTCFullYear() - 1); return x.toISOString().slice(0, 10); };
+      data = await fetchJson(`https://archive-api.open-meteo.com/v1/archive?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=${daily}&start_date=${shift(from)}&end_date=${shift(to)}&temperature_unit=celsius`);
+    }
+    const maxes = (data?.daily?.temperature_2m_max || []).filter(Number.isFinite);
+    const mins = (data?.daily?.temperature_2m_min || []).filter(Number.isFinite);
+    const codes = (data?.daily?.weather_code || []).filter(Number.isFinite);
+    if (!maxes.length || !mins.length) return { city: loc.name, country: loc.country || '' };
+    const counts = new Map();
+    codes.forEach(c => counts.set(c, (counts.get(c) || 0) + 1));
+    const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    return {
+      city: loc.name,
+      country: loc.country || '',
+      minC: Math.round(Math.min(...mins)),
+      maxC: Math.round(Math.max(...maxes)),
+      tempRange: `${Math.round(Math.min(...mins))}–${Math.round(Math.max(...maxes))}°C`,
+      condition: wxCondition(dominant),
+      eveningMinC: Math.round(Math.min(...mins)),
+      seasonal,
+    };
+  } catch (err) {
+    logAI({ feature: 'travel', stage: 'weather', success: false, reason: err.message });
+    return null;
+  }
+}
+
+// Validates the 1:3 rule — returns capsule indexes worn in fewer than
+// three outfits (only meaningful when the lookbook itself is non-trivial).
+function travelUnderusedItems(capsule, days) {
+  const uses = capsule.map(() => 0);
+  let outfits = 0;
+  days.forEach(d => (d.slots || []).forEach(s => {
+    outfits++;
+    const seen = new Set();
+    (s.formula || []).forEach(f => {
+      if (Number.isInteger(f.item_index) && f.item_index >= 0 && f.item_index < capsule.length && !seen.has(f.item_index)) {
+        seen.add(f.item_index);
+        uses[f.item_index]++;
+      }
+    });
+  }));
+  if (outfits < 6) return [];
+  return uses.map((u, i) => ({ i, u })).filter(x => x.u < 3).map(x => x.i);
+}
+
+app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
+  const { destination, dateFrom, dateTo, brief, itemLimit, name, styleDna, wardrobeItems } = req.body;
+  if (!destination || !String(destination).trim()) {
+    return res.status(400).json({ error: 'Tell us where you’re going first.' });
+  }
+
+  const dest = String(destination).trim().slice(0, 120);
+  const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
+  const n = closetItems.length;
+  const dnaBlock = styleDnaPromptBlock(styleDna, n);
+  const limit = Math.min(15, Math.max(8, parseInt(itemLimit, 10) || 13));
+
+  const from = new Date(String(dateFrom || '') + 'T00:00:00Z');
+  const to = new Date(String(dateTo || '') + 'T00:00:00Z');
+  const validDates = !isNaN(from) && !isNaN(to) && to >= from;
+  const tripDays = validDates ? Math.min(10, Math.round((to - from) / 86400000) + 1) : 7;
+  const fmt = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const dateLine = validDates ? `${fmt(from)} – ${fmt(to)}${from.getUTCFullYear() !== new Date().getUTCFullYear() ? ' ' + from.getUTCFullYear() : ''}` : '';
+  const monthName = validDates ? from.toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' }) : '';
+
+  const weather = validDates ? await fetchTripWeather(dest, String(dateFrom), String(dateTo)) : await fetchTripWeather(dest, '', '');
+
+  const closetBlock = n
+    ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by wardrobe_index):\n${closetItems.map((i, idx) =>
+        `${idx}: ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${i.brand ? ', ' + i.brand : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
+      ).join('\n')}`
+    : 'THE USER HAS NOT CATALOGUED ANY WARDROBE PIECES YET.';
+
+  const stateDirective = n === 0
+    ? `WARDROBE STATE: EMPTY. Build a fully aspirational capsule — a curated shopping brief. Every item gets "wardrobe_index": -1 plus a real "retailer_hint" and "price_point".`
+    : n < 15
+      ? `WARDROBE STATE: GROWING (${n}/15). Hybrid capsule: wherever an owned piece genuinely serves the trip, use it — set its "wardrobe_index" and use its exact label as the name. Fill true gaps with editorially matched acquisitions (wardrobe_index -1, real retailer_hint + price_point). When an owned piece and a hypothetical piece would both work, ALWAYS pack the owned piece.`
+      : `WARDROBE STATE: COMPLETE (${n} pieces). Closet-first capsule: pack primarily from the digitised wardrobe — most items should carry a valid "wardrobe_index" and their exact owned label. Suggest a new piece (wardrobe_index -1) only for a true gap the trip exposes.`;
+
+  const wxLine = weather && weather.tempRange
+    ? `MICRO-CLIMATE (${weather.seasonal ? 'seasonal average for these dates' : 'live forecast'}): ${weather.city}${weather.country ? ', ' + weather.country : ''} — daytime highs to ${weather.maxC}°C, evening lows to ${weather.minC}°C, mostly ${weather.condition || 'mixed conditions'}. Fabric weights, layers and evening cover-ups must answer to this.`
+    : '';
+
+  // Tier targets scale with the item limit, echoing the PRD's 5/4/5 Ibiza
+  // reference architecture at 14 items.
+  const foundations = Math.round(limit * 0.36);
+  const statements = Math.round(limit * 0.28);
+  const hardware = limit - foundations - statements;
+
+  function travelSystem(correctiveNote) {
+    return `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. You are building a Capsule Packing Edit & Lookbook for a trip, governed by the StyleAlchemist 4-Core Pillars. Never output a generic outfit — ban flat phrasing ("jeans and a top"); render every look with high descriptive specificity (e.g. "Deep-V tuck the oversized alabaster silk button-down into the wide-leg linen trousers, cinched with the molten gold waist-belt").
+
+THE PILLARS — all four are hard constraints:
+1. THE 1:3 HIGH-YIELD RULE. Every capsule item must appear in AT LEAST THREE different outfits across the lookbook, in at least two distinct dress codes. No single-outfit passengers — if a piece can't earn three wears, it doesn't get packed.
+2. THE CAPSULE MATRIX. Exactly ${limit} items in "capsule", split across the three tiers: "${TRAVEL_TIERS[0]}" (~${foundations} items — architectural basics, tailoring, versatile one-pieces), "${TRAVEL_TIERS[1]}" (~${statements} items — the tactile hero pieces: statement dresses, crochet, plissé, prints), "${TRAVEL_TIERS[2]}" (~${hardware} items — shoes, bags, belts, jewellery that seal silhouettes).
+3. THE 4-STEP DRESSING FORMULA. Every outfit's "formula" is built ONLY from capsule items referenced by "item_index" (0-based index into the capsule array — never invent an item that isn't packed): "The Anchor" ×1 (the context-driven hero), "The Canvas" ×1–2 (the grounding basics), "The Texture" ×1 (the tactile dimension layer), "The Exclamation Point" ×1–2 (footwear/hardware that finish it). Swim or sleep-adjacent looks may drop to 3 entries, never fewer. Each entry's "note" says how that piece is worn in THIS look.
+4. CONTEXT ENGINEERING. Ingest three vectors at once: the Location Vibe (name it in "location_vibe", e.g. "Refined Mediterranean Minimalism"), the Micro-Climate provided, and the client's proportional architecture / style DNA below. Everything packed answers to all three.
+
+THE LOOKBOOK: exactly ${tripDays} entries in "days" — one per trip day, "day_label" like "Day 1 · Arrival"${dateLine ? ` (the trip runs ${dateLine})` : ''}. Each day has exactly 2 slots: "Day" and "Evening", mapped to a plausible itinerary drawn from the brief. Each slot: "title" (3–6 words naming the scene), "how" (ONE hyper-specific styling sentence — the anti-generic constraint applies), and the "formula".
+
+${stateDirective}
+
+FIELD RULES:
+- "trip_label": destination + month, ALL CAPS (e.g. "IBIZA · JULY").
+- "headline": a short serif-worthy line naming the trip, sentence case, full stop, max 9 words (e.g. "A week in Ibiza, packed once.").
+- "stylist_summary": 2–3 sentences opening with the climate + vibe read, then how the capsule multiplies (reference the 1:3 maths — ${limit} pieces, ${tripDays * 2} looks).
+- "suitcase_note": ONE practical packing move (rolling, garment bags, what flies in what) in stylist voice.
+- "palette": exactly 3 hex colours the capsule is built on, neutral to accent.
+- Capsule items: "name" is the piece (for owned pieces the exact owned label); "brand" ONE real brand (owned brand or ""); "description" one hyper-specific sentence — cut, fabrication, colour, why it earns its place. Owned: wardrobe_index set, retailer_hint and price_point "". New: wardrobe_index -1, real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and realistic EUR "price_point" (e.g. "€145").
+- "fallback": true ONLY if the destination/brief is gibberish — then pack for a pleasant week away somewhere temperate instead.${dnaBlock ? '\n\n' + dnaBlock : ''}
+
+${closetBlock}${correctiveNote ? '\n\n' + correctiveNote : ''}`;
+  }
+
+  const userText = `${wxLine ? wxLine + '\n\n' : ''}THE TRIP BRIEF: ${dest}${dateLine ? ', ' + dateLine : ''}${monthName ? ' (' + monthName + ')' : ''}, ${tripDays} day${tripDays > 1 ? 's' : ''}. ${String(brief || '').trim() || 'No further notes — read the destination and season for the vibe.'}
+
+Build the ${limit}-piece capsule and the full ${tripDays}-day lookbook.`;
+
+  async function withRetry(fn, attempts = 3) {
+    for (let i = 0; i < attempts; i++) {
+      try { return await fn(); } catch (err) {
+        if (i === attempts - 1) throw err;
+        await new Promise(r => setTimeout(r, 800 * Math.pow(2, i)));
+      }
+    }
+  }
+
+  function normalise(parsed) {
+    const capsule = (Array.isArray(parsed.capsule) ? parsed.capsule : [])
+      .filter(it => it && it.name)
+      .slice(0, 16)
+      .map(it => {
+        if (!TRAVEL_TIERS.includes(it.tier)) it.tier = TRAVEL_TIERS[0];
+        const wi = Number.isInteger(it.wardrobe_index) && it.wardrobe_index >= 0 ? closetItems[it.wardrobe_index] : null;
+        it.wardrobe_match = wi
+          ? { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' }
+          : null;
+        return it;
+      });
+    const days = (Array.isArray(parsed.days) ? parsed.days : [])
+      .filter(d => d && Array.isArray(d.slots) && d.slots.length)
+      .slice(0, tripDays)
+      .map(d => {
+        d.slots = d.slots.slice(0, 2).map(s => {
+          s.formula = (Array.isArray(s.formula) ? s.formula : [])
+            .filter(f => f && TRAVEL_ROLES.includes(f.role) && Number.isInteger(f.item_index) && f.item_index >= 0 && f.item_index < capsule.length)
+            .slice(0, 6);
+          return s;
+        }).filter(s => s.formula.length);
+        return d;
+      })
+      .filter(d => d.slots.length);
+    return { capsule, days };
+  }
+
+  async function generate(correctiveNote) {
+    const r = await withRetry(() => ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      config: {
+        systemInstruction: travelSystem(correctiveNote),
+        responseMimeType: 'application/json',
+        responseSchema: TRAVEL_SCHEMA,
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: 8000,
+      },
+    }));
+    return JSON.parse(r.text);
+  }
+
+  try {
+    const t0 = Date.now();
+    let parsed = await generate();
+    let { capsule, days } = normalise(parsed);
+
+    // PRD §2 validation parser: one corrective pass when the 1:3 matrix
+    // is materially violated (more than two under-used items).
+    const under = travelUnderusedItems(capsule, days);
+    if (!capsule.length || !days.length || under.length > 2) {
+      const note = capsule.length && days.length
+        ? `VALIDATION FAILURE ON YOUR LAST ATTEMPT — these packed items were worn in fewer than 3 outfits: ${under.map(i => capsule[i].name).join(', ')}. Rework the lookbook (or swap those items) so EVERY capsule item earns at least three wears.`
+        : '';
+      logAI({ feature: 'travel', stage: 'validate', retry: true, underused: under.length, empty: !capsule.length || !days.length });
+      try {
+        const second = await generate(note);
+        const norm2 = normalise(second);
+        const under2 = travelUnderusedItems(norm2.capsule, norm2.days);
+        if (norm2.capsule.length && norm2.days.length && (under2.length < under.length || !capsule.length || !days.length)) {
+          parsed = second; capsule = norm2.capsule; days = norm2.days;
+        }
+      } catch { /* keep first attempt */ }
+    }
+    if (!capsule.length || !days.length) throw new Error('empty travel edit');
+
+    // Image frames: 0 = the hero editorial shot; then a still-life per
+    // capsule item that has no wardrobe photo (owned photos are truthful
+    // and free), capped so staggered generation stays under the client's
+    // 5-minute polling ceiling.
+    let frames = 1;
+    capsule.forEach(it => {
+      if (!(it.wardrobe_match && it.wardrobe_match.image_url) && frames < 8) it.image_index = frames++;
+    });
+
+    const owned = capsule.filter(it => it.wardrobe_match).length;
+    logAI({ feature: 'travel', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: capsule.length, days: days.length, owned, underused: travelUnderusedItems(capsule, days).length, fallback: parsed.fallback === true });
+
+    const jobId = randomBytes(6).toString('hex');
+    imageJobs.set(jobId, { images: Array.from({ length: frames }, () => null), done: false, created: Date.now() });
+    res.json({
+      fallback: parsed.fallback === true,
+      trip_label: parsed.trip_label || dest.toUpperCase(),
+      headline: parsed.headline || '',
+      location_vibe: parsed.location_vibe || '',
+      stylist_summary: parsed.stylist_summary || '',
+      suitcase_note: parsed.suitcase_note || '',
+      palette: Array.isArray(parsed.palette) ? parsed.palette.slice(0, 3) : [],
+      capsule,
+      days,
+      destination: dest,
+      dateFrom: validDates ? String(dateFrom) : '',
+      dateTo: validDates ? String(dateTo) : '',
+      dateLine,
+      weather,
+      jobId,
+      imageCount: frames,
+    });
+
+    const t1 = Date.now();
+    const capsuleNames = capsule.map(it => it.name).join(', ');
+    (async () => {
+      const stills = capsule.filter(it => Number.isInteger(it.image_index));
+      for (let f = 0; f < frames; f++) {
+        if (f > 0) await new Promise(r => setTimeout(r, 3000));
+        const item = f === 0 ? null : stills[f - 1];
+        const imgPrompt = f === 0
+          ? `PORTRAIT ORIENTATION ONLY. Single editorial travel-fashion photograph — one woman, one scene, no collage, no split panels, no text overlays. ${parsed.location_vibe ? parsed.location_vibe + ' aesthetic. ' : ''}Setting: ${dest}${monthName ? ' in ' + monthName : ''}. She wears a complete look drawn from this capsule: ${capsuleNames}. Soft natural light, luxury resort campaign aesthetic, full outfit clearly visible, subject centred.`
+          : `Editorial still-life photograph of a single ${item.name}${item.brand ? ' by ' + item.brand : ''} — ${item.description || ''}. The piece styled alone on a neutral cream-linen surface, soft daylight, quiet luxury catalogue aesthetic. No model, no text, no collage, one item only.`;
+        try {
+          const r = await Promise.race([
+            ai.models.generateContent({
+              model: 'gemini-3.1-flash-image',
+              contents: [{ role: 'user', parts: [{ text: imgPrompt }] }],
+              config: { responseModalities: ['TEXT', 'IMAGE'] },
+            }),
+            new Promise(resolve => setTimeout(() => resolve(null), 50000)),
+          ]);
+          const part = r?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+          if (!part?.inlineData) {
+            logAI({ feature: 'travel', stage: 'image', index: f, success: false, reason: r ? 'no_inline_data' : 'timeout_50s' });
+            continue;
+          }
+          const url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+          if (!url) {
+            logAI({ feature: 'travel', stage: 'image', index: f, success: false, reason: 'cloudinary_failed' });
+            continue;
+          }
+          logAI({ feature: 'travel', stage: 'image', index: f, success: true, ms: Date.now() - t1 });
+          const job = imageJobs.get(jobId);
+          if (job) job.images[f] = url;
+        } catch (err) {
+          logAI({ feature: 'travel', stage: 'image', index: f, success: false, reason: err.message });
+        }
+      }
+      const job = imageJobs.get(jobId);
+      if (job) job.done = true;
+      logAI({ feature: 'travel', stage: 'images_complete', jobId, totalMs: Date.now() - t0 });
+    })();
+  } catch (err) {
+    if (res.headersSent) return;
+    logAI({ feature: 'travel', stage: 'text', success: false, reason: err.message });
+    console.error('[travel] Gemini error:', err.message);
+    res.status(500).json({ error: err.message || 'Travel edit failed' });
+  }
+});
+
 /* ── look share ──────────────────────────────────────────────────── */
 const BASE_URL = process.env.PUBLIC_URL || 'https://www.byrobes.com';
 
