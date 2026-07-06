@@ -1,11 +1,11 @@
 # Robes MVP — Claude Code Reference
 
 ## What this is
-Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemini generates 3 editorial looks with outfit images. Live at **www.byrobes.com**, deployed on Railway.
+Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemini generates 3 editorial looks with outfit images. Landing page + waitlist live at **www.byrobes.com** (`main`); auth + dashboard closed beta live at **beta.byrobes.com** (`signup-flow`). Both deployed on Railway.
 
 ## Branches
-- `main` — live production (www.byrobes.com) — **edit this branch for anything on byrobes.com**
-- `signup-flow` — Supabase auth + dashboard (in development, test at robes-mvp-co1h-production.up.railway.app) — do NOT merge to main yet
+- `main` — live production (www.byrobes.com) — **edit this branch for anything on www.byrobes.com**
+- `signup-flow` — Supabase auth + dashboard, live for the closed beta at **beta.byrobes.com** (custom domain on the staging Railway service, robes-mvp-co1h-production.up.railway.app) — do NOT merge to main yet. Beta invite link: `https://beta.byrobes.com/signup`. Pushing `signup-flow` deploys the beta; pushing `main` never touches it (and vice versa).
 
 ---
 
@@ -88,7 +88,9 @@ No build step. Railway picks up `npm start` → `node server.js`.
 
 ---
 
-## IN DEVELOPMENT (`signup-flow` branch — not on byrobes.com yet)
+## CLOSED BETA (`signup-flow` branch — live at beta.byrobes.com, not on www.byrobes.com)
+
+Note: this section is a summary — the `signup-flow` branch's own CLAUDE.md is the authoritative, up-to-date reference for the beta experience (dashboard, wardrobe, style notes, onboarding, Style DNA).
 
 ### Additional stack
 - **Auth + DB**: Supabase (project: `Robes_p0`, URL: `https://ayowpaknssulsqqvwpqx.supabase.co`)
@@ -109,7 +111,7 @@ No build step. Railway picks up `npm start` → `node server.js`.
 - URL: `https://ayowpaknssulsqqvwpqx.supabase.co`
 - Publishable key: `sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ`
 - Google OAuth: enabled, callback URL registered in Google Cloud Console
-- Allowed redirect URLs: `https://robes-mvp-production.up.railway.app/**`, `https://robes-mvp-co1h-production.up.railway.app/**`
+- Allowed redirect URLs: `https://beta.byrobes.com/**`, `https://robes-mvp-production.up.railway.app/**`, `https://robes-mvp-co1h-production.up.railway.app/**`
 - Edge Function secrets set: `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (auto-injected)
 
 ### Supabase DB schema
