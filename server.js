@@ -385,6 +385,215 @@ app.get('/api/images/:jobId', (req, res) => {
   res.json({ images: job.images, done: job.done });
 });
 
+/* ── daily look — Context-to-Core framework ──────────────────────── */
+// One complete outfit for a real day, built as the four architectural
+// steps a senior stylist works through (Anchor → Canvas → Texture →
+// Accents). The wardrobe-state directive shifts the balance from fully
+// aspirational (empty closet) to closet-first (≥15 pieces); every item
+// carries a wardrobe_match so the client's swap flow can trade any
+// piece for something owned.
+const DAILY_STEP_TITLES = ['The Anchor', 'The Canvas', 'The Texture', 'The Accents'];
+
+const DAILY_SCHEMA = {
+  type: 'object',
+  properties: {
+    fallback: { type: 'boolean' },
+    occasion_label: { type: 'string' },
+    headline: { type: 'string' },
+    stylist_summary: { type: 'string' },
+    transition_tip: { type: 'string' },
+    palette: { type: 'array', items: { type: 'string' } },
+    steps: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', enum: DAILY_STEP_TITLES },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                category: { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Other'] },
+                brand: { type: 'string' },
+                description: { type: 'string' },
+                wardrobe_index: { type: 'integer' },
+                retailer_hint: { type: 'string' },
+                price_point: { type: 'string' },
+              },
+              required: ['name', 'category', 'brand', 'description', 'wardrobe_index', 'retailer_hint', 'price_point'],
+            },
+          },
+        },
+        required: ['title', 'items'],
+      },
+    },
+  },
+  required: ['fallback', 'occasion_label', 'headline', 'stylist_summary', 'transition_tip', 'palette', 'steps'],
+};
+
+app.post('/api/daily', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
+  const { prompt, name, styleDna, wardrobeItems, context: rtContext } = req.body;
+
+  const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
+  const n = closetItems.length;
+  const dnaBlock = styleDnaPromptBlock(styleDna, n);
+
+  const closetBlock = n
+    ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by index):\n${closetItems.map((i, idx) =>
+        `${idx}: ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${i.brand ? ', ' + i.brand : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
+      ).join('\n')}`
+    : 'THE USER HAS NOT CATALOGUED ANY WARDROBE PIECES YET.';
+
+  const stateDirective = n === 0
+    ? `WARDROBE STATE: EMPTY. Build a fully aspirational, editorial look — this look doubles as a shopping brief. Every item gets "wardrobe_index": -1 plus a real "retailer_hint" and "price_point".`
+    : n < 15
+      ? `WARDROBE STATE: GROWING (${n}/15). Hybrid build: wherever an owned piece genuinely serves the brief, use it — set its "wardrobe_index" and use its exact label as the name. Fill true gaps with aspirational pieces (wardrobe_index -1, real retailer_hint + price_point). When an owned piece and a hypothetical piece would both work, ALWAYS choose the owned piece.`
+      : `WARDROBE STATE: COMPLETE (${n} pieces). Closet-first build: compose the look primarily from the digitised wardrobe — nearly every item should carry a valid "wardrobe_index" and its exact owned label. Introduce a new piece (wardrobe_index -1) only for a true gap or the finishing exclamation point.`;
+
+  const rtLine = rtContext && (rtContext.city || rtContext.tempRange)
+    ? `REAL-TIME CONTEXT: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}. This is the atmospheric reality — fabric weight, layers and footwear must answer to it.`
+    : '';
+
+  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. You dress clients for real days using the Context-to-Core Framework. Never output a generic outfit — name exact cuts, fabrications and styling techniques (e.g. "French-tuck a heavyweight silk button-down into high-waisted wide-leg wool trousers").
+
+THE FRAMEWORK — work through it in this order:
+1. THE CONTEXT FILTERS. Fix the day's parameters before pulling a single garment: the agenda & mobility in the brief (what she physically does today), the atmospheric reality (the real-time weather provided — it dictates fabric weight and outerwear), and the psychological goal (how she needs to feel and be perceived).
+2. THE ARCHITECTURAL FORMULA. Build the outfit as exactly four steps, in this exact order:
+   - "The Anchor" — exactly 1 item: the hero structural piece that sets the register (blazer, coat, statement skirt, dress).
+   - "The Canvas" — 1 or 2 items: the supporting, high-quality basics beneath the anchor (shirt, tee, knit, trousers, skirt).
+   - "The Texture" — exactly 1 item: the layering element that adds tactile dimension (scarf, cardigan, fine knit, belt).
+   - "The Accents" — exactly 2 items: the definitive footwear plus one piece of hardware (bag, jewellery) that finish the look.
+3. THE GOLDEN RATIOS. Balance the build through body architecture: the Rule of Thirds (never a 50/50 visual split — aim for 1/3 : 2/3, e.g. a high-waisted trouser with a tucked-in top lengthens the leg line), Volume Balancing (an oversized or voluminous piece demands a point of structure or compression elsewhere), and Textural Contrast (mix matte, sheen and rough — silk + wool + leather — so the look never falls flat). Let this thinking show in the stylist_summary and item descriptions.
+4. THE TRANSITION PROTOCOL. She moves between environments without going home. "transition_tip" is ONE concrete move — subtractive styling (drop a layer to lower the formality) or hardware swapping (daytime tote + sneakers → clutch + kitten heel) — that shifts today's look into its next scene.
+
+${stateDirective}
+
+FIELD RULES:
+- "occasion_label": 1–3 words, ALL CAPS, naming the day's occasion (e.g. "GARDEN PARTY", "STUDIO DAY").
+- "headline": a short serif-worthy line naming place and occasion, sentence case, ending in a full stop (e.g. "A Dublin garden-party look."). Max 8 words.
+- "stylist_summary": 2–3 sentences of stylist reasoning that open with the weather/agenda read, reference the steps by name (The Anchor, The Canvas, The Texture) with their items in parentheses, and show the golden-ratio thinking.
+- "palette": exactly 3 hex colours drawn from the look, ordered neutral to accent.
+- Each item: "name" is the piece itself (e.g. "Cream check blazer"); "brand" is ONE real brand suited to the piece's register (for owned pieces, the owned brand or ""); "description" is one hyper-specific sentence — cut, fabric, colour, and how it is worn.
+- Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and a realistic EUR "price_point" (e.g. "€89").
+- "fallback": true ONLY if the brief is gibberish or random characters — then dress her for a pleasant, unremarkable day in the given context instead. A plain occasion, agenda or mood is a valid daily brief.${dnaBlock ? '\n\n' + dnaBlock : ''}
+
+${closetBlock}`;
+
+  const userText = `${rtLine ? rtLine + '\n\n' : ''}The user's brief for today: "${(prompt || '').trim() || 'A regular day — no fixed plans.'}"
+
+Dress her for this exact day, start to finish, through the four architectural steps.`;
+
+  async function withRetry(fn, attempts = 3) {
+    for (let i = 0; i < attempts; i++) {
+      try { return await fn(); } catch (err) {
+        if (i === attempts - 1) throw err;
+        await new Promise(r => setTimeout(r, 800 * Math.pow(2, i)));
+      }
+    }
+  }
+
+  try {
+    const t0 = Date.now();
+    const textResponse = await withRetry(() => ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: DAILY_SCHEMA,
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: 3000,
+      },
+    }));
+    const parsed = JSON.parse(textResponse.text);
+
+    // Normalise: canonical step order, ≤2 items per step, wardrobe matching
+    let steps = Array.isArray(parsed.steps)
+      ? parsed.steps.filter(s => s && DAILY_STEP_TITLES.includes(s.title) && Array.isArray(s.items) && s.items.length)
+      : [];
+    steps.sort((a, b) => DAILY_STEP_TITLES.indexOf(a.title) - DAILY_STEP_TITLES.indexOf(b.title));
+    const flat = [];
+    steps.forEach(s => {
+      s.items = s.items.slice(0, 2).map(it => {
+        const wi = Number.isInteger(it.wardrobe_index) && it.wardrobe_index >= 0 ? closetItems[it.wardrobe_index] : null;
+        it.wardrobe_match = wi
+          ? { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' }
+          : null;
+        it.image_index = flat.length;
+        flat.push({ stepTitle: s.title, item: it });
+        return it;
+      });
+    });
+    if (!flat.length) throw new Error('empty daily look');
+    logAI({ feature: 'daily', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: flat.length, owned: flat.filter(f => f.item.wardrobe_match).length, fallback: parsed.fallback === true });
+
+    const jobId = randomBytes(6).toString('hex');
+    imageJobs.set(jobId, { images: flat.map(() => null), done: false, created: Date.now() });
+    res.json({
+      fallback: parsed.fallback === true,
+      occasion_label: parsed.occasion_label || '',
+      headline: parsed.headline || '',
+      stylist_summary: parsed.stylist_summary || '',
+      transition_tip: parsed.transition_tip || '',
+      palette: Array.isArray(parsed.palette) ? parsed.palette.slice(0, 3) : [],
+      steps,
+      jobId,
+      itemCount: flat.length,
+    });
+
+    // Background imagery — one frame per item, staggered under Gemini's
+    // rate limit: the anchor gets the full-look editorial shot, everything
+    // else a still-life. Only hosted URLs reach the client (lookbook-safe).
+    const t1 = Date.now();
+    const allNames = flat.map(f => f.item.name).join(', ');
+    const scene = [parsed.occasion_label ? parsed.occasion_label.toLowerCase() : '', rtContext?.city].filter(Boolean).join(' in ');
+    (async () => {
+      for (let i = 0; i < flat.length; i++) {
+        if (i > 0) await new Promise(r => setTimeout(r, 3000));
+        const { stepTitle, item } = flat[i];
+        const imgPrompt = stepTitle === 'The Anchor'
+          ? `PORTRAIT ORIENTATION ONLY. Single editorial fashion photograph — one woman, one scene, no collage, no split panels, no text overlays. She wears the complete outfit: ${allNames}. The ${item.name} leads the frame. ${scene ? `Setting: ${scene}. ` : ''}Soft natural light, luxury campaign aesthetic, full outfit clearly visible, subject centred.`
+          : `Editorial still-life photograph of a single ${item.name}${item.brand ? ' by ' + item.brand : ''} — ${item.description || ''}. The garment styled alone on a neutral cream-linen surface, soft daylight, quiet luxury catalogue aesthetic. No model, no text, no collage, one item only.`;
+        try {
+          const r = await Promise.race([
+            ai.models.generateContent({
+              model: 'gemini-3.1-flash-image',
+              contents: [{ role: 'user', parts: [{ text: imgPrompt }] }],
+              config: { responseModalities: ['TEXT', 'IMAGE'] },
+            }),
+            new Promise(resolve => setTimeout(() => resolve(null), 50000)),
+          ]);
+          const part = r?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+          if (!part?.inlineData) {
+            logAI({ feature: 'daily', stage: 'image', index: i, success: false, reason: r ? 'no_inline_data' : 'timeout_50s' });
+            continue;
+          }
+          const url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+          if (!url) {
+            logAI({ feature: 'daily', stage: 'image', index: i, success: false, reason: 'cloudinary_failed' });
+            continue;
+          }
+          logAI({ feature: 'daily', stage: 'image', index: i, success: true, ms: Date.now() - t1 });
+          const job = imageJobs.get(jobId);
+          if (job) job.images[i] = url;
+        } catch (err) {
+          logAI({ feature: 'daily', stage: 'image', index: i, success: false, reason: err.message });
+        }
+      }
+      const job = imageJobs.get(jobId);
+      if (job) job.done = true;
+      logAI({ feature: 'daily', stage: 'images_complete', jobId, totalMs: Date.now() - t0 });
+    })();
+  } catch (err) {
+    if (res.headersSent) return;
+    logAI({ feature: 'daily', stage: 'text', success: false, reason: err.message });
+    console.error('[daily] Gemini error:', err.message);
+    res.status(500).json({ error: err.message || 'Daily look failed' });
+  }
+});
+
 /* ── look share ──────────────────────────────────────────────────── */
 const BASE_URL = process.env.PUBLIC_URL || 'https://www.byrobes.com';
 

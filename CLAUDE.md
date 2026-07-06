@@ -63,7 +63,8 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 - Account details modal (edit first/last name, mobile)
 - `wardrobe_items` Supabase table (schema in `supabase/wardrobe_schema.sql`)
 - Dashboard v2 layout: Wardrobe tracker → Styling Concierge (Moodboards + Style Notes sections in progress)
-- Daily Outfit concierge card: locked until 15 wardrobe items, then CTA becomes "Style today →" prefilling prompt
+- Daily Outfit concierge card: always unlocked ("Style today →" prefills the dress-me prompt); below 15 items it carries an "Editorial until 15 pieces · n/15" progress pill instead of a lock
+- Daily Look page: `/api/daily` + `__dlRenderResult` — Context-to-Core framework render (Anchor → Canvas → Texture → Accents) with per-item swap, see its section below
 - `/stylenotes` — Style Notes page (standalone `stylenotes.html`, not part of the dashboard bundle): Colour harmony + Silhouette tabs are Gemini-analysis-driven with empty states; Taste & budget is manual input
 - Dashboard **ejected** from the 4.4MB Claude Design bundle into plain files (`dashboard.html` ~150KB + `dashboard-assets/` + `js/dashboard-personalize.js`) — revert = `git revert 63dda67`
 - Avatar dropdown grew Style notes + Log out items (`#av-stylenotes`, `#av-logout`)
@@ -177,10 +178,10 @@ Every working step has "Skip for now" — the flow never blocks. Only the name s
 
 ## Conversational intent routing (PRD §2 — the three inspiration tracks)
 The concierge textarea (`#cb-ta`) routes every submit through `_cbSubmit` → `_cbResolve` in `dashboard-personalize.js`:
-- **Chip = explicit override.** The three chips (Style a key piece / Dress me today / Create a moodboard) still exist as prompt scaffolds and manual overrides — a deliberate deviation from the PRD's "remove the pills": they double as the clarifying affordance and the dress-me lock display.
+- **Chip = explicit override.** The three chips (Style a key piece / Dress me today / Create a moodboard) still exist as prompt scaffolds and manual overrides — a deliberate deviation from the PRD's "remove the pills": they double as the clarifying affordance.
 - **No chip = NL intent extraction.** `_cbDetectIntent(text, hasPhoto)` classifies the free-typed prompt into `'style' | 'dress-me' | 'moodboard' | null`. Priority: a named piece beats the occasion around it ("my Prada shoes to the office today" → key piece, per PRD). A photo attachment always means `'style'`.
 - **null = clarifying loop.** `_cbShowClarify(prompt)` renders `#cb-clarify` (three tap options) under the chip row; the typed prompt is preserved and submitted with the chosen track via `_cbResolve`. Never clobber the textarea in this path — `_cbSetIntent` (chips) injects template text, `_cbResolve` does not.
-- **Cold-start reroute.** A detected `dress-me` with `_waItems.length < 15` is served as a **moodboard** (editorial track with swap-in gamification, PRD §1) plus an explanatory toast — never a refusal. Chip-level dress-me stays hard-locked as before.
+- **Dress-me routes to `/api/daily` at every wardrobe count.** `_cbResolve('dress-me', …)` calls `window.__dlSubmit(prompt)` — the Daily Look track itself handles cold-start (fully aspirational at 0 items, hybrid below 15 with an explanatory toast, closet-first at ≥15). The chip is never locked; the old moodboard reroute is gone.
 
 ## Daily Look context + closet injection (`/api/style`)
 `/api/style` now accepts `intent` (`'style'` default | `'dress-me'`), `context` (`{city, month, tempRange, condition, hint}`) and `wardrobeItems` (label/category/color/times_worn, capped at 60 server-side):
@@ -188,6 +189,16 @@ The concierge textarea (`#cb-ta`) routes every submit through `_cbSubmit` → `_
 - Server: `intent === 'dress-me'` swaps the system brief (three complete outfits for a real day, not three ways around one piece), relaxes the fallback rule (a plain occasion is a valid brief — only gibberish falls back), injects the real-time context line, and — at ≥15 closet items — directs Gemini to build primarily from the digitised wardrobe, referencing owned pieces by exact label.
 - Both `/api/style` briefs carry the PRD §3.2 four-tier layer formula (Anchor / Canvas / Texture / Exclamation Point) + hyper-specificity directive.
 - `__kpRenderResult(data, promptText, opts)` takes `opts.intent`/`opts.context`: dress-me gets the "Your day, dressed three ways" header, the contextual metadata pill (city · month | temp range | layer hint), and "Today's brief" instead of "Your piece". `intent`+`context` are persisted inside `kpData` so reopened lookbook entries keep the daily framing.
+
+## Daily Look page (`/api/daily` + `__dlRenderResult`) — Context-to-Core framework
+The dress-me track's own surface: ONE complete outfit for the real day, rendered as the four architectural steps a stylist works through, with per-item swap. Replaces the old "three ways" render for dress-me (the `/api/style` dress-me path still exists for backward compat with saved lookbook entries).
+- **Server `POST /api/daily`**: accepts `{prompt, name, styleDna, wardrobeItems (id/label/category/color/brand/image_url/times_worn, capped 60), context}`. The system prompt encodes the Context-to-Core Framework — 1) Context Filters (agenda/mobility from the brief, atmospheric reality from `context`, psychological goal), 2) Architectural Formula (exactly 4 steps: The Anchor ×1 / The Canvas ×1–2 / The Texture ×1 / The Accents ×2), 3) Golden Ratios (rule of thirds, volume balancing, textural contrast — surfaced in `stylist_summary` + item descriptions), 4) Transition Protocol (`transition_tip`: one subtractive-styling or hardware-swap move). Structured schema (`DAILY_SCHEMA`, gemini-2.5-flash, `thinkingBudget: 0`, 3000 tokens), fallback only on gibberish.
+- **Wardrobe-state directive** shifts the balance: 0 items = fully aspirational (every item `wardrobe_index: -1` + retailer_hint + price_point — a shopping brief), 1–14 = hybrid (owned pieces referenced by index + exact label wherever they serve, gaps filled aspirationally, owned always beats hypothetical), ≥15 = closet-first (new pieces only for true gaps / the exclamation point). Server resolves `wardrobe_index` → `wardrobe_match {id,label,image_url,color}` per item and assigns a flat `image_index`.
+- **Imagery**: one frame per item via the shared `imageJobs` infra — anchor gets the full-look editorial shot (whole outfit, anchor leading), every other item a still-life; staggered 3s, Cloudinary-hosted URLs only, client polls `_dlPollImages` (5-min ceiling — staggered gen is slow) and persists via `_dlPersistImages`.
+- **Client render** (`__dlRenderResult(data, promptText, opts)` in dashboard-personalize.js, page `#dl-result-page`, z-index 40 under the nav): eyebrow `TODAY · {OCCASION}`, lead line varies with ownership ("From your wardrobe, / Nearly all yours, / Styled for you, {name}."), provenance dot + `palette` swatches (3 validated hexes), weather pill, stylist-summary card (step names bolded client-side) + transition tip, then the 4 numbered step sections — each item row shows name/brand plus "✓ Yours" or "retailer · price" and a SWAP pill.
+- **Swap** (`__dlSwap(flatIdx)` → `__dlSwapApply`): same PRD 3.B modal as moodboards (category-filtered wardrobe grid, AI-alternative fallback, Snap mine → `WA.open()`, affiliate CTA). Apply overwrites the item's name/brand with the owned piece, clears retailer/price, sets `wardrobe_match`, re-renders (items are references into `__lastDlData.steps`) and patches the saved lookbook entry.
+- **Persistence**: auto-saved to the lookbook as `type: 'daily-look'` with `dlData` (jobId stripped so a reopened entry never polls a dead job); `__snOpenItem` re-opens via `__dlRenderResult(..., {skipSave: true, savedId})`. Card labels read "Daily look" in all three lookbook surfaces.
+- Feedback block posts `surface: 'daily-look'` with occasion/ownership counts to `/api/feedback`.
 
 ## Feedback loop (PRD §4 — every output)
 All three generated surfaces carry the inline 👍/👎 + comment block posting to `/api/feedback` → Airtable `Feedback`:
@@ -202,7 +213,7 @@ Gemini image generation (`gemini-3.1-flash-image`) takes 20–40s per image — 
 - Empty mosaic cells pulse (`kpPhPulse` keyframe, shared with the style result placeholders) while `mb_job_id`/`jobId` is present — they read as loading, not broken.
 
 ## Lookbook + moodboard cloud persistence
-Saved looks and moodboards were originally localStorage-only per browser — testing surfaced "Nothing saved yet" after reload and blank image tiles on revisit. Now backed by `lookbook_items` (`supabase/lookbook_migration.sql`, `type` = `'key-piece'` or `'moodboard'`, PK `(user_id, id)` using the client's `Date.now()` id).
+Saved looks and moodboards were originally localStorage-only per browser — testing surfaced "Nothing saved yet" after reload and blank image tiles on revisit. Now backed by `lookbook_items` (`supabase/lookbook_migration.sql`, `type` = `'key-piece'`, `'daily-look'` or `'moodboard'`, PK `(user_id, id)` using the client's `Date.now()` id).
 - localStorage (`robes_style_notes__<uid>` / `robes_moodboards__<uid>`) stays the instant read/write cache; every mutation also fires an async Supabase call so the UI never blocks on network.
 - `_lbCloudPush(item)` — POST on `snAdd`/`_mbAdd` (new entries)
 - `_lbCloudPatch(item)` — PATCH on `snUpdate`/`_mbUpdate` (image URLs landing late, swaps)
@@ -270,11 +281,11 @@ The bundle ships with the **old** card order: `[Weekly Planner(01), Travel Edit(
 
 **Critical**: do NOT use XML comments (`<!-- -->`) inside SVG data URLs — they break the URI encoding and cause the image to fail silently.
 
-### Daily Outfit lock / unlock (`_rbUpdateDailyOutfitLock`)
-- Targets `.svc-daily` card (the relabelled Key Piece card after reorder)
-- Locked state (`_waItems.length < 15`): adds `.rb-lock-wrap` pill overlay, CTA shows "N pieces to go" with lock icon, onclick shows toast
-- Unlocked state: removes pill, CTA becomes "Style today →", onclick fills `#cb-ta` with `"Dress me for a day in the city today"` and scrolls/focuses the textarea
-- Called on every `_waLoad()` completion and wardrobe item add/delete
+### Daily Outfit progress pill (`_rbUpdateDailyOutfitLock`)
+- Targets `.svc-daily` card (the relabelled Key Piece card after reorder). The card is **never locked** — the Daily Look track serves an editorial build below 15 items.
+- Below 15 items: `.rb-lock-wrap` pill reads "✦ Editorial until 15 pieces · n/15" (information, not a gate); at 15 the pill is removed
+- CTA is always "Style today →"; onclick always `_cbSetIntent('dress-me')` (prefills `#cb-ta`, scrolls/focuses)
+- Called on every `_waLoad()` completion and wardrobe item add/delete (function name kept for history)
 
 ### 3-step wardrobe add flow
 We own all 3 steps — the bundle's `.fm-step` content is replaced entirely on `WA.open` for new items.

@@ -7,7 +7,7 @@
 create table if not exists public.lookbook_items (
   id          bigint not null,
   user_id     uuid not null references auth.users(id) on delete cascade,
-  type        text not null default 'key-piece',   -- 'key-piece' | 'look' | 'moodboard'
+  type        text not null default 'key-piece',   -- 'key-piece' | 'look' | 'daily-look' | 'moodboard'
   title       text not null default '',
   subtitle    text not null default '',
   img         text,
