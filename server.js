@@ -29,11 +29,6 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 app.use(express.json({ limit: '20mb' }));
-app.use((req, res, next) => {
-  const host = req.headers['x-forwarded-host'] || req.headers.host || '';
-  if (req.path === '/' && host.startsWith('beta.')) return res.redirect('/signup');
-  next();
-});
 app.use(express.static(join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {

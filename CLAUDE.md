@@ -51,8 +51,7 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 
 ## Closed beta (beta.byrobes.com)
 - `beta.byrobes.com` is a Railway custom domain on the staging service, which auto-deploys this branch — pushing to `signup-flow` deploys the beta
-- Beta invite link for testers: `https://beta.byrobes.com/signup`
-- Server redirects `/` → `/signup` when the host starts with `beta.` (checks `x-forwarded-host` then `host`) so bare beta.byrobes.com never shows the waitlist landing page; the Railway staging URL still serves the landing at `/`
+- Beta invite link for testers: `https://beta.byrobes.com` — this branch's `index.html` is the beta homepage ("One prompt. Dressed for anything.", Get started → `/signup.html`, Sign in link), NOT the waitlist landing that lives on `main`
 - All auth redirects are domain-agnostic (`window.location.origin` client-side, relative paths for guards) — no code changes needed per domain
 - Per-service Railway env: `PUBLIC_URL` must be `https://beta.byrobes.com` on the beta/staging service and `https://www.byrobes.com` on production (drives share-look URLs)
 - Supabase Auth → URL Configuration must allowlist `https://beta.byrobes.com/**` or OAuth + email-confirmation redirects bounce to the Site URL
