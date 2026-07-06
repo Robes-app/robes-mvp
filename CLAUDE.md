@@ -1,7 +1,7 @@
 # Robes MVP — Claude Code Reference
 
 ## What this is
-Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemini generates 3 editorial looks with outfit images. Live at **www.byrobes.com**, deployed on Railway.
+Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemini generates 3 editorial looks with outfit images. Landing page + waitlist live at **www.byrobes.com** (`main`); auth + dashboard closed beta live at **beta.byrobes.com** (`signup-flow`). Both deployed on Railway.
 
 ## Stack
 - **Backend**: Node.js + Express, ES modules (`"type":"module"`), `server.js`
@@ -46,8 +46,16 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 | `supabase/lookbook_migration.sql` | `lookbook_items` table (saved looks + moodboards, RLS, PK `(user_id, id)` with client `Date.now()` ids) — run once in Supabase SQL editor. The dashboard keeps per-user localStorage as an instant cache and syncs through this table (`_lbCloudPull/Push/Patch/Delete` in `dashboard-personalize.js`); if the migration hasn't run the app silently degrades to local-only |
 
 ## Branches
-- `main` — live production (www.byrobes.com)
-- `signup-flow` — Supabase auth + dashboard work (staging at robes-mvp-co1h-production.up.railway.app)
+- `main` — live production landing page + waitlist (www.byrobes.com) — do NOT merge signup-flow into it yet
+- `signup-flow` — auth + dashboard experience, live for the closed beta at **beta.byrobes.com** (same Railway service as robes-mvp-co1h-production.up.railway.app)
+
+## Closed beta (beta.byrobes.com)
+- `beta.byrobes.com` is a Railway custom domain on the staging service, which auto-deploys this branch — pushing to `signup-flow` deploys the beta
+- Beta invite link for testers: `https://beta.byrobes.com/signup`
+- Server redirects `/` → `/signup` when the host starts with `beta.` (checks `x-forwarded-host` then `host`) so bare beta.byrobes.com never shows the waitlist landing page; the Railway staging URL still serves the landing at `/`
+- All auth redirects are domain-agnostic (`window.location.origin` client-side, relative paths for guards) — no code changes needed per domain
+- Per-service Railway env: `PUBLIC_URL` must be `https://beta.byrobes.com` on the beta/staging service and `https://www.byrobes.com` on production (drives share-look URLs)
+- Supabase Auth → URL Configuration must allowlist `https://beta.byrobes.com/**` or OAuth + email-confirmation redirects bounce to the Site URL
 
 ## What's live vs in development
 **Live on byrobes.com (`main` branch)**
@@ -55,7 +63,7 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 - Shareable look pages (`/look/:id`)
 - Airtable CRM logging
 
-**In development on `signup-flow` branch only — NOT on byrobes.com yet**
+**Live for the closed beta on beta.byrobes.com (`signup-flow` branch) — NOT on www.byrobes.com**
 - `/signup` — Supabase email + Google OAuth sign-up
 - `/dashboard` — protected SPA (plain `dashboard.html`, ejected from the Claude Design bundle)
 - `/wardrobe` — wardrobe panel URL alias
@@ -77,8 +85,8 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 ```bash
 git add <files>
 git commit -m "message"
-git push -u origin main   # triggers Railway auto-deploy on byrobes.com
-git push -u origin signup-flow   # triggers Railway auto-deploy on test URL
+git push -u origin main   # triggers Railway auto-deploy on www.byrobes.com
+git push -u origin signup-flow   # triggers Railway auto-deploy on beta.byrobes.com + staging URL
 ```
 No build step. Railway picks up `npm start` → `node server.js`.
 
@@ -86,17 +94,18 @@ No build step. Railway picks up `npm start` → `node server.js`.
 - `GEMINI_API_KEY`
 - `AIRTABLE_TOKEN`, `AIRTABLE_BASE_ID`
 - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
-- `PUBLIC_URL` = `https://www.byrobes.com`
+- `PUBLIC_URL` = `https://www.byrobes.com` on production, `https://beta.byrobes.com` on the beta/staging service
 - `PORT` (Railway sets automatically)
 
-Note: Cloudinary vars must be set on **both** production and staging Railway services for wardrobe photo uploads to work.
+Note: Cloudinary vars must be set on **both** production and beta/staging Railway services for wardrobe photo uploads to work.
 
 ## Supabase config
 - Project: `Robes_p0`
 - URL: `https://ayowpaknssulsqqvwpqx.supabase.co`
 - Publishable key: `sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ`
 - Google OAuth: enabled, callback URL registered in Google Cloud Console
-- Allowed redirect URLs: `https://robes-mvp-production.up.railway.app/**`, `https://robes-mvp-co1h-production.up.railway.app/**`
+- Allowed redirect URLs: `https://beta.byrobes.com/**`, `https://robes-mvp-production.up.railway.app/**`, `https://robes-mvp-co1h-production.up.railway.app/**`
+- Site URL: `https://beta.byrobes.com` (default target for auth emails when no redirect matches)
 - Edge Function secrets set: `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (auto-injected)
 
 ## Supabase DB schema
