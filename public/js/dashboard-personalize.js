@@ -1,6 +1,6 @@
     window.__robes_personalize = function() {
       // Build marker — verify which version is live from the browser console.
-      console.log('[robes] personalize build: snap-mine crash-proof + field-shim (2026-07-06d)');
+      console.log('[robes] personalize build: snap-mine all-fields shim + wa-grid capture guard (2026-07-06e)');
       const _rbStyleDna = () => {
         const dna = (window.__robes_profile || {}).style_dna;
         return dna && typeof dna === 'object' && (dna.color_harmony || dna.silhouette_proportions) ? dna : null;
@@ -833,7 +833,10 @@
           // so we never snapshot our own custom step content.
           if (!_origStepHTML) {
             const step0 = document.querySelector('#wa-modal .fm-step');
-            if (step0 && step0.querySelector('#wa-label-in')) _origStepHTML = step0.innerHTML;
+            // Guard on .wa-grid — unique to the real bundle form — so we never
+            // snapshot a stripped step-1/2/3 state (which only has a dummy
+            // #wa-label-in) and poison every later restore.
+            if (step0 && step0.querySelector('.wa-grid')) _origStepHTML = step0.innerHTML;
           }
           const _origOpen = WA.open;
           WA.open = function() {
@@ -846,20 +849,28 @@
             // Runs in BOTH add and edit modes. On the very first open
             // _origStepHTML is empty and the bundle form is already present,
             // so this is a no-op and the form is captured at line ~843.
-            const step = document.querySelector('#wa-modal .fm-step');
-            if (step && !document.getElementById('wa-label-in')) {
-              if (_origStepHTML) {
-                step.innerHTML = _origStepHTML;
-              } else {
-                // Last resort — capture never ran and the bundle form is gone.
-                // Inject the exact fields the bundle's open()/validate() write
-                // to so _origOpen physically cannot hit a null element.
-                // _showStep1 replaces this content 150ms later regardless.
-                const shim = document.createElement('div');
-                shim.style.display = 'none';
-                step.appendChild(shim);
-                [['input','wa-label-in'],['select','wa-cat'],['input','wa-brand'],['textarea','wa-notes'],['span','wa-sw-name'],['div','wa-swatches'],['button','wa-cta']]
-                  .forEach(([tag, id]) => { if (!document.getElementById(id)) { const el = document.createElement(tag); el.id = id; shim.appendChild(el); } });
+            // The bundle's open()/validate() write to a fixed set of fields
+            // that live inside .fm-step. Our custom add-steps (and interrupted
+            // add flows) can leave .fm-step with SOME or NONE of them — step 1
+            // keeps only a dummy #wa-label-in, so a gate on that field alone
+            // let the bundle sail past it and crash on the next null (#wa-cat).
+            // Guarantee EVERY required field exists before _origOpen: restore
+            // the captured bundle form if we have it, then shim any still-
+            // missing field. _showStep1 replaces the content 150ms later.
+            const _WA_FIELDS = ['wa-label-in', 'wa-cat', 'wa-brand', 'wa-notes', 'wa-sw-name', 'wa-swatches', 'wa-cta'];
+            if (_WA_FIELDS.some(id => !document.getElementById(id))) {
+              const step = document.querySelector('#wa-modal .fm-step');
+              if (step && _origStepHTML) step.innerHTML = _origStepHTML;
+              const stillMissing = _WA_FIELDS.filter(id => !document.getElementById(id));
+              if (stillMissing.length) {
+                const host = document.querySelector('#wa-modal .fm-step') || document.getElementById('wa-modal');
+                if (host) {
+                  const shim = document.createElement('div');
+                  shim.style.display = 'none';
+                  host.appendChild(shim);
+                  const TAG = { 'wa-cat': 'select', 'wa-notes': 'textarea', 'wa-sw-name': 'span', 'wa-swatches': 'div', 'wa-cta': 'button' };
+                  stillMissing.forEach(id => { const el = document.createElement(TAG[id] || 'input'); el.id = id; shim.appendChild(el); });
+                }
               }
             }
             try {
@@ -875,7 +886,8 @@
               // Add mode: capture bundle form HTML once, then show photo step
               setTimeout(function() {
                 const step = document.querySelector('#wa-modal .fm-step');
-                if (step && !_origStepHTML) _origStepHTML = step.innerHTML;
+                // Only capture the real bundle form (.wa-grid), never a step state
+                if (step && !_origStepHTML && step.querySelector('.wa-grid')) _origStepHTML = step.innerHTML;
                 _showStep1();
               }, 150);
             }
