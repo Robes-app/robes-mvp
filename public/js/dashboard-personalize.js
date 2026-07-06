@@ -212,6 +212,10 @@
       const WA_CATS = ['All','Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear','Other'];
 
       let _waItems = [], _waCat = 'All', _waEditId = null;
+      // One-shot callback fired after a NEW wardrobe piece is added + reloaded,
+      // with the new row's id. Lets "Snap mine" (daily look / moodboard swap)
+      // apply the just-added piece into the look it was launched from.
+      let _waAfterAdd = null;
 
       function _waEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -328,6 +332,7 @@
             e.preventDefault();
             e.stopPropagation();
             _waEditId = null;
+            _waAfterAdd = null;
             if (window.WA && WA.open) WA.open();
           };
         }
@@ -353,7 +358,7 @@
         div.className = 'wg-item wg-add wg-img-wrap';
         div.style.cursor = 'pointer';
         div.innerHTML = '<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-        div.addEventListener('click', () => { _waEditId = null; window.WA && WA.open(); });
+        div.addEventListener('click', () => { _waEditId = null; _waAfterAdd = null; window.WA && WA.open(); });
         return div;
       }
 
@@ -924,16 +929,28 @@
               item_dna:  Object.keys(savedDna).length ? savedDna : undefined,
             };
 
+            let created = null;
             if (editId) {
               await _waFetch('PATCH', 'wardrobe_items?id=eq.' + editId, payload);
             } else {
-              await _waFetch('POST', 'wardrobe_items', payload);
+              created = await _waFetch('POST', 'wardrobe_items', payload);
             }
 
             _origWAClose();
             _waEditId = null;
             await _waLoad();
             _waShowToast(editId ? 'Piece updated' : 'Added to wardrobe');
+
+            // A pending "Snap mine" swap is waiting on this new piece —
+            // apply it now that _waItems has reloaded with the new row.
+            if (!editId && typeof _waAfterAdd === 'function') {
+              const hook = _waAfterAdd;
+              _waAfterAdd = null;
+              const newId = (Array.isArray(created) && created[0] && created[0].id != null)
+                ? created[0].id
+                : (_waItems[0] && _waItems[0].id);
+              if (newId != null) { try { hook(newId); } catch (e) { console.warn('[robes] after-add hook:', e); } }
+            }
           } catch(e) {
             console.error('WA submit:', e);
             _waShowToast('Something went wrong — try again');
@@ -1765,6 +1782,7 @@
 
       window.__dlGoBack = function() {
         if (dlResultPage) dlResultPage.style.display = 'none';
+        _waAfterAdd = null; // leaving the look cancels any armed snap-mine swap
         window.rbClearCrumb && window.rbClearCrumb();
         window._rbNav && window._rbNav('/dashboard');
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1888,7 +1906,12 @@
           const stepBase = running;
           const frames = items.map((it, ii) => {
             const i = Number.isInteger(it.image_index) ? it.image_index : stepBase + ii;
-            const src = images[i];
+            // An owned piece shows its real wardrobe photo — the truthful
+            // representation, and what a just-swapped/just-snapped item must
+            // reflect. AI still-life is only the fallback for aspirational
+            // pieces (or owned pieces with no photo yet).
+            const wmImg = it.wardrobe_match && it.wardrobe_match.image_url;
+            const src = wmImg || images[i];
             const phInner = imagesPending
               ? `<span style="font-family:${serif};font-style:italic;font-size:13px;color:#B8AC9C;text-align:center;padding:0 16px">Creating imagery…</span>`
               : `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
@@ -2024,7 +2047,13 @@
       };
 
       // ── Daily Look swap — same PRD 3.B pattern as the moodboard modal ──
+      let _dlSwapIdx = null; // item index the open swap modal is targeting
       window.__dlSnapMine = function() {
+        // Arm the post-add hook so the piece the user is about to snap
+        // lands straight into this look's slot, then swaps its thumbnail.
+        const idx = _dlSwapIdx;
+        _waAfterAdd = (newId) => window.__dlSwapApply(idx, newId);
+        _waEditId = null;
         document.getElementById('dl-swap-modal')?.remove();
         if (window.WA && WA.open) WA.open();
       };
@@ -2033,6 +2062,7 @@
         const items = window.__dlCurrentItems || [];
         const item = items[idx];
         if (!item) return;
+        _dlSwapIdx = idx;
         document.getElementById('dl-swap-modal')?.remove();
 
         const catLower = (item.category || '').toLowerCase();
@@ -3414,6 +3444,7 @@
 
       // ── Snap Mine: open wardrobe add flow ────────────────────────────────
       window.__mbSnapMine = function() {
+        _waAfterAdd = null; // moodboard snap-mine doesn't auto-apply — clear any daily-look hook
         document.getElementById('mb-swap-modal')?.remove();
         if (window.WA && WA.open) WA.open();
       };
