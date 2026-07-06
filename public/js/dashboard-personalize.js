@@ -3786,7 +3786,10 @@
 
         // Persist the key piece to the wardrobe in the background — the
         // first item a user shows Robes should count toward their 15.
-        if (piece.photo) (async function() {
+        // Onboarding step 04 normally catalogs the piece itself before the
+        // handoff (payload carries cataloged: true) — only persist here for
+        // legacy payloads or when the onboarding insert failed.
+        if (piece.photo && !piece.cataloged) (async function() {
           try {
             const m = String(piece.photo).match(/^data:([^;]+);base64,(.+)$/);
             if (!m) return;

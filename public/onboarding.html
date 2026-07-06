@@ -251,36 +251,79 @@
     .cap-read-val.is-done { color: var(--foreground); }
 
     /* ── Key piece (Step 04) ─────────────────────────────────────── */
-    .kp { display: flex; gap: 14px; align-items: stretch; }
-    .kp-drop {
-      width: 168px; flex: none; overflow: hidden; position: relative;
-      border: 1px dashed var(--cream-400); border-radius: 2px;
-      background: #F5EFE9;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-      cursor: pointer; color: var(--fg-2); padding: 20px;
-      transition: border-color .2s var(--ease-default), color .2s var(--ease-default);
+    .kp-scan {
+      position: absolute; left: 0; right: 0; top: 2%; height: 2px; z-index: 4;
+      background: linear-gradient(90deg, transparent, rgba(250,248,245,0.95), transparent);
+      box-shadow: 0 0 18px 4px rgba(250,248,245,0.35);
+      animation: kpScan 1.9s ease-in-out infinite;
     }
-    .kp-drop:hover { border-color: var(--cream-600); color: var(--foreground); }
-    .kp-drop.has-photo { border-style: solid; padding: 0; }
-    .kp-drop-text { font-weight: 400; font-size: 12px; line-height: 1.5; text-align: center; letter-spacing: 0.01em; }
-    .kp-thumb { width: 100%; height: 100%; object-fit: cover; }
-    .kp-textwrap {
-      flex: 1; display: flex; flex-direction: column;
-      border: 1px solid var(--cream-300); border-radius: 2px; background: var(--cream-30);
-      padding: 18px 20px 14px; transition: border-color .2s var(--ease-default);
+    @keyframes kpScan { 0% { top: 2%; } 50% { top: 96%; } 100% { top: 2%; } }
+    .kp-reading {
+      position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; padding: 16px 14px;
+      text-align: center; font-family: var(--font-serif); font-style: italic; font-size: 15px;
+      color: var(--cream-30); background: linear-gradient(to top, rgba(32,32,33,0.6), transparent);
+      animation: rbPulse 1.4s ease-in-out infinite;
     }
-    .kp-textwrap:focus-within { border-color: var(--cream-500); }
-    .kp-text {
-      flex: 1; border: none; background: none; outline: none; resize: none; min-height: 118px;
-      font-family: var(--font-sans); font-weight: 300; font-size: 16px; line-height: 1.65; color: var(--foreground);
+    .kp-tags { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+    .kp-tag {
+      position: absolute; display: inline-flex; align-items: center; gap: 7px;
+      background: rgba(250,248,245,0.94); border: 1px solid var(--cream-300); border-radius: 2px;
+      padding: 6px 10px; font-weight: 500; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--foreground); white-space: nowrap; max-width: 84%; overflow: hidden; text-overflow: ellipsis;
+      box-shadow: 0 2px 10px rgba(32,32,33,0.18);
+      opacity: 0; animation: kpTagPop .5s var(--ease-default) both;
     }
-    .kp-text::placeholder { color: var(--cream-500); }
-    .kp-note {
-      margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--cream-300);
-      font-family: var(--font-serif); font-style: italic; font-weight: 300; font-size: 14px; color: var(--cream-600);
+    .kp-tag::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #AE9290; flex: none; }
+    @keyframes kpTagPop {
+      from { opacity: 0; transform: translateY(6px) scale(0.7); }
+      60% { opacity: 1; transform: translateY(0) scale(1.04); }
+      to { opacity: 1; transform: none; }
     }
+    .kp-banner {
+      position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 3;
+      background: rgba(32,32,33,0.86); color: var(--cream-30); border-radius: 2px; padding: 11px 14px;
+      font-family: var(--font-serif); font-weight: 300; font-size: 16px; letter-spacing: 0.01em; text-align: center;
+      opacity: 0; animation: kpTagPop .55s var(--ease-default) both;
+    }
+    .kp-note-field { margin-top: 26px; }
+    .kp-note-in {
+      width: 100%; margin-top: 12px; border: 1px solid var(--cream-300); border-radius: 2px; background: var(--cream-30);
+      font-family: var(--font-sans); font-weight: 300; font-size: 14px; color: var(--foreground); padding: 13px 14px; outline: none;
+      transition: border-color .2s var(--ease-default);
+    }
+    .kp-note-in:focus { border-color: var(--cream-500); }
+    .kp-note-in::placeholder { color: var(--cream-500); }
     .kp-nudge { font-weight: 300; font-size: 13px; color: #8B3A30; margin: 14px 0 0; text-align: center; display: none; }
     .kp-nudge.on { display: block; }
+
+    .kp-modal-scrim {
+      position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: rgba(32,32,33,0.55); backdrop-filter: blur(3px);
+      animation: kpScrimIn .3s var(--ease-default) both;
+    }
+    @keyframes kpScrimIn { from { opacity: 0; } to { opacity: 1; } }
+    .kp-modal {
+      width: 100%; max-width: 430px; background: var(--background); border-radius: 2px;
+      padding: 44px 40px 36px; text-align: center;
+      animation: kpModalDrop .5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    @keyframes kpModalDrop { from { opacity: 0; transform: translateY(-28px); } to { opacity: 1; transform: none; } }
+    .kp-modal-eyebrow { font-weight: 500; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: #AE9290; margin: 0 0 18px; }
+    .kp-modal-title { font-family: var(--font-serif); font-weight: 300; font-size: clamp(30px, 5vw, 40px); line-height: 1.05; letter-spacing: -0.01em; margin: 0 0 16px; color: var(--foreground); }
+    .kp-modal-title em { font-style: italic; }
+    .kp-modal-body { font-weight: 300; font-size: 14px; line-height: 1.7; color: var(--fg-2); margin: 0 0 30px; }
+    .kp-modal-primary {
+      width: 100%; background: var(--primary); color: var(--background); border: none; border-radius: 2px; cursor: pointer;
+      font-weight: 400; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; padding: 19px;
+      transition: opacity .2s var(--ease-default);
+    }
+    .kp-modal-primary:hover { opacity: .9; }
+    .kp-modal-primary:disabled { opacity: .5; cursor: default; }
+    .kp-modal-ghost {
+      display: block; margin: 16px auto 0; background: none; border: none; cursor: pointer;
+      font-weight: 300; font-size: 13px; color: var(--fg-2); transition: color .2s var(--ease-default);
+    }
+    .kp-modal-ghost:hover { color: var(--foreground); }
 
     /* ── Narrow ──────────────────────────────────────────────────── */
     @media (max-width: 720px) {
@@ -301,9 +344,7 @@
       .ob-back span:not(.ob-arrow) { display: none; }
       .ob-sub { margin-bottom: 40px; }
       .v1-hint { display: none; }
-      .kp { flex-direction: column; }
-      .kp-drop { width: 100%; height: 128px; flex-direction: row; }
-      .kp-drop.has-photo { height: auto; aspect-ratio: 4 / 5; max-height: 380px; }
+      .kp-modal { padding: 36px 24px 28px; }
     }
   </style>
 </head>
@@ -337,7 +378,7 @@
     styleDna: {},
     colour: { photoUrl: '', busy: false, done: null, err: '' },   // done: {season, undertone, contrast}
     sil: { photoUrl: '', busy: false, done: null, err: '' },      // done: {body_type}
-    piece: { img: '', text: '' },
+    piece: { img: '', data: '', mimeType: '', note: '', busy: false, tag: null, url: '', saved: false, savePromise: null, err: '' },
     pieceStyled: false,
     doneMarked: false,
   };
@@ -772,78 +813,258 @@
     document.getElementById('ob-skip').onclick = () => go(nextStage(i));
   }
 
-  /* ── Step 04 · Key piece ────────────────────────────────────────── */
+  /* ── Step 04 · First piece ──────────────────────────────────────── */
+  const KP_SPOTS = [
+    { top: '10%', left: '8%' },
+    { top: '30%', right: '8%' },
+    { top: '52%', left: '10%' },
+    { top: '68%', right: '12%' },
+  ];
+  const KP_READ = ['The piece', 'Category', 'Colour', 'Cut'];
+
   function renderKeyPiece(i) {
+    const P = st.piece;
     stepChrome(i, {
-      step: 'Step 04 · Key piece', eyebrow: 'A key piece',
-      title: 'Style a key piece,<br><em>three ways.</em>',
-      sub: 'Show Robes one piece you love — it’ll show you three ways to wear it. A little something to start with.',
-      continueLabel: 'Style it three ways',
+      step: 'Step 04 · First piece', eyebrow: 'Your wardrobe',
+      title: 'Add your first<br><em>key piece.</em>',
+      sub: 'Show Robes one piece you love. It reads the garment — label, colour, cut — and files it as piece nº 1 in your wardrobe.',
+      continueLabel: P.tag ? 'Continue' : 'Catalogue this piece',
     });
 
-    const zone = document.getElementById('ob-zone');
-    zone.innerHTML = `
-      <div class="kp">
-        <button class="kp-drop${st.piece.img ? ' has-photo' : ''}" id="kp-drop" type="button">
-          ${st.piece.img
-            ? `<img class="kp-thumb" src="${esc(st.piece.img)}" alt="">`
-            : `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                 <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/>
-                 <circle cx="12" cy="13" r="3.6"/>
-               </svg>
-               <span class="kp-drop-text">Snap or attach<br>your key piece</span>`}
-        </button>
-        <input type="file" accept="image/*" class="cap-file" id="kp-file">
-        <div class="kp-textwrap">
-          <textarea class="kp-text" id="kp-text" placeholder="Balmain waistcoat for office days, chic weekends and after dark.">${esc(st.piece.text)}</textarea>
-          <div class="kp-note">An image helps, but words alone work fine.</div>
-        </div>
-      </div>
-      <p class="kp-nudge" id="kp-nudge">Add a photo or a few words first — or skip for now.</p>`;
+    function kpChips() {
+      if (!P.tag) return [];
+      const dna = P.tag.item_dna || {};
+      const chips = [];
+      if (P.tag.category) chips.push(P.tag.category);
+      const colour = (dna.display && dna.display.editorial_color_name) || P.tag.color;
+      if (colour) chips.push(colour);
+      if (P.tag.brand) chips.push(P.tag.brand);
+      ((dna.structural_dna && dna.structural_dna.silhouette_fit) || []).forEach(f => {
+        if (chips.length < KP_SPOTS.length) chips.push(f);
+      });
+      return chips;
+    }
 
-    const fileInput = document.getElementById('kp-file');
-    document.getElementById('kp-drop').onclick = () => fileInput.click();
-    fileInput.onchange = async () => {
+    function readVals() {
+      if (P.busy) return KP_READ.map(() => ({ txt: 'Reading', cls: ' is-on' }));
+      if (P.tag) {
+        const dna = P.tag.item_dna || {};
+        const fit = (dna.structural_dna && dna.structural_dna.silhouette_fit) || [];
+        return [
+          { txt: P.tag.label || 'Read', cls: ' is-done' },
+          { txt: P.tag.category || 'Read', cls: ' is-done' },
+          { txt: (dna.display && dna.display.editorial_color_name) || P.tag.color || 'Read', cls: ' is-done' },
+          { txt: fit.slice(0, 2).join(' · ') || 'Read', cls: ' is-done' },
+        ];
+      }
+      return KP_READ.map(() => ({ txt: 'Awaiting', cls: '' }));
+    }
+
+    function popTags(animated) {
+      const box = document.getElementById('kp-tags');
+      if (!box || !P.tag) return 0;
+      const chips = kpChips();
+      box.innerHTML = chips.map((c, idx) => {
+        const s = KP_SPOTS[idx];
+        const pos = `top:${s.top};` + (s.left ? `left:${s.left};` : `right:${s.right};`);
+        return `<span class="kp-tag" style="${pos}animation-delay:${animated ? (0.15 + idx * 0.4).toFixed(2) : 0}s">${esc(c)}</span>`;
+      }).join('') + (P.tag.label
+        ? `<span class="kp-banner" style="animation-delay:${animated ? (0.35 + chips.length * 0.4).toFixed(2) : 0}s">${esc(P.tag.label)}</span>`
+        : '');
+      return chips.length;
+    }
+
+    function paint() {
+      const zone = document.getElementById('ob-zone');
+      if (!zone) return;
+      const vals = readVals();
+      zone.innerHTML = `
+        <div class="cap">
+          <div>
+            <div class="cap-panel${P.img ? ' has-photo' : ''}">
+              ${P.img
+                ? `<img class="cap-img" src="${esc(P.img)}" alt="">
+                   <div class="kp-tags" id="kp-tags"></div>
+                   ${P.busy ? '<div class="kp-scan"></div><div class="kp-reading">Reading your piece…</div>' : ''}
+                   ${!P.busy && !P.tag ? `<div class="cap-actions">
+                       <button class="cap-btn" id="kp-replace">Replace</button>
+                       <button class="cap-btn cap-btn-ghost" id="kp-remove">Remove</button>
+                     </div>` : ''}`
+                : `<div class="cap-empty">
+                     <span class="cap-label">Your key piece</span>
+                     <button class="cap-btn" id="kp-add">Add photo</button>
+                   </div>`}
+            </div>
+            <p class="cap-err${P.err ? ' on' : ''}">${esc(P.err)}</p>
+            <input type="file" accept="image/*" class="cap-file" id="kp-file">
+          </div>
+          <div class="cap-read-wrap">
+            <span class="ob-label cap-read-head">What Robes files</span>
+            <ul class="cap-read">
+              ${KP_READ.map((r, idx) => `
+                <li class="cap-read-row">
+                  <span class="cap-read-num">${String(idx + 1).padStart(2, '0')}</span>
+                  <span class="cap-read-label">${r}</span>
+                  <span class="cap-read-val${vals[idx].cls}">${esc(vals[idx].txt)}</span>
+                </li>`).join('')}
+            </ul>
+            <div class="kp-note-field">
+              <span class="ob-label">A note for the stylist</span>
+              <input class="kp-note-in" id="kp-note" placeholder="Where will you wear it? Optional." value="${esc(P.note)}">
+            </div>
+          </div>
+        </div>
+        <p class="kp-nudge" id="kp-nudge">Add a photo of your piece first — or skip for now.</p>`;
+
+      const fileInput = document.getElementById('kp-file');
+      const pick = () => fileInput.click();
+      const addBtn = document.getElementById('kp-add');
+      const repBtn = document.getElementById('kp-replace');
+      const remBtn = document.getElementById('kp-remove');
+      if (addBtn) addBtn.onclick = pick;
+      if (repBtn) repBtn.onclick = pick;
+      if (remBtn) remBtn.onclick = () => { P.img = ''; P.data = ''; P.url = ''; P.err = ''; paint(); };
+      fileInput.onchange = () => onFile(fileInput);
+      document.getElementById('kp-note').oninput = e => { P.note = e.target.value; };
+      if (P.tag && !P.busy) popTags(false);
+    }
+
+    async function onFile(fileInput) {
       const file = fileInput.files[0];
       if (!file) return;
+      let payload;
       try {
-        const bmp = await createImageBitmap(file);
-        const scale = Math.min(1, 1200 / Math.max(bmp.width, bmp.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(bmp.width * scale);
-        canvas.height = Math.round(bmp.height * scale);
-        canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
-        bmp.close();
-        st.piece.img = canvas.toDataURL('image/jpeg', 0.8);
+        payload = await fileToPayload(file);
       } catch (e) {
-        st.piece.img = await new Promise(resolve => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.readAsDataURL(file);
-        });
-      }
-      fileInput.value = '';
-      renderKeyPiece(i);
-    };
-    document.getElementById('kp-text').oninput = e => { st.piece.text = e.target.value; };
-
-    document.getElementById('ob-next').onclick = () => {
-      const prompt = st.piece.text.trim();
-      if (!prompt && !st.piece.img) {
-        document.getElementById('kp-nudge').classList.add('on');
+        P.err = 'Couldn’t read that image — try another file.';
+        fileInput.value = '';
+        if (st.stage === i) paint();
         return;
       }
-      try {
-        sessionStorage.setItem('rb_onboard_piece', JSON.stringify({ prompt, photo: st.piece.img || null }));
-        st.pieceStyled = true;
-      } catch (e) {
-        try {
-          sessionStorage.setItem('rb_onboard_piece', JSON.stringify({ prompt, photo: null }));
-          st.pieceStyled = true;
-        } catch (e2) { st.pieceStyled = false; }
+      P.img = payload.dataUrl;
+      P.data = payload.data;
+      P.mimeType = payload.mimeType;
+      P.url = '';
+      P.err = '';
+      fileInput.value = '';
+      if (st.stage === i) paint();
+    }
+
+    async function catalogue() {
+      if (P.busy) return;
+      if (P.tag) { showModal(); return; }
+      if (!P.img || !P.data) {
+        const nudge = document.getElementById('kp-nudge');
+        if (nudge) nudge.classList.add('on');
+        return;
       }
-      go('done');
-    };
+      P.err = '';
+      P.busy = true;
+      paint();
+      const next = document.getElementById('ob-next');
+      if (next) { next.disabled = true; next.textContent = 'Reading your piece…'; }
+
+      const analyse = () => fetch('/api/wardrobe/analyse', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: P.data, mimeType: P.mimeType }),
+      }).then(r => r.ok ? r.json() : null).catch(() => null);
+
+      let [tag, up] = await Promise.all([
+        analyse(),
+        fetch('/api/wardrobe/upload', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: P.data, mimeType: P.mimeType }),
+        }).then(r => r.ok ? r.json() : null).catch(() => null),
+      ]);
+      if (!tag || tag.analysisFailed || (!tag.noItemDetected && !tag.label)) {
+        await new Promise(r => setTimeout(r, 1500));
+        tag = (await analyse()) || tag;
+      }
+
+      P.busy = false;
+      const nx = document.getElementById('ob-next');
+
+      if (tag && tag.noItemDetected) {
+        P.img = ''; P.data = ''; P.url = '';
+        P.err = 'Robes couldn’t find a piece in that photo — try a clear shot of the garment.';
+        if (nx) { nx.disabled = false; nx.textContent = 'Catalogue this piece'; }
+        if (st.stage === i) paint();
+        return;
+      }
+      if (!tag || tag.analysisFailed || !tag.label) {
+        P.err = 'Robes couldn’t read that piece just now — try again in a moment.';
+        if (nx) { nx.disabled = false; nx.textContent = 'Catalogue this piece'; }
+        if (st.stage === i) paint();
+        return;
+      }
+
+      P.tag = tag;
+      if (up && up.url) P.url = up.url;
+      P.savePromise = sbClient.from('wardrobe_items').insert({
+        user_id: st.uid,
+        label: tag.label,
+        category: tag.category || 'Other',
+        color: tag.color || null,
+        brand: tag.brand || null,
+        notes: tag.notes || null,
+        image_url: P.url || null,
+        item_dna: tag.item_dna || {},
+      }).then(({ error }) => {
+        if (error) { console.warn('Wardrobe save failed:', error.message); return false; }
+        P.saved = true;
+        return true;
+      }).catch(() => false);
+
+      if (nx) { nx.disabled = false; nx.textContent = 'Continue'; }
+      if (st.stage !== i) return;
+      paint();
+      const chipCount = popTags(true);
+      setTimeout(() => { if (st.stage === i && P.tag) showModal(); }, (0.35 + chipCount * 0.4 + 1.1) * 1000);
+    }
+
+    function showModal() {
+      if (document.querySelector('.kp-modal-scrim')) return;
+      const label = (P.tag && P.tag.label) || 'your piece';
+      const scrim = document.createElement('div');
+      scrim.className = 'kp-modal-scrim';
+      scrim.innerHTML = `
+        <div class="kp-modal">
+          <p class="kp-modal-eyebrow">Piece nº 01 · Cataloged</p>
+          <h2 class="kp-modal-title">In your <em>wardrobe.</em></h2>
+          <p class="kp-modal-body">Robes read your ${esc(label.toLowerCase())} — colour, cut and all — and filed it as the first piece in your wardrobe. Want inspiration for it?</p>
+          <button class="kp-modal-primary" id="kp-style">Style it three ways</button>
+          <button class="kp-modal-ghost" id="kp-later">Straight to the dashboard</button>
+        </div>`;
+      root.appendChild(scrim);
+      scrim.onclick = e => { if (e.target === scrim) scrim.remove(); };
+      scrim.querySelector('#kp-style').onclick = async () => {
+        scrim.querySelector('#kp-style').disabled = true;
+        let cataloged = P.saved;
+        if (!cataloged && P.savePromise) {
+          try {
+            cataloged = await Promise.race([P.savePromise, new Promise(r => setTimeout(() => r(false), 3000))]);
+          } catch (e) {}
+        }
+        const prompt = P.note.trim() || (P.tag && P.tag.label) || '';
+        const payload = { prompt, photo: P.img || null, cataloged: !!cataloged };
+        try {
+          sessionStorage.setItem('rb_onboard_piece', JSON.stringify(payload));
+          st.pieceStyled = true;
+        } catch (e) {
+          try {
+            sessionStorage.setItem('rb_onboard_piece', JSON.stringify({ prompt, photo: null, cataloged: !!cataloged }));
+            st.pieceStyled = true;
+          } catch (e2) { st.pieceStyled = false; }
+        }
+        go('done');
+      };
+      scrim.querySelector('#kp-later').onclick = () => go('done');
+    }
+
+    paint();
+    const next = document.getElementById('ob-next');
+    if (P.busy) { next.disabled = true; next.textContent = 'Reading your piece…'; }
+    next.onclick = catalogue;
     document.getElementById('ob-skip').onclick = () => go('done');
   }
 
@@ -857,7 +1078,9 @@
     const first = st.name.trim().split(/\s+/)[0];
     const sub = st.pieceStyled
       ? 'Robes is ready to style your piece three ways — it’ll meet you inside.'
-      : 'Your style notes will keep growing as Robes gets to know you.';
+      : st.piece.tag
+        ? 'Your first piece is filed in your wardrobe — Robes builds from here.'
+        : 'Your style notes will keep growing as Robes gets to know you.';
     root.innerHTML = `
       <div class="flow-anim"><div class="done-screen">
         ${GRAIN}<div class="dk-glow"></div>
