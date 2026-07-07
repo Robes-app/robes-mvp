@@ -100,7 +100,7 @@ const Dash = (function () {
   function toggleAdd(e) { if (e) e.stopPropagation(); const m = $('cb-addmenu'); if (m) m.classList.toggle('open'); }
   function closeAdd() { const m = $('cb-addmenu'); if (m) m.classList.remove('open'); }
   function pickUpload(e) { if (e) e.stopPropagation(); const inp = $('cb-file'); inp.removeAttribute('capture'); inp.click(); closeAdd(); }
-  function pickCamera(e) { if (e) e.stopPropagation(); const inp = $('cb-file'); inp.setAttribute('capture', 'environment'); inp.click(); closeAdd(); }
+  function pickCamera(e) { if (e) e.stopPropagation(); const inp = $('cb-file'); inp.removeAttribute('capture'); inp.click(); closeAdd(); }
   function onPhoto(e) {
     closeAdd();
     const file = e.target.files && e.target.files[0];

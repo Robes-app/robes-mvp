@@ -1245,6 +1245,10 @@ app.get('/moodboards', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
 
+app.get('/moodboard/:slug', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
 app.get('/stylenotes', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'stylenotes.html'));
 });

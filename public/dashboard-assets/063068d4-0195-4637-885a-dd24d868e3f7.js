@@ -1151,7 +1151,7 @@ const App = (function () {
   function toggleAddMenu(e) { if (e) e.stopPropagation(); $('hp-addmenu').classList.toggle('open'); }
   function closeAddMenu() { const m = $('hp-addmenu'); if (m) m.classList.remove('open'); }
   function pickUpload(e) { if (e) e.stopPropagation(); const inp = $('hp-file'); inp.removeAttribute('capture'); inp.click(); closeAddMenu(); }
-  function pickCamera(e) { if (e) e.stopPropagation(); const inp = $('hp-file'); inp.setAttribute('capture', 'environment'); inp.click(); closeAddMenu(); }
+  function pickCamera(e) { if (e) e.stopPropagation(); const inp = $('hp-file'); inp.removeAttribute('capture'); inp.click(); closeAddMenu(); }
   function onPhotoPicked(e) {
     closeAddMenu();
     const file = e.target.files && e.target.files[0];

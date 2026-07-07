@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){var iOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(/Mac/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);if(iOS){var v=document.querySelector('meta[name="viewport"]');if(v)v.setAttribute('content','width=device-width, initial-scale=1, maximum-scale=1');}})();</script>
   <title>Style Notes — Robes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,6 +36,24 @@
     #save-state { font: 400 9px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: #C4B8A4; opacity: 0; transition: opacity 0.3s; }
     #save-state.on { opacity: 1; }
     #save-state.err { color: #8B3A30; }
+    .topbar-r { display: flex; align-items: center; gap: 12px; }
+    .sn-weather { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border: 0.5px solid #E0D8C8; border-radius: 100px; font: 300 11.5px/1 'Inter'; letter-spacing: 0.02em; color: #6A5E54; }
+    .sn-weather .wx { font-size: 14px; opacity: 0.85; }
+    .sn-weather .dot { width: 3px; height: 3px; border-radius: 50%; background: #C4B8A4; opacity: 0.6; }
+    .sn-wbtn { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border: 0.5px solid #E0D8C8; border-radius: 100px; background: none; cursor: pointer; font: 400 11.5px/1 'Inter'; letter-spacing: 0.04em; color: #202021; }
+    .sn-wbtn svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+    .sn-av-wrap { position: relative; }
+    .sn-avatar { width: 32px; height: 32px; border-radius: 50%; background: #202021; color: #FAF8F5; display: flex; align-items: center; justify-content: center; font: 400 13px/1 'Cormorant', Georgia, serif; cursor: pointer; user-select: none; }
+    .sn-av-menu { position: absolute; top: 42px; right: 0; width: 208px; background: #FAF8F5; border: 0.5px solid #E0D8C8; border-radius: 10px; box-shadow: 0 14px 40px rgba(32,32,33,0.12); padding: 6px; opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; z-index: 300; }
+    .sn-av-menu.open { opacity: 1; transform: translateY(0); pointer-events: all; }
+    .sn-av-name { padding: 10px 12px 8px; border-bottom: 0.5px solid #EDE6D8; margin-bottom: 4px; display: flex; flex-direction: column; gap: 2px; }
+    .sn-av-name strong { font: 500 13px/1.2 'Inter'; color: #202021; }
+    .sn-av-name span { font: 400 10px/1 'Inter'; letter-spacing: 0.08em; text-transform: uppercase; color: #A89880; }
+    .sn-av-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: none; background: none; border-radius: 7px; cursor: pointer; font: 400 12.5px/1 'Inter'; color: #202021; text-align: left; }
+    .sn-av-item:hover { background: #F3EFE6; }
+    .sn-av-item svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+    .sn-av-item.sn-av-out { border-top: 0.5px solid #EDE6D8; border-radius: 0 0 7px 7px; margin-top: 4px; padding-top: 12px; }
+    @media (max-width: 760px) { .sn-weather { display: none; } .sn-wbtn span { display: none; } }
 
     .subnav { position: sticky; top: 58px; z-index: 49; background: #FAF8F5; border-bottom: 1px solid #E7E0CF; }
     .subnav-inner { max-width: 940px; margin: 0 auto; padding: 0 28px; display: flex; align-items: stretch; gap: 32px; height: 52px; }
@@ -175,7 +194,29 @@
         <span class="chapter" id="crumb-chapter">Colour harmony</span>
       </div>
     </div>
-    <span id="save-state"></span>
+    <div class="topbar-r">
+      <span id="save-state"></span>
+      <div class="sn-weather" id="sn-weather">
+        <span class="wx">🌤</span><span id="sn-wx-day"></span>
+        <span class="dot" style="display:none"></span><span id="sn-wx-city" style="display:none"></span>
+        <span class="dot" style="display:none"></span><span id="sn-wx-temp" style="display:none"></span>
+      </div>
+      <button class="sn-wbtn" onclick="window.location.href='/wardrobe'">
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>
+        <span>Wardrobe</span>
+      </button>
+      <div class="sn-av-wrap">
+        <div class="sn-avatar" id="sn-avatar" onclick="event.stopPropagation();document.getElementById('sn-av-menu').classList.toggle('open')">·</div>
+        <div class="sn-av-menu" id="sn-av-menu">
+          <div class="sn-av-name"><strong id="sn-av-name">&nbsp;</strong><span>Founding Stylist</span></div>
+          <button class="sn-av-item" onclick="window.location.href='/dashboard'"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Dashboard</button>
+          <button class="sn-av-item" onclick="window.location.href='/wardrobe'"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>Wardrobe</button>
+          <button class="sn-av-item" onclick="window.location.href='/lookbook'"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>Lookbook</button>
+          <button class="sn-av-item" onclick="window.location.href='/moodboards'"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>Moodboards</button>
+          <button class="sn-av-item sn-av-out" id="sn-logout"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>Log out</button>
+        </div>
+      </div>
+    </div>
   </header>
 
   <div class="subnav">
@@ -1028,6 +1069,11 @@
       const { data: profile, error } = await sbClient
         .from('profiles').select('*').eq('id', st.uid).single();
       if (!error && profile) {
+        const fn = (profile.first_name || '').trim();
+        if (fn) {
+          document.getElementById('sn-avatar').textContent = fn[0].toUpperCase();
+          document.getElementById('sn-av-name').textContent = fn;
+        }
         if (profile.style_dna && typeof profile.style_dna === 'object') st.styleDna = profile.style_dna;
         if (profile.colour_analysis && profile.colour_analysis.season) st.colour = profile.colour_analysis;
         if (profile.silhouette_analysis && profile.silhouette_analysis.body_type) st.sil = profile.silhouette_analysis;
@@ -1065,6 +1111,49 @@
       busyMsg: 'Reading your line…',
       rejectMsg: 'Robes couldn’t read a full-length figure — try a head-to-toe photo.',
     });
+
+    document.addEventListener('click', () => {
+      const m = document.getElementById('sn-av-menu');
+      if (m) m.classList.remove('open');
+    });
+    document.getElementById('sn-av-menu').addEventListener('click', e => e.stopPropagation());
+    document.getElementById('sn-logout').addEventListener('click', async function() {
+      this.textContent = 'Signing out…';
+      try { await sbClient.auth.signOut(); } catch (e) {}
+      window.location.href = '/signup.html?mode=signin';
+    });
+
+    (function snWeather() {
+      const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const WX_ICONS = {0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',
+        61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',80:'🌦',81:'🌧',82:'🌧',
+        95:'⛈',96:'⛈',99:'⛈'};
+      document.getElementById('sn-wx-day').textContent = DAYS[new Date().getDay()];
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        try {
+          const geoRes = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon, { headers: { 'Accept-Language': 'en' } });
+          const geo = await geoRes.json();
+          const city = geo.address?.city || geo.address?.town || geo.address?.village || geo.address?.county || '';
+          const wxRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m,weather_code&temperature_unit=celsius');
+          const wx = await wxRes.json();
+          const temp = Math.round(wx.current?.temperature_2m);
+          const code = wx.current?.weather_code;
+          if (city) {
+            const c = document.getElementById('sn-wx-city');
+            c.textContent = city; c.style.display = '';
+            c.previousElementSibling.style.display = '';
+          }
+          if (!isNaN(temp)) {
+            const t = document.getElementById('sn-wx-temp');
+            t.textContent = temp + '°C'; t.style.display = '';
+            t.previousElementSibling.style.display = '';
+          }
+          if (code !== undefined && WX_ICONS[code]) document.querySelector('#sn-weather .wx').textContent = WX_ICONS[code];
+        } catch (e) {}
+      }, () => {});
+    })();
 
     renderAll();
     init();

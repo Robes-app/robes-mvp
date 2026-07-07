@@ -12,7 +12,11 @@
         const ris = document.createElement('style');
         ris.id = 'rb-instant-style';
         ris.textContent = '#dual{display:none !important}' +
-          '@keyframes kpPhPulse{0%,100%{opacity:1}50%{opacity:.55}}';
+          '@keyframes kpPhPulse{0%,100%{opacity:1}50%{opacity:.55}}' +
+          '@keyframes rbSpin{to{transform:rotate(360deg)}}' +
+          '.rb-tile-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}' +
+          '.rb-tile-loading .rb-spin{width:18px;height:18px;border:1.5px solid rgba(32,32,33,0.14);border-top-color:rgba(32,32,33,0.55);border-radius:50%;animation:rbSpin 0.9s linear infinite}' +
+          '.rb-tile-loading .rb-cap{font-family:var(--font-serif,Georgia,serif);font-style:italic;font-size:12px;color:rgba(32,32,33,0.4);text-align:center;padding:0 12px}';
         document.head.appendChild(ris);
       }
       // Personalise name
@@ -229,6 +233,18 @@
         wrap.classList.add('show');
         setTimeout(() => wrap.classList.remove('show'), 2800);
       }
+
+      // Affiliate shopping isn't live — every "Shop via Affiliate" CTA opens
+      // the bundle's Coming Soon dialog (closing the swap modal it sits in,
+      // which stacks above the dialog).
+      window.__rbAffiliateSoon = function(modalId) {
+        if (modalId) document.getElementById(modalId)?.remove();
+        if (window.KP && KP.comingSoon) {
+          KP.comingSoon('Shopping links,<br><em>coming soon.</em>', 'Robes will soon take you straight to this piece at its retailer.');
+        } else {
+          _waShowToast('Affiliate links coming soon');
+        }
+      };
 
       async function _waFetch(method, path, body) {
         const r = await fetch(_SUPA_URL + '/rest/v1/' + path, {
@@ -1068,21 +1084,40 @@
       if (window.location.pathname === '/moodboards') {
         setTimeout(() => window._mbShowAllPage && window._mbShowAllPage(), 400);
       }
+      if (window.location.pathname.indexOf('/moodboard/') === 0) {
+        // The board may only exist in the cloud copy — retry until the
+        // lookbook pull lands (or give up quietly)
+        const _mbDeepSlug = window.location.pathname.slice('/moodboard/'.length);
+        let _mbDeepTries = 0;
+        const _mbDeepT = setInterval(() => {
+          const item = window._mbFindBySlug && window._mbFindBySlug(_mbDeepSlug);
+          if (item && window.__mbOpenSaved) { clearInterval(_mbDeepT); window.__mbOpenSaved(item.id); }
+          else if (++_mbDeepTries > 20) clearInterval(_mbDeepT);
+        }, 500);
+      }
 
       // ── Style Notes ─────────────────────────────────────────────────
       // localStorage keys are namespaced per user — a shared browser must
       // never leak one account's lookbook/moodboards into another. Legacy
       // global keys are removed so old test data can't resurface.
-      const _rbUid = (window.__robes_session && window.__robes_session.user && window.__robes_session.user.id) || 'anon';
-      try { localStorage.removeItem('robes_style_notes'); localStorage.removeItem('robes_moodboards'); } catch (e) {}
-      const SN_KEY = 'robes_style_notes__' + _rbUid;
+      // Uid must be read lazily on EVERY call (session loads async) — a
+      // captured-once uid fell back to 'anon', writing every save into a
+      // shared robes_style_notes__anon key that then surfaced as phantom
+      // looks on any other account using the same browser.
+      try {
+        localStorage.removeItem('robes_style_notes'); localStorage.removeItem('robes_moodboards');
+        localStorage.removeItem('robes_style_notes__anon'); localStorage.removeItem('robes_moodboards__anon');
+      } catch (e) {}
+      function SN_KEY() { const u = _waUid(); return u ? 'robes_style_notes__' + u : null; }
 
       function snLoad() {
-        try { return JSON.parse(localStorage.getItem(SN_KEY) || '[]'); } catch { return []; }
+        const k = SN_KEY(); if (!k) return [];
+        try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; }
       }
       function snSave(items) {
+        const k = SN_KEY(); if (!k) return;
         try {
-          localStorage.setItem(SN_KEY, JSON.stringify(items));
+          localStorage.setItem(k, JSON.stringify(items));
         } catch (e) {
           // Storage full — drop oldest items until it fits
           if (items.length > 1) snSave(items.slice(0, items.length - 1));
@@ -2182,7 +2217,7 @@
                 <button onclick="window.__dlSnapMine()" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#EDE8E0;border:none;border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
                   ${cameraSvg} Snap mine
                 </button>
-                <button onclick="_waShowToast('Affiliate links coming soon')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
+                <button onclick="window.__rbAffiliateSoon('dl-swap-modal')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
                   Shop via Affiliate ${arrowSvg}
                 </button>
               </div>
@@ -3173,7 +3208,7 @@
                 <button onclick="window.__tvSnapMine()" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#EDE8E0;border:none;border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
                   ${cameraSvg} Snap mine
                 </button>
-                <button onclick="_waShowToast('Affiliate links coming soon')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
+                <button onclick="window.__rbAffiliateSoon('tv-swap-modal')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
                   Shop via Affiliate ${arrowSvg}
                 </button>
               </div>
@@ -3211,6 +3246,43 @@
           const t = document.getElementById('mb-out-title');
           const boardTitle = t && t.textContent ? t.textContent.trim() : '';
           window.__tvOpen({ brief: boardTitle ? 'Channel the mood of my “' + boardTitle + '” board.' : '' });
+        };
+      }
+
+      // "+New" from a board view-switches UNDER the fixed panel — close the
+      // board (and the list page) first so the concierge is actually visible.
+      if (window.App && App.chooseInspire) {
+        const _origChooseInspire = App.chooseInspire.bind(App);
+        App.chooseInspire = function() {
+          const panel = document.getElementById('moodboard-panel');
+          if (panel && panel.classList.contains('visible')) window.__mbCloseResult && window.__mbCloseResult();
+          window.__mbCloseList && window.__mbCloseList();
+          return _origChooseInspire.apply(this, arguments);
+        };
+      }
+
+      // Bundle's saveRename only rewrites the DOM title — persist it into the
+      // live board data + the saved entry, refresh the crumb and the URL.
+      if (window.App && App.saveRename) {
+        const _origSaveRename = App.saveRename.bind(App);
+        App.saveRename = function() {
+          const input = document.getElementById('rename-input');
+          const v = input && input.value ? input.value.trim() : '';
+          _origSaveRename.apply(this, arguments);
+          if (!v) return;
+          const panel = document.getElementById('moodboard-panel');
+          if (!panel || !panel.classList.contains('visible') || !panel._currentData) return;
+          panel._currentData.title = v;
+          if (panel._savedId) _mbUpdate(panel._savedId, { title: v });
+          if (window._mbOpenedFromList) {
+            window.rbSetCrumb && window.rbSetCrumb([
+              { label: 'Your Moodboards', action: function() { window.__mbCloseResult(); window._mbOpenedFromList = false; if (window._mbShowAllPage) window._mbShowAllPage(); } },
+              { label: v },
+            ]);
+          } else {
+            window.rbSetCrumb && window.rbSetCrumb([{ label: v }]);
+          }
+          window._rbNav && window._rbNav('/moodboard/' + _mbSlug(v));
         };
       }
 
@@ -3476,7 +3548,12 @@
             const wbtnCount = document.querySelector('.nav-wbtn-count');
             const wbtn = wbtnCount ? wbtnCount.closest('button') : null;
             if (wbtn) { wbtn.click(); } else { wp.classList.remove('visible'); }
+            // The toggle tracks its own state — when the panel was opened
+            // programmatically (direct /wardrobe load) the click can no-op.
+            // If the panel survived the toggle, hard-route to the dashboard.
+            if (wp.classList.contains('visible')) { window.location.assign('/dashboard'); return; }
           }
+          if (window.location.pathname !== '/dashboard') window._rbNav && window._rbNav('/dashboard');
           // Always land back on the dashboard home view
           if (window.App && App.goHome) { try { App.goHome(); } catch (e) {} }
           window.scrollTo(0, 0);
@@ -3728,10 +3805,19 @@
       // ── Moodboard system ─────────────────────────────────────────────
 
       // Storage (localStorage, mirrors snLoad pattern but keyed separately, per user)
-      const MB_KEY = 'robes_moodboards__' + _rbUid;
-      function _mbLoad() { try { return JSON.parse(localStorage.getItem(MB_KEY) || '[]'); } catch { return []; } }
+      function MB_KEY() { const u = _waUid(); return u ? 'robes_moodboards__' + u : null; }
+      // /moodboard/[name] slug — populated boards get their own URL
+      function _mbSlug(t) {
+        return String(t || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'board';
+      }
+      window._mbFindBySlug = function(slug) {
+        return _mbLoad().find(i => _mbSlug(i.title) === slug);
+      };
+      function _mbLoad() { const k = MB_KEY(); if (!k) return []; try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; } }
       function _mbSave(items) {
-        try { localStorage.setItem(MB_KEY, JSON.stringify(items)); }
+        const k = MB_KEY(); if (!k) return;
+        try { localStorage.setItem(k, JSON.stringify(items)); }
         catch (e) { if (items.length > 1) _mbSave(items.slice(0, items.length - 1)); }
       }
       function _mbAdd(item) {
@@ -4206,15 +4292,18 @@
                     : `<div style="background:var(--cream-200)"></div>`;
                   const palette = ['var(--cream-200)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-100)', 'var(--sage-100,#D4E0D0)', 'var(--rose-100,#E8D8D4)', 'var(--cream-200)'];
                   const extraUrls = [byType.hero_look[1], byType.flat_lay[0], byType.hero_look[2], byType.flat_lay[1], byType.atmosphere[0], byType.atmosphere[1], null];
+                  const stillPending = !data.done;
                   const extras = extraUrls.map((url, i) =>
-                    url ? `<img src="${_mbEsc(url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" alt="">` : `<div class="mb-ph-cell" style="background:${palette[i]}"></div>`
+                    url
+                      ? `<img src="${_mbEsc(url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" alt="">`
+                      : `<div class="mb-ph-cell${stillPending ? ' rb-tile-loading' : ''}" style="background:${palette[i]};${stillPending ? 'animation:kpPhPulse 1.8s ease-in-out infinite;' : ''}">${stillPending ? '<div class="rb-spin"></div>' + (i === 0 ? '<span class="rb-cap">Creating imagery…</span>' : '') : ''}</div>`
                   ).join('');
                   mosaicEl.innerHTML = heroHtml + editorialHtml + extras;
                   if (heroUrl) { const h = document.getElementById('mb-mosaic-hero'); if (h) h.src = heroUrl; }
                 }
               }
               if (!data.done) setTimeout(tick, 4000);
-              else document.querySelectorAll('#mb-mosaic .mb-ph-cell, #mb-mosaic .mme-hero:not(img)').forEach(el => { el.style.animation = 'none'; const s = el.querySelector('span'); if (s && s.textContent === 'Creating imagery…') s.remove(); });
+              else document.querySelectorAll('#mb-mosaic .mb-ph-cell, #mb-mosaic .mme-hero:not(img)').forEach(el => { el.style.animation = 'none'; el.classList.remove('rb-tile-loading'); el.querySelectorAll('.rb-spin, .rb-cap').forEach(n => n.remove()); const s = el.querySelector('span'); if (s && s.textContent === 'Creating imagery…') s.remove(); });
             })
             .catch(() => { if (attempts < maxAttempts) setTimeout(tick, 6000); });
         }
@@ -4317,7 +4406,7 @@
           const extras = extraUrls.map((url, i) =>
             url
               ? `<img src="${_mbEsc(url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" alt="">`
-              : `<div class="mb-ph-cell" style="background:${palette[i]};${mbPending ? 'animation:kpPhPulse 1.8s ease-in-out infinite;' : ''}display:flex;align-items:center;justify-content:center">${mbPending && i === 0 ? '<span style="font-family:var(--font-serif,Georgia,serif);font-style:italic;font-size:13px;color:rgba(32,32,33,0.35);padding:0 14px;text-align:center">Creating imagery…</span>' : ''}</div>`
+              : `<div class="mb-ph-cell${mbPending ? ' rb-tile-loading' : ''}" style="background:${palette[i]};${mbPending ? 'animation:kpPhPulse 1.8s ease-in-out infinite;' : 'display:flex;align-items:center;justify-content:center;'}">${mbPending ? '<div class="rb-spin"></div>' + (i === 0 ? '<span class="rb-cap">Creating imagery…</span>' : '') : ''}</div>`
           ).join('');
           mosaicEl.innerHTML = heroHtml + editorialHtml + extras;
           if (heroUrl) {
@@ -4423,11 +4512,17 @@
         console.log('[robes] moodboard-panel el:', !!panel);
         if (panel) {
           panel.classList.add('visible');
-          panel.style.cssText = 'position:fixed;inset:0;top:60px;z-index:400;background:var(--cream,#FAF8F5);overflow-y:auto';
+          // z-index 40 — BELOW the nav (50) so the avatar dropdown stays
+          // interactive, and below the rename/share sheets (200) so the
+          // board's own modals render on top. 400 buried all of them.
+          panel.style.cssText = 'position:fixed;inset:0;top:60px;z-index:40;background:var(--cream,#FAF8F5);overflow-y:auto';
           panel.scrollTop = 0;
         }
         window.scrollTo(0, 0);
         console.log('[robes] panel classes after:', panel?.className);
+
+        // A populated board lives at its own address
+        window._rbNav && window._rbNav('/moodboard/' + _mbSlug(title));
 
         // Store for save
         if (panel) panel._currentData = data;
@@ -4504,10 +4599,15 @@
 
       window.__mbCloseResult = function() {
         const panel = document.getElementById('moodboard-panel');
+        const wasOpen = panel && panel.classList.contains('visible');
         if (panel) { panel.classList.remove('visible'); panel.style.cssText = ''; }
+        const fromList = window._mbOpenedFromList;
         window._mbOpenedFromList = false;
         _waAfterAdd = null; // leaving the board cancels any armed snap-mine swap
         window.rbClearCrumb && window.rbClearCrumb();
+        if (wasOpen && window.location.pathname.indexOf('/moodboard/') === 0) {
+          window._rbNav && window._rbNav(fromList ? '/moodboards' : '/dashboard');
+        }
       };
 
       window.__mbSaveMoodboard = function() {
@@ -4597,7 +4697,7 @@
                 <button onclick="window.__mbSnapMine()" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#EDE8E0;border:none;border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
                   ${cameraSvg} Snap mine
                 </button>
-                <button onclick="_waShowToast('Affiliate links coming soon')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
+                <button onclick="window.__rbAffiliateSoon('mb-swap-modal')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
                   Shop via Affiliate ${arrowSvg}
                 </button>
               </div>
@@ -4784,6 +4884,10 @@
           }
           if (p === '/lookbook') window.__snOpen && window.__snOpen();
           else if (p === '/moodboards') window._mbShowAllPage && window._mbShowAllPage();
+          else if (p.indexOf('/moodboard/') === 0) {
+            const item = window._mbFindBySlug && window._mbFindBySlug(p.slice('/moodboard/'.length));
+            if (item && window.__mbOpenSaved) window.__mbOpenSaved(item.id);
+          }
           else if (p === '/wardrobe') { if (!wpOpen && window.App && App.showWardrobe) App.showWardrobe(); }
           else window.rbClearCrumb && window.rbClearCrumb();
         } catch (e) {} finally { _rbRouting = false; }

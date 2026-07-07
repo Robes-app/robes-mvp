@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>(function(){var iOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(/Mac/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);if(iOS){var v=document.querySelector('meta[name="viewport"]');if(v)v.setAttribute('content','width=device-width, initial-scale=1, maximum-scale=1');}})();</script>
 <title>Robes — Style your key piece</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -254,7 +255,7 @@
             </div>
           </div>
           <input type="file" id="cap-file" accept="image/*" hidden onchange="App.onFile(this)">
-          <input type="file" id="cap-cam" accept="image/*" capture="environment" hidden onchange="App.onFile(this)">
+          <input type="file" id="cap-cam" accept="image/*" hidden onchange="App.onFile(this)">
         </div>
 
       </div>
@@ -412,7 +413,7 @@
         <div class="fm-recent" id="fm-recent" hidden></div>
 
         <input type="file" id="fm-file" accept="image/*" hidden onchange="App.onFile(this)">
-        <input type="file" id="fm-cam" accept="image/*" capture="environment" hidden onchange="App.onFile(this)">
+        <input type="file" id="fm-cam" accept="image/*" hidden onchange="App.onFile(this)">
       </section>
 
       <!-- STEP · NAME -->
