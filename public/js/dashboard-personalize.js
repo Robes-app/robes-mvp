@@ -1133,11 +1133,14 @@
       // clears. If the migration hasn't run yet every call fails silently
       // and the app behaves exactly as before (local-only).
       function _lbRowToItem(r) {
-        return { id: Number(r.id), type: r.type || 'key-piece', title: r.title || '', subtitle: r.subtitle || '', img: r.img || null, saved_at: r.created_at, ...(r.data && typeof r.data === 'object' ? r.data : {}) };
+        return { id: Number(r.id), type: r.type || 'key-piece', title: r.title || '', subtitle: r.subtitle || '', img: r.img || null, saved_at: r.created_at, ...(r.share_id ? { share_id: r.share_id, is_public: !!r.is_public } : {}), ...(r.data && typeof r.data === 'object' ? r.data : {}) };
       }
       function _lbItemToRow(item) {
-        const { id, type, title, subtitle, img, saved_at, ...data } = item;
-        return { id, user_id: _waUid(), type: type || 'key-piece', title: title || '', subtitle: subtitle || '', img: img || null, data };
+        // share_id/is_public are real columns (share_migration.sql) — keep
+        // them out of the data jsonb and carry them on pushes so a re-sync
+        // never breaks a published /board/ link.
+        const { id, type, title, subtitle, img, saved_at, share_id, is_public, ...data } = item;
+        return { id, user_id: _waUid(), type: type || 'key-piece', title: title || '', subtitle: subtitle || '', img: img || null, ...(share_id ? { share_id, is_public: !!is_public } : {}), data };
       }
       function _lbCloudPush(item) {
         if (!_waUid()) return;
@@ -1740,6 +1743,7 @@
 
             <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap">
               <button onclick="window.__kpGoBack()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">← Dashboard</button>
+              <button onclick="window.__rbShare&&window.__rbShare()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Share my look</button>
               <button onclick="window.__kpGoBack();setTimeout(()=>{KP&&KP.openKeyPiece&&KP.openKeyPiece()},200)" style="padding:12px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}">Style another piece</button>
             </div>
           </div>`; } catch(e) {
@@ -2091,6 +2095,7 @@
 
             <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap">
               <button onclick="window.__dlGoBack()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">← Dashboard</button>
+              <button onclick="window.__rbShare&&window.__rbShare()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Share this look</button>
               <button onclick="window.__dlGoBack();setTimeout(()=>{window.__dlSubmit(${JSON.stringify(String(promptText || '')).replace(/"/g, '&quot;')})},200)" style="padding:12px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}">Dress me again</button>
             </div>
           </div>`; } catch (e) {
@@ -2832,6 +2837,7 @@
             <div class="tv-noprint" style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap">
               <button onclick="window.__tvGoBack()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">← Dashboard</button>
               <button onclick="window.__tvExport()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Export PDF</button>
+              <button onclick="window.__rbShare&&window.__rbShare()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Share</button>
               <button onclick="window.__tvGoBack();setTimeout(()=>{window.__tvOpen()},200)" style="padding:12px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}">Pack another trip</button>
             </div>
           </div>`; } catch (e) {
@@ -3251,6 +3257,141 @@
           const boardTitle = t && t.textContent ? t.textContent.trim() : '';
           window.__tvOpen({ brief: boardTitle ? 'Channel the mood of my “' + boardTitle + '” board.' : '' });
         };
+      }
+
+      // ── Real share flow (moodboards + lookbook) ──────────────────────
+      // Replaces the bundle's mock share-sheet: the saved entry is flipped
+      // is_public + given a share_id (owner-JWT PATCH, RLS enforced), and the
+      // permanent public page lives at /board/<share_id>. The modal mirrors
+      // byrobes.com's "Can we share your look?" — IG handle capture + copy link.
+      function _shareActiveEntry() {
+        const panel = document.getElementById('moodboard-panel');
+        if (panel && panel.classList.contains('visible') && panel._savedId) {
+          return _mbLoad().find(i => i.id === panel._savedId) || null;
+        }
+        if (tvResultPage && tvResultPage.style.display !== 'none' && _tvActiveSaveId) {
+          return snLoad().find(i => i.id === _tvActiveSaveId) || null;
+        }
+        if (dlResultPage && dlResultPage.style.display !== 'none' && _dlActiveSaveId) {
+          return snLoad().find(i => i.id === _dlActiveSaveId) || null;
+        }
+        if (kpResultPage && kpResultPage.style.display !== 'none' && _kpActiveSaveId) {
+          return snLoad().find(i => i.id === _kpActiveSaveId) || null;
+        }
+        return null;
+      }
+
+      function _shareMarkLocal(id, sid) {
+        const sn = snLoad(); const a = sn.find(i => i.id === id);
+        if (a) { a.share_id = sid; a.is_public = true; snSave(sn); return; }
+        const mb = _mbLoad(); const b = mb.find(i => i.id === id);
+        if (b) { b.share_id = sid; b.is_public = true; _mbSave(mb); }
+      }
+
+      async function _shareEnsurePublic(entry) {
+        if (entry.share_id) return entry.share_id;
+        const sid = Array.from(crypto.getRandomValues(new Uint8Array(5))).map(b => b.toString(16).padStart(2, '0')).join('');
+        const q = 'lookbook_items?id=eq.' + entry.id + '&user_id=eq.' + _waUid();
+        let rows = await _waFetch('PATCH', q, { share_id: sid, is_public: true });
+        if (!rows || !rows.length) {
+          // Row hasn't reached the cloud yet (fresh save / offline) — push and retry once
+          _lbCloudPush(entry);
+          await new Promise(r => setTimeout(r, 1200));
+          rows = await _waFetch('PATCH', q, { share_id: sid, is_public: true });
+          if (!rows || !rows.length) throw new Error('share row missing');
+        }
+        _shareMarkLocal(entry.id, sid);
+        entry.share_id = sid;
+        return sid;
+      }
+
+      window.__rbShare = async function() {
+        const entry = _shareActiveEntry();
+        document.getElementById('rb-share-modal')?.remove();
+        if (!entry) { _waShowToast('Style something first — then share it'); return; }
+
+        const modal = document.createElement('div');
+        modal.id = 'rb-share-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(32,32,33,0.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        const thumb = entry.img
+          ? `<img src="${_waEsc(entry.img)}" style="width:52px;height:64px;object-fit:cover;border-radius:8px;flex:none" alt="">`
+          : `<div style="width:52px;height:64px;border-radius:8px;background:#EDE8E0;flex:none"></div>`;
+        modal.innerHTML = `
+          <div style="position:relative;background:#FAF8F5;border-radius:18px;width:100%;max-width:440px;padding:34px 32px 30px;box-shadow:0 24px 60px -12px rgba(32,32,33,0.3)">
+            <button onclick="document.getElementById('rb-share-modal').remove()" style="position:absolute;top:14px;right:14px;width:32px;height:32px;background:none;border:none;cursor:pointer;color:#A89880;font-size:20px;line-height:1">×</button>
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+              ${thumb}
+              <div><p style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 4px">Share</p>
+              <p style="font-family:'Cormorant',Georgia,serif;font-size:19px;font-weight:300;color:#202021;margin:0;line-height:1.2">${_waEsc(entry.title || 'Your look')}</p></div>
+            </div>
+            <h3 style="font-family:'Cormorant',Georgia,serif;font-size:27px;font-weight:300;color:#202021;margin:0 0 8px;line-height:1.1">Can we share your look?</h3>
+            <p style="font-size:12.5px;color:#A89880;line-height:1.6;margin:0 0 18px">Add your Instagram handle and we’ll tag you when we showcase this week’s best looks.</p>
+            <div style="display:flex;align-items:center;gap:8px;border:1px solid rgba(32,32,33,0.15);border-radius:10px;padding:12px 14px;background:#fff;margin-bottom:12px">
+              <span style="color:#A89880;font-size:14px">@</span>
+              <input id="rb-share-ig" type="text" placeholder="yourhandle" autocomplete="off" style="flex:1;min-width:0;border:none;outline:none;background:none;font-size:16px;font-family:inherit;color:#202021">
+            </div>
+            <button id="rb-share-go" style="width:100%;padding:15px;background:#202021;color:#FAF8F5;border:none;border-radius:10px;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;margin-bottom:14px">Share my look</button>
+            <div id="rb-share-copyrow" style="display:flex;align-items:center;gap:10px;border:0.5px solid rgba(32,32,33,0.12);border-radius:10px;padding:11px 14px;background:rgba(32,32,33,0.03);cursor:pointer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span id="rb-share-url" style="flex:1;min-width:0;font-size:12px;color:#6E6A64;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Preparing your link…</span>
+              <button id="rb-share-copy" style="background:none;border:none;cursor:pointer;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#202021" disabled>Copy</button>
+            </div>
+            <p id="rb-share-note" style="font-size:11px;color:#A89880;text-align:center;margin:12px 0 0">Anyone with the link can view this look — no account details are shown.</p>
+          </div>`;
+        document.body.appendChild(modal);
+
+        const igInput = modal.querySelector('#rb-share-ig');
+        const prof = window.__robes_profile || {};
+        if (prof.instagram_handle) igInput.value = prof.instagram_handle;
+
+        let shareUrl = null;
+        try {
+          const sid = await _shareEnsurePublic(entry);
+          shareUrl = window.location.origin + '/board/' + sid;
+          const u = modal.querySelector('#rb-share-url');
+          if (u) u.textContent = shareUrl.replace(/^https?:\/\//, '');
+          const cp = modal.querySelector('#rb-share-copy');
+          if (cp) cp.disabled = false;
+        } catch (e) {
+          console.warn('[robes] share publish failed:', String(e.message || e).slice(0, 140));
+          const u = modal.querySelector('#rb-share-url');
+          if (u) u.textContent = 'Couldn’t publish this look — try again shortly';
+        }
+
+        function saveHandle() {
+          const clean = igInput.value.trim().replace(/^@+/, '');
+          if (!clean) return;
+          if (prof.instagram_handle !== clean) {
+            prof.instagram_handle = clean;
+            _waFetch('PATCH', 'profiles?id=eq.' + _waUid(), { instagram_handle: clean }).catch(() => {});
+            const email = (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '';
+            fetch('/api/instagram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, handle: clean }) }).catch(() => {});
+          }
+        }
+
+        const copyLink = () => {
+          if (!shareUrl) return;
+          (navigator.clipboard ? navigator.clipboard.writeText(shareUrl) : Promise.reject()).then(
+            () => _waShowToast('Link copied'),
+            () => { try { window.prompt('Copy your link', shareUrl); } catch (e) {} }
+          );
+        };
+        modal.querySelector('#rb-share-copyrow').onclick = () => { saveHandle(); copyLink(); };
+        modal.querySelector('#rb-share-go').onclick = async () => {
+          saveHandle();
+          if (!shareUrl) { _waShowToast('Link isn’t ready yet'); return; }
+          if (navigator.share) {
+            try { await navigator.share({ title: (entry.title || 'My look') + ' — styled by Robes', url: shareUrl }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+          }
+          copyLink();
+        };
+      };
+
+      // Every bundle Share button (moodboard, key-piece, daily look views)
+      // runs through the real flow instead of the mock sheet.
+      if (window.App && App.openShare) {
+        App.openShare = function() { window.__rbShare(); };
       }
 
       // "+New" from a board view-switches UNDER the fixed panel — close the

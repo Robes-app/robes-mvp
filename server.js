@@ -3,6 +3,7 @@ import express from 'express';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash, randomBytes } from 'crypto';
+import { readFileSync } from 'fs';
 import { GoogleGenAI } from '@google/genai';
 import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock } from './style_dna.js';
 
@@ -1247,6 +1248,127 @@ app.get('/moodboards', (req, res) => {
 
 app.get('/moodboard/:slug', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
+/* ── Public share pages — moodboards + lookbook (/board/:shareId) ──
+   Reads lookbook_items through the anon key: RLS only exposes rows the
+   owner explicitly flipped to is_public = true. The page is a single
+   template with server-injected OG/Twitter meta (crawlers don't run JS)
+   and the sanitized payload embedded inline — one Supabase round trip,
+   no app shell. */
+const SHARE_SUPA_URL = process.env.SUPABASE_URL || 'https://ayowpaknssulsqqvwpqx.supabase.co';
+const SHARE_SUPA_ANON = process.env.SUPABASE_ANON_KEY || 'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ';
+
+function htmlEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+const isHttpUrl = (u) => typeof u === 'string' && /^https:\/\//.test(u);
+
+// Whitelist-only public payload: no user ids, emails or account data ever
+// leave this function — just the content that is explicitly in the board.
+function publicSharePayload(row) {
+  const d = row.data && typeof row.data === 'object' ? row.data : {};
+  const type = row.type || 'key-piece';
+  const images = [];
+  const addImg = (u) => { if (isHttpUrl(u) && !images.includes(u) && images.length < 10) images.push(u); };
+  const pieces = [];
+  const addPiece = (name, brand, price) => {
+    if (typeof name === 'string' && name.trim() && pieces.length < 24) {
+      pieces.push({ name: name.trim(), brand: typeof brand === 'string' ? brand : '', price: typeof price === 'string' ? price : '' });
+    }
+  };
+  let tags = [];
+  let editorial = '';
+
+  addImg(row.img);
+  if (type === 'moodboard') {
+    addImg(d.hero_image);
+    (Array.isArray(d.grid_images) ? d.grid_images : []).forEach(g => addImg(g && g.url));
+    (Array.isArray(d.the_look) ? d.the_look : []).forEach(i => i && addPiece(i.name, i.brand_name || i.retailer_hint, i.price_point));
+    if (Array.isArray(d.aesthetic_tags)) tags = d.aesthetic_tags.filter(t => typeof t === 'string').slice(0, 6);
+    if (typeof d.editorial_direction === 'string') editorial = d.editorial_direction;
+  } else if (type === 'daily-look') {
+    const dl = d.dlData || {};
+    (Array.isArray(dl.steps) ? dl.steps : []).forEach(s => (Array.isArray(s && s.items) ? s.items : []).forEach(i => {
+      if (!i) return;
+      addPiece(i.name, i.brand, i.price_point);
+      addImg(i.image_url || i.img);
+    }));
+    if (typeof dl.stylist_summary === 'string') editorial = dl.stylist_summary;
+  } else if (type === 'travel-edit') {
+    const tv = d.tvData || {};
+    (Array.isArray(tv.capsule) ? tv.capsule : []).forEach(i => {
+      if (!i) return;
+      addPiece(i.name, i.brand, i.price_point);
+      addImg(i.image_url || i.img);
+    });
+    if (typeof tv.stylist_summary === 'string') editorial = tv.stylist_summary;
+  } else {
+    const kp = d.kpData || {};
+    (Array.isArray(kp.generatedImages) ? kp.generatedImages : []).forEach(addImg);
+    addImg(kp.photoUrl);
+    (Array.isArray(kp.ways) ? kp.ways : []).forEach(w => w && addPiece(w.title, w.eyebrow, ''));
+    if (kp.ways && kp.ways[0] && typeof kp.ways[0].outfit === 'string') editorial = kp.ways[0].outfit;
+  }
+
+  return {
+    type,
+    title: row.title || 'A look by Robes',
+    subtitle: row.subtitle || '',
+    images,
+    pieces,
+    tags,
+    editorial: editorial.slice(0, 400),
+  };
+}
+
+let _boardTpl = null;
+app.get('/board/:shareId', rateLimit({ windowMs: 60_000, max: 40 }), async (req, res) => {
+  const shareId = String(req.params.shareId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
+  if (!_boardTpl) {
+    try { _boardTpl = readFileSync(join(__dirname, 'public', 'board.html'), 'utf8'); }
+    catch (e) { return res.status(500).send('Share pages unavailable'); }
+  }
+  const send = (status, payload, og) => {
+    const json = JSON.stringify(payload).replace(/</g, '\\u003c');
+    res.status(status).type('html').send(_boardTpl.replace('<!--__OG__-->', og).replace('__BOARD_JSON__', json));
+  };
+  const notFound = () => send(404, { notFound: true },
+    `<title>Robes — this look isn’t shared any more</title>\n<meta property="og:title" content="Robes — styled by AI">`);
+
+  if (!shareId) return notFound();
+  try {
+    const r = await fetch(
+      `${SHARE_SUPA_URL}/rest/v1/lookbook_items?share_id=eq.${encodeURIComponent(shareId)}&is_public=eq.true&limit=1&select=type,title,subtitle,img,data,created_at`,
+      { headers: { apikey: SHARE_SUPA_ANON, Authorization: `Bearer ${SHARE_SUPA_ANON}` } }
+    );
+    const rows = r.ok ? await r.json() : [];
+    const row = Array.isArray(rows) && rows.length ? rows[0] : null;
+    if (!row) return notFound();
+    const payload = publicSharePayload(row);
+    const pageUrl = `${process.env.PUBLIC_URL || 'https://www.byrobes.com'}/board/${shareId}`;
+    const ogImage = payload.images[0] || '';
+    const desc = payload.editorial || payload.subtitle || 'One prompt. Dressed for anything.';
+    const og = [
+      `<title>${htmlEsc(payload.title)} — styled by Robes</title>`,
+      `<meta name="description" content="${htmlEsc(desc)}">`,
+      `<meta property="og:type" content="website">`,
+      `<meta property="og:site_name" content="Robes">`,
+      `<meta property="og:title" content="${htmlEsc(payload.title)} — styled by Robes">`,
+      `<meta property="og:description" content="${htmlEsc(desc)}">`,
+      ogImage ? `<meta property="og:image" content="${htmlEsc(ogImage)}">` : '',
+      `<meta property="og:url" content="${htmlEsc(pageUrl)}">`,
+      `<meta name="twitter:card" content="${ogImage ? 'summary_large_image' : 'summary'}">`,
+      `<meta name="twitter:title" content="${htmlEsc(payload.title)} — styled by Robes">`,
+      `<meta name="twitter:description" content="${htmlEsc(desc)}">`,
+      ogImage ? `<meta name="twitter:image" content="${htmlEsc(ogImage)}">` : '',
+    ].filter(Boolean).join('\n');
+    send(200, payload, og);
+  } catch (e) {
+    console.warn('[board] share fetch failed:', e.message);
+    notFound();
+  }
 });
 
 app.get('/stylenotes', (req, res) => {
