@@ -1013,6 +1013,134 @@ Build the ${limit}-piece capsule and the full ${tripDays}-day lookbook.`;
   }
 });
 
+/* ── travel edit: reactive day restyle (growth PRD — Reactive
+   Personalization). The lookbook's LLM-guessed itinerary is the baseline;
+   when the user declares a day's REAL plan, this surgical call re-dresses
+   only that day by re-mixing the existing capsule. At most ONE new gap
+   piece may be introduced, and only when the capsule genuinely cannot
+   serve the plan (e.g. a formal wedding with nothing formal packed). ── */
+const TRAVEL_DAY_SCHEMA = {
+  type: 'object',
+  properties: {
+    day_label: { type: 'string' },
+    new_item_needed: { type: 'boolean' },
+    new_item: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        tier: { type: 'string', enum: TRAVEL_TIERS },
+        category: { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Swim', 'Other'] },
+        brand: { type: 'string' },
+        description: { type: 'string' },
+        bridge: { type: 'string' },
+        retailer_hint: { type: 'string' },
+        price_point: { type: 'string' },
+      },
+      required: ['name', 'tier', 'category', 'brand', 'description', 'retailer_hint', 'price_point'],
+    },
+    slots: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          slot: { type: 'string', enum: ['Day', 'Evening'] },
+          title: { type: 'string' },
+          how: { type: 'string' },
+          formula: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                role: { type: 'string', enum: TRAVEL_ROLES },
+                item_index: { type: 'integer' },
+                note: { type: 'string' },
+              },
+              required: ['role', 'item_index', 'note'],
+            },
+          },
+        },
+        required: ['slot', 'title', 'how', 'formula'],
+      },
+    },
+  },
+  required: ['day_label', 'new_item_needed', 'slots'],
+};
+
+app.post('/api/travel/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
+  const { destination, brief, dayIndex, activity, capsule, weather, name, styleDna } = req.body;
+  const act = String(activity || '').trim().slice(0, 200);
+  const capIn = (Array.isArray(capsule) ? capsule : []).filter(c => c && c.name).slice(0, 20);
+  if (!act || !capIn.length) {
+    return res.status(400).json({ error: 'Missing plan or capsule.' });
+  }
+  const dayNum = (Number.isInteger(parseInt(dayIndex, 10)) ? parseInt(dayIndex, 10) : 0) + 1;
+  const dest = String(destination || '').trim().slice(0, 120) || 'the trip';
+  const dnaBlock = styleDnaPromptBlock(styleDna, capIn.filter(c => c.owned).length);
+
+  const capList = capIn.map((c, i) =>
+    `${i}: ${c.name}${c.category ? ' [' + c.category + ']' : ''}${c.brand ? ', ' + c.brand : ''}${c.owned ? ' (hers)' : ''}`
+  ).join('\n');
+  const wxLine = weather && weather.tempRange
+    ? `MICRO-CLIMATE: ${weather.city || dest} — ${weather.tempRange}, mostly ${weather.condition || 'mixed conditions'}.`
+    : '';
+
+  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. The user is refining ONE day of an existing capsule lookbook for ${dest}${brief ? ` (trip brief: "${String(brief).slice(0, 300)}")` : ''}. Never output a generic outfit — ban flat phrasing; every "how" line is hyper-specific (cut, fabric, styling move).
+
+THE PACKED CAPSULE (referenced by "item_index"):
+${capList}
+
+RULES:
+1. Re-dress Day ${dayNum} for the user's REAL plan: "${act}". Exactly 2 slots — "Day" then "Evening" — mapping the plan sensibly across them (a single big event: style the lead-up as "Day" and the event itself as "Evening", or vice versa if it's a daytime event).
+2. RE-MIX FIRST. Build every outfit ONLY from the capsule via "item_index" and the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" says how the piece is worn in THIS look.
+3. Set "new_item_needed": true ONLY if the plan genuinely cannot be dressed from the capsule (e.g. a formal wedding with nothing remotely formal packed). Then give "new_item" — one real gap piece with retailer_hint, a realistic EUR price_point and a "bridge" clause (what it connects + looks it unlocks) — and reference it in the formulas as item_index ${capIn.length}. Otherwise "new_item_needed": false.
+4. "day_label": "Day ${dayNum} · {2–4 word title of the plan}". "title" per slot: 3–6 words naming the scene.${dnaBlock ? '\n\n' + dnaBlock : ''}
+${wxLine}`;
+
+  try {
+    const t0 = Date.now();
+    const r = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: `Restyle Day ${dayNum} for: "${act}".` }] }],
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: TRAVEL_DAY_SCHEMA,
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: 2500,
+      },
+    });
+    const parsed = JSON.parse(r.text);
+
+    let newItem = parsed.new_item_needed === true && parsed.new_item && parsed.new_item.name
+      ? { ...parsed.new_item, tier: TRAVEL_TIERS.includes(parsed.new_item.tier) ? parsed.new_item.tier : TRAVEL_TIERS[1], wardrobe_index: -1 }
+      : null;
+    const maxIdx = capIn.length - 1 + (newItem ? 1 : 0);
+    const slots = (Array.isArray(parsed.slots) ? parsed.slots : [])
+      .slice(0, 2)
+      .map(s => {
+        s.formula = (Array.isArray(s.formula) ? s.formula : [])
+          .filter(f => f && TRAVEL_ROLES.includes(f.role) && Number.isInteger(f.item_index) && f.item_index >= 0 && f.item_index <= maxIdx)
+          .slice(0, 6);
+        return s;
+      })
+      .filter(s => s.formula.length);
+    if (!slots.length) throw new Error('empty day restyle');
+    // A suggested gap piece that no formula actually uses is dropped
+    if (newItem && !slots.some(s => s.formula.some(f => f.item_index === capIn.length))) newItem = null;
+
+    logAI({ feature: 'travel-day', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, day: dayNum, slots: slots.length, newItem: !!newItem });
+    res.json({
+      day_label: parsed.day_label || `Day ${dayNum}`,
+      slots,
+      new_item: newItem,
+    });
+  } catch (err) {
+    logAI({ feature: 'travel-day', stage: 'text', success: false, reason: err.message });
+    console.error('[travel-day] Gemini error:', err.message);
+    res.status(500).json({ error: err.message || 'Day restyle failed' });
+  }
+});
+
 /* ── look share ──────────────────────────────────────────────────── */
 const BASE_URL = process.env.PUBLIC_URL || 'https://www.byrobes.com';
 

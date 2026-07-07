@@ -2593,7 +2593,10 @@
           const s = document.createElement('style');
           s.id = 'tv-style';
           s.textContent =
-            '@media(max-width:700px){.tv-head{grid-template-columns:1fr !important}.tv-hero{max-width:320px}}' +
+            '@media(max-width:700px){.tv-head{grid-template-columns:1fr !important}.tv-hero{max-width:320px}' +
+            // One day per swipe — the lookbook reads as a pager, not a wall
+            '.tv-daycol{flex:0 0 84vw !important;max-width:340px}' +
+            '.tv-sheet-wrap{align-items:flex-end !important;padding:0 !important}.tv-sheet{border-radius:20px 20px 0 0 !important;max-width:none !important}}' +
             '@media print{body>*:not(#tv-result-page){display:none !important}#tv-result-page{position:static !important;overflow:visible !important}' +
             '.tv-noprint{display:none !important}.tv-days{flex-wrap:wrap !important;overflow:visible !important}.tv-slotx{display:block !important}}';
           document.head.appendChild(s);
@@ -2667,10 +2670,13 @@
         const daysHtml = data.days.map((d, di) => {
           const slotsHtml = (d.slots || []).map((s, si) => {
             const isEve = s.slot === 'Evening';
-            const chips = (s.formula || []).map(f => {
-              const it = data.capsule[f.item_index];
-              return it ? `<span style="font-size:10px;color:#6E6A64;background:#F0EDE8;border-radius:20px;padding:2px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${_waEsc(it.name)}</span>` : '';
-            }).join('');
+            // Cap the visible piece chips — the full build lives one tap
+            // away in the 4-step expand; uncapped chips were the main
+            // source of mobile noise.
+            const fitems = (s.formula || []).filter(f => data.capsule[f.item_index]);
+            const chips = fitems.slice(0, 3).map(f =>
+              `<span style="font-size:10px;color:#6E6A64;background:#F0EDE8;border-radius:20px;padding:2px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${_waEsc(data.capsule[f.item_index].name)}</span>`
+            ).join('') + (fitems.length > 3 ? `<span style="font-size:10px;color:#A89880;background:#F7F4EE;border-radius:20px;padding:2px 8px;white-space:nowrap">+${fitems.length - 3} more</span>` : '');
             const detail = (s.formula || []).map(f => {
               const it = data.capsule[f.item_index];
               if (!it) return '';
@@ -2693,8 +2699,9 @@
               </div>
             </div>`;
           }).join('');
-          return `<div style="flex:0 0 258px;scroll-snap-align:start;display:flex;flex-direction:column;gap:10px">
-            <div style="font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#8A7B62;padding:0 2px">${_waEsc(d.day_label || 'Day ' + (di + 1))}</div>
+          const pencilSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
+          return `<div class="tv-daycol" style="flex:0 0 258px;scroll-snap-align:start;display:flex;flex-direction:column;gap:10px">
+            <button onclick="window.__tvEditDay(${di})" title="Change this day’s plan" style="align-self:flex-start;display:inline-flex;align-items:center;gap:7px;border:0.5px solid rgba(32,32,33,0.16);border-radius:40px;background:#fff;padding:5px 12px;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#57503F;cursor:pointer;font-family:${sans}">${_waEsc(d.day_label || 'Day ' + (di + 1))} <span class="tv-noprint" style="display:inline-flex;color:#B8AC9C">${pencilSvg}</span></button>
             ${slotsHtml}
           </div>`;
         }).join('');
@@ -2764,7 +2771,7 @@
 
             <div style="height:0.5px;background:rgba(32,32,33,0.1);margin:16px 0 28px"></div>
             <div style="font-family:${serif};font-weight:400;font-size:27px;color:#202021;line-height:1.1;margin-bottom:6px">The lookbook</div>
-            <div style="font-size:12px;color:#A89880;font-style:italic;margin-bottom:18px">Day by day — tap a look to see its four-step build.</div>
+            <div style="font-size:12px;color:#A89880;font-style:italic;margin-bottom:18px">Day by day — tap a look for its four-step build, or tap a day’s title to tell Robes the real plan.</div>
             <div class="tv-days" style="display:flex;gap:14px;overflow-x:auto;padding:4px 2px 18px;scroll-snap-type:x mandatory;align-items:flex-start">${daysHtml}</div>
 
             <div class="tv-noprint" style="margin-top:42px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center">
@@ -2857,8 +2864,92 @@
         const savedId = _tvActiveSaveId;
         if (!savedId || !window.__lastTvData) return;
         const saved = snLoad().find(x => x.id === savedId);
-        if (saved) snUpdate(savedId, { tvData: { ...(saved.tvData || {}), capsule: window.__lastTvData.capsule } });
+        if (saved) snUpdate(savedId, { tvData: { ...(saved.tvData || {}), capsule: window.__lastTvData.capsule, days: window.__lastTvData.days } });
       }
+
+      // ── Reactive day restyle (growth PRD — Reactive Personalization) ──
+      // The LLM-guessed itinerary is only the baseline: tapping a day's
+      // title captures the real plan and surgically re-dresses that day
+      // from the capsule already packed.
+      window.__tvEditDay = function(di) {
+        const data = window.__lastTvData;
+        const d = data && data.days[di];
+        if (!d) return;
+        document.getElementById('tv-day-modal')?.remove();
+        const serif = "'Cormorant',Georgia,serif";
+        const dayName = (d.day_label || 'Day ' + (di + 1)).split('·')[0].trim();
+        const chips = ['Formal wedding', 'Dressy dinner', 'Beach club', 'Boat day', 'City wandering', 'Active / hiking', 'Business day', 'Big night out'];
+        const chipsHtml = chips.map(c =>
+          `<button onclick="window.__tvDayChip('${_waEsc(c)}')" style="padding:7px 14px;border:0.5px solid rgba(32,32,33,0.16);border-radius:40px;background:#fff;font-size:11.5px;cursor:pointer;color:#202021;font-family:inherit">${_waEsc(c)}</button>`
+        ).join('');
+        const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        const modal = document.createElement('div');
+        modal.id = 'tv-day-modal';
+        modal.className = 'tv-sheet-wrap';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML = `
+          <div class="tv-sheet" style="background:#FAF8F5;border-radius:20px;width:100%;max-width:440px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 24px 28px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">${_waEsc(dayName)}</p>
+              <button onclick="document.getElementById('tv-day-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+            </div>
+            <p style="font-family:${serif};font-size:25px;font-weight:300;color:#202021;margin:0 0 6px;line-height:1.15">What are you actually doing?</p>
+            <p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 16px">Robes re-mixes the capsule you’ve packed — a new piece only appears if the plan truly needs it.</p>
+            <input id="tv-day-input" value="${_waEsc(d.user_activity || '')}" placeholder="Attending a formal sunset wedding reception" style="width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:14px">
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:20px">${chipsHtml}</div>
+            <button id="tv-day-apply" onclick="window.__tvDayApply(${di})" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Update day</button>
+          </div>`;
+        document.body.appendChild(modal);
+        setTimeout(() => { const el = document.getElementById('tv-day-input'); if (el) el.focus(); }, 60);
+      };
+
+      window.__tvDayChip = function(text) {
+        const el = document.getElementById('tv-day-input');
+        if (el) { el.value = text; el.focus(); }
+      };
+
+      window.__tvDayApply = async function(di) {
+        const data = window.__lastTvData;
+        const d = data && data.days[di];
+        if (!d) return;
+        const act = ((document.getElementById('tv-day-input') || {}).value || '').trim();
+        if (!act) { _waShowToast('Tell us the plan first'); return; }
+        const btn = document.getElementById('tv-day-apply');
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = 'Restyling the day…'; }
+        try {
+          const res = await fetch('/api/travel/day', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              destination: data.destination || '',
+              brief: data.brief || '',
+              dayIndex: di,
+              activity: act,
+              weather: data.weather || null,
+              name,
+              styleDna: _rbStyleDna(),
+              capsule: data.capsule.map(c => ({ name: c.name, category: c.category, brand: c.brand, tier: c.tier, owned: !!c.wardrobe_match })),
+            }),
+          });
+          if (!res.ok) throw new Error(await res.text());
+          const out = await res.json();
+          if (!Array.isArray(out.slots) || !out.slots.length) throw new Error('empty day');
+          if (out.new_item) data.capsule.push({ ...out.new_item, wardrobe_match: null });
+          data.days[di] = { day_label: out.day_label || d.day_label, user_activity: act, slots: out.slots };
+          document.getElementById('tv-day-modal')?.remove();
+          const savedId = _tvActiveSaveId;
+          const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
+          window.__tvRenderResult(data, { skipSave: true, savedId });
+          if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
+          _tvPatchSaved();
+          _waShowToast(out.new_item ? 'Day restyled — one gap piece joined the capsule' : 'Day restyled from your capsule');
+        } catch (e) {
+          console.error('[Robes] /api/travel/day error:', e.message);
+          if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Update day'; }
+          _waShowToast('Couldn’t restyle the day — please try again');
+        }
+      };
 
       function _tvPaintPackProgress() {
         const data = window.__lastTvData;
