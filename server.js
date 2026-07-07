@@ -221,7 +221,7 @@ const STYLE_SCHEMA = {
 };
 
 app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { photo, link, prompt, name, pieceName, styleDna, wardrobeCount, wardrobeItems, intent, context: rtContext } = req.body;
+  const { photo, link, prompt, name, pieceName, styleDna, styleIcons, wardrobeCount, wardrobeItems, intent, context: rtContext } = req.body;
 
   if (!photo && !link && !prompt) {
     return res.status(400).json({ error: 'Provide at least a photo, link, or prompt.' });
@@ -232,7 +232,7 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
   const piece = pieceName ? `The key piece is described as: "${pieceName}".` : '';
   const context = prompt ? `Additional context from the user: "${prompt}".` : '';
   const linkCtx = link ? `The user provided a product link for reference: ${link}.` : '';
-  const dnaBlock = styleDnaPromptBlock(styleDna, Number(wardrobeCount) || 0);
+  const dnaBlock = styleDnaPromptBlock(styleDna, Number(wardrobeCount) || 0, styleIcons);
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
   const closetBlock = closetItems.length
@@ -434,11 +434,11 @@ const DAILY_SCHEMA = {
 };
 
 app.post('/api/daily', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { prompt, name, styleDna, wardrobeItems, context: rtContext } = req.body;
+  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext } = req.body;
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
   const n = closetItems.length;
-  const dnaBlock = styleDnaPromptBlock(styleDna, n);
+  const dnaBlock = styleDnaPromptBlock(styleDna, n, styleIcons);
 
   const closetBlock = n
     ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by index):\n${closetItems.map((i, idx) =>
@@ -755,7 +755,7 @@ function travelUnderusedItems(capsule, days) {
 }
 
 app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
-  const { destination, dateFrom, dateTo, brief, itemLimit, name, styleDna, wardrobeItems, anchorIds } = req.body;
+  const { destination, dateFrom, dateTo, brief, itemLimit, name, styleDna, styleIcons, wardrobeItems, anchorIds } = req.body;
   if (!destination || !String(destination).trim()) {
     return res.status(400).json({ error: 'Tell us where you’re going first.' });
   }
@@ -763,7 +763,7 @@ app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
   const dest = String(destination).trim().slice(0, 120);
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
   const n = closetItems.length;
-  const dnaBlock = styleDnaPromptBlock(styleDna, n);
+  const dnaBlock = styleDnaPromptBlock(styleDna, n, styleIcons);
   let limit = Math.min(15, Math.max(8, parseInt(itemLimit, 10) || 13));
 
   // The packed core (growth PRD, aggressive-capture revision) — every
@@ -1067,7 +1067,7 @@ const TRAVEL_DAY_SCHEMA = {
 };
 
 app.post('/api/travel/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { destination, brief, dayIndex, activity, capsule, weather, name, styleDna } = req.body;
+  const { destination, brief, dayIndex, activity, capsule, weather, name, styleDna, styleIcons } = req.body;
   const act = String(activity || '').trim().slice(0, 200);
   const capIn = (Array.isArray(capsule) ? capsule : []).filter(c => c && c.name).slice(0, 20);
   if (!act || !capIn.length) {
@@ -1075,7 +1075,7 @@ app.post('/api/travel/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req
   }
   const dayNum = (Number.isInteger(parseInt(dayIndex, 10)) ? parseInt(dayIndex, 10) : 0) + 1;
   const dest = String(destination || '').trim().slice(0, 120) || 'the trip';
-  const dnaBlock = styleDnaPromptBlock(styleDna, capIn.filter(c => c.owned).length);
+  const dnaBlock = styleDnaPromptBlock(styleDna, capIn.filter(c => c.owned).length, styleIcons);
 
   const capList = capIn.map((c, i) =>
     `${i}: ${c.name}${c.category ? ' [' + c.category + ']' : ''}${c.brand ? ', ' + c.brand : ''}${c.owned ? ' (hers)' : ''}`
@@ -1635,7 +1635,7 @@ app.post('/api/stylenotes/tryon', rateLimit({ windowMs: 60_000, max: 6 }), async
 
 /* ── moodboard ───────────────────────────────────────────────────── */
 app.post('/api/moodboard', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { prompt, wardrobeItems = [], styleDna = null } = req.body;
+  const { prompt, wardrobeItems = [], styleDna = null, styleIcons = [] } = req.body;
   if (!prompt?.trim()) return res.status(400).json({ error: 'prompt required' });
 
   const wardrobeCtx = wardrobeItems.length
@@ -1649,7 +1649,7 @@ app.post('/api/moodboard', rateLimit({ windowMs: 60_000, max: 10 }), async (req,
 Everything you generate must be specific to the brief above — destination, climate, occasion, and aesthetic must all reflect it directly.
 
 ${wardrobeCtx}
-${styleDnaPromptBlock(styleDna, wardrobeItems.length)}
+${styleDnaPromptBlock(styleDna, wardrobeItems.length, styleIcons)}
 
 Return this JSON shape (all fields must reflect the user's brief, not a generic example):
 {

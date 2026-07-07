@@ -1,6 +1,10 @@
     window.__robes_personalize = function() {
       // Build marker — verify which version is live from the browser console.
       console.log('[robes] personalize build: snap-mine all-fields shim + wa-grid capture guard (2026-07-06e)');
+      const _rbStyleIcons = () => {
+        const ic = (window.__robes_profile || {}).style_icons;
+        return Array.isArray(ic) && ic.length ? ic : [];
+      };
       const _rbStyleDna = () => {
         const dna = (window.__robes_profile || {}).style_dna;
         return dna && typeof dna === 'object' && (dna.color_harmony || dna.silhouette_proportions) ? dna : null;
@@ -1524,7 +1528,7 @@
               const res = await fetch('/api/style', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, photo: photoData, styleDna: _rbStyleDna(), wardrobeCount: _waItems.length, wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })), intent: 'style' }),
+                body: JSON.stringify({ prompt, photo: photoData, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), wardrobeCount: _waItems.length, wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })), intent: 'style' }),
               });
               clearInterval(msgInterval);
               overlay.style.display = 'none';
@@ -1925,7 +1929,7 @@
             body: JSON.stringify({
               prompt,
               name,
-              styleDna: _rbStyleDna(),
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
               context,
             }),
@@ -2559,7 +2563,7 @@
               itemLimit: limit,
               anchorIds,
               name,
-              styleDna: _rbStyleDna(),
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
             }),
           });
@@ -2963,7 +2967,7 @@
               activity: act,
               weather: data.weather || null,
               name,
-              styleDna: _rbStyleDna(),
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               capsule: data.capsule.map(c => ({ name: c.name, category: c.category, brand: c.brand, tier: c.tier, owned: !!c.wardrobe_match })),
             }),
           });
@@ -3995,7 +3999,7 @@
             body: JSON.stringify({
               prompt,
               photo: photoData || null,
-              styleDna: _rbStyleDna(),
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeCount: _waItems.length,
               wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })),
               intent,
@@ -4226,7 +4230,7 @@
           const res = await fetch('/api/moodboard', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ prompt, wardrobeItems, styleDna: _rbStyleDna() }),
+            body: JSON.stringify({ prompt, wardrobeItems, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons() }),
             signal: controller.signal,
           });
           clearTimeout(clientTimeout);
@@ -4910,7 +4914,20 @@
           sessionStorage.removeItem('rb_onboard_piece');
         } catch (e) { piece = null; }
         if (!piece || (!piece.prompt && !piece.photo)) return;
-        _cbStyleSubmit(piece.prompt || '', piece.photo || null);
+        // Onboarding prefires /api/style while the user reads the activation
+        // modal + done screen — if the result already landed, render it
+        // straight away instead of re-running the whole pipeline.
+        let styled = null;
+        try {
+          const rawS = sessionStorage.getItem('rb_onboard_styled');
+          if (rawS) styled = JSON.parse(rawS);
+          sessionStorage.removeItem('rb_onboard_styled');
+        } catch (e) { styled = null; }
+        if (styled && styled.data && styled.data.ways && Date.now() - (styled.ts || 0) < 10 * 60 * 1000) {
+          window.__kpRenderResult(styled.data, styled.prompt || piece.prompt || '', { intent: 'style' });
+        } else {
+          _cbStyleSubmit(piece.prompt || '', piece.photo || null);
+        }
 
         // Persist the key piece to the wardrobe in the background — the
         // first item a user shows Robes should count toward their 15.

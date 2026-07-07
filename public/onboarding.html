@@ -304,10 +304,16 @@
     }
     @keyframes kpScrimIn { from { opacity: 0; } to { opacity: 1; } }
     .kp-modal {
-      width: 100%; max-width: 430px; background: var(--background); border-radius: 2px;
+      position: relative; width: 100%; max-width: 430px; background: var(--background); border-radius: 2px;
       padding: 44px 40px 36px; text-align: center;
       animation: kpModalDrop .5s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
+    .kp-modal-x {
+      position: absolute; top: 14px; right: 14px; width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      background: none; border: none; cursor: pointer; color: #AE9290; border-radius: 50%;
+    }
+    .kp-modal-x:hover { color: var(--foreground); background: rgba(32,32,33,0.05); }
     @keyframes kpModalDrop { from { opacity: 0; transform: translateY(-28px); } to { opacity: 1; transform: none; } }
     .kp-modal-eyebrow { font-weight: 500; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: #AE9290; margin: 0 0 18px; }
     .kp-modal-title { font-family: var(--font-serif); font-weight: 300; font-size: clamp(30px, 5vw, 40px); line-height: 1.05; letter-spacing: -0.01em; margin: 0 0 16px; color: var(--foreground); }
@@ -821,14 +827,14 @@
     { top: '52%', left: '10%' },
     { top: '68%', right: '12%' },
   ];
-  const KP_READ = ['The piece', 'Category', 'Colour', 'Cut'];
+  const KP_READ = ['The piece', 'Category', 'Brand', 'Colour', 'Cut'];
 
   function renderKeyPiece(i) {
     const P = st.piece;
     stepChrome(i, {
       step: 'Step 04 · First piece', eyebrow: 'Your wardrobe',
       title: 'Add your first<br><em>key piece.</em>',
-      sub: 'Show Robes one piece you love. It reads the garment — label, colour, cut — and files it as piece nº 1 in your wardrobe.',
+      sub: 'Show Robes one piece you love. It reads the garment — label, brand, colour, cut — and files it as piece nº 1 in your wardrobe.',
       continueLabel: P.tag ? 'Continue' : 'Catalogue this piece',
     });
 
@@ -854,6 +860,7 @@
         return [
           { txt: P.tag.label || 'Read', cls: ' is-done' },
           { txt: P.tag.category || 'Read', cls: ' is-done' },
+          { txt: P.tag.brand || (dna.display && dna.display.brand_raw) || 'Unlabelled', cls: ' is-done' },
           { txt: (dna.display && dna.display.editorial_color_name) || P.tag.color || 'Read', cls: ' is-done' },
           { txt: fit.slice(0, 2).join(' · ') || 'Read', cls: ' is-done' },
         ];
@@ -1020,16 +1027,50 @@
       if (st.stage !== i) return;
       paint();
       const chipCount = popTags(true);
-      setTimeout(() => { if (st.stage === i && P.tag) showModal(); }, (0.35 + chipCount * 0.4 + 1.1) * 1000);
+      // Let the filing "magic" land — the extracted tags pop staggered, then
+      // the activation modal waits a beat before dropping in. Once dismissed
+      // it stays closed until the CONTINUE CTA is explicitly pressed.
+      setTimeout(() => { if (st.stage === i && P.tag && !P.modalDismissed) showModal(); }, (0.35 + chipCount * 0.4 + 2.6) * 1000);
+    }
+
+    // Fire the "style key piece" pipeline the moment the activation modal
+    // shows — the looks generate while the user reads the welcome copy, and
+    // the dashboard handoff picks up the finished result instead of starting
+    // from zero.
+    function prefireStyle() {
+      if (st.stylePrefired) return;
+      st.stylePrefired = true;
+      const t = P.tag || {};
+      const prompt = P.note.trim() || t.label || '';
+      try { sessionStorage.removeItem('rb_onboard_styled'); } catch (e) {}
+      fetch('/api/style', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          photo: P.img || null,
+          styleDna: (st.styleDna && (st.styleDna.color_harmony || st.styleDna.silhouette_proportions)) ? st.styleDna : null,
+          styleIcons: st.icons || [],
+          wardrobeCount: 1,
+          wardrobeItems: t.label ? [{ label: t.label, category: t.category || '', color: t.color || '', times_worn: 0 }] : [],
+          intent: 'style',
+        }),
+      }).then(r => r.ok ? r.json() : null).then(d => {
+        if (!d) return;
+        try { sessionStorage.setItem('rb_onboard_styled', JSON.stringify({ prompt, data: d, ts: Date.now() })); } catch (e) {}
+      }).catch(() => {});
     }
 
     function showModal() {
       if (document.querySelector('.kp-modal-scrim')) return;
+      prefireStyle();
       const label = (P.tag && P.tag.label) || 'your piece';
       const scrim = document.createElement('div');
       scrim.className = 'kp-modal-scrim';
       scrim.innerHTML = `
         <div class="kp-modal">
+          <button class="kp-modal-x" id="kp-modal-x" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
           <p class="kp-modal-eyebrow">Piece nº 01 · Cataloged</p>
           <h2 class="kp-modal-title">In your <em>wardrobe.</em></h2>
           <p class="kp-modal-body">Robes read your ${esc(label.toLowerCase())} — colour, cut and all — and filed it as the first piece in your wardrobe. Want inspiration for it?</p>
@@ -1037,7 +1078,9 @@
           <button class="kp-modal-ghost" id="kp-later">Straight to the dashboard</button>
         </div>`;
       root.appendChild(scrim);
-      scrim.onclick = e => { if (e.target === scrim) scrim.remove(); };
+      const dismiss = () => { P.modalDismissed = true; scrim.remove(); };
+      scrim.onclick = e => { if (e.target === scrim) dismiss(); };
+      scrim.querySelector('#kp-modal-x').onclick = dismiss;
       scrim.querySelector('#kp-style').onclick = async () => {
         scrim.querySelector('#kp-style').disabled = true;
         let cataloged = P.saved;

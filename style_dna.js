@@ -554,12 +554,21 @@ export function buildSilhouette(x) {
 
 // ── Downstream prompt injection (PRD §6) ──────────────────────────────
 
-export function styleDnaPromptBlock(styleDna, wardrobeCount = 0) {
-  if (!styleDna || typeof styleDna !== 'object') return '';
-  const ch = styleDna.color_harmony;
-  const sp = styleDna.silhouette_proportions;
-  if (!ch && !sp) return '';
-  const lines = ['STYLE DNA — verified styling constraints for this user:'];
+export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []) {
+  const icons = Array.isArray(styleIcons) ? styleIcons.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, 12) : [];
+  const dna = styleDna && typeof styleDna === 'object' ? styleDna : {};
+  const ch = dna.color_harmony;
+  const sp = dna.silhouette_proportions;
+  if (!ch && !sp && !icons.length) return '';
+  const lines = [];
+  // Style icons are the user's declared taste — they steer the aesthetic of
+  // every downstream recommendation, layered over the photo-verified DNA.
+  if (icons.length) {
+    lines.push(`STYLE ICONS — the user named these as their taste references: ${icons.join(', ')}.`);
+    lines.push('Follow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.');
+  }
+  if (!ch && !sp) return lines.join('\n');
+  lines.push('STYLE DNA — verified styling constraints for this user:');
   if (ch) {
     const sub = ch.functional_sub_palettes || {};
     lines.push(`Colour archetype: ${ch.archetype_name} (undertone ${ch.verified_undertone}, contrast ${ch.calculated_contrast}).`);
@@ -574,7 +583,7 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0) {
     if (ar.styling_maxims) lines.push(`Styling maxims: ${ar.styling_maxims.join(' ')}`);
   }
   // User corrections always outrank the photo-derived profile.
-  const uo = styleDna.user_overrides || {};
+  const uo = dna.user_overrides || {};
   if (Array.isArray(uo.loved_colors) && uo.loved_colors.length) {
     lines.push(`The user has personally confirmed these colours work on them (they override the avoid list on conflict): ${uo.loved_colors.join(', ')}.`);
   }
