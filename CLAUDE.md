@@ -71,7 +71,7 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 - Wardrobe feature: add/edit/delete items, photo upload to Cloudinary, category filtering
 - Account details modal (edit first/last name, mobile)
 - `wardrobe_items` Supabase table (schema in `supabase/wardrobe_schema.sql`)
-- Dashboard v2 layout: Wardrobe tracker → Styling Concierge (Moodboards + Style Notes sections in progress)
+- Dashboard v2 layout: Wardrobe tracker → Styling Concierge → Moodboards + Lookbook rows (all live)
 - Daily Outfit concierge card: always unlocked ("Style today →" prefills the dress-me prompt); below 15 items it carries an "Editorial until 15 pieces · n/15" progress pill instead of a lock
 - Daily Look page: `/api/daily` + `__dlRenderResult` — Context-to-Core framework render (Anchor → Canvas → Texture → Accents) with per-item swap, see its section below
 - Travel Edit: `/api/travel` + `__tvRenderResult` — capsule packing & lookbook generator (brief modal with mandatory packed core → 12–15 piece capsule in three tiers + day-by-day Day/Evening lookbook with 4-step formulas, 1:3 interactive multiplier, completeness score + packed checklist, reactive day restyle via `/api/travel/day`, PDF export), see its section below
@@ -82,6 +82,9 @@ Fashion AI styling app. User inputs a key piece (photo, text, or link) → Gemin
 - `/onboarding` — first-time-user onboarding flow (standalone `onboarding.html`, see its section below)
 - `/terms`, `/privacy` — beta legal pages, linked from the signup footer
 - Lookbook + moodboards sync to Supabase (`lookbook_items` table, see its section below) — previously localStorage-only
+- Populated moodboards live at `/moodboard/[slug]` (see URL routing section)
+- Share flow: every saved surface (moodboard / key piece / daily look / travel edit) publishes to a permanent public page at `/board/:shareId` with OG meta + IG-handle capture (see Share experience section; requires `supabase/share_migration.sql`)
+- Style Icons steer every LLM surface (`styleDnaPromptBlock` third arg — see Style DNA section)
 
 ## Deploying
 ```bash
@@ -110,8 +113,20 @@ Note: Cloudinary vars must be set on **both** production and beta/staging Railwa
 - Site URL: `https://beta.byrobes.com` (default target for auth emails when no redirect matches)
 - Edge Function secrets set: `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (auto-injected)
 
+### Run-once migrations (Supabase SQL editor, in order)
+1–8 are run on `Robes_p0`; 9 shipped with the share flow — verify it has been run (until then sharing degrades gracefully to "try again shortly"). Listed so a fresh project (or a missed one) can be reconciled:
+1. `supabase/schema.sql` — profiles + prompt_history + trigger
+2. `supabase/wardrobe_schema.sql` — wardrobe_items + RLS
+3. `supabase/item_dna_migration.sql` — wardrobe_items.item_dna JSONB
+4. `supabase/style_notes_migration.sql` — Style Notes scalar columns on profiles
+5. `supabase/style_notes_analysis_migration.sql` — colour_analysis + silhouette_analysis JSONB
+6. `supabase/style_dna_migration.sql` — style_dna JSONB + wardrobe_items_count triggers
+7. `supabase/onboarding_migration.sql` — profiles.onboarded_at + backfill
+8. `supabase/lookbook_migration.sql` — lookbook_items table + RLS
+9. `supabase/share_migration.sql` — share_id/is_public on lookbook_items + anon RLS + profiles.instagram_handle
+
 ## Supabase DB schema
-**profiles**: `id` (FK → auth.users), `first_name`, `style_icons[]`, `budget`, `wardrobe_description`, `created_at`, `updated_at`
+**profiles**: `id` (FK → auth.users), `first_name`, `style_icons[]`, `budget`, `wardrobe_description`, `created_at`, `updated_at` (+ Style Notes / DNA / onboarding / share columns via the migrations above, e.g. `style_dna`, `onboarded_at`, `instagram_handle`)
 - Auto-created on signup via `handle_new_user` trigger
 - RLS: users can only read/write their own row
 
@@ -244,7 +259,7 @@ Gemini image generation (`gemini-3.1-flash-image`) takes 20–40s per image — 
 - `/api/style`: images upload to Cloudinary as they land (`cloudinaryUpload` before writing to the job) — the client only ever receives hosted URLs, never base64, so results can be persisted (lookbook) without blowing storage quotas. Falls back to a raw `data:` URL only if the Cloudinary upload itself fails.
 - Client polling: `_kpPollImages` (dashboard-personalize.js) starts ~2.5s after render, ticks every 3.5s, swaps each placeholder for the arriving `<img>` with a fade-in, and calls `_kpPersistImages()` on every new URL so the saved lookbook entry gets the images even if the user navigates away before the job finishes.
 - `/api/moodboard`: images generate staggered (3s apart) to stay under Gemini's rate limit; `_mbPollImages` ticks every 4s (first poll at 5s) and patches arriving images into the on-screen mosaic **and** the saved moodboard (`panel._savedId`) so a reopened board keeps its imagery.
-- Empty mosaic cells pulse (`kpPhPulse` keyframe, shared with the style result placeholders) while `mb_job_id`/`jobId` is present — they read as loading, not broken.
+- Empty mosaic cells are explicit loading states while `mb_job_id`/`jobId` is present: `.rb-tile-loading` adds a small spinner (`.rb-spin`) to every pending cell + a "Creating imagery…" caption on the first, on top of the shared `kpPhPulse` pulse — both mosaic render paths (`_mbShowResult` and the `_mbPollImages` re-render) must keep this markup, and the poll's `done` handler strips it.
 
 ## Lookbook + moodboard cloud persistence
 Saved looks and moodboards were originally localStorage-only per browser — testing surfaced "Nothing saved yet" after reload and blank image tiles on revisit. Now backed by `lookbook_items` (`supabase/lookbook_migration.sql`, `type` = `'key-piece'`, `'daily-look'`, `'travel-edit'` or `'moodboard'`, PK `(user_id, id)` using the client's `Date.now()` id — the column is unconstrained text, so new types need no migration).
@@ -381,7 +396,7 @@ Returns structured JSON used to populate step 3 and saved to `item_dna`:
 }
 ```
 
-Guardrail taxonomy enforced in prompt — `silhouette_fit` values map to controlled terms per category (Tops/Bottoms/Outerwear/Dresses/Shoes/Bags/Accessories). `maxOutputTokens` is 500 (increased from 200 to fit the richer response). Runs at `temperature: 0` + `thinkingConfig: { thinkingBudget: 0 }` — same truncation/nondeterminism trap as stylenotes analyse (see Common gotchas). On any Gemini error the response still resolves 200 with `analysisFailed: true` and empty fields (never blocks the caller); onboarding step 04's catalogue flow (`onboarding.html`) and the legacy dashboard handoff persist (`_rbOnboardHandoff` in `dashboard-personalize.js`) both check for `analysisFailed` or a missing `label` and retry the analysis once after a 1.5s pause before saving to `wardrobe_items` — a first-attempt truncation used to silently save the key piece with blank category/brand.
+Guardrail taxonomy enforced in prompt — `silhouette_fit` values map to controlled terms per category (Tops/Bottoms/Outerwear/Dresses/Shoes/Bags/Accessories). `maxOutputTokens` is 600 (originally 200 — raised to fit the richer response). Runs at `temperature: 0` + `thinkingConfig: { thinkingBudget: 0 }` — same truncation/nondeterminism trap as stylenotes analyse (see Common gotchas). On any Gemini error the response still resolves 200 with `analysisFailed: true` and empty fields (never blocks the caller); onboarding step 04's catalogue flow (`onboarding.html`) and the legacy dashboard handoff persist (`_rbOnboardHandoff` in `dashboard-personalize.js`) both check for `analysisFailed` or a missing `label` and retry the analysis once after a 1.5s pause before saving to `wardrobe_items` — a first-attempt truncation used to silently save the key piece with blank category/brand.
 
 ### item_dna JSONB column
 - Added via `supabase/item_dna_migration.sql` (backward-compatible — existing rows get `{}`)
@@ -450,7 +465,7 @@ Injected as an IIFE inside `__robes_personalize`. Appends a `#rb-crumb` span to 
 - `window.rbClearCrumb()` — hides crumb, restores wordmark display
 
 ### Wordmark onclick
-Wired in `_rbInitBreadcrumb` to: clear crumb, close moodboard result + list, hide kpResultPage, close wardrobe panel (removes `.visible` class), then call `App.goHome()`.
+Wired in `_rbInitBreadcrumb` to: clear crumb, close moodboard result + list, hide kp/dl/tv result pages, close wardrobe panel (via the nav wardrobe toggle button), then `_rbNav('/dashboard')` + `App.goHome()`. The toggle tracks its own open state, so when the panel was opened programmatically (direct `/wardrobe` load) the click can no-op — if the panel still has `.visible` after the toggle, the handler hard-routes with `window.location.assign('/dashboard')`.
 
 ### Wardrobe crumb (`_rbObserveWardrobe` IIFE)
 MutationObserver on `.wardrobe-panel` watches for the `.visible` class being added/removed.
@@ -513,7 +528,7 @@ Structure:
 1. Header: "SWAP THIS PIECE" label + item name (serif) + italic brand/retailer
 2. "FROM YOUR WARDROBE" — 4-col grid of `_waItems` filtered by matching category; tap a card to call `__mbSwapApply`
 3. If no wardrobe items in category: AI alternative suggestion copy
-4. Two side-by-side CTAs: **[Snap mine]** (calls `__mbSnapMine`) + **[Shop via Affiliate →]**
+4. Two side-by-side CTAs: **[Snap mine]** (calls `__mbSnapMine`) + **[Shop via Affiliate →]** (calls `window.__rbAffiliateSoon(modalId)` — closes the swap modal, then opens the bundle's Coming Soon dialog; same handler on the daily-look + travel swap modals)
 5. "Opens [retailer] · [price]" centered text below CTAs
 
 ### `window.__mbSwapApply(lookIdx, wardrobeId)`
@@ -549,7 +564,7 @@ Stored on each `the_look` item after a swap. Shape: `{ id, label, image_url, col
 - Bundle hides `#nav-wordmark` when wardrobe opens — use `setProperty('display','inline','important')` + a second MutationObserver on the wordmark to defend against re-hiding; `removeProperty('display')` on close
 - Wordmark onclick must close the wardrobe panel (`wp.classList.remove('visible')`) — without this, clicking ROBES clears the crumb but the panel stays open
 - `_rbTimeAgo(iso)` must be declared as a named `function` declaration (not an expression) — if the declaration is lost, JS throws on the body's `return` statements and the whole dashboard fails to load
-- `gemini-2.5-flash` **thinking tokens count inside `maxOutputTokens`** — structured-output endpoints returning large JSON must set `thinkingConfig: { thinkingBudget: 0 }` or the response truncates mid-JSON and the parse throws (this is why wardrobe analyse went 200 → 500 tokens, and why stylenotes analyse disables thinking)
+- `gemini-2.5-flash` **thinking tokens count inside `maxOutputTokens`** — structured-output endpoints returning large JSON must set `thinkingConfig: { thinkingBudget: 0 }` or the response truncates mid-JSON and the parse throws (this is why wardrobe analyse went 200 → 600 tokens, and why stylenotes analyse disables thinking)
 - A Gemini account **out of credit/quota** surfaces as 502 `analysis_failed` from `/api/stylenotes/analyse` — check the `reason` field in the response body (browser console) or Railway logs before debugging code
 - Vision-extraction endpoints that map to enums MUST set `temperature: 0` — at the default 1.0 the same photo samples different enum values across runs, which the deterministic engine then turns into different archetypes (looks like a mapping bug but is really nondeterministic extraction)
 - The wardrobe category `<select>` (`#wa-cat` in dashboard.html) must always include an `Other` option matching the server's `category` fallback — without it, any item analysed/saved with `category: 'Other'` renders as a blank dropdown that looks broken
@@ -558,4 +573,5 @@ Stored on each `the_look` item after a swap. Shape: `{ id, label, image_url, col
 - Lookbook/moodboard localStorage keys (`SN_KEY()`/`MB_KEY()`) resolve the uid **lazily on every call** and return null (no-op) until the session lands — a captured-once uid fell back to `'anon'`, writing saves into a shared `robes_style_notes__anon` key that surfaced as phantom "15 key pieces" on other accounts in the same browser; `__anon` keys are purged at boot
 - The moodboard panel overlay must stay at `z-index:40` (below the nav's 50, below the rename/share sheets' 200 and the Coming Soon dialog's 300) — raising it buries the avatar dropdown and every board modal, which reads as "dead CTAs"
 - iOS input-focus auto-zoom: every page carries a snippet after the viewport meta that (iOS only) rewrites it with `maximum-scale=1` — Safari still allows pinch gestures, Android is untouched; don't add sub-16px font-size inputs and expect the meta alone to save you on other browsers
+- Never put a `capture` attribute on file inputs — it forces straight-to-camera on mobile and hides the native picker (Photo Library / Take Photo / Choose File). The bundle's `pickCamera` helpers were rewritten to `removeAttribute('capture')` for the same reason; the OS picker already offers the camera
 - `_kpActiveSaveId` / `panel._savedId` track which lookbook/moodboard row is "live" during a render so background image polling (`_kpPollImages`/`_mbPollImages`) patches the *saved* entry, not just the on-screen DOM — skip this wiring and reopening a look/board after generation finishes shows blanks again
