@@ -367,14 +367,17 @@
     'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ'
   );
 
+  // The first ~12 surface in the "Popular among stylists" row (see paintPool);
+  // the rest are reachable via the typeahead. New default brands are placed up
+  // front, interleaved with icons, so they show on first load.
   const ROBES_ICONS = [
-    'Carolyn Bessette-Kennedy', 'The Row', 'Hailey Bieber', 'Totême',
-    'Jane Birkin', 'Sézane', 'Zoë Kravitz', 'Acne Studios', 'Sienna Miller',
-    'Isabel Marant', 'Sofia Loren', 'Jacquemus', 'Phoebe Philo', 'Khaite',
-    'The Frankie Shop', 'Audrey Hepburn', 'Lauren Hutton', 'Caroline de Maigret',
-    'Charlotte Gainsbourg', 'Lemaire', 'Carolina Herrera', 'Grace Kelly',
-    'Lee Radziwill', 'Cou Cou', 'Chanel', 'Dôen', 'Olivia Dean', 'Miu Miu',
-    'Alaïa',
+    'Chanel', 'Carolyn Bessette-Kennedy', 'The Row', 'Miu Miu', 'Totême',
+    'Alaïa', 'Jane Birkin', 'Dôen', 'Khaite', 'Cou Cou', 'Sézane',
+    'Olivia Dean', 'Hailey Bieber', 'Zoë Kravitz', 'Acne Studios',
+    'Sienna Miller', 'Isabel Marant', 'Sofia Loren', 'Jacquemus',
+    'Phoebe Philo', 'The Frankie Shop', 'Audrey Hepburn', 'Lauren Hutton',
+    'Caroline de Maigret', 'Charlotte Gainsbourg', 'Lemaire',
+    'Carolina Herrera', 'Grace Kelly', 'Lee Radziwill',
   ];
 
   const STEPS = ['icons', 'colour', 'silhouette', 'keypiece'];
@@ -586,7 +589,7 @@
     }
 
     function paintPool() {
-      const pool = ROBES_ICONS.filter(n => !isSel(n)).slice(0, 10);
+      const pool = ROBES_ICONS.filter(n => !isSel(n)).slice(0, 12);
       const box = document.getElementById('ic-pool');
       box.innerHTML = pool.map(n => `<button class="chip-ghost">${esc(n)}</button>`).join('');
       box.querySelectorAll('.chip-ghost').forEach(btn => {
