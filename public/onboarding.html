@@ -1083,21 +1083,13 @@
       P.revealing = true;
       P.revealCount = 0;
       paint();
-      const chipCount = popTags(true);
-      const revealSecs = revealLedger();
-      // Let the filing "magic" land — the ledger fills field by field and the
-      // extracted tags pop staggered — then move straight on to the dashboard.
-      // No confirmation modal, no full-screen styling gate (wardrobe-first
-      // PRD): the only pause is for a user mid-thought in the stylist note.
-      const chipSecs = 0.35 + chipCount * 0.4;
-      const doneDelay = Math.max(revealSecs, chipSecs) + 1.8;
-      setTimeout(() => {
-        if (st.stage !== i || !P.tag) return;
-        const note = document.getElementById('kp-note');
-        if (note && document.activeElement === note) return; // mid-thought — the CTA carries her forward
-        writeHandoff();
-        go('done');
-      }, doneDelay * 1000);
+      popTags(true);
+      revealLedger();
+      // The filing "magic" plays out — ledger fills field by field, tags pop
+      // staggered — and then she moves on HERSELF via the "Continue to your
+      // dashboard" CTA. No confirmation modal, no full-screen styling gate,
+      // and no auto-advance (yanking her mid-read tested badly): the styling
+      // is already prefiring in the background either way.
     }
 
     // The dashboard handoff payload — written as soon as the piece is filed

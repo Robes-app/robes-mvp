@@ -5315,31 +5315,33 @@
         const services = dash.querySelector('.services');
         const anchor = tracker || services;
 
-        if (!document.getElementById('rb-mb')) {
-          const mbEl = document.createElement('section');
-          mbEl.id = 'rb-mb';
-          mbEl.className = 'rb-section';
-          if (anchor) dash.insertBefore(mbEl, anchor);
-          else dash.appendChild(mbEl);
-        }
+        // Lookbook row sits ABOVE moodboards (wardrobe-first: her own styled
+        // pieces outrank editorial inspiration).
         if (!document.getElementById('rb-sn')) {
           const snEl = document.createElement('section');
           snEl.id = 'rb-sn';
           snEl.className = 'rb-section';
-          const mbEl = document.getElementById('rb-mb');
-          const insertAfterMb = mbEl ? mbEl.nextSibling : (anchor || null);
-          if (insertAfterMb && insertAfterMb !== anchor) dash.insertBefore(snEl, insertAfterMb);
-          else if (anchor) dash.insertBefore(snEl, anchor);
+          if (anchor) dash.insertBefore(snEl, anchor);
           else dash.appendChild(snEl);
+        }
+        if (!document.getElementById('rb-mb')) {
+          const mbEl = document.createElement('section');
+          mbEl.id = 'rb-mb';
+          mbEl.className = 'rb-section';
+          const snEl = document.getElementById('rb-sn');
+          const afterSn = snEl ? snEl.nextSibling : (anchor || null);
+          if (afterSn) dash.insertBefore(mbEl, afterSn);
+          else if (anchor) dash.insertBefore(mbEl, anchor);
+          else dash.appendChild(mbEl);
         }
 
         // Wardrobe-first framing (PRD): the wardrobe tracker leads the page —
-        // move it above the moodboard/lookbook rows, right under the
+        // move it above the lookbook/moodboard rows, right under the
         // concierge. The onboarding "Your piece, styled" card stays glued to
         // the tracker's tail so the emotional hook sits beside the progress
         // module without outranking it.
-        const mbSection = document.getElementById('rb-mb');
-        if (tracker && mbSection) dash.insertBefore(tracker, mbSection);
+        const snSection = document.getElementById('rb-sn');
+        if (tracker && snSection) dash.insertBefore(tracker, snSection);
         const styledCard = document.getElementById('rb-styled');
         if (styledCard && tracker) tracker.parentNode.insertBefore(styledCard, tracker.nextSibling);
 
@@ -5492,6 +5494,23 @@
           if (btn) btn.onclick = function() { card.remove(); _cbStyleSubmit(piece.prompt || '', piece.photo || null); };
         }
 
+        // The styled result saves straight into the lookbook the moment it's
+        // ready — the Lookbook row (above Moodboards) shows the key piece
+        // populated without her opening anything. Opening the full render
+        // passes {skipSave, savedId} so nothing duplicates.
+        let cardSaveId = null;
+
+        function persistCardImages(data) {
+          if (!cardSaveId) return;
+          const saved = snLoad().find(x => x.id === cardSaveId);
+          if (!saved) return;
+          const persistable = (data.generatedImages || []).map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
+          snUpdate(cardSaveId, {
+            img: persistable.find(Boolean) || saved.img || null,
+            kpData: { ...(saved.kpData || {}), generatedImages: persistable },
+          });
+        }
+
         function paintReady(data, prompt) {
           const ways = (data.ways || []).slice(0, 3);
           const imgs = Array.isArray(data.generatedImages) ? data.generatedImages : [];
@@ -5511,15 +5530,26 @@
             tiles,
             '<button id="rb-styled-open" style="flex-shrink:0;padding:11px 20px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">See the full looks →</button>');
           mount();
+          if (!cardSaveId) {
+            const persistable = imgs.map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
+            const title = data.fallback ? 'Balmain waistcoat' : ((prompt || 'Your piece').slice(0, 60));
+            cardSaveId = snAdd({
+              type: 'key-piece',
+              title,
+              subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
+              img: persistable.find(Boolean) || data.photoUrl || null,
+              kpData: { ways: data.ways, fallback: data.fallback, photoUrl: data.photoUrl, generatedImages: persistable, intent: 'style', context: null },
+            });
+          }
           const open = document.getElementById('rb-styled-open');
           if (open) open.onclick = function() {
-            window.__kpRenderResult(data, prompt, { intent: 'style' });
+            window.__kpRenderResult(data, prompt, { intent: 'style', skipSave: true, savedId: cardSaveId });
           };
           if (pending) pollImgs(data);
         }
 
-        // Light image poll for the card tiles — the full result page runs its
-        // own poller + lookbook persistence when she opens it.
+        // Light image poll for the card tiles — patches the saved lookbook
+        // entry as hosted URLs land, so the row thumbnail fills in too.
         function pollImgs(data) {
           const t0 = Date.now();
           (function tick() {
@@ -5527,10 +5557,11 @@
               .then(function(r) { return r.ok ? r.json() : null; })
               .then(function(job) {
                 if (job && Array.isArray(job.images)) {
+                  let changed = false;
                   job.images.forEach(function(src, i) {
                     if (!src) return;
                     if (!Array.isArray(data.generatedImages)) data.generatedImages = [];
-                    data.generatedImages[i] = src;
+                    if (data.generatedImages[i] !== src) { data.generatedImages[i] = src; changed = true; }
                     const wrap = document.getElementById('rb-styled-img-' + i);
                     if (wrap && !wrap.querySelector('img')) {
                       wrap.style.animation = 'none';
@@ -5538,6 +5569,7 @@
                       requestAnimationFrame(function() { const im = wrap.querySelector('img'); if (im) im.style.opacity = '1'; });
                     }
                   });
+                  if (changed) persistCardImages(data);
                   if (job.done) return settle();
                 } else if (!job) return settle();
                 if (Date.now() - t0 < 300000) setTimeout(tick, 4000); else settle();
