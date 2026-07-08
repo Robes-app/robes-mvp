@@ -1895,8 +1895,10 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
           <input type="file" id="cb-file" accept="image/*" hidden="" onchange="Dash.onPhoto(event)">
         </div>
 
-        <!-- dual track: today's idea + moodboard inspiration -->
-        <div class="dual" id="dual">
+        <!-- dual track: today's idea + moodboard inspiration.
+             Removed at runtime by _rbApplyLayout; hidden in static markup so
+             the mock "all from your wardrobe" card never flashes pre-boot. -->
+        <div class="dual" id="dual" style="display:none">
           <section class="track track-today" data-comment-anchor="3d1bd0d2f0-section">
             <div class="sec-head"><span class="sec-ey">Today</span><span class="sec-link" onclick="App.setSubtab('today')">Recent looks</span></div>
             <button class="today-card" onclick="Dash.today()">
@@ -1927,7 +1929,7 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
               <div class="wtrk-num" id="wtrk-num">0<span> / 15</span></div>
               <div class="wtrk-body">
                 <div class="wtrk-kicker" id="wtrk-kicker">Start here</div>
-                <div class="wtrk-copy" id="wtrk-copy"><strong>0 of 15 pieces catalogued</strong> — snap your first piece and Robes starts styling from what you already own.</div>
+                <div class="wtrk-copy" id="wtrk-copy">Add your first piece and Robes starts weaving your own wardrobe into every look — <strong>0 of 15 catalogued</strong>.</div>
               </div>
               <button class="wtrk-cta" id="wtrk-cta">Add pieces<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
             </div>

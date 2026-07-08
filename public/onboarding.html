@@ -749,6 +749,21 @@
       if (remBtn) remBtn.onclick = () => { state.photoUrl = ''; state.done = null; state.err = ''; paint(); };
       fileInput.onchange = () => { handleFile(fileInput.files[0]); fileInput.value = ''; };
       wireDrop(document.getElementById('cap-panel'), handleFile);
+      syncFooter();
+    }
+
+    // The filled primary ("Continue") only means something once a reading
+    // exists — before that it does exactly what "Skip for now" does. Show a
+    // single light "Skip for now" until a photo is read, then swap in the
+    // filled Continue, so the two never present as an equal-weight either/or.
+    function syncFooter() {
+      const nextBtn = document.getElementById('ob-next');
+      const skipBtn = document.getElementById('ob-skip');
+      if (!nextBtn || !skipBtn) return;
+      const hasReading = !!state.done;
+      nextBtn.textContent = 'Continue';
+      nextBtn.style.display = hasReading ? '' : 'none';
+      skipBtn.style.display = hasReading ? 'none' : '';
     }
 
     async function handleFile(file) {
@@ -826,6 +841,7 @@
     paint();
     document.getElementById('ob-next').onclick = () => go(nextStage(i));
     document.getElementById('ob-skip').onclick = () => go(nextStage(i));
+    syncFooter();
   }
 
   /* ── Step 04 · First piece ──────────────────────────────────────── */
@@ -1149,7 +1165,16 @@
     const next = document.getElementById('ob-next');
     if (P.busy) { next.disabled = true; next.textContent = 'Reading your piece…'; }
     next.onclick = catalogue;
-    document.getElementById('ob-skip').onclick = () => go('done');
+    // Skipping the first piece leaves the wardrobe empty — the whole dashboard
+    // styles from catalogued pieces, so make it a deliberate two-tap choice
+    // (unless a piece is already filed, in which case skip just proceeds).
+    let skipArmed = false;
+    const skip = document.getElementById('ob-skip');
+    skip.onclick = () => {
+      if (P.tag || skipArmed) { go('done'); return; }
+      skipArmed = true;
+      skip.textContent = 'Skip anyway — Robes styles only what you add';
+    };
   }
 
   /* ── Done ───────────────────────────────────────────────────────── */
@@ -1161,7 +1186,7 @@
     }
     const first = st.name.trim().split(/\s+/)[0];
     const sub = st.pieceStyled
-      ? 'Your first piece is filed — Robes is already styling it. It’ll be waiting on your dashboard.'
+      ? 'Your first piece is filed — Robes is styling it now. It’ll be waiting on your dashboard.'
       : st.piece.tag
         ? 'Your first piece is filed in your wardrobe — Robes builds from here.'
         : 'Your style notes will keep growing as Robes gets to know you.';

@@ -375,7 +375,7 @@
       <em>style notes…</em>
     </h1>
 
-    <p class="subtext" id="form-subtext"></p>
+    <p class="subtext" id="form-subtext">Snap your wardrobe once. Then one prompt gets you dressed for anything.</p>
 
     <!-- Error / success message -->
     <div class="message" id="message"></div>
@@ -423,7 +423,7 @@
 
     <!-- CTA -->
     <button class="btn-cta" id="btn-submit">
-      Reveal my dashboard <span>→</span>
+      Start my style notes <span>→</span>
     </button>
 
     <!-- Sign in / sign up toggle -->
@@ -492,8 +492,8 @@
     function setLoading(loading) {
       btnSubmit.disabled = loading;
       btnSubmit.innerHTML = loading
-        ? (isSignIn ? 'Signing in…' : 'Creating your wardrobe…')
-        : (isSignIn ? 'Sign in <span>→</span>' : 'Reveal my dashboard <span>→</span>');
+        ? (isSignIn ? 'Signing in…' : 'Creating your style notes…')
+        : (isSignIn ? 'Sign in <span>→</span>' : 'Start my style notes <span>→</span>');
     }
 
     // ─── Google OAuth ───────────────────────────────────────────────────────

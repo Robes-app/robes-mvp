@@ -325,15 +325,18 @@
       }
 
       const _WA_TARGET = 15;
-      // Wardrobe-first tracker copy (kicker, body) per milestone — the body
-      // string always leads with the bold count so the progress reads first.
+      // Wardrobe-first tracker copy (kicker, body) per milestone. Benefit-led:
+      // the reason to add the next piece leads, the count trails as proof.
+      // Copy stays honest about cold-start — below 15 pieces Robes weaves in
+      // what you own but still fills gaps editorially; it only styles head to
+      // toe from your closet once the wardrobe is built out.
       function _wtrkCopy(n) {
         const left = Math.max(0, _WA_TARGET - n);
-        if (n === 0)  return ['Start here', '<strong>0 of 15 pieces catalogued</strong> — snap your first piece and Robes starts styling from what you already own.'];
-        if (n < 5)   return ['Keep going', '<strong>' + n + ' of 15 pieces catalogued</strong> — ' + left + ' more and Robes can dress you head to toe. It styles only from what you own.'];
-        if (n < 10)  return ['Keep going', '<strong>' + n + ' of 15 pieces catalogued</strong> — getting there. Every piece you add makes your daily looks sharper.'];
-        if (n < 15)  return ['Nearly there', '<strong>' + n + ' of 15 pieces catalogued</strong> — ' + left + ' more and every look is built entirely from your own wardrobe.'];
-        return ['Wardrobe complete', '<strong>' + n + ' pieces catalogued</strong> — Robes dresses you head to toe from what you own. Keep adding as your wardrobe grows.'];
+        if (n === 0)  return ['Start here', 'Add your first piece and Robes starts weaving your own wardrobe into every look — <strong>0 of 15 catalogued</strong>.'];
+        if (n < 5)   return ['Keep going', 'Add ' + left + ' more and Robes can dress you head to toe from your own closet — <strong>' + n + ' of 15 catalogued</strong>.'];
+        if (n < 10)  return ['Keep going', 'Every piece you add pulls more of your real wardrobe into your daily looks — <strong>' + n + ' of 15 catalogued</strong>.'];
+        if (n < 15)  return ['Nearly there', 'Add ' + left + ' more and every look is built entirely from your own wardrobe — <strong>' + n + ' of 15 catalogued</strong>.'];
+        return ['Wardrobe complete', 'Robes now dresses you head to toe from what you own — <strong>' + n + ' pieces catalogued</strong>. Keep adding as your wardrobe grows.'];
       }
       window.__wtrkEdit = function(id) {
         const it = _waItems.find(w => String(w.id) === String(id));
@@ -396,6 +399,31 @@
         }
         const snapEl = document.getElementById('wtrk-snap');
         if (snapEl) snapEl.onclick = _wtrkOpenAdd;
+
+        _rbTuneHomeForCount(n);
+      }
+
+      // First-time steer: below 3 pieces the concierge composer would fire a
+      // styling prompt that can only return editorial (un-owned) looks — which
+      // competes with the one action that actually grows the wardrobe. Add a
+      // single honest hint under the prompt pointing at cataloguing first.
+      // Additive only (never hides the composer), so it's flicker-free and
+      // respects the app-wide "never lock" convention.
+      function _rbTuneHomeForCount(n) {
+        const box = document.querySelector('.concierge-box');
+        if (!box || !box.parentNode) return;
+        const existing = document.getElementById('cb-firsttime-hint');
+        if (n >= 3) { if (existing) existing.remove(); return; }
+        if (existing) return;
+        const hint = document.createElement('div');
+        hint.id = 'cb-firsttime-hint';
+        hint.style.cssText = 'font-size:12.5px;color:#6E6A64;line-height:1.45;margin:10px 2px 0';
+        hint.innerHTML = 'New here? <button id="cb-hint-add" style="background:none;border:none;padding:0;color:#202021;font:inherit;font-weight:500;text-decoration:underline;text-underline-offset:2px;cursor:pointer">Add a few pieces first</button> — then Robes styles from your own wardrobe, not just editorial ideas.';
+        const chips = document.getElementById('cb-chips');
+        const anchor = chips || box;
+        anchor.parentNode.insertBefore(hint, anchor.nextSibling);
+        const addBtn = document.getElementById('cb-hint-add');
+        if (addBtn) addBtn.onclick = _wtrkOpenAdd;
       }
 
       // ── Pack-for-a-trip multi-select (wardrobe-first PRD: the connection
@@ -4282,7 +4310,7 @@
             pill.className = 'rb-lock-wrap';
             svcImg.appendChild(pill);
           }
-          pill.innerHTML = `<span class="rb-lock-pill">✦ Editorial until 15 pieces · ${_waItems.length}/15</span>`;
+          pill.innerHTML = `<span class="rb-lock-pill">✦ ${Math.max(1, _WA_TARGET - _waItems.length)} more pieces unlock closet-only looks · ${_waItems.length}/15</span>`;
         } else if (pill) {
           pill.remove();
         }
@@ -5297,6 +5325,18 @@
         _rbRenderStyleNotes();
       };
 
+      // Real greeting — the static markup ships a hardcoded "Good evening,
+      // Annie."; replace it with the signed-in name + actual time of day.
+      (function _rbGreet() {
+        const el = document.getElementById('dash-greet');
+        if (!el) return;
+        const p = window.__robes_profile || {};
+        const nm = (p.first_name || '').trim().split(/\s+/)[0] || '';
+        const h = new Date().getHours();
+        const part = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+        el.textContent = part + (nm ? ', ' + nm : '') + '.';
+      })();
+
       // Apply layout restructure after bundle finishes rendering
       setTimeout(function _rbApplyLayout() {
         const dash = document.getElementById('dash');
@@ -5459,7 +5499,7 @@
           : '';
         const pieceName = (piece.prompt || 'your piece').slice(0, 48);
 
-        function shell(title, sub, tiles, ctaRow) {
+        function shell(title, sub, tiles, ctaRow, footer) {
           return '<div style="font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880;margin:0 0 12px">Your piece, styled</div>' +
             '<div style="border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;background:#fff;padding:22px 24px">' +
               '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">' + photoThumb +
@@ -5469,6 +5509,7 @@
                 '</div>' + (ctaRow || '') +
               '</div>' +
               (tiles ? '<div id="rb-styled-tiles" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">' + tiles + '</div>' : '') +
+              (footer || '') +
             '</div>';
         }
 
@@ -5524,12 +5565,30 @@
               '<div style="font-family:' + serif + ';font-size:14px;color:#202021;margin-top:8px;line-height:1.25">' + _waEsc(w.title || 'Look ' + (i + 1)) + '</div>' +
             '</div>';
           }).join('');
+          // Peak-emotion moment → cataloguing loop. The wow is delivered, so
+          // the dominant next action is the NEXT piece (the WAW driver), not
+          // more consumption; "See the full looks" steps back to a text link.
+          const nCat = Math.max(1, _waItems.length);
+          const leftCat = Math.max(0, _WA_TARGET - nCat);
+          const nudge = leftCat > 0
+            ? 'That’s piece ' + nCat + ' of 15. Add ' + leftCat + ' more and Robes builds every look entirely from your own closet.'
+            : 'Your wardrobe’s there — Robes now styles you head to toe from what you own.';
+          const footer =
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.10)">' +
+              '<div style="font-size:12.5px;color:#6E6A64;line-height:1.4;flex:1;min-width:180px">' + nudge + '</div>' +
+              (leftCat > 0
+                ? '<button id="rb-styled-addnext" style="flex-shrink:0;padding:11px 20px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">Add your next piece →</button>'
+                : '') +
+            '</div>';
           card.innerHTML = shell(
             'Your first piece, <em>worn three ways.</em>',
             'Built around your ' + _waEsc(pieceName.toLowerCase()) + ' — tap through for the full looks.',
             tiles,
-            '<button id="rb-styled-open" style="flex-shrink:0;padding:11px 20px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">See the full looks →</button>');
+            '<button id="rb-styled-open" style="flex-shrink:0;padding:10px 16px;border-radius:100px;border:0.5px solid rgba(32,32,33,0.2);background:#fff;color:#202021;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">See the full looks →</button>',
+            footer);
           mount();
+          const addNext = document.getElementById('rb-styled-addnext');
+          if (addNext) addNext.onclick = function() { _wtrkOpenAdd(); };
           if (!cardSaveId) {
             const persistable = imgs.map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
             const title = data.fallback ? 'Balmain waistcoat' : ((prompt || 'Your piece').slice(0, 60));
