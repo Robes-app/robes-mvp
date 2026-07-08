@@ -112,7 +112,14 @@ async function cloudinaryUpload(base64Data, mimeType) {
     if (!res.ok) { console.warn('Cloudinary upload error:', await res.text()); return null; }
     const data = await res.json();
     console.log('Cloudinary upload ok:', data.secure_url);
-    return data.secure_url;
+    // Deliver an automatically-optimised, browser-renderable format. HEIC/HEIF
+    // uploads otherwise deliver as .heic — which every non-Safari viewer fails
+    // to render — even though Gemini parses the original fine. f_auto makes
+    // Cloudinary transcode to webp/jpeg per the requesting browser, so every
+    // downstream viewer (wardrobe grid, moodboard, lookbook, share pages) works.
+    return typeof data.secure_url === 'string'
+      ? data.secure_url.replace('/image/upload/', '/image/upload/f_auto,q_auto/')
+      : data.secure_url;
   } catch (err) {
     console.warn('Cloudinary error:', err.message);
     return null;

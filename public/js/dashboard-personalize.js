@@ -619,6 +619,29 @@
           dots.forEach((d, i) => d.classList.toggle('cur', i === n - 1));
         }
 
+        // Downscale + transcode to JPEG so the in-modal preview always renders
+        // (HEIC/HEIF from iPhones can't be shown raw outside Safari) and the
+        // payload stays small. Falls back to the raw data URL if the browser
+        // can't decode the source — Gemini + Cloudinary (f_auto) still handle it.
+        function _waFileToDataUrl(file) {
+          return createImageBitmap(file).then(function(bmp) {
+            const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(bmp.width * scale);
+            canvas.height = Math.round(bmp.height * scale);
+            canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+            bmp.close();
+            return canvas.toDataURL('image/jpeg', 0.85);
+          }).catch(function() {
+            return new Promise(function(resolve, reject) {
+              const reader = new FileReader();
+              reader.onload = function(e) { resolve(e.target.result); };
+              reader.onerror = function() { reject(new Error('unreadable')); };
+              reader.readAsDataURL(file);
+            });
+          });
+        }
+
         function _showStep1() {
           const step = document.querySelector('#wa-modal .fm-step');
           if (!step) return;
@@ -639,13 +662,34 @@
           step.appendChild(_dummyLbl);
 
           const fileInput = document.getElementById('wa-rb-file');
+          const zone = document.getElementById('wa-rb-zone');
+          function _process(file) {
+            if (!file) return;
+            _waFileToDataUrl(file).then(_runStep2).catch(function(err) {
+              console.warn('[robes-autotag] could not read dropped file:', err);
+            });
+          }
           if (fileInput) {
-            fileInput.addEventListener('change', function() {
-              const file = this.files && this.files[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = function(e) { _runStep2(e.target.result); };
-              reader.readAsDataURL(file);
+            fileInput.addEventListener('change', function() { _process(this.files && this.files[0]); });
+          }
+          if (zone) {
+            ['dragenter', 'dragover'].forEach(function(ev) {
+              zone.addEventListener(ev, function(e) {
+                e.preventDefault(); e.stopPropagation();
+                zone.style.borderColor = '#2A2520'; zone.style.background = '#F3EEE6';
+              });
+            });
+            ['dragleave', 'dragend'].forEach(function(ev) {
+              zone.addEventListener(ev, function(e) {
+                e.preventDefault(); e.stopPropagation();
+                zone.style.borderColor = '#C8B8A2'; zone.style.background = '#FAF8F5';
+              });
+            });
+            zone.addEventListener('drop', function(e) {
+              e.preventDefault(); e.stopPropagation();
+              zone.style.borderColor = '#C8B8A2'; zone.style.background = '#FAF8F5';
+              const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+              if (f && (/^image\//.test(f.type) || /\.(heic|heif)$/i.test(f.name))) _process(f);
             });
           }
         }
@@ -811,7 +855,7 @@
               <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">NOTES <span style="font-weight:400;letter-spacing:0;text-transform:none;color:#B0A090;">optional</span></label>
               <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${aiNotes.replace(/</g,'&lt;')}</textarea>
             </div>
-            <button onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
+            <button id="wa-saw-cta" onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
 
           // Set thumbnail src via DOM (not innerHTML) so large data URLs aren't truncated
           const thumbEl = document.getElementById('wa-saw-thumb');
@@ -827,7 +871,21 @@
           window.__waRetake   = function() { _showStep1(); };
           window.__waSawSubmit = function() {
             const step = document.querySelector('#wa-modal .fm-step');
-            if (step && _origStepHTML) step.innerHTML = _origStepHTML;
+            if (!step) return;
+            // Keep the polished review visible and flip its own CTA to "Saving…"
+            // — do NOT swap the whole step back to the bundle's empty "Add a
+            // piece" form (that flash was the reported bug). The bundle form
+            // WA.submit reads from is injected into a hidden host instead.
+            const sawBtn = document.getElementById('wa-saw-cta');
+            if (sawBtn) { sawBtn.disabled = true; sawBtn.style.opacity = '0.65'; sawBtn.style.cursor = 'default'; sawBtn.textContent = 'Saving…'; }
+            let host = document.getElementById('wa-hidden-form');
+            if (!host) {
+              host = document.createElement('div');
+              host.id = 'wa-hidden-form';
+              host.style.display = 'none';
+              step.appendChild(host);
+            }
+            if (_origStepHTML) host.innerHTML = _origStepHTML;
             const lEl  = document.getElementById('wa-label-in');
             const cEl  = document.getElementById('wa-cat');
             const bEl  = document.getElementById('wa-brand');
@@ -1032,6 +1090,9 @@
             console.error('WA submit:', e);
             _waShowToast('Something went wrong — try again');
             if (cta) { cta.disabled = false; cta.textContent = editId ? 'Update piece' : 'Add to wardrobe'; }
+            // Re-enable the visible step-3 CTA (add flow) so the user can retry.
+            const sawBtn = document.getElementById('wa-saw-cta');
+            if (sawBtn) { sawBtn.disabled = false; sawBtn.style.opacity = '1'; sawBtn.style.cursor = 'pointer'; sawBtn.textContent = 'ADD TO WARDROBE →'; }
           }
         };
       }

@@ -101,6 +101,8 @@
     .slot-title { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-weight: 300; font-size: 20px; color: #A89880; }
     .slot-hint { font: 500 9px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: #C4B8A4; border: 1px solid #E0D8C8; border-radius: 4px; padding: 6px 10px; }
     .photo-slot:hover .slot-hint { color: #202021; border-color: #A89880; }
+    .photo-slot.drag-over { border-color: #202021; background: #F3EFE6; }
+    .photo-slot.drag-over .slot-hint { color: #202021; border-color: #A89880; }
     .photo-slot.busy { pointer-events: none; }
     .photo-slot.busy .slot-hint { color: #A89880; border-color: transparent; animation: rb-pulse 1.4s ease-in-out infinite; }
     @keyframes rb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -978,8 +980,21 @@
       const slot = document.getElementById(cfg.slotId);
       const input = document.getElementById(cfg.fileId);
       slot.addEventListener('click', () => input.click());
-      input.addEventListener('change', async () => {
-        const file = input.files[0];
+      // Desktop drag-and-drop onto the slot.
+      ['dragenter', 'dragover'].forEach(ev => slot.addEventListener(ev, e => {
+        e.preventDefault(); e.stopPropagation(); slot.classList.add('drag-over');
+      }));
+      ['dragleave', 'dragend'].forEach(ev => slot.addEventListener(ev, e => {
+        e.preventDefault(); e.stopPropagation(); slot.classList.remove('drag-over');
+      }));
+      slot.addEventListener('drop', e => {
+        e.preventDefault(); e.stopPropagation(); slot.classList.remove('drag-over');
+        const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f && (/^image\//.test(f.type) || /\.(heic|heif)$/i.test(f.name))) processFile(f);
+      });
+      input.addEventListener('change', () => processFile(input.files[0]));
+
+      async function processFile(file) {
         if (!file) return;
         slotError(cfg.errId, '');
         let payload;
@@ -1047,7 +1062,7 @@
             slotBusy(cfg.slotId, cfg.hintId, null);
             input.value = '';
           }
-      });
+      }
     }
 
     function renderAll() {
