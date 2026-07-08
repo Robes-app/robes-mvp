@@ -399,6 +399,11 @@
         }
         const snapEl = document.getElementById('wtrk-snap');
         if (snapEl) snapEl.onclick = _wtrkOpenAdd;
+
+        // Refresh the masthead — once the count lands, the returner echo shows
+        // the real number (and an established ≥3-piece closet flips a first
+        // load to the returner register).
+        if (typeof _rbUpdateMasthead === 'function') _rbUpdateMasthead();
       }
 
       // ── Pack-for-a-trip multi-select (wardrobe-first PRD: the connection
@@ -5309,17 +5314,59 @@
         _rbRenderStyleNotes();
       };
 
-      // Real greeting — the static markup ships a hardcoded "Good evening,
-      // Annie."; replace it with the signed-in name + actual time of day.
-      (function _rbGreet() {
-        const el = document.getElementById('dash-greet');
-        if (!el) return;
+      // Persona-aware masthead (Phase 3 — the returning-user home). The static
+      // markup ships a hardcoded "Good evening, Annie." / "What are we dressing
+      // for today?". First-timers get a time-of-day greeting + the static echo;
+      // returners (onboarded, plus a genuine prior visit or an established
+      // ≥3-piece closet) get a "Welcome back" register and a count-aware steer
+      // toward styling today or cataloguing what's new. Detection stays local:
+      // a per-uid last-visit timestamp, no backend.
+      let _rbLastVisitTs = 0, _rbPriorVisit = false;
+      (function _rbMarkVisit() {
+        try {
+          const p = window.__robes_profile || {};
+          const uid = p.id || (window.__robes_session && window.__robes_session.user && window.__robes_session.user.id) || '';
+          if (!uid) return;
+          const key = 'rb_last_visit__' + uid;
+          const prev = Number(localStorage.getItem(key) || 0);
+          const now = Date.now();
+          // A reload inside the same session isn't a "return" — require a 30-min gap.
+          if (prev && (now - prev) > 30 * 60 * 1000) { _rbPriorVisit = true; _rbLastVisitTs = prev; }
+          localStorage.setItem(key, String(now));
+        } catch (e) {}
+      })();
+      function _rbIsReturner() {
+        const p = window.__robes_profile || {};
+        if (!p.onboarded_at) return false;
+        return _rbPriorVisit || (_waLoaded && _waItems.length >= 3);
+      }
+      function _rbUpdateMasthead() {
+        const greetEl = document.getElementById('dash-greet');
+        const echoEl = document.querySelector('.dash-echo');
         const p = window.__robes_profile || {};
         const nm = (p.first_name || '').trim().split(/\s+/)[0] || '';
-        const h = new Date().getHours();
-        const part = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-        el.textContent = part + (nm ? ', ' + nm : '') + '.';
-      })();
+        if (_rbIsReturner()) {
+          if (greetEl) greetEl.textContent = 'Welcome back' + (nm ? ', ' + nm : '') + '.';
+          if (echoEl && _waLoaded) {
+            const n = _waItems.length;
+            let since = '';
+            if (_rbLastVisitTs) {
+              const prevDay = new Date(_rbLastVisitTs);
+              if (prevDay.toDateString() !== new Date().toDateString()) {
+                since = ' since ' + prevDay.toLocaleDateString('en-GB', { weekday: 'long' });
+              }
+            }
+            echoEl.textContent = n > 0
+              ? (n + ' piece' + (n !== 1 ? 's' : '') + ' catalogued · style today, or add what’s new' + since + '.')
+              : ('Style today, or catalogue your first pieces' + since + '.');
+          }
+        } else if (greetEl) {
+          const h = new Date().getHours();
+          const part = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+          greetEl.textContent = part + (nm ? ', ' + nm : '') + '.';
+        }
+      }
+      _rbUpdateMasthead();
 
       // Apply layout restructure after bundle finishes rendering
       setTimeout(function _rbApplyLayout() {
