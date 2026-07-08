@@ -1873,7 +1873,12 @@ Rules:
     const geminiCall = (model) => ai.models.generateContent({
       model,
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      config: { systemInstruction: systemPrompt, maxOutputTokens: 5000 },
+      // thinkingBudget:0 is mandatory here — gemini-2.5-flash counts thinking
+      // tokens inside maxOutputTokens, so without it the large the_look JSON
+      // truncates mid-object (JSON.parse throws / body arrives cut off) and the
+      // call is slow enough to fall through to the pro model and blow the
+      // gateway timeout. Every other JSON endpoint sets this; this one didn't.
+      config: { systemInstruction: systemPrompt, maxOutputTokens: 5000, thinkingConfig: { thinkingBudget: 0 } },
     });
     let textResult;
     let lastErr;

@@ -4737,7 +4737,14 @@
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || `Server error ${res.status}`);
           }
-          const data = await res.json();
+          let data;
+          try {
+            data = await res.json();
+          } catch (_) {
+            // ok status but the body was cut off (gateway timeout / truncated
+            // stream) — surface a clean retry rather than a raw JSON error.
+            throw new Error('Moodboard response was cut off — please try again');
+          }
           _mbShowResult({ ...data, prompt });
           // Poll for background images if server returned a job id
           if (data.mb_job_id) _mbPollImages(data.mb_job_id);
