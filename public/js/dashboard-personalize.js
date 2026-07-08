@@ -1,6 +1,14 @@
     window.__robes_personalize = function() {
       // Build marker — verify which version is live from the browser console.
-      console.log('[robes] personalize build: snap-mine all-fields shim + wa-grid capture guard (2026-07-06e)');
+      console.log('[robes] personalize build: window.App bridge + share reconstruct (2026-07-09a)');
+      // The dashboard bundle declares `const App = (...)` — a global LEXICAL
+      // binding, not a window property (unlike `window.KP` / `window.WA`). So
+      // every `if (window.App && App.xxx)` guard below was silently skipping,
+      // leaving the wardrobe, moodboard Share / Pack / Rename / +New and
+      // wordmark-home patches un-applied (wardrobe only survived via the grid
+      // MutationObserver). Bridge the lexical binding onto window so all those
+      // guards resolve and the patches take effect as designed.
+      try { if (typeof App !== 'undefined' && App && !window.App) window.App = App; } catch (e) {}
       const _rbStyleIcons = () => {
         const ic = (window.__robes_profile || {}).style_icons;
         return Array.isArray(ic) && ic.length ? ic : [];
@@ -3264,19 +3272,62 @@
       // is_public + given a share_id (owner-JWT PATCH, RLS enforced), and the
       // permanent public page lives at /board/<share_id>. The modal mirrors
       // byrobes.com's "Can we share your look?" — IG handle capture + copy link.
+      // Reconstruct a lookbook-shaped entry from a surface's live render data,
+      // so a visible result can always be shared even if its auto-save id was
+      // lost (e.g. a cloud-pull rewrote the local cache).
+      function _shareBuild(kind, data) {
+        data = data || {};
+        if (kind === 'moodboard') {
+          const { mb_job_id, jobId, ...rest } = data;
+          const grid = (data.grid_images || []).filter(g => g && typeof g.url === 'string' && g.url.indexOf('http') === 0);
+          const hero = (typeof data.hero_image === 'string' && data.hero_image.indexOf('http') === 0) ? data.hero_image : null;
+          return { ...rest, type: 'moodboard', title: data.title || 'Moodboard', subtitle: data.location_context || '', img: hero || (grid[0] && grid[0].url) || null, hero_image: hero, grid_images: grid };
+        }
+        if (kind === 'travel-edit') {
+          return { type: 'travel-edit', title: data.destination || data.title || 'Travel edit', subtitle: '', img: null, tvData: data };
+        }
+        if (kind === 'daily-look') {
+          return { type: 'daily-look', title: data.occasion || 'Daily look', subtitle: '', img: null, dlData: data };
+        }
+        const gi = (data.generatedImages || []).filter(s => typeof s === 'string' && s.indexOf('http') === 0);
+        return { type: 'key-piece', title: (data.ways && data.ways[0] && data.ways[0].title) || 'Your look', subtitle: 'Worn three ways', img: gi[0] || data.photoUrl || null, kpData: { ways: data.ways, fallback: data.fallback, photoUrl: data.photoUrl, generatedImages: gi, intent: data.intent, context: data.context } };
+      }
+
+      // Find the saved entry for a visible surface; if the id is missing or the
+      // local cache dropped it, lazily mint / thinly rebuild one so share never
+      // dead-ends with "style something first".
+      function _shareFindOrMake(id, kind, data) {
+        const store = kind === 'moodboard' ? _mbLoad() : snLoad();
+        if (id) {
+          const found = store.find(i => i.id === id);
+          if (found) return found;
+          // The row was cloud-pushed under this id but is absent locally — a
+          // thin entry keyed by id lets the DB PATCH still target it.
+          return data ? { id, ..._shareBuild(kind, data) } : { id };
+        }
+        if (!data) return null;
+        const entry = _shareBuild(kind, data);
+        const newId = kind === 'moodboard' ? _mbAdd(entry) : snAdd(entry);
+        if (kind === 'moodboard') { const p = document.getElementById('moodboard-panel'); if (p) p._savedId = newId; }
+        else if (kind === 'key-piece') _kpActiveSaveId = newId;
+        else if (kind === 'daily-look') _dlActiveSaveId = newId;
+        else if (kind === 'travel-edit') _tvActiveSaveId = newId;
+        return store.find(x => x.id === newId) || { ...entry, id: newId };
+      }
+
       function _shareActiveEntry() {
         const panel = document.getElementById('moodboard-panel');
-        if (panel && panel.classList.contains('visible') && panel._savedId) {
-          return _mbLoad().find(i => i.id === panel._savedId) || null;
+        if (panel && panel.classList.contains('visible')) {
+          return _shareFindOrMake(panel._savedId, 'moodboard', panel._currentData);
         }
-        if (tvResultPage && tvResultPage.style.display !== 'none' && _tvActiveSaveId) {
-          return snLoad().find(i => i.id === _tvActiveSaveId) || null;
+        if (tvResultPage && tvResultPage.style.display !== 'none') {
+          return _shareFindOrMake(_tvActiveSaveId, 'travel-edit', window.__lastTvData);
         }
-        if (dlResultPage && dlResultPage.style.display !== 'none' && _dlActiveSaveId) {
-          return snLoad().find(i => i.id === _dlActiveSaveId) || null;
+        if (dlResultPage && dlResultPage.style.display !== 'none') {
+          return _shareFindOrMake(_dlActiveSaveId, 'daily-look', window.__lastDlData);
         }
-        if (kpResultPage && kpResultPage.style.display !== 'none' && _kpActiveSaveId) {
-          return snLoad().find(i => i.id === _kpActiveSaveId) || null;
+        if (kpResultPage && kpResultPage.style.display !== 'none') {
+          return _shareFindOrMake(_kpActiveSaveId, 'key-piece', window.__lastKpData);
         }
         return null;
       }
