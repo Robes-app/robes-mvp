@@ -399,31 +399,6 @@
         }
         const snapEl = document.getElementById('wtrk-snap');
         if (snapEl) snapEl.onclick = _wtrkOpenAdd;
-
-        _rbTuneHomeForCount(n);
-      }
-
-      // First-time steer: below 3 pieces the concierge composer would fire a
-      // styling prompt that can only return editorial (un-owned) looks — which
-      // competes with the one action that actually grows the wardrobe. Add a
-      // single honest hint under the prompt pointing at cataloguing first.
-      // Additive only (never hides the composer), so it's flicker-free and
-      // respects the app-wide "never lock" convention.
-      function _rbTuneHomeForCount(n) {
-        const box = document.querySelector('.concierge-box');
-        if (!box || !box.parentNode) return;
-        const existing = document.getElementById('cb-firsttime-hint');
-        if (n >= 3) { if (existing) existing.remove(); return; }
-        if (existing) return;
-        const hint = document.createElement('div');
-        hint.id = 'cb-firsttime-hint';
-        hint.style.cssText = 'font-size:12.5px;color:#6E6A64;line-height:1.45;margin:10px 2px 0';
-        hint.innerHTML = 'New here? <button id="cb-hint-add" style="background:none;border:none;padding:0;color:#202021;font:inherit;font-weight:500;text-decoration:underline;text-underline-offset:2px;cursor:pointer">Add a few pieces first</button> — then Robes styles from your own wardrobe, not just editorial ideas.';
-        const chips = document.getElementById('cb-chips');
-        const anchor = chips || box;
-        anchor.parentNode.insertBefore(hint, anchor.nextSibling);
-        const addBtn = document.getElementById('cb-hint-add');
-        if (addBtn) addBtn.onclick = _wtrkOpenAdd;
       }
 
       // ── Pack-for-a-trip multi-select (wardrobe-first PRD: the connection
