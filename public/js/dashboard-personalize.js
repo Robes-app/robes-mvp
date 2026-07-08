@@ -325,13 +325,25 @@
       }
 
       const _WA_TARGET = 15;
-      const _WA_TITLES = [
-        [0,  '0 / 15 pieces catalogued — Snap your first item to unlock beautiful, curated daily looks.', ''],
-        [1,  'pieces catalogued — keep going. Robes styles only from what you own.', ''],
-        [5,  'pieces catalogued — getting there. A few more and your looks get sharper.', ''],
-        [10, 'pieces catalogued — you\'re nearly there. Five more unlocks your Daily Outfit.', ''],
-        [15, 'pieces catalogued — your wardrobe is complete. Robes styles every look from what you own.', ''],
-      ];
+      // Wardrobe-first tracker copy (kicker, body) per milestone — the body
+      // string always leads with the bold count so the progress reads first.
+      function _wtrkCopy(n) {
+        const left = Math.max(0, _WA_TARGET - n);
+        if (n === 0)  return ['Start here', '<strong>0 of 15 pieces catalogued</strong> — snap your first piece and Robes starts styling from what you already own.'];
+        if (n < 5)   return ['Keep going', '<strong>' + n + ' of 15 pieces catalogued</strong> — ' + left + ' more and Robes can dress you head to toe. It styles only from what you own.'];
+        if (n < 10)  return ['Keep going', '<strong>' + n + ' of 15 pieces catalogued</strong> — getting there. Every piece you add makes your daily looks sharper.'];
+        if (n < 15)  return ['Nearly there', '<strong>' + n + ' of 15 pieces catalogued</strong> — ' + left + ' more and every look is built entirely from your own wardrobe.'];
+        return ['Wardrobe complete', '<strong>' + n + ' pieces catalogued</strong> — Robes dresses you head to toe from what you own. Keep adding as your wardrobe grows.'];
+      }
+      window.__wtrkEdit = function(id) {
+        const it = _waItems.find(w => String(w.id) === String(id));
+        if (it) _waOpenEdit(it);
+      };
+      function _wtrkOpenAdd() {
+        _waEditId = null;
+        _waAfterAdd = null;
+        if (window.WA && WA.open) WA.open();
+      }
       function _waSyncCounts() {
         const n = _waItems.length;
         const label = n + ' piece' + (n !== 1 ? 's' : '');
@@ -344,29 +356,46 @@
         const navBadge = document.querySelector('.nav-wbtn-count');
         if (navBadge) navBadge.textContent = n;
 
-        // dashboard tracker widget
-        const trackerNum  = document.querySelector('.tracker-num');
-        const trackerTitle = document.querySelector('.tracker-title');
-        const trackerSub  = document.querySelector('.tracker-sub');
-        const trackerFill = document.querySelector('.tracker-fill');
-        if (trackerNum) trackerNum.innerHTML = n + '<span> / ' + _WA_TARGET + '</span>';
-        if (trackerFill) trackerFill.style.width = Math.min(100, Math.round(n / _WA_TARGET * 100)) + '%';
-        const copy = [..._WA_TITLES].reverse().find(([min]) => n >= min) || _WA_TITLES[0];
-        if (trackerTitle) trackerTitle.textContent = n === 0 ? copy[1] : n + ' / ' + _WA_TARGET + ' ' + copy[1];
-        if (trackerSub)   trackerSub.textContent   = copy[2];
-        const trackerCta = document.querySelector('.tracker-cta');
-        if (trackerCta) {
-          const ctaText = n === 0 ? 'Add your first piece' : 'Add pieces';
-          trackerCta.childNodes[0].textContent = ctaText;
-          trackerCta.onclick = function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            _waEditId = null;
-            _waAfterAdd = null;
-            if (window.WA && WA.open) WA.open();
-          };
+        // dashboard tracker (wardrobe-first redesign: count + copy + bar +
+        // the catalogued pieces themselves, so the wardrobe is visible on
+        // the dashboard, not just counted)
+        const numEl = document.getElementById('wtrk-num');
+        const fillEl = document.getElementById('wtrk-fill');
+        const kickEl = document.getElementById('wtrk-kicker');
+        const copyEl = document.getElementById('wtrk-copy');
+        if (numEl) numEl.innerHTML = n + '<span> / ' + _WA_TARGET + '</span>';
+        if (fillEl) fillEl.style.width = Math.min(100, Math.round(n / _WA_TARGET * 100)) + '%';
+        const [kicker, body] = _wtrkCopy(n);
+        if (kickEl) kickEl.textContent = kicker;
+        if (copyEl) copyEl.innerHTML = body;
+
+        const itemsEl = document.getElementById('wtrk-items');
+        if (itemsEl) {
+          const tiles = _waItems.slice(0, 12).map(it => {
+            const idAttr = _waEsc(String(it.id));
+            return '<button class="wtrk-it" onclick="window.__wtrkEdit(\'' + idAttr + '\')" title="' + _waEsc(it.label) + '">' +
+              (it.image_url
+                ? '<img src="' + _waEsc(it.image_url) + '" alt="" loading="lazy">'
+                : '<div class="wtrk-mono">' + _waEsc((it.label || '?').charAt(0).toUpperCase()) + '</div>') +
+              '<div class="wtrk-it-scrim"><div class="wtrk-it-name">' + _waEsc(it.label) + '</div>' +
+              (it.category ? '<div class="wtrk-it-cat">' + _waEsc(it.category) + '</div>' : '') + '</div></button>';
+          }).join('');
+          const more = n > 12
+            ? '<button class="wtrk-add" style="border-style:solid" onclick="window.App&&App.showWardrobe&&App.showWardrobe()"><span>+' + (n - 12) + ' more</span></button>'
+            : '';
+          itemsEl.innerHTML = tiles + more +
+            '<button class="wtrk-add" id="wtrk-add-tile"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add</span></button>';
+          const addTile = document.getElementById('wtrk-add-tile');
+          if (addTile) addTile.onclick = _wtrkOpenAdd;
         }
 
+        const ctaEl = document.getElementById('wtrk-cta');
+        if (ctaEl) {
+          ctaEl.childNodes[0].textContent = n === 0 ? 'Add your first piece' : 'Add pieces';
+          ctaEl.onclick = function(e) { e.preventDefault(); e.stopPropagation(); _wtrkOpenAdd(); };
+        }
+        const snapEl = document.getElementById('wtrk-snap');
+        if (snapEl) snapEl.onclick = _wtrkOpenAdd;
       }
 
       function _waCard(it) {
@@ -5093,6 +5122,16 @@
           else dash.appendChild(snEl);
         }
 
+        // Wardrobe-first framing (PRD): the wardrobe tracker leads the page —
+        // move it above the moodboard/lookbook rows, right under the
+        // concierge. The onboarding "Your piece, styled" card stays glued to
+        // the tracker's tail so the emotional hook sits beside the progress
+        // module without outranking it.
+        const mbSection = document.getElementById('rb-mb');
+        if (tracker && mbSection) dash.insertBefore(tracker, mbSection);
+        const styledCard = document.getElementById('rb-styled');
+        if (styledCard && tracker) tracker.parentNode.insertBefore(styledCard, tracker.nextSibling);
+
         _rbRenderMoodboards();
         _rbRenderStyleNotes();
         _rbUpdateDailyOutfitLock();
@@ -5158,10 +5197,12 @@
       // local-only entries from before the migration).
       _lbCloudPull();
 
-      // ── Onboarding handoff — style the key piece three ways on arrival ──
-      // /onboarding step 04 stores {prompt, photo} then lands here; run it
-      // through the same overlay + result page as the concierge flow. The
-      // boot script already shows the loading overlay, so start immediately.
+      // ── Onboarding handoff — "Your piece, styled" as an inline card ─────
+      // /onboarding step 04 stores {prompt, photo} then lands here. The
+      // wardrobe-first PRD relocated the wow moment: no full-screen overlay,
+      // no gate — a card on the dashboard itself, loading → styled, sitting
+      // right under the wardrobe progress module. Tapping through opens the
+      // full three-look render (which also saves it to the lookbook).
       (function _rbOnboardHandoff() {
         let piece = null;
         try {
@@ -5170,19 +5211,163 @@
           sessionStorage.removeItem('rb_onboard_piece');
         } catch (e) { piece = null; }
         if (!piece || (!piece.prompt && !piece.photo)) return;
-        // Onboarding prefires /api/style while the user reads the activation
-        // modal + done screen — if the result already landed, render it
-        // straight away instead of re-running the whole pipeline.
+        // Onboarding prefires /api/style the moment the piece is filed — if
+        // the result already landed, the card renders styled straight away.
         let styled = null;
         try {
           const rawS = sessionStorage.getItem('rb_onboard_styled');
           if (rawS) styled = JSON.parse(rawS);
           sessionStorage.removeItem('rb_onboard_styled');
         } catch (e) { styled = null; }
+
+        const serif = "'Cormorant',Georgia,serif";
+        if (!document.getElementById('rb-styled-style')) {
+          const ss = document.createElement('style');
+          ss.id = 'rb-styled-style';
+          ss.textContent = '@keyframes rbStyPulse{0%,100%{opacity:1}50%{opacity:.55}}' +
+            '@media(max-width:560px){#rb-styled-tiles{grid-template-columns:1fr 1fr 1fr !important;gap:8px !important}}';
+          document.head.appendChild(ss);
+        }
+        const card = document.createElement('section');
+        card.id = 'rb-styled';
+        card.style.cssText = 'display:block;margin:-26px 0 56px';
+
+        function mount() {
+          if (card.isConnected) return;
+          const dash = document.getElementById('dash');
+          if (!dash) { setTimeout(mount, 300); return; }
+          const tracker = dash.querySelector('.tracker');
+          if (tracker && tracker.parentNode) tracker.parentNode.insertBefore(card, tracker.nextSibling);
+          else dash.insertBefore(card, dash.firstChild);
+        }
+
+        const photoThumb = piece.photo
+          ? '<img src="' + _waEsc(piece.photo) + '" style="width:56px;height:72px;border-radius:6px;object-fit:cover;flex-shrink:0" alt="">'
+          : '';
+        const pieceName = (piece.prompt || 'your piece').slice(0, 48);
+
+        function shell(title, sub, tiles, ctaRow) {
+          return '<div style="font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880;margin:0 0 12px">Your piece, styled</div>' +
+            '<div style="border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;background:#fff;padding:22px 24px">' +
+              '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">' + photoThumb +
+                '<div style="flex:1;min-width:200px">' +
+                  '<div style="font-family:' + serif + ';font-size:24px;font-weight:300;color:#202021;line-height:1.15">' + title + '</div>' +
+                  '<div style="font-size:12px;color:#A89880;font-style:italic;margin-top:4px">' + sub + '</div>' +
+                '</div>' + (ctaRow || '') +
+              '</div>' +
+              (tiles ? '<div id="rb-styled-tiles" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">' + tiles + '</div>' : '') +
+            '</div>';
+        }
+
+        function paintLoading() {
+          const tiles = [0, 1, 2].map(() =>
+            '<div style="aspect-ratio:4/5;border-radius:8px;background:#EDE9E2;animation:rbStyPulse 1.8s ease-in-out infinite"></div>'
+          ).join('');
+          card.innerHTML = shell(
+            'Styling your ' + _waEsc(pieceName.toLowerCase()) + '<em>…</em>',
+            'Three editorial looks are composing — they’ll appear right here.',
+            tiles, '');
+          mount();
+        }
+
+        function paintError() {
+          card.innerHTML = shell(
+            'Robes couldn’t style it <em>just now.</em>',
+            'Your piece is safely in your wardrobe — try the looks again.',
+            '',
+            '<button id="rb-styled-retry" style="flex-shrink:0;padding:11px 20px;border-radius:100px;border:0.5px solid rgba(32,32,33,0.2);background:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:#202021;cursor:pointer">Style it three ways</button>');
+          mount();
+          const btn = document.getElementById('rb-styled-retry');
+          if (btn) btn.onclick = function() { card.remove(); _cbStyleSubmit(piece.prompt || '', piece.photo || null); };
+        }
+
+        function paintReady(data, prompt) {
+          const ways = (data.ways || []).slice(0, 3);
+          const imgs = Array.isArray(data.generatedImages) ? data.generatedImages : [];
+          const pending = !!data.jobId;
+          const tiles = ways.map(function(w, i) {
+            const src = typeof imgs[i] === 'string' ? imgs[i] : null;
+            return '<div style="cursor:pointer" onclick="document.getElementById(\'rb-styled-open\').click()">' +
+              '<div id="rb-styled-img-' + i + '" style="aspect-ratio:4/5;border-radius:8px;overflow:hidden;background:#EDE9E2;' + (!src && pending ? 'animation:rbStyPulse 1.8s ease-in-out infinite' : '') + '">' +
+                (src ? '<img src="' + _waEsc(src) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' : '') +
+              '</div>' +
+              '<div style="font-family:' + serif + ';font-size:14px;color:#202021;margin-top:8px;line-height:1.25">' + _waEsc(w.title || 'Look ' + (i + 1)) + '</div>' +
+            '</div>';
+          }).join('');
+          card.innerHTML = shell(
+            'Your first piece, <em>worn three ways.</em>',
+            'Built around your ' + _waEsc(pieceName.toLowerCase()) + ' — tap through for the full looks.',
+            tiles,
+            '<button id="rb-styled-open" style="flex-shrink:0;padding:11px 20px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">See the full looks →</button>');
+          mount();
+          const open = document.getElementById('rb-styled-open');
+          if (open) open.onclick = function() {
+            window.__kpRenderResult(data, prompt, { intent: 'style' });
+          };
+          if (pending) pollImgs(data);
+        }
+
+        // Light image poll for the card tiles — the full result page runs its
+        // own poller + lookbook persistence when she opens it.
+        function pollImgs(data) {
+          const t0 = Date.now();
+          (function tick() {
+            fetch('/api/images/' + data.jobId)
+              .then(function(r) { return r.ok ? r.json() : null; })
+              .then(function(job) {
+                if (job && Array.isArray(job.images)) {
+                  job.images.forEach(function(src, i) {
+                    if (!src) return;
+                    if (!Array.isArray(data.generatedImages)) data.generatedImages = [];
+                    data.generatedImages[i] = src;
+                    const wrap = document.getElementById('rb-styled-img-' + i);
+                    if (wrap && !wrap.querySelector('img')) {
+                      wrap.style.animation = 'none';
+                      wrap.innerHTML = '<img src="' + _waEsc(src) + '" style="width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .5s" alt="">';
+                      requestAnimationFrame(function() { const im = wrap.querySelector('img'); if (im) im.style.opacity = '1'; });
+                    }
+                  });
+                  if (job.done) return settle();
+                } else if (!job) return settle();
+                if (Date.now() - t0 < 300000) setTimeout(tick, 4000); else settle();
+              })
+              .catch(function() { if (Date.now() - t0 < 300000) setTimeout(tick, 6000); else settle(); });
+          })();
+          function settle() {
+            [0, 1, 2].forEach(function(i) {
+              const wrap = document.getElementById('rb-styled-img-' + i);
+              if (wrap) wrap.style.animation = 'none';
+            });
+          }
+        }
+
+        async function quietStyle() {
+          try {
+            const res = await fetch('/api/style', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: piece.prompt || '',
+                photo: piece.photo || null,
+                styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
+                wardrobeCount: Math.max(1, _waItems.length),
+                wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })),
+                intent: 'style',
+              }),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            return await res.json();
+          } catch (e) { return null; }
+        }
+
         if (styled && styled.data && styled.data.ways && Date.now() - (styled.ts || 0) < 10 * 60 * 1000) {
-          window.__kpRenderResult(styled.data, styled.prompt || piece.prompt || '', { intent: 'style' });
+          paintReady(styled.data, styled.prompt || piece.prompt || '');
         } else {
-          _cbStyleSubmit(piece.prompt || '', piece.photo || null);
+          paintLoading();
+          quietStyle().then(function(data) {
+            if (data && Array.isArray(data.ways) && data.ways.length) paintReady(data, piece.prompt || '');
+            else paintError();
+          });
         }
 
         // Persist the key piece to the wardrobe in the background — the

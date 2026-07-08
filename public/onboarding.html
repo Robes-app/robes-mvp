@@ -299,40 +299,15 @@
     .kp-nudge { font-weight: 300; font-size: 13px; color: #8B3A30; margin: 14px 0 0; text-align: center; display: none; }
     .kp-nudge.on { display: block; }
 
-    .kp-modal-scrim {
-      position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
-      padding: 24px; background: rgba(32,32,33,0.55); backdrop-filter: blur(3px);
-      animation: kpScrimIn .3s var(--ease-default) both;
+    /* PRD item 4 — a brief "captured" acknowledgment at the point of capture,
+       so she knows the analysis was used, not just stored. */
+    .cap-ack {
+      display: flex; align-items: baseline; gap: 8px;
+      font-weight: 300; font-size: 13px; color: #7E7C5A; margin: 16px 0 0;
+      animation: capAckIn .5s var(--ease-default) both;
     }
-    @keyframes kpScrimIn { from { opacity: 0; } to { opacity: 1; } }
-    .kp-modal {
-      position: relative; width: 100%; max-width: 430px; background: var(--background); border-radius: 2px;
-      padding: 44px 40px 36px; text-align: center;
-      animation: kpModalDrop .5s cubic-bezier(0.22, 1, 0.36, 1) both;
-    }
-    .kp-modal-x {
-      position: absolute; top: 14px; right: 14px; width: 32px; height: 32px;
-      display: flex; align-items: center; justify-content: center;
-      background: none; border: none; cursor: pointer; color: #AE9290; border-radius: 50%;
-    }
-    .kp-modal-x:hover { color: var(--foreground); background: rgba(32,32,33,0.05); }
-    @keyframes kpModalDrop { from { opacity: 0; transform: translateY(-28px); } to { opacity: 1; transform: none; } }
-    .kp-modal-eyebrow { font-weight: 500; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: #AE9290; margin: 0 0 18px; }
-    .kp-modal-title { font-family: var(--font-serif); font-weight: 300; font-size: clamp(30px, 5vw, 40px); line-height: 1.05; letter-spacing: -0.01em; margin: 0 0 16px; color: var(--foreground); }
-    .kp-modal-title em { font-style: italic; }
-    .kp-modal-body { font-weight: 300; font-size: 14px; line-height: 1.7; color: var(--fg-2); margin: 0 0 30px; }
-    .kp-modal-primary {
-      width: 100%; background: var(--primary); color: var(--background); border: none; border-radius: 2px; cursor: pointer;
-      font-weight: 400; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; padding: 19px;
-      transition: opacity .2s var(--ease-default);
-    }
-    .kp-modal-primary:hover { opacity: .9; }
-    .kp-modal-primary:disabled { opacity: .5; cursor: default; }
-    .kp-modal-ghost {
-      display: block; margin: 16px auto 0; background: none; border: none; cursor: pointer;
-      font-weight: 300; font-size: 13px; color: var(--fg-2); transition: color .2s var(--ease-default);
-    }
-    .kp-modal-ghost:hover { color: var(--foreground); }
+    .cap-ack .cap-ack-tick { font-size: 11px; }
+    @keyframes capAckIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
     /* ── Narrow ──────────────────────────────────────────────────── */
     @media (max-width: 720px) {
@@ -353,7 +328,6 @@
       .ob-back span:not(.ob-arrow) { display: none; }
       .ob-sub { margin-bottom: 40px; }
       .v1-hint { display: none; }
-      .kp-modal { padding: 36px 24px 28px; }
     }
   </style>
 </head>
@@ -761,6 +735,7 @@
                   <span class="cap-read-val${vals[idx].cls}">${esc(vals[idx].txt)}</span>
                 </li>`).join('')}
             </ul>
+            ${state.done && !state.busy ? `<p class="cap-ack"><span class="cap-ack-tick">✓</span>Got it — noted for every recommendation Robes makes you.</p>` : ''}
           </div>
         </div>`;
 
@@ -868,7 +843,7 @@
       step: 'Step 04 · First piece', eyebrow: 'Your wardrobe',
       title: 'Add your first<br><em>key piece.</em>',
       sub: 'Show Robes one piece you love. It reads the garment — label, brand, colour, cut — and files it as piece nº 1 in your wardrobe.',
-      continueLabel: P.tag ? 'Continue' : 'Catalogue this piece',
+      continueLabel: P.tag ? 'Continue to your dashboard' : 'Catalogue this piece',
     });
 
     function kpChips() {
@@ -1026,14 +1001,14 @@
       P.err = '';
       if (st.stage === i) paint();
       // Auto-scan the moment a photo lands — no "Catalogue this piece" tap
-      // needed. The CTA still triggers catalogue() as a fallback / to reopen
-      // the activation modal once a piece is filed.
+      // needed. The CTA still triggers catalogue() as a fallback / to carry
+      // on to the dashboard once a piece is filed.
       catalogue();
     }
 
     async function catalogue() {
       if (P.busy) return;
-      if (P.tag) { showModal(); return; }
+      if (P.tag) { writeHandoff(); go('done'); return; }
       if (!P.img || !P.data) {
         const nudge = document.getElementById('kp-nudge');
         if (nudge) nudge.classList.add('on');
@@ -1096,8 +1071,13 @@
         return true;
       }).catch(() => false);
 
-      if (nx) { nx.disabled = false; nx.textContent = 'Continue'; }
+      if (nx) { nx.disabled = false; nx.textContent = 'Continue to your dashboard'; }
       if (st.stage !== i) return;
+      // The wow moment moved onto the dashboard (wardrobe-first PRD): styling
+      // fires in the background NOW and the handoff payload is written, so the
+      // "Your piece, styled" card is already loading when she lands.
+      prefireStyle();
+      writeHandoff();
       // Enter the reveal state BEFORE painting so the ledger renders every row
       // as still "Reading" — revealLedger() then fills them one by one.
       P.revealing = true;
@@ -1106,18 +1086,50 @@
       const chipCount = popTags(true);
       const revealSecs = revealLedger();
       // Let the filing "magic" land — the ledger fills field by field and the
-      // extracted tags pop staggered, then the activation modal waits a beat
-      // before dropping in. Once dismissed it stays closed until the CONTINUE
-      // CTA is explicitly pressed.
+      // extracted tags pop staggered — then move straight on to the dashboard.
+      // No confirmation modal, no full-screen styling gate (wardrobe-first
+      // PRD): the only pause is for a user mid-thought in the stylist note.
       const chipSecs = 0.35 + chipCount * 0.4;
-      const modalDelay = Math.max(revealSecs, chipSecs) + 1.4;
-      setTimeout(() => { if (st.stage === i && P.tag && !P.modalDismissed) showModal(); }, modalDelay * 1000);
+      const doneDelay = Math.max(revealSecs, chipSecs) + 1.8;
+      setTimeout(() => {
+        if (st.stage !== i || !P.tag) return;
+        const note = document.getElementById('kp-note');
+        if (note && document.activeElement === note) return; // mid-thought — the CTA carries her forward
+        writeHandoff();
+        go('done');
+      }, doneDelay * 1000);
     }
 
-    // Fire the "style key piece" pipeline the moment the activation modal
-    // shows — the looks generate while the user reads the welcome copy, and
-    // the dashboard handoff picks up the finished result instead of starting
-    // from zero.
+    // The dashboard handoff payload — written as soon as the piece is filed
+    // (and refreshed on CONTINUE so a late stylist note still rides along).
+    // `cataloged` is stamped in the background once the insert settles so the
+    // dashboard never double-saves the piece.
+    function writeHandoff() {
+      const prompt = P.note.trim() || (P.tag && P.tag.label) || '';
+      const put = cataloged => {
+        const payload = { prompt, photo: P.img || null, cataloged: !!cataloged };
+        try {
+          sessionStorage.setItem('rb_onboard_piece', JSON.stringify(payload));
+          st.pieceStyled = true;
+        } catch (e) {
+          try {
+            sessionStorage.setItem('rb_onboard_piece', JSON.stringify({ prompt, photo: null, cataloged: !!cataloged }));
+            st.pieceStyled = true;
+          } catch (e2) { st.pieceStyled = false; }
+        }
+      };
+      put(P.saved);
+      if (!P.saved && P.savePromise) {
+        Promise.race([P.savePromise, new Promise(r => setTimeout(() => r(false), 3000))])
+          .then(ok => { if (ok) put(true); })
+          .catch(() => {});
+      }
+    }
+
+    // Fire the "style key piece" pipeline the moment the piece is filed —
+    // the looks generate while the reveal animation and done screen play, and
+    // the dashboard's "Your piece, styled" card picks up the finished result
+    // instead of starting from zero.
     function prefireStyle() {
       if (st.stylePrefired) return;
       st.stylePrefired = true;
@@ -1141,51 +1153,6 @@
       }).catch(() => {});
     }
 
-    function showModal() {
-      if (document.querySelector('.kp-modal-scrim')) return;
-      prefireStyle();
-      const label = (P.tag && P.tag.label) || 'your piece';
-      const scrim = document.createElement('div');
-      scrim.className = 'kp-modal-scrim';
-      scrim.innerHTML = `
-        <div class="kp-modal">
-          <button class="kp-modal-x" id="kp-modal-x" aria-label="Close">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </button>
-          <p class="kp-modal-eyebrow">Piece nº 01 · Cataloged</p>
-          <h2 class="kp-modal-title">In your <em>wardrobe.</em></h2>
-          <p class="kp-modal-body">Robes read your ${esc(label.toLowerCase())} — colour, cut and all — and filed it as the first piece in your wardrobe. Want inspiration for it?</p>
-          <button class="kp-modal-primary" id="kp-style">Style it three ways</button>
-          <button class="kp-modal-ghost" id="kp-later">Straight to the dashboard</button>
-        </div>`;
-      root.appendChild(scrim);
-      const dismiss = () => { P.modalDismissed = true; scrim.remove(); };
-      scrim.onclick = e => { if (e.target === scrim) dismiss(); };
-      scrim.querySelector('#kp-modal-x').onclick = dismiss;
-      scrim.querySelector('#kp-style').onclick = async () => {
-        scrim.querySelector('#kp-style').disabled = true;
-        let cataloged = P.saved;
-        if (!cataloged && P.savePromise) {
-          try {
-            cataloged = await Promise.race([P.savePromise, new Promise(r => setTimeout(() => r(false), 3000))]);
-          } catch (e) {}
-        }
-        const prompt = P.note.trim() || (P.tag && P.tag.label) || '';
-        const payload = { prompt, photo: P.img || null, cataloged: !!cataloged };
-        try {
-          sessionStorage.setItem('rb_onboard_piece', JSON.stringify(payload));
-          st.pieceStyled = true;
-        } catch (e) {
-          try {
-            sessionStorage.setItem('rb_onboard_piece', JSON.stringify({ prompt, photo: null, cataloged: !!cataloged }));
-            st.pieceStyled = true;
-          } catch (e2) { st.pieceStyled = false; }
-        }
-        go('done');
-      };
-      scrim.querySelector('#kp-later').onclick = () => go('done');
-    }
-
     paint();
     const next = document.getElementById('ob-next');
     if (P.busy) { next.disabled = true; next.textContent = 'Reading your piece…'; }
@@ -1202,7 +1169,7 @@
     }
     const first = st.name.trim().split(/\s+/)[0];
     const sub = st.pieceStyled
-      ? 'Robes is ready to style your piece three ways — it’ll meet you inside.'
+      ? 'Your first piece is filed — Robes is already styling it. It’ll be waiting on your dashboard.'
       : st.piece.tag
         ? 'Your first piece is filed in your wardrobe — Robes builds from here.'
         : 'Your style notes will keep growing as Robes gets to know you.';
@@ -1212,7 +1179,7 @@
         <p class="done-eyebrow">Your style notes are ready</p>
         <h1 class="done-title">${first ? `Welcome in,<br><em>${esc(first)}.</em>` : 'Welcome in.'}</h1>
         <p class="done-sub">${sub}</p>
-        <button class="done-restart" id="ob-enter">${st.pieceStyled ? 'See it styled' : 'Let’s get started'}</button>
+        <button class="done-restart" id="ob-enter">${st.pieceStyled ? 'Enter your dashboard' : 'Let’s get started'}</button>
         <div class="done-dots">${'<span class="done-dot on"></span>'.repeat(4)}</div>
       </div></div>`;
     document.getElementById('ob-enter').onclick = () => { window.location.href = '/dashboard'; };
