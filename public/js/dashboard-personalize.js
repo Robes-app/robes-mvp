@@ -398,6 +398,78 @@
         if (snapEl) snapEl.onclick = _wtrkOpenAdd;
       }
 
+      // ── Pack-for-a-trip multi-select (wardrobe-first PRD: the connection
+      // to packing lives inside the wardrobe too) ────────────────────────
+      let _wgPackMode = false;
+      let _wgPackSel = [];
+
+      function _wgDecorate(div, on) {
+        div.style.outline = on ? '2px solid #202021' : '';
+        div.style.outlineOffset = on ? '-2px' : '';
+        let chk = div.querySelector('.wg-pack-chk');
+        if (on && !chk) {
+          chk = document.createElement('span');
+          chk.className = 'wg-pack-chk';
+          chk.style.cssText = 'position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:#202021;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;z-index:2;line-height:1;pointer-events:none';
+          chk.textContent = '✓';
+          const wrap = div.querySelector('.wg-img-wrap') || div;
+          wrap.style.position = 'relative';
+          wrap.appendChild(chk);
+        } else if (!on && chk) chk.remove();
+      }
+
+      function _wgPackBar() {
+        let bar = document.getElementById('wg-packbar');
+        if (!_wgPackMode) { if (bar) bar.remove(); return; }
+        if (!bar) {
+          bar = document.createElement('div');
+          bar.id = 'wg-packbar';
+          bar.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:60;display:flex;gap:10px;align-items:center;background:#202021;border-radius:100px;padding:10px 12px 10px 22px;box-shadow:0 12px 32px -8px rgba(32,32,33,0.45);max-width:calc(100vw - 32px);box-sizing:border-box;flex-wrap:wrap;justify-content:center';
+          document.body.appendChild(bar);
+        }
+        const n = _wgPackSel.length;
+        bar.innerHTML = '<span style="font-size:12px;color:#fff;letter-spacing:.04em;white-space:nowrap">' +
+          (n ? n + ' piece' + (n === 1 ? '' : 's') + ' selected' : 'Tap everything you’re tempted to bring') + '</span>' +
+          '<button onclick="window.__wgPackGo()"' + (n < 2 ? ' disabled' : '') + ' style="padding:9px 18px;border:none;border-radius:100px;background:#fff;color:#202021;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:' + (n < 2 ? 'default' : 'pointer') + ';opacity:' + (n < 2 ? '.5' : '1') + '">Pack for a trip →</button>' +
+          '<button onclick="window.__wgPackCancel()" style="padding:9px 12px;border:none;border-radius:100px;background:none;color:rgba(255,255,255,0.72);font-size:11px;cursor:pointer">Cancel</button>';
+      }
+
+      window.__wgPackStart = function() {
+        _wgPackMode = true;
+        _wgPackSel = [];
+        _waRender();
+        _wgPackBar();
+      };
+      window.__wgPackCancel = function() {
+        _wgPackMode = false;
+        _wgPackSel = [];
+        _waRender();
+        _wgPackBar();
+      };
+      window.__wgPackGo = function() {
+        if (_wgPackSel.length < 2) return;
+        const sel = _wgPackSel.slice();
+        window.__wgPackCancel();
+        // drop the wardrobe overlay so the brief modal lands on the dashboard
+        const wp = document.querySelector('.wardrobe-panel');
+        if (wp && wp.classList.contains('visible')) {
+          const wbtnCount = document.querySelector('.nav-wbtn-count');
+          const wbtn = wbtnCount ? wbtnCount.closest('button') : null;
+          if (wbtn) wbtn.click(); else wp.classList.remove('visible');
+        }
+        window.__tvOpen({ anchors: sel });
+      };
+
+      // Any path that closes the wardrobe panel also ends select mode —
+      // otherwise the floating pack bar outlives the grid it selects from.
+      (function _wgWatchPanel() {
+        const wp = document.querySelector('.wardrobe-panel');
+        if (!wp) { setTimeout(_wgWatchPanel, 500); return; }
+        new MutationObserver(function() {
+          if (!wp.classList.contains('visible') && _wgPackMode) window.__wgPackCancel();
+        }).observe(wp, { attributes: true, attributeFilter: ['class'] });
+      })();
+
       function _waCard(it) {
         const div = document.createElement('div');
         div.className = 'wg-item';
@@ -408,7 +480,18 @@
           (it.times_worn === 0 ? '<div class="wg-owned-badge">Never worn</div>' : '') +
           '</div><div class="wg-info"><div class="wg-name">' + _waEsc(it.label) + '</div>' +
           (meta ? '<div class="wg-metar">' + _waEsc(meta) + '</div>' : '') + '</div>';
-        div.addEventListener('click', () => _waOpenEdit(it));
+        if (_wgPackMode) _wgDecorate(div, _wgPackSel.indexOf(String(it.id)) !== -1);
+        div.addEventListener('click', () => {
+          if (_wgPackMode) {
+            const id = String(it.id);
+            const i = _wgPackSel.indexOf(id);
+            if (i === -1) _wgPackSel.push(id); else _wgPackSel.splice(i, 1);
+            _wgDecorate(div, i === -1);
+            _wgPackBar();
+            return;
+          }
+          _waOpenEdit(it);
+        });
         return div;
       }
 
@@ -436,11 +519,21 @@
           btn.textContent = cat;
           btn.addEventListener('click', () => {
             _waCat = cat;
-            container.querySelectorAll('.wg-pill').forEach(p => p.classList.toggle('active', p.textContent === cat));
+            container.querySelectorAll('.wg-pill:not(.wg-pack-pill)').forEach(p => p.classList.toggle('active', p.textContent === cat));
             _waRender();
           });
           container.appendChild(btn);
         });
+        // Multi-select → Travel Edit, straight from the wardrobe (PRD:
+        // the packing connection lives across the platform)
+        const packBtn = document.createElement('button');
+        packBtn.className = 'wg-pill wg-pack-pill';
+        packBtn.textContent = '✈ Pack a trip';
+        packBtn.style.marginLeft = 'auto';
+        packBtn.addEventListener('click', () => {
+          if (_wgPackMode) window.__wgPackCancel(); else window.__wgPackStart();
+        });
+        container.appendChild(packBtn);
       }
 
       function _waShowDeleteBtn(show) {
@@ -2447,13 +2540,7 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
-      window.__tvLimitStep = function(d) {
-        const el = document.getElementById('tv-limit');
-        if (!el) return;
-        el.textContent = Math.min(15, Math.max(8, (parseInt(el.textContent, 10) || 13) + d));
-      };
-
-      // Brief-modal state — survives the "snap a new anchor" round trip
+      // Brief-modal state — survives the "snap a new piece" round trip
       // through the wardrobe add modal (growth PRD epic 1).
       let _tvBrief = null;
 
@@ -2464,15 +2551,131 @@
           dateFrom: (document.getElementById('tv-from') || {}).value || '',
           dateTo: (document.getElementById('tv-to') || {}).value || '',
           brief: ((document.getElementById('tv-brief-ta') || {}).value || '').trim(),
-          limit: parseInt((document.getElementById('tv-limit') || {}).textContent, 10) || 13,
           anchors: (_tvBrief && _tvBrief.anchors) || [],
         };
       }
 
-      // Mandatory core, no cap (growth PRD revision — Editorial Integration
-      // Model): at least 2 packed pieces unlock the build; the more she
-      // packs, the more the AI acts as editor instead of inventor.
+      // Curatorial revision (wardrobe-first PRD): she multi-selects a
+      // realistic shortlist — everything she's tempted to bring — and Robes
+      // edits it down. Two pieces is the floor for an edit to mean anything.
       const _TV_MIN_ANCHORS = 2;
+
+      // Destination weather for the "weather-ready" browser filter — the
+      // same Open-Meteo pair the server uses (live forecast inside 16 days,
+      // else last year's dates as a seasonal read). Purely advisory: any
+      // failure hides the checkbox and the full wardrobe shows.
+      let _tvWx = null;
+      let _tvWxOnly = false;
+      let _tvCat = 'All';
+      let _tvWxSeq = 0;
+
+      async function _tvFetchWx() {
+        const st = _tvBrief || {};
+        const seq = ++_tvWxSeq;
+        try {
+          const dest = (st.dest || '').trim();
+          if (!dest) throw new Error('no dest');
+          const from = new Date((st.dateFrom || '') + 'T00:00:00Z');
+          const to = new Date((st.dateTo || '') + 'T00:00:00Z');
+          if (isNaN(from) || isNaN(to) || to < from) throw new Error('no dates');
+          const geo = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(dest) + '&count=1&language=en').then(r => r.json());
+          const loc = geo && geo.results && geo.results[0];
+          if (!loc) throw new Error('no geo');
+          const daysAhead = Math.round((to - Date.now()) / 86400000);
+          const daily = 'temperature_2m_max,temperature_2m_min';
+          let url, seasonal = false;
+          if (daysAhead >= 0 && daysAhead <= 14 && from >= new Date(Date.now() - 86400000)) {
+            url = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.latitude + '&longitude=' + loc.longitude + '&daily=' + daily + '&start_date=' + st.dateFrom + '&end_date=' + st.dateTo;
+          } else {
+            seasonal = true;
+            const shift = d => { const x = new Date(d); x.setUTCFullYear(x.getUTCFullYear() - 1); return x.toISOString().slice(0, 10); };
+            url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + loc.latitude + '&longitude=' + loc.longitude + '&daily=' + daily + '&start_date=' + shift(from) + '&end_date=' + shift(to);
+          }
+          const data = await fetch(url).then(r => r.json());
+          const fmax = (((data || {}).daily || {}).temperature_2m_max || []).filter(Number.isFinite);
+          const fmin = (((data || {}).daily || {}).temperature_2m_min || []).filter(Number.isFinite);
+          if (seq !== _tvWxSeq) return;
+          _tvWx = fmax.length && fmin.length
+            ? { minC: Math.round(Math.min(...fmin)), maxC: Math.round(Math.max(...fmax)), seasonal }
+            : null;
+        } catch (e) { if (seq === _tvWxSeq) _tvWx = null; }
+        if (seq === _tvWxSeq) _tvWxPaint();
+      }
+
+      window.__tvWxRefetch = function() { _tvCaptureBrief(); _tvFetchWx(); };
+
+      // Light packability heuristic from the item's own words — a modal
+      // convenience filter only, never sent to the server.
+      function _tvWxFit(it) {
+        if (!_tvWxOnly || !_tvWx || !Number.isFinite(_tvWx.maxC)) return true;
+        const txt = ((it.label || '') + ' ' + (it.notes || '') + ' ' + (it.category || '')).toLowerCase();
+        if (_tvWx.maxC >= 22) return !/wool|cashmere|puffer|down|parka|overcoat|fleece|shearling|turtleneck|beanie|glove|corduroy|quilted|boot/.test(txt);
+        if (_tvWx.maxC < 12) return !/linen|swim|bikini|sandal|shorts|crochet|espadrille/.test(txt);
+        return !/puffer|down|parka|swim|bikini/.test(txt);
+      }
+
+      function _tvWxPaint() {
+        const row = document.getElementById('tv-wx-row');
+        if (!row) return;
+        const lbl = document.getElementById('tv-wx-label');
+        if (_tvWx && Number.isFinite(_tvWx.minC)) {
+          row.style.display = 'flex';
+          if (lbl) lbl.textContent = 'Weather-ready for ' + _tvWx.minC + '–' + _tvWx.maxC + '°C only' + (_tvWx.seasonal ? ' · seasonal read' : '');
+        } else {
+          row.style.display = 'none';
+          _tvWxOnly = false;
+          const box = document.getElementById('tv-wx-box');
+          if (box) box.checked = false;
+        }
+        _tvGridPaint();
+      }
+
+      window.__tvWxToggle = function(el) {
+        _tvWxOnly = !!(el && el.checked);
+        _tvGridPaint();
+      };
+
+      window.__tvCatSet = function(cat) {
+        _tvCat = cat;
+        document.querySelectorAll('[data-tvcat]').forEach(b => {
+          const on = b.dataset.tvcat === cat;
+          b.style.background = on ? '#202021' : '#fff';
+          b.style.color = on ? '#fff' : '#202021';
+          b.style.borderColor = on ? '#202021' : 'rgba(32,32,33,0.15)';
+        });
+        _tvGridPaint();
+      };
+
+      // The wardrobe browser grid — full catalogue, filterable by category
+      // and weather-suitability, multi-select. Snap-new leads so a thin
+      // wardrobe can grow mid-flow.
+      function _tvGridPaint() {
+        const grid = document.getElementById('tv-anchor-row');
+        if (!grid) return;
+        const serif = "'Cormorant',Georgia,serif";
+        const cameraSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+        const items = _waItems.slice(0, 60).filter(wi =>
+          (_tvCat === 'All' || wi.category === _tvCat) && _tvWxFit(wi));
+        const tiles = items.map(wi => `
+          <div data-anc="${_waEsc(String(wi.id))}" onclick="window.__tvAnchorToggle('${_waEsc(String(wi.id))}')" style="cursor:pointer;border-radius:10px;overflow:hidden;background:#fff;outline:1px solid rgba(32,32,33,0.1);outline-offset:-1px;position:relative">
+            <span class="tv-anc-chk" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:#202021;color:#fff;font-size:10px;align-items:center;justify-content:center;z-index:2;line-height:1">✓</span>
+            ${wi.image_url
+              ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block" alt="">`
+              : `<div style="width:100%;aspect-ratio:1/1;background:#EDE8E0;display:flex;align-items:center;justify-content:center;font-family:${serif};font-size:26px;color:#B8AC9C">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</div>`}
+            <div style="padding:6px 8px 7px">
+              <div style="font-size:10px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
+              ${wi.category ? `<div style="font-size:7.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#B8AC9C;margin-top:1px">${_waEsc(wi.category)}</div>` : ''}
+            </div>
+          </div>`).join('');
+        grid.innerHTML = `
+          <div onclick="window.__tvAnchorSnap()" style="cursor:pointer;border-radius:10px;background:#F0EAE0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:120px;color:#8A7B62">
+            ${cameraSvg}
+            <span style="font-size:9px;font-weight:500;letter-spacing:.08em;text-transform:uppercase">Snap new</span>
+          </div>
+          ${tiles}
+          ${!items.length && _waItems.length ? `<div style="grid-column:1/-1;padding:14px 4px;font-size:12px;color:#A89880;font-style:italic">Nothing in this filter — try another category${_tvWxOnly ? ' or untick the weather filter' : ''}.</div>` : ''}`;
+        _tvAnchorPaint();
+      }
 
       function _tvAnchorPaint() {
         const sel = (_tvBrief && _tvBrief.anchors) || [];
@@ -2486,11 +2689,11 @@
         if (hint) {
           hint.textContent = sel.length === 0
             ? (_waItems.length
-              ? 'Tap everything you’re definitely bringing — at least two pieces — and Robes builds the rest of the case around them.'
-              : 'Snap the two pieces you know you’re bringing — they start your digital wardrobe.')
+              ? 'Select everything you’re tempted to bring — Robes tells you what earns its place, what to leave behind, and what’s genuinely missing.'
+              : 'Snap the pieces you’re thinking of bringing — they start your digital wardrobe.')
             : sel.length < _TV_MIN_ANCHORS
-              ? '1 piece packed — one more to start.'
-              : sel.length + ' pieces packed — Robes validates your core and fills the gaps.';
+              ? '1 piece selected — add the rest of your maybes.'
+              : sel.length + ' selected — Robes keeps what earns its place and tells you what to leave behind.';
         }
         const cta = document.getElementById('tv-cta');
         if (cta) {
@@ -2499,8 +2702,8 @@
           cta.style.opacity = ready ? '1' : '0.45';
           cta.style.cursor = ready ? 'pointer' : 'default';
           cta.textContent = ready
-            ? 'Build my travel edit →'
-            : 'Pack at least ' + _TV_MIN_ANCHORS + ' pieces to start';
+            ? 'Build my travel edit · ' + sel.length + ' selected →'
+            : 'Select at least ' + _TV_MIN_ANCHORS + ' pieces to start';
         }
       }
 
@@ -2529,7 +2732,11 @@
       };
 
       // The Natural Language Destination Brief (PRD step 1) — a structured
-      // modal rather than pure chat so dates + item limit are never fuzzy.
+      // modal rather than pure chat so destination + dates are never fuzzy.
+      // Curatorial revision: the old 2-3 tile core picker + item-limit
+      // stepper are gone — she browses her FULL wardrobe (category +
+      // weather-ready filters) and multi-selects the realistic shortlist;
+      // the pack count comes back from the engine.
       window.__tvOpen = function(opts) {
         document.getElementById('tv-brief-modal')?.remove();
         const serif = "'Cormorant',Georgia,serif";
@@ -2544,37 +2751,31 @@
             dateFrom: iso(new Date(Date.now() + 14 * 86400000)),
             dateTo: iso(new Date(Date.now() + 21 * 86400000)),
             brief: rawBrief,
-            limit: 13,
-            anchors: [],
+            anchors: (opts && Array.isArray(opts.anchors) ? opts.anchors.map(String) : []),
           };
+          _tvCat = 'All';
+          _tvWxOnly = false;
         }
         const st = _tvBrief;
         const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:11px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit';
         const labelCss = 'font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 8px';
         const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-        const cameraSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
 
-        // The core row (growth PRD epic 1, aggressive-capture revision):
-        // a snap-new tile + the wardrobe, tap everything she's bringing —
-        // no cap, minimum 2 to unlock the build.
-        const ancTiles = _waItems.slice(0, 60).map(wi => `
-          <div data-anc="${_waEsc(String(wi.id))}" onclick="window.__tvAnchorToggle('${_waEsc(String(wi.id))}')" style="flex:0 0 72px;cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;outline:1px solid rgba(32,32,33,0.1);outline-offset:-1px;position:relative">
-            <span class="tv-anc-chk" style="display:none;position:absolute;top:5px;right:5px;width:16px;height:16px;border-radius:50%;background:#202021;color:#fff;font-size:9px;align-items:center;justify-content:center;z-index:2;line-height:1">✓</span>
-            ${wi.image_url
-              ? `<img src="${_waEsc(wi.image_url)}" style="width:72px;height:72px;object-fit:cover;display:block" alt="">`
-              : `<div style="width:72px;height:72px;background:#EDE8E0;display:flex;align-items:center;justify-content:center;font-family:${serif};font-size:22px;color:#B8AC9C">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</div>`}
-            <div style="padding:4px 6px;font-size:9px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
-          </div>`).join('');
-        const anchorRow = `
-          <p style="${labelCss}">What’s already going in your suitcase?</p>
+        // Category pills — only the categories she actually owns, plus All
+        const cats = ['All'].concat(WA_CATS.slice(1).filter(c => _waItems.some(w => w.category === c)));
+        const catPills = cats.map(c =>
+          `<button data-tvcat="${_waEsc(c)}" onclick="window.__tvCatSet('${_waEsc(c)}')" style="padding:6px 13px;border:0.5px solid ${c === _tvCat ? '#202021' : 'rgba(32,32,33,0.15)'};border-radius:40px;background:${c === _tvCat ? '#202021' : '#fff'};color:${c === _tvCat ? '#fff' : '#202021'};font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">${_waEsc(c)}</button>`
+        ).join('');
+
+        const browser = `
+          <p style="${labelCss}">What’s tempting you?</p>
           <p id="tv-anchor-hint" style="font-size:11px;color:#A89880;font-style:italic;margin:0 0 10px"></p>
-          <div id="tv-anchor-row" style="display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;margin-bottom:16px">
-            <div onclick="window.__tvAnchorSnap()" style="flex:0 0 72px;cursor:pointer;border-radius:8px;background:#F0EAE0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:94px;color:#8A7B62">
-              ${cameraSvg}
-              <span style="font-size:9px;font-weight:500;letter-spacing:.08em;text-transform:uppercase">Snap new</span>
-            </div>
-            ${ancTiles}
-          </div>`;
+          <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px">${catPills}</div>
+          <label id="tv-wx-row" style="display:none;align-items:center;gap:8px;font-size:11.5px;color:#6E6A64;cursor:pointer;margin:0 0 10px">
+            <input id="tv-wx-box" type="checkbox" onchange="window.__tvWxToggle(this)" style="accent-color:#202021;margin:0"${_tvWxOnly ? ' checked' : ''}>
+            <span id="tv-wx-label">Weather-ready pieces only</span>
+          </label>
+          <div id="tv-anchor-row" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;max-height:296px;overflow-y:auto;padding:2px;margin-bottom:20px"></div>`;
 
         const modal = document.createElement('div');
         modal.id = 'tv-brief-modal';
@@ -2587,28 +2788,22 @@
               <button onclick="document.getElementById('tv-brief-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
             </div>
             <p style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin:0 0 4px;line-height:1.15">Where are we packing for?</p>
-            <p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 20px">A high-yield capsule from your wardrobe — every piece earns at least three wears.</p>
+            <p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 20px">Select everything you’re tempted to bring — Robes tells you what earns its place.</p>
             <p style="${labelCss}">Destination</p>
-            <input id="tv-dest" value="${_waEsc(st.dest || '')}" placeholder="Ibiza, Spain" style="${inputCss};margin-bottom:16px">
+            <input id="tv-dest" value="${_waEsc(st.dest || '')}" placeholder="Ibiza, Spain" onchange="window.__tvWxRefetch()" style="${inputCss};margin-bottom:16px">
             <p style="${labelCss}">Dates</p>
             <div style="display:flex;gap:10px;margin-bottom:16px">
-              <input id="tv-from" type="date" value="${_waEsc(st.dateFrom || '')}" style="${inputCss}">
-              <input id="tv-to" type="date" value="${_waEsc(st.dateTo || '')}" style="${inputCss}">
+              <input id="tv-from" type="date" value="${_waEsc(st.dateFrom || '')}" onchange="window.__tvWxRefetch()" style="${inputCss}">
+              <input id="tv-to" type="date" value="${_waEsc(st.dateTo || '')}" onchange="window.__tvWxRefetch()" style="${inputCss}">
             </div>
             <p style="${labelCss}">The brief</p>
             <textarea id="tv-brief-ta" rows="3" placeholder="Staying at Six Senses — refined Mediterranean minimalism. Think Loewe’s Paula’s Ibiza, Rosie Huntington-Whiteley." style="${inputCss};resize:none;margin-bottom:16px;line-height:1.55">${_waEsc(st.brief || '')}</textarea>
-            ${anchorRow}
-            <p style="${labelCss}">Item limit</p>
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px">
-              <button onclick="window.__tvLimitStep(-1)" style="width:32px;height:32px;border:1px solid rgba(32,32,33,0.18);border-radius:50%;background:#fff;font-size:15px;cursor:pointer;color:#202021;line-height:1">−</button>
-              <span id="tv-limit" style="font-family:${serif};font-size:24px;font-weight:400;color:#202021;min-width:30px;text-align:center">${Math.min(15, Math.max(8, st.limit || 13))}</span>
-              <button onclick="window.__tvLimitStep(1)" style="width:32px;height:32px;border:1px solid rgba(32,32,33,0.18);border-radius:50%;background:#fff;font-size:15px;cursor:pointer;color:#202021;line-height:1">+</button>
-              <span style="font-size:11px;color:#A89880;font-style:italic">12–15 pieces is the high-yield sweet spot</span>
-            </div>
+            ${browser}
             <button id="tv-cta" onclick="window.__tvSubmit()" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit;transition:opacity .2s">Build my travel edit →</button>
           </div>`;
         document.body.appendChild(modal);
-        _tvAnchorPaint();
+        _tvGridPaint();
+        _tvFetchWx();
         setTimeout(() => { const el = document.getElementById('tv-dest'); if (el && !el.value) el.focus(); }, 60);
       };
 
@@ -2617,15 +2812,14 @@
         const st = _tvBrief || {};
         const dest = st.dest || '';
         if (!dest) { _waShowToast('Tell us where you’re going first'); return; }
-        const anchorIds = st.anchors || [];
-        if (anchorIds.length < _TV_MIN_ANCHORS) {
-          _waShowToast('Pack at least ' + _TV_MIN_ANCHORS + ' pieces you’re bringing first');
+        const shortlistIds = st.anchors || [];
+        if (shortlistIds.length < _TV_MIN_ANCHORS) {
+          _waShowToast('Select at least ' + _TV_MIN_ANCHORS + ' pieces you’re considering first');
           return;
         }
         const dateFrom = st.dateFrom || '';
         const dateTo = st.dateTo || '';
         const brief = st.brief || '';
-        const limit = st.limit || 13;
         const bm = document.getElementById('tv-brief-modal');
         if (bm) bm.remove();
 
@@ -2648,7 +2842,7 @@
         const loadTitle = document.getElementById('kp-load-title');
         if (loadTitle) loadTitle.innerHTML = 'Packing you for<br><em>' + _waEsc(dest) + '…</em>';
         overlay.style.display = 'flex';
-        const msgs = ['Reading the destination & forecast', 'Building the high-yield capsule…', 'Mapping every look, day by evening…', 'Checking each piece earns three wears…', 'Almost ready…'];
+        const msgs = ['Reading the destination & forecast', 'Deciding what earns its place…', 'Counting the wears each piece earns…', 'Mapping every look, day by evening…', 'Almost ready…'];
         let mi = 0;
         const msgEl0 = document.getElementById('kp-load-msg');
         if (msgEl0) msgEl0.textContent = msgs[0];
@@ -2666,8 +2860,7 @@
               dateFrom,
               dateTo,
               brief,
-              itemLimit: limit,
-              anchorIds,
+              shortlistIds,
               name,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
@@ -2720,13 +2913,17 @@
 
         const owned = data.capsule.filter(it => it.wardrobe_match).length;
         const total = data.capsule.length;
-        const compPct = total ? Math.round((owned / total) * 100) : 0;
-        const toAuth = total - owned;
+        const leftBehind = Array.isArray(data.left_behind) ? data.left_behind : [];
         const lookCount = data.days.reduce((acc, d) => acc + (d.slots || []).length, 0);
         const lead = owned === total && total > 0
           ? 'Packed from your wardrobe, ' + name + '.'
           : owned > 0 ? 'Nearly all packed from yours, ' + name + '.' : 'Your capsule, curated, ' + name + '.';
-        const provenance = `${total} pieces · ${lookCount} looks` + (owned > 0 ? ` · ${owned} from your wardrobe` : '');
+        // Plain summary stat (curatorial PRD) — no percentage-of-ownership framing
+        const provenance = [
+          owned > 0 ? `${owned} ${owned === 1 ? 'piece' : 'pieces'} kept` : `${total} pieces`,
+          `${lookCount} looks`,
+          leftBehind.length ? `${leftBehind.length} left behind` : '',
+        ].filter(Boolean).join(' · ');
 
         if (!tvResultPage) {
           tvResultPage = document.createElement('div');
@@ -2768,47 +2965,72 @@
           </div>`;
         };
 
-        // Interactive High-Yield Capsule Matrix (PRD step 2) — grouped by
-        // the three functional tiers
-        const TIERS = ['Foundations & Tailoring', 'Statement & Texture', 'Footwear & Hardware'];
-        const tiersHtml = TIERS.map(tier => {
-          const members = data.capsule.map((it, ci) => ({ it, ci })).filter(x => x.it.tier === tier);
-          if (!members.length) return '';
-          const cards = members.map(({ it, ci }) => {
-            const wears = (usage[ci] || []).length;
-            const badge = it.wardrobe_match
-              ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:500;color:#4A7C59;background:rgba(74,124,89,0.10);border-radius:20px;padding:2px 7px;white-space:nowrap">${checkSvg} Yours</span>`
-              : (it.retailer_hint || it.price_point)
-                ? `<span style="font-size:10px;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;display:inline-block;vertical-align:bottom">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>`
-                : '';
-            return `<div id="tv-cap-${ci}" onclick="window.__tvSelectItem(${ci})" style="background:#fff;border:0.5px solid rgba(32,32,33,0.1);border-radius:10px;overflow:hidden;cursor:pointer;transition:opacity .2s,outline-color .2s;outline:2px solid transparent;outline-offset:-2px">
-              ${frameFor(it)}
-              <div style="padding:10px 12px 12px">
-                <div style="font-size:12.5px;font-weight:500;color:#202021;line-height:1.35">${_waEsc(it.name)}</div>
-                ${it.brand ? `<div style="font-family:${serif};font-style:italic;font-size:12px;color:#A89880;margin-top:1px">${_waEsc(it.brand)}</div>` : ''}
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px;flex-wrap:wrap">
-                  <span style="display:inline-flex;align-items:center;gap:6px">${badge}</span>
-                  ${wears ? `<span style="font-size:9.5px;font-weight:500;letter-spacing:.08em;color:#8A7B62;background:#F0EAE0;border-radius:20px;padding:2px 8px;white-space:nowrap">× ${wears} looks</span>` : ''}
-                </div>
-                ${(!it.wardrobe_match && it.bridge) ? `<div style="font-family:${serif};font-style:italic;font-size:11.5px;line-height:1.5;color:#8A7B62;margin-top:6px">${_waEsc(it.bridge)}</div>` : ''}
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px">
-                  <button id="tv-pack-${ci}" onclick="event.stopPropagation();window.__tvPackToggle(${ci})" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:${it.packed ? '#202021' : '#6E6A64'};font-family:${sans}">
-                    <span class="tv-pack-box" style="width:15px;height:15px;border-radius:4px;border:1.5px solid ${it.packed ? '#202021' : 'rgba(32,32,33,0.3)'};background:${it.packed ? '#202021' : '#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1;box-sizing:border-box">${it.packed ? '✓' : ''}</span>
-                    Packed
-                  </button>
-                  <button class="tv-noprint" onclick="event.stopPropagation();window.__tvSwap(${ci})" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:0.5px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:8.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">${swapSvg} Swap</button>
-                </div>
+        // The curatorial result (wardrobe-first PRD): three sections replace
+        // the single tier-grouped capsule — Keep (her pieces that made the
+        // cut, with reasons), Worth Adding (genuine gaps only, the smallest
+        // group), Leave Behind (shortlisted but cut, with reasons). Card ids
+        // stay `tv-cap-${ci}` (index into data.capsule) so selection, the
+        // packed checklist and swap keep working unchanged.
+        const capCard = ({ it, ci }) => {
+          const wears = (usage[ci] || []).length;
+          const badge = it.wardrobe_match
+            ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:500;color:#4A7C59;background:rgba(74,124,89,0.10);border-radius:20px;padding:2px 7px;white-space:nowrap">${checkSvg} Yours</span>`
+            : (it.retailer_hint || it.price_point)
+              ? `<span style="font-size:10px;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;display:inline-block;vertical-align:bottom">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>`
+              : '';
+          const note = it.wardrobe_match ? (it.reason || '') : (it.bridge || '');
+          return `<div id="tv-cap-${ci}" onclick="window.__tvSelectItem(${ci})" style="background:#fff;border:0.5px solid rgba(32,32,33,0.1);border-radius:10px;overflow:hidden;cursor:pointer;transition:opacity .2s,outline-color .2s;outline:2px solid transparent;outline-offset:-2px">
+            ${frameFor(it)}
+            <div style="padding:10px 12px 12px">
+              <div style="font-size:12.5px;font-weight:500;color:#202021;line-height:1.35">${_waEsc(it.name)}</div>
+              ${it.brand ? `<div style="font-family:${serif};font-style:italic;font-size:12px;color:#A89880;margin-top:1px">${_waEsc(it.brand)}</div>` : ''}
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px;flex-wrap:wrap">
+                <span style="display:inline-flex;align-items:center;gap:6px">${badge}</span>
+                ${wears ? `<span style="font-size:9.5px;font-weight:500;letter-spacing:.08em;color:#8A7B62;background:#F0EAE0;border-radius:20px;padding:2px 8px;white-space:nowrap">× ${wears} looks</span>` : ''}
               </div>
-            </div>`;
-          }).join('');
-          return `<div style="margin-bottom:26px">
-            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px">
-              <span style="font-family:${serif};font-size:19px;font-weight:400;color:#202021">${_waEsc(tier)}</span>
-              <span style="font-size:10.5px;color:#A89880;letter-spacing:.06em">${members.length} ${members.length === 1 ? 'piece' : 'pieces'}</span>
+              ${note ? `<div style="font-family:${serif};font-style:italic;font-size:11.5px;line-height:1.5;color:#8A7B62;margin-top:6px">${_waEsc(note)}</div>` : ''}
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px">
+                <button id="tv-pack-${ci}" onclick="event.stopPropagation();window.__tvPackToggle(${ci})" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:${it.packed ? '#202021' : '#6E6A64'};font-family:${sans}">
+                  <span class="tv-pack-box" style="width:15px;height:15px;border-radius:4px;border:1.5px solid ${it.packed ? '#202021' : 'rgba(32,32,33,0.3)'};background:${it.packed ? '#202021' : '#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1;box-sizing:border-box">${it.packed ? '✓' : ''}</span>
+                  Packed
+                </button>
+                <button class="tv-noprint" onclick="event.stopPropagation();window.__tvSwap(${ci})" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:0.5px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:8.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">${swapSvg} Swap</button>
+              </div>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px">${cards}</div>
           </div>`;
-        }).join('');
+        };
+        const indexed = data.capsule.map((it, ci) => ({ it, ci }));
+        const keptCards = indexed.filter(x => x.it.wardrobe_match);
+        const addCards = indexed.filter(x => !x.it.wardrobe_match);
+        const sectionHead = (title, sub, count) => `
+          <div style="display:flex;align-items:baseline;gap:10px;margin:0 0 4px">
+            <span style="font-family:${serif};font-size:20px;font-weight:400;color:#202021">${title}</span>
+            <span style="font-size:10.5px;color:#A89880;letter-spacing:.06em">${count} ${count === 1 ? 'piece' : 'pieces'}</span>
+          </div>
+          <div style="font-size:11.5px;color:#A89880;font-style:italic;margin-bottom:12px">${sub}</div>`;
+        const tiersHtml = [
+          keptCards.length ? `<div style="margin-bottom:28px">
+            ${sectionHead('Keep', 'From your shortlist — each one earns its place.', keptCards.length)}
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px">${keptCards.map(capCard).join('')}</div>
+          </div>` : '',
+          addCards.length ? `<div style="margin-bottom:28px">
+            ${sectionHead('Worth adding', 'Genuine gaps only — each new piece must bridge what you already own.', addCards.length)}
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px">${addCards.map(capCard).join('')}</div>
+          </div>` : '',
+          leftBehind.length ? `<div class="tv-noprint" style="margin-bottom:28px">
+            ${sectionHead('Leave behind', 'Tempting, but they don’t earn their place this trip.', leftBehind.length)}
+            <div style="display:flex;flex-direction:column;gap:8px;max-width:640px">${leftBehind.map(l => `
+              <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.6);border:0.5px solid rgba(32,32,33,0.08);border-radius:10px;padding:9px 12px;opacity:.85">
+                ${l.image_url
+                  ? `<img src="${_waEsc(l.image_url)}" style="width:40px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;filter:grayscale(35%)" alt="">`
+                  : `<div style="width:40px;height:48px;border-radius:6px;background:#EDE8E0;display:flex;align-items:center;justify-content:center;font-family:${serif};font-size:16px;color:#B8AC9C;flex-shrink:0">${_waEsc((l.label || '?').charAt(0).toUpperCase())}</div>`}
+                <div style="min-width:0">
+                  <div style="font-size:12px;font-weight:500;color:#57503F;line-height:1.3">${_waEsc(l.label || '')}</div>
+                  ${l.reason ? `<div style="font-family:${serif};font-style:italic;font-size:11.5px;line-height:1.5;color:#A89880;margin-top:1px">${_waEsc(l.reason)}</div>` : ''}
+                </div>
+              </div>`).join('')}</div>
+          </div>` : '',
+        ].join('');
 
         // The Systematic Itinerary Lookbook (PRD step 3) — horizontal day
         // columns; tap a look to inspect its 4-step structure
@@ -2872,17 +3094,6 @@
                   <span style="font-size:11px;letter-spacing:.05em;color:#6E6A64">${_waEsc(provenance)}</span>
                   ${palette.length ? `<span style="display:inline-flex;gap:5px;margin-left:2px">${palette.map(h => `<span style="width:13px;height:13px;border-radius:50%;background:${h};border:0.5px solid rgba(32,32,33,0.15)"></span>`).join('')}</span>` : ''}
                 </div>
-                <div id="tv-comp" style="margin:2px 0 16px;max-width:420px">
-                  <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#A89880;margin-bottom:6px">
-                    <span>Suitcase completeness</span><span style="color:${compPct === 100 ? '#4A7C59' : '#202021'};font-weight:600;font-size:11px">${compPct}% yours</span>
-                  </div>
-                  <div style="height:4px;border-radius:4px;background:rgba(32,32,33,0.08);overflow:hidden">
-                    <div style="height:100%;width:${compPct}%;background:${compPct === 100 ? '#4A7C59' : '#8A7B62'};border-radius:4px;transition:width .4s"></div>
-                  </div>
-                  <div style="font-size:11px;color:#A89880;font-style:italic;margin-top:6px">${compPct === 100
-                    ? 'Fully yours — every piece lives in your digital wardrobe.'
-                    : toAuth + (toAuth === 1 ? ' piece' : ' pieces') + ' to make yours — swap in what you own, or tick them off as you pack.'}</div>
-                </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
                   ${wx || data.dateLine ? `
                   <div style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#6E6A64;letter-spacing:.04em;border:0.5px solid rgba(32,32,33,0.12);border-radius:40px;padding:8px 16px;background:#fff">
@@ -2905,7 +3116,7 @@
 
             <div style="height:0.5px;background:rgba(32,32,33,0.1);margin:26px 0 28px"></div>
             <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:6px">
-              <div style="font-family:${serif};font-weight:400;font-size:27px;color:#202021;line-height:1.1">The capsule</div>
+              <div style="font-family:${serif};font-weight:400;font-size:27px;color:#202021;line-height:1.1">The edit</div>
               <div id="tv-pack-progress" style="display:flex;align-items:center;gap:10px">
                 <span id="tv-pack-count" style="font-size:11px;color:#6E6A64;letter-spacing:.04em"></span>
                 <span style="width:90px;height:3px;border-radius:3px;background:rgba(32,32,33,0.08);overflow:hidden;display:inline-block"><span id="tv-pack-bar" style="display:block;height:100%;width:0%;background:#202021;border-radius:3px;transition:width .3s"></span></span>
@@ -2985,7 +3196,7 @@
             rating: tvFbRating,
             comment,
             prompt: [data.destination, data.dateLine, data.brief].filter(Boolean).join(' · '),
-            looksOutput: JSON.stringify({ surface: 'travel-edit', destination: data.destination || '', trip_label: data.trip_label || '', owned: data.capsule.filter(c => c.wardrobe_match).length, total, packed: data.capsule.filter(c => c.packed).length, looks: lookCount, ts: new Date().toISOString() }),
+            looksOutput: JSON.stringify({ surface: 'travel-edit', destination: data.destination || '', trip_label: data.trip_label || '', owned: data.capsule.filter(c => c.wardrobe_match).length, total, leftBehind: leftBehind.length, packed: data.capsule.filter(c => c.packed).length, looks: lookCount, ts: new Date().toISOString() }),
           }) }).catch(() => {});
           document.getElementById('tv-fb-prompt').hidden = true;
           document.getElementById('tv-fb-expand').hidden = true;
