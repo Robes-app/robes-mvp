@@ -596,6 +596,8 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   }
   lines.push(wardrobeCount >= 15
     ? `SYSTEM DIRECTIVE: The user has a mature digital closet (${wardrobeCount} items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that obey the silhouette maxims above.`
-    : 'SYSTEM DIRECTIVE: The user is in an onboarding state (closet < 15 items). Do NOT over-constrain to their few uploaded items — focus on fashion-house execution matching the colour archetype and silhouette rules above, producing ideal editorial combinations.');
+    : wardrobeCount > 0
+      ? `SYSTEM DIRECTIVE: The user is building their digital closet (${wardrobeCount}/15 items). Lead with fashion-house execution matching the colour and silhouette rules above, but weave in the pieces they already own by their exact labels wherever an owned piece genuinely serves the look — an owned piece always beats a hypothetical one. Fill the remaining gaps with ideal editorial combinations.`
+      : 'SYSTEM DIRECTIVE: The user has not catalogued any wardrobe pieces yet — focus on fashion-house execution matching the colour archetype and silhouette rules above, producing ideal editorial combinations.');
   return lines.join('\n');
 }

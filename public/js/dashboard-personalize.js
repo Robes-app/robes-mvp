@@ -4921,8 +4921,10 @@
           }
         }
 
-        // The Look sidebar — compact thumbnail row design
-        const isColdStart = _waItems.length < 15;
+        // The Look sidebar — compact thumbnail row design.
+        // The "✓ Yours" reward shows on ANY genuine wardrobe match, at any
+        // count — every catalogued piece earns visible proof it's being used,
+        // instead of the reward staying hidden until the closet hits 15.
         const swapSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
         const checkSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
         const railEl = document.getElementById('mb-rail-pieces');
@@ -4942,7 +4944,7 @@
 
             // Right-side CTA — compact to avoid overflow in narrow sidebar
             let ctaHtml;
-            if (!isColdStart && match) {
+            if (match) {
               ctaHtml = `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
                 <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:500;color:#4A7C59;background:rgba(74,124,89,0.10);border-radius:20px;padding:3px 8px;white-space:nowrap">${checkSvg} Yours</span>
                 <button onclick="window.__mbSwap(${idx})" style="font-size:10px;color:#A89880;background:none;border:none;cursor:pointer;padding:0;white-space:nowrap;text-decoration:underline;text-underline-offset:2px">Swap out</button>
@@ -4953,7 +4955,7 @@
 
             // Pills row: wardrobe badge OR retailer + price (no wrapping)
             let pillsHtml = '';
-            if (!isColdStart && match) {
+            if (match) {
               const waItem = _waItems.find(w => w.id === match.id);
               const timesWorn = waItem?.times_worn || 0;
               pillsHtml = `<div style="display:flex;align-items:center;gap:5px;margin-top:3px;overflow:hidden">
