@@ -336,7 +336,7 @@
         if (n < 5)   return ['Keep going', 'Add ' + left + ' more and Robes can dress you head to toe from your own closet — <strong>' + n + ' of 15 catalogued</strong>.'];
         if (n < 10)  return ['Keep going', 'Every piece you add pulls more of your real wardrobe into your daily looks — <strong>' + n + ' of 15 catalogued</strong>.'];
         if (n < 15)  return ['Nearly there', 'Add ' + left + ' more and every look is built entirely from your own wardrobe — <strong>' + n + ' of 15 catalogued</strong>.'];
-        return ['Wardrobe complete', 'Robes now dresses you head to toe from what you own — <strong>' + n + ' pieces catalogued</strong>. Keep adding as your wardrobe grows.'];
+        return ['Growing wardrobe', '<strong>' + n + ' pieces catalogued</strong> — the more you add, the sharper every look Robes builds.'];
       }
       window.__wtrkEdit = function(id) {
         const it = _waItems.find(w => String(w.id) === String(id));
@@ -350,6 +350,15 @@
       function _waSyncCounts() {
         const n = _waItems.length;
         const label = n + ' piece' + (n !== 1 ? 's' : '');
+
+        // Graduated ≥15 tracker: at the styling threshold the progress-to-15
+        // job is done, so the 100% bar + the pre-15 pitch headline retire.
+        if (!document.getElementById('rb-wtrk-style')) {
+          const st = document.createElement('style');
+          st.id = 'rb-wtrk-style';
+          st.textContent = '.wtrk-complete .wtrk-h{display:none}.wtrk-complete .wtrk-bar{display:none}.wtrk-complete .wtrk-num span{display:none}';
+          document.head.appendChild(st);
+        }
 
         // wg-count pill inside the wardrobe panel
         const countEl = document.getElementById('wg-count');
@@ -366,7 +375,13 @@
         const fillEl = document.getElementById('wtrk-fill');
         const kickEl = document.getElementById('wtrk-kicker');
         const copyEl = document.getElementById('wtrk-copy');
-        if (numEl) numEl.innerHTML = n + '<span> / ' + _WA_TARGET + '</span>';
+        // At/after the 15-piece threshold, graduate the module into a slim
+        // wardrobe strip (drop the /15 and the bar) — but keep the thumbnails +
+        // Add tile so ongoing cataloguing, which WAW depends on, never stops.
+        const complete = n >= _WA_TARGET;
+        const trkSection = document.getElementById('wtrk');
+        if (trkSection) trkSection.classList.toggle('wtrk-complete', complete);
+        if (numEl) numEl.innerHTML = complete ? String(n) : (n + '<span> / ' + _WA_TARGET + '</span>');
         if (fillEl) fillEl.style.width = Math.min(100, Math.round(n / _WA_TARGET * 100)) + '%';
         const [kicker, body] = _wtrkCopy(n);
         if (kickEl) kickEl.textContent = kicker;
