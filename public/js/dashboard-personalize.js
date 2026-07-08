@@ -1260,7 +1260,7 @@
         } else if (item.type === 'travel-edit' && item.tvData) {
           window.__tvRenderResult(item.tvData, { skipSave: true, savedId: item.id });
         } else if (item.type === 'key-piece' && item.kpData) {
-          window.__kpRenderResult(item.kpData, item.title, { skipSave: true });
+          window.__kpRenderResult(item.kpData, item.title, { skipSave: true, savedId: item.id });
         } else {
           // Fallback: just open style notes page
           window.__snOpen();
@@ -1779,7 +1779,10 @@
             kpData: { ways, fallback, photoUrl, generatedImages: persistable, intent: kpIntent, context: kpCtx },
           });
         } else {
-          _kpActiveSaveId = data.id || null;
+          // Reopened from the lookbook — data is kpData (no id of its own), so
+          // the row id MUST come from opts.savedId. Without it _kpActiveSaveId
+          // stayed null and every Share lazy-minted a duplicate key-piece row.
+          _kpActiveSaveId = (opts && opts.savedId) || data.id || null;
         }
 
         let kpFbRating = null;
