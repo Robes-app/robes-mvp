@@ -2627,7 +2627,6 @@
                 <div class="dlm-acts">
                   <button class="dlm-act${it.anchored ? ' on' : ''}" onclick="window.__dlAnchor(${fi})" title="Lock this piece through restyles">${lockSvg} ${it.anchored ? 'Anchored' : 'Anchor'}</button>
                   <button class="dlm-act" onclick="window.__dlSwap(${fi})">${swapSvg} Swap</button>
-                  <button class="dlm-act shop" onclick="window.__rbAffiliateSoon()">${it.wardrobe_match ? 'Similar' : 'Shop'}</button>
                 </div>
               </div>
             </div>
@@ -5793,9 +5792,6 @@ body>*:not(#tv-result-page){display:none !important}
         const sfSub = document.getElementById('mb-sfoot-sub');
         if (sfTitle) sfTitle.textContent = String(title || 'Moodboard').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
         if (sfSub) sfSub.textContent = railSubText;
-
-        const railStatEl = document.getElementById('mb-rail-stat');
-        if (railStatEl) railStatEl.textContent = '';
 
         // Breadcrumb: ROBES / {title} when opened from dashboard,
         // or ROBES / Your Moodboards / {title} when opened from the full list
