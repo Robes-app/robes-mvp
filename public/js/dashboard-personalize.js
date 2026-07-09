@@ -3364,7 +3364,8 @@
 #tv-result-page .tvm-weekhead{display:flex;align-items:baseline;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:14px}
 #tv-result-page .tvm-weekhead h2{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:23px;margin:0;color:var(--ink)}
 #tv-result-page .tvm-weekhead .hint{font-size:11px;color:var(--ink-faint);letter-spacing:.02em}
-#tv-result-page .tvm-week{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:34px}
+#tv-result-page .tvm-week{display:grid;grid-auto-flow:column;grid-auto-columns:200px;grid-template-columns:none;gap:10px;margin-bottom:34px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x proximity}
+#tv-result-page .tvm-week .tvm-day{scroll-snap-align:start}
 #tv-result-page .tvm-day{position:relative;text-align:left;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:13px 13px 12px;min-height:132px;display:flex;flex-direction:column;cursor:pointer;transition:border-color .2s,background .2s;font-family:inherit}
 #tv-result-page .tvm-day:hover{border-color:rgba(32,32,33,0.22)}
 #tv-result-page .tvm-day.active{border-color:var(--ink);background:var(--cream-100)}
@@ -3437,6 +3438,11 @@
 #tv-result-page .tvm-act.on{background:var(--sage);color:#fff;border-color:var(--sage)}
 #tv-result-page .tvm-act.add{background:var(--ink);color:#fff;border-color:var(--ink)}
 #tv-result-page .tvm-act.add:hover{opacity:.85;color:#fff;border-color:var(--ink)}
+#tv-result-page .tvm-packbox{display:inline-flex;align-items:center;gap:7px;background:none;border:none;padding:6px 4px;cursor:pointer;font-size:11px;letter-spacing:.01em;color:var(--ink-soft);font-family:inherit;transition:color .15s}
+#tv-result-page .tvm-packbox.on{color:var(--ink)}
+#tv-result-page .tvm-packbox .box{width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(32,32,33,0.3);background:#fff;display:inline-flex;align-items:center;justify-content:center;color:#fff;box-sizing:border-box}
+#tv-result-page .tvm-packbox.on .box{border-color:var(--ink);background:var(--ink)}
+#tv-result-page .tvm-packbox .box svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 #tv-result-page .tvm-payoff{position:sticky;bottom:0;z-index:5;background:rgba(250,248,245,0.94);backdrop-filter:blur(16px);border-top:0.5px solid var(--rule-mid)}
 #tv-result-page .tvm-payoff-in{max-width:1180px;margin:0 auto;padding:13px 36px;display:flex;align-items:center;justify-content:space-between;gap:22px;box-sizing:border-box}
 #tv-result-page .tvm-pmeta{display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -3661,7 +3667,7 @@ body>*:not(#tv-result-page){display:none !important}
               </div>
               <div class="tvm-foot">
                 ${it.wardrobe_match
-                  ? `<button class="tvm-act${it.packed ? ' on' : ''}" data-packci="${ci}" onclick="window.__tvPackToggle(${ci})">${it.packed ? _tvCheckSvg + ' Packed' : 'Pack it'}</button>`
+                  ? `<button class="tvm-packbox${it.packed ? ' on' : ''}" onclick="window.__tvPackToggle(${ci})"><span class="box">${it.packed ? _tvCheckSvg : ''}</span>${it.packed ? 'Packed' : 'Pack'}</button>`
                   : `<button class="tvm-act add" onclick="window.__tvAddOwn(${ci})">+ Add</button>`}
                 <button class="tvm-act tv-noprint" onclick="window.__tvSwap(${ci})">${_tvSwapSvg} Swap</button>
               </div>
@@ -3672,7 +3678,7 @@ body>*:not(#tv-result-page){display:none !important}
         rackWrap.innerHTML = `
           <div class="tvm-rackhead">
             <div style="min-width:0">
-              <span class="ey">The rack · ${_waEsc(dayName)}</span>
+              <span class="ey">The outfit · ${_waEsc(dayName)}</span>
               <h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -3725,6 +3731,8 @@ body>*:not(#tv-result-page){display:none !important}
             box.style.background = it.packed ? '#202021' : '#fff';
             box.textContent = it.packed ? '✓' : '';
           }
+          const lbl = btn.querySelector('.tv-pack-lbl');
+          if (lbl) lbl.textContent = it.packed ? 'Packed' : 'Pack';
           btn.style.color = it.packed ? '#202021' : '#6E6A64';
         });
       }
@@ -3815,7 +3823,7 @@ body>*:not(#tv-result-page){display:none !important}
                 ${it.wardrobe_match
                   ? `<button id="tv-pack-${ci}" onclick="event.stopPropagation();window.__tvPackToggle(${ci})" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:${it.packed ? '#202021' : '#6E6A64'};font-family:${sans}">
                     <span class="tv-pack-box" style="width:15px;height:15px;border-radius:4px;border:1.5px solid ${it.packed ? '#202021' : 'rgba(32,32,33,0.3)'};background:${it.packed ? '#202021' : '#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1;box-sizing:border-box">${it.packed ? '✓' : ''}</span>
-                    Packed
+                    <span class="tv-pack-lbl">${it.packed ? 'Packed' : 'Pack'}</span>
                   </button>`
                   : `<button onclick="event.stopPropagation();window.__tvAddOwn(${ci})" style="display:inline-flex;align-items:center;gap:4px;padding:6px 13px;border:none;border-radius:100px;background:#202021;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}"><span style="font-size:13px;line-height:1;margin-top:-1px">+</span> Add</button>`}
                 <button class="tv-noprint" onclick="event.stopPropagation();window.__tvSwap(${ci})" style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:var(--ink-soft);font-family:${sans}">${swapSvg} Swap</button>
