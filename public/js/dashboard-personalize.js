@@ -1876,7 +1876,7 @@
         if (!kpResultPage) {
           kpResultPage = document.createElement('div');
           kpResultPage.id = 'kp-result-page';
-          kpResultPage.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;width:100%;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
+          kpResultPage.style.cssText = 'position:fixed;left:0;top:var(--nav-h,60px);right:0;bottom:0;width:100%;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
           document.body.appendChild(kpResultPage);
         }
         if (!document.getElementById('kp-img-style')) {
@@ -1892,7 +1892,7 @@
         try { kpResultPage.innerHTML = `
           <div style="width:100%;max-width:900px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
 
-            <h1 style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0 0 12px">${kpDaily ? 'Your day,<br><em style="color:#A89880">dressed three ways.</em>' : 'Your piece,<br><em style="color:#A89880">worn three ways.</em>'}</h1>
+            <h1 id="kp-headline" style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0 0 12px">${kpDaily ? 'Your day,<br><em style="color:#A89880">dressed three ways.</em>' : 'Your piece,<br><em style="color:#A89880">worn three ways.</em>'}</h1>
             <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : kpDaily ? 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.' : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
 
             ${kpDaily && kpCtx && (kpCtx.city || kpCtx.tempRange) ? `
@@ -1955,10 +1955,21 @@
               <div id="kp-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
             </div>
 
-            <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap">
-              <button onclick="window.__kpGoBack()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">← Dashboard</button>
-              <button onclick="window.__rbShare&&window.__rbShare()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Share my look</button>
-              <button onclick="window.__kpGoBack();setTimeout(()=>{KP&&KP.openKeyPiece&&KP.openKeyPiece()},200)" style="padding:12px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}">Style another piece</button>
+            <div style="display:flex;justify-content:center;margin-top:22px">
+              <button onclick="window.__kpGoBack()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.04em;color:#A89880;text-decoration:underline;text-underline-offset:3px;font-family:${sans}">← Back to dashboard</button>
+            </div>
+          </div>
+          <div class="rb-sfoot">
+            <div class="rb-sfoot-in">
+              <div class="rb-sfoot-meta">
+                <span class="t">${_waEsc(pieceName || (kpDaily ? 'Today’s looks' : 'Your piece'))}</span>
+                <span class="s">${kpDaily ? 'Daily look' : 'Styled three ways'}</span>
+              </div>
+              <div class="rb-sfoot-btns">
+                <button class="rb-sfbtn" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg>Share</button>
+                <button class="rb-sfbtn" onclick="window.__rbRename&&window.__rbRename('kp')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Rename</button>
+                <button class="rb-sfbtn primary" onclick="window.__kpGoBack();setTimeout(()=>{KP&&KP.openKeyPiece&&KP.openKeyPiece()},200)">Style another piece</button>
+              </div>
             </div>
           </div>`; } catch(e) {
           console.error('[Robes] kpResultPage render error:', e);
@@ -2481,7 +2492,7 @@
         if (!dlResultPage) {
           dlResultPage = document.createElement('div');
           dlResultPage.id = 'dl-result-page';
-          dlResultPage.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;width:100%;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
+          dlResultPage.style.cssText = 'position:fixed;left:0;top:var(--nav-h,60px);right:0;bottom:0;width:100%;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
           document.body.appendChild(dlResultPage);
         }
         let dlStyleEl = document.getElementById('dl-style');
@@ -3387,6 +3398,7 @@
 #tv-result-page .tvm-pmeta .s b{color:var(--sage);font-weight:500}
 #tv-result-page .tvm-pbtns{display:flex;gap:9px;flex-shrink:0}
 #tv-result-page .tvm-pbtn{display:inline-flex;align-items:center;gap:7px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:11px 18px;font-size:12px;background:#fff;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
+#tv-result-page .tvm-pbtn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 #tv-result-page .tvm-pbtn:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
 #tv-result-page .tvm-pbtn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
 #tv-result-page .tvm-pbtn.primary:hover{opacity:.85;color:#fff}
@@ -3705,7 +3717,7 @@ body>*:not(#tv-result-page){display:none !important}
         if (!tvResultPage) {
           tvResultPage = document.createElement('div');
           tvResultPage.id = 'tv-result-page';
-          tvResultPage.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;width:100%;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
+          tvResultPage.style.cssText = 'position:fixed;left:0;top:var(--nav-h,60px);right:0;bottom:0;width:100%;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
           document.body.appendChild(tvResultPage);
         }
         let tvStyleEl = document.getElementById('tv-style');
@@ -3793,7 +3805,7 @@ body>*:not(#tv-result-page){display:none !important}
             <header class="tvm-mast">
               <div style="min-width:0">
                 <div class="tvm-eyebrow">The travel edit</div>
-                <h1 class="tvm-title">${_waEsc(data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.'))}</h1>
+                <h1 class="tvm-title" id="tv-headline">${_waEsc(data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.'))}</h1>
               </div>
               <div class="tvm-progress">
                 <span class="tvm-mpcount"><b id="tv-mp-n">0</b><span class="of"> / ${total} packed</span></span>
@@ -3846,7 +3858,8 @@ body>*:not(#tv-result-page){display:none !important}
             </div>
             <div class="tv-noprint" style="display:flex;gap:18px;justify-content:center;margin-top:20px;flex-wrap:wrap">
               <button onclick="window.__tvGoBack()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.04em;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:${sans}">← Back to dashboard</button>
-              <button onclick="window.__tvGoBack();setTimeout(()=>{window.__tvOpen()},200)" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.04em;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:${sans}">Pack another trip →</button>
+              <button onclick="window.__tvPackAll()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.04em;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:${sans}">Pack it all</button>
+              <button onclick="window.__tvExport()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.04em;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:${sans}">Export PDF</button>
             </div>
           </div>
 
@@ -3857,9 +3870,9 @@ body>*:not(#tv-result-page){display:none !important}
                 <span class="s"><b id="tv-pm-count">0 of ${total}</b> packed · ${total} pieces, ${lookCount} looks</span>
               </div>
               <div class="tvm-pbtns">
-                <button class="tvm-pbtn" onclick="window.__rbShare&&window.__rbShare()"><span>Share edit</span></button>
-                <button class="tvm-pbtn" onclick="window.__tvExport()"><span>Export PDF</span></button>
-                <button class="tvm-pbtn primary" onclick="window.__tvPackAll()">${checkSvg}<span>Pack it all</span></button>
+                <button class="tvm-pbtn" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg><span>Share</span></button>
+                <button class="tvm-pbtn" onclick="window.__rbRename&&window.__rbRename('tv')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><span>Rename</span></button>
+                <button class="tvm-pbtn primary" onclick="window.__tvGoBack();setTimeout(()=>{window.__tvOpen()},200)"><span>Pack a new trip</span></button>
               </div>
             </div>
           </div>`; } catch (e) {
@@ -4323,6 +4336,56 @@ body>*:not(#tv-result-page){display:none !important}
         else if (kind === 'travel-edit') _tvActiveSaveId = newId;
         return store.find(x => x.id === newId) || { ...entry, id: newId };
       }
+
+      // ── Shared rename for the lookbook result surfaces (key piece /
+      // travel edit). Renames the saved entry (+ cloud via snUpdate) and
+      // updates the live headline/footer meta. Moodboard keeps its own
+      // bundle rename sheet (App.openRename → patched App.saveRename).
+      window.__rbRename = function(kind) {
+        let id = null, cur = '', applyLive = null;
+        if (kind === 'tv') {
+          id = _tvActiveSaveId;
+          cur = (window.__lastTvData && window.__lastTvData.headline) || '';
+          applyLive = (v) => {
+            const h = document.getElementById('tv-headline'); if (h) h.textContent = v;
+            if (window.__lastTvData) window.__lastTvData.headline = v;
+          };
+        } else if (kind === 'kp') {
+          id = _kpActiveSaveId;
+          const saved = id && snLoad().find(x => x.id === id);
+          cur = (saved && saved.title) || (window.__lastKpData && window.__lastKpData.piece) || '';
+          applyLive = (v) => { const m = document.querySelector('#kp-result-page .rb-sfoot-meta .t'); if (m) m.textContent = v; };
+        } else return;
+        if (!id) { _waShowToast('Save it first, then you can rename it'); return; }
+
+        document.getElementById('rb-rename-modal')?.remove();
+        const serif = "'Cormorant',Georgia,serif";
+        const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        const modal = document.createElement('div');
+        modal.id = 'rb-rename-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:420px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 24px 26px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">Rename</p>
+              <button onclick="document.getElementById('rb-rename-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+            </div>
+            <p style="font-family:${serif};font-size:25px;font-weight:300;font-style:italic;color:#202021;margin:0 0 16px;line-height:1.15">Give it a name.</p>
+            <input id="rb-rename-input" value="${_waEsc(cur)}" placeholder="A name you’ll recognise" style="width:100%;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.18);border-radius:8px;padding:12px 13px;font-size:14px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:16px">
+            <button onclick="window.__rbRenameSave()" style="width:100%;padding:13px 20px;border:none;border-radius:100px;background:#202021;font-size:12px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Save name</button>
+          </div>`;
+        document.body.appendChild(modal);
+        setTimeout(() => { const el = document.getElementById('rb-rename-input'); if (el) { el.focus(); el.select(); el.onkeydown = e => { if (e.key === 'Enter') window.__rbRenameSave(); }; } }, 60);
+        window.__rbRenameSave = function() {
+          const v = ((document.getElementById('rb-rename-input') || {}).value || '').trim();
+          if (!v) { _waShowToast('Type a name first'); return; }
+          snUpdate(id, { title: v });
+          if (applyLive) applyLive(v);
+          document.getElementById('rb-rename-modal')?.remove();
+          _waShowToast('Renamed to “' + v + '”');
+        };
+      };
 
       function _shareActiveEntry() {
         const panel = document.getElementById('moodboard-panel');
@@ -5699,12 +5762,16 @@ body>*:not(#tv-result-page){display:none !important}
 
         // Sidebar subtitle
         const railSubEl = document.getElementById('mb-rail-sub');
-        if (railSubEl) {
-          const matchedCount = the_look.filter(i => i.wardrobe_match).length;
-          railSubEl.textContent = matchedCount > 0
-            ? `${the_look.length} pieces · ${matchedCount} from your wardrobe`
-            : `${the_look.length} pieces`;
-        }
+        const railSubText = matchedCount > 0
+          ? `${the_look.length} pieces · ${matchedCount} from your wardrobe`
+          : `${the_look.length} pieces`;
+        if (railSubEl) railSubEl.textContent = railSubText;
+
+        // Sticky-footer meta mirrors the board title + piece provenance
+        const sfTitle = document.getElementById('mb-sfoot-title');
+        const sfSub = document.getElementById('mb-sfoot-sub');
+        if (sfTitle) sfTitle.textContent = String(title || 'Moodboard').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (sfSub) sfSub.textContent = railSubText;
 
         const railStatEl = document.getElementById('mb-rail-stat');
         if (railStatEl) railStatEl.textContent = '';

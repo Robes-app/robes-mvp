@@ -858,6 +858,25 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
 .mb-btn-primary{background:var(--ink);border-color:var(--ink);color:#fff}
 .mb-btn-primary:hover{opacity:.85;color:#fff;border-color:var(--ink)}
 
+/* ── shared sticky footer (result surfaces: moodboard / key piece / …) ── */
+.rb-sfoot{position:sticky;bottom:0;z-index:6;background:rgba(250,248,245,0.94);backdrop-filter:blur(16px);border-top:0.5px solid var(--rule-mid)}
+.rb-sfoot-in{max-width:1180px;margin:0 auto;padding:12px 36px;display:flex;align-items:center;justify-content:space-between;gap:20px;box-sizing:border-box}
+.rb-sfoot-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rb-sfoot-meta .t{font-family:var(--font-serif);font-style:italic;font-size:18px;font-weight:400;line-height:1.1;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-sfoot-meta .s{font-size:11px;color:var(--ink-faint);letter-spacing:0.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-sfoot-btns{display:flex;gap:9px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.rb-sfbtn{display:inline-flex;align-items:center;gap:7px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:11px 18px;font-size:12px;background:#fff;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
+.rb-sfbtn:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
+.rb-sfbtn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.rb-sfbtn.primary:hover{opacity:.85;color:#fff}
+.rb-sfbtn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+@media(max-width:900px){
+  .rb-sfoot-in{padding:10px 16px;gap:12px}
+  .rb-sfoot-meta{display:none}
+  .rb-sfoot-btns{width:100%;justify-content:space-between}
+  .rb-sfbtn{flex:1;justify-content:center;padding:12px 6px}
+}
+
 /* right rail */
 .mb-rail{display:flex;flex-direction:column;background:#fff}
 .mb-rail-hd{padding:20px 20px 15px;border-bottom:0.5px solid var(--rule)}
@@ -2088,12 +2107,6 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
             <img src="/dashboard-assets/5c3905a3-6f63-4d7e-bcd6-ac745fe9078d.png" alt="Printed silk scarf">
             <img src="/dashboard-assets/bcf6fac9-7b2a-46cc-98bc-a7a1c8030978.png" alt="Watch and necklace">
           </div>
-          <div class="mb-actions">
-            <button class="mb-btn mb-btn-primary" onclick="App.packFromBoard()"><svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"></path><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"></path></svg>Pack this trip</button>
-            <button class="mb-btn" onclick="App.openShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg>Share</button>
-            <button class="mb-btn" onclick="App.openRename()"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Rename</button>
-            <button class="mb-btn" onclick="App.chooseInspire()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="5 12 12 5 19 12"></polyline></svg>New</button>
-          </div>
         </div>
         <aside class="mb-rail">
           <div class="mb-rail-hd">
@@ -2110,6 +2123,20 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
             <span class="rail-shopall" onclick="App.toast('Opening 7 items at their retailers')">Shop all →</span>
           </div>
         </aside>
+      </div>
+      <div class="rb-sfoot">
+        <div class="rb-sfoot-in">
+          <div class="rb-sfoot-meta">
+            <span class="t" id="mb-sfoot-title">Moodboard</span>
+            <span class="s" id="mb-sfoot-sub"></span>
+          </div>
+          <div class="rb-sfoot-btns">
+            <button class="rb-sfbtn primary" onclick="App.packFromBoard()"><svg viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3.5S18 3 16.5 4.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"></path></svg>Pack a trip</button>
+            <button class="rb-sfbtn" onclick="App.openShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg>Share my edit</button>
+            <button class="rb-sfbtn" onclick="App.openRename()"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Rename</button>
+            <button class="rb-sfbtn" onclick="App.chooseInspire()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="5 12 12 5 19 12"></polyline></svg>Create a new moodboard</button>
+          </div>
+        </div>
       </div>
     </section>
 

@@ -261,6 +261,12 @@ PRD: AI-Powered Capsule Packing & Lookbook Generator, **wardrobe-first curatoria
 - **PDF export (PRD §5)**: `__tvExport` = `window.print()`; the `#tv-style` print stylesheet hides everything but `#tv-result-page` and strips `.tv-noprint` chrome (payoff bar, action buttons).
 - **Persistence**: auto-saved as `type: 'travel-edit'` with `tvData` (jobId + `_usage` stripped); `__snOpenItem` reopens via `__tvRenderResult(tvData, {skipSave, savedId})`; card labels read "Travel edit" in all three lookbook surfaces. Feedback posts `surface: 'travel-edit'`.
 
+## Result-surface chrome — shared sticky footer + nav offset (amendments 2026-07)
+All four generated result surfaces (moodboard / key piece / daily look / travel edit) are `position:fixed` overlays that must sit **below** the sticky nav (`z-index:50`, `--nav-h:60px`). They render at `top:var(--nav-h,60px)` (the moodboard panel already did; the kp/dl/tv pages were `top:0` and their mastheads hid under the nav — fixed here).
+- **Shared sticky footer** (`.rb-sfoot` / `.rb-sfoot-in` / `.rb-sfoot-meta` / `.rb-sfbtn`, defined once in `dashboard.html`): a cream translucent bar pinned `position:sticky;bottom:0` as the last child of the scrolling result container, with a serif title + status on the left and pill CTAs on the right. Daily (`.dlm-payoff`) and Travel (`.tvm-payoff`) keep their own equivalently-styled bars; moodboard + key piece use `.rb-sfoot`.
+- **Footer CTAs by surface**: Travel Edit = Share / Rename / Pack a new trip (Export PDF + Pack it all demoted to quiet text links above the bar); Moodboard = ✈ Pack a trip (primary, → `App.packFromBoard`) / Share my edit / Rename / Create a new moodboard — replaces the old inline `.mb-actions`; Key piece = Share / Rename / Style another piece; Daily look unchanged (Share / Wear today / Dress me again).
+- **Rename** (`window.__rbRename(kind)` for `'kp'`/`'tv'`): a small modal that renames the active saved lookbook entry (`snUpdate` → title + `_lbCloudPatch`) and patches the live headline (`#tv-headline`) / footer meta. Moodboard keeps the bundle's own rename sheet (`App.openRename` → patched `App.saveRename`, which also drives the slug/URL).
+
 ## Feedback loop (PRD §4 — every output)
 All three generated surfaces carry the inline 👍/👎 + comment block posting to `/api/feedback` → Airtable `Feedback`:
 - Key piece / daily look: block inside `__kpRenderResult`; payload includes `email` (Supabase session), `prompt`, and `looksOutput` JSON (`surface`, `intent`, `context`, look titles, timestamp).
