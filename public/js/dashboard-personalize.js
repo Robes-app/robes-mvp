@@ -3802,18 +3802,16 @@ body>*:not(#tv-result-page){display:none !important}
             : (it.retailer_hint || it.price_point)
               ? `<span style="font-size:10px;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;display:inline-block;vertical-align:bottom">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>`
               : '';
-          const note = it.wardrobe_match ? (it.reason || '') : (it.bridge || '');
           return `<div id="tv-cap-${ci}" onclick="window.__tvSelectItem(${ci})" style="background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad);overflow:hidden;cursor:pointer;transition:opacity .2s,outline-color .2s;outline:2px solid transparent;outline-offset:-2px">
-            <div${f.pollAttr} style="position:relative;background:var(--cream-200);overflow:hidden;aspect-ratio:4/5">${f.inner}</div>
-            <div style="padding:10px 12px 12px">
+            <div${f.pollAttr} style="position:relative;background:var(--cream-200);overflow:hidden;aspect-ratio:1/1">${f.inner}</div>
+            <div style="padding:10px 12px 11px">
               <div style="font-size:12.5px;font-weight:500;color:#202021;line-height:1.35">${_waEsc(it.name)}</div>
               ${it.brand ? `<div style="font-family:${serif};font-style:italic;font-size:12px;color:#A89880;margin-top:1px">${_waEsc(it.brand)}</div>` : ''}
               <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px;flex-wrap:wrap">
                 <span style="display:inline-flex;align-items:center;gap:6px">${badge}</span>
                 ${wears ? `<span style="font-size:9.5px;font-weight:500;letter-spacing:.08em;color:#8A7B62;background:#F0EAE0;border-radius:20px;padding:2px 8px;white-space:nowrap">× ${wears} looks</span>` : ''}
               </div>
-              ${note ? `<div style="font-family:${serif};font-style:italic;font-size:11.5px;line-height:1.5;color:#8A7B62;margin-top:6px">${_waEsc(note)}</div>` : ''}
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:11px">
                 ${it.wardrobe_match
                   ? `<button id="tv-pack-${ci}" onclick="event.stopPropagation();window.__tvPackToggle(${ci})" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:${it.packed ? '#202021' : '#6E6A64'};font-family:${sans}">
                     <span class="tv-pack-box" style="width:15px;height:15px;border-radius:4px;border:1.5px solid ${it.packed ? '#202021' : 'rgba(32,32,33,0.3)'};background:${it.packed ? '#202021' : '#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1;box-sizing:border-box">${it.packed ? '✓' : ''}</span>
@@ -4128,10 +4126,11 @@ body>*:not(#tv-result-page){display:none !important}
         _tvPatchSaved();
       };
 
-      // "Add" on a Worth-adding piece → own it, so it moves into Keep and the
-      // Pack CTA appears. Offers a photo (Snap) or a zero-friction quick-own;
-      // either sets wardrobe_match and the re-render reslots it into Keep.
-      window.__tvAddOwn = function(ci) { _tvShowOwnPrompt(ci); };
+      // "Add" on a Worth-adding piece → own it directly (no modal), so it
+      // moves straight into Keep and the Pack CTA appears. A photo can be
+      // attached later via the swap modal's "Snap mine". _tvShowOwnPrompt /
+      // __tvOwnSnap are kept for potential reuse but no longer on this path.
+      window.__tvAddOwn = function(ci) { window.__tvQuickOwn(ci); };
       function _tvShowOwnPrompt(ci) {
         const data = window.__lastTvData;
         const it = data && data.capsule[ci];
