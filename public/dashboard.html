@@ -884,6 +884,32 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
 .mb-rail-sub{font-family:var(--font-serif);font-style:italic;font-size:15px;color:var(--ink)}
 .mb-rail-pieces{flex:1;padding:6px 0}
 
+/* The Rack card — aligned with the Daily rack (thumb / label / brand /
+   in-wardrobe-or-retailer / flick-through / swap). One provenance line only. */
+.mbr-card{padding:11px 20px;border-bottom:1px solid rgba(32,32,33,0.06)}
+.mbr-top{display:flex;align-items:center;gap:10px}
+.mbr-thumb{width:44px;height:44px;border-radius:7px;flex-shrink:0;object-fit:cover;display:block}
+.mbr-mono{width:44px;height:44px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#EFE9DC,#E3D9CB);font-family:var(--font-serif);font-size:19px;font-weight:300;color:#B8A898}
+.mbr-txt{flex:1;min-width:0;overflow:hidden}
+.mbr-name{font-size:13px;font-weight:500;color:var(--ink);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbr-brand{font-size:11px;color:var(--ink-faint);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbr-tag{margin-top:3px;display:flex;align-items:center;gap:5px;overflow:hidden}
+.mbr-own{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#4A7C59;background:rgba(74,124,89,0.08);border-radius:20px;padding:2px 7px;white-space:nowrap}
+.mbr-own svg{width:9px;height:9px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.mbr-worn{font-size:10px;color:var(--ink-faint);white-space:nowrap}
+.mbr-shoptag{font-size:10px;color:var(--ink-soft);background:#EDE8E0;border-radius:20px;padding:2px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.mbr-acts{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;padding-left:54px}
+.mbr-flick{display:inline-flex;align-items:center;gap:5px}
+.mbr-arrow{width:26px;height:26px;border:0.5px solid var(--rule-mid);border-radius:50%;display:grid;place-items:center;background:#fff;cursor:pointer;color:var(--ink);transition:all .15s;padding:0}
+.mbr-arrow:hover{background:var(--ink);border-color:var(--ink);color:#fff}
+.mbr-arrow svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mbr-count{font-size:10px;color:var(--ink-faint);min-width:24px;text-align:center}
+.mbr-swap{display:inline-flex;align-items:center;gap:5px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:6px 13px;font-size:11px;background:#fff;color:var(--ink-soft);cursor:pointer;transition:all .15s}
+.mbr-swap:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
+.mbr-swap svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.mbr-addpiece{margin:12px 20px 14px;width:calc(100% - 40px);display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px dashed var(--rule-mid);border-radius:10px;padding:12px;font-size:12px;background:transparent;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
+.mbr-addpiece:hover{border-color:var(--ink-faint);color:var(--ink);background:#fff}
+
 .piece{display:flex;align-items:flex-start;gap:12px;padding:13px 20px;transition:background .14s}
 .piece:hover{background:rgba(32,32,33,0.018)}
 .piece.owned{background:rgba(126,124,90,0.045)}
@@ -2116,7 +2142,7 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
           <div class="mb-rail-pieces" id="mb-rail-pieces"></div>
           <button class="mb-rail-nudge" onclick="App.showWardrobe()">
             <div class="nudge-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>
-            <div class="nudge-text"><strong>Add from your wardrobe</strong>Photograph or upload to replace any item</div>
+            <div class="nudge-text"><strong>Manage your wardrobe</strong>Photograph or upload pieces to your closet</div>
           </button>
           <div class="mb-rail-footer">
             <span class="rail-stat" id="mb-rail-stat"><span class="s">2</span> yours · <span class="r">7</span> to shop</span>

@@ -2328,6 +2328,28 @@
         }));
         window.__dlSubmit(window.__lastDlPrompt || (window.__lastDlData && window.__lastDlData.prompt) || '', { locked, savedId: _dlActiveSaveId });
       };
+      // Add a piece to the rack (+ button) — opens the wardrobe add modal
+      // over the page; the new piece joins The Rack (and the moodboard board)
+      // on the next render, using its own wardrobe photo.
+      window.__dlAddPiece = function() {
+        _waEditId = null;
+        _waAfterAdd = (newId) => {
+          const wi = _waItems.find(i => String(i.id) === String(newId));
+          if (!wi || !window.__lastDlData || !Array.isArray(window.__lastDlData.steps) || !window.__lastDlData.steps.length) return;
+          const steps = window.__lastDlData.steps;
+          const step = steps[steps.length - 1];
+          if (!Array.isArray(step.items)) step.items = [];
+          step.items.push({
+            name: wi.label, category: wi.category || 'Other', brand: wi.brand || '', description: '',
+            wardrobe_index: -1, retailer_hint: '', price_point: '', alternates: [],
+            wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
+          });
+          _dlRerender();
+          _waShowToast(wi.label + ' added to the look');
+        };
+        if (window.WA && WA.open) WA.open();
+      };
+
       let _dlWorn = false;
       window.__dlWear = async function() {
         if (_dlWorn) { _waShowToast('Already logged for today'); return; }
@@ -2406,6 +2428,8 @@
 #dl-result-page .dlm-restyle{display:inline-flex;align-items:center;gap:7px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:10px 16px;font-size:12px;color:var(--ink-soft);background:#fff;cursor:pointer;transition:all .15s;white-space:nowrap}
 #dl-result-page .dlm-restyle:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
 #dl-result-page .dlm-rack{display:flex;flex-direction:column;gap:12px}
+#dl-result-page .dlm-addpiece{margin-top:12px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--rule-mid);border-radius:var(--rad);padding:13px;font-size:12px;letter-spacing:.02em;background:transparent;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
+#dl-result-page .dlm-addpiece:hover{border-color:var(--ink-faint);color:var(--ink);background:#fff}
 #dl-result-page .dlm-row{display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:stretch;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:12px;transition:border-color .2s}
 #dl-result-page .dlm-row.anchored{border-color:var(--ink)}
 #dl-result-page .dlm-vp{position:relative;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200);aspect-ratio:1/1}
@@ -2555,7 +2579,7 @@
             <div${f.pollAttr} style="position:absolute;inset:0;background:var(--cream-200)">${f.inner}</div>
             <div class="tgrad"></div>
             <span class="tslot">${_waEsc(slot.l)}</span>
-            ${it.wardrobe_match ? `<span class="town">${checkSvg}</span>` : `<span class="tshop">Shop</span>`}
+            ${it.wardrobe_match ? `<span class="town">${checkSvg}</span>` : ''}
             <span class="tnav l" onclick="event.stopPropagation();window.__dlFlip(${fi},-1)" title="Previous">${chevL}</span>
             <span class="tnav r" onclick="event.stopPropagation();window.__dlFlip(${fi},1)" title="Next">${chevR}</span>
             <span class="tlab">the ${_waEsc(_dlShort(it.name))}</span>
@@ -2662,6 +2686,7 @@
                 </div>
                 <div style="font-size:11.5px;color:var(--ink-faint);font-style:italic;margin:-2px 0 14px">Flick any card through similar pieces, or anchor what must stay — restyles build around your anchors.</div>
                 <div class="dlm-rack">${rackHtml}</div>
+                <button class="dlm-addpiece" onclick="window.__dlAddPiece()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>
               </div>
             </div>
 
@@ -5697,60 +5722,56 @@ body>*:not(#tv-result-page){display:none !important}
         // The "✓ Yours" reward shows on ANY genuine wardrobe match, at any
         // count — every catalogued piece earns visible proof it's being used,
         // instead of the reward staying hidden until the closet hits 15.
-        const swapSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
-        const checkSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        const swapSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
+        const checkSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        const chevL = `<svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>`;
+        const chevR = `<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>`;
         const railEl = document.getElementById('mb-rail-pieces');
         if (railEl) {
+          // Card mirrors the Daily rack: thumbnail / label / brand / a SINGLE
+          // provenance line (in-wardrobe OR retailer·price — no more duplicate)
+          // + flick-through same-category pieces + Swap.
           railEl.innerHTML = the_look.map((item, idx) => {
             const match = item.wardrobe_match;
             const retailer = item.retailer_hint || '';
             const price = item.price_point || '';
-            const brand = item.brand_name || retailer || '';
-
-            // Shop items have no photo — show a tasteful serif monogram tile
-            // rather than a generic image icon (which reads as a broken thumbnail).
+            const brand = item.brand_name || (match ? '' : retailer) || '';
             const _mbInitial = (_mbEsc(item.name || '').trim().charAt(0) || '·').toUpperCase();
             const thumbHtml = match?.image_url
-              ? `<img src="${_mbEsc(match.image_url)}" style="width:44px;height:44px;object-fit:cover;border-radius:7px;flex-shrink:0;display:block" alt="" onerror="window.__mbThumbErr(this)">`
-              : `<div style="width:44px;height:44px;border-radius:7px;background:linear-gradient(135deg,#EFE9DC,#E3D9CB);flex-shrink:0;display:flex;align-items:center;justify-content:center"><span style="font-family:var(--font-serif),Georgia,serif;font-size:19px;font-weight:300;color:#B8A898;line-height:1">${_mbInitial}</span></div>`;
+              ? `<img class="mbr-thumb" src="${_mbEsc(match.image_url)}" alt="" onerror="window.__mbThumbErr(this)">`
+              : `<div class="mbr-mono">${_mbInitial}</div>`;
 
-            // Right-side CTA — compact to avoid overflow in narrow sidebar
-            let ctaHtml;
+            let tag = '';
             if (match) {
-              ctaHtml = `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
-                <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:500;color:#4A7C59;background:rgba(74,124,89,0.10);border-radius:20px;padding:3px 8px;white-space:nowrap">${checkSvg} Yours</span>
-                <button onclick="window.__mbSwap(${idx})" style="font-size:10px;color:#A89880;background:none;border:none;cursor:pointer;padding:0;white-space:nowrap;text-decoration:underline;text-underline-offset:2px">Swap out</button>
-              </div>`;
-            } else {
-              ctaHtml = `<button onclick="window.__mbSwap(${idx})" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;color:#FAF8F5;background:#202021;border:none;border-radius:50%;cursor:pointer;flex-shrink:0" title="Swap">${swapSvg}</button>`;
-            }
-
-            // Pills row: wardrobe badge OR retailer + price (no wrapping)
-            let pillsHtml = '';
-            if (match) {
-              const waItem = _waItems.find(w => w.id === match.id);
+              const waItem = _waItems.find(w => String(w.id) === String(match.id));
               const timesWorn = waItem?.times_worn || 0;
-              pillsHtml = `<div style="display:flex;align-items:center;gap:5px;margin-top:3px;overflow:hidden">
-                <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#4A7C59;background:rgba(74,124,89,0.08);border-radius:20px;padding:2px 7px;white-space:nowrap">${checkSvg} In your wardrobe</span>
-                ${timesWorn > 0 ? `<span style="font-size:10px;color:#A89880;white-space:nowrap;flex-shrink:0">Worn ${timesWorn}×</span>` : ''}
-              </div>`;
+              tag = `<div class="mbr-tag"><span class="mbr-own">${checkSvg} In your wardrobe</span>${timesWorn > 0 ? `<span class="mbr-worn">Worn ${timesWorn}×</span>` : ''}</div>`;
             } else if (retailer || price) {
-              pillsHtml = `<div style="display:flex;align-items:center;gap:4px;margin-top:3px;overflow:hidden">
-                ${retailer ? `<span style="font-size:10px;color:#6E6A64;background:#EDE8E0;border-radius:20px;padding:2px 7px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis">${_mbEsc(retailer)}</span>` : ''}
-                ${price ? `<span style="font-size:10px;color:#6E6A64;background:#EDE8E0;border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${_mbEsc(price)}</span>` : ''}
-              </div>`;
+              tag = `<div class="mbr-tag"><span class="mbr-shoptag">${_mbEsc([retailer, price].filter(Boolean).join(' · '))}</span></div>`;
             }
 
-            return `<div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid rgba(32,32,33,0.06)">
-              ${thumbHtml}
-              <div style="flex:1;min-width:0;overflow:hidden">
-                <div style="font-size:13px;font-weight:500;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_mbEsc(item.name)}</div>
-                ${brand ? `<div style="font-size:11px;color:#A89880;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_mbEsc(brand)}</div>` : ''}
-                ${pillsHtml}
+            const opts = _mbOpts(item);
+            const cur = _mbOptIdx(item, opts);
+            const flick = opts.length > 1
+              ? `<div class="mbr-flick"><button class="mbr-arrow" onclick="window.__mbFlip(${idx},-1)" aria-label="Previous">${chevL}</button><span class="mbr-count">${cur + 1}/${opts.length}</span><button class="mbr-arrow" onclick="window.__mbFlip(${idx},1)" aria-label="Next">${chevR}</button></div>`
+              : `<span></span>`;
+
+            return `<div class="mbr-card">
+              <div class="mbr-top">
+                ${thumbHtml}
+                <div class="mbr-txt">
+                  <div class="mbr-name">${_mbEsc(item.name)}</div>
+                  ${brand ? `<div class="mbr-brand">${_mbEsc(brand)}</div>` : ''}
+                  ${tag}
+                </div>
               </div>
-              ${ctaHtml}
+              <div class="mbr-acts">
+                ${flick}
+                <button class="mbr-swap" onclick="window.__mbSwap(${idx})">${swapSvg} Swap</button>
+              </div>
             </div>`;
-          }).join('');
+          }).join('') +
+          `<button class="mbr-addpiece" onclick="window.__mbAddPiece()"><span style="font-size:15px;line-height:1;margin-top:-1px">+</span> Add a piece</button>`;
 
           // Force overflow:visible up the ancestor chain so buttons aren't clipped
           let el = railEl;
@@ -5909,6 +5930,66 @@ body>*:not(#tv-result-page){display:none !important}
       };
 
       // ── Swap Modal: PRD 3.B — wardrobe grid + Snap Mine + Shop CTA ───────
+      // Flick-through for the moodboard rack — cycles the piece's owned
+      // same-category options (the served state is option 0). The editorial
+      // item name stays; only which owned piece backs it changes, matching
+      // the swap flow. Persist + re-render via _mbCommitLook.
+      function _mbOpts(item) {
+        if (!item._orig) item._orig = { match: item.wardrobe_match || null };
+        const cat = (item.category || '').toLowerCase().replace(/s$/, '');
+        const origId = item._orig.match ? String(item._orig.match.id) : null;
+        const list = [{ match: item._orig.match }];
+        _waItems
+          .filter(wi => ((wi.category || '').toLowerCase().replace(/s$/, '') === cat) && String(wi.id) !== origId)
+          .slice(0, 8)
+          .forEach(wi => list.push({ match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' } }));
+        return list;
+      }
+      function _mbOptIdx(item, list) {
+        const cur = item.wardrobe_match ? String(item.wardrobe_match.id) : null;
+        const i = list.findIndex(o => (o.match ? String(o.match.id) : null) === cur);
+        return i === -1 ? 0 : i;
+      }
+      // Persist the current look + re-render the rail/mosaic (the rack update
+      // is what a swap/flick/add reflects — the moodboard's editorial mosaic
+      // is not per-piece imagery, so the collage itself is unchanged).
+      function _mbCommitLook() {
+        const panel = document.getElementById('moodboard-panel');
+        if (panel && panel._currentData) {
+          panel._currentData.the_look = window.__mbCurrentLook;
+          _mbShowResult(panel._currentData, { skipSave: true });
+          if (panel._savedId) _mbUpdate(panel._savedId, { the_look: window.__mbCurrentLook });
+        }
+      }
+      window.__mbFlip = function(idx, dir) {
+        const look = window.__mbCurrentLook || [];
+        const item = look[idx];
+        if (!item) return;
+        const list = _mbOpts(item);
+        if (list.length < 2) { _waShowToast('Nothing else in your wardrobe for this slot yet'); return; }
+        const next = list[(_mbOptIdx(item, list) + dir + list.length) % list.length];
+        item.wardrobe_match = next.match;
+        _mbCommitLook();
+      };
+      // Add a piece to the look (+ button / rail nudge) — opens the wardrobe
+      // add modal over the board; the new piece joins The Rack as an owned item.
+      window.__mbAddPiece = function() {
+        _waEditId = null;
+        _waAfterAdd = (newId) => {
+          const wi = _waItems.find(i => String(i.id) === String(newId));
+          if (!wi) return;
+          window.__mbCurrentLook = window.__mbCurrentLook || [];
+          window.__mbCurrentLook.push({
+            name: wi.label, brand_name: wi.brand || '', category: wi.category || 'Other',
+            retailer_hint: '', price_point: '',
+            wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
+          });
+          _mbCommitLook();
+          _waShowToast(wi.label + ' added to the look');
+        };
+        if (window.WA && WA.open) WA.open();
+      };
+
       window.__mbSwap = function(idx) {
         const look = window.__mbCurrentLook || [];
         const item = look[idx];
@@ -5993,12 +6074,7 @@ body>*:not(#tv-result-page){display:none !important}
         if (!wi || !window.__mbCurrentLook?.[lookIdx]) return;
         window.__mbCurrentLook[lookIdx].wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
         document.getElementById('mb-swap-modal')?.remove();
-        const panel = document.getElementById('moodboard-panel');
-        if (panel?._currentData) {
-          panel._currentData.the_look = window.__mbCurrentLook;
-          _mbShowResult(panel._currentData, { skipSave: true });
-          if (panel._savedId) _mbUpdate(panel._savedId, { the_look: window.__mbCurrentLook });
-        }
+        _mbCommitLook();
         _waShowToast(wi.label + ' swapped in');
       };
 
