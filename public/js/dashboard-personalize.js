@@ -3300,6 +3300,7 @@
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
           data.brief = brief;
+          data.shortlist_size = shortlistIds.length; // gates the Leave-behind section (15+)
           _tvBrief = null;
           window.__tvRenderResult(data);
         } catch (err) {
@@ -3434,6 +3435,8 @@
 #tv-result-page .tvm-act{display:inline-flex;align-items:center;gap:6px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:8px 13px;font-size:11px;letter-spacing:.01em;background:#fff;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
 #tv-result-page .tvm-act:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
 #tv-result-page .tvm-act.on{background:var(--sage);color:#fff;border-color:var(--sage)}
+#tv-result-page .tvm-act.add{background:var(--ink);color:#fff;border-color:var(--ink)}
+#tv-result-page .tvm-act.add:hover{opacity:.85;color:#fff;border-color:var(--ink)}
 #tv-result-page .tvm-payoff{position:sticky;bottom:0;z-index:5;background:rgba(250,248,245,0.94);backdrop-filter:blur(16px);border-top:0.5px solid var(--rule-mid)}
 #tv-result-page .tvm-payoff-in{max-width:1180px;margin:0 auto;padding:13px 36px;display:flex;align-items:center;justify-content:space-between;gap:22px;box-sizing:border-box}
 #tv-result-page .tvm-pmeta{display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -3657,7 +3660,9 @@ body>*:not(#tv-result-page){display:none !important}
                 ${x.f.note ? `<div class="tvm-hownote">${_waEsc(x.f.note)}</div>` : ''}
               </div>
               <div class="tvm-foot">
-                <button class="tvm-act${it.packed ? ' on' : ''}" data-packci="${ci}" onclick="window.__tvPackToggle(${ci})">${it.packed ? _tvCheckSvg + ' Packed' : 'Pack it'}</button>
+                ${it.wardrobe_match
+                  ? `<button class="tvm-act${it.packed ? ' on' : ''}" data-packci="${ci}" onclick="window.__tvPackToggle(${ci})">${it.packed ? _tvCheckSvg + ' Packed' : 'Pack it'}</button>`
+                  : `<button class="tvm-act add" onclick="window.__tvAddOwn(${ci})">+ Add</button>`}
                 <button class="tvm-act tv-noprint" onclick="window.__tvSwap(${ci})">${_tvSwapSvg} Swap</button>
               </div>
             </div>
@@ -3757,7 +3762,13 @@ body>*:not(#tv-result-page){display:none !important}
 
         const owned = data.capsule.filter(it => it.wardrobe_match).length;
         const total = data.capsule.length;
-        const leftBehind = Array.isArray(data.left_behind) ? data.left_behind : [];
+        const leftBehindAll = Array.isArray(data.left_behind) ? data.left_behind : [];
+        // Only suggest "Leave behind" when the user shortlisted a large pile
+        // (15+) — for a small shortlist, cutting pieces feels like nagging.
+        // shortlist_size is stamped by __tvSubmit; fall back to owned + cut for
+        // older saves.
+        const _tvShortlistN = Number.isInteger(data.shortlist_size) ? data.shortlist_size : (owned + leftBehindAll.length);
+        const leftBehind = _tvShortlistN >= 15 ? leftBehindAll : [];
         const lookCount = data.days.reduce((acc, d) => acc + (d.slots || []).length, 0);
 
         if (!tvResultPage) {
@@ -3803,10 +3814,12 @@ body>*:not(#tv-result-page){display:none !important}
               </div>
               ${note ? `<div style="font-family:${serif};font-style:italic;font-size:11.5px;line-height:1.5;color:#8A7B62;margin-top:6px">${_waEsc(note)}</div>` : ''}
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px">
-                <button id="tv-pack-${ci}" onclick="event.stopPropagation();window.__tvPackToggle(${ci})" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:${it.packed ? '#202021' : '#6E6A64'};font-family:${sans}">
-                  <span class="tv-pack-box" style="width:15px;height:15px;border-radius:4px;border:1.5px solid ${it.packed ? '#202021' : 'rgba(32,32,33,0.3)'};background:${it.packed ? '#202021' : '#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1;box-sizing:border-box">${it.packed ? '✓' : ''}</span>
-                  Packed
-                </button>
+                ${it.wardrobe_match
+                  ? `<button id="tv-pack-${ci}" onclick="event.stopPropagation();window.__tvPackToggle(${ci})" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:${it.packed ? '#202021' : '#6E6A64'};font-family:${sans}">
+                    <span class="tv-pack-box" style="width:15px;height:15px;border-radius:4px;border:1.5px solid ${it.packed ? '#202021' : 'rgba(32,32,33,0.3)'};background:${it.packed ? '#202021' : '#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1;box-sizing:border-box">${it.packed ? '✓' : ''}</span>
+                    Packed
+                  </button>`
+                  : `<button onclick="event.stopPropagation();window.__tvAddOwn(${ci})" style="display:inline-flex;align-items:center;gap:4px;padding:6px 13px;border:none;border-radius:100px;background:#202021;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}"><span style="font-size:13px;line-height:1;margin-top:-1px">+</span> Add</button>`}
                 <button class="tv-noprint" onclick="event.stopPropagation();window.__tvSwap(${ci})" style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:var(--ink-soft);font-family:${sans}">${swapSvg} Swap</button>
               </div>
             </div>
@@ -3883,7 +3896,7 @@ body>*:not(#tv-result-page){display:none !important}
 
             <div id="tv-pane-edit">
               <div style="font-family:${serif};font-weight:300;font-style:italic;font-size:clamp(24px,3vw,34px);color:var(--ink);line-height:1.05;margin-bottom:6px">The edit.</div>
-              <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:8px;max-width:56ch;line-height:1.5">${_waEsc(data.stylist_summary || '')}${data.suitcase_note ? ` <span style="font-style:italic">${_waEsc(data.suitcase_note)}</span>` : ''}</div>
+              <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:8px;line-height:1.5">${_waEsc(data.stylist_summary || '')}${data.suitcase_note ? ` <span style="font-style:italic">${_waEsc(data.suitcase_note)}</span>` : ''}</div>
               <div id="tv-matrix-note" style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-bottom:18px;min-height:18px">Tap any piece to see how it multiplies across the trip.</div>
               ${tiersHtml}
             </div>
@@ -4113,9 +4126,12 @@ body>*:not(#tv-result-page){display:none !important}
         _tvPaintWeek();
         _tvPaintPackProgress();
         _tvPatchSaved();
-        if (it.packed && !it.wardrobe_match) _tvShowOwnPrompt(ci);
       };
 
+      // "Add" on a Worth-adding piece → own it, so it moves into Keep and the
+      // Pack CTA appears. Offers a photo (Snap) or a zero-friction quick-own;
+      // either sets wardrobe_match and the re-render reslots it into Keep.
+      window.__tvAddOwn = function(ci) { _tvShowOwnPrompt(ci); };
       function _tvShowOwnPrompt(ci) {
         const data = window.__lastTvData;
         const it = data && data.capsule[ci];
@@ -4128,13 +4144,13 @@ body>*:not(#tv-result-page){display:none !important}
         modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
         modal.innerHTML = `
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:420px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:28px 26px;text-align:center">
-            <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 8px">In the bag</p>
-            <p style="font-family:${serif};font-size:25px;font-weight:300;color:#202021;margin:0 0 8px;line-height:1.2">Make it officially yours?</p>
-            <p style="font-size:12.5px;color:#6E6A64;line-height:1.65;margin:0 0 20px">You’re packing the <em>${_waEsc(it.name)}</em> — add it to your wardrobe and every future look can style it.</p>
+            <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 8px">Add to wardrobe</p>
+            <p style="font-family:${serif};font-size:25px;font-weight:300;color:#202021;margin:0 0 8px;line-height:1.2">Add the ${_waEsc(it.name)}?</p>
+            <p style="font-size:12.5px;color:#6E6A64;line-height:1.65;margin:0 0 20px">It moves into <em>Keep</em> and joins your wardrobe — ready to pack, and every future look can style it.</p>
             <div style="display:flex;flex-direction:column;gap:9px">
-              <button onclick="window.__tvOwnSnap(${ci})" style="width:100%;padding:13px 20px;border:none;border-radius:40px;background:#202021;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">📷 Snap it now</button>
-              <button onclick="window.__tvQuickOwn(${ci})" style="width:100%;padding:13px 20px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#fff;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">Add without a photo</button>
-              <button onclick="document.getElementById('tv-own-modal').remove()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;color:#A89880;text-decoration:underline;text-underline-offset:3px;font-family:inherit">Just packing</button>
+              <button onclick="window.__tvOwnSnap(${ci})" style="width:100%;padding:13px 20px;border:none;border-radius:100px;background:#202021;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">📷 Snap it now</button>
+              <button onclick="window.__tvQuickOwn(${ci})" style="width:100%;padding:13px 20px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">Add without a photo</button>
+              <button onclick="document.getElementById('tv-own-modal').remove()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;color:#A89880;text-decoration:underline;text-underline-offset:3px;font-family:inherit">Not now</button>
             </div>
           </div>`;
         document.body.appendChild(modal);
