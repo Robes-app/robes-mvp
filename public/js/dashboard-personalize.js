@@ -5336,7 +5336,15 @@
       // ≥3-piece closet) get a "Welcome back" register and a count-aware steer
       // toward styling today or cataloguing what's new. Detection stays local:
       // a per-uid last-visit timestamp, no backend.
-      let _rbLastVisitTs = 0, _rbPriorVisit = false;
+      // NOTE: var (not let) — _waSyncCounts runs early in boot and calls
+      // _rbUpdateMasthead → _rbIsReturner, which reads _rbPriorVisit. Those
+      // are hoisted function declarations, so they can fire before execution
+      // reaches this line; a let binding would still be in its temporal dead
+      // zone and throw ("Cannot access '_rbPriorVisit' before initialization"),
+      // failing the whole dashboard boot. var hoists to undefined (falsy) so
+      // the early call reads first-timer state, and the _rbMarkVisit IIFE +
+      // the later _rbUpdateMasthead() call below apply the real returner state.
+      var _rbLastVisitTs = 0, _rbPriorVisit = false;
       (function _rbMarkVisit() {
         try {
           const p = window.__robes_profile || {};
