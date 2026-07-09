@@ -3319,6 +3319,22 @@
       // sits below as before, and a sticky payoff bar closes the page.
       let _tvActiveDay = 0;   // day the console is reading
       let _tvActiveOcc = 0;   // 0 = Day slot, 1 = Evening slot
+      let _tvActiveTab = 'edit'; // 'edit' (pieces) | 'outfits' (calendar)
+
+      // Tab switch — splits the dense page into The Edit (pieces) and
+      // Outfits (calendar + console) so it never overwhelms at once.
+      window.__tvSetTab = function(tab) {
+        _tvActiveTab = (tab === 'outfits') ? 'outfits' : 'edit';
+        const paneE = document.getElementById('tv-pane-edit');
+        const paneO = document.getElementById('tv-pane-outfits');
+        const btnE = document.getElementById('tv-tab-edit');
+        const btnO = document.getElementById('tv-tab-outfits');
+        if (paneE) paneE.style.display = _tvActiveTab === 'edit' ? 'block' : 'none';
+        if (paneO) paneO.style.display = _tvActiveTab === 'outfits' ? 'block' : 'none';
+        if (btnE) btnE.classList.toggle('on', _tvActiveTab === 'edit');
+        if (btnO) btnO.classList.toggle('on', _tvActiveTab === 'outfits');
+        if (tvResultPage) tvResultPage.scrollTo({ top: 0 });
+      };
 
       // Styled to the live platform design system (Moodboard header + the
       // cream/white, rounded-pill language used everywhere else).
@@ -3339,7 +3355,11 @@
 #tv-result-page .tvm-wx strong{font-weight:500;color:var(--ink)}
 #tv-result-page .tvm-wx .div{width:1px;height:11px;background:var(--rule-mid)}
 #tv-result-page .tvm-tag{display:inline-flex;align-items:center;padding:8px 14px;border-radius:100px;background:var(--rose-bg);border:0.5px solid rgba(142,112,119,0.2);font-family:var(--font-serif);font-style:italic;font-size:14px;color:var(--rose)}
-#tv-result-page .tvm-rule{height:0.5px;background:var(--rule);margin:22px 0 28px}
+#tv-result-page .tvm-rule{height:0.5px;background:var(--rule);margin:22px 0 24px}
+#tv-result-page .tvm-tabs{display:inline-flex;gap:3px;background:var(--cream-100);border:0.5px solid var(--rule-mid);border-radius:100px;padding:4px;margin-bottom:26px}
+#tv-result-page .tvm-tab{padding:9px 22px;border:none;border-radius:100px;background:transparent;font-size:12px;letter-spacing:.03em;color:var(--ink-soft);cursor:pointer;font-family:inherit;transition:all .15s}
+#tv-result-page .tvm-tab:hover{color:var(--ink)}
+#tv-result-page .tvm-tab.on{background:var(--ink);color:#fff}
 #tv-result-page .tvm-weekhead{display:flex;align-items:baseline;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:14px}
 #tv-result-page .tvm-weekhead h2{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:23px;margin:0;color:var(--ink)}
 #tv-result-page .tvm-weekhead .hint{font-size:11px;color:var(--ink-faint);letter-spacing:.02em}
@@ -3447,6 +3467,8 @@
 body>*:not(#tv-result-page){display:none !important}
 #tv-result-page{position:static !important;overflow:visible !important}
 #tv-result-page .tv-noprint{display:none !important}
+#tv-result-page .tvm-tabs{display:none !important}
+#tv-result-page #tv-pane-edit,#tv-result-page #tv-pane-outfits{display:block !important}
 #tv-result-page .tvm-look{position:static}
 }
 @media(max-width:900px){
@@ -3710,7 +3732,7 @@ body>*:not(#tv-result-page){display:none !important}
         _tvStopPolling();
         _tvSelected = null;
         window.__lastTvData = data;
-        if (!opts || !opts.skipSave) { _tvActiveDay = 0; _tvActiveOcc = 0; }
+        if (!opts || !opts.skipSave) { _tvActiveDay = 0; _tvActiveOcc = 0; _tvActiveTab = 'edit'; }
         if (_tvActiveDay >= data.days.length) _tvActiveDay = 0;
         const serif = _tvSerif;
         const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
@@ -3823,6 +3845,16 @@ body>*:not(#tv-result-page){display:none !important}
           </div>` : '',
         ].join('');
 
+        // Weather emoji so the pill reads like the other looks' weather-strip
+        const _tvWxEmoji = (() => {
+          const c = ((wx && wx.condition) || '').toLowerCase();
+          if (/rain|drizzle|shower/.test(c)) return '🌧';
+          if (/snow/.test(c)) return '❄️';
+          if (/thunder|storm/.test(c)) return '⛈';
+          if (/cloud|overcast|fog/.test(c)) return '☁️';
+          if (/clear|sun/.test(c)) return '☀️';
+          return '🌤';
+        })();
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Travel edit' }]);
         try { tvResultPage.innerHTML = `
           <div class="tvm-wrap">
@@ -3838,32 +3870,35 @@ body>*:not(#tv-result-page){display:none !important}
               </div>
             </header>
             <div class="tvm-meta-row">
-              ${wx || data.dateLine || data.destination ? `<div class="tvm-wx"><span>✈</span><strong>${_waEsc([wx && wx.city ? wx.city + (wx.country ? ', ' + wx.country : '') : data.destination, data.dateLine].filter(Boolean).join(' · '))}</strong>${wx && wx.tempRange ? `<span class="div"></span><span>${_waEsc(wx.tempRange)}</span>` : ''}${wx && wx.condition ? `<span class="div"></span><span style="font-style:italic">${_waEsc(wx.condition)}${wx.seasonal ? ' · seasonal read' : ''}</span>` : ''}</div>` : ''}
+              <div class="tvm-wx"><span>${_tvWxEmoji}</span><strong>${_waEsc([wx && wx.city ? wx.city + (wx.country ? ', ' + wx.country : '') : data.destination, data.dateLine].filter(Boolean).join(' · ')) || 'Your trip'}</strong>${wx && wx.tempRange ? `<span class="div"></span><span>${_waEsc(wx.tempRange)}</span>` : ''}${wx && wx.condition ? `<span class="div"></span><span style="font-style:italic">${_waEsc(wx.condition)}${wx.seasonal ? ' · seasonal read' : ''}</span>` : ''}</div>
               ${data.location_vibe ? `<div class="tvm-tag">${_waEsc(data.location_vibe)}</div>` : ''}
             </div>
             ${data.fallback ? `<p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:12px 0 0">We couldn’t quite read the brief, so we’ve packed you for a lovely week away instead.</p>` : ''}
             <div class="tvm-rule"></div>
 
-            <section>
+            <div class="tvm-tabs">
+              <button class="tvm-tab" id="tv-tab-edit" onclick="window.__tvSetTab('edit')">The Edit</button>
+              <button class="tvm-tab" id="tv-tab-outfits" onclick="window.__tvSetTab('outfits')">Outfits</button>
+            </div>
+
+            <div id="tv-pane-edit">
+              <div style="font-family:${serif};font-weight:300;font-style:italic;font-size:clamp(24px,3vw,34px);color:var(--ink);line-height:1.05;margin-bottom:6px">The edit.</div>
+              <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:8px;max-width:56ch;line-height:1.5">${_waEsc(data.stylist_summary || '')}${data.suitcase_note ? ` <span style="font-style:italic">${_waEsc(data.suitcase_note)}</span>` : ''}</div>
+              <div id="tv-matrix-note" style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-bottom:18px;min-height:18px">Tap any piece to see how it multiplies across the trip.</div>
+              ${tiersHtml}
+            </div>
+
+            <div id="tv-pane-outfits" style="display:none">
               <div class="tvm-weekhead">
                 <h2>The ${data.days.length > 6 ? 'trip' : 'week'}${wx && wx.city ? ' in ' + _waEsc(wx.city) : (data.destination ? ' in ' + _waEsc(data.destination) : '')}</h2>
                 <span class="hint">Tap a day — the console reads its look, piece by piece.</span>
               </div>
               <div class="tvm-week" id="tv-weekstrip"></div>
-            </section>
-
-            <div class="tvm-console">
-              <div class="tvm-look" id="tv-look-panel"></div>
-              <div id="tv-rackwrap"></div>
+              <div class="tvm-console">
+                <div class="tvm-look" id="tv-look-panel"></div>
+                <div id="tv-rackwrap"></div>
+              </div>
             </div>
-
-            <div class="tvm-rule" style="margin-top:44px"></div>
-            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:6px">
-              <div style="font-family:${serif};font-weight:300;font-style:italic;font-size:clamp(26px,3vw,36px);color:var(--ink);line-height:1.05">The edit.</div>
-            </div>
-            <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:8px;max-width:56ch;line-height:1.5">${_waEsc(data.stylist_summary || '')}${data.suitcase_note ? ` <span style="font-style:italic">${_waEsc(data.suitcase_note)}</span>` : ''}</div>
-            <div id="tv-matrix-note" style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-bottom:18px;min-height:18px">Tap any piece to see how it multiplies across the trip.</div>
-            ${tiersHtml}
 
             <div class="tv-noprint" style="margin-top:42px;padding:28px 24px;background:var(--cream-100);border:0.5px solid var(--rule);border-radius:var(--rad-lg);text-align:center">
               <div style="font-family:${serif};font-size:22px;font-weight:300;font-style:italic;color:var(--ink);margin-bottom:6px">How is this edit?</div>
@@ -3879,11 +3914,6 @@ body>*:not(#tv-result-page){display:none !important}
                 <button onclick="window.__tvFbSubmit()" style="margin-top:10px;padding:11px 26px;background:var(--ink);color:#fff;border:none;border-radius:100px;font-size:12px;cursor:pointer;font-family:${sans}">Send feedback</button>
               </div>
               <div id="tv-fb-done" hidden style="font-size:13px;color:var(--sage);margin-top:12px">Thank you — noted.</div>
-            </div>
-            <div class="tv-noprint" style="display:flex;gap:18px;justify-content:center;margin-top:20px;flex-wrap:wrap">
-              <button onclick="window.__tvGoBack()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.04em;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:${sans}">← Back to dashboard</button>
-              <button onclick="window.__tvPackAll()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.04em;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:${sans}">Pack it all</button>
-              <button onclick="window.__tvExport()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.04em;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:${sans}">Export PDF</button>
             </div>
           </div>
 
@@ -3906,6 +3936,7 @@ body>*:not(#tv-result-page){display:none !important}
 
         _tvPaintWeek();
         _tvPaintConsole();
+        window.__tvSetTab(_tvActiveTab);
         tvResultPage.style.display = 'block';
         tvResultPage.scrollTo({ top: 0 });
         _tvPaintPackProgress();
