@@ -2036,27 +2036,32 @@
         });
       }
 
+      // Generated frames appear in TWO places now (the moodboard tile and
+      // the rack viewport), so frames carry data-dlimg="i" instead of an id
+      // and the poller patches every instance.
       function _dlSetImage(i, src) {
-        const wrap = document.getElementById('dl-imgwrap-' + i);
-        if (!wrap || wrap.querySelector('img')) return;
-        const ph = wrap.querySelector('.dl-img-ph');
-        if (ph) ph.remove();
-        const img = document.createElement('img');
-        img.src = src;
-        img.alt = '';
-        img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;opacity:0;transition:opacity .5s ease';
-        wrap.insertBefore(img, wrap.firstChild);
-        requestAnimationFrame(() => { img.style.opacity = '1'; });
+        document.querySelectorAll('[data-dlimg="' + i + '"]').forEach(wrap => {
+          if (wrap.querySelector('img')) return;
+          const ph = wrap.querySelector('.dl-img-ph');
+          if (ph) ph.remove();
+          const img = document.createElement('img');
+          img.src = src;
+          img.alt = '';
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;opacity:0;transition:opacity .5s ease';
+          wrap.insertBefore(img, wrap.firstChild);
+          requestAnimationFrame(() => { img.style.opacity = '1'; });
+        });
       }
 
       function _dlSettlePlaceholder(i) {
-        const wrap = document.getElementById('dl-imgwrap-' + i);
-        if (!wrap || wrap.querySelector('img')) return;
-        const ph = wrap.querySelector('.dl-img-ph');
-        if (ph) {
-          ph.style.animation = 'none';
-          ph.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
-        }
+        document.querySelectorAll('[data-dlimg="' + i + '"]').forEach(wrap => {
+          if (wrap.querySelector('img')) return;
+          const ph = wrap.querySelector('.dl-img-ph');
+          if (ph) {
+            ph.style.animation = 'none';
+            ph.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+          }
+        });
       }
 
       function _dlPollImages(jobId, count) {
@@ -2106,7 +2111,10 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
-      window.__dlSubmit = async function(prompt) {
+      // opts.locked = anchored pieces a restyle must keep; opts.savedId =
+      // the lookbook entry a restyle evolves (instead of minting a new one).
+      window.__dlSubmit = async function(prompt, opts) {
+        const locked = (opts && Array.isArray(opts.locked)) ? opts.locked : null;
         let overlay = document.getElementById('kp-loading-overlay');
         if (!overlay) {
           overlay = document.createElement('div');
@@ -2124,7 +2132,9 @@
           document.body.appendChild(overlay);
         }
         const loadTitle = document.getElementById('kp-load-title');
-        if (loadTitle) loadTitle.innerHTML = 'Dressing you<br><em>for today…</em>';
+        if (loadTitle) loadTitle.innerHTML = locked && locked.length
+          ? 'Restyling around<br><em>your anchors…</em>'
+          : 'Dressing you<br><em>for today…</em>';
         overlay.style.display = 'flex';
         const msgs = ['Reading the day’s context', 'Building anchor to accents…', 'Balancing the proportions…', 'Almost ready…'];
         let mi = 0;
@@ -2153,13 +2163,41 @@
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
               context,
+              locked: locked || undefined,
             }),
           });
           clearInterval(msgInterval);
           overlay.style.display = 'none';
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
-          window.__dlRenderResult({ ...data, context }, prompt);
+          // Re-mark the anchors on the fresh look so they stay locked
+          if (locked && locked.length) {
+            const freshFlat = [];
+            (data.steps || []).forEach(s => (s.items || []).forEach(it => freshFlat.push(it)));
+            locked.forEach(l => {
+              const m = freshFlat.find(it => !it.anchored && (
+                (l.wardrobe_id != null && it.wardrobe_match && String(it.wardrobe_match.id) === String(l.wardrobe_id)) ||
+                (it.name || '').toLowerCase() === (l.name || '').toLowerCase()));
+              if (m) {
+                m.anchored = true;
+                // The model can drop wardrobe_index on a locked owned piece —
+                // restore the match from what the client already knows.
+                if (!m.wardrobe_match && l.wardrobe_id != null) {
+                  const wi = _waItems.find(w => String(w.id) === String(l.wardrobe_id));
+                  if (wi) { m.wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' }; m.retailer_hint = ''; m.price_point = ''; }
+                }
+              }
+            });
+          }
+          const savedId = opts && opts.savedId;
+          window.__dlRenderResult({ ...data, context }, prompt, savedId ? { skipSave: true, savedId } : undefined);
+          if (savedId) {
+            const saved = snLoad().find(x => x.id === savedId);
+            if (saved) snUpdate(savedId, {
+              title: data.headline || saved.title,
+              dlData: { ...data, context, jobId: undefined, generatedImages: [], prompt: prompt || '' },
+            });
+          }
         } catch (err) {
           clearInterval(msgInterval);
           overlay.style.display = 'none';
@@ -2168,6 +2206,234 @@
         }
       };
 
+      // ── Daily Look console (Daily Match redesign, amendments 2026-07) ──
+      // Left column: "The Look" — a single stylist moodboard (dark panel,
+      // Instagram-stylist register) with the interactive stylist note
+      // beneath (fresh commentary lands on every restyle). Right column:
+      // "The Rack" — the Clueless-style product listing ordered top /
+      // bottom (or dress) / shoes / bag / accessories / layer, where every
+      // card flicks through similar options (AI alternates + owned pieces
+      // in the category), can be anchored (locked through restyles),
+      // swapped or shopped. A sticky payoff bar closes the page.
+      function _dlSlot(it) {
+        const c = (it && it.category || '').toLowerCase();
+        if (c.indexOf('top') === 0) return { l: 'Top', o: 1 };
+        if (c.indexOf('bottom') === 0) return { l: 'Bottom', o: 2 };
+        if (c.indexOf('dress') === 0) return { l: 'Dress', o: 2 };
+        if (c.indexOf('shoe') === 0) return { l: 'Shoes', o: 3 };
+        if (c.indexOf('bag') === 0) return { l: 'Bag', o: 4 };
+        if (c.indexOf('accessor') === 0) return { l: 'Accessory', o: 5 };
+        if (c.indexOf('outer') === 0) return { l: 'Layer', o: 6 };
+        if (c.indexOf('swim') === 0) return { l: 'Swim', o: 7 };
+        return { l: 'Piece', o: 8 };
+      }
+      function _dlShort(nm) {
+        const n = String(nm || '').toLowerCase();
+        for (const k of ['tote', 'trench', 'belt', 'scarf', 'clutch']) if (n.indexOf(k) !== -1) return k;
+        const w = n.replace(/[^a-z\s-]/g, '').trim().split(/\s+/);
+        return w[w.length - 1] || 'piece';
+      }
+      function _dlFabric(nm) {
+        const n = String(nm || '').toLowerCase();
+        const map = [['linen', 'linen'], ['silk', 'silk'], ['satin', 'satin'], ['cotton', 'cotton'], ['crochet', 'knit'], ['knit', 'knit'], ['cashmere', 'cashmere'], ['wool', 'wool'], ['denim', 'denim'], ['jean', 'denim'], ['leather', 'leather'], ['suede', 'suede'], ['straw', 'raffia'], ['woven', 'raffia'], ['tee', 'jersey'], ['tank', 'jersey'], ['jersey', 'jersey'], ['polo', 'piqué'], ['sneaker', 'canvas'], ['trainer', 'canvas'], ['loafer', 'leather'], ['sandal', 'leather'], ['boot', 'leather'], ['gold', 'gold'], ['necklace', 'gold'], ['earring', 'gold'], ['sunglass', 'acetate'], ['trench', 'cotton twill'], ['pliss', 'plissé'], ['tweed', 'tweed'], ['velvet', 'velvet']];
+        for (const [k, v] of map) if (n.indexOf(k) !== -1) return v;
+        return 'textile';
+      }
+      function _dlAltered(it) {
+        return !!(it.orig && (it.orig.name || '').toLowerCase() !== (it.name || '').toLowerCase());
+      }
+      // The flick-through carousel for one rack card: the original styled
+      // piece, the AI alternates the server proposed for this slot, then
+      // owned pieces in the same category. Rebuilt from live data each time.
+      function _dlOptions(it) {
+        if (!it.orig) it.orig = { name: it.name, brand: it.brand || '', retailer_hint: it.retailer_hint || '', price_point: it.price_point || '', wardrobe_match: it.wardrobe_match || null };
+        const list = [{ kind: 'orig', name: it.orig.name, brand: it.orig.brand, retailer_hint: it.orig.retailer_hint, price_point: it.orig.price_point, wardrobe_match: it.orig.wardrobe_match }];
+        (Array.isArray(it.alternates) ? it.alternates : []).forEach(a => {
+          if (a && a.name && !list.some(o => (o.name || '').toLowerCase() === a.name.toLowerCase())) {
+            list.push({ kind: 'ai', name: a.name, brand: a.brand || '', retailer_hint: a.retailer_hint || '', price_point: a.price_point || '' });
+          }
+        });
+        const catL = (it.category || '').toLowerCase().replace(/s$/, '');
+        const origId = it.orig.wardrobe_match ? String(it.orig.wardrobe_match.id) : null;
+        _waItems.filter(wi => ((wi.category || '').toLowerCase().replace(/s$/, '') === catL) && String(wi.id) !== origId)
+          .slice(0, 4)
+          .forEach(wi => list.push({ kind: 'owned', name: wi.label, brand: wi.brand || '', retailer_hint: '', price_point: '', wardrobeId: wi.id, image: wi.image_url || null, color: wi.color || '' }));
+        return list;
+      }
+      function _dlOptIndex(it, list) {
+        if (it.wardrobe_match) {
+          const i = list.findIndex(o =>
+            (o.kind === 'owned' && String(o.wardrobeId) === String(it.wardrobe_match.id)) ||
+            (o.kind === 'orig' && o.wardrobe_match && String(o.wardrobe_match.id) === String(it.wardrobe_match.id)));
+          if (i !== -1) return i;
+        }
+        const i = list.findIndex(o => (o.name || '').toLowerCase() === (it.name || '').toLowerCase());
+        return i === -1 ? 0 : i;
+      }
+      function _dlApplyOption(it, o) {
+        if (o.kind === 'owned') {
+          it.wardrobe_match = { id: o.wardrobeId, label: o.name, image_url: o.image || null, color: o.color || '' };
+          it.name = o.name; it.brand = o.brand; it.retailer_hint = ''; it.price_point = '';
+        } else {
+          it.name = o.name; it.brand = o.brand; it.retailer_hint = o.retailer_hint; it.price_point = o.price_point;
+          it.wardrobe_match = (o.kind === 'orig' && o.wardrobe_match) ? o.wardrobe_match : null;
+        }
+      }
+      function _dlPatchSaved() {
+        if (!_dlActiveSaveId || !window.__lastDlData) return;
+        const saved = snLoad().find(x => x.id === _dlActiveSaveId);
+        if (saved) snUpdate(_dlActiveSaveId, { dlData: { ...(saved.dlData || {}), steps: window.__lastDlData.steps } });
+      }
+      function _dlRerender() {
+        const data = window.__lastDlData;
+        if (!data) return;
+        const sc = dlResultPage ? dlResultPage.scrollTop : 0;
+        window.__dlRenderResult(data, window.__lastDlPrompt || data.prompt || '', { skipSave: true, savedId: _dlActiveSaveId, keepScroll: sc });
+        _dlPatchSaved();
+      }
+      window.__dlFlip = function(fi, dir) {
+        const it = window.__dlCurrentItems && window.__dlCurrentItems[fi];
+        if (!it || !window.__lastDlData) return;
+        const list = _dlOptions(it);
+        if (list.length < 2) { _waShowToast('Nothing else fits this slot yet — snap more pieces'); return; }
+        const next = list[(_dlOptIndex(it, list) + dir + list.length) % list.length];
+        _dlApplyOption(it, next);
+        _dlRerender();
+      };
+      window.__dlAnchor = function(fi) {
+        const it = window.__dlCurrentItems && window.__dlCurrentItems[fi];
+        if (!it) return;
+        it.anchored = !it.anchored;
+        _dlRerender();
+        _waShowToast(it.anchored ? 'Anchored — every restyle builds around it' : 'Anchor released');
+      };
+      // "Restyle it" / "Dress me again" — a full re-mix that keeps every
+      // anchored piece exactly where it is and evolves the SAME saved look.
+      window.__dlRestyle = function() {
+        const flat = window.__dlCurrentItems || [];
+        const locked = flat.filter(it => it.anchored).map(it => ({
+          name: it.name, category: it.category || '', brand: it.brand || '',
+          wardrobe_id: it.wardrobe_match ? it.wardrobe_match.id : null,
+        }));
+        window.__dlSubmit(window.__lastDlPrompt || (window.__lastDlData && window.__lastDlData.prompt) || '', { locked, savedId: _dlActiveSaveId });
+      };
+      let _dlWorn = false;
+      window.__dlWear = async function() {
+        if (_dlWorn) { _waShowToast('Already logged for today'); return; }
+        const flat = window.__dlCurrentItems || [];
+        const ownedIds = flat.filter(it => it.wardrobe_match).map(it => it.wardrobe_match.id);
+        if (!ownedIds.length) { _waShowToast('Nothing owned in this look yet — snap your pieces to log wears'); return; }
+        _dlWorn = true;
+        try {
+          for (const id of ownedIds) {
+            const wi = _waItems.find(w => String(w.id) === String(id));
+            if (wi) await _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 });
+          }
+          _waLoad();
+          _waShowToast('On you today — Robes logged the wear ✓');
+        } catch (e) {
+          _dlWorn = false;
+          console.warn('[robes] wear log failed:', e);
+          _waShowToast('Couldn’t log the wear — try again');
+        }
+      };
+
+      const _DL_CSS = `
+#dl-result-page{color:#202021;font-weight:300}
+#dl-result-page .dlm-wrap{max-width:1180px;margin:0 auto;padding:38px 40px 28px;box-sizing:border-box}
+#dl-result-page .dlm-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:#A89880}
+#dl-result-page .dlm-mast{display:flex;justify-content:space-between;align-items:flex-end;gap:28px}
+#dl-result-page .dlm-title{font-family:'Cormorant',Georgia,serif;font-weight:300;font-style:italic;font-size:clamp(32px,4.4vw,54px);line-height:1.06;letter-spacing:-.01em;margin:12px 0 0;color:#202021}
+#dl-result-page .dlm-chipcol{display:flex;flex-direction:column;align-items:flex-end;gap:9px;flex-shrink:0;padding-bottom:4px}
+#dl-result-page .dlm-chip{display:inline-flex;align-items:center;gap:8px;border:1px solid #E7E0CF;border-radius:2px;padding:8px 13px;font-size:12px;color:#202021;background:#fff;white-space:nowrap}
+#dl-result-page .dlm-chip b{font-weight:500}
+#dl-result-page .dlm-chip .sep{width:1px;height:11px;background:#E7E0CF}
+#dl-result-page .dlm-rule{height:1px;background:#E7E0CF;margin:24px 0 30px}
+#dl-result-page .dlm-console{display:grid;grid-template-columns:356px minmax(0,1fr);gap:38px;align-items:start}
+#dl-result-page .dlm-look{position:sticky;top:18px}
+#dl-result-page .dlm-panel{position:relative;background:#202021;border-radius:2px;overflow:hidden;padding:20px 20px 18px}
+#dl-result-page .dlm-panel::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;background:repeating-linear-gradient(180deg,rgba(250,248,245,0.035) 0 1px,transparent 1px 3px);opacity:.5}
+#dl-result-page .dlm-lhead{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+#dl-result-page .dlm-lhead .ey{font-size:9px;font-weight:500;letter-spacing:.26em;text-transform:uppercase;color:#C4B8A4}
+#dl-result-page .dlm-quote{position:relative;z-index:2;font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:15.5px;line-height:1.42;color:#D8CFC0;margin-bottom:14px;padding-left:13px;border-left:1px solid rgba(250,248,245,0.18)}
+#dl-result-page .dlm-board{position:relative;z-index:2;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#dl-result-page .dlm-tile{position:relative;border-radius:2px;overflow:hidden;aspect-ratio:1/1.16;text-align:left;padding:0;background:#2A2A2B;border:1px solid rgba(250,248,245,0.14);cursor:pointer}
+#dl-result-page .dlm-tile.wide{grid-column:span 2;aspect-ratio:2/1.05}
+#dl-result-page .dlm-tile .tgrad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 42%,rgba(0,0,0,0.55));z-index:1;pointer-events:none}
+#dl-result-page .dlm-tile .tslot{position:absolute;left:9px;top:8px;z-index:2;font-size:7.5px;letter-spacing:.2em;text-transform:uppercase;color:rgba(250,248,245,0.72)}
+#dl-result-page .dlm-tile .tlab{position:absolute;left:9px;bottom:8px;right:9px;z-index:2;font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:400;font-size:15px;color:#FAF8F5;line-height:1.05;pointer-events:none}
+#dl-result-page .dlm-tile .town{position:absolute;top:7px;right:7px;z-index:2;width:16px;height:16px;border-radius:50%;background:rgba(32,32,33,0.55);display:grid;place-items:center;color:#8FA478}
+#dl-result-page .dlm-tile .tshop{position:absolute;top:7px;right:7px;z-index:2;font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:#FAF8F5;background:rgba(32,32,33,0.6);border:1px solid rgba(250,248,245,0.2);padding:2px 5px;border-radius:1px}
+#dl-result-page .dlm-tile .tnav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:22px;height:22px;border-radius:50%;background:rgba(32,32,33,0.62);border:1px solid rgba(250,248,245,0.22);display:grid;place-items:center;opacity:0;transition:opacity .15s;padding:0;color:#FAF8F5;cursor:pointer;border-style:solid}
+#dl-result-page .dlm-tile:hover .tnav{opacity:1}
+#dl-result-page .dlm-tile .tnav.l{left:6px}
+#dl-result-page .dlm-tile .tnav.r{right:6px}
+#dl-result-page .dlm-fabrics{position:relative;z-index:2;display:flex;flex-wrap:wrap;gap:9px 14px;margin-top:14px;padding-top:13px;border-top:1px solid rgba(250,248,245,0.10)}
+#dl-result-page .dlm-fabrics .fab{display:flex;align-items:center;gap:7px}
+#dl-result-page .dlm-fabrics .sw{width:15px;height:15px;border-radius:1px;border:1px solid rgba(250,248,245,0.25);display:block}
+#dl-result-page .dlm-fabrics .fl{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:12.5px;color:#C4B8A4}
+#dl-result-page .dlm-lfoot{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;margin-top:15px;padding-top:13px;border-top:1px solid rgba(250,248,245,0.10)}
+#dl-result-page .dlm-palette{display:flex;gap:5px}
+#dl-result-page .dlm-palette span{width:14px;height:14px;border-radius:50%;border:1px solid rgba(250,248,245,0.25);display:block}
+#dl-result-page .dlm-yours{font-size:10px;letter-spacing:.04em;color:#C4B8A4}
+#dl-result-page .dlm-yours b{color:#FAF8F5;font-weight:500}
+#dl-result-page .dlm-note{margin-top:13px;border:1px solid #E7E0CF;border-radius:2px;background:#fff;padding:16px 17px}
+#dl-result-page .dlm-note .nh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:9px}
+#dl-result-page .dlm-note p{font-size:13px;line-height:1.65;color:#3A3733;margin:0}
+#dl-result-page .dlm-rackhead{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+#dl-result-page .dlm-rackhead h2{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:26px;line-height:1;margin:6px 0 0;color:#202021}
+#dl-result-page .dlm-restyle{display:inline-flex;align-items:center;gap:8px;border:1px solid #E7E0CF;border-radius:2px;padding:9px 15px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#202021;background:#fff;cursor:pointer;transition:all .2s;white-space:nowrap;font-weight:400}
+#dl-result-page .dlm-restyle:hover{background:#202021;color:#FAF8F5;border-color:#202021}
+#dl-result-page .dlm-rack{display:flex;flex-direction:column;gap:13px}
+#dl-result-page .dlm-row{display:grid;grid-template-columns:118px 1fr;gap:18px;align-items:stretch;border:1px solid #E7E0CF;border-radius:2px;background:#fff;padding:13px;transition:border-color .2s}
+#dl-result-page .dlm-row.anchored{border-color:#202021}
+#dl-result-page .dlm-vp{position:relative;border-radius:1px;overflow:hidden;background:#F5F0E8;aspect-ratio:1/1}
+#dl-result-page .dlm-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#202021;background:rgba(250,248,245,0.85);padding:3px 7px;border-radius:1px}
+#dl-result-page .dlm-vp .vcount{position:absolute;bottom:8px;right:8px;z-index:2;font-size:9px;letter-spacing:.1em;color:#202021;background:rgba(250,248,245,0.85);padding:3px 7px;border-radius:1px}
+#dl-result-page .dlm-body{display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:2px 0}
+#dl-result-page .dlm-name{font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:21px;line-height:1.08;color:#202021}
+#dl-result-page .dlm-sub{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#A89880;flex-wrap:wrap}
+#dl-result-page .dlm-sub .price{color:#202021}
+#dl-result-page .dlm-owned{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#7C8B63}
+#dl-result-page .dlm-anchpill{display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#8A7B62;border:1px solid #D8CFC0;border-radius:2px;padding:3px 8px}
+#dl-result-page .dlm-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;flex-wrap:wrap}
+#dl-result-page .dlm-flip{display:flex;align-items:center;gap:9px}
+#dl-result-page .dlm-arrow{width:32px;height:32px;border:1px solid #E7E0CF;border-radius:2px;display:grid;place-items:center;background:#fff;cursor:pointer;transition:all .18s;color:#202021}
+#dl-result-page .dlm-arrow:hover{background:#202021;border-color:#202021;color:#FAF8F5}
+#dl-result-page .dlm-dots{display:flex;gap:5px;padding:0 2px}
+#dl-result-page .dlm-dots span{width:5px;height:5px;border-radius:50%;background:#E7E0CF;display:block;transition:all .2s}
+#dl-result-page .dlm-dots span.on{background:#202021;transform:scale(1.25)}
+#dl-result-page .dlm-acts{display:flex;gap:7px;flex-wrap:wrap}
+#dl-result-page .dlm-act{display:inline-flex;align-items:center;gap:6px;border:1px solid #E7E0CF;border-radius:2px;padding:8px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:#fff;color:#202021;cursor:pointer;transition:all .2s}
+#dl-result-page .dlm-act:hover{border-color:#C4B8A4}
+#dl-result-page .dlm-act.on{background:#202021;color:#FAF8F5;border-color:#202021}
+#dl-result-page .dlm-act.shop{background:#202021;color:#FAF8F5;border-color:#202021}
+#dl-result-page .dlm-payoff{position:sticky;bottom:0;z-index:5;background:rgba(250,248,245,0.94);backdrop-filter:blur(16px);border-top:1px solid #E7E0CF}
+#dl-result-page .dlm-payoff-in{max-width:1180px;margin:0 auto;padding:13px 40px;display:flex;align-items:center;justify-content:space-between;gap:22px;box-sizing:border-box}
+#dl-result-page .dlm-pmeta{display:flex;flex-direction:column;gap:3px;min-width:0}
+#dl-result-page .dlm-pmeta .t{font-family:'Cormorant',Georgia,serif;font-size:18px;font-weight:400;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#202021}
+#dl-result-page .dlm-pmeta .s{font-size:11px;letter-spacing:.03em;color:#A89880}
+#dl-result-page .dlm-pmeta .s b{color:#7C8B63;font-weight:500}
+#dl-result-page .dlm-pbtns{display:flex;gap:9px;flex-shrink:0}
+#dl-result-page .dlm-pbtn{display:inline-flex;align-items:center;gap:7px;border:1px solid #E7E0CF;border-radius:2px;padding:11px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;background:#fff;color:#202021;cursor:pointer;transition:all .2s}
+#dl-result-page .dlm-pbtn:hover{border-color:#C4B8A4}
+#dl-result-page .dlm-pbtn.primary{background:#202021;color:#FAF8F5;border-color:#202021}
+@media(max-width:900px){
+#dl-result-page .dlm-console{grid-template-columns:1fr;gap:26px}
+#dl-result-page .dlm-look{position:static}
+#dl-result-page .dlm-wrap{padding:30px 20px 20px}
+#dl-result-page .dlm-mast{flex-direction:column;align-items:flex-start;gap:16px}
+#dl-result-page .dlm-chipcol{align-items:flex-start}
+#dl-result-page .dlm-payoff-in{padding:11px 16px;gap:12px}
+#dl-result-page .dlm-pmeta{display:none}
+#dl-result-page .dlm-pbtns{width:100%;justify-content:space-between}
+#dl-result-page .dlm-pbtn{flex:1;justify-content:center;padding:12px 8px}
+}
+@media(max-width:520px){
+#dl-result-page .dlm-row{grid-template-columns:88px 1fr;gap:12px}
+#dl-result-page .dlm-name{font-size:18px}
+}`;
+
       window.__dlRenderResult = function(data, promptText, opts) {
         if (!data || !Array.isArray(data.steps) || !data.steps.length) {
           _waShowToast('Could not build today’s look — please try again');
@@ -2175,27 +2441,28 @@
         }
         _dlStopPolling();
         window.__lastDlData = data;
+        window.__lastDlPrompt = promptText || data.prompt || '';
+        _dlWorn = false;
         const serif = "'Cormorant',Georgia,serif";
         const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
         const ctx = data.context || null;
         const flat = [];
         data.steps.forEach(s => (s.items || []).forEach(it => flat.push(it)));
         window.__dlCurrentItems = flat;
+        // The rack reads in wardrobe order — top, bottom (or dress), shoes,
+        // bag, accessories, layer — while fi stays the flat steps index so
+        // swap / persist / imagery all keep working.
+        const ordered = flat.map((it, fi) => ({ it, fi, slot: _dlSlot(it) })).sort((a, b) => a.slot.o - b.slot.o);
         const owned = flat.filter(it => it.wardrobe_match).length;
         const total = flat.length;
         const images = Array.isArray(data.generatedImages) ? data.generatedImages : [];
         const imagesPending = !!data.jobId && !images.some(Boolean);
         const hexOk = h => typeof h === 'string' && /^#[0-9A-Fa-f]{6}$/.test(h);
         const palette = (Array.isArray(data.palette) ? data.palette : []).filter(hexOk).slice(0, 3);
-
-        const lead = owned === total && total > 0
-          ? 'From your wardrobe, ' + name + '.'
-          : owned > 0 ? 'Nearly all yours, ' + name + '.' : 'Styled for you, ' + name + '.';
+        const headline = data.headline || 'A look for today.';
         const provenance = owned === total && total > 0
-          ? 'All from your wardrobe'
-          : owned > 0
-            ? owned + ' of ' + total + ' from your wardrobe'
-            : 'An editorial look — swap in pieces as your wardrobe grows';
+          ? 'All ' + total + ' pieces from your wardrobe'
+          : owned > 0 ? owned + ' of ' + total + ' from your wardrobe' : total + ' pieces · an editorial build';
 
         // Bold the framework step names inside the stylist summary
         const summaryHtml = _waEsc(data.stylist_summary || '')
@@ -2207,113 +2474,206 @@
           dlResultPage.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;width:100%;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
           document.body.appendChild(dlResultPage);
         }
-        if (!document.getElementById('dl-style')) {
-          const s = document.createElement('style');
-          s.id = 'dl-style';
-          s.textContent = '@media(max-width:700px){.dl-step{grid-template-columns:1fr !important}.dl-step-imgs{max-width:100% !important}}';
-          document.head.appendChild(s);
+        let dlStyleEl = document.getElementById('dl-style');
+        if (!dlStyleEl) {
+          dlStyleEl = document.createElement('style');
+          dlStyleEl.id = 'dl-style';
+          document.head.appendChild(dlStyleEl);
         }
+        dlStyleEl.textContent = _DL_CSS;
         if (kpResultPage) kpResultPage.style.display = 'none';
 
         const swapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
         const checkSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        const chevL = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
+        const chevR = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+        const lockSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+        const restyleSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`;
+        const phSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
 
-        let running = 0;
-        const stepsHtml = data.steps.map((s, si) => {
-          const items = s.items || [];
-          const stepBase = running;
-          const frames = items.map((it, ii) => {
-            const i = Number.isInteger(it.image_index) ? it.image_index : stepBase + ii;
-            // An owned piece shows its real wardrobe photo — the truthful
-            // representation, and what a just-swapped/just-snapped item must
-            // reflect. AI still-life is only the fallback for aspirational
-            // pieces (or owned pieces with no photo yet).
-            const wmImg = it.wardrobe_match && it.wardrobe_match.image_url;
-            const src = wmImg || images[i];
-            const phInner = imagesPending
-              ? `<span style="font-family:${serif};font-style:italic;font-size:13px;color:#B8AC9C;text-align:center;padding:0 16px">Creating imagery…</span>`
-              : `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
-            return `<div id="dl-imgwrap-${i}" style="position:relative;background:#EDE9E2;border-radius:10px;overflow:hidden;aspect-ratio:3/4;flex:1;min-width:0">
-              ${src && typeof src === 'string'
-                ? `<img src="${_waEsc(src)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
-                : `<div class="dl-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${imagesPending ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${phInner}</div>`}
-            </div>`;
-          }).join('');
-          const rows = items.map(it => {
-            const fi = running++;
-            const badge = it.wardrobe_match
-              ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:500;color:#4A7C59;background:rgba(74,124,89,0.10);border-radius:20px;padding:2px 8px;white-space:nowrap">${checkSvg} Yours</span>`
-              : (it.retailer_hint || it.price_point)
-                ? `<span style="font-size:10.5px;color:#A89880;white-space:nowrap">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>`
-                : '';
-            return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid rgba(32,32,33,0.07)">
-              <div style="flex:1;min-width:0">
-                <span style="font-size:13px;font-weight:500;color:#202021">${_waEsc(it.name)}</span>
-                ${it.brand ? `<span style="font-family:${serif};font-style:italic;font-size:13px;color:#A89880;margin-left:8px">${_waEsc(it.brand)}</span>` : ''}
-                ${badge ? `<div style="margin-top:4px">${badge}</div>` : ''}
-              </div>
-              <button onclick="window.__dlSwap(${fi})" style="display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border:0.5px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans};flex-shrink:0">${swapSvg} Swap</button>
-            </div>`;
-          }).join('');
-          return `<div class="dl-step" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:30px;padding:36px 0;border-top:0.5px solid rgba(32,32,33,0.1)">
-            <div class="dl-step-imgs" style="position:relative;display:flex;gap:10px;align-self:start;max-width:340px">
-              <span style="position:absolute;top:10px;left:10px;z-index:2;width:26px;height:26px;border-radius:50%;background:#202021;color:#FAF8F5;display:flex;align-items:center;justify-content:center;font-family:${serif};font-size:13px">${si + 1}</span>
-              ${frames}
+        // Frame source: an owned piece shows its real wardrobe photo; the
+        // original AI piece shows its generated still (patched in by the
+        // poller); a flicked-in alternate has no imagery yet → mono tile.
+        const frameBits = (it) => {
+          const wmImg = it.wardrobe_match && it.wardrobe_match.image_url;
+          const altered = _dlAltered(it);
+          const genOk = !altered && Number.isInteger(it.image_index);
+          const src = wmImg || (genOk ? images[it.image_index] : null);
+          const pollAttr = (!wmImg && genOk) ? ' data-dlimg="' + it.image_index + '"' : '';
+          const pulse = !src && !wmImg && genOk && imagesPending;
+          const phInner = pulse
+            ? `<span style="font-family:${serif};font-style:italic;font-size:12px;color:#B8AC9C;text-align:center;padding:0 12px">Creating imagery…</span>`
+            : (altered && !wmImg)
+              ? `<span style="font-family:${serif};font-size:30px;font-weight:300;color:#C4B8A4">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`
+              : phSvg;
+          const inner = src && typeof src === 'string'
+            ? `<img src="${_waEsc(src)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
+            : `<div class="dl-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${pulse ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${phInner}</div>`;
+          return { pollAttr, inner };
+        };
+
+        // The Look — a single moodboard in the stylist-Instagram register
+        const quoteParts = {};
+        ordered.forEach(x => { const l = x.slot.l; if (!quoteParts[l]) quoteParts[l] = _dlShort(x.it.name); });
+        const cap1 = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+        let quote = '';
+        const base = quoteParts.Top || quoteParts.Dress || quoteParts.Layer || quoteParts.Piece;
+        if (base) {
+          quote = cap1(base);
+          if (quoteParts.Top && (quoteParts.Bottom || quoteParts.Dress)) quote += ' with the ' + (quoteParts.Bottom || quoteParts.Dress);
+          if (quoteParts.Shoes) quote += ' — ' + quoteParts.Shoes + ' at the foot';
+          if (quoteParts.Accessory || quoteParts.Bag) quote += ', the ' + (quoteParts.Accessory || quoteParts.Bag) + ' to finish';
+          quote += '.';
+        }
+
+        const boardHtml = ordered.map((x, oi) => {
+          const { it, fi, slot } = x;
+          const f = frameBits(it);
+          const wide = oi === 0;
+          return `<button class="dlm-tile${wide ? ' wide' : ''}" onclick="window.__dlSwap(${fi})" title="Swap the ${_waEsc(_dlShort(it.name))}">
+            <div${f.pollAttr} style="position:absolute;inset:0;background:#2A2A2B">${f.inner}</div>
+            <div class="tgrad"></div>
+            <span class="tslot">${_waEsc(slot.l)}</span>
+            ${it.wardrobe_match ? `<span class="town">${checkSvg}</span>` : `<span class="tshop">Shop</span>`}
+            <span class="tnav l" onclick="event.stopPropagation();window.__dlFlip(${fi},-1)" title="Previous">${chevL}</span>
+            <span class="tnav r" onclick="event.stopPropagation();window.__dlFlip(${fi},1)" title="Next">${chevR}</span>
+            <span class="tlab">the ${_waEsc(_dlShort(it.name))}</span>
+          </button>`;
+        }).join('');
+
+        const fabricsHtml = ordered.map(x => {
+          const hex = palette[0] || '#E7E0CF';
+          const c = (x.it.wardrobe_match && x.it.wardrobe_match.color) || '';
+          return `<span class="fab"><span class="sw" style="background:${_waEsc(c && /^#/.test(c) ? c : hex)}"></span><span class="fl">${_waEsc(_dlFabric(x.it.name))}</span></span>`;
+        }).join('');
+
+        // The Rack — flip through similar pieces; anchor what must stay
+        const rackHtml = ordered.map(x => {
+          const { it, fi, slot } = x;
+          const f = frameBits(it);
+          const list = _dlOptions(it);
+          const cur = _dlOptIndex(it, list);
+          const dots = list.length > 1 && list.length <= 8
+            ? `<span class="dlm-dots">${list.map((_, k) => `<span${k === cur ? ' class="on"' : ''}></span>`).join('')}</span>`
+            : (list.length > 8 ? `<span style="font-size:9px;letter-spacing:.08em;color:#A89880">${cur + 1} / ${list.length}</span>` : '');
+          const sub = it.wardrobe_match
+            ? `<span class="dlm-owned">${checkSvg} In your wardrobe</span>`
+            : `${it.brand ? `<span style="font-family:${serif};font-style:italic;font-size:13px">${_waEsc(it.brand)}</span>` : ''}${(it.retailer_hint || it.price_point) ? `<span class="price">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>` : ''}`;
+          return `<div class="dlm-row${it.anchored ? ' anchored' : ''}">
+            <div class="dlm-vp">
+              <span class="vslot">${_waEsc(slot.l)}</span>
+              <div${f.pollAttr} style="position:absolute;inset:0">${f.inner}</div>
+              ${list.length > 1 ? `<span class="vcount">${cur + 1} / ${list.length}</span>` : ''}
             </div>
-            <div style="align-self:start">
-              <div style="font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#B8A898;margin-bottom:8px">Step ${si + 1}</div>
-              <div style="font-family:${serif};font-weight:400;font-size:27px;color:#202021;line-height:1.1;margin-bottom:10px">${_waEsc(s.title)}</div>
-              <div>${rows}</div>
+            <div class="dlm-body">
+              <div>
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+                  <div class="dlm-name">${_waEsc(it.name)}</div>
+                  ${it.anchored ? `<span class="dlm-anchpill">${lockSvg} Anchored</span>` : ''}
+                </div>
+                <div class="dlm-sub">${sub}</div>
+              </div>
+              <div class="dlm-foot">
+                <div class="dlm-flip">
+                  <button class="dlm-arrow" onclick="window.__dlFlip(${fi},-1)" aria-label="Previous option">${chevL}</button>
+                  ${dots}
+                  <button class="dlm-arrow" onclick="window.__dlFlip(${fi},1)" aria-label="Next option">${chevR}</button>
+                </div>
+                <div class="dlm-acts">
+                  <button class="dlm-act${it.anchored ? ' on' : ''}" onclick="window.__dlAnchor(${fi})" title="Lock this piece through restyles">${lockSvg} ${it.anchored ? 'Anchored' : 'Anchor'}</button>
+                  <button class="dlm-act" onclick="window.__dlSwap(${fi})">${swapSvg} Swap</button>
+                  <button class="dlm-act shop" onclick="window.__rbAffiliateSoon()">${it.wardrobe_match ? 'Similar' : 'Shop'}</button>
+                </div>
+              </div>
             </div>
           </div>`;
         }).join('');
 
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Daily look' }]);
         try { dlResultPage.innerHTML = `
-          <div style="width:100%;max-width:820px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
-            <div style="font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880;margin-bottom:14px">Today${data.occasion_label ? ' · ' + _waEsc(data.occasion_label) : ''}</div>
-            <h1 style="font-family:${serif};font-weight:300;font-style:italic;font-size:clamp(30px,4vw,46px);color:#202021;line-height:1.15;margin:0 0 14px">${_waEsc(lead)}<br>${_waEsc(data.headline || '')}</h1>
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-              <span style="width:6px;height:6px;border-radius:50%;background:${owned > 0 ? '#4A7C59' : '#C8B8A2'};flex-shrink:0"></span>
-              <span style="font-size:11px;letter-spacing:.05em;color:#6E6A64">${_waEsc(provenance)}</span>
-              ${palette.length ? `<span style="display:inline-flex;gap:5px;margin-left:2px">${palette.map(h => `<span style="width:13px;height:13px;border-radius:50%;background:${h};border:0.5px solid rgba(32,32,33,0.15)"></span>`).join('')}</span>` : ''}
-            </div>
-            ${ctx && (ctx.city || ctx.tempRange) ? `
-            <div style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#6E6A64;letter-spacing:.04em;border:0.5px solid rgba(32,32,33,0.12);border-radius:40px;padding:8px 16px;margin:2px 0 6px;background:#fff">
-              <span>🌤</span>
-              <strong style="font-weight:500;color:#202021">${_waEsc([ctx.city, ctx.month].filter(Boolean).join(' · '))}</strong>
-              ${ctx.tempRange ? `<span style="color:rgba(32,32,33,0.2)">|</span><span>${_waEsc(ctx.tempRange)}</span>` : ''}
-              ${ctx.hint ? `<span style="color:rgba(32,32,33,0.2)">|</span><span style="font-style:italic">${_waEsc(ctx.hint)}</span>` : ''}
-            </div>` : ''}
-            <div style="height:0.5px;background:rgba(32,32,33,0.1);margin:22px 0 26px"></div>
-            <div style="background:#F3EFE7;border-radius:12px;padding:22px 24px;margin-bottom:12px">
-              <div style="font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880;margin-bottom:10px">Stylist summary</div>
-              <p style="font-size:13.5px;line-height:1.75;color:#3A3733;margin:0">${summaryHtml}</p>
-              ${data.transition_tip ? `<div style="margin-top:14px;padding-top:14px;border-top:0.5px solid rgba(32,32,33,0.09);display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><span style="font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#A89880;white-space:nowrap">Transition tip</span><span style="font-size:12.5px;line-height:1.6;color:#6E6A64;font-style:italic;flex:1;min-width:200px">${_waEsc(data.transition_tip)}</span></div>` : ''}
-            </div>
-            ${data.fallback ? `<p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 12px">We couldn’t quite read your brief, so we’ve dressed you for a lovely ordinary day instead.</p>` : ''}
-            ${stepsHtml}
+          <div class="dlm-wrap">
+            <header class="dlm-mast">
+              <div style="min-width:0">
+                <span class="dlm-ey">Your daily look${data.occasion_label ? ' · ' + _waEsc(data.occasion_label) : ''}</span>
+                <h1 class="dlm-title">${_waEsc(headline)}</h1>
+              </div>
+              <div class="dlm-chipcol">
+                ${data.occasion_label ? `<span class="dlm-chip"><b>${_waEsc(cap1(data.occasion_label.toLowerCase()))}</b>${name ? `<span class="sep"></span>Styled for ${_waEsc(name)}` : ''}</span>` : ''}
+                ${ctx && (ctx.city || ctx.tempRange) ? `<span class="dlm-chip">🌤 <b>${_waEsc([ctx.city, ctx.month].filter(Boolean).join(' · '))}</b>${ctx.tempRange ? `<span class="sep"></span>${_waEsc(ctx.tempRange)}` : ''}${ctx.hint ? `<span class="sep"></span><span style="font-style:italic">${_waEsc(ctx.hint)}</span>` : ''}</span>` : ''}
+              </div>
+            </header>
+            ${data.fallback ? `<p style="font-size:12px;color:#A89880;font-style:italic;margin:10px 0 0">We couldn’t quite read your brief, so we’ve dressed you for a lovely ordinary day instead.</p>` : ''}
+            <div class="dlm-rule"></div>
 
-            <div style="margin-top:42px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center">
+            <div class="dlm-console">
+              <div class="dlm-look">
+                <div class="dlm-panel">
+                  <div class="dlm-lhead">
+                    <span class="ey">The look · ${total} pieces</span>
+                    <span class="ey" style="color:#8FA478">Robes</span>
+                  </div>
+                  ${quote ? `<div class="dlm-quote">“${_waEsc(quote)}”</div>` : ''}
+                  <div class="dlm-board">${boardHtml}</div>
+                  <div class="dlm-fabrics">${fabricsHtml}</div>
+                  <div class="dlm-lfoot">
+                    <span class="dlm-palette">${palette.map(h => `<span style="background:${h}"></span>`).join('')}</span>
+                    <span class="dlm-yours"><b>${owned}</b>&thinsp;of&thinsp;${total} from your wardrobe</span>
+                  </div>
+                </div>
+                <div class="dlm-note">
+                  <div class="nh">
+                    <span class="dlm-ey" style="letter-spacing:.22em">The stylist’s note</span>
+                    <span style="font-size:9.5px;color:#C4B8A4;font-style:italic">re-reads on every restyle</span>
+                  </div>
+                  <p>${summaryHtml}</p>
+                  ${data.transition_tip ? `<div style="margin-top:11px;padding-top:11px;border-top:1px solid #EFE9DC;display:flex;gap:9px;align-items:baseline;flex-wrap:wrap"><span style="font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#A89880;white-space:nowrap">Transition tip</span><span style="font-size:12px;line-height:1.6;color:#6E6A64;font-style:italic;flex:1;min-width:180px">${_waEsc(data.transition_tip)}</span></div>` : ''}
+                </div>
+              </div>
+
+              <div>
+                <div class="dlm-rackhead">
+                  <div style="min-width:0">
+                    <span class="dlm-ey">The rack</span>
+                    <h2>Flip through. Robes reads the day.</h2>
+                  </div>
+                  <button class="dlm-restyle" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">${restyleSvg} Restyle it</button>
+                </div>
+                <div style="font-size:11.5px;color:#A89880;font-style:italic;margin:-6px 0 14px">Flick any card through similar pieces, or anchor what must stay — restyles build around your anchors.</div>
+                <div class="dlm-rack">${rackHtml}</div>
+              </div>
+            </div>
+
+            <div style="margin-top:42px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:2px;text-align:center">
               <div style="font-family:${serif};font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How is today’s look?</div>
               <div id="dl-fb-prompt">
                 <div style="font-size:13px;color:#A89880;margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
                 <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-                  <button id="dl-fb-up" onclick="window.__dlFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">👍 I’d wear it</button>
-                  <button id="dl-fb-dn" onclick="window.__dlFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Not quite</button>
+                  <button id="dl-fb-up" onclick="window.__dlFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:2px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">👍 I’d wear it</button>
+                  <button id="dl-fb-dn" onclick="window.__dlFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:2px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Not quite</button>
                 </div>
               </div>
               <div id="dl-fb-expand" hidden style="margin-top:16px">
-                <textarea id="dl-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
-                <button onclick="window.__dlFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:${sans}">Send feedback</button>
+                <textarea id="dl-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:2px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
+                <button onclick="window.__dlFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:2px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:${sans}">Send feedback</button>
               </div>
               <div id="dl-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
             </div>
+            <div style="display:flex;justify-content:center;margin-top:20px">
+              <button onclick="window.__dlGoBack()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#A89880;text-decoration:underline;text-underline-offset:3px;font-family:${sans}">← Back to dashboard</button>
+            </div>
+          </div>
 
-            <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap">
-              <button onclick="window.__dlGoBack()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">← Dashboard</button>
-              <button onclick="window.__rbShare&&window.__rbShare()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Share this look</button>
-              <button onclick="window.__dlGoBack();setTimeout(()=>{window.__dlSubmit(${JSON.stringify(String(promptText || '')).replace(/"/g, '&quot;')})},200)" style="padding:12px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}">Dress me again</button>
+          <div class="dlm-payoff">
+            <div class="dlm-payoff-in">
+              <div class="dlm-pmeta">
+                <span class="t">${_waEsc(headline)}</span>
+                <span class="s"><b>${owned === total && total > 0 ? 'All yours.' : 'It works.'}</b> · ${_waEsc(provenance)}</span>
+              </div>
+              <div class="dlm-pbtns">
+                <button class="dlm-pbtn" onclick="window.__rbShare&&window.__rbShare()"><span>Share</span></button>
+                <button class="dlm-pbtn" onclick="window.__dlWear()"><span>Wear today</span></button>
+                <button class="dlm-pbtn primary" onclick="window.__dlRestyle()">${restyleSvg}<span>Dress me again</span></button>
+              </div>
             </div>
           </div>`; } catch (e) {
           console.error('[Robes] dlResultPage render error:', e);
@@ -2321,7 +2681,7 @@
         }
 
         dlResultPage.style.display = 'block';
-        dlResultPage.scrollTo({ top: 0 });
+        dlResultPage.scrollTo({ top: (opts && opts.keepScroll) || 0 });
 
         if (data.jobId) _dlPollImages(data.jobId, total);
 
@@ -2463,14 +2823,9 @@
         item.retailer_hint = '';
         item.price_point = '';
         document.getElementById('dl-swap-modal')?.remove();
-        // Items are references into __lastDlData.steps, so a re-render picks
-        // up the swap; the saved lookbook entry is patched with fresh steps.
-        const savedId = _dlActiveSaveId;
-        window.__dlRenderResult(window.__lastDlData, window.__lastDlData.prompt || '', { skipSave: true, savedId });
-        if (savedId) {
-          const saved = snLoad().find(x => x.id === savedId);
-          if (saved) snUpdate(savedId, { dlData: { ...(saved.dlData || {}), steps: window.__lastDlData.steps } });
-        }
+        // Items are references into __lastDlData.steps, so the re-render
+        // picks up the swap and _dlRerender patches the saved entry.
+        _dlRerender();
         _waShowToast(wi.label + ' swapped in');
       };
 
@@ -2499,27 +2854,32 @@
         });
       }
 
+      // Generated frames appear in several places (day console board, rack
+      // viewport, edit cards), so frames carry data-tvimg="i" and the poller
+      // patches every instance.
       function _tvSetImage(i, src) {
-        const wrap = document.getElementById('tv-imgwrap-' + i);
-        if (!wrap || wrap.querySelector('img')) return;
-        const ph = wrap.querySelector('.tv-img-ph');
-        if (ph) ph.remove();
-        const img = document.createElement('img');
-        img.src = src;
-        img.alt = '';
-        img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;opacity:0;transition:opacity .5s ease';
-        wrap.insertBefore(img, wrap.firstChild);
-        requestAnimationFrame(() => { img.style.opacity = '1'; });
+        document.querySelectorAll('[data-tvimg="' + i + '"]').forEach(wrap => {
+          if (wrap.querySelector('img')) return;
+          const ph = wrap.querySelector('.tv-img-ph');
+          if (ph) ph.remove();
+          const img = document.createElement('img');
+          img.src = src;
+          img.alt = '';
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;opacity:0;transition:opacity .5s ease';
+          wrap.insertBefore(img, wrap.firstChild);
+          requestAnimationFrame(() => { img.style.opacity = '1'; });
+        });
       }
 
       function _tvSettlePlaceholder(i) {
-        const wrap = document.getElementById('tv-imgwrap-' + i);
-        if (!wrap || wrap.querySelector('img')) return;
-        const ph = wrap.querySelector('.tv-img-ph');
-        if (ph) {
-          ph.style.animation = 'none';
-          ph.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
-        }
+        document.querySelectorAll('[data-tvimg="' + i + '"]').forEach(wrap => {
+          if (wrap.querySelector('img')) return;
+          const ph = wrap.querySelector('.tv-img-ph');
+          if (ph) {
+            ph.style.animation = 'none';
+            ph.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+          }
+        });
       }
 
       function _tvPollImages(jobId, count) {
@@ -2904,6 +3264,394 @@
         }
       };
 
+      // ── Travel Edit render (Packing Edit redesign, amendments 2026-07) ──
+      // The calendar (day strip) leads the page: tapping a day opens its
+      // look in a console that emulates the Daily experience — a stylist
+      // moodboard on the left (with the trip's editorial hero as the mood
+      // tile), "The Rack" on the right, and a Day/Evening flick. The Edit
+      // (Keep / Worth adding / Leave behind, packed tags, all metadata)
+      // sits below as before, and a sticky payoff bar closes the page.
+      let _tvActiveDay = 0;   // day the console is reading
+      let _tvActiveOcc = 0;   // 0 = Day slot, 1 = Evening slot
+
+      const _TV_CSS = `
+#tv-result-page{color:#202021;font-weight:300}
+#tv-result-page .tvm-wrap{max-width:1180px;margin:0 auto;padding:38px 40px 28px;box-sizing:border-box}
+#tv-result-page .tvm-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:#A89880}
+#tv-result-page .tvm-mast{display:flex;justify-content:space-between;align-items:flex-end;gap:28px}
+#tv-result-page .tvm-title{font-family:'Cormorant',Georgia,serif;font-weight:300;font-style:italic;font-size:clamp(30px,4.2vw,52px);line-height:1.06;letter-spacing:-.01em;margin:12px 0 0;color:#202021;max-width:18ch}
+#tv-result-page .tvm-progress{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0;padding-bottom:4px}
+#tv-result-page .tvm-mpcount{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:28px;line-height:1;color:#202021}
+#tv-result-page .tvm-mpcount .of{font-size:13px;color:#C4B8A4}
+#tv-result-page .tvm-mpbar{width:180px;height:4px;border-radius:3px;background:#EFE9DC;overflow:hidden}
+#tv-result-page .tvm-mpbar span{display:block;height:100%;width:0%;background:#7C8B63;border-radius:3px;transition:width .4s}
+#tv-result-page .tvm-mplab{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#A89880}
+#tv-result-page .tvm-chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:16px}
+#tv-result-page .tvm-chip{display:inline-flex;align-items:center;gap:8px;border:1px solid #E7E0CF;border-radius:2px;padding:8px 13px;font-size:12px;color:#202021;background:#fff;white-space:nowrap}
+#tv-result-page .tvm-chip b{font-weight:500}
+#tv-result-page .tvm-chip .sep{width:1px;height:11px;background:#E7E0CF}
+#tv-result-page .tvm-chip.tag{border-color:#D8CFC0;color:#A89880;font-style:italic;font-family:'Cormorant',Georgia,serif;font-size:14px}
+#tv-result-page .tvm-rule{height:1px;background:#E7E0CF;margin:24px 0 28px}
+#tv-result-page .tvm-weekhead{display:flex;align-items:baseline;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:14px}
+#tv-result-page .tvm-weekhead h2{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:23px;margin:0;color:#202021}
+#tv-result-page .tvm-weekhead .hint{font-size:11px;color:#C4B8A4;letter-spacing:.04em}
+#tv-result-page .tvm-week{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:34px}
+#tv-result-page .tvm-day{position:relative;text-align:left;border:1px solid #E7E0CF;border-radius:2px;background:#fff;padding:12px 12px 11px;min-height:132px;display:flex;flex-direction:column;cursor:pointer;transition:border-color .2s,background .2s;font-family:inherit}
+#tv-result-page .tvm-day:hover{border-color:#C4B8A4}
+#tv-result-page .tvm-day.active{border-color:#202021;background:#F5F0E8}
+#tv-result-page .tvm-day.active::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#202021}
+#tv-result-page .tvm-day .dtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+#tv-result-page .tvm-day .ddow{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#202021;font-weight:500}
+#tv-result-page .tvm-day .dst{width:8px;height:8px;border-radius:50%;border:1px solid #D8CFC0;background:transparent}
+#tv-result-page .tvm-day .dst.done{background:#7C8B63;border-color:#7C8B63}
+#tv-result-page .tvm-day .dev{font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:15.5px;line-height:1.12;color:#202021;margin-bottom:4px}
+#tv-result-page .tvm-day .dmeta{font-size:10px;color:#A89880;line-height:1.4;margin-bottom:10px}
+#tv-result-page .tvm-day .dth{margin-top:auto;display:flex}
+#tv-result-page .tvm-day .dth span{width:24px;height:32px;border-radius:1px;overflow:hidden;border:1px solid #E7E0CF;margin-left:-5px;background:#EFE9DC;display:block;background-size:cover;background-position:center}
+#tv-result-page .tvm-day .dth span:first-child{margin-left:0}
+#tv-result-page .tvm-console{display:grid;grid-template-columns:356px minmax(0,1fr);gap:38px;align-items:start}
+#tv-result-page .tvm-look{position:sticky;top:18px}
+#tv-result-page .tvm-panel{position:relative;background:#202021;border-radius:2px;overflow:hidden;padding:20px 20px 18px}
+#tv-result-page .tvm-panel::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;background:repeating-linear-gradient(180deg,rgba(250,248,245,0.035) 0 1px,transparent 1px 3px);opacity:.5}
+#tv-result-page .tvm-lhead{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+#tv-result-page .tvm-lhead .ey{font-size:9px;font-weight:500;letter-spacing:.26em;text-transform:uppercase;color:#C4B8A4}
+#tv-result-page .tvm-occ{position:relative;z-index:2;display:inline-flex;border:1px solid rgba(250,248,245,0.16);border-radius:2px;overflow:hidden;margin-bottom:14px}
+#tv-result-page .tvm-occ button{padding:6px 14px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#C4B8A4;background:transparent;border:none;border-right:1px solid rgba(250,248,245,0.16);cursor:pointer;transition:all .18s;font-family:inherit}
+#tv-result-page .tvm-occ button:last-child{border-right:none}
+#tv-result-page .tvm-occ button.on{background:#FAF8F5;color:#202021}
+#tv-result-page .tvm-quote{position:relative;z-index:2;font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:15px;line-height:1.42;color:#D8CFC0;margin-bottom:14px;padding-left:13px;border-left:1px solid rgba(250,248,245,0.18)}
+#tv-result-page .tvm-board{position:relative;z-index:2;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#tv-result-page .tvm-tile{position:relative;border-radius:2px;overflow:hidden;aspect-ratio:1/1.16;text-align:left;padding:0;background:#2A2A2B;border:1px solid rgba(250,248,245,0.14);cursor:pointer}
+#tv-result-page .tvm-tile.wide{grid-column:span 2;aspect-ratio:2/1.05}
+#tv-result-page .tvm-tile.isnew{border:1px dashed rgba(217,138,116,0.7)}
+#tv-result-page .tvm-tile .tgrad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 42%,rgba(0,0,0,0.55));z-index:1;pointer-events:none}
+#tv-result-page .tvm-tile .tslot{position:absolute;left:9px;top:8px;z-index:2;font-size:7.5px;letter-spacing:.2em;text-transform:uppercase;color:rgba(250,248,245,0.72)}
+#tv-result-page .tvm-tile .tlab{position:absolute;left:9px;bottom:8px;right:9px;z-index:2;font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:400;font-size:15px;color:#FAF8F5;line-height:1.05;pointer-events:none}
+#tv-result-page .tvm-tile .town{position:absolute;top:7px;right:7px;z-index:2;width:16px;height:16px;border-radius:50%;background:rgba(32,32,33,0.55);display:grid;place-items:center;color:#8FA478}
+#tv-result-page .tvm-tile .tadd{position:absolute;top:7px;right:7px;z-index:2;font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:#FAF8F5;background:rgba(185,138,78,0.9);padding:2px 5px;border-radius:1px}
+#tv-result-page .tvm-fabrics{position:relative;z-index:2;display:flex;flex-wrap:wrap;gap:9px 14px;margin-top:14px;padding-top:13px;border-top:1px solid rgba(250,248,245,0.10)}
+#tv-result-page .tvm-fabrics .fab{display:flex;align-items:center;gap:7px}
+#tv-result-page .tvm-fabrics .sw{width:15px;height:15px;border-radius:1px;border:1px solid rgba(250,248,245,0.25);display:block}
+#tv-result-page .tvm-fabrics .fl{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:12.5px;color:#C4B8A4}
+#tv-result-page .tvm-lfoot{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;margin-top:15px;padding-top:13px;border-top:1px solid rgba(250,248,245,0.10)}
+#tv-result-page .tvm-palette{display:flex;gap:5px}
+#tv-result-page .tvm-palette span{width:14px;height:14px;border-radius:50%;border:1px solid rgba(250,248,245,0.25);display:block}
+#tv-result-page .tvm-yours{font-size:10px;letter-spacing:.04em;color:#C4B8A4}
+#tv-result-page .tvm-yours b{color:#FAF8F5;font-weight:500}
+#tv-result-page .tvm-read{margin-top:13px;border:1px solid #E7E0CF;border-radius:2px;background:#fff;padding:15px 16px}
+#tv-result-page .tvm-read .rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+#tv-result-page .tvm-read .score{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:20px;color:#202021}
+#tv-result-page .tvm-read .score .of{font-size:11px;color:#C4B8A4}
+#tv-result-page .tvm-read .bar{position:relative;height:5px;border-radius:3px;background:#EFE9DC;overflow:hidden}
+#tv-result-page .tvm-read .bar span{position:absolute;left:0;top:0;height:100%;border-radius:3px;transition:width .4s,background .4s;display:block}
+#tv-result-page .tvm-read p{font-size:12.5px;line-height:1.6;color:#3A3733;margin:11px 0 0}
+#tv-result-page .tvm-rackhead{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+#tv-result-page .tvm-rackhead h2{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:25px;line-height:1.05;margin:6px 0 0;color:#202021}
+#tv-result-page .tvm-hbtn{display:inline-flex;align-items:center;gap:7px;border:1px solid #E7E0CF;border-radius:2px;padding:9px 14px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#202021;background:#fff;cursor:pointer;transition:all .2s;white-space:nowrap;font-family:inherit}
+#tv-result-page .tvm-hbtn:hover{background:#202021;color:#FAF8F5;border-color:#202021}
+#tv-result-page .tvm-rack{display:flex;flex-direction:column;gap:12px}
+#tv-result-page .tvm-row{display:grid;grid-template-columns:108px 1fr;gap:16px;align-items:stretch;border:1px solid #E7E0CF;border-radius:2px;background:#fff;padding:12px;transition:border-color .2s,background .2s}
+#tv-result-page .tvm-row.packed{border-color:#C4B8A4;background:#F5F0E8}
+#tv-result-page .tvm-vp{position:relative;border-radius:1px;overflow:hidden;background:#F5F0E8;aspect-ratio:4/5}
+#tv-result-page .tvm-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:#202021;background:rgba(250,248,245,0.85);padding:3px 7px;border-radius:1px}
+#tv-result-page .tvm-vp .vlooks{position:absolute;bottom:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.06em;color:#202021;background:rgba(250,248,245,0.85);padding:3px 7px;border-radius:1px;white-space:nowrap}
+#tv-result-page .tvm-body{display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:2px 0}
+#tv-result-page .tvm-name{font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:20px;line-height:1.08;color:#202021}
+#tv-result-page .tvm-sub{display:flex;align-items:center;gap:8px;margin-top:5px;font-size:12px;color:#A89880;flex-wrap:wrap}
+#tv-result-page .tvm-sub .price{color:#202021}
+#tv-result-page .tvm-owned{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#7C8B63}
+#tv-result-page .tvm-addtag{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#B98A4E}
+#tv-result-page .tvm-hownote{font-size:11.5px;line-height:1.5;color:#8A7B62;margin-top:7px;font-style:italic;font-family:'Cormorant',Georgia,serif}
+#tv-result-page .tvm-foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap}
+#tv-result-page .tvm-act{display:inline-flex;align-items:center;gap:6px;border:1px solid #E7E0CF;border-radius:2px;padding:8px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:#fff;color:#202021;cursor:pointer;transition:all .2s;font-family:inherit}
+#tv-result-page .tvm-act:hover{border-color:#C4B8A4}
+#tv-result-page .tvm-act.on{background:#7C8B63;color:#FAF8F5;border-color:#7C8B63}
+#tv-result-page .tvm-payoff{position:sticky;bottom:0;z-index:5;background:rgba(250,248,245,0.94);backdrop-filter:blur(16px);border-top:1px solid #E7E0CF}
+#tv-result-page .tvm-payoff-in{max-width:1180px;margin:0 auto;padding:13px 40px;display:flex;align-items:center;justify-content:space-between;gap:22px;box-sizing:border-box}
+#tv-result-page .tvm-pmeta{display:flex;flex-direction:column;gap:3px;min-width:0}
+#tv-result-page .tvm-pmeta .t{font-family:'Cormorant',Georgia,serif;font-size:18px;font-weight:400;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#202021}
+#tv-result-page .tvm-pmeta .s{font-size:11px;letter-spacing:.03em;color:#A89880}
+#tv-result-page .tvm-pmeta .s b{color:#7C8B63;font-weight:500}
+#tv-result-page .tvm-pbtns{display:flex;gap:9px;flex-shrink:0}
+#tv-result-page .tvm-pbtn{display:inline-flex;align-items:center;gap:7px;border:1px solid #E7E0CF;border-radius:2px;padding:11px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;background:#fff;color:#202021;cursor:pointer;transition:all .2s;font-family:inherit}
+#tv-result-page .tvm-pbtn:hover{border-color:#C4B8A4}
+#tv-result-page .tvm-pbtn.primary{background:#202021;color:#FAF8F5;border-color:#202021}
+@media(max-width:900px){
+#tv-result-page .tvm-console{grid-template-columns:1fr;gap:26px}
+#tv-result-page .tvm-look{position:static}
+#tv-result-page .tvm-wrap{padding:30px 20px 20px}
+#tv-result-page .tvm-mast{flex-direction:column;align-items:flex-start;gap:16px}
+#tv-result-page .tvm-progress{align-items:flex-start}
+#tv-result-page .tvm-week{display:grid;grid-auto-flow:column;grid-auto-columns:150px;grid-template-columns:none;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory}
+#tv-result-page .tvm-day{scroll-snap-align:start}
+#tv-result-page .tvm-payoff-in{padding:11px 16px;gap:12px}
+#tv-result-page .tvm-pmeta{display:none}
+#tv-result-page .tvm-pbtns{width:100%;justify-content:space-between}
+#tv-result-page .tvm-pbtn{flex:1;justify-content:center;padding:12px 8px}
+}
+@media(max-width:520px){
+#tv-result-page .tvm-row{grid-template-columns:84px 1fr;gap:12px}
+#tv-result-page .tvm-name{font-size:17px}
+}
+@media print{
+body>*:not(#tv-result-page){display:none !important}
+#tv-result-page{position:static !important;overflow:visible !important}
+#tv-result-page .tv-noprint{display:none !important}
+#tv-result-page .tvm-look{position:static}
+}
+@media(max-width:900px){
+.tv-sheet-wrap{align-items:flex-end !important;padding:0 !important}
+.tv-sheet{border-radius:20px 20px 0 0 !important;max-width:none !important}
+}`;
+
+      const _tvCheckSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+      const _tvSwapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
+      const _tvPhSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+      const _tvSerif = "'Cormorant',Georgia,serif";
+
+      // Frame for one capsule item — real wardrobe photo first, generated
+      // still (patched in by the poller via data-tvimg) second, mono tile last.
+      function _tvFrame(it) {
+        const data = window.__lastTvData || {};
+        const images = Array.isArray(data.generatedImages) ? data.generatedImages : [];
+        const imagesPending = !!data.jobId && !images.some(Boolean);
+        const wmImg = it.wardrobe_match && it.wardrobe_match.image_url;
+        const genOk = Number.isInteger(it.image_index);
+        const src = wmImg || (genOk ? images[it.image_index] : null);
+        const pollAttr = (!wmImg && genOk) ? ' data-tvimg="' + it.image_index + '"' : '';
+        const pulse = !src && !wmImg && genOk && imagesPending;
+        const phInner = pulse
+          ? `<span style="font-family:${_tvSerif};font-style:italic;font-size:12px;color:#B8AC9C;text-align:center;padding:0 12px">Creating imagery…</span>`
+          : (!genOk && !wmImg)
+            ? `<span style="font-family:${_tvSerif};font-size:28px;font-weight:300;color:#C4B8A4">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`
+            : _tvPhSvg;
+        const inner = src && typeof src === 'string'
+          ? `<img src="${_waEsc(src)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
+          : `<div class="tv-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${pulse ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${phInner}</div>`;
+        return { pollAttr, inner };
+      }
+
+      function _tvLookState() {
+        const data = window.__lastTvData;
+        if (!data || !Array.isArray(data.days) || !data.days.length) return null;
+        if (_tvActiveDay >= data.days.length) _tvActiveDay = 0;
+        const d = data.days[_tvActiveDay];
+        const slots = (d && d.slots) || [];
+        if (!slots.length) return null;
+        if (_tvActiveOcc >= slots.length) _tvActiveOcc = 0;
+        return { data, d, slots, s: slots[_tvActiveOcc] };
+      }
+
+      window.__tvSelectDay = function(di) {
+        _tvActiveDay = di;
+        _tvActiveOcc = 0;
+        _tvPaintWeek();
+        _tvPaintConsole();
+      };
+      window.__tvSetOcc = function(oi) {
+        _tvActiveOcc = oi;
+        _tvPaintConsole();
+      };
+
+      // The calendar strip — the lookbook, as navigator (packing edit PRD)
+      function _tvPaintWeek() {
+        const el = document.getElementById('tv-weekstrip');
+        const data = window.__lastTvData;
+        if (!el || !data) return;
+        el.innerHTML = data.days.map((d, di) => {
+          const slots = d.slots || [];
+          const label = (d.day_label || 'Day ' + (di + 1));
+          const parts = label.split('·');
+          const dayName = (parts[0] || '').trim();
+          const event = (parts[1] || '').trim() || (slots[0] && slots[0].title) || '';
+          const pieceIdx = [];
+          slots.forEach(s => (s.formula || []).forEach(f => {
+            if (pieceIdx.indexOf(f.item_index) === -1 && data.capsule[f.item_index]) pieceIdx.push(f.item_index);
+          }));
+          const allPacked = pieceIdx.length > 0 && pieceIdx.every(ci => data.capsule[ci].packed);
+          const thumbs = pieceIdx.slice(0, 4).map(ci => {
+            const it = data.capsule[ci];
+            const img = (it.wardrobe_match && it.wardrobe_match.image_url) ||
+              (Number.isInteger(it.image_index) ? (data.generatedImages || [])[it.image_index] : null);
+            return `<span${img ? ` style="background-image:url('${_waEsc(img)}')"` : ''}></span>`;
+          }).join('');
+          return `<button class="tvm-day${di === _tvActiveDay ? ' active' : ''}" onclick="window.__tvSelectDay(${di})">
+            <span class="dtop"><span class="ddow">${_waEsc(dayName)}</span><span class="dst${allPacked ? ' done' : ''}"></span></span>
+            <span class="dev">${_waEsc(event)}</span>
+            <span class="dmeta">${slots.length} look${slots.length > 1 ? 's' : ''}${d.user_activity ? ' · your plan' : ''}</span>
+            <span class="dth">${thumbs}</span>
+          </button>`;
+        }).join('');
+      }
+
+      // The console — this day's look, read piece by piece (emulates Daily)
+      function _tvPaintConsole() {
+        const st = _tvLookState();
+        const panel = document.getElementById('tv-look-panel');
+        const rackWrap = document.getElementById('tv-rackwrap');
+        if (!st || !panel || !rackWrap) return;
+        const { data, d, slots, s } = st;
+        const usage = data._usage || [];
+        const hexOk = h => typeof h === 'string' && /^#[0-9A-Fa-f]{6}$/.test(h);
+        const palette = (Array.isArray(data.palette) ? data.palette : []).filter(hexOk).slice(0, 3);
+        const dayName = ((d.day_label || 'Day ' + (_tvActiveDay + 1)).split('·')[0] || '').trim();
+        const entries = (s.formula || []).map(f => ({ f, it: data.capsule[f.item_index], ci: f.item_index })).filter(x => x.it);
+        const ownedN = entries.filter(x => x.it.wardrobe_match).length;
+
+        const occHtml = slots.map((sl, oi) =>
+          `<button class="${oi === _tvActiveOcc ? 'on' : ''}" onclick="window.__tvSetOcc(${oi})">${_waEsc(sl.slot || (oi === 0 ? 'Day' : 'Evening'))}</button>`
+        ).join('');
+
+        const heroPend = !!data.jobId && !(data.generatedImages || []).some(Boolean);
+        const heroSrc = (data.generatedImages || [])[0];
+        const heroTile = `<div class="tvm-tile wide" style="cursor:default">
+          <div data-tvimg="0" style="position:absolute;inset:0;background:#2A2A2B">${heroSrc
+            ? `<img src="${_waEsc(heroSrc)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
+            : `<div class="tv-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${heroPend ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${heroPend ? `<span style="font-family:${_tvSerif};font-style:italic;font-size:12px;color:#B8AC9C">Creating imagery…</span>` : _tvPhSvg}</div>`}</div>
+          <div class="tgrad"></div>
+          <span class="tslot">The mood</span>
+          <span class="tlab">${_waEsc(data.destination || '')}</span>
+        </div>`;
+
+        const tiles = entries.map(x => {
+          const f = _tvFrame(x.it);
+          return `<button class="tvm-tile${x.it.wardrobe_match ? '' : ' isnew'}" onclick="window.__tvSwap(${x.ci})" title="Swap the ${_waEsc(_dlShort(x.it.name))}">
+            <div${f.pollAttr} style="position:absolute;inset:0;background:#2A2A2B">${f.inner}</div>
+            <div class="tgrad"></div>
+            <span class="tslot">${_waEsc(_dlSlot(x.it).l)}</span>
+            ${x.it.wardrobe_match ? `<span class="town">${_tvCheckSvg}</span>` : `<span class="tadd">Add</span>`}
+            <span class="tlab">the ${_waEsc(_dlShort(x.it.name))}</span>
+          </button>`;
+        }).join('');
+
+        const fabricsHtml = entries.map(x => {
+          const c = (x.it.wardrobe_match && x.it.wardrobe_match.color) || '';
+          return `<span class="fab"><span class="sw" style="background:${_waEsc(c && /^#/.test(c) ? c : (palette[0] || '#E7E0CF'))}"></span><span class="fl">${_waEsc(_dlFabric(x.it.name))}</span></span>`;
+        }).join('');
+
+        panel.innerHTML = `
+          <div class="tvm-panel">
+            <div class="tvm-lhead">
+              <span class="ey">${_waEsc(dayName)} · The look</span>
+              <span class="ey" style="color:#8FA478">Robes</span>
+            </div>
+            <div class="tvm-occ">${occHtml}</div>
+            ${s.how ? `<div class="tvm-quote">“${_waEsc(s.how)}”</div>` : ''}
+            <div class="tvm-board">${heroTile}${tiles}</div>
+            <div class="tvm-fabrics">${fabricsHtml}</div>
+            <div class="tvm-lfoot">
+              <span class="tvm-palette">${palette.map(h => `<span style="background:${h}"></span>`).join('')}</span>
+              <span class="tvm-yours"><b>${ownedN}</b>&thinsp;of&thinsp;${entries.length} already yours</span>
+            </div>
+          </div>
+          ${(() => {
+            const inCase = entries.filter(x => x.it.packed);
+            const gaps = entries.filter(x => !x.it.wardrobe_match);
+            const toPack = entries.filter(x => !x.it.packed);
+            const pct = entries.length ? Math.round(inCase.length / entries.length * 100) : 0;
+            const clean = gaps.length === 0;
+            let verdict;
+            if (gaps.length) verdict = `Nearly there — the ${_waEsc(gaps[0].it.name.toLowerCase())} is the gap worth adding, then this look is complete.`;
+            else if (toPack.length) verdict = `Everything’s chosen — just pack the ${_waEsc(toPack[0].it.name.toLowerCase())} and it’s ready.`;
+            else verdict = 'Every piece is packed and accounted for — this look travels as it is.';
+            return `<div class="tvm-read">
+              <div class="rh">
+                <span class="tvm-ey" style="letter-spacing:.22em">The read</span>
+                <span class="score">${inCase.length} / ${entries.length}<span class="of"> in the case</span></span>
+              </div>
+              <div class="bar"><span style="width:${pct}%;background:${clean ? '#7C8B63' : '#B98A4E'}"></span></div>
+              <p>${verdict}</p>
+            </div>`;
+          })()}`;
+
+        const rows = entries.map(x => {
+          const { it, ci } = x;
+          const wears = (usage[ci] || []).length;
+          const sub = it.wardrobe_match
+            ? `<span class="tvm-owned">${_tvCheckSvg} In your wardrobe</span>`
+            : `<span class="tvm-addtag">Worth adding</span>${it.brand ? `<span style="font-family:${_tvSerif};font-style:italic;font-size:13px">${_waEsc(it.brand)}</span>` : ''}${(it.retailer_hint || it.price_point) ? `<span class="price">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>` : ''}`;
+          const f = _tvFrame(it);
+          const isPacked = !!it.packed;
+          return `<div class="tvm-row${isPacked ? ' packed' : ''}">
+            <div class="tvm-vp">
+              <span class="vslot">${_waEsc(String(x.f.role || '').replace(/^The\s+/i, ''))}</span>
+              <div${f.pollAttr} style="position:absolute;inset:0">${f.inner}</div>
+              ${wears ? `<span class="vlooks">× ${wears} looks</span>` : ''}
+            </div>
+            <div class="tvm-body">
+              <div>
+                <div class="tvm-name">${_waEsc(it.name)}</div>
+                <div class="tvm-sub">${sub}</div>
+                ${x.f.note ? `<div class="tvm-hownote">${_waEsc(x.f.note)}</div>` : ''}
+              </div>
+              <div class="tvm-foot">
+                <button class="tvm-act${it.packed ? ' on' : ''}" data-packci="${ci}" onclick="window.__tvPackToggle(${ci})">${it.packed ? _tvCheckSvg + ' Packed' : 'Pack it'}</button>
+                <button class="tvm-act tv-noprint" onclick="window.__tvSwap(${ci})">${_tvSwapSvg} Swap</button>
+              </div>
+            </div>
+          </div>`;
+        }).join('');
+
+        rackWrap.innerHTML = `
+          <div class="tvm-rackhead">
+            <div style="min-width:0">
+              <span class="tvm-ey">The rack · ${_waEsc(dayName)}</span>
+              <h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="tvm-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button>
+              <button class="tvm-hbtn tv-noprint" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>
+            </div>
+          </div>
+          <div class="tvm-rack">${rows}</div>`;
+      }
+
+      // Pack every capsule piece this look uses
+      window.__tvPackLook = function() {
+        const st = _tvLookState();
+        if (!st) return;
+        let changed = 0;
+        (st.s.formula || []).forEach(f => {
+          const it = st.data.capsule[f.item_index];
+          if (it && !it.packed) { it.packed = true; changed++; }
+        });
+        _tvPaintConsole();
+        _tvPaintWeek();
+        _tvPaintPackProgress();
+        _tvPaintEditCards();
+        _tvPatchSaved();
+        _waShowToast(changed ? 'Look packed — ' + changed + ' piece' + (changed === 1 ? '' : 's') + ' into the case' : 'This look is already packed');
+      };
+
+      window.__tvPackAll = function() {
+        const data = window.__lastTvData;
+        if (!data) return;
+        data.capsule.forEach(it => { it.packed = true; });
+        _tvPaintConsole();
+        _tvPaintWeek();
+        _tvPaintPackProgress();
+        _tvPaintEditCards();
+        _tvPatchSaved();
+        _waShowToast('Suitcase packed — bon voyage ✈');
+      };
+
+      // Sync every Packed checkbox in The Edit's cards without a re-render
+      function _tvPaintEditCards() {
+        const data = window.__lastTvData;
+        if (!data) return;
+        data.capsule.forEach((it, ci) => {
+          const btn = document.getElementById('tv-pack-' + ci);
+          if (!btn) return;
+          const box = btn.querySelector('.tv-pack-box');
+          if (box) {
+            box.style.border = '1.5px solid ' + (it.packed ? '#202021' : 'rgba(32,32,33,0.3)');
+            box.style.background = it.packed ? '#202021' : '#fff';
+            box.textContent = it.packed ? '✓' : '';
+          }
+          btn.style.color = it.packed ? '#202021' : '#6E6A64';
+        });
+      }
+
       window.__tvRenderResult = function(data, opts) {
         if (!data || !Array.isArray(data.capsule) || !data.capsule.length || !Array.isArray(data.days) || !data.days.length) {
           _waShowToast('Could not build this trip — please try again');
@@ -2912,11 +3660,12 @@
         _tvStopPolling();
         _tvSelected = null;
         window.__lastTvData = data;
-        const serif = "'Cormorant',Georgia,serif";
+        if (!opts || !opts.skipSave) { _tvActiveDay = 0; _tvActiveOcc = 0; }
+        if (_tvActiveDay >= data.days.length) _tvActiveDay = 0;
+        const serif = _tvSerif;
         const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
         const wx = data.weather || null;
         const images = Array.isArray(data.generatedImages) ? data.generatedImages : [];
-        const imagesPending = !!data.jobId && !images.some(Boolean);
         const hexOk = h => typeof h === 'string' && /^#[0-9A-Fa-f]{6}$/.test(h);
         const palette = (Array.isArray(data.palette) ? data.palette : []).filter(hexOk).slice(0, 3);
 
@@ -2938,15 +3687,6 @@
         const total = data.capsule.length;
         const leftBehind = Array.isArray(data.left_behind) ? data.left_behind : [];
         const lookCount = data.days.reduce((acc, d) => acc + (d.slots || []).length, 0);
-        const lead = owned === total && total > 0
-          ? 'Packed from your wardrobe, ' + name + '.'
-          : owned > 0 ? 'Nearly all packed from yours, ' + name + '.' : 'Your capsule, curated, ' + name + '.';
-        // Plain summary stat (curatorial PRD) — no percentage-of-ownership framing
-        const provenance = [
-          owned > 0 ? `${owned} ${owned === 1 ? 'piece' : 'pieces'} kept` : `${total} pieces`,
-          `${lookCount} looks`,
-          leftBehind.length ? `${leftBehind.length} left behind` : '',
-        ].filter(Boolean).join(' · ');
 
         if (!tvResultPage) {
           tvResultPage = document.createElement('div');
@@ -2954,56 +3694,34 @@
           tvResultPage.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;width:100%;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
           document.body.appendChild(tvResultPage);
         }
-        if (!document.getElementById('tv-style')) {
-          const s = document.createElement('style');
-          s.id = 'tv-style';
-          s.textContent =
-            '@media(max-width:700px){.tv-head{grid-template-columns:1fr !important}.tv-hero{max-width:320px}' +
-            // One day per swipe — the lookbook reads as a pager, not a wall
-            '.tv-daycol{flex:0 0 84vw !important;max-width:340px}' +
-            '.tv-sheet-wrap{align-items:flex-end !important;padding:0 !important}.tv-sheet{border-radius:20px 20px 0 0 !important;max-width:none !important}}' +
-            '@media print{body>*:not(#tv-result-page){display:none !important}#tv-result-page{position:static !important;overflow:visible !important}' +
-            '.tv-noprint{display:none !important}.tv-days{flex-wrap:wrap !important;overflow:visible !important}.tv-slotx{display:block !important}}';
-          document.head.appendChild(s);
+        let tvStyleEl = document.getElementById('tv-style');
+        if (!tvStyleEl) {
+          tvStyleEl = document.createElement('style');
+          tvStyleEl.id = 'tv-style';
+          document.head.appendChild(tvStyleEl);
         }
+        tvStyleEl.textContent = _TV_CSS;
         if (kpResultPage) kpResultPage.style.display = 'none';
         if (dlResultPage) dlResultPage.style.display = 'none';
         window.__mbCloseResult && window.__mbCloseResult();
 
-        const swapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
-        const checkSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-        const phSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
-        const frameFor = (it) => {
-          const wmImg = it.wardrobe_match && it.wardrobe_match.image_url;
-          const src = wmImg || (Number.isInteger(it.image_index) ? images[it.image_index] : null);
-          const wrapId = (!wmImg && Number.isInteger(it.image_index)) ? `id="tv-imgwrap-${it.image_index}"` : '';
-          const pulse = !src && !wmImg && Number.isInteger(it.image_index) && imagesPending;
-          const phInner = pulse
-            ? `<span style="font-family:${serif};font-style:italic;font-size:12px;color:#B8AC9C;text-align:center;padding:0 12px">Creating imagery…</span>`
-            : phSvg;
-          return `<div ${wrapId} style="position:relative;background:#EDE9E2;overflow:hidden;aspect-ratio:4/5">
-            ${src && typeof src === 'string'
-              ? `<img src="${_waEsc(src)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
-              : `<div class="tv-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${pulse ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${phInner}</div>`}
-          </div>`;
-        };
+        const swapSvg = _tvSwapSvg;
+        const checkSvg = _tvCheckSvg;
 
-        // The curatorial result (wardrobe-first PRD): three sections replace
-        // the single tier-grouped capsule — Keep (her pieces that made the
-        // cut, with reasons), Worth Adding (genuine gaps only, the smallest
-        // group), Leave Behind (shortlisted but cut, with reasons). Card ids
-        // stay `tv-cap-${ci}` (index into data.capsule) so selection, the
-        // packed checklist and swap keep working unchanged.
+        // The Edit — Keep / Worth Adding / Leave Behind cards (unchanged
+        // curatorial section; ids stay tv-cap-${ci} / tv-pack-${ci} so the
+        // 1:3 selection, packed checklist and swap keep working).
         const capCard = ({ it, ci }) => {
           const wears = (usage[ci] || []).length;
+          const f = _tvFrame(it);
           const badge = it.wardrobe_match
             ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:500;color:#4A7C59;background:rgba(74,124,89,0.10);border-radius:20px;padding:2px 7px;white-space:nowrap">${checkSvg} Yours</span>`
             : (it.retailer_hint || it.price_point)
               ? `<span style="font-size:10px;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;display:inline-block;vertical-align:bottom">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>`
               : '';
           const note = it.wardrobe_match ? (it.reason || '') : (it.bridge || '');
-          return `<div id="tv-cap-${ci}" onclick="window.__tvSelectItem(${ci})" style="background:#fff;border:0.5px solid rgba(32,32,33,0.1);border-radius:10px;overflow:hidden;cursor:pointer;transition:opacity .2s,outline-color .2s;outline:2px solid transparent;outline-offset:-2px">
-            ${frameFor(it)}
+          return `<div id="tv-cap-${ci}" onclick="window.__tvSelectItem(${ci})" style="background:#fff;border:0.5px solid rgba(32,32,33,0.1);border-radius:2px;overflow:hidden;cursor:pointer;transition:opacity .2s,outline-color .2s;outline:2px solid transparent;outline-offset:-2px">
+            <div${f.pollAttr} style="position:relative;background:#EDE9E2;overflow:hidden;aspect-ratio:4/5">${f.inner}</div>
             <div style="padding:10px 12px 12px">
               <div style="font-size:12.5px;font-weight:500;color:#202021;line-height:1.35">${_waEsc(it.name)}</div>
               ${it.brand ? `<div style="font-family:${serif};font-style:italic;font-size:12px;color:#A89880;margin-top:1px">${_waEsc(it.brand)}</div>` : ''}
@@ -3014,10 +3732,10 @@
               ${note ? `<div style="font-family:${serif};font-style:italic;font-size:11.5px;line-height:1.5;color:#8A7B62;margin-top:6px">${_waEsc(note)}</div>` : ''}
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px">
                 <button id="tv-pack-${ci}" onclick="event.stopPropagation();window.__tvPackToggle(${ci})" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:${it.packed ? '#202021' : '#6E6A64'};font-family:${sans}">
-                  <span class="tv-pack-box" style="width:15px;height:15px;border-radius:4px;border:1.5px solid ${it.packed ? '#202021' : 'rgba(32,32,33,0.3)'};background:${it.packed ? '#202021' : '#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1;box-sizing:border-box">${it.packed ? '✓' : ''}</span>
+                  <span class="tv-pack-box" style="width:15px;height:15px;border-radius:2px;border:1.5px solid ${it.packed ? '#202021' : 'rgba(32,32,33,0.3)'};background:${it.packed ? '#202021' : '#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1;box-sizing:border-box">${it.packed ? '✓' : ''}</span>
                   Packed
                 </button>
-                <button class="tv-noprint" onclick="event.stopPropagation();window.__tvSwap(${ci})" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:0.5px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:8.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">${swapSvg} Swap</button>
+                <button class="tv-noprint" onclick="event.stopPropagation();window.__tvSwap(${ci})" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:0.5px solid rgba(32,32,33,0.2);border-radius:2px;background:#fff;font-size:8.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">${swapSvg} Swap</button>
               </div>
             </div>
           </div>`;
@@ -3043,10 +3761,10 @@
           leftBehind.length ? `<div class="tv-noprint" style="margin-bottom:28px">
             ${sectionHead('Leave behind', 'Tempting, but they don’t earn their place this trip.', leftBehind.length)}
             <div style="display:flex;flex-direction:column;gap:8px;max-width:640px">${leftBehind.map(l => `
-              <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.6);border:0.5px solid rgba(32,32,33,0.08);border-radius:10px;padding:9px 12px;opacity:.85">
+              <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.6);border:0.5px solid rgba(32,32,33,0.08);border-radius:2px;padding:9px 12px;opacity:.85">
                 ${l.image_url
-                  ? `<img src="${_waEsc(l.image_url)}" style="width:40px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;filter:grayscale(35%)" alt="">`
-                  : `<div style="width:40px;height:48px;border-radius:6px;background:#EDE8E0;display:flex;align-items:center;justify-content:center;font-family:${serif};font-size:16px;color:#B8AC9C;flex-shrink:0">${_waEsc((l.label || '?').charAt(0).toUpperCase())}</div>`}
+                  ? `<img src="${_waEsc(l.image_url)}" style="width:40px;height:48px;object-fit:cover;border-radius:1px;flex-shrink:0;filter:grayscale(35%)" alt="">`
+                  : `<div style="width:40px;height:48px;border-radius:1px;background:#EDE8E0;display:flex;align-items:center;justify-content:center;font-family:${serif};font-size:16px;color:#B8AC9C;flex-shrink:0">${_waEsc((l.label || '?').charAt(0).toUpperCase())}</div>`}
                 <div style="min-width:0">
                   <div style="font-size:12px;font-weight:500;color:#57503F;line-height:1.3">${_waEsc(l.label || '')}</div>
                   ${l.reason ? `<div style="font-family:${serif};font-style:italic;font-size:11.5px;line-height:1.5;color:#A89880;margin-top:1px">${_waEsc(l.reason)}</div>` : ''}
@@ -3055,131 +3773,89 @@
           </div>` : '',
         ].join('');
 
-        // The Systematic Itinerary Lookbook (PRD step 3) — horizontal day
-        // columns; tap a look to inspect its 4-step structure
-        const daysHtml = data.days.map((d, di) => {
-          const slotsHtml = (d.slots || []).map((s, si) => {
-            const isEve = s.slot === 'Evening';
-            // Cap the visible piece chips — the full build lives one tap
-            // away in the 4-step expand; uncapped chips were the main
-            // source of mobile noise.
-            const fitems = (s.formula || []).filter(f => data.capsule[f.item_index]);
-            const chips = fitems.slice(0, 3).map(f =>
-              `<span style="font-size:10px;color:#6E6A64;background:#F0EDE8;border-radius:20px;padding:2px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${_waEsc(data.capsule[f.item_index].name)}</span>`
-            ).join('') + (fitems.length > 3 ? `<span style="font-size:10px;color:#A89880;background:#F7F4EE;border-radius:20px;padding:2px 8px;white-space:nowrap">+${fitems.length - 3} more</span>` : '');
-            const detail = (s.formula || []).map(f => {
-              const it = data.capsule[f.item_index];
-              if (!it) return '';
-              return `<div style="padding:7px 0;border-top:0.5px solid rgba(32,32,33,0.07)">
-                <div style="font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:2px">${_waEsc(f.role)}</div>
-                <div style="font-size:12px;font-weight:500;color:#202021">${_waEsc(it.name)}${it.wardrobe_match ? ` <span style="color:#4A7C59;font-size:10px">✓</span>` : ''}</div>
-                ${f.note ? `<div style="font-size:11px;line-height:1.55;color:#6E6A64;margin-top:2px">${_waEsc(f.note)}</div>` : ''}
-              </div>`;
-            }).join('');
-            return `<div id="tv-slot-${di}-${si}" onclick="window.__tvToggleSlot(${di},${si})" style="background:#fff;border:0.5px solid rgba(32,32,33,0.1);border-radius:12px;padding:14px 15px;cursor:pointer;transition:opacity .2s,outline-color .2s;outline:2px solid transparent;outline-offset:-2px">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-                <span style="font-size:8.5px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:${isEve ? '#202021' : '#A89880'};${isEve ? 'background:#F0EAE0;border-radius:20px;padding:2px 8px' : ''}">${_waEsc(s.slot || 'Day')}</span>
-                <span class="tv-noprint" id="tv-caret-${di}-${si}" style="font-size:11px;color:#B8AC9C;transition:transform .2s">▾</span>
-              </div>
-              <div style="font-family:${serif};font-size:17px;font-weight:400;color:#202021;line-height:1.2;margin-bottom:8px">${_waEsc(s.title || '')}</div>
-              <div style="display:flex;flex-wrap:wrap;gap:5px">${chips}</div>
-              <div class="tv-slotx" id="tv-slotx-${di}-${si}" style="display:none;margin-top:10px">
-                ${s.how ? `<div style="font-family:${serif};font-style:italic;font-size:13px;line-height:1.6;color:#3A3733;margin-bottom:6px">${_waEsc(s.how)}</div>` : ''}
-                ${detail}
-              </div>
-            </div>`;
-          }).join('');
-          const pencilSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
-          return `<div class="tv-daycol" style="flex:0 0 258px;scroll-snap-align:start;display:flex;flex-direction:column;gap:10px">
-            <button onclick="window.__tvEditDay(${di})" title="Change this day’s plan" style="align-self:flex-start;display:inline-flex;align-items:center;gap:7px;border:0.5px solid rgba(32,32,33,0.16);border-radius:40px;background:#fff;padding:5px 12px;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#57503F;cursor:pointer;font-family:${sans}">${_waEsc(d.day_label || 'Day ' + (di + 1))} <span class="tv-noprint" style="display:inline-flex;color:#B8AC9C">${pencilSvg}</span></button>
-            ${slotsHtml}
-          </div>`;
-        }).join('');
-
-        const heroSrc = images[0];
-        const heroHtml = `<div class="tv-hero" style="align-self:start;width:100%">
-          <div id="tv-imgwrap-0" style="position:relative;background:#EDE9E2;border-radius:12px;overflow:hidden;aspect-ratio:3/4">
-            ${heroSrc && typeof heroSrc === 'string'
-              ? `<img src="${_waEsc(heroSrc)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
-              : `<div class="tv-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${imagesPending ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${imagesPending ? `<span style="font-family:${serif};font-style:italic;font-size:13px;color:#B8AC9C;text-align:center;padding:0 16px">Creating imagery…</span>` : phSvg}</div>`}
-          </div>
-        </div>`;
-
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Travel edit' }]);
         try { tvResultPage.innerHTML = `
-          <div style="width:100%;max-width:1020px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
-            <div style="font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880;margin-bottom:14px">Travel edit${data.trip_label ? ' · ' + _waEsc(data.trip_label) : ''}</div>
-            <div class="tv-head" style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:34px;align-items:start;margin-bottom:8px">
-              <div>
-                <h1 style="font-family:${serif};font-weight:300;font-style:italic;font-size:clamp(30px,4vw,46px);color:#202021;line-height:1.15;margin:0 0 14px">${_waEsc(lead)}<br>${_waEsc(data.headline || '')}</h1>
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-                  <span style="width:6px;height:6px;border-radius:50%;background:${owned > 0 ? '#4A7C59' : '#C8B8A2'};flex-shrink:0"></span>
-                  <span style="font-size:11px;letter-spacing:.05em;color:#6E6A64">${_waEsc(provenance)}</span>
-                  ${palette.length ? `<span style="display:inline-flex;gap:5px;margin-left:2px">${palette.map(h => `<span style="width:13px;height:13px;border-radius:50%;background:${h};border:0.5px solid rgba(32,32,33,0.15)"></span>`).join('')}</span>` : ''}
-                </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-                  ${wx || data.dateLine ? `
-                  <div style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#6E6A64;letter-spacing:.04em;border:0.5px solid rgba(32,32,33,0.12);border-radius:40px;padding:8px 16px;background:#fff">
-                    <span>✈</span>
-                    <strong style="font-weight:500;color:#202021">${_waEsc([wx && wx.city ? wx.city + (wx.country ? ', ' + wx.country : '') : data.destination, data.dateLine].filter(Boolean).join(' · '))}</strong>
-                    ${wx && wx.tempRange ? `<span style="color:rgba(32,32,33,0.2)">|</span><span>${_waEsc(wx.tempRange)}</span>` : ''}
-                    ${wx && wx.condition ? `<span style="color:rgba(32,32,33,0.2)">|</span><span style="font-style:italic">${_waEsc(wx.condition)}${wx.seasonal ? ' · seasonal read' : ''}</span>` : ''}
-                  </div>` : ''}
-                  ${data.location_vibe ? `<div style="display:inline-flex;align-items:center;font-family:${serif};font-style:italic;font-size:13px;color:#8A7B62;border:0.5px solid rgba(32,32,33,0.12);border-radius:40px;padding:8px 16px;background:#F3EFE7">${_waEsc(data.location_vibe)}</div>` : ''}
-                </div>
-                <div style="background:#F3EFE7;border-radius:12px;padding:20px 22px">
-                  <div style="font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880;margin-bottom:10px">Stylist summary</div>
-                  <p style="font-size:13.5px;line-height:1.75;color:#3A3733;margin:0">${_waEsc(data.stylist_summary || '')}</p>
-                  ${data.suitcase_note ? `<div style="margin-top:14px;padding-top:14px;border-top:0.5px solid rgba(32,32,33,0.09);display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><span style="font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#A89880;white-space:nowrap">Suitcase note</span><span style="font-size:12.5px;line-height:1.6;color:#6E6A64;font-style:italic;flex:1;min-width:200px">${_waEsc(data.suitcase_note)}</span></div>` : ''}
-                </div>
-                ${data.fallback ? `<p style="font-size:12px;color:#A89880;font-style:italic;margin:12px 0 0">We couldn’t quite read the brief, so we’ve packed you for a lovely week away instead.</p>` : ''}
+          <div class="tvm-wrap">
+            <header class="tvm-mast">
+              <div style="min-width:0">
+                <span class="tvm-ey">The travel edit${data.trip_label ? ' · ' + _waEsc(data.trip_label) : ''}</span>
+                <h1 class="tvm-title">${_waEsc(data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.'))}</h1>
               </div>
-              ${heroHtml}
+              <div class="tvm-progress">
+                <span class="tvm-mpcount"><b id="tv-mp-n">0</b><span class="of"> / ${total} packed</span></span>
+                <div class="tvm-mpbar"><span id="tv-mp-fill"></span></div>
+                <span class="tvm-mplab">${total} pieces · ${lookCount} looks</span>
+              </div>
+            </header>
+            <div class="tvm-chips">
+              ${wx || data.dateLine || data.destination ? `<span class="tvm-chip">✈ <b>${_waEsc([wx && wx.city ? wx.city + (wx.country ? ', ' + wx.country : '') : data.destination, data.dateLine].filter(Boolean).join(' · '))}</b></span>` : ''}
+              ${wx && wx.tempRange ? `<span class="tvm-chip">${_waEsc(wx.tempRange)}${wx.condition ? `<span class="sep"></span><span style="font-style:italic">${_waEsc(wx.condition)}${wx.seasonal ? ' · seasonal read' : ''}</span>` : ''}</span>` : ''}
+              ${data.location_vibe ? `<span class="tvm-chip tag">${_waEsc(data.location_vibe)}</span>` : ''}
+            </div>
+            ${data.fallback ? `<p style="font-size:12px;color:#A89880;font-style:italic;margin:12px 0 0">We couldn’t quite read the brief, so we’ve packed you for a lovely week away instead.</p>` : ''}
+            <div class="tvm-rule"></div>
+
+            <section>
+              <div class="tvm-weekhead">
+                <h2>The ${data.days.length > 6 ? 'trip' : 'week'}${wx && wx.city ? ' in ' + _waEsc(wx.city) : (data.destination ? ' in ' + _waEsc(data.destination) : '')}</h2>
+                <span class="hint">Tap a day — the console reads its look, piece by piece.</span>
+              </div>
+              <div class="tvm-week" id="tv-weekstrip"></div>
+            </section>
+
+            <div class="tvm-console">
+              <div class="tvm-look" id="tv-look-panel"></div>
+              <div id="tv-rackwrap"></div>
             </div>
 
-            <div style="height:0.5px;background:rgba(32,32,33,0.1);margin:26px 0 28px"></div>
+            <div class="tvm-rule" style="margin-top:44px"></div>
             <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:6px">
-              <div style="font-family:${serif};font-weight:400;font-size:27px;color:#202021;line-height:1.1">The edit</div>
-              <div id="tv-pack-progress" style="display:flex;align-items:center;gap:10px">
-                <span id="tv-pack-count" style="font-size:11px;color:#6E6A64;letter-spacing:.04em"></span>
-                <span style="width:90px;height:3px;border-radius:3px;background:rgba(32,32,33,0.08);overflow:hidden;display:inline-block"><span id="tv-pack-bar" style="display:block;height:100%;width:0%;background:#202021;border-radius:3px;transition:width .3s"></span></span>
-              </div>
+              <div style="font-family:${serif};font-weight:300;font-size:clamp(26px,3vw,36px);color:#202021;line-height:1.05">The edit.</div>
             </div>
-            <div id="tv-matrix-note" style="font-size:12px;color:#A89880;font-style:italic;margin-bottom:18px;min-height:18px">Tap any piece to see how it multiplies across the week.</div>
+            <div style="font-size:12.5px;color:#A89880;margin-bottom:8px;max-width:56ch;line-height:1.5">${_waEsc(data.stylist_summary || '')}${data.suitcase_note ? ` <span style="font-style:italic">${_waEsc(data.suitcase_note)}</span>` : ''}</div>
+            <div id="tv-matrix-note" style="font-size:12px;color:#A89880;font-style:italic;margin-bottom:18px;min-height:18px">Tap any piece to see how it multiplies across the trip.</div>
             ${tiersHtml}
 
-            <div style="height:0.5px;background:rgba(32,32,33,0.1);margin:16px 0 28px"></div>
-            <div style="font-family:${serif};font-weight:400;font-size:27px;color:#202021;line-height:1.1;margin-bottom:6px">The lookbook</div>
-            <div style="font-size:12px;color:#A89880;font-style:italic;margin-bottom:18px">Day by day — tap a look for its four-step build, or tap a day’s title to tell Robes the real plan.</div>
-            <div class="tv-days" style="display:flex;gap:14px;overflow-x:auto;padding:4px 2px 18px;scroll-snap-type:x mandatory;align-items:flex-start">${daysHtml}</div>
-
-            <div class="tv-noprint" style="margin-top:42px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center">
+            <div class="tv-noprint" style="margin-top:42px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:2px;text-align:center">
               <div style="font-family:${serif};font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How is this edit?</div>
               <div id="tv-fb-prompt">
                 <div style="font-size:13px;color:#A89880;margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
                 <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-                  <button id="tv-fb-up" onclick="window.__tvFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">👍 I’d pack it</button>
-                  <button id="tv-fb-dn" onclick="window.__tvFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Not quite</button>
+                  <button id="tv-fb-up" onclick="window.__tvFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:2px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">👍 I’d pack it</button>
+                  <button id="tv-fb-dn" onclick="window.__tvFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:2px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Not quite</button>
                 </div>
               </div>
               <div id="tv-fb-expand" hidden style="margin-top:16px">
-                <textarea id="tv-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
-                <button onclick="window.__tvFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:${sans}">Send feedback</button>
+                <textarea id="tv-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:2px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
+                <button onclick="window.__tvFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:2px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:${sans}">Send feedback</button>
               </div>
               <div id="tv-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
             </div>
+            <div class="tv-noprint" style="display:flex;gap:18px;justify-content:center;margin-top:20px;flex-wrap:wrap">
+              <button onclick="window.__tvGoBack()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#A89880;text-decoration:underline;text-underline-offset:3px;font-family:${sans}">← Back to dashboard</button>
+              <button onclick="window.__tvGoBack();setTimeout(()=>{window.__tvOpen()},200)" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#A89880;text-decoration:underline;text-underline-offset:3px;font-family:${sans}">Pack another trip →</button>
+            </div>
+          </div>
 
-            <div class="tv-noprint" style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap">
-              <button onclick="window.__tvGoBack()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">← Dashboard</button>
-              <button onclick="window.__tvExport()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Export PDF</button>
-              <button onclick="window.__rbShare&&window.__rbShare()" style="padding:12px 24px;border:1px solid rgba(32,32,33,0.2);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Share</button>
-              <button onclick="window.__tvGoBack();setTimeout(()=>{window.__tvOpen()},200)" style="padding:12px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}">Pack another trip</button>
+          <div class="tvm-payoff tv-noprint">
+            <div class="tvm-payoff-in">
+              <div class="tvm-pmeta">
+                <span class="t">The ${_waEsc((wx && wx.city) || data.destination || 'travel')} capsule</span>
+                <span class="s"><b id="tv-pm-count">0 of ${total}</b> packed · ${total} pieces, ${lookCount} looks</span>
+              </div>
+              <div class="tvm-pbtns">
+                <button class="tvm-pbtn" onclick="window.__rbShare&&window.__rbShare()"><span>Share edit</span></button>
+                <button class="tvm-pbtn" onclick="window.__tvExport()"><span>Export PDF</span></button>
+                <button class="tvm-pbtn primary" onclick="window.__tvPackAll()">${checkSvg}<span>Pack it all</span></button>
+              </div>
             </div>
           </div>`; } catch (e) {
           console.error('[Robes] tvResultPage render error:', e);
           tvResultPage.innerHTML = `<div style="padding:80px 24px;text-align:center;font-family:${sans};color:#6E6A64">Something went wrong rendering this trip — please try again.</div>`;
         }
 
+        _tvPaintWeek();
+        _tvPaintConsole();
         tvResultPage.style.display = 'block';
         tvResultPage.scrollTo({ top: 0 });
         _tvPaintPackProgress();
@@ -3230,15 +3906,6 @@
       // One-Click Export (PRD §5) — the print stylesheet in #tv-style turns
       // the page into a clean PDF via the browser's print-to-PDF.
       window.__tvExport = function() { window.print(); };
-
-      window.__tvToggleSlot = function(di, si) {
-        const x = document.getElementById('tv-slotx-' + di + '-' + si);
-        const caret = document.getElementById('tv-caret-' + di + '-' + si);
-        if (!x) return;
-        const open = x.style.display !== 'none';
-        x.style.display = open ? 'none' : 'block';
-        if (caret) caret.style.transform = open ? '' : 'rotate(180deg)';
-      };
 
       function _tvPatchSaved() {
         const savedId = _tvActiveSaveId;
@@ -3320,6 +3987,8 @@
           document.getElementById('tv-day-modal')?.remove();
           const savedId = _tvActiveSaveId;
           const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
+          _tvActiveDay = di;
+          _tvActiveOcc = 0;
           window.__tvRenderResult(data, { skipSave: true, savedId });
           if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
           _tvPatchSaved();
@@ -3331,36 +4000,36 @@
         }
       };
 
+      // Masthead progress (x / N packed + bar) and the payoff-bar mirror.
       function _tvPaintPackProgress() {
         const data = window.__lastTvData;
         if (!data || !Array.isArray(data.capsule)) return;
         const packedN = data.capsule.filter(it => it.packed).length;
         const totalN = data.capsule.length;
-        const count = document.getElementById('tv-pack-count');
-        const bar = document.getElementById('tv-pack-bar');
-        if (count) count.textContent = totalN > 0 && packedN === totalN
-          ? 'Suitcase closed — bon voyage ✈'
-          : 'Packed ' + packedN + ' of ' + totalN;
+        const n = document.getElementById('tv-mp-n');
+        const bar = document.getElementById('tv-mp-fill');
+        const pm = document.getElementById('tv-pm-count');
+        if (n) n.textContent = packedN;
         if (bar) bar.style.width = (totalN ? Math.round((packedN / totalN) * 100) : 0) + '%';
+        if (pm) pm.textContent = totalN > 0 && packedN === totalN
+          ? 'Suitcase closed ✈'
+          : packedN + ' of ' + totalN;
       }
 
-      // The "Packed It" checkbox (growth PRD epic 3). Surgical DOM update —
-      // no re-render, so scroll position and the 1:3 selection survive
-      // mid-packing. Packing a curated (unowned) piece is the conversion
-      // moment: she owns it in the real world, so invite the record.
+      // The "Packed It" checkbox (growth PRD epic 3). The toggle now lives in
+      // three surfaces (day-console rack, The Edit cards, day-strip status),
+      // so the paint helpers sync them all; page scroll and the 1:3
+      // selection survive because nothing re-renders the whole page.
+      // Packing a curated (unowned) piece is the conversion moment: she owns
+      // it in the real world, so invite the record.
       window.__tvPackToggle = function(ci) {
         const data = window.__lastTvData;
         const it = data && data.capsule[ci];
         if (!it) return;
         it.packed = !it.packed;
-        const btn = document.getElementById('tv-pack-' + ci);
-        const box = btn && btn.querySelector('.tv-pack-box');
-        if (box) {
-          box.style.border = '1.5px solid ' + (it.packed ? '#202021' : 'rgba(32,32,33,0.3)');
-          box.style.background = it.packed ? '#202021' : '#fff';
-          box.textContent = it.packed ? '✓' : '';
-        }
-        if (btn) btn.style.color = it.packed ? '#202021' : '#6E6A64';
+        _tvPaintEditCards();
+        _tvPaintConsole();
+        _tvPaintWeek();
         _tvPaintPackProgress();
         _tvPatchSaved();
         if (it.packed && !it.wardrobe_match) _tvShowOwnPrompt(ci);

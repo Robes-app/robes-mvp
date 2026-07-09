@@ -431,8 +431,21 @@ const DAILY_SCHEMA = {
                 wardrobe_index: { type: 'integer' },
                 retailer_hint: { type: 'string' },
                 price_point: { type: 'string' },
+                alternates: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string' },
+                      brand: { type: 'string' },
+                      retailer_hint: { type: 'string' },
+                      price_point: { type: 'string' },
+                    },
+                    required: ['name', 'brand', 'retailer_hint', 'price_point'],
+                  },
+                },
               },
-              required: ['name', 'category', 'brand', 'description', 'wardrobe_index', 'retailer_hint', 'price_point'],
+              required: ['name', 'category', 'brand', 'description', 'wardrobe_index', 'retailer_hint', 'price_point', 'alternates'],
             },
           },
         },
@@ -444,11 +457,26 @@ const DAILY_SCHEMA = {
 };
 
 app.post('/api/daily', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext } = req.body;
+  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, locked } = req.body;
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
   const n = closetItems.length;
   const dnaBlock = styleDnaPromptBlock(styleDna, n, styleIcons);
+
+  // Anchored pieces (restyle flow) — items the user has locked into the
+  // look. They must survive a restyle untouched; everything else re-mixes.
+  const lockedList = (Array.isArray(locked) ? locked : [])
+    .filter(l => l && l.name)
+    .slice(0, 8)
+    .map(l => {
+      const idx = l.wardrobe_id != null ? closetItems.findIndex(it => String(it.id) === String(l.wardrobe_id)) : -1;
+      return { name: String(l.name).slice(0, 120), category: l.category || '', brand: l.brand || '', idx };
+    });
+  const lockedBlock = lockedList.length
+    ? `ANCHORED PIECES — the user has LOCKED these into today's look. Every one of them MUST appear in the final look exactly as given (same piece, same name), placed in the architectural step where it belongs; restyle everything AROUND them:\n${lockedList.map(l =>
+        `- ${l.name}${l.category ? ' [' + l.category + ']' : ''}${l.brand ? ', ' + l.brand : ''}${l.idx >= 0 ? ` (wardrobe index ${l.idx} — set its wardrobe_index)` : ''}`
+      ).join('\n')}`
+    : '';
 
   const closetBlock = n
     ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by index):\n${closetItems.map((i, idx) =>
@@ -478,7 +506,7 @@ THE FRAMEWORK — work through it in this order:
 3. THE GOLDEN RATIOS. Balance the build through body architecture: the Rule of Thirds (never a 50/50 visual split — aim for 1/3 : 2/3, e.g. a high-waisted trouser with a tucked-in top lengthens the leg line), Volume Balancing (an oversized or voluminous piece demands a point of structure or compression elsewhere), and Textural Contrast (mix matte, sheen and rough — silk + wool + leather — so the look never falls flat). Let this thinking show in the stylist_summary and item descriptions.
 4. THE TRANSITION PROTOCOL. She moves between environments without going home. "transition_tip" is ONE concrete move — subtractive styling (drop a layer to lower the formality) or hardware swapping (daytime tote + sneakers → clutch + kitten heel) — that shifts today's look into its next scene.
 
-${stateDirective}
+${stateDirective}${lockedBlock ? '\n\n' + lockedBlock : ''}
 
 FIELD RULES:
 - "occasion_label": 1–3 words, ALL CAPS, naming the day's occasion (e.g. "GARDEN PARTY", "STUDIO DAY").
@@ -487,6 +515,7 @@ FIELD RULES:
 - "palette": exactly 3 hex colours drawn from the look, ordered neutral to accent.
 - Each item: "name" is the piece itself (e.g. "Cream check blazer"); "brand" is ONE real brand suited to the piece's register (for owned pieces, the owned brand or ""); "description" is one hyper-specific sentence — cut, fabric, colour, and how it is worn.
 - Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and a realistic EUR "price_point" (e.g. "€89").
+- "alternates": exactly 2 per item — similar-but-distinct options for the SAME slot (a different colour, fabrication or register that still honours the palette, the weather and the DNA below), each with its own real brand, retailer_hint and EUR price_point. These power the flick-through rail, so make them genuinely wearable alternatives, never filler.
 - "fallback": true ONLY if the brief is gibberish or random characters — then dress her for a pleasant, unremarkable day in the given context instead. A plain occasion, agenda or mood is a valid daily brief.${dnaBlock ? '\n\n' + dnaBlock : ''}
 
 ${closetBlock}`;
@@ -514,7 +543,7 @@ Dress her for this exact day, start to finish, through the four architectural st
         responseMimeType: 'application/json',
         responseSchema: DAILY_SCHEMA,
         thinkingConfig: { thinkingBudget: 0 },
-        maxOutputTokens: 3000,
+        maxOutputTokens: 4800,
       },
     }));
     const parsed = JSON.parse(textResponse.text);
@@ -531,6 +560,10 @@ Dress her for this exact day, start to finish, through the four architectural st
         it.wardrobe_match = wi
           ? { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' }
           : null;
+        it.alternates = (Array.isArray(it.alternates) ? it.alternates : [])
+          .filter(a => a && a.name)
+          .slice(0, 3)
+          .map(a => ({ name: String(a.name).slice(0, 120), brand: a.brand || '', retailer_hint: a.retailer_hint || '', price_point: a.price_point || '' }));
         it.image_index = flat.length;
         flat.push({ stepTitle: s.title, item: it });
         return it;
