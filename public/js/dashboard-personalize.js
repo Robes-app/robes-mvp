@@ -254,8 +254,35 @@
       // with the new row's id. Lets "Snap mine" (daily look / moodboard swap)
       // apply the just-added piece into the look it was launched from.
       let _waAfterAdd = null;
+      // Batch add: extra photos queued from a multi-select in step 1. Each
+      // saved piece pulls the next photo straight into step 2 (the modal
+      // never closes between pieces). `var` on purpose — early readers must
+      // see undefined/empty, never throw (see the TDZ gotcha in CLAUDE.md).
+      var _waBatchQueue = [], _waBatchTotal = 0, _waBatchDone = 0, _waBatchAdvance = null;
 
       function _waEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+      // Downscale + transcode to JPEG (max 1600px) so photo payloads stay
+      // small on cellular and HEIC previews render. Falls back to the raw
+      // data URL when the browser can't decode the source.
+      function _rbDownscale(file) {
+        return createImageBitmap(file).then(function(bmp) {
+          const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(bmp.width * scale);
+          canvas.height = Math.round(bmp.height * scale);
+          canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+          bmp.close();
+          return canvas.toDataURL('image/jpeg', 0.85);
+        }).catch(function() {
+          return new Promise(function(resolve, reject) {
+            const reader = new FileReader();
+            reader.onload = function(e) { resolve(e.target.result); };
+            reader.onerror = function() { reject(new Error('unreadable')); };
+            reader.readAsDataURL(file);
+          });
+        });
+      }
 
       function _waShowToast(msg) {
         const t = document.getElementById('toast-msg') || document.getElementById('toast');
@@ -784,27 +811,23 @@
           dots.forEach((d, i) => d.classList.toggle('cur', i === n - 1));
         }
 
-        // Downscale + transcode to JPEG so the in-modal preview always renders
-        // (HEIC/HEIF from iPhones can't be shown raw outside Safari) and the
-        // payload stays small. Falls back to the raw data URL if the browser
-        // can't decode the source — Gemini + Cloudinary (f_auto) still handle it.
-        function _waFileToDataUrl(file) {
-          return createImageBitmap(file).then(function(bmp) {
-            const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.round(bmp.width * scale);
-            canvas.height = Math.round(bmp.height * scale);
-            canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
-            bmp.close();
-            return canvas.toDataURL('image/jpeg', 0.85);
-          }).catch(function() {
-            return new Promise(function(resolve, reject) {
-              const reader = new FileReader();
-              reader.onload = function(e) { resolve(e.target.result); };
-              reader.onerror = function() { reject(new Error('unreadable')); };
-              reader.readAsDataURL(file);
-            });
+        // Downscale + transcode via the shared helper (see _rbDownscale) —
+        // kept as a local alias because everything in this closure uses it.
+        function _waFileToDataUrl(file) { return _rbDownscale(file); }
+
+        // Bridge for WA.submit (which lives outside this closure): pull the
+        // next batch photo straight into step 2, or bail out on a bad file.
+        _waBatchAdvance = function(file) {
+          _waFileToDataUrl(file).then(_runStep2).catch(function() {
+            _waBatchQueue = []; _waBatchTotal = 0; _waBatchDone = 0;
+            _origWAClose();
           });
+        };
+
+        function _waBatchTag() {
+          return _waBatchTotal > 1
+            ? `<div style="font-size:10px;letter-spacing:0.14em;color:#9A8070;margin:0 0 6px;">PIECE ${_waBatchDone + 1} OF ${_waBatchTotal}</div>`
+            : '';
         }
 
         function _showStep1() {
@@ -816,8 +839,8 @@
             <label id="wa-rb-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:240px;border:1.5px dashed #C8B8A2;border-radius:12px;background:#FAF8F5;cursor:pointer;text-align:center;padding:20px;box-sizing:border-box;">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               <span style="font-size:16px;color:#6A5E54;letter-spacing:0.01em;">Snap or attach the piece</span>
-              <span style="font-size:13px;color:#B0A090;">Take a photo, or drop an image here</span>
-              <input id="wa-rb-file" type="file" accept="image/*" style="display:none;">
+              <span style="font-size:13px;color:#B0A090;">Take a photo — or select several and Robes files them one after another</span>
+              <input id="wa-rb-file" type="file" accept="image/*" multiple style="display:none;">
             </label>`;
           _setDot(1);
 
@@ -828,14 +851,26 @@
 
           const fileInput = document.getElementById('wa-rb-file');
           const zone = document.getElementById('wa-rb-zone');
-          function _process(file) {
-            if (!file) return;
-            _waFileToDataUrl(file).then(_runStep2).catch(function(err) {
+          function _process(files) {
+            const list = Array.prototype.slice.call(files || [])
+              .filter(function(f) { return f && (/^image\//.test(f.type) || /\.(heic|heif)$/i.test(f.name)); });
+            if (!list.length) return;
+            if (_waBatchQueue.length) {
+              // Retake mid-batch: the new photo replaces the current piece
+              // and any extra picks join the front of the queue.
+              _waBatchQueue = list.slice(1).concat(_waBatchQueue);
+              _waBatchTotal += list.length - 1;
+            } else {
+              _waBatchQueue = list.slice(1);
+              _waBatchTotal = list.length;
+              _waBatchDone = 0;
+            }
+            _waFileToDataUrl(list[0]).then(_runStep2).catch(function(err) {
               console.warn('[robes-autotag] could not read dropped file:', err);
             });
           }
           if (fileInput) {
-            fileInput.addEventListener('change', function() { _process(this.files && this.files[0]); });
+            fileInput.addEventListener('change', function() { _process(this.files); });
           }
           if (zone) {
             ['dragenter', 'dragover'].forEach(function(ev) {
@@ -853,8 +888,7 @@
             zone.addEventListener('drop', function(e) {
               e.preventDefault(); e.stopPropagation();
               zone.style.borderColor = '#C8B8A2'; zone.style.background = '#FAF8F5';
-              const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-              if (f && (/^image\//.test(f.type) || /\.(heic|heif)$/i.test(f.name))) _process(f);
+              _process(e.dataTransfer && e.dataTransfer.files);
             });
           }
         }
@@ -870,6 +904,7 @@
           const bracketW = 18, bracketT = 2, bracketC = 'rgba(255,255,255,0.9)';
           const bStyle = `position:absolute;width:${bracketW}px;height:${bracketW}px;`;
           step.innerHTML = `
+            ${_waBatchTag()}
             <h2 class="fm-h" style="margin-bottom:4px;">Reading your piece…</h2>
             <p style="font-size:14px;color:#9A8E82;margin:0 0 16px;">One moment — Robes is looking at the photo.</p>
             <div style="position:relative;height:280px;border-radius:12px;overflow:hidden;background:#1A1410;">
@@ -979,6 +1014,7 @@
           const aiNotes = (tag.item_dna && tag.item_dna.ai_generated_notes) || tag.notes || '';
 
           step.innerHTML = `
+            ${_waBatchTag()}
             <h2 class="fm-h" style="margin-bottom:4px;">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
             <p style="font-size:13px;color:#9A8E82;margin:0 0 16px;">${tag.label ? `Pre-filled from your photo. Adjust anything that isn't quite right.` : `Robes couldn't quite read this one — give it a name and it files all the same.`}</p>
             <div style="display:flex;align-items:center;gap:12px;background:#F0EBE3;border-radius:10px;padding:10px 14px;margin-bottom:16px;">
@@ -1171,6 +1207,7 @@
             const _origClose = WA.close;
             WA.close = function() {
               _photoDataUrl = '';
+              _waBatchQueue = []; _waBatchTotal = 0; _waBatchDone = 0;
               _origClose.apply(this, arguments);
             };
             WA.close._rbPatched = true;
@@ -1259,10 +1296,18 @@
               created = await _waFetch('POST', 'wardrobe_items', payload);
             }
 
-            _origWAClose();
             _waEditId = null;
+            // Batch mode: keep the modal open and roll the next queued photo
+            // into step 2 — closing between pieces made 15 photos feel like
+            // 15 chores. (Snapshot the total: closing clears the counters.)
+            const batchNext = !editId && _waBatchQueue.length ? _waBatchQueue.shift() : null;
+            const batchTotal = _waBatchTotal;
+            if (batchNext) _waBatchDone++;
+            else _origWAClose();
             await _waLoad();
-            _waShowToast(editId ? 'Piece updated' : 'Added to wardrobe');
+            if (batchNext) _waShowToast('Piece ' + _waBatchDone + ' of ' + batchTotal + ' added');
+            else if (!editId && batchTotal > 1) _waShowToast('All ' + batchTotal + ' pieces in your wardrobe');
+            else _waShowToast(editId ? 'Piece updated' : 'Added to wardrobe');
 
             // A pending "Snap mine" swap is waiting on this new piece —
             // apply it now that _waItems has reloaded with the new row.
@@ -1274,6 +1319,8 @@
                 : (_waItems[0] && _waItems[0].id);
               if (newId != null) { try { hook(newId); } catch (e) { console.warn('[robes] after-add hook:', e); } }
             }
+
+            if (batchNext && typeof _waBatchAdvance === 'function') _waBatchAdvance(batchNext);
           } catch(e) {
             console.error('WA submit:', e);
             _waShowToast('Something went wrong — try again');
@@ -5597,17 +5644,19 @@ body>*:not(#tv-result-page){display:none !important}
         photoZone.querySelector('#cb-photo-input').onchange = function(e) {
           const file = e.target.files && e.target.files[0];
           if (!file) return;
-          const reader = new FileReader();
-          reader.onload = function(ev) {
-            _cbPhotoData = ev.target.result;
+          // Downscale before upload — a raw 8MB camera photo inside the
+          // styling request is a long cellular hang behind the overlay.
+          _rbDownscale(file).then(function(dataUrl) {
+            _cbPhotoData = dataUrl;
             const preview = document.getElementById('cb-photo-preview');
             const hint = document.getElementById('cb-photo-hint');
             const icon = document.getElementById('cb-photo-icon');
             if (preview) { preview.src = _cbPhotoData; preview.style.display = 'block'; }
             if (hint) hint.textContent = 'Photo attached — tap to change';
             if (icon) icon.style.display = 'none';
-          };
-          reader.readAsDataURL(file);
+          }).catch(function() {
+            _waShowToast('Couldn’t read that image — try another photo.');
+          });
         };
         // Insert inside concierge-box, between textarea and the footer row
         const cbFoot = document.querySelector('.cb-foot') || ta.parentNode;

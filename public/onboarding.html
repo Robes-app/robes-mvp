@@ -736,6 +736,7 @@
               ${state.busy ? `<div class="cap-scrim">${cfg.busyMsg}</div>` : ''}
             </div>
             <p class="cap-err${state.err ? ' on' : ''}" id="cap-err">${esc(state.err)}</p>
+            ${state.err && !state.busy && state.lastFile ? `<button class="cap-btn" id="cap-retry" style="margin-top:6px">Try again</button>` : ''}
             ${cfg.guide ? `<p class="cap-guide">${cfg.guide}</p>` : ''}
             <input type="file" accept="image/*" class="cap-file" id="cap-file">
           </div>
@@ -760,7 +761,9 @@
       const remBtn = document.getElementById('cap-remove');
       if (addBtn) addBtn.onclick = pick;
       if (repBtn) repBtn.onclick = pick;
-      if (remBtn) remBtn.onclick = () => { state.photoUrl = ''; state.done = null; state.err = ''; paint(); };
+      if (remBtn) remBtn.onclick = () => { state.photoUrl = ''; state.done = null; state.err = ''; state.lastFile = null; paint(); };
+      const retryBtn = document.getElementById('cap-retry');
+      if (retryBtn) retryBtn.onclick = () => { if (state.lastFile) handleFile(state.lastFile); };
       fileInput.onchange = () => { handleFile(fileInput.files[0]); fileInput.value = ''; };
       wireDrop(document.getElementById('cap-panel'), handleFile);
       syncFooter();
@@ -783,10 +786,12 @@
     async function handleFile(file) {
       if (!file) return;
       state.err = '';
+      state.lastFile = file;
       let payload;
       try {
         payload = await fileToPayload(file);
       } catch (e) {
+        state.lastFile = null;
         state.err = 'Couldn’t read that image — try another file.';
         if (st.stage === i) paint();
         return;
@@ -816,6 +821,7 @@
         if (cfg.kind === 'colour' ? analysis.no_face_detected : analysis.no_person_detected) {
           state.busy = false;
           state.photoUrl = '';
+          state.lastFile = null;
           state.err = cfg.rejectMsg;
           if (st.stage === i) paint();
           return;
@@ -872,8 +878,8 @@
     stepChrome(i, {
       step: 'Step 04 · First piece', eyebrow: 'Your wardrobe',
       title: 'Add your first<br><em>key piece.</em>',
-      sub: 'Show Robes one piece you love. It reads the garment — label, brand, colour, cut — and files it as piece nº 1 in your wardrobe.',
-      continueLabel: P.tag ? 'Continue to your dashboard' : 'Catalogue this piece',
+      sub: 'Show Robes one piece you love and it starts styling it before you even reach your dashboard — the label, brand, colour and cut all read from a single photo.',
+      continueLabel: P.tag ? 'Continue to your dashboard' : 'Style my first piece',
     });
 
     function kpChips() {
@@ -1038,7 +1044,17 @@
 
     async function catalogue() {
       if (P.busy) return;
-      if (P.tag) { writeHandoff(); go('done'); return; }
+      if (P.tag) {
+        // Give the wardrobe insert a beat to settle so the handoff carries
+        // cataloged:true — otherwise the dashboard's legacy persist path can
+        // file the same piece twice (the duplicate piece nº 1 race).
+        if (!P.saved && P.savePromise) {
+          const cta = document.getElementById('ob-next');
+          if (cta) { cta.disabled = true; cta.textContent = 'Filing your piece…'; }
+          try { await Promise.race([P.savePromise, new Promise(r => setTimeout(r, 1500))]); } catch (e) {}
+        }
+        writeHandoff(); go('done'); return;
+      }
       if (!P.img || !P.data) {
         const nudge = document.getElementById('kp-nudge');
         if (nudge) nudge.classList.add('on');
@@ -1073,13 +1089,13 @@
       if (tag && tag.noItemDetected) {
         P.img = ''; P.data = ''; P.url = '';
         P.err = 'Robes couldn’t find a piece in that photo — try a clear shot of the garment.';
-        if (nx) { nx.disabled = false; nx.textContent = 'Catalogue this piece'; }
+        if (nx) { nx.disabled = false; nx.textContent = 'Style my first piece'; }
         if (st.stage === i) paint();
         return;
       }
       if (!tag || tag.analysisFailed || !tag.label) {
         P.err = 'Robes couldn’t read that piece just now — try again in a moment.';
-        if (nx) { nx.disabled = false; nx.textContent = 'Catalogue this piece'; }
+        if (nx) { nx.disabled = false; nx.textContent = 'Style my first piece'; }
         if (st.stage === i) paint();
         return;
       }
@@ -1185,6 +1201,7 @@
     let skipArmed = false;
     const skip = document.getElementById('ob-skip');
     skip.onclick = () => {
+      if (P.busy) return; // mid-read skip landed on a lying done screen
       if (P.tag || skipArmed) { go('done'); return; }
       skipArmed = true;
       skip.textContent = 'Skip anyway — Robes styles only what you add';
