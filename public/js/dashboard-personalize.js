@@ -2061,10 +2061,6 @@
               </div>
               <div id="kp-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
             </div>
-
-            <div style="display:flex;justify-content:center;margin-top:22px">
-              <button onclick="window.__kpGoBack()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.04em;color:#A89880;text-decoration:underline;text-underline-offset:3px;font-family:${sans}">← Back to dashboard</button>
-            </div>
           </div>
           <div class="rb-sfoot">
             <div class="rb-sfoot-in">
@@ -2864,9 +2860,6 @@
                 <button onclick="window.__dlFbSubmit()" style="margin-top:10px;padding:11px 26px;background:var(--ink);color:#fff;border:none;border-radius:100px;font-size:12px;cursor:pointer;font-family:${sans}">Send feedback</button>
               </div>
               <div id="dl-fb-done" hidden style="font-size:13px;color:var(--sage);margin-top:12px">Thank you — noted.</div>
-            </div>
-            <div style="display:flex;justify-content:center;margin-top:20px">
-              <button onclick="window.__dlGoBack()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;letter-spacing:.04em;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:${sans}">← Back to dashboard</button>
             </div>
           </div>
 
@@ -6123,7 +6116,7 @@ body>*:not(#tv-result-page){display:none !important}
         if (old) old.remove();
         const fb = document.createElement('div');
         fb.id = 'mb-fb';
-        fb.style.cssText = 'margin:36px auto 70px;max-width:640px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center';
+        fb.style.cssText = 'margin:36px auto 40px;max-width:640px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center';
         fb.innerHTML = `
           <div style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How is this board?</div>
           <div id="mb-fb-prompt">
@@ -6138,7 +6131,14 @@ body>*:not(#tv-result-page){display:none !important}
             <button onclick="window.__mbFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit">Send feedback</button>
           </div>
           <div id="mb-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>`;
-        panel.appendChild(fb);
+        // Insert before the sticky footer (not appendChild) — the footer is
+        // static markup inside #moodboard-panel and must stay the panel's
+        // last child so it reads as a sticky bottom bar, matching the
+        // key-piece/daily-look/travel result pages where the feedback block
+        // sits above the footer, not below it.
+        const stickyFoot = panel.querySelector('.rb-sfoot');
+        if (stickyFoot) panel.insertBefore(fb, stickyFoot);
+        else panel.appendChild(fb);
         let mbFbRating = null;
         window.__mbFbRate = function(val) {
           mbFbRating = val;
