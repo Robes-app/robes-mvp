@@ -1403,6 +1403,13 @@ body[data-density="compact"] .dash-mast{margin-bottom:28px}
 .dash-greet em{font-style:italic;color:var(--ink-soft)}
 .dash-echo{font-family:var(--font-serif);font-style:italic;font-weight:300;
   font-size:clamp(20px,2.6vw,27px);color:var(--ink-faint);margin-top:8px}
+/* Mobile: keep the masthead compact so the prompt + pills sit above the
+   fold (bug report 4.7 — prioritise the concierge box). */
+@media(max-width:640px){
+  .dash-greet{font-size:34px}
+  .dash-echo{font-size:18px;margin-top:6px}
+  .concierge{margin-bottom:32px}
+}
 
 /* ── CONCIERGE PROMPT (hero) ──────────────────────────────────────── */
 .concierge{margin-bottom:54px}

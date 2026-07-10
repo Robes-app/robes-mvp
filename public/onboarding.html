@@ -1020,10 +1020,6 @@
                   <span class="cap-read-val${vals[idx].cls}">${esc(vals[idx].txt)}</span>
                 </li>`).join('')}
             </ul>
-            <div class="kp-note-field">
-              <span class="ob-label">A note for the stylist</span>
-              <input class="kp-note-in" id="kp-note" placeholder="Where will you wear it? Optional." value="${esc(P.note)}">
-            </div>
           </div>
         </div>
         <p class="kp-nudge" id="kp-nudge">Add a photo of your piece first — or skip for now.</p>`;
@@ -1038,7 +1034,6 @@
       if (remBtn) remBtn.onclick = () => { P.img = ''; P.data = ''; P.url = ''; P.err = ''; P.renderable = true; paint(); };
       fileInput.onchange = () => { handleFile(fileInput.files[0]); fileInput.value = ''; };
       wireDrop(document.getElementById('kp-panel'), handleFile);
-      document.getElementById('kp-note').oninput = e => { P.note = e.target.value; };
       if (P.tag && !P.busy && !P.revealing) popTags(false);
     }
 
@@ -1251,9 +1246,6 @@
         <h1 class="done-title">${first ? `Welcome in,<br><em>${esc(first)}.</em>` : 'Welcome in.'}</h1>
         <p class="done-sub">${sub}</p>
         <button class="done-restart" id="ob-enter">${st.pieceStyled ? 'Enter your dashboard' : 'Let’s get started'}</button>
-        <p style="margin:18px 0 0;font-size:12px;letter-spacing:0.02em;color:rgba(243,239,230,0.55);line-height:1.6;">${/iPhone|iPad|iPod/.test(navigator.userAgent)
-          ? 'Keep Robes close — tap <span style="color:rgba(243,239,230,0.85)">Share</span> then <span style="color:rgba(243,239,230,0.85)">Add&nbsp;to&nbsp;Home&nbsp;Screen</span>.'
-          : 'Keep Robes close — add it to your Home Screen.'}</p>
         <div class="done-dots">${'<span class="done-dot on"></span>'.repeat(STEPS.length)}</div>
       </div></div>`;
     const enter = document.getElementById('ob-enter');

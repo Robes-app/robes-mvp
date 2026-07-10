@@ -2222,6 +2222,18 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
+      // Footer "Dress me again" (bug report 4.7): return her to the home
+      // prompt to start a fresh brief, rather than silently re-mixing this
+      // look (that's what the in-context "Restyle it" does).
+      window.__dlDressAgain = function() {
+        window.__dlGoBack();
+        setTimeout(() => {
+          if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me');
+          const ta = document.getElementById('cb-ta');
+          if (ta) ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 220);
+      };
+
       // opts.locked = anchored pieces a restyle must keep; opts.savedId =
       // the lookbook entry a restyle evolves (instead of minting a new one).
       // Guards the full-screen generation overlay: a hung fetch must never
@@ -2573,7 +2585,7 @@
 #dl-result-page .dlm-addpiece:hover{border-color:var(--ink-faint);color:var(--ink);background:#fff}
 #dl-result-page .dlm-row{display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:stretch;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:12px;transition:border-color .2s}
 #dl-result-page .dlm-row.anchored{border-color:var(--ink)}
-#dl-result-page .dlm-vp{position:relative;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200);aspect-ratio:1/1}
+#dl-result-page .dlm-vp{position:relative;align-self:start;width:100%;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200);aspect-ratio:1/1}
 #dl-result-page .dlm-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
 #dl-result-page .dlm-vp .vcount{position:absolute;bottom:8px;right:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
 #dl-result-page .dlm-body{display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:2px 0}
@@ -2650,9 +2662,10 @@
           ? 'All ' + total + ' pieces from your wardrobe'
           : owned > 0 ? owned + ' of ' + total + ' from your wardrobe' : total + ' pieces · an editorial build';
 
-        // Bold the framework step names inside the stylist summary
-        const summaryHtml = _waEsc(data.stylist_summary || '')
-          .replace(/(The Anchor|The Canvas|The Texture|The Accents)/g, '<strong style="font-weight:600;color:#202021">$1</strong>');
+        // Stylist summary reads as plain prose — the framework step names are
+        // no longer emphasised as jargon labels (bug report 4.7). The rack
+        // itself now labels each piece by its garment slot, not its role.
+        const summaryHtml = _waEsc(data.stylist_summary || '');
 
         if (!dlResultPage) {
           dlResultPage = document.createElement('div');
@@ -2859,7 +2872,7 @@
               <div class="dlm-pbtns">
                 <button class="dlm-pbtn" onclick="window.__rbShare&&window.__rbShare()"><span>Share</span></button>
                 <button class="dlm-pbtn" onclick="window.__dlWear()"><span>Wear today</span></button>
-                <button class="dlm-pbtn primary" onclick="window.__dlRestyle()">${restyleSvg}<span>Dress me again</span></button>
+                <button class="dlm-pbtn primary" onclick="window.__dlDressAgain()">${restyleSvg}<span>Dress me again</span></button>
               </div>
             </div>
           </div>`; } catch (e) {
@@ -3563,7 +3576,7 @@
 #tv-result-page .tvm-rack{display:flex;flex-direction:column;gap:12px}
 #tv-result-page .tvm-row{display:grid;grid-template-columns:108px 1fr;gap:16px;align-items:stretch;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:12px;transition:border-color .2s,background .2s}
 #tv-result-page .tvm-row.packed{border-color:rgba(126,124,90,0.5);background:var(--sage-bg)}
-#tv-result-page .tvm-vp{position:relative;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200);aspect-ratio:4/5}
+#tv-result-page .tvm-vp{position:relative;align-self:start;width:100%;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200);aspect-ratio:4/5}
 #tv-result-page .tvm-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
 #tv-result-page .tvm-vp .vlooks{position:absolute;bottom:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px;white-space:nowrap}
 #tv-result-page .tvm-body{display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:2px 0}
@@ -3796,7 +3809,7 @@ body>*:not(#tv-result-page){display:none !important}
           const isPacked = !!it.packed;
           return `<div class="tvm-row${isPacked ? ' packed' : ''}">
             <div class="tvm-vp">
-              <span class="vslot">${_waEsc(String(x.f.role || '').replace(/^The\s+/i, ''))}</span>
+              <span class="vslot">${_waEsc(_dlSlot(it).l)}</span>
               <div${f.pollAttr} style="position:absolute;inset:0">${f.inner}</div>
               ${wears ? `<span class="vlooks">× ${wears} looks</span>` : ''}
             </div>
@@ -5349,17 +5362,17 @@ body>*:not(#tv-result-page){display:none !important}
       const _CHIP_DEFS = [
         { id: 'chip-style',  label: 'Style a key piece',
           cta: 'STYLE IT',
-          inject: 'Style my [oversized cream blazer] 3 ways',
+          inject: 'Style my [cream blazer] three ways',
           placeholder: 'Describe your key piece…',
           intent: 'style' },
         { id: 'chip-dress',  label: 'Dress me today',
           cta: 'DRESS ME',
-          inject: 'I need an outfit for [Sunday brunch in Dublin] using my [favorite trench coat] mixed with editorial pieces.',
+          inject: 'An outfit for [Sunday brunch] with my [trench coat]',
           placeholder: 'Describe your occasion or mood…',
           intent: 'dress-me' },
         { id: 'chip-mood',   label: 'Create a moodboard',
           cta: 'BUILD BOARD',
-          inject: 'Build a moodboard for [a late summer weekend in Ibiza] with a vibe that is [minimalist, editorial, and effortless].',
+          inject: 'A moodboard for [a weekend in Ibiza]',
           placeholder: 'Describe your moodboard vibe…',
           intent: 'moodboard' },
       ];
@@ -5408,6 +5421,14 @@ body>*:not(#tv-result-page){display:none !important}
         });
       }
 
+      // Grow the textarea to fit its content so injected template text never
+      // clips off the top (bug report 4.7 — mobile prompt bleed).
+      function _cbAutoGrow(ta) {
+        if (!ta) return;
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight, 240) + 'px';
+      }
+
       function _cbSetIntent(intent) {
         _cbIntent = intent;
         _cbHideClarify();
@@ -5418,17 +5439,26 @@ body>*:not(#tv-result-page){display:none !important}
         ta.value = def.inject;
         ta.placeholder = def.placeholder;
         ta.dispatchEvent(new Event('input'));
+        _cbAutoGrow(ta);
+        ta.scrollTop = 0;
         _cbSetCta(def.cta);
         _cbShowPhotoZone(intent === 'style');
         ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 300);
+        // Put the caret on the first bracket so she can edit it straight away
+        // instead of hunting through the line on mobile.
+        setTimeout(() => {
+          ta.focus();
+          const b = ta.value.indexOf('[');
+          if (b >= 0) { const e = ta.value.indexOf(']', b); ta.setSelectionRange(b, e > b ? e + 1 : ta.value.length); }
+          else ta.setSelectionRange(ta.value.length, ta.value.length);
+        }, 300);
       }
 
       function _cbReset() {
         _cbIntent = null;
         _cbPhotoData = null;
         const ta = document.getElementById('cb-ta');
-        if (ta) { ta.value = ''; ta.placeholder = _CB_PLACEHOLDER; ta.dispatchEvent(new Event('input')); }
+        if (ta) { ta.value = ''; ta.placeholder = _CB_PLACEHOLDER; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input')); }
         _cbResetCta();
         _cbShowPhotoZone(false);
         _cbSetChipActive(null);
@@ -5720,6 +5750,11 @@ body>*:not(#tv-result-page){display:none !important}
           _cbSubmit();
         }
       }, true);
+
+      // Grow the prompt box as she types so nothing scrolls out of view.
+      document.addEventListener('input', function(e) {
+        if (e.target && e.target.id === 'cb-ta') _cbAutoGrow(e.target);
+      });
 
       window.__rbStartMoodboard = function() {
         _cbSetIntent('moodboard');
@@ -6405,26 +6440,13 @@ body>*:not(#tv-result-page){display:none !important}
         return _rbPriorVisit || (_waLoaded && _waItems.length >= 3);
       }
       function _rbUpdateMasthead() {
+        // One masthead for everyone (bug report 4.7): time-of-day greeting +
+        // the static echo. The returner "Welcome back · N pieces catalogued …"
+        // status line was dropped — it read as clutter above the prompt.
         const greetEl = document.getElementById('dash-greet');
-        const echoEl = document.querySelector('.dash-echo');
         const p = window.__robes_profile || {};
         const nm = (p.first_name || '').trim().split(/\s+/)[0] || '';
-        if (_rbIsReturner()) {
-          if (greetEl) greetEl.textContent = 'Welcome back' + (nm ? ', ' + nm : '') + '.';
-          if (echoEl && _waLoaded) {
-            const n = _waItems.length;
-            let since = '';
-            if (_rbLastVisitTs) {
-              const prevDay = new Date(_rbLastVisitTs);
-              if (prevDay.toDateString() !== new Date().toDateString()) {
-                since = ' since ' + prevDay.toLocaleDateString('en-GB', { weekday: 'long' });
-              }
-            }
-            echoEl.textContent = n > 0
-              ? (n + ' piece' + (n !== 1 ? 's' : '') + ' catalogued · style today, or add what’s new' + since + '.')
-              : ('Style today, or catalogue your first pieces' + since + '.');
-          }
-        } else if (greetEl) {
+        if (greetEl) {
           const h = new Date().getHours();
           const part = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
           greetEl.textContent = part + (nm ? ', ' + nm : '') + '.';
