@@ -866,7 +866,11 @@
         clearTimeout(killer);
         clearInterval(scrimTick);
         state.busy = false;
-        fileInput.value = '';
+        // NB: the file input is a paint() local — reach it via the DOM here.
+        // Referencing `fileInput` directly threw a ReferenceError that killed
+        // this finally before the repaint, freezing the busy scrim forever.
+        const fi = document.getElementById('cap-file');
+        if (fi) fi.value = '';
         if (st.stage === i) paint();
       }
     }
