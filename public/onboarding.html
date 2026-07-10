@@ -511,6 +511,7 @@
       sub: 'Upload a close-up and Robes reads your colouring — your season, undertone, contrast and the eighteen shades that are yours.',
       label: 'Your close-up', kind: 'colour', state: st.colour,
       busyMsg: 'Reading your colouring…',
+      busyMsgs: ['Reading your colouring…', 'Checking your undertone…', 'Weighing your contrast…', 'Matching your season…', 'Nearly there…'],
       rejectMsg: 'Robes couldn’t find a face in that photo — try a clearer close-up.',
       readout: ['Season', 'Undertone', 'Contrast', 'Your eighteen shades'],
       guide: 'Best in soft daylight, facing a window. No filters, no direct sun, no coloured lighting. Only Robes reads this photo — it’s never shown anywhere, and you can always do this later from your Style Notes.',
@@ -727,7 +728,7 @@
                      <span class="cap-label">${cfg.label}</span>
                      <button class="cap-btn" id="cap-add">Add photo</button>
                    </div>`}
-              ${state.busy ? `<div class="cap-scrim">${cfg.busyMsg}</div>` : ''}
+              ${state.busy ? `<div class="cap-scrim" id="cap-scrim">${cfg.busyMsg}</div>` : ''}
             </div>
             <p class="cap-err${state.err ? ' on' : ''}" id="cap-err">${esc(state.err)}</p>
             ${state.err && !state.busy && state.lastFile ? `<button class="cap-btn" id="cap-retry" style="margin-top:6px">Try again</button>` : ''}
@@ -795,11 +796,24 @@
       state.photoUrl = payload.renderable ? payload.dataUrl : '';
       state.busy = true;
       if (st.stage === i) paint();
+      // The reading can be slow (the careful model leads the chain) — keep the
+      // scrim alive with progress copy, and never let a hung request strand
+      // her on it: hard abort at 80s, which lands on the Try again path.
+      const ctrl = new AbortController();
+      const killer = setTimeout(() => ctrl.abort(), 100000);
+      let mi = 0;
+      const msgs = cfg.busyMsgs || [cfg.busyMsg];
+      const scrimTick = setInterval(() => {
+        mi = Math.min(mi + 1, msgs.length - 1);
+        const el = document.getElementById('cap-scrim');
+        if (el) el.textContent = msgs[mi];
+      }, 9000);
       try {
         const [analysis, upload] = await Promise.all([
           fetch('/api/stylenotes/analyse', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: ctrl.signal,
             body: JSON.stringify({ kind: cfg.kind, data: payload.data, mimeType: payload.mimeType }),
           }).then(async r => {
             if (r.ok) return r.json();
@@ -809,6 +823,7 @@
           fetch('/api/wardrobe/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: ctrl.signal,
             body: JSON.stringify({ data: payload.data, mimeType: payload.mimeType }),
           }).then(r => r.json()).catch(() => ({})),
         ]);
@@ -844,8 +859,12 @@
         save(patch);
       } catch (err) {
         console.error('Analysis failed:', err.message);
-        state.err = 'Robes couldn’t read that photo just now — try again in a moment.';
+        state.err = err.name === 'AbortError'
+          ? 'That took longer than it should — tap Try again.'
+          : 'Robes couldn’t read that photo just now — try again in a moment.';
       } finally {
+        clearTimeout(killer);
+        clearInterval(scrimTick);
         state.busy = false;
         fileInput.value = '';
         if (st.stage === i) paint();

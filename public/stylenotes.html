@@ -1011,11 +1011,16 @@
           return;
         }
         slotBusy(cfg.slotId, cfg.hintId, cfg.busyMsg);
+        // Never strand her on the busy scrim: hard abort at 80s (the server
+        // chain times out per model too — this is the belt to its braces).
+        const ctrl = new AbortController();
+        const killer = setTimeout(() => ctrl.abort(), 100000);
         try {
             const [analysis, upload] = await Promise.all([
               fetch('/api/stylenotes/analyse', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: ctrl.signal,
                 body: JSON.stringify({ kind: cfg.kind, data: payload.data, mimeType: payload.mimeType }),
               }).then(async r => {
                 if (r.ok) return r.json();
@@ -1025,6 +1030,7 @@
               fetch('/api/wardrobe/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: ctrl.signal,
                 body: JSON.stringify({ data: payload.data, mimeType: payload.mimeType }),
               }).then(r => r.json()).catch(() => ({})),
             ]);
@@ -1062,8 +1068,11 @@
             startTryon(cfg.kind, { data: payload.data, mimeType: payload.mimeType });
           } catch (err) {
             console.error('Analysis failed:', err.message);
-            slotError(cfg.errId, 'Robes couldn’t read that photo just now — try again in a moment.');
+            slotError(cfg.errId, err.name === 'AbortError'
+              ? 'That took longer than it should — try the photo again.'
+              : 'Robes couldn’t read that photo just now — try again in a moment.');
           } finally {
+            clearTimeout(killer);
             slotBusy(cfg.slotId, cfg.hintId, null);
             input.value = '';
           }

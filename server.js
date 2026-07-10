@@ -1718,17 +1718,23 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
       };
       if (a.schema) config.responseSchema = colour ? COLOUR_EXTRACT_SCHEMA : SIL_EXTRACT_SCHEMA;
       try {
-        const result = await ai.models.generateContent({
-          model: a.model,
-          contents: [{
-            role: 'user',
-            parts: [
-              { inlineData: { mimeType, data } },
-              { text: colour ? COLOUR_EXTRACT_PROMPT : SIL_EXTRACT_PROMPT },
-            ],
-          }],
-          config,
-        });
+        // A hung model call must fall through to the next attempt, never hang
+        // the request — the client is sitting on "Reading your colouring…".
+        const attemptMs = a.model === 'gemini-2.5-pro' ? 45000 : 25000;
+        const result = await Promise.race([
+          ai.models.generateContent({
+            model: a.model,
+            contents: [{
+              role: 'user',
+              parts: [
+                { inlineData: { mimeType, data } },
+                { text: colour ? COLOUR_EXTRACT_PROMPT : SIL_EXTRACT_PROMPT },
+              ],
+            }],
+            config,
+          }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('analyse timeout (' + a.model + ')')), attemptMs)),
+        ]);
         finishReason = result.candidates?.[0]?.finishReason;
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
         try {
