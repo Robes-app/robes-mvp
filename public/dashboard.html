@@ -1092,7 +1092,7 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
 
 /* ─── WARDROBE GRID ────────────────────────────────────────────────── */
 .wardrobe-panel{display:none;flex-direction:column;min-height:calc(100vh - var(--nav-h));
-  padding:32px 36px 56px}
+  padding:32px 40px 56px;max-width:1148px;margin:0 auto;width:100%;box-sizing:border-box}
 .wardrobe-panel.visible{display:flex}
 .wg-header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:6px}
 .wg-title{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:34px;color:var(--ink);white-space:nowrap;line-height:1.1}
@@ -1102,6 +1102,14 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
 .wg-pill{padding:7px 15px;border:0.5px solid var(--rule-mid);background:#fff;border-radius:100px;
   font-size:12px;color:var(--ink-soft);transition:all .15s}
 .wg-pill.active,.wg-pill:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+/* Mobile: the pills read cluttered when wrapped — one horizontal scroll row */
+@media(max-width:640px){
+  .wardrobe-panel{padding:24px 20px 48px}
+  .wg-filters{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;padding:2px 0 8px}
+  .wg-filters::-webkit-scrollbar{display:none}
+  .wg-filters .wg-pill{flex-shrink:0;white-space:nowrap}
+}
 .wg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:18px}
 .wg-item{cursor:pointer}
 .wg-img-wrap{position:relative;aspect-ratio:3/4;border-radius:var(--rad);overflow:hidden;background:var(--cream-200)}

@@ -70,7 +70,7 @@
     .dk-btn {
       width: 100%; padding: 19px 24px; background: rgba(250,248,245,0.08); color: var(--cream-30);
       font-weight: 500; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase;
-      border: 1px solid rgba(250,248,245,0.14); border-radius: 2px; cursor: pointer;
+      border: 1px solid rgba(250,248,245,0.14); border-radius: 100px; cursor: pointer;
       transition: background .2s var(--ease-default), opacity .15s var(--ease-default);
     }
     .dk-btn:hover { background: rgba(250,248,245,0.16); }
@@ -94,7 +94,7 @@
     .done-title em { font-style: italic; color: var(--accent); }
     .done-sub { position: relative; z-index: 2; font-weight: 300; font-size: 16px; line-height: 1.7; color: rgba(250,248,245,0.55); max-width: 420px; margin: 0 0 44px; }
     .done-restart {
-      position: relative; z-index: 2; background: none; border: 1px solid rgba(250,248,245,0.18); border-radius: 2px; cursor: pointer;
+      position: relative; z-index: 2; background: none; border: 1px solid rgba(250,248,245,0.18); border-radius: 100px; cursor: pointer;
       font-weight: 500; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
       color: var(--cream-30); padding: 16px 34px; transition: background .2s var(--ease-default), color .2s var(--ease-default);
     }
@@ -129,7 +129,7 @@
     .ob-footer { padding: 0 64px 38px; max-width: 860px; width: 100%; margin: 0 auto; }
     .ob-continue {
       width: 100%; background: var(--primary); color: var(--background);
-      border: none; border-radius: 2px; cursor: pointer;
+      border: none; border-radius: 100px; cursor: pointer;
       font-weight: 400; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; padding: 23px;
       transition: opacity .2s var(--ease-default);
     }
@@ -148,7 +148,7 @@
     .chip-row { display: flex; flex-wrap: wrap; gap: 10px; }
     .chip-ghost {
       font-weight: 400; font-size: 14px; color: var(--foreground); background: var(--cream-30);
-      border: 1px solid var(--cream-300); border-radius: 2px;
+      border: 1px solid var(--cream-300); border-radius: 100px;
       padding: 11px 18px; line-height: 1; cursor: pointer;
       transition: background .2s var(--ease-default), color .2s var(--ease-default), border-color .2s var(--ease-default);
     }
@@ -156,7 +156,7 @@
     .chip-solid {
       display: inline-flex; align-items: center; gap: 10px;
       font-weight: 400; font-size: 14px; color: var(--cream-30); background: var(--primary);
-      border: 1px solid var(--primary); border-radius: 2px;
+      border: 1px solid var(--primary); border-radius: 100px;
       padding: 11px 14px 11px 18px; line-height: 1;
     }
     .chip-x {
@@ -217,7 +217,7 @@
     .cap-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
     .cap-label { font-family: var(--font-serif); font-style: italic; font-weight: 300; font-size: 18px; color: var(--cream-600); }
     .cap-btn {
-      background: none; border: 1px solid var(--cream-400); border-radius: 2px; cursor: pointer;
+      background: none; border: 1px solid var(--cream-400); border-radius: 100px; cursor: pointer;
       font-weight: 500; font-size: 10px; letter-spacing: 0.2em;
       text-transform: uppercase; color: var(--fg-2); padding: 10px 18px;
       transition: background .2s var(--ease-default), color .2s var(--ease-default), border-color .2s var(--ease-default);
@@ -273,7 +273,7 @@
     .kp-tags { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
     .kp-tag {
       position: absolute; display: inline-flex; align-items: center; gap: 7px;
-      background: rgba(250,248,245,0.94); border: 1px solid var(--cream-300); border-radius: 2px;
+      background: rgba(250,248,245,0.94); border: 1px solid var(--cream-300); border-radius: 100px;
       padding: 6px 10px; font-weight: 500; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
       color: var(--foreground); white-space: nowrap; max-width: 84%; overflow: hidden; text-overflow: ellipsis;
       box-shadow: 0 2px 10px rgba(32,32,33,0.18);
@@ -371,11 +371,12 @@
     'Carolina Herrera', 'Grace Kelly', 'Lee Radziwill',
   ];
 
-  // Silhouette deliberately lives OUTSIDE onboarding (Style Notes carries
-  // it): asking for a full-length body photo minutes into the first session
-  // was the likeliest bail point. Colour stays because it lands before the
-  // first piece and feeds the styling prefire's DNA.
-  const STEPS = ['icons', 'colour', 'keypiece'];
+  // NO photos of her in onboarding: the silhouette step went first (a
+  // full-length body photo minutes into a first session was the likeliest
+  // bail point) and the colour face scan followed (beta feedback) — both
+  // now live in Style Notes, invited by the dashboard's quiet Style Note
+  // prompt card (_rbSilPrompt in __robes_personalize).
+  const STEPS = ['icons', 'keypiece'];
 
   const st = {
     uid: null,
@@ -508,18 +509,6 @@
 
   function renderStep(i) {
     if (i === 0) return renderIcons(i);
-    if (i === 1) return renderPhotoStep(i, {
-      step: 'Step 02 · Colour', eyebrow: 'Colour harmony',
-      title: 'Colour<br><em>harmony.</em>',
-      sub: 'Upload a close-up and Robes reads your colouring — your season, undertone, contrast and the eighteen shades that are yours.',
-      label: 'Your close-up', kind: 'colour', state: st.colour,
-      busyMsg: 'Reading your colouring…',
-      busyMsgs: ['Reading your colouring…', 'Checking your undertone…', 'Weighing your contrast…', 'Matching your season…', 'Nearly there…'],
-      rejectMsg: 'Robes couldn’t find a face in that photo — try a clearer close-up.',
-      readout: ['Season', 'Undertone', 'Contrast', 'Your eighteen shades'],
-      guide: 'Best in soft daylight, facing a window. No filters, no direct sun, no coloured lighting.',
-      privacy: 'Only Robes reads this photo — it’s never shown anywhere. You can always do this later from your Style Notes.',
-    });
     return renderKeyPiece(i);
   }
 
@@ -604,8 +593,17 @@
         (showNew ? `<li class="v2-opt v2-opt-new${active === matches.length ? ' is-active' : ''}" data-v="${esc(q)}"><span>Add “${esc(q)}”</span><span class="v2-opt-add">New</span></li>` : '');
       drop.hidden = false;
       drop.querySelectorAll('.v2-opt').forEach((li, idx) => {
-        li.onmouseenter = () => { active = idx; paintDrop(); };
-        li.onmousedown = e => { e.preventDefault(); commit(li.dataset.v); };
+        // Hover must only re-class in place — rebuilding the dropdown here
+        // detached the li mid-tap on touch devices, so the follow-up
+        // mousedown never landed and tapping a suggestion did nothing
+        // (beta bug). pointerdown commits before the input can blur.
+        li.onmouseenter = () => {
+          active = idx;
+          drop.querySelectorAll('.v2-opt').forEach((el, k) => el.classList.toggle('is-active', k === idx));
+        };
+        const pick = e => { e.preventDefault(); commit(li.dataset.v); };
+        li.onpointerdown = pick;
+        li.onmousedown = pick;
       });
     }
 
@@ -899,7 +897,7 @@
   function renderKeyPiece(i) {
     const P = st.piece;
     stepChrome(i, {
-      step: 'Step 03 · First piece', eyebrow: 'Your wardrobe',
+      step: 'Step 02 · First piece', eyebrow: 'Your wardrobe',
       title: 'Add your first<br><em>key piece.</em>',
       sub: 'Show Robes one piece you love and it starts styling it before you even reach your dashboard — the label, brand, colour and cut all read from a single photo.',
       continueLabel: P.tag ? 'Continue to your dashboard' : 'Style my first piece',

@@ -206,8 +206,6 @@
       <span class="topbar-sep"></span>
       <div class="crumb">
         <span class="root">Style notes</span>
-        <span class="slash">/</span>
-        <span class="chapter" id="crumb-chapter">Colour harmony</span>
       </div>
     </div>
     <div class="topbar-r">
@@ -531,7 +529,6 @@
       { label: 'Prefer not to say', note: '' },
     ];
     const POPULAR_ICONS = ['Carolyn Bessette-Kennedy', 'The Row', 'Hailey Bieber', 'Jane Birkin', 'Sézane', 'Zoë Kravitz', 'Acne Studios', 'Isabel Marant', 'Sophia Loren', 'Jacquemus'];
-    const CHAPTERS = { colour: 'Colour harmony', silhouette: 'Silhouette & proportions', taste: 'Taste & budget' };
 
     const INVITE_COLOUR = 'Upload a close-up and Robes reads your colouring — your season, undertone, contrast and the eighteen shades that are yours.';
     const INVITE_SIL = 'Upload a full-length photo and Robes reads your line — your body type, the cuts that flatter and the moves that always work on you.';
@@ -668,7 +665,8 @@
         document.getElementById('tab-' + t).hidden = t !== tab;
         document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
       });
-      document.getElementById('crumb-chapter').textContent = CHAPTERS[tab];
+      // The topbar carries no chapter segment any more (beta feedback: it
+      // duplicated the subnav tabs) — the tabs alone name the chapter.
       window.scrollTo(0, 0);
     };
 

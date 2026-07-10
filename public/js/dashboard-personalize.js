@@ -422,12 +422,16 @@
         const fillEl = document.getElementById('wtrk-fill');
         const kickEl = document.getElementById('wtrk-kicker');
         const copyEl = document.getElementById('wtrk-copy');
-        // At/after the 15-piece threshold, graduate the module into a slim
-        // wardrobe strip (drop the /15 and the bar) — but keep the thumbnails +
-        // Add tile so ongoing cataloguing, which WAW depends on, never stops.
+        // At/after the 15-piece threshold the module retires completely
+        // (beta feedback: it read as clutter once the closet was built out).
+        // The section stays in the DOM — it's _rbApplyLayout's anchor and
+        // #rb-styled glues after it — it's just no longer painted.
         const complete = n >= _WA_TARGET;
         const trkSection = document.getElementById('wtrk');
-        if (trkSection) trkSection.classList.toggle('wtrk-complete', complete);
+        if (trkSection) {
+          trkSection.classList.toggle('wtrk-complete', complete);
+          trkSection.style.display = complete ? 'none' : '';
+        }
         if (numEl) numEl.innerHTML = complete ? String(n) : (n + '<span> / ' + _WA_TARGET + '</span>');
         if (fillEl) fillEl.style.width = Math.min(100, Math.round(n / _WA_TARGET * 100)) + '%';
         const [kicker, body] = _wtrkCopy(n);
@@ -1372,6 +1376,11 @@
         };
 
         App.showWardrobe = function() {
+          // The result surfaces (kp/dl/tv pages, moodboard, lookbook) are
+          // fixed overlays ABOVE the in-flow wardrobe panel — opened from one
+          // of them, the panel used to render invisibly underneath (beta bug:
+          // the nav animated but no content appeared). Drop them first.
+          if (window.__rbCloseResultOverlays) window.__rbCloseResultOverlays();
           if (_origShowWardrobe) _origShowWardrobe(); // showView + closeAvatarMenu (also calls private renderWardrobe)
           // Immediately overwrite what renderWardrobe just wrote with real data.
           // This runs synchronously before the browser paints, so mock items never show.
@@ -1552,7 +1561,30 @@
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Lookbook' }]);
         window._rbNav && window._rbNav('/lookbook');
       };
-      window.__snRemove = function(id) { snRemove(id); };
+      // Deleting is destructive — always confirm first (beta feedback:
+      // looks were vanishing on a stray tap of the hover ×).
+      window._rbConfirmDelete = function(title, onYes) {
+        document.getElementById('rb-del-modal')?.remove();
+        const modal = document.createElement('div');
+        modal.id = 'rb-del-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:380px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:28px 26px;text-align:center">
+            <p style="font-family:'Cormorant',Georgia,serif;font-size:24px;font-weight:300;color:#202021;margin:0 0 8px;line-height:1.25">${title}</p>
+            <p style="font-size:12.5px;color:#6E6A64;line-height:1.6;margin:0 0 20px">This can’t be undone.</p>
+            <div style="display:flex;gap:9px">
+              <button id="rb-del-cancel" style="flex:1;padding:13px 20px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">Cancel</button>
+              <button id="rb-del-yes" style="flex:1;padding:13px 20px;border:none;border-radius:100px;background:#202021;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Delete</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+        modal.querySelector('#rb-del-cancel').onclick = function() { modal.remove(); };
+        modal.querySelector('#rb-del-yes').onclick = function() { modal.remove(); onYes(); };
+      };
+      window.__snRemove = function(id) {
+        window._rbConfirmDelete('Delete this look?', function() { snRemove(id); });
+      };
       window.__snOpenItem = function(id) {
         const item = snLoad().find(i => i.id === id);
         if (!item) return;
@@ -1875,6 +1907,20 @@
       let kpResultPage = null;
       let dlResultPage = null; // Daily Look page (Context-to-Core render)
       let tvResultPage = null; // Travel Edit page (capsule + lookbook render)
+
+      // Close every fixed result overlay (kp/dl/tv pages, moodboard result +
+      // list, lookbook page) so an in-flow view like the wardrobe panel can
+      // actually be seen. Used by the patched App.showWardrobe.
+      window.__rbCloseResultOverlays = function() {
+        if (kpResultPage) kpResultPage.style.display = 'none';
+        if (dlResultPage) dlResultPage.style.display = 'none';
+        if (tvResultPage) tvResultPage.style.display = 'none';
+        window.__mbCloseResult && window.__mbCloseResult();
+        window.__mbCloseList && window.__mbCloseList();
+        const snEl = document.getElementById('sn-page');
+        if (snEl) snEl.style.display = 'none';
+        window.rbClearCrumb && window.rbClearCrumb();
+      };
       window.__lastKpData = null;
 
       window.__kpGoBack = function() {
@@ -3136,6 +3182,7 @@
           brief: ((document.getElementById('tv-brief-ta') || {}).value || '').trim(),
           anchors: (_tvBrief && _tvBrief.anchors) || [],
           plan: (_tvBrief && _tvBrief.plan) || [],
+          suggested: (_tvBrief && _tvBrief.suggested) || [],
         };
       }
 
@@ -3273,20 +3320,21 @@
         if (hint) {
           hint.textContent = sel.length === 0
             ? (_waItems.length
-              ? 'Select everything you’re tempted to bring — Robes tells you what earns its place, what to leave behind, and what’s genuinely missing.'
+              ? 'Select everything you’re tempted to bring — Robes shows how each piece earns its place, and what’s genuinely missing.'
               : 'Snap the pieces you’re thinking of bringing — they start your digital wardrobe.')
             : sel.length < _TV_MIN_ANCHORS
               ? '1 piece selected — add the rest of your maybes.'
-              : sel.length + ' selected — Robes keeps what earns its place and tells you what to leave behind.';
+              : sel.length + ' selected — Robes maps the wears each piece earns across the trip.';
         }
         const cta = document.getElementById('tv-cta');
         if (cta) {
-          const ready = sel.length >= _TV_MIN_ANCHORS;
+          const suggestedN = ((_tvBrief && _tvBrief.suggested) || []).length;
+          const ready = sel.length >= _TV_MIN_ANCHORS || suggestedN > 0;
           cta.disabled = !ready;
           cta.style.opacity = ready ? '1' : '0.45';
           cta.style.cursor = ready ? 'pointer' : 'default';
           cta.textContent = ready
-            ? 'Next · Plan your days — ' + sel.length + ' selected →'
+            ? 'Next · Plan your days — ' + (sel.length + suggestedN) + ' selected →'
             : 'Select at least ' + _TV_MIN_ANCHORS + ' pieces to start';
         }
       }
@@ -3337,6 +3385,7 @@
             brief: rawBrief,
             anchors: (opts && Array.isArray(opts.anchors) ? opts.anchors.map(String) : []),
             plan: [],
+            suggested: (opts && Array.isArray(opts.suggested) ? opts.suggested : []),
           };
           _tvCat = 'All';
           _tvWxOnly = false;
@@ -3354,6 +3403,7 @@
 
         const browser = `
           <p style="${labelCss}">What’s tempting you?</p>
+          ${(st.suggested || []).length ? `<p style="font-size:11px;color:#6E6A64;font-style:italic;margin:0 0 10px">✦ ${st.suggested.length} piece${st.suggested.length === 1 ? '' : 's'} from your moodboard will join the edit under Worth Adding.</p>` : ''}
           <p id="tv-anchor-hint" style="font-size:11px;color:#A89880;font-style:italic;margin:0 0 10px"></p>
           <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px">${catPills}</div>
           <label id="tv-wx-row" style="display:none;align-items:center;gap:8px;font-size:11.5px;color:#6E6A64;cursor:pointer;margin:0 0 10px">
@@ -3405,7 +3455,9 @@
         _tvCaptureBrief();
         const st = _tvBrief || {};
         if (!st.dest) { _waShowToast('Tell us where you’re going first'); return; }
-        if ((st.anchors || []).length < _TV_MIN_ANCHORS) {
+        // A moodboard-fed brief already carries pieces — the shortlist floor
+        // only applies when she's packing purely from her own wardrobe.
+        if ((st.anchors || []).length < _TV_MIN_ANCHORS && !(st.suggested || []).length) {
           _waShowToast('Select at least ' + _TV_MIN_ANCHORS + ' pieces you’re considering first');
           return;
         }
@@ -3585,6 +3637,7 @@
               dateTo,
               brief,
               shortlistIds,
+              suggestedItems: st.suggested || [],
               dayPlan,
               editOnly: !!editOnly,
               name,
@@ -3597,7 +3650,7 @@
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
           data.brief = brief;
-          data.shortlist_size = shortlistIds.length; // gates the Leave-behind section (15+)
+          data.shortlist_size = shortlistIds.length;
           // A deferred trip keeps her typed plan so the later outfit
           // planner can prefill it.
           if (editOnly && Array.isArray(dayPlan) && dayPlan.length) data.trip_day_plan = dayPlan;
@@ -3616,7 +3669,7 @@
       // look in a console that emulates the Daily experience — a stylist
       // moodboard on the left (with the trip's editorial hero as the mood
       // tile), "The Rack" on the right, and a Day/Evening flick. The Edit
-      // (Keep / Worth adding / Leave behind, packed tags, all metadata)
+      // (Keep / Worth adding, packed tags, all metadata)
       // sits below as before, and a sticky payoff bar closes the page.
       let _tvActiveDay = 0;   // day the console is reading
       let _tvActiveOcc = 0;   // 0 = Day slot, 1 = Evening slot
@@ -3933,24 +3986,16 @@ body>*:not(#tv-result-page){display:none !important}
           `<button class="${oi === _tvActiveOcc ? 'on' : ''}" onclick="window.__tvSetOcc(${oi})">${_waEsc(sl.slot || (oi === 0 ? 'Day' : 'Evening'))}</button>`
         ).join('');
 
-        const heroPend = !!data.jobId && !(data.generatedImages || []).some(Boolean);
-        const heroSrc = (data.generatedImages || [])[0];
-        const heroTile = `<div class="tvm-tile wide" style="cursor:default">
-          <div data-tvimg="0" style="position:absolute;inset:0;background:var(--cream-200)">${heroSrc
-            ? `<img src="${_waEsc(heroSrc)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
-            : `<div class="tv-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${heroPend ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${heroPend ? `<span style="font-family:${_tvSerif};font-style:italic;font-size:12px;color:#B8AC9C">Creating imagery…</span>` : _tvPhSvg}</div>`}</div>
-          <div class="tgrad"></div>
-          <span class="tslot">The mood</span>
-          <span class="tlab">${_waEsc(data.destination || '')}</span>
-        </div>`;
-
-        const tiles = entries.map(x => {
+        // No "The mood" hero tile here — the trip hero is static across days
+        // and read as the day's look (beta feedback); the first piece tile
+        // takes the wide slot instead, like the Daily board.
+        const tiles = entries.map((x, ti) => {
           const f = _tvFrame(x.it);
-          return `<button class="tvm-tile${x.it.wardrobe_match ? '' : ' isnew'}" onclick="window.__tvSwap(${x.ci})" title="Swap the ${_waEsc(_dlShort(x.it.name))}">
+          return `<button class="tvm-tile${ti === 0 ? ' wide' : ''}${x.it.wardrobe_match ? '' : ' isnew'}" onclick="window.__tvSwap(${x.ci})" title="Swap the ${_waEsc(_dlShort(x.it.name))}">
             <div${f.pollAttr} style="position:absolute;inset:0;background:var(--cream-200)">${f.inner}</div>
             <div class="tgrad"></div>
             <span class="tslot">${_waEsc(_dlSlot(x.it).l)}</span>
-            ${x.it.wardrobe_match ? `<span class="town">${_tvCheckSvg}</span>` : `<span class="tadd">Add</span>`}
+            ${x.it.wardrobe_match ? `<span class="town">${_tvCheckSvg}</span>` : (x.it.added ? '' : `<span class="tadd">Add</span>`)}
             <span class="tnav l" onclick="event.stopPropagation();window.__tvFlip(${x.ci},-1)" title="Previous">${_tvChevL}</span>
             <span class="tnav r" onclick="event.stopPropagation();window.__tvFlip(${x.ci},1)" title="Next">${_tvChevR}</span>
             <span class="tlab">the ${_waEsc(_dlShort(x.it.name))}</span>
@@ -3970,7 +4015,7 @@ body>*:not(#tv-result-page){display:none !important}
             </div>
             <div class="tvm-occ">${occHtml}</div>
             ${s.how ? `<div class="tvm-quote">“${_waEsc(s.how)}”</div>` : ''}
-            <div class="tvm-board">${heroTile}${tiles}</div>
+            <div class="tvm-board">${tiles}</div>
             <div class="tvm-fabrics">${fabricsHtml}</div>
             <div class="tvm-lfoot">
               <span class="tvm-palette">${palette.map(h => `<span style="background:${h}"></span>`).join('')}</span>
@@ -3979,7 +4024,7 @@ body>*:not(#tv-result-page){display:none !important}
           </div>
           ${(() => {
             const inCase = entries.filter(x => x.it.packed);
-            const gaps = entries.filter(x => !x.it.wardrobe_match);
+            const gaps = entries.filter(x => !x.it.wardrobe_match && !x.it.added);
             const toPack = entries.filter(x => !x.it.packed);
             const pct = entries.length ? Math.round(inCase.length / entries.length * 100) : 0;
             const clean = gaps.length === 0;
@@ -4002,7 +4047,7 @@ body>*:not(#tv-result-page){display:none !important}
           const wears = (usage[ci] || []).length;
           const sub = it.wardrobe_match
             ? `<span class="tvm-owned">${_tvCheckSvg} In your wardrobe</span>`
-            : `<span class="tvm-addtag">Worth adding</span>${it.brand ? `<span style="font-family:${_tvSerif};font-style:italic;font-size:13px">${_waEsc(it.brand)}</span>` : ''}${(it.retailer_hint || it.price_point) ? `<span class="price">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>` : ''}`;
+            : `<span class="tvm-addtag">${it.added ? 'Added to the pack' : 'Worth adding'}</span>${it.brand ? `<span style="font-family:${_tvSerif};font-style:italic;font-size:13px">${_waEsc(it.brand)}</span>` : ''}${(it.retailer_hint || it.price_point) ? `<span class="price">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>` : ''}`;
           const f = _tvFrame(it);
           const isPacked = !!it.packed;
           // Flick-through — same carousel as the Daily rack: the served
@@ -4032,7 +4077,7 @@ body>*:not(#tv-result-page){display:none !important}
                   <button class="tvm-arrow" onclick="window.__tvFlip(${ci},1)" aria-label="Next option">${_tvChevR}</button>
                 </div>
                 <div class="tvm-acts">
-                  ${it.wardrobe_match
+                  ${(it.wardrobe_match || it.added)
                     ? `<button class="tvm-packbox${it.packed ? ' on' : ''}" onclick="window.__tvPackToggle(${ci})"><span class="box">${it.packed ? _tvCheckSvg : ''}</span>${it.packed ? 'Packed' : 'Pack'}</button>`
                     : `<button class="tvm-act add" onclick="window.__tvAddOwn(${ci})">+ Add</button>`}
                   <button class="tvm-act tv-noprint" onclick="window.__tvSwap(${ci})">${_tvSwapSvg} Swap</button>
@@ -4159,13 +4204,9 @@ body>*:not(#tv-result-page){display:none !important}
 
         const owned = data.capsule.filter(it => it.wardrobe_match).length;
         const total = data.capsule.length;
-        const leftBehindAll = Array.isArray(data.left_behind) ? data.left_behind : [];
-        // Only suggest "Leave behind" when the user shortlisted a large pile
-        // (15+) — for a small shortlist, cutting pieces feels like nagging.
-        // shortlist_size is stamped by __tvSubmit; fall back to owned + cut for
-        // older saves.
-        const _tvShortlistN = Number.isInteger(data.shortlist_size) ? data.shortlist_size : (owned + leftBehindAll.length);
-        const leftBehind = _tvShortlistN >= 15 ? leftBehindAll : [];
+        // "Leave behind" is deprecated (beta feedback: cutting her own picks
+        // read as illogical without a real packing-restriction engine) —
+        // saved entries may still carry left_behind data; it's never rendered.
         const lookCount = data.days.reduce((acc, d) => acc + (d.slots || []).length, 0);
 
         if (!tvResultPage) {
@@ -4188,7 +4229,7 @@ body>*:not(#tv-result-page){display:none !important}
         const swapSvg = _tvSwapSvg;
         const checkSvg = _tvCheckSvg;
 
-        // The Edit — Keep / Worth Adding / Leave Behind cards (unchanged
+        // The Edit — Keep / Worth Adding cards (unchanged
         // curatorial section; ids stay tv-cap-${ci} / tv-pack-${ci} so the
         // 1:3 selection, packed checklist and swap keep working).
         const capCard = ({ it, ci }) => {
@@ -4209,7 +4250,7 @@ body>*:not(#tv-result-page){display:none !important}
                 ${wears ? `<span style="font-size:9.5px;font-weight:500;letter-spacing:.08em;color:#8A7B62;background:#F0EAE0;border-radius:20px;padding:2px 8px;white-space:nowrap">× ${wears} looks</span>` : ''}
               </div>
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:11px">
-                ${it.wardrobe_match
+                ${(it.wardrobe_match || it.added)
                   ? `<button id="tv-pack-${ci}" onclick="event.stopPropagation();window.__tvPackToggle(${ci})" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:${it.packed ? '#202021' : '#6E6A64'};font-family:${sans}">
                     <span class="tv-pack-box" style="width:15px;height:15px;border-radius:4px;border:1.5px solid ${it.packed ? '#202021' : 'rgba(32,32,33,0.3)'};background:${it.packed ? '#202021' : '#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1;box-sizing:border-box">${it.packed ? '✓' : ''}</span>
                     <span class="tv-pack-lbl">${it.packed ? 'Packed' : 'Pack'}</span>
@@ -4221,8 +4262,8 @@ body>*:not(#tv-result-page){display:none !important}
           </div>`;
         };
         const indexed = data.capsule.map((it, ci) => ({ it, ci }));
-        const keptCards = indexed.filter(x => x.it.wardrobe_match);
-        const addCards = indexed.filter(x => !x.it.wardrobe_match);
+        const keptCards = indexed.filter(x => x.it.wardrobe_match || x.it.added);
+        const addCards = indexed.filter(x => !x.it.wardrobe_match && !x.it.added);
         const sectionHead = (title, sub, count) => `
           <div style="display:flex;align-items:baseline;gap:10px;margin:0 0 4px">
             <span style="font-family:${serif};font-size:20px;font-weight:400;color:#202021">${title}</span>
@@ -4231,25 +4272,12 @@ body>*:not(#tv-result-page){display:none !important}
           <div style="font-size:11.5px;color:#A89880;font-style:italic;margin-bottom:12px">${sub}</div>`;
         const tiersHtml = [
           keptCards.length ? `<div style="margin-bottom:28px">
-            ${sectionHead('Keep', 'From your shortlist — each one earns its place.', keptCards.length)}
+            ${sectionHead('Keep', 'Packed for this trip — each one earns its place.', keptCards.length)}
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px">${keptCards.map(capCard).join('')}</div>
           </div>` : '',
           addCards.length ? `<div style="margin-bottom:28px">
             ${sectionHead('Worth adding', 'Genuine gaps only — each new piece must bridge what you already own.', addCards.length)}
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px">${addCards.map(capCard).join('')}</div>
-          </div>` : '',
-          leftBehind.length ? `<div class="tv-noprint" style="margin-bottom:28px">
-            ${sectionHead('Leave behind', 'Tempting, but they don’t earn their place this trip.', leftBehind.length)}
-            <div style="display:flex;flex-direction:column;gap:8px;max-width:640px">${leftBehind.map(l => `
-              <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.6);border:0.5px solid var(--rule);border-radius:var(--rad);padding:9px 12px;opacity:.85">
-                ${l.image_url
-                  ? `<img src="${_waEsc(l.image_url)}" style="width:40px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;filter:grayscale(35%)" alt="">`
-                  : `<div style="width:40px;height:48px;border-radius:6px;background:var(--cream-200);display:flex;align-items:center;justify-content:center;font-family:${serif};font-size:16px;color:var(--ink-faint);flex-shrink:0">${_waEsc((l.label || '?').charAt(0).toUpperCase())}</div>`}
-                <div style="min-width:0">
-                  <div style="font-size:12px;font-weight:500;color:#57503F;line-height:1.3">${_waEsc(l.label || '')}</div>
-                  ${l.reason ? `<div style="font-family:${serif};font-style:italic;font-size:11.5px;line-height:1.5;color:var(--ink-faint);margin-top:1px">${_waEsc(l.reason)}</div>` : ''}
-                </div>
-              </div>`).join('')}</div>
           </div>` : '',
         ].join('');
 
@@ -4297,7 +4325,7 @@ body>*:not(#tv-result-page){display:none !important}
 
             <div id="tv-pane-edit">
               <div style="font-family:${serif};font-weight:300;font-style:italic;font-size:clamp(24px,3vw,34px);color:var(--ink);line-height:1.05;margin-bottom:6px">The edit.</div>
-              <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:8px;line-height:1.5">${_waEsc(data.stylist_summary || '')}${data.suitcase_note ? ` <span style="font-style:italic">${_waEsc(data.suitcase_note)}</span>` : ''}</div>
+              <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:8px;line-height:1.5">${_waEsc(data.stylist_summary || '')}</div>
               <div id="tv-matrix-note" style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-bottom:18px;min-height:18px">Tap any piece to see how it multiplies across the trip.</div>
               ${tiersHtml}
               <button class="tv-noprint" onclick="window.__tvAddPieceToTrip()" style="width:100%;max-width:640px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--rule-mid);border-radius:var(--rad);padding:13px;font-size:12px;letter-spacing:.02em;background:transparent;color:var(--ink-soft);cursor:pointer;font-family:inherit;margin-bottom:16px"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece to this trip</button>
@@ -4401,7 +4429,7 @@ body>*:not(#tv-result-page){display:none !important}
             rating: tvFbRating,
             comment,
             prompt: [data.destination, data.dateLine, data.brief].filter(Boolean).join(' · '),
-            looksOutput: JSON.stringify({ surface: 'travel-edit', destination: data.destination || '', trip_label: data.trip_label || '', owned: data.capsule.filter(c => c.wardrobe_match).length, total, leftBehind: leftBehind.length, packed: data.capsule.filter(c => c.packed).length, looks: lookCount, ts: new Date().toISOString() }),
+            looksOutput: JSON.stringify({ surface: 'travel-edit', destination: data.destination || '', trip_label: data.trip_label || '', owned: data.capsule.filter(c => c.wardrobe_match).length, total, packed: data.capsule.filter(c => c.packed).length, looks: lookCount, ts: new Date().toISOString() }),
           }) }).catch(() => {});
           document.getElementById('tv-fb-prompt').hidden = true;
           document.getElementById('tv-fb-expand').hidden = true;
@@ -4640,11 +4668,24 @@ body>*:not(#tv-result-page){display:none !important}
         _tvPatchSaved();
       };
 
-      // "Add" on a Worth-adding piece → own it directly (no modal), so it
-      // moves straight into Keep and the Pack CTA appears. A photo can be
-      // attached later via the swap modal's "Snap mine". _tvShowOwnPrompt /
-      // __tvOwnSnap are kept for potential reuse but no longer on this path.
-      window.__tvAddOwn = function(ci) { window.__tvQuickOwn(ci); };
+      // "Add" on a Worth-adding piece → it joins the pack (moves into Keep,
+      // Pack checkbox appears) WITHOUT touching the wardrobe — she doesn't
+      // own it yet, she's just decided to bring it (beta feedback: the old
+      // auto-wardrobe-insert wrongly assumed ownership). She can still record
+      // it for real later via the swap modal's "Snap mine". _tvShowOwnPrompt /
+      // __tvOwnSnap / __tvQuickOwn are kept for that conversion path.
+      window.__tvAddOwn = function(ci) {
+        const data = window.__lastTvData;
+        const it = data && data.capsule[ci];
+        if (!it || it.added) return;
+        it.added = true;
+        const savedId = _tvActiveSaveId;
+        const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
+        window.__tvRenderResult(data, { skipSave: true, savedId });
+        if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
+        _tvPatchSaved();
+        _waShowToast(it.name + ' added to the pack');
+      };
       function _tvShowOwnPrompt(ci) {
         const data = window.__lastTvData;
         const it = data && data.capsule[ci];
@@ -4869,7 +4910,20 @@ body>*:not(#tv-result-page){display:none !important}
         App.packFromBoard = function() {
           const t = document.getElementById('mb-out-title');
           const boardTitle = t && t.textContent ? t.textContent.trim() : '';
-          window.__tvOpen({ brief: boardTitle ? 'Channel the mood of my “' + boardTitle + '” board.' : '' });
+          // The whole board travels (beta feedback): owned pieces pre-select
+          // in the shortlist browser (→ Keep), unowned pieces ride along as
+          // suggestedItems (→ Worth Adding on the server).
+          const look = Array.isArray(window.__mbCurrentLook) ? window.__mbCurrentLook : [];
+          const anchors = look.filter(i => i && i.wardrobe_match && i.wardrobe_match.id != null).map(i => i.wardrobe_match.id);
+          const suggested = look.filter(i => i && !i.wardrobe_match && i.name).map(i => ({
+            name: i.name, category: i.category || '', brand: i.brand || '',
+            retailer_hint: i.retailer_hint || '', price_point: i.price_point || '',
+          }));
+          window.__tvOpen({
+            brief: boardTitle ? 'Channel the mood of my “' + boardTitle + '” board.' : '',
+            anchors,
+            suggested,
+          });
         };
       }
 
@@ -5724,7 +5778,7 @@ body>*:not(#tv-result-page){display:none !important}
           intent: 'style' },
         { id: 'chip-dress',  label: 'Dress me today',
           cta: 'DRESS ME',
-          inject: 'An outfit for [Sunday brunch] with my [trench coat]',
+          inject: 'An outfit for [Sunday brunch]',
           placeholder: 'Describe your occasion or mood…',
           intent: 'dress-me' },
         { id: 'chip-mood',   label: 'Create a moodboard',
@@ -5747,6 +5801,70 @@ body>*:not(#tv-result-page){display:none !important}
         const btn = _cbGetSendBtn();
         if (btn && btn.dataset.origText) btn.textContent = btn.dataset.origText;
       }
+
+      // "Add from Wardrobe" (beta feedback) — anchor a styling prompt to a
+      // piece she already owns. Picking an item injects its exact label into
+      // the prompt and attaches its wardrobe photo (as the same dataURL the
+      // photo path uses, so /api/style sees it identically).
+      window.__cbWardrobePick = function() {
+        document.getElementById('cb-wa-pick')?.remove();
+        if (!_waItems.length) { _waShowToast('Nothing catalogued yet — add a piece to your wardrobe first'); return; }
+        const serif = "'Cormorant',Georgia,serif";
+        const modal = document.createElement('div');
+        modal.id = 'cb-wa-pick';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        const tiles = _waItems.slice(0, 60).map(wi => `
+          <button onclick="window.__cbWardrobeApply('${_waEsc(String(wi.id))}')" style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:10px;padding:0;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit">
+            <div style="aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center;overflow:hidden">${wi.image_url
+              ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`
+              : `<span style="font-family:${serif};font-size:22px;color:#C8B8A2">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</span>`}</div>
+            <div style="padding:7px 9px 9px;font-size:11px;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
+          </button>`).join('');
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">From your wardrobe</p>
+              <button onclick="document.getElementById('cb-wa-pick').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;font-size:16px;line-height:1">×</button>
+            </div>
+            <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 16px;line-height:1.2">Which piece are we styling?</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px">${tiles}</div>
+          </div>`;
+        document.body.appendChild(modal);
+      };
+      window.__cbWardrobeApply = async function(id) {
+        document.getElementById('cb-wa-pick')?.remove();
+        const wi = _waItems.find(w => String(w.id) === String(id));
+        if (!wi) return;
+        const ta = document.getElementById('cb-ta');
+        if (ta) {
+          const cur = ta.value;
+          const br = cur.match(/\[[^\]]*\]/);
+          ta.value = br
+            ? cur.replace(br[0], wi.label)
+            : (cur.trim() ? cur : 'Style my ' + wi.label + ' three ways');
+          ta.dispatchEvent(new Event('input'));
+          _cbAutoGrow(ta);
+        }
+        const hint = document.getElementById('cb-photo-hint');
+        const icon = document.getElementById('cb-photo-icon');
+        const preview = document.getElementById('cb-photo-preview');
+        if (wi.image_url) {
+          try {
+            const blob = await fetch(wi.image_url).then(r => r.blob());
+            _cbPhotoData = await new Promise((resolve, reject) => {
+              const fr = new FileReader();
+              fr.onload = () => resolve(fr.result);
+              fr.onerror = reject;
+              fr.readAsDataURL(blob);
+            });
+            if (preview) { preview.src = wi.image_url; preview.style.display = 'block'; }
+            if (icon) icon.style.display = 'none';
+          } catch (e) { _cbPhotoData = null; }
+        }
+        if (hint) hint.textContent = 'From your wardrobe — ' + wi.label;
+        _waShowToast(wi.label + ' anchored to your prompt');
+      };
 
       function _cbShowPhotoZone(show) {
         const zone = document.getElementById('cb-photo-zone');
@@ -5989,19 +6107,15 @@ body>*:not(#tv-result-page){display:none !important}
       // Central submit handler — chip override or NL intent extraction
       function _cbSubmit() {
         const ta = document.getElementById('cb-ta');
-        const prompt = (ta && ta.value.trim()) || '';
+        let prompt = (ta && ta.value.trim()) || '';
         _cbHideClarify();
-        // Chip templates inject "[oversized cream blazer]"-style placeholders —
-        // never submit them literally; hand the bracket back to her instead.
-        const br = prompt.match(/\[[^\]]*\]/);
-        if (br) {
-          if (ta) {
-            const start = ta.value.indexOf(br[0]);
-            ta.focus();
-            if (start >= 0) ta.setSelectionRange(start, start + br[0].length);
-          }
-          _waShowToast('Make it yours — swap the highlighted part for your own piece.');
-          return;
+        // Chip templates inject "[Sunday brunch]"-style placeholders. Beta
+        // feedback: blocking the submit on them left users stuck — so run
+        // with the bracketed default instead (the brackets are just editable
+        // suggestions, not gates).
+        if (/\[[^\]]*\]/.test(prompt)) {
+          prompt = prompt.replace(/\[([^\]]*)\]/g, '$1').replace(/\s{2,}/g, ' ').trim();
+          if (ta) { ta.value = prompt; _cbAutoGrow(ta); }
         }
         let intent = _cbIntent;
         if (!intent) {
@@ -6034,8 +6148,10 @@ body>*:not(#tv-result-page){display:none !important}
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
           </span>
           <span id="cb-photo-hint" style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:rgba(32,32,33,0.38)">Show Robes the piece and you'll get three ways to wear it.</span>
-          <img id="cb-photo-preview" src="" alt="" style="display:none;width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0;margin-left:auto">`;
+          <img id="cb-photo-preview" src="" alt="" style="display:none;width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0;margin-left:auto">
+          <button id="cb-wa-btn" type="button" style="flex-shrink:0;margin-left:auto;padding:7px 14px;border:0.5px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11px;letter-spacing:.03em;cursor:pointer;color:#202021;font-family:inherit;white-space:nowrap">From wardrobe</button>`;
         photoZone.onclick = function(e) {
+          if (e.target.closest('#cb-wa-btn')) { window.__cbWardrobePick(); return; }
           if (!e.target.closest('#cb-photo-preview')) document.getElementById('cb-photo-input').click();
         };
         photoZone.querySelector('#cb-photo-input').onchange = function(e) {
@@ -6751,7 +6867,9 @@ body>*:not(#tv-result-page){display:none !important}
         window.rbClearCrumb && window.rbClearCrumb();
         window._rbNav && window._rbNav('/dashboard');
       };
-      window.__mbRemoveSaved = function(id) { _mbRemove(id); };
+      window.__mbRemoveSaved = function(id) {
+        window._rbConfirmDelete('Delete this moodboard?', function() { _mbRemove(id); });
+      };
       window.__mbOpenSaved = function(id) {
         const item = _mbLoad().find(i => i.id === id);
         if (!item) return;
@@ -6931,42 +7049,59 @@ body>*:not(#tv-result-page){display:none !important}
       // local-only entries from before the migration).
       _lbCloudPull();
 
-      // ── Silhouette completion prompt ─────────────────────────────────────
-      // Onboarding deliberately no longer asks for a full-length body photo;
-      // this quiet below-the-fold card invites her to finish that chapter in
-      // Style Notes on her own time. Gated on style_dna (already in the boot
-      // select) and dismissible per user. Delayed past _rbApplyLayout (900ms)
-      // so the section reshuffle can't displace it.
+      // ── Style Note completion prompt ─────────────────────────────────────
+      // Onboarding deliberately asks for NO photos of her (the face scan was
+      // the likeliest bail point — beta feedback 4.7 removed it entirely);
+      // this quiet below-the-fold card invites her to capture her colour and
+      // silhouette chapters in Style Notes on her own time. Gated on
+      // style_dna (already in the boot select) and dismissible per user.
+      // Delayed past _rbApplyLayout (900ms) so the reshuffle can't displace it.
       setTimeout(function _rbSilPrompt() {
         try {
           const prof = window.__robes_profile || {};
           const dna = prof.style_dna || {};
-          if (dna.silhouette_proportions) return;
+          const needsColour = !dna.color_harmony;
+          const needsSil = !dna.silhouette_proportions;
+          if (!needsColour && !needsSil) return;
           const uid = prof.id || _waUid() || '';
           if (!uid) return;
           if (localStorage.getItem('rb_sil_prompt_off__' + uid)) return;
           if (document.getElementById('rb-sil-prompt')) return;
           const grid = document.querySelector('.services-grid');
           if (!grid) return;
+          const both = needsColour && needsSil;
+          const eyebrow = both ? 'Style notes · your style, read once' : 'Style notes · one chapter left';
+          const headline = both
+            ? 'Your colours & silhouette, <em style="font-style:italic">whenever suits.</em>'
+            : (needsColour
+              ? 'Your colour harmony, <em style="font-style:italic">whenever suits.</em>'
+              : 'Your silhouette, <em style="font-style:italic">whenever suits.</em>');
+          const body = both
+            ? 'Two photos teach Robes your colouring and your line — the shades and cuts that flatter, woven into every look it builds. Two minutes, only ever seen by Robes.'
+            : (needsColour
+              ? 'One close-up teaches Robes your colouring — your season, undertone and the shades that are yours, woven into every look it builds. Two minutes, only ever seen by Robes.'
+              : 'One full-length photo teaches Robes your line — the cuts that flatter, woven into every look it builds. Two minutes, only ever seen by Robes.');
+          const cta = both ? 'Complete my style notes →' : (needsColour ? 'Complete my colours →' : 'Complete my silhouette →');
+          const target = needsColour ? '/stylenotes' : '/stylenotes#silhouette';
           const host = grid.closest('section') || grid;
           const card = document.createElement('section');
           card.id = 'rb-sil-prompt';
           card.style.cssText = 'max-width:1140px;margin:26px auto;padding:20px 24px;background:#FDFCFA;border:1px solid #E7E0CF;border-radius:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:relative';
           card.innerHTML =
             '<div style="flex:1;min-width:230px">' +
-              '<div style="font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#A89880;margin-bottom:6px">Style notes · one chapter left</div>' +
-              '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:21px;font-weight:400;color:#202021;margin-bottom:4px">Your silhouette, <em style="font-style:italic">whenever suits.</em></div>' +
-              '<div style="font-size:13px;color:#9A8E82;line-height:1.55">One full-length photo teaches Robes your line — the cuts that flatter, woven into every look it builds. Two minutes, only ever seen by Robes.</div>' +
+              '<div style="font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#A89880;margin-bottom:6px">' + eyebrow + '</div>' +
+              '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:21px;font-weight:400;color:#202021;margin-bottom:4px">' + headline + '</div>' +
+              '<div style="font-size:13px;color:#9A8E82;line-height:1.55">' + body + '</div>' +
             '</div>' +
-            '<button id="rb-sil-go" style="flex-shrink:0;background:#202021;color:#F8F5F0;border:none;border-radius:100px;padding:11px 22px;font-size:13px;letter-spacing:.03em;cursor:pointer;font-family:inherit">Complete my silhouette →</button>' +
+            '<button id="rb-sil-go" style="flex-shrink:0;background:#202021;color:#F8F5F0;border:none;border-radius:100px;padding:11px 22px;font-size:13px;letter-spacing:.03em;cursor:pointer;font-family:inherit">' + cta + '</button>' +
             '<button id="rb-sil-x" aria-label="Not now" style="position:absolute;top:10px;right:14px;background:none;border:none;cursor:pointer;color:#B0A090;font-size:16px;line-height:1;padding:4px">×</button>';
           host.parentNode.insertBefore(card, host);
-          card.querySelector('#rb-sil-go').onclick = function() { window.location.href = '/stylenotes#silhouette'; };
+          card.querySelector('#rb-sil-go').onclick = function() { window.location.href = target; };
           card.querySelector('#rb-sil-x').onclick = function() {
             try { localStorage.setItem('rb_sil_prompt_off__' + uid, '1'); } catch (e) {}
             card.remove();
           };
-        } catch (e) { console.warn('[robes] silhouette prompt:', e); }
+        } catch (e) { console.warn('[robes] style-note prompt:', e); }
       }, 1200);
 
       // ── Onboarding handoff — "Your piece, styled" as an inline card ─────

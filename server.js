@@ -826,11 +826,31 @@ app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
 
   // The shortlist (wardrobe-first PRD, curatorial revision) — everything
   // she is TEMPTED to bring, multi-selected from her catalogued wardrobe.
-  // Robes' job is Keep vs Leave Behind vs Worth Adding, not invention.
+  // Every shortlisted piece is KEPT — "Leave Behind" is deprecated (beta
+  // feedback: cutting her own picks read as illogical without a real
+  // packing-restriction engine); Robes' job is the wear-map + true gaps.
   // (`anchorIds` accepted for back-compat with older clients.)
   const shortIdxs = (Array.isArray(shortlistIds) ? shortlistIds : (Array.isArray(anchorIds) ? anchorIds : []))
     .map(id => closetItems.findIndex(it => String(it.id) === String(id)))
     .filter(i => i >= 0);
+
+  // Moodboard handoff ("Pack this trip" from a board): unowned board pieces
+  // ride along and land in Worth Adding — she chose them already.
+  const suggestedItems = (Array.isArray(req.body.suggestedItems) ? req.body.suggestedItems : [])
+    .filter(s => s && s.name)
+    .slice(0, 12)
+    .map(s => ({
+      name: String(s.name).slice(0, 120),
+      category: s.category ? String(s.category).slice(0, 24) : '',
+      brand: s.brand ? String(s.brand).slice(0, 60) : '',
+      retailer_hint: s.retailer_hint ? String(s.retailer_hint).slice(0, 60) : '',
+      price_point: s.price_point ? String(s.price_point).slice(0, 20) : '',
+    }));
+
+  // The capsule normally caps at 16, but every shortlisted piece is kept and
+  // every moodboard pick joins Worth Adding — the cap must never force a
+  // silent cut of something she chose herself.
+  const capMax = Math.max(16, shortIdxs.length + suggestedItems.length + 3);
 
   const from = new Date(String(dateFrom || '') + 'T00:00:00Z');
   const to = new Date(String(dateTo || '') + 'T00:00:00Z');
@@ -908,7 +928,7 @@ ${planList}`
 
 THE PILLARS — all four are hard constraints:
 1. THE 1:3 HIGH-YIELD RULE. Every capsule item must appear in AT LEAST THREE different outfits across the lookbook, in at least two distinct dress codes. No single-outfit passengers — if a piece can't earn three wears, it doesn't get packed.
-2. THE CAPSULE MATRIX. YOU decide the pack count — the smallest capsule that dresses every day of the trip under the 1:3 rule. For this ${tripDays}-day trip that is typically around ${suggest} items (never more than 16); the maths must hold: pieces × 3 wears ≥ ${tripDays * 2} looks × ~4 formula slots. Split the capsule across the three tiers: "${TRAVEL_TIERS[0]}" (~${foundations} items — architectural basics, tailoring, versatile one-pieces), "${TRAVEL_TIERS[1]}" (~${statements} items — the tactile hero pieces: statement dresses, crochet, plissé, prints), "${TRAVEL_TIERS[2]}" (~${hardware} items — shoes, bags, belts, jewellery that seal silhouettes).${shortIdxs.length ? ' The tier targets are guidance for shaping what you KEEP — never pad the capsule to hit a number.' : ''}
+2. THE CAPSULE MATRIX. YOU decide the pack count — the smallest capsule that dresses every day of the trip under the 1:3 rule. For this ${tripDays}-day trip that is typically around ${suggest} items (never more than ${capMax}); the maths must hold: pieces × 3 wears ≥ ${tripDays * 2} looks × ~4 formula slots. Split the capsule across the three tiers: "${TRAVEL_TIERS[0]}" (~${foundations} items — architectural basics, tailoring, versatile one-pieces), "${TRAVEL_TIERS[1]}" (~${statements} items — the tactile hero pieces: statement dresses, crochet, plissé, prints), "${TRAVEL_TIERS[2]}" (~${hardware} items — shoes, bags, belts, jewellery that seal silhouettes).${shortIdxs.length ? ' The tier targets are guidance for shaping what you KEEP — never pad the capsule to hit a number.' : ''}
 3. THE 4-STEP DRESSING FORMULA. Every outfit's "formula" is built ONLY from capsule items referenced by "item_index" (0-based index into the capsule array — never invent an item that isn't packed): "The Anchor" ×1 (the context-driven hero), "The Canvas" ×1–2 (the grounding basics), "The Texture" ×1 (the tactile dimension layer), "The Exclamation Point" ×1–2 (footwear/hardware that finish it). Swim or sleep-adjacent looks may drop to 3 entries, never fewer. Each entry's "note" says how that piece is worn in THIS look.
 4. CONTEXT ENGINEERING. Ingest three vectors at once: the Location Vibe (name it in "location_vibe", e.g. "Refined Mediterranean Minimalism"), the Micro-Climate provided, and the client's proportional architecture / style DNA below. Everything packed answers to all three.
 
@@ -929,21 +949,22 @@ FIELD RULES:
 - Capsule items: "name" is the piece (for owned pieces the exact owned label); "brand" ONE real brand (owned brand or ""); "description" one hyper-specific sentence — cut, fabrication, colour, why it earns its place. Owned: wardrobe_index set, retailer_hint and price_point "". New: wardrobe_index -1, real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and realistic EUR "price_point" (e.g. "€145").
 - "fallback": true ONLY if the destination/brief is gibberish — then pack for a pleasant week away somewhere temperate instead.${dnaBlock ? '\n\n' + dnaBlock : ''}
 
-${shortIdxs.length ? `THE SHORTLIST — everything she is TEMPTED to bring (${shortIdxs.length} owned pieces, by wardrobe_index):
+${shortIdxs.length ? `THE SHORTLIST — everything she is bringing (${shortIdxs.length} owned pieces, by wardrobe_index):
 ${shortIdxs.map(i => `${i}: ${closetItems[i].label}${closetItems[i].category ? ' [' + closetItems[i].category + ']' : ''}${closetItems[i].color ? ', ' + closetItems[i].color : ''}`).join('\n')}
-YOU ARE THE EDITOR, NOT A SHOPPER. Curate this shortlist — every shortlisted piece must land in exactly one of three places:
-- KEEP: it earns at least 3 wears across the lookbook. Kept pieces go in "capsule" with their wardrobe_index, exact owned label and a one-line "reason" naming why it made the cut.
-- LEAVE BEHIND: it doesn't earn its place — a duplicate of a stronger piece, wrong for the micro-climate, a single-outfit passenger. List each in "left_behind" with its wardrobe_index and one honest, kind "reason". Cutting is a service, not a failure — a tight edit beats an overpacked case.
-- No shortlisted piece may silently vanish: capsule or left_behind, always.
-WORTH ADDING — the SMALLEST group, and it may be EMPTY: suggest a new piece (wardrobe_index -1, real retailer_hint + price_point) ONLY for a genuine gap the kept pieces expose that no shortlisted piece can fill. Never more than 3. Every NEW piece must justify itself as a bridge: set its "bridge" field to one clause naming what it connects and how many looks it unlocks (e.g. "Bridges the linen tailoring and the evening slip — unlocks 5 looks").
+KEEP EVERY SHORTLISTED PIECE — she has already decided what to bring; NEVER cut, drop or leave behind a shortlisted piece. Each one goes in "capsule" with its wardrobe_index, exact owned label and a one-line "reason" naming the wears it earns and what it anchors. "left_behind" must be []. Work every piece as hard as the 1:3 rule allows — a weaker piece still gets styled into the trip, not cut.
+WORTH ADDING — the SMALLEST group, and it may be EMPTY: suggest a new piece (wardrobe_index -1, real retailer_hint + price_point) ONLY for a genuine gap the packed pieces expose that no shortlisted piece can fill. Never more than 3${suggestedItems.length ? ' beyond her moodboard picks below' : ''}. Every NEW piece must justify itself as a bridge: set its "bridge" field to one clause naming what it connects and how many looks it unlocks (e.g. "Bridges the linen tailoring and the evening slip — unlocks 5 looks").
 Do not pack owned pieces she did not shortlist — she chose from her full wardrobe already.
+
+` : ''}${suggestedItems.length ? `HER MOODBOARD PICKS (${suggestedItems.length} pieces she does NOT own — she is packing this trip from a moodboard she built):
+${suggestedItems.map(s => `- ${s.name}${s.category ? ' [' + s.category + ']' : ''}${s.brand ? ', ' + s.brand : ''}${(s.retailer_hint || s.price_point) ? ' (' + [s.retailer_hint, s.price_point].filter(Boolean).join(' · ') + ')' : ''}`).join('\n')}
+Include EACH of these as a new capsule piece (wardrobe_index -1) with its brand and a real "retailer_hint" + "price_point" (use the ones given where present) — they are her Worth Adding list and do NOT count against the new-piece cap. Style them into the lookbook like any other capsule piece. Only drop one if it genuinely cannot serve this trip.
 
 ` : ''}${closetBlock}${correctiveNote ? '\n\n' + correctiveNote : ''}`;
   }
 
   const userText = `${wxLine ? wxLine + '\n\n' : ''}THE TRIP BRIEF: ${dest}${dateLine ? ', ' + dateLine : ''}${monthName ? ' (' + monthName + ')' : ''}, ${tripDays} day${tripDays > 1 ? 's' : ''}. ${String(brief || '').trim() || 'No further notes — read the destination and season for the vibe.'}
 
-${shortIdxs.length ? `Curate the shortlist — keep what earns its place, leave behind what doesn't, add only what's genuinely missing${editOnly ? '' : ' — and build'}` : (editOnly ? 'Build the capsule' : 'Build the capsule and')}${editOnly ? '. The lookbook is deferred — "days" must be [].' : ` the full ${tripDays}-day lookbook.`}`;
+${shortIdxs.length ? `Pack every shortlisted piece, map the wears each one earns, add only what's genuinely missing${editOnly ? '' : ' — and build'}` : (editOnly ? 'Build the capsule' : 'Build the capsule and')}${editOnly ? '. The lookbook is deferred — "days" must be [].' : ` the full ${tripDays}-day lookbook.`}`;
 
   async function withRetry(fn, attempts = 3) {
     for (let i = 0; i < attempts; i++) {
@@ -957,7 +978,7 @@ ${shortIdxs.length ? `Curate the shortlist — keep what earns its place, leave 
   function normalise(parsed) {
     const capsule = (Array.isArray(parsed.capsule) ? parsed.capsule : [])
       .filter(it => it && it.name)
-      .slice(0, 16)
+      .slice(0, capMax)
       .map(it => {
         if (!TRAVEL_TIERS.includes(it.tier)) it.tier = TRAVEL_TIERS[0];
         const wi = Number.isInteger(it.wardrobe_index) && it.wardrobe_index >= 0 ? closetItems[it.wardrobe_index] : null;
@@ -981,24 +1002,10 @@ ${shortIdxs.length ? `Curate the shortlist — keep what earns its place, leave 
         return d;
       })
       .filter((d, i) => d.slots.length || restIdx.has(i));
-    // Leave Behind (curatorial PRD): shortlisted pieces that didn't make
-    // the cut, resolved back to real wardrobe rows. Anything that also
-    // landed in the capsule is a model contradiction — the capsule wins.
-    const keptIds = new Set(capsule.filter(it => it.wardrobe_match).map(it => String(it.wardrobe_match.id)));
-    const seenLeft = new Set();
-    const leftBehind = (Array.isArray(parsed.left_behind) ? parsed.left_behind : [])
-      .filter(l => l && Number.isInteger(l.wardrobe_index) && l.wardrobe_index >= 0 && l.wardrobe_index < closetItems.length)
-      .map(l => {
-        const wi = closetItems[l.wardrobe_index];
-        return { id: wi.id, label: wi.label, category: wi.category || '', image_url: wi.image_url || null, reason: String(l.reason || '').slice(0, 240) };
-      })
-      .filter(l => {
-        const id = String(l.id);
-        if (keptIds.has(id) || seenLeft.has(id)) return false;
-        seenLeft.add(id);
-        return true;
-      });
-    return { capsule, days, leftBehind };
+    // "Leave Behind" is deprecated — anything the model still tries to cut
+    // is ignored; unaccounted() forces a corrective pass so every
+    // shortlisted piece lands in the capsule instead.
+    return { capsule, days, leftBehind: [] };
   }
 
   async function generate(correctiveNote) {
@@ -1016,8 +1023,8 @@ ${shortIdxs.length ? `Curate the shortlist — keep what earns its place, leave 
     return JSON.parse(r.text);
   }
 
-  // Shortlisted pieces the model neither kept nor cut — every shortlist
-  // piece must be accounted for (capsule or left_behind), never dropped.
+  // Shortlisted pieces missing from the capsule — every shortlist piece
+  // must be kept (Leave Behind is deprecated), never dropped.
   function unaccounted(capsule, leftBehind) {
     const seen = new Set([
       ...capsule.filter(it => it.wardrobe_match).map(it => String(it.wardrobe_match.id)),
@@ -1042,8 +1049,8 @@ ${shortIdxs.length ? `Curate the shortlist — keep what earns its place, leave 
       const note = capsule.length && (editOnly || days.length)
         ? `VALIDATION FAILURE ON YOUR LAST ATTEMPT — ${[
             under.length ? `these packed items were worn in fewer than 3 outfits: ${under.map(i => capsule[i].name).join(', ')}` : '',
-            missing.length ? `these shortlisted pieces were neither kept nor listed in left_behind: ${missing.map(i => closetItems[i].label).join(', ')}` : '',
-          ].filter(Boolean).join('; ')}. Rework the edit so every shortlisted piece is either kept or left behind with a reason${editOnly ? '' : ', and EVERY capsule item earns at least three wears'}.`
+            missing.length ? `these shortlisted pieces were missing from the capsule: ${missing.map(i => closetItems[i].label).join(', ')}` : '',
+          ].filter(Boolean).join('; ')}. Rework the edit so EVERY shortlisted piece is kept in the capsule${editOnly ? '' : ', and EVERY capsule item earns at least three wears'}.`
         : '';
       logAI({ feature: 'travel', stage: 'validate', retry: true, underused: under.length, unaccounted: missing.length, empty: !capsule.length || (!editOnly && !days.length) });
       try {
