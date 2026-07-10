@@ -3415,13 +3415,22 @@
 
       // Step 2 of the brief — the day planner (Trip > pick pieces > plan
       // days > outfits). She accepts, edits or clears each day BEFORE any
-      // looks are generated; a blank day means "Robes reads the trip".
+      // looks are generated; a blank day means "Robes reads the trip"; the
+      // "Leave free" toggle marks a day that needs NO looks (plan entry
+      // null). With {forTrip: true} the same modal plans outfits for an
+      // already-generated deferred trip (window.__lastTvData) instead of
+      // the brief in progress.
       let _tvPlanFocus = 0;
-      function _tvShowPlanModal() {
+      function _tvShowPlanModal(opts) {
         document.getElementById('tv-plan-modal')?.remove();
-        const st = _tvBrief || {};
+        const forTrip = !!(opts && opts.forTrip);
+        const data = forTrip ? window.__lastTvData : null;
+        if (forTrip && !data) return;
+        const st = forTrip ? { dateFrom: data.dateFrom, dateTo: data.dateTo } : (_tvBrief || {});
         const { n, from } = _tvTripDays(st);
-        const plan = Array.isArray(st.plan) ? st.plan : [];
+        const plan = forTrip
+          ? (Array.isArray(data.trip_day_plan) ? data.trip_day_plan : [])
+          : (Array.isArray(st.plan) ? st.plan : []);
         _tvPlanFocus = 0;
         const serif = "'Cormorant',Georgia,serif";
         const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:10px 12px;font-size:13px;color:#202021;background:#fff;outline:none;font-family:inherit';
@@ -3433,15 +3442,24 @@
           const d = new Date(from.getTime() + i * 86400000);
           return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
         };
-        const rows = Array.from({ length: n }, (_, i) => `
-          <div style="display:flex;flex-direction:column;gap:5px">
-            <label for="tv-plan-${i}" style="display:flex;align-items:baseline;gap:8px"><span style="font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#202021">Day ${i + 1}</span>${fmtDay(i) ? `<span style="font-size:10px;color:#A89880">${_waEsc(fmtDay(i))}</span>` : ''}</label>
-            <input id="tv-plan-${i}" value="${_waEsc(plan[i] || '')}" placeholder="${_waEsc(ph(i))}" onfocus="window.__tvPlanFocusSet(${i})" style="${inputCss}">
-          </div>`).join('');
+        const rows = Array.from({ length: n }, (_, i) => {
+          const free = plan[i] === null;
+          return `
+          <div id="tv-plan-row-${i}" data-free="${free ? '1' : ''}">
+            <label for="tv-plan-${i}" style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px">
+              <span style="font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#202021">Day ${i + 1}</span>
+              ${fmtDay(i) ? `<span style="font-size:10px;color:#A89880">${_waEsc(fmtDay(i))}</span>` : ''}
+              <button type="button" id="tv-plan-freebtn-${i}" onclick="window.__tvPlanFree(${i})" style="margin-left:auto;padding:3px 10px;border:0.5px solid ${free ? '#202021' : 'rgba(32,32,33,0.16)'};border-radius:40px;background:${free ? '#202021' : '#fff'};color:${free ? '#fff' : '#A89880'};font-size:9px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">${free ? '✓ Left free' : 'Leave free'}</button>
+            </label>
+            <input id="tv-plan-${i}" value="${_waEsc(free ? '' : (plan[i] || ''))}"${free ? ' disabled' : ''} placeholder="${_waEsc(free ? 'Left free — no outfits this day' : ph(i))}" onfocus="window.__tvPlanFocusSet(${i})" style="${inputCss}${free ? ';opacity:.5;background:#F0EDE8' : ''}" data-ph="${_waEsc(ph(i))}">
+          </div>`;
+        }).join('');
         const chips = ['Beach club', 'Dressy dinner', 'Boat day', 'City wandering', 'Formal wedding', 'Active / hiking', 'Big night out'];
         const chipsHtml = chips.map(c =>
           `<button onclick="window.__tvPlanChip('${_waEsc(c)}')" style="padding:6px 13px;border:0.5px solid rgba(32,32,33,0.16);border-radius:40px;background:#fff;font-size:11px;cursor:pointer;color:#202021;font-family:inherit;white-space:nowrap">${_waEsc(c)}</button>`
         ).join('');
+        const go = forTrip ? 'window.__tvOutfitsGo()' : 'window.__tvPlanGo()';
+        const goSkip = forTrip ? 'window.__tvOutfitsGo(true)' : 'window.__tvPlanGo(true)';
         const modal = document.createElement('div');
         modal.id = 'tv-plan-modal';
         modal.className = 'tv-sheet-wrap';
@@ -3450,33 +3468,61 @@
         modal.innerHTML = `
           <div class="tv-sheet" style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:86vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 24px 28px">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
-              <button onclick="window.__tvPlanBack()" style="background:none;border:none;cursor:pointer;padding:0;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;font-family:inherit">← Your pieces</button>
+              ${forTrip
+                ? `<p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">${_waEsc(data.destination || 'Your trip')}</p>`
+                : `<button onclick="window.__tvPlanBack()" style="background:none;border:none;cursor:pointer;padding:0;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;font-family:inherit">← Your pieces</button>`}
               <button onclick="document.getElementById('tv-plan-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
             </div>
             <p style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin:8px 0 4px;line-height:1.15">What’s the plan, day by day?</p>
-            <p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 18px">Every outfit gets built around what you’re actually doing. Leave a day blank and Robes reads the trip for you.</p>
+            <p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 18px">Every outfit gets built around what you’re actually doing. Leave a day blank and Robes reads the trip; “Leave free” means no outfits that day.</p>
             <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:14px">${rows}</div>
             <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 16px">${chipsHtml}</div>
-            <button onclick="window.__tvPlanGo()" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Create my outfits · ${n} day${n > 1 ? 's' : ''} →</button>
-            <button onclick="window.__tvPlanGo(true)" style="display:block;margin:12px auto 0;background:none;border:none;padding:4px;cursor:pointer;font-size:11px;color:#A89880;text-decoration:underline;text-underline-offset:3px;font-family:inherit">Skip — let Robes plan the days</button>
+            <button onclick="${go}" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Create my outfits · ${n} day${n > 1 ? 's' : ''} →</button>
+            ${forTrip ? '' : `<button onclick="window.__tvPlanGo('defer')" style="width:100%;margin-top:9px;padding:13px 24px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#fff;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">Still gathering pieces? Get the edit first →</button>`}
+            <button onclick="${goSkip}" style="display:block;margin:12px auto 0;background:none;border:none;padding:4px;cursor:pointer;font-size:11px;color:#A89880;text-decoration:underline;text-underline-offset:3px;font-family:inherit">Skip — let Robes plan the days</button>
           </div>`;
         document.body.appendChild(modal);
-        setTimeout(() => { const el = document.getElementById('tv-plan-0'); if (el) el.focus(); }, 60);
+        setTimeout(() => { const el = document.getElementById('tv-plan-0'); if (el && !el.disabled) el.focus(); }, 60);
       }
 
       window.__tvPlanFocusSet = function(i) { _tvPlanFocus = i; };
       window.__tvPlanChip = function(text) {
         const el = document.getElementById('tv-plan-' + _tvPlanFocus);
-        if (el) { el.value = text; el.focus(); }
+        if (el && !el.disabled) { el.value = text; el.focus(); }
       };
-      function _tvPlanCapture() {
-        const st = _tvBrief || {};
-        const { n } = _tvTripDays(st);
+      // "Leave free" toggle — a deliberately blank diary day (plan = null):
+      // no outfits get generated for it, distinct from blank = Robes plans.
+      window.__tvPlanFree = function(i) {
+        const row = document.getElementById('tv-plan-row-' + i);
+        const el = document.getElementById('tv-plan-' + i);
+        const btn = document.getElementById('tv-plan-freebtn-' + i);
+        if (!row || !el || !btn) return;
+        const free = row.dataset.free !== '1';
+        row.dataset.free = free ? '1' : '';
+        el.disabled = free;
+        if (free) el.value = '';
+        el.placeholder = free ? 'Left free — no outfits this day' : (el.dataset.ph || '');
+        el.style.opacity = free ? '.5' : '';
+        el.style.background = free ? '#F0EDE8' : '#fff';
+        btn.textContent = free ? '✓ Left free' : 'Leave free';
+        btn.style.background = free ? '#202021' : '#fff';
+        btn.style.color = free ? '#fff' : '#A89880';
+        btn.style.borderColor = free ? '#202021' : 'rgba(32,32,33,0.16)';
+      };
+      // Reads the modal into a plan array: string = her plan, '' = Robes
+      // plans the day, null = deliberately left free.
+      function _tvPlanRead(n) {
         const plan = [];
         for (let i = 0; i < n; i++) {
+          const row = document.getElementById('tv-plan-row-' + i);
           const el = document.getElementById('tv-plan-' + i);
-          plan.push(((el && el.value) || '').trim().slice(0, 140));
+          plan.push(row && row.dataset.free === '1' ? null : ((el && el.value) || '').trim().slice(0, 140));
         }
+        return plan;
+      }
+      function _tvPlanCapture() {
+        const st = _tvBrief || {};
+        const plan = _tvPlanRead(_tvTripDays(st).n);
         if (_tvBrief) _tvBrief.plan = plan;
         return plan;
       }
@@ -3485,13 +3531,15 @@
         document.getElementById('tv-plan-modal')?.remove();
         window.__tvOpen({ restore: true });
       };
-      window.__tvPlanGo = function(skip) {
+      window.__tvPlanGo = function(mode) {
+        const skip = mode === true;
         const plan = skip ? [] : _tvPlanCapture();
         document.getElementById('tv-plan-modal')?.remove();
-        _tvGenerate(plan.some(Boolean) ? plan : []);
+        const send = plan.some(p => p === null || p) ? plan : [];
+        _tvGenerate(send, mode === 'defer');
       };
 
-      async function _tvGenerate(dayPlan) {
+      async function _tvGenerate(dayPlan, editOnly) {
         const st = _tvBrief || {};
         const dest = st.dest || '';
         const shortlistIds = st.anchors || [];
@@ -3538,6 +3586,7 @@
               brief,
               shortlistIds,
               dayPlan,
+              editOnly: !!editOnly,
               name,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
@@ -3549,6 +3598,9 @@
           const data = await res.json();
           data.brief = brief;
           data.shortlist_size = shortlistIds.length; // gates the Leave-behind section (15+)
+          // A deferred trip keeps her typed plan so the later outfit
+          // planner can prefill it.
+          if (editOnly && Array.isArray(dayPlan) && dayPlan.length) data.trip_day_plan = dayPlan;
           _tvBrief = null;
           window.__tvRenderResult(data);
         } catch (err) {
@@ -3789,7 +3841,9 @@ body>*:not(#tv-result-page){display:none !important}
         if (_tvActiveDay >= data.days.length) _tvActiveDay = 0;
         const d = data.days[_tvActiveDay];
         const slots = (d && d.slots) || [];
-        if (!slots.length) return null;
+        // s is null for a deliberately free day — the console renders its
+        // rest state instead of a look.
+        if (!slots.length) return { data, d, slots, s: null };
         if (_tvActiveOcc >= slots.length) _tvActiveOcc = 0;
         return { data, d, slots, s: slots[_tvActiveOcc] };
       }
@@ -3830,7 +3884,7 @@ body>*:not(#tv-result-page){display:none !important}
           return `<button class="tvm-day${di === _tvActiveDay ? ' active' : ''}" onclick="window.__tvSelectDay(${di})">
             <span class="dtop"><span class="ddow">${_waEsc(dayName)}</span><span class="dst${allPacked ? ' done' : ''}"></span></span>
             <span class="dev">${_waEsc(event)}</span>
-            <span class="dmeta">${slots.length} look${slots.length > 1 ? 's' : ''}${d.user_activity ? ' · your plan' : ''}</span>
+            <span class="dmeta">${slots.length ? slots.length + ' look' + (slots.length > 1 ? 's' : '') + (d.user_activity ? ' · your plan' : '') : 'left free'}</span>
             <span class="dth">${thumbs}</span>
           </button>`;
         }).join('');
@@ -3847,6 +3901,31 @@ body>*:not(#tv-result-page){display:none !important}
         const hexOk = h => typeof h === 'string' && /^#[0-9A-Fa-f]{6}$/.test(h);
         const palette = (Array.isArray(data.palette) ? data.palette : []).filter(hexOk).slice(0, 3);
         const dayName = ((d.day_label || 'Day ' + (_tvActiveDay + 1)).split('·')[0] || '').trim();
+
+        // A deliberately free day — no look to read, just the rest state
+        // and the door back in (✎ dresses it via the reactive restyle).
+        if (!s) {
+          panel.innerHTML = `
+            <div class="tvm-panel">
+              <div class="tvm-lhead">
+                <span class="lab">The look · ${_waEsc(dayName)}</span>
+                <span class="robes">Robes</span>
+              </div>
+              <div class="tvm-quote">“A day off the lookbook — nothing to plan, nothing to pack.”</div>
+              <p style="font-size:12.5px;line-height:1.6;color:var(--ink-faint);margin:0">You left this day free. If plans appear, tell Robes and it dresses the day from the capsule you’ve already packed.</p>
+            </div>`;
+          rackWrap.innerHTML = `
+            <div class="tvm-rackhead">
+              <div style="min-width:0">
+                <span class="ey">The rack · ${_waEsc(dayName)}</span>
+                <h2>Left free.</h2>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="tvm-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Give this day a plan after all">✎ Dress this day</button>
+              </div>
+            </div>`;
+          return;
+        }
         const entries = (s.formula || []).map(f => ({ f, it: data.capsule[f.item_index], ci: f.item_index })).filter(x => x.it);
         const ownedN = entries.filter(x => x.it.wardrobe_match).length;
 
@@ -3999,7 +4078,7 @@ body>*:not(#tv-result-page){display:none !important}
       // Pack every capsule piece this look uses
       window.__tvPackLook = function() {
         const st = _tvLookState();
-        if (!st) return;
+        if (!st || !st.s) return;
         let changed = 0;
         (st.s.formula || []).forEach(f => {
           const it = st.data.capsule[f.item_index];
@@ -4045,10 +4124,13 @@ body>*:not(#tv-result-page){display:none !important}
       }
 
       window.__tvRenderResult = function(data, opts) {
-        if (!data || !Array.isArray(data.capsule) || !data.capsule.length || !Array.isArray(data.days) || !data.days.length) {
+        // days may be legitimately empty — a deferred trip (edit first,
+        // outfits planned later, as she packs).
+        if (!data || !Array.isArray(data.capsule) || !data.capsule.length || !Array.isArray(data.days)) {
           _waShowToast('Could not build this trip — please try again');
           return;
         }
+        const deferred = !data.days.length;
         _tvStopPolling();
         _tvSelected = null;
         window.__lastTvData = data;
@@ -4192,7 +4274,7 @@ body>*:not(#tv-result-page){display:none !important}
               <div class="tvm-progress">
                 <span class="tvm-mpcount"><b id="tv-mp-n">0</b><span class="of"> / ${total} packed</span></span>
                 <div class="tvm-mpbar"><span id="tv-mp-fill"></span></div>
-                <span class="tvm-mplab">${total} pieces · ${lookCount} looks</span>
+                <span class="tvm-mplab">${total} pieces · ${deferred ? 'outfits to plan' : lookCount + ' looks'}</span>
               </div>
             </header>
             <div class="tvm-meta-row">
@@ -4209,7 +4291,7 @@ body>*:not(#tv-result-page){display:none !important}
               </button>
               <button class="tvm-tab" id="tv-tab-outfits" onclick="window.__tvSetTab('outfits')">
                 <span class="tt">02 · Outfits</span>
-                <span class="ts">Day by day · ${data.days.length} days · ${lookCount} looks</span>
+                <span class="ts">${deferred ? 'Not planned yet — plan as you pack' : `Day by day · ${data.days.length} days · ${lookCount} looks`}</span>
               </button>
             </div>
 
@@ -4218,12 +4300,20 @@ body>*:not(#tv-result-page){display:none !important}
               <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:8px;line-height:1.5">${_waEsc(data.stylist_summary || '')}${data.suitcase_note ? ` <span style="font-style:italic">${_waEsc(data.suitcase_note)}</span>` : ''}</div>
               <div id="tv-matrix-note" style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-bottom:18px;min-height:18px">Tap any piece to see how it multiplies across the trip.</div>
               ${tiersHtml}
+              <button class="tv-noprint" onclick="window.__tvAddPieceToTrip()" style="width:100%;max-width:640px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--rule-mid);border-radius:var(--rad);padding:13px;font-size:12px;letter-spacing:.02em;background:transparent;color:var(--ink-soft);cursor:pointer;font-family:inherit;margin-bottom:16px"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece to this trip</button>
               <div class="tv-noprint" style="margin:4px 0 10px">
-                <button class="tvm-crosscta" onclick="window.__tvSetTab('outfits')">See your outfits, day by day →</button>
+                <button class="tvm-crosscta" onclick="${deferred ? 'window.__tvPlanOutfits()' : `window.__tvSetTab('outfits')`}">${deferred ? 'Plan your outfits, day by day →' : 'See your outfits, day by day →'}</button>
               </div>
             </div>
 
             <div id="tv-pane-outfits" style="display:none">
+              ${deferred ? `
+              <div class="tv-noprint" style="padding:38px 26px;background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);text-align:center;max-width:640px">
+                <div style="font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose);margin-bottom:10px">Outfits</div>
+                <div style="font-family:${serif};font-size:24px;font-weight:300;font-style:italic;color:var(--ink);line-height:1.2;margin-bottom:8px">Plan the days when you’re ready.</div>
+                <p style="font-size:13px;line-height:1.65;color:var(--ink-faint);margin:0 0 20px">Your edit is saved — keep gathering and swapping pieces as the trip takes shape. When it’s time to pack, Robes dresses every day from exactly what you’re bringing.</p>
+                <button class="tvm-crosscta" onclick="window.__tvPlanOutfits()">Plan my days →</button>
+              </div>` : `
               <div class="tvm-weekhead">
                 <h2>The ${data.days.length > 6 ? 'trip' : 'week'}${wx && wx.city ? ' in ' + _waEsc(wx.city) : (data.destination ? ' in ' + _waEsc(data.destination) : '')}</h2>
                 <span class="hint">Tap a day — the console reads its look, piece by piece.</span>
@@ -4232,7 +4322,7 @@ body>*:not(#tv-result-page){display:none !important}
               <div class="tvm-console">
                 <div class="tvm-look" id="tv-look-panel"></div>
                 <div id="tv-rackwrap"></div>
-              </div>
+              </div>`}
             </div>
 
             <div class="tv-noprint" style="margin-top:42px;padding:28px 24px;background:var(--cream-100);border:0.5px solid var(--rule);border-radius:var(--rad-lg);text-align:center">
@@ -4256,7 +4346,7 @@ body>*:not(#tv-result-page){display:none !important}
             <div class="tvm-payoff-in">
               <div class="tvm-pmeta">
                 <span class="t">The ${_waEsc((wx && wx.city) || data.destination || 'travel')} capsule</span>
-                <span class="s"><b id="tv-pm-count">0 of ${total}</b> packed · ${total} pieces, ${lookCount} looks</span>
+                <span class="s"><b id="tv-pm-count">0 of ${total}</b> packed · ${total} pieces${deferred ? ' · outfits to plan' : ', ' + lookCount + ' looks'}</span>
               </div>
               <div class="tvm-pbtns">
                 <button class="tvm-pbtn" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg><span>Share</span></button>
@@ -4327,8 +4417,108 @@ body>*:not(#tv-result-page){display:none !important}
         const savedId = _tvActiveSaveId;
         if (!savedId || !window.__lastTvData) return;
         const saved = snLoad().find(x => x.id === savedId);
-        if (saved) snUpdate(savedId, { tvData: { ...(saved.tvData || {}), capsule: window.__lastTvData.capsule, days: window.__lastTvData.days } });
+        if (saved) snUpdate(savedId, { tvData: {
+          ...(saved.tvData || {}),
+          capsule: window.__lastTvData.capsule,
+          days: window.__lastTvData.days,
+          outfits_deferred: !(window.__lastTvData.days || []).length,
+          trip_day_plan: window.__lastTvData.trip_day_plan || null,
+        } });
       }
+
+      // Deferred outfit planning — she took the packing edit first, gathered
+      // pieces over days, and now dresses the whole trip from the capsule as
+      // it stands (packed ticks, swaps and added pieces intact).
+      window.__tvPlanOutfits = function() { _tvShowPlanModal({ forTrip: true }); };
+
+      window.__tvOutfitsGo = async function(skip) {
+        const data = window.__lastTvData;
+        if (!data || !Array.isArray(data.capsule) || !data.capsule.length) return;
+        const n = _tvTripDays({ dateFrom: data.dateFrom, dateTo: data.dateTo }).n;
+        const plan = skip ? [] : _tvPlanRead(n);
+        document.getElementById('tv-plan-modal')?.remove();
+        const send = plan.some(p => p === null || p) ? plan : [];
+        let overlay = document.getElementById('kp-loading-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'kp-loading-overlay';
+          overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
+          overlay.innerHTML = `
+            <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
+            <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg"></div>
+            <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
+              <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
+            </div>`;
+          const ks = document.createElement('style');
+          ks.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}';
+          document.head.appendChild(ks);
+          document.body.appendChild(overlay);
+        }
+        const loadTitle = document.getElementById('kp-load-title');
+        if (loadTitle) loadTitle.innerHTML = 'Dressing your days in<br><em>' + _waEsc(data.destination || 'the trip') + '…</em>';
+        const msgEl = document.getElementById('kp-load-msg');
+        if (msgEl) msgEl.textContent = 'Mapping every look, day by evening…';
+        overlay.style.display = 'flex';
+        try {
+          const res = await fetch('/api/travel/outfits', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              destination: data.destination || '',
+              brief: data.brief || '',
+              dateFrom: data.dateFrom || '',
+              dateTo: data.dateTo || '',
+              dayPlan: send,
+              weather: data.weather || null,
+              name,
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
+              capsule: data.capsule.map(c => ({ name: c.name, category: c.category, brand: c.brand, tier: c.tier, owned: !!c.wardrobe_match })),
+            }),
+          });
+          overlay.style.display = 'none';
+          if (!res.ok) throw new Error(await res.text());
+          const out = await res.json();
+          if (!Array.isArray(out.days) || !out.days.length) throw new Error('empty days');
+          data.days = out.days;
+          data.outfits_deferred = false;
+          data.trip_day_plan = undefined;
+          _tvActiveTab = 'outfits';
+          _tvActiveDay = 0;
+          _tvActiveOcc = 0;
+          window.__tvRenderResult(data, { skipSave: true, savedId: _tvActiveSaveId });
+          _tvPatchSaved();
+          _waShowToast('Your days are dressed — every look from what you’re packing');
+        } catch (e) {
+          overlay.style.display = 'none';
+          console.error('[Robes] /api/travel/outfits error:', e.message);
+          _waShowToast('Couldn’t plan the outfits — please try again');
+        }
+      };
+
+      // "+ Add a piece to this trip" — the gather-over-days loop: the
+      // wardrobe add flow runs over the result page and the fresh piece
+      // joins the capsule as a kept, owned piece.
+      window.__tvAddPieceToTrip = function() {
+        _waEditId = null;
+        _waAfterAdd = function(newId) {
+          const wi = _waItems.find(i => String(i.id) === String(newId));
+          const data = window.__lastTvData;
+          if (!wi || !data || !Array.isArray(data.capsule)) return;
+          data.capsule.push({
+            name: wi.label, category: wi.category || 'Other', brand: wi.brand || '',
+            tier: 'Foundations & Tailoring', description: '', reason: 'Added by you.',
+            wardrobe_index: -1, retailer_hint: '', price_point: '',
+            wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
+          });
+          const savedId = _tvActiveSaveId;
+          const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
+          window.__tvRenderResult(data, { skipSave: true, savedId });
+          if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
+          _tvPatchSaved();
+          _waShowToast(wi.label + ' added to the trip');
+        };
+        if (window.WA && WA.open) WA.open();
+      };
 
       // ── Reactive day restyle (growth PRD — Reactive Personalization) ──
       // The LLM-guessed itinerary is only the baseline: tapping a day's
