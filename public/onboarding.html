@@ -368,11 +368,15 @@
     'Carolina Herrera', 'Grace Kelly', 'Lee Radziwill',
   ];
 
-  const STEPS = ['icons', 'colour', 'silhouette', 'keypiece'];
+  // Silhouette deliberately lives OUTSIDE onboarding (Style Notes carries
+  // it): asking for a full-length body photo minutes into the first session
+  // was the likeliest bail point. Colour stays because it lands before the
+  // first piece and feeds the styling prefire's DNA.
+  const STEPS = ['icons', 'colour', 'keypiece'];
 
   const st = {
     uid: null,
-    stage: 'splash',       // 'splash' | 'intro' | 'name' | 0..3 | 'done'
+    stage: 'splash',       // 'splash' | 'intro' | 'name' | 0..2 | 'done'
     name: '',
     savedName: '',
     icons: [],
@@ -480,9 +484,9 @@
         <header class="ob-top">
           <button class="ob-back" id="ob-back"><span class="ob-arrow">←</span> <span>Back</span></button>
           <div class="ob-step">${cfg.step}</div>
-          <div class="ob-count">0${i + 1} / 04</div>
+          <div class="ob-count">0${i + 1} / 0${STEPS.length}</div>
         </header>
-        <div class="ob-progress"><div class="ob-progress-fill" style="width:${(i + 1) / 4 * 100}%"></div></div>
+        <div class="ob-progress"><div class="ob-progress-fill" style="width:${(i + 1) / STEPS.length * 100}%"></div></div>
         <main class="ob-body">
           <div class="ob-eyebrow">${cfg.eyebrow}</div>
           <h1 class="ob-title">${cfg.title}</h1>
@@ -510,16 +514,6 @@
       rejectMsg: 'Robes couldn’t find a face in that photo — try a clearer close-up.',
       readout: ['Season', 'Undertone', 'Contrast', 'Your eighteen shades'],
       guide: 'Best in soft daylight, facing a window. No filters, no direct sun, no coloured lighting. Only Robes reads this photo — it’s never shown anywhere, and you can always do this later from your Style Notes.',
-    });
-    if (i === 2) return renderPhotoStep(i, {
-      step: 'Step 03 · Silhouette', eyebrow: 'Silhouette &amp; proportions',
-      title: 'Silhouette<br><em>&amp; proportions.</em>',
-      sub: 'Upload a full-length photo and Robes reads your line — your body type, the cuts that flatter and the moves that always work on you.',
-      label: 'Your full-length photo', kind: 'silhouette', state: st.sil,
-      busyMsg: 'Reading your line…',
-      rejectMsg: 'Robes couldn’t read a full-length figure — try a head-to-toe photo.',
-      readout: ['Body line', 'Cuts that flatter', 'Signature moves'],
-      guide: 'Straight-on, head to toe. Fitted clothing reads best — oversized pieces hide your line. Only Robes reads this photo — it’s never shown anywhere, and you can always do this later from your Style Notes.',
     });
     return renderKeyPiece(i);
   }
@@ -876,7 +870,7 @@
   function renderKeyPiece(i) {
     const P = st.piece;
     stepChrome(i, {
-      step: 'Step 04 · First piece', eyebrow: 'Your wardrobe',
+      step: 'Step 03 · First piece', eyebrow: 'Your wardrobe',
       title: 'Add your first<br><em>key piece.</em>',
       sub: 'Show Robes one piece you love and it starts styling it before you even reach your dashboard — the label, brand, colour and cut all read from a single photo.',
       continueLabel: P.tag ? 'Continue to your dashboard' : 'Style my first piece',
@@ -1231,7 +1225,7 @@
         <p style="margin:18px 0 0;font-size:12px;letter-spacing:0.02em;color:rgba(243,239,230,0.55);line-height:1.6;">${/iPhone|iPad|iPod/.test(navigator.userAgent)
           ? 'Keep Robes close — tap <span style="color:rgba(243,239,230,0.85)">Share</span> then <span style="color:rgba(243,239,230,0.85)">Add&nbsp;to&nbsp;Home&nbsp;Screen</span>.'
           : 'Keep Robes close — add it to your Home Screen.'}</p>
-        <div class="done-dots">${'<span class="done-dot on"></span>'.repeat(4)}</div>
+        <div class="done-dots">${'<span class="done-dot on"></span>'.repeat(STEPS.length)}</div>
       </div></div>`;
     const enter = document.getElementById('ob-enter');
     enter.onclick = () => { window.location.href = '/dashboard'; };

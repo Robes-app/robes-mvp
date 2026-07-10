@@ -6545,6 +6545,44 @@ body>*:not(#tv-result-page){display:none !important}
       // local-only entries from before the migration).
       _lbCloudPull();
 
+      // ── Silhouette completion prompt ─────────────────────────────────────
+      // Onboarding deliberately no longer asks for a full-length body photo;
+      // this quiet below-the-fold card invites her to finish that chapter in
+      // Style Notes on her own time. Gated on style_dna (already in the boot
+      // select) and dismissible per user. Delayed past _rbApplyLayout (900ms)
+      // so the section reshuffle can't displace it.
+      setTimeout(function _rbSilPrompt() {
+        try {
+          const prof = window.__robes_profile || {};
+          const dna = prof.style_dna || {};
+          if (dna.silhouette_proportions) return;
+          const uid = prof.id || _waUid() || '';
+          if (!uid) return;
+          if (localStorage.getItem('rb_sil_prompt_off__' + uid)) return;
+          if (document.getElementById('rb-sil-prompt')) return;
+          const grid = document.querySelector('.services-grid');
+          if (!grid) return;
+          const host = grid.closest('section') || grid;
+          const card = document.createElement('section');
+          card.id = 'rb-sil-prompt';
+          card.style.cssText = 'max-width:1140px;margin:26px auto;padding:20px 24px;background:#FDFCFA;border:1px solid #E7E0CF;border-radius:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:relative';
+          card.innerHTML =
+            '<div style="flex:1;min-width:230px">' +
+              '<div style="font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#A89880;margin-bottom:6px">Style notes · one chapter left</div>' +
+              '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:21px;font-weight:400;color:#202021;margin-bottom:4px">Your silhouette, <em style="font-style:italic">whenever suits.</em></div>' +
+              '<div style="font-size:13px;color:#9A8E82;line-height:1.55">One full-length photo teaches Robes your line — the cuts that flatter, woven into every look it builds. Two minutes, only ever seen by Robes.</div>' +
+            '</div>' +
+            '<button id="rb-sil-go" style="flex-shrink:0;background:#202021;color:#F8F5F0;border:none;border-radius:100px;padding:11px 22px;font-size:13px;letter-spacing:.03em;cursor:pointer;font-family:inherit">Complete my silhouette →</button>' +
+            '<button id="rb-sil-x" aria-label="Not now" style="position:absolute;top:10px;right:14px;background:none;border:none;cursor:pointer;color:#B0A090;font-size:16px;line-height:1;padding:4px">×</button>';
+          host.parentNode.insertBefore(card, host);
+          card.querySelector('#rb-sil-go').onclick = function() { window.location.href = '/stylenotes#silhouette'; };
+          card.querySelector('#rb-sil-x').onclick = function() {
+            try { localStorage.setItem('rb_sil_prompt_off__' + uid, '1'); } catch (e) {}
+            card.remove();
+          };
+        } catch (e) { console.warn('[robes] silhouette prompt:', e); }
+      }, 1200);
+
       // ── Onboarding handoff — "Your piece, styled" as an inline card ─────
       // /onboarding step 04 stores {prompt, photo} then lands here. The
       // wardrobe-first PRD relocated the wow moment: no full-screen overlay,

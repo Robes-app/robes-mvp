@@ -1083,7 +1083,7 @@
 
     async function init() {
       const { data: { session } } = await sbClient.auth.getSession();
-      if (!session) { window.location.href = '/signup.html'; return; }
+      if (!session) { window.location.href = '/signup.html?mode=signin'; return; }
       st.uid = session.user.id;
 
       const { data: profile, error } = await sbClient
@@ -1177,6 +1177,12 @@
 
     renderAll();
     init();
+    // Deep link: /stylenotes#silhouette (dashboard's "complete your
+    // silhouette" prompt) or #taste land on the right chapter.
+    (function() {
+      const tab = (window.location.hash || '').replace('#', '');
+      if (tab === 'silhouette' || tab === 'taste') setTab(tab);
+    })();
   </script>
 
 </body>
