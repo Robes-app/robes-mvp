@@ -814,7 +814,7 @@ function travelUnderusedItems(capsule, days) {
 }
 
 app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
-  const { destination, dateFrom, dateTo, brief, name, styleDna, styleIcons, wardrobeItems, shortlistIds, anchorIds } = req.body;
+  const { destination, dateFrom, dateTo, brief, name, styleDna, styleIcons, wardrobeItems, shortlistIds, anchorIds, dayPlan } = req.body;
   if (!destination || !String(destination).trim()) {
     return res.status(400).json({ error: 'Tell us where you’re going first.' });
   }
@@ -841,6 +841,19 @@ app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
   const monthName = validDates ? from.toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' }) : '';
 
   const weather = validDates ? await fetchTripWeather(dest, String(dateFrom), String(dateTo)) : await fetchTripWeather(dest, '', '');
+
+  // The user's own day plan (Trip > pick pieces > plan days > outfits) —
+  // one string per trip day, '' for days she left to Robes. Authoritative:
+  // a planned day is dressed for exactly that plan, never a guessed one.
+  const planDays = (Array.isArray(dayPlan) ? dayPlan : [])
+    .slice(0, tripDays)
+    .map(s => String(s || '').trim().slice(0, 140));
+  const hasPlan = planDays.some(Boolean);
+  const planDate = i => validDates ? fmt(new Date(from.getTime() + i * 86400000)) : '';
+  const planBlock = hasPlan
+    ? `THE USER'S OWN ITINERARY — she has told you her real plans. This is AUTHORITATIVE: dress each planned day for EXACTLY what she is doing (both slots answer to it — the Day slot dresses the plan itself, the Evening slot its natural evening). Never invent a different agenda for a planned day. For a planned day, "day_label" is "Day N · {2–4 word title of her plan}".
+${planDays.map((p, i) => `Day ${i + 1}${planDate(i) ? ' (' + planDate(i) + ')' : ''}: ${p || '(no plan given — infer a plausible day from the brief and destination)'}`).join('\n')}`
+    : '';
 
   const closetBlock = n
     ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by wardrobe_index):\n${closetItems.map((i, idx) =>
@@ -877,9 +890,9 @@ THE PILLARS — all four are hard constraints:
 3. THE 4-STEP DRESSING FORMULA. Every outfit's "formula" is built ONLY from capsule items referenced by "item_index" (0-based index into the capsule array — never invent an item that isn't packed): "The Anchor" ×1 (the context-driven hero), "The Canvas" ×1–2 (the grounding basics), "The Texture" ×1 (the tactile dimension layer), "The Exclamation Point" ×1–2 (footwear/hardware that finish it). Swim or sleep-adjacent looks may drop to 3 entries, never fewer. Each entry's "note" says how that piece is worn in THIS look.
 4. CONTEXT ENGINEERING. Ingest three vectors at once: the Location Vibe (name it in "location_vibe", e.g. "Refined Mediterranean Minimalism"), the Micro-Climate provided, and the client's proportional architecture / style DNA below. Everything packed answers to all three.
 
-THE LOOKBOOK: exactly ${tripDays} entries in "days" — one per trip day, "day_label" like "Day 1 · Arrival"${dateLine ? ` (the trip runs ${dateLine})` : ''}. Each day has exactly 2 slots: "Day" and "Evening", mapped to a plausible itinerary drawn from the brief. Each slot: "title" (3–6 words naming the scene), "how" (ONE hyper-specific styling sentence — the anti-generic constraint applies), and the "formula".
+THE LOOKBOOK: exactly ${tripDays} entries in "days" — one per trip day, "day_label" like "Day 1 · Arrival"${dateLine ? ` (the trip runs ${dateLine})` : ''}. Each day has exactly 2 slots: "Day" and "Evening", ${hasPlan ? 'mapped to the user\'s own itinerary below' : 'mapped to a plausible itinerary drawn from the brief'}. Each slot: "title" (3–6 words naming the scene), "how" (ONE hyper-specific styling sentence — the anti-generic constraint applies), and the "formula".
 
-${stateDirective}
+${planBlock ? planBlock + '\n\n' : ''}${stateDirective}
 
 FIELD RULES:
 - "trip_label": destination + month, ALL CAPS (e.g. "IBIZA · JULY").
@@ -1017,6 +1030,10 @@ ${shortIdxs.length ? `Curate the shortlist — keep what earns its place, leave 
       } catch { /* keep first attempt */ }
     }
     if (!capsule.length || !days.length) throw new Error('empty travel edit');
+
+    // A planned day carries the user's own words — the client shows
+    // "· your plan" on its strip card and prefills the day-edit modal.
+    days.forEach((d, i) => { if (planDays[i]) d.user_activity = planDays[i]; });
 
     // Image frames: 0 = the hero editorial shot; then a still-life per
     // capsule item that has no wardrobe photo (owned photos are truthful
