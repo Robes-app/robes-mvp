@@ -149,7 +149,7 @@
     .tier-row { display: flex; align-items: center; justify-content: space-between; padding: 17px 22px; border-radius: 8px; border: 1px solid #E7E0CF; background: transparent; cursor: pointer; transition: all 0.2s; }
     .tier-row.on { border-color: #C9BCA6; background: #F3EFE6; }
     .tier-name { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 21px; color: #202021; }
-    .tier-brands { font: 300 11.5px/1 'Inter'; letter-spacing: 0.02em; color: #A89880; margin-top: 6px; }
+    .tier-brands { font: 400 12.5px/1.45 'Inter'; color: #6E6354; margin-top: 6px; }
     .tier-price { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 19px; color: #A89880; }
     .tier-row.on .tier-price { color: #202021; }
     .radio { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; border: 1px solid #D8CFC0; background: #FAF8F5; flex: none; }
@@ -166,10 +166,19 @@
     .spend-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; border-radius: 8px; border: 1px solid #E7E0CF; background: transparent; cursor: pointer; transition: all 0.2s; }
     .spend-row.on { border-color: #C9BCA6; background: #F3EFE6; }
     .spend-label { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 19px; color: #202021; }
-    .spend-note { font: 300 11px/1 'Inter'; letter-spacing: 0.04em; color: #C4B8A4; }
-    .spend-row.on .spend-note { color: #A89880; }
+    .spend-note { font: 400 12.5px/1.3 'Inter'; color: #6E6354; }
+    .spend-row.on .spend-note { color: #3A352F; }
 
     .check-circle { display: inline-flex; align-items: center; justify-content: center; width: 19px; height: 19px; border: 1px solid #D8CFC0; border-radius: 50%; margin-top: 9px; }
+
+    /* Silhouette text recommendations (no imagery) */
+    .rec-card { border: 1px solid #E7E0CF; border-radius: 10px; padding: 20px 22px; background: #FFFDF9; }
+    .rec-name { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 21px; color: #202021; }
+    .rec-note { font: 300 13.5px/1.6 'Inter'; color: #6E6354; margin-top: 8px; }
+    .rec-pill { display: inline-flex; align-items: center; padding: 11px 18px; border: 1px solid #E0D8C8; border-radius: 100px; background: #F3EFE6; font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 17px; color: #202021; }
+    .rec-tip { display: flex; align-items: flex-start; gap: 13px; padding: 15px 0; border-bottom: 1px solid #E7E0CF; }
+    .rec-tip-check { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 1px solid #D8CFC0; border-radius: 50%; flex: none; margin-top: 1px; }
+    .rec-tip-txt { font: 300 15px/1.55 'Inter'; color: #3A352F; }
 
     @media (max-width: 760px) {
       .topbar { padding: 0 20px; }
@@ -350,14 +359,6 @@
           </div>
         </section>
 
-        <section style="margin-top:56px;">
-          <div class="sec-head">
-            <div class="eyebrow">Seen on you</div>
-            <div class="note-it">Left lifts you. Right flattens you.</div>
-          </div>
-          <div class="g-3" style="margin-top:22px;" id="seen-cards"></div>
-        </section>
-
         <div class="hr"></div>
 
         <section class="g-side" style="align-items:center;">
@@ -488,7 +489,6 @@
           <div class="eyebrow">Budget</div>
           <div class="note-it">How you mostly shop</div>
         </div>
-        <p style="font:300 13.5px/1.7 'Inter';color:#A89880;max-width:540px;margin:14px 0 0;">The tier that feels most like your everyday wardrobe. Robes weights its picks here first.</p>
         <div style="margin-top:22px;display:flex;flex-direction:column;gap:10px;" id="tier-rows"></div>
       </section>
 
@@ -499,7 +499,6 @@
           <div class="eyebrow">Spend profile</div>
           <div class="note-it">Where you splurge</div>
         </div>
-        <p style="font:300 13.5px/1.7 'Inter';color:#A89880;max-width:540px;margin:14px 0 0;">The categories you'll spend more on for the right piece. Everything else, Robes keeps lean.</p>
         <div style="display:flex;flex-wrap:wrap;gap:11px;margin-top:22px;" id="splurge-chips"></div>
 
         <div class="eyebrow-md" style="margin-top:38px;">How much you spend a year</div>
@@ -740,18 +739,6 @@
       phFill(document.getElementById('proof-frame-best'), proof[0], tryonBusy.colour);
       phFill(document.getElementById('proof-frame-less'), proof[1], tryonBusy.colour);
 
-      document.getElementById('seen-cards').innerHTML = (a.seen_on_you || []).slice(0, 3).map(p =>
-        '<div class="card-frame">' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
-            '<div class="ph" style="width:100%;height:184px;"></div>' +
-            '<div class="ph" style="width:100%;height:184px;"></div>' +
-          '</div>' +
-          '<div class="pair-labels">' +
-            '<span style="color:#202021;">' + esc(p.lifts) + '</span><span style="color:#C4B8A4;">' + esc(p.flattens) + '</span>' +
-          '</div>' +
-        '</div>'
-      ).join('');
-
       document.getElementById('metals-note').textContent = a.metals_note;
       document.getElementById('metals-row').innerHTML = (a.metals || []).slice(0, 3).map(m => {
         const hx = (m.hexes || []).map(hex);
@@ -786,35 +773,31 @@
         '<div class="trait-row"><span class="dot"></span><span class="trait-label">' + esc(t) + '</span></div>'
       ).join('');
 
-      const dressImgs = a.dress_images || [];
-      document.getElementById('dress-grid').innerHTML = (a.dress_silhouettes || []).slice(0, 4).map((d, i) => {
-        const u = imgUrl(dressImgs[i]);
-        const frame = u
-          ? '<img src="' + esc(u) + '" alt="" style="width:100%;height:300px;object-fit:cover;border-radius:6px;display:block;">'
-          : '<div class="ph" style="width:100%;height:300px;' + (tryonBusy.silhouette ? 'animation:rb-pulse 1.4s ease-in-out infinite;' : '') + '"></div>';
-        return '<div>' +
-          frame +
-          '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:18px;color:#202021;margin-top:11px;">' + esc(d.name) + '</div>' +
-          '<div style="font:300 12px/1.5 \'Inter\';color:#A89880;margin-top:2px;">' + esc(d.note) + '</div>' +
-        '</div>';
-      }).join('');
-
-      const necks = (a.neckline_recommendations || []).slice(0, 5);
-      document.getElementById('neck-grid').style.gridTemplateColumns = 'repeat(' + Math.max(necks.length, 1) + ',1fr)';
-      document.getElementById('neck-grid').innerHTML = necks.map(n =>
-        '<div>' +
-          '<div class="ph" style="width:100%;height:210px;"></div>' +
-          '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:16px;color:#202021;margin-top:10px;text-align:center;">' + esc(n) + '</div>' +
+      const dg = document.getElementById('dress-grid');
+      dg.style.gridTemplateColumns = 'repeat(auto-fill,minmax(250px,1fr))';
+      dg.innerHTML = (a.dress_silhouettes || []).slice(0, 4).map(d =>
+        '<div class="rec-card">' +
+          '<div class="rec-name">' + esc(d.name) + '</div>' +
+          '<div class="rec-note">' + esc(d.note) + '</div>' +
         '</div>'
       ).join('');
 
+      const necks = (a.neckline_recommendations || []).slice(0, 5);
+      const ng = document.getElementById('neck-grid');
+      ng.style.display = 'flex';
+      ng.style.flexWrap = 'wrap';
+      ng.style.gap = '11px';
+      ng.innerHTML = necks.map(n => '<span class="rec-pill">' + esc(n) + '</span>').join('');
+
       const tips = (a.styling_tips || []).slice(0, 5);
-      document.getElementById('tips-grid').style.gridTemplateColumns = 'repeat(' + Math.max(tips.length, 1) + ',1fr)';
-      document.getElementById('tips-grid').innerHTML = tips.map(label =>
-        '<div style="display:flex;flex-direction:column;align-items:center;">' +
-          '<div class="ph" style="width:100%;height:300px;"></div>' +
-          '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:16px;color:#202021;margin-top:13px;text-align:center;">' + esc(label) + '</div>' +
-          '<span class="check-circle"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>' +
+      const tg = document.getElementById('tips-grid');
+      tg.style.display = 'flex';
+      tg.style.flexDirection = 'column';
+      tg.style.gap = '0';
+      tg.innerHTML = tips.map(label =>
+        '<div class="rec-tip">' +
+          '<span class="rec-tip-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>' +
+          '<span class="rec-tip-txt">' + esc(label) + '</span>' +
         '</div>'
       ).join('');
     }
@@ -1065,7 +1048,9 @@
               renderSil();
             }
             save(patch);
-            startTryon(cfg.kind, { data: payload.data, mimeType: payload.mimeType });
+            // Silhouette is now text-only (no try-on frames) — only the colour
+            // tab renders identity-preserving proof imagery.
+            if (cfg.kind === 'colour') startTryon(cfg.kind, { data: payload.data, mimeType: payload.mimeType });
           } catch (err) {
             console.error('Analysis failed:', err.message);
             slotError(cfg.errId, err.name === 'AbortError'
@@ -1120,10 +1105,7 @@
         sessionStorage.rb_tryon_colour = '1';
         startTryon('colour', { photoUrl: st.headshotUrl });
       }
-      if (st.sil && !(st.sil.dress_images || []).some(imgUrl) && st.fullLengthUrl && !sessionStorage.rb_tryon_sil) {
-        sessionStorage.rb_tryon_sil = '1';
-        startTryon('silhouette', { photoUrl: st.fullLengthUrl });
-      }
+      // Silhouette is text-only now — no dress-image backfill.
     }
 
     document.getElementById('icon-input').addEventListener('keydown', e => {
