@@ -454,8 +454,10 @@
       if (data && data.session) window.location.replace('/dashboard');
     }).catch(() => {});
 
-    // ─── Mode: sign-up vs sign-in ────────────────────────────────────────────
-    const isSignIn = new URLSearchParams(window.location.search).get('mode') === 'signin';
+    // ─── Mode: sign-up vs sign-in vs password reset ──────────────────────────
+    const _mode    = new URLSearchParams(window.location.search).get('mode');
+    const isSignIn = _mode === 'signin';
+    const isReset  = _mode === 'reset';
     const firstNameField = document.getElementById('field-first-name');
     const heading  = document.getElementById('form-heading');
     const subtext  = document.getElementById('form-subtext');
@@ -470,6 +472,26 @@
       document.title = 'Sign In — Robes';
       const pw = document.getElementById('password');
       if (pw) pw.setAttribute('autocomplete', 'current-password');
+      const forgot = document.createElement('p');
+      forgot.className = 'signin-prompt';
+      forgot.style.marginTop = '10px';
+      forgot.innerHTML = 'Forgotten your password? <a href="?mode=reset">Reset it</a>';
+      toggle.parentNode.insertBefore(forgot, toggle.nextSibling);
+    }
+
+    if (isReset) {
+      firstNameField.style.display = 'none';
+      const pwField = document.querySelector('.field-password');
+      if (pwField) pwField.style.display = 'none';
+      const oauth = document.querySelector('.oauth');
+      if (oauth) oauth.style.display = 'none';
+      const divider = document.querySelector('.divider');
+      if (divider) divider.style.display = 'none';
+      heading.innerHTML = 'Reset your<br><em>password.</em>';
+      subtext.textContent = 'Enter your email and we’ll send you a link to set a new one.';
+      document.getElementById('btn-submit').innerHTML = 'Email me a reset link <span>→</span>';
+      toggle.innerHTML = 'Remembered it? <a href="?mode=signin">Sign in</a>';
+      document.title = 'Reset Password — Robes';
     }
 
     // ─── UI refs ────────────────────────────────────────────────────────────
@@ -515,8 +537,8 @@
     function setLoading(loading) {
       btnSubmit.disabled = loading;
       btnSubmit.innerHTML = loading
-        ? (isSignIn ? 'Signing in…' : 'Creating your style notes…')
-        : (isSignIn ? 'Sign in <span>→</span>' : 'Start my style notes <span>→</span>');
+        ? (isReset ? 'Sending your link…' : isSignIn ? 'Signing in…' : 'Creating your style notes…')
+        : (isReset ? 'Email me a reset link <span>→</span>' : isSignIn ? 'Sign in <span>→</span>' : 'Start my style notes <span>→</span>');
     }
 
     // ─── Google OAuth ───────────────────────────────────────────────────────
@@ -536,7 +558,19 @@
       const email    = emailEl.value.trim();
       const password = passwordEl.value;
 
-      if (!email)    { showMessage('Please enter your email address.'); return; }
+      if (!email) { showMessage('Please enter your email address.'); return; }
+
+      if (isReset) {
+        setLoading(true);
+        const { error } = await sbClient.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + '/reset'
+        });
+        setLoading(false);
+        if (error) { showMessage(friendlyAuthError(error.message)); return; }
+        showMessage('Check your email — your reset link is on the way.', 'success');
+        return;
+      }
+
       if (!password) { showMessage('Please enter a password.'); return; }
 
       if (isSignIn) {

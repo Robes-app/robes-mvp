@@ -1469,6 +1469,10 @@ app.get('/signup', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'signup.html'));
 });
 
+app.get('/reset', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'reset.html'));
+});
+
 app.get('/terms', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'terms.html'));
 });

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){var iOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(/Mac/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);if(iOS){var v=document.querySelector('meta[name="viewport"]');if(v)v.setAttribute('content','width=device-width, initial-scale=1, maximum-scale=1');}})();</script>
+  <title>New Password — Robes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="icon" type="image/png" sizes="64x64" href="/images/robes-icon-64.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-title" content="Robes">
+  <meta name="theme-color" content="#202021">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; overflow-x: hidden; }
+    ::placeholder { color: #C4B8A4; opacity: 1; }
+
+    @keyframes robesFadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #EDE7DE;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+      position: relative;
+    }
+    body::before {
+      content: '';
+      position: absolute;
+      inset: -24px;
+      background:
+        radial-gradient(60% 50% at 18% 30%, rgba(212,200,196,0.55), transparent 70%),
+        radial-gradient(55% 45% at 82% 68%, rgba(232,213,210,0.5), transparent 70%),
+        radial-gradient(50% 40% at 60% 12%, rgba(227,225,204,0.45), transparent 70%),
+        linear-gradient(135deg, #E7E0CF, #EFE9DC 50%, #E8D5D2);
+      filter: blur(2px);
+      z-index: 0;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 470px;
+      margin: auto;
+      background: #FAF8F5;
+      border: 1px solid #E7E0CF;
+      border-radius: 2px;
+      padding: 28px 36px 24px;
+      animation: robesFadeUp 0.7s cubic-bezier(0.4,0,0.2,1) both;
+    }
+
+    .logo {
+      font-family: 'Cormorant', serif;
+      font-weight: 400;
+      font-size: 17px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: #202021;
+      display: block;
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      font-family: 'Cormorant', serif;
+      font-weight: 300;
+      font-size: 42px;
+      line-height: 1.08;
+      color: #202021;
+      margin: 0 0 10px;
+    }
+    h1 em { font-style: italic; }
+
+    .subtext {
+      font-size: 13.5px;
+      color: #8A7E6C;
+      line-height: 1.55;
+      margin: 0 0 22px;
+    }
+
+    .message {
+      display: none;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 10px 14px;
+      border-radius: 2px;
+      margin-bottom: 16px;
+    }
+    .message.visible { display: block; }
+    .message.error   { background: #F6E9E4; color: #A4472B; border: 1px solid #E8CFC4; }
+    .message.success { background: #EDF0E4; color: #5A6B3B; border: 1px solid #D8DEC2; }
+    .message a { color: inherit; }
+
+    .field { display: block; margin-bottom: 16px; }
+    .field-header { display: flex; align-items: baseline; justify-content: space-between; }
+    .field-label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #A89880;
+      margin-bottom: 7px;
+    }
+    .btn-show {
+      background: none; border: none; cursor: pointer;
+      font-size: 12px; color: #A89880; padding: 0;
+      font-family: inherit;
+    }
+    input {
+      width: 100%;
+      padding: 13px 14px;
+      font-size: 16px;
+      font-family: inherit;
+      color: #202021;
+      background: #FFFFFF;
+      border: 1px solid #E0D8C8;
+      border-radius: 2px;
+      outline: none;
+    }
+    input:focus { border-color: #A89880; }
+
+    .btn-cta {
+      width: 100%;
+      padding: 15px;
+      background: #202021;
+      color: #F8F5F0;
+      border: none;
+      border-radius: 2px;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      font-family: inherit;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .btn-cta:disabled { opacity: 0.6; cursor: default; }
+
+    .signin-prompt {
+      font-size: 13px;
+      color: #8A7E6C;
+      text-align: center;
+      margin: 18px 0 0;
+    }
+    .signin-prompt a { color: #202021; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <span class="logo">Robes</span>
+
+    <h1 id="heading">Choose a new<br><em>password.</em></h1>
+    <p class="subtext" id="subtext">Set it once and you’re back in your wardrobe.</p>
+
+    <div class="message" id="message"></div>
+
+    <div id="form-zone">
+      <label class="field field-password">
+        <div class="field-header">
+          <span class="field-label">New password</span>
+          <button class="btn-show" id="btn-show" type="button">Show</button>
+        </div>
+        <input type="password" id="password" placeholder="At least 8 characters" autocomplete="new-password">
+      </label>
+      <button class="btn-cta" id="btn-submit">Save my password <span>→</span></button>
+    </div>
+
+    <p class="signin-prompt" id="foot-link"></p>
+  </div>
+
+  <script>
+    const sbClient = window.supabase.createClient(
+      'https://ayowpaknssulsqqvwpqx.supabase.co',
+      'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ'
+    );
+
+    const msgEl     = document.getElementById('message');
+    const passwordEl = document.getElementById('password');
+    const btnSubmit = document.getElementById('btn-submit');
+    const btnShow   = document.getElementById('btn-show');
+    const formZone  = document.getElementById('form-zone');
+
+    function showMessage(text, type = 'error') {
+      msgEl.textContent = text;
+      msgEl.className = 'message ' + type + ' visible';
+    }
+
+    btnShow.addEventListener('click', () => {
+      const isPassword = passwordEl.type === 'password';
+      passwordEl.type  = isPassword ? 'text' : 'password';
+      btnShow.textContent = isPassword ? 'Hide' : 'Show';
+    });
+
+    // The recovery link carries tokens in the URL — supabase-js picks them up
+    // and establishes a session. No session after 5s = expired/used link.
+    let _session = null;
+    const _ready = new Promise((resolve) => {
+      let done = false;
+      const finish = (s) => { if (!done) { done = true; _session = s; resolve(); } };
+      sbClient.auth.onAuthStateChange((_, s) => { if (s) finish(s); });
+      sbClient.auth.getSession().then(({ data }) => { if (data && data.session) finish(data.session); });
+      setTimeout(() => finish(null), 5000);
+    });
+
+    _ready.then(() => {
+      if (!_session) {
+        document.getElementById('heading').innerHTML = 'That link has<br><em>expired.</em>';
+        document.getElementById('subtext').textContent = 'Reset links only work once, and only for a little while.';
+        formZone.style.display = 'none';
+        document.getElementById('foot-link').innerHTML = '<a href="/signup?mode=reset">Send me a fresh link</a>';
+      }
+    });
+
+    btnSubmit.addEventListener('click', async () => {
+      msgEl.className = 'message';
+      const password = passwordEl.value;
+      if (!password || password.length < 8) {
+        showMessage('Your password needs at least 8 characters.');
+        return;
+      }
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Saving…';
+      await _ready;
+      if (!_session) {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = 'Save my password <span>→</span>';
+        showMessage('This link has expired — request a new one from the sign-in page.');
+        return;
+      }
+      const { error } = await sbClient.auth.updateUser({ password });
+      if (error) {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = 'Save my password <span>→</span>';
+        const msg = error.message || '';
+        showMessage(msg.includes('different from the old')
+          ? 'That’s the same password as before — pick a new one.'
+          : 'Couldn’t save that just now — try again in a moment.');
+        return;
+      }
+      showMessage('Done — your password is set.', 'success');
+      setTimeout(() => { window.location.href = '/dashboard'; }, 900);
+    });
+
+    passwordEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') btnSubmit.click();
+    });
+  </script>
+
+</body>
+</html>
