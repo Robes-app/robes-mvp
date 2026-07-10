@@ -1421,7 +1421,7 @@ app.get('/board/:shareId', rateLimit({ windowMs: 60_000, max: 40 }), async (req,
     res.status(status).type('html').send(_boardTpl.replace('<!--__OG__-->', og).replace('__BOARD_JSON__', json));
   };
   const notFound = () => send(404, { notFound: true },
-    `<title>Robes — this look isn’t shared any more</title>\n<meta property="og:title" content="Robes — styled by AI">`);
+    `<title>Robes — this look isn’t shared any more</title>\n<meta property="og:title" content="Robes — styled for you">`);
 
   if (!shareId) return notFound();
   try {

@@ -23,7 +23,7 @@ const B = (name, hex) => ({ name, hex });
 export const SEASONS = {
   'Light Spring': {
     family: 'warm',
-    voice: 'A sun-dappled, luminous canvas. Your features are bright, warm, and delicate. The engine completely avoids heavy, muddy colors, opting instead for buttermilk creams, soft peach, and warm, illuminated corals.',
+    voice: 'A sun-dappled, luminous canvas. Your features are bright, warm, and delicate. Robes steers clear of heavy, muddy colors, opting instead for buttermilk creams, soft peach, and warm, illuminated corals.',
     summary: 'Bright, warm, delicate — lit like early morning.',
     palette: [
       ['#F2E3C4', '#F0D5A8', '#EEC28E', '#E8A87C', '#E09266', '#D8C878'],
@@ -43,7 +43,7 @@ export const SEASONS = {
   },
   'Warm Spring': {
     family: 'warm',
-    voice: 'Drenched in pure golden hour light. Your palette is rich, warm, and mid-toned. The system anchors your wardrobe in luxurious camels, warm tan leathers, and glowing marigolds that pull out your natural vitality.',
+    voice: 'Drenched in pure golden hour light. Your palette is rich, warm, and mid-toned. Robes anchors your wardrobe in luxurious camels, warm tan leathers, and glowing marigolds that pull out your natural vitality.',
     summary: 'Golden, sunny, mid-toned — pure golden hour.',
     palette: [
       ['#F0DCA8', '#E8C878', '#E0AE5A', '#D89440', '#C87834', '#B8A048'],
@@ -63,7 +63,7 @@ export const SEASONS = {
   },
   'Clear Spring': {
     family: 'warm',
-    voice: 'Vibrant, energetic, and highly saturated. Your warm undertone meets high clarity, meaning you brilliantly carry striking hues like poppy red, bright apple green, and warm turquoise. The AI uses these as your statement anchors.',
+    voice: 'Vibrant, energetic, and highly saturated. Your warm undertone meets high clarity, meaning you brilliantly carry striking hues like poppy red, bright apple green, and warm turquoise. Robes uses these as your statement anchors.',
     summary: 'Vivid, clear, high-contrast — colour at full volume.',
     palette: [
       ['#F4E6B4', '#F0C868', '#E8A43C', '#E07C2C', '#D05028', '#C0B040'],
@@ -83,7 +83,7 @@ export const SEASONS = {
   },
   'Light Summer': {
     family: 'cool',
-    voice: 'An airy, ethereal spectrum. Your features thrive in light, cool, chalky pastels—soft lavender, ice blue, and seafoam. The AI pairs this palette with fluid, light-catching fabrics like silk and linen.',
+    voice: 'An airy, ethereal spectrum. Your features thrive in light, cool, chalky pastels—soft lavender, ice blue, and seafoam. Robes pairs this palette with fluid, light-catching fabrics like silk and linen.',
     summary: 'Airy, cool, chalky — light as sea glass.',
     palette: [
       ['#EAE4DC', '#DCD8E4', '#C8D2E4', '#B0C6E0', '#9CB8D8', '#C4CCD8'],
@@ -103,7 +103,7 @@ export const SEASONS = {
   },
   'True Summer': {
     family: 'cool',
-    voice: 'The epitome of understated elegance. Your palette is crisp, cool, and mid-toned, dominated by sea blues, berry tones, and slaty taupes. The engine uses these to build a timeless, sophisticated uniform.',
+    voice: 'The epitome of understated elegance. Your palette is crisp, cool, and mid-toned, dominated by sea blues, berry tones, and slaty taupes. Robes uses these to build a timeless, sophisticated uniform.',
     summary: 'Crisp, cool, mid-toned — quiet sophistication.',
     palette: [
       ['#E4E0DC', '#CCD2DC', '#A8BCD4', '#8AA8C8', '#7090B4', '#98A4B8'],
@@ -123,7 +123,7 @@ export const SEASONS = {
   },
   'Soft Summer': {
     family: 'cool',
-    voice: 'Like a coastal landscape veiled in morning mist. Your palette is cool, soft, and beautifully desaturated. The engine sources heathered greys, dusty blues, and muted plums that feel effortlessly relaxed.',
+    voice: 'Like a coastal landscape veiled in morning mist. Your palette is cool, soft, and beautifully desaturated. Robes sources heathered greys, dusty blues, and muted plums that feel effortlessly relaxed.',
     summary: 'Misty, muted, cool — coastal morning light.',
     palette: [
       ['#E2DEDA', '#CCC8CC', '#B0B4C0', '#94A0B0', '#7C8CA0', '#9C9AA4'],
@@ -143,7 +143,7 @@ export const SEASONS = {
   },
   'Soft Autumn': {
     family: 'warm',
-    voice: "Inspired by nature's shifting light—rich, muted, and beautifully grounded. Your palette relies on sophisticated, organic mid-tones like sage, mauve, and oatmeal. The engine uses this to curate an incredibly cohesive, low-contrast wardrobe.",
+    voice: "Inspired by nature's shifting light—rich, muted, and beautifully grounded. Your palette relies on sophisticated, organic mid-tones like sage, mauve, and oatmeal. Robes uses this to curate an incredibly cohesive, low-contrast wardrobe.",
     summary: 'Warm, low in contrast, a little dusty.',
     palette: [
       ['#DCC8AC', '#C8A982', '#C2925A', '#B5774A', '#9C5638', '#8A8048'],
@@ -163,7 +163,7 @@ export const SEASONS = {
   },
   'True Autumn': {
     family: 'warm',
-    voice: 'Rich, spice-toned, and intensely warm. Your palette thrives on the heavy, saturated colors of changing leaves—terracotta, deep olive, and burnished copper. The AI weaves these textures through your tailoring and outerwear.',
+    voice: 'Rich, spice-toned, and intensely warm. Your palette thrives on the heavy, saturated colors of changing leaves—terracotta, deep olive, and burnished copper. Robes weaves these textures through your tailoring and outerwear.',
     summary: 'Rich, spiced, intensely warm — changing leaves.',
     palette: [
       ['#E0C494', '#D0A860', '#C08840', '#B06830', '#984C28', '#907C34'],
@@ -183,7 +183,7 @@ export const SEASONS = {
   },
   'Dark Autumn': {
     family: 'warm',
-    voice: 'An opulent, shadow-filled warmth. Your palette is deep and anchored in the earth—think forest green, dark chocolate wool, and rich espresso. The system uses these heavy values to create grounding, luxurious columns of color.',
+    voice: 'An opulent, shadow-filled warmth. Your palette is deep and anchored in the earth—think forest green, dark chocolate wool, and rich espresso. Robes uses these heavy values to create grounding, luxurious columns of color.',
     summary: 'Deep, warm, shadowed — opulent earth.',
     palette: [
       ['#C8A870', '#B08848', '#986C34', '#845428', '#6C3E20', '#6E6428'],
@@ -203,7 +203,7 @@ export const SEASONS = {
   },
   'Clear Winter': {
     family: 'cool',
-    voice: 'Inspired by crisp, midnight light. Your palette is defined by high saturation and icy clarity. The engine focuses on pure jewel tones, sharp onyx, and optic whites to match your vivid natural presence.',
+    voice: 'Inspired by crisp, midnight light. Your palette is defined by high saturation and icy clarity. Robes focuses on pure jewel tones, sharp onyx, and optic whites to match your vivid natural presence.',
     summary: 'Icy, saturated, vivid — midnight clarity.',
     palette: [
       ['#F2F4F6', '#D8E4F0', '#B0CCEC', '#7CA8E4', '#4478D0', '#8890A0'],
@@ -223,7 +223,7 @@ export const SEASONS = {
   },
   'True Winter': {
     family: 'cool',
-    voice: 'Pure, unadulterated coolness. Your palette eliminates all traces of warmth, focusing entirely on stark silvers, electric blues, and icy pinks. The system treats these as your absolute wardrobe foundations.',
+    voice: 'Pure, unadulterated coolness. Your palette eliminates all traces of warmth, focusing entirely on stark silvers, electric blues, and icy pinks. Robes treats these as your absolute wardrobe foundations.',
     summary: 'Stark, cool, uncompromising — pure winter.',
     palette: [
       ['#F4F6F8', '#DCE2EC', '#B8C4DC', '#8898C0', '#5870A8', '#8C94A8'],
@@ -243,7 +243,7 @@ export const SEASONS = {
   },
   'Dark Winter': {
     family: 'cool',
-    voice: 'A palette of profound depth and cool mystery. Your colors are dark and saturated—think rich bordeaux, midnight navy, and deep charcoal. The AI uses these dense tones to anchor your most powerful silhouettes.',
+    voice: 'A palette of profound depth and cool mystery. Your colors are dark and saturated—think rich bordeaux, midnight navy, and deep charcoal. Robes uses these dense tones to anchor your most powerful silhouettes.',
     summary: 'Dark, cool, saturated — profound depth.',
     palette: [
       ['#E8ECF0', '#C0CCDC', '#8CA0C0', '#5C74A0', '#3C5488', '#787E90'],
@@ -282,7 +282,7 @@ export const CONTRAST_COPY = {
   'High': 'There is a striking value gap between your hair, skin, and eyes. You can wear bold, high-contrast pairings without the clothes wearing you.',
   'Extremely High': 'There is a striking value gap between your hair, skin, and eyes. You can wear bold, high-contrast pairings without the clothes wearing you.',
   'Medium': 'Your features possess a balanced, fluid depth. Your contrast formula thrives on intentional layers.',
-  'Low': "Your features are naturally soft, muted, and blended. The engine layers sophisticated mid-tones to build expensive-looking dimension — never harsh black-and-white.",
+  'Low': "Your features are naturally soft, muted, and blended. Robes layers sophisticated mid-tones to build expensive-looking dimension — never harsh black-and-white.",
 };
 
 // ── The 5-Body Archetype Design Matrix (Master Archetype Registry) ────

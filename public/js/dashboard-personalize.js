@@ -1759,7 +1759,7 @@
             const kpTitle = keyPiece.querySelector('.svc-title');
             if (kpTitle) kpTitle.textContent = 'Daily outfit';
             const kpDesc = keyPiece.querySelector('.svc-desc');
-            if (kpDesc) kpDesc.textContent = 'A fresh look styled from your wardrobe each morning, synced to the forecast and your calendar. ';
+            if (kpDesc) kpDesc.textContent = 'A fresh look styled from your wardrobe each morning, synced to the forecast. ';
 
             // Calendar illustration for Weekly Planner
             const calSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" width="400" height="280"><rect width="400" height="280" fill="%23F5F1EB"/><g fill="none" stroke="%23D4C8B8" stroke-width="0.8"><line x1="57" y1="40" x2="57" y2="260"/><line x1="114" y1="40" x2="114" y2="260"/><line x1="171" y1="40" x2="171" y2="260"/><line x1="228" y1="40" x2="228" y2="260"/><line x1="285" y1="40" x2="285" y2="260"/><line x1="342" y1="40" x2="342" y2="260"/><line x1="28" y1="80" x2="372" y2="80"/><line x1="28" y1="140" x2="372" y2="140"/><line x1="28" y1="200" x2="372" y2="200"/><line x1="28" y1="40" x2="372" y2="40"/><line x1="28" y1="260" x2="372" y2="260"/><line x1="28" y1="40" x2="28" y2="260"/><line x1="372" y1="40" x2="372" y2="260"/></g><g font-family="Georgia,serif" font-size="11" fill="%23B0A090" text-anchor="middle"><text x="42" y="30">M</text><text x="85" y="30">T</text><text x="142" y="30">W</text><text x="199" y="30">T</text><text x="256" y="30">F</text><text x="313" y="30">S</text><text x="357" y="30">S</text></g><g font-family="Georgia,serif" font-size="10" fill="%23C8B8A8" text-anchor="middle"><text x="42" y="58">14</text><text x="99" y="58">15</text><text x="156" y="58">16</text><text x="213" y="58">17</text><text x="270" y="58">18</text><text x="327" y="58">19</text><text x="357" y="58">20</text></g><rect x="31" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.9"/><rect x="4" y="86" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="86" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="231" y="66" width="50" height="104" rx="4" fill="%23E8DEDD" opacity="0.85"/><rect x="227" y="66" width="3" height="104" rx="1.5" fill="%23789060"/><rect x="88" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="84" y="146" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="174" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="170" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="345" y="146" width="22" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="341" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="206" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="288" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="284" y="206" width="3" height="44" rx="1.5" fill="%23A89878"/></svg>`;
@@ -1769,6 +1769,16 @@
 
             const weeklyImg = weekly.querySelector('.svc-img img');
             if (weeklyImg) weeklyImg.src = calSvg;
+            // Weekly Planner isn't live yet — say so on the card face instead
+            // of letting the CTA dead-end in a dialog.
+            if (!weekly.querySelector('.rb-soon-tag')) {
+              const soon = document.createElement('span');
+              soon.className = 'rb-soon-tag';
+              soon.textContent = 'Coming soon';
+              soon.style.cssText = 'position:absolute;top:12px;right:12px;z-index:2;font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6A5E54;background:rgba(250,248,245,0.92);border:1px solid #D8CEBC;border-radius:100px;padding:4px 10px;pointer-events:none';
+              weekly.style.position = 'relative';
+              weekly.appendChild(soon);
+            }
             const travelImg = travel.querySelector('.svc-img img');
             if (travelImg) travelImg.src = suitSvg;
 

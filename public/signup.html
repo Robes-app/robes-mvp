@@ -421,7 +421,7 @@
         <span class="field-label">Password</span>
         <button class="btn-show" id="btn-show" type="button">Show</button>
       </div>
-      <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password">
+      <input type="password" id="password" placeholder="Enter your password" autocomplete="new-password">
     </label>
 
     <!-- CTA -->
@@ -464,10 +464,12 @@
     if (isSignIn) {
       firstNameField.style.display = 'none';
       heading.innerHTML = 'Welcome<br><em>back.</em>';
-      subtext.textContent = '';
+      subtext.textContent = 'Your wardrobe’s where you left it.';
       document.getElementById('btn-submit').innerHTML = 'Sign in <span>→</span>';
       toggle.innerHTML = 'New to Robes? <a href="?mode=signup">Create an account</a>';
       document.title = 'Sign In — Robes';
+      const pw = document.getElementById('password');
+      if (pw) pw.setAttribute('autocomplete', 'current-password');
     }
 
     // ─── UI refs ────────────────────────────────────────────────────────────
