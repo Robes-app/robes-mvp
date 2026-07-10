@@ -1495,6 +1495,10 @@
         items.unshift(rec);
         snSave(items);
         snRefreshRow();
+        // Lookbook content now exists → let the moodboard row re-evaluate its
+        // empty state (a styled key piece suppresses the "create your first"
+        // card). Guarded: no-ops until #rb-mb is mounted.
+        if (typeof _rbRenderMoodboards === 'function') _rbRenderMoodboards();
         _lbCloudPush(rec);
         return rec.id;
       }
@@ -1511,6 +1515,9 @@
         snSave(snLoad().filter(i => i.id !== id));
         snRefreshRow();
         snRenderPage();
+        // Lookbook may now be empty → moodboard row re-evaluates whether the
+        // first-run empty card should reappear.
+        if (typeof _rbRenderMoodboards === 'function') _rbRenderMoodboards();
         _lbCloudDelete(id);
       }
 
@@ -1759,7 +1766,7 @@
             const kpTitle = keyPiece.querySelector('.svc-title');
             if (kpTitle) kpTitle.textContent = 'Daily outfit';
             const kpDesc = keyPiece.querySelector('.svc-desc');
-            if (kpDesc) kpDesc.textContent = 'A fresh look styled from your wardrobe each morning, synced to the forecast. ';
+            if (kpDesc) kpDesc.textContent = 'A fresh look styled from your wardrobe each morning, synced to the forecast.';
 
             // Calendar illustration for Weekly Planner
             const calSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" width="400" height="280"><rect width="400" height="280" fill="%23F5F1EB"/><g fill="none" stroke="%23D4C8B8" stroke-width="0.8"><line x1="57" y1="40" x2="57" y2="260"/><line x1="114" y1="40" x2="114" y2="260"/><line x1="171" y1="40" x2="171" y2="260"/><line x1="228" y1="40" x2="228" y2="260"/><line x1="285" y1="40" x2="285" y2="260"/><line x1="342" y1="40" x2="342" y2="260"/><line x1="28" y1="80" x2="372" y2="80"/><line x1="28" y1="140" x2="372" y2="140"/><line x1="28" y1="200" x2="372" y2="200"/><line x1="28" y1="40" x2="372" y2="40"/><line x1="28" y1="260" x2="372" y2="260"/><line x1="28" y1="40" x2="28" y2="260"/><line x1="372" y1="40" x2="372" y2="260"/></g><g font-family="Georgia,serif" font-size="11" fill="%23B0A090" text-anchor="middle"><text x="42" y="30">M</text><text x="85" y="30">T</text><text x="142" y="30">W</text><text x="199" y="30">T</text><text x="256" y="30">F</text><text x="313" y="30">S</text><text x="357" y="30">S</text></g><g font-family="Georgia,serif" font-size="10" fill="%23C8B8A8" text-anchor="middle"><text x="42" y="58">14</text><text x="99" y="58">15</text><text x="156" y="58">16</text><text x="213" y="58">17</text><text x="270" y="58">18</text><text x="327" y="58">19</text><text x="357" y="58">20</text></g><rect x="31" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.9"/><rect x="4" y="86" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="86" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="231" y="66" width="50" height="104" rx="4" fill="%23E8DEDD" opacity="0.85"/><rect x="227" y="66" width="3" height="104" rx="1.5" fill="%23789060"/><rect x="88" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="84" y="146" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="174" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="170" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="345" y="146" width="22" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="341" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="206" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="288" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="284" y="206" width="3" height="44" rx="1.5" fill="%23A89878"/></svg>`;
@@ -1786,7 +1793,7 @@
             // capsule packing brief modal
             travel.onclick = function() { window.__tvOpen && window.__tvOpen(); };
             const tvDesc = travel.querySelector('.svc-desc');
-            if (tvDesc) tvDesc.textContent = 'A high-yield capsule for your next trip — every piece worn three ways, weather-checked, mapped day by day.';
+            if (tvDesc) tvDesc.textContent = 'A tight capsule for your next trip — every piece worn three ways, weather-checked, mapped day by day.';
 
             // Reorder: [Daily Outfit, Weekly Planner, Travel Edit]
             grid.innerHTML = '';
@@ -2801,7 +2808,7 @@
                 ${data.occasion_label ? `<div class="dlm-tag"><span class="lab">Occasion</span><span class="val">${_waEsc(cap1(data.occasion_label.toLowerCase()))}</span></div>` : ''}
               </div>
             </header>
-            ${data.fallback ? `<p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:12px 0 0">We couldn’t quite read your brief, so we’ve dressed you for a lovely ordinary day instead.</p>` : ''}
+            ${data.fallback ? `<p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:12px 0 0">Robes couldn’t quite read your brief, so it’s dressed you for a lovely ordinary day instead.</p>` : ''}
             <div class="dlm-rule"></div>
 
             <div class="dlm-console">
@@ -4046,7 +4053,7 @@ body>*:not(#tv-result-page){display:none !important}
               <div class="tvm-wx"><span>${_tvWxEmoji}</span><strong>${_waEsc([wx && wx.city ? wx.city + (wx.country ? ', ' + wx.country : '') : data.destination, data.dateLine].filter(Boolean).join(' · ')) || 'Your trip'}</strong>${wx && wx.tempRange ? `<span class="div"></span><span>${_waEsc(wx.tempRange)}</span>` : ''}${wx && wx.condition ? `<span class="div"></span><span style="font-style:italic">${_waEsc(wx.condition)}${wx.seasonal ? ' · seasonal read' : ''}</span>` : ''}</div>
               ${data.location_vibe ? `<div class="tvm-tag">${_waEsc(data.location_vibe)}</div>` : ''}
             </div>
-            ${data.fallback ? `<p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:12px 0 0">We couldn’t quite read the brief, so we’ve packed you for a lovely week away instead.</p>` : ''}
+            ${data.fallback ? `<p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:12px 0 0">Robes couldn’t quite read the brief, so it’s packed you for a lovely week away instead.</p>` : ''}
             <div class="tvm-rule"></div>
 
             <div class="tvm-tabs">
@@ -5171,11 +5178,16 @@ body>*:not(#tv-result-page){display:none !important}
         const items = _mbLoad().slice(0, 4);
         const arrowSvg = `<svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
         if (!items.length) {
+          // The first-run empty card only belongs on a genuinely empty page.
+          // A styled key piece already saved to the lookbook is real, high-value
+          // content — its presence alone suppresses this prompt, so the row
+          // simply doesn't paint until she has a moodboard of her own.
+          if (snLoad().length > 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+          el.style.display = '';
           el.innerHTML = `
             <div class="rb-sec-head">
               <span class="rb-sec-ey">Moodboards for you</span>
             </div>
-            <h2 class="rb-sec-h">Dress the season,<br><em>before you dress the day.</em></h2>
             <button class="rb-es-card" onclick="window.__rbStartMoodboard()">
               <div class="rb-es-art rb-es-art-board" aria-hidden="true">
                 <div class="rb-esb rb-esb-hero"></div>
@@ -5183,7 +5195,6 @@ body>*:not(#tv-result-page){display:none !important}
                 <div class="rb-esb rb-esb-3"></div>
               </div>
               <div class="rb-es-body">
-                <span class="rb-es-eyebrow">Moodboards</span>
                 <h3 class="rb-es-h">Create your first<br><em>moodboard.</em></h3>
                 <p class="rb-es-sub">Describe a trip, a season, or a piece you love. Robes builds the board — and pulls in what you already own.</p>
                 <span class="rb-es-cta">Start a moodboard${arrowSvg}</span>
@@ -5191,6 +5202,7 @@ body>*:not(#tv-result-page){display:none !important}
             </button>`;
           return;
         }
+        el.style.display = '';
         el.innerHTML = `
           <div class="rb-sec-head">
             <span class="rb-sec-ey">Moodboards for you</span>
@@ -5282,7 +5294,7 @@ body>*:not(#tv-result-page){display:none !important}
             pill.className = 'rb-lock-wrap';
             svcImg.appendChild(pill);
           }
-          pill.innerHTML = `<span class="rb-lock-pill">✦ ${Math.max(1, _WA_TARGET - _waItems.length)} more pieces unlock closet-only looks · ${_waItems.length}/15</span>`;
+          pill.innerHTML = `<span class="rb-lock-pill">✦ ${Math.max(1, _WA_TARGET - _waItems.length)} more pieces and every look is closet-only · ${_waItems.length}/15</span>`;
         } else if (pill) {
           pill.remove();
         }
@@ -5401,7 +5413,7 @@ body>*:not(#tv-result-page){display:none !important}
           const hint = document.getElementById('cb-photo-hint');
           const icon = document.getElementById('cb-photo-icon');
           if (preview) { preview.src = ''; preview.style.display = 'none'; }
-          if (hint) { hint.textContent = "Show me the piece, and I'll style it three ways."; hint.style.display = ''; }
+          if (hint) { hint.textContent = "Show Robes the piece and you'll get three ways to wear it."; hint.style.display = ''; }
           if (icon) icon.style.display = '';
           const inp = document.getElementById('cb-photo-input');
           if (inp) inp.value = '';
@@ -5584,7 +5596,7 @@ body>*:not(#tv-result-page){display:none !important}
         row.id = 'cb-clarify';
         row.style.cssText = 'margin:12px 0 0;padding:16px 18px;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px';
         row.innerHTML = `
-          <div style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#6E6A64;margin-bottom:10px">Lovely — should I dress you for the day, style one piece three ways, pack a trip, or build a moodboard?</div>
+          <div style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#6E6A64;margin-bottom:10px">Lovely — a look for your day, one piece three ways, a trip packed, or a moodboard?</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button data-intent="dress-me" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">An outfit for my day</button>
             <button data-intent="style" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Style one piece 3 ways</button>
@@ -5676,7 +5688,7 @@ body>*:not(#tv-result-page){display:none !important}
           <span id="cb-photo-icon" style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:rgba(142,112,119,0.1);display:flex;align-items:center;justify-content:center;color:#8E7077">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
           </span>
-          <span id="cb-photo-hint" style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:rgba(32,32,33,0.38)">Show me the piece, and I'll style it three ways.</span>
+          <span id="cb-photo-hint" style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:rgba(32,32,33,0.38)">Show Robes the piece and you'll get three ways to wear it.</span>
           <img id="cb-photo-preview" src="" alt="" style="display:none;width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0;margin-left:auto">`;
         photoZone.onclick = function(e) {
           if (!e.target.closest('#cb-photo-preview')) document.getElementById('cb-photo-input').click();
