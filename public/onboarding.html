@@ -330,6 +330,11 @@
       .v1-hint { display: none; }
     }
   </style>
+  <link rel="icon" type="image/png" sizes="64x64" href="/images/robes-icon-64.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-title" content="Robes">
+  <meta name="theme-color" content="#202021">
 </head>
 <body>
 
@@ -1206,6 +1211,9 @@
         <h1 class="done-title">${first ? `Welcome in,<br><em>${esc(first)}.</em>` : 'Welcome in.'}</h1>
         <p class="done-sub">${sub}</p>
         <button class="done-restart" id="ob-enter">${st.pieceStyled ? 'Enter your dashboard' : 'Let’s get started'}</button>
+        <p style="margin:18px 0 0;font-size:12px;letter-spacing:0.02em;color:rgba(243,239,230,0.55);line-height:1.6;">${/iPhone|iPad|iPod/.test(navigator.userAgent)
+          ? 'Keep Robes close — tap <span style="color:rgba(243,239,230,0.85)">Share</span> then <span style="color:rgba(243,239,230,0.85)">Add&nbsp;to&nbsp;Home&nbsp;Screen</span>.'
+          : 'Keep Robes close — add it to your Home Screen.'}</p>
         <div class="done-dots">${'<span class="done-dot on"></span>'.repeat(4)}</div>
       </div></div>`;
     const enter = document.getElementById('ob-enter');
