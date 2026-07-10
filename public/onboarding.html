@@ -336,6 +336,15 @@
 <div id="root"></div>
 
 <script>
+  if (!window.supabase) {
+    document.getElementById('root').innerHTML =
+      '<div class="dk dk-splash"><div class="dk-glow"></div><div class="dk-inner"><div style="text-align:center">' +
+      '<div class="dk-wordmark">Robes</div>' +
+      '<p class="dk-body" style="margin-top:18px">That didn’t load quite right.</p>' +
+      '<button class="dk-btn" style="margin-top:14px" onclick="window.location.reload()">Try again</button>' +
+      '</div></div></div>';
+    throw new Error('supabase-js failed to load');
+  }
   const sbClient = window.supabase.createClient(
     'https://ayowpaknssulsqqvwpqx.supabase.co',
     'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ'
@@ -495,7 +504,7 @@
       busyMsg: 'Reading your colouring…',
       rejectMsg: 'Robes couldn’t find a face in that photo — try a clearer close-up.',
       readout: ['Season', 'Undertone', 'Contrast', 'Your eighteen shades'],
-      guide: 'Best in soft daylight, facing a window. No filters, no direct sun, no coloured lighting.',
+      guide: 'Best in soft daylight, facing a window. No filters, no direct sun, no coloured lighting. Only Robes reads this photo — it’s never shown anywhere, and you can always do this later from your Style Notes.',
     });
     if (i === 2) return renderPhotoStep(i, {
       step: 'Step 03 · Silhouette', eyebrow: 'Silhouette &amp; proportions',
@@ -505,7 +514,7 @@
       busyMsg: 'Reading your line…',
       rejectMsg: 'Robes couldn’t read a full-length figure — try a head-to-toe photo.',
       readout: ['Body line', 'Cuts that flatter', 'Signature moves'],
-      guide: 'Straight-on, head to toe. Fitted clothing reads best — oversized pieces hide your line.',
+      guide: 'Straight-on, head to toe. Fitted clothing reads best — oversized pieces hide your line. Only Robes reads this photo — it’s never shown anywhere, and you can always do this later from your Style Notes.',
     });
     return renderKeyPiece(i);
   }
@@ -1186,7 +1195,7 @@
     }
     const first = st.name.trim().split(/\s+/)[0];
     const sub = st.pieceStyled
-      ? 'Your first piece is filed — Robes is styling it now. It’ll be waiting on your dashboard.'
+      ? 'Your first piece is filed — your looks are composing and will appear on your dashboard in a moment.'
       : st.piece.tag
         ? 'Your first piece is filed in your wardrobe — Robes builds from here.'
         : 'Your style notes will keep growing as Robes gets to know you.';
@@ -1199,7 +1208,30 @@
         <button class="done-restart" id="ob-enter">${st.pieceStyled ? 'Enter your dashboard' : 'Let’s get started'}</button>
         <div class="done-dots">${'<span class="done-dot on"></span>'.repeat(4)}</div>
       </div></div>`;
-    document.getElementById('ob-enter').onclick = () => { window.location.href = '/dashboard'; };
+    const enter = document.getElementById('ob-enter');
+    enter.onclick = () => { window.location.href = '/dashboard'; };
+    // The styling prefire is killed the instant we navigate — give it a short
+    // head start so the looks are usually waiting when she lands.
+    let prefireLanded = false;
+    try { prefireLanded = !!sessionStorage.getItem('rb_onboard_styled'); } catch (e) {}
+    if (st.pieceStyled && !prefireLanded) {
+      const label = enter.textContent;
+      enter.disabled = true;
+      enter.style.opacity = '0.55';
+      enter.textContent = 'Composing your looks…';
+      let waited = 0;
+      const hold = setInterval(() => {
+        waited += 500;
+        let ready = false;
+        try { ready = !!sessionStorage.getItem('rb_onboard_styled'); } catch (e) {}
+        if (ready || waited >= 4000) {
+          clearInterval(hold);
+          enter.disabled = false;
+          enter.style.opacity = '';
+          enter.textContent = label;
+        }
+      }, 500);
+    }
   }
 
   /* ── Boot ───────────────────────────────────────────────────────── */
@@ -1213,7 +1245,7 @@
       sbClient.auth.getSession().then(({ data: { session: s } }) => finish(s));
       setTimeout(() => finish(null), 5000);
     });
-    if (!session) { window.location.href = '/signup.html'; return; }
+    if (!session) { window.location.href = '/signup.html?mode=signin'; return; }
     st.uid = session.user.id;
 
     const meta = session.user.user_metadata || {};

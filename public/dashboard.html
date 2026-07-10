@@ -2493,7 +2493,7 @@ worn three ways</div>
       _sb.auth.getSession().then(({ data: { session: s } }) => finish(s));
       setTimeout(() => finish(null), 5000);
     });
-    if (!_sess2) { window.location.href = '/signup.html'; return; }
+    if (!_sess2) { window.location.href = '/signup.html?mode=signin'; return; }
     window.__robes_session = _sess2;
     window.__robes_sb = _sb;
     // Onboarding handoff is silent (wardrobe-first PRD): NO full-screen

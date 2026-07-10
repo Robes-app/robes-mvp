@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; height: 100%; }
+    html, body { margin: 0; padding: 0; overflow-x: hidden; }
 
     ::placeholder { color: #C4B8A4; opacity: 1; }
 
@@ -25,10 +25,8 @@
       background: #EDE7DE;
       min-height: 100vh;
       display: flex;
-      align-items: center;
       justify-content: center;
       padding: 40px 20px;
-      overflow: hidden;
       position: relative;
     }
 
@@ -36,14 +34,13 @@
     body::before {
       content: '';
       position: absolute;
-      inset: 0;
+      inset: -24px;
       background:
         radial-gradient(60% 50% at 18% 30%, rgba(212,200,196,0.55), transparent 70%),
         radial-gradient(55% 45% at 82% 68%, rgba(232,213,210,0.5), transparent 70%),
         radial-gradient(50% 40% at 60% 12%, rgba(227,225,204,0.45), transparent 70%),
         linear-gradient(135deg, #E7E0CF, #EFE9DC 50%, #E8D5D2);
       filter: blur(2px);
-      transform: scale(1.05);
       z-index: 0;
     }
 
@@ -64,6 +61,7 @@
       z-index: 1;
       width: 100%;
       max-width: 470px;
+      margin: auto;
       background: #FAF8F5;
       border: 1px solid #E7E0CF;
       border-radius: 2px;
@@ -447,6 +445,10 @@
 
     const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
+    sbClient.auth.getSession().then(({ data }) => {
+      if (data && data.session) window.location.replace('/dashboard');
+    }).catch(() => {});
+
     // ─── Mode: sign-up vs sign-in ────────────────────────────────────────────
     const isSignIn = new URLSearchParams(window.location.search).get('mode') === 'signin';
     const firstNameField = document.getElementById('field-first-name');
@@ -489,6 +491,20 @@
       msgEl.className = 'message';
     }
 
+    function friendlyAuthError(raw) {
+      const msg = raw || '';
+      if (msg.includes('Email not confirmed')) {
+        return 'Almost there — tap the link in the email we sent you first. Worth a look in spam too.';
+      }
+      if (msg.includes('Invalid login credentials')) {
+        return "That email and password don't match — have another go.";
+      }
+      if (msg.includes('rate limit') || msg.includes('too many') || msg.includes('For security purposes')) {
+        return 'Too many attempts for now. Please wait a little while and try again, or use a different email address.';
+      }
+      return msg;
+    }
+
     function setLoading(loading) {
       btnSubmit.disabled = loading;
       btnSubmit.innerHTML = loading
@@ -503,7 +519,7 @@
         provider: 'google',
         options: { redirectTo: window.location.origin + '/dashboard' }
       });
-      if (error) showMessage(error.message);
+      if (error) showMessage(friendlyAuthError(error.message));
     });
 
     // ─── Email / password submit (sign-up or sign-in) ───────────────────────
@@ -520,7 +536,7 @@
         setLoading(true);
         const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
         setLoading(false);
-        if (error) { showMessage(error.message); return; }
+        if (error) { showMessage(friendlyAuthError(error.message)); return; }
         window.location.href = '/dashboard';
         return;
       }
@@ -544,10 +560,20 @@
 
       if (error) {
         let msg = error.message;
-        if (msg.includes('rate limit') || msg.includes('too many')) {
+        if (msg.includes('rate limit') || msg.includes('too many') || msg.includes('For security purposes')) {
           msg = 'Too many signup attempts. Please wait 1 hour and try again, or use a different email address.';
+        } else if (msg.includes('already registered')) {
+          msg = '';
+          msgEl.innerHTML = 'Looks like you already have an account — <a href="?mode=signin">sign in instead</a>.';
+          msgEl.className = 'message error visible';
         }
-        showMessage(msg);
+        if (msg) showMessage(msg);
+        return;
+      }
+
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        msgEl.innerHTML = 'Looks like you already have an account — <a href="?mode=signin">sign in instead</a>.';
+        msgEl.className = 'message error visible';
         return;
       }
 

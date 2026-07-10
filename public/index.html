@@ -17,6 +17,14 @@
   <span class="wordmark" onclick="App.goHome()">Robes</span>
   <button class="nav-cta" id="nav-cta" onclick="window.location.href='/signup.html'">Get started</button>
 </nav>
+<script>
+(function(){
+  try {
+    var raw = localStorage.getItem('sb-ayowpaknssulsqqvwpqx-auth-token');
+    if (raw && JSON.parse(raw).refresh_token) window.location.replace('/dashboard');
+  } catch (e) {}
+})();
+</script>
 
 <div class="flow">
 

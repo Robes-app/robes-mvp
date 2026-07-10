@@ -185,39 +185,59 @@
         return 'Light layers work today';
       }
 
-      if (!navigator.geolocation) return;
-      navigator.geolocation.getCurrentPosition(async (pos) => {
-        const { latitude: lat, longitude: lon } = pos.coords;
-        try {
-          // Reverse geocode with Open-Meteo geocoding
-          const geoRes = await fetch(
-            'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon,
-            { headers: { 'Accept-Language': 'en' } }
-          );
-          const geoData = await geoRes.json();
-          const city = geoData.address?.city || geoData.address?.town ||
-                       geoData.address?.village || geoData.address?.county || '';
-          if (city && citySpan) citySpan.textContent = city;
-          if (city) window.__rbCtx.city = city;
+      if (!navigator.geolocation) { weatherEl.style.visibility = 'hidden'; return; }
+      let _wxPromise = null;
+      function _wxRun() {
+        if (_wxPromise) return _wxPromise;
+        _wxPromise = new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(async (pos) => {
+            const { latitude: lat, longitude: lon } = pos.coords;
+            try {
+              // Reverse geocode with Open-Meteo geocoding
+              const geoRes = await fetch(
+                'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon,
+                { headers: { 'Accept-Language': 'en' } }
+              );
+              const geoData = await geoRes.json();
+              const city = geoData.address?.city || geoData.address?.town ||
+                           geoData.address?.village || geoData.address?.county || '';
+              if (city && citySpan) citySpan.textContent = city;
+              if (city) window.__rbCtx.city = city;
 
-          // Weather from Open-Meteo (free, no API key)
-          const wxRes = await fetch(
-            'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
-            '&longitude=' + lon + '&current=temperature_2m,weather_code&daily=temperature_2m_min,temperature_2m_max&forecast_days=1&temperature_unit=celsius'
-          );
-          const wxData = await wxRes.json();
-          const temp = Math.round(wxData.current?.temperature_2m);
-          const code = wxData.current?.weather_code;
-          if (!isNaN(temp) && tempSpan) tempSpan.textContent = temp + '°C';
-          if (code !== undefined && wxIcon) wxIcon.textContent = WX_ICONS[code] || '🌤';
-          const tmin = Math.round(wxData.daily?.temperature_2m_min?.[0]);
-          const tmax = Math.round(wxData.daily?.temperature_2m_max?.[0]);
-          if (!isNaN(temp)) window.__rbCtx.tempC = temp;
-          if (!isNaN(tmin) && !isNaN(tmax)) window.__rbCtx.tempRange = tmin + '°C – ' + tmax + '°C';
-          if (code !== undefined && WX_TEXT[code]) window.__rbCtx.condition = WX_TEXT[code];
-          window.__rbCtx.hint = layerHint(tmin, tmax, code);
-        } catch (e) { /* keep defaults on error */ }
-      }, () => { /* permission denied — keep defaults */ });
+              // Weather from Open-Meteo (free, no API key)
+              const wxRes = await fetch(
+                'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
+                '&longitude=' + lon + '&current=temperature_2m,weather_code&daily=temperature_2m_min,temperature_2m_max&forecast_days=1&temperature_unit=celsius'
+              );
+              const wxData = await wxRes.json();
+              const temp = Math.round(wxData.current?.temperature_2m);
+              const code = wxData.current?.weather_code;
+              if (!isNaN(temp) && tempSpan) tempSpan.textContent = temp + '°C';
+              if (code !== undefined && wxIcon) wxIcon.textContent = WX_ICONS[code] || '🌤';
+              const tmin = Math.round(wxData.daily?.temperature_2m_min?.[0]);
+              const tmax = Math.round(wxData.daily?.temperature_2m_max?.[0]);
+              if (!isNaN(temp)) window.__rbCtx.tempC = temp;
+              if (!isNaN(tmin) && !isNaN(tmax)) window.__rbCtx.tempRange = tmin + '°C – ' + tmax + '°C';
+              if (code !== undefined && WX_TEXT[code]) window.__rbCtx.condition = WX_TEXT[code];
+              window.__rbCtx.hint = layerHint(tmin, tmax, code);
+              if (window.__rbCtx.city || window.__rbCtx.tempC != null) weatherEl.style.visibility = '';
+            } catch (e) { /* keep the strip hidden on error */ }
+            resolve();
+          }, () => resolve() /* permission denied — strip stays hidden */);
+        });
+        return _wxPromise;
+      }
+      // The location dialog must never be the dashboard's opening move — the
+      // strip hides its placeholder values, auto-fills only when permission
+      // was already granted, and otherwise waits for the first dress-me
+      // submit to call window.__rbWeatherAsk.
+      window.__rbWeatherAsk = _wxRun;
+      weatherEl.style.visibility = 'hidden';
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'geolocation' })
+          .then(p => { if (p.state === 'granted') _wxRun(); })
+          .catch(() => {});
+      }
       })();
 
       // ── Wardrobe wiring ──────────────────────────────────────────
@@ -960,12 +980,12 @@
 
           step.innerHTML = `
             <h2 class="fm-h" style="margin-bottom:4px;">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
-            <p style="font-size:13px;color:#9A8E82;margin:0 0 16px;">Pre-filled from your photo. Adjust anything that isn't quite right.</p>
+            <p style="font-size:13px;color:#9A8E82;margin:0 0 16px;">${tag.label ? `Pre-filled from your photo. Adjust anything that isn't quite right.` : `Robes couldn't quite read this one — give it a name and it files all the same.`}</p>
             <div style="display:flex;align-items:center;gap:12px;background:#F0EBE3;border-radius:10px;padding:10px 14px;margin-bottom:16px;">
               <img id="wa-saw-thumb" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">
               <div style="flex:1;min-width:0;">
-                <div style="font-size:10px;letter-spacing:0.12em;color:#9A8070;margin-bottom:2px;">✦ ROBES FILLED THIS IN</div>
-                <div style="font-size:12px;color:#6A5E54;">Glance over it, tweak anything, then save.</div>
+                <div style="font-size:10px;letter-spacing:0.12em;color:#9A8070;margin-bottom:2px;">${tag.label ? '✦ ROBES FILLED THIS IN' : '✦ NAME THIS PIECE'}</div>
+                <div style="font-size:12px;color:#6A5E54;">${tag.label ? 'Glance over it, tweak anything, then save.' : 'A name and category is all it needs.'}</div>
               </div>
               <button onclick="window.__waRetake&&window.__waRetake()" style="background:#fff;border:1px solid #D8CEBC;border-radius:20px;padding:6px 14px;font-size:12px;color:#6A5E54;cursor:pointer;white-space:nowrap;font-family:inherit;">↺ Retake</button>
             </div>
@@ -1017,6 +1037,29 @@
           window.__waSawSubmit = function() {
             const step = document.querySelector('#wa-modal .fm-step');
             if (!step) return;
+            // The bundle's WA.submit silently returns on an empty label, which
+            // would leave the CTA stuck on "Saving…" — catch it here instead.
+            if (!(window.__waSawLabel || '').trim()) {
+              const nameEl = document.getElementById('wa-saw-label');
+              if (nameEl) {
+                nameEl.style.borderColor = '#B0533B';
+                nameEl.focus();
+                let hint = document.getElementById('wa-saw-namehint');
+                if (!hint) {
+                  hint = document.createElement('div');
+                  hint.id = 'wa-saw-namehint';
+                  hint.style.cssText = 'font-size:12px;color:#B0533B;margin:6px 0 0;';
+                  nameEl.parentNode.appendChild(hint);
+                }
+                hint.textContent = 'Give the piece a name first — even “black blazer” will do.';
+                nameEl.addEventListener('input', function clr() {
+                  nameEl.style.borderColor = '#D8CEBC';
+                  if (hint) hint.textContent = '';
+                  nameEl.removeEventListener('input', clr);
+                });
+              }
+              return;
+            }
             // Keep the polished review visible and flip its own CTA to "Saving…"
             // — do NOT swap the whole step back to the bundle's empty "Add a
             // piece" form (that flash was the reported bug). The bundle form
@@ -2124,6 +2167,35 @@
 
       // opts.locked = anchored pieces a restyle must keep; opts.savedId =
       // the lookbook entry a restyle evolves (instead of minting a new one).
+      // Guards the full-screen generation overlay: a hung fetch must never
+      // trap her behind the blur. 90s hard abort, and a quiet Cancel link
+      // appears after 15s so a long wait is always escapable.
+      function _rbOverlayGuard(overlay) {
+        const controller = new AbortController();
+        const g = { signal: controller.signal, userCancelled: false, timedOut: false };
+        const cancelTimer = setTimeout(() => {
+          if (!overlay || overlay.style.display === 'none') return;
+          let c = document.getElementById('kp-load-cancel');
+          if (!c) {
+            c = document.createElement('button');
+            c.id = 'kp-load-cancel';
+            c.style.cssText = 'margin-top:14px;background:none;border:none;cursor:pointer;font-size:12px;letter-spacing:.06em;color:#A89880;text-decoration:underline;font-family:inherit';
+            overlay.appendChild(c);
+          }
+          c.textContent = 'Cancel';
+          c.style.display = '';
+          c.onclick = () => { g.userCancelled = true; controller.abort(); };
+        }, 15000);
+        const abortTimer = setTimeout(() => { g.timedOut = true; controller.abort(); }, 90000);
+        g.done = () => {
+          clearTimeout(cancelTimer);
+          clearTimeout(abortTimer);
+          const c = document.getElementById('kp-load-cancel');
+          if (c) c.style.display = 'none';
+        };
+        return g;
+      }
+
       window.__dlSubmit = async function(prompt, opts) {
         const locked = (opts && Array.isArray(opts.locked)) ? opts.locked : null;
         let overlay = document.getElementById('kp-loading-overlay');
@@ -2156,6 +2228,11 @@
           const el = document.getElementById('kp-load-msg');
           if (el) el.textContent = msgs[mi];
         }, 8000);
+        // Deferred location ask: the day's weather is only requested once a
+        // dress-me actually needs it (capped so a slow answer never stalls her)
+        if (window.__rbWeatherAsk && !(window.__rbCtx && window.__rbCtx.city)) {
+          try { await Promise.race([window.__rbWeatherAsk(), new Promise(r => setTimeout(r, 6000))]); } catch (e) {}
+        }
         const rc = window.__rbCtx || {};
         const context = {
           city: rc.city || '',
@@ -2164,10 +2241,12 @@
           condition: rc.condition || '',
           hint: rc.hint || '',
         };
+        const guard = _rbOverlayGuard(overlay);
         try {
           const res = await fetch('/api/daily', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: guard.signal,
             body: JSON.stringify({
               prompt,
               name,
@@ -2177,6 +2256,7 @@
               locked: locked || undefined,
             }),
           });
+          guard.done();
           clearInterval(msgInterval);
           overlay.style.display = 'none';
           if (!res.ok) throw new Error(await res.text());
@@ -2210,10 +2290,14 @@
             });
           }
         } catch (err) {
+          guard.done();
           clearInterval(msgInterval);
           overlay.style.display = 'none';
           console.error('[Robes] /api/daily error:', err.message);
-          _waShowToast(err.message && err.message.length < 120 ? err.message : 'Something went wrong — please try again');
+          if (guard.userCancelled) return;
+          _waShowToast(guard.timedOut
+            ? 'That took longer than it should — please try again.'
+            : 'Robes couldn’t finish that look — please try again in a moment.');
         }
       };
 
@@ -2822,7 +2906,7 @@
         } else if (aiAlt) {
           wardrobeSection = `
             <div style="margin-bottom:24px;background:#F5F2EE;border-radius:12px;padding:14px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">AI alternative</p>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">Robes’ suggestion</p>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don’t have a ${_waEsc((item.category || 'piece').toLowerCase())}, but your <em>${_waEsc(aiAlt.label)}</em> creates a similar outline.</p>
               <button onclick="window.__dlSwapApply(${idx},'${_waEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
             </div>`;
@@ -4299,7 +4383,7 @@ body>*:not(#tv-result-page){display:none !important}
         } else if (aiAlt) {
           wardrobeSection = `
             <div style="margin-bottom:24px;background:#F5F2EE;border-radius:12px;padding:14px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">AI alternative</p>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">Robes’ suggestion</p>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don’t have a ${_waEsc((item.category || 'piece').toLowerCase())}, but your <em>${_waEsc(aiAlt.label)}</em> creates a similar outline.</p>
               <button onclick="window.__tvSwapApply(${idx},'${_waEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
             </div>`;
@@ -5326,6 +5410,10 @@ body>*:not(#tv-result-page){display:none !important}
           if (el) el.textContent = msgs[mi];
         }, 8000);
         // Daily Look track carries the real-time context captured by _rbWeather
+        // (asked for lazily — see the deferred location note in _rbWeather)
+        if (daily && window.__rbWeatherAsk && !(window.__rbCtx && window.__rbCtx.city)) {
+          try { await Promise.race([window.__rbWeatherAsk(), new Promise(r => setTimeout(r, 6000))]); } catch (e) {}
+        }
         const rc = window.__rbCtx || {};
         const context = daily ? {
           city: rc.city || '',
@@ -5334,10 +5422,12 @@ body>*:not(#tv-result-page){display:none !important}
           condition: rc.condition || '',
           hint: rc.hint || '',
         } : null;
+        const guard = _rbOverlayGuard(overlay);
         try {
           const res = await fetch('/api/style', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: guard.signal,
             body: JSON.stringify({
               prompt,
               photo: photoData || null,
@@ -5348,14 +5438,19 @@ body>*:not(#tv-result-page){display:none !important}
               context,
             }),
           });
+          guard.done();
           clearInterval(msgInterval);
           overlay.style.display = 'none';
           if (!res.ok) throw new Error(await res.text());
           window.__kpRenderResult(await res.json(), prompt, { intent, context });
         } catch (err) {
+          guard.done();
           clearInterval(msgInterval);
           overlay.style.display = 'none';
-          _waShowToast(err.message && err.message.length < 120 ? err.message : 'Something went wrong — please try again');
+          if (guard.userCancelled) return;
+          _waShowToast(guard.timedOut
+            ? 'That took longer than it should — please try again.'
+            : 'Robes couldn’t finish those looks — please try again in a moment.');
         }
       }
 
@@ -5452,6 +5547,18 @@ body>*:not(#tv-result-page){display:none !important}
         const ta = document.getElementById('cb-ta');
         const prompt = (ta && ta.value.trim()) || '';
         _cbHideClarify();
+        // Chip templates inject "[oversized cream blazer]"-style placeholders —
+        // never submit them literally; hand the bracket back to her instead.
+        const br = prompt.match(/\[[^\]]*\]/);
+        if (br) {
+          if (ta) {
+            const start = ta.value.indexOf(br[0]);
+            ta.focus();
+            if (start >= 0) ta.setSelectionRange(start, start + br[0].length);
+          }
+          _waShowToast('Make it yours — swap the highlighted part for your own piece.');
+          return;
+        }
         let intent = _cbIntent;
         if (!intent) {
           if (!prompt && !_cbPhotoData) return;
@@ -6082,7 +6189,7 @@ body>*:not(#tv-result-page){display:none !important}
         } else if (aiAlt) {
           wardrobeSection = `
             <div style="margin-bottom:24px;background:#F5F2EE;border-radius:12px;padding:14px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">AI alternative</p>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">Robes’ suggestion</p>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don't have a ${_mbEsc(item.category.toLowerCase())}, but your <em>${_mbEsc(aiAlt.label)}</em> creates a similar outline.</p>
               <button onclick="window.__mbSwapApply(${idx},'${_mbEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
             </div>`;
