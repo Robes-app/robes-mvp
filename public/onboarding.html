@@ -213,6 +213,7 @@
     .cap-panel:hover { border-color: var(--cream-500); }
     .cap-panel.drag-over { border-color: var(--foreground); background: var(--cream-30); }
     .cap-guide { font-weight: 300; font-size: 11px; line-height: 1.6; color: var(--cream-500); margin: 12px 0 0; max-width: 300px; }
+    .cap-privacy { font-weight: 300; font-size: 11px; line-height: 1.6; color: var(--cream-500); font-style: italic; margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--cream-300); max-width: 300px; }
     .cap-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
     .cap-label { font-family: var(--font-serif); font-style: italic; font-weight: 300; font-size: 18px; color: var(--cream-600); }
     .cap-btn {
@@ -248,9 +249,11 @@
     .cap-read { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--cream-300); }
     .cap-read-row { display: flex; align-items: baseline; gap: 16px; padding: 16px 2px; border-bottom: 1px solid var(--cream-300); }
     .cap-read-num { font-family: var(--font-serif); font-weight: 300; font-size: 17px; color: var(--cream-500); width: 20px; flex: none; }
-    .cap-read-label { flex: 1; font-weight: 400; font-size: 14px; color: var(--foreground); }
-    .cap-read-val { font-weight: 400; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--cream-500); text-align: right; }
-    .cap-read-val.is-on { color: #AE9290; }
+    /* Labels follow the page's label convention (.ob-label register); the
+       generated reading keeps the serif so the output visibly stands apart. */
+    .cap-read-label { flex: 1; font-weight: 500; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--cream-600); align-self: center; }
+    .cap-read-val { font-family: var(--font-serif); font-weight: 300; font-size: 17px; color: var(--cream-500); text-align: right; }
+    .cap-read-val.is-on { color: #AE9290; font-style: italic; }
     .cap-read-val.is-done { color: var(--foreground); }
 
     /* ── Key piece (Step 04) ─────────────────────────────────────── */
@@ -514,7 +517,8 @@
       busyMsgs: ['Reading your colouring…', 'Checking your undertone…', 'Weighing your contrast…', 'Matching your season…', 'Nearly there…'],
       rejectMsg: 'Robes couldn’t find a face in that photo — try a clearer close-up.',
       readout: ['Season', 'Undertone', 'Contrast', 'Your eighteen shades'],
-      guide: 'Best in soft daylight, facing a window. No filters, no direct sun, no coloured lighting. Only Robes reads this photo — it’s never shown anywhere, and you can always do this later from your Style Notes.',
+      guide: 'Best in soft daylight, facing a window. No filters, no direct sun, no coloured lighting.',
+      privacy: 'Only Robes reads this photo — it’s never shown anywhere. You can always do this later from your Style Notes.',
     });
     return renderKeyPiece(i);
   }
@@ -733,6 +737,7 @@
             <p class="cap-err${state.err ? ' on' : ''}" id="cap-err">${esc(state.err)}</p>
             ${state.err && !state.busy && state.lastFile ? `<button class="cap-btn" id="cap-retry" style="margin-top:6px">Try again</button>` : ''}
             ${cfg.guide ? `<p class="cap-guide">${cfg.guide}</p>` : ''}
+            ${cfg.privacy ? `<p class="cap-privacy">${cfg.privacy}</p>` : ''}
             <input type="file" accept="image/*" class="cap-file" id="cap-file">
           </div>
           <div class="cap-read-wrap">
@@ -796,9 +801,10 @@
       state.photoUrl = payload.renderable ? payload.dataUrl : '';
       state.busy = true;
       if (st.stage === i) paint();
-      // The reading can be slow (the careful model leads the chain) — keep the
-      // scrim alive with progress copy, and never let a hung request strand
-      // her on it: hard abort at 80s, which lands on the Try again path.
+      // Keep the scrim alive with progress copy, and never let a hung request
+      // strand her on it: hard abort (sized to the full server fallback
+      // chain) lands on the Try again path. Onboarding reads flash-first
+      // (fast: true) — momentum beats the marginal judgement gain here.
       const ctrl = new AbortController();
       const killer = setTimeout(() => ctrl.abort(), 100000);
       let mi = 0;
@@ -814,7 +820,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal: ctrl.signal,
-            body: JSON.stringify({ kind: cfg.kind, data: payload.data, mimeType: payload.mimeType }),
+            body: JSON.stringify({ kind: cfg.kind, data: payload.data, mimeType: payload.mimeType, fast: true }),
           }).then(async r => {
             if (r.ok) return r.json();
             const body = await r.json().catch(() => ({}));

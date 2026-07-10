@@ -1703,7 +1703,13 @@ app.post('/api/stylenotes/analyse', async (req, res) => {
     // Pro leads (this is a once-per-user judgement call worth the latency and
     // it cannot disable thinking, so its budget is bounded instead); flash is
     // the fallback, last attempt drops the schema and trusts JSON mode.
-    const ATTEMPTS = [
+    // Onboarding sends fast:true — there, first-session momentum beats the
+    // marginal judgement gain, so flash answers first and pro is the rescue.
+    const ATTEMPTS = req.body.fast ? [
+      { model: 'gemini-2.5-flash', schema: true },
+      { model: 'gemini-2.5-pro', schema: true },
+      { model: 'gemini-2.5-flash', schema: false },
+    ] : [
       { model: 'gemini-2.5-pro', schema: true },
       { model: 'gemini-2.5-flash', schema: true },
       { model: 'gemini-2.5-flash', schema: false },
