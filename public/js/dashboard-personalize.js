@@ -289,6 +289,13 @@
         });
       }
 
+      // Hosted wardrobe photo → prompt-attachment dataURL. Goes through
+      // _rbDownscale so a full-resolution Cloudinary original never lands
+      // base64 inside a styling request body (20mb server limit).
+      function _rbUrlToDataUrl(url) {
+        return fetch(url).then(r => r.blob()).then(_rbDownscale);
+      }
+
       function _waShowToast(msg) {
         const t = document.getElementById('toast-msg') || document.getElementById('toast');
         if (!t) return;
@@ -1601,6 +1608,16 @@
       window.__snRemove = function(id) {
         window._rbConfirmDelete('Delete this look?', function() { snRemove(id); });
       };
+      // One label per lookbook entry type — used by all three render sites
+      // (lookbook page, dashboard rows); extend here when a new type ships.
+      function _snTypeLabel(type) {
+        return type === 'daily-look' ? 'Daily look'
+          : type === 'weekly-plan' ? 'Weekly plan'
+          : type === 'travel-edit' ? 'Travel edit'
+          : type === 'look' ? 'Look'
+          : 'Key piece';
+      }
+
       window.__snOpenItem = function(id) {
         const item = snLoad().find(i => i.id === id);
         if (!item) return;
@@ -1637,11 +1654,11 @@
             <button class="sn-rm" onclick="event.stopPropagation();window.__snRemove(${item.id})" style="position:absolute;top:10px;right:10px;opacity:0;transition:opacity .15s;background:rgba(32,32,33,0.55);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
-            ${item.img ? `<img src="${item.img}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block" alt="">` : `<div style="width:100%;aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
+            ${item.img ? `<img src="${_waEsc(item.img)}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block" alt="">` : `<div style="width:100%;aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
             <div style="padding:14px 16px 16px">
-              <span style="display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:6px">${item.type === 'daily-look' ? 'Daily look' : item.type === 'weekly-plan' ? 'Weekly plan' : item.type === 'travel-edit' ? 'Travel edit' : item.type === 'look' ? 'Look' : 'Key piece'}</span>
-              <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;font-weight:300;color:#202021;line-height:1.3;margin-bottom:4px">${item.title}</div>
-              <div style="font-size:11px;color:#A89880">${item.subtitle || ''}</div>
+              <span style="display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:6px">${_snTypeLabel(item.type)}</span>
+              <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;font-weight:300;color:#202021;line-height:1.3;margin-bottom:4px">${_waEsc(item.title)}</div>
+              <div style="font-size:11px;color:#A89880">${_waEsc(item.subtitle || '')}</div>
             </div>
           </div>`).join('');
       }
@@ -1681,7 +1698,7 @@
                   ? `<img src="${item.img}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block" alt="">`
                   : `<div style="width:100%;aspect-ratio:1/1;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
                 <div style="padding:10px 12px 12px">
-                  <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:3px">${item.type === 'daily-look' ? 'Daily look' : item.type === 'weekly-plan' ? 'Weekly plan' : item.type === 'travel-edit' ? 'Travel edit' : item.type === 'look' ? 'Look' : 'Key piece'}</div>
+                  <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:3px">${_snTypeLabel(item.type)}</div>
                   <div style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title}</div>
                 </div>
               </div>`).join('')}
@@ -1944,6 +1961,16 @@
       };
       window.__lastKpData = null;
 
+      // All four result pages are fixed overlays at z-index:40 — DOM order,
+      // not open order, decides who paints on top, so every render must hide
+      // its siblings or a stale later-appended page stays visible above it.
+      function _rbHideResultPages(except) {
+        if (except !== 'kp' && kpResultPage) kpResultPage.style.display = 'none';
+        if (except !== 'dl' && dlResultPage) dlResultPage.style.display = 'none';
+        if (except !== 'tv' && tvResultPage) tvResultPage.style.display = 'none';
+        if (except !== 'wk' && wkResultPage) wkResultPage.style.display = 'none';
+      }
+
       window.__kpGoBack = function() {
         if (kpResultPage) kpResultPage.style.display = 'none';
         window.rbClearCrumb && window.rbClearCrumb();
@@ -2038,6 +2065,7 @@
           return;
         }
         _kpStopPolling();
+        _rbHideResultPages('kp');
         window.__lastKpData = data;
         const { ways, generatedImages, fallback, photoUrl } = data;
         const kpIntent = (opts && opts.intent) || data.intent || 'style';
@@ -2750,7 +2778,7 @@
           document.head.appendChild(dlStyleEl);
         }
         dlStyleEl.textContent = _DL_CSS;
-        if (kpResultPage) kpResultPage.style.display = 'none';
+        _rbHideResultPages('dl');
 
         const swapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
         const checkSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -3101,7 +3129,6 @@
       // across the user's agenda. Deliberately lean: no imagery jobs —
       // owned pieces render their real wardrobe photos, new pieces a
       // serif monogram. Saved to the lookbook as type 'weekly-plan'.
-      let _wkActiveSaveId = null;
       let _wkState = null; // { data, prompt, day }
       window.__lastWkData = null;
 
@@ -3137,6 +3164,10 @@
         if (window.__rbWeatherAsk && !(window.__rbCtx && window.__rbCtx.city)) {
           try { await Promise.race([window.__rbWeatherAsk(), new Promise(r => setTimeout(r, 6000))]); } catch (e) {}
         }
+        // The weekly promise is "routed through your own wardrobe" — an
+        // immediate submit after boot must not race the async wardrobe load
+        // and read an empty closet (the server would go fully aspirational).
+        for (let w = 0; w < 16 && !_waLoaded && _waUid(); w++) await new Promise(r => setTimeout(r, 250));
         const rc = window.__rbCtx || {};
         const context = {
           city: rc.city || '',
@@ -3153,6 +3184,7 @@
             signal: guard.signal,
             body: JSON.stringify({
               prompt,
+              name,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
               context,
@@ -3245,6 +3277,7 @@
       window.__wkGoBack = function() {
         if (wkResultPage) wkResultPage.style.display = 'none';
         window.rbClearCrumb && window.rbClearCrumb();
+        window._rbNav && window._rbNav('/dashboard');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
@@ -3256,6 +3289,7 @@
       window.__wkRenderResult = function(data, promptText, opts) {
         const serif = "'Cormorant',Georgia,serif";
         if (!data || !Array.isArray(data.days) || !data.days.length) { _waShowToast('That plan didn’t load — try planning the week again.'); return; }
+        _rbHideResultPages('wk');
         window.__lastWkData = data;
         _wkState = { data, prompt: promptText || '', day: 0 };
 
@@ -3286,6 +3320,18 @@
             ${data.stylist_summary ? `<p style="font-family:${serif};font-style:italic;font-size:15.5px;color:#6E6A64;line-height:1.6;margin:0 0 24px;max-width:640px">${_waEsc(data.stylist_summary)}</p>` : ''}
             <div id="wk-strip" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch"></div>
             <div id="wk-day"></div>
+            <div id="wk-fb" style="margin-top:28px;padding:18px 20px;background:#fff;border:0.5px solid rgba(32,32,33,0.1);border-radius:12px;max-width:640px">
+              <div id="wk-fb-prompt" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <span style="font-family:${serif};font-style:italic;font-size:15px;color:#6E6A64">How does this week feel?</span>
+                <button id="wk-fb-up" onclick="window.__wkFbRate(1)" style="border:0.5px solid rgba(32,32,33,0.15);background:#fff;border-radius:100px;padding:7px 14px;cursor:pointer;font-size:14px">👍</button>
+                <button id="wk-fb-dn" onclick="window.__wkFbRate(0)" style="border:0.5px solid rgba(32,32,33,0.15);background:#fff;border-radius:100px;padding:7px 14px;cursor:pointer;font-size:14px">👎</button>
+              </div>
+              <div id="wk-fb-expand" hidden style="margin-top:12px">
+                <textarea id="wk-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:0.5px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:inherit"></textarea>
+                <button onclick="window.__wkFbSubmit()" style="margin-top:8px;border:none;background:#202021;color:#fff;border-radius:100px;padding:9px 18px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Send</button>
+              </div>
+              <div id="wk-fb-done" hidden style="font-family:${serif};font-style:italic;font-size:15px;color:#6E6A64">Noted — thank you.</div>
+            </div>
             <div style="height:36px"></div>
           </div>
           <div class="rb-sfoot">
@@ -3307,16 +3353,14 @@
         _wkPaintDay();
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Plan the week' }]);
 
-        if (opts && opts.skipSave) {
-          _wkActiveSaveId = (opts && opts.savedId) || null;
-        } else {
+        if (!(opts && opts.skipSave)) {
           const firstImg = (function() {
             for (const d of data.days) for (const it of d.items) {
               if (it.wardrobe_match && it.wardrobe_match.image_url && String(it.wardrobe_match.image_url).indexOf('http') === 0) return it.wardrobe_match.image_url;
             }
             return null;
           })();
-          _wkActiveSaveId = snAdd({
+          snAdd({
             type: 'weekly-plan',
             title: data.headline || 'Your week, planned',
             subtitle: data.days.length + ' days · ' + (data.week_label || '').toLowerCase(),
@@ -3324,6 +3368,33 @@
             wkData: { ...data, prompt: promptText || '' },
           });
         }
+
+        let wkFbRating = null;
+        window.__wkFbRate = function(val) {
+          wkFbRating = val;
+          const up = document.getElementById('wk-fb-up'), dn = document.getElementById('wk-fb-dn');
+          if (up) up.style.background = val === 1 ? '#F0EDE8' : '#fff';
+          if (dn) dn.style.background = val === 0 ? '#F0EDE8' : '#fff';
+          const ex = document.getElementById('wk-fb-expand');
+          if (ex) ex.hidden = false;
+          setTimeout(() => { const t = document.getElementById('wk-fb-text'); if (t) t.focus(); }, 60);
+        };
+        window.__wkFbSubmit = function() {
+          const comment = ((document.getElementById('wk-fb-text') || {}).value || '').trim();
+          fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+            email: (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '',
+            rating: wkFbRating,
+            comment,
+            prompt: promptText || '',
+            looksOutput: JSON.stringify({ surface: 'weekly-plan', week_label: data.week_label || '', headline: data.headline || '', days: data.days.length, owned, total, context: ctx, ts: new Date().toISOString() }),
+          }) }).catch(() => {});
+          // #wk-fb-prompt carries inline display:flex — the hidden attribute
+          // loses to it (documented gotcha), so toggle style.display.
+          const p = document.getElementById('wk-fb-prompt'), ex = document.getElementById('wk-fb-expand'), dn = document.getElementById('wk-fb-done');
+          if (p) p.style.display = 'none';
+          if (ex) ex.hidden = true;
+          if (dn) dn.hidden = false;
+        };
       };
 
       // ── Travel Edit — Capsule Packing & Lookbook (PRD: AI-Powered Capsule Packing) ──
@@ -4473,8 +4544,7 @@ body>*:not(#tv-result-page){display:none !important}
           document.head.appendChild(tvStyleEl);
         }
         tvStyleEl.textContent = _TV_CSS;
-        if (kpResultPage) kpResultPage.style.display = 'none';
-        if (dlResultPage) dlResultPage.style.display = 'none';
+        _rbHideResultPages('tv');
         window.__mbCloseResult && window.__mbCloseResult();
 
         const swapSvg = _tvSwapSvg;
@@ -5918,7 +5988,7 @@ body>*:not(#tv-result-page){display:none !important}
                   ? `<img src="${_waEsc(item.img)}" class="rb-sn-img" alt="">`
                   : '<div class="rb-sn-img-ph"></div>'}
                 <div class="rb-sn-body">
-                  <div class="rb-sn-type">${item.type === 'daily-look' ? 'Daily look' : item.type === 'weekly-plan' ? 'Weekly plan' : item.type === 'travel-edit' ? 'Travel edit' : item.type === 'look' ? 'Look' : 'Key piece'}</div>
+                  <div class="rb-sn-type">${_snTypeLabel(item.type)}</div>
                   <div class="rb-sn-title">${_waEsc(item.title)}</div>
                   <div class="rb-sn-meta">${_waEsc(item.subtitle || '')}</div>
                 </div>
@@ -6009,29 +6079,15 @@ body>*:not(#tv-result-page){display:none !important}
         _lbCloudDelete(id);
       }
 
-      // ── Moodboard entry: scroll + prefill the main concierge textarea ──
-      const _MB_PLACEHOLDER = 'A week in the South of France in August…';
       const _CB_PLACEHOLDER = "Tell Robes where you're going, or the look you're after…";
 
       // ── Intent system (P0: pills stripped — cards + NL extraction only) ──
+      // The rotating prompt examples live in the bundle's typewriter
+      // (PROMPT_EXAMPLES in dashboard-assets/144529f6….js) — that is the
+      // sole placeholder mechanism.
       let _cbIntent = null; // null | 'style' | 'dress-me' | 'weekly'
       let _cbPhotoData = null;
-
-      // Rotating placeholder — the affordance that replaced the pills.
-      // Guides all three P0 tracks (+ key piece) without rendering chrome.
-      const _CB_ROTATE = [
-        "Tell Robes where you're going, or the look you're after…",
-        "An outfit for tomorrow's client dinner…",
-        'Plan my work week — smart, comfortable, no repeats…',
-        'Pack me for a long weekend in Lisbon…',
-        'Style my cream blazer three ways…',
-      ];
-
-      const _CHIP_ICONS = {
-        style: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"></path></svg>`,
-        'dress-me': `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5l3 9H5l7 9 7-9h-3l3-9h-4"></path><path d="M9 3c0 1.7 1.3 3 3 3s3-1.3 3-3"></path></svg>`,
-        moodboard: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>`,
-      };
+      let _cbSeedPrefix = null; // static prefix of a card-injected scaffold
 
       const _CHIP_DEFS = [
         { id: 'chip-style',  label: 'Style a key piece',
@@ -6109,59 +6165,34 @@ body>*:not(#tv-result-page){display:none !important}
           ta.dispatchEvent(new Event('input'));
           _cbAutoGrow(ta);
         }
-        const hint = document.getElementById('cb-photo-hint');
-        const icon = document.getElementById('cb-photo-icon');
-        const preview = document.getElementById('cb-photo-preview');
         if (wi.image_url) {
           try {
-            const blob = await fetch(wi.image_url).then(r => r.blob());
-            _cbPhotoData = await new Promise((resolve, reject) => {
-              const fr = new FileReader();
-              fr.onload = () => resolve(fr.result);
-              fr.onerror = reject;
-              fr.readAsDataURL(blob);
-            });
-            if (preview) { preview.src = wi.image_url; preview.style.display = 'block'; }
-            if (icon) icon.style.display = 'none';
+            _cbPhotoData = await _rbUrlToDataUrl(wi.image_url);
+            const box = document.getElementById('cb-attached');
+            if (box) {
+              box.innerHTML =
+                `<div class="hp-chip"><img src="${_waEsc(wi.image_url)}" alt="">` +
+                `<span class="hp-chip-label">${_waEsc(wi.label)}</span>` +
+                `<button class="hp-chip-x" onclick="window.__cbClearPhoto&&window.__cbClearPhoto()" aria-label="Remove piece">` +
+                `<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>`;
+              box.hidden = false;
+            }
           } catch (e) { _cbPhotoData = null; }
         }
-        if (hint) hint.textContent = 'From your wardrobe — ' + wi.label;
         _waShowToast(wi.label + ' anchored to your prompt');
       };
 
-      function _cbShowPhotoZone(show) {
-        // P0: with the pills stripped there is no chip to reveal the attach
-        // row — it stays visible always (photo/wardrobe attach = key-piece
-        // intent, per _cbDetectIntent's hasPhoto rule). `show: false` now
-        // only clears the attached state after a submit/reset.
-        const zone = document.getElementById('cb-photo-zone');
-        if (!zone) return;
-        zone.style.display = 'flex';
-        if (!show) {
-          _cbPhotoData = null;
-          const preview = document.getElementById('cb-photo-preview');
-          const hint = document.getElementById('cb-photo-hint');
-          const icon = document.getElementById('cb-photo-icon');
-          if (preview) { preview.src = ''; preview.style.display = 'none'; }
-          if (hint) { hint.textContent = "Show Robes the piece and you'll get three ways to wear it."; hint.style.display = ''; }
-          if (icon) icon.style.display = '';
-          const inp = document.getElementById('cb-photo-input');
-          if (inp) inp.value = '';
-        }
+      // Clear the attached photo/piece — state + the bundle's #cb-attached
+      // chip. (P0: the old always-visible attach row is gone; attachment
+      // lives in the + menu alongside Upload / Take a picture.)
+      function _cbClearPhoto() {
+        _cbPhotoData = null;
+        const box = document.getElementById('cb-attached');
+        if (box) { box.innerHTML = ''; box.hidden = true; }
+        const inp = document.getElementById('cb-file');
+        if (inp) inp.value = '';
       }
-
-      function _cbSetChipActive(intent) {
-        _CHIP_DEFS.forEach(c => {
-          const chip = document.getElementById(c.id);
-          if (!chip) return;
-          const active = c.intent === intent;
-          // Override bundle's .cb-pill defaults inline so specificity wins
-          chip.style.background = active ? '#202021' : '';
-          chip.style.color = active ? '#FAF8F5' : '';
-          chip.style.borderColor = active ? '#202021' : '';
-          chip.style.fontWeight = active ? '500' : '';
-        });
-      }
+      window.__cbClearPhoto = _cbClearPhoto;
 
       // Grow the textarea to fit its content so injected template text never
       // clips off the top (bug report 4.7 — mobile prompt bleed).
@@ -6172,19 +6203,25 @@ body>*:not(#tv-result-page){display:none !important}
       }
 
       function _cbSetIntent(intent) {
-        _cbIntent = intent;
         _cbHideClarify();
         const ta = document.getElementById('cb-ta');
         const def = _CHIP_DEFS.find(c => c.intent === intent);
-        _cbSetChipActive(intent);
+        // Only arm intents that have a scaffold — assigning before this
+        // guard left a stale unroutable intent (e.g. legacy 'moodboard')
+        // permanently bypassing NL detection.
         if (!def || !ta) return;
+        _cbIntent = intent;
+        // Remember the scaffold's static prefix — if the user later rewrites
+        // the prompt wholesale, _cbSubmit re-detects instead of trusting the
+        // now-invisible card intent (no chips = no deselect affordance).
+        _cbSeedPrefix = def.inject.split('[')[0].trim().toLowerCase();
         ta.value = def.inject;
         ta.placeholder = def.placeholder;
         ta.dispatchEvent(new Event('input'));
         _cbAutoGrow(ta);
         ta.scrollTop = 0;
         _cbSetCta(def.cta);
-        _cbShowPhotoZone(intent === 'style');
+        if (intent !== 'style') _cbClearPhoto();
         ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
         // Put the caret on the first bracket so she can edit it straight away
         // instead of hunting through the line on mobile.
@@ -6198,12 +6235,11 @@ body>*:not(#tv-result-page){display:none !important}
 
       function _cbReset() {
         _cbIntent = null;
-        _cbPhotoData = null;
+        _cbSeedPrefix = null;
         const ta = document.getElementById('cb-ta');
-        if (ta) { ta.value = ''; ta.placeholder = _CB_ROTATE[0]; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input')); }
+        if (ta) { ta.value = ''; ta.placeholder = _CB_PLACEHOLDER; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input')); }
         _cbResetCta();
-        _cbShowPhotoZone(false);
-        _cbSetChipActive(null);
+        _cbClearPhoto();
       }
 
       // Reusable inline style overlay — shared between chip 'style', 'dress-me', and KP card
@@ -6315,21 +6351,9 @@ body>*:not(#tv-result-page){display:none !important}
             </div>
           </div>`;
         document.body.appendChild(modal);
-        async function rowPhotoData() {
-          if (!row.image_url) return null;
-          try {
-            const blob = await fetch(row.image_url).then(r => r.blob());
-            return await new Promise((resolve, reject) => {
-              const fr = new FileReader();
-              fr.onload = () => resolve(fr.result);
-              fr.onerror = reject;
-              fr.readAsDataURL(blob);
-            });
-          } catch (e) { return null; }
-        }
         modal.querySelector('#rb-fork-ways').onclick = async function() {
           modal.remove();
-          const pd = await rowPhotoData();
+          const pd = row.image_url ? await _rbUrlToDataUrl(row.image_url).catch(() => null) : null;
           _cbStyleSubmit('Style my ' + row.label + ' three ways', pd, { intent: 'style' });
         };
         modal.querySelector('#rb-fork-daily').onclick = function() {
@@ -6345,8 +6369,12 @@ body>*:not(#tv-result-page){display:none !important}
       const _GARMENT_RE = /(blazer|coat|jacket|trench|dress|gown|skirt|jeans|denim|trousers?|pants|shorts|shirt|blouse|top|tee|t-shirt|knit|sweater|jumper|cardigan|waistcoat|vest|suit|boots?|loafers?|heels?|sneakers?|trainers|flats|sandals|mules|pumps|slingbacks?|bag|tote|clutch|scarf|belt)/;
 
       function _cbDetectIntent(text, hasPhoto) {
+        // A photo attachment always means the key-piece track (PRD rule) —
+        // no other track consumes the photo, so it must never be outranked
+        // by a travel/weekly keyword and silently dropped.
+        if (hasPhoto) return 'style';
         const t = ' ' + (text || '').toLowerCase().replace(/[^\w\s'’-]/g, ' ') + ' ';
-        const piece = hasPhoto ||
+        const piece =
           /\bstyle (my|this|these)\b/.test(t) || /\bways to wear\b/.test(t) || /\b(three|3) ways\b/.test(t) ||
           /\bhow (should|do|can|would) i (wear|style)\b/.test(t) ||
           (/\b(my|this|these)\b/.test(t) && _GARMENT_RE.test(t));
@@ -6356,8 +6384,11 @@ body>*:not(#tv-result-page){display:none !important}
           /\b(brunch|dinner|lunch|meeting|wedding|date night|office|workday|interview|party|drinks|gallery|school run)\b/.test(t);
         const travel = /\b(pack(ing)?|suitcase|luggage|trip|travel(ling|ing)?|holiday|vacation|getaway|city break|honeymoon|weekend away|nights? in)\b/.test(t);
         // Multi-day agendas → the Weekly Plan track. "weekend" never
-        // matches \bweek\b, so daily "this weekend" prompts stay daily.
-        const weekly = /\b(work ?week|week ahead|next week|whole week|full week|weekly|school week|monday (to|through|until) friday)\b/.test(t) ||
+        // matches \bweek\b, so daily "this weekend" prompts stay daily; a
+        // bare adjectival "weekly" ("my weekly team meeting") is deliberately
+        // NOT a trigger — it describes one recurring occasion, not a week.
+        const weekly = /\b(work ?week|week ahead|next week|whole week|full week|school week|monday (to|through|until) friday)\b/.test(t) ||
+          /\bweekly (plan(ner)?|wardrobe|outfits|schedule|agenda|edit)\b/.test(t) ||
           /\bplan\b[\s\S]*\bweek\b/.test(t) || /\bweek\b[\s\S]*\b(plan|schedule|agenda|calendar|outfits)\b/.test(t) ||
           /\b(for|of) the week\b/.test(t);
         const hits = [piece && 'style', daily && 'dress-me', travel && 'travel', weekly && 'weekly'].filter(Boolean);
@@ -6433,7 +6464,12 @@ body>*:not(#tv-result-page){display:none !important}
           _cbStyleSubmit(prompt, photo, { intent });
         } else {
           // No P0 track matched (e.g. a legacy 'moodboard' intent) — never
-          // render blindly; fall back to the clarifying loop.
+          // render blindly; drop the stale intent and fall back to the
+          // clarifying loop (an armed unroutable intent would otherwise
+          // bypass NL detection on every subsequent send).
+          _cbIntent = null;
+          _cbSeedPrefix = null;
+          _cbResetCta();
           if (!prompt) { _cbReset(); return; }
           _cbShowClarify(prompt);
         }
@@ -6453,6 +6489,13 @@ body>*:not(#tv-result-page){display:none !important}
           if (ta) { ta.value = prompt; _cbAutoGrow(ta); }
         }
         let intent = _cbIntent;
+        // A card-armed intent is invisible (no chips) — only trust it while
+        // the prompt still descends from the injected scaffold. A wholesale
+        // rewrite re-runs detection so "Style my blazer three ways" typed
+        // over the weekly template doesn't post to /api/weekly.
+        if (intent && _cbSeedPrefix && prompt.toLowerCase().indexOf(_cbSeedPrefix) !== 0) {
+          intent = _cbDetectIntent(prompt, !!_cbPhotoData) || intent;
+        }
         if (!intent) {
           if (!prompt && !_cbPhotoData) return;
           intent = _cbDetectIntent(prompt, !!_cbPhotoData);
@@ -6466,57 +6509,51 @@ body>*:not(#tv-result-page){display:none !important}
       function _mbShowInlineBtn() {}
       function _mbFireFromTextarea() { _cbSubmit(); }
 
-      // Inject chips + photo attachment zone after bundle renders
+      // P0 concierge chrome: the prompt box is a bare text entry — no pills,
+      // no attach row. Photo + wardrobe attachment live in the + menu
+      // (#cb-addmenu) alongside Upload / Take a picture; the bundle's
+      // typewriter placeholder (PROMPT_EXAMPLES in the dashboard-assets
+      // concierge script) is the sole intent guide.
       setTimeout(() => {
         const ta = document.getElementById('cb-ta');
         if (!ta) return;
         const sendBtn = document.querySelector('.cb-send');
         if (sendBtn && !sendBtn.dataset.origText) sendBtn.dataset.origText = sendBtn.textContent || 'Send';
 
-        // Attach suggestion row — appears inside the card when 'style' chip active
-        const photoZone = document.createElement('div');
-        photoZone.id = 'cb-photo-zone';
-        photoZone.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 15px;cursor:pointer;border-top:0.5px solid rgba(32,32,33,0.08)';
-        photoZone.innerHTML = `
-          <input type="file" id="cb-photo-input" accept="image/*" style="display:none">
-          <span id="cb-photo-icon" style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:rgba(142,112,119,0.1);display:flex;align-items:center;justify-content:center;color:#8E7077">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-          </span>
-          <span id="cb-photo-hint" style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:rgba(32,32,33,0.38)">Show Robes the piece and you'll get three ways to wear it.</span>
-          <img id="cb-photo-preview" src="" alt="" style="display:none;width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0;margin-left:auto">
-          <button id="cb-wa-btn" type="button" style="flex-shrink:0;margin-left:auto;padding:7px 14px;border:0.5px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11px;letter-spacing:.03em;cursor:pointer;color:#202021;font-family:inherit;white-space:nowrap">From wardrobe</button>`;
-        photoZone.onclick = function(e) {
-          if (e.target.closest('#cb-wa-btn')) { window.__cbWardrobePick(); return; }
-          if (!e.target.closest('#cb-photo-preview')) document.getElementById('cb-photo-input').click();
-        };
-        photoZone.querySelector('#cb-photo-input').onchange = function(e) {
-          const file = e.target.files && e.target.files[0];
-          if (!file) return;
-          // Downscale before upload — a raw 8MB camera photo inside the
-          // styling request is a long cellular hang behind the overlay.
-          _rbDownscale(file).then(function(dataUrl) {
-            _cbPhotoData = dataUrl;
-            const preview = document.getElementById('cb-photo-preview');
-            const hint = document.getElementById('cb-photo-hint');
-            const icon = document.getElementById('cb-photo-icon');
-            if (preview) { preview.src = _cbPhotoData; preview.style.display = 'block'; }
-            if (hint) hint.textContent = 'Photo attached — tap to change';
-            if (icon) icon.style.display = 'none';
-          }).catch(function() {
-            _waShowToast('Couldn’t read that image — try another photo.');
-          });
-        };
-        // Insert inside concierge-box, between textarea and the footer row
-        const cbFoot = document.querySelector('.cb-foot') || ta.parentNode;
-        cbFoot.parentNode.insertBefore(photoZone, cbFoot);
-
-        // P0: prompt pills are stripped — no chip row is injected, and any
-        // stray .cb-pills row is removed. The bundle's typewriter
-        // placeholder on #cb-ta (dynamic, rotating examples) stays as the
-        // sole intent guide; its example list lives in the dashboard-assets
-        // concierge script (PROMPT_EXAMPLES).
         document.querySelectorAll('.cb-pills').forEach(el => el.remove());
+
+        // "From wardrobe" joins the + menu
+        const addMenu = document.getElementById('cb-addmenu');
+        if (addMenu && !document.getElementById('cb-addopt-wa')) {
+          const waOpt = document.createElement('button');
+          waOpt.id = 'cb-addopt-wa';
+          waOpt.className = 'hp-addopt';
+          waOpt.innerHTML = `<svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>From wardrobe`;
+          waOpt.onclick = function() { window.__cbWardrobePick && window.__cbWardrobePick(); };
+          addMenu.appendChild(waOpt);
+        }
       }, 1000);
+
+      // The bundle's + menu photo path (#cb-file → Dash.onPhoto renders the
+      // attached chip) must also feed _cbPhotoData. Capture phase on
+      // document so the file is read before Dash.onPhoto clears the input.
+      document.addEventListener('change', function(e) {
+        if (!e.target || e.target.id !== 'cb-file') return;
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        // Downscale before upload — a raw 8MB camera photo inside the
+        // styling request is a long cellular hang behind the overlay.
+        _rbDownscale(file).then(function(dataUrl) {
+          _cbPhotoData = dataUrl;
+        }).catch(function() {
+          _waShowToast('Couldn’t read that image — try another photo.');
+        });
+      }, true);
+      // The bundle chip's × calls Dash.removePhoto (clears the chip only) —
+      // clear our attachment state alongside it.
+      document.addEventListener('click', function(e) {
+        if (e.target && e.target.closest && e.target.closest('#cb-attached .hp-chip-x')) _cbPhotoData = null;
+      }, true);
 
       // Intercept send button click and Enter key — routes via _cbSubmit
       document.addEventListener('click', function(e) {
@@ -6542,11 +6579,18 @@ body>*:not(#tv-result-page){display:none !important}
         if (e.target && e.target.id === 'cb-ta') _cbAutoGrow(e.target);
       });
 
+      // P0: chokepoint gates — every moodboard entry global no-ops while
+      // hidden, so no un-audited caller (crumb actions, bundle patches,
+      // future buttons) can reach the surface. Restoring moodboards needs
+      // _RB_MB_HIDDEN = false PLUS the moodboard routing entries that were
+      // removed from _CHIP_DEFS/_cbDetectIntent/_cbResolve (see git history).
       window.__rbStartMoodboard = function() {
+        if (_RB_MB_HIDDEN) return;
         _cbSetIntent('moodboard');
       };
 
       window.__mbRunGeneration = async function(prompt) {
+        if (_RB_MB_HIDDEN) return;
         _mbShowGenerating(prompt);
         try {
           const token = _waToken();
@@ -7167,6 +7211,7 @@ body>*:not(#tv-result-page){display:none !important}
       }
 
       window._mbShowAllPage = function() {
+        if (_RB_MB_HIDDEN) return;
         _mbListPage.style.display = 'block';
         _mbRenderPage();
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Your Moodboards' }]);
@@ -7184,6 +7229,7 @@ body>*:not(#tv-result-page){display:none !important}
         window._rbConfirmDelete('Delete this moodboard?', function() { _mbRemove(id); });
       };
       window.__mbOpenSaved = function(id) {
+        if (_RB_MB_HIDDEN) return;
         const item = _mbLoad().find(i => i.id === id);
         if (!item) return;
         const fromList = _mbListPage.style.display !== 'none';
@@ -7521,6 +7567,10 @@ body>*:not(#tv-result-page){display:none !important}
         }
 
         function paintError() {
+          // The card may have collapsed while /api/style was in flight —
+          // painting a retry button into a detached node is invisible, so
+          // surface the failure somewhere she can act on it instead.
+          if (collapsed) { _waShowToast('Robes couldn’t style your first piece — it’s safe in your wardrobe, tap it any time.'); return; }
           card.innerHTML = shell(
             'Robes couldn’t style it <em>just now.</em>',
             'Your piece is safely in your wardrobe — try the looks again.',
