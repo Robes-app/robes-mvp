@@ -3130,9 +3130,133 @@
       // owned pieces render their real wardrobe photos, new pieces a
       // serif monogram. Saved to the lookbook as type 'weekly-plan'.
       let _wkState = null; // { data, prompt, day }
+      let _wkActiveSaveId = null; // lookbook id of the live weekly plan
       window.__lastWkData = null;
 
-      window.__wkSubmit = async function(prompt) {
+      // ── Step 1: the week planner modal (mirrors the Travel Edit day
+      // planner) — she assigns activities to specific days ("Office",
+      // "Dinner", "Pilates"), leaves days blank for Robes to plan, or
+      // marks them "Leave free" (no outfit at all), BEFORE anything
+      // generates. Defaults to the upcoming Mon–Sun; "+ Plan next week
+      // too" extends the calendar to 14 days.
+      let _wkPlan = null; // { brief, days: [{label, date, activity, free}] }
+      let _wkPlanFocus = 0;
+
+      function _wkWeekDays(count, startOffset) {
+        const now = new Date();
+        const dow = (now.getDay() + 6) % 7; // 0 = Monday
+        const start = new Date(now);
+        start.setDate(now.getDate() + (dow === 0 ? 0 : 7 - dow) + (startOffset || 0));
+        const out = [];
+        for (let i = 0; i < count; i++) {
+          const d = new Date(start);
+          d.setDate(start.getDate() + i);
+          out.push({
+            label: d.toLocaleDateString('en-GB', { weekday: 'long' }),
+            date: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+          });
+        }
+        return out;
+      }
+
+      window.__wkOpen = function(opts) {
+        if (!_wkPlan) {
+          _wkPlan = { brief: '', days: _wkWeekDays(7).map(d => ({ ...d, activity: '', free: false })) };
+        }
+        if (opts && opts.brief) _wkPlan.brief = opts.brief;
+        _wkPlanFocus = 0;
+        _wkPlanPaint();
+      };
+
+      window.__wkPlanFree = function(i) {
+        _wkPlanSync();
+        _wkPlan.days[i].free = !_wkPlan.days[i].free;
+        _wkPlanPaint();
+      };
+      window.__wkPlanChip = function(txt) {
+        _wkPlanSync();
+        const day = _wkPlan.days[_wkPlanFocus];
+        if (day && !day.free) { day.activity = txt; }
+        _wkPlanPaint();
+        const el = document.getElementById('wk-plan-' + _wkPlanFocus);
+        if (el) el.focus();
+      };
+      window.__wkPlanFocusSet = function(i) { _wkPlanFocus = i; };
+      window.__wkPlanExtend = function() {
+        _wkPlanSync();
+        const more = _wkWeekDays(7, _wkPlan.days.length);
+        more.forEach(d => _wkPlan.days.push({ ...d, activity: '', free: false }));
+        _wkPlanPaint();
+      };
+      function _wkPlanSync() {
+        if (!_wkPlan) return;
+        const b = document.getElementById('wk-brief');
+        if (b) _wkPlan.brief = b.value;
+        _wkPlan.days.forEach((d, i) => {
+          const el = document.getElementById('wk-plan-' + i);
+          if (el && !d.free) d.activity = el.value;
+        });
+      }
+
+      function _wkPlanPaint() {
+        document.getElementById('wk-plan-modal')?.remove();
+        const serif = "'Cormorant',Georgia,serif";
+        const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:11px 12px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit';
+        const ph = ['Office day', 'Client dinner', 'WFH + errands', 'Pilates, then lunch out', 'School run + meetings', 'Date night', 'Slow morning, drinks later'];
+        const chips = ['Office', 'WFH', 'Big meeting', 'Dinner out', 'Date night', 'Pilates', 'School run', 'Drinks'];
+        const modal = document.createElement('div');
+        modal.id = 'wk-plan-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:center;justify-content:center;padding:20px';
+        modal.onclick = function(e) { if (e.target === modal) { _wkPlanSync(); modal.remove(); } };
+        const rows = _wkPlan.days.map((d, i) => `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+            <div style="flex-shrink:0;width:96px">
+              <div style="font-family:${serif};font-size:15px;color:#202021;line-height:1.1">${_waEsc(d.label)}</div>
+              <div style="font-size:10px;color:#A89880">${_waEsc(d.date)}</div>
+            </div>
+            <input id="wk-plan-${i}" value="${_waEsc(d.free ? '' : d.activity)}"${d.free ? ' disabled' : ''} placeholder="${_waEsc(d.free ? 'Left free — no outfit this day' : ph[i % ph.length])}" onfocus="window.__wkPlanFocusSet(${i})" style="${inputCss}${d.free ? ';opacity:.5;background:#F0EDE8' : ''}">
+            <button onclick="window.__wkPlanFree(${i})" style="flex-shrink:0;background:none;border:0.5px solid rgba(32,32,33,0.18);border-radius:100px;padding:7px 12px;font-size:10px;letter-spacing:.06em;cursor:pointer;color:${d.free ? '#fff' : '#6E6A64'};background:${d.free ? '#202021' : '#fff'};font-family:inherit;white-space:nowrap">${d.free ? 'Freed' : 'Leave free'}</button>
+          </div>`).join('');
+        const chipsHtml = chips.map(c =>
+          `<button onclick="window.__wkPlanChip('${_waEsc(c)}')" style="flex-shrink:0;background:#FAF8F5;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;padding:7px 13px;font-size:11px;cursor:pointer;color:#202021;font-family:inherit;white-space:nowrap">${_waEsc(c)}</button>`).join('');
+        const nActive = _wkPlan.days.filter(d => !d.free).length;
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:560px;max-height:86vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">The weekly plan</p>
+              <button onclick="(function(){document.getElementById('wk-plan-modal').remove()})()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;font-size:16px;line-height:1">×</button>
+            </div>
+            <p style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin:0 0 6px;line-height:1.15">What does the week hold?</p>
+            <p style="font-size:12.5px;color:#8A8078;line-height:1.5;margin:0 0 16px">Tell Robes each day's plan, leave it blank and Robes reads the week, or leave the day free — free days get no outfit.</p>
+            <input id="wk-brief" value="${_waEsc(_wkPlan.brief)}" placeholder="The week's mood — smart, comfortable, no repeats…" style="${inputCss};margin-bottom:16px">
+            <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 14px">${chipsHtml}</div>
+            ${rows}
+            ${_wkPlan.days.length < 14 ? `<button onclick="window.__wkPlanExtend()" style="width:100%;margin-top:4px;background:none;border:1px dashed rgba(32,32,33,0.22);border-radius:8px;padding:10px;font-size:11.5px;color:#6E6A64;cursor:pointer;font-family:inherit">+ Plan next week too</button>` : ''}
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;flex-wrap:wrap">
+              <button onclick="window.__wkPlanGo(true)" style="background:none;border:none;cursor:pointer;font-size:11.5px;color:#A89880;text-decoration:underline;font-family:inherit;padding:4px 0">Skip — let Robes plan the days</button>
+              <button onclick="window.__wkPlanGo()" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:13px 24px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Create my week · ${nActive} days →</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+      }
+
+      window.__wkPlanGo = function(skip) {
+        _wkPlanSync();
+        const days = _wkPlan.days;
+        const dayPlan = days.map(d => d.free ? null : (skip ? '' : (d.activity || '').trim()));
+        if (!dayPlan.some(p => p !== null)) { _waShowToast('Every day is left free — keep at least one dressed'); return; }
+        const weekDays = days.map(d => d.label + ' · ' + d.date);
+        document.getElementById('wk-plan-modal')?.remove();
+        _wkGenerate(_wkPlan.brief, dayPlan, weekDays);
+      };
+
+      // Routing entry — the weekly track always goes through the planner
+      // (Trip-style plan-first flow: days are hers before anything renders)
+      window.__wkSubmit = function(prompt) {
+        window.__wkOpen({ brief: prompt || '' });
+      };
+
+      async function _wkGenerate(prompt, dayPlan, weekDays) {
         let overlay = document.getElementById('kp-loading-overlay');
         if (!overlay) {
           overlay = document.createElement('div');
@@ -3185,6 +3309,8 @@
             body: JSON.stringify({
               prompt,
               name,
+              dayPlan,
+              weekDays,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
               context,
@@ -3215,11 +3341,20 @@
         return `<span style="font-family:${serif};font-size:${size || 16}px;color:#C8B8A2">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`;
       }
 
+      function _wkDayName(d) { return String(d.day_label || '').split('·')[0].trim(); }
+      function _wkDayDate(d) { const p = String(d.day_label || '').split('·'); return p.length > 1 ? p[1].trim() : ''; }
+
+      function _wkPatchSaved() {
+        if (!_wkActiveSaveId || !_wkState) return;
+        const saved = snLoad().find(x => x.id === _wkActiveSaveId);
+        if (saved) snUpdate(_wkActiveSaveId, { wkData: { ...(saved.wkData || {}), days: _wkState.data.days } });
+      }
+
       window.__wkSelectDay = function(di) {
         if (!_wkState) return;
         _wkState.day = di;
         _wkPaintStrip();
-        _wkPaintDay();
+        _wkPaintConsole();
       };
 
       function _wkPaintStrip() {
@@ -3228,51 +3363,287 @@
         const serif = "'Cormorant',Georgia,serif";
         strip.innerHTML = _wkState.data.days.map((d, di) => {
           const active = di === _wkState.day;
-          const thumbs = d.items.slice(0, 3).map(it =>
+          const thumbs = d.rest ? '' : d.items.slice(0, 3).map(it =>
             `<div style="width:30px;height:38px;border-radius:4px;overflow:hidden;background:#F0EDE8;display:flex;align-items:center;justify-content:center">${_wkThumb(it, 13)}</div>`
           ).join('');
           const owned = d.items.filter(it => it.wardrobe_match).length;
+          const meta = d.rest
+            ? 'left free'
+            : `${d.items.length} pieces${owned ? ' · ' + owned + ' yours' : ''}`;
           return `
-            <button onclick="window.__wkSelectDay(${di})" style="flex-shrink:0;width:152px;text-align:left;font-family:inherit;cursor:pointer;background:#fff;border:${active ? '1.5px solid #202021' : '0.5px solid rgba(32,32,33,0.12)'};border-radius:12px;padding:13px 14px 12px">
-              <div style="font-family:${serif};font-size:17px;font-weight:400;color:#202021;line-height:1.1">${_waEsc(d.day_label)}</div>
-              <div style="font-size:10.5px;color:#8A8078;margin:3px 0 9px;line-height:1.35;min-height:28px">${_waEsc(d.occasion || '')}</div>
-              <div style="display:flex;gap:5px;margin-bottom:7px">${thumbs}</div>
-              <div style="font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#A89880">${d.items.length} pieces${owned ? ' · ' + owned + ' yours' : ''}</div>
+            <button onclick="window.__wkSelectDay(${di})" style="flex-shrink:0;width:152px;text-align:left;font-family:inherit;cursor:pointer;background:${d.rest ? '#FAF8F5' : '#fff'};border:${active ? '1.5px solid #202021' : '0.5px solid rgba(32,32,33,0.12)'};border-radius:12px;padding:13px 14px 12px;${d.rest && !active ? 'opacity:.65' : ''}">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px">
+                <span style="font-family:${serif};font-size:17px;font-weight:400;color:#202021;line-height:1.1">${_waEsc(_wkDayName(d))}</span>
+                <span style="font-size:9.5px;color:#B0A090;white-space:nowrap">${_waEsc(_wkDayDate(d))}</span>
+              </div>
+              <div style="font-size:10.5px;color:#8A8078;margin:3px 0 9px;line-height:1.35;min-height:28px">${_waEsc(d.occasion || '')}${d.user_activity ? ' <span style="color:#8E7077">· your plan</span>' : ''}</div>
+              <div style="display:flex;gap:5px;margin-bottom:7px;min-height:${d.rest ? '0' : '38px'}">${thumbs}</div>
+              <div style="font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#A89880">${meta}</div>
             </button>`;
         }).join('');
       }
 
-      function _wkPaintDay() {
+      // ── The day console — Daily Match parity: LEFT "The Look" stylist
+      // moodboard (tiles with hover flick), RIGHT "The Rack" (per-card
+      // flick-through, Anchor, day restyle). Flicking reuses the Daily
+      // helpers (_dlOptions/_dlOptIndex/_dlApplyOption): the option set is
+      // the served original + owned same-category pieces (travel precedent —
+      // weekly generates no AI alternates, so flicks stay instant + truthful).
+      function _wkPaintConsole() {
         const host = document.getElementById('wk-day');
         if (!host || !_wkState) return;
         const serif = "'Cormorant',Georgia,serif";
         const d = _wkState.data.days[_wkState.day];
         if (!d) { host.innerHTML = ''; return; }
-        const rows = d.items.map(it => {
+
+        if (d.rest) {
+          host.innerHTML = `
+            <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:44px 24px;margin-top:18px;text-align:center">
+              <div style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">${_waEsc(_wkDayName(d))}, <em style="font-style:italic">left free.</em></div>
+              <div style="font-size:12.5px;color:#8A8078;margin-bottom:18px">No outfit planned — a deliberately blank page in the week.</div>
+              <button onclick="window.__wkEditDay(${_wkState.day})" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✎ Dress this day</button>
+            </div>`;
+          return;
+        }
+
+        const owned = d.items.filter(it => it.wardrobe_match).length;
+        const tiles = d.items.map((it, ii) => {
           const m = it.wardrobe_match;
+          const img = m && m.image_url
+            ? `<img src="${_waEsc(m.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`
+            : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="font-family:${serif};font-size:26px;color:rgba(250,248,245,0.4)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span></div>`;
+          return `
+            <div class="wk-tile" style="${ii === 0 ? 'grid-column:1/-1;aspect-ratio:16/10' : 'aspect-ratio:4/5'};${it.anchored ? 'outline:1.5px solid #E8D8D4;outline-offset:-1.5px' : ''}" onclick="window.__wkAnchor(${ii})" title="${it.anchored ? 'Anchored — tap to release' : 'Tap to anchor through restyles'}">
+              ${img}
+              <span style="position:absolute;top:8px;left:9px;font-size:8.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(250,248,245,0.85);background:rgba(0,0,0,0.35);border-radius:20px;padding:3px 8px">${_dlSlot(it).l}</span>
+              ${m ? `<span style="position:absolute;top:8px;right:9px;font-size:9px;color:#C9D8C0;background:rgba(0,0,0,0.35);border-radius:20px;padding:3px 7px">✓</span>` : ''}
+              ${it.anchored ? `<span style="position:absolute;bottom:8px;right:9px;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#E8D8D4;border-radius:20px;padding:3px 8px">Anchored</span>` : ''}
+              <button class="wk-tnav" style="left:6px" onclick="event.stopPropagation();window.__wkFlip(${ii},-1)" aria-label="Previous option">‹</button>
+              <button class="wk-tnav" style="right:6px" onclick="event.stopPropagation();window.__wkFlip(${ii},1)" aria-label="Next option">›</button>
+              <div style="position:absolute;bottom:8px;left:9px;right:${it.anchored ? '84px' : '9px'};font-family:${serif};font-style:italic;font-size:12px;color:rgba(250,248,245,0.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">the ${_waEsc(_dlShort(it.name))}</div>
+            </div>`;
+        }).join('');
+
+        const rack = d.items.map((it, ii) => {
+          const m = it.wardrobe_match;
+          const list = _dlOptions(it);
+          const oi = _dlOptIndex(it, list);
+          const dots = list.map((_, k) => `<span style="width:4px;height:4px;border-radius:50%;background:${k === oi ? '#202021' : 'rgba(32,32,33,0.18)'};display:inline-block"></span>`).join('');
+          const retail = [it.retailer_hint !== it.brand ? it.retailer_hint : '', it.price_point].filter(Boolean).join(' · ');
           const prov = m
             ? '<span style="color:#5F7355">✓ In your wardrobe</span>'
-            : _waEsc([it.brand, [it.retailer_hint, it.price_point].filter(Boolean).join(' · ')].filter(Boolean).join(' — '));
+            : _waEsc([it.brand, retail].filter(Boolean).join(' — '));
           return `
-            <div style="display:flex;gap:14px;padding:14px 0;border-bottom:0.5px solid rgba(32,32,33,0.08)">
-              <div style="flex-shrink:0;width:64px;height:80px;border-radius:8px;overflow:hidden;background:#F0EDE8;display:flex;align-items:center;justify-content:center">${_wkThumb(it, 20)}</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-family:${serif};font-size:17px;font-weight:400;color:#202021;line-height:1.2">${_waEsc(it.name)}</div>
-                <div style="font-size:11px;margin:3px 0 5px;color:#8A8078">${prov}</div>
-                <div style="font-size:12.5px;color:#6E6A64;line-height:1.5">${_waEsc(it.description || '')}</div>
+            <div style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px;padding:14px 16px;margin-bottom:10px;${it.anchored ? 'border-color:#202021;border-width:1.5px;' : ''}">
+              <div style="display:flex;gap:14px">
+                <div style="flex-shrink:0;width:72px;height:92px;border-radius:8px;overflow:hidden;background:#F0EDE8;display:flex;align-items:center;justify-content:center;position:relative">
+                  ${_wkThumb(it, 22)}
+                  <span style="position:absolute;bottom:4px;right:5px;font-size:8.5px;color:#fff;background:rgba(0,0,0,0.4);border-radius:10px;padding:1px 6px">${oi + 1}/${list.length}</span>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:8.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#A89880;margin-bottom:3px">${_dlSlot(it).l}</div>
+                  <div style="font-family:${serif};font-size:17px;font-weight:400;color:#202021;line-height:1.2">${_waEsc(it.name)}</div>
+                  <div style="font-size:11px;margin:3px 0 5px;color:#8A8078">${prov}</div>
+                  <div style="font-size:12px;color:#6E6A64;line-height:1.5">${_waEsc(it.description || '')}</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px;padding-top:10px;border-top:0.5px solid rgba(32,32,33,0.07)">
+                <span style="display:inline-flex;align-items:center;gap:8px">
+                  <button onclick="window.__wkFlip(${ii},-1)" style="width:26px;height:26px;border-radius:50%;border:0.5px solid rgba(32,32,33,0.18);background:#fff;cursor:pointer;font-size:13px;line-height:1;color:#202021">‹</button>
+                  <span style="display:inline-flex;gap:4px;align-items:center">${dots}</span>
+                  <button onclick="window.__wkFlip(${ii},1)" style="width:26px;height:26px;border-radius:50%;border:0.5px solid rgba(32,32,33,0.18);background:#fff;cursor:pointer;font-size:13px;line-height:1;color:#202021">›</button>
+                </span>
+                <button onclick="window.__wkAnchor(${ii})" style="border-radius:100px;padding:7px 14px;font-size:9.5px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;${it.anchored ? 'background:#202021;color:#fff;border:none' : 'background:#fff;color:#6E6A64;border:0.5px solid rgba(32,32,33,0.18)'}">${it.anchored ? '⚓ Anchored' : 'Anchor'}</button>
               </div>
             </div>`;
         }).join('');
+
         host.innerHTML = `
-          <div style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;padding:22px 24px;margin-top:18px">
-            <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
-              <div style="font-family:${serif};font-size:23px;font-weight:300;color:#202021">${_waEsc(d.day_label)}</div>
-              <div style="font-size:12px;color:#A89880">${_waEsc(d.occasion || '')}</div>
+          <div class="wk-con">
+            <div>
+              <div style="background:#202021;border-radius:16px;padding:20px 20px 18px">
+                <div style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(250,248,245,0.45);margin-bottom:10px">The look · ${_waEsc(_wkDayName(d))} · ${d.items.length} pieces</div>
+                ${d.note ? `<div style="font-family:${serif};font-style:italic;font-size:16px;color:#FAF8F5;line-height:1.5;margin-bottom:14px">“${_waEsc(d.note)}”</div>` : ''}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${tiles}</div>
+                <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(250,248,245,0.45);margin-top:12px">${owned} of ${d.items.length} from your wardrobe</div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;flex-wrap:wrap">
+                <span style="font-size:11px;color:#A89880;font-style:italic">Anchored pieces survive a restyle.</span>
+                <button onclick="window.__wkRestyleDay()" style="background:#fff;border:0.5px solid rgba(32,32,33,0.2);border-radius:100px;padding:10px 18px;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">↻ Restyle this day</button>
+              </div>
             </div>
-            ${d.note ? `<div style="font-family:${serif};font-style:italic;font-size:14.5px;color:#6E6A64;line-height:1.55;margin-top:6px">${_waEsc(d.note)}</div>` : ''}
-            <div style="margin-top:8px">${rows}</div>
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+                <span style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#A89880">The rack · ${_waEsc(_wkDayName(d))}${d.occasion ? ' · ' + _waEsc(d.occasion) : ''}</span>
+                <button onclick="window.__wkEditDay(${_wkState.day})" style="background:none;border:none;cursor:pointer;font-size:11px;color:#8E7077;text-decoration:underline;font-family:inherit;white-space:nowrap">✎ The real plan</button>
+              </div>
+              ${rack}
+            </div>
           </div>`;
       }
+
+      window.__wkFlip = function(ii, dir) {
+        if (!_wkState) return;
+        const d = _wkState.data.days[_wkState.day];
+        const it = d && d.items[ii];
+        if (!it) return;
+        const list = _dlOptions(it);
+        if (list.length < 2) { _waShowToast('Nothing else fits this slot yet — snap more pieces'); return; }
+        _dlApplyOption(it, list[(_dlOptIndex(it, list) + dir + list.length) % list.length]);
+        _wkPaintConsole();
+        _wkPaintStrip();
+        _wkPatchSaved();
+      };
+
+      window.__wkAnchor = function(ii) {
+        if (!_wkState) return;
+        const d = _wkState.data.days[_wkState.day];
+        const it = d && d.items[ii];
+        if (!it) return;
+        it.anchored = !it.anchored;
+        _wkPaintConsole();
+        _wkPatchSaved();
+        _waShowToast(it.anchored ? 'Anchored — this day restyles around it' : 'Anchor released');
+      };
+
+      // Surgical day re-mix (POST /api/weekly/day): anchored pieces held
+      // fixed, the rest of the week untouched, same saved plan evolved.
+      async function _wkDayFetch(di, activity) {
+        const d = _wkState.data.days[di];
+        const anchors = d.items.filter(it => it.anchored).map(it => ({
+          name: it.name, category: it.category || '', brand: it.brand || '',
+          wardrobe_id: it.wardrobe_match ? it.wardrobe_match.id : null,
+        }));
+        const weekSummary = _wkState.data.days
+          .filter((x, k) => k !== di && !x.rest && x.items.length)
+          .map(x => `${_wkDayName(x)}: ${x.occasion || ''} — ${x.items.map(i => i.name).join(', ')}`)
+          .join('; ');
+        const rc = window.__rbCtx || {};
+        const res = await fetch('/api/weekly/day', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            activity,
+            dayLabel: d.day_label,
+            brief: _wkState.prompt || '',
+            anchors,
+            weekSummary,
+            name,
+            styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
+            wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
+            context: rc.city ? { city: rc.city, month: new Date().toLocaleDateString('en-GB', { month: 'long' }), tempRange: rc.tempRange || '', condition: rc.condition || '', hint: rc.hint || '' } : null,
+          }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+      }
+
+      function _wkApplyDay(di, activity, fresh) {
+        const d = _wkState.data.days[di];
+        const anchored = d.items.filter(it => it.anchored);
+        d.occasion = fresh.occasion || activity || d.occasion;
+        d.note = fresh.note || d.note;
+        d.rest = false;
+        if (activity) d.user_activity = activity;
+        d.items = Array.isArray(fresh.items) ? fresh.items : [];
+        // Re-mark anchors on the fresh items (by wardrobe id, then name) and
+        // restore a wardrobe_match the model may have dropped.
+        anchored.forEach(a => {
+          const m = d.items.find(it => !it.anchored && (
+            (a.wardrobe_match && it.wardrobe_match && String(it.wardrobe_match.id) === String(a.wardrobe_match.id)) ||
+            (it.name || '').toLowerCase() === (a.name || '').toLowerCase()));
+          if (m) {
+            m.anchored = true;
+            if (!m.wardrobe_match && a.wardrobe_match) { m.wardrobe_match = a.wardrobe_match; m.retailer_hint = ''; m.price_point = ''; }
+          }
+        });
+        _wkPaintStrip();
+        _wkPaintConsole();
+        _wkPatchSaved();
+      }
+
+      window.__wkRestyleDay = async function() {
+        if (!_wkState) return;
+        const di = _wkState.day;
+        const d = _wkState.data.days[di];
+        const btnHost = document.getElementById('wk-day');
+        if (btnHost) btnHost.style.opacity = '0.5';
+        try {
+          const fresh = await _wkDayFetch(di, d.user_activity || d.occasion || '');
+          _wkApplyDay(di, d.user_activity || '', fresh);
+          _waShowToast(_wkDayName(d) + ' restyled' + (d.items.some(i => i.anchored) ? ' around your anchors' : ''));
+        } catch (e) {
+          console.error('[Robes] /api/weekly/day error:', e.message);
+          _waShowToast('Robes couldn’t restyle that day — please try again.');
+        } finally {
+          const h = document.getElementById('wk-day');
+          if (h) h.style.opacity = '';
+        }
+      };
+
+      // "✎ The real plan" / "Dress this day" — re-plan one day after
+      // generation (same modal register as the Travel Edit day editor).
+      window.__wkEditDay = function(di) {
+        if (!_wkState) return;
+        document.getElementById('wk-day-modal')?.remove();
+        const serif = "'Cormorant',Georgia,serif";
+        const d = _wkState.data.days[di];
+        const chips = ['Office', 'WFH', 'Big meeting', 'Dinner out', 'Date night', 'Pilates', 'School run', 'Drinks'];
+        const chipsHtml = chips.map(c =>
+          `<button onclick="document.getElementById('wk-day-input').value='${_waEsc(c)}'" style="background:#FAF8F5;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;padding:7px 13px;font-size:11px;cursor:pointer;color:#202021;font-family:inherit">${_waEsc(c)}</button>`).join('');
+        const modal = document.createElement('div');
+        modal.id = 'wk-day-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:center;justify-content:center;padding:20px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:460px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">${_waEsc(d.day_label)}</p>
+              <button onclick="document.getElementById('wk-day-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;font-size:16px;line-height:1">×</button>
+            </div>
+            <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 14px;line-height:1.15">What are you actually doing?</p>
+            <input id="wk-day-input" value="${_waEsc(d.user_activity || '')}" placeholder="Client presentation, then drinks" style="width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:14px">
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:20px">${chipsHtml}</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              ${d.rest ? '<span></span>' : `<button onclick="window.__wkFreeDay(${di})" style="background:none;border:none;cursor:pointer;font-size:11.5px;color:#A89880;text-decoration:underline;font-family:inherit;padding:4px 0">Leave this day free</button>`}
+              <button id="wk-day-go" onclick="window.__wkDayApply(${di})" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Dress this day →</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+        setTimeout(() => { const i = document.getElementById('wk-day-input'); if (i) i.focus(); }, 60);
+      };
+
+      window.__wkFreeDay = function(di) {
+        document.getElementById('wk-day-modal')?.remove();
+        const d = _wkState && _wkState.data.days[di];
+        if (!d) return;
+        d.rest = true;
+        d.occasion = 'Left free';
+        d.note = '';
+        d.user_activity = null;
+        d.items = [];
+        _wkPaintStrip();
+        _wkPaintConsole();
+        _wkPatchSaved();
+        _waShowToast(_wkDayName(d) + ' left free');
+      };
+
+      window.__wkDayApply = async function(di) {
+        const input = document.getElementById('wk-day-input');
+        const activity = ((input && input.value) || '').trim();
+        if (!activity) { if (input) input.focus(); return; }
+        const go = document.getElementById('wk-day-go');
+        if (go) { go.disabled = true; go.textContent = 'Dressing…'; }
+        try {
+          const fresh = await _wkDayFetch(di, activity);
+          document.getElementById('wk-day-modal')?.remove();
+          _wkApplyDay(di, activity, fresh);
+        } catch (e) {
+          console.error('[Robes] /api/weekly/day error:', e.message);
+          if (go) { go.disabled = false; go.textContent = 'Dress this day →'; }
+          _waShowToast('Robes couldn’t dress that day — please try again.');
+        }
+      };
 
       window.__wkGoBack = function() {
         if (wkResultPage) wkResultPage.style.display = 'none';
@@ -3283,7 +3654,7 @@
 
       window.__wkPlanAgain = function() {
         window.__wkGoBack();
-        if (typeof _cbSetIntent === 'function') _cbSetIntent('weekly');
+        window.__wkOpen();
       };
 
       window.__wkRenderResult = function(data, promptText, opts) {
@@ -3298,6 +3669,17 @@
           wkResultPage.id = 'wk-result-page';
           wkResultPage.style.cssText = 'display:none;position:fixed;top:var(--nav-h,60px);left:0;right:0;bottom:0;z-index:40;background:#FAF8F5;overflow-y:auto';
           document.body.appendChild(wkResultPage);
+        }
+        if (!document.getElementById('wk-style')) {
+          const ws = document.createElement('style');
+          ws.id = 'wk-style';
+          ws.textContent =
+            '#wk-day .wk-con{display:grid;grid-template-columns:360px 1fr;gap:18px;margin-top:18px;align-items:start}' +
+            '@media(max-width:900px){#wk-day .wk-con{grid-template-columns:1fr}}' +
+            '.wk-tile{position:relative;border-radius:10px;overflow:hidden;background:#2E2E30;cursor:pointer}' +
+            '.wk-tnav{position:absolute;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:14px;line-height:1;z-index:2}' +
+            '.wk-tile:hover .wk-tnav{display:flex}';
+          document.head.appendChild(ws);
         }
 
         const owned = data.days.reduce((s, d) => s + d.items.filter(it => it.wardrobe_match).length, 0);
@@ -3349,21 +3731,26 @@
 
         wkResultPage.style.display = 'block';
         wkResultPage.scrollTop = 0;
+        // Land on the first dressed day, not a free one
+        const firstDressed = data.days.findIndex(d => !d.rest);
+        if (firstDressed > 0) _wkState.day = firstDressed;
         _wkPaintStrip();
-        _wkPaintDay();
+        _wkPaintConsole();
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Plan the week' }]);
 
-        if (!(opts && opts.skipSave)) {
+        if (opts && opts.skipSave) {
+          _wkActiveSaveId = (opts && opts.savedId) || null;
+        } else {
           const firstImg = (function() {
             for (const d of data.days) for (const it of d.items) {
               if (it.wardrobe_match && it.wardrobe_match.image_url && String(it.wardrobe_match.image_url).indexOf('http') === 0) return it.wardrobe_match.image_url;
             }
             return null;
           })();
-          snAdd({
+          _wkActiveSaveId = snAdd({
             type: 'weekly-plan',
             title: data.headline || 'Your week, planned',
-            subtitle: data.days.length + ' days · ' + (data.week_label || '').toLowerCase(),
+            subtitle: data.days.filter(d => !d.rest).length + ' days · ' + (data.week_label || '').toLowerCase(),
             img: firstImg,
             wkData: { ...data, prompt: promptText || '' },
           });

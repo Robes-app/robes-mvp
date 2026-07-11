@@ -684,36 +684,82 @@ const WEEKLY_SCHEMA = {
   required: ['fallback', 'week_label', 'headline', 'stylist_summary', 'palette', 'days'],
 };
 
-app.post('/api/weekly', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
-  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext } = req.body;
-
-  const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
+// Shared weekly helpers — the closet block, wardrobe-state directive and
+// per-item normalisation are identical for the full-week call and the
+// single-day restyle.
+function weeklyClosetBlocks(closetItems) {
   const n = closetItems.length;
-  const dnaBlock = styleDnaPromptBlock(styleDna, n, styleIcons);
-
   const closetBlock = n
     ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by index):\n${closetItems.map((i, idx) =>
         `${idx}: ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${i.brand ? ', ' + i.brand : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
       ).join('\n')}`
     : 'THE USER HAS NOT CATALOGUED ANY WARDROBE PIECES YET.';
-
   const stateDirective = n === 0
-    ? `WARDROBE STATE: EMPTY. Build a fully aspirational, editorial week — it doubles as a shopping brief. Every item gets "wardrobe_index": -1 plus a real "retailer_hint" and "price_point".`
+    ? `WARDROBE STATE: EMPTY. Build fully aspirational, editorial outfits — they double as a shopping brief. Every item gets "wardrobe_index": -1 plus a real "retailer_hint" and "price_point".`
     : n < 15
       ? `WARDROBE STATE: GROWING (${n}/15). Hybrid build: wherever an owned piece genuinely serves a day, use it — set its "wardrobe_index" and use its exact label as the name. Fill true gaps with aspirational pieces (wardrobe_index -1, real retailer_hint + price_point). When an owned piece and a hypothetical piece would both work, ALWAYS choose the owned piece.`
-      : `WARDROBE STATE: COMPLETE (${n} pieces). Closet-first build: route the week primarily through the digitised wardrobe — nearly every item should carry a valid "wardrobe_index" and its exact owned label. Introduce a new piece (wardrobe_index -1) only for a true gap.`;
+      : `WARDROBE STATE: COMPLETE (${n} pieces). Closet-first build: route the outfits primarily through the digitised wardrobe — nearly every item should carry a valid "wardrobe_index" and its exact owned label. Introduce a new piece (wardrobe_index -1) only for a true gap.`;
+  return { closetBlock, stateDirective };
+}
+
+function weeklyNormaliseItem(it, closetItems) {
+  const wi = Number.isInteger(it.wardrobe_index) && it.wardrobe_index >= 0 ? closetItems[it.wardrobe_index] : null;
+  return {
+    name: String(it.name || '').slice(0, 120),
+    category: it.category || 'Other',
+    brand: it.brand || '',
+    description: it.description || '',
+    wardrobe_index: wi ? it.wardrobe_index : -1,
+    retailer_hint: wi ? '' : (it.retailer_hint || ''),
+    price_point: wi ? '' : (it.price_point || ''),
+    wardrobe_match: wi
+      ? { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' }
+      : null,
+  };
+}
+
+const WEEKLY_ITEM_RULES = `- Each item: "name" is the piece itself; "brand" is ONE real brand suited to the register (owned pieces: the owned brand or ""); "description" is one hyper-specific sentence — cut, fabric, colour, how it is worn that day.
+- Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" and a realistic EUR "price_point".`;
+
+app.post('/api/weekly', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
+  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, dayPlan, weekDays } = req.body;
+
+  const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
+  const n = closetItems.length;
+  const dnaBlock = styleDnaPromptBlock(styleDna, n, styleIcons);
+  const { closetBlock, stateDirective } = weeklyClosetBlocks(closetItems);
+
+  // The calendar: weekDays are the client's day labels ("Monday · 14 Jul"),
+  // dayPlan is her pre-generation itinerary — string = her plan (authoritative),
+  // '' = Robes plans it, null = deliberately left free (NO outfit).
+  const labels = (Array.isArray(weekDays) ? weekDays : []).slice(0, 14).map(l => String(l || '').slice(0, 40));
+  const rawPlan = Array.isArray(dayPlan) ? dayPlan.slice(0, 14) : [];
+  const dayCount = Math.min(14, Math.max(labels.length, rawPlan.length) || 7);
+  const cal = [];
+  for (let i = 0; i < dayCount; i++) {
+    const p = rawPlan[i];
+    cal.push({
+      label: labels[i] || `Day ${i + 1}`,
+      plan: p === null ? null : String(p || '').slice(0, 140),
+    });
+  }
+  const active = cal.map((c, i) => ({ ...c, i })).filter(c => c.plan !== null);
+  if (!active.length) return res.status(400).json({ error: 'every day is left free' });
+
+  const itineraryBlock = `THE CALENDAR (${dayCount} days — generate EXACTLY one entry per listed day, in this exact order, using each "day_label" verbatim):\n${active.map((c, k) =>
+    `${k + 1}. day_label: "${c.label}" — ${c.plan ? `HER PLAN (authoritative — dress exactly this): ${c.plan}` : 'no plan given — infer a fitting occasion from the brief'}`
+  ).join('\n')}${cal.some(c => c.plan === null) ? `\n(Days deliberately left free are omitted above — do NOT generate entries for them.)` : ''}`;
 
   const rtLine = rtContext && (rtContext.city || rtContext.tempRange)
     ? `REAL-TIME CONTEXT: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}. This is the atmospheric reality for the week ahead — fabric weight, layers and footwear must answer to it.`
     : '';
 
-  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. You are planning a CHRONOLOGICAL WEEK of dressing — a calendar strip that routes real wardrobe pieces across her agenda. Never output a generic outfit — name exact cuts, fabrications and styling techniques.
+  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. You are planning a CHRONOLOGICAL WEEK of dressing — a calendar that routes real wardrobe pieces across her agenda. Never output a generic outfit — name exact cuts, fabrications and styling techniques.
 
 THE WEEKLY PLAN RULES:
-1. THE SPAN. Read the brief for the span and agenda. Default to a Monday-to-Friday working week (5 days); extend to 6–7 days only when the brief clearly covers the weekend. Never fewer than 5 days, never more than 7.
-2. THE AGENDA. Give every day a concrete occasion drawn from (or reasonably inferred around) the brief — "Client presentation", "School run + errands", "Dinner with friends". "occasion" is 2–5 words, sentence case.
-3. THE ROUTING DISCIPLINE. This is a wardrobe ROUTER, not seven separate shopping briefs: deliberately re-wear key pieces across the week styled differently (a blazer worn formal Tuesday returns undone over denim Thursday). Never repeat an identical full outfit. In "note" (one sentence per day), name the styling move — and when a piece returns, say how it's re-worn.
-4. THE BUILD. Each day is one complete outfit of 4–6 items: top + bottom (or dress), footwear, and the finishing layer/bag/accessory that makes it deliberate.
+1. THE CALENDAR IS AUTHORITATIVE. Generate exactly one entry per calendar day listed, in order, with the given day_label verbatim. Where she wrote a plan for a day, dress exactly that plan and derive the "occasion" from it. Where no plan is given, infer a concrete occasion from the brief.
+2. THE ROUTING DISCIPLINE. This is a wardrobe ROUTER, not separate shopping briefs: deliberately re-wear key pieces across the week styled differently (a blazer worn formal Tuesday returns undone over denim Thursday). Never repeat an identical full outfit. In "note" (one sentence per day), name the styling move — and when a piece returns, say how it's re-worn.
+3. THE BUILD. Each day is one complete outfit of 4–6 items: top + bottom (or dress), footwear, and the finishing layer/bag/accessory that makes it deliberate.
 
 ${stateDirective}
 
@@ -721,17 +767,18 @@ FIELD RULES:
 - "week_label": 2–4 words, ALL CAPS, naming the week (e.g. "STUDIO WEEK", "BACK TO WORK").
 - "headline": a short serif-worthy line naming the week's mood, sentence case, ending in a full stop. Max 8 words.
 - "stylist_summary": 2–3 sentences of stylist reasoning — the week's register, the routing logic (which pieces anchor it and how they repeat), the weather read.
-- "day_label": the weekday name only (e.g. "Monday").
+- "occasion": 2–5 words, sentence case.
 - "palette": exactly 3 hex colours the week is built around, neutral to accent.
-- Each item: "name" is the piece itself; "brand" is ONE real brand suited to the register (owned pieces: the owned brand or ""); "description" is one hyper-specific sentence — cut, fabric, colour, how it is worn that day.
-- Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" and a realistic EUR "price_point".
+${WEEKLY_ITEM_RULES}
 - "fallback": true ONLY if the brief is gibberish — then plan a pleasant, unremarkable working week instead. A plain agenda, job or mood is a valid weekly brief.${dnaBlock ? '\n\n' + dnaBlock : ''}
 
 ${closetBlock}`;
 
-  const userText = `${rtLine ? rtLine + '\n\n' : ''}The user's brief for the week: "${(prompt || '').trim() || 'A regular working week.'}"
+  const userText = `${rtLine ? rtLine + '\n\n' : ''}${itineraryBlock}
 
-Plan her week day by day, chronologically.`;
+The user's brief for the week: "${(prompt || '').trim() || 'A regular working week.'}"
+
+Dress every calendar day above, chronologically.`;
 
   async function withRetry(fn, attempts = 3) {
     for (let i = 0; i < attempts; i++) {
@@ -752,39 +799,37 @@ Plan her week day by day, chronologically.`;
         responseMimeType: 'application/json',
         responseSchema: WEEKLY_SCHEMA,
         thinkingConfig: { thinkingBudget: 0 },
-        maxOutputTokens: 7500,
+        maxOutputTokens: 12000,
       },
     }));
     const parsed = JSON.parse(textResponse.text);
 
-    let days = (Array.isArray(parsed.days) ? parsed.days : [])
-      .filter(d => d && d.day_label && Array.isArray(d.items) && d.items.length)
-      .slice(0, 7);
-    if (days.length < 3) throw new Error('weekly plan too thin');
+    const genDays = (Array.isArray(parsed.days) ? parsed.days : [])
+      .filter(d => d && Array.isArray(d.items) && d.items.length);
+    if (!genDays.length) throw new Error('empty weekly plan');
     let itemCount = 0;
-    days = days.map(d => ({
-      day_label: String(d.day_label).slice(0, 24),
-      occasion: String(d.occasion || '').slice(0, 60),
-      note: String(d.note || '').slice(0, 240),
-      items: d.items.slice(0, 6).map(it => {
-        const wi = Number.isInteger(it.wardrobe_index) && it.wardrobe_index >= 0 ? closetItems[it.wardrobe_index] : null;
-        itemCount++;
-        return {
-          name: String(it.name || '').slice(0, 120),
-          category: it.category || 'Other',
-          brand: it.brand || '',
-          description: it.description || '',
-          wardrobe_index: wi ? it.wardrobe_index : -1,
-          retailer_hint: wi ? '' : (it.retailer_hint || ''),
-          price_point: wi ? '' : (it.price_point || ''),
-          wardrobe_match: wi
-            ? { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' }
-            : null,
-        };
-      }),
-    }));
+    // Re-assemble the full calendar: generated entries land on the active
+    // days positionally (day_label from the calendar always wins); left-free
+    // days are stamped as rest days the client renders as a quiet state.
+    const days = cal.map((c, i) => {
+      if (c.plan === null) {
+        return { day_label: c.label, occasion: 'Left free', note: '', rest: true, user_activity: null, items: [] };
+      }
+      const k = active.findIndex(a => a.i === i);
+      const g = genDays[k];
+      if (!g) return { day_label: c.label, occasion: 'Left free', note: '', rest: true, user_activity: c.plan || null, items: [] };
+      itemCount += Math.min(g.items.length, 6);
+      return {
+        day_label: c.label,
+        occasion: String(g.occasion || c.plan || '').slice(0, 60),
+        note: String(g.note || '').slice(0, 240),
+        rest: false,
+        user_activity: c.plan || null,
+        items: g.items.slice(0, 6).map(it => weeklyNormaliseItem(it, closetItems)),
+      };
+    });
     const owned = days.reduce((s, d) => s + d.items.filter(i => i.wardrobe_match).length, 0);
-    logAI({ feature: 'weekly', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, days: days.length, items: itemCount, owned, fallback: parsed.fallback === true });
+    logAI({ feature: 'weekly', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, days: days.filter(d => !d.rest).length, items: itemCount, owned, fallback: parsed.fallback === true });
 
     res.json({
       fallback: parsed.fallback === true,
@@ -800,6 +845,91 @@ Plan her week day by day, chronologically.`;
     logAI({ feature: 'weekly', stage: 'text', success: false, reason: err.message });
     console.error('[weekly] Gemini error:', err.message);
     res.status(500).json({ error: err.message || 'Weekly plan failed' });
+  }
+});
+
+// Surgical single-day call — the weekly counterpart of /api/travel/day.
+// Powers both "Restyle this day" (with anchored pieces held fixed) and
+// dressing a day that was left free / re-planned after generation.
+const WEEKLY_DAY_SCHEMA = {
+  type: 'object',
+  properties: {
+    occasion: { type: 'string' },
+    note: { type: 'string' },
+    items: WEEKLY_SCHEMA.properties.days.items.properties.items,
+  },
+  required: ['occasion', 'note', 'items'],
+};
+
+app.post('/api/weekly/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
+  const { activity, dayLabel, brief, anchors, weekSummary, name, styleDna, styleIcons, wardrobeItems, context: rtContext } = req.body;
+
+  const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
+  const n = closetItems.length;
+  const dnaBlock = styleDnaPromptBlock(styleDna, n, styleIcons);
+  const { closetBlock, stateDirective } = weeklyClosetBlocks(closetItems);
+
+  const anchorList = (Array.isArray(anchors) ? anchors : [])
+    .filter(a => a && a.name)
+    .slice(0, 8)
+    .map(a => {
+      const idx = a.wardrobe_id != null ? closetItems.findIndex(it => String(it.id) === String(a.wardrobe_id)) : -1;
+      return { name: String(a.name).slice(0, 120), category: a.category || '', brand: a.brand || '', idx };
+    });
+  const anchorBlock = anchorList.length
+    ? `ANCHORED PIECES — the user has LOCKED these into this day's outfit. Every one of them MUST appear exactly as given (same piece, same name); restyle everything AROUND them:\n${anchorList.map(a =>
+        `- ${a.name}${a.category ? ' [' + a.category + ']' : ''}${a.brand ? ', ' + a.brand : ''}${a.idx >= 0 ? ` (wardrobe index ${a.idx} — set its wardrobe_index)` : ''}`
+      ).join('\n')}`
+    : '';
+
+  const rtLine = rtContext && (rtContext.city || rtContext.tempRange)
+    ? `REAL-TIME CONTEXT: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}.`
+    : '';
+
+  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. You are dressing ONE day inside an already-planned week. One complete outfit of 4–6 items: top + bottom (or dress), footwear, and the finishing layer/bag/accessory. Never output a generic outfit — name exact cuts, fabrications and styling techniques.
+
+${stateDirective}${anchorBlock ? '\n\n' + anchorBlock : ''}
+
+FIELD RULES:
+- "occasion": 2–5 words, sentence case, derived from the day's plan.
+- "note": one sentence naming the styling move.
+${WEEKLY_ITEM_RULES}${dnaBlock ? '\n\n' + dnaBlock : ''}
+
+${closetBlock}`;
+
+  const userText = `${rtLine ? rtLine + '\n\n' : ''}${weekSummary ? `THE WEEK SO FAR (for routing continuity — re-wear pieces styled differently, never repeat an identical outfit): ${String(weekSummary).slice(0, 900)}\n\n` : ''}The day: ${dayLabel || 'a weekday'}. Her plan for it: "${(activity || '').trim() || 'A regular day.'}"${brief ? `\nThe week's brief: "${String(brief).slice(0, 300)}"` : ''}
+
+Dress her for exactly this day.`;
+
+  try {
+    const t0 = Date.now();
+    const textResponse = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: WEEKLY_DAY_SCHEMA,
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: 2600,
+      },
+    });
+    const parsed = JSON.parse(textResponse.text);
+    const items = (Array.isArray(parsed.items) ? parsed.items : [])
+      .filter(it => it && it.name)
+      .slice(0, 6)
+      .map(it => weeklyNormaliseItem(it, closetItems));
+    if (!items.length) throw new Error('empty day');
+    logAI({ feature: 'weekly-day', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: items.length, owned: items.filter(i => i.wardrobe_match).length });
+    res.json({
+      occasion: String(parsed.occasion || activity || '').slice(0, 60),
+      note: String(parsed.note || '').slice(0, 240),
+      items,
+    });
+  } catch (err) {
+    logAI({ feature: 'weekly-day', stage: 'text', success: false, reason: err.message });
+    console.error('[weekly/day] Gemini error:', err.message);
+    res.status(500).json({ error: err.message || 'Day restyle failed' });
   }
 });
 
