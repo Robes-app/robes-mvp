@@ -9,6 +9,11 @@
       // MutationObserver). Bridge the lexical binding onto window so all those
       // guards resolve and the patches take effect as designed.
       try { if (typeof App !== 'undefined' && App && !window.App) window.App = App; } catch (e) {}
+      // P0 simplification (beta branch): all moodboard surfaces are hidden —
+      // rows, avatar item, deep links, intent routing. Code stays in place so
+      // flipping this to false restores everything. Declared at the very top
+      // so every early code path (deep links) reads the real value.
+      var _RB_MB_HIDDEN = true;
       const _rbStyleIcons = () => {
         const ic = (window.__robes_profile || {}).style_icons;
         return Array.isArray(ic) && ic.length ? ic : [];
@@ -1315,16 +1320,27 @@
 
             // A pending "Snap mine" swap is waiting on this new piece —
             // apply it now that _waItems has reloaded with the new row.
+            let hooked = false;
             if (!editId && typeof _waAfterAdd === 'function') {
               const hook = _waAfterAdd;
               _waAfterAdd = null;
+              hooked = true;
               const newId = (Array.isArray(created) && created[0] && created[0].id != null)
                 ? created[0].id
                 : (_waItems[0] && _waItems[0].id);
               if (newId != null) { try { hook(newId); } catch (e) { console.warn('[robes] after-add hook:', e); } }
             }
 
-            if (batchNext && typeof _waBatchAdvance === 'function') _waBatchAdvance(batchNext);
+            if (batchNext && typeof _waBatchAdvance === 'function') {
+              _waBatchAdvance(batchNext);
+            } else if (!editId && !hooked) {
+              // P0 fork moment: a freshly filed piece immediately offers its
+              // two payoffs — 3 editorial ways, or today's look built around
+              // it. Skipped when another flow armed the add (swap/snap-mine)
+              // and between batch pieces (fires once, on the last).
+              const newRow = (Array.isArray(created) && created[0]) || _waItems[0] || null;
+              if (newRow && window.__rbAddFork) window.__rbAddFork(newRow);
+            }
           } catch(e) {
             console.error('WA submit:', e);
             _waShowToast('Something went wrong — try again');
@@ -1398,10 +1414,10 @@
       if (window.location.pathname === '/lookbook') {
         setTimeout(() => window.__snOpen && window.__snOpen(), 400);
       }
-      if (window.location.pathname === '/moodboards') {
+      if (window.location.pathname === '/moodboards' && !_RB_MB_HIDDEN) {
         setTimeout(() => window._mbShowAllPage && window._mbShowAllPage(), 400);
       }
-      if (window.location.pathname.indexOf('/moodboard/') === 0) {
+      if (window.location.pathname.indexOf('/moodboard/') === 0 && !_RB_MB_HIDDEN) {
         // The board may only exist in the cloud copy — retry until the
         // lookbook pull lands (or give up quietly)
         const _mbDeepSlug = window.location.pathname.slice('/moodboard/'.length);
@@ -1592,6 +1608,8 @@
         document.getElementById('sn-page').style.display = 'none';
         if (item.type === 'daily-look' && item.dlData) {
           window.__dlRenderResult(item.dlData, item.dlData.prompt || item.title, { skipSave: true, savedId: item.id });
+        } else if (item.type === 'weekly-plan' && item.wkData) {
+          window.__wkRenderResult(item.wkData, item.wkData.prompt || item.title, { skipSave: true, savedId: item.id });
         } else if (item.type === 'travel-edit' && item.tvData) {
           window.__tvRenderResult(item.tvData, { skipSave: true, savedId: item.id });
         } else if (item.type === 'key-piece' && item.kpData) {
@@ -1621,7 +1639,7 @@
             </button>
             ${item.img ? `<img src="${item.img}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block" alt="">` : `<div style="width:100%;aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
             <div style="padding:14px 16px 16px">
-              <span style="display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:6px">${item.type === 'daily-look' ? 'Daily look' : item.type === 'travel-edit' ? 'Travel edit' : item.type === 'look' ? 'Look' : 'Key piece'}</span>
+              <span style="display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:6px">${item.type === 'daily-look' ? 'Daily look' : item.type === 'weekly-plan' ? 'Weekly plan' : item.type === 'travel-edit' ? 'Travel edit' : item.type === 'look' ? 'Look' : 'Key piece'}</span>
               <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;font-weight:300;color:#202021;line-height:1.3;margin-bottom:4px">${item.title}</div>
               <div style="font-size:11px;color:#A89880">${item.subtitle || ''}</div>
             </div>
@@ -1663,7 +1681,7 @@
                   ? `<img src="${item.img}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block" alt="">`
                   : `<div style="width:100%;aspect-ratio:1/1;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
                 <div style="padding:10px 12px 12px">
-                  <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:3px">${item.type === 'daily-look' ? 'Daily look' : item.type === 'travel-edit' ? 'Travel edit' : item.type === 'look' ? 'Look' : 'Key piece'}</div>
+                  <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:3px">${item.type === 'daily-look' ? 'Daily look' : item.type === 'weekly-plan' ? 'Weekly plan' : item.type === 'travel-edit' ? 'Travel edit' : item.type === 'look' ? 'Look' : 'Key piece'}</div>
                   <div style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title}</div>
                 </div>
               </div>`).join('')}
@@ -1725,9 +1743,9 @@
           snAvItem.onclick = () => window.__snOpen();
         }
 
-        // Add Moodboards item to av-menu after Lookbook
+        // Add Moodboards item to av-menu after Lookbook (hidden in P0)
         const avMenu = document.getElementById('av-menu');
-        if (avMenu && !document.getElementById('av-moodboards')) {
+        if (avMenu && !_RB_MB_HIDDEN && !document.getElementById('av-moodboards')) {
           const mbBtn = document.createElement('button');
           mbBtn.id = 'av-moodboards';
           mbBtn.className = 'av-item';
@@ -1754,6 +1772,9 @@
           const mbItem = document.getElementById('av-moodboards');
           if (mbItem && mbItem.parentNode === avMenu) {
             avMenu.insertBefore(snBtn, mbItem.nextSibling);
+          } else if (snAvItem && snAvItem.parentNode === avMenu) {
+            // Moodboards hidden (P0) — slot Style notes straight after Lookbook
+            avMenu.insertBefore(snBtn, snAvItem.nextSibling);
           } else {
             avMenu.appendChild(snBtn);
           }
@@ -1808,16 +1829,14 @@
 
             const weeklyImg = weekly.querySelector('.svc-img img');
             if (weeklyImg) weeklyImg.src = calSvg;
-            // Weekly Planner isn't live yet — say so on the card face instead
-            // of letting the CTA dead-end in a dialog.
-            if (!weekly.querySelector('.rb-soon-tag')) {
-              const soon = document.createElement('span');
-              soon.className = 'rb-soon-tag';
-              soon.textContent = 'Coming soon';
-              soon.style.cssText = 'position:absolute;top:12px;right:12px;z-index:2;font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6A5E54;background:rgba(250,248,245,0.92);border:1px solid #D8CEBC;border-radius:100px;padding:4px 10px;pointer-events:none';
-              weekly.style.position = 'relative';
-              weekly.appendChild(soon);
-            }
+            // Weekly Plan is live (P0): the CTA sets the weekly intent and
+            // injects the scaffolding phrase into the concierge prompt.
+            weekly.querySelector('.rb-soon-tag')?.remove();
+            weekly.onclick = function() { if (typeof _cbSetIntent === 'function') _cbSetIntent('weekly'); };
+            const wkDesc = weekly.querySelector('.svc-desc');
+            if (wkDesc) wkDesc.textContent = 'Your week mapped day by day — every outfit routed through your own wardrobe, no repeats.';
+            const wkCta = weekly.querySelector('.svc-cta');
+            if (wkCta) wkCta.innerHTML = `Plan my week<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
             const travelImg = travel.querySelector('.svc-img img');
             if (travelImg) travelImg.src = suitSvg;
 
@@ -1907,6 +1926,7 @@
       let kpResultPage = null;
       let dlResultPage = null; // Daily Look page (Context-to-Core render)
       let tvResultPage = null; // Travel Edit page (capsule + lookbook render)
+      let wkResultPage = null; // Weekly Plan page (P0 calendar-strip render)
 
       // Close every fixed result overlay (kp/dl/tv pages, moodboard result +
       // list, lookbook page) so an in-flow view like the wardrobe panel can
@@ -1915,6 +1935,7 @@
         if (kpResultPage) kpResultPage.style.display = 'none';
         if (dlResultPage) dlResultPage.style.display = 'none';
         if (tvResultPage) tvResultPage.style.display = 'none';
+        if (wkResultPage) wkResultPage.style.display = 'none';
         window.__mbCloseResult && window.__mbCloseResult();
         window.__mbCloseList && window.__mbCloseList();
         const snEl = document.getElementById('sn-page');
@@ -3073,6 +3094,236 @@
         // picks up the swap and _dlRerender patches the saved entry.
         _dlRerender();
         _waShowToast(wi.label + ' swapped in');
+      };
+
+      // ── Weekly Plan (P0 simplification — the Weekly Plan View) ─────────
+      // A chronological 5–7 day calendar strip routing wardrobe items
+      // across the user's agenda. Deliberately lean: no imagery jobs —
+      // owned pieces render their real wardrobe photos, new pieces a
+      // serif monogram. Saved to the lookbook as type 'weekly-plan'.
+      let _wkActiveSaveId = null;
+      let _wkState = null; // { data, prompt, day }
+      window.__lastWkData = null;
+
+      window.__wkSubmit = async function(prompt) {
+        let overlay = document.getElementById('kp-loading-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'kp-loading-overlay';
+          overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
+          overlay.innerHTML = `
+            <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
+            <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg"></div>
+            <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
+              <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
+            </div>`;
+          const ks = document.createElement('style');
+          ks.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}';
+          document.head.appendChild(ks);
+          document.body.appendChild(overlay);
+        }
+        const loadTitle = document.getElementById('kp-load-title');
+        if (loadTitle) loadTitle.innerHTML = 'Planning your<br><em>week…</em>';
+        overlay.style.display = 'flex';
+        const msgs = ['Reading the week’s agenda', 'Routing your wardrobe across the days…', 'Balancing the repeats…', 'Almost ready…'];
+        let mi = 0;
+        const msgEl0 = document.getElementById('kp-load-msg');
+        if (msgEl0) msgEl0.textContent = msgs[0];
+        const msgInterval = setInterval(() => {
+          mi = Math.min(mi + 1, msgs.length - 1);
+          const el = document.getElementById('kp-load-msg');
+          if (el) el.textContent = msgs[mi];
+        }, 8000);
+        if (window.__rbWeatherAsk && !(window.__rbCtx && window.__rbCtx.city)) {
+          try { await Promise.race([window.__rbWeatherAsk(), new Promise(r => setTimeout(r, 6000))]); } catch (e) {}
+        }
+        const rc = window.__rbCtx || {};
+        const context = {
+          city: rc.city || '',
+          month: new Date().toLocaleDateString('en-GB', { month: 'long' }),
+          tempRange: rc.tempRange || (rc.tempC != null ? rc.tempC + '°C' : ''),
+          condition: rc.condition || '',
+          hint: rc.hint || '',
+        };
+        const guard = _rbOverlayGuard(overlay);
+        try {
+          const res = await fetch('/api/weekly', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: guard.signal,
+            body: JSON.stringify({
+              prompt,
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
+              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
+              context,
+            }),
+          });
+          guard.done();
+          clearInterval(msgInterval);
+          overlay.style.display = 'none';
+          if (!res.ok) throw new Error(await res.text());
+          const data = await res.json();
+          window.__wkRenderResult({ ...data, context }, prompt);
+        } catch (err) {
+          guard.done();
+          clearInterval(msgInterval);
+          overlay.style.display = 'none';
+          console.error('[Robes] /api/weekly error:', err.message);
+          if (guard.userCancelled) return;
+          _waShowToast(guard.timedOut
+            ? 'That took longer than it should — please try again.'
+            : 'Robes couldn’t finish that plan — please try again in a moment.');
+        }
+      };
+
+      function _wkThumb(it, size) {
+        const serif = "'Cormorant',Georgia,serif";
+        const m = it.wardrobe_match;
+        if (m && m.image_url) return `<img src="${_waEsc(m.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`;
+        return `<span style="font-family:${serif};font-size:${size || 16}px;color:#C8B8A2">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`;
+      }
+
+      window.__wkSelectDay = function(di) {
+        if (!_wkState) return;
+        _wkState.day = di;
+        _wkPaintStrip();
+        _wkPaintDay();
+      };
+
+      function _wkPaintStrip() {
+        const strip = document.getElementById('wk-strip');
+        if (!strip || !_wkState) return;
+        const serif = "'Cormorant',Georgia,serif";
+        strip.innerHTML = _wkState.data.days.map((d, di) => {
+          const active = di === _wkState.day;
+          const thumbs = d.items.slice(0, 3).map(it =>
+            `<div style="width:30px;height:38px;border-radius:4px;overflow:hidden;background:#F0EDE8;display:flex;align-items:center;justify-content:center">${_wkThumb(it, 13)}</div>`
+          ).join('');
+          const owned = d.items.filter(it => it.wardrobe_match).length;
+          return `
+            <button onclick="window.__wkSelectDay(${di})" style="flex-shrink:0;width:152px;text-align:left;font-family:inherit;cursor:pointer;background:#fff;border:${active ? '1.5px solid #202021' : '0.5px solid rgba(32,32,33,0.12)'};border-radius:12px;padding:13px 14px 12px">
+              <div style="font-family:${serif};font-size:17px;font-weight:400;color:#202021;line-height:1.1">${_waEsc(d.day_label)}</div>
+              <div style="font-size:10.5px;color:#8A8078;margin:3px 0 9px;line-height:1.35;min-height:28px">${_waEsc(d.occasion || '')}</div>
+              <div style="display:flex;gap:5px;margin-bottom:7px">${thumbs}</div>
+              <div style="font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#A89880">${d.items.length} pieces${owned ? ' · ' + owned + ' yours' : ''}</div>
+            </button>`;
+        }).join('');
+      }
+
+      function _wkPaintDay() {
+        const host = document.getElementById('wk-day');
+        if (!host || !_wkState) return;
+        const serif = "'Cormorant',Georgia,serif";
+        const d = _wkState.data.days[_wkState.day];
+        if (!d) { host.innerHTML = ''; return; }
+        const rows = d.items.map(it => {
+          const m = it.wardrobe_match;
+          const prov = m
+            ? '<span style="color:#5F7355">✓ In your wardrobe</span>'
+            : _waEsc([it.brand, [it.retailer_hint, it.price_point].filter(Boolean).join(' · ')].filter(Boolean).join(' — '));
+          return `
+            <div style="display:flex;gap:14px;padding:14px 0;border-bottom:0.5px solid rgba(32,32,33,0.08)">
+              <div style="flex-shrink:0;width:64px;height:80px;border-radius:8px;overflow:hidden;background:#F0EDE8;display:flex;align-items:center;justify-content:center">${_wkThumb(it, 20)}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-family:${serif};font-size:17px;font-weight:400;color:#202021;line-height:1.2">${_waEsc(it.name)}</div>
+                <div style="font-size:11px;margin:3px 0 5px;color:#8A8078">${prov}</div>
+                <div style="font-size:12.5px;color:#6E6A64;line-height:1.5">${_waEsc(it.description || '')}</div>
+              </div>
+            </div>`;
+        }).join('');
+        host.innerHTML = `
+          <div style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;padding:22px 24px;margin-top:18px">
+            <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+              <div style="font-family:${serif};font-size:23px;font-weight:300;color:#202021">${_waEsc(d.day_label)}</div>
+              <div style="font-size:12px;color:#A89880">${_waEsc(d.occasion || '')}</div>
+            </div>
+            ${d.note ? `<div style="font-family:${serif};font-style:italic;font-size:14.5px;color:#6E6A64;line-height:1.55;margin-top:6px">${_waEsc(d.note)}</div>` : ''}
+            <div style="margin-top:8px">${rows}</div>
+          </div>`;
+      }
+
+      window.__wkGoBack = function() {
+        if (wkResultPage) wkResultPage.style.display = 'none';
+        window.rbClearCrumb && window.rbClearCrumb();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      window.__wkPlanAgain = function() {
+        window.__wkGoBack();
+        if (typeof _cbSetIntent === 'function') _cbSetIntent('weekly');
+      };
+
+      window.__wkRenderResult = function(data, promptText, opts) {
+        const serif = "'Cormorant',Georgia,serif";
+        if (!data || !Array.isArray(data.days) || !data.days.length) { _waShowToast('That plan didn’t load — try planning the week again.'); return; }
+        window.__lastWkData = data;
+        _wkState = { data, prompt: promptText || '', day: 0 };
+
+        if (!wkResultPage) {
+          wkResultPage = document.createElement('div');
+          wkResultPage.id = 'wk-result-page';
+          wkResultPage.style.cssText = 'display:none;position:fixed;top:var(--nav-h,60px);left:0;right:0;bottom:0;z-index:40;background:#FAF8F5;overflow-y:auto';
+          document.body.appendChild(wkResultPage);
+        }
+
+        const owned = data.days.reduce((s, d) => s + d.items.filter(it => it.wardrobe_match).length, 0);
+        const total = data.days.reduce((s, d) => s + d.items.length, 0);
+        const ctx = data.context || {};
+        const pill = [ctx.city, ctx.month].filter(Boolean).join(' · ') + (ctx.tempRange ? ' | ' + ctx.tempRange : '') + (ctx.hint ? ' | ' + ctx.hint : '');
+        const paletteDots = (data.palette || []).map(h =>
+          /^#[0-9a-fA-F]{3,8}$/.test(String(h || '')) ? `<span style="width:14px;height:14px;border-radius:50%;background:${h};border:0.5px solid rgba(32,32,33,0.15);display:inline-block"></span>` : ''
+        ).join('');
+
+        wkResultPage.innerHTML = `
+          <div style="max-width:1148px;margin:0 auto;padding:36px 24px 0;min-height:calc(100% - 72px);box-sizing:border-box">
+            <div style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#8E7077;margin-bottom:10px">Your week, planned</div>
+            <h1 style="font-family:${serif};font-size:clamp(28px,4.5vw,42px);font-weight:300;font-style:italic;color:#202021;line-height:1.12;margin:0 0 12px;max-width:720px">${_waEsc(data.headline || 'The week ahead.')}</h1>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+              ${data.week_label ? `<span style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6A5E54;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">${_waEsc(data.week_label)}</span>` : ''}
+              ${pill ? `<span style="font-size:11px;color:#8A8078;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">🌤 ${_waEsc(pill)}</span>` : ''}
+              ${paletteDots ? `<span style="display:inline-flex;gap:5px;align-items:center">${paletteDots}</span>` : ''}
+            </div>
+            ${data.stylist_summary ? `<p style="font-family:${serif};font-style:italic;font-size:15.5px;color:#6E6A64;line-height:1.6;margin:0 0 24px;max-width:640px">${_waEsc(data.stylist_summary)}</p>` : ''}
+            <div id="wk-strip" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch"></div>
+            <div id="wk-day"></div>
+            <div style="height:36px"></div>
+          </div>
+          <div class="rb-sfoot">
+            <div class="rb-sfoot-in">
+              <div class="rb-sfoot-meta">
+                <span class="t">${_waEsc(data.headline || 'Your week')}</span>
+                <span class="s">${data.days.length} days · ${total} pieces${owned ? ' · ' + owned + ' from your wardrobe' : ''}</span>
+              </div>
+              <div class="rb-sfoot-btns">
+                <button class="rb-sfbtn" onclick="window.__wkGoBack()">Back to dashboard</button>
+                <button class="rb-sfbtn primary" onclick="window.__wkPlanAgain()">Plan a new week</button>
+              </div>
+            </div>
+          </div>`;
+
+        wkResultPage.style.display = 'block';
+        wkResultPage.scrollTop = 0;
+        _wkPaintStrip();
+        _wkPaintDay();
+        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Plan the week' }]);
+
+        if (opts && opts.skipSave) {
+          _wkActiveSaveId = (opts && opts.savedId) || null;
+        } else {
+          const firstImg = (function() {
+            for (const d of data.days) for (const it of d.items) {
+              if (it.wardrobe_match && it.wardrobe_match.image_url && String(it.wardrobe_match.image_url).indexOf('http') === 0) return it.wardrobe_match.image_url;
+            }
+            return null;
+          })();
+          _wkActiveSaveId = snAdd({
+            type: 'weekly-plan',
+            title: data.headline || 'Your week, planned',
+            subtitle: data.days.length + ' days · ' + (data.week_label || '').toLowerCase(),
+            img: firstImg,
+            wkData: { ...data, prompt: promptText || '' },
+          });
+        }
       };
 
       // ── Travel Edit — Capsule Packing & Lookbook (PRD: AI-Powered Capsule Packing) ──
@@ -5447,6 +5698,7 @@ body>*:not(#tv-result-page){display:none !important}
           if (kpResultPage) kpResultPage.style.display = 'none';
           if (dlResultPage) dlResultPage.style.display = 'none';
           if (tvResultPage) tvResultPage.style.display = 'none';
+          if (wkResultPage) wkResultPage.style.display = 'none';
           const wp = document.querySelector('.wardrobe-panel');
           if (wp && wp.classList.contains('visible')) {
             // Bundle's showWardrobe does a view-switch (hides main content).
@@ -5573,6 +5825,7 @@ body>*:not(#tv-result-page){display:none !important}
 
       function _rbRenderMoodboards() {
         const el = document.getElementById('rb-mb');
+        if (_RB_MB_HIDDEN) { if (el) el.remove(); return; }
         if (!el) return;
         const items = _mbLoad().slice(0, 4);
         const arrowSvg = `<svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
@@ -5665,7 +5918,7 @@ body>*:not(#tv-result-page){display:none !important}
                   ? `<img src="${_waEsc(item.img)}" class="rb-sn-img" alt="">`
                   : '<div class="rb-sn-img-ph"></div>'}
                 <div class="rb-sn-body">
-                  <div class="rb-sn-type">${item.type === 'daily-look' ? 'Daily look' : item.type === 'travel-edit' ? 'Travel edit' : item.type === 'look' ? 'Look' : 'Key piece'}</div>
+                  <div class="rb-sn-type">${item.type === 'daily-look' ? 'Daily look' : item.type === 'weekly-plan' ? 'Weekly plan' : item.type === 'travel-edit' ? 'Travel edit' : item.type === 'look' ? 'Look' : 'Key piece'}</div>
                   <div class="rb-sn-title">${_waEsc(item.title)}</div>
                   <div class="rb-sn-meta">${_waEsc(item.subtitle || '')}</div>
                 </div>
@@ -5760,9 +6013,19 @@ body>*:not(#tv-result-page){display:none !important}
       const _MB_PLACEHOLDER = 'A week in the South of France in August…';
       const _CB_PLACEHOLDER = "Tell Robes where you're going, or the look you're after…";
 
-      // ── Intent chip system ────────────────────────────────────────────
-      let _cbIntent = null; // null | 'style' | 'moodboard' | 'dress-me'
+      // ── Intent system (P0: pills stripped — cards + NL extraction only) ──
+      let _cbIntent = null; // null | 'style' | 'dress-me' | 'weekly'
       let _cbPhotoData = null;
+
+      // Rotating placeholder — the affordance that replaced the pills.
+      // Guides all three P0 tracks (+ key piece) without rendering chrome.
+      const _CB_ROTATE = [
+        "Tell Robes where you're going, or the look you're after…",
+        "An outfit for tomorrow's client dinner…",
+        'Plan my work week — smart, comfortable, no repeats…',
+        'Pack me for a long weekend in Lisbon…',
+        'Style my cream blazer three ways…',
+      ];
 
       const _CHIP_ICONS = {
         style: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"></path></svg>`,
@@ -5781,11 +6044,11 @@ body>*:not(#tv-result-page){display:none !important}
           inject: 'An outfit for [Sunday brunch]',
           placeholder: 'Describe your occasion or mood…',
           intent: 'dress-me' },
-        { id: 'chip-mood',   label: 'Create a moodboard',
-          cta: 'BUILD BOARD',
-          inject: 'A moodboard for [a weekend in Ibiza]',
-          placeholder: 'Describe your moodboard vibe…',
-          intent: 'moodboard' },
+        { id: 'chip-week',   label: 'Plan my week',
+          cta: 'PLAN MY WEEK',
+          inject: 'A weekly plan for [my upcoming work week]',
+          placeholder: 'Describe your week — meetings, dinners, plans…',
+          intent: 'weekly' },
       ];
 
       function _cbGetSendBtn() { return document.querySelector('.cb-send'); }
@@ -5867,9 +6130,13 @@ body>*:not(#tv-result-page){display:none !important}
       };
 
       function _cbShowPhotoZone(show) {
+        // P0: with the pills stripped there is no chip to reveal the attach
+        // row — it stays visible always (photo/wardrobe attach = key-piece
+        // intent, per _cbDetectIntent's hasPhoto rule). `show: false` now
+        // only clears the attached state after a submit/reset.
         const zone = document.getElementById('cb-photo-zone');
         if (!zone) return;
-        zone.style.display = show ? 'flex' : 'none';
+        zone.style.display = 'flex';
         if (!show) {
           _cbPhotoData = null;
           const preview = document.getElementById('cb-photo-preview');
@@ -5933,7 +6200,7 @@ body>*:not(#tv-result-page){display:none !important}
         _cbIntent = null;
         _cbPhotoData = null;
         const ta = document.getElementById('cb-ta');
-        if (ta) { ta.value = ''; ta.placeholder = _CB_PLACEHOLDER; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input')); }
+        if (ta) { ta.value = ''; ta.placeholder = _CB_ROTATE[0]; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input')); }
         _cbResetCta();
         _cbShowPhotoZone(false);
         _cbSetChipActive(null);
@@ -6016,6 +6283,62 @@ body>*:not(#tv-result-page){display:none !important}
         }
       }
 
+      // ── Post-add fork modal (P0) ─────────────────────────────────────
+      // The moment a piece lands in the wardrobe, offer the instant payoff:
+      // "Style 3 ways for instant inspiration, or build a daily look
+      // around it?" — the cataloguing loop's reward, on every add.
+      window.__rbAddFork = function(row) {
+        if (!row || !row.label) return;
+        document.getElementById('rb-addfork')?.remove();
+        const serif = "'Cormorant',Georgia,serif";
+        const modal = document.createElement('div');
+        modal.id = 'rb-addfork';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        const thumb = row.image_url
+          ? `<img src="${_waEsc(row.image_url)}" style="width:64px;height:82px;border-radius:8px;object-fit:cover;flex-shrink:0" alt="">`
+          : `<div style="width:64px;height:82px;border-radius:8px;background:#F0EDE8;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-family:${serif};font-size:24px;color:#C8B8A2">${_waEsc((row.label || '?').charAt(0).toUpperCase())}</span></div>`;
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:420px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px 26px 22px">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin-bottom:14px">In your wardrobe ✓</div>
+            <div style="display:flex;gap:16px;align-items:center;margin-bottom:20px">
+              ${thumb}
+              <div style="flex:1;min-width:0">
+                <div style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;line-height:1.15">Your ${_waEsc(row.label.toLowerCase())} is filed.</div>
+                <div style="font-size:12px;color:#A89880;font-style:italic;margin-top:4px">Want it styled straight away?</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <button id="rb-fork-ways" style="width:100%;padding:13px 20px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit">Style it 3 ways</button>
+              <button id="rb-fork-daily" style="width:100%;padding:13px 20px;border-radius:100px;border:0.5px solid rgba(32,32,33,0.2);background:#fff;color:#202021;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit">Build today's look around it</button>
+              <button id="rb-fork-skip" style="background:none;border:none;cursor:pointer;font-size:12px;color:#A89880;text-decoration:underline;font-family:inherit;padding:6px">Not now — keep cataloguing</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+        async function rowPhotoData() {
+          if (!row.image_url) return null;
+          try {
+            const blob = await fetch(row.image_url).then(r => r.blob());
+            return await new Promise((resolve, reject) => {
+              const fr = new FileReader();
+              fr.onload = () => resolve(fr.result);
+              fr.onerror = reject;
+              fr.readAsDataURL(blob);
+            });
+          } catch (e) { return null; }
+        }
+        modal.querySelector('#rb-fork-ways').onclick = async function() {
+          modal.remove();
+          const pd = await rowPhotoData();
+          _cbStyleSubmit('Style my ' + row.label + ' three ways', pd, { intent: 'style' });
+        };
+        modal.querySelector('#rb-fork-daily').onclick = function() {
+          modal.remove();
+          window.__dlSubmit('An outfit for today built around my ' + row.label);
+        };
+        modal.querySelector('#rb-fork-skip').onclick = function() { modal.remove(); };
+      };
+
       // ── Conversational intent extraction (PRD §2) ────────────────────
       // A chip is an explicit override; free-typed prompts are classified
       // from natural language. Ambiguous prompts get a clarifying question.
@@ -6027,22 +6350,26 @@ body>*:not(#tv-result-page){display:none !important}
           /\bstyle (my|this|these)\b/.test(t) || /\bways to wear\b/.test(t) || /\b(three|3) ways\b/.test(t) ||
           /\bhow (should|do|can|would) i (wear|style)\b/.test(t) ||
           (/\b(my|this|these)\b/.test(t) && _GARMENT_RE.test(t));
-        const mood = /\b(mood ?board|capsule|lookbook|look book|aesthetic|vibes?|inspiration|inspo|palette)\b/.test(t) ||
-          /\b(build|create|curate|make)\b[\s\S]*\b(wardrobe|edit|board|capsule)\b/.test(t);
         const daily = /\bdress me\b/.test(t) || /\bwhat (should|do|can) i wear\b/.test(t) ||
           /\b(outfit|look) for\b/.test(t) || /\bwear (to|for)\b/.test(t) ||
           /\b(today|tonight|tomorrow|this (morning|afternoon|evening|weekend))\b/.test(t) ||
           /\b(brunch|dinner|lunch|meeting|wedding|date night|office|workday|interview|party|drinks|gallery|school run)\b/.test(t);
         const travel = /\b(pack(ing)?|suitcase|luggage|trip|travel(ling|ing)?|holiday|vacation|getaway|city break|honeymoon|weekend away|nights? in)\b/.test(t);
-        const hits = [piece && 'style', mood && 'moodboard', daily && 'dress-me', travel && 'travel'].filter(Boolean);
+        // Multi-day agendas → the Weekly Plan track. "weekend" never
+        // matches \bweek\b, so daily "this weekend" prompts stay daily.
+        const weekly = /\b(work ?week|week ahead|next week|whole week|full week|weekly|school week|monday (to|through|until) friday)\b/.test(t) ||
+          /\bplan\b[\s\S]*\bweek\b/.test(t) || /\bweek\b[\s\S]*\b(plan|schedule|agenda|calendar|outfits)\b/.test(t) ||
+          /\b(for|of) the week\b/.test(t);
+        const hits = [piece && 'style', daily && 'dress-me', travel && 'travel', weekly && 'weekly'].filter(Boolean);
         if (hits.length === 1) return hits[0];
-        // A named piece beats the occasion around it (PRD: "my Prada shoes
-        // to the office today" is Key Piece, not Daily Look)
-        if (piece && !mood) return 'style';
-        // A trip beats the occasions inside it ("dinners on my Ibiza trip"
-        // is the Travel Edit) — unless a moodboard is asked for by name
-        if (travel) return /\bmood ?board\b/.test(t) ? 'moodboard' : 'travel';
-        if (mood && !daily) return 'moodboard';
+        // A named piece beats the day's occasion around it (PRD: "my Prada
+        // shoes to the office today" is Key Piece, not Daily Look) — but a
+        // trip or a week span outranks the piece packed inside it.
+        if (piece && !travel && !weekly) return 'style';
+        // A trip beats the occasions (and weekdays) inside it
+        if (travel) return 'travel';
+        if (weekly) return 'weekly';
+        if (daily) return 'dress-me';
         return null;
       }
 
@@ -6053,18 +6380,18 @@ body>*:not(#tv-result-page){display:none !important}
 
       function _cbShowClarify(prompt) {
         _cbHideClarify();
-        const anchor = document.getElementById('cb-chips') || document.querySelector('.concierge-box');
-        if (!anchor || !anchor.parentNode) { _cbReset(); window.__mbRunGeneration(prompt); return; }
+        const anchor = document.querySelector('.concierge-box');
+        if (!anchor || !anchor.parentNode) { _cbReset(); window.__dlSubmit(prompt); return; }
         const row = document.createElement('div');
         row.id = 'cb-clarify';
         row.style.cssText = 'margin:12px 0 0;padding:16px 18px;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px';
         row.innerHTML = `
-          <div style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#6E6A64;margin-bottom:10px">Lovely — a look for your day, one piece three ways, a trip packed, or a moodboard?</div>
+          <div style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#6E6A64;margin-bottom:10px">Lovely — a look for your day, your week planned, a trip packed, or one piece three ways?</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button data-intent="dress-me" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">An outfit for my day</button>
-            <button data-intent="style" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Style one piece 3 ways</button>
+            <button data-intent="weekly" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Plan my week</button>
             <button data-intent="travel" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Pack for a trip</button>
-            <button data-intent="moodboard" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">A moodboard</button>
+            <button data-intent="style" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Style one piece 3 ways</button>
           </div>`;
         anchor.parentNode.insertBefore(row, anchor.nextSibling);
         row.querySelectorAll('button').forEach(b => {
@@ -6092,15 +6419,23 @@ body>*:not(#tv-result-page){display:none !important}
           window.__dlSubmit(prompt);
           return;
         }
+        if (intent === 'weekly') {
+          // The Weekly Plan View — a chronological calendar strip routing
+          // wardrobe pieces across the week's agenda
+          _cbReset();
+          window.__wkSubmit(prompt);
+          return;
+        }
         if (intent === 'style') {
           if (!prompt && !_cbPhotoData) { _waShowToast('Describe your piece or upload a photo first'); return; }
           const photo = _cbPhotoData;
           _cbReset();
           _cbStyleSubmit(prompt, photo, { intent });
         } else {
-          _cbReset();
-          if (!prompt) return;
-          window.__mbRunGeneration(prompt);
+          // No P0 track matched (e.g. a legacy 'moodboard' intent) — never
+          // render blindly; fall back to the clarifying loop.
+          if (!prompt) { _cbReset(); return; }
+          _cbShowClarify(prompt);
         }
       }
 
@@ -6141,7 +6476,7 @@ body>*:not(#tv-result-page){display:none !important}
         // Attach suggestion row — appears inside the card when 'style' chip active
         const photoZone = document.createElement('div');
         photoZone.id = 'cb-photo-zone';
-        photoZone.style.cssText = 'display:none;align-items:center;gap:10px;padding:10px 15px;cursor:pointer;border-top:0.5px solid rgba(32,32,33,0.08)';
+        photoZone.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 15px;cursor:pointer;border-top:0.5px solid rgba(32,32,33,0.08)';
         photoZone.innerHTML = `
           <input type="file" id="cb-photo-input" accept="image/*" style="display:none">
           <span id="cb-photo-icon" style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:rgba(142,112,119,0.1);display:flex;align-items:center;justify-content:center;color:#8E7077">
@@ -6175,34 +6510,12 @@ body>*:not(#tv-result-page){display:none !important}
         const cbFoot = document.querySelector('.cb-foot') || ta.parentNode;
         cbFoot.parentNode.insertBefore(photoZone, cbFoot);
 
-        // Chip row — uses bundle's .cb-pills / .cb-pill classes, inserted after .concierge-box
-        const chipRow = document.createElement('div');
-        chipRow.id = 'cb-chips';
-        chipRow.className = 'cb-pills';
-        _CHIP_DEFS.forEach(def => {
-          const chip = document.createElement('button');
-          chip.id = def.id;
-          chip.type = 'button';
-          chip.className = 'cb-pill';
-          // Dress me is never locked — the Daily Look track serves an
-          // editorial (aspirational) build until the wardrobe reaches 15
-          chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:inherit;';
-          const icon = _CHIP_ICONS[def.intent] || '';
-          chip.innerHTML = `${icon}${def.label}`;
-          chip.onclick = function() {
-            if (_cbIntent === def.intent) { _cbReset(); return; }
-            _cbSetIntent(def.intent);
-          };
-          chipRow.appendChild(chip);
-        });
-        // Insert after .concierge-box (the white prompt card)
-        const conciergeBox = document.querySelector('.concierge-box');
-        if (conciergeBox && conciergeBox.parentNode) {
-          conciergeBox.parentNode.insertBefore(chipRow, conciergeBox.nextSibling);
-        } else {
-          // Fallback: after the textarea's closest ancestor outside the card
-          (ta.closest('.concierge') || ta.parentNode.parentNode).appendChild(chipRow);
-        }
+        // P0: prompt pills are stripped — no chip row is injected, and any
+        // stray .cb-pills row is removed. The bundle's typewriter
+        // placeholder on #cb-ta (dynamic, rotating examples) stays as the
+        // sole intent guide; its example list lives in the dashboard-assets
+        // concierge script (PROMPT_EXAMPLES).
+        document.querySelectorAll('.cb-pills').forEach(el => el.remove());
       }, 1000);
 
       // Intercept send button click and Enter key — routes via _cbSubmit
@@ -6963,7 +7276,7 @@ body>*:not(#tv-result-page){display:none !important}
           if (anchor) dash.insertBefore(snEl, anchor);
           else dash.appendChild(snEl);
         }
-        if (!document.getElementById('rb-mb')) {
+        if (!_RB_MB_HIDDEN && !document.getElementById('rb-mb')) {
           const mbEl = document.createElement('section');
           mbEl.id = 'rb-mb';
           mbEl.className = 'rb-section';
@@ -6974,15 +7287,14 @@ body>*:not(#tv-result-page){display:none !important}
           else dash.appendChild(mbEl);
         }
 
-        // Wardrobe-first framing (PRD): the wardrobe tracker leads the page —
-        // move it above the lookbook/moodboard rows, right under the
-        // concierge. The onboarding "Your piece, styled" card stays glued to
-        // the tracker's tail so the emotional hook sits beside the progress
-        // module without outranking it.
+        // P0 stacked layout: prompt box → "Your piece, styled" (center
+        // stage, temporary) → wardrobe tracker → lookbook. The tracker
+        // still leads once the card collapses (elastic snap-up) — give it a
+        // transition so the snap reads as movement, not a jump.
         const snSection = document.getElementById('rb-sn');
         if (tracker && snSection) dash.insertBefore(tracker, snSection);
         const styledCard = document.getElementById('rb-styled');
-        if (styledCard && tracker) tracker.parentNode.insertBefore(styledCard, tracker.nextSibling);
+        if (styledCard && tracker) tracker.parentNode.insertBefore(styledCard, tracker);
 
         _rbRenderMoodboards();
         _rbRenderStyleNotes();
@@ -7026,6 +7338,7 @@ body>*:not(#tv-result-page){display:none !important}
           if (kpResultPage) kpResultPage.style.display = 'none';
           if (dlResultPage) dlResultPage.style.display = 'none';
           if (tvResultPage) tvResultPage.style.display = 'none';
+          if (wkResultPage) wkResultPage.style.display = 'none';
           const wp = document.querySelector('.wardrobe-panel');
           const wpOpen = wp && wp.classList.contains('visible');
           if (wpOpen && p !== '/wardrobe') {
@@ -7034,8 +7347,8 @@ body>*:not(#tv-result-page){display:none !important}
             if (wbtn) wbtn.click(); else wp.classList.remove('visible');
           }
           if (p === '/lookbook') window.__snOpen && window.__snOpen();
-          else if (p === '/moodboards') window._mbShowAllPage && window._mbShowAllPage();
-          else if (p.indexOf('/moodboard/') === 0) {
+          else if (p === '/moodboards' && !_RB_MB_HIDDEN) window._mbShowAllPage && window._mbShowAllPage();
+          else if (p.indexOf('/moodboard/') === 0 && !_RB_MB_HIDDEN) {
             const item = window._mbFindBySlug && window._mbFindBySlug(p.slice('/moodboard/'.length));
             if (item && window.__mbOpenSaved) window.__mbOpenSaved(item.id);
           }
@@ -7137,14 +7450,43 @@ body>*:not(#tv-result-page){display:none !important}
         }
         const card = document.createElement('section');
         card.id = 'rb-styled';
-        card.style.cssText = 'display:block;margin:-26px 0 56px';
+        // P0 center stage: the card sits directly under the prompt box,
+        // ABOVE the wardrobe tracker (which snaps up when it collapses).
+        card.style.cssText = 'display:block;margin:0 0 40px';
+
+        // The whole block collapses and falls off the DOM the moment she
+        // interacts with it or types a new prompt into the concierge — the
+        // tracker beneath snaps up into the prime slot (elastic snap-up).
+        // The styled result is already saved in the lookbook by then.
+        let collapsed = false;
+        function collapse() {
+          if (collapsed) return;
+          collapsed = true;
+          if (!card.isConnected) { card.remove(); return; }
+          card.style.overflow = 'hidden';
+          card.style.maxHeight = card.scrollHeight + 'px';
+          card.style.transition = 'max-height .45s ease, opacity .3s ease, margin .45s ease';
+          requestAnimationFrame(function() {
+            card.style.maxHeight = '0';
+            card.style.opacity = '0';
+            card.style.margin = '0';
+          });
+          setTimeout(function() { card.remove(); }, 500);
+        }
+        window.__rbStyledCollapse = collapse;
+        document.addEventListener('input', function onType(e) {
+          if (e.target && e.target.id === 'cb-ta' && e.target.value) {
+            document.removeEventListener('input', onType);
+            collapse();
+          }
+        });
 
         function mount() {
-          if (card.isConnected) return;
+          if (collapsed || card.isConnected) return;
           const dash = document.getElementById('dash');
           if (!dash) { setTimeout(mount, 300); return; }
           const tracker = dash.querySelector('.tracker');
-          if (tracker && tracker.parentNode) tracker.parentNode.insertBefore(card, tracker.nextSibling);
+          if (tracker && tracker.parentNode) tracker.parentNode.insertBefore(card, tracker);
           else dash.insertBefore(card, dash.firstChild);
         }
 
@@ -7186,7 +7528,7 @@ body>*:not(#tv-result-page){display:none !important}
             '<button id="rb-styled-retry" style="flex-shrink:0;padding:11px 20px;border-radius:100px;border:0.5px solid rgba(32,32,33,0.2);background:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:#202021;cursor:pointer">Style it three ways</button>');
           mount();
           const btn = document.getElementById('rb-styled-retry');
-          if (btn) btn.onclick = function() { card.remove(); _cbStyleSubmit(piece.prompt || '', piece.photo || null); };
+          if (btn) btn.onclick = function() { collapsed = true; card.remove(); _cbStyleSubmit(piece.prompt || '', piece.photo || null); };
         }
 
         // The styled result saves straight into the lookbook the moment it's
@@ -7242,7 +7584,7 @@ body>*:not(#tv-result-page){display:none !important}
             footer);
           mount();
           const addNext = document.getElementById('rb-styled-addnext');
-          if (addNext) addNext.onclick = function() { _wtrkOpenAdd(); };
+          if (addNext) addNext.onclick = function() { _wtrkOpenAdd(); collapse(); };
           if (!cardSaveId) {
             const persistable = imgs.map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
             const title = data.fallback ? 'Balmain waistcoat' : ((prompt || 'Your piece').slice(0, 60));
@@ -7257,6 +7599,7 @@ body>*:not(#tv-result-page){display:none !important}
           const open = document.getElementById('rb-styled-open');
           if (open) open.onclick = function() {
             window.__kpRenderResult(data, prompt, { intent: 'style', skipSave: true, savedId: cardSaveId });
+            collapse();
           };
           if (pending) pollImgs(data);
         }

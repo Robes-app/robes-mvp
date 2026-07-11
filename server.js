@@ -637,6 +637,172 @@ Dress her for this exact day, start to finish, through the four architectural st
   }
 });
 
+/* ── weekly plan (P0 simplification — the Weekly Plan View) ─────────── */
+// A chronological 5–7 day calendar strip routing wardrobe items across
+// the user's agenda. Deliberately lean: one schema-forced flash call,
+// NO image generation (owned wardrobe photos are truthful and free —
+// the utility engine must never wait on imagery), wardrobe_match
+// resolution identical to /api/daily so the client renders owned
+// pieces with their real photos.
+const WEEKLY_SCHEMA = {
+  type: 'object',
+  properties: {
+    fallback: { type: 'boolean' },
+    week_label: { type: 'string' },
+    headline: { type: 'string' },
+    stylist_summary: { type: 'string' },
+    palette: { type: 'array', items: { type: 'string' } },
+    days: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          day_label: { type: 'string' },
+          occasion: { type: 'string' },
+          note: { type: 'string' },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                category: { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Other'] },
+                brand: { type: 'string' },
+                description: { type: 'string' },
+                wardrobe_index: { type: 'integer' },
+                retailer_hint: { type: 'string' },
+                price_point: { type: 'string' },
+              },
+              required: ['name', 'category', 'brand', 'description', 'wardrobe_index', 'retailer_hint', 'price_point'],
+            },
+          },
+        },
+        required: ['day_label', 'occasion', 'note', 'items'],
+      },
+    },
+  },
+  required: ['fallback', 'week_label', 'headline', 'stylist_summary', 'palette', 'days'],
+};
+
+app.post('/api/weekly', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
+  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext } = req.body;
+
+  const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
+  const n = closetItems.length;
+  const dnaBlock = styleDnaPromptBlock(styleDna, n, styleIcons);
+
+  const closetBlock = n
+    ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by index):\n${closetItems.map((i, idx) =>
+        `${idx}: ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${i.brand ? ', ' + i.brand : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
+      ).join('\n')}`
+    : 'THE USER HAS NOT CATALOGUED ANY WARDROBE PIECES YET.';
+
+  const stateDirective = n === 0
+    ? `WARDROBE STATE: EMPTY. Build a fully aspirational, editorial week — it doubles as a shopping brief. Every item gets "wardrobe_index": -1 plus a real "retailer_hint" and "price_point".`
+    : n < 15
+      ? `WARDROBE STATE: GROWING (${n}/15). Hybrid build: wherever an owned piece genuinely serves a day, use it — set its "wardrobe_index" and use its exact label as the name. Fill true gaps with aspirational pieces (wardrobe_index -1, real retailer_hint + price_point). When an owned piece and a hypothetical piece would both work, ALWAYS choose the owned piece.`
+      : `WARDROBE STATE: COMPLETE (${n} pieces). Closet-first build: route the week primarily through the digitised wardrobe — nearly every item should carry a valid "wardrobe_index" and its exact owned label. Introduce a new piece (wardrobe_index -1) only for a true gap.`;
+
+  const rtLine = rtContext && (rtContext.city || rtContext.tempRange)
+    ? `REAL-TIME CONTEXT: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}. This is the atmospheric reality for the week ahead — fabric weight, layers and footwear must answer to it.`
+    : '';
+
+  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. You are planning a CHRONOLOGICAL WEEK of dressing — a calendar strip that routes real wardrobe pieces across her agenda. Never output a generic outfit — name exact cuts, fabrications and styling techniques.
+
+THE WEEKLY PLAN RULES:
+1. THE SPAN. Read the brief for the span and agenda. Default to a Monday-to-Friday working week (5 days); extend to 6–7 days only when the brief clearly covers the weekend. Never fewer than 5 days, never more than 7.
+2. THE AGENDA. Give every day a concrete occasion drawn from (or reasonably inferred around) the brief — "Client presentation", "School run + errands", "Dinner with friends". "occasion" is 2–5 words, sentence case.
+3. THE ROUTING DISCIPLINE. This is a wardrobe ROUTER, not seven separate shopping briefs: deliberately re-wear key pieces across the week styled differently (a blazer worn formal Tuesday returns undone over denim Thursday). Never repeat an identical full outfit. In "note" (one sentence per day), name the styling move — and when a piece returns, say how it's re-worn.
+4. THE BUILD. Each day is one complete outfit of 4–6 items: top + bottom (or dress), footwear, and the finishing layer/bag/accessory that makes it deliberate.
+
+${stateDirective}
+
+FIELD RULES:
+- "week_label": 2–4 words, ALL CAPS, naming the week (e.g. "STUDIO WEEK", "BACK TO WORK").
+- "headline": a short serif-worthy line naming the week's mood, sentence case, ending in a full stop. Max 8 words.
+- "stylist_summary": 2–3 sentences of stylist reasoning — the week's register, the routing logic (which pieces anchor it and how they repeat), the weather read.
+- "day_label": the weekday name only (e.g. "Monday").
+- "palette": exactly 3 hex colours the week is built around, neutral to accent.
+- Each item: "name" is the piece itself; "brand" is ONE real brand suited to the register (owned pieces: the owned brand or ""); "description" is one hyper-specific sentence — cut, fabric, colour, how it is worn that day.
+- Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" and a realistic EUR "price_point".
+- "fallback": true ONLY if the brief is gibberish — then plan a pleasant, unremarkable working week instead. A plain agenda, job or mood is a valid weekly brief.${dnaBlock ? '\n\n' + dnaBlock : ''}
+
+${closetBlock}`;
+
+  const userText = `${rtLine ? rtLine + '\n\n' : ''}The user's brief for the week: "${(prompt || '').trim() || 'A regular working week.'}"
+
+Plan her week day by day, chronologically.`;
+
+  async function withRetry(fn, attempts = 3) {
+    for (let i = 0; i < attempts; i++) {
+      try { return await fn(); } catch (err) {
+        if (i === attempts - 1) throw err;
+        await new Promise(r => setTimeout(r, 800 * Math.pow(2, i)));
+      }
+    }
+  }
+
+  try {
+    const t0 = Date.now();
+    const textResponse = await withRetry(() => ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: WEEKLY_SCHEMA,
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: 7500,
+      },
+    }));
+    const parsed = JSON.parse(textResponse.text);
+
+    let days = (Array.isArray(parsed.days) ? parsed.days : [])
+      .filter(d => d && d.day_label && Array.isArray(d.items) && d.items.length)
+      .slice(0, 7);
+    if (days.length < 3) throw new Error('weekly plan too thin');
+    let itemCount = 0;
+    days = days.map(d => ({
+      day_label: String(d.day_label).slice(0, 24),
+      occasion: String(d.occasion || '').slice(0, 60),
+      note: String(d.note || '').slice(0, 240),
+      items: d.items.slice(0, 6).map(it => {
+        const wi = Number.isInteger(it.wardrobe_index) && it.wardrobe_index >= 0 ? closetItems[it.wardrobe_index] : null;
+        itemCount++;
+        return {
+          name: String(it.name || '').slice(0, 120),
+          category: it.category || 'Other',
+          brand: it.brand || '',
+          description: it.description || '',
+          wardrobe_index: wi ? it.wardrobe_index : -1,
+          retailer_hint: wi ? '' : (it.retailer_hint || ''),
+          price_point: wi ? '' : (it.price_point || ''),
+          wardrobe_match: wi
+            ? { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' }
+            : null,
+        };
+      }),
+    }));
+    const owned = days.reduce((s, d) => s + d.items.filter(i => i.wardrobe_match).length, 0);
+    logAI({ feature: 'weekly', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, days: days.length, items: itemCount, owned, fallback: parsed.fallback === true });
+
+    res.json({
+      fallback: parsed.fallback === true,
+      week_label: parsed.week_label || '',
+      headline: parsed.headline || '',
+      stylist_summary: parsed.stylist_summary || '',
+      palette: Array.isArray(parsed.palette) ? parsed.palette.slice(0, 3) : [],
+      days,
+      itemCount,
+    });
+  } catch (err) {
+    if (res.headersSent) return;
+    logAI({ feature: 'weekly', stage: 'text', success: false, reason: err.message });
+    console.error('[weekly] Gemini error:', err.message);
+    res.status(500).json({ error: err.message || 'Weekly plan failed' });
+  }
+});
+
 /* ── travel edit (PRD: AI-Powered Capsule Packing & Lookbook,
       wardrobe-first revision: curatorial logic) ─────────────────────── */
 // The user multi-selects a realistic shortlist from her catalogued
