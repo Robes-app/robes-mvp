@@ -269,7 +269,9 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
       ? 'The user already owns the pieces listed above. Wherever an owned piece genuinely serves the look, use it and refer to it by its exact label — an owned piece always beats a hypothetical one. Fill only the true gaps with new, editorially-matched pieces. Never reach for something she would have to buy when a relevant piece is already in the list.'
       : '';
 
-  const formulaBlock = `Every look follows the four-tier layer formula: 1) THE ANCHOR — the weather/agenda hero piece; 2) THE CANVAS — premium supporting basics; 3) THE TEXTURE — one depth-adding element; 4) THE EXCLAMATION POINT — the accessories, footwear and hardware that inject identity. Never give generic output like "jeans and a top" — name exact cuts, fabrications and styling techniques (e.g. "French-tuck a heavyweight silk button-down into high-waisted, wide-leg wool trousers").`;
+  const formulaBlock = `Every look follows the four-tier layer formula: 1) THE ANCHOR — the weather/agenda hero piece; 2) THE CANVAS — premium supporting basics; 3) THE TEXTURE — one depth-adding element; 4) THE EXCLAMATION POINT — the accessories, footwear and hardware that inject identity. Never give generic output like "jeans and a top" — name exact cuts, fabrications and styling techniques (e.g. "French-tuck a heavyweight silk button-down into high-waisted, wide-leg wool trousers").
+
+STYLING SANITY CHECK: every styling move must be something a respected stylist would actually shoot on the street — honour the key piece's natural register. Sporty and athletic pieces stay in an elevated-casual register: never belt knitwear or cardigans over athletic shorts, never force waist-cinching or hourglass tricks onto a sporty silhouette, never layer formal tailoring over gym wear. Any silhouette or body-architecture rules below govern WHAT pieces you select — they are never a licence to contort HOW a piece is worn. If a styling trick needs explaining to look intentional, drop it: effortless always beats clever.`;
 
   const brief = daily
     ? `The user is dressing for a real day, happening now. You build three complete, wearable outfits for that day — each a distinct mood or register, all appropriate to the occasion and the real-time weather context provided.`
@@ -358,71 +360,73 @@ Style this key piece three ways. Make each look genuinely distinct — different
     const wearer = parsed.wearer === 'man' ? 'man' : 'woman';
     const iconLine = styleIconsImageLine(styleIcons);
     const briefLine = !fallback && prompt ? `The user's brief: "${String(prompt).slice(0, 200)}". ` : '';
-    Promise.all(ways.map(async (w, i) => {
-      // Stagger the three calls — firing them in the same instant bursts the
-      // image model's rate limit, which is why one look would randomly never
-      // get its image (every other endpoint already staggers for this).
-      if (i > 0) await new Promise(r => setTimeout(r, i * 2500));
-      const imgParts = [];
-      if (!fallback && photoMatch) {
-        imgParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
-      }
-      const pieceLabel = fallback ? FALLBACK_PIECE : (pieceName || 'the clothing item');
-      const pieceLine = daily && !fallback ? '' : `The key piece is ${pieceLabel}. `;
-      const photoLine = !fallback && photoMatch
-        ? 'The attached photo shows the key piece only — reproduce the piece faithfully, but compose an entirely new scene; never copy the photo\'s framing, background or crop. '
-        : '';
-      imgParts.push({
-        text: `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one ${wearer}, alone, one scene, no collage, no split panels, no side-by-side images. ${FULL_BODY_FRAME} ${pieceLine}${photoLine}${briefLine}${iconLine}Look: "${w.title}" — ${w.eyebrow}. The ${wearer} wears the complete outfit: ${String(w.outfit || '').trim().replace(/\.$/, '')}. Soft natural light, luxury campaign aesthetic.`,
-      });
+    // Strictly ONE generation in flight at a time — the daily/travel/
+    // moodboard pattern. Concurrent calls contend for the image model's
+    // rate limit (that is what left looks imageless); a failed frame gets
+    // one retry after a pause long enough to clear a rate-limit window.
+    (async () => {
+      const results = ways.map(() => null);
+      for (let i = 0; i < ways.length; i++) {
+        if (i > 0) await new Promise(r => setTimeout(r, 3000));
+        const w = ways[i];
+        const imgParts = [];
+        if (!fallback && photoMatch) {
+          imgParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
+        }
+        const pieceLabel = fallback ? FALLBACK_PIECE : (pieceName || 'the clothing item');
+        const pieceLine = daily && !fallback ? '' : `The key piece is ${pieceLabel}. `;
+        const photoLine = !fallback && photoMatch
+          ? 'The attached photo shows the key piece only — reproduce the piece faithfully, but compose an entirely new scene; never copy the photo\'s framing, background or crop. '
+          : '';
+        imgParts.push({
+          text: `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one ${wearer}, alone, one scene, no collage, no split panels, no side-by-side images. ${FULL_BODY_FRAME} ${pieceLine}${photoLine}${briefLine}${iconLine}Look: "${w.title}" — ${w.eyebrow}. The ${wearer} wears the complete outfit: ${String(w.outfit || '').trim().replace(/\.$/, '')}. Soft natural light, luxury campaign aesthetic.`,
+        });
 
-      const makeCall = attempt => ai.models.generateContent({
-        model: 'gemini-3.1-flash-image',
-        contents: [{ role: 'user', parts: imgParts }],
-        config: { responseModalities: ['TEXT', 'IMAGE'] },
-      }).then(async r => {
-        const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-        if (!part?.inlineData) {
-          logAI({ feature: 'style', stage: 'image', index: i, attempt, success: false, reason: 'no_inline_data' });
+        const makeCall = attempt => ai.models.generateContent({
+          model: 'gemini-3.1-flash-image',
+          contents: [{ role: 'user', parts: imgParts }],
+          config: { responseModalities: ['TEXT', 'IMAGE'] },
+        }).then(async r => {
+          const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+          if (!part?.inlineData) {
+            logAI({ feature: 'style', stage: 'image', index: i, attempt, success: false, reason: 'no_inline_data' });
+            return null;
+          }
+          // Host on Cloudinary so the client can persist a small URL in the
+          // lookbook instead of a multi-MB base64 blob; fall back to data URL
+          const hosted = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+          const src = hosted || `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+          logAI({ feature: 'style', stage: 'image', index: i, attempt, success: true, hosted: !!hosted, ms: Date.now() - t1 });
+          // Write straight onto the job — a slow call that outlived its race
+          // timeout still delivers its image to the poller this way.
+          const job = imageJobs.get(jobId);
+          if (job && !job.images[i]) job.images[i] = src;
+          return src;
+        }).catch(err => {
+          logAI({ feature: 'style', stage: 'image', index: i, attempt, success: false, reason: err.message });
           return null;
-        }
-        // Host on Cloudinary so the client can persist a small URL in the
-        // lookbook instead of a multi-MB base64 blob; fall back to data URL
-        const hosted = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
-        const src = hosted || `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        logAI({ feature: 'style', stage: 'image', index: i, attempt, success: true, hosted: !!hosted, ms: Date.now() - t1 });
-        // Write straight onto the job — a slow call that outlived its race
-        // timeout still delivers its image to the poller this way.
-        const job = imageJobs.get(jobId);
-        if (job && !job.images[i]) job.images[i] = src;
-        return src;
-      }).catch(err => {
-        logAI({ feature: 'style', stage: 'image', index: i, attempt, success: false, reason: err.message });
-        return null;
-      });
+        });
 
-      // One failed/timed-out generation must not leave the look imageless
-      // for good — retry once with a fresh call.
-      let src = null;
-      for (let attempt = 1; attempt <= 2 && !src; attempt++) {
-        src = await Promise.race([
-          makeCall(attempt),
-          new Promise(resolve => setTimeout(() => resolve(null), 50000)),
-        ]);
-        const job = imageJobs.get(jobId);
-        if (!src && job && job.images[i]) src = job.images[i];
-        if (!src && attempt === 1) {
-          logAI({ feature: 'style', stage: 'image', index: i, attempt, success: false, reason: 'retrying' });
-          await new Promise(r => setTimeout(r, 2000));
+        let src = null;
+        for (let attempt = 1; attempt <= 2 && !src; attempt++) {
+          if (attempt > 1) {
+            logAI({ feature: 'style', stage: 'image', index: i, success: false, reason: 'retrying' });
+            await new Promise(r => setTimeout(r, 8000));
+          }
+          src = await Promise.race([
+            makeCall(attempt),
+            new Promise(resolve => setTimeout(() => resolve(null), 40000)),
+          ]);
+          const job = imageJobs.get(jobId);
+          if (!src && job && job.images[i]) src = job.images[i];
         }
+        results[i] = src;
       }
-      return src;
-    })).then(images => {
       const job = imageJobs.get(jobId);
       // Merge — an image may have landed on the job after its race timed out
-      if (job) { job.images = job.images.map((v, i) => v || images[i]); job.done = true; }
-      logAI({ feature: 'style', stage: 'images_complete', jobId, totalMs: Date.now() - t0, successCount: images.filter(Boolean).length });
-    });
+      if (job) { job.images = job.images.map((v, i) => v || results[i]); job.done = true; }
+      logAI({ feature: 'style', stage: 'images_complete', jobId, totalMs: Date.now() - t0, successCount: results.filter(Boolean).length });
+    })();
   } catch (err) {
     if (res.headersSent) return; // client already disconnected
     console.error('Gemini API error:', err.message);

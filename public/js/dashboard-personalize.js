@@ -2050,11 +2050,11 @@
                 for (let i = 0; i < count; i++) _kpSettlePlaceholder(i);
                 return;
               }
-              if (Date.now() - t0 < 180000) _kpPollTimer = setTimeout(tick, 3500);
+              if (Date.now() - t0 < 300000) _kpPollTimer = setTimeout(tick, 3500);
               else for (let i = 0; i < count; i++) _kpSettlePlaceholder(i);
             })
             .catch(() => {
-              if (Date.now() - t0 < 180000) _kpPollTimer = setTimeout(tick, 5000);
+              if (Date.now() - t0 < 300000) _kpPollTimer = setTimeout(tick, 5000);
               else for (let i = 0; i < count; i++) _kpSettlePlaceholder(i);
             });
         }
