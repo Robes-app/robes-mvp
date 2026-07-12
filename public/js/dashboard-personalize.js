@@ -1649,8 +1649,9 @@
         }
         grid.style.display = 'grid';
         empty.style.display = 'none';
+        _rbcInitSwipe();
         grid.innerHTML = items.map(item => `
-          <div onclick="window.__snOpenItem(${item.id})" style="position:relative;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08);cursor:pointer" onmouseenter="this.querySelector('.sn-rm').style.opacity='1'" onmouseleave="this.querySelector('.sn-rm').style.opacity='0'">
+          <div onclick="window.__snOpenItem(${item.id})" data-rmfn="__snRemove" data-rmidx="${item.id}" data-rmconfirm="1" style="position:relative;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08);cursor:pointer" onmouseenter="this.querySelector('.sn-rm').style.opacity='1'" onmouseleave="this.querySelector('.sn-rm').style.opacity='0'">
             <button class="sn-rm" onclick="event.stopPropagation();window.__snRemove(${item.id})" style="position:absolute;top:10px;right:10px;opacity:0;transition:opacity .15s;background:rgba(32,32,33,0.55);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
@@ -1686,6 +1687,7 @@
 
         const allItems = snLoad();
         row.style.display = 'block';
+        _rbcInitSwipe();
         row.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
             <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880">Lookbook</span>
@@ -1693,7 +1695,7 @@
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
             ${items.map(item => `
-              <div onclick="window.__snOpenItem(${item.id})" style="cursor:pointer;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(32,32,33,0.07)">
+              <div onclick="window.__snOpenItem(${item.id})" data-rmfn="__snRemove" data-rmidx="${item.id}" data-rmconfirm="1" style="cursor:pointer;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(32,32,33,0.07)">
                 ${item.img
                   ? `<img src="${item.img}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block" alt="">`
                   : `<div style="width:100%;aspect-ratio:1/1;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
@@ -2676,16 +2678,17 @@
         </div>`;
       }
 
-      // Swipe-to-remove on rack rows (mobile): a horizontal drag past the
-      // threshold fires the row's data-rmfn handler; a rejected removal
-      // (e.g. minimum-pieces guard) snaps the row back.
-      let _rbcSwipeOn = false;
+      // Swipe-to-remove (mobile): a horizontal drag past the threshold on
+      // any [data-rmfn] element fires its handler — rack rows animate out,
+      // data-rmconfirm surfaces (lookbook cards) snap back and let the
+      // handler's confirmation modal do the destructive step. The guard is
+      // a window flag (not a let) so early boot callers can't hit the TDZ.
       function _rbcInitSwipe() {
-        if (_rbcSwipeOn) return;
-        _rbcSwipeOn = true;
+        if (window.__rbcSwipeOn) return;
+        window.__rbcSwipeOn = true;
         let row = null, sx = 0, sy = 0, dx = 0, horiz = null;
         document.addEventListener('touchstart', (e) => {
-          row = e.target.closest ? e.target.closest('.rbc-row[data-rmfn]') : null;
+          row = e.target.closest ? e.target.closest('[data-rmfn]') : null;
           if (!row) return;
           const t = e.touches[0];
           sx = t.clientX; sy = t.clientY; dx = 0; horiz = null;
@@ -2707,14 +2710,22 @@
           row = null;
           r.style.transition = 'transform .18s ease, opacity .18s ease';
           if (dx < -90) {
-            r.style.transform = 'translateX(-110%)';
-            r.style.opacity = '0';
             const fn = r.getAttribute('data-rmfn'), idx = Number(r.getAttribute('data-rmidx'));
-            setTimeout(() => {
+            if (r.hasAttribute('data-rmconfirm')) {
+              // The handler brings its own confirmation modal — snap the
+              // card back and let the modal be the destructive step.
+              r.style.transform = '';
+              r.style.opacity = '';
               if (typeof window[fn] === 'function') window[fn](idx);
-              // If the guard declined (row still in the DOM), snap it back
-              setTimeout(() => { if (r.isConnected) { r.style.transform = ''; r.style.opacity = ''; } }, 60);
-            }, 180);
+            } else {
+              r.style.transform = 'translateX(-110%)';
+              r.style.opacity = '0';
+              setTimeout(() => {
+                if (typeof window[fn] === 'function') window[fn](idx);
+                // If the guard declined (row still in the DOM), snap it back
+                setTimeout(() => { if (r.isConnected) { r.style.transform = ''; r.style.opacity = ''; } }, 60);
+              }, 180);
+            }
           } else {
             r.style.transform = '';
             r.style.opacity = '';
@@ -2820,6 +2831,89 @@
             <span class="dth">${(d.thumbs || []).map(u => `<span${u ? ` style="background-image:url('${_waEsc(u)}')"` : ''}></span>`).join('')}</span>
           </button>`).join('');
       }
+
+      // ── "+ Add a piece" chooser — the rack's add flow offers her three
+      // doors: an already-catalogued piece, the camera, or an upload (the
+      // same trio as the concierge + menu). applyName is the per-surface
+      // window fn that takes a wardrobe id and adds the piece to the look.
+      window.__rbcAddMenu = function(applyName) {
+        document.getElementById('rbc-add-menu')?.remove();
+        const serif = "'Cormorant',Georgia,serif";
+        const waSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6A64" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>`;
+        const camSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6A64" stroke-width="1.8" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+        const upSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6A64" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
+        const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        const opt = (svg, label, sub, click) =>
+          `<button onclick="${click}" style="display:flex;align-items:center;gap:13px;width:100%;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px;background:#fff;cursor:pointer;font-family:inherit;text-align:left;margin-bottom:9px">
+            ${svg}
+            <span style="min-width:0"><span style="display:block;font-size:13.5px;color:#202021">${label}</span><span style="display:block;font-size:11px;color:#A89880;margin-top:1px">${sub}</span></span>
+          </button>`;
+        const modal = document.createElement('div');
+        modal.id = 'rbc-add-menu';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:400px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 22px 16px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">Add a piece</p>
+              <button onclick="document.getElementById('rbc-add-menu').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+            </div>
+            <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 16px;line-height:1.15">Bring a piece into the look.</p>
+            ${opt(waSvg, 'From your wardrobe', 'Pick something already catalogued', `window.__rbcWaPick('${applyName}')`)}
+            ${opt(camSvg, 'Take a photo', 'Snap the piece — Robes files it, then styles it in', `window.__rbcAddSnap('${applyName}')`)}
+            ${opt(upSvg, 'Upload a photo', 'From your camera roll or files', `window.__rbcAddSnap('${applyName}')`)}
+          </div>`;
+        document.body.appendChild(modal);
+      };
+
+      // Camera / upload door — the standard wardrobe add flow, with the
+      // post-add hook armed so the new piece lands straight in the look.
+      window.__rbcAddSnap = function(applyName) {
+        document.getElementById('rbc-add-menu')?.remove();
+        _waEditId = null;
+        _waAfterAdd = (newId) => { if (typeof window[applyName] === 'function') window[applyName](newId); };
+        if (window.WA && WA.open) WA.open();
+      };
+
+      // Wardrobe door — a full-catalogue grid; tap a piece to place it.
+      window.__rbcWaPick = function(applyName) {
+        document.getElementById('rbc-add-menu')?.remove();
+        document.getElementById('rbc-wa-pick')?.remove();
+        const serif = "'Cormorant',Georgia,serif";
+        const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        const items = _waItems.slice(0, 60);
+        const grid = items.length ? items.map(wi => `
+          <div onclick="document.getElementById('rbc-wa-pick').remove();window.${applyName}('${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
+            ${wi.image_url
+              ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" alt="">`
+              : `<div style="aspect-ratio:1;background:#EDE8E0;display:flex;align-items:center;justify-content:center"><span style="font-family:${serif};font-size:22px;color:#A89880">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</span></div>`}
+            <div style="padding:7px 8px;font-size:10.5px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
+          </div>`).join('') : '';
+        const modal = document.createElement('div');
+        modal.id = 'rbc-wa-pick';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28)">
+            <div style="position:sticky;top:0;background:#FAF8F5;padding:20px 20px 0;z-index:2">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
+                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">From your wardrobe</p>
+                <button onclick="document.getElementById('rbc-wa-pick').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+              </div>
+              <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 14px;line-height:1.15">Pick the piece.</p>
+              <div style="height:1px;background:rgba(32,32,33,0.08);margin:0 -20px 16px"></div>
+            </div>
+            <div style="padding:0 20px 28px">
+              ${items.length
+                ? `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${grid}</div>`
+                : `<div style="text-align:center;padding:12px 0 8px">
+                    <p style="font-family:${serif};font-size:16px;font-weight:300;color:#202021;margin:0 0 12px;line-height:1.5">Nothing catalogued yet — snap your first piece and it joins the look.</p>
+                    <button onclick="window.__rbcAddSnap('${applyName}')" style="font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:#202021;border:none;border-radius:100px;padding:12px 22px;cursor:pointer;font-family:inherit">Snap a piece</button>
+                  </div>`}
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+      };
 
       // ── Shared feedback block (PRD §4 — every output) — one markup +
       // one handler pair for the daily / weekly / travel consoles. Render
@@ -2950,23 +3044,22 @@
       // Add a piece to the rack (+ button) — opens the wardrobe add modal
       // over the page; the new piece joins The Rack (and the moodboard board)
       // on the next render, using its own wardrobe photo.
+      window.__dlAddOwned = function(id) {
+        const wi = _waItems.find(i => String(i.id) === String(id));
+        if (!wi || !window.__lastDlData || !Array.isArray(window.__lastDlData.steps) || !window.__lastDlData.steps.length) return;
+        const steps = window.__lastDlData.steps;
+        const step = steps[steps.length - 1];
+        if (!Array.isArray(step.items)) step.items = [];
+        step.items.push({
+          name: wi.label, category: wi.category || 'Other', brand: wi.brand || '', description: '',
+          wardrobe_index: -1, retailer_hint: '', price_point: '', alternates: [],
+          wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
+        });
+        _dlRerender();
+        _waShowToast(wi.label + ' added to the look');
+      };
       window.__dlAddPiece = function() {
-        _waEditId = null;
-        _waAfterAdd = (newId) => {
-          const wi = _waItems.find(i => String(i.id) === String(newId));
-          if (!wi || !window.__lastDlData || !Array.isArray(window.__lastDlData.steps) || !window.__lastDlData.steps.length) return;
-          const steps = window.__lastDlData.steps;
-          const step = steps[steps.length - 1];
-          if (!Array.isArray(step.items)) step.items = [];
-          step.items.push({
-            name: wi.label, category: wi.category || 'Other', brand: wi.brand || '', description: '',
-            wardrobe_index: -1, retailer_hint: '', price_point: '', alternates: [],
-            wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
-          });
-          _dlRerender();
-          _waShowToast(wi.label + ' added to the look');
-        };
-        if (window.WA && WA.open) WA.open();
+        window.__rbcAddMenu('__dlAddOwned');
       };
 
       let _dlWorn = false;
@@ -3808,27 +3901,26 @@
         if (window.WA && WA.open) WA.open();
       };
 
-      // Add a piece to the selected day's look — opens the wardrobe add
-      // modal; the new owned piece joins the rack (and the board) on repaint.
+      // Add a piece to the selected day's look — chooser offers her
+      // wardrobe, the camera or an upload; the piece joins the rack (and
+      // the board) on repaint.
+      window.__wkAddOwned = function(id) {
+        const wi = _waItems.find(i => String(i.id) === String(id));
+        const d = _wkState && _wkState.data.days[_wkState.day];
+        if (!wi || !d || d.rest) return;
+        d.items.push({
+          name: wi.label, category: wi.category || 'Other', brand: wi.brand || '', description: '',
+          wardrobe_index: -1, retailer_hint: '', price_point: '',
+          wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
+        });
+        _wkPaintConsole();
+        _wkPaintStrip();
+        _wkPatchSaved();
+        _waShowToast(wi.label + ' added to ' + _wkDayName(d));
+      };
       window.__wkAddPiece = function() {
         if (!_wkState) return;
-        const di = _wkState.day;
-        _waEditId = null;
-        _waAfterAdd = (newId) => {
-          const wi = _waItems.find(i => String(i.id) === String(newId));
-          const d = _wkState && _wkState.data.days[di];
-          if (!wi || !d || d.rest) return;
-          d.items.push({
-            name: wi.label, category: wi.category || 'Other', brand: wi.brand || '', description: '',
-            wardrobe_index: -1, retailer_hint: '', price_point: '',
-            wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
-          });
-          _wkPaintConsole();
-          _wkPaintStrip();
-          _wkPatchSaved();
-          _waShowToast(wi.label + ' added to ' + _wkDayName(d));
-        };
-        if (window.WA && WA.open) WA.open();
+        window.__rbcAddMenu('__wkAddOwned');
       };
 
       // "Wear today" — logs times_worn on today's owned pieces (the weekly
@@ -5142,41 +5234,39 @@ body>*:not(#tv-result-page){display:none !important}
       };
 
       // Add a piece to THIS look (the Daily rack's + button, travel
-      // flavour): the snapped piece joins the capsule as an owned Keep,
-      // then this slot's formula, wearing its own wardrobe photo.
+      // flavour): the piece joins the capsule as an owned Keep, then this
+      // slot's formula, wearing its own wardrobe photo.
+      window.__tvAddOwnedToLook = function(id) {
+        const data = window.__lastTvData;
+        const wi = _waItems.find(i => String(i.id) === String(id));
+        if (!wi || !data) return;
+        const d = data.days[_tvActiveDay];
+        const slot = d && (d.slots || [])[_tvActiveOcc];
+        if (!slot) return;
+        let ci = data.capsule.findIndex(c => c.wardrobe_match && String(c.wardrobe_match.id) === String(wi.id));
+        if (ci === -1) {
+          data.capsule.push({
+            name: wi.label, tier: 'Foundations & Tailoring', category: wi.category || 'Other', brand: wi.brand || '',
+            description: '', reason: 'Added by you', wardrobe_index: -1, retailer_hint: '', price_point: '',
+            wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
+          });
+          ci = data.capsule.length - 1;
+        }
+        if (!Array.isArray(slot.formula)) slot.formula = [];
+        if (!slot.formula.some(x => x.item_index === ci)) {
+          slot.formula.push({ role: 'The Canvas', item_index: ci, note: '' });
+        }
+        const savedId = _tvActiveSaveId;
+        const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
+        window.__tvRenderResult(data, { skipSave: true, savedId });
+        if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
+        _tvPatchSaved();
+        _waShowToast(wi.label + ' added to this look');
+      };
       window.__tvAddPieceToLook = function() {
         const st = _tvLookState();
         if (!st || !st.s) return;
-        const di = _tvActiveDay, oi = _tvActiveOcc;
-        _waEditId = null;
-        _waAfterAdd = (newId) => {
-          const data = window.__lastTvData;
-          const wi = _waItems.find(i => String(i.id) === String(newId));
-          if (!wi || !data) return;
-          const d = data.days[di];
-          const slot = d && (d.slots || [])[oi];
-          if (!slot) return;
-          let ci = data.capsule.findIndex(c => c.wardrobe_match && String(c.wardrobe_match.id) === String(wi.id));
-          if (ci === -1) {
-            data.capsule.push({
-              name: wi.label, tier: 'Foundations & Tailoring', category: wi.category || 'Other', brand: wi.brand || '',
-              description: '', reason: 'Added by you', wardrobe_index: -1, retailer_hint: '', price_point: '',
-              wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
-            });
-            ci = data.capsule.length - 1;
-          }
-          if (!Array.isArray(slot.formula)) slot.formula = [];
-          if (!slot.formula.some(x => x.item_index === ci)) {
-            slot.formula.push({ role: 'The Canvas', item_index: ci, note: '' });
-          }
-          const savedId = _tvActiveSaveId;
-          const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
-          window.__tvRenderResult(data, { skipSave: true, savedId });
-          if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
-          _tvPatchSaved();
-          _waShowToast(wi.label + ' added to this look');
-        };
-        if (window.WA && WA.open) WA.open();
+        window.__rbcAddMenu('__tvAddOwnedToLook');
       };
 
       // Pack every capsule piece this look uses
