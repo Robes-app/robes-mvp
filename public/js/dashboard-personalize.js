@@ -2085,7 +2085,11 @@
           const kis = document.createElement('style');
           kis.id = 'kp-img-style';
           kis.textContent = '@keyframes kpPhPulse{0%,100%{opacity:1}50%{opacity:.55}}' +
-            '@media(max-width:700px){.kp-look-card{grid-template-columns:1fr !important}.kp-look-card>div:last-child{padding:20px 22px 26px !important}.kp-look-imgwrap{min-height:300px !important}}';
+            // Mobile: the single-column card gives the image a short landscape
+            // box (min-height) — a cover-fit portrait image loses head + feet
+            // to the crop. Let the image flow at its natural ratio instead;
+            // min-height only backstops the pending-placeholder state.
+            '@media(max-width:700px){.kp-look-card{grid-template-columns:1fr !important}.kp-look-card>div:last-child{padding:20px 22px 26px !important}.kp-look-imgwrap{min-height:300px !important}.kp-look-imgwrap img{position:static !important;height:auto !important}}';
           document.head.appendChild(kis);
         }
         const imagesPending = !!data.jobId;
