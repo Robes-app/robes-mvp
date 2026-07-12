@@ -358,7 +358,11 @@ Style this key piece three ways. Make each look genuinely distinct — different
     const wearer = parsed.wearer === 'man' ? 'man' : 'woman';
     const iconLine = styleIconsImageLine(styleIcons);
     const briefLine = !fallback && prompt ? `The user's brief: "${String(prompt).slice(0, 200)}". ` : '';
-    Promise.all(ways.map((w, i) => {
+    Promise.all(ways.map(async (w, i) => {
+      // Stagger the three calls — firing them in the same instant bursts the
+      // image model's rate limit, which is why one look would randomly never
+      // get its image (every other endpoint already staggers for this).
+      if (i > 0) await new Promise(r => setTimeout(r, i * 2500));
       const imgParts = [];
       if (!fallback && photoMatch) {
         imgParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
@@ -372,34 +376,47 @@ Style this key piece three ways. Make each look genuinely distinct — different
         text: `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one ${wearer}, alone, one scene, no collage, no split panels, no side-by-side images. ${FULL_BODY_FRAME} ${pieceLine}${photoLine}${briefLine}${iconLine}Look: "${w.title}" — ${w.eyebrow}. The ${wearer} wears the complete outfit: ${String(w.outfit || '').trim().replace(/\.$/, '')}. Soft natural light, luxury campaign aesthetic.`,
       });
 
-      const imgCall = ai.models.generateContent({
+      const makeCall = attempt => ai.models.generateContent({
         model: 'gemini-3.1-flash-image',
         contents: [{ role: 'user', parts: imgParts }],
         config: { responseModalities: ['TEXT', 'IMAGE'] },
       }).then(async r => {
         const part = r.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
         if (!part?.inlineData) {
-          logAI({ feature: 'style', stage: 'image', index: i, success: false, reason: 'no_inline_data' });
+          logAI({ feature: 'style', stage: 'image', index: i, attempt, success: false, reason: 'no_inline_data' });
           return null;
         }
         // Host on Cloudinary so the client can persist a small URL in the
         // lookbook instead of a multi-MB base64 blob; fall back to data URL
         const hosted = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
         const src = hosted || `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        logAI({ feature: 'style', stage: 'image', index: i, success: true, hosted: !!hosted, ms: Date.now() - t1 });
+        logAI({ feature: 'style', stage: 'image', index: i, attempt, success: true, hosted: !!hosted, ms: Date.now() - t1 });
+        // Write straight onto the job — a slow call that outlived its race
+        // timeout still delivers its image to the poller this way.
         const job = imageJobs.get(jobId);
-        if (job) job.images[i] = src;
+        if (job && !job.images[i]) job.images[i] = src;
         return src;
       }).catch(err => {
-        logAI({ feature: 'style', stage: 'image', index: i, success: false, reason: err.message });
+        logAI({ feature: 'style', stage: 'image', index: i, attempt, success: false, reason: err.message });
         return null;
       });
 
-      const timeout = new Promise(resolve => setTimeout(() => {
-        logAI({ feature: 'style', stage: 'image', index: i, success: false, reason: 'timeout_50s' });
-        resolve(null);
-      }, 50000));
-      return Promise.race([imgCall, timeout]);
+      // One failed/timed-out generation must not leave the look imageless
+      // for good — retry once with a fresh call.
+      let src = null;
+      for (let attempt = 1; attempt <= 2 && !src; attempt++) {
+        src = await Promise.race([
+          makeCall(attempt),
+          new Promise(resolve => setTimeout(() => resolve(null), 50000)),
+        ]);
+        const job = imageJobs.get(jobId);
+        if (!src && job && job.images[i]) src = job.images[i];
+        if (!src && attempt === 1) {
+          logAI({ feature: 'style', stage: 'image', index: i, attempt, success: false, reason: 'retrying' });
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
+      return src;
     })).then(images => {
       const job = imageJobs.get(jobId);
       // Merge — an image may have landed on the job after its race timed out
