@@ -2581,9 +2581,14 @@
 .rbc-palette span{width:14px;height:14px;border-radius:50%;border:0.5px solid var(--rule-mid);display:block}
 .rbc-yours{font-size:10px;letter-spacing:.02em;color:var(--ink-faint)}
 .rbc-yours b{color:var(--ink);font-weight:500}
-.rbc-ttip{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:0.5px solid var(--rule)}
-.rbc-ttip .tl{font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
-.rbc-ttip .tt{font-size:12px;line-height:1.6;color:var(--ink-soft);font-style:italic;flex:1;min-width:180px}
+.rbc-read{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:var(--cream-100);padding:15px 16px;margin-top:13px}
+.rbc-read .rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.rbc-read .lab{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
+.rbc-read .score{font-family:var(--font-serif);font-weight:300;font-size:20px;color:var(--ink)}
+.rbc-read .score .of{font-size:11px;color:var(--ink-faint)}
+.rbc-read .bar{position:relative;height:5px;border-radius:100px;background:var(--cream-200);overflow:hidden}
+.rbc-read .bar span{position:absolute;left:0;top:0;height:100%;border-radius:100px;transition:width .4s,background .4s;display:block}
+.rbc-read p{font-size:12.5px;line-height:1.6;color:#3A3733;margin:11px 0 0}
 .rbc-rackhead{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;flex-wrap:wrap}
 .rbc-rackhead .ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose)}
 .rbc-rackhead h2{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:25px;line-height:1.05;margin:6px 0 0;color:var(--ink)}
@@ -2592,9 +2597,12 @@
 .rbc-hbtn:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
 .rbc-hlink{background:none;border:none;cursor:pointer;font-size:11px;color:var(--rose);text-decoration:underline;font-family:inherit;white-space:nowrap;padding:4px 0}
 .rbc-rack{display:flex;flex-direction:column;gap:12px}
-.rbc-row{display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:stretch;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:12px;transition:border-color .2s,background .2s}
+.rbc-row{position:relative;display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:stretch;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:12px;transition:border-color .2s,background .2s}
 .rbc-row.anchored{border-color:var(--ink)}
 .rbc-row.packed{border-color:rgba(126,124,90,0.5);background:var(--sage-bg)}
+.rbc-rm{position:absolute;top:-7px;right:-7px;z-index:4;width:22px;height:22px;border-radius:50%;border:0.5px solid var(--rule-mid);background:#fff;color:var(--ink-faint);font-size:13px;line-height:1;display:grid;place-items:center;cursor:pointer;opacity:.45;transition:opacity .15s,color .15s;padding:0;box-shadow:0 1px 4px rgba(32,32,33,0.08)}
+.rbc-row:hover .rbc-rm{opacity:1}
+.rbc-rm:hover{color:var(--ink);border-color:rgba(32,32,33,0.25)}
 .rbc-vp{position:relative;align-self:start;width:100%;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200);aspect-ratio:1/1}
 .rbc-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
 .rbc-vp .vlooks{position:absolute;bottom:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px;white-space:nowrap}
@@ -2654,6 +2662,66 @@
         document.head.appendChild(el);
       }
 
+      // "The read" — the one verdict block every day console carries
+      // (ownership for Daily/Weekly, the packing case for Travel).
+      function _rbcReadBlock(opts) {
+        const pct = opts.total ? Math.round(opts.score / opts.total * 100) : 0;
+        return `<div class="rbc-read">
+          <div class="rh">
+            <span class="lab">The read</span>
+            <span class="score">${opts.score} / ${opts.total}<span class="of"> ${opts.unit}</span></span>
+          </div>
+          <div class="bar"><span style="width:${pct}%;background:${opts.clean ? 'var(--sage)' : '#B98A4E'}"></span></div>
+          <p>${opts.verdict}</p>
+        </div>`;
+      }
+
+      // Swipe-to-remove on rack rows (mobile): a horizontal drag past the
+      // threshold fires the row's data-rmfn handler; a rejected removal
+      // (e.g. minimum-pieces guard) snaps the row back.
+      let _rbcSwipeOn = false;
+      function _rbcInitSwipe() {
+        if (_rbcSwipeOn) return;
+        _rbcSwipeOn = true;
+        let row = null, sx = 0, sy = 0, dx = 0, horiz = null;
+        document.addEventListener('touchstart', (e) => {
+          row = e.target.closest ? e.target.closest('.rbc-row[data-rmfn]') : null;
+          if (!row) return;
+          const t = e.touches[0];
+          sx = t.clientX; sy = t.clientY; dx = 0; horiz = null;
+          row.style.transition = '';
+        }, { passive: true });
+        document.addEventListener('touchmove', (e) => {
+          if (!row) return;
+          const t = e.touches[0];
+          const mx = t.clientX - sx, my = t.clientY - sy;
+          if (horiz === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) horiz = Math.abs(mx) > Math.abs(my);
+          if (!horiz) return;
+          dx = Math.min(0, mx);
+          row.style.transform = 'translateX(' + dx + 'px)';
+          row.style.opacity = String(Math.max(0.35, 1 + dx / 300));
+        }, { passive: true });
+        document.addEventListener('touchend', () => {
+          if (!row) return;
+          const r = row;
+          row = null;
+          r.style.transition = 'transform .18s ease, opacity .18s ease';
+          if (dx < -90) {
+            r.style.transform = 'translateX(-110%)';
+            r.style.opacity = '0';
+            const fn = r.getAttribute('data-rmfn'), idx = Number(r.getAttribute('data-rmidx'));
+            setTimeout(() => {
+              if (typeof window[fn] === 'function') window[fn](idx);
+              // If the guard declined (row still in the DOM), snap it back
+              setTimeout(() => { if (r.isConnected) { r.style.transform = ''; r.style.opacity = ''; } }, 60);
+            }, 180);
+          } else {
+            r.style.transform = '';
+            r.style.opacity = '';
+          }
+        }, { passive: true });
+      }
+
       function _rbcTile(it, wide, cfg) {
         return `<button class="rbc-tile${wide ? ' wide' : ''}${it.isNew ? ' isnew' : ''}" onclick="window.${cfg.onSwap}(${it.idx})" title="Swap the ${_waEsc(it.shortName)}">
           <div${it.frame.pollAttr} style="position:absolute;inset:0;background:var(--cream-200)">${it.frame.inner}</div>
@@ -2671,7 +2739,8 @@
         const dots = it.count.len > 1 && it.count.len <= 8
           ? `<span class="rbc-dots">${Array.from({ length: it.count.len }, (_, k) => `<span${k === it.count.cur ? ' class="on"' : ''}></span>`).join('')}</span>`
           : (it.count.len > 8 ? `<span style="font-size:9px;letter-spacing:.08em;color:var(--ink-faint)">${it.count.cur + 1} / ${it.count.len}</span>` : '');
-        return `<div class="rbc-row${it.anchored ? ' anchored' : ''}${it.rowClass || ''}">
+        return `<div class="rbc-row${it.anchored ? ' anchored' : ''}${it.rowClass || ''}"${cfg.onRemove ? ` data-rmfn="${cfg.onRemove}" data-rmidx="${it.idx}"` : ''}>
+          ${cfg.onRemove ? `<button class="rbc-rm${np}" onclick="window.${cfg.onRemove}(${it.idx})" title="Remove from this look" aria-label="Remove from this look">×</button>` : ''}
           <div class="rbc-vp">
             <span class="vslot">${_waEsc(it.slot)}</span>
             <div${it.frame.pollAttr} style="position:absolute;inset:0">${it.frame.inner}</div>
@@ -2705,6 +2774,7 @@
 
       function _rbConsole(cfg, items) {
         _rbcEnsureCss();
+        _rbcInitSwipe();
         const lookHtml = `
           <div class="rbc-panel">
             <div class="rbc-lhead">
@@ -2719,7 +2789,6 @@
               <span class="rbc-palette">${cfg.paletteHtml || ''}</span>
               <span class="rbc-yours">${cfg.yoursHtml || ''}</span>
             </div>
-            ${cfg.transitionTip ? `<div class="rbc-ttip"><span class="tl">Transition tip</span><span class="tt">${_waEsc(cfg.transitionTip)}</span></div>` : ''}
           </div>
           ${cfg.panelExtraHtml || ''}`;
         const rackHtml = `
@@ -2731,7 +2800,7 @@
             <div class="rbc-hbtns">${cfg.headButtonsHtml || ''}</div>
           </div>
           <div class="rbc-rack">${items.map(it => _rbcRow(it, cfg)).join('')}</div>
-          ${cfg.addPieceFn ? `<button class="rbc-addpiece" onclick="window.${cfg.addPieceFn}()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>` : ''}`;
+          ${cfg.addPieceFn ? `<button class="rbc-addpiece${cfg.noprint ? ' tv-noprint' : ''}" onclick="window.${cfg.addPieceFn}()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>` : ''}`;
         return { lookHtml, rackHtml };
       }
 
@@ -2851,6 +2920,22 @@
         it.anchored = !it.anchored;
         _dlRerender();
         _waShowToast(it.anchored ? 'Anchored — restyles build around it' : 'Anchor released');
+      };
+      // Remove a piece she doesn't need (no jacket today, no bag) — the
+      // look re-reads without it. Guarded so a look never empties out.
+      window.__dlRemove = function(fi) {
+        const flat = window.__dlCurrentItems || [];
+        const it = flat[fi];
+        if (!it || !window.__lastDlData) return;
+        if (flat.length <= 2) { _waShowToast('A look needs at least two pieces'); _dlRerender(); return; }
+        let k = fi;
+        for (const s of window.__lastDlData.steps) {
+          const items = s.items || [];
+          if (k < items.length) { items.splice(k, 1); break; }
+          k -= items.length;
+        }
+        _dlRerender();
+        _waShowToast(it.name + ' removed from the look');
       };
       // "Restyle it" / "Dress me again" — a full re-mix that keeps every
       // anchored piece exactly where it is and evolves the SAME saved look.
@@ -3124,16 +3209,22 @@
               : `${it.brand ? `<span class="brand">${_waEsc(it.brand)}</span>` : ''}${(it.retailer_hint || it.price_point) ? `<span class="price">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>` : ''}`,
           };
         });
+        const dlUnowned = ordered.filter(x => !x.it.wardrobe_match);
         const con = _rbConsole({
           headLabel: `The look · ${_waEsc(weekday)} · ${total} pieces`,
           quoteHtml: summaryHtml || (quote ? '“' + _waEsc(quote) + '”' : ''),
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           yoursHtml: `<b>${owned}</b>&thinsp;of&thinsp;${total} from your wardrobe`,
-          transitionTip: data.transition_tip || '',
+          panelExtraHtml: _rbcReadBlock({
+            score: owned, total, unit: 'in your wardrobe', clean: dlUnowned.length === 0,
+            verdict: dlUnowned.length
+              ? `Nearly there — flick or swap the ${_waEsc(dlUnowned[0].it.name.toLowerCase())} for something you own, or snap it into your wardrobe.`
+              : 'Every piece is from your own wardrobe — dressed with nothing new.',
+          }),
           rackLabel: `The rack · ${_waEsc(weekday)}`,
           headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
-          onFlip: '__dlFlip', onSwap: '__dlSwap', onAnchor: '__dlAnchor',
+          onFlip: '__dlFlip', onSwap: '__dlSwap', onAnchor: '__dlAnchor', onRemove: '__dlRemove',
           addPieceFn: '__dlAddPiece',
         }, conItems);
 
@@ -3620,16 +3711,22 @@
               : `${it.brand ? `<span class="brand">${_waEsc(it.brand)}</span>` : ''}${retail ? `<span class="price">${_waEsc(retail)}</span>` : ''}`,
           };
         });
+        const wkUnowned = d.items.filter(it => !it.wardrobe_match);
         const con = _rbConsole({
           headLabel: `The look · ${_waEsc(_wkDayName(d))} · ${d.items.length} pieces`,
           quoteHtml: d.note ? '“' + _waEsc(d.note) + '”' : '',
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           yoursHtml: `<b>${owned}</b>&thinsp;of&thinsp;${d.items.length} from your wardrobe`,
-          transitionTip: d.transition_tip || '',
+          panelExtraHtml: _rbcReadBlock({
+            score: owned, total: d.items.length, unit: 'in your wardrobe', clean: wkUnowned.length === 0,
+            verdict: wkUnowned.length
+              ? `Nearly there — flick or swap the ${_waEsc(wkUnowned[0].name.toLowerCase())} for something you own, or snap it into your wardrobe.`
+              : 'Every piece is from your own wardrobe — dressed with nothing new.',
+          }),
           rackLabel: `The rack · ${_waEsc(_wkDayName(d))}${d.occasion ? ' · ' + _waEsc(d.occasion) : ''}`,
           headButtonsHtml: `<button class="rbc-hlink" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button><button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
-          onFlip: '__wkFlip', onSwap: '__wkSwap', onAnchor: '__wkAnchor',
+          onFlip: '__wkFlip', onSwap: '__wkSwap', onAnchor: '__wkAnchor', onRemove: '__wkRemove',
           addPieceFn: '__wkAddPiece',
         }, conItems);
 
@@ -3662,6 +3759,19 @@
         _wkPaintConsole();
         _wkPatchSaved();
         _waShowToast(it.anchored ? 'Anchored — restyles build around it' : 'Anchor released');
+      };
+
+      // Remove a piece she doesn't need from the day's look.
+      window.__wkRemove = function(ii) {
+        const d = _wkState && _wkState.data.days[_wkState.day];
+        const it = d && d.items[ii];
+        if (!it) return;
+        if (d.items.length <= 2) { _waShowToast('A look needs at least two pieces'); _wkPaintConsole(); return; }
+        d.items.splice(ii, 1);
+        _wkPaintConsole();
+        _wkPaintStrip();
+        _wkPatchSaved();
+        _waShowToast(it.name + ' removed from ' + _wkDayName(d));
       };
 
       // Swap — the same shared PRD 3.B modal as the Daily and Travel racks.
@@ -4949,20 +5059,11 @@ body>*:not(#tv-result-page){display:none !important}
           const inCase = entries.filter(x => x.it.packed);
           const gaps = entries.filter(x => !x.it.wardrobe_match && !x.it.added);
           const toPack = entries.filter(x => !x.it.packed);
-          const pct = entries.length ? Math.round(inCase.length / entries.length * 100) : 0;
-          const clean = gaps.length === 0;
           let verdict;
           if (gaps.length) verdict = `Nearly there — the ${_waEsc(gaps[0].it.name.toLowerCase())} is the gap worth adding, then this look is complete.`;
           else if (toPack.length) verdict = `Everything’s chosen — just pack the ${_waEsc(toPack[0].it.name.toLowerCase())} and it’s ready.`;
           else verdict = 'Every piece is packed and accounted for — this look travels as it is.';
-          return `<div class="tvm-read">
-            <div class="rh">
-              <span class="lab">The read</span>
-              <span class="score">${inCase.length} / ${entries.length}<span class="of"> in the case</span></span>
-            </div>
-            <div class="bar"><span style="width:${pct}%;background:${clean ? 'var(--sage)' : '#B98A4E'}"></span></div>
-            <p>${verdict}</p>
-          </div>`;
+          return _rbcReadBlock({ score: inCase.length, total: entries.length, unit: 'in the case', clean: gaps.length === 0, verdict });
         })();
 
         const con = _rbConsole({
@@ -4972,12 +5073,12 @@ body>*:not(#tv-result-page){display:none !important}
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           yoursHtml: `<b>${ownedN}</b>&thinsp;of&thinsp;${entries.length} already yours`,
-          transitionTip: s.transition_tip || '',
           panelExtraHtml: readHtml,
           rackLabel: `The rack · ${_waEsc(dayName)}`,
           rackTitleHtml: `<h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>`,
           headButtonsHtml: `<button class="rbc-hbtn tv-noprint" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>`,
-          onFlip: '__tvFlip', onSwap: '__tvSwap', onAnchor: '__tvAnchor',
+          onFlip: '__tvFlip', onSwap: '__tvSwap', onAnchor: '__tvAnchor', onRemove: '__tvRemoveFromLook',
+          addPieceFn: '__tvAddPieceToLook',
           noprint: true,
         }, conItems);
 
@@ -5019,6 +5120,63 @@ body>*:not(#tv-result-page){display:none !important}
         if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
         _tvPatchSaved();
         _waShowToast(it.anchored ? 'Anchored — restyles build around it' : 'Anchor released');
+      };
+
+      // Remove a piece from THIS look only — the capsule (and the packing
+      // edit) keep it; other days that wear it are untouched.
+      window.__tvRemoveFromLook = function(ci) {
+        const st = _tvLookState();
+        if (!st || !st.s) return;
+        const f = st.s.formula || [];
+        const keep = f.filter(x => x.item_index !== ci);
+        if (keep.length === f.length) return;
+        if (keep.length < 2) { _waShowToast('A look needs at least two pieces'); _tvPaintConsole(); return; }
+        st.s.formula = keep;
+        const it = st.data.capsule[ci];
+        const savedId = _tvActiveSaveId;
+        const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
+        window.__tvRenderResult(st.data, { skipSave: true, savedId });
+        if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
+        _tvPatchSaved();
+        _waShowToast((it ? it.name : 'Piece') + ' removed from this look' + (it && (it.wardrobe_match || it.added) ? ' — still in your case' : ''));
+      };
+
+      // Add a piece to THIS look (the Daily rack's + button, travel
+      // flavour): the snapped piece joins the capsule as an owned Keep,
+      // then this slot's formula, wearing its own wardrobe photo.
+      window.__tvAddPieceToLook = function() {
+        const st = _tvLookState();
+        if (!st || !st.s) return;
+        const di = _tvActiveDay, oi = _tvActiveOcc;
+        _waEditId = null;
+        _waAfterAdd = (newId) => {
+          const data = window.__lastTvData;
+          const wi = _waItems.find(i => String(i.id) === String(newId));
+          if (!wi || !data) return;
+          const d = data.days[di];
+          const slot = d && (d.slots || [])[oi];
+          if (!slot) return;
+          let ci = data.capsule.findIndex(c => c.wardrobe_match && String(c.wardrobe_match.id) === String(wi.id));
+          if (ci === -1) {
+            data.capsule.push({
+              name: wi.label, tier: 'Foundations & Tailoring', category: wi.category || 'Other', brand: wi.brand || '',
+              description: '', reason: 'Added by you', wardrobe_index: -1, retailer_hint: '', price_point: '',
+              wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
+            });
+            ci = data.capsule.length - 1;
+          }
+          if (!Array.isArray(slot.formula)) slot.formula = [];
+          if (!slot.formula.some(x => x.item_index === ci)) {
+            slot.formula.push({ role: 'The Canvas', item_index: ci, note: '' });
+          }
+          const savedId = _tvActiveSaveId;
+          const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
+          window.__tvRenderResult(data, { skipSave: true, savedId });
+          if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
+          _tvPatchSaved();
+          _waShowToast(wi.label + ' added to this look');
+        };
+        if (window.WA && WA.open) WA.open();
       };
 
       // Pack every capsule piece this look uses
