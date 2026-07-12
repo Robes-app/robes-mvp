@@ -2541,6 +2541,289 @@
           it.wardrobe_match = (o.kind === 'orig' && o.wardrobe_match) ? o.wardrobe_match : null;
         }
       }
+
+      // ── Shared Look/Rack console (audit P1 — one canonical template) ──
+      // Renders the two console halves for the Daily, Weekly and Travel day
+      // consoles from ONE markup + ONE stylesheet (.rbc-*). The surfaces
+      // stay thin adapters: they supply frames, provenance lines and their
+      // own handlers; the structure itself never forks again.
+      const _rbcChevL = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
+      const _rbcChevR = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+      const _rbcLockSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+      const _rbcSwapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
+      const _rbcCheckSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+      const _RBC_CSS = `
+.rbc-panel{background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);padding:18px}
+.rbc-lhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.rbc-lhead .lab{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
+.rbc-lhead .robes{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose)}
+.rbc-quote{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:16px;line-height:1.42;color:var(--ink-soft);margin-bottom:14px;padding-left:13px;border-left:2px solid var(--rose-mid)}
+.rbc-board{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rbc-tile{position:relative;border-radius:var(--rad-sm);overflow:hidden;aspect-ratio:1/1.16;text-align:left;padding:0;background:var(--cream-200);border:0.5px solid var(--rule-mid);cursor:pointer}
+.rbc-tile.wide{grid-column:span 2;aspect-ratio:2/1.05}
+.rbc-tile.isnew{border:1px dashed rgba(185,138,78,0.6)}
+.rbc-tile .tgrad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,0.42));z-index:1;pointer-events:none}
+.rbc-tile .tslot{position:absolute;left:9px;top:8px;z-index:2;font-size:7.5px;letter-spacing:.16em;text-transform:uppercase;color:#fff;background:rgba(32,32,33,0.42);padding:3px 7px;border-radius:100px}
+.rbc-tile .tlab{position:absolute;left:10px;bottom:9px;right:10px;z-index:2;font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:15px;color:#fff;line-height:1.05;pointer-events:none}
+.rbc-tile .town{position:absolute;top:7px;right:7px;z-index:2;width:18px;height:18px;border-radius:50%;background:#fff;display:grid;place-items:center;color:#4A7C59}
+.rbc-tile .tadd{position:absolute;top:7px;right:7px;z-index:2;font-size:7.5px;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:rgba(185,138,78,0.92);padding:2px 7px;border-radius:100px}
+.rbc-tile .tnav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.92);border:0.5px solid var(--rule-mid);display:grid;place-items:center;opacity:0;transition:opacity .15s;padding:0;color:var(--ink);cursor:pointer}
+.rbc-tile:hover .tnav{opacity:1}
+.rbc-tile .tnav.l{left:6px}
+.rbc-tile .tnav.r{right:6px}
+.rbc-fabrics{display:flex;flex-wrap:wrap;gap:9px 14px;margin-top:14px;padding-top:13px;border-top:0.5px solid var(--rule)}
+.rbc-fabrics .fab{display:flex;align-items:center;gap:7px}
+.rbc-fabrics .sw{width:14px;height:14px;border-radius:3px;border:0.5px solid var(--rule-mid);display:block}
+.rbc-fabrics .fl{font-family:var(--font-serif);font-style:italic;font-size:12.5px;color:var(--ink-faint)}
+.rbc-lfoot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:13px;border-top:0.5px solid var(--rule)}
+.rbc-palette{display:flex;gap:5px}
+.rbc-palette span{width:14px;height:14px;border-radius:50%;border:0.5px solid var(--rule-mid);display:block}
+.rbc-yours{font-size:10px;letter-spacing:.02em;color:var(--ink-faint)}
+.rbc-yours b{color:var(--ink);font-weight:500}
+.rbc-ttip{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:0.5px solid var(--rule)}
+.rbc-ttip .tl{font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+.rbc-ttip .tt{font-size:12px;line-height:1.6;color:var(--ink-soft);font-style:italic;flex:1;min-width:180px}
+.rbc-rackhead{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.rbc-rackhead .ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose)}
+.rbc-rackhead h2{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:25px;line-height:1.05;margin:6px 0 0;color:var(--ink)}
+.rbc-hbtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rbc-hbtn{display:inline-flex;align-items:center;gap:7px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:9px 15px;font-size:11.5px;color:var(--ink-soft);background:#fff;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:inherit}
+.rbc-hbtn:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
+.rbc-hlink{background:none;border:none;cursor:pointer;font-size:11px;color:var(--rose);text-decoration:underline;font-family:inherit;white-space:nowrap;padding:4px 0}
+.rbc-rack{display:flex;flex-direction:column;gap:12px}
+.rbc-row{display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:stretch;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:12px;transition:border-color .2s,background .2s}
+.rbc-row.anchored{border-color:var(--ink)}
+.rbc-row.packed{border-color:rgba(126,124,90,0.5);background:var(--sage-bg)}
+.rbc-vp{position:relative;align-self:start;width:100%;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200);aspect-ratio:1/1}
+.rbc-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
+.rbc-vp .vlooks{position:absolute;bottom:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px;white-space:nowrap}
+.rbc-vp .vcount{position:absolute;bottom:8px;right:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
+.rbc-body{display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:2px 0}
+.rbc-namerow{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.rbc-name{font-family:var(--font-serif);font-weight:400;font-size:21px;line-height:1.08;color:var(--ink)}
+.rbc-anchpill{display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);border:0.5px solid var(--rule-mid);border-radius:100px;padding:3px 9px;flex:none}
+.rbc-sub{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--ink-faint);flex-wrap:wrap}
+.rbc-sub .price{color:var(--ink)}
+.rbc-sub .brand{font-family:var(--font-serif);font-style:italic;font-size:13px}
+.rbc-sub .owned{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#4A7C59}
+.rbc-sub .addtag{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#B98A4E}
+.rbc-hownote{font-size:11.5px;line-height:1.5;color:var(--ink-soft);margin-top:7px;font-style:italic;font-family:var(--font-serif)}
+.rbc-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;flex-wrap:wrap}
+.rbc-flip{display:flex;align-items:center;gap:9px}
+.rbc-arrow{width:32px;height:32px;border:0.5px solid var(--rule-mid);border-radius:50%;display:grid;place-items:center;background:#fff;cursor:pointer;transition:all .15s;color:var(--ink);padding:0}
+.rbc-arrow:hover{background:var(--ink);border-color:var(--ink);color:#fff}
+.rbc-dots{display:flex;gap:5px;padding:0 2px}
+.rbc-dots span{width:5px;height:5px;border-radius:50%;background:var(--cream-400);display:block;transition:all .2s}
+.rbc-dots span.on{background:var(--ink);transform:scale(1.25)}
+.rbc-acts{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.rbc-act{display:inline-flex;align-items:center;gap:6px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:8px 13px;font-size:11px;letter-spacing:.01em;background:#fff;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
+.rbc-act:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
+.rbc-act.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.rbc-addpiece{margin-top:12px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--rule-mid);border-radius:var(--rad);padding:13px;font-size:12px;letter-spacing:.02em;background:transparent;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
+.rbc-addpiece:hover{border-color:var(--ink-faint);color:var(--ink);background:#fff}
+.rbd-strip{display:grid;grid-auto-flow:column;grid-auto-columns:200px;gap:10px;overflow-x:auto;padding-bottom:10px;margin-bottom:24px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.rbd-day{scroll-snap-align:start;position:relative;text-align:left;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:13px 13px 12px;min-height:132px;display:flex;flex-direction:column;cursor:pointer;transition:border-color .2s,background .2s;font-family:inherit}
+.rbd-day:hover{border-color:rgba(32,32,33,0.22)}
+.rbd-day.active{border-color:var(--ink);background:var(--cream-100)}
+.rbd-day.dim{opacity:.65}
+.rbd-day .dtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.rbd-day .ddow{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);font-weight:500}
+.rbd-day .dright{display:inline-flex;align-items:center;gap:7px}
+.rbd-day .ddate{font-size:9.5px;color:var(--ink-faint);white-space:nowrap}
+.rbd-day .dst{width:8px;height:8px;border-radius:50%;border:1px solid var(--cream-400);background:transparent;display:block}
+.rbd-day .dst.done{background:var(--sage);border-color:var(--sage)}
+.rbd-day .dev{font-family:var(--font-serif);font-weight:400;font-size:16px;line-height:1.12;color:var(--ink);margin-bottom:4px}
+.rbd-day .dmeta{font-size:10px;color:var(--ink-faint);line-height:1.4;margin-bottom:10px}
+.rbd-day .dth{margin-top:auto;display:flex}
+.rbd-day .dth span{width:24px;height:32px;border-radius:4px;overflow:hidden;border:0.5px solid var(--rule-mid);margin-left:-5px;background:var(--cream-200);display:block;background-size:cover;background-position:center}
+.rbd-day .dth span:first-child{margin-left:0}
+@media(max-width:900px){
+.rbd-strip{grid-auto-columns:150px}
+}
+@media(max-width:520px){
+.rbc-row{grid-template-columns:88px 1fr;gap:12px}
+.rbc-name{font-size:18px}
+}`;
+
+      function _rbcEnsureCss() {
+        if (document.getElementById('rbc-style')) return;
+        const el = document.createElement('style');
+        el.id = 'rbc-style';
+        el.textContent = _RBC_CSS;
+        document.head.appendChild(el);
+      }
+
+      function _rbcTile(it, wide, cfg) {
+        return `<button class="rbc-tile${wide ? ' wide' : ''}${it.isNew ? ' isnew' : ''}" onclick="window.${cfg.onSwap}(${it.idx})" title="Swap the ${_waEsc(it.shortName)}">
+          <div${it.frame.pollAttr} style="position:absolute;inset:0;background:var(--cream-200)">${it.frame.inner}</div>
+          <div class="tgrad"></div>
+          <span class="tslot">${_waEsc(it.slot)}</span>
+          ${it.owned ? `<span class="town">${_rbcCheckSvg}</span>` : (it.showAddTag ? `<span class="tadd">Add</span>` : '')}
+          <span class="tnav l" onclick="event.stopPropagation();window.${cfg.onFlip}(${it.idx},-1)" title="Previous">${_rbcChevL}</span>
+          <span class="tnav r" onclick="event.stopPropagation();window.${cfg.onFlip}(${it.idx},1)" title="Next">${_rbcChevR}</span>
+          <span class="tlab">the ${_waEsc(it.shortName)}</span>
+        </button>`;
+      }
+
+      function _rbcRow(it, cfg) {
+        const np = cfg.noprint ? ' tv-noprint' : '';
+        const dots = it.count.len > 1 && it.count.len <= 8
+          ? `<span class="rbc-dots">${Array.from({ length: it.count.len }, (_, k) => `<span${k === it.count.cur ? ' class="on"' : ''}></span>`).join('')}</span>`
+          : (it.count.len > 8 ? `<span style="font-size:9px;letter-spacing:.08em;color:var(--ink-faint)">${it.count.cur + 1} / ${it.count.len}</span>` : '');
+        return `<div class="rbc-row${it.anchored ? ' anchored' : ''}${it.rowClass || ''}">
+          <div class="rbc-vp">
+            <span class="vslot">${_waEsc(it.slot)}</span>
+            <div${it.frame.pollAttr} style="position:absolute;inset:0">${it.frame.inner}</div>
+            ${it.wearsHtml || ''}
+            ${it.count.len > 1 ? `<span class="vcount">${it.count.cur + 1} / ${it.count.len}</span>` : ''}
+          </div>
+          <div class="rbc-body">
+            <div>
+              <div class="rbc-namerow">
+                <div class="rbc-name">${_waEsc(it.name)}</div>
+                ${it.anchored ? `<span class="rbc-anchpill">${_rbcLockSvg} Anchored</span>` : ''}
+              </div>
+              <div class="rbc-sub">${it.subHtml}</div>
+              ${it.noteHtml || ''}
+            </div>
+            <div class="rbc-foot">
+              <div class="rbc-flip${np}">
+                <button class="rbc-arrow" onclick="window.${cfg.onFlip}(${it.idx},-1)" aria-label="Previous option">${_rbcChevL}</button>
+                ${dots}
+                <button class="rbc-arrow" onclick="window.${cfg.onFlip}(${it.idx},1)" aria-label="Next option">${_rbcChevR}</button>
+              </div>
+              <div class="rbc-acts">
+                ${cfg.onAnchor ? `<button class="rbc-act${it.anchored ? ' on' : ''}${np}" onclick="window.${cfg.onAnchor}(${it.idx})" title="Lock this piece through restyles">${_rbcLockSvg} ${it.anchored ? 'Anchored' : 'Anchor'}</button>` : ''}
+                <button class="rbc-act${np}" onclick="window.${cfg.onSwap}(${it.idx})">${_rbcSwapSvg} Swap</button>
+                ${it.thirdHtml || ''}
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      function _rbConsole(cfg, items) {
+        _rbcEnsureCss();
+        const lookHtml = `
+          <div class="rbc-panel">
+            <div class="rbc-lhead">
+              <span class="lab">${cfg.headLabel}</span>
+              <span class="robes">Robes</span>
+            </div>
+            ${cfg.occHtml || ''}
+            ${cfg.quoteHtml ? `<div class="rbc-quote">${cfg.quoteHtml}</div>` : ''}
+            <div class="rbc-board">${items.map((it, i) => _rbcTile(it, i === 0, cfg)).join('')}</div>
+            ${cfg.fabricsHtml ? `<div class="rbc-fabrics">${cfg.fabricsHtml}</div>` : ''}
+            <div class="rbc-lfoot">
+              <span class="rbc-palette">${cfg.paletteHtml || ''}</span>
+              <span class="rbc-yours">${cfg.yoursHtml || ''}</span>
+            </div>
+            ${cfg.transitionTip ? `<div class="rbc-ttip"><span class="tl">Transition tip</span><span class="tt">${_waEsc(cfg.transitionTip)}</span></div>` : ''}
+          </div>
+          ${cfg.panelExtraHtml || ''}`;
+        const rackHtml = `
+          <div class="rbc-rackhead">
+            <div style="min-width:0">
+              <span class="ey">${cfg.rackLabel}</span>
+              ${cfg.rackTitleHtml || ''}
+            </div>
+            <div class="rbc-hbtns">${cfg.headButtonsHtml || ''}</div>
+          </div>
+          <div class="rbc-rack">${items.map(it => _rbcRow(it, cfg)).join('')}</div>
+          ${cfg.addPieceFn ? `<button class="rbc-addpiece" onclick="window.${cfg.addPieceFn}()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>` : ''}`;
+        return { lookHtml, rackHtml };
+      }
+
+      // ── Shared day strip — the calendar navigator the Weekly and Travel
+      // pages both lead with. days: [{dow, date, dot, dim, event, meta,
+      // thumbs, onclick}]; meta may carry pre-escaped inline html.
+      function _rbDayStrip(days, sel) {
+        _rbcEnsureCss();
+        return days.map((d, i) => `
+          <button class="rbd-day${i === sel ? ' active' : ''}${d.dim ? ' dim' : ''}" onclick="${d.onclick}">
+            <span class="dtop">
+              <span class="ddow">${_waEsc(d.dow || '')}</span>
+              <span class="dright">${d.date ? `<span class="ddate">${_waEsc(d.date)}</span>` : ''}${d.dot != null ? `<span class="dst${d.dot ? ' done' : ''}"></span>` : ''}</span>
+            </span>
+            <span class="dev">${_waEsc(d.event || '')}</span>
+            <span class="dmeta">${d.meta || ''}</span>
+            <span class="dth">${(d.thumbs || []).map(u => `<span${u ? ` style="background-image:url('${_waEsc(u)}')"` : ''}></span>`).join('')}</span>
+          </button>`).join('');
+      }
+
+      // ── Shared feedback block (PRD §4 — every output) — one markup +
+      // one handler pair for the daily / weekly / travel consoles. Render
+      // _rbFeedbackBlock(prefix, copy), then arm _rbFeedbackArm(prefix, fn)
+      // where fn() returns { prompt, looksOutput } at submit time.
+      const _rbFbState = {};
+      function _rbFeedbackArm(prefix, payloadFn) {
+        _rbFbState[prefix] = { rating: null, payload: payloadFn };
+      }
+      function _rbFeedbackBlock(prefix, copy) {
+        const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
+        return `
+          <div style="margin-top:42px;padding:28px 24px;background:var(--cream-100);border:0.5px solid var(--rule);border-radius:var(--rad-lg);text-align:center">
+            <div style="font-family:var(--font-serif);font-size:22px;font-weight:300;font-style:italic;color:var(--ink);margin-bottom:6px">${copy.title}</div>
+            <div id="${prefix}-fb-prompt">
+              <div style="font-size:13px;color:var(--ink-faint);margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
+              <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+                <button id="${prefix}-fb-up" onclick="window.__rbFbRate('${prefix}',1)" style="display:flex;align-items:center;gap:8px;padding:10px 20px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;font-size:12px;cursor:pointer;color:var(--ink-soft);font-family:${sans}">${copy.up}</button>
+                <button id="${prefix}-fb-dn" onclick="window.__rbFbRate('${prefix}',0)" style="display:flex;align-items:center;gap:8px;padding:10px 20px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;font-size:12px;cursor:pointer;color:var(--ink-soft);font-family:${sans}">${copy.down}</button>
+              </div>
+            </div>
+            <div id="${prefix}-fb-expand" hidden style="margin-top:16px">
+              <textarea id="${prefix}-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);padding:12px 14px;font-size:13px;color:var(--ink);resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
+              <button onclick="window.__rbFbSubmit('${prefix}')" style="margin-top:10px;padding:11px 26px;background:var(--ink);color:#fff;border:none;border-radius:100px;font-size:12px;cursor:pointer;font-family:${sans}">Send feedback</button>
+            </div>
+            <div id="${prefix}-fb-done" hidden style="font-size:13px;color:var(--sage);margin-top:12px">Thank you — noted.</div>
+          </div>`;
+      }
+      window.__rbFbRate = function(prefix, val) {
+        const st = _rbFbState[prefix];
+        if (st) st.rating = val;
+        const up = document.getElementById(prefix + '-fb-up'), dn = document.getElementById(prefix + '-fb-dn');
+        if (up) up.style.background = val === 1 ? '#F0EDE8' : '#fff';
+        if (dn) dn.style.background = val === 0 ? '#F0EDE8' : '#fff';
+        const ex = document.getElementById(prefix + '-fb-expand');
+        if (ex) ex.hidden = false;
+        setTimeout(() => { const t = document.getElementById(prefix + '-fb-text'); if (t) t.focus(); }, 60);
+      };
+      window.__rbFbSubmit = function(prefix) {
+        const st = _rbFbState[prefix] || {};
+        const comment = ((document.getElementById(prefix + '-fb-text') || {}).value || '').trim();
+        const p = (typeof st.payload === 'function' ? st.payload() : {}) || {};
+        fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+          email: (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '',
+          rating: st.rating != null ? st.rating : null,
+          comment,
+          prompt: p.prompt || '',
+          looksOutput: p.looksOutput || '',
+        }) }).catch(() => {});
+        const pr = document.getElementById(prefix + '-fb-prompt'), ex = document.getElementById(prefix + '-fb-expand'), dn = document.getElementById(prefix + '-fb-done');
+        if (pr) pr.hidden = true;
+        if (ex) ex.hidden = true;
+        if (dn) dn.hidden = false;
+      };
+
+      // ── Shared surgical-fetch guard — one abort/timeout policy for the
+      // per-day restyle calls (a hung fetch must never strand a console).
+      async function _rbDayPost(url, body, ms) {
+        const ctl = new AbortController();
+        const abortTimer = setTimeout(() => ctl.abort(), ms || 75000);
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: ctl.signal,
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return await res.json();
+        } finally {
+          clearTimeout(abortTimer);
+        }
+      }
       function _dlPatchSaved() {
         if (!_dlActiveSaveId || !window.__lastDlData) return;
         const saved = snLoad().find(x => x.id === _dlActiveSaveId);
@@ -2778,11 +3061,6 @@
         dlStyleEl.textContent = _DL_CSS;
         _rbHideResultPages('dl');
 
-        const swapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
-        const checkSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-        const chevL = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
-        const chevR = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
-        const lockSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
         const restyleSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`;
         const phSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
 
@@ -2821,67 +3099,43 @@
           quote += '.';
         }
 
-        const boardHtml = ordered.map((x, oi) => {
-          const { it, fi, slot } = x;
-          const f = frameBits(it);
-          const wide = oi === 0;
-          return `<button class="dlm-tile${wide ? ' wide' : ''}" onclick="window.__dlSwap(${fi})" title="Swap the ${_waEsc(_dlShort(it.name))}">
-            <div${f.pollAttr} style="position:absolute;inset:0;background:var(--cream-200)">${f.inner}</div>
-            <div class="tgrad"></div>
-            <span class="tslot">${_waEsc(slot.l)}</span>
-            ${it.wardrobe_match ? `<span class="town">${checkSvg}</span>` : ''}
-            <span class="tnav l" onclick="event.stopPropagation();window.__dlFlip(${fi},-1)" title="Previous">${chevL}</span>
-            <span class="tnav r" onclick="event.stopPropagation();window.__dlFlip(${fi},1)" title="Next">${chevR}</span>
-            <span class="tlab">the ${_waEsc(_dlShort(it.name))}</span>
-          </button>`;
-        }).join('');
-
         const fabricsHtml = ordered.map(x => {
           const hex = palette[0] || '#E7E0CF';
           const c = (x.it.wardrobe_match && x.it.wardrobe_match.color) || '';
           return `<span class="fab"><span class="sw" style="background:${_waEsc(c && /^#/.test(c) ? c : hex)}"></span><span class="fl">${_waEsc(_dlFabric(x.it.name))}</span></span>`;
         }).join('');
 
-        // The Rack — flip through similar pieces; anchor what must stay
-        const rackHtml = ordered.map(x => {
+        // The console renders through the shared template (_rbConsole) —
+        // this adapter only supplies frames, provenance and handlers.
+        const conItems = ordered.map(x => {
           const { it, fi, slot } = x;
-          const f = frameBits(it);
           const list = _dlOptions(it);
-          const cur = _dlOptIndex(it, list);
-          const dots = list.length > 1 && list.length <= 8
-            ? `<span class="dlm-dots">${list.map((_, k) => `<span${k === cur ? ' class="on"' : ''}></span>`).join('')}</span>`
-            : (list.length > 8 ? `<span style="font-size:9px;letter-spacing:.08em;color:#A89880">${cur + 1} / ${list.length}</span>` : '');
-          const sub = it.wardrobe_match
-            ? `<span class="dlm-owned">${checkSvg} In your wardrobe</span>`
-            : `${it.brand ? `<span style="font-family:${serif};font-style:italic;font-size:13px">${_waEsc(it.brand)}</span>` : ''}${(it.retailer_hint || it.price_point) ? `<span class="price">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>` : ''}`;
-          return `<div class="dlm-row${it.anchored ? ' anchored' : ''}">
-            <div class="dlm-vp">
-              <span class="vslot">${_waEsc(slot.l)}</span>
-              <div${f.pollAttr} style="position:absolute;inset:0">${f.inner}</div>
-              ${list.length > 1 ? `<span class="vcount">${cur + 1} / ${list.length}</span>` : ''}
-            </div>
-            <div class="dlm-body">
-              <div>
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-                  <div class="dlm-name">${_waEsc(it.name)}</div>
-                  ${it.anchored ? `<span class="dlm-anchpill">${lockSvg} Anchored</span>` : ''}
-                </div>
-                <div class="dlm-sub">${sub}</div>
-              </div>
-              <div class="dlm-foot">
-                <div class="dlm-flip">
-                  <button class="dlm-arrow" onclick="window.__dlFlip(${fi},-1)" aria-label="Previous option">${chevL}</button>
-                  ${dots}
-                  <button class="dlm-arrow" onclick="window.__dlFlip(${fi},1)" aria-label="Next option">${chevR}</button>
-                </div>
-                <div class="dlm-acts">
-                  <button class="dlm-act${it.anchored ? ' on' : ''}" onclick="window.__dlAnchor(${fi})" title="Lock this piece through restyles">${lockSvg} ${it.anchored ? 'Anchored' : 'Anchor'}</button>
-                  <button class="dlm-act" onclick="window.__dlSwap(${fi})">${swapSvg} Swap</button>
-                </div>
-              </div>
-            </div>
-          </div>`;
-        }).join('');
+          return {
+            idx: fi,
+            frame: frameBits(it),
+            slot: slot.l,
+            shortName: _dlShort(it.name),
+            name: it.name,
+            owned: !!it.wardrobe_match,
+            anchored: !!it.anchored,
+            count: { cur: _dlOptIndex(it, list), len: list.length },
+            subHtml: it.wardrobe_match
+              ? `<span class="owned">${_rbcCheckSvg} In your wardrobe</span>`
+              : `${it.brand ? `<span class="brand">${_waEsc(it.brand)}</span>` : ''}${(it.retailer_hint || it.price_point) ? `<span class="price">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>` : ''}`,
+          };
+        });
+        const con = _rbConsole({
+          headLabel: `The look · ${_waEsc(weekday)} · ${total} pieces`,
+          quoteHtml: summaryHtml || (quote ? '“' + _waEsc(quote) + '”' : ''),
+          fabricsHtml,
+          paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
+          yoursHtml: `<b>${owned}</b>&thinsp;of&thinsp;${total} from your wardrobe`,
+          transitionTip: data.transition_tip || '',
+          rackLabel: `The rack · ${_waEsc(weekday)}`,
+          headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
+          onFlip: '__dlFlip', onSwap: '__dlSwap', onAnchor: '__dlAnchor',
+          addPieceFn: '__dlAddPiece',
+        }, conItems);
 
         // Header mirrors the live Moodboard: eyebrow → short serif title →
         // keyword row → meta row (weather-strip pill + occasion tag pill).
@@ -2901,48 +3155,11 @@
             <div class="dlm-rule"></div>
 
             <div class="dlm-console">
-              <div class="dlm-look">
-                <div class="dlm-panel">
-                  <div class="dlm-lhead">
-                    <span class="lab">The look · ${_waEsc(weekday)} · ${total} pieces</span>
-                    <span class="robes">Robes</span>
-                  </div>
-                  ${summaryHtml ? `<div class="dlm-quote">${summaryHtml}</div>` : (quote ? `<div class="dlm-quote">“${_waEsc(quote)}”</div>` : '')}
-                  <div class="dlm-board">${boardHtml}</div>
-                  <div class="dlm-fabrics">${fabricsHtml}</div>
-                  <div class="dlm-lfoot">
-                    <span class="dlm-palette">${palette.map(h => `<span style="background:${h}"></span>`).join('')}</span>
-                    <span class="dlm-yours"><b>${owned}</b>&thinsp;of&thinsp;${total} from your wardrobe</span>
-                  </div>
-                  ${data.transition_tip ? `<div class="dlm-ttip"><span class="tl">Transition tip</span><span class="tt">${_waEsc(data.transition_tip)}</span></div>` : ''}
-                </div>
-              </div>
-
-              <div>
-                <div class="dlm-rackhead">
-                  <span class="ey">The rack · ${_waEsc(weekday)}</span>
-                  <button class="dlm-restyle" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>
-                </div>
-                <div class="dlm-rack">${rackHtml}</div>
-                <button class="dlm-addpiece" onclick="window.__dlAddPiece()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>
-              </div>
+              <div class="dlm-look">${con.lookHtml}</div>
+              <div>${con.rackHtml}</div>
             </div>
 
-            <div style="margin-top:42px;padding:28px 24px;background:var(--cream-100);border:0.5px solid var(--rule);border-radius:var(--rad-lg);text-align:center">
-              <div style="font-family:${serif};font-size:22px;font-weight:300;font-style:italic;color:var(--ink);margin-bottom:6px">How is today’s look?</div>
-              <div id="dl-fb-prompt">
-                <div style="font-size:13px;color:var(--ink-faint);margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
-                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-                  <button id="dl-fb-up" onclick="window.__dlFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 20px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;font-size:12px;cursor:pointer;color:var(--ink-soft);font-family:${sans}">👍 I’d wear it</button>
-                  <button id="dl-fb-dn" onclick="window.__dlFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 20px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;font-size:12px;cursor:pointer;color:var(--ink-soft);font-family:${sans}">Not quite</button>
-                </div>
-              </div>
-              <div id="dl-fb-expand" hidden style="margin-top:16px">
-                <textarea id="dl-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);padding:12px 14px;font-size:13px;color:var(--ink);resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
-                <button onclick="window.__dlFbSubmit()" style="margin-top:10px;padding:11px 26px;background:var(--ink);color:#fff;border:none;border-radius:100px;font-size:12px;cursor:pointer;font-family:${sans}">Send feedback</button>
-              </div>
-              <div id="dl-fb-done" hidden style="font-size:13px;color:var(--sage);margin-top:12px">Thank you — noted.</div>
-            </div>
+            ${_rbFeedbackBlock('dl', { title: 'How is today’s look?', up: '👍 I’d wear it', down: 'Not quite' })}
           </div>
 
           <div class="dlm-payoff">
@@ -2984,27 +3201,10 @@
           _dlActiveSaveId = (opts && opts.savedId) || data.id || null;
         }
 
-        let dlFbRating = null;
-        window.__dlFbRate = function(val) {
-          dlFbRating = val;
-          document.getElementById('dl-fb-up').style.background = val === 1 ? '#F0EDE8' : '#fff';
-          document.getElementById('dl-fb-dn').style.background = val === 0 ? '#F0EDE8' : '#fff';
-          document.getElementById('dl-fb-expand').hidden = false;
-          setTimeout(() => { const t = document.getElementById('dl-fb-text'); if (t) t.focus(); }, 60);
-        };
-        window.__dlFbSubmit = function() {
-          const comment = (document.getElementById('dl-fb-text').value || '').trim();
-          fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-            email: (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '',
-            rating: dlFbRating,
-            comment,
-            prompt: promptText || '',
-            looksOutput: JSON.stringify({ surface: 'daily-look', occasion: data.occasion_label || '', headline: data.headline || '', owned, total, context: ctx, ts: new Date().toISOString() }),
-          }) }).catch(() => {});
-          document.getElementById('dl-fb-prompt').hidden = true;
-          document.getElementById('dl-fb-expand').hidden = true;
-          document.getElementById('dl-fb-done').hidden = false;
-        };
+        _rbFeedbackArm('dl', () => ({
+          prompt: promptText || '',
+          looksOutput: JSON.stringify({ surface: 'daily-look', occasion: data.occasion_label || '', headline: data.headline || '', owned, total, context: ctx, ts: new Date().toISOString() }),
+        }));
       };
 
       // ── Shared swap modal (PRD 3.B) — ONE implementation for the Daily,
@@ -3327,16 +3527,6 @@
         }
       };
 
-      function _wkThumb(it, size) {
-        const serif = "'Cormorant',Georgia,serif";
-        const m = it.wardrobe_match;
-        if (m && m.image_url) return `<img src="${_waEsc(m.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`;
-        return `<span style="font-family:${serif};font-size:${size || 16}px;color:#C8B8A2">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`;
-      }
-
-      const _wkLockSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
-      const _wkSwapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
-
       function _wkDayName(d) { return String(d.day_label || '').split('·')[0].trim(); }
       function _wkDayDate(d) { const p = String(d.day_label || '').split('·'); return p.length > 1 ? p[1].trim() : ''; }
 
@@ -3356,27 +3546,20 @@
       function _wkPaintStrip() {
         const strip = document.getElementById('wk-strip');
         if (!strip || !_wkState) return;
-        const serif = "'Cormorant',Georgia,serif";
-        strip.innerHTML = _wkState.data.days.map((d, di) => {
-          const active = di === _wkState.day;
-          const thumbs = d.rest ? '' : d.items.slice(0, 3).map(it =>
-            `<div style="width:30px;height:38px;border-radius:4px;overflow:hidden;background:#F0EDE8;display:flex;align-items:center;justify-content:center">${_wkThumb(it, 13)}</div>`
-          ).join('');
+        strip.innerHTML = _rbDayStrip(_wkState.data.days.map((d, di) => {
           const owned = d.items.filter(it => it.wardrobe_match).length;
-          const meta = d.rest
-            ? 'left free'
-            : `${d.items.length} pieces${owned ? ' · ' + owned + ' yours' : ''}`;
-          return `
-            <button onclick="window.__wkSelectDay(${di})" style="flex-shrink:0;width:152px;text-align:left;font-family:inherit;cursor:pointer;background:${d.rest ? '#FAF8F5' : '#fff'};border:${active ? '1.5px solid #202021' : '0.5px solid rgba(32,32,33,0.12)'};border-radius:12px;padding:13px 14px 12px;${d.rest && !active ? 'opacity:.65' : ''}">
-              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px">
-                <span style="font-family:${serif};font-size:17px;font-weight:400;color:#202021;line-height:1.1">${_waEsc(_wkDayName(d))}</span>
-                <span style="font-size:9.5px;color:#B0A090;white-space:nowrap">${_waEsc(_wkDayDate(d))}</span>
-              </div>
-              <div style="font-size:10.5px;color:#8A8078;margin:3px 0 9px;line-height:1.35;min-height:28px">${_waEsc(d.occasion || '')}${d.user_activity ? ' <span style="color:#8E7077">· your plan</span>' : ''}</div>
-              <div style="display:flex;gap:5px;margin-bottom:7px;min-height:${d.rest ? '0' : '38px'}">${thumbs}</div>
-              <div style="font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#A89880">${meta}</div>
-            </button>`;
-        }).join('');
+          return {
+            dow: _wkDayName(d),
+            date: _wkDayDate(d),
+            dim: !!d.rest,
+            event: d.rest ? 'Left free' : (d.occasion || ''),
+            meta: d.rest
+              ? 'left free'
+              : `${d.items.length} pieces${owned ? ' · ' + owned + ' yours' : ''}${d.user_activity ? ' <span style="color:var(--rose)">· your plan</span>' : ''}`,
+            thumbs: d.rest ? [] : d.items.slice(0, 4).map(it => (it.wardrobe_match && it.wardrobe_match.image_url) || null),
+            onclick: `window.__wkSelectDay(${di})`,
+          };
+        }), _wkState.day);
       }
 
       // ── The day console — Daily Match parity: LEFT "The Look" stylist
@@ -3402,99 +3585,58 @@
           return;
         }
 
+        // Thin adapter over the shared console template (_rbConsole) —
+        // weekly has no imagery jobs, so frames are wardrobe photos or a
+        // serif monogram, and the flick set is original + owned pieces.
         const owned = d.items.filter(it => it.wardrobe_match).length;
-        const tiles = d.items.map((it, ii) => {
+        const wkFrame = (it) => {
           const m = it.wardrobe_match;
-          const img = m && m.image_url
-            ? `<img src="${_waEsc(m.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`
-            : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="font-family:${serif};font-size:26px;color:#B8AC9C">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span></div>`;
-          return `
-            <div class="wk-tile" style="${ii === 0 ? 'grid-column:1/-1;aspect-ratio:16/10' : 'aspect-ratio:4/5'};${it.anchored ? 'outline:1.5px solid #202021;outline-offset:-1.5px' : ''}" onclick="window.__wkSwap(${ii})" title="Swap the ${_waEsc(_dlShort(it.name))}">
-              ${img}
-              <div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,0.42));pointer-events:none"></div>
-              <span style="position:absolute;top:8px;left:9px;font-size:8.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(250,248,245,0.85);background:rgba(0,0,0,0.35);border-radius:20px;padding:3px 8px">${_dlSlot(it).l}</span>
-              ${m ? `<span style="position:absolute;top:8px;right:9px;font-size:9px;color:#C9D8C0;background:rgba(0,0,0,0.35);border-radius:20px;padding:3px 7px">✓</span>` : ''}
-              ${it.anchored ? `<span style="position:absolute;bottom:8px;right:9px;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#FAF8F5;background:#202021;border-radius:20px;padding:3px 8px">Anchored</span>` : ''}
-              <button class="wk-tnav" style="left:6px" onclick="event.stopPropagation();window.__wkFlip(${ii},-1)" aria-label="Previous option">‹</button>
-              <button class="wk-tnav" style="right:6px" onclick="event.stopPropagation();window.__wkFlip(${ii},1)" aria-label="Next option">›</button>
-              <div style="position:absolute;bottom:8px;left:9px;right:${it.anchored ? '84px' : '9px'};font-family:${serif};font-style:italic;font-size:12px;color:rgba(250,248,245,0.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none">the ${_waEsc(_dlShort(it.name))}</div>
-            </div>`;
+          return {
+            pollAttr: '',
+            inner: m && m.image_url
+              ? `<img src="${_waEsc(m.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
+              : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="font-family:${serif};font-size:30px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span></div>`,
+          };
+        };
+        const palette = (Array.isArray(_wkState.data.palette) ? _wkState.data.palette : []).filter(h => /^#[0-9A-Fa-f]{6}$/.test(String(h || ''))).slice(0, 3);
+        const fabricsHtml = d.items.map(it => {
+          const c = (it.wardrobe_match && it.wardrobe_match.color) || '';
+          return `<span class="fab"><span class="sw" style="background:${_waEsc(c && /^#/.test(c) ? c : (palette[0] || '#E7E0CF'))}"></span><span class="fl">${_waEsc(_dlFabric(it.name))}</span></span>`;
         }).join('');
-
-        // The rack — Daily-parity cards: 1:1 viewport (slot label + i/n on
-        // the image), serif name + anchored pill, one provenance line,
-        // footer = flick cluster | Anchor · Swap.
-        const rack = d.items.map((it, ii) => {
-          const m = it.wardrobe_match;
+        const conItems = d.items.map((it, ii) => {
           const list = _dlOptions(it);
-          const oi = _dlOptIndex(it, list);
-          const dots = list.length > 1 && list.length <= 8
-            ? `<span style="display:inline-flex;gap:5px;padding:0 2px">${list.map((_, k) => `<span style="width:5px;height:5px;border-radius:50%;background:${k === oi ? '#202021' : '#DDD5C7'};display:block"></span>`).join('')}</span>`
-            : (list.length > 8 ? `<span style="font-size:9px;letter-spacing:.08em;color:#A89880">${oi + 1} / ${list.length}</span>` : '');
           const retail = [it.retailer_hint !== it.brand ? it.retailer_hint : '', it.price_point].filter(Boolean).join(' · ');
-          const sub = m
-            ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#4A7C59">✓ In your wardrobe</span>`
-            : `${it.brand ? `<span style="font-family:${serif};font-style:italic;font-size:13px">${_waEsc(it.brand)}</span>` : ''}${retail ? `<span style="color:#202021">${_waEsc(retail)}</span>` : ''}`;
-          const thumb = m && m.image_url
-            ? `<img src="${_waEsc(m.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
-            : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="font-family:${serif};font-size:30px;font-weight:300;color:#A89880">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span></div>`;
-          return `
-            <div style="display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:stretch;border:0.5px solid ${it.anchored ? '#202021' : 'rgba(32,32,33,0.12)'};border-radius:12px;background:#fff;padding:12px">
-              <div style="position:relative;align-self:start;width:100%;border-radius:8px;overflow:hidden;background:#F0EDE8;aspect-ratio:1/1">
-                <span style="position:absolute;top:8px;left:8px;z-index:2;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#202021;background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px">${_dlSlot(it).l}</span>
-                ${thumb}
-                ${list.length > 1 ? `<span style="position:absolute;bottom:8px;right:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:#202021;background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px">${oi + 1} / ${list.length}</span>` : ''}
-              </div>
-              <div style="display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:2px 0">
-                <div>
-                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-                    <div style="font-family:${serif};font-weight:400;font-size:21px;line-height:1.08;color:#202021">${_waEsc(it.name)}</div>
-                    ${it.anchored ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#6E6A64;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;padding:3px 9px;flex:none">${_wkLockSvg} Anchored</span>` : ''}
-                  </div>
-                  <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#A89880;flex-wrap:wrap">${sub}</div>
-                </div>
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;flex-wrap:wrap">
-                  <span style="display:inline-flex;align-items:center;gap:9px">
-                    <button onclick="window.__wkFlip(${ii},-1)" aria-label="Previous option" style="width:32px;height:32px;border:0.5px solid rgba(32,32,33,0.14);border-radius:50%;display:grid;place-items:center;background:#fff;cursor:pointer;color:#202021;font-size:14px;line-height:1">‹</button>
-                    ${dots}
-                    <button onclick="window.__wkFlip(${ii},1)" aria-label="Next option" style="width:32px;height:32px;border:0.5px solid rgba(32,32,33,0.14);border-radius:50%;display:grid;place-items:center;background:#fff;cursor:pointer;color:#202021;font-size:14px;line-height:1">›</button>
-                  </span>
-                  <span style="display:inline-flex;gap:7px;flex-wrap:wrap">
-                    <button onclick="window.__wkAnchor(${ii})" title="Lock this piece through restyles" style="display:inline-flex;align-items:center;gap:6px;border-radius:100px;padding:8px 13px;font-size:11px;cursor:pointer;font-family:inherit;${it.anchored ? 'background:#202021;color:#fff;border:0.5px solid #202021' : 'background:#fff;color:#6E6A64;border:0.5px solid rgba(32,32,33,0.14)'}">${_wkLockSvg} ${it.anchored ? 'Anchored' : 'Anchor'}</button>
-                    <button onclick="window.__wkSwap(${ii})" style="display:inline-flex;align-items:center;gap:6px;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;padding:8px 13px;font-size:11px;background:#fff;color:#6E6A64;cursor:pointer;font-family:inherit">${_wkSwapSvg} Swap</button>
-                  </span>
-                </div>
-              </div>
-            </div>`;
-        }).join('');
+          return {
+            idx: ii,
+            frame: wkFrame(it),
+            slot: _dlSlot(it).l,
+            shortName: _dlShort(it.name),
+            name: it.name,
+            owned: !!it.wardrobe_match,
+            anchored: !!it.anchored,
+            count: { cur: _dlOptIndex(it, list), len: list.length },
+            subHtml: it.wardrobe_match
+              ? `<span class="owned">${_rbcCheckSvg} In your wardrobe</span>`
+              : `${it.brand ? `<span class="brand">${_waEsc(it.brand)}</span>` : ''}${retail ? `<span class="price">${_waEsc(retail)}</span>` : ''}`,
+          };
+        });
+        const con = _rbConsole({
+          headLabel: `The look · ${_waEsc(_wkDayName(d))} · ${d.items.length} pieces`,
+          quoteHtml: d.note ? '“' + _waEsc(d.note) + '”' : '',
+          fabricsHtml,
+          paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
+          yoursHtml: `<b>${owned}</b>&thinsp;of&thinsp;${d.items.length} from your wardrobe`,
+          transitionTip: d.transition_tip || '',
+          rackLabel: `The rack · ${_waEsc(_wkDayName(d))}${d.occasion ? ' · ' + _waEsc(d.occasion) : ''}`,
+          headButtonsHtml: `<button class="rbc-hlink" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button><button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
+          onFlip: '__wkFlip', onSwap: '__wkSwap', onAnchor: '__wkAnchor',
+          addPieceFn: '__wkAddPiece',
+        }, conItems);
 
         host.innerHTML = `
           <div class="wk-con">
-            <div>
-              <div style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:16px;padding:18px">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-                  <span style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#A89880">The look · ${_waEsc(_wkDayName(d))} · ${d.items.length} pieces</span>
-                  <span style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#8E7077">Robes</span>
-                </div>
-                ${d.note ? `<div style="font-family:${serif};font-style:italic;font-weight:300;font-size:16px;line-height:1.42;color:#6E6A64;margin-bottom:14px;padding-left:13px;border-left:2px solid #E8D8D4">“${_waEsc(d.note)}”</div>` : ''}
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${tiles}</div>
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:13px;border-top:0.5px solid rgba(32,32,33,0.08)">
-                  <span style="font-size:10px;letter-spacing:.02em;color:#A89880"><b style="color:#202021;font-weight:500">${owned}</b>&thinsp;of&thinsp;${d.items.length} from your wardrobe</span>
-                </div>
-                ${d.transition_tip ? `<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:0.5px solid rgba(32,32,33,0.08)"><span style="font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#A89880;white-space:nowrap">Transition tip</span><span style="font-size:12px;line-height:1.6;color:#6E6A64;font-style:italic;flex:1;min-width:180px">${_waEsc(d.transition_tip)}</span></div>` : ''}
-              </div>
-            </div>
-            <div>
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-                <span style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#A89880">The rack · ${_waEsc(_wkDayName(d))}${d.occasion ? ' · ' + _waEsc(d.occasion) : ''}</span>
-                <span style="display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap">
-                  <button onclick="window.__wkEditDay(${_wkState.day})" style="background:none;border:none;cursor:pointer;font-size:11px;color:#8E7077;text-decoration:underline;font-family:inherit;white-space:nowrap">✎ The real plan</button>
-                  <button onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay" style="background:#fff;border:0.5px solid rgba(32,32,33,0.2);border-radius:100px;padding:9px 15px;font-size:11.5px;cursor:pointer;color:#202021;font-family:inherit;white-space:nowrap">↻ Restyle this day</button>
-                </span>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:12px">${rack}</div>
-              <button onclick="window.__wkAddPiece()" style="margin-top:12px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed rgba(32,32,33,0.18);border-radius:12px;padding:13px;font-size:12px;background:transparent;color:#6E6A64;cursor:pointer;font-family:inherit"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>
-            </div>
+            <div>${con.lookHtml}</div>
+            <div>${con.rackHtml}</div>
           </div>`;
       }
 
@@ -3619,31 +3761,17 @@
           .map(x => `${_wkDayName(x)}: ${x.occasion || ''} — ${x.items.map(i => i.name).join(', ')}`)
           .join('; ');
         const rc = window.__rbCtx || {};
-        // A hung day fetch must never strand the console — 75s hard abort.
-        const ctl = new AbortController();
-        const abortTimer = setTimeout(() => ctl.abort(), 75000);
-        try {
-          const res = await fetch('/api/weekly/day', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: ctl.signal,
-            body: JSON.stringify({
-              activity,
-              dayLabel: d.day_label,
-              brief: _wkState.prompt || '',
-              anchors,
-              weekSummary,
-              name,
-              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
-              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
-              context: rc.city ? { city: rc.city, month: new Date().toLocaleDateString('en-GB', { month: 'long' }), tempRange: rc.tempRange || '', condition: rc.condition || '', hint: rc.hint || '' } : null,
-            }),
-          });
-          if (!res.ok) throw new Error(await res.text());
-          return await res.json();
-        } finally {
-          clearTimeout(abortTimer);
-        }
+        return _rbDayPost('/api/weekly/day', {
+          activity,
+          dayLabel: d.day_label,
+          brief: _wkState.prompt || '',
+          anchors,
+          weekSummary,
+          name,
+          styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
+          wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
+          context: rc.city ? { city: rc.city, month: new Date().toLocaleDateString('en-GB', { month: 'long' }), tempRange: rc.tempRange || '', condition: rc.condition || '', hint: rc.hint || '' } : null,
+        });
       }
 
       function _wkApplyDay(di, activity, fresh) {
@@ -3788,10 +3916,7 @@
           ws.id = 'wk-style';
           ws.textContent =
             '#wk-day .wk-con{display:grid;grid-template-columns:360px 1fr;gap:18px;margin-top:18px;align-items:start}' +
-            '@media(max-width:900px){#wk-day .wk-con{grid-template-columns:1fr}}' +
-            '.wk-tile{position:relative;border-radius:10px;overflow:hidden;background:#EDE8E0;cursor:pointer;border:0.5px solid rgba(32,32,33,0.08)}' +
-            '.wk-tnav{position:absolute;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:14px;line-height:1;z-index:2}' +
-            '.wk-tile:hover .wk-tnav{display:flex}';
+            '@media(max-width:900px){#wk-day .wk-con{grid-template-columns:1fr}}';
           document.head.appendChild(ws);
         }
 
@@ -3806,27 +3931,16 @@
         wkResultPage.innerHTML = `
           <div style="max-width:1148px;margin:0 auto;padding:36px 24px 0;min-height:calc(100% - 72px);box-sizing:border-box">
             <div style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#8E7077;margin-bottom:10px">Your week, planned</div>
-            <h1 style="font-family:${serif};font-size:clamp(28px,4.5vw,42px);font-weight:300;font-style:italic;color:#202021;line-height:1.12;margin:0 0 12px;max-width:720px">${_waEsc(data.headline || 'The week ahead.')}</h1>
+            <h1 id="wk-headline" style="font-family:${serif};font-size:clamp(28px,4.5vw,42px);font-weight:300;font-style:italic;color:#202021;line-height:1.12;margin:0 0 12px;max-width:720px">${_waEsc(data.headline || 'The week ahead.')}</h1>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
               ${data.week_label ? `<span style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6A5E54;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">${_waEsc(data.week_label)}</span>` : ''}
               ${pill ? `<span style="font-size:11px;color:#8A8078;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">🌤 ${_waEsc(pill)}</span>` : ''}
               ${paletteDots ? `<span style="display:inline-flex;gap:5px;align-items:center">${paletteDots}</span>` : ''}
             </div>
             ${data.stylist_summary ? `<p style="font-family:${serif};font-style:italic;font-size:15.5px;color:#6E6A64;line-height:1.6;margin:0 0 24px;max-width:640px">${_waEsc(data.stylist_summary)}</p>` : ''}
-            <div id="wk-strip" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch"></div>
+            <div id="wk-strip" class="rbd-strip"></div>
             <div id="wk-day"></div>
-            <div id="wk-fb" style="margin-top:28px;padding:18px 20px;background:#fff;border:0.5px solid rgba(32,32,33,0.1);border-radius:12px;max-width:640px">
-              <div id="wk-fb-prompt" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-                <span style="font-family:${serif};font-style:italic;font-size:15px;color:#6E6A64">How does this week feel?</span>
-                <button id="wk-fb-up" onclick="window.__wkFbRate(1)" style="border:0.5px solid rgba(32,32,33,0.15);background:#fff;border-radius:100px;padding:7px 14px;cursor:pointer;font-size:14px">👍</button>
-                <button id="wk-fb-dn" onclick="window.__wkFbRate(0)" style="border:0.5px solid rgba(32,32,33,0.15);background:#fff;border-radius:100px;padding:7px 14px;cursor:pointer;font-size:14px">👎</button>
-              </div>
-              <div id="wk-fb-expand" hidden style="margin-top:12px">
-                <textarea id="wk-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:0.5px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:inherit"></textarea>
-                <button onclick="window.__wkFbSubmit()" style="margin-top:8px;border:none;background:#202021;color:#fff;border-radius:100px;padding:9px 18px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Send</button>
-              </div>
-              <div id="wk-fb-done" hidden style="font-family:${serif};font-style:italic;font-size:15px;color:#6E6A64">Noted — thank you.</div>
-            </div>
+            ${_rbFeedbackBlock('wk', { title: 'How does this week feel?', up: '👍 I’d wear it', down: 'Not quite' })}
             <div style="height:36px"></div>
           </div>
           <div class="rb-sfoot">
@@ -3837,6 +3951,7 @@
               </div>
               <div class="rb-sfoot-btns">
                 <button class="rb-sfbtn" onclick="window.__rbShare&&window.__rbShare()">Share</button>
+                <button class="rb-sfbtn" onclick="window.__rbRename&&window.__rbRename('wk')">Rename</button>
                 <button class="rb-sfbtn" onclick="window.__wkWear()">Wear today</button>
                 <button class="rb-sfbtn primary" onclick="window.__wkPlanAgain()">Plan a new week</button>
               </div>
@@ -3870,32 +3985,10 @@
           });
         }
 
-        let wkFbRating = null;
-        window.__wkFbRate = function(val) {
-          wkFbRating = val;
-          const up = document.getElementById('wk-fb-up'), dn = document.getElementById('wk-fb-dn');
-          if (up) up.style.background = val === 1 ? '#F0EDE8' : '#fff';
-          if (dn) dn.style.background = val === 0 ? '#F0EDE8' : '#fff';
-          const ex = document.getElementById('wk-fb-expand');
-          if (ex) ex.hidden = false;
-          setTimeout(() => { const t = document.getElementById('wk-fb-text'); if (t) t.focus(); }, 60);
-        };
-        window.__wkFbSubmit = function() {
-          const comment = ((document.getElementById('wk-fb-text') || {}).value || '').trim();
-          fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-            email: (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '',
-            rating: wkFbRating,
-            comment,
-            prompt: promptText || '',
-            looksOutput: JSON.stringify({ surface: 'weekly-plan', week_label: data.week_label || '', headline: data.headline || '', days: data.days.length, owned, total, context: ctx, ts: new Date().toISOString() }),
-          }) }).catch(() => {});
-          // #wk-fb-prompt carries inline display:flex — the hidden attribute
-          // loses to it (documented gotcha), so toggle style.display.
-          const p = document.getElementById('wk-fb-prompt'), ex = document.getElementById('wk-fb-expand'), dn = document.getElementById('wk-fb-done');
-          if (p) p.style.display = 'none';
-          if (ex) ex.hidden = true;
-          if (dn) dn.hidden = false;
-        };
+        _rbFeedbackArm('wk', () => ({
+          prompt: promptText || '',
+          looksOutput: JSON.stringify({ surface: 'weekly-plan', week_label: data.week_label || '', headline: data.headline || '', days: data.days.length, owned, total, context: ctx, ts: new Date().toISOString() }),
+        }));
       };
 
       // ── Travel Edit — Capsule Packing & Lookbook (PRD: AI-Powered Capsule Packing) ──
@@ -4747,30 +4840,29 @@ body>*:not(#tv-result-page){display:none !important}
         const el = document.getElementById('tv-weekstrip');
         const data = window.__lastTvData;
         if (!el || !data) return;
-        el.innerHTML = data.days.map((d, di) => {
+        el.innerHTML = _rbDayStrip(data.days.map((d, di) => {
           const slots = d.slots || [];
           const label = (d.day_label || 'Day ' + (di + 1));
           const parts = label.split('·');
-          const dayName = (parts[0] || '').trim();
-          const event = (parts[1] || '').trim() || (slots[0] && slots[0].title) || '';
           const pieceIdx = [];
           slots.forEach(s => (s.formula || []).forEach(f => {
             if (pieceIdx.indexOf(f.item_index) === -1 && data.capsule[f.item_index]) pieceIdx.push(f.item_index);
           }));
           const allPacked = pieceIdx.length > 0 && pieceIdx.every(ci => data.capsule[ci].packed);
-          const thumbs = pieceIdx.slice(0, 4).map(ci => {
-            const it = data.capsule[ci];
-            const img = (it.wardrobe_match && it.wardrobe_match.image_url) ||
-              ((!_dlAltered(it) && Number.isInteger(it.image_index)) ? (data.generatedImages || [])[it.image_index] : null);
-            return `<span${img ? ` style="background-image:url('${_waEsc(img)}')"` : ''}></span>`;
-          }).join('');
-          return `<button class="tvm-day${di === _tvActiveDay ? ' active' : ''}" onclick="window.__tvSelectDay(${di})">
-            <span class="dtop"><span class="ddow">${_waEsc(dayName)}</span><span class="dst${allPacked ? ' done' : ''}"></span></span>
-            <span class="dev">${_waEsc(event)}</span>
-            <span class="dmeta">${slots.length ? slots.length + ' look' + (slots.length > 1 ? 's' : '') + (d.user_activity ? ' · your plan' : '') : 'left free'}</span>
-            <span class="dth">${thumbs}</span>
-          </button>`;
-        }).join('');
+          return {
+            dow: (parts[0] || '').trim(),
+            dot: allPacked,
+            dim: !slots.length,
+            event: (parts[1] || '').trim() || (slots[0] && slots[0].title) || '',
+            meta: slots.length ? slots.length + ' look' + (slots.length > 1 ? 's' : '') + (d.user_activity ? ' <span style="color:var(--rose)">· your plan</span>' : '') : 'left free',
+            thumbs: pieceIdx.slice(0, 4).map(ci => {
+              const it = data.capsule[ci];
+              return (it.wardrobe_match && it.wardrobe_match.image_url) ||
+                ((!_dlAltered(it) && Number.isInteger(it.image_index)) ? (data.generatedImages || [])[it.image_index] : null);
+            }),
+            onclick: `window.__tvSelectDay(${di})`,
+          };
+        }), _tvActiveDay);
       }
 
       // The console — this day's look, read piece by piece (emulates Daily)
@@ -4818,123 +4910,80 @@ body>*:not(#tv-result-page){display:none !important}
 
         // No "The mood" hero tile here — the trip hero is static across days
         // and read as the day's look (beta feedback); the first piece tile
-        // takes the wide slot instead, like the Daily board.
-        const tiles = entries.map((x, ti) => {
-          const f = _tvFrame(x.it);
-          return `<button class="tvm-tile${ti === 0 ? ' wide' : ''}${x.it.wardrobe_match ? '' : ' isnew'}" onclick="window.__tvSwap(${x.ci})" title="Swap the ${_waEsc(_dlShort(x.it.name))}">
-            <div${f.pollAttr} style="position:absolute;inset:0;background:var(--cream-200)">${f.inner}</div>
-            <div class="tgrad"></div>
-            <span class="tslot">${_waEsc(_dlSlot(x.it).l)}</span>
-            ${x.it.wardrobe_match ? `<span class="town">${_tvCheckSvg}</span>` : (x.it.added ? '' : `<span class="tadd">Add</span>`)}
-            <span class="tnav l" onclick="event.stopPropagation();window.__tvFlip(${x.ci},-1)" title="Previous">${_tvChevL}</span>
-            <span class="tnav r" onclick="event.stopPropagation();window.__tvFlip(${x.ci},1)" title="Next">${_tvChevR}</span>
-            <span class="tlab">the ${_waEsc(_dlShort(x.it.name))}</span>
-          </button>`;
-        }).join('');
-
+        // takes the wide slot instead, like the Daily board. Rendering runs
+        // through the shared console template (_rbConsole) — this adapter
+        // only supplies frames, provenance and the pack third action.
         const fabricsHtml = entries.map(x => {
           const c = (x.it.wardrobe_match && x.it.wardrobe_match.color) || '';
           return `<span class="fab"><span class="sw" style="background:${_waEsc(c && /^#/.test(c) ? c : (palette[0] || '#E7E0CF'))}"></span><span class="fl">${_waEsc(_dlFabric(x.it.name))}</span></span>`;
         }).join('');
 
-        panel.innerHTML = `
-          <div class="tvm-panel">
-            <div class="tvm-lhead">
-              <span class="lab">The look · ${_waEsc(dayName)} · ${entries.length} pieces</span>
-              <span class="robes">Robes</span>
-            </div>
-            <div class="tvm-occ">${occHtml}</div>
-            ${s.how ? `<div class="tvm-quote">“${_waEsc(s.how)}”</div>` : ''}
-            <div class="tvm-board">${tiles}</div>
-            <div class="tvm-fabrics">${fabricsHtml}</div>
-            <div class="tvm-lfoot">
-              <span class="tvm-palette">${palette.map(h => `<span style="background:${h}"></span>`).join('')}</span>
-              <span class="tvm-yours"><b>${ownedN}</b>&thinsp;of&thinsp;${entries.length} already yours</span>
-            </div>
-            ${s.transition_tip ? `<div class="tvm-ttip"><span class="tl">Transition tip</span><span class="tt">${_waEsc(s.transition_tip)}</span></div>` : ''}
-          </div>
-          ${(() => {
-            const inCase = entries.filter(x => x.it.packed);
-            const gaps = entries.filter(x => !x.it.wardrobe_match && !x.it.added);
-            const toPack = entries.filter(x => !x.it.packed);
-            const pct = entries.length ? Math.round(inCase.length / entries.length * 100) : 0;
-            const clean = gaps.length === 0;
-            let verdict;
-            if (gaps.length) verdict = `Nearly there — the ${_waEsc(gaps[0].it.name.toLowerCase())} is the gap worth adding, then this look is complete.`;
-            else if (toPack.length) verdict = `Everything’s chosen — just pack the ${_waEsc(toPack[0].it.name.toLowerCase())} and it’s ready.`;
-            else verdict = 'Every piece is packed and accounted for — this look travels as it is.';
-            return `<div class="tvm-read">
-              <div class="rh">
-                <span class="lab">The read</span>
-                <span class="score">${inCase.length} / ${entries.length}<span class="of"> in the case</span></span>
-              </div>
-              <div class="bar"><span style="width:${pct}%;background:${clean ? 'var(--sage)' : '#B98A4E'}"></span></div>
-              <p>${verdict}</p>
-            </div>`;
-          })()}`;
-
-        const rows = entries.map(x => {
+        const conItems = entries.map(x => {
           const { it, ci } = x;
           const wears = (usage[ci] || []).length;
-          const sub = it.wardrobe_match
-            ? `<span class="tvm-owned">${_tvCheckSvg} In your wardrobe</span>`
-            : `<span class="tvm-addtag">${it.added ? 'Added to the pack' : 'Worth adding'}</span>${it.brand ? `<span style="font-family:${_tvSerif};font-style:italic;font-size:13px">${_waEsc(it.brand)}</span>` : ''}${(it.retailer_hint || it.price_point) ? `<span class="price">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>` : ''}`;
-          const f = _tvFrame(it);
-          const isPacked = !!it.packed;
-          // Flick-through — same carousel as the Daily rack: the served
-          // original, then owned pieces in the same category.
           const list = _dlOptions(it);
-          const cur = _dlOptIndex(it, list);
-          const dots = list.length > 1 && list.length <= 8
-            ? `<span class="tvm-dots">${list.map((_, k) => `<span${k === cur ? ' class="on"' : ''}></span>`).join('')}</span>`
-            : (list.length > 8 ? `<span style="font-size:9px;letter-spacing:.08em;color:#A89880">${cur + 1} / ${list.length}</span>` : '');
-          return `<div class="tvm-row${isPacked ? ' packed' : ''}${it.anchored ? ' anchored' : ''}">
-            <div class="tvm-vp">
-              <span class="vslot">${_waEsc(_dlSlot(it).l)}</span>
-              <div${f.pollAttr} style="position:absolute;inset:0">${f.inner}</div>
-              ${wears ? `<span class="vlooks">× ${wears} looks</span>` : ''}
-              ${list.length > 1 ? `<span class="vcount">${cur + 1} / ${list.length}</span>` : ''}
-            </div>
-            <div class="tvm-body">
-              <div>
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-                  <div class="tvm-name">${_waEsc(it.name)}</div>
-                  ${it.anchored ? `<span class="tvm-anchpill">${_tvLockSvg} Anchored</span>` : ''}
-                </div>
-                <div class="tvm-sub">${sub}</div>
-                ${x.f.note ? `<div class="tvm-hownote">${_waEsc(x.f.note)}</div>` : ''}
-              </div>
-              <div class="tvm-foot">
-                <div class="tvm-flip tv-noprint">
-                  <button class="tvm-arrow" onclick="window.__tvFlip(${ci},-1)" aria-label="Previous option">${_tvChevL}</button>
-                  ${dots}
-                  <button class="tvm-arrow" onclick="window.__tvFlip(${ci},1)" aria-label="Next option">${_tvChevR}</button>
-                </div>
-                <div class="tvm-acts">
-                  <button class="tvm-act anch${it.anchored ? ' on' : ''} tv-noprint" onclick="window.__tvAnchor(${ci})" title="Lock this piece through restyles">${_tvLockSvg} ${it.anchored ? 'Anchored' : 'Anchor'}</button>
-                  <button class="tvm-act tv-noprint" onclick="window.__tvSwap(${ci})">${_tvSwapSvg} Swap</button>
-                  ${(it.wardrobe_match || it.added)
-                    ? `<button class="tvm-packbox${it.packed ? ' on' : ''}" onclick="window.__tvPackToggle(${ci})"><span class="box">${it.packed ? _tvCheckSvg : ''}</span>${it.packed ? 'Packed' : 'Pack'}</button>`
-                    : `<button class="tvm-act add" onclick="window.__tvAddOwn(${ci})">+ Add</button>`}
-                </div>
-              </div>
-            </div>
-          </div>`;
-        }).join('');
+          return {
+            idx: ci,
+            frame: _tvFrame(it),
+            slot: _dlSlot(it).l,
+            shortName: _dlShort(it.name),
+            name: it.name,
+            owned: !!it.wardrobe_match,
+            anchored: !!it.anchored,
+            isNew: !it.wardrobe_match,
+            showAddTag: !it.wardrobe_match && !it.added,
+            rowClass: it.packed ? ' packed' : '',
+            count: { cur: _dlOptIndex(it, list), len: list.length },
+            wearsHtml: wears ? `<span class="vlooks">× ${wears} looks</span>` : '',
+            subHtml: it.wardrobe_match
+              ? `<span class="owned">${_rbcCheckSvg} In your wardrobe</span>`
+              : `<span class="addtag">${it.added ? 'Added to the pack' : 'Worth adding'}</span>${it.brand ? `<span class="brand">${_waEsc(it.brand)}</span>` : ''}${(it.retailer_hint || it.price_point) ? `<span class="price">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>` : ''}`,
+            noteHtml: x.f.note ? `<div class="rbc-hownote">${_waEsc(x.f.note)}</div>` : '',
+            thirdHtml: (it.wardrobe_match || it.added)
+              ? `<button class="tvm-packbox${it.packed ? ' on' : ''}" onclick="window.__tvPackToggle(${ci})"><span class="box">${it.packed ? _tvCheckSvg : ''}</span>${it.packed ? 'Packed' : 'Pack'}</button>`
+              : `<button class="tvm-act add" onclick="window.__tvAddOwn(${ci})">+ Add</button>`,
+          };
+        });
 
-        rackWrap.innerHTML = `
-          <div class="tvm-rackhead">
-            <div style="min-width:0">
-              <span class="ey">The rack · ${_waEsc(dayName)}</span>
-              <h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>
+        const readHtml = (() => {
+          const inCase = entries.filter(x => x.it.packed);
+          const gaps = entries.filter(x => !x.it.wardrobe_match && !x.it.added);
+          const toPack = entries.filter(x => !x.it.packed);
+          const pct = entries.length ? Math.round(inCase.length / entries.length * 100) : 0;
+          const clean = gaps.length === 0;
+          let verdict;
+          if (gaps.length) verdict = `Nearly there — the ${_waEsc(gaps[0].it.name.toLowerCase())} is the gap worth adding, then this look is complete.`;
+          else if (toPack.length) verdict = `Everything’s chosen — just pack the ${_waEsc(toPack[0].it.name.toLowerCase())} and it’s ready.`;
+          else verdict = 'Every piece is packed and accounted for — this look travels as it is.';
+          return `<div class="tvm-read">
+            <div class="rh">
+              <span class="lab">The read</span>
+              <span class="score">${inCase.length} / ${entries.length}<span class="of"> in the case</span></span>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="tvm-hbtn tv-noprint" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button>
-              <button class="tvm-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button>
-              <button class="tvm-hbtn tv-noprint" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>
-            </div>
-          </div>
-          <div class="tvm-rack">${rows}</div>`;
+            <div class="bar"><span style="width:${pct}%;background:${clean ? 'var(--sage)' : '#B98A4E'}"></span></div>
+            <p>${verdict}</p>
+          </div>`;
+        })();
+
+        const con = _rbConsole({
+          headLabel: `The look · ${_waEsc(dayName)} · ${entries.length} pieces`,
+          occHtml: `<div class="tvm-occ">${occHtml}</div>`,
+          quoteHtml: s.how ? '“' + _waEsc(s.how) + '”' : '',
+          fabricsHtml,
+          paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
+          yoursHtml: `<b>${ownedN}</b>&thinsp;of&thinsp;${entries.length} already yours`,
+          transitionTip: s.transition_tip || '',
+          panelExtraHtml: readHtml,
+          rackLabel: `The rack · ${_waEsc(dayName)}`,
+          rackTitleHtml: `<h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>`,
+          headButtonsHtml: `<button class="rbc-hbtn tv-noprint" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>`,
+          onFlip: '__tvFlip', onSwap: '__tvSwap', onAnchor: '__tvAnchor',
+          noprint: true,
+        }, conItems);
+
+        panel.innerHTML = con.lookHtml;
+
+        rackWrap.innerHTML = con.rackHtml;
       }
 
       // Flick a capsule piece through similar options — the served original,
@@ -5197,28 +5246,14 @@ body>*:not(#tv-result-page){display:none !important}
                 <h2>The ${data.days.length > 6 ? 'trip' : 'week'}${wx && wx.city ? ' in ' + _waEsc(wx.city) : (data.destination ? ' in ' + _waEsc(data.destination) : '')}</h2>
                 <span class="hint">Tap a day — the console reads its look, piece by piece.</span>
               </div>
-              <div class="tvm-week" id="tv-weekstrip"></div>
+              <div class="rbd-strip" id="tv-weekstrip"></div>
               <div class="tvm-console">
                 <div class="tvm-look" id="tv-look-panel"></div>
                 <div id="tv-rackwrap"></div>
               </div>`}
             </div>
 
-            <div class="tv-noprint" style="margin-top:42px;padding:28px 24px;background:var(--cream-100);border:0.5px solid var(--rule);border-radius:var(--rad-lg);text-align:center">
-              <div style="font-family:${serif};font-size:22px;font-weight:300;font-style:italic;color:var(--ink);margin-bottom:6px">How is this edit?</div>
-              <div id="tv-fb-prompt">
-                <div style="font-size:13px;color:var(--ink-faint);margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
-                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-                  <button id="tv-fb-up" onclick="window.__tvFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 20px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;font-size:12px;cursor:pointer;color:var(--ink-soft);font-family:${sans}">👍 I’d pack it</button>
-                  <button id="tv-fb-dn" onclick="window.__tvFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 20px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;font-size:12px;cursor:pointer;color:var(--ink-soft);font-family:${sans}">Not quite</button>
-                </div>
-              </div>
-              <div id="tv-fb-expand" hidden style="margin-top:16px">
-                <textarea id="tv-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);padding:12px 14px;font-size:13px;color:var(--ink);resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
-                <button onclick="window.__tvFbSubmit()" style="margin-top:10px;padding:11px 26px;background:var(--ink);color:#fff;border:none;border-radius:100px;font-size:12px;cursor:pointer;font-family:${sans}">Send feedback</button>
-              </div>
-              <div id="tv-fb-done" hidden style="font-size:13px;color:var(--sage);margin-top:12px">Thank you — noted.</div>
-            </div>
+            <div class="tv-noprint">${_rbFeedbackBlock('tv', { title: 'How is this edit?', up: '👍 I’d pack it', down: 'Not quite' })}</div>
           </div>
 
           <div class="tvm-payoff tv-noprint">
@@ -5265,27 +5300,10 @@ body>*:not(#tv-result-page){display:none !important}
           _tvActiveSaveId = (opts && opts.savedId) || null;
         }
 
-        let tvFbRating = null;
-        window.__tvFbRate = function(val) {
-          tvFbRating = val;
-          document.getElementById('tv-fb-up').style.background = val === 1 ? '#F0EDE8' : '#fff';
-          document.getElementById('tv-fb-dn').style.background = val === 0 ? '#F0EDE8' : '#fff';
-          document.getElementById('tv-fb-expand').hidden = false;
-          setTimeout(() => { const t = document.getElementById('tv-fb-text'); if (t) t.focus(); }, 60);
-        };
-        window.__tvFbSubmit = function() {
-          const comment = (document.getElementById('tv-fb-text').value || '').trim();
-          fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-            email: (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '',
-            rating: tvFbRating,
-            comment,
-            prompt: [data.destination, data.dateLine, data.brief].filter(Boolean).join(' · '),
-            looksOutput: JSON.stringify({ surface: 'travel-edit', destination: data.destination || '', trip_label: data.trip_label || '', owned: data.capsule.filter(c => c.wardrobe_match).length, total, packed: data.capsule.filter(c => c.packed).length, looks: lookCount, ts: new Date().toISOString() }),
-          }) }).catch(() => {});
-          document.getElementById('tv-fb-prompt').hidden = true;
-          document.getElementById('tv-fb-expand').hidden = true;
-          document.getElementById('tv-fb-done').hidden = false;
-        };
+        _rbFeedbackArm('tv', () => ({
+          prompt: [data.destination, data.dateLine, data.brief].filter(Boolean).join(' · '),
+          looksOutput: JSON.stringify({ surface: 'travel-edit', destination: data.destination || '', trip_label: data.trip_label || '', owned: data.capsule.filter(c => c.wardrobe_match).length, total, packed: data.capsule.filter(c => c.packed).length, looks: lookCount, ts: new Date().toISOString() }),
+        }));
       };
 
       // One-Click Export (PRD §5) — the print stylesheet in #tv-style turns
@@ -5446,32 +5464,19 @@ body>*:not(#tv-result-page){display:none !important}
       // pieces ride along so the server holds them fixed. 75s hard abort.
       async function _tvDayRequest(di, act) {
         const data = window.__lastTvData;
-        const ctl = new AbortController();
-        const abortTimer = setTimeout(() => ctl.abort(), 75000);
-        try {
-          const res = await fetch('/api/travel/day', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: ctl.signal,
-            body: JSON.stringify({
-              destination: data.destination || '',
-              brief: data.brief || '',
-              dayIndex: di,
-              activity: act,
-              weather: data.weather || null,
-              name,
-              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
-              capsule: data.capsule.map(c => ({ name: c.name, category: c.category, brand: c.brand, tier: c.tier, owned: !!c.wardrobe_match })),
-              anchors: data.capsule.map((c, i) => c.anchored ? { item_index: i, name: c.name } : null).filter(Boolean),
-            }),
-          });
-          if (!res.ok) throw new Error(await res.text());
-          const out = await res.json();
-          if (!Array.isArray(out.slots) || !out.slots.length) throw new Error('empty day');
-          return out;
-        } finally {
-          clearTimeout(abortTimer);
-        }
+        const out = await _rbDayPost('/api/travel/day', {
+          destination: data.destination || '',
+          brief: data.brief || '',
+          dayIndex: di,
+          activity: act,
+          weather: data.weather || null,
+          name,
+          styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
+          capsule: data.capsule.map(c => ({ name: c.name, category: c.category, brand: c.brand, tier: c.tier, owned: !!c.wardrobe_match })),
+          anchors: data.capsule.map((c, i) => c.anchored ? { item_index: i, name: c.name } : null).filter(Boolean),
+        });
+        if (!Array.isArray(out.slots) || !out.slots.length) throw new Error('empty day');
+        return out;
       }
 
       function _tvApplyDayResult(di, out, userActivity) {
@@ -5832,6 +5837,14 @@ body>*:not(#tv-result-page){display:none !important}
           const saved = id && snLoad().find(x => x.id === id);
           cur = (saved && saved.title) || (window.__lastKpData && window.__lastKpData.piece) || '';
           applyLive = (v) => { const m = document.querySelector('#kp-result-page .rb-sfoot-meta .t'); if (m) m.textContent = v; };
+        } else if (kind === 'wk') {
+          id = _wkActiveSaveId;
+          cur = (window.__lastWkData && window.__lastWkData.headline) || '';
+          applyLive = (v) => {
+            const h = document.getElementById('wk-headline'); if (h) h.textContent = v;
+            const m = document.querySelector('#wk-result-page .rb-sfoot-meta .t'); if (m) m.textContent = v;
+            if (window.__lastWkData) window.__lastWkData.headline = v;
+          };
         } else return;
         if (!id) { _waShowToast('Save it first, then you can rename it'); return; }
 

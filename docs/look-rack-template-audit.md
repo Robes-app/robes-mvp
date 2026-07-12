@@ -147,6 +147,12 @@ The trip-only Pack/+Add action does **not** leak into Daily or Calendar ✓.
 - **Weekly parity features** — footer Share / Wear today / Plan a new week; `+ Add a piece`; share wiring end-to-end (`_shareActiveEntry`/`_shareBuild`/`_shareFindOrMake` + server `publicSharePayload` `weekly-plan` branch).
 - **Interaction hygiene** — anchor toast copy unified ("Anchored — restyles build around it"); day-restyle fetches got 75s aborts + re-entry guards (Weekly and Travel).
 
-**Deferred** (larger refactors, no user-visible divergence resolved by them alone)
-- Full `_rbConsole(cfg)` extraction (Weekly now matches visually but still renders from its own function).
-- Feedback-block and day-strip component unification; Weekly Rename; folding the Travel Edit capsule cards into the rack card component.
+**P1/P2 completion (second pass, 2026-07-12)**
+- **`_rbConsole(cfg)` extracted** — one canonical Look-panel + Rack renderer (`.rbc-*` classes, one tokenised stylesheet injected once). Daily, Weekly and Travel consoles are now thin adapters supplying frames, provenance lines, the trip-only Pack/+Add third action and their own handlers; the markup cannot fork again. Image-poller contracts unchanged (`data-dlimg`/`data-tvimg` ride in the frame objects).
+- **Day strips unified** — `_rbDayStrip` (`.rbd-*`) renders both the Weekly and Travel calendars: one card design with day name, date (weekly), packed-status dot (travel), "· your plan" marker, overlapping thumbs, dimmed left-free days, scroll-snap.
+- **Feedback blocks unified** — `_rbFeedbackBlock`/`_rbFeedbackArm` + one `__rbFbRate`/`__rbFbSubmit` pair power the Daily, Weekly and Travel blocks (per-surface copy only). The weekly `hidden`-vs-inline-display gotcha dies with the old markup.
+- **Weekly Rename** — `__rbRename('wk')` + footer Rename button + `#wk-headline` live patch.
+- **Shared abort guard** — `_rbDayPost(url, body)` (75s abort) now backs both `/api/weekly/day` and `/api/travel/day` calls.
+
+**Deliberately left**
+- The Travel Edit tab's capsule cards keep their own grid-card component — they are a packing checklist (1:3 matrix selection, packed sync by id), not a rack; folding them into `_rbcRow` would change that tab's information design, not fix an inconsistency.
