@@ -2872,11 +2872,22 @@
 
       // Camera / upload door — the standard wardrobe add flow, with the
       // post-add hook armed so the new piece lands straight in the look.
+      // The OS picker pops as soon as step 1 mounts (one click, like the
+      // prompt box's + menu) — waiting past the ~150ms step-1 remount so
+      // the click lands on the live input, not the one about to be
+      // replaced; transient user activation comfortably outlives this.
       window.__rbcAddSnap = function(applyName) {
         document.getElementById('rbc-add-menu')?.remove();
         _waEditId = null;
         _waAfterAdd = (newId) => { if (typeof window[applyName] === 'function') window[applyName](newId); };
         if (window.WA && WA.open) WA.open();
+        let tries = 0;
+        const poke = () => {
+          const inp = document.getElementById('wa-rb-file');
+          if (inp) { inp.click(); return; }
+          if (++tries < 8) setTimeout(poke, 120);
+        };
+        setTimeout(poke, 220);
       };
 
       // Wardrobe door — a full-catalogue grid; tap a piece to place it.
