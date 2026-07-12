@@ -205,10 +205,25 @@ setInterval(() => {
 /* ── style ───────────────────────────────────────────────────────── */
 const FALLBACK_PIECE = 'black Balmain waistcoat with gold buttons';
 
+// Shared image-prompt fragments — every on-model editorial frame uses these
+// so the figure is never cropped and the user's declared taste reaches the
+// image model, not just the text model.
+const FULL_BODY_FRAME = 'FULL-LENGTH FRAMING, HEAD TO TOE: the entire figure fits inside the frame — the full head and hair visible with clear space above, both shoes fully visible with clear space below. Never crop the face, head, hands or feet. Subject standing, centred, photographed from far enough back to capture the whole body.';
+
+function styleIconsImageLine(styleIcons) {
+  const icons = Array.isArray(styleIcons)
+    ? styleIcons.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, 5)
+    : [];
+  return icons.length
+    ? `The styling sensibility channels ${icons.join(', ')} — their signature silhouettes and fashion codes. `
+    : '';
+}
+
 const STYLE_SCHEMA = {
   type: 'object',
   properties: {
     fallback: { type: 'boolean' },
+    wearer: { type: 'string', enum: ['woman', 'man'] },
     ways: {
       type: 'array',
       items: {
@@ -225,7 +240,7 @@ const STYLE_SCHEMA = {
       },
     },
   },
-  required: ['fallback', 'ways'],
+  required: ['fallback', 'wearer', 'ways'],
 };
 
 app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
@@ -264,13 +279,17 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
     ? `IMPORTANT: Set "fallback": true ONLY if the input is gibberish or random characters. A plain occasion, agenda or mood (e.g. "brunch", "a day of meetings") is a valid daily brief — set "fallback": false and dress the user for it.`
     : `IMPORTANT: You must set "fallback": true if ANY of these apply — the input is gibberish or random characters; no specific clothing item, garment, or accessory can be identified; the request is too vague to style (e.g. just a colour, a single generic word, or a non-fashion concept). When fallback is true, style a ${FALLBACK_PIECE} instead. Only set "fallback": false when a real, nameable fashion piece is clearly present.`;
 
+  const wearerRule = `Set "wearer" to who the looks are styled for: "woman" unless the user's words clearly state the wearer is male — the piece itself being menswear or unisex (sportswear, an oversized jacket, boyfriend jeans) NEVER makes the wearer male.`;
+
   const systemInstruction = `You are an expert fashion stylist known for elegant, directional styling advice. Your tone is warm, precise, and editorial — like a trusted stylist who truly understands clothes. Your user is a stylish, fashion-forward woman — unless the input clearly indicates a male wearer, style all looks for a woman. ${who}
 
 ${brief}
 
 ${formulaBlock}
 
-${fallbackRule}${dnaBlock ? '\n\n' + dnaBlock : ''}${closetBlock ? '\n\n' + closetBlock : ''}${closetDirective ? '\n' + closetDirective : ''}`;
+${fallbackRule}
+
+${wearerRule}${dnaBlock ? '\n\n' + dnaBlock : ''}${closetBlock ? '\n\n' + closetBlock : ''}${closetDirective ? '\n' + closetDirective : ''}`;
 
   const rtLine = daily && rtContext && (rtContext.city || rtContext.tempRange)
     ? `Real-time context: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}. Dress the user for exactly this weather and place.`
@@ -336,6 +355,9 @@ Style this key piece three ways. Make each look genuinely distinct — different
 
     // Background image generation — never blocks the client
     const t1 = Date.now();
+    const wearer = parsed.wearer === 'man' ? 'man' : 'woman';
+    const iconLine = styleIconsImageLine(styleIcons);
+    const briefLine = !fallback && prompt ? `The user's brief: "${String(prompt).slice(0, 200)}". ` : '';
     Promise.all(ways.map((w, i) => {
       const imgParts = [];
       if (!fallback && photoMatch) {
@@ -343,8 +365,11 @@ Style this key piece three ways. Make each look genuinely distinct — different
       }
       const pieceLabel = fallback ? FALLBACK_PIECE : (pieceName || 'the clothing item');
       const pieceLine = daily && !fallback ? '' : `The key piece is ${pieceLabel}. `;
+      const photoLine = !fallback && photoMatch
+        ? 'The attached photo shows the key piece only — reproduce the piece faithfully, but compose an entirely new scene; never copy the photo\'s framing, background or crop. '
+        : '';
       imgParts.push({
-        text: `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one person, one scene, no collage, no split panels, no side-by-side images. ${pieceLine}Look: "${w.title}" — ${w.eyebrow}. Outfit: ${w.outfit}. Show the full outfit clearly. Tall portrait crop, subject centred.`,
+        text: `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one ${wearer}, alone, one scene, no collage, no split panels, no side-by-side images. ${FULL_BODY_FRAME} ${pieceLine}${photoLine}${briefLine}${iconLine}Look: "${w.title}" — ${w.eyebrow}. The ${wearer} wears the complete outfit: ${String(w.outfit || '').trim().replace(/\.$/, '')}. Soft natural light, luxury campaign aesthetic.`,
       });
 
       const imgCall = ai.models.generateContent({
@@ -597,7 +622,7 @@ Dress her for this exact day, start to finish, through the four architectural st
         if (i > 0) await new Promise(r => setTimeout(r, 3000));
         const { stepTitle, item } = flat[i];
         const imgPrompt = stepTitle === 'The Anchor'
-          ? `PORTRAIT ORIENTATION ONLY. Single editorial fashion photograph — one woman, one scene, no collage, no split panels, no text overlays. She wears the complete outfit: ${allNames}. The ${item.name} leads the frame. ${scene ? `Setting: ${scene}. ` : ''}Soft natural light, luxury campaign aesthetic, full outfit clearly visible, subject centred.`
+          ? `PORTRAIT ORIENTATION ONLY. Single editorial fashion photograph — one woman, alone, one scene, no collage, no split panels, no text overlays. ${FULL_BODY_FRAME} ${styleIconsImageLine(styleIcons)}She wears the complete outfit: ${allNames}. The ${item.name} leads the frame. ${scene ? `Setting: ${scene}. ` : ''}Soft natural light, luxury campaign aesthetic.`
           : `Editorial still-life photograph of a single ${item.name}${item.brand ? ' by ' + item.brand : ''} — ${item.description || ''}. The garment styled alone on a neutral cream-linen surface, soft daylight, quiet luxury catalogue aesthetic. No model, no text, no collage, one item only.`;
         try {
           const r = await Promise.race([
@@ -1414,7 +1439,7 @@ ${shortIdxs.length ? `Pack every shortlisted piece, map the wears each one earns
         if (f > 0) await new Promise(r => setTimeout(r, 3000));
         const item = f === 0 ? null : stills[f - 1];
         const imgPrompt = f === 0
-          ? `PORTRAIT ORIENTATION ONLY. Single editorial travel-fashion photograph — one woman, one scene, no collage, no split panels, no text overlays. ${parsed.location_vibe ? parsed.location_vibe + ' aesthetic. ' : ''}Setting: ${dest}${monthName ? ' in ' + monthName : ''}. She wears a complete look drawn from this capsule: ${capsuleNames}. Soft natural light, luxury resort campaign aesthetic, full outfit clearly visible, subject centred.`
+          ? `PORTRAIT ORIENTATION ONLY. Single editorial travel-fashion photograph — one woman, alone, one scene, no collage, no split panels, no text overlays. ${FULL_BODY_FRAME} ${styleIconsImageLine(styleIcons)}${parsed.location_vibe ? parsed.location_vibe + ' aesthetic. ' : ''}Setting: ${dest}${monthName ? ' in ' + monthName : ''}. She wears a complete look drawn from this capsule: ${capsuleNames}. Soft natural light, luxury resort campaign aesthetic.`
           : `Editorial still-life photograph of a single ${item.name}${item.brand ? ' by ' + item.brand : ''} — ${item.description || ''}. The piece styled alone on a neutral cream-linen surface, soft daylight, quiet luxury catalogue aesthetic. No model, no text, no collage, one item only.`;
         try {
           const r = await Promise.race([
@@ -2476,7 +2501,7 @@ Rules:
         const r = await Promise.race([
           ai.models.generateContent({
             model: 'gemini-3.1-flash-image',
-            contents: [{ role: 'user', parts: [{ text: `Editorial fashion photography. No text overlays. ${prompt}` }] }],
+            contents: [{ role: 'user', parts: [{ text: `Editorial fashion photography. No text overlays. ${type === 'hero_look' ? `One woman, alone. ${FULL_BODY_FRAME} ` : ''}${prompt}` }] }],
             config: { responseModalities: ['TEXT', 'IMAGE'] },
           }),
           new Promise(resolve => setTimeout(() => resolve(null), 45000)),
