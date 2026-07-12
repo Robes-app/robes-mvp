@@ -131,3 +131,22 @@ The trip-only Pack/+Add action does **not** leak into Daily or Calendar ✓.
 **P2 — parity + hygiene**
 7. Weekly: Share/Rename wiring end-to-end, "Wear today", "+ Add a piece".
 8. Shared inline-busy/abort helper for the day-restyle fetches; unify anchor toast copy and feedback blocks; fold the Travel Edit capsule card and the day strips into the shared component set when convenient.
+
+---
+
+## 5. Status — fixed on this branch (2026-07-12)
+
+**Done**
+- **Weekly Swap** — shared `_rbSwapModal` extracted (Daily `__dlSwap` and Travel `__tvSwap` now call it instead of carrying duplicate modals); Weekly gained `__wkSwap`/`__wkSwapApply`/`__wkSnapMine`, Swap buttons on rack cards, and board tiles now open Swap (tap-anchors behaviour retired — tiles mean "swap" in all three contexts).
+- **Travel Anchor** — `__tvAnchor`, anchored row border + "Anchored" pill (Daily's visual), Anchor CTA in every rack row; `/api/travel/day` accepts `anchors` and holds them fixed; anchors persist in `tvData`.
+- **Restyle CTA unified** — `↻ Restyle this day` in the rack header in all three contexts (Daily renamed from "Restyle it"; Travel gained one-tap `__tvRestyleDay` that re-mixes the selected day without forcing a typed plan).
+- **Stylist note at top of The Look** — Daily's `stylist_summary` now renders inline at the top of the panel (synthetic quote is fallback only); the separate note module is gone. Weekly/Travel already complied.
+- **Transition tip in the panel footer, all three** — added `transition_tip` to `WEEKLY_SCHEMA` days, `WEEKLY_DAY_SCHEMA`, `TRAVEL_SCHEMA`/`TRAVEL_DAY_SCHEMA` slots (token budgets bumped: travel 8000→9000, travel/day 2500→2800, outfits 6500→7200) and render it in the same footer strip in Daily, Weekly and Travel.
+- **Headers normalised** — Look: `The look · {Day} · {x} pieces` + `Robes` in all three (Daily gained the weekday, Weekly gained the Robes suffix). Rack: `The rack · {Day}` (+ occasion/title where the context has one); Daily's marketing title + subtitle removed.
+- **Weekly console visual parity** — white Look panel (dark panel retired), Daily-geometry rack cards (1:1 viewport, slot label + i/n on the image, 21px serif name, anchored pill, provenance line — the extra description line dropped), 32px flick arrows + capped dot rail, lock-icon Anchor (⚓ variant retired).
+- **Weekly parity features** — footer Share / Wear today / Plan a new week; `+ Add a piece`; share wiring end-to-end (`_shareActiveEntry`/`_shareBuild`/`_shareFindOrMake` + server `publicSharePayload` `weekly-plan` branch).
+- **Interaction hygiene** — anchor toast copy unified ("Anchored — restyles build around it"); day-restyle fetches got 75s aborts + re-entry guards (Weekly and Travel).
+
+**Deferred** (larger refactors, no user-visible divergence resolved by them alone)
+- Full `_rbConsole(cfg)` extraction (Weekly now matches visually but still renders from its own function).
+- Feedback-block and day-strip component unification; Weekly Rename; folding the Travel Edit capsule cards into the rack card component.

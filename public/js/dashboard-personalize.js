@@ -2567,7 +2567,7 @@
         if (!it) return;
         it.anchored = !it.anchored;
         _dlRerender();
-        _waShowToast(it.anchored ? 'Anchored — every restyle builds around it' : 'Anchor released');
+        _waShowToast(it.anchored ? 'Anchored — restyles build around it' : 'Anchor released');
       };
       // "Restyle it" / "Dress me again" — a full re-mix that keeps every
       // anchored piece exactly where it is and evolves the SAME saved look.
@@ -2668,14 +2668,11 @@
 #dl-result-page .dlm-palette span{width:14px;height:14px;border-radius:50%;border:0.5px solid var(--rule-mid);display:block}
 #dl-result-page .dlm-yours{font-size:10px;letter-spacing:.02em;color:var(--ink-faint)}
 #dl-result-page .dlm-yours b{color:var(--ink);font-weight:500}
-#dl-result-page .dlm-note{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:var(--cream-100);padding:16px 17px}
-#dl-result-page .dlm-note .nh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:9px}
-#dl-result-page .dlm-note .nh .lab{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
-#dl-result-page .dlm-note .nh .hint{font-size:9.5px;color:var(--ink-faint);font-style:italic}
-#dl-result-page .dlm-note p{font-size:13px;line-height:1.65;color:#3A3733;margin:0}
-#dl-result-page .dlm-rackhead{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:6px}
+#dl-result-page .dlm-ttip{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:0.5px solid var(--rule)}
+#dl-result-page .dlm-ttip .tl{font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+#dl-result-page .dlm-ttip .tt{font-size:12px;line-height:1.6;color:var(--ink-soft);font-style:italic;flex:1;min-width:180px}
+#dl-result-page .dlm-rackhead{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
 #dl-result-page .dlm-rackhead .ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose)}
-#dl-result-page .dlm-rackhead h2{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:26px;line-height:1.05;margin:6px 0 0;color:var(--ink)}
 #dl-result-page .dlm-restyle{display:inline-flex;align-items:center;gap:7px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:10px 16px;font-size:12px;color:var(--ink-soft);background:#fff;cursor:pointer;transition:all .15s;white-space:nowrap}
 #dl-result-page .dlm-restyle:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
 #dl-result-page .dlm-rack{display:flex;flex-direction:column;gap:12px}
@@ -2756,6 +2753,7 @@
         const hexOk = h => typeof h === 'string' && /^#[0-9A-Fa-f]{6}$/.test(h);
         const palette = (Array.isArray(data.palette) ? data.palette : []).filter(hexOk).slice(0, 3);
         const headline = data.headline || 'A look for today.';
+        const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
         const provenance = owned === total && total > 0
           ? 'All ' + total + ' pieces from your wardrobe'
           : owned > 0 ? owned + ' of ' + total + ' from your wardrobe' : total + ' pieces · an editorial build';
@@ -2906,36 +2904,25 @@
               <div class="dlm-look">
                 <div class="dlm-panel">
                   <div class="dlm-lhead">
-                    <span class="lab">The look · ${total} pieces</span>
+                    <span class="lab">The look · ${_waEsc(weekday)} · ${total} pieces</span>
                     <span class="robes">Robes</span>
                   </div>
-                  ${quote ? `<div class="dlm-quote">“${_waEsc(quote)}”</div>` : ''}
+                  ${summaryHtml ? `<div class="dlm-quote">${summaryHtml}</div>` : (quote ? `<div class="dlm-quote">“${_waEsc(quote)}”</div>` : '')}
                   <div class="dlm-board">${boardHtml}</div>
                   <div class="dlm-fabrics">${fabricsHtml}</div>
                   <div class="dlm-lfoot">
                     <span class="dlm-palette">${palette.map(h => `<span style="background:${h}"></span>`).join('')}</span>
                     <span class="dlm-yours"><b>${owned}</b>&thinsp;of&thinsp;${total} from your wardrobe</span>
                   </div>
-                </div>
-                <div class="dlm-note">
-                  <div class="nh">
-                    <span class="lab">The stylist’s note</span>
-                    <span class="hint">re-reads on every restyle</span>
-                  </div>
-                  <p>${summaryHtml}</p>
-                  ${data.transition_tip ? `<div style="margin-top:11px;padding-top:11px;border-top:0.5px solid var(--rule);display:flex;gap:9px;align-items:baseline;flex-wrap:wrap"><span style="font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap">Transition tip</span><span style="font-size:12px;line-height:1.6;color:var(--ink-soft);font-style:italic;flex:1;min-width:180px">${_waEsc(data.transition_tip)}</span></div>` : ''}
+                  ${data.transition_tip ? `<div class="dlm-ttip"><span class="tl">Transition tip</span><span class="tt">${_waEsc(data.transition_tip)}</span></div>` : ''}
                 </div>
               </div>
 
               <div>
                 <div class="dlm-rackhead">
-                  <div style="min-width:0">
-                    <span class="ey">The rack</span>
-                    <h2>Flip through. Robes reads the day.</h2>
-                  </div>
-                  <button class="dlm-restyle" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">${restyleSvg} Restyle it</button>
+                  <span class="ey">The rack · ${_waEsc(weekday)}</span>
+                  <button class="dlm-restyle" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>
                 </div>
-                <div style="font-size:11.5px;color:var(--ink-faint);font-style:italic;margin:-2px 0 14px">Flick any card through similar pieces, or anchor what must stay — restyles build around your anchors.</div>
                 <div class="dlm-rack">${rackHtml}</div>
                 <button class="dlm-addpiece" onclick="window.__dlAddPiece()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>
               </div>
@@ -3020,24 +3007,11 @@
         };
       };
 
-      // ── Daily Look swap — same PRD 3.B pattern as the moodboard modal ──
-      let _dlSwapIdx = null; // item index the open swap modal is targeting
-      window.__dlSnapMine = function() {
-        // Arm the post-add hook so the piece the user is about to snap
-        // lands straight into this look's slot, then swaps its thumbnail.
-        const idx = _dlSwapIdx;
-        _waAfterAdd = (newId) => window.__dlSwapApply(idx, newId);
-        _waEditId = null;
-        document.getElementById('dl-swap-modal')?.remove();
-        if (window.WA && WA.open) WA.open();
-      };
-
-      window.__dlSwap = function(idx) {
-        const items = window.__dlCurrentItems || [];
-        const item = items[idx];
-        if (!item) return;
-        _dlSwapIdx = idx;
-        document.getElementById('dl-swap-modal')?.remove();
+      // ── Shared swap modal (PRD 3.B) — ONE implementation for the Daily,
+      // Weekly and Travel racks. cfg: {id, applyName, snapName, idx} — the
+      // apply/snap handlers stay per-surface, the modal itself never forks.
+      function _rbSwapModal(item, cfg) {
+        document.getElementById(cfg.id)?.remove();
 
         const catLower = (item.category || '').toLowerCase();
         const candidates = _waItems.filter(wi => {
@@ -3057,7 +3031,7 @@
         let wardrobeSection = '';
         if (candidates.length > 0) {
           const itemsHtml = candidates.slice(0, 8).map(wi => `
-            <div onclick="window.__dlSwapApply(${idx},'${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
+            <div onclick="window.${cfg.applyName}(${cfg.idx},'${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
               ${wi.image_url
                 ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" alt="">`
                 : `<div style="aspect-ratio:1;background:#EDE8E0;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8C0B8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`}
@@ -3073,12 +3047,12 @@
             <div style="margin-bottom:24px;background:#F5F2EE;border-radius:12px;padding:14px">
               <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">Robes’ suggestion</p>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don’t have a ${_waEsc((item.category || 'piece').toLowerCase())}, but your <em>${_waEsc(aiAlt.label)}</em> creates a similar outline.</p>
-              <button onclick="window.__dlSwapApply(${idx},'${_waEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
+              <button onclick="window.${cfg.applyName}(${cfg.idx},'${_waEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
             </div>`;
         }
 
         const modal = document.createElement('div');
-        modal.id = 'dl-swap-modal';
+        modal.id = cfg.id;
         modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
         modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
         modal.innerHTML = `
@@ -3086,7 +3060,7 @@
             <div style="position:sticky;top:0;background:#FAF8F5;padding:20px 20px 0;z-index:2">
               <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
                 <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">Swap this piece</p>
-                <button onclick="document.getElementById('dl-swap-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+                <button onclick="document.getElementById('${cfg.id}').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
               </div>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:26px;font-weight:300;color:#202021;margin:0 0 2px;line-height:1.15">${_waEsc(item.name)}</p>
               ${(item.brand || retailer) ? `<p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 18px">${_waEsc(item.brand || retailer)}</p>` : `<div style="height:18px"></div>`}
@@ -3095,10 +3069,10 @@
             <div style="padding:0 20px 32px">
               ${wardrobeSection}
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${(retailer || price) ? '10px' : '0'}">
-                <button onclick="window.__dlSnapMine()" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#EDE8E0;border:none;border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
+                <button onclick="window.${cfg.snapName}()" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#EDE8E0;border:none;border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
                   ${cameraSvg} Snap mine
                 </button>
-                <button onclick="window.__rbAffiliateSoon('dl-swap-modal')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
+                <button onclick="window.__rbAffiliateSoon('${cfg.id}')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
                   Shop via Affiliate ${arrowSvg}
                 </button>
               </div>
@@ -3106,6 +3080,25 @@
             </div>
           </div>`;
         document.body.appendChild(modal);
+      }
+
+      // ── Daily Look swap — same PRD 3.B pattern as the moodboard modal ──
+      let _dlSwapIdx = null; // item index the open swap modal is targeting
+      window.__dlSnapMine = function() {
+        // Arm the post-add hook so the piece the user is about to snap
+        // lands straight into this look's slot, then swaps its thumbnail.
+        const idx = _dlSwapIdx;
+        _waAfterAdd = (newId) => window.__dlSwapApply(idx, newId);
+        _waEditId = null;
+        document.getElementById('dl-swap-modal')?.remove();
+        if (window.WA && WA.open) WA.open();
+      };
+
+      window.__dlSwap = function(idx) {
+        const item = (window.__dlCurrentItems || [])[idx];
+        if (!item) return;
+        _dlSwapIdx = idx;
+        _rbSwapModal(item, { id: 'dl-swap-modal', applyName: '__dlSwapApply', snapName: '__dlSnapMine', idx });
       };
 
       window.__dlSwapApply = function(idx, wardrobeId) {
@@ -3341,6 +3334,9 @@
         return `<span style="font-family:${serif};font-size:${size || 16}px;color:#C8B8A2">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`;
       }
 
+      const _wkLockSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+      const _wkSwapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
+
       function _wkDayName(d) { return String(d.day_label || '').split('·')[0].trim(); }
       function _wkDayDate(d) { const p = String(d.day_label || '').split('·'); return p.length > 1 ? p[1].trim() : ''; }
 
@@ -3411,49 +3407,63 @@
           const m = it.wardrobe_match;
           const img = m && m.image_url
             ? `<img src="${_waEsc(m.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`
-            : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="font-family:${serif};font-size:26px;color:rgba(250,248,245,0.4)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span></div>`;
+            : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="font-family:${serif};font-size:26px;color:#B8AC9C">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span></div>`;
           return `
-            <div class="wk-tile" style="${ii === 0 ? 'grid-column:1/-1;aspect-ratio:16/10' : 'aspect-ratio:4/5'};${it.anchored ? 'outline:1.5px solid #E8D8D4;outline-offset:-1.5px' : ''}" onclick="window.__wkAnchor(${ii})" title="${it.anchored ? 'Anchored — tap to release' : 'Tap to anchor through restyles'}">
+            <div class="wk-tile" style="${ii === 0 ? 'grid-column:1/-1;aspect-ratio:16/10' : 'aspect-ratio:4/5'};${it.anchored ? 'outline:1.5px solid #202021;outline-offset:-1.5px' : ''}" onclick="window.__wkSwap(${ii})" title="Swap the ${_waEsc(_dlShort(it.name))}">
               ${img}
+              <div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,0.42));pointer-events:none"></div>
               <span style="position:absolute;top:8px;left:9px;font-size:8.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(250,248,245,0.85);background:rgba(0,0,0,0.35);border-radius:20px;padding:3px 8px">${_dlSlot(it).l}</span>
               ${m ? `<span style="position:absolute;top:8px;right:9px;font-size:9px;color:#C9D8C0;background:rgba(0,0,0,0.35);border-radius:20px;padding:3px 7px">✓</span>` : ''}
-              ${it.anchored ? `<span style="position:absolute;bottom:8px;right:9px;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#E8D8D4;border-radius:20px;padding:3px 8px">Anchored</span>` : ''}
+              ${it.anchored ? `<span style="position:absolute;bottom:8px;right:9px;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#FAF8F5;background:#202021;border-radius:20px;padding:3px 8px">Anchored</span>` : ''}
               <button class="wk-tnav" style="left:6px" onclick="event.stopPropagation();window.__wkFlip(${ii},-1)" aria-label="Previous option">‹</button>
               <button class="wk-tnav" style="right:6px" onclick="event.stopPropagation();window.__wkFlip(${ii},1)" aria-label="Next option">›</button>
-              <div style="position:absolute;bottom:8px;left:9px;right:${it.anchored ? '84px' : '9px'};font-family:${serif};font-style:italic;font-size:12px;color:rgba(250,248,245,0.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">the ${_waEsc(_dlShort(it.name))}</div>
+              <div style="position:absolute;bottom:8px;left:9px;right:${it.anchored ? '84px' : '9px'};font-family:${serif};font-style:italic;font-size:12px;color:rgba(250,248,245,0.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none">the ${_waEsc(_dlShort(it.name))}</div>
             </div>`;
         }).join('');
 
+        // The rack — Daily-parity cards: 1:1 viewport (slot label + i/n on
+        // the image), serif name + anchored pill, one provenance line,
+        // footer = flick cluster | Anchor · Swap.
         const rack = d.items.map((it, ii) => {
           const m = it.wardrobe_match;
           const list = _dlOptions(it);
           const oi = _dlOptIndex(it, list);
-          const dots = list.map((_, k) => `<span style="width:4px;height:4px;border-radius:50%;background:${k === oi ? '#202021' : 'rgba(32,32,33,0.18)'};display:inline-block"></span>`).join('');
+          const dots = list.length > 1 && list.length <= 8
+            ? `<span style="display:inline-flex;gap:5px;padding:0 2px">${list.map((_, k) => `<span style="width:5px;height:5px;border-radius:50%;background:${k === oi ? '#202021' : '#DDD5C7'};display:block"></span>`).join('')}</span>`
+            : (list.length > 8 ? `<span style="font-size:9px;letter-spacing:.08em;color:#A89880">${oi + 1} / ${list.length}</span>` : '');
           const retail = [it.retailer_hint !== it.brand ? it.retailer_hint : '', it.price_point].filter(Boolean).join(' · ');
-          const prov = m
-            ? '<span style="color:#5F7355">✓ In your wardrobe</span>'
-            : _waEsc([it.brand, retail].filter(Boolean).join(' — '));
+          const sub = m
+            ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#4A7C59">✓ In your wardrobe</span>`
+            : `${it.brand ? `<span style="font-family:${serif};font-style:italic;font-size:13px">${_waEsc(it.brand)}</span>` : ''}${retail ? `<span style="color:#202021">${_waEsc(retail)}</span>` : ''}`;
+          const thumb = m && m.image_url
+            ? `<img src="${_waEsc(m.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
+            : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="font-family:${serif};font-size:30px;font-weight:300;color:#A89880">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span></div>`;
           return `
-            <div style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px;padding:14px 16px;margin-bottom:10px;${it.anchored ? 'border-color:#202021;border-width:1.5px;' : ''}">
-              <div style="display:flex;gap:14px">
-                <div style="flex-shrink:0;width:72px;height:92px;border-radius:8px;overflow:hidden;background:#F0EDE8;display:flex;align-items:center;justify-content:center;position:relative">
-                  ${_wkThumb(it, 22)}
-                  <span style="position:absolute;bottom:4px;right:5px;font-size:8.5px;color:#fff;background:rgba(0,0,0,0.4);border-radius:10px;padding:1px 6px">${oi + 1}/${list.length}</span>
-                </div>
-                <div style="flex:1;min-width:0">
-                  <div style="font-size:8.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#A89880;margin-bottom:3px">${_dlSlot(it).l}</div>
-                  <div style="font-family:${serif};font-size:17px;font-weight:400;color:#202021;line-height:1.2">${_waEsc(it.name)}</div>
-                  <div style="font-size:11px;margin:3px 0 5px;color:#8A8078">${prov}</div>
-                  <div style="font-size:12px;color:#6E6A64;line-height:1.5">${_waEsc(it.description || '')}</div>
-                </div>
+            <div style="display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:stretch;border:0.5px solid ${it.anchored ? '#202021' : 'rgba(32,32,33,0.12)'};border-radius:12px;background:#fff;padding:12px">
+              <div style="position:relative;align-self:start;width:100%;border-radius:8px;overflow:hidden;background:#F0EDE8;aspect-ratio:1/1">
+                <span style="position:absolute;top:8px;left:8px;z-index:2;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#202021;background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px">${_dlSlot(it).l}</span>
+                ${thumb}
+                ${list.length > 1 ? `<span style="position:absolute;bottom:8px;right:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:#202021;background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px">${oi + 1} / ${list.length}</span>` : ''}
               </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px;padding-top:10px;border-top:0.5px solid rgba(32,32,33,0.07)">
-                <span style="display:inline-flex;align-items:center;gap:8px">
-                  <button onclick="window.__wkFlip(${ii},-1)" style="width:26px;height:26px;border-radius:50%;border:0.5px solid rgba(32,32,33,0.18);background:#fff;cursor:pointer;font-size:13px;line-height:1;color:#202021">‹</button>
-                  <span style="display:inline-flex;gap:4px;align-items:center">${dots}</span>
-                  <button onclick="window.__wkFlip(${ii},1)" style="width:26px;height:26px;border-radius:50%;border:0.5px solid rgba(32,32,33,0.18);background:#fff;cursor:pointer;font-size:13px;line-height:1;color:#202021">›</button>
-                </span>
-                <button onclick="window.__wkAnchor(${ii})" style="border-radius:100px;padding:7px 14px;font-size:9.5px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;${it.anchored ? 'background:#202021;color:#fff;border:none' : 'background:#fff;color:#6E6A64;border:0.5px solid rgba(32,32,33,0.18)'}">${it.anchored ? '⚓ Anchored' : 'Anchor'}</button>
+              <div style="display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:2px 0">
+                <div>
+                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+                    <div style="font-family:${serif};font-weight:400;font-size:21px;line-height:1.08;color:#202021">${_waEsc(it.name)}</div>
+                    ${it.anchored ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#6E6A64;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;padding:3px 9px;flex:none">${_wkLockSvg} Anchored</span>` : ''}
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#A89880;flex-wrap:wrap">${sub}</div>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;flex-wrap:wrap">
+                  <span style="display:inline-flex;align-items:center;gap:9px">
+                    <button onclick="window.__wkFlip(${ii},-1)" aria-label="Previous option" style="width:32px;height:32px;border:0.5px solid rgba(32,32,33,0.14);border-radius:50%;display:grid;place-items:center;background:#fff;cursor:pointer;color:#202021;font-size:14px;line-height:1">‹</button>
+                    ${dots}
+                    <button onclick="window.__wkFlip(${ii},1)" aria-label="Next option" style="width:32px;height:32px;border:0.5px solid rgba(32,32,33,0.14);border-radius:50%;display:grid;place-items:center;background:#fff;cursor:pointer;color:#202021;font-size:14px;line-height:1">›</button>
+                  </span>
+                  <span style="display:inline-flex;gap:7px;flex-wrap:wrap">
+                    <button onclick="window.__wkAnchor(${ii})" title="Lock this piece through restyles" style="display:inline-flex;align-items:center;gap:6px;border-radius:100px;padding:8px 13px;font-size:11px;cursor:pointer;font-family:inherit;${it.anchored ? 'background:#202021;color:#fff;border:0.5px solid #202021' : 'background:#fff;color:#6E6A64;border:0.5px solid rgba(32,32,33,0.14)'}">${_wkLockSvg} ${it.anchored ? 'Anchored' : 'Anchor'}</button>
+                    <button onclick="window.__wkSwap(${ii})" style="display:inline-flex;align-items:center;gap:6px;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;padding:8px 13px;font-size:11px;background:#fff;color:#6E6A64;cursor:pointer;font-family:inherit">${_wkSwapSvg} Swap</button>
+                  </span>
+                </div>
               </div>
             </div>`;
         }).join('');
@@ -3461,23 +3471,29 @@
         host.innerHTML = `
           <div class="wk-con">
             <div>
-              <div style="background:#202021;border-radius:16px;padding:20px 20px 18px">
-                <div style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(250,248,245,0.45);margin-bottom:10px">The look · ${_waEsc(_wkDayName(d))} · ${d.items.length} pieces</div>
-                ${d.note ? `<div style="font-family:${serif};font-style:italic;font-size:16px;color:#FAF8F5;line-height:1.5;margin-bottom:14px">“${_waEsc(d.note)}”</div>` : ''}
+              <div style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:16px;padding:18px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                  <span style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#A89880">The look · ${_waEsc(_wkDayName(d))} · ${d.items.length} pieces</span>
+                  <span style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#8E7077">Robes</span>
+                </div>
+                ${d.note ? `<div style="font-family:${serif};font-style:italic;font-weight:300;font-size:16px;line-height:1.42;color:#6E6A64;margin-bottom:14px;padding-left:13px;border-left:2px solid #E8D8D4">“${_waEsc(d.note)}”</div>` : ''}
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${tiles}</div>
-                <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(250,248,245,0.45);margin-top:12px">${owned} of ${d.items.length} from your wardrobe</div>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;flex-wrap:wrap">
-                <span style="font-size:11px;color:#A89880;font-style:italic">Anchored pieces survive a restyle.</span>
-                <button onclick="window.__wkRestyleDay()" style="background:#fff;border:0.5px solid rgba(32,32,33,0.2);border-radius:100px;padding:10px 18px;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">↻ Restyle this day</button>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:13px;border-top:0.5px solid rgba(32,32,33,0.08)">
+                  <span style="font-size:10px;letter-spacing:.02em;color:#A89880"><b style="color:#202021;font-weight:500">${owned}</b>&thinsp;of&thinsp;${d.items.length} from your wardrobe</span>
+                </div>
+                ${d.transition_tip ? `<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:0.5px solid rgba(32,32,33,0.08)"><span style="font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#A89880;white-space:nowrap">Transition tip</span><span style="font-size:12px;line-height:1.6;color:#6E6A64;font-style:italic;flex:1;min-width:180px">${_waEsc(d.transition_tip)}</span></div>` : ''}
               </div>
             </div>
             <div>
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap">
                 <span style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#A89880">The rack · ${_waEsc(_wkDayName(d))}${d.occasion ? ' · ' + _waEsc(d.occasion) : ''}</span>
-                <button onclick="window.__wkEditDay(${_wkState.day})" style="background:none;border:none;cursor:pointer;font-size:11px;color:#8E7077;text-decoration:underline;font-family:inherit;white-space:nowrap">✎ The real plan</button>
+                <span style="display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap">
+                  <button onclick="window.__wkEditDay(${_wkState.day})" style="background:none;border:none;cursor:pointer;font-size:11px;color:#8E7077;text-decoration:underline;font-family:inherit;white-space:nowrap">✎ The real plan</button>
+                  <button onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay" style="background:#fff;border:0.5px solid rgba(32,32,33,0.2);border-radius:100px;padding:9px 15px;font-size:11.5px;cursor:pointer;color:#202021;font-family:inherit;white-space:nowrap">↻ Restyle this day</button>
+                </span>
               </div>
-              ${rack}
+              <div style="display:flex;flex-direction:column;gap:12px">${rack}</div>
+              <button onclick="window.__wkAddPiece()" style="margin-top:12px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed rgba(32,32,33,0.18);border-radius:12px;padding:13px;font-size:12px;background:transparent;color:#6E6A64;cursor:pointer;font-family:inherit"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>
             </div>
           </div>`;
       }
@@ -3503,7 +3519,91 @@
         it.anchored = !it.anchored;
         _wkPaintConsole();
         _wkPatchSaved();
-        _waShowToast(it.anchored ? 'Anchored — this day restyles around it' : 'Anchor released');
+        _waShowToast(it.anchored ? 'Anchored — restyles build around it' : 'Anchor released');
+      };
+
+      // Swap — the same shared PRD 3.B modal as the Daily and Travel racks.
+      let _wkSwapIdx = null;
+      window.__wkSwap = function(ii) {
+        if (!_wkState) return;
+        const d = _wkState.data.days[_wkState.day];
+        const item = d && d.items[ii];
+        if (!item) return;
+        _wkSwapIdx = ii;
+        _rbSwapModal(item, { id: 'wk-swap-modal', applyName: '__wkSwapApply', snapName: '__wkSnapMine', idx: ii });
+      };
+      window.__wkSwapApply = function(ii, wardrobeId) {
+        const wi = _waItems.find(i => i.id === wardrobeId);
+        const d = _wkState && _wkState.data.days[_wkState.day];
+        const item = d && d.items[ii];
+        if (!wi || !item) return;
+        item.wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
+        item.name = wi.label;
+        item.brand = wi.brand || '';
+        item.retailer_hint = '';
+        item.price_point = '';
+        document.getElementById('wk-swap-modal')?.remove();
+        _wkPaintConsole();
+        _wkPaintStrip();
+        _wkPatchSaved();
+        _waShowToast(wi.label + ' swapped in');
+      };
+      window.__wkSnapMine = function() {
+        const ii = _wkSwapIdx;
+        _waAfterAdd = (newId) => window.__wkSwapApply(ii, newId);
+        _waEditId = null;
+        document.getElementById('wk-swap-modal')?.remove();
+        if (window.WA && WA.open) WA.open();
+      };
+
+      // Add a piece to the selected day's look — opens the wardrobe add
+      // modal; the new owned piece joins the rack (and the board) on repaint.
+      window.__wkAddPiece = function() {
+        if (!_wkState) return;
+        const di = _wkState.day;
+        _waEditId = null;
+        _waAfterAdd = (newId) => {
+          const wi = _waItems.find(i => String(i.id) === String(newId));
+          const d = _wkState && _wkState.data.days[di];
+          if (!wi || !d || d.rest) return;
+          d.items.push({
+            name: wi.label, category: wi.category || 'Other', brand: wi.brand || '', description: '',
+            wardrobe_index: -1, retailer_hint: '', price_point: '',
+            wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
+          });
+          _wkPaintConsole();
+          _wkPaintStrip();
+          _wkPatchSaved();
+          _waShowToast(wi.label + ' added to ' + _wkDayName(d));
+        };
+        if (window.WA && WA.open) WA.open();
+      };
+
+      // "Wear today" — logs times_worn on today's owned pieces (the weekly
+      // counterpart of the Daily payoff's wear logging).
+      let _wkWorn = false;
+      window.__wkWear = async function() {
+        if (!_wkState) return;
+        const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        const d = _wkState.data.days.find(x => _wkDayDate(x) === today);
+        if (!d) { _waShowToast('Today isn’t in this plan yet — it starts ' + (_wkDayDate(_wkState.data.days[0]) || 'soon')); return; }
+        if (d.rest) { _waShowToast(_wkDayName(d) + ' is left free — nothing to log'); return; }
+        if (_wkWorn) { _waShowToast('Already logged for today'); return; }
+        const ownedIds = d.items.filter(it => it.wardrobe_match).map(it => it.wardrobe_match.id);
+        if (!ownedIds.length) { _waShowToast('Nothing owned in today’s look yet — snap your pieces to log wears'); return; }
+        _wkWorn = true;
+        try {
+          for (const id of ownedIds) {
+            const wi = _waItems.find(w => String(w.id) === String(id));
+            if (wi) await _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 });
+          }
+          _waLoad();
+          _waShowToast('On you today — Robes logged the wear ✓');
+        } catch (e) {
+          _wkWorn = false;
+          console.warn('[robes] wear log failed:', e);
+          _waShowToast('Couldn’t log the wear — try again');
+        }
       };
 
       // Surgical day re-mix (POST /api/weekly/day): anchored pieces held
@@ -3519,23 +3619,31 @@
           .map(x => `${_wkDayName(x)}: ${x.occasion || ''} — ${x.items.map(i => i.name).join(', ')}`)
           .join('; ');
         const rc = window.__rbCtx || {};
-        const res = await fetch('/api/weekly/day', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            activity,
-            dayLabel: d.day_label,
-            brief: _wkState.prompt || '',
-            anchors,
-            weekSummary,
-            name,
-            styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
-            wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
-            context: rc.city ? { city: rc.city, month: new Date().toLocaleDateString('en-GB', { month: 'long' }), tempRange: rc.tempRange || '', condition: rc.condition || '', hint: rc.hint || '' } : null,
-          }),
-        });
-        if (!res.ok) throw new Error(await res.text());
-        return res.json();
+        // A hung day fetch must never strand the console — 75s hard abort.
+        const ctl = new AbortController();
+        const abortTimer = setTimeout(() => ctl.abort(), 75000);
+        try {
+          const res = await fetch('/api/weekly/day', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: ctl.signal,
+            body: JSON.stringify({
+              activity,
+              dayLabel: d.day_label,
+              brief: _wkState.prompt || '',
+              anchors,
+              weekSummary,
+              name,
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
+              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
+              context: rc.city ? { city: rc.city, month: new Date().toLocaleDateString('en-GB', { month: 'long' }), tempRange: rc.tempRange || '', condition: rc.condition || '', hint: rc.hint || '' } : null,
+            }),
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return await res.json();
+        } finally {
+          clearTimeout(abortTimer);
+        }
       }
 
       function _wkApplyDay(di, activity, fresh) {
@@ -3543,6 +3651,7 @@
         const anchored = d.items.filter(it => it.anchored);
         d.occasion = fresh.occasion || activity || d.occasion;
         d.note = fresh.note || d.note;
+        d.transition_tip = fresh.transition_tip || d.transition_tip || '';
         d.rest = false;
         if (activity) d.user_activity = activity;
         d.items = Array.isArray(fresh.items) ? fresh.items : [];
@@ -3562,8 +3671,10 @@
         _wkPatchSaved();
       }
 
+      let _wkRestyling = false;
       window.__wkRestyleDay = async function() {
-        if (!_wkState) return;
+        if (!_wkState || _wkRestyling) return;
+        _wkRestyling = true;
         const di = _wkState.day;
         const d = _wkState.data.days[di];
         const btnHost = document.getElementById('wk-day');
@@ -3576,6 +3687,7 @@
           console.error('[Robes] /api/weekly/day error:', e.message);
           _waShowToast('Robes couldn’t restyle that day — please try again.');
         } finally {
+          _wkRestyling = false;
           const h = document.getElementById('wk-day');
           if (h) h.style.opacity = '';
         }
@@ -3663,6 +3775,7 @@
         _rbHideResultPages('wk');
         window.__lastWkData = data;
         _wkState = { data, prompt: promptText || '', day: 0 };
+        _wkWorn = false;
 
         if (!wkResultPage) {
           wkResultPage = document.createElement('div');
@@ -3676,7 +3789,7 @@
           ws.textContent =
             '#wk-day .wk-con{display:grid;grid-template-columns:360px 1fr;gap:18px;margin-top:18px;align-items:start}' +
             '@media(max-width:900px){#wk-day .wk-con{grid-template-columns:1fr}}' +
-            '.wk-tile{position:relative;border-radius:10px;overflow:hidden;background:#2E2E30;cursor:pointer}' +
+            '.wk-tile{position:relative;border-radius:10px;overflow:hidden;background:#EDE8E0;cursor:pointer;border:0.5px solid rgba(32,32,33,0.08)}' +
             '.wk-tnav{position:absolute;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:14px;line-height:1;z-index:2}' +
             '.wk-tile:hover .wk-tnav{display:flex}';
           document.head.appendChild(ws);
@@ -3723,7 +3836,8 @@
                 <span class="s">${data.days.length} days · ${total} pieces${owned ? ' · ' + owned + ' from your wardrobe' : ''}</span>
               </div>
               <div class="rb-sfoot-btns">
-                <button class="rb-sfbtn" onclick="window.__wkGoBack()">Back to dashboard</button>
+                <button class="rb-sfbtn" onclick="window.__rbShare&&window.__rbShare()">Share</button>
+                <button class="rb-sfbtn" onclick="window.__wkWear()">Wear today</button>
                 <button class="rb-sfbtn primary" onclick="window.__wkPlanAgain()">Plan a new week</button>
               </div>
             </div>
@@ -4518,6 +4632,12 @@
 #tv-result-page .tvm-act.on{background:var(--sage);color:#fff;border-color:var(--sage)}
 #tv-result-page .tvm-act.add{background:var(--ink);color:#fff;border-color:var(--ink)}
 #tv-result-page .tvm-act.add:hover{opacity:.85;color:#fff;border-color:var(--ink)}
+#tv-result-page .tvm-act.anch.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+#tv-result-page .tvm-row.anchored{border-color:var(--ink)}
+#tv-result-page .tvm-anchpill{display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);border:0.5px solid var(--rule-mid);border-radius:100px;padding:3px 9px;flex:none}
+#tv-result-page .tvm-ttip{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:0.5px solid var(--rule)}
+#tv-result-page .tvm-ttip .tl{font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+#tv-result-page .tvm-ttip .tt{font-size:12px;line-height:1.6;color:var(--ink-soft);font-style:italic;flex:1;min-width:180px}
 #tv-result-page .tvm-packbox{display:inline-flex;align-items:center;gap:7px;background:none;border:none;padding:6px 4px;cursor:pointer;font-size:11px;letter-spacing:.01em;color:var(--ink-soft);font-family:inherit;transition:color .15s}
 #tv-result-page .tvm-packbox.on{color:var(--ink)}
 #tv-result-page .tvm-packbox .box{width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(32,32,33,0.3);background:#fff;display:inline-flex;align-items:center;justify-content:center;color:#fff;box-sizing:border-box}
@@ -4570,6 +4690,7 @@ body>*:not(#tv-result-page){display:none !important}
       const _tvChevL = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
       const _tvChevR = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
       const _tvSwapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
+      const _tvLockSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
       const _tvPhSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
       const _tvSerif = "'Cormorant',Georgia,serif";
 
@@ -4730,6 +4851,7 @@ body>*:not(#tv-result-page){display:none !important}
               <span class="tvm-palette">${palette.map(h => `<span style="background:${h}"></span>`).join('')}</span>
               <span class="tvm-yours"><b>${ownedN}</b>&thinsp;of&thinsp;${entries.length} already yours</span>
             </div>
+            ${s.transition_tip ? `<div class="tvm-ttip"><span class="tl">Transition tip</span><span class="tt">${_waEsc(s.transition_tip)}</span></div>` : ''}
           </div>
           ${(() => {
             const inCase = entries.filter(x => x.it.packed);
@@ -4766,7 +4888,7 @@ body>*:not(#tv-result-page){display:none !important}
           const dots = list.length > 1 && list.length <= 8
             ? `<span class="tvm-dots">${list.map((_, k) => `<span${k === cur ? ' class="on"' : ''}></span>`).join('')}</span>`
             : (list.length > 8 ? `<span style="font-size:9px;letter-spacing:.08em;color:#A89880">${cur + 1} / ${list.length}</span>` : '');
-          return `<div class="tvm-row${isPacked ? ' packed' : ''}">
+          return `<div class="tvm-row${isPacked ? ' packed' : ''}${it.anchored ? ' anchored' : ''}">
             <div class="tvm-vp">
               <span class="vslot">${_waEsc(_dlSlot(it).l)}</span>
               <div${f.pollAttr} style="position:absolute;inset:0">${f.inner}</div>
@@ -4775,7 +4897,10 @@ body>*:not(#tv-result-page){display:none !important}
             </div>
             <div class="tvm-body">
               <div>
-                <div class="tvm-name">${_waEsc(it.name)}</div>
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+                  <div class="tvm-name">${_waEsc(it.name)}</div>
+                  ${it.anchored ? `<span class="tvm-anchpill">${_tvLockSvg} Anchored</span>` : ''}
+                </div>
                 <div class="tvm-sub">${sub}</div>
                 ${x.f.note ? `<div class="tvm-hownote">${_waEsc(x.f.note)}</div>` : ''}
               </div>
@@ -4786,10 +4911,11 @@ body>*:not(#tv-result-page){display:none !important}
                   <button class="tvm-arrow" onclick="window.__tvFlip(${ci},1)" aria-label="Next option">${_tvChevR}</button>
                 </div>
                 <div class="tvm-acts">
+                  <button class="tvm-act anch${it.anchored ? ' on' : ''} tv-noprint" onclick="window.__tvAnchor(${ci})" title="Lock this piece through restyles">${_tvLockSvg} ${it.anchored ? 'Anchored' : 'Anchor'}</button>
+                  <button class="tvm-act tv-noprint" onclick="window.__tvSwap(${ci})">${_tvSwapSvg} Swap</button>
                   ${(it.wardrobe_match || it.added)
                     ? `<button class="tvm-packbox${it.packed ? ' on' : ''}" onclick="window.__tvPackToggle(${ci})"><span class="box">${it.packed ? _tvCheckSvg : ''}</span>${it.packed ? 'Packed' : 'Pack'}</button>`
                     : `<button class="tvm-act add" onclick="window.__tvAddOwn(${ci})">+ Add</button>`}
-                  <button class="tvm-act tv-noprint" onclick="window.__tvSwap(${ci})">${_tvSwapSvg} Swap</button>
                 </div>
               </div>
             </div>
@@ -4803,6 +4929,7 @@ body>*:not(#tv-result-page){display:none !important}
               <h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="tvm-hbtn tv-noprint" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button>
               <button class="tvm-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button>
               <button class="tvm-hbtn tv-noprint" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>
             </div>
@@ -4827,6 +4954,22 @@ body>*:not(#tv-result-page){display:none !important}
         window.__tvRenderResult(data, { skipSave: true, savedId });
         if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
         _tvPatchSaved();
+      };
+
+      // Anchor — the Daily/Weekly lock: an anchored capsule piece is held
+      // fixed through day restyles. Capsule items are shared references, so
+      // the anchor carries across every day that wears the piece.
+      window.__tvAnchor = function(ci) {
+        const data = window.__lastTvData;
+        const it = data && data.capsule[ci];
+        if (!it) return;
+        it.anchored = !it.anchored;
+        const savedId = _tvActiveSaveId;
+        const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
+        window.__tvRenderResult(data, { skipSave: true, savedId });
+        if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
+        _tvPatchSaved();
+        _waShowToast(it.anchored ? 'Anchored — restyles build around it' : 'Anchor released');
       };
 
       // Pack every capsule piece this look uses
@@ -5298,18 +5441,18 @@ body>*:not(#tv-result-page){display:none !important}
         if (el) { el.value = text; el.focus(); }
       };
 
-      window.__tvDayApply = async function(di) {
+      // One surgical day call for both entry points ("✎ The real plan"
+      // modal and the one-tap "↻ Restyle this day") — anchored capsule
+      // pieces ride along so the server holds them fixed. 75s hard abort.
+      async function _tvDayRequest(di, act) {
         const data = window.__lastTvData;
-        const d = data && data.days[di];
-        if (!d) return;
-        const act = ((document.getElementById('tv-day-input') || {}).value || '').trim();
-        if (!act) { _waShowToast('Tell us the plan first'); return; }
-        const btn = document.getElementById('tv-day-apply');
-        if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = 'Restyling the day…'; }
+        const ctl = new AbortController();
+        const abortTimer = setTimeout(() => ctl.abort(), 75000);
         try {
           const res = await fetch('/api/travel/day', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: ctl.signal,
             body: JSON.stringify({
               destination: data.destination || '',
               brief: data.brief || '',
@@ -5319,26 +5462,78 @@ body>*:not(#tv-result-page){display:none !important}
               name,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               capsule: data.capsule.map(c => ({ name: c.name, category: c.category, brand: c.brand, tier: c.tier, owned: !!c.wardrobe_match })),
+              anchors: data.capsule.map((c, i) => c.anchored ? { item_index: i, name: c.name } : null).filter(Boolean),
             }),
           });
           if (!res.ok) throw new Error(await res.text());
           const out = await res.json();
           if (!Array.isArray(out.slots) || !out.slots.length) throw new Error('empty day');
-          if (out.new_item) data.capsule.push({ ...out.new_item, wardrobe_match: null });
-          data.days[di] = { day_label: out.day_label || d.day_label, user_activity: act, slots: out.slots };
+          return out;
+        } finally {
+          clearTimeout(abortTimer);
+        }
+      }
+
+      function _tvApplyDayResult(di, out, userActivity) {
+        const data = window.__lastTvData;
+        const d = data.days[di];
+        if (out.new_item) data.capsule.push({ ...out.new_item, wardrobe_match: null });
+        data.days[di] = { day_label: out.day_label || d.day_label, user_activity: userActivity || d.user_activity || undefined, slots: out.slots };
+        const savedId = _tvActiveSaveId;
+        const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
+        _tvActiveDay = di;
+        _tvActiveOcc = 0;
+        window.__tvRenderResult(data, { skipSave: true, savedId });
+        if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
+        _tvPatchSaved();
+      }
+
+      window.__tvDayApply = async function(di) {
+        const data = window.__lastTvData;
+        const d = data && data.days[di];
+        if (!d) return;
+        const act = ((document.getElementById('tv-day-input') || {}).value || '').trim();
+        if (!act) { _waShowToast('Tell us the plan first'); return; }
+        const btn = document.getElementById('tv-day-apply');
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = 'Restyling the day…'; }
+        try {
+          const out = await _tvDayRequest(di, act);
           document.getElementById('tv-day-modal')?.remove();
-          const savedId = _tvActiveSaveId;
-          const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
-          _tvActiveDay = di;
-          _tvActiveOcc = 0;
-          window.__tvRenderResult(data, { skipSave: true, savedId });
-          if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
-          _tvPatchSaved();
+          _tvApplyDayResult(di, out, act);
           _waShowToast(out.new_item ? 'Day restyled — one gap piece joined the capsule' : 'Day restyled from your capsule');
         } catch (e) {
           console.error('[Robes] /api/travel/day error:', e.message);
           if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Update day'; }
           _waShowToast('Couldn’t restyle the day — please try again');
+        }
+      };
+
+      // "↻ Restyle this day" — the Daily/Weekly one-tap re-mix: fresh looks
+      // for the same plan, anchored pieces held fixed.
+      let _tvRestyling = false;
+      window.__tvRestyleDay = async function() {
+        const data = window.__lastTvData;
+        const d = data && data.days[_tvActiveDay];
+        if (!d || _tvRestyling) return;
+        const di = _tvActiveDay;
+        const act = d.user_activity || ((d.day_label || '').split('·')[1] || '').trim() || 'The same plan — a fresh mix of this day';
+        _tvRestyling = true;
+        const host = document.getElementById('tv-rackwrap');
+        if (host) host.style.opacity = '0.5';
+        try {
+          const out = await _tvDayRequest(di, act);
+          // Without a user-typed plan the label must not mutate to the
+          // synthetic activity — keep the served one.
+          if (!d.user_activity) out.day_label = d.day_label || out.day_label;
+          _tvApplyDayResult(di, out, d.user_activity || null);
+          _waShowToast(data.capsule.some(c => c.anchored) ? 'Day restyled around your anchors' : 'Day restyled from your capsule');
+        } catch (e) {
+          console.error('[Robes] /api/travel/day error:', e.message);
+          _waShowToast('Robes couldn’t restyle that day — please try again.');
+        } finally {
+          _tvRestyling = false;
+          const h = document.getElementById('tv-rackwrap');
+          if (h) h.style.opacity = '';
         }
       };
 
@@ -5520,75 +5715,7 @@ body>*:not(#tv-result-page){display:none !important}
         const item = window.__lastTvData && window.__lastTvData.capsule[idx];
         if (!item) return;
         _tvSwapIdx = idx;
-        document.getElementById('tv-swap-modal')?.remove();
-
-        const catLower = (item.category || '').toLowerCase();
-        const candidates = _waItems.filter(wi => {
-          const wiCat = (wi.category || '').toLowerCase();
-          return wiCat === catLower || catLower.includes(wiCat) || wiCat.includes(catLower) || wiCat.replace(/s$/, '') === catLower.replace(/s$/, '');
-        });
-        const retailer = item.retailer_hint || '';
-        const price = item.price_point || '';
-
-        let aiAlt = null;
-        if (!candidates.length && _waItems.length > 0) aiAlt = _waItems[0];
-
-        const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-        const cameraSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
-        const arrowSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
-
-        let wardrobeSection = '';
-        if (candidates.length > 0) {
-          const itemsHtml = candidates.slice(0, 8).map(wi => `
-            <div onclick="window.__tvSwapApply(${idx},'${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
-              ${wi.image_url
-                ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" alt="">`
-                : `<div style="aspect-ratio:1;background:#EDE8E0;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8C0B8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`}
-              <div style="padding:7px 8px;font-size:10.5px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
-            </div>`).join('');
-          wardrobeSection = `
-            <div style="margin-bottom:24px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 10px">From your wardrobe</p>
-              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${itemsHtml}</div>
-            </div>`;
-        } else if (aiAlt) {
-          wardrobeSection = `
-            <div style="margin-bottom:24px;background:#F5F2EE;border-radius:12px;padding:14px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">Robes’ suggestion</p>
-              <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don’t have a ${_waEsc((item.category || 'piece').toLowerCase())}, but your <em>${_waEsc(aiAlt.label)}</em> creates a similar outline.</p>
-              <button onclick="window.__tvSwapApply(${idx},'${_waEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
-            </div>`;
-        }
-
-        const modal = document.createElement('div');
-        modal.id = 'tv-swap-modal';
-        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
-        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-        modal.innerHTML = `
-          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28)">
-            <div style="position:sticky;top:0;background:#FAF8F5;padding:20px 20px 0;z-index:2">
-              <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
-                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">Swap this piece</p>
-                <button onclick="document.getElementById('tv-swap-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
-              </div>
-              <p style="font-family:'Cormorant',Georgia,serif;font-size:26px;font-weight:300;color:#202021;margin:0 0 2px;line-height:1.15">${_waEsc(item.name)}</p>
-              ${(item.brand || retailer) ? `<p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 18px">${_waEsc(item.brand || retailer)}</p>` : `<div style="height:18px"></div>`}
-              <div style="height:1px;background:rgba(32,32,33,0.08);margin:0 -20px 20px"></div>
-            </div>
-            <div style="padding:0 20px 32px">
-              ${wardrobeSection}
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${(retailer || price) ? '10px' : '0'}">
-                <button onclick="window.__tvSnapMine()" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#EDE8E0;border:none;border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
-                  ${cameraSvg} Snap mine
-                </button>
-                <button onclick="window.__rbAffiliateSoon('tv-swap-modal')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
-                  Shop via Affiliate ${arrowSvg}
-                </button>
-              </div>
-              ${(retailer || price) ? `<p style="text-align:center;font-size:11px;color:#A89880;margin:0">Opens ${_waEsc(retailer)}${price ? ' · ' + _waEsc(price) : ''}</p>` : ''}
-            </div>
-          </div>`;
-        document.body.appendChild(modal);
+        _rbSwapModal(item, { id: 'tv-swap-modal', applyName: '__tvSwapApply', snapName: '__tvSnapMine', idx });
       };
 
       window.__tvSwapApply = function(idx, wardrobeId) {
@@ -5654,6 +5781,9 @@ body>*:not(#tv-result-page){display:none !important}
         if (kind === 'travel-edit') {
           return { type: 'travel-edit', title: data.destination || data.title || 'Travel edit', subtitle: '', img: null, tvData: data };
         }
+        if (kind === 'weekly-plan') {
+          return { type: 'weekly-plan', title: data.headline || 'Weekly plan', subtitle: '', img: null, wkData: data };
+        }
         if (kind === 'daily-look') {
           return { type: 'daily-look', title: data.occasion || 'Daily look', subtitle: '', img: null, dlData: data };
         }
@@ -5680,6 +5810,7 @@ body>*:not(#tv-result-page){display:none !important}
         else if (kind === 'key-piece') _kpActiveSaveId = newId;
         else if (kind === 'daily-look') _dlActiveSaveId = newId;
         else if (kind === 'travel-edit') _tvActiveSaveId = newId;
+        else if (kind === 'weekly-plan') _wkActiveSaveId = newId;
         return store.find(x => x.id === newId) || { ...entry, id: newId };
       }
 
@@ -5740,6 +5871,9 @@ body>*:not(#tv-result-page){display:none !important}
         }
         if (tvResultPage && tvResultPage.style.display !== 'none') {
           return _shareFindOrMake(_tvActiveSaveId, 'travel-edit', window.__lastTvData);
+        }
+        if (wkResultPage && wkResultPage.style.display !== 'none') {
+          return _shareFindOrMake(_wkActiveSaveId, 'weekly-plan', window.__lastWkData);
         }
         if (dlResultPage && dlResultPage.style.display !== 'none') {
           return _shareFindOrMake(_dlActiveSaveId, 'daily-look', window.__lastDlData);

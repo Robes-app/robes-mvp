@@ -660,6 +660,7 @@ const WEEKLY_SCHEMA = {
           day_label: { type: 'string' },
           occasion: { type: 'string' },
           note: { type: 'string' },
+          transition_tip: { type: 'string' },
           items: {
             type: 'array',
             items: {
@@ -677,7 +678,7 @@ const WEEKLY_SCHEMA = {
             },
           },
         },
-        required: ['day_label', 'occasion', 'note', 'items'],
+        required: ['day_label', 'occasion', 'note', 'transition_tip', 'items'],
       },
     },
   },
@@ -768,6 +769,7 @@ FIELD RULES:
 - "headline": a short serif-worthy line naming the week's mood, sentence case, ending in a full stop. Max 8 words.
 - "stylist_summary": 2–3 sentences of stylist reasoning — the week's register, the routing logic (which pieces anchor it and how they repeat), the weather read.
 - "occasion": 2–5 words, sentence case.
+- "transition_tip": per day, ONE concrete move — subtractive styling (drop a layer) or hardware swapping (tote → clutch) — that shifts that day's look into its evening or next scene. One sentence.
 - "palette": exactly 3 hex colours the week is built around, neutral to accent.
 ${WEEKLY_ITEM_RULES}
 - "fallback": true ONLY if the brief is gibberish — then plan a pleasant, unremarkable working week instead. A plain agenda, job or mood is a valid weekly brief.${dnaBlock ? '\n\n' + dnaBlock : ''}
@@ -817,12 +819,13 @@ Dress every calendar day above, chronologically.`;
       }
       const k = active.findIndex(a => a.i === i);
       const g = genDays[k];
-      if (!g) return { day_label: c.label, occasion: 'Left free', note: '', rest: true, user_activity: c.plan || null, items: [] };
+      if (!g) return { day_label: c.label, occasion: 'Left free', note: '', transition_tip: '', rest: true, user_activity: c.plan || null, items: [] };
       itemCount += Math.min(g.items.length, 6);
       return {
         day_label: c.label,
         occasion: String(g.occasion || c.plan || '').slice(0, 60),
         note: String(g.note || '').slice(0, 240),
+        transition_tip: String(g.transition_tip || '').slice(0, 200),
         rest: false,
         user_activity: c.plan || null,
         items: g.items.slice(0, 6).map(it => weeklyNormaliseItem(it, closetItems)),
@@ -856,9 +859,10 @@ const WEEKLY_DAY_SCHEMA = {
   properties: {
     occasion: { type: 'string' },
     note: { type: 'string' },
+    transition_tip: { type: 'string' },
     items: WEEKLY_SCHEMA.properties.days.items.properties.items,
   },
-  required: ['occasion', 'note', 'items'],
+  required: ['occasion', 'note', 'transition_tip', 'items'],
 };
 
 app.post('/api/weekly/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
@@ -893,6 +897,7 @@ ${stateDirective}${anchorBlock ? '\n\n' + anchorBlock : ''}
 FIELD RULES:
 - "occasion": 2–5 words, sentence case, derived from the day's plan.
 - "note": one sentence naming the styling move.
+- "transition_tip": ONE concrete move — subtractive styling or hardware swapping — that shifts this day's look into its evening or next scene. One sentence.
 ${WEEKLY_ITEM_RULES}${dnaBlock ? '\n\n' + dnaBlock : ''}
 
 ${closetBlock}`;
@@ -924,6 +929,7 @@ Dress her for exactly this day.`;
     res.json({
       occasion: String(parsed.occasion || activity || '').slice(0, 60),
       note: String(parsed.note || '').slice(0, 240),
+      transition_tip: String(parsed.transition_tip || '').slice(0, 200),
       items,
     });
   } catch (err) {
@@ -1002,6 +1008,7 @@ const TRAVEL_SCHEMA = {
                 slot: { type: 'string', enum: ['Day', 'Evening'] },
                 title: { type: 'string' },
                 how: { type: 'string' },
+                transition_tip: { type: 'string' },
                 formula: {
                   type: 'array',
                   items: {
@@ -1015,7 +1022,7 @@ const TRAVEL_SCHEMA = {
                   },
                 },
               },
-              required: ['slot', 'title', 'how', 'formula'],
+              required: ['slot', 'title', 'how', 'transition_tip', 'formula'],
             },
           },
         },
@@ -1230,7 +1237,7 @@ THE PILLARS — all four are hard constraints:
 
 ${editOnly
   ? `THE LOOKBOOK IS DEFERRED: she is still gathering pieces and will plan the outfits later, as she packs. Return "days": [] (an empty array). STILL apply the 1:3 discipline when deciding what to keep — every kept piece must plausibly earn at least three wears across the ~${tripDays * 2} looks this trip will eventually hold.`
-  : `THE LOOKBOOK: exactly ${tripDays} entries in "days" — one per trip day, "day_label" like "Day 1 · Arrival"${dateLine ? ` (the trip runs ${dateLine})` : ''}. Each day has exactly 2 slots: "Day" and "Evening", ${hasPlan ? 'mapped to the user\'s own itinerary below' : 'mapped to a plausible itinerary drawn from the brief'}. Each slot: "title" (3–6 words naming the scene), "how" (ONE hyper-specific styling sentence — the anti-generic constraint applies), and the "formula". A day the itinerary marks as deliberately left free gets "slots": [] — no looks.`}
+  : `THE LOOKBOOK: exactly ${tripDays} entries in "days" — one per trip day, "day_label" like "Day 1 · Arrival"${dateLine ? ` (the trip runs ${dateLine})` : ''}. Each day has exactly 2 slots: "Day" and "Evening", ${hasPlan ? 'mapped to the user\'s own itinerary below' : 'mapped to a plausible itinerary drawn from the brief'}. Each slot: "title" (3–6 words naming the scene), "how" (ONE hyper-specific styling sentence — the anti-generic constraint applies), "transition_tip" (ONE concrete subtractive-styling or hardware-swap move that shifts the look into its next scene) and the "formula". A day the itinerary marks as deliberately left free gets "slots": [] — no looks.`}
 
 ${planBlock ? planBlock + '\n\n' : ''}${stateDirective}
 
@@ -1313,7 +1320,7 @@ ${shortIdxs.length ? `Pack every shortlisted piece, map the wears each one earns
         responseMimeType: 'application/json',
         responseSchema: TRAVEL_SCHEMA,
         thinkingConfig: { thinkingBudget: 0 },
-        maxOutputTokens: 8000,
+        maxOutputTokens: 9000,
       },
     }));
     return JSON.parse(r.text);
@@ -1501,9 +1508,12 @@ const TRAVEL_DAY_SCHEMA = {
 };
 
 app.post('/api/travel/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { destination, brief, dayIndex, activity, capsule, weather, name, styleDna, styleIcons } = req.body;
+  const { destination, brief, dayIndex, activity, capsule, anchors, weather, name, styleDna, styleIcons } = req.body;
   const act = String(activity || '').trim().slice(0, 200);
   const capIn = (Array.isArray(capsule) ? capsule : []).filter(c => c && c.name).slice(0, 20);
+  const anchorsIn = (Array.isArray(anchors) ? anchors : [])
+    .filter(a => a && Number.isInteger(a.item_index) && a.item_index >= 0 && a.item_index < capIn.length)
+    .slice(0, 8);
   if (!act || !capIn.length) {
     return res.status(400).json({ error: 'Missing plan or capsule.' });
   }
@@ -1527,7 +1537,7 @@ RULES:
 1. Re-dress Day ${dayNum} for the user's REAL plan: "${act}". Exactly 2 slots — "Day" then "Evening" — mapping the plan sensibly across them (a single big event: style the lead-up as "Day" and the event itself as "Evening", or vice versa if it's a daytime event).
 2. RE-MIX FIRST. Build every outfit ONLY from the capsule via "item_index" and the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" says how the piece is worn in THIS look.
 3. Set "new_item_needed": true ONLY if the plan genuinely cannot be dressed from the capsule (e.g. a formal wedding with nothing remotely formal packed). Then give "new_item" — one real gap piece with retailer_hint, a realistic EUR price_point and a "bridge" clause (what it connects + looks it unlocks) — and reference it in the formulas as item_index ${capIn.length}. Otherwise "new_item_needed": false.
-4. "day_label": "Day ${dayNum} · {2–4 word title of the plan}". "title" per slot: 3–6 words naming the scene.${dnaBlock ? '\n\n' + dnaBlock : ''}
+4. "day_label": "Day ${dayNum} · {2–4 word title of the plan}". "title" per slot: 3–6 words naming the scene. "transition_tip" per slot: ONE concrete subtractive-styling or hardware-swap move that shifts the look into its next scene.${anchorsIn.length ? `\n5. ANCHORED PIECES — the user has LOCKED these into this day: ${anchorsIn.map(a => `item_index ${a.item_index} (${capIn[a.item_index].name})`).join(', ')}. Each anchored piece MUST appear in at least one of the two slots' formulas, exactly as packed — restyle everything AROUND them, never replace them.` : ''}${dnaBlock ? '\n\n' + dnaBlock : ''}
 ${wxLine}`;
 
   try {
@@ -1540,7 +1550,7 @@ ${wxLine}`;
         responseMimeType: 'application/json',
         responseSchema: TRAVEL_DAY_SCHEMA,
         thinkingConfig: { thinkingBudget: 0 },
-        maxOutputTokens: 2500,
+        maxOutputTokens: 2800,
       },
     });
     const parsed = JSON.parse(r.text);
@@ -1626,7 +1636,7 @@ RULES:
 1. Exactly ${tripDays} entries in "days" — one per trip day, in order. Each dressed day has exactly 2 slots: "Day" and "Evening". A day marked deliberately left free gets "slots": [].
 2. Every formula entry is built ONLY from the capsule via "item_index", using the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" says how the piece is worn in THIS look.
 3. THE 1:3 RULE: spread the lookbook so every capsule item appears in at least three different outfits where the trip length allows it — no single-outfit passengers.
-4. Each slot: "title" (3–6 words naming the scene), "how" (ONE hyper-specific styling sentence).${dnaBlock ? '\n\n' + dnaBlock : ''}
+4. Each slot: "title" (3–6 words naming the scene), "how" (ONE hyper-specific styling sentence), "transition_tip" (ONE concrete subtractive-styling or hardware-swap move that shifts the look into its next scene).${dnaBlock ? '\n\n' + dnaBlock : ''}
 ${wxLine}`;
 
   try {
@@ -1639,7 +1649,7 @@ ${wxLine}`;
         responseMimeType: 'application/json',
         responseSchema: TRAVEL_OUTFITS_SCHEMA,
         thinkingConfig: { thinkingBudget: 0 },
-        maxOutputTokens: 6500,
+        maxOutputTokens: 7200,
       },
     });
     const parsed = JSON.parse(r.text);
@@ -1833,6 +1843,14 @@ function publicSharePayload(row) {
       addImg(i.image_url || i.img);
     });
     if (typeof tv.stylist_summary === 'string') editorial = tv.stylist_summary;
+  } else if (type === 'weekly-plan') {
+    const wk = d.wkData || {};
+    (Array.isArray(wk.days) ? wk.days : []).forEach(day => (Array.isArray(day && day.items) ? day.items : []).forEach(i => {
+      if (!i) return;
+      addPiece(i.name, i.brand, i.price_point);
+      addImg(i.wardrobe_match && i.wardrobe_match.image_url);
+    }));
+    if (typeof wk.stylist_summary === 'string') editorial = wk.stylist_summary;
   } else {
     const kp = d.kpData || {};
     (Array.isArray(kp.generatedImages) ? kp.generatedImages : []).forEach(addImg);
