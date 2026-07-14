@@ -636,18 +636,21 @@
       function _waBuildFilters() {
         const container = document.getElementById('wg-filters');
         if (!container) return;
-        // Only rebuild if the bundle has overwritten our pills (check for onclick attr)
-        const existing = container.querySelector('.wg-pill');
-        if (_waFiltersBuilt && existing && !existing.getAttribute('onclick')) return;
+        // Only rebuild if the bundle has overwritten our tabs (its mock pills
+        // carry no .wg-tab class, so their write leaves none behind)
+        const existing = container.querySelector('.wg-tab');
+        if (_waFiltersBuilt && existing) return;
         container.innerHTML = '';
         _waFiltersBuilt = true;
+        // Light text tabs, not pills (design handoff: 10 heavy pills read
+        // cluttered, especially on mobile — underline marks the active one)
         WA_CATS.forEach(cat => {
           const btn = document.createElement('button');
-          btn.className = 'wg-pill' + (cat === _waCat ? ' active' : '');
+          btn.className = 'wg-tab' + (cat === _waCat ? ' active' : '');
           btn.textContent = cat;
           btn.addEventListener('click', () => {
             _waCat = cat;
-            container.querySelectorAll('.wg-pill:not(.wg-pack-pill):not(.rb-refine-pill)').forEach(p => p.classList.toggle('active', p.textContent === cat));
+            container.querySelectorAll('.wg-tab').forEach(p => p.classList.toggle('active', p.textContent === cat));
             _waRender();
           });
           container.appendChild(btn);
@@ -1657,13 +1660,36 @@
         _waRefineOpen = !_waRefineOpen;
         _waRefineRender();
       };
+      // Colour wheel in the filter — a custom pick maps to the nearest
+      // palette colour (item.color values are always palette names)
+      function _waHexDist(a, b) {
+        const p = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+        const x = p(a), y = p(b);
+        return (x[0] - y[0]) * (x[0] - y[0]) + (x[1] - y[1]) * (x[1] - y[1]) + (x[2] - y[2]) * (x[2] - y[2]);
+      }
+      window.__waRefWheel = function(el) {
+        const hex = (el.value || '').toLowerCase();
+        if (!/^#[0-9a-f]{6}$/.test(hex)) return;
+        let best = null, bd = Infinity;
+        _ALL_SWATCHES.forEach(function(sw) {
+          if (!sw.hex) return;
+          const d = _waHexDist(hex, sw.hex);
+          if (d < bd) { bd = d; best = sw; }
+        });
+        if (!best) return;
+        if (_waRefine.colors.indexOf(best.name) === -1) _waRefine.colors.push(best.name);
+        _waShowToast('Filtering by ' + best.name);
+        _waRender();
+        _waRefineRender();
+      };
 
       function _waRefinePillSync() {
         const pill = document.getElementById('rb-refine-pill');
         if (!pill) return;
         const n = _waRefineCount();
         pill.classList.toggle('active', _waRefineOpen || n > 0);
-        pill.innerHTML = 'Refine' + (n ? ' <span class="rb-refine-badge">' + n + '</span>' : '');
+        pill.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Refine' +
+          (n ? ' <span class="rb-refine-badge">' + n + '</span>' : '');
       }
 
       function _waRefineRender() {
@@ -1677,18 +1703,22 @@
           return '<button class="rb-ref-chip' + (on ? ' on' : '') + '" onclick="window.__waRefTog(\'' + kind + '\',\'' + _waEsc(label).replace(/'/g, '\\\'') + '\')">' + _waEsc(label) + '</button>';
         };
         const seasonChips = WA_SEASONS.map(s => chip('seasons', s, r.seasons.indexOf(s) !== -1)).join('');
-        // Colours: only offer swatches that exist in her wardrobe
+        // Colour: the FULL palette items are saved to (same set as the
+        // add/edit modal), closed by the colour wheel — a custom pick maps
+        // to the nearest palette colour. (Design handoff: don't limit the
+        // filter to owned colours.)
         const ownColors = [];
         _waItems.forEach(i => { if (i.color && ownColors.indexOf(i.color) === -1) ownColors.push(i.color); });
-        const swatches = _ALL_SWATCHES.filter(sw => ownColors.indexOf(sw.name) !== -1);
         const extraColors = ownColors.filter(c => !_ALL_SWATCHES.some(sw => sw.name === c));
-        const colorHtml = swatches.map(function(sw) {
+        const colorHtml = _ALL_SWATCHES.map(function(sw) {
           const on = r.colors.indexOf(sw.name) !== -1;
           const bg = sw.hex ? 'background:' + sw.hex : (sw.name === 'Multi'
             ? 'background:conic-gradient(#FF1493,#FF4500,#E1FD2E,#00A86B,#0047AB,#4B0082,#FF1493)'
-            : 'background:#EDE8E0');
+            : 'background:repeating-linear-gradient(45deg,#EDE8E0 0 3px,#A89880 3px 4px)');
           return '<button class="rb-sw' + (on ? ' on' : '') + '" title="' + _waEsc(sw.name) + '" aria-label="' + _waEsc(sw.name) + '" style="' + bg + '" onclick="window.__waRefTog(\'colors\',\'' + _waEsc(sw.name) + '\')"></button>';
-        }).join('') + extraColors.map(c => chip('colors', c, r.colors.indexOf(c) !== -1)).join('');
+        }).join('') +
+          '<label class="rb-sw rb-sw-wheel" title="Pick any colour"><input type="color" value="#a89880" onchange="window.__waRefWheel(this)"></label>' +
+          extraColors.map(c => chip('colors', c, r.colors.indexOf(c) !== -1)).join('');
         // Fits: union of silhouette_fit tags across her pieces
         const fitSet = [];
         _waItems.forEach(function(i) {
@@ -1709,7 +1739,7 @@
         const n = _waFilteredItems().length;
         drawer.innerHTML = '<div class="rb-ref-grid">' +
           '<div><div class="rb-ref-lbl">Season</div><div class="rb-ref-chips">' + seasonChips + '</div></div>' +
-          (colorHtml ? '<div><div class="rb-ref-lbl">Colour</div><div class="rb-ref-chips" style="gap:9px">' + colorHtml + '</div></div>' : '') +
+          '<div><div class="rb-ref-lbl">Colour</div><div class="rb-ref-chips" style="gap:9px;max-width:252px">' + colorHtml + '</div></div>' +
           (fitChips ? '<div><div class="rb-ref-lbl">Silhouette &amp; fit</div><div class="rb-ref-chips">' + fitChips + '</div></div>' : '') +
           '<div><div class="rb-ref-lbl">Wear</div><div class="rb-ref-segwrap">' + wornOpts + '</div></div>' +
           (brands.length ? '<div><div class="rb-ref-lbl">Brand</div><select class="rb-ref-select" onchange="window.__waRefBrand(this)">' + brandOpts + '</select></div>' : '') +
@@ -2255,8 +2285,15 @@
             '.rb-ref-seg.on{background:var(--ink);color:#fff}',
             '.rb-ref-select{width:100%;max-width:210px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);padding:9px 12px;font-size:12.5px;background:#fff;color:var(--ink);font-family:inherit;cursor:pointer}',
             '.rb-ref-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:0.5px solid var(--rule);margin-top:16px;padding-top:14px}',
-            '.rb-refine-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:100px;background:#fff;color:var(--ink);font-size:9.5px;padding:0 4px;margin-left:5px;vertical-align:1px}',
-            '.wg-pill.rb-refine-pill{display:inline-flex;align-items:center}',
+            '.rb-refine-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:100px;background:#fff;color:var(--ink);font-size:9.5px;padding:0 4px;margin-left:2px;vertical-align:1px}',
+            '.wg-pill.rb-refine-pill{display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:#fff;border-color:var(--ink)}',
+            '.rb-sw-wheel{background:conic-gradient(from 90deg,#ff2d2d,#ff9e2d,#f4e02d,#38d64a,#2db7ff,#3a4dff,#b23aff,#ff2da8,#ff2d2d);display:inline-block;position:relative;overflow:hidden}',
+            '.rb-sw-wheel input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border:none;padding:0}',
+            // Category text tabs (replaced the heavy pill row — design handoff)
+            '.wg-filters{align-items:center}',
+            '.wg-tab{background:none;border:none;border-bottom:1.5px solid transparent;padding:4px 2px 8px;margin-right:13px;font-size:13px;font-family:inherit;color:var(--ink-faint);cursor:pointer;letter-spacing:.01em;transition:color .15s;white-space:nowrap}',
+            '.wg-tab.active{color:var(--ink);font-weight:500;border-bottom-color:var(--ink)}',
+            '.wg-tab:hover{color:var(--ink)}',
             // wishlist
             '#rb-wl-grid{display:none;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:18px}',
             '.rb-wl-tile{position:relative;aspect-ratio:3/4;border-radius:var(--rad);overflow:hidden;border:1.5px dashed var(--cream-400);background:var(--cream-100);box-sizing:border-box}',
@@ -2280,7 +2317,7 @@
             '.rb-add-serif{font-family:var(--font-serif);font-weight:300;font-size:19px;color:var(--ink)}',
             '.rb-add-hint{font-size:10px;letter-spacing:.05em;color:var(--ink-faint)}',
             // mobile
-            '@media(max-width:640px){.rb-hero-card,.rb-hero-add{width:164px}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}}'
+            '@media(max-width:640px){.rb-hero-card,.rb-hero-add{width:164px}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}}'
           ].join('\n');
           document.head.appendChild(st);
         }
@@ -2364,7 +2401,7 @@
         App.addPiece = function() {};
         App.filterWardrobe = function(f) {
           _waCat = f;
-          document.querySelectorAll('#wg-filters .wg-pill:not(.wg-pack-pill):not(.rb-refine-pill)').forEach(p =>
+          document.querySelectorAll('#wg-filters .wg-tab').forEach(p =>
             p.classList.toggle('active', p.textContent === f));
           _waRender();
         };
