@@ -1823,6 +1823,11 @@ app.get('/wardrobe', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
 
+// Wishlist nests under the wardrobe panel — same shell, client opens the view
+app.get('/wishlist', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
 app.get('/lookbook', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });

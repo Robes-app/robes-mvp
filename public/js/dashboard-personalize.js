@@ -254,6 +254,32 @@
 
       const WA_CATS = ['All','Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear','Other'];
 
+      // Shared garment palette — used by the add/edit modal swatch rows AND
+      // the Refine drawer's colour filter (lifted out of the autotag closure).
+      const _ALL_SWATCHES = [
+        { name: 'White',      hex: '#FFFFFF', tier: 'Foundations' },
+        { name: 'Cream',      hex: '#F5F5DC', tier: 'Foundations' },
+        { name: 'Navy',       hex: '#2C3E50', tier: 'Foundations' },
+        { name: 'Charcoal',   hex: '#4A4A4A', tier: 'Foundations' },
+        { name: 'Black',      hex: '#000000', tier: 'Foundations' },
+        { name: 'Espresso',   hex: '#2B1E18', tier: 'Foundations' },
+        { name: 'Camel',      hex: '#D2B48C', tier: 'Dimension Builders' },
+        { name: 'Taupe',      hex: '#8B8589', tier: 'Dimension Builders' },
+        { name: 'Olive',      hex: '#556B2F', tier: 'Dimension Builders' },
+        { name: 'Aubergine',  hex: '#4B0082', tier: 'Dimension Builders' },
+        { name: 'Forest',     hex: '#123524', tier: 'Dimension Builders' },
+        { name: 'Bordeaux',   hex: '#4A0E17', tier: 'Dimension Builders' },
+        { name: 'Blush',      hex: '#E6C2B6', tier: 'Dimension Builders' },
+        { name: 'Ochre',      hex: '#D4AF37', tier: 'Exclamation Points' },
+        { name: 'Magenta',    hex: '#FF1493', tier: 'Exclamation Points' },
+        { name: 'Cobalt',     hex: '#0047AB', tier: 'Exclamation Points' },
+        { name: 'Emerald',    hex: '#00A86B', tier: 'Exclamation Points' },
+        { name: 'Vermillion', hex: '#FF4500', tier: 'Exclamation Points' },
+        { name: 'Acid',       hex: '#E1FD2E', tier: 'Exclamation Points' },
+        { name: 'Multi',      hex: null,      tier: 'Exclamation Points' },
+        { name: 'Print',      hex: null,      tier: 'Exclamation Points' },
+      ];
+
       let _waItems = [], _waCat = 'All', _waEditId = null;
       // One-shot callback fired after a NEW wardrobe piece is added + reloaded,
       // with the new row's id. Lets "Snap mine" (daily look / moodboard swap)
@@ -346,6 +372,9 @@
         _waBuildFilters();
         _waRender();
         _waSyncCounts();
+        // Wishlist refresh rides along (fire-and-forget; degrades silently
+        // until the wardrobe_v2 migration has run)
+        _wlLoad();
       }
 
       let _waLoaded = false;
@@ -371,7 +400,8 @@
         if (!_waLoaded) {
           grid.innerHTML = '<div style="padding:56px 24px;text-align:center"><div style="font-family:\'Cormorant\',Georgia,serif;font-style:italic;font-weight:300;font-size:18px;color:#A89880">Opening your wardrobe…</div></div>';
         } else {
-          const filtered = _waCat === 'All' ? _waItems : _waItems.filter(i => i.category === _waCat);
+          // Category (primary) + Refine drawer (secondary) filters
+          const filtered = _waFilteredItems();
           const frag = document.createDocumentFragment();
           filtered.forEach(it => frag.appendChild(_waCard(it)));
           frag.appendChild(_waAddCard());
@@ -381,6 +411,8 @@
         }
         _waObserver.observe(grid, { childList: true });
         _waRendering = false;
+        // Keep the v2 sections (hero rail, sub-tabs, wishlist) in step
+        _waV2Sync();
       }
 
       const _WA_TARGET = 15;
@@ -419,9 +451,10 @@
           document.head.appendChild(st);
         }
 
-        // wg-count pill inside the wardrobe panel
+        // wg-count pill inside the wardrobe panel (wishlist view owns the
+        // count label while it's active — see _waV2Sync)
         const countEl = document.getElementById('wg-count');
-        if (countEl) countEl.textContent = label;
+        if (countEl && _waView !== 'wishlist') countEl.textContent = label;
 
         // nav badge
         const navBadge = document.querySelector('.nav-wbtn-count');
@@ -560,10 +593,16 @@
         const div = document.createElement('div');
         div.className = 'wg-item';
         const meta = [it.brand, it.times_worn > 0 ? it.times_worn + '\xd7 worn' : null].filter(Boolean).join(' \xb7 ');
+        // Star = feature on the Hero Rack (hidden in pack mode — the pack
+        // check occupies the same corner)
+        const isHero = it.hero_position != null;
+        const star = _wgPackMode ? '' :
+          '<button class="rb-star' + (isHero ? ' on' : '') + '" title="' + (isHero ? 'Remove from Hero Rack' : 'Feature in Hero Rack') + '" onclick="event.stopPropagation();window.__waHeroToggle(\'' + _waEsc(String(it.id)) + '\')">' + _waStarSvg(isHero) + '</button>';
         div.innerHTML = '<div class="wg-img-wrap">' +
           (it.image_url ? '<img src="' + _waEsc(it.image_url) + '" alt="' + _waEsc(it.label) + '" loading="lazy">' :
             '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:.3"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>') +
           (it.times_worn === 0 ? '<div class="wg-owned-badge">Never worn</div>' : '') +
+          star +
           '</div><div class="wg-info"><div class="wg-name">' + _waEsc(it.label) + '</div>' +
           (meta ? '<div class="wg-metar">' + _waEsc(meta) + '</div>' : '') + '</div>';
         if (_wgPackMode) _wgDecorate(div, _wgPackSel.indexOf(String(it.id)) !== -1);
@@ -582,11 +621,14 @@
       }
 
       function _waAddCard() {
+        // Amplified entry card (was a bare `+`): the engine room of the
+        // product deserves weight — and it sells the roadmap doors too.
         const div = document.createElement('div');
-        div.className = 'wg-item wg-add wg-img-wrap';
-        div.style.cursor = 'pointer';
-        div.innerHTML = '<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-        div.addEventListener('click', () => { _waEditId = null; _waAfterAdd = null; window.WA && WA.open(); });
+        div.className = 'wg-item rb-add-card';
+        div.innerHTML = '<span class="rb-add-plus">+</span>' +
+          '<span class="rb-add-serif">Add a piece</span>' +
+          '<span class="rb-add-hint">Photograph \xb7 Link \xb7 Receipt</span>';
+        div.addEventListener('click', () => window.__waAddChooser());
         return div;
       }
 
@@ -605,17 +647,27 @@
           btn.textContent = cat;
           btn.addEventListener('click', () => {
             _waCat = cat;
-            container.querySelectorAll('.wg-pill:not(.wg-pack-pill)').forEach(p => p.classList.toggle('active', p.textContent === cat));
+            container.querySelectorAll('.wg-pill:not(.wg-pack-pill):not(.rb-refine-pill)').forEach(p => p.classList.toggle('active', p.textContent === cat));
             _waRender();
           });
           container.appendChild(btn);
         });
+        // Refine — the secondary filter layer (season, colour, fit, wear,
+        // brand) collapses into one drawer instead of more pills (design
+        // brief: the primary row is already at 10 tabs and won't scale)
+        const refBtn = document.createElement('button');
+        refBtn.className = 'wg-pill rb-refine-pill';
+        refBtn.id = 'rb-refine-pill';
+        refBtn.style.marginLeft = 'auto';
+        refBtn.innerHTML = 'Refine';
+        refBtn.addEventListener('click', () => window.__waRefToggle());
+        container.appendChild(refBtn);
+        _waRefinePillSync();
         // Multi-select → Travel Edit, straight from the wardrobe (PRD:
         // the packing connection lives across the platform)
         const packBtn = document.createElement('button');
         packBtn.className = 'wg-pill wg-pack-pill';
         packBtn.textContent = '✈ Pack a trip';
-        packBtn.style.marginLeft = 'auto';
         packBtn.addEventListener('click', () => {
           if (_wgPackMode) window.__wgPackCancel(); else window.__wgPackStart();
         });
@@ -709,6 +761,10 @@
             if (tileFill)  tileFill.style.display  = 'block';
           }
 
+          // Progressive capture expander — prefilled from the saved row
+          document.getElementById('rb-wa-detail-host')?.remove();
+          if (window.__rbWaDetailInject) window.__rbWaDetailInject(it);
+
           _waShowDeleteBtn(true);
         }, 100);
       }
@@ -733,30 +789,9 @@
           document.head.appendChild(st);
         }
 
-        // Shared swatch data + renderer — used by both add (step 3) and edit modal
-        const _ALL_SWATCHES = [
-          { name: 'White',      hex: '#FFFFFF', tier: 'Foundations' },
-          { name: 'Cream',      hex: '#F5F5DC', tier: 'Foundations' },
-          { name: 'Navy',       hex: '#2C3E50', tier: 'Foundations' },
-          { name: 'Charcoal',   hex: '#4A4A4A', tier: 'Foundations' },
-          { name: 'Black',      hex: '#000000', tier: 'Foundations' },
-          { name: 'Espresso',   hex: '#2B1E18', tier: 'Foundations' },
-          { name: 'Camel',      hex: '#D2B48C', tier: 'Dimension Builders' },
-          { name: 'Taupe',      hex: '#8B8589', tier: 'Dimension Builders' },
-          { name: 'Olive',      hex: '#556B2F', tier: 'Dimension Builders' },
-          { name: 'Aubergine',  hex: '#4B0082', tier: 'Dimension Builders' },
-          { name: 'Forest',     hex: '#123524', tier: 'Dimension Builders' },
-          { name: 'Bordeaux',   hex: '#4A0E17', tier: 'Dimension Builders' },
-          { name: 'Blush',      hex: '#E6C2B6', tier: 'Dimension Builders' },
-          { name: 'Ochre',      hex: '#D4AF37', tier: 'Exclamation Points' },
-          { name: 'Magenta',    hex: '#FF1493', tier: 'Exclamation Points' },
-          { name: 'Cobalt',     hex: '#0047AB', tier: 'Exclamation Points' },
-          { name: 'Emerald',    hex: '#00A86B', tier: 'Exclamation Points' },
-          { name: 'Vermillion', hex: '#FF4500', tier: 'Exclamation Points' },
-          { name: 'Acid',       hex: '#E1FD2E', tier: 'Exclamation Points' },
-          { name: 'Multi',      hex: null,      tier: 'Exclamation Points' },
-          { name: 'Print',      hex: null,      tier: 'Exclamation Points' },
-        ];
+        // Swatch renderer — shared by add (step 3) and edit modal; the
+        // palette itself (_ALL_SWATCHES) lives at wardrobe-wiring scope so
+        // the Refine drawer's colour filter uses the same set.
         const _printBg = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M-1,1 l2,-2 M0,8 l8,-8 M7,9 l2,-2' stroke='%23A89880' stroke-width='1.5'/%3E%3C/svg%3E\") #EDE8E0";
         const _multiBg = "conic-gradient(#FF1493,#FF4500,#E1FD2E,#00A86B,#0047AB,#4B0082,#FF1493)";
         function _swLum(hex) {
@@ -1072,6 +1107,7 @@
               <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">NOTES <span style="font-weight:400;letter-spacing:0;text-transform:none;color:#B0A090;">optional</span></label>
               <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${aiNotes.replace(/</g,'&lt;')}</textarea>
             </div>
+            <div id="rb-wa-detail-host"></div>
             <button id="wa-saw-cta" onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
 
           // Set thumbnail src via DOM (not innerHTML) so large data URLs aren't truncated
@@ -1080,6 +1116,10 @@
 
           // Render pills after innerHTML is set
           _renderFitPills();
+
+          // Progressive capture — "Add more detail" (season, cost-per-wear,
+          // fit, sentiment, Hero Rack). Fresh state per piece, batch included.
+          if (window.__rbWaDetailInject) window.__rbWaDetailInject(null);
 
           window.__waSawLabel = tag.label || '';
           window.__waSawCat   = tag.category || '';
@@ -1224,6 +1264,9 @@
             WA.close = function() {
               _photoDataUrl = '';
               _waBatchQueue = []; _waBatchTotal = 0; _waBatchDone = 0;
+              // Progressive-capture state must not leak into the next open
+              window.__rbWaDetail = null;
+              document.getElementById('rb-wa-detail-host')?.remove();
               _origClose.apply(this, arguments);
             };
             WA.close._rbPatched = true;
@@ -1305,11 +1348,42 @@
               item_dna:  Object.keys(savedDna).length ? savedDna : undefined,
             };
 
+            // Progressive capture (wardrobe v2) — only when the expander was
+            // mounted for this piece (add step 3 / edit both mount it), and
+            // only while the v2 columns are known to exist.
+            const _V2_KEYS = ['seasons', 'occasions', 'price', 'fit_confidence', 'sentiment', 'hero_position'];
+            const det = window.__rbWaDetail;
+            if (det && _waV2Cols) {
+              const seas = det.when.filter(w => WA_SEASONS.indexOf(w) !== -1);
+              const occ  = det.when.filter(w => WA_SEASONS.indexOf(w) === -1);
+              payload.seasons        = seas.length ? seas : null;
+              payload.occasions      = occ.length ? occ : null;
+              payload.price          = det.price && Number(det.price) > 0 ? Number(det.price) : null;
+              payload.fit_confidence = det.fitConf || null;
+              payload.sentiment      = det.sentiment || null;
+              payload.hero_position  = det.hero ? (det.heroPos != null ? det.heroPos : _waHeroNextPos()) : null;
+            }
+
             let created = null;
-            if (editId) {
-              await _waFetch('PATCH', 'wardrobe_items?id=eq.' + editId, payload);
-            } else {
-              created = await _waFetch('POST', 'wardrobe_items', payload);
+            try {
+              if (editId) {
+                await _waFetch('PATCH', 'wardrobe_items?id=eq.' + editId, payload);
+              } else {
+                created = await _waFetch('POST', 'wardrobe_items', payload);
+              }
+            } catch (err) {
+              // Pre-migration Supabase rejects unknown columns (PGRST204) —
+              // strip the v2 fields, remember, and retry once so the core
+              // save never fails on a schema that hasn't caught up yet.
+              if (det && /PGRST204|column/i.test(String(err && err.message || err))) {
+                _waV2Cols = false;
+                _V2_KEYS.forEach(k => delete payload[k]);
+                if (editId) {
+                  await _waFetch('PATCH', 'wardrobe_items?id=eq.' + editId, payload);
+                } else {
+                  created = await _waFetch('POST', 'wardrobe_items', payload);
+                }
+              } else throw err;
             }
 
             _waEditId = null;
@@ -1371,6 +1445,903 @@
         } catch(e) { _waShowToast('Could not remove piece'); }
       }
 
+      // ═══════════════════════════════════════════════════════════════════
+      // Wardrobe v2 — Hero Rack · Refine drawer · Wishlist · add chooser
+      // (Claude Design handoff 2026-07-14: "hierarchy over uniformity".)
+      // The mock was a UX guide only — everything below renders with the
+      // beta's own tokens and card DNA. Persistence needs
+      // supabase/wardrobe_v2_migration.sql; until it runs the code degrades
+      // gracefully (saves retry without the new columns, hero/wishlist
+      // toast "not ready yet") — same convention as the lookbook table.
+      // ═══════════════════════════════════════════════════════════════════
+
+      // `var` on purpose — early readers (_waSyncCounts at boot, observer
+      // callbacks) must see undefined/default, never throw (TDZ gotcha).
+      var _waView = 'all';                 // 'all' | 'wishlist'
+      var _waV2Cols = true;                // v2 columns present? flipped off on PGRST204
+      var _wlItems = [], _wlLoaded = false, _wlTableMissing = false;
+      var _waRefine = { seasons: [], colors: [], fits: [], worn: 'all', brand: '' };
+      var _waRefineOpen = false;
+
+      const WA_SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter', 'Year-round'];
+      const WA_OCCASIONS = ['Everyday', 'Work', 'Evening', 'Travel'];
+      const _WA_HERO_CAP = 10;
+
+      function _waSeasonNow() {
+        const m = new Date().getMonth();
+        return m >= 2 && m <= 4 ? 'Spring' : m >= 5 && m <= 7 ? 'Summer' : m >= 8 && m <= 10 ? 'Autumn' : 'Winter';
+      }
+      // Untagged pieces are treated as Year-round everywhere — most of the
+      // catalogue starts untagged, and a season filter that hid them all
+      // would read as broken, not strict.
+      function _waItemSeasons(it) {
+        return (Array.isArray(it.seasons) && it.seasons.length) ? it.seasons : ['Year-round'];
+      }
+      function _waInSeasonNow(it) {
+        const s = _waItemSeasons(it);
+        return s.indexOf('Year-round') !== -1 || s.indexOf(_waSeasonNow()) !== -1;
+      }
+
+      function _waMatchRefine(it) {
+        const r = _waRefine;
+        if (r.seasons.length) {
+          const s = _waItemSeasons(it);
+          // Year-round pieces are always in season, so they pass any pick
+          if (s.indexOf('Year-round') === -1 && !r.seasons.some(x => s.indexOf(x) !== -1)) return false;
+        }
+        if (r.worn === 'worn' && !(it.times_worn > 0)) return false;
+        if (r.worn === 'never' && it.times_worn > 0) return false;
+        if (r.colors.length && r.colors.indexOf(it.color) === -1) return false;
+        if (r.brand && (it.brand || '') !== r.brand) return false;
+        if (r.fits.length) {
+          const f = (it.item_dna && it.item_dna.structural_dna && Array.isArray(it.item_dna.structural_dna.silhouette_fit))
+            ? it.item_dna.structural_dna.silhouette_fit : [];
+          if (!f.some(x => r.fits.indexOf(x) !== -1)) return false;
+        }
+        return true;
+      }
+      function _waRefineCount() {
+        const r = _waRefine;
+        return r.seasons.length + r.colors.length + r.fits.length + (r.brand ? 1 : 0) + (r.worn !== 'all' ? 1 : 0);
+      }
+      function _waFilteredItems() {
+        return _waItems.filter(i => (_waCat === 'All' || i.category === _waCat) && _waMatchRefine(i));
+      }
+
+      // "Coming soon" door — reuses the bundle's dialog like the affiliate CTA
+      function _waSoon(title, sub) {
+        if (window.KP && KP.comingSoon) KP.comingSoon(title + ',<br><em>coming soon.</em>', sub);
+        else _waShowToast(title + ' — coming soon');
+      }
+
+      function _waStarSvg(on) {
+        return '<svg viewBox="0 0 24 24" fill="' + (on ? '#fff' : 'none') + '" stroke="' + (on ? '#fff' : '#202021') + '" stroke-width="1.3"><path d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9 6.75 19.7l1-5.85L3.5 9.65l5.9-.85z"/></svg>';
+      }
+
+      // ── Hero Rack ─────────────────────────────────────────────────────
+      function _waHeroAll() {
+        return _waItems.filter(i => i.hero_position != null)
+          .sort((a, b) => (a.hero_position || 0) - (b.hero_position || 0));
+      }
+      function _waHeroNextPos() {
+        return _waItems.reduce((m, i) => Math.max(m, i.hero_position || 0), 0) + 1;
+      }
+
+      window.__waHeroToggle = async function(id) {
+        const it = _waItems.find(i => String(i.id) === String(id));
+        if (!it) return;
+        const on = it.hero_position == null;
+        if (on && _waHeroAll().length >= _WA_HERO_CAP) {
+          _waShowToast('The Hero Rack holds ' + _WA_HERO_CAP + ' — remove one first');
+          return;
+        }
+        const prev = it.hero_position;
+        it.hero_position = on ? _waHeroNextPos() : null;   // optimistic
+        _waRender();
+        _waHeroPickerPaint();
+        try {
+          await _waFetch('PATCH', 'wardrobe_items?id=eq.' + it.id, { hero_position: it.hero_position });
+          _waShowToast(on ? 'Featured on your Hero Rack' : 'Removed from the Hero Rack');
+        } catch (e) {
+          it.hero_position = prev;
+          _waRender();
+          _waHeroPickerPaint();
+          if (/PGRST204|column/i.test(String(e && e.message || e))) {
+            _waV2Cols = false;
+            _waShowToast('The Hero Rack isn’t ready yet — try again shortly');
+          } else _waShowToast('Could not update the Hero Rack');
+        }
+      };
+
+      function _waHeroCard(it, idx) {
+        const num = String(idx + 1).padStart(2, '0');
+        const img = it.image_url
+          ? '<img src="' + _waEsc(it.image_url) + '" alt="' + _waEsc(it.label) + '" loading="lazy">'
+          : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="font-family:var(--font-serif);font-size:34px;color:var(--cream-400)">' + _waEsc((it.label || '?').charAt(0).toUpperCase()) + '</span></div>';
+        const meta = [it.brand, it.times_worn > 0 ? it.times_worn + '\xd7 worn' : null].filter(Boolean).join(' \xb7 ');
+        return '<div class="rb-hero-card" onclick="window.__wtrkEdit(\'' + _waEsc(String(it.id)) + '\')">' +
+          '<div class="rb-hero-tile">' + img +
+            '<span class="rb-hero-num">' + num + '</span>' +
+            '<button class="rb-star on" title="Remove from Hero Rack" onclick="event.stopPropagation();window.__waHeroToggle(\'' + _waEsc(String(it.id)) + '\')">' + _waStarSvg(true) + '</button>' +
+          '</div>' +
+          '<div class="wg-info"><div class="wg-name">' + _waEsc(it.label) + '</div>' +
+          (meta ? '<div class="wg-metar">' + _waEsc(meta) + '</div>' : '') + '</div></div>';
+      }
+
+      function _waHeroRender() {
+        const wrap = document.getElementById('rb-hero');
+        if (!wrap) return;
+        if (_waView === 'wishlist' || !_waLoaded || !_waItems.length) { wrap.style.display = 'none'; return; }
+        wrap.style.display = '';
+        const all = _waHeroAll();
+        const onRack = all.filter(_waInSeasonNow);
+        const resting = all.length - onRack.length;
+        const noteEl = document.getElementById('rb-hero-note');
+        if (noteEl) {
+          noteEl.textContent = all.length
+            ? (onRack.length + ' of ' + _WA_HERO_CAP + ' featured' + (resting ? ' \xb7 ' + resting + ' resting off-season' : ''))
+            : '';
+        }
+        const body = document.getElementById('rb-hero-body');
+        if (!body) return;
+        if (!all.length) {
+          // Empty state — she has pieces but hasn't pinned any yet
+          body.innerHTML = '<div class="rb-hero-empty">' +
+            '<div style="font-family:var(--font-serif);font-weight:300;font-size:24px;line-height:1.2;color:var(--ink);max-width:420px;margin:0 auto 8px">Which five pieces do you reach for <em style="font-style:italic;color:var(--ink-faint)">without even thinking?</em></div>' +
+            '<div style="font-size:12px;color:var(--ink-soft);line-height:1.6;max-width:400px;margin:0 auto 16px">Pin them here — no re-uploading, just choose from what you already own. They become the spine of everything Robes styles.</div>' +
+            '<button class="rb-wg-cta" onclick="window.__waHeroPicker()">Choose from your wardrobe</button></div>';
+          return;
+        }
+        body.innerHTML = '<div class="rb-hero-rail">' + onRack.map(_waHeroCard).join('') +
+          (all.length < _WA_HERO_CAP
+            ? '<button class="rb-hero-add" onclick="window.__waHeroPicker()"><span style="font-size:24px;font-weight:300;line-height:1">+</span><span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase">Feature a piece</span></button>'
+            : '') + '</div>' +
+          (onRack.length === 0 && resting > 0
+            ? '<div style="font-size:11.5px;color:var(--ink-faint);font-style:italic;font-family:var(--font-serif);font-size:14px;padding:4px 2px">All your hero pieces are resting until their season returns — tap ' + (all.length < _WA_HERO_CAP ? '“Feature a piece”' : 'the rack') + ' to pin something for now.</div>'
+            : '');
+      }
+
+      // Hero picker — tap-to-toggle over the whole catalogue, no re-uploads
+      window.__waHeroPicker = function() {
+        document.getElementById('rb-hero-picker')?.remove();
+        const modal = document.createElement('div');
+        modal.id = 'rb-hero-picker';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:flex-end;justify-content:center';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML = '<div style="background:var(--cream,#FAF8F5);width:100%;max-width:880px;border-radius:18px 18px 0 0;max-height:82vh;display:flex;flex-direction:column;box-sizing:border-box">' +
+          '<div style="padding:22px 26px 14px;border-bottom:0.5px solid rgba(32,32,33,0.12);display:flex;align-items:flex-end;justify-content:space-between;gap:14px">' +
+            '<div><div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin-bottom:6px">Build your Hero Rack</div>' +
+            '<div style="font-family:var(--font-serif);font-weight:300;font-size:26px;color:var(--ink);line-height:1">Tap the pieces you reach for first</div></div>' +
+            '<button onclick="document.getElementById(\'rb-hero-picker\').remove()" style="border:none;background:var(--cream-200,#EFE9DC);width:32px;height:32px;border-radius:100px;cursor:pointer;color:var(--ink);font-size:15px;flex-shrink:0">✕</button></div>' +
+          '<div id="rb-hero-pick-grid" style="overflow-y:auto;padding:18px 26px;display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:14px 12px"></div>' +
+          '<div style="padding:14px 26px;border-top:0.5px solid rgba(32,32,33,0.12);display:flex;align-items:center;justify-content:space-between;gap:12px">' +
+            '<span id="rb-hero-pick-count" style="font-size:11.5px;color:var(--ink-faint)"></span>' +
+            '<button onclick="document.getElementById(\'rb-hero-picker\').remove()" class="rb-wg-cta">Done</button></div></div>';
+        document.body.appendChild(modal);
+        _waHeroPickerPaint();
+      };
+
+      function _waHeroPickerPaint() {
+        const grid = document.getElementById('rb-hero-pick-grid');
+        if (!grid) return;
+        grid.innerHTML = _waItems.map(function(it) {
+          const sel = it.hero_position != null;
+          const img = it.image_url
+            ? '<img src="' + _waEsc(it.image_url) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">'
+            : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="font-family:var(--font-serif);font-size:24px;color:var(--cream-400)">' + _waEsc((it.label || '?').charAt(0).toUpperCase()) + '</span></div>';
+          return '<button onclick="window.__waHeroToggle(\'' + _waEsc(String(it.id)) + '\')" style="border:none;background:none;padding:0;cursor:pointer;text-align:left;font-family:inherit">' +
+            '<div style="position:relative;aspect-ratio:3/4;border-radius:10px;overflow:hidden;background:var(--cream-200,#EFE9DC);outline:' + (sel ? '2px solid var(--ink,#202021)' : 'none') + ';outline-offset:-2px">' + img +
+            (sel ? '<span style="position:absolute;inset:0;background:rgba(32,32,33,0.28);display:flex;align-items:center;justify-content:center"><span style="width:26px;height:26px;border-radius:100px;background:#FAF8F5;color:#202021;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 6 9 17l-5-5"/></svg></span></span>' : '') +
+            '</div><div style="font-size:11px;font-weight:500;color:var(--ink);margin-top:6px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _waEsc(it.label) + '</div></button>';
+        }).join('');
+        const count = document.getElementById('rb-hero-pick-count');
+        if (count) count.textContent = _waHeroAll().length + ' of ' + _WA_HERO_CAP + ' featured';
+      }
+
+      // ── Refine drawer ─────────────────────────────────────────────────
+      window.__waRefTog = function(kind, val) {
+        const a = _waRefine[kind];
+        const i = a.indexOf(val);
+        if (i === -1) a.push(val); else a.splice(i, 1);
+        _waRender();
+        _waRefineRender();
+      };
+      window.__waRefWorn = function(v) { _waRefine.worn = v; _waRender(); _waRefineRender(); };
+      window.__waRefBrand = function(el) { _waRefine.brand = el.value; _waRender(); _waRefineRender(); };
+      window.__waRefClear = function() {
+        _waRefine = { seasons: [], colors: [], fits: [], worn: 'all', brand: '' };
+        _waRender();
+        _waRefineRender();
+      };
+      window.__waRefToggle = function() {
+        _waRefineOpen = !_waRefineOpen;
+        _waRefineRender();
+      };
+
+      function _waRefinePillSync() {
+        const pill = document.getElementById('rb-refine-pill');
+        if (!pill) return;
+        const n = _waRefineCount();
+        pill.classList.toggle('active', _waRefineOpen || n > 0);
+        pill.innerHTML = 'Refine' + (n ? ' <span class="rb-refine-badge">' + n + '</span>' : '');
+      }
+
+      function _waRefineRender() {
+        const drawer = document.getElementById('rb-refine');
+        if (!drawer) return;
+        _waRefinePillSync();
+        if (!_waRefineOpen || _waView === 'wishlist') { drawer.style.display = 'none'; return; }
+        drawer.style.display = '';
+        const r = _waRefine;
+        const chip = function(kind, label, on) {
+          return '<button class="rb-ref-chip' + (on ? ' on' : '') + '" onclick="window.__waRefTog(\'' + kind + '\',\'' + _waEsc(label).replace(/'/g, '\\\'') + '\')">' + _waEsc(label) + '</button>';
+        };
+        const seasonChips = WA_SEASONS.map(s => chip('seasons', s, r.seasons.indexOf(s) !== -1)).join('');
+        // Colours: only offer swatches that exist in her wardrobe
+        const ownColors = [];
+        _waItems.forEach(i => { if (i.color && ownColors.indexOf(i.color) === -1) ownColors.push(i.color); });
+        const swatches = _ALL_SWATCHES.filter(sw => ownColors.indexOf(sw.name) !== -1);
+        const extraColors = ownColors.filter(c => !_ALL_SWATCHES.some(sw => sw.name === c));
+        const colorHtml = swatches.map(function(sw) {
+          const on = r.colors.indexOf(sw.name) !== -1;
+          const bg = sw.hex ? 'background:' + sw.hex : (sw.name === 'Multi'
+            ? 'background:conic-gradient(#FF1493,#FF4500,#E1FD2E,#00A86B,#0047AB,#4B0082,#FF1493)'
+            : 'background:#EDE8E0');
+          return '<button class="rb-sw' + (on ? ' on' : '') + '" title="' + _waEsc(sw.name) + '" aria-label="' + _waEsc(sw.name) + '" style="' + bg + '" onclick="window.__waRefTog(\'colors\',\'' + _waEsc(sw.name) + '\')"></button>';
+        }).join('') + extraColors.map(c => chip('colors', c, r.colors.indexOf(c) !== -1)).join('');
+        // Fits: union of silhouette_fit tags across her pieces
+        const fitSet = [];
+        _waItems.forEach(function(i) {
+          const f = (i.item_dna && i.item_dna.structural_dna && Array.isArray(i.item_dna.structural_dna.silhouette_fit))
+            ? i.item_dna.structural_dna.silhouette_fit : [];
+          f.forEach(x => { if (fitSet.indexOf(x) === -1) fitSet.push(x); });
+        });
+        const fitChips = fitSet.slice(0, 14).map(f => chip('fits', f, r.fits.indexOf(f) !== -1)).join('');
+        const wornOpts = [['all', 'All'], ['worn', 'Worn'], ['never', 'Never worn']].map(function(d) {
+          const on = r.worn === d[0];
+          return '<button class="rb-ref-seg' + (on ? ' on' : '') + '" onclick="window.__waRefWorn(\'' + d[0] + '\')">' + d[1] + '</button>';
+        }).join('');
+        const brands = [];
+        _waItems.forEach(i => { if (i.brand && brands.indexOf(i.brand) === -1) brands.push(i.brand); });
+        brands.sort();
+        const brandOpts = '<option value="">All brands</option>' + brands.map(b =>
+          '<option value="' + _waEsc(b) + '"' + (r.brand === b ? ' selected' : '') + '>' + _waEsc(b) + '</option>').join('');
+        const n = _waFilteredItems().length;
+        drawer.innerHTML = '<div class="rb-ref-grid">' +
+          '<div><div class="rb-ref-lbl">Season</div><div class="rb-ref-chips">' + seasonChips + '</div></div>' +
+          (colorHtml ? '<div><div class="rb-ref-lbl">Colour</div><div class="rb-ref-chips" style="gap:9px">' + colorHtml + '</div></div>' : '') +
+          (fitChips ? '<div><div class="rb-ref-lbl">Silhouette &amp; fit</div><div class="rb-ref-chips">' + fitChips + '</div></div>' : '') +
+          '<div><div class="rb-ref-lbl">Wear</div><div class="rb-ref-segwrap">' + wornOpts + '</div></div>' +
+          (brands.length ? '<div><div class="rb-ref-lbl">Brand</div><select class="rb-ref-select" onchange="window.__waRefBrand(this)">' + brandOpts + '</select></div>' : '') +
+          '</div>' +
+          '<div class="rb-ref-foot">' +
+            '<button onclick="window.__waRefClear()" style="border:none;background:none;color:var(--ink-faint);font-size:11.5px;cursor:pointer;font-family:inherit;letter-spacing:.03em;padding:0">Clear all</button>' +
+            '<button class="rb-wg-cta" onclick="window.__waRefToggle()">Show ' + n + ' piece' + (n === 1 ? '' : 's') + '</button>' +
+          '</div>';
+      }
+
+      // ── Wishlist ──────────────────────────────────────────────────────
+      async function _wlLoad() {
+        if (!_waUid()) return;
+        try {
+          const data = await _waFetch('GET', 'wishlist_items?user_id=eq.' + _waUid() + '&order=created_at.desc&select=*');
+          _wlItems = data || [];
+          _wlLoaded = true;
+          _wlTableMissing = false;
+        } catch (e) {
+          // Table not created yet (migration pending) — degrade silently
+          if (/relation|does not exist|PGRST205|schema cache|404/i.test(String(e && e.message || e))) _wlTableMissing = true;
+          else console.error('wishlist load:', e);
+        }
+        _waV2Sync();
+      }
+
+      const _WL_SRC = {
+        robes:     { label: 'Robes suggests',           sage: true },
+        url:       { label: 'Saved from a link',        dot: '#A89880' },
+        instagram: { label: 'Saved from Instagram',     dot: '#8E7077' },
+        substack:  { label: 'Saved from Substack',      dot: '#C6A24A' },
+        screenshot:{ label: 'Saved from a screenshot',  dot: '#A89880' },
+        photo:     { label: 'Saved by you',             dot: '#A89880' }
+      };
+
+      function _wlCard(w) {
+        const src = _WL_SRC[w.source_type] || _WL_SRC.photo;
+        const chipLabel = w.source_label || src.label;
+        const img = w.image_url
+          ? '<img src="' + _waEsc(w.image_url) + '" alt="' + _waEsc(w.label) + '" loading="lazy">'
+          : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="font-family:var(--font-serif);font-size:30px;color:var(--cream-400)">' + _waEsc((w.label || '?').charAt(0).toUpperCase()) + '</span></div>';
+        const meta = [w.brand, w.price > 0 ? '€' + Math.round(w.price) : null].filter(Boolean).join(' \xb7 ');
+        return '<div class="rb-wl-item">' +
+          '<div class="rb-wl-tile' + (w.source_type === 'robes' ? ' rb-wl-robes' : '') + '">' + img +
+            '<span class="rb-wl-chip' + (src.sage ? ' sage' : '') + '">' +
+              (src.sage ? '' : '<span class="rb-wl-dot" style="background:' + (src.dot || '#A89880') + '"></span>') +
+              '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _waEsc(chipLabel) + '</span></span>' +
+          '</div>' +
+          '<div class="wg-info"><div class="wg-name">' + _waEsc(w.label) + '</div>' +
+          (meta ? '<div class="wg-metar">' + _waEsc(meta) + '</div>' : '') +
+          (w.note ? '<div class="rb-wl-note">' + _waEsc(w.note) + '</div>' : '') +
+          '<div class="rb-wl-actions">' +
+            '<button class="rb-wl-buy" onclick="window.__wlBought(\'' + _waEsc(String(w.id)) + '\')">I bought this</button>' +
+            '<button class="rb-wl-rm" title="Remove" onclick="window.__wlRemove(\'' + _waEsc(String(w.id)) + '\')">✕</button>' +
+          '</div></div></div>';
+      }
+
+      function _wlRender() {
+        const grid = document.getElementById('rb-wl-grid');
+        if (!grid) return;
+        if (!_wlItems.length) {
+          // Editorial empty state — the one place the delight register lives
+          grid.innerHTML = '<div class="rb-wl-empty" style="grid-column:1/-1">' +
+            '<div style="font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px">The Wishlist</div>' +
+            '<div style="font-family:var(--font-serif);font-weight:300;font-size:clamp(26px,4vw,36px);line-height:1.15;color:var(--ink);margin-bottom:6px">Save what catches your eye.</div>' +
+            '<div style="font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:clamp(18px,3vw,24px);line-height:1.3;color:var(--ink-faint);margin-bottom:22px">Robes will tell you if it earns a place<br>next to what you already own.</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:9px;justify-content:center">' +
+              '<button class="rb-wg-cta" onclick="window.__wlOpenAdd()">Save a piece</button>' +
+              '<button onclick="window.__wlSoonLink()" style="display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;color:var(--ink-soft);font-size:11.5px;cursor:pointer;font-family:inherit">Paste a link <span class="rb-soon-tag">Coming soon</span></button>' +
+            '</div>' +
+            '<div style="margin-top:12px;font-size:11px;color:var(--ink-faint)">A screenshot, a photo, an influencer sighting — Robes reads what it can.</div></div>';
+          return;
+        }
+        grid.innerHTML = _wlItems.map(_wlCard).join('') +
+          '<div class="rb-wl-item"><button class="rb-add-card" style="width:100%" onclick="window.__wlOpenAdd()">' +
+            '<span class="rb-add-plus">+</span>' +
+            '<span class="rb-add-serif">Save something</span>' +
+            '<span class="rb-add-hint">Screenshot \xb7 Photo \xb7 Link</span></button></div>';
+      }
+
+      window.__wlSoonLink = function() {
+        _waSoon('Paste a link', 'Drop a product link and Robes saves the piece — photo, brand and price included.');
+      };
+
+      window.__wlBought = async function(id) {
+        const w = _wlItems.find(x => String(x.id) === String(id));
+        if (!w) return;
+        try {
+          const payload = {
+            user_id: _waUid(), label: w.label, category: w.category || 'Other',
+            color: w.color || null, brand: w.brand || null, notes: w.note || null,
+            image_url: w.image_url || null,
+            item_dna: (w.item_dna && typeof w.item_dna === 'object' && Object.keys(w.item_dna).length) ? w.item_dna : undefined
+          };
+          const created = await _waFetch('POST', 'wardrobe_items', payload);
+          await _waFetch('DELETE', 'wishlist_items?id=eq.' + id, undefined);
+          _wlItems = _wlItems.filter(x => String(x.id) !== String(id));
+          await _waLoad();
+          _waShowToast(w.label + ' is in your wardrobe');
+          // Same peak moment as a fresh add — offer the styling fork
+          const row = (Array.isArray(created) && created[0]) || null;
+          if (row && window.__rbAddFork) window.__rbAddFork(row);
+        } catch (e) {
+          console.error('wishlist bought:', e);
+          _waShowToast('Could not move the piece — try again');
+        }
+      };
+
+      window.__wlRemove = function(id) {
+        window._rbConfirmDelete('Remove from your wishlist?', async function() {
+          try {
+            await _waFetch('DELETE', 'wishlist_items?id=eq.' + id, undefined);
+            _wlItems = _wlItems.filter(x => String(x.id) !== String(id));
+            _waV2Sync();
+            _waShowToast('Removed from your wishlist');
+          } catch (e) { _waShowToast('Could not remove it — try again'); }
+        });
+      };
+
+      // Save-to-wishlist modal: screenshot/photo now; link + receipt later
+      window.__wlOpenAdd = function() {
+        document.getElementById('rb-wl-modal')?.remove();
+        const serif = "'Cormorant',Georgia,serif";
+        const modal = document.createElement('div');
+        modal.id = 'rb-wl-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        const card = document.createElement('div');
+        card.style.cssText = 'background:#FAF8F5;border-radius:20px;width:100%;max-width:440px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px;max-height:86vh;overflow-y:auto';
+        modal.appendChild(card);
+        document.body.appendChild(modal);
+        let photo = '';
+
+        function stepPick() {
+          card.innerHTML = '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin-bottom:10px">The Wishlist</div>' +
+            '<div style="font-family:' + serif + ';font-size:26px;font-weight:300;color:#202021;line-height:1.15;margin-bottom:6px">Save what catches your eye.</div>' +
+            '<div style="font-size:12px;color:#6E6A64;margin-bottom:18px">A screenshot, a photo, a saved image — Robes reads what it can.</div>' +
+            '<label id="rb-wl-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:168px;border:1.5px dashed #C8B8A2;border-radius:12px;background:#fff;cursor:pointer;text-align:center;padding:16px;box-sizing:border-box">' +
+              '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>' +
+              '<span style="font-size:14px;color:#6A5E54">Screenshot or photo</span>' +
+              '<span style="font-size:11.5px;color:#B0A090">From Instagram, Substack, or your camera roll</span>' +
+              '<input id="rb-wl-file" type="file" accept="image/*" style="display:none"></label>' +
+            '<button id="rb-wl-link" style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px;background:#fff;color:#A89880;font-size:12px;cursor:pointer;font-family:inherit">Paste a link <span class="rb-soon-tag">Coming soon</span></button>' +
+            '<button id="rb-wl-cancel" style="display:block;margin:12px auto 0;background:none;border:none;color:#A89880;font-size:11.5px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:4px">Cancel</button>';
+          card.querySelector('#rb-wl-file').addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+              _rbDownscale(this.files[0]).then(stepRead).catch(function() { _waShowToast('Could not read that image'); });
+            }
+          });
+          card.querySelector('#rb-wl-link').onclick = function() { modal.remove(); window.__wlSoonLink(); };
+          card.querySelector('#rb-wl-cancel').onclick = function() { modal.remove(); };
+        }
+
+        function stepRead(dataUrl) {
+          photo = dataUrl;
+          card.innerHTML = '<div style="text-align:center;padding:34px 10px">' +
+            '<div style="width:26px;height:26px;border:2px solid #E7E0CF;border-top-color:#202021;border-radius:100px;margin:0 auto 16px;animation:wa-spin 0.9s linear infinite"></div>' +
+            '<div style="font-family:' + serif + ';font-style:italic;font-weight:300;font-size:19px;color:#202021">Reading the piece…</div>' +
+            '<div style="font-size:12px;color:#A89880;margin-top:6px">Robes is looking at the image.</div></div>';
+          const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+          if (!m) { stepConfirm({}); return; }
+          fetch('/api/wardrobe/analyse', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: m[2], mimeType: m[1] })
+          }).then(r => r.ok ? r.json() : {}).catch(() => ({})).then(tag => stepConfirm(tag || {}));
+        }
+
+        function stepConfirm(tag) {
+          let src = 'screenshot';
+          const srcDefs = [['screenshot', 'Screenshot'], ['instagram', 'Instagram'], ['substack', 'Substack'], ['photo', 'In person']];
+          card.innerHTML = '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin-bottom:10px">The Wishlist</div>' +
+            '<div style="font-family:' + serif + ';font-size:26px;font-weight:300;color:#202021;line-height:1.15;margin-bottom:16px">' + (tag.label ? 'Here’s what Robes <em style="font-style:italic;color:#9A7060">saw.</em>' : 'Name the piece.') + '</div>' +
+            '<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px">' +
+              '<img id="rb-wl-thumb" style="width:74px;height:96px;object-fit:cover;border-radius:8px;flex-shrink:0" alt="">' +
+              '<div style="flex:1;min-width:0">' +
+                '<label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px">PIECE</label>' +
+                '<input id="rb-wl-label" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;margin-bottom:9px">' +
+                '<label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px">BRAND</label>' +
+                '<input id="rb-wl-brand" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520">' +
+              '</div></div>' +
+            '<div style="display:flex;gap:10px;margin-bottom:14px">' +
+              '<div style="flex:1"><label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px">PRICE <span style="color:#B0A090;letter-spacing:0;text-transform:none">optional</span></label>' +
+              '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#A89880;font-size:13px">€</span>' +
+              '<input id="rb-wl-price" inputmode="decimal" placeholder="0" style="width:100%;box-sizing:border-box;padding:10px 12px 10px 26px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520"></div></div></div>' +
+            '<label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:7px">WHERE DID YOU SPOT IT?</label>' +
+            '<div id="rb-wl-src" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:20px">' +
+              srcDefs.map(d => '<button data-src="' + d[0] + '" style="padding:7px 13px;border-radius:100px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;border:1px solid ' + (d[0] === src ? '#2A2520;background:#2A2520;color:#F8F5F0' : '#D8CEBC;background:#fff;color:#6A5E54') + '">' + d[1] + '</button>').join('') + '</div>' +
+            '<button id="rb-wl-save" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:13px;letter-spacing:0.08em;cursor:pointer;font-family:inherit">SAVE TO WISHLIST →</button>';
+          const thumb = card.querySelector('#rb-wl-thumb');
+          if (thumb && photo) thumb.src = photo;
+          const lblEl = card.querySelector('#rb-wl-label');
+          lblEl.value = tag.label || '';
+          card.querySelector('#rb-wl-brand').value = tag.brand || '';
+          card.querySelector('#rb-wl-src').addEventListener('click', function(e) {
+            const b = e.target.closest('button[data-src]');
+            if (!b) return;
+            src = b.dataset.src;
+            this.querySelectorAll('button[data-src]').forEach(function(x) {
+              const on = x.dataset.src === src;
+              x.style.border = '1px solid ' + (on ? '#2A2520' : '#D8CEBC');
+              x.style.background = on ? '#2A2520' : '#fff';
+              x.style.color = on ? '#F8F5F0' : '#6A5E54';
+            });
+          });
+          card.querySelector('#rb-wl-save').onclick = async function() {
+            const label = lblEl.value.trim();
+            if (!label) { lblEl.style.borderColor = '#B0533B'; lblEl.focus(); return; }
+            this.disabled = true; this.style.opacity = '0.65'; this.textContent = 'Saving…';
+            const btn = this;
+            try {
+              let url = null;
+              const m = photo.match(/^data:([^;]+);base64,(.+)$/);
+              if (m) {
+                try {
+                  const r = await fetch('/api/wardrobe/upload', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: m[2], mimeType: m[1] })
+                  });
+                  const j = await r.json();
+                  if (j.url) url = j.url;
+                } catch (upErr) { console.warn('wishlist photo upload failed:', upErr); }
+              }
+              const priceRaw = (card.querySelector('#rb-wl-price').value || '').replace(/[^0-9.]/g, '');
+              await _waFetch('POST', 'wishlist_items', {
+                user_id: _waUid(), label,
+                category: tag.category || 'Other',
+                color: tag.color || null,
+                brand: (card.querySelector('#rb-wl-brand').value || '').trim() || null,
+                price: priceRaw ? Number(priceRaw) : null,
+                image_url: url,
+                source_type: src,
+                source_label: (_WL_SRC[src] || _WL_SRC.photo).label,
+                item_dna: (tag.item_dna && typeof tag.item_dna === 'object') ? tag.item_dna : {}
+              });
+              modal.remove();
+              await _wlLoad();
+              if (_waView !== 'wishlist' && window.__waSetView) window.__waSetView('wishlist');
+              _waShowToast('Saved to your wishlist');
+            } catch (e) {
+              console.error('wishlist save:', e);
+              const missing = /relation|does not exist|PGRST205|schema cache/i.test(String(e && e.message || e));
+              _waShowToast(missing ? 'The wishlist isn’t ready yet — try again shortly' : 'Could not save — try again');
+              btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'SAVE TO WISHLIST →';
+            }
+          };
+        }
+        stepPick();
+      };
+
+      // ── Add chooser — Photograph live; Link + Receipt sold as roadmap ──
+      window.__waAddChooser = function() {
+        if (_waView === 'wishlist') { window.__wlOpenAdd(); return; }
+        document.getElementById('rb-add-chooser')?.remove();
+        const serif = "'Cormorant',Georgia,serif";
+        const modal = document.createElement('div');
+        modal.id = 'rb-add-chooser';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        function door(id, icon, label, hint, soon) {
+          return '<button id="' + id + '" style="display:flex;align-items:center;gap:13px;width:100%;padding:13px 14px;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px;background:#fff;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s' + (soon ? ';opacity:.62' : '') + '">' +
+            '<span style="width:32px;height:32px;border-radius:9px;background:#F0EBE3;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#202021">' + icon + '</span>' +
+            '<span style="flex:1;min-width:0"><span style="display:block;font-size:13px;font-weight:500;color:#202021">' + label +
+            (soon ? ' <span class="rb-soon-tag">Coming soon</span>' : '') + '</span>' +
+            '<span style="display:block;font-size:11px;color:#A89880;margin-top:1px">' + hint + '</span></span></button>';
+        }
+        modal.innerHTML = '<div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:400px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px">' +
+          '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin-bottom:8px">Add a piece</div>' +
+          '<div style="font-family:' + serif + ';font-size:25px;font-weight:300;color:#202021;line-height:1.15;margin-bottom:18px">How would you like to add it?</div>' +
+          '<div style="display:flex;flex-direction:column;gap:9px">' +
+            door('rb-add-photo', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>', 'Photograph', 'Snap it or attach it — Robes reads the rest', false) +
+            door('rb-add-link', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>', 'Paste a link', 'From any retailer page', true) +
+            door('rb-add-receipt', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>', 'Import a receipt', 'Robes reads the line items', true) +
+          '</div>' +
+          '<button id="rb-add-close" style="display:block;margin:14px auto 0;background:none;border:none;color:#A89880;font-size:11.5px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:4px">Cancel</button></div>';
+        document.body.appendChild(modal);
+        modal.querySelector('#rb-add-photo').onclick = function() {
+          modal.remove();
+          _waEditId = null; _waAfterAdd = null;
+          if (window.WA && WA.open) WA.open();
+        };
+        modal.querySelector('#rb-add-link').onclick = function() {
+          modal.remove();
+          _waSoon('Paste a link', 'Drop a product link and Robes files the piece — photo, brand and price included.');
+        };
+        modal.querySelector('#rb-add-receipt').onclick = function() {
+          modal.remove();
+          _waSoon('Receipt import', 'Forward or photograph a receipt and Robes files every piece on it.');
+        };
+        modal.querySelector('#rb-add-close').onclick = function() { modal.remove(); };
+      };
+
+      // ── Progressive capture — "Add more detail" expander ──────────────
+      // Shared by add step 3 and the edit modal. State lives on window so
+      // WA.submit (outside the autotag closure) can read it; WA.close wipes it.
+      window.__rbWaDetail = null;
+
+      window.__rbWaDetailInject = function(it) {
+        // Reset per piece (also per batch photo)
+        window.__rbWaDetail = {
+          open: false,
+          when: (it ? [].concat(it.seasons || [], it.occasions || []) : []),
+          price: it && it.price != null ? String(it.price) : '',
+          fitConf: (it && it.fit_confidence) || '',
+          sentiment: (it && it.sentiment) || '',
+          hero: !!(it && it.hero_position != null),
+          heroPos: it && it.hero_position != null ? it.hero_position : null,
+          worn: (it && it.times_worn) || 0,
+          addingTag: false
+        };
+        let host = document.getElementById('rb-wa-detail-host');
+        if (!host) {
+          // Edit modal path: create the host just above the CTA
+          const cta = document.getElementById('wa-cta');
+          if (!cta || !cta.parentNode) return;
+          host = document.createElement('div');
+          host.id = 'rb-wa-detail-host';
+          cta.parentNode.insertBefore(host, cta);
+        }
+        _rbWaDetailPaint();
+      };
+
+      window.__rbWaDetTogWhen = function(val) {
+        const d = window.__rbWaDetail; if (!d) return;
+        const i = d.when.indexOf(val);
+        if (i === -1) d.when.push(val); else d.when.splice(i, 1);
+        _rbWaDetailPaint();
+      };
+      window.__rbWaDetFit = function(val) {
+        const d = window.__rbWaDetail; if (!d) return;
+        d.fitConf = d.fitConf === val ? '' : val;
+        _rbWaDetailPaint();
+      };
+      window.__rbWaDetSent = function(val) {
+        const d = window.__rbWaDetail; if (!d) return;
+        d.sentiment = d.sentiment === val ? '' : val;
+        _rbWaDetailPaint();
+      };
+      window.__rbWaDetHero = function() {
+        const d = window.__rbWaDetail; if (!d) return;
+        if (!d.hero && !(d.heroPos != null) && _waHeroAll().length >= _WA_HERO_CAP) {
+          _waShowToast('The Hero Rack holds ' + _WA_HERO_CAP + ' — remove one first');
+          return;
+        }
+        d.hero = !d.hero;
+        _rbWaDetailPaint();
+      };
+      window.__rbWaDetOpen = function() {
+        const d = window.__rbWaDetail; if (!d) return;
+        d.open = true;
+        _rbWaDetailPaint();
+      };
+      window.__rbWaDetPrice = function(el) {
+        const d = window.__rbWaDetail; if (!d) return;
+        d.price = (el.value || '').replace(/[^0-9.]/g, '');
+        const cpw = document.getElementById('rb-wa-cpw');
+        if (cpw) cpw.textContent = _rbWaCpwLabel(d);
+      };
+      window.__rbWaDetTagStart = function() {
+        const d = window.__rbWaDetail; if (!d) return;
+        d.addingTag = true;
+        _rbWaDetailPaint();
+        const inp = document.getElementById('rb-wa-tag-in');
+        if (inp) inp.focus();
+      };
+      window.__rbWaDetTagKey = function(e, el) {
+        const d = window.__rbWaDetail; if (!d) return;
+        // Enter commits and repaints (removing the input) — the orphaned
+        // input then fires blur, which must not repaint again mid-remove.
+        if (!d.addingTag) return;
+        if (e.type === 'blur' || e.key === 'Enter') {
+          if (e.key === 'Enter') e.preventDefault();
+          const v = (el.value || '').trim();
+          if (v && d.when.indexOf(v) === -1) d.when.push(v);
+          d.addingTag = false;
+          _rbWaDetailPaint();
+        } else if (e.key === 'Escape') {
+          d.addingTag = false;
+          _rbWaDetailPaint();
+        }
+      };
+
+      function _rbWaCpwLabel(d) {
+        const p = Number(d.price);
+        if (p > 0 && d.worn > 0) return '€' + Math.round(p / d.worn) + ' per wear';
+        if (p > 0) return 'worth tracking from first wear';
+        return 'add a price to see cost-per-wear';
+      }
+
+      function _rbWaDetailPaint() {
+        const host = document.getElementById('rb-wa-detail-host');
+        const d = window.__rbWaDetail;
+        if (!host || !d) return;
+        const lbl = 'font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:8px;';
+        if (!d.open) {
+          const has = d.when.length + (d.price ? 1 : 0) + (d.fitConf ? 1 : 0) + (d.sentiment ? 1 : 0) + (d.hero ? 1 : 0);
+          host.innerHTML = '<button onclick="window.__rbWaDetOpen()" style="width:100%;margin:2px 0 14px;border:1px solid #D8CEBC;border-radius:10px;background:#fff;padding:12px;font-size:12px;letter-spacing:0.03em;color:#9A8E82;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;transition:all .15s">' +
+            '<span style="font-size:14px;line-height:1">+</span> Add more detail' +
+            '<span style="font-size:10.5px;color:#C8B8A2">— season, cost-per-wear, fit' + (has ? ' \xb7 ' + has + ' set' : '') + '</span></button>';
+          return;
+        }
+        const whenAll = WA_SEASONS.concat(WA_OCCASIONS).concat(d.when.filter(w => WA_SEASONS.indexOf(w) === -1 && WA_OCCASIONS.indexOf(w) === -1));
+        const whenChips = whenAll.map(function(w) {
+          const on = d.when.indexOf(w) !== -1;
+          return '<button onclick="window.__rbWaDetTogWhen(\'' + _waEsc(w).replace(/'/g, '\\\'') + '\')" style="padding:6px 13px;border-radius:100px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;border:1px solid ' + (on ? '#2A2520;background:#2A2520;color:#F8F5F0' : '#D8CEBC;background:#fff;color:#6A5E54') + '">' + _waEsc(w) + '</button>';
+        }).join('');
+        const tagCtl = d.addingTag
+          ? '<input id="rb-wa-tag-in" placeholder="Type &amp; press Enter" onkeydown="window.__rbWaDetTagKey(event,this)" onblur="window.__rbWaDetTagKey(event,this)" style="border:1px solid #2A2520;border-radius:100px;padding:6px 13px;font-size:12px;background:#fff;color:#2A2520;width:140px;font-family:inherit">'
+          : '<button onclick="window.__rbWaDetTagStart()" style="padding:6px 13px;border:1px dashed #C8B8A2;background:none;border-radius:100px;font-size:12px;color:#9A8E82;cursor:pointer;font-family:inherit">+ tag</button>';
+        const fitOpts = ['True to size', 'Runs small', 'Runs large'].map(function(f) {
+          const on = d.fitConf === f;
+          return '<button onclick="window.__rbWaDetFit(\'' + f + '\')" style="border:none;cursor:pointer;border-radius:100px;padding:7px 13px;font-size:11.5px;font-family:inherit;transition:all .15s;background:' + (on ? '#2A2520;color:#F8F5F0' : 'transparent;color:#9A8E82') + '">' + f + '</button>';
+        }).join('');
+        const sentOpts = [['Irreplaceable', 'Robes will never suggest letting it go'], ['Would repurchase', 'Fine to replace if it wears out']].map(function(s) {
+          const on = d.sentiment === s[0];
+          return '<button onclick="window.__rbWaDetSent(\'' + s[0] + '\')" style="flex:1;min-width:140px;border:1px solid ' + (on ? '#2A2520' : '#D8CEBC') + ';background:' + (on ? '#F0EBE3' : '#fff') + ';color:#2A2520;border-radius:10px;padding:11px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;text-align:left;line-height:1.3;transition:all .15s">' + s[0] +
+            '<span style="display:block;font-size:10.5px;color:#9A8E82;margin-top:2px">' + s[1] + '</span></button>';
+        }).join('');
+        host.innerHTML = '<div style="margin:2px 0 14px;border:1px solid #D8CEBC;border-radius:12px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:16px">' +
+          '<div><label style="' + lbl + '">WHEN DO YOU WEAR THIS</label><div style="display:flex;flex-wrap:wrap;gap:7px">' + whenChips + tagCtl + '</div></div>' +
+          '<div><label style="' + lbl + '">PURCHASE PRICE <span style="letter-spacing:0;text-transform:none;color:#B0A090">private — powers cost-per-wear</span></label>' +
+            '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+            '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#A89880;font-size:13px">€</span>' +
+            '<input value="' + _waEsc(d.price) + '" inputmode="decimal" placeholder="0" oninput="window.__rbWaDetPrice(this)" style="width:110px;box-sizing:border-box;padding:9px 12px 9px 26px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520"></div>' +
+            '<span id="rb-wa-cpw" style="font-family:var(--font-serif);font-style:italic;font-size:15px;color:#7E7C5A">' + _rbWaCpwLabel(d) + '</span></div></div>' +
+          '<div><label style="' + lbl + '">FIT CONFIDENCE</label><div style="display:inline-flex;background:#F0EBE3;border:1px solid #E7E0CF;border-radius:100px;padding:3px;flex-wrap:wrap">' + fitOpts + '</div></div>' +
+          '<div><label style="' + lbl + '">IF IT WERE LOST TOMORROW</label><div style="display:flex;gap:9px;flex-wrap:wrap">' + sentOpts + '</div></div>' +
+          '<div onclick="window.__rbWaDetHero()" style="border:1px solid ' + (d.hero ? '#2A2520' : '#D8CEBC') + ';background:' + (d.hero ? '#F0EBE3' : '#fff') + ';border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s">' +
+            '<svg viewBox="0 0 24 24" width="17" height="17" fill="' + (d.hero ? '#2A2520' : 'none') + '" stroke="#2A2520" stroke-width="1.3"><path d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9 6.75 19.7l1-5.85L3.5 9.65l5.9-.85z"/></svg>' +
+            '<span style="flex:1"><span style="font-size:12.5px;font-weight:500;color:#2A2520">Feature in Hero Rack</span>' +
+            '<span style="display:block;font-size:10.5px;color:#9A8E82;margin-top:1px">Pin it to the shelf you reach for first</span></span>' +
+            '<span style="width:38px;height:22px;border-radius:100px;background:' + (d.hero ? '#2A2520' : '#D8CEBC') + ';position:relative;transition:all .2s;flex-shrink:0"><span style="position:absolute;top:2px;left:' + (d.hero ? '18px' : '2px') + ';width:18px;height:18px;border-radius:100px;background:#fff;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span></span></div>' +
+          '</div>';
+      }
+
+      // ── View switching + panel augmentation ───────────────────────────
+      window.__waSetView = function(v) {
+        _waView = v === 'wishlist' ? 'wishlist' : 'all';
+        _waV2Sync();
+        if (window.rbSetCrumb) {
+          if (_waView === 'wishlist') {
+            rbSetCrumb([
+              { label: 'Wardrobe', action: function() { window.__waSetView && window.__waSetView('all'); } },
+              { label: 'Wishlist' }
+            ]);
+          } else {
+            rbSetCrumb([{ label: 'Wardrobe' }]);
+          }
+        }
+        if (window._rbNav) _rbNav(_waView === 'wishlist' ? '/wishlist' : '/wardrobe');
+      };
+
+      function _waV2Sync() {
+        const panel = document.querySelector('.wardrobe-panel');
+        if (!panel || !document.getElementById('rb-hero')) return;
+        const wish = _waView === 'wishlist';
+        const title = panel.querySelector('.wg-title');
+        const sub = panel.querySelector('.wg-sub');
+        if (title) title.textContent = wish ? 'Your wishlist' : 'Your wardrobe';
+        if (sub) sub.textContent = wish
+          ? 'Pieces you don’t own yet — Robes weighs each against what’s already yours.'
+          : 'Everything Robes styles from.';
+        const count = document.getElementById('wg-count');
+        if (count) {
+          count.textContent = wish
+            ? _wlItems.length + ' saved'
+            : _waItems.length + ' piece' + (_waItems.length === 1 ? '' : 's');
+        }
+        const cta = document.getElementById('rb-wg-cta-head');
+        if (cta) cta.textContent = wish ? '+ Save a piece' : '+ Add a piece';
+        const filters = document.getElementById('wg-filters');
+        if (filters) filters.style.display = wish ? 'none' : '';
+        const grid = document.getElementById('wg-grid');
+        if (grid) grid.style.display = wish ? 'none' : '';
+        const wlGrid = document.getElementById('rb-wl-grid');
+        if (wlGrid) wlGrid.style.display = wish ? 'grid' : 'none';
+        const tabs = document.getElementById('rb-wsub');
+        if (tabs) {
+          tabs.querySelectorAll('button').forEach(function(b) {
+            b.classList.toggle('active', b.dataset.view === _waView);
+          });
+          const wlTab = tabs.querySelector('[data-view="wishlist"]');
+          if (wlTab) wlTab.textContent = 'Wishlist' + (_wlItems.length ? ' (' + _wlItems.length + ')' : '');
+        }
+        _waRefineRender();
+        if (wish) _wlRender();
+        _waHeroRender();
+      }
+
+      // One-time DOM augmentation of the static wardrobe panel
+      (function _waV2Setup() {
+        const panel = document.querySelector('.wardrobe-panel');
+        if (!panel) { setTimeout(_waV2Setup, 400); return; }
+        if (document.getElementById('rb-hero')) return;
+
+        // Styles — injected like the tracker/scan style tags
+        if (!document.getElementById('rb-wa2-style')) {
+          const st = document.createElement('style');
+          st.id = 'rb-wa2-style';
+          st.textContent = [
+            // sub-tabs
+            '.rb-wsub{display:flex;gap:20px;margin-bottom:12px}',
+            '.rb-wsub button{background:none;border:none;padding:2px 1px 7px;font-size:12.5px;font-family:inherit;color:var(--ink-faint);cursor:pointer;border-bottom:1.5px solid transparent;letter-spacing:.02em;transition:color .15s}',
+            '.rb-wsub button.active{color:var(--ink);font-weight:500;border-bottom-color:var(--ink)}',
+            '.rb-wsub button:hover{color:var(--ink)}',
+            // header CTA (shared pill button)
+            '.rb-wg-cta{padding:10px 18px;border:none;border-radius:100px;background:var(--ink);color:#fff;font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;font-family:inherit;white-space:nowrap;transition:opacity .15s}',
+            '.rb-wg-cta:hover{opacity:.85}',
+            '.rb-wg-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}',
+            // hero rack
+            '#rb-hero{margin:4px 0 26px}',
+            '.rb-hero-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:0.5px solid var(--rule-mid);padding-bottom:10px;margin-bottom:16px}',
+            '.rb-hero-eywrap{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;min-width:0}',
+            '.rb-hero-ey{font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);white-space:nowrap}',
+            '.rb-hero-echo{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:15px;color:var(--ink-faint);white-space:nowrap}',
+            '#rb-hero-note{font-size:10.5px;color:var(--ink-faint);white-space:nowrap;flex-shrink:0}',
+            '.rb-hero-rail{display:flex;gap:16px;overflow-x:auto;padding:2px 2px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none}',
+            '.rb-hero-rail::-webkit-scrollbar{display:none}',
+            '.rb-hero-card{flex:0 0 auto;width:206px;cursor:pointer}',
+            '.rb-hero-tile{position:relative;aspect-ratio:3/4;border-radius:var(--rad-lg);overflow:hidden;background:var(--cream-200)}',
+            '.rb-hero-tile img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s var(--ease)}',
+            '.rb-hero-card:hover .rb-hero-tile img{transform:scale(1.03)}',
+            '.rb-hero-num{position:absolute;top:9px;left:13px;font-family:var(--font-serif);font-weight:400;font-size:21px;color:#fff;text-shadow:0 1px 10px rgba(0,0,0,.4);pointer-events:none}',
+            '.rb-hero-add{flex:0 0 auto;width:206px;aspect-ratio:3/4;border-radius:var(--rad-lg);border:1.5px dashed var(--rule-mid);background:transparent;color:var(--ink-faint);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;font-family:inherit;transition:all .15s}',
+            '.rb-hero-add:hover{border-color:var(--ink-faint);color:var(--ink)}',
+            '.rb-hero-empty{border:1.5px dashed var(--rule-mid);border-radius:var(--rad-lg);background:var(--sage-bg);padding:34px 24px;text-align:center}',
+            // star button (hero rail + grid cards)
+            '.rb-star{position:absolute;top:8px;right:8px;width:29px;height:29px;border-radius:100px;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(255,255,255,.86);backdrop-filter:blur(4px);transition:all .15s;z-index:2;padding:0;opacity:0}',
+            '.rb-star svg{width:14px;height:14px;display:block}',
+            '.rb-star.on{background:var(--ink);opacity:1}',
+            '.wg-item:hover .rb-star,.rb-hero-card:hover .rb-star{opacity:1}',
+            '@media(hover:none){.rb-star{opacity:1}}',
+            // refine
+            '#rb-refine{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:18px 20px;margin:-12px 0 24px}',
+            '.rb-ref-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:20px 28px}',
+            '.rb-ref-lbl{font-size:9.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px}',
+            '.rb-ref-chips{display:flex;flex-wrap:wrap;gap:7px;align-items:center}',
+            '.rb-ref-chip{padding:6px 13px;border:0.5px solid var(--rule-mid);background:#fff;border-radius:100px;font-size:11.5px;color:var(--ink-soft);cursor:pointer;font-family:inherit;transition:all .15s}',
+            '.rb-ref-chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}',
+            '.rb-sw{width:26px;height:26px;border-radius:100px;border:none;cursor:pointer;position:relative;box-shadow:inset 0 1px 3px rgba(0,0,0,.15),0 0 0 1px rgba(0,0,0,.07);padding:0;flex-shrink:0}',
+            '.rb-sw.on{outline:2px solid var(--ink);outline-offset:2px}',
+            '.rb-ref-segwrap{display:inline-flex;background:var(--cream-100);border:0.5px solid var(--rule-mid);border-radius:100px;padding:3px}',
+            '.rb-ref-seg{border:none;cursor:pointer;border-radius:100px;padding:6px 13px;font-size:11px;font-family:inherit;background:transparent;color:var(--ink-faint);transition:all .15s}',
+            '.rb-ref-seg.on{background:var(--ink);color:#fff}',
+            '.rb-ref-select{width:100%;max-width:210px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);padding:9px 12px;font-size:12.5px;background:#fff;color:var(--ink);font-family:inherit;cursor:pointer}',
+            '.rb-ref-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:0.5px solid var(--rule);margin-top:16px;padding-top:14px}',
+            '.rb-refine-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:100px;background:#fff;color:var(--ink);font-size:9.5px;padding:0 4px;margin-left:5px;vertical-align:1px}',
+            '.wg-pill.rb-refine-pill{display:inline-flex;align-items:center}',
+            // wishlist
+            '#rb-wl-grid{display:none;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:18px}',
+            '.rb-wl-tile{position:relative;aspect-ratio:3/4;border-radius:var(--rad);overflow:hidden;border:1.5px dashed var(--cream-400);background:var(--cream-100);box-sizing:border-box}',
+            '.rb-wl-tile.rb-wl-robes{border-color:var(--sage)}',
+            '.rb-wl-tile img{width:100%;height:100%;object-fit:cover;display:block}',
+            '.rb-wl-chip{position:absolute;top:8px;left:8px;display:inline-flex;align-items:center;gap:6px;background:rgba(250,248,245,.92);color:var(--ink);font-size:9.5px;letter-spacing:.03em;padding:4px 9px;border-radius:100px;backdrop-filter:blur(4px);max-width:calc(100% - 16px)}',
+            '.rb-wl-chip.sage{background:var(--sage);color:#fff}',
+            '.rb-wl-dot{width:5px;height:5px;border-radius:100px;flex:0 0 auto}',
+            '.rb-wl-note{margin-top:8px;background:var(--sage-bg);border-left:2px solid var(--sage);border-radius:0 6px 6px 0;padding:8px 10px;font-size:10.5px;line-height:1.5;color:var(--ink-soft)}',
+            '.rb-wl-actions{display:flex;gap:7px;margin-top:10px}',
+            '.rb-wl-buy{flex:1;padding:9px 6px;border:none;border-radius:100px;background:var(--ink);color:#fff;font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:opacity .15s}',
+            '.rb-wl-buy:hover{opacity:.85}',
+            '.rb-wl-rm{padding:9px 12px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;color:var(--ink-faint);font-size:10.5px;cursor:pointer;font-family:inherit;transition:all .15s}',
+            '.rb-wl-rm:hover{color:#b03030;border-color:#b03030}',
+            '.rb-wl-empty{border:1.5px dashed var(--cream-400);border-radius:var(--rad-lg);background:var(--rose-bg);padding:clamp(30px,6vw,56px) 24px;text-align:center}',
+            '.rb-soon-tag{font-size:8.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;background:var(--cream-200);color:var(--ink-soft);border-radius:100px;padding:3px 8px;vertical-align:1px}',
+            // amplified add-entry card
+            '.rb-add-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;aspect-ratio:3/4;border-radius:var(--rad);border:1.5px dashed var(--rule-mid);background:var(--cream-100);cursor:pointer;transition:all .15s;text-align:center;padding:14px;box-sizing:border-box;font-family:inherit}',
+            '.rb-add-card:hover{border-color:var(--ink-faint);background:var(--cream-200)}',
+            '.rb-add-plus{width:40px;height:40px;border-radius:100px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:300;line-height:1}',
+            '.rb-add-serif{font-family:var(--font-serif);font-weight:300;font-size:19px;color:var(--ink)}',
+            '.rb-add-hint{font-size:10px;letter-spacing:.05em;color:var(--ink-faint)}',
+            // mobile
+            '@media(max-width:640px){.rb-hero-card,.rb-hero-add{width:164px}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}}'
+          ].join('\n');
+          document.head.appendChild(st);
+        }
+
+        const header = panel.querySelector('.wg-header');
+        const sub = panel.querySelector('.wg-sub');
+        const filters = document.getElementById('wg-filters');
+        const grid = document.getElementById('wg-grid');
+        if (!header || !filters || !grid) return;
+
+        // Sub-tabs above the title — Wishlist nests UNDER Wardrobe
+        const tabs = document.createElement('div');
+        tabs.id = 'rb-wsub';
+        tabs.className = 'rb-wsub';
+        tabs.innerHTML = '<button data-view="all" class="active">All pieces</button>' +
+          '<button data-view="wishlist">Wishlist</button>';
+        tabs.addEventListener('click', function(e) {
+          const b = e.target.closest('button[data-view]');
+          if (b) window.__waSetView(b.dataset.view);
+        });
+        panel.insertBefore(tabs, header);
+
+        // Persistent header CTA next to the count (no long scroll to add)
+        const actions = document.createElement('div');
+        actions.className = 'rb-wg-actions';
+        const cta = document.createElement('button');
+        cta.id = 'rb-wg-cta-head';
+        cta.className = 'rb-wg-cta';
+        cta.textContent = '+ Add a piece';
+        cta.addEventListener('click', function() {
+          if (_waView === 'wishlist') window.__wlOpenAdd();
+          else window.__waAddChooser();
+        });
+        actions.appendChild(cta);
+        const countEl = document.getElementById('wg-count');
+        if (countEl) actions.appendChild(countEl); // move, keep id
+        header.appendChild(actions);
+
+        // Hero Rack section between the sub line and the filters
+        const hero = document.createElement('div');
+        hero.id = 'rb-hero';
+        hero.style.display = 'none';
+        hero.innerHTML = '<div class="rb-hero-head"><div class="rb-hero-eywrap">' +
+          '<span class="rb-hero-ey">The Hero Rack</span>' +
+          '<span class="rb-hero-echo">the pieces you reach for first</span></div>' +
+          '<span id="rb-hero-note"></span></div>' +
+          '<div id="rb-hero-body"></div>';
+        panel.insertBefore(hero, filters);
+
+        // Refine drawer host (hidden until toggled)
+        const refine = document.createElement('div');
+        refine.id = 'rb-refine';
+        refine.style.display = 'none';
+        filters.parentNode.insertBefore(refine, filters.nextSibling);
+
+        // Wishlist grid after the owned grid
+        const wl = document.createElement('div');
+        wl.id = 'rb-wl-grid';
+        grid.parentNode.insertBefore(wl, grid.nextSibling);
+      })();
+
       _waObserveGrid();
 
       // Zero out the bundle's mock counts (nav badge "10", tracker "10 / 15")
@@ -1393,7 +2364,7 @@
         App.addPiece = function() {};
         App.filterWardrobe = function(f) {
           _waCat = f;
-          document.querySelectorAll('#wg-filters .wg-pill').forEach(p =>
+          document.querySelectorAll('#wg-filters .wg-pill:not(.wg-pack-pill):not(.rb-refine-pill)').forEach(p =>
             p.classList.toggle('active', p.textContent === f));
           _waRender();
         };
@@ -1417,6 +2388,14 @@
       // and auto-open the matching page
       if (window.location.pathname === '/wardrobe' && window.App && App.showWardrobe) {
         setTimeout(() => App.showWardrobe(), 100);
+      }
+      if (window.location.pathname === '/wishlist' && window.App && App.showWardrobe) {
+        // Wishlist nests under the wardrobe panel — open it, then switch view
+        // (after the visibility observer has set the base Wardrobe crumb)
+        setTimeout(() => {
+          App.showWardrobe();
+          setTimeout(() => window.__waSetView && window.__waSetView('wishlist'), 150);
+        }, 100);
       }
       if (window.location.pathname === '/lookbook') {
         setTimeout(() => window.__snOpen && window.__snOpen(), 400);
@@ -6678,7 +7657,10 @@ body>*:not(#tv-result-page){display:none !important}
                   const wm = document.getElementById('nav-wordmark');
                   if (wm) wm.style.removeProperty('display');
                   window.rbClearCrumb && window.rbClearCrumb();
-                  if (window.location.pathname === '/wardrobe') window._rbNav && window._rbNav('/dashboard');
+                  // A closed panel always reopens on "All pieces"
+                  _waView = 'all';
+                  const _wpPath = window.location.pathname;
+                  if (_wpPath === '/wardrobe' || _wpPath === '/wishlist') window._rbNav && window._rbNav('/dashboard');
                 }
               }
             });
@@ -8184,7 +9166,7 @@ body>*:not(#tv-result-page){display:none !important}
           if (wkResultPage) wkResultPage.style.display = 'none';
           const wp = document.querySelector('.wardrobe-panel');
           const wpOpen = wp && wp.classList.contains('visible');
-          if (wpOpen && p !== '/wardrobe') {
+          if (wpOpen && p !== '/wardrobe' && p !== '/wishlist') {
             const wbtnCount = document.querySelector('.nav-wbtn-count');
             const wbtn = wbtnCount ? wbtnCount.closest('button') : null;
             if (wbtn) wbtn.click(); else wp.classList.remove('visible');
@@ -8195,7 +9177,14 @@ body>*:not(#tv-result-page){display:none !important}
             const item = window._mbFindBySlug && window._mbFindBySlug(p.slice('/moodboard/'.length));
             if (item && window.__mbOpenSaved) window.__mbOpenSaved(item.id);
           }
-          else if (p === '/wardrobe') { if (!wpOpen && window.App && App.showWardrobe) App.showWardrobe(); }
+          else if (p === '/wardrobe') {
+            if (!wpOpen && window.App && App.showWardrobe) App.showWardrobe();
+            if (window.__waSetView) window.__waSetView('all');
+          }
+          else if (p === '/wishlist') {
+            if (!wpOpen && window.App && App.showWardrobe) App.showWardrobe();
+            if (window.__waSetView) setTimeout(() => window.__waSetView('wishlist'), 50);
+          }
           else window.rbClearCrumb && window.rbClearCrumb();
         } catch (e) {} finally { _rbRouting = false; }
       });
