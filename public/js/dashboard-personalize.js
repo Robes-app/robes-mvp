@@ -460,6 +460,14 @@
         const navBadge = document.querySelector('.nav-wbtn-count');
         if (navBadge) navBadge.textContent = n;
 
+        // mobile dock badge — the live count moved off the retired
+        // "Wardrobe · N" pill onto the dock tab (nav architecture 2026-07)
+        const dockBadge = document.getElementById('rb-dock-wcount');
+        if (dockBadge) {
+          dockBadge.textContent = n;
+          dockBadge.style.display = n > 0 ? 'flex' : 'none';
+        }
+
         // dashboard tracker (wardrobe-first redesign: count + copy + bar +
         // the catalogued pieces themselves, so the wardrobe is visible on
         // the dashboard, not just counted)
@@ -7619,6 +7627,98 @@ body>*:not(#tv-result-page){display:none !important}
           const wm = document.getElementById('nav-wordmark');
           if (wm) wm.style.display = '';
         };
+      })();
+
+      // ── Nav architecture v2 (2026-07): anchored destinations ──────────
+      // Desktop: Wardrobe + Lookbook sit inline beside the wordmark (ink
+      // underline = you are here; the wordmark carries Home). Mobile: a
+      // fixed bottom dock carries the same three destinations, and detail
+      // overlays swap the wordmark line for a "‹ Lookbook" back pill.
+      // Detail screens keep their parent (Lookbook) lit — every result
+      // page is a saved lookbook entry. The breadcrumb and the old
+      // "Wardrobe · N" pill are retired in CSS only: rbSetCrumb still runs
+      // (hidden), and the pill stays in the DOM because the panel-close
+      // paths click it programmatically.
+      (function _rbNavArch() {
+        function _wardrobeOpen() {
+          const wp = document.querySelector('.wardrobe-panel');
+          return !!(wp && wp.classList.contains('visible'));
+        }
+        function _detailOpen() {
+          return [kpResultPage, dlResultPage, tvResultPage, wkResultPage]
+            .some(function(p) { return p && p.style.display !== 'none'; });
+        }
+        function _closeOverlays() {
+          window.__mbCloseResult && window.__mbCloseResult();
+          window.__mbCloseList && window.__mbCloseList();
+          if (kpResultPage) kpResultPage.style.display = 'none';
+          if (dlResultPage) dlResultPage.style.display = 'none';
+          if (tvResultPage) tvResultPage.style.display = 'none';
+          if (wkResultPage) wkResultPage.style.display = 'none';
+          const snEl = document.getElementById('sn-page');
+          if (snEl) snEl.style.display = 'none';
+        }
+        function _closeWardrobe() {
+          const wp = document.querySelector('.wardrobe-panel');
+          if (wp && wp.classList.contains('visible')) {
+            // App.showWardrobe never toggles closed (verified: repeat calls
+            // keep .visible) — goHome is the one call that reverses the
+            // bundle's view-switch cleanly without a hard navigation.
+            if (window.App && App.goHome) { try { App.goHome(); } catch (e) {} }
+            if (wp.classList.contains('visible')) wp.classList.remove('visible');
+          }
+        }
+        window.__rbNavGo = function(dest) {
+          if (dest === 'home') {
+            const wm = document.getElementById('nav-wordmark');
+            if (wm && wm.onclick) wm.onclick();
+          } else if (dest === 'back' || dest === 'lookbook') {
+            // Back climbs to the list the detail lives in — the Lookbook.
+            _closeOverlays();
+            _closeWardrobe(); // its patched open would re-hide sn-page, so close first
+            window.__snOpen && window.__snOpen();
+          } else if (dest === 'wardrobe') {
+            _closeOverlays();
+            if (!_wardrobeOpen() && window.App && App.showWardrobe) App.showWardrobe();
+            if (window.__waSetView) window.__waSetView('all');
+          }
+          _rbNavSync();
+        };
+        const tnW = document.getElementById('rb-tn-wardrobe');
+        const tnL = document.getElementById('rb-tn-lookbook');
+        const dkH = document.getElementById('rb-dock-home');
+        const dkW = document.getElementById('rb-dock-wardrobe');
+        const dkL = document.getElementById('rb-dock-lookbook');
+        const backPill = document.getElementById('rb-backpill');
+        function _rbNavSync() {
+          const snEl = document.getElementById('sn-page');
+          const snOpen = !!(snEl && snEl.style.display === 'block');
+          const wOpen = _wardrobeOpen();
+          const detail = _detailOpen();
+          const active = wOpen ? 'wardrobe' : (snOpen || detail) ? 'lookbook' : 'home';
+          if (tnW) tnW.classList.toggle('active', active === 'wardrobe');
+          if (tnL) tnL.classList.toggle('active', active === 'lookbook');
+          if (dkH) dkH.classList.toggle('active', active === 'home');
+          if (dkW) dkW.classList.toggle('active', active === 'wardrobe');
+          if (dkL) dkL.classList.toggle('active', active === 'lookbook');
+          // Mobile detail screens: the back pill replaces the wordmark line.
+          const showPill = detail && window.matchMedia('(max-width:640px)').matches;
+          if (backPill) backPill.style.display = showPill ? 'inline-flex' : 'none';
+          const wm = document.getElementById('nav-wordmark');
+          if (wm) {
+            if (showPill) wm.style.setProperty('display', 'none', 'important');
+            // The wardrobe observer owns the wordmark while the panel is
+            // open (force-inline defence) — leave it alone in that state.
+            else if (!wOpen && wm.style.getPropertyValue('display') === 'none') wm.style.removeProperty('display');
+          }
+        }
+        window._rbNavSync = _rbNavSync;
+        _rbNavSync();
+        // Poll — views open/close through many independent paths (chips,
+        // popstate, observers, bundle toggles); a cheap visibility poll is
+        // the one hook that covers them all (same idiom as _waInit).
+        setInterval(_rbNavSync, 350);
+        window.addEventListener('resize', _rbNavSync);
       })();
 
       // Patch App.setSubtab to wire breadcrumbs for subtab sub-panels
