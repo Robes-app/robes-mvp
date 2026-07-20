@@ -2252,8 +2252,8 @@
           st.id = 'rb-wa2-style';
           st.textContent = [
             // sub-tabs
-            '.rb-wsub{display:flex;gap:20px;margin-bottom:12px}',
-            '.rb-wsub button{background:none;border:none;padding:2px 1px 7px;font-size:12.5px;font-family:inherit;color:var(--ink-faint);cursor:pointer;border-bottom:1.5px solid transparent;letter-spacing:.02em;transition:color .15s}',
+            '.rb-wsub{display:flex;gap:20px;margin-bottom:20px;border-bottom:0.5px solid var(--rule-mid)}',
+            '.rb-wsub button{background:none;border:none;padding:2px 1px 10px;margin-bottom:-1px;font-size:13px;font-family:inherit;color:var(--ink-faint);cursor:pointer;border-bottom:1.5px solid transparent;letter-spacing:.02em;transition:color .15s}',
             '.rb-wsub button.active{color:var(--ink);font-weight:500;border-bottom-color:var(--ink)}',
             '.rb-wsub button:hover{color:var(--ink)}',
             // header CTA (shared pill button)
@@ -2348,7 +2348,8 @@
         const grid = document.getElementById('wg-grid');
         if (!header || !filters || !grid) return;
 
-        // Sub-tabs above the title — Wishlist nests UNDER Wardrobe
+        // Sub-tabs BELOW the title (mock order: YOUR WARDROBE leads, then
+        // All pieces / Wishlist) — Wishlist nests UNDER Wardrobe
         const tabs = document.createElement('div');
         tabs.id = 'rb-wsub';
         tabs.className = 'rb-wsub';
@@ -2358,7 +2359,7 @@
           const b = e.target.closest('button[data-view]');
           if (b) window.__waSetView(b.dataset.view);
         });
-        panel.insertBefore(tabs, header);
+        header.parentNode.insertBefore(tabs, header.nextSibling);
 
         // Header carries only the count now (add rework, nav architecture
         // 2026-07: adding moved to the toolbar + mobile FAB). The old
@@ -2617,17 +2618,50 @@
       snPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:60px;z-index:45;background:#FAF8F5;overflow-y:auto';
       snPage.innerHTML = `
         <div style="padding:32px 24px 24px;max-width:960px;margin:0 auto">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 24px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 16px">
             <p style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0">Lookbook</p>
             <span id="sn-count" style="font-size:11px;color:#A89880;white-space:nowrap"></span>
           </div>
+          <div id="sn-tabs" style="display:flex;gap:22px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-bottom:0.5px solid rgba(32,32,33,0.12);margin:0 0 24px"></div>
           <div id="sn-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
           <div id="sn-empty" style="display:none;padding:80px 0;text-align:center">
-            <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">Nothing saved yet.</p>
-            <p style="font-size:13px;color:#A89880;line-height:1.6">Style a key piece or save today's look<br>and it will appear here.</p>
+            <p id="sn-empty-t" style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">Nothing saved yet.</p>
+            <p id="sn-empty-s" style="font-size:13px;color:#A89880;line-height:1.6">Style a key piece or save today's look<br>and it will appear here.</p>
           </div>
         </div>`;
       document.body.appendChild(snPage);
+
+      // ── Lookbook type filters — one All row for the four result types
+      // (same text-tab scan pattern as the wardrobe's category tabs)
+      var _snFilter = 'all';
+      const _SN_FILTERS = [
+        ['all', 'All'], ['key-piece', 'Key pieces'], ['daily-look', 'Daily looks'],
+        ['weekly-plan', 'Weekly plans'], ['travel-edit', 'Travel edits']
+      ];
+      if (!document.getElementById('rb-sn-style')) {
+        const snSt = document.createElement('style');
+        snSt.id = 'rb-sn-style';
+        snSt.textContent = '#sn-tabs::-webkit-scrollbar{display:none}' +
+          '.sn-ftab{background:none;border:none;border-bottom:1.5px solid transparent;padding:2px 1px 10px;margin-bottom:-1px;font-size:13px;font-family:inherit;color:#C4B8A4;cursor:pointer;white-space:nowrap;letter-spacing:.01em;transition:color .15s;flex-shrink:0}' +
+          '.sn-ftab.active{color:#202021;font-weight:500;border-bottom-color:#202021}' +
+          '.sn-ftab:hover{color:#202021}';
+        document.head.appendChild(snSt);
+      }
+      (function _snTabsInit() {
+        const row = snPage.querySelector('#sn-tabs');
+        row.innerHTML = _SN_FILTERS.map(([k, l]) =>
+          `<button class="sn-ftab${k === 'all' ? ' active' : ''}" data-snf="${k}">${l}</button>`).join('');
+        row.addEventListener('click', function(e) {
+          const b = e.target.closest('button[data-snf]');
+          if (b) _snSetFilter(b.dataset.snf);
+        });
+      })();
+      function _snSetFilter(f) {
+        _snFilter = f;
+        snPage.querySelectorAll('.sn-ftab').forEach(b =>
+          b.classList.toggle('active', b.dataset.snf === f));
+        snRenderPage();
+      }
 
       window.__snClose = function() {
         document.getElementById('sn-page').style.display = 'none';
@@ -2638,7 +2672,7 @@
         const av = document.getElementById('av-menu');
         if (av) av.classList.remove('open');
         document.getElementById('sn-page').style.display = 'block';
-        snRenderPage();
+        _snSetFilter('all'); // the page always reopens on All (wardrobe convention)
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Lookbook' }]);
         window._rbNav && window._rbNav('/lookbook');
       };
@@ -2702,15 +2736,29 @@
         if (!grid) return;
         const snCount = document.getElementById('sn-count');
         if (snCount) snCount.textContent = items.length ? items.length + ' kept' : '';
+        const visible = _snFilter === 'all' ? items : items.filter(i => i.type === _snFilter);
+        const emptyT = document.getElementById('sn-empty-t');
+        const emptyS = document.getElementById('sn-empty-s');
         if (!items.length) {
           grid.style.display = 'none';
           empty.style.display = 'block';
+          if (emptyT) emptyT.textContent = 'Nothing saved yet.';
+          if (emptyS) emptyS.innerHTML = "Style a key piece or save today's look<br>and it will appear here.";
+          return;
+        }
+        if (!visible.length) {
+          // Filter matched nothing — items exist, just not of this type
+          const lbl = (_SN_FILTERS.find(f => f[0] === _snFilter) || [0, 'looks'])[1].toLowerCase();
+          grid.style.display = 'none';
+          empty.style.display = 'block';
+          if (emptyT) emptyT.textContent = 'No ' + lbl + ' yet.';
+          if (emptyS) emptyS.innerHTML = 'When you save one, it will appear here.';
           return;
         }
         grid.style.display = 'grid';
         empty.style.display = 'none';
         _rbcInitSwipe();
-        grid.innerHTML = items.map(item => `
+        grid.innerHTML = visible.map(item => `
           <div onclick="window.__snOpenItem(${item.id})" data-rmfn="__snRemove" data-rmidx="${item.id}" data-rmconfirm="1" style="position:relative;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08);cursor:pointer" onmouseenter="this.querySelector('.sn-rm').style.opacity='1'" onmouseleave="this.querySelector('.sn-rm').style.opacity='0'">
             <button class="sn-rm" onclick="event.stopPropagation();window.__snRemove(${item.id})" style="position:absolute;top:10px;right:10px;opacity:0;transition:opacity .15s;background:rgba(32,32,33,0.55);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
