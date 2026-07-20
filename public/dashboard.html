@@ -489,18 +489,27 @@ button{font-family:inherit;cursor:pointer;background:none;border:none;padding:0;
   --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --ease:cubic-bezier(0.4,0,0.2,1);
   --rad-sm:8px; --rad:12px; --rad-lg:18px;
-  --nav-h:60px;
+  --nav-h:64px;
+  /* Layout spec 2026-07 — held canvas, fluid content: one centred shell,
+     gutter steps by breakpoint. Width follows the content, not one rule. */
+  --shell:1440px;
+  --s6:80px;
 }
+@media(max-width:1199px){:root{--s6:64px}}
+@media(max-width:1023px){:root{--s6:40px}}
+@media(max-width:767px){:root{--s6:24px}}
 
 html{font-size:16px}
 body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
   -webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden}
 
 /* ── NAV ───────────────────────────────────────────────────────────── */
-.nav{display:flex;justify-content:space-between;align-items:center;
-  padding:0 28px;height:var(--nav-h);border-bottom:0.5px solid var(--rule);
+.nav{height:var(--nav-h);border-bottom:0.5px solid var(--rule);
   background:rgba(250,248,245,0.9);backdrop-filter:blur(16px);
   position:sticky;top:0;z-index:50}
+/* Bar bleeds full width; its content aligns to the centred shell */
+.nav-in{max-width:var(--shell);margin:0 auto;height:100%;padding:0 var(--s6);
+  display:flex;justify-content:space-between;align-items:center;box-sizing:border-box}
 .nav-l{display:flex;align-items:center;gap:16px}
 .nav-r{display:flex;align-items:center;gap:12px}
 .wordmark{font-family:var(--font-serif);font-weight:400;font-size:17px;
@@ -542,7 +551,9 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
 #rb-topnav{display:flex;gap:26px;margin-left:18px}
 .rb-tn-link{background:none;border:none;border-bottom:1.5px solid transparent;
   padding:2px 0 3px;cursor:pointer;font-family:inherit;font-size:13px;
-  color:#A89880;letter-spacing:0.01em;transition:color .15s}
+  color:#A89880;letter-spacing:0.01em;transition:color .15s;position:relative}
+/* Invisible expanded hit area — ≥44px tap target on touch (tablet band) */
+.rb-tn-link::after{content:'';position:absolute;inset:-14px -10px}
 .rb-tn-link:hover{color:var(--ink)}
 .rb-tn-link.active{color:var(--ink);border-bottom-color:var(--ink)}
 #rb-backpill{display:none;align-items:center;gap:5px;padding:6px 12px 6px 8px;
@@ -580,17 +591,25 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
 .rb-dock-tab .bar{display:none;position:absolute;top:2px;left:50%;
   transform:translateX(-50%);width:24px;height:2px;border-radius:2px;background:var(--ink)}
 .rb-dock-tab.active .bar{display:block}
-@media(max-width:640px){
+/* Mobile shell is <768px (layout spec: 768+ is tablet — top bar stays,
+   no hamburger, multi-column grids hold) */
+@media(max-width:767px){
   #rb-topnav{display:none}
   #rb-dock{display:block}
   body{padding-bottom:96px}
   .wardrobe-panel{padding-bottom:110px}
   #sn-page > div{padding-bottom:130px !important}
+  .nav-weather{display:none}
   /* result-page action bars ride above the dock — the actions tier */
   .rb-sfoot{bottom:86px !important}
   #dl-result-page .dlm-payoff,#tv-result-page .tvm-payoff{bottom:86px !important}
   /* Share moved to the header on mobile — footer copy retires */
   .rb-share-foot{display:none !important}
+}
+/* Tablet band: keep the ambient pill but condense to place · temp when
+   the bar crowds (drop the day + its dot) */
+@media(min-width:768px) and (max-width:820px){
+  .nav-weather span:nth-child(2),.nav-weather span:nth-child(3){display:none}
 }
 
 /* avatar menu */
@@ -921,7 +940,7 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
 
 /* ── shared sticky footer (result surfaces: moodboard / key piece / …) ── */
 .rb-sfoot{position:sticky;bottom:0;z-index:6;background:rgba(250,248,245,0.94);backdrop-filter:blur(16px);border-top:0.5px solid var(--rule-mid)}
-.rb-sfoot-in{max-width:1180px;margin:0 auto;padding:12px 36px;display:flex;align-items:center;justify-content:space-between;gap:20px;box-sizing:border-box}
+.rb-sfoot-in{max-width:var(--shell);margin:0 auto;padding:12px var(--s6);display:flex;align-items:center;justify-content:space-between;gap:20px;box-sizing:border-box}
 .rb-sfoot-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
 .rb-sfoot-meta .t{font-family:var(--font-serif);font-style:italic;font-size:18px;font-weight:400;line-height:1.1;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rb-sfoot-meta .s{font-size:11px;color:var(--ink-faint);letter-spacing:0.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1153,7 +1172,7 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
 
 /* ─── WARDROBE GRID ────────────────────────────────────────────────── */
 .wardrobe-panel{display:none;flex-direction:column;min-height:calc(100vh - var(--nav-h));
-  padding:32px 40px 56px;max-width:1148px;margin:0 auto;width:100%;box-sizing:border-box}
+  padding:32px var(--s6) 56px;max-width:var(--shell);margin:0 auto;width:100%;box-sizing:border-box}
 .wardrobe-panel.visible{display:flex}
 /* List title = small-caps eyebrow (nav architecture 2026-07 — matches
    "Your daily look" / "The travel edit"), count vertically centered beside */
@@ -1167,14 +1186,19 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
   font-size:12px;color:var(--ink-soft);transition:all .15s}
 .wg-pill.active,.wg-pill:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
 /* Mobile: the pills read cluttered when wrapped — one horizontal scroll row */
-@media(max-width:640px){
-  .wardrobe-panel{padding:24px 20px 48px}
+@media(max-width:767px){
+  .wardrobe-panel{padding:24px var(--s6) 48px}
   .wg-filters{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
     scrollbar-width:none;padding:2px 0 8px}
   .wg-filters::-webkit-scrollbar{display:none}
   .wg-filters .wg-pill{flex-shrink:0;white-space:nowrap}
 }
-.wg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:18px}
+/* Grid columns hold across widths — drop a column rather than widen the
+   cell (layout spec 2026-07: a card's intrinsic width stays ~constant) */
+.wg-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+@media(max-width:1199px){.wg-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1023px){.wg-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:767px){.wg-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .wg-item{cursor:pointer}
 .wg-img-wrap{position:relative;aspect-ratio:3/4;border-radius:var(--rad);overflow:hidden;background:var(--cream-200)}
 .wg-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s var(--ease)}
@@ -1327,8 +1351,6 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
   .look-bar-inner{padding:12px 22px;flex-wrap:wrap;gap:10px}
   .look-bar-meta{order:2}
   .look-bar-btns{order:1;width:100%;flex-wrap:wrap}
-  .nav{padding:0 18px}
-  .nav-weather{display:none}
 }
 @media(max-width:620px){
   /* Mosaic on mobile: hero + editorial text each span the full width so the
@@ -1460,8 +1482,8 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
 .left{display:none !important}
 #gallery{padding:0}
 
-.dash{max-width:1148px;margin:0 auto;padding:54px 40px 96px;
-  --gap:30px;--rad-card:14px}
+.dash{max-width:var(--shell);margin:0 auto;padding:54px var(--s6) 96px;
+  box-sizing:border-box;--gap:30px;--rad-card:14px}
 body[data-density="compact"] .dash{--gap:20px;padding:38px 36px 72px}
 
 /* ── MASTHEAD ──────────────────────────────────────────────────────── */
@@ -1484,7 +1506,10 @@ body[data-density="compact"] .dash-mast{margin-bottom:28px}
 }
 
 /* ── CONCIERGE PROMPT (hero) ──────────────────────────────────────── */
-.concierge{margin-bottom:54px}
+/* Reading measure — single-input controls cap at 760px (layout spec) */
+.concierge{margin-bottom:54px;max-width:760px}
+/* Display headline caps at 620px so the serif line never runs long */
+.dash-mast{max-width:620px}
 body[data-density="compact"] .concierge{margin-bottom:40px}
 .concierge-ey{font-size:10px;font-weight:500;letter-spacing:0.24em;text-transform:uppercase;
   color:var(--rose);margin-bottom:14px}
@@ -1883,6 +1908,7 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
 
 <!-- ══ NAV ══ -->
 <nav class="nav">
+  <div class="nav-in">
   <div class="nav-l">
     <span class="wordmark" id="nav-wordmark" onclick="App.goHome()">Robes</span>
     <button class="nav-breadcrumb" id="nav-breadcrumb" onclick="App.back()">
@@ -1919,6 +1945,7 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
         <button class="av-item" onclick="App.goHome()"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Style notes</button>
       </div>
     </div>
+  </div>
   </div>
 </nav>
 

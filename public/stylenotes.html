@@ -18,10 +18,14 @@
     ::-webkit-scrollbar-track { background: transparent; }
     button { font-family: inherit; }
 
+    :root { --shell: 1440px; --s6: 80px; --nav-h: 64px; }
+    @media (max-width: 1199px) { :root { --s6: 64px; } }
+    @media (max-width: 1023px) { :root { --s6: 40px; } }
+    @media (max-width: 767px)  { :root { --s6: 24px; } }
     .topbar {
       position: sticky; top: 0; z-index: 50;
       display: flex; align-items: center; justify-content: space-between;
-      height: 58px; padding: 0 34px;
+      height: var(--nav-h); padding: 0 calc(max((100% - var(--shell)) / 2, 0px) + var(--s6));
       background: rgba(250,248,245,0.92);
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
       border-bottom: 1px solid #E7E0CF;
@@ -57,7 +61,7 @@
     .sn-av-item:hover { background: #F3EFE6; }
     .sn-av-item svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
     .sn-av-item.sn-av-out { border-top: 0.5px solid #EDE6D8; border-radius: 0 0 7px 7px; margin-top: 4px; padding-top: 12px; }
-    @media (max-width: 760px) { .sn-weather { display: none; } }
+    @media (max-width: 767px) { .sn-weather { display: none; } .g-6 { grid-template-columns: repeat(3, 1fr); } }
 
     /* Mobile dock — same anchored destinations as the dashboard; nothing
        is lit here (Style notes sits outside the dock). */
@@ -65,14 +69,14 @@
     #rb-dock-in { display: flex; gap: 4px; background: rgba(255,255,255,0.7); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); border: 1px solid rgba(231,224,207,0.85); border-radius: 24px; padding: 5px 6px; }
     .rb-dock-tab { position: relative; flex: 1; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; color: #C4B8A4; font-family: 'Inter', sans-serif; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; }
     .rb-dock-tab svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
-    @media (max-width: 640px) {
+    @media (max-width: 767px) {
       #rb-dock { display: block; }
       body { padding-bottom: 96px; }
       .wordmark, .topbar-sep { display: none; }
     }
 
-    .subnav { position: sticky; top: 58px; z-index: 49; background: #FAF8F5; border-bottom: 1px solid #E7E0CF; }
-    .subnav-inner { max-width: 940px; margin: 0 auto; padding: 0 28px; display: flex; align-items: stretch; gap: 32px; height: 52px; }
+    .subnav { position: sticky; top: var(--nav-h); z-index: 49; background: #FAF8F5; border-bottom: 1px solid #E7E0CF; }
+    .subnav-inner { max-width: var(--shell); margin: 0 auto; padding: 0 var(--s6); box-sizing: border-box; display: flex; align-items: stretch; gap: 32px; height: 52px; }
     .subtab {
       display: inline-flex; align-items: center; gap: 9px; height: 52px;
       background: transparent; border: none; cursor: pointer; padding: 0;
@@ -86,7 +90,7 @@
     .subtab .lbl { font: 400 13px/1 'Inter'; letter-spacing: 0.01em; white-space: nowrap; }
     .subtab.active .lbl { font-weight: 500; }
 
-    main { max-width: 940px; margin: 0 auto; padding: 54px 28px 140px; }
+    main { max-width: var(--shell); margin: 0 auto; padding: 54px var(--s6) 140px; box-sizing: border-box; }
 
     .eyebrow { font: 400 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: #A89880; }
     .eyebrow-sm { font: 400 9px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: #C4B8A4; }
@@ -105,7 +109,7 @@
     .g-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
     .g-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
     .g-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
-    .g-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 9px; }
+    .g-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
     .g-7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 14px; }
     .g-8 { display: grid; grid-template-columns: repeat(8, 1fr); gap: 14px; }
 
@@ -198,8 +202,7 @@
     .rec-tip-check { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 1px solid #D8CFC0; border-radius: 50%; flex: none; margin-top: 1px; }
     .rec-tip-txt { font: 300 15px/1.55 'Inter'; color: #3A352F; }
 
-    @media (max-width: 760px) {
-      .topbar { padding: 0 20px; }
+    @media (max-width: 767px) {
       .subnav-inner { gap: 20px; overflow-x: auto; }
       .g-hero, .g-side { grid-template-columns: 1fr; gap: 32px; }
       .g-7, .g-8 { grid-template-columns: repeat(4, 1fr); }
