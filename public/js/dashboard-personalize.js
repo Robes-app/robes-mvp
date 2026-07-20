@@ -2337,7 +2337,7 @@
             '.rb-add-serif{font-family:var(--font-serif);font-weight:300;font-size:19px;color:var(--ink)}',
             '.rb-add-hint{font-size:10px;letter-spacing:.05em;color:var(--ink-faint)}',
             // mobile
-            '@media(max-width:640px){.rb-hero-card,.rb-hero-add{width:164px}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-add-pill{display:none}#rb-wa-fab.on{display:flex}}'
+            '@media(max-width:767px){.rb-hero-card,.rb-hero-add{width:164px}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-add-pill{display:none}#rb-wa-fab.on{display:flex}}'
           ].join('\n');
           document.head.appendChild(st);
         }
@@ -2615,15 +2615,15 @@
       // top:60px + z-index below the main nav (50) so weather / wardrobe
       // count / avatar stay visible and usable — the page must never
       // strip the global context (same pattern as the moodboard panel).
-      snPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:60px;z-index:45;background:#FAF8F5;overflow-y:auto';
+      snPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:var(--nav-h,64px);z-index:45;background:#FAF8F5;overflow-y:auto';
       snPage.innerHTML = `
-        <div style="padding:32px 24px 24px;max-width:960px;margin:0 auto">
+        <div style="padding:32px var(--s6,24px) 24px;max-width:var(--shell,1440px);margin:0 auto;box-sizing:border-box">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 16px">
             <p style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0">Lookbook</p>
             <span id="sn-count" style="font-size:11px;color:#A89880;white-space:nowrap"></span>
           </div>
           <div id="sn-tabs" style="display:flex;gap:22px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-bottom:0.5px solid rgba(32,32,33,0.12);margin:0 0 24px"></div>
-          <div id="sn-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
+          <div id="sn-grid" style="display:grid;gap:20px"></div>
           <div id="sn-empty" style="display:none;padding:80px 0;text-align:center">
             <p id="sn-empty-t" style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">Nothing saved yet.</p>
             <p id="sn-empty-s" style="font-size:13px;color:#A89880;line-height:1.6">Style a key piece or save today's look<br>and it will appear here.</p>
@@ -2642,6 +2642,9 @@
         const snSt = document.createElement('style');
         snSt.id = 'rb-sn-style';
         snSt.textContent = '#sn-tabs::-webkit-scrollbar{display:none}' +
+          '#sn-grid{grid-template-columns:repeat(3,minmax(0,1fr))}' +
+          '@media(max-width:1023px){#sn-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
+          '@media(max-width:767px){#sn-grid{grid-template-columns:1fr}}' +
           '.sn-ftab{background:none;border:none;border-bottom:1.5px solid transparent;padding:2px 1px 10px;margin-bottom:-1px;font-size:13px;font-family:inherit;color:#C4B8A4;cursor:pointer;white-space:nowrap;letter-spacing:.01em;transition:color .15s;flex-shrink:0}' +
           '.sn-ftab.active{color:#202021;font-weight:500;border-bottom-color:#202021}' +
           '.sn-ftab:hover{color:#202021}';
@@ -4212,7 +4215,7 @@
       // header + the cream/white, rounded-pill language used everywhere).
       const _DL_CSS = `
 #dl-result-page{color:var(--ink);font-weight:300}
-#dl-result-page .dlm-wrap{max-width:1180px;margin:0 auto;padding:34px 36px 28px;box-sizing:border-box}
+#dl-result-page .dlm-wrap{max-width:var(--shell,1440px);margin:0 auto;padding:34px var(--s6,36px) 28px;box-sizing:border-box}
 #dl-result-page .dlm-eyebrow{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose);margin-bottom:8px}
 #dl-result-page .dlm-title{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:clamp(30px,4vw,42px);line-height:1.05;color:var(--ink);margin:0}
 #dl-result-page .dlm-kws{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:12px}
@@ -4289,7 +4292,7 @@
 #dl-result-page .dlm-act.shop{background:var(--ink);color:#fff;border-color:var(--ink)}
 #dl-result-page .dlm-act.shop:hover{opacity:.85;color:#fff}
 #dl-result-page .dlm-payoff{position:sticky;bottom:0;z-index:5;background:rgba(250,248,245,0.94);backdrop-filter:blur(16px);border-top:0.5px solid var(--rule-mid)}
-#dl-result-page .dlm-payoff-in{max-width:1180px;margin:0 auto;padding:13px 36px;display:flex;align-items:center;justify-content:space-between;gap:22px;box-sizing:border-box}
+#dl-result-page .dlm-payoff-in{max-width:var(--shell,1440px);margin:0 auto;padding:13px var(--s6,36px);display:flex;align-items:center;justify-content:space-between;gap:22px;box-sizing:border-box}
 #dl-result-page .dlm-pmeta{display:flex;flex-direction:column;gap:3px;min-width:0}
 #dl-result-page .dlm-pmeta .t{font-family:var(--font-serif);font-size:18px;font-weight:400;font-style:italic;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 #dl-result-page .dlm-pmeta .s{font-size:11px;letter-spacing:.02em;color:var(--ink-faint)}
@@ -5256,7 +5259,7 @@
         ).join('');
 
         wkResultPage.innerHTML = `
-          <div style="max-width:1148px;margin:0 auto;padding:36px 24px 0;min-height:calc(100% - 72px);box-sizing:border-box">
+          <div style="max-width:var(--shell,1440px);margin:0 auto;padding:36px var(--s6,24px) 0;min-height:calc(100% - 72px);box-sizing:border-box">
             <div style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#8E7077;margin-bottom:10px">Your week, planned</div>
             <div style="display:flex;align-items:flex-start;gap:12px;margin:0 0 12px;max-width:780px">
               <h1 id="wk-headline" style="font-family:${serif};font-size:clamp(28px,4.5vw,42px);font-weight:300;font-style:italic;color:#202021;line-height:1.12;margin:0;max-width:720px;min-width:0;flex:1">${_waEsc(data.headline || 'The week ahead.')}</h1>
@@ -5939,7 +5942,7 @@
       // cream/white, rounded-pill language used everywhere else).
       const _TV_CSS = `
 #tv-result-page{color:var(--ink);font-weight:300}
-#tv-result-page .tvm-wrap{max-width:1180px;margin:0 auto;padding:34px 36px 28px;box-sizing:border-box}
+#tv-result-page .tvm-wrap{max-width:var(--shell,1440px);margin:0 auto;padding:34px var(--s6,36px) 28px;box-sizing:border-box}\n#tv-result-page .tvm-capgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}\n@media(max-width:1199px){#tv-result-page .tvm-capgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}\n@media(max-width:767px){#tv-result-page .tvm-capgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 #tv-result-page .tvm-eyebrow{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose);margin-bottom:8px}
 #tv-result-page .tvm-mast{display:flex;justify-content:space-between;align-items:flex-end;gap:28px}
 #tv-result-page .tvm-title{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:clamp(30px,4vw,44px);line-height:1.05;margin:0;color:var(--ink);max-width:18ch}
@@ -6066,7 +6069,7 @@
 #tv-result-page .tvm-packbox.on .box{border-color:var(--ink);background:var(--ink)}
 #tv-result-page .tvm-packbox .box svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 #tv-result-page .tvm-payoff{position:sticky;bottom:0;z-index:5;background:rgba(250,248,245,0.94);backdrop-filter:blur(16px);border-top:0.5px solid var(--rule-mid)}
-#tv-result-page .tvm-payoff-in{max-width:1180px;margin:0 auto;padding:13px 36px;display:flex;align-items:center;justify-content:space-between;gap:22px;box-sizing:border-box}
+#tv-result-page .tvm-payoff-in{max-width:var(--shell,1440px);margin:0 auto;padding:13px var(--s6,36px);display:flex;align-items:center;justify-content:space-between;gap:22px;box-sizing:border-box}
 #tv-result-page .tvm-pmeta{display:flex;flex-direction:column;gap:3px;min-width:0}
 #tv-result-page .tvm-pmeta .t{font-family:var(--font-serif);font-size:18px;font-weight:400;font-style:italic;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 #tv-result-page .tvm-pmeta .s{font-size:11px;letter-spacing:.02em;color:var(--ink-faint)}
@@ -6548,11 +6551,11 @@ body>*:not(#tv-result-page){display:none !important}
         const tiersHtml = [
           keptCards.length ? `<div style="margin-bottom:28px">
             ${sectionHead('Keep', 'Packed for this trip — each one earns its place.', keptCards.length)}
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px">${keptCards.map(capCard).join('')}</div>
+            <div class="tvm-capgrid">${keptCards.map(capCard).join('')}</div>
           </div>` : '',
           addCards.length ? `<div style="margin-bottom:28px">
             ${sectionHead('Worth adding', 'Genuine gaps only — each new piece must bridge what you already own.', addCards.length)}
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px">${addCards.map(capCard).join('')}</div>
+            <div class="tvm-capgrid">${addCards.map(capCard).join('')}</div>
           </div>` : '',
         ].join('');
 
@@ -6603,7 +6606,7 @@ body>*:not(#tv-result-page){display:none !important}
 
             <div id="tv-pane-edit">
               <div style="font-family:${serif};font-weight:300;font-style:italic;font-size:clamp(24px,3vw,34px);color:var(--ink);line-height:1.05;margin-bottom:6px">The edit.</div>
-              <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:8px;line-height:1.5">${_waEsc(data.stylist_summary || '')}</div>
+              <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:8px;line-height:1.5;max-width:900px">${_waEsc(data.stylist_summary || '')}</div>
               <div id="tv-matrix-note" style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-bottom:18px;min-height:18px">Tap any piece to see how it multiplies across the trip.</div>
               ${tiersHtml}
               <button class="tv-noprint" onclick="window.__tvAddPieceToTrip()" style="width:100%;max-width:640px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--rule-mid);border-radius:var(--rad);padding:13px;font-size:12px;letter-spacing:.02em;background:transparent;color:var(--ink-soft);cursor:pointer;font-family:inherit;margin-bottom:16px"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece to this trip</button>
@@ -7793,7 +7796,7 @@ body>*:not(#tv-result-page){display:none !important}
           if (dkL) dkL.classList.toggle('active', active === 'lookbook');
           // Mobile detail screens: the back pill replaces the wordmark line,
           // and Share rises into the header (the footer copy hides ≤640px).
-          const showPill = detail && window.matchMedia('(max-width:640px)').matches;
+          const showPill = detail && window.matchMedia('(max-width:767px)').matches;
           if (backPill) backPill.style.display = showPill ? 'inline-flex' : 'none';
           const shareBtn = document.getElementById('rb-share-btn');
           if (shareBtn) shareBtn.style.display = showPill ? 'inline-flex' : 'none';
