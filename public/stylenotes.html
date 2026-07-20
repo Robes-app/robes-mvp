@@ -81,8 +81,10 @@
     }
     .subtab:hover { color: #A89880; }
     .subtab.active { color: #202021; border-bottom-color: #202021; }
-    .subtab .num { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 15px; color: #C4B8A4; }
-    .subtab .lbl { font: 500 10.5px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; }
+    /* Un-numbered text tabs — same scrolling tab pattern as Wardrobe and
+       Lookbook (nav architecture 2026-07); the 01/02/03 numerals retired */
+    .subtab .lbl { font: 400 13px/1 'Inter'; letter-spacing: 0.01em; white-space: nowrap; }
+    .subtab.active .lbl { font-weight: 500; }
 
     main { max-width: 940px; margin: 0 auto; padding: 54px 28px 140px; }
 
@@ -251,15 +253,12 @@
   <div class="subnav">
     <div class="subnav-inner">
       <button class="subtab active" id="tab-btn-colour" onclick="setTab('colour')">
-        <span class="num">01</span>
         <span class="lbl">Colour harmony</span>
       </button>
       <button class="subtab" id="tab-btn-silhouette" onclick="setTab('silhouette')">
-        <span class="num">02</span>
         <span class="lbl">Silhouette &amp; proportions</span>
       </button>
       <button class="subtab" id="tab-btn-taste" onclick="setTab('taste')">
-        <span class="num">03</span>
         <span class="lbl">Taste &amp; budget</span>
       </button>
     </div>
@@ -283,7 +282,7 @@
           <p class="slot-err" id="headshot-err"></p>
         </div>
         <div style="display:flex;flex-direction:column;justify-content:center;">
-          <div class="eyebrow">Style notes — 01</div>
+          <div class="eyebrow">Style notes</div>
           <h1 class="chapter-h1">Colour<br>harmony.</h1>
           <div id="ch-season-row" style="display:none;align-items:baseline;gap:14px;margin-top:26px;padding-top:22px;border-top:1px solid #E7E0CF;">
             <span style="font:400 9px/1 'Inter';letter-spacing:0.22em;text-transform:uppercase;color:#C4B8A4;">Your season</span>
@@ -401,7 +400,7 @@
           <p class="slot-err" id="full-err"></p>
         </div>
         <div style="display:flex;flex-direction:column;justify-content:center;">
-          <div class="eyebrow">Style notes — 02</div>
+          <div class="eyebrow">Style notes</div>
           <h1 class="chapter-h1">Silhouette<br>&amp; proportions.</h1>
           <div id="sil-type-row" style="display:none;align-items:baseline;gap:14px;margin-top:26px;padding-top:22px;border-top:1px solid #E7E0CF;">
             <span style="font:400 9px/1 'Inter';letter-spacing:0.22em;text-transform:uppercase;color:#C4B8A4;">Your body type</span>
@@ -448,7 +447,7 @@
 
       <section class="g-taste-hero" style="display:grid;grid-template-columns:1fr 1fr;gap:54px;align-items:end;">
         <div>
-          <div class="eyebrow">Style notes — 03</div>
+          <div class="eyebrow">Style notes</div>
           <h1 class="chapter-h1">Taste<br>&amp; budget.</h1>
         </div>
         <div>

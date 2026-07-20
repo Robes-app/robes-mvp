@@ -460,14 +460,6 @@
         const navBadge = document.querySelector('.nav-wbtn-count');
         if (navBadge) navBadge.textContent = n;
 
-        // mobile dock badge — the live count moved off the retired
-        // "Wardrobe · N" pill onto the dock tab (nav architecture 2026-07)
-        const dockBadge = document.getElementById('rb-dock-wcount');
-        if (dockBadge) {
-          dockBadge.textContent = n;
-          dockBadge.style.display = n > 0 ? 'flex' : 'none';
-        }
-
         // dashboard tracker (wardrobe-first redesign: count + copy + bar +
         // the catalogued pieces themselves, so the wardrobe is visible on
         // the dashboard, not just counted)
@@ -663,13 +655,25 @@
           });
           container.appendChild(btn);
         });
+        // Add piece — the primary toolbar action (add rework 2026-07:
+        // adding beats filtering, so Add is the ink button and Refine
+        // demoted to outline). Hidden ≤640px — the FAB covers mobile.
+        const addBtn = document.createElement('button');
+        addBtn.className = 'wg-pill rb-add-pill';
+        addBtn.id = 'rb-add-pill';
+        addBtn.style.marginLeft = 'auto';
+        addBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="flex-shrink:0"><path d="M12 5v14M5 12h14"/></svg>Add piece';
+        addBtn.addEventListener('click', () => {
+          if (_waView === 'wishlist') window.__wlOpenAdd();
+          else window.__waAddChooser();
+        });
+        container.appendChild(addBtn);
         // Refine — the secondary filter layer (season, colour, fit, wear,
         // brand) collapses into one drawer instead of more pills (design
         // brief: the primary row is already at 10 tabs and won't scale)
         const refBtn = document.createElement('button');
         refBtn.className = 'wg-pill rb-refine-pill';
         refBtn.id = 'rb-refine-pill';
-        refBtn.style.marginLeft = 'auto';
         refBtn.innerHTML = 'Refine';
         refBtn.addEventListener('click', () => window.__waRefToggle());
         container.appendChild(refBtn);
@@ -2216,7 +2220,7 @@
             : _waItems.length + ' piece' + (_waItems.length === 1 ? '' : 's');
         }
         const cta = document.getElementById('rb-wg-cta-head');
-        if (cta) cta.textContent = wish ? '+ Save a piece' : '+ Add a piece';
+        if (cta) cta.style.display = wish ? '' : 'none'; // wishlist-only add path
         const filters = document.getElementById('wg-filters');
         if (filters) filters.style.display = wish ? 'none' : '';
         const grid = document.getElementById('wg-grid');
@@ -2294,7 +2298,15 @@
             '.rb-ref-select{width:100%;max-width:210px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);padding:9px 12px;font-size:12.5px;background:#fff;color:var(--ink);font-family:inherit;cursor:pointer}',
             '.rb-ref-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:0.5px solid var(--rule);margin-top:16px;padding-top:14px}',
             '.rb-refine-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:100px;background:#fff;color:var(--ink);font-size:9.5px;padding:0 4px;margin-left:2px;vertical-align:1px}',
-            '.wg-pill.rb-refine-pill{display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:#fff;border-color:var(--ink)}',
+            // Refine is outline (add rework 2026-07 — Add is the primary ink
+            // action); it still goes dark via .wg-pill.active when the drawer
+            // is open or filters are applied
+            '.wg-pill.rb-refine-pill{display:inline-flex;align-items:center;gap:7px}',
+            '.wg-pill.rb-add-pill{display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:#fff;border-color:var(--ink)}',
+            '.wg-pill.rb-add-pill:hover{opacity:.85}',
+            // Mobile FAB — shown only while the wardrobe panel is open (.on,
+            // toggled by a .visible observer) and only under 640px
+            '#rb-wa-fab{display:none;position:fixed;right:18px;bottom:96px;width:52px;height:52px;border-radius:100px;background:var(--ink);border:none;cursor:pointer;z-index:47;align-items:center;justify-content:center;box-shadow:0 10px 26px rgba(32,32,33,.28);padding:0}',
             '.rb-sw-wheel{background:conic-gradient(from 90deg,#ff2d2d,#ff9e2d,#f4e02d,#38d64a,#2db7ff,#3a4dff,#b23aff,#ff2da8,#ff2d2d);display:inline-block;position:relative;overflow:hidden}',
             '.rb-sw-wheel input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border:none;padding:0}',
             // Category text tabs (replaced the heavy pill row — design handoff)
@@ -2325,7 +2337,7 @@
             '.rb-add-serif{font-family:var(--font-serif);font-weight:300;font-size:19px;color:var(--ink)}',
             '.rb-add-hint{font-size:10px;letter-spacing:.05em;color:var(--ink-faint)}',
             // mobile
-            '@media(max-width:640px){.rb-hero-card,.rb-hero-add{width:164px}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}}'
+            '@media(max-width:640px){.rb-hero-card,.rb-hero-add{width:164px}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-add-pill{display:none}#rb-wa-fab.on{display:flex}}'
           ].join('\n');
           document.head.appendChild(st);
         }
@@ -2348,21 +2360,40 @@
         });
         panel.insertBefore(tabs, header);
 
-        // Persistent header CTA next to the count (no long scroll to add)
+        // Header carries only the count now (add rework, nav architecture
+        // 2026-07: adding moved to the toolbar + mobile FAB). The old
+        // header CTA survives ONLY for the wishlist view — its toolbar is
+        // hidden there, so this stays the wishlist's add path.
         const actions = document.createElement('div');
         actions.className = 'rb-wg-actions';
         const cta = document.createElement('button');
         cta.id = 'rb-wg-cta-head';
         cta.className = 'rb-wg-cta';
-        cta.textContent = '+ Add a piece';
-        cta.addEventListener('click', function() {
-          if (_waView === 'wishlist') window.__wlOpenAdd();
-          else window.__waAddChooser();
-        });
+        cta.textContent = '+ Save a piece';
+        cta.style.display = 'none';
+        cta.addEventListener('click', function() { window.__wlOpenAdd(); });
         actions.appendChild(cta);
         const countEl = document.getElementById('wg-count');
         if (countEl) actions.appendChild(countEl); // move, keep id
         header.appendChild(actions);
+
+        // Mobile FAB — a thumb-reachable + riding above the dock, always
+        // one tap away regardless of scroll depth (view-aware: files into
+        // the wardrobe or the wishlist depending on the open sub-tab)
+        if (!document.getElementById('rb-wa-fab')) {
+          const fab = document.createElement('button');
+          fab.id = 'rb-wa-fab';
+          fab.title = 'Add a piece';
+          fab.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#FAF8F5" stroke-width="1.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+          fab.addEventListener('click', function() {
+            if (_waView === 'wishlist') window.__wlOpenAdd();
+            else window.__waAddChooser();
+          });
+          document.body.appendChild(fab);
+          const _fabSync = function() { fab.classList.toggle('on', panel.classList.contains('visible')); };
+          new MutationObserver(_fabSync).observe(panel, { attributes: true, attributeFilter: ['class'] });
+          _fabSync();
+        }
 
         // Hero Rack section between the sub line and the filters
         const hero = document.createElement('div');
@@ -2586,7 +2617,10 @@
       snPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:60px;z-index:45;background:#FAF8F5;overflow-y:auto';
       snPage.innerHTML = `
         <div style="padding:32px 24px 24px;max-width:960px;margin:0 auto">
-          <p style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;margin:0 0 24px">Saved looks & key pieces</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 24px">
+            <p style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0">Lookbook</p>
+            <span id="sn-count" style="font-size:11px;color:#A89880;white-space:nowrap"></span>
+          </div>
           <div id="sn-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
           <div id="sn-empty" style="display:none;padding:80px 0;text-align:center">
             <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">Nothing saved yet.</p>
@@ -2666,6 +2700,8 @@
         const grid = document.getElementById('sn-grid');
         const empty = document.getElementById('sn-empty');
         if (!grid) return;
+        const snCount = document.getElementById('sn-count');
+        if (snCount) snCount.textContent = items.length ? items.length + ' kept' : '';
         if (!items.length) {
           grid.style.display = 'none';
           empty.style.display = 'block';
