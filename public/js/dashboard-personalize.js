@@ -3160,7 +3160,10 @@
         try { kpResultPage.innerHTML = `
           <div style="width:100%;max-width:900px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
 
-            <h1 id="kp-headline" style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0 0 12px">${kpDaily ? 'Your day,<br><em style="color:#A89880">dressed three ways.</em>' : 'Your piece,<br><em style="color:#A89880">worn three ways.</em>'}</h1>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 12px">
+              <h1 id="kp-headline" style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0">${kpDaily ? 'Your day,<br><em style="color:#A89880">dressed three ways.</em>' : 'Your piece,<br><em style="color:#A89880">worn three ways.</em>'}</h1>
+              <button class="rb-rename-tbtn" title="Rename" style="margin-top:8px" onclick="window.__rbRename&&window.__rbRename('kp')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
+            </div>
             <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : kpDaily ? 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.' : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
 
             ${kpDaily && kpCtx && (kpCtx.city || kpCtx.tempRange) ? `
@@ -3230,8 +3233,7 @@
                 <span class="s">${kpDaily ? 'Daily look' : 'Styled three ways'}</span>
               </div>
               <div class="rb-sfoot-btns">
-                <button class="rb-sfbtn" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg>Share</button>
-                <button class="rb-sfbtn" onclick="window.__rbRename&&window.__rbRename('kp')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Rename</button>
+                <button class="rb-sfbtn rb-share-foot" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg>Share</button>
                 <button class="rb-sfbtn primary" onclick="window.__kpGoBack();setTimeout(()=>{KP&&KP.openKeyPiece&&KP.openKeyPiece()},200)">Style another piece</button>
               </div>
             </div>
@@ -4428,7 +4430,7 @@
                 <span class="s"><b>${owned === total && total > 0 ? 'All yours.' : 'It works.'}</b> · ${_waEsc(provenance)}</span>
               </div>
               <div class="dlm-pbtns">
-                <button class="dlm-pbtn" onclick="window.__rbShare&&window.__rbShare()"><span>Share</span></button>
+                <button class="dlm-pbtn rb-share-foot" onclick="window.__rbShare&&window.__rbShare()"><span>Share</span></button>
                 <button class="dlm-pbtn" onclick="window.__dlWear()"><span>Wear today</span></button>
                 <button class="dlm-pbtn primary" onclick="window.__dlDressAgain()">${restyleSvg}<span>Dress me again</span></button>
               </div>
@@ -5208,7 +5210,10 @@
         wkResultPage.innerHTML = `
           <div style="max-width:1148px;margin:0 auto;padding:36px 24px 0;min-height:calc(100% - 72px);box-sizing:border-box">
             <div style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#8E7077;margin-bottom:10px">Your week, planned</div>
-            <h1 id="wk-headline" style="font-family:${serif};font-size:clamp(28px,4.5vw,42px);font-weight:300;font-style:italic;color:#202021;line-height:1.12;margin:0 0 12px;max-width:720px">${_waEsc(data.headline || 'The week ahead.')}</h1>
+            <div style="display:flex;align-items:flex-start;gap:12px;margin:0 0 12px;max-width:780px">
+              <h1 id="wk-headline" style="font-family:${serif};font-size:clamp(28px,4.5vw,42px);font-weight:300;font-style:italic;color:#202021;line-height:1.12;margin:0;max-width:720px;min-width:0;flex:1">${_waEsc(data.headline || 'The week ahead.')}</h1>
+              <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('wk')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
+            </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
               ${data.week_label ? `<span style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6A5E54;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">${_waEsc(data.week_label)}</span>` : ''}
               ${pill ? `<span style="font-size:11px;color:#8A8078;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">🌤 ${_waEsc(pill)}</span>` : ''}
@@ -5227,8 +5232,7 @@
                 <span class="s">${data.days.length} days · ${total} pieces${owned ? ' · ' + owned + ' from your wardrobe' : ''}</span>
               </div>
               <div class="rb-sfoot-btns">
-                <button class="rb-sfbtn" onclick="window.__rbShare&&window.__rbShare()">Share</button>
-                <button class="rb-sfbtn" onclick="window.__rbRename&&window.__rbRename('wk')">Rename</button>
+                <button class="rb-sfbtn rb-share-foot" onclick="window.__rbShare&&window.__rbShare()">Share</button>
                 <button class="rb-sfbtn" onclick="window.__wkWear()">Wear today</button>
                 <button class="rb-sfbtn primary" onclick="window.__wkPlanAgain()">Plan a new week</button>
               </div>
@@ -6520,7 +6524,10 @@ body>*:not(#tv-result-page){display:none !important}
             <header class="tvm-mast">
               <div style="min-width:0">
                 <div class="tvm-eyebrow">The travel edit</div>
-                <h1 class="tvm-title" id="tv-headline">${_waEsc(data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.'))}</h1>
+                <div style="display:flex;align-items:flex-start;gap:10px;min-width:0">
+                  <h1 class="tvm-title" id="tv-headline" style="min-width:0;flex:1">${_waEsc(data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.'))}</h1>
+                  <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('tv')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
+                </div>
               </div>
               <div class="tvm-progress">
                 <span class="tvm-mpcount"><b id="tv-mp-n">0</b><span class="of"> / ${total} packed</span></span>
@@ -6586,8 +6593,7 @@ body>*:not(#tv-result-page){display:none !important}
                 <span class="s"><b id="tv-pm-count">0 of ${total}</b> packed · ${total} pieces${deferred ? ' · outfits to plan' : ', ' + lookCount + ' looks'}</span>
               </div>
               <div class="tvm-pbtns">
-                <button class="tvm-pbtn" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg><span>Share</span></button>
-                <button class="tvm-pbtn" onclick="window.__rbRename&&window.__rbRename('tv')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><span>Rename</span></button>
+                <button class="tvm-pbtn rb-share-foot" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg><span>Share</span></button>
                 <button class="tvm-pbtn primary" onclick="window.__tvGoBack();setTimeout(()=>{window.__tvOpen()},200)"><span>Pack a new trip</span></button>
               </div>
             </div>
@@ -7737,9 +7743,12 @@ body>*:not(#tv-result-page){display:none !important}
           if (dkH) dkH.classList.toggle('active', active === 'home');
           if (dkW) dkW.classList.toggle('active', active === 'wardrobe');
           if (dkL) dkL.classList.toggle('active', active === 'lookbook');
-          // Mobile detail screens: the back pill replaces the wordmark line.
+          // Mobile detail screens: the back pill replaces the wordmark line,
+          // and Share rises into the header (the footer copy hides ≤640px).
           const showPill = detail && window.matchMedia('(max-width:640px)').matches;
           if (backPill) backPill.style.display = showPill ? 'inline-flex' : 'none';
+          const shareBtn = document.getElementById('rb-share-btn');
+          if (shareBtn) shareBtn.style.display = showPill ? 'inline-flex' : 'none';
           const wm = document.getElementById('nav-wordmark');
           if (wm) {
             if (showPill) wm.style.setProperty('display', 'none', 'important');

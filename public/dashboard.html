@@ -550,6 +550,21 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
   font-size:12.5px;color:var(--ink);cursor:pointer;font-family:inherit}
 #rb-backpill svg{width:15px;height:15px;stroke:currentColor;fill:none;
   stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;color:var(--ink-soft)}
+/* Mobile detail screens: Share moves into the header (same __rbShare flow
+   as the old footer button); footer Share hides under 640px */
+#rb-share-btn{display:none;width:33px;height:33px;border-radius:50%;
+  border:0.5px solid var(--rule-mid);background:rgba(255,255,255,0.7);cursor:pointer;
+  align-items:center;justify-content:center;padding:0;transition:all .15s}
+#rb-share-btn:hover{border-color:rgba(32,32,33,0.3)}
+#rb-share-btn svg{width:15px;height:15px;stroke:var(--ink);fill:none;
+  stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+/* Rename lives in the title row (both breakpoints) — small pencil button */
+.rb-rename-tbtn{flex:none;width:32px;height:32px;border-radius:50%;
+  border:0.5px solid var(--rule-mid);background:rgba(255,255,255,0.7);cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;padding:0;transition:all .15s}
+.rb-rename-tbtn:hover{border-color:rgba(32,32,33,0.3)}
+.rb-rename-tbtn svg{width:15px;height:15px;stroke:var(--ink-soft);fill:none;
+  stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 #rb-dock{display:none;position:fixed;left:0;right:0;bottom:0;z-index:48;
   padding:10px 14px calc(14px + env(safe-area-inset-bottom))}
 #rb-dock-in{display:flex;gap:4px;background:rgba(255,255,255,0.7);
@@ -574,6 +589,8 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
   /* result-page action bars ride above the dock — the actions tier */
   .rb-sfoot{bottom:86px !important}
   #dl-result-page .dlm-payoff,#tv-result-page .tvm-payoff{bottom:86px !important}
+  /* Share moved to the header on mobile — footer copy retires */
+  .rb-share-foot{display:none !important}
 }
 
 /* avatar menu */
@@ -1882,6 +1899,9 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
     </div>
   </div>
   <div class="nav-r">
+    <button id="rb-share-btn" title="Share" onclick="window.__rbShare&&window.__rbShare()">
+      <svg viewBox="0 0 24 24"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"></path><path d="M12 15V4"></path><path d="M8 8l4-4 4 4"></path></svg>
+    </button>
     <div class="nav-weather" id="nav-weather">
       <span class="wx">🌦</span><span>Thursday</span>
       <span class="dot"></span><span>Dublin</span>
