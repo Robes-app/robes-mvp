@@ -655,13 +655,25 @@
           });
           container.appendChild(btn);
         });
+        // Add piece — the primary toolbar action (add rework 2026-07:
+        // adding beats filtering, so Add is the ink button and Refine
+        // demoted to outline). Hidden ≤640px — the FAB covers mobile.
+        const addBtn = document.createElement('button');
+        addBtn.className = 'wg-pill rb-add-pill';
+        addBtn.id = 'rb-add-pill';
+        addBtn.style.marginLeft = 'auto';
+        addBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="flex-shrink:0"><path d="M12 5v14M5 12h14"/></svg>Add piece';
+        addBtn.addEventListener('click', () => {
+          if (_waView === 'wishlist') window.__wlOpenAdd();
+          else window.__waAddChooser();
+        });
+        container.appendChild(addBtn);
         // Refine — the secondary filter layer (season, colour, fit, wear,
         // brand) collapses into one drawer instead of more pills (design
         // brief: the primary row is already at 10 tabs and won't scale)
         const refBtn = document.createElement('button');
         refBtn.className = 'wg-pill rb-refine-pill';
         refBtn.id = 'rb-refine-pill';
-        refBtn.style.marginLeft = 'auto';
         refBtn.innerHTML = 'Refine';
         refBtn.addEventListener('click', () => window.__waRefToggle());
         container.appendChild(refBtn);
@@ -2208,7 +2220,7 @@
             : _waItems.length + ' piece' + (_waItems.length === 1 ? '' : 's');
         }
         const cta = document.getElementById('rb-wg-cta-head');
-        if (cta) cta.textContent = wish ? '+ Save a piece' : '+ Add a piece';
+        if (cta) cta.style.display = wish ? '' : 'none'; // wishlist-only add path
         const filters = document.getElementById('wg-filters');
         if (filters) filters.style.display = wish ? 'none' : '';
         const grid = document.getElementById('wg-grid');
@@ -2286,7 +2298,15 @@
             '.rb-ref-select{width:100%;max-width:210px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);padding:9px 12px;font-size:12.5px;background:#fff;color:var(--ink);font-family:inherit;cursor:pointer}',
             '.rb-ref-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:0.5px solid var(--rule);margin-top:16px;padding-top:14px}',
             '.rb-refine-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:100px;background:#fff;color:var(--ink);font-size:9.5px;padding:0 4px;margin-left:2px;vertical-align:1px}',
-            '.wg-pill.rb-refine-pill{display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:#fff;border-color:var(--ink)}',
+            // Refine is outline (add rework 2026-07 — Add is the primary ink
+            // action); it still goes dark via .wg-pill.active when the drawer
+            // is open or filters are applied
+            '.wg-pill.rb-refine-pill{display:inline-flex;align-items:center;gap:7px}',
+            '.wg-pill.rb-add-pill{display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:#fff;border-color:var(--ink)}',
+            '.wg-pill.rb-add-pill:hover{opacity:.85}',
+            // Mobile FAB — shown only while the wardrobe panel is open (.on,
+            // toggled by a .visible observer) and only under 640px
+            '#rb-wa-fab{display:none;position:fixed;right:18px;bottom:96px;width:52px;height:52px;border-radius:100px;background:var(--ink);border:none;cursor:pointer;z-index:47;align-items:center;justify-content:center;box-shadow:0 10px 26px rgba(32,32,33,.28);padding:0}',
             '.rb-sw-wheel{background:conic-gradient(from 90deg,#ff2d2d,#ff9e2d,#f4e02d,#38d64a,#2db7ff,#3a4dff,#b23aff,#ff2da8,#ff2d2d);display:inline-block;position:relative;overflow:hidden}',
             '.rb-sw-wheel input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border:none;padding:0}',
             // Category text tabs (replaced the heavy pill row — design handoff)
@@ -2317,7 +2337,7 @@
             '.rb-add-serif{font-family:var(--font-serif);font-weight:300;font-size:19px;color:var(--ink)}',
             '.rb-add-hint{font-size:10px;letter-spacing:.05em;color:var(--ink-faint)}',
             // mobile
-            '@media(max-width:640px){.rb-hero-card,.rb-hero-add{width:164px}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}}'
+            '@media(max-width:640px){.rb-hero-card,.rb-hero-add{width:164px}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-add-pill{display:none}#rb-wa-fab.on{display:flex}}'
           ].join('\n');
           document.head.appendChild(st);
         }
@@ -2340,21 +2360,40 @@
         });
         panel.insertBefore(tabs, header);
 
-        // Persistent header CTA next to the count (no long scroll to add)
+        // Header carries only the count now (add rework, nav architecture
+        // 2026-07: adding moved to the toolbar + mobile FAB). The old
+        // header CTA survives ONLY for the wishlist view — its toolbar is
+        // hidden there, so this stays the wishlist's add path.
         const actions = document.createElement('div');
         actions.className = 'rb-wg-actions';
         const cta = document.createElement('button');
         cta.id = 'rb-wg-cta-head';
         cta.className = 'rb-wg-cta';
-        cta.textContent = '+ Add a piece';
-        cta.addEventListener('click', function() {
-          if (_waView === 'wishlist') window.__wlOpenAdd();
-          else window.__waAddChooser();
-        });
+        cta.textContent = '+ Save a piece';
+        cta.style.display = 'none';
+        cta.addEventListener('click', function() { window.__wlOpenAdd(); });
         actions.appendChild(cta);
         const countEl = document.getElementById('wg-count');
         if (countEl) actions.appendChild(countEl); // move, keep id
         header.appendChild(actions);
+
+        // Mobile FAB — a thumb-reachable + riding above the dock, always
+        // one tap away regardless of scroll depth (view-aware: files into
+        // the wardrobe or the wishlist depending on the open sub-tab)
+        if (!document.getElementById('rb-wa-fab')) {
+          const fab = document.createElement('button');
+          fab.id = 'rb-wa-fab';
+          fab.title = 'Add a piece';
+          fab.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#FAF8F5" stroke-width="1.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+          fab.addEventListener('click', function() {
+            if (_waView === 'wishlist') window.__wlOpenAdd();
+            else window.__waAddChooser();
+          });
+          document.body.appendChild(fab);
+          const _fabSync = function() { fab.classList.toggle('on', panel.classList.contains('visible')); };
+          new MutationObserver(_fabSync).observe(panel, { attributes: true, attributeFilter: ['class'] });
+          _fabSync();
+        }
 
         // Hero Rack section between the sub line and the filters
         const hero = document.createElement('div');
@@ -2578,7 +2617,10 @@
       snPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:60px;z-index:45;background:#FAF8F5;overflow-y:auto';
       snPage.innerHTML = `
         <div style="padding:32px 24px 24px;max-width:960px;margin:0 auto">
-          <p style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;margin:0 0 24px">Saved looks & key pieces</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 24px">
+            <p style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0">Lookbook</p>
+            <span id="sn-count" style="font-size:11px;color:#A89880;white-space:nowrap"></span>
+          </div>
           <div id="sn-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
           <div id="sn-empty" style="display:none;padding:80px 0;text-align:center">
             <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">Nothing saved yet.</p>
@@ -2658,6 +2700,8 @@
         const grid = document.getElementById('sn-grid');
         const empty = document.getElementById('sn-empty');
         if (!grid) return;
+        const snCount = document.getElementById('sn-count');
+        if (snCount) snCount.textContent = items.length ? items.length + ' kept' : '';
         if (!items.length) {
           grid.style.display = 'none';
           empty.style.display = 'block';
@@ -3116,7 +3160,10 @@
         try { kpResultPage.innerHTML = `
           <div style="width:100%;max-width:900px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
 
-            <h1 id="kp-headline" style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0 0 12px">${kpDaily ? 'Your day,<br><em style="color:#A89880">dressed three ways.</em>' : 'Your piece,<br><em style="color:#A89880">worn three ways.</em>'}</h1>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 12px">
+              <h1 id="kp-headline" style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0">${kpDaily ? 'Your day,<br><em style="color:#A89880">dressed three ways.</em>' : 'Your piece,<br><em style="color:#A89880">worn three ways.</em>'}</h1>
+              <button class="rb-rename-tbtn" title="Rename" style="margin-top:8px" onclick="window.__rbRename&&window.__rbRename('kp')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
+            </div>
             <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : kpDaily ? 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.' : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
 
             ${kpDaily && kpCtx && (kpCtx.city || kpCtx.tempRange) ? `
@@ -3186,8 +3233,7 @@
                 <span class="s">${kpDaily ? 'Daily look' : 'Styled three ways'}</span>
               </div>
               <div class="rb-sfoot-btns">
-                <button class="rb-sfbtn" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg>Share</button>
-                <button class="rb-sfbtn" onclick="window.__rbRename&&window.__rbRename('kp')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Rename</button>
+                <button class="rb-sfbtn rb-share-foot" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg>Share</button>
                 <button class="rb-sfbtn primary" onclick="window.__kpGoBack();setTimeout(()=>{KP&&KP.openKeyPiece&&KP.openKeyPiece()},200)">Style another piece</button>
               </div>
             </div>
@@ -4384,7 +4430,7 @@
                 <span class="s"><b>${owned === total && total > 0 ? 'All yours.' : 'It works.'}</b> · ${_waEsc(provenance)}</span>
               </div>
               <div class="dlm-pbtns">
-                <button class="dlm-pbtn" onclick="window.__rbShare&&window.__rbShare()"><span>Share</span></button>
+                <button class="dlm-pbtn rb-share-foot" onclick="window.__rbShare&&window.__rbShare()"><span>Share</span></button>
                 <button class="dlm-pbtn" onclick="window.__dlWear()"><span>Wear today</span></button>
                 <button class="dlm-pbtn primary" onclick="window.__dlDressAgain()">${restyleSvg}<span>Dress me again</span></button>
               </div>
@@ -5164,7 +5210,10 @@
         wkResultPage.innerHTML = `
           <div style="max-width:1148px;margin:0 auto;padding:36px 24px 0;min-height:calc(100% - 72px);box-sizing:border-box">
             <div style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#8E7077;margin-bottom:10px">Your week, planned</div>
-            <h1 id="wk-headline" style="font-family:${serif};font-size:clamp(28px,4.5vw,42px);font-weight:300;font-style:italic;color:#202021;line-height:1.12;margin:0 0 12px;max-width:720px">${_waEsc(data.headline || 'The week ahead.')}</h1>
+            <div style="display:flex;align-items:flex-start;gap:12px;margin:0 0 12px;max-width:780px">
+              <h1 id="wk-headline" style="font-family:${serif};font-size:clamp(28px,4.5vw,42px);font-weight:300;font-style:italic;color:#202021;line-height:1.12;margin:0;max-width:720px;min-width:0;flex:1">${_waEsc(data.headline || 'The week ahead.')}</h1>
+              <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('wk')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
+            </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
               ${data.week_label ? `<span style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6A5E54;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">${_waEsc(data.week_label)}</span>` : ''}
               ${pill ? `<span style="font-size:11px;color:#8A8078;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">🌤 ${_waEsc(pill)}</span>` : ''}
@@ -5183,8 +5232,7 @@
                 <span class="s">${data.days.length} days · ${total} pieces${owned ? ' · ' + owned + ' from your wardrobe' : ''}</span>
               </div>
               <div class="rb-sfoot-btns">
-                <button class="rb-sfbtn" onclick="window.__rbShare&&window.__rbShare()">Share</button>
-                <button class="rb-sfbtn" onclick="window.__rbRename&&window.__rbRename('wk')">Rename</button>
+                <button class="rb-sfbtn rb-share-foot" onclick="window.__rbShare&&window.__rbShare()">Share</button>
                 <button class="rb-sfbtn" onclick="window.__wkWear()">Wear today</button>
                 <button class="rb-sfbtn primary" onclick="window.__wkPlanAgain()">Plan a new week</button>
               </div>
@@ -6476,7 +6524,10 @@ body>*:not(#tv-result-page){display:none !important}
             <header class="tvm-mast">
               <div style="min-width:0">
                 <div class="tvm-eyebrow">The travel edit</div>
-                <h1 class="tvm-title" id="tv-headline">${_waEsc(data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.'))}</h1>
+                <div style="display:flex;align-items:flex-start;gap:10px;min-width:0">
+                  <h1 class="tvm-title" id="tv-headline" style="min-width:0;flex:1">${_waEsc(data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.'))}</h1>
+                  <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('tv')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
+                </div>
               </div>
               <div class="tvm-progress">
                 <span class="tvm-mpcount"><b id="tv-mp-n">0</b><span class="of"> / ${total} packed</span></span>
@@ -6542,8 +6593,7 @@ body>*:not(#tv-result-page){display:none !important}
                 <span class="s"><b id="tv-pm-count">0 of ${total}</b> packed · ${total} pieces${deferred ? ' · outfits to plan' : ', ' + lookCount + ' looks'}</span>
               </div>
               <div class="tvm-pbtns">
-                <button class="tvm-pbtn" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg><span>Share</span></button>
-                <button class="tvm-pbtn" onclick="window.__rbRename&&window.__rbRename('tv')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg><span>Rename</span></button>
+                <button class="tvm-pbtn rb-share-foot" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg><span>Share</span></button>
                 <button class="tvm-pbtn primary" onclick="window.__tvGoBack();setTimeout(()=>{window.__tvOpen()},200)"><span>Pack a new trip</span></button>
               </div>
             </div>
@@ -7619,6 +7669,101 @@ body>*:not(#tv-result-page){display:none !important}
           const wm = document.getElementById('nav-wordmark');
           if (wm) wm.style.display = '';
         };
+      })();
+
+      // ── Nav architecture v2 (2026-07): anchored destinations ──────────
+      // Desktop: Wardrobe + Lookbook sit inline beside the wordmark (ink
+      // underline = you are here; the wordmark carries Home). Mobile: a
+      // fixed bottom dock carries the same three destinations, and detail
+      // overlays swap the wordmark line for a "‹ Lookbook" back pill.
+      // Detail screens keep their parent (Lookbook) lit — every result
+      // page is a saved lookbook entry. The breadcrumb and the old
+      // "Wardrobe · N" pill are retired in CSS only: rbSetCrumb still runs
+      // (hidden), and the pill stays in the DOM because the panel-close
+      // paths click it programmatically.
+      (function _rbNavArch() {
+        function _wardrobeOpen() {
+          const wp = document.querySelector('.wardrobe-panel');
+          return !!(wp && wp.classList.contains('visible'));
+        }
+        function _detailOpen() {
+          return [kpResultPage, dlResultPage, tvResultPage, wkResultPage]
+            .some(function(p) { return p && p.style.display !== 'none'; });
+        }
+        function _closeOverlays() {
+          window.__mbCloseResult && window.__mbCloseResult();
+          window.__mbCloseList && window.__mbCloseList();
+          if (kpResultPage) kpResultPage.style.display = 'none';
+          if (dlResultPage) dlResultPage.style.display = 'none';
+          if (tvResultPage) tvResultPage.style.display = 'none';
+          if (wkResultPage) wkResultPage.style.display = 'none';
+          const snEl = document.getElementById('sn-page');
+          if (snEl) snEl.style.display = 'none';
+        }
+        function _closeWardrobe() {
+          const wp = document.querySelector('.wardrobe-panel');
+          if (wp && wp.classList.contains('visible')) {
+            // App.showWardrobe never toggles closed (verified: repeat calls
+            // keep .visible) — goHome is the one call that reverses the
+            // bundle's view-switch cleanly without a hard navigation.
+            if (window.App && App.goHome) { try { App.goHome(); } catch (e) {} }
+            if (wp.classList.contains('visible')) wp.classList.remove('visible');
+          }
+        }
+        window.__rbNavGo = function(dest) {
+          if (dest === 'home') {
+            const wm = document.getElementById('nav-wordmark');
+            if (wm && wm.onclick) wm.onclick();
+          } else if (dest === 'back' || dest === 'lookbook') {
+            // Back climbs to the list the detail lives in — the Lookbook.
+            _closeOverlays();
+            _closeWardrobe(); // its patched open would re-hide sn-page, so close first
+            window.__snOpen && window.__snOpen();
+          } else if (dest === 'wardrobe') {
+            _closeOverlays();
+            if (!_wardrobeOpen() && window.App && App.showWardrobe) App.showWardrobe();
+            if (window.__waSetView) window.__waSetView('all');
+          }
+          _rbNavSync();
+        };
+        const tnW = document.getElementById('rb-tn-wardrobe');
+        const tnL = document.getElementById('rb-tn-lookbook');
+        const dkH = document.getElementById('rb-dock-home');
+        const dkW = document.getElementById('rb-dock-wardrobe');
+        const dkL = document.getElementById('rb-dock-lookbook');
+        const backPill = document.getElementById('rb-backpill');
+        function _rbNavSync() {
+          const snEl = document.getElementById('sn-page');
+          const snOpen = !!(snEl && snEl.style.display === 'block');
+          const wOpen = _wardrobeOpen();
+          const detail = _detailOpen();
+          const active = wOpen ? 'wardrobe' : (snOpen || detail) ? 'lookbook' : 'home';
+          if (tnW) tnW.classList.toggle('active', active === 'wardrobe');
+          if (tnL) tnL.classList.toggle('active', active === 'lookbook');
+          if (dkH) dkH.classList.toggle('active', active === 'home');
+          if (dkW) dkW.classList.toggle('active', active === 'wardrobe');
+          if (dkL) dkL.classList.toggle('active', active === 'lookbook');
+          // Mobile detail screens: the back pill replaces the wordmark line,
+          // and Share rises into the header (the footer copy hides ≤640px).
+          const showPill = detail && window.matchMedia('(max-width:640px)').matches;
+          if (backPill) backPill.style.display = showPill ? 'inline-flex' : 'none';
+          const shareBtn = document.getElementById('rb-share-btn');
+          if (shareBtn) shareBtn.style.display = showPill ? 'inline-flex' : 'none';
+          const wm = document.getElementById('nav-wordmark');
+          if (wm) {
+            if (showPill) wm.style.setProperty('display', 'none', 'important');
+            // The wardrobe observer owns the wordmark while the panel is
+            // open (force-inline defence) — leave it alone in that state.
+            else if (!wOpen && wm.style.getPropertyValue('display') === 'none') wm.style.removeProperty('display');
+          }
+        }
+        window._rbNavSync = _rbNavSync;
+        _rbNavSync();
+        // Poll — views open/close through many independent paths (chips,
+        // popstate, observers, bundle toggles); a cheap visibility poll is
+        // the one hook that covers them all (same idiom as _waInit).
+        setInterval(_rbNavSync, 350);
+        window.addEventListener('resize', _rbNavSync);
       })();
 
       // Patch App.setSubtab to wire breadcrumbs for subtab sub-panels

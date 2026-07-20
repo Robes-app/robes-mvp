@@ -40,8 +40,12 @@
     .sn-weather { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border: 0.5px solid #E0D8C8; border-radius: 100px; font: 300 11.5px/1 'Inter'; letter-spacing: 0.02em; color: #6A5E54; }
     .sn-weather .wx { font-size: 14px; opacity: 0.85; }
     .sn-weather .dot { width: 3px; height: 3px; border-radius: 50%; background: #C4B8A4; opacity: 0.6; }
-    .sn-wbtn { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border: 0.5px solid #E0D8C8; border-radius: 100px; background: none; cursor: pointer; font: 400 11.5px/1 'Inter'; letter-spacing: 0.04em; color: #202021; }
-    .sn-wbtn svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+    /* Nav architecture 2026-07: Style notes lives OFF the bar — reached
+       from the avatar, so the header carries a "‹ Home" return and the
+       dark avatar marks the account area. */
+    .sn-back { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 8px; border: 0.5px solid #E0D8C8; border-radius: 100px; background: rgba(255,255,255,0.7); font: 400 12.5px/1 'Inter'; color: #202021; text-decoration: none; }
+    .sn-back svg { width: 14px; height: 14px; fill: none; stroke: #8a7f6d; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .sn-back:hover { border-color: #C4B8A4; }
     .sn-av-wrap { position: relative; }
     .sn-avatar { width: 32px; height: 32px; border-radius: 50%; background: #202021; color: #FAF8F5; display: flex; align-items: center; justify-content: center; font: 400 13px/1 'Cormorant', Georgia, serif; cursor: pointer; user-select: none; }
     .sn-av-menu { position: absolute; top: 42px; right: 0; width: 208px; background: #FAF8F5; border: 0.5px solid #E0D8C8; border-radius: 10px; box-shadow: 0 14px 40px rgba(32,32,33,0.12); padding: 6px; opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; z-index: 300; }
@@ -53,7 +57,19 @@
     .sn-av-item:hover { background: #F3EFE6; }
     .sn-av-item svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
     .sn-av-item.sn-av-out { border-top: 0.5px solid #EDE6D8; border-radius: 0 0 7px 7px; margin-top: 4px; padding-top: 12px; }
-    @media (max-width: 760px) { .sn-weather { display: none; } .sn-wbtn span { display: none; } }
+    @media (max-width: 760px) { .sn-weather { display: none; } }
+
+    /* Mobile dock — same anchored destinations as the dashboard; nothing
+       is lit here (Style notes sits outside the dock). */
+    #rb-dock { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 48; padding: 10px 14px calc(14px + env(safe-area-inset-bottom)); }
+    #rb-dock-in { display: flex; gap: 4px; background: rgba(255,255,255,0.7); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); border: 1px solid rgba(231,224,207,0.85); border-radius: 24px; padding: 5px 6px; }
+    .rb-dock-tab { position: relative; flex: 1; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; color: #C4B8A4; font-family: 'Inter', sans-serif; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; }
+    .rb-dock-tab svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
+    @media (max-width: 640px) {
+      #rb-dock { display: block; }
+      body { padding-bottom: 96px; }
+      .wordmark, .topbar-sep { display: none; }
+    }
 
     .subnav { position: sticky; top: 58px; z-index: 49; background: #FAF8F5; border-bottom: 1px solid #E7E0CF; }
     .subnav-inner { max-width: 940px; margin: 0 auto; padding: 0 28px; display: flex; align-items: stretch; gap: 32px; height: 52px; }
@@ -65,8 +81,10 @@
     }
     .subtab:hover { color: #A89880; }
     .subtab.active { color: #202021; border-bottom-color: #202021; }
-    .subtab .num { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 15px; color: #C4B8A4; }
-    .subtab .lbl { font: 500 10.5px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; }
+    /* Un-numbered text tabs — same scrolling tab pattern as Wardrobe and
+       Lookbook (nav architecture 2026-07); the 01/02/03 numerals retired */
+    .subtab .lbl { font: 400 13px/1 'Inter'; letter-spacing: 0.01em; white-space: nowrap; }
+    .subtab.active .lbl { font-weight: 500; }
 
     main { max-width: 940px; margin: 0 auto; padding: 54px 28px 140px; }
 
@@ -204,9 +222,10 @@
     <div class="topbar-l">
       <a class="wordmark" href="/dashboard">Robes</a>
       <span class="topbar-sep"></span>
-      <div class="crumb">
-        <span class="root">Style notes</span>
-      </div>
+      <a class="sn-back" href="/dashboard">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg>
+        Home
+      </a>
     </div>
     <div class="topbar-r">
       <span id="save-state"></span>
@@ -215,10 +234,6 @@
         <span class="dot" style="display:none"></span><span id="sn-wx-city" style="display:none"></span>
         <span class="dot" style="display:none"></span><span id="sn-wx-temp" style="display:none"></span>
       </div>
-      <button class="sn-wbtn" onclick="window.location.href='/wardrobe'">
-        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>
-        <span>Wardrobe</span>
-      </button>
       <div class="sn-av-wrap">
         <div class="sn-avatar" id="sn-avatar" onclick="event.stopPropagation();document.getElementById('sn-av-menu').classList.toggle('open')">·</div>
         <div class="sn-av-menu" id="sn-av-menu">
@@ -238,15 +253,12 @@
   <div class="subnav">
     <div class="subnav-inner">
       <button class="subtab active" id="tab-btn-colour" onclick="setTab('colour')">
-        <span class="num">01</span>
         <span class="lbl">Colour harmony</span>
       </button>
       <button class="subtab" id="tab-btn-silhouette" onclick="setTab('silhouette')">
-        <span class="num">02</span>
         <span class="lbl">Silhouette &amp; proportions</span>
       </button>
       <button class="subtab" id="tab-btn-taste" onclick="setTab('taste')">
-        <span class="num">03</span>
         <span class="lbl">Taste &amp; budget</span>
       </button>
     </div>
@@ -270,7 +282,7 @@
           <p class="slot-err" id="headshot-err"></p>
         </div>
         <div style="display:flex;flex-direction:column;justify-content:center;">
-          <div class="eyebrow">Style notes — 01</div>
+          <div class="eyebrow">Style notes</div>
           <h1 class="chapter-h1">Colour<br>harmony.</h1>
           <div id="ch-season-row" style="display:none;align-items:baseline;gap:14px;margin-top:26px;padding-top:22px;border-top:1px solid #E7E0CF;">
             <span style="font:400 9px/1 'Inter';letter-spacing:0.22em;text-transform:uppercase;color:#C4B8A4;">Your season</span>
@@ -388,7 +400,7 @@
           <p class="slot-err" id="full-err"></p>
         </div>
         <div style="display:flex;flex-direction:column;justify-content:center;">
-          <div class="eyebrow">Style notes — 02</div>
+          <div class="eyebrow">Style notes</div>
           <h1 class="chapter-h1">Silhouette<br>&amp; proportions.</h1>
           <div id="sil-type-row" style="display:none;align-items:baseline;gap:14px;margin-top:26px;padding-top:22px;border-top:1px solid #E7E0CF;">
             <span style="font:400 9px/1 'Inter';letter-spacing:0.22em;text-transform:uppercase;color:#C4B8A4;">Your body type</span>
@@ -435,7 +447,7 @@
 
       <section class="g-taste-hero" style="display:grid;grid-template-columns:1fr 1fr;gap:54px;align-items:end;">
         <div>
-          <div class="eyebrow">Style notes — 03</div>
+          <div class="eyebrow">Style notes</div>
           <h1 class="chapter-h1">Taste<br>&amp; budget.</h1>
         </div>
         <div>
@@ -1175,6 +1187,24 @@
       if (tab === 'silhouette' || tab === 'taste') setTab(tab);
     })();
   </script>
+
+  <!-- Mobile dock — anchored destinations; nothing lit on this off-bar page -->
+  <div id="rb-dock" aria-label="Primary">
+    <div id="rb-dock-in">
+      <button class="rb-dock-tab" onclick="window.location.href='/dashboard'">
+        <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.3V21h14V9.3"></path></svg>
+        Home
+      </button>
+      <button class="rb-dock-tab" onclick="window.location.href='/wardrobe'">
+        <svg viewBox="0 0 24 24"><path d="M12 4.2a1.9 1.9 0 1 0 1.4 3.2"></path><path d="M12 7.6 3.6 14.2a1.4 1.4 0 0 0 .9 2.5h15a1.4 1.4 0 0 0 .9-2.5L12 7.6z"></path></svg>
+        Wardrobe
+      </button>
+      <button class="rb-dock-tab" onclick="window.location.href='/lookbook'">
+        <svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5"></rect><path d="M12 4.5v15"></path></svg>
+        Lookbook
+      </button>
+    </div>
+  </div>
 
 </body>
 </html>
