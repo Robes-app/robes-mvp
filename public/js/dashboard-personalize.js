@@ -182,6 +182,28 @@
 
       if (daySpan) daySpan.textContent = DAYS[new Date().getDay()];
 
+      // Mobile-only ambient strip under the greeting — the nav pill hides
+      // <768px, so this carries the "Monday · Dublin · 20°C" context there.
+      // Built from window.__rbCtx once geolocation + forecast land; stays
+      // hidden until at least day + one of city/temp is known.
+      const mWxEl = document.getElementById('dash-wx-m');
+      function _rbSyncMobileWx(code) {
+        if (!mWxEl) return;
+        const day = DAYS[new Date().getDay()];
+        const city = window.__rbCtx.city || '';
+        const temp = (window.__rbCtx.tempC != null && !isNaN(window.__rbCtx.tempC)) ? window.__rbCtx.tempC + '°C' : '';
+        const parts = [day, city, temp].filter(Boolean);
+        if (parts.length < 2) { mWxEl.classList.remove('on'); return; }
+        mWxEl.textContent = '';
+        const icon = (code !== undefined && WX_ICONS[code]) || '';
+        if (icon) { const s = document.createElement('span'); s.className = 'wx'; s.textContent = icon; mWxEl.appendChild(s); }
+        parts.forEach((p, i) => {
+          if (i > 0 || icon) { const d = document.createElement('span'); d.className = 'dot'; mWxEl.appendChild(d); }
+          const s = document.createElement('span'); s.textContent = p; mWxEl.appendChild(s);
+        });
+        mWxEl.classList.add('on');
+      }
+
       function layerHint(tmin, tmax, code) {
         if (code >= 51 && code <= 99) return 'Bring a shell for the rain';
         if (!isNaN(tmax) && tmax < 10) return 'Wrap up warm';
@@ -207,7 +229,7 @@
               const city = geoData.address?.city || geoData.address?.town ||
                            geoData.address?.village || geoData.address?.county || '';
               if (city && citySpan) citySpan.textContent = city;
-              if (city) window.__rbCtx.city = city;
+              if (city) { window.__rbCtx.city = city; _rbSyncMobileWx(); }
 
               // Weather from Open-Meteo (free, no API key)
               const wxRes = await fetch(
@@ -226,6 +248,7 @@
               if (code !== undefined && WX_TEXT[code]) window.__rbCtx.condition = WX_TEXT[code];
               window.__rbCtx.hint = layerHint(tmin, tmax, code);
               if (window.__rbCtx.city || window.__rbCtx.tempC != null) weatherEl.style.visibility = '';
+              _rbSyncMobileWx(code);
             } catch (e) { /* keep the strip hidden on error */ }
             resolve();
           }, () => resolve() /* permission denied — strip stays hidden */);
@@ -2855,23 +2878,16 @@
       // Also override KP.submitStyle to call the real /api/style endpoint
       // + reorder Styling Concierge cards: Key Piece → Weekly Planner → Travel Edit
       setTimeout(() => {
-        // Rename bundle's "My wardrobe" → "Wardrobe"
+        // Wardrobe + Lookbook are now first-class nav destinations (top-nav
+        // links on desktop, the fixed dock on mobile), so they no longer
+        // belong in the account dropdown — remove both bundle items.
         Array.from(document.querySelectorAll('.av-item')).forEach(btn => {
-          if (btn.textContent.includes('My wardrobe') || btn.textContent.includes('My Wardrobe')) {
-            const txt = btn.childNodes[btn.childNodes.length - 1];
-            if (txt && txt.nodeType === Node.TEXT_NODE) txt.textContent = 'Wardrobe';
-            else btn.innerHTML = btn.innerHTML.replace(/My [Ww]ardrobe/, 'Wardrobe');
-          }
+          if (btn.textContent.includes('My wardrobe') || btn.textContent.includes('My Wardrobe')) btn.remove();
         });
 
-        // Rename "Style notes" → "Lookbook" and wire onclick
+        // Bundle's "Style notes" item is the Lookbook entry — pull it too.
         const snAvItem = Array.from(document.querySelectorAll('.av-item')).find(b => b.textContent.includes('Style notes') || b.textContent.includes('Lookbook'));
-        if (snAvItem) {
-          const txt = snAvItem.childNodes[snAvItem.childNodes.length - 1];
-          if (txt && txt.nodeType === Node.TEXT_NODE) txt.textContent = 'Lookbook';
-          else snAvItem.innerHTML = snAvItem.innerHTML.replace(/Style notes/, 'Lookbook');
-          snAvItem.onclick = () => window.__snOpen();
-        }
+        if (snAvItem) snAvItem.remove();
 
         // Add Moodboards item to av-menu after Lookbook (hidden in P0)
         const avMenu = document.getElementById('av-menu');
@@ -3184,7 +3200,11 @@
         const kpIntent = (opts && opts.intent) || data.intent || 'style';
         const kpCtx = (opts && opts.context) || data.context || null;
         const kpDaily = kpIntent === 'dress-me';
-        const pieceName = fallback ? 'Balmain waistcoat' : (promptText || 'Your piece');
+        // A custom name (set via Rename) is stored on the render data as
+        // `headline` — it takes over the editorial H1 so a rename sticks
+        // visibly here and on every reopen.
+        const kpHeadline = (data.headline || '').trim();
+        const pieceName = kpHeadline || (fallback ? 'Balmain waistcoat' : (promptText || 'Your piece'));
         const serif = "'Cormorant',Georgia,serif";
         const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
 
@@ -3212,7 +3232,7 @@
           <div style="width:100%;max-width:900px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
 
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 12px">
-              <h1 id="kp-headline" style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0">${kpDaily ? 'Your day,<br><em style="color:#A89880">dressed three ways.</em>' : 'Your piece,<br><em style="color:#A89880">worn three ways.</em>'}</h1>
+              <h1 id="kp-headline" style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0">${kpHeadline ? _waEsc(kpHeadline) : (kpDaily ? 'Your day,<br><em style="color:#A89880">dressed three ways.</em>' : 'Your piece,<br><em style="color:#A89880">worn three ways.</em>')}</h1>
               <button class="rb-rename-tbtn" title="Rename" style="margin-top:8px" onclick="window.__rbRename&&window.__rbRename('kp')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
             </div>
             <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : kpDaily ? 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.' : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
@@ -3229,7 +3249,7 @@
               ${photoUrl ? `<img src="${photoUrl}" style="width:64px;height:80px;border-radius:4px;object-fit:cover;flex-shrink:0" alt="">` : ''}
               <div>
                 <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#A89880;margin-bottom:4px">${kpDaily ? "Today's brief" : 'Your piece'}</div>
-                <div style="font-family:${serif};font-size:22px;font-weight:400;color:#202021;line-height:1.1">${pieceName}</div>
+                <div style="font-family:${serif};font-size:22px;font-weight:400;color:#202021;line-height:1.1">${_waEsc(pieceName)}</div>
                 ${photoUrl ? '<div style="font-size:12px;color:#A89880;margin-top:4px">✓ The one you uploaded</div>' : ''}
               </div>
             </div>
@@ -4456,7 +4476,10 @@
           <div class="dlm-wrap">
             <header>
               <div class="dlm-eyebrow">Your daily look</div>
-              <h1 class="dlm-title">${_waEsc(headline)}</h1>
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+                <h1 class="dlm-title">${_waEsc(headline)}</h1>
+                <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('dl')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
+              </div>
               ${data.occasion_label ? `<div class="dlm-kws"><span class="kw">${_waEsc(data.occasion_label)}</span></div>` : ''}
               <div class="dlm-meta-row">
                 ${ctx && (ctx.city || ctx.tempRange) ? `<div class="dlm-wx"><span>🌤</span><strong>${_waEsc([ctx.city, ctx.month].filter(Boolean).join(' · '))}</strong>${ctx.tempRange ? `<span class="div"></span><span>${_waEsc(ctx.tempRange)}</span>` : ''}${ctx.hint ? `<span class="div"></span><span>${_waEsc(ctx.hint)}</span>` : ''}</div>` : ''}
@@ -7215,8 +7238,20 @@ body>*:not(#tv-result-page){display:none !important}
         } else if (kind === 'kp') {
           id = _kpActiveSaveId;
           const saved = id && snLoad().find(x => x.id === id);
-          cur = (saved && saved.title) || (window.__lastKpData && window.__lastKpData.piece) || '';
-          applyLive = (v) => { const m = document.querySelector('#kp-result-page .rb-sfoot-meta .t'); if (m) m.textContent = v; };
+          cur = (saved && saved.title) || (window.__lastKpData && window.__lastKpData.headline) || '';
+          applyLive = (v) => {
+            const h = document.getElementById('kp-headline'); if (h) h.textContent = v;
+            const m = document.querySelector('#kp-result-page .rb-sfoot-meta .t'); if (m) m.textContent = v;
+            if (window.__lastKpData) window.__lastKpData.headline = v;
+          };
+        } else if (kind === 'dl') {
+          id = _dlActiveSaveId;
+          cur = (window.__lastDlData && window.__lastDlData.headline) || '';
+          applyLive = (v) => {
+            const h = document.querySelector('#dl-result-page .dlm-title'); if (h) h.textContent = v;
+            const m = document.querySelector('#dl-result-page .dlm-payoff .dlm-pmeta .t'); if (m) m.textContent = v;
+            if (window.__lastDlData) window.__lastDlData.headline = v;
+          };
         } else if (kind === 'wk') {
           id = _wkActiveSaveId;
           cur = (window.__lastWkData && window.__lastWkData.headline) || '';
@@ -7250,7 +7285,18 @@ body>*:not(#tv-result-page){display:none !important}
         window.__rbRenameSave = function() {
           const v = ((document.getElementById('rb-rename-input') || {}).value || '').trim();
           if (!v) { _waShowToast('Type a name first'); return; }
-          snUpdate(id, { title: v });
+          // Persist the name into the saved entry's render data (its headline)
+          // as well as the card title, so a reopen shows the rename on the
+          // result page too — not just in the lookbook grid.
+          const patch = { title: v };
+          const saved = snLoad().find(x => x.id === id);
+          if (saved) {
+            if (kind === 'kp' && saved.kpData) patch.kpData = { ...saved.kpData, headline: v };
+            else if (kind === 'dl' && saved.dlData) patch.dlData = { ...saved.dlData, headline: v };
+            else if (kind === 'tv' && saved.tvData) patch.tvData = { ...saved.tvData, headline: v };
+            else if (kind === 'wk' && saved.wkData) patch.wkData = { ...saved.wkData, headline: v };
+          }
+          snUpdate(id, patch);
           if (applyLive) applyLive(v);
           document.getElementById('rb-rename-modal')?.remove();
           _waShowToast('Renamed to “' + v + '”');

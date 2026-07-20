@@ -1504,6 +1504,14 @@ body[data-density="compact"] .dash-mast{margin-bottom:28px}
   .dash-echo{font-size:18px;margin-top:6px}
   .concierge{margin-bottom:32px}
 }
+/* Ambient weather strip under the greeting — mobile only (the nav pill is
+   hidden <768px). Reads "Monday · Dublin · 20°C"; revealed via .on once
+   geolocation + forecast land, so it never shows placeholder values. */
+.dash-wx-m{display:none;align-items:center;gap:8px;margin-top:14px;
+  font-size:10.5px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-faint)}
+.dash-wx-m .wx{font-size:13px;letter-spacing:0}
+.dash-wx-m .dot{width:3px;height:3px;border-radius:50%;background:var(--ink-faint);opacity:0.6}
+@media(max-width:767px){ .dash-wx-m.on{display:flex} }
 
 /* ── CONCIERGE PROMPT (hero) ──────────────────────────────────────── */
 /* Reading measure — single-input controls cap at 760px (layout spec) */
@@ -2056,6 +2064,8 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
         <header class="dash-mast">
           <h1 class="dash-greet" id="dash-greet" data-comment-anchor="b8c791de12-h1">Good evening, Annie.</h1>
           <div class="dash-echo">What are you dressing for today?</div>
+          <!-- Mobile-only ambient weather strip (the nav pill hides <768px) -->
+          <div class="dash-wx-m" id="dash-wx-m" aria-hidden="true"></div>
         </header>
 
         <!-- concierge prompt -->

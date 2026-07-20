@@ -1107,36 +1107,47 @@ async function fetchTripWeather(destination, dateFrom, dateTo) {
     const geo = await fetchJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}&count=1&language=en`);
     const loc = geo?.results?.[0];
     if (!loc) return null;
+    const base = { city: loc.name, country: loc.country || '' };
     const from = new Date(dateFrom + 'T00:00:00Z');
     const to = new Date(dateTo + 'T00:00:00Z');
-    if (isNaN(from) || isNaN(to)) return { city: loc.name, country: loc.country || '' };
-    const daysAhead = Math.round((to - Date.now()) / 86400000);
+    if (isNaN(from) || isNaN(to)) return base;
     const daily = 'temperature_2m_max,temperature_2m_min,weather_code';
-    let data, seasonal = false;
-    if (daysAhead >= 0 && daysAhead <= 14 && from >= new Date(Date.now() - 86400000)) {
-      data = await fetchJson(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=${daily}&start_date=${dateFrom}&end_date=${dateTo}&temperature_unit=celsius`);
-    } else {
-      seasonal = true;
-      const shift = d => { const x = new Date(d); x.setUTCFullYear(x.getUTCFullYear() - 1); return x.toISOString().slice(0, 10); };
-      data = await fetchJson(`https://archive-api.open-meteo.com/v1/archive?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=${daily}&start_date=${shift(from)}&end_date=${shift(to)}&temperature_unit=celsius`);
+    const shift = d => { const x = new Date(d); x.setUTCFullYear(x.getUTCFullYear() - 1); return x.toISOString().slice(0, 10); };
+    const liveUrl = () => `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=${daily}&start_date=${dateFrom}&end_date=${dateTo}&temperature_unit=celsius`;
+    const archiveUrl = () => `https://archive-api.open-meteo.com/v1/archive?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=${daily}&start_date=${shift(from)}&end_date=${shift(to)}&temperature_unit=celsius`;
+
+    // Live forecast when the trip STARTS inside Open-Meteo's ~16-day horizon
+    // (and hasn't already begun), else last year's same dates as a seasonal
+    // read. Try the primary source, and if it comes back empty fall through
+    // to the other one before giving up — the pill always gets a real
+    // forecast OR a seasonal average whenever geocoding succeeds.
+    const daysToStart = Math.round((from - Date.now()) / 86400000);
+    const useLive = daysToStart >= -1 && daysToStart <= 16;
+    const plan = useLive
+      ? [{ url: liveUrl, seasonal: false }, { url: archiveUrl, seasonal: true }]
+      : [{ url: archiveUrl, seasonal: true }, { url: liveUrl, seasonal: false }];
+
+    for (const step of plan) {
+      let data;
+      try { data = await fetchJson(step.url()); } catch { continue; }
+      const maxes = (data?.daily?.temperature_2m_max || []).filter(Number.isFinite);
+      const mins = (data?.daily?.temperature_2m_min || []).filter(Number.isFinite);
+      const codes = (data?.daily?.weather_code || []).filter(Number.isFinite);
+      if (!maxes.length || !mins.length) continue;
+      const counts = new Map();
+      codes.forEach(c => counts.set(c, (counts.get(c) || 0) + 1));
+      const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+      return {
+        ...base,
+        minC: Math.round(Math.min(...mins)),
+        maxC: Math.round(Math.max(...maxes)),
+        tempRange: `${Math.round(Math.min(...mins))}–${Math.round(Math.max(...maxes))}°C`,
+        condition: wxCondition(dominant),
+        eveningMinC: Math.round(Math.min(...mins)),
+        seasonal: step.seasonal,
+      };
     }
-    const maxes = (data?.daily?.temperature_2m_max || []).filter(Number.isFinite);
-    const mins = (data?.daily?.temperature_2m_min || []).filter(Number.isFinite);
-    const codes = (data?.daily?.weather_code || []).filter(Number.isFinite);
-    if (!maxes.length || !mins.length) return { city: loc.name, country: loc.country || '' };
-    const counts = new Map();
-    codes.forEach(c => counts.set(c, (counts.get(c) || 0) + 1));
-    const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-    return {
-      city: loc.name,
-      country: loc.country || '',
-      minC: Math.round(Math.min(...mins)),
-      maxC: Math.round(Math.max(...maxes)),
-      tempRange: `${Math.round(Math.min(...mins))}–${Math.round(Math.max(...maxes))}°C`,
-      condition: wxCondition(dominant),
-      eveningMinC: Math.round(Math.min(...mins)),
-      seasonal,
-    };
+    return base;
   } catch (err) {
     logAI({ feature: 'travel', stage: 'weather', success: false, reason: err.message });
     return null;
