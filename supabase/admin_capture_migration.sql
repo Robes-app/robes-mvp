@@ -131,11 +131,21 @@ create policy prompt_history_admin_read on public.prompt_history for select usin
 -- PostgREST can't join auth.users (email, last sign-in) or aggregate
 -- per-user counts in one round trip, so the users list goes through this
 -- security-definer RPC. Returns nothing unless the caller is an admin.
+-- p_sort: 'created_at' | 'name' | 'email' | 'onboarded' | 'wardrobe' |
+--         'lookbook' | 'feedback' | 'last_event' | 'last_sign_in'
+-- p_dir:  'asc' | 'desc'
+-- (The 4-arg original must be dropped — create or replace with a different
+-- signature would create a second overload and make named-arg RPC calls
+-- ambiguous.)
+drop function if exists public.admin_user_overview(int, int, text, uuid);
+
 create or replace function public.admin_user_overview(
   p_limit  int  default 50,
   p_offset int  default 0,
   p_search text default null,
-  p_user   uuid default null
+  p_user   uuid default null,
+  p_sort   text default 'created_at',
+  p_dir    text default 'desc'
 )
 returns table (
   id              uuid,
@@ -157,31 +167,51 @@ security definer
 set search_path = public
 stable
 as $$
-  select
-    u.id,
-    u.email::text,
-    p.first_name,
-    u.created_at,
-    p.onboarded_at,
-    u.last_sign_in_at,
-    (select count(*) from public.wardrobe_items w where w.user_id = u.id),
-    (select count(*) from public.wishlist_items wl where wl.user_id = u.id),
-    (select count(*) from public.lookbook_items l where l.user_id = u.id),
-    (select count(*) from public.feedback f where f.user_id = u.id),
-    (select max(e.created_at) from public.events e where e.user_id = u.id),
-    coalesce(p.is_admin, false),
-    count(*) over ()
-  from auth.users u
-  left join public.profiles p on p.id = u.id
-  where public.is_admin()
-    and (p_user is null or u.id = p_user)
-    and (p_search is null or p_search = ''
-         or u.email ilike '%' || p_search || '%'
-         or coalesce(p.first_name, '') ilike '%' || p_search || '%')
-  order by u.created_at desc
+  select * from (
+    select
+      u.id,
+      u.email::text as email,
+      p.first_name,
+      u.created_at,
+      p.onboarded_at,
+      u.last_sign_in_at,
+      (select count(*) from public.wardrobe_items w where w.user_id = u.id) as wardrobe_count,
+      (select count(*) from public.wishlist_items wl where wl.user_id = u.id) as wishlist_count,
+      (select count(*) from public.lookbook_items l where l.user_id = u.id) as lookbook_count,
+      (select count(*) from public.feedback f where f.user_id = u.id) as feedback_count,
+      (select max(e.created_at) from public.events e where e.user_id = u.id) as last_event_at,
+      coalesce(p.is_admin, false) as is_admin,
+      count(*) over () as total_count
+    from auth.users u
+    left join public.profiles p on p.id = u.id
+    where public.is_admin()
+      and (p_user is null or u.id = p_user)
+      and (p_search is null or p_search = ''
+           or u.email ilike '%' || p_search || '%'
+           or coalesce(p.first_name, '') ilike '%' || p_search || '%')
+  ) t
+  order by
+    case when p_sort = 'name'         and p_dir = 'asc'  then lower(coalesce(t.first_name, '')) end asc  nulls last,
+    case when p_sort = 'name'         and p_dir <> 'asc' then lower(coalesce(t.first_name, '')) end desc nulls last,
+    case when p_sort = 'email'        and p_dir = 'asc'  then lower(t.email) end asc  nulls last,
+    case when p_sort = 'email'        and p_dir <> 'asc' then lower(t.email) end desc nulls last,
+    case when p_sort = 'onboarded'    and p_dir = 'asc'  then t.onboarded_at end asc  nulls last,
+    case when p_sort = 'onboarded'    and p_dir <> 'asc' then t.onboarded_at end desc nulls last,
+    case when p_sort = 'wardrobe'     and p_dir = 'asc'  then t.wardrobe_count end asc,
+    case when p_sort = 'wardrobe'     and p_dir <> 'asc' then t.wardrobe_count end desc,
+    case when p_sort = 'lookbook'     and p_dir = 'asc'  then t.lookbook_count end asc,
+    case when p_sort = 'lookbook'     and p_dir <> 'asc' then t.lookbook_count end desc,
+    case when p_sort = 'feedback'     and p_dir = 'asc'  then t.feedback_count end asc,
+    case when p_sort = 'feedback'     and p_dir <> 'asc' then t.feedback_count end desc,
+    case when p_sort = 'last_event'   and p_dir = 'asc'  then t.last_event_at end asc  nulls last,
+    case when p_sort = 'last_event'   and p_dir <> 'asc' then t.last_event_at end desc nulls last,
+    case when p_sort = 'last_sign_in' and p_dir = 'asc'  then t.last_sign_in_at end asc  nulls last,
+    case when p_sort = 'last_sign_in' and p_dir <> 'asc' then t.last_sign_in_at end desc nulls last,
+    case when p_sort = 'created_at'   and p_dir = 'asc'  then t.created_at end asc,
+    t.created_at desc
   limit least(greatest(coalesce(p_limit, 50), 1), 200)
   offset greatest(coalesce(p_offset, 0), 0)
 $$;
 
-revoke all on function public.admin_user_overview(int, int, text, uuid) from public, anon;
-grant execute on function public.admin_user_overview(int, int, text, uuid) to authenticated;
+revoke all on function public.admin_user_overview(int, int, text, uuid, text, text) from public, anon;
+grant execute on function public.admin_user_overview(int, int, text, uuid, text, text) to authenticated;
