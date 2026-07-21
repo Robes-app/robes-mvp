@@ -240,7 +240,9 @@
   async function renderUser(uid) {
     main.innerHTML = '<a class="bk" href="#users">‹ All users</a><div class="empty">Loading…</div>';
     const evQuery = sbClient.from('events').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(100);
-    const [ov, prof, wardrobe, wishlist, lookbook, fb, events] = await Promise.all([
+    let glQuery = sbClient.from('generation_log').select('id,endpoint,model,status,latency_ms,tokens_used,environment,created_at,detail').eq('user_id', uid).order('created_at', { ascending: false }).limit(300);
+    if (env !== 'all') glQuery = glQuery.eq('environment', env);
+    const [ov, prof, wardrobe, wishlist, lookbook, fb, events, gens] = await Promise.all([
       sbClient.rpc('admin_user_overview', { p_limit: 1, p_offset: 0, p_user: uid }),
       sbClient.from('profiles').select('*').eq('id', uid).single(),
       sbClient.from('wardrobe_items').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(200),
@@ -248,6 +250,7 @@
       sbClient.from('lookbook_items').select('id,type,title,subtitle,img,share_id,is_public,created_at,data').eq('user_id', uid).order('created_at', { ascending: false }).limit(100),
       sbClient.from('feedback').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(100),
       env === 'all' ? evQuery : evQuery.eq('environment', env),
+      glQuery,
     ]);
     const o = (ov.data && ov.data[0]) || {};
     const p = prof.data || {};
@@ -312,7 +315,43 @@
       }).join('') + '</div>'
       : '<div class="card"><div class="empty">Nothing saved yet.</div></div>') + '</div>';
     html += '</div></div>';
+
+    // Generations — one row per generation, joined by gen_id: her typed
+    // prompt → each LLM call (click a chip for full prompt/response) → the
+    // saved lookbook artifact carrying the same gen_id in its data.
+    const gRows = gens.data || [];
+    const groups = [];
+    const byGid = {};
+    gRows.forEach(r => {
+      const gid = (r.detail && r.detail.gen_id) || r.id;
+      if (!byGid[gid]) { byGid[gid] = { gid, rows: [] }; groups.push(byGid[gid]); }
+      byGid[gid].rows.push(r);
+    });
+    html += '<div class="sec"><div class="sec-h"><h2>Generations</h2><span class="cnt">' + groups.length + (env !== 'all' ? ' · ' + esc(env) : '') + ' · click a call chip for the full prompt/response</span></div><div class="card">' +
+      (gens.error ? '<div class="err">generation_log unavailable — run migration 11 + set SUPABASE_SERVICE_ROLE_KEY</div>'
+      : groups.length ? '<table><thead><tr><th>When</th><th>Endpoint</th><th>Her prompt</th><th>Calls</th><th>Saved as</th></tr></thead><tbody>' +
+        groups.slice(0, 40).map(g => {
+          const first = g.rows[g.rows.length - 1];
+          const uPrompt = g.rows.map(r => r.detail && r.detail.user_prompt).find(Boolean);
+          const isRealGid = typeof g.gid === 'string' && g.gid.length < 30;
+          const art = isRealGid ? lbRows.find(l => JSON.stringify(l.data || {}).indexOf('"' + g.gid + '"') !== -1) : null;
+          const chips = g.rows.slice().reverse().map(r => {
+            const img = String(r.model || '').indexOf('image') !== -1;
+            const cls = r.status === 'ok' ? 'ok' : r.status === 'partial' ? 'warn' : 'bad';
+            const label = (img ? 'img' : 'text') + ' ' + (r.status === 'ok' ? '✓' : esc(r.status)) + (r.latency_ms != null ? ' · ' + (r.latency_ms / 1000).toFixed(1) + 's' : '');
+            return '<button class="chip ' + cls + '" style="cursor:pointer;font-family:inherit;margin:1px 2px 1px 0" data-gen="' + esc(r.id) + '">' + label + '</button>';
+          }).join('');
+          return '<tr>' +
+            '<td class="nowrap dim">' + fmtDT(first.created_at) + '</td>' +
+            '<td class="nowrap">' + esc(first.endpoint) + '</td>' +
+            '<td style="max-width:340px">' + (uPrompt ? '<em>“' + esc(uPrompt) + '”</em>' : '<span class="dim">—</span>') + '</td>' +
+            '<td style="min-width:180px">' + chips + '</td>' +
+            '<td>' + (art ? esc(art.title || TYPE_LABEL[art.type] || art.type) + (art.share_id && art.is_public ? ' · <a href="/board/' + esc(art.share_id) + '" target="_blank">shared ↗</a>' : '') : '<span class="dim">—</span>') + '</td>' +
+          '</tr>';
+        }).join('') + '</tbody></table>' + (groups.length > 40 ? '<div class="note" style="padding:0 14px 12px">Showing the 40 most recent generations.</div>' : '')
+      : '<div class="empty">No generations logged yet' + (env !== 'all' ? ' in ' + esc(env) : '') + '.</div>') + '</div></div>';
     main.innerHTML = html;
+    main.querySelectorAll('[data-gen]').forEach(b => b.onclick = () => inspectGen(b.dataset.gen));
   }
   function metaLine(m) {
     if (!m || typeof m !== 'object') return '';
