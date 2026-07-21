@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Robes — Admin</title>
+  <link rel="icon" href="/images/robes-icon-64.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --ink: #202021; --ink-soft: #55524E; --ink-faint: #8A867F;
+      --cream: #FAF8F5; --cream-100: #F3EFE6; --card: #FFFFFF;
+      --rule: rgba(32,32,33,0.10); --rule-mid: rgba(32,32,33,0.18);
+      --rose: #A86B5C; --sage: #6F7D6A; --red: #A54242; --amber: #B07E36;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', sans-serif; background: var(--cream); color: var(--ink); font-size: 13px; -webkit-font-smoothing: antialiased; }
+    body.rb-boot { visibility: hidden; }
+    a { color: inherit; }
+
+    .topbar { position: sticky; top: 0; z-index: 50; background: rgba(250,248,245,0.94); backdrop-filter: blur(8px); border-bottom: 0.5px solid var(--rule-mid); }
+    .topbar-in { max-width: 1360px; margin: 0 auto; padding: 0 28px; height: 56px; display: flex; align-items: center; gap: 22px; }
+    .wordmark { font-family: Georgia, 'Times New Roman', serif; font-size: 17px; letter-spacing: 0.18em; font-weight: 500; text-decoration: none; }
+    .wordmark span { color: var(--ink-faint); letter-spacing: 0.04em; font-size: 12px; font-family: inherit; margin-left: 8px; text-transform: uppercase; }
+    .tabs { display: flex; gap: 4px; margin-left: 10px; }
+    .tab { border: none; background: none; font: inherit; font-size: 13px; color: var(--ink-soft); padding: 7px 12px; border-radius: 100px; cursor: pointer; text-decoration: none; }
+    .tab.active { background: var(--ink); color: #fff; }
+    .topbar-r { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+    .envsel { font: inherit; font-size: 12px; border: 0.5px solid var(--rule-mid); border-radius: 100px; background: #fff; padding: 6px 10px; color: var(--ink); }
+    .who { font-size: 12px; color: var(--ink-faint); }
+    .signout { border: none; background: none; font: inherit; font-size: 12px; color: var(--ink-soft); cursor: pointer; text-decoration: underline; }
+
+    .main { max-width: 1360px; margin: 0 auto; padding: 26px 28px 80px; }
+    .page-h { display: flex; align-items: baseline; gap: 14px; margin: 6px 0 18px; flex-wrap: wrap; }
+    .page-h h1 { font-family: Georgia, serif; font-weight: 400; font-size: 24px; }
+    .page-h .sub { color: var(--ink-faint); font-size: 13px; }
+    .page-h .grow { flex: 1; }
+
+    .card { background: var(--card); border: 0.5px solid var(--rule); border-radius: 10px; }
+    .searchrow { display: flex; gap: 10px; margin-bottom: 14px; }
+    .search { flex: 0 0 320px; font: inherit; padding: 9px 14px; border: 0.5px solid var(--rule-mid); border-radius: 100px; background: #fff; outline: none; }
+    .btn { font: inherit; font-size: 12px; padding: 8px 16px; border-radius: 100px; border: 0.5px solid var(--rule-mid); background: #fff; cursor: pointer; color: var(--ink); }
+    .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); font-weight: 500; padding: 10px 14px; border-bottom: 0.5px solid var(--rule-mid); white-space: nowrap; }
+    td { padding: 10px 14px; border-bottom: 0.5px solid var(--rule); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr.row { cursor: pointer; }
+    tr.row:hover td { background: var(--cream-100); }
+    .num { font-variant-numeric: tabular-nums; }
+    .dim { color: var(--ink-faint); }
+    .nowrap { white-space: nowrap; }
+
+    .chip { display: inline-block; font-size: 11px; padding: 3px 9px; border-radius: 100px; border: 0.5px solid var(--rule-mid); background: #fff; white-space: nowrap; }
+    .chip.ok { color: var(--sage); border-color: rgba(111,125,106,0.4); }
+    .chip.bad { color: var(--red); border-color: rgba(165,66,66,0.4); }
+    .chip.warn { color: var(--amber); border-color: rgba(176,126,54,0.4); }
+    .chip.env-beta { background: var(--cream-100); }
+    .chip.ink { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+    .pager { display: flex; align-items: center; gap: 12px; padding: 14px 0; }
+    .empty { padding: 34px 18px; text-align: center; color: var(--ink-faint); }
+    .err { padding: 14px 18px; color: var(--red); font-size: 12px; }
+
+    .grid2 { display: grid; grid-template-columns: 320px 1fr; gap: 18px; align-items: start; }
+    @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } .topbar-in, .main { padding-left: 16px; padding-right: 16px; } }
+    .sec { margin-bottom: 22px; }
+    .sec-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+    .sec-h h2 { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rose); font-weight: 500; }
+    .sec-h .cnt { color: var(--ink-faint); font-size: 12px; }
+    .kv { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; padding: 16px; font-size: 12.5px; }
+    .kv dt { color: var(--ink-faint); }
+    .kv dd { overflow-wrap: anywhere; }
+
+    .thumbgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+    .titem { background: #fff; border: 0.5px solid var(--rule); border-radius: 8px; overflow: hidden; }
+    .titem .im { aspect-ratio: 3/4; background: var(--cream-100); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-family: Georgia, serif; font-size: 22px; position: relative; }
+    .titem .im img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .titem .im .star { position: absolute; top: 6px; right: 6px; font-size: 12px; }
+    .titem .tx { padding: 8px 10px; }
+    .titem .tx .l1 { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .titem .tx .l2 { font-size: 11px; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+
+    .tl { list-style: none; }
+    .tl li { display: flex; gap: 12px; padding: 8px 14px; border-bottom: 0.5px solid var(--rule); align-items: baseline; }
+    .tl li:last-child { border-bottom: none; }
+    .tl .t { flex: 0 0 118px; color: var(--ink-faint); font-size: 11.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .tl .m { color: var(--ink-faint); font-size: 12px; overflow-wrap: anywhere; }
+
+    .statrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .stat { background: #fff; border: 0.5px solid var(--rule); border-radius: 10px; padding: 14px 16px; }
+    .stat .v { font-family: Georgia, serif; font-size: 26px; }
+    .stat .l { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 3px; }
+
+    .modal-wrap { position: fixed; inset: 0; z-index: 200; background: rgba(32,32,33,0.45); display: flex; align-items: center; justify-content: center; padding: 30px; }
+    .modal { background: #fff; border-radius: 12px; max-width: 860px; width: 100%; max-height: 84vh; overflow-y: auto; padding: 22px 24px; }
+    .modal h3 { font-family: Georgia, serif; font-weight: 400; font-size: 18px; margin-bottom: 12px; }
+    .modal pre { background: var(--cream-100); border: 0.5px solid var(--rule); border-radius: 8px; padding: 14px; font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 16px; max-height: 320px; overflow-y: auto; }
+    .modal .x { float: right; border: none; background: none; font-size: 18px; cursor: pointer; color: var(--ink-faint); }
+
+    .note { font-size: 12px; color: var(--ink-faint); margin: 10px 0 0; }
+    .bk { text-decoration: none; color: var(--ink-soft); font-size: 12.5px; display: inline-block; margin-bottom: 12px; }
+  </style>
+</head>
+<body class="rb-boot">
+  <div class="topbar">
+    <div class="topbar-in">
+      <a class="wordmark" href="/admin#users">ROBES<span>Admin</span></a>
+      <nav class="tabs">
+        <a class="tab" data-tab="users" href="#users">Users</a>
+        <a class="tab" data-tab="health" href="#health">Generation health</a>
+        <a class="tab" data-tab="feedback" href="#feedback">Feedback</a>
+      </nav>
+      <div class="topbar-r">
+        <select class="envsel" id="envsel" title="Environment filter (events + generation log)">
+          <option value="all">All environments</option>
+          <option value="beta">Beta only</option>
+          <option value="production">Production only</option>
+        </select>
+        <span class="who" id="who"></span>
+        <button class="signout" id="signout">Sign out</button>
+      </div>
+    </div>
+  </div>
+  <div class="main" id="main"><div class="empty">Loading…</div></div>
+
+<script>
+(function () {
+  const SUPA_URL = 'https://ayowpaknssulsqqvwpqx.supabase.co';
+  const SUPA_KEY = 'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ';
+  const sbClient = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  const HOME = 'https://byrobes.com';
+  const PAGE = 50;
+
+  const main = document.getElementById('main');
+  let me = null;
+  let env = localStorage.getItem('rb_admin_env') || 'all';
+  const envSel = document.getElementById('envsel');
+  envSel.value = env;
+  envSel.onchange = () => { env = envSel.value; localStorage.setItem('rb_admin_env', env); route(); };
+  document.getElementById('signout').onclick = async () => { await sbClient.auth.signOut(); location.replace(HOME); };
+
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function fmtDate(iso) { if (!iso) return '—'; const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
+  function fmtDT(iso) { if (!iso) return '—'; const d = new Date(iso); return isNaN(d) ? '—' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
+  function ago(iso) {
+    if (!iso) return '—';
+    const s = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (isNaN(s)) return '—';
+    if (s < 90) return 'just now';
+    if (s < 5400) return Math.round(s / 60) + 'm ago';
+    if (s < 129600) return Math.round(s / 3600) + 'h ago';
+    return Math.round(s / 86400) + 'd ago';
+  }
+  function firstImg(row) {
+    if (row.img && /^https?:/.test(row.img)) return row.img;
+    try {
+      const m = JSON.stringify(row.data || {}).match(/https?:\/\/[^"\\]+/);
+      if (m) return m[0];
+    } catch (_) {}
+    return null;
+  }
+  function envChip(e) { return '<span class="chip env-' + esc(e) + '">' + esc(e || '—') + '</span>'; }
+  function ratingGlyph(r) { return r === 1 ? '👍' : r === 0 ? '👎' : '—'; }
+  const TYPE_LABEL = { 'key-piece': 'Key piece', 'daily-look': 'Daily look', 'weekly-plan': 'Weekly plan', 'travel-edit': 'Travel edit', 'moodboard': 'Moodboard', 'look': 'Look' };
+
+  /* ── gate: session + is_admin ─────────────────────────────── */
+  async function gate() {
+    const { data: { session } } = await sbClient.auth.getSession();
+    if (!session) { location.replace(HOME); return false; }
+    me = session.user;
+    try {
+      const { data, error } = await sbClient.from('profiles').select('is_admin, first_name').eq('id', me.id).single();
+      if (error || !data || data.is_admin !== true) { location.replace(HOME); return false; }
+      document.getElementById('who').textContent = (data.first_name ? data.first_name + ' · ' : '') + (me.email || '');
+    } catch (_) { location.replace(HOME); return false; }
+    return true;
+  }
+
+  /* ── routing ──────────────────────────────────────────────── */
+  function setTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  }
+  function route() {
+    const h = location.hash || '#users';
+    const mUser = h.match(/^#user\/([0-9a-f-]{36})$/i);
+    if (mUser) { setTab('users'); renderUser(mUser[1]); return; }
+    if (h.startsWith('#health')) { setTab('health'); renderHealth(); return; }
+    if (h.startsWith('#feedback')) { setTab('feedback'); renderFeedback(); return; }
+    setTab('users'); renderUsers();
+  }
+  window.addEventListener('hashchange', route);
+
+  /* ── users list ───────────────────────────────────────────── */
+  let usersPage = 0, usersSearch = '';
+  async function renderUsers() {
+    main.innerHTML = '<div class="page-h"><h1>Users</h1><span class="sub" id="u-total"></span><span class="grow"></span></div>' +
+      '<div class="searchrow"><input class="search" id="u-search" placeholder="Search name or email…" value="' + esc(usersSearch) + '"><button class="btn" id="u-go">Search</button></div>' +
+      '<div class="card" id="u-card"><div class="empty">Loading…</div></div>' +
+      '<div class="pager"><button class="btn" id="u-prev">‹ Prev</button><span class="dim num" id="u-page"></span><button class="btn" id="u-next">Next ›</button></div>';
+    const doSearch = () => { usersSearch = document.getElementById('u-search').value.trim(); usersPage = 0; loadUsers(); };
+    document.getElementById('u-go').onclick = doSearch;
+    document.getElementById('u-search').onkeydown = e => { if (e.key === 'Enter') doSearch(); };
+    document.getElementById('u-prev').onclick = () => { if (usersPage > 0) { usersPage--; loadUsers(); } };
+    document.getElementById('u-next').onclick = () => { usersPage++; loadUsers(); };
+    loadUsers();
+  }
+  async function loadUsers() {
+    const card = document.getElementById('u-card');
+    if (!card) return;
+    card.innerHTML = '<div class="empty">Loading…</div>';
+    const { data, error } = await sbClient.rpc('admin_user_overview', { p_limit: PAGE, p_offset: usersPage * PAGE, p_search: usersSearch || null });
+    if (error) { card.innerHTML = '<div class="err">Couldn\'t load users — has migration 11 (admin_capture_migration.sql) been run, and is your account flagged is_admin? (' + esc(error.message) + ')</div>'; return; }
+    const rows = data || [];
+    const total = rows.length ? Number(rows[0].total_count) : 0;
+    document.getElementById('u-total').textContent = total + ' user' + (total === 1 ? '' : 's');
+    document.getElementById('u-page').textContent = total ? ('Page ' + (usersPage + 1) + ' of ' + Math.max(1, Math.ceil(total / PAGE))) : '';
+    document.getElementById('u-prev').disabled = usersPage === 0;
+    document.getElementById('u-next').disabled = (usersPage + 1) * PAGE >= total;
+    if (!rows.length) { card.innerHTML = '<div class="empty">' + (usersSearch ? 'No users match that search.' : 'No users yet.') + '</div>'; return; }
+    card.innerHTML = '<table><thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Onboarded</th><th>Wardrobe</th><th>Lookbook</th><th>Feedback</th><th>Last action</th><th>Last sign-in</th></tr></thead><tbody>' +
+      rows.map(u => '<tr class="row" data-id="' + esc(u.id) + '">' +
+        '<td class="nowrap">' + esc(u.first_name || '—') + (u.is_admin ? ' <span class="chip ink">admin</span>' : '') + '</td>' +
+        '<td>' + esc(u.email || '—') + '</td>' +
+        '<td class="nowrap dim">' + fmtDate(u.created_at) + '</td>' +
+        '<td>' + (u.onboarded_at ? '<span class="chip ok">✓</span>' : '<span class="dim">—</span>') + '</td>' +
+        '<td class="num">' + Number(u.wardrobe_count) + (Number(u.wishlist_count) ? ' <span class="dim">+' + Number(u.wishlist_count) + ' wish</span>' : '') + '</td>' +
+        '<td class="num">' + Number(u.lookbook_count) + '</td>' +
+        '<td class="num">' + Number(u.feedback_count) + '</td>' +
+        '<td class="nowrap dim">' + ago(u.last_event_at) + '</td>' +
+        '<td class="nowrap dim">' + ago(u.last_sign_in_at) + '</td>' +
+      '</tr>').join('') + '</tbody></table>';
+    card.querySelectorAll('tr.row').forEach(tr => tr.onclick = () => { location.hash = '#user/' + tr.dataset.id; });
+  }
+
+  /* ── user detail ──────────────────────────────────────────── */
+  async function renderUser(uid) {
+    main.innerHTML = '<a class="bk" href="#users">‹ All users</a><div class="empty">Loading…</div>';
+    const evQuery = sbClient.from('events').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(100);
+    const [ov, prof, wardrobe, wishlist, lookbook, fb, events] = await Promise.all([
+      sbClient.rpc('admin_user_overview', { p_limit: 1, p_offset: 0, p_user: uid }),
+      sbClient.from('profiles').select('*').eq('id', uid).single(),
+      sbClient.from('wardrobe_items').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(200),
+      sbClient.from('wishlist_items').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(100),
+      sbClient.from('lookbook_items').select('id,type,title,subtitle,img,share_id,is_public,created_at,data').eq('user_id', uid).order('created_at', { ascending: false }).limit(100),
+      sbClient.from('feedback').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(100),
+      env === 'all' ? evQuery : evQuery.eq('environment', env),
+    ]);
+    const o = (ov.data && ov.data[0]) || {};
+    const p = prof.data || {};
+    const dna = p.style_dna || {};
+    const season = (dna.color_harmony && (dna.color_harmony.archetype_name || dna.color_harmony.season)) || p.season || null;
+    const body = (dna.silhouette_proportions && (dna.silhouette_proportions.archetype_name || dna.silhouette_proportions.body_type)) || p.body_type || null;
+
+    let html = '<a class="bk" href="#users">‹ All users</a>' +
+      '<div class="page-h"><h1>' + esc(p.first_name || o.email || uid.slice(0, 8)) + '</h1>' +
+      '<span class="sub">' + esc(o.email || '') + '</span><span class="grow"></span>' +
+      '<span class="sub">Joined ' + fmtDate(o.created_at) + (o.onboarded_at ? ' · onboarded' : ' · not onboarded') + ' · last sign-in ' + ago(o.last_sign_in_at) + '</span></div>';
+
+    html += '<div class="grid2"><div>';
+    // profile + DNA
+    html += '<div class="sec"><div class="sec-h"><h2>Profile · Style DNA</h2></div><div class="card"><dl class="kv">' +
+      '<dt>Season</dt><dd>' + esc(season || '—') + '</dd>' +
+      '<dt>Undertone</dt><dd>' + esc(p.undertone || '—') + (p.contrast ? ' <span class="dim">· ' + esc(p.contrast) + ' contrast</span>' : '') + '</dd>' +
+      '<dt>Body</dt><dd>' + esc(body || '—') + '</dd>' +
+      '<dt>Style icons</dt><dd>' + ((p.style_icons || []).length ? esc(p.style_icons.join(', ')) : '—') + '</dd>' +
+      '<dt>Budget</dt><dd>' + esc(p.budget || '—') + (p.annual_spend ? ' <span class="dim">· ' + esc(p.annual_spend) + '</span>' : '') + '</dd>' +
+      '<dt>Instagram</dt><dd>' + (p.instagram_handle ? '@' + esc(p.instagram_handle) : '—') + '</dd>' +
+      '<dt>Analyses</dt><dd>' + ([p.colour_analysis ? 'colour' : null, p.silhouette_analysis ? 'silhouette' : null].filter(Boolean).join(' + ') || '—') + '</dd>' +
+      '</dl></div></div>';
+    // feedback
+    const fbRows = fb.data || [];
+    html += '<div class="sec"><div class="sec-h"><h2>Feedback</h2><span class="cnt">' + fbRows.length + '</span></div><div class="card">' +
+      (fb.error ? '<div class="err">feedback table unavailable — run migration 11</div>'
+        : fbRows.length ? '<ul class="tl">' + fbRows.map(f =>
+            '<li><span class="t">' + fmtDT(f.created_at) + '</span><span>' + ratingGlyph(f.rating) + ' <span class="chip">' + esc(f.track || '—') + '</span> ' + esc(f.note || '') + '</span></li>').join('') + '</ul>'
+        : '<div class="empty">No feedback yet.</div>') + '</div></div>';
+    // events
+    const evRows = events.data || [];
+    html += '<div class="sec"><div class="sec-h"><h2>Activity</h2><span class="cnt">last ' + evRows.length + (env !== 'all' ? ' · ' + esc(env) : '') + '</span></div><div class="card">' +
+      (events.error ? '<div class="err">events table unavailable — run migration 11</div>'
+        : evRows.length ? '<ul class="tl">' + evRows.map(e =>
+            '<li><span class="t">' + fmtDT(e.created_at) + '</span><span><span class="chip">' + esc(e.event_type) + '</span> <span class="m">' + esc(metaLine(e.metadata)) + '</span></span></li>').join('') + '</ul>'
+        : '<div class="empty">No tracked actions yet.</div>') + '</div></div>';
+    html += '</div><div>';
+    // wardrobe
+    const wRows = wardrobe.data || [];
+    html += '<div class="sec"><div class="sec-h"><h2>Wardrobe</h2><span class="cnt">' + wRows.length + '</span></div>' +
+      (wRows.length ? '<div class="thumbgrid">' + wRows.map(w =>
+        '<div class="titem"><div class="im">' + (w.image_url ? '<img loading="lazy" src="' + esc(w.image_url) + '">' : esc((w.label || '?')[0].toUpperCase())) + (w.hero_position != null ? '<span class="star">★</span>' : '') + '</div>' +
+        '<div class="tx"><div class="l1" title="' + esc(w.label) + '">' + esc(w.label || '—') + '</div><div class="l2">' + esc([w.category, w.brand].filter(Boolean).join(' · ')) + (Number(w.times_worn) ? ' · worn ' + Number(w.times_worn) + '×' : '') + '</div></div></div>').join('') + '</div>'
+      : '<div class="card"><div class="empty">No wardrobe items.</div></div>') + '</div>';
+    // wishlist
+    const wlRows = wishlist.data || [];
+    if (wlRows.length) {
+      html += '<div class="sec"><div class="sec-h"><h2>Wishlist</h2><span class="cnt">' + wlRows.length + '</span></div><div class="thumbgrid">' +
+        wlRows.map(w => '<div class="titem"><div class="im">' + (w.image_url ? '<img loading="lazy" src="' + esc(w.image_url) + '">' : esc((w.label || '?')[0].toUpperCase())) + '</div>' +
+          '<div class="tx"><div class="l1">' + esc(w.label || '—') + '</div><div class="l2">' + esc([w.source_label || w.source_type, w.brand].filter(Boolean).join(' · ')) + '</div></div></div>').join('') + '</div></div>';
+    }
+    // lookbook
+    const lbRows = lookbook.data || [];
+    html += '<div class="sec"><div class="sec-h"><h2>Lookbook</h2><span class="cnt">' + lbRows.length + '</span></div>' +
+      (lbRows.length ? '<div class="thumbgrid">' + lbRows.map(l => {
+        const im = firstImg(l);
+        const inner = '<div class="titem"><div class="im">' + (im ? '<img loading="lazy" src="' + esc(im) + '">' : esc((l.title || '?')[0].toUpperCase())) + '</div>' +
+          '<div class="tx"><div class="l1" title="' + esc(l.title) + '">' + esc(l.title || '—') + '</div>' +
+          '<div class="l2">' + esc(TYPE_LABEL[l.type] || l.type) + ' · ' + fmtDate(l.created_at) + (l.share_id && l.is_public ? ' · shared ↗' : '') + '</div></div></div>';
+        return (l.share_id && l.is_public) ? '<a href="/board/' + esc(l.share_id) + '" target="_blank" style="text-decoration:none">' + inner + '</a>' : inner;
+      }).join('') + '</div>'
+      : '<div class="card"><div class="empty">Nothing saved yet.</div></div>') + '</div>';
+    html += '</div></div>';
+    main.innerHTML = html;
+  }
+  function metaLine(m) {
+    if (!m || typeof m !== 'object') return '';
+    return Object.keys(m).slice(0, 4).map(k => k + ': ' + String(m[k]).slice(0, 60)).join(' · ');
+  }
+
+  /* ── generation health ────────────────────────────────────── */
+  async function renderHealth() {
+    main.innerHTML = '<div class="page-h"><h1>Generation health</h1><span class="sub">Gemini call trail · last 7 days' + (env !== 'all' ? ' · ' + esc(env) : '') + '</span></div><div id="h-body"><div class="empty">Loading…</div></div>';
+    const since = new Date(Date.now() - 7 * 86400000).toISOString();
+    let q = sbClient.from('generation_log')
+      .select('id,endpoint,model,status,latency_ms,tokens_used,environment,user_id,created_at,detail')
+      .gte('created_at', since).order('created_at', { ascending: false }).limit(1000);
+    if (env !== 'all') q = q.eq('environment', env);
+    const { data, error } = await q;
+    const body = document.getElementById('h-body');
+    if (error) { body.innerHTML = '<div class="card"><div class="err">generation_log unavailable — run migration 11. (' + esc(error.message) + ')</div></div>'; return; }
+    const rows = data || [];
+    if (!rows.length) {
+      body.innerHTML = '<div class="card"><div class="empty">No generation logs in the last 7 days.<div class="note">Logging needs migration 11 run in Supabase AND <code>SUPABASE_SERVICE_ROLE_KEY</code> set on the Railway service (check <code>/api/health</code> → <code>generation_log: true</code>).</div></div></div>';
+      return;
+    }
+    // aggregate by endpoint
+    const agg = {};
+    rows.forEach(r => {
+      const a = agg[r.endpoint] || (agg[r.endpoint] = { calls: 0, ok: 0, partial: 0, fail: 0, lat: [], tokens: 0 });
+      a.calls++;
+      if (r.status === 'ok') a.ok++; else if (r.status === 'partial') a.partial++; else a.fail++;
+      if (r.latency_ms != null) a.lat.push(r.latency_ms);
+      a.tokens += Number(r.tokens_used) || 0;
+    });
+    const fails = rows.filter(r => r.status !== 'ok');
+    const failUsers = new Set(fails.filter(f => f.user_id).map(f => f.user_id)).size;
+    let html = '<div class="statrow">' +
+      '<div class="stat"><div class="v num">' + rows.length + '</div><div class="l">calls (7d' + (rows.length === 1000 ? ', capped' : '') + ')</div></div>' +
+      '<div class="stat"><div class="v num">' + fails.filter(f => f.status !== 'partial').length + '</div><div class="l">errors / timeouts</div></div>' +
+      '<div class="stat"><div class="v num">' + fails.filter(f => f.status === 'partial').length + '</div><div class="l">partial (no image)</div></div>' +
+      '<div class="stat"><div class="v num">' + failUsers + '</div><div class="l">users affected</div></div>' +
+      '</div>';
+    html += '<div class="sec"><div class="sec-h"><h2>By endpoint</h2></div><div class="card"><table><thead><tr><th>Endpoint</th><th>Calls</th><th>OK</th><th>Partial</th><th>Failed</th><th>Median latency</th><th>Tokens</th></tr></thead><tbody>' +
+      Object.keys(agg).sort((a, b) => agg[b].calls - agg[a].calls).map(ep => {
+        const a = agg[ep];
+        const med = a.lat.length ? a.lat.slice().sort((x, y) => x - y)[Math.floor(a.lat.length / 2)] : null;
+        return '<tr><td>' + esc(ep) + '</td><td class="num">' + a.calls + '</td><td class="num">' + a.ok + '</td>' +
+          '<td class="num">' + (a.partial ? '<span class="chip warn">' + a.partial + '</span>' : '<span class="dim">0</span>') + '</td>' +
+          '<td class="num">' + (a.fail ? '<span class="chip bad">' + a.fail + '</span>' : '<span class="dim">0</span>') + '</td>' +
+          '<td class="num">' + (med != null ? (med / 1000).toFixed(1) + 's' : '—') + '</td>' +
+          '<td class="num dim">' + (a.tokens ? a.tokens.toLocaleString() : '—') + '</td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+    html += '<div class="sec"><div class="sec-h"><h2>Not-OK calls</h2><span class="cnt">' + fails.length + ' · click a row for the full prompt/response</span></div><div class="card">' +
+      (fails.length ? '<table><thead><tr><th>When</th><th>Endpoint</th><th>Model</th><th>Status</th><th>Env</th><th>User</th><th>Detail</th></tr></thead><tbody>' +
+        fails.slice(0, 200).map(f => '<tr class="row" data-id="' + esc(f.id) + '">' +
+          '<td class="nowrap dim">' + fmtDT(f.created_at) + '</td><td>' + esc(f.endpoint) + '</td><td class="dim">' + esc(f.model || '—') + '</td>' +
+          '<td><span class="chip ' + (f.status === 'partial' ? 'warn' : 'bad') + '">' + esc(f.status) + '</span></td>' +
+          '<td>' + envChip(f.environment) + '</td>' +
+          '<td class="dim">' + (f.user_id ? '<a href="#user/' + esc(f.user_id) + '" onclick="event.stopPropagation()">' + esc(f.user_id.slice(0, 8)) + '…</a>' : '—') + '</td>' +
+          '<td class="dim">' + esc((f.detail && f.detail.error) || '') + '</td></tr>').join('') + '</tbody></table>'
+      : '<div class="empty">Everything green — no failed calls in the window.</div>') + '</div></div>';
+    body.innerHTML = html;
+    body.querySelectorAll('tr.row').forEach(tr => tr.onclick = () => inspectGen(tr.dataset.id));
+  }
+  async function inspectGen(id) {
+    const { data, error } = await sbClient.from('generation_log').select('*').eq('id', id).single();
+    if (error || !data) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-wrap';
+    wrap.innerHTML = '<div class="modal"><button class="x">✕</button>' +
+      '<h3>' + esc(data.endpoint) + ' · ' + esc(data.model || '') + '</h3>' +
+      '<div class="dim" style="margin-bottom:10px">' + fmtDT(data.created_at) + ' · ' + esc(data.status) + ' · ' + (data.latency_ms != null ? (data.latency_ms / 1000).toFixed(1) + 's' : '—') + (data.tokens_used ? ' · ' + data.tokens_used + ' tokens' : '') + ' · ' + esc(data.environment) + '</div>' +
+      '<div class="sec-h"><h2>Prompt</h2></div><pre>' + esc(data.prompt || '—') + '</pre>' +
+      '<div class="sec-h"><h2>Response</h2></div><pre>' + esc(data.response ? JSON.stringify(data.response, null, 2) : '—') + '</pre>' +
+      (data.detail && Object.keys(data.detail).length ? '<div class="sec-h"><h2>Detail</h2></div><pre>' + esc(JSON.stringify(data.detail, null, 2)) + '</pre>' : '') +
+      '</div>';
+    wrap.onclick = e => { if (e.target === wrap || e.target.classList.contains('x')) wrap.remove(); };
+    document.body.appendChild(wrap);
+  }
+
+  /* ── feedback feed ────────────────────────────────────────── */
+  let fbPage = 0;
+  async function renderFeedback() {
+    main.innerHTML = '<div class="page-h"><h1>Feedback</h1><span class="sub">newest first, all users</span></div>' +
+      '<div class="card" id="f-card"><div class="empty">Loading…</div></div>' +
+      '<div class="pager"><button class="btn" id="f-prev">‹ Prev</button><span class="dim num" id="f-page"></span><button class="btn" id="f-next">Next ›</button></div>';
+    document.getElementById('f-prev').onclick = () => { if (fbPage > 0) { fbPage--; loadFeedback(); } };
+    document.getElementById('f-next').onclick = () => { fbPage++; loadFeedback(); };
+    loadFeedback();
+  }
+  async function loadFeedback() {
+    const card = document.getElementById('f-card');
+    if (!card) return;
+    card.innerHTML = '<div class="empty">Loading…</div>';
+    const { data, error, count } = await sbClient.from('feedback').select('*', { count: 'exact' })
+      .order('created_at', { ascending: false }).range(fbPage * PAGE, fbPage * PAGE + PAGE - 1);
+    if (error) { card.innerHTML = '<div class="err">feedback table unavailable — run migration 11. (' + esc(error.message) + ')</div>'; return; }
+    const rows = data || [];
+    document.getElementById('f-page').textContent = count ? 'Page ' + (fbPage + 1) + ' of ' + Math.max(1, Math.ceil(count / PAGE)) : '';
+    document.getElementById('f-prev').disabled = fbPage === 0;
+    document.getElementById('f-next').disabled = (fbPage + 1) * PAGE >= (count || 0);
+    if (!rows.length) { card.innerHTML = '<div class="empty">No in-app feedback yet — it starts collecting once this build is live.</div>'; return; }
+    // names for this page
+    const ids = Array.from(new Set(rows.filter(r => r.user_id).map(r => r.user_id)));
+    let names = {};
+    if (ids.length) {
+      const { data: profs } = await sbClient.from('profiles').select('id, first_name').in('id', ids);
+      (profs || []).forEach(p => { names[p.id] = p.first_name; });
+    }
+    card.innerHTML = '<table><thead><tr><th>When</th><th>User</th><th>Surface</th><th></th><th>Note</th></tr></thead><tbody>' +
+      rows.map(f => '<tr>' +
+        '<td class="nowrap dim">' + fmtDT(f.created_at) + '</td>' +
+        '<td class="nowrap">' + (f.user_id ? '<a href="#user/' + esc(f.user_id) + '">' + esc(names[f.user_id] || f.user_id.slice(0, 8) + '…') + '</a>' : '—') + '</td>' +
+        '<td><span class="chip">' + esc(f.track || '—') + '</span></td>' +
+        '<td>' + ratingGlyph(f.rating) + '</td>' +
+        '<td>' + esc(f.note || '') + '</td>' +
+      '</tr>').join('') + '</tbody></table>';
+  }
+
+  /* ── boot ─────────────────────────────────────────────────── */
+  (async () => {
+    if (!(await gate())) return;
+    document.body.classList.remove('rb-boot');
+    route();
+  })();
+})();
+</script>
+</body>
+</html>
