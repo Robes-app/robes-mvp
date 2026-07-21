@@ -638,9 +638,10 @@ app.post('/api/daily', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
 
   const closetBlock = n
     ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by index):\n${closetItems.map((i, idx) =>
-        `${idx}: ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${i.brand ? ', ' + i.brand : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
+        `${idx}: ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${i.brand ? ', ' + i.brand : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}${heroMark(i)}`
       ).join('\n')}`
     : 'THE USER HAS NOT CATALOGUED ANY WARDROBE PIECES YET.';
+  const heroBlock = heroDirective(closetItems);
 
   const stateDirective = n === 0
     ? `WARDROBE STATE: EMPTY. Build a fully aspirational, editorial look — this look doubles as a shopping brief. Every item gets "wardrobe_index": -1 plus a real "retailer_hint" and "price_point".`
@@ -664,7 +665,7 @@ THE FRAMEWORK — work through it in this order:
 3. THE GOLDEN RATIOS. Balance the build through body architecture: the Rule of Thirds (never a 50/50 visual split — aim for 1/3 : 2/3, e.g. a high-waisted trouser with a tucked-in top lengthens the leg line), Volume Balancing (an oversized or voluminous piece demands a point of structure or compression elsewhere), and Textural Contrast (mix matte, sheen and rough — silk + wool + leather — so the look never falls flat). Let this thinking show in the stylist_summary and item descriptions.
 4. THE TRANSITION PROTOCOL. She moves between environments without going home. "transition_tip" is ONE concrete move — subtractive styling (drop a layer to lower the formality) or hardware swapping (daytime tote + sneakers → clutch + kitten heel) — that shifts today's look into its next scene.
 
-${stateDirective}${lockedBlock ? '\n\n' + lockedBlock : ''}
+${stateDirective}${heroBlock ? '\n\n' + heroBlock : ''}${lockedBlock ? '\n\n' + lockedBlock : ''}
 
 FIELD RULES:
 - "occasion_label": 1–3 words, ALL CAPS, naming the day's occasion (e.g. "GARDEN PARTY", "STUDIO DAY").
@@ -846,19 +847,37 @@ const WEEKLY_SCHEMA = {
 // Shared weekly helpers — the closet block, wardrobe-state directive and
 // per-item normalisation are identical for the full-week call and the
 // single-day restyle.
+// Hero Rack: the client marks starred pieces with hero: true (+ their
+// seasons[] tags). The closet lines carry a ★ HERO mark and this directive
+// makes them the first-choice owned pieces wherever occasion + season fit.
+function heroMark(i) {
+  if (!i || i.hero !== true) return '';
+  const seasons = Array.isArray(i.seasons) && i.seasons.length
+    ? i.seasons.filter(s => typeof s === 'string' && s).slice(0, 5).join('/')
+    : 'Year-round';
+  return `, ★ HERO (${seasons})`;
+}
+function heroDirective(closetItems) {
+  if (!closetItems.some(i => i && i.hero === true)) return '';
+  return `HERO PIECES: the wardrobe items marked ★ HERO are her Hero Rack — the pieces she reaches for first, the spine of her wardrobe. Whenever a hero piece genuinely suits the occasion AND the season/climate in play, PRIORITISE it over any other comparable owned piece and let it lead the look. The bracketed tags are the seasons each hero belongs to — its priority only applies when the look's season/climate matches a tag (Year-round always matches); never force an off-season hero into a look.`;
+}
+
 function weeklyClosetBlocks(closetItems) {
   const n = closetItems.length;
   const closetBlock = n
     ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by index):\n${closetItems.map((i, idx) =>
-        `${idx}: ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${i.brand ? ', ' + i.brand : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
+        `${idx}: ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${i.brand ? ', ' + i.brand : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}${heroMark(i)}`
       ).join('\n')}`
     : 'THE USER HAS NOT CATALOGUED ANY WARDROBE PIECES YET.';
+  const heroBlock = heroDirective(closetItems);
   const stateDirective = n === 0
     ? `WARDROBE STATE: EMPTY. Build fully aspirational, editorial outfits — they double as a shopping brief. Every item gets "wardrobe_index": -1 plus a real "retailer_hint" and "price_point".`
     : n < 15
       ? `WARDROBE STATE: GROWING (${n}/15). Hybrid build: wherever an owned piece genuinely serves a day, use it — set its "wardrobe_index" and use its exact label as the name. Fill true gaps with aspirational pieces (wardrobe_index -1, real retailer_hint + price_point). When an owned piece and a hypothetical piece would both work, ALWAYS choose the owned piece.`
       : `WARDROBE STATE: COMPLETE (${n} pieces). Closet-first build: route the outfits primarily through the digitised wardrobe — nearly every item should carry a valid "wardrobe_index" and its exact owned label. Introduce a new piece (wardrobe_index -1) only for a true gap.`;
-  return { closetBlock, stateDirective };
+  // The hero directive rides inside stateDirective so /api/weekly and
+  // /api/weekly/day both pick it up without touching their prompt templates
+  return { closetBlock, stateDirective: heroBlock ? stateDirective + '\n\n' + heroBlock : stateDirective };
 }
 
 function weeklyNormaliseItem(it, closetItems) {
@@ -1371,9 +1390,12 @@ ${planList}`
 
   const closetBlock = n
     ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by wardrobe_index):\n${closetItems.map((i, idx) =>
-        `${idx}: ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${i.brand ? ', ' + i.brand : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
+        `${idx}: ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${i.brand ? ', ' + i.brand : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}${heroMark(i)}`
       ).join('\n')}`
     : 'THE USER HAS NOT CATALOGUED ANY WARDROBE PIECES YET.';
+  // Trip hero priority answers to the DESTINATION's climate/season (the
+  // micro-climate block + trip dates), not the user's current season
+  const heroBlock = heroDirective(closetItems);
 
   // Only the shortlist-less legacy path needs a wardrobe-state directive —
   // with a shortlist the curatorial block below governs everything.
@@ -1408,7 +1430,7 @@ ${editOnly
   ? `THE LOOKBOOK IS DEFERRED: she is still gathering pieces and will plan the outfits later, as she packs. Return "days": [] (an empty array). STILL apply the 1:3 discipline when deciding what to keep — every kept piece must plausibly earn at least three wears across the ~${tripDays * 2} looks this trip will eventually hold.`
   : `THE LOOKBOOK: exactly ${tripDays} entries in "days" — one per trip day, "day_label" like "Day 1 · Arrival"${dateLine ? ` (the trip runs ${dateLine})` : ''}. Each day has exactly 2 slots: "Day" and "Evening", ${hasPlan ? 'mapped to the user\'s own itinerary below' : 'mapped to a plausible itinerary drawn from the brief'}. Each slot: "title" (3–6 words naming the scene), "how" (ONE hyper-specific styling sentence — the anti-generic constraint applies), "transition_tip" (ONE concrete subtractive-styling or hardware-swap move that shifts the look into its next scene) and the "formula". A day the itinerary marks as deliberately left free gets "slots": [] — no looks.`}
 
-${planBlock ? planBlock + '\n\n' : ''}${stateDirective}
+${planBlock ? planBlock + '\n\n' : ''}${[stateDirective, heroBlock].filter(Boolean).join('\n\n')}
 
 FIELD RULES:
 - "trip_label": destination + month, ALL CAPS (e.g. "IBIZA · JULY").

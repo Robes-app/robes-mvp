@@ -533,7 +533,9 @@
         if (!document.getElementById('rb-wtrk-style')) {
           const st = document.createElement('style');
           st.id = 'rb-wtrk-style';
-          st.textContent = '.wtrk-complete .wtrk-h{display:none}.wtrk-complete .wtrk-bar{display:none}.wtrk-complete .wtrk-num span{display:none}';
+          st.textContent = '.wtrk-complete .wtrk-h{display:none}.wtrk-complete .wtrk-bar{display:none}.wtrk-complete .wtrk-num span{display:none}' +
+            '.wtrk-star{position:absolute;top:5px;right:5px;width:18px;height:18px;border-radius:100px;background:var(--ink,#202021);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none}' +
+            '.wtrk-star svg{width:9px;height:9px;display:block}';
           document.head.appendChild(st);
         }
 
@@ -571,12 +573,20 @@
 
         const itemsEl = document.getElementById('wtrk-items');
         if (itemsEl) {
-          const tiles = _waItems.slice(0, 12).map(it => {
+          // Hero pieces lead the strip (starred badge) while the tracker is
+          // still on the page (<15 items) — the rest keep newest-first order
+          const ordered = _waItems.slice().sort((a, b) => {
+            const ah = a.hero_position != null, bh = b.hero_position != null;
+            if (ah !== bh) return ah ? -1 : 1;
+            return ah ? (a.hero_position || 0) - (b.hero_position || 0) : 0;
+          });
+          const tiles = ordered.slice(0, 12).map(it => {
             const idAttr = _waEsc(String(it.id));
             return '<button class="wtrk-it" onclick="window.__wtrkEdit(\'' + idAttr + '\')" title="' + _waEsc(it.label) + '">' +
               (it.image_url
                 ? '<img src="' + _waEsc(it.image_url) + '" alt="" loading="lazy">'
                 : '<div class="wtrk-mono">' + _waEsc((it.label || '?').charAt(0).toUpperCase()) + '</div>') +
+              (it.hero_position != null ? '<span class="wtrk-star">' + _waStarSvg(true) + '</span>' : '') +
               '<div class="wtrk-it-scrim"><div class="wtrk-it-name">' + _waEsc(it.label) + '</div>' +
               (it.category ? '<div class="wtrk-it-cat">' + _waEsc(it.category) + '</div>' : '') + '</div></button>';
           }).join('');
@@ -1643,7 +1653,7 @@
         _waHeroPickerPaint();
         try {
           await _waFetch('PATCH', 'wardrobe_items?id=eq.' + it.id, { hero_position: it.hero_position });
-          _waShowToast(on ? 'Featured on your Hero Rack' : 'Removed from the Hero Rack');
+          _waShowToast(on ? 'Saved to your Hero Rack' : 'Removed from your Hero Rack');
         } catch (e) {
           it.hero_position = prev;
           _waRender();
@@ -1673,33 +1683,24 @@
       function _waHeroRender() {
         const wrap = document.getElementById('rb-hero');
         if (!wrap) return;
-        if (_waView === 'wishlist' || !_waLoaded || !_waItems.length) { wrap.style.display = 'none'; return; }
-        wrap.style.display = '';
         const all = _waHeroAll();
+        // No title, no empty-state card (integration pass 2026-07-21) — the
+        // rail only exists once she's starred something; the grid-card stars
+        // + their toast are the whole invitation.
+        if (_waView === 'wishlist' || !_waLoaded || !all.length) { wrap.style.display = 'none'; return; }
+        wrap.style.display = '';
         const onRack = all.filter(_waInSeasonNow);
         const resting = all.length - onRack.length;
-        const noteEl = document.getElementById('rb-hero-note');
-        if (noteEl) {
-          noteEl.textContent = all.length
-            ? (onRack.length + ' of ' + _WA_HERO_CAP + ' featured' + (resting ? ' \xb7 ' + resting + ' resting off-season' : ''))
-            : '';
-        }
         const body = document.getElementById('rb-hero-body');
         if (!body) return;
-        if (!all.length) {
-          // Empty state — she has pieces but hasn't pinned any yet
-          body.innerHTML = '<div class="rb-hero-empty">' +
-            '<div style="font-family:var(--font-serif);font-weight:300;font-size:24px;line-height:1.2;color:var(--ink);max-width:420px;margin:0 auto 8px">Which five pieces do you reach for <em style="font-style:italic;color:var(--ink-faint)">without even thinking?</em></div>' +
-            '<div style="font-size:12px;color:var(--ink-soft);line-height:1.6;max-width:400px;margin:0 auto 16px">Pin them here — no re-uploading, just choose from what you already own. They become the spine of everything Robes styles.</div>' +
-            '<button class="rb-wg-cta" onclick="window.__waHeroPicker()">Choose from your wardrobe</button></div>';
-          return;
-        }
         body.innerHTML = '<div class="rb-hero-rail">' + onRack.map(_waHeroCard).join('') +
           (all.length < _WA_HERO_CAP
             ? '<button class="rb-hero-add" onclick="window.__waHeroPicker()"><span style="font-size:24px;font-weight:300;line-height:1">+</span><span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase">Feature a piece</span></button>'
             : '') + '</div>' +
-          (onRack.length === 0 && resting > 0
-            ? '<div style="font-size:11.5px;color:var(--ink-faint);font-style:italic;font-family:var(--font-serif);font-size:14px;padding:4px 2px">All your hero pieces are resting until their season returns — tap ' + (all.length < _WA_HERO_CAP ? '“Feature a piece”' : 'the rack') + ' to pin something for now.</div>'
+          (resting > 0
+            ? '<div class="rb-hero-note">' + (onRack.length === 0
+                ? 'All your hero pieces are resting until their season returns.'
+                : resting + ' hero piece' + (resting === 1 ? '' : 's') + ' resting off-season') + '</div>'
             : '');
       }
 
@@ -2348,13 +2349,9 @@
             '.rb-wg-cta{padding:10px 18px;border:none;border-radius:100px;background:var(--ink);color:#fff;font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;font-family:inherit;white-space:nowrap;transition:opacity .15s}',
             '.rb-wg-cta:hover{opacity:.85}',
             '.rb-wg-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}',
-            // hero rack
-            '#rb-hero{margin:4px 0 26px}',
-            '.rb-hero-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:0.5px solid var(--rule-mid);padding-bottom:10px;margin-bottom:16px}',
-            '.rb-hero-eywrap{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;min-width:0}',
-            '.rb-hero-ey{font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);white-space:nowrap}',
-            '.rb-hero-echo{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:15px;color:var(--ink-faint);white-space:nowrap}',
-            '#rb-hero-note{font-size:10.5px;color:var(--ink-faint);white-space:nowrap;flex-shrink:0}',
+            // hero rail (headerless — integration pass 2026-07-21)
+            '#rb-hero{margin:2px 0 24px}',
+            '.rb-hero-note{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:13px;color:var(--ink-faint);padding:2px 2px 0}',
             '.rb-hero-rail{display:flex;gap:16px;overflow-x:auto;padding:2px 2px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none}',
             '.rb-hero-rail::-webkit-scrollbar{display:none}',
             '.rb-hero-card{flex:0 0 auto;width:206px;cursor:pointer}',
@@ -2364,7 +2361,6 @@
             '.rb-hero-num{position:absolute;top:9px;left:13px;font-family:var(--font-serif);font-weight:400;font-size:21px;color:#fff;text-shadow:0 1px 10px rgba(0,0,0,.4);pointer-events:none}',
             '.rb-hero-add{flex:0 0 auto;width:206px;aspect-ratio:3/4;border-radius:var(--rad-lg);border:1.5px dashed var(--rule-mid);background:transparent;color:var(--ink-faint);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;font-family:inherit;transition:all .15s}',
             '.rb-hero-add:hover{border-color:var(--ink-faint);color:var(--ink)}',
-            '.rb-hero-empty{border:1.5px dashed var(--rule-mid);border-radius:var(--rad-lg);background:var(--sage-bg);padding:34px 24px;text-align:center}',
             // star button (hero rail + grid cards)
             '.rb-star{position:absolute;top:8px;right:8px;width:29px;height:29px;border-radius:100px;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(255,255,255,.86);backdrop-filter:blur(4px);transition:all .15s;z-index:2;padding:0;opacity:0}',
             '.rb-star svg{width:14px;height:14px;display:block}',
@@ -2484,15 +2480,13 @@
           _fabSync();
         }
 
-        // Hero Rack section between the sub line and the filters
+        // Hero rail between the sub line and the filters — headerless and
+        // hidden until a piece is starred (integration pass 2026-07-21: the
+        // grid stars are the entry point, not a titled section)
         const hero = document.createElement('div');
         hero.id = 'rb-hero';
         hero.style.display = 'none';
-        hero.innerHTML = '<div class="rb-hero-head"><div class="rb-hero-eywrap">' +
-          '<span class="rb-hero-ey">The Hero Rack</span>' +
-          '<span class="rb-hero-echo">the pieces you reach for first</span></div>' +
-          '<span id="rb-hero-note"></span></div>' +
-          '<div id="rb-hero-body"></div>';
+        hero.innerHTML = '<div id="rb-hero-body"></div>';
         panel.insertBefore(hero, filters);
 
         // Refine drawer host (hidden until toggled)
@@ -3628,7 +3622,7 @@
               prompt,
               name,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
-              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
+              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, seasons: (Array.isArray(i.seasons) && i.seasons.length) ? i.seasons : undefined })),
               context,
               locked: locked || undefined,
               userId: _waUid() || undefined,
@@ -4925,7 +4919,7 @@
               userId: _waUid() || undefined,
               genId,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
-              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
+              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, seasons: (Array.isArray(i.seasons) && i.seasons.length) ? i.seasons : undefined })),
               context,
             }),
           });
@@ -5208,7 +5202,7 @@
           weekSummary,
           name,
           styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
-          wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
+          wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, seasons: (Array.isArray(i.seasons) && i.seasons.length) ? i.seasons : undefined })),
           context: rc.city ? { city: rc.city, month: new Date().toLocaleDateString('en-GB', { month: 'long' }), tempRange: rc.tempRange || '', condition: rc.condition || '', hint: rc.hint || '' } : null,
         });
       }
@@ -6003,7 +5997,7 @@
               genId,
               name,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
-              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
+              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, seasons: (Array.isArray(i.seasons) && i.seasons.length) ? i.seasons : undefined })),
             }),
           });
           clearInterval(msgInterval);
