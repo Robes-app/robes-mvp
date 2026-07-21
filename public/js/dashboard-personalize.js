@@ -219,6 +219,10 @@
         _wxPromise = new Promise((resolve) => {
           navigator.geolocation.getCurrentPosition(async (pos) => {
             const { latitude: lat, longitude: lon } = pos.coords;
+            // Remember that location was granted — iOS Safari can't report
+            // geolocation permission via the Permissions API, so this flag is
+            // how we know it's safe to auto-fill (no re-prompt) on later loads.
+            try { localStorage.setItem('rb_geo_ok', '1'); } catch (e) {}
             try {
               // Reverse geocode with Open-Meteo geocoding
               const geoRes = await fetch(
@@ -261,7 +265,16 @@
       // submit to call window.__rbWeatherAsk.
       window.__rbWeatherAsk = _wxRun;
       weatherEl.style.visibility = 'hidden';
-      if (navigator.permissions && navigator.permissions.query) {
+      let _geoGranted = false;
+      try { _geoGranted = localStorage.getItem('rb_geo_ok') === '1'; } catch (e) {}
+      if (_geoGranted) {
+        // Permission was granted on a previous visit — getCurrentPosition
+        // resolves silently (no dialog), so the nav pill + mobile strip can
+        // auto-fill on load. This is the ONLY reliable path on iOS Safari,
+        // where navigator.permissions.query({name:'geolocation'}) is
+        // unsupported and the branch below never fires.
+        _wxRun();
+      } else if (navigator.permissions && navigator.permissions.query) {
         navigator.permissions.query({ name: 'geolocation' })
           .then(p => { if (p.state === 'granted') _wxRun(); })
           .catch(() => {});
