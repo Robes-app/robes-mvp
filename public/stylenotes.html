@@ -1019,7 +1019,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 signal: ctrl.signal,
-                body: JSON.stringify({ kind: cfg.kind, data: payload.data, mimeType: payload.mimeType }),
+                body: JSON.stringify({ kind: cfg.kind, data: payload.data, mimeType: payload.mimeType, userId: st.uid || undefined }),
               }).then(async r => {
                 if (r.ok) return r.json();
                 const body = await r.json().catch(() => ({}));

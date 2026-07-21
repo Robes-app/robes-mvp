@@ -356,6 +356,34 @@
         return r.status === 204 ? null : r.json();
       }
 
+      // ── Admin capture (migration 11) — action events + output feedback ──
+      // Fire-and-forget inserts with the user's own JWT (RLS own-insert
+      // policies). Both degrade silently until the migration runs — a
+      // failed insert must never surface to the user or block a flow.
+      var _RB_ENV = (location.hostname === 'www.byrobes.com' || location.hostname === 'byrobes.com') ? 'production' : 'beta';
+      function _rbTrack(type, meta) {
+        try {
+          const uid = _waUid();
+          if (!uid || !_waToken()) return;
+          _waFetch('POST', 'events', { user_id: uid, event_type: type, metadata: meta || {}, environment: _RB_ENV }).catch(() => {});
+        } catch (_) {}
+      }
+      window._rbTrack = _rbTrack;
+      function _rbFbCloud(track, itemId, rating, note) {
+        try {
+          const uid = _waUid();
+          if (!uid || !_waToken()) return;
+          _waFetch('POST', 'feedback', {
+            user_id: uid,
+            lookbook_item_id: itemId != null ? Number(itemId) : null,
+            track: track || null,
+            rating: rating === 0 || rating === 1 ? rating : null,
+            note: note || null,
+          }).catch(() => {});
+          _rbTrack('feedback_given', { track: track || '', rating: rating === 0 || rating === 1 ? rating : null });
+        } catch (_) {}
+      }
+
       let _waLoadRetries = 0;
       async function _waLoad() {
         try {
@@ -1006,7 +1034,7 @@
           fetch('/api/wardrobe/analyse', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: match[2], mimeType: match[1] })
+            body: JSON.stringify({ data: match[2], mimeType: match[1], userId: _waUid() || undefined })
           })
           .then(r => {
             if (!r.ok) throw new Error('analyse ' + r.status);
@@ -1401,6 +1429,7 @@
               } else throw err;
             }
 
+            if (!editId) _rbTrack('wardrobe_added', { label: payload.label || '', category: payload.category || '' });
             _waEditId = null;
             // Batch mode: keep the modal open and roll the next queued photo
             // into step 2 — closing between pieces made 15 photos feel like
@@ -1915,7 +1944,7 @@
           if (!m) { stepConfirm({}); return; }
           fetch('/api/wardrobe/analyse', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: m[2], mimeType: m[1] })
+            body: JSON.stringify({ data: m[2], mimeType: m[1], userId: _waUid() || undefined })
           }).then(r => r.ok ? r.json() : {}).catch(() => ({})).then(tag => stepConfirm(tag || {}));
         }
 
@@ -1986,6 +2015,7 @@
                 source_label: (_WL_SRC[src] || _WL_SRC.photo).label,
                 item_dna: (tag.item_dna && typeof tag.item_dna === 'object') ? tag.item_dna : {}
               });
+              _rbTrack('wishlist_added', { label: label || '', source: src || '' });
               modal.remove();
               await _wlLoad();
               if (_waView !== 'wishlist' && window.__waSetView) window.__waSetView('wishlist');
@@ -3033,7 +3063,7 @@
               const res = await fetch('/api/style', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, photo: photoData, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), wardrobeCount: _waItems.length, wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })), intent: 'style' }),
+                body: JSON.stringify({ prompt, photo: photoData, userId: _waUid() || undefined, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), wardrobeCount: _waItems.length, wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })), intent: 'style' }),
               });
               clearInterval(msgInterval);
               overlay.style.display = 'none';
@@ -3312,6 +3342,7 @@
             img: persistable.find(Boolean) || photoUrl || null,
             kpData: { ways, fallback, photoUrl, generatedImages: persistable, intent: kpIntent, context: kpCtx },
           });
+          _rbTrack('look_generated', { track: kpDaily ? 'daily-3way' : 'key-piece', item: String(_kpActiveSaveId), fallback: !!fallback });
         } else {
           // Reopened from the lookbook — data is kpData (no id of its own), so
           // the row id MUST come from opts.savedId. Without it _kpActiveSaveId
@@ -3337,6 +3368,7 @@
             prompt: promptText || '',
             looksOutput: JSON.stringify({ surface: kpDaily ? 'daily-look' : 'key-piece', intent: kpIntent, context: kpCtx, titles: ways.map(w => w.title), ts: new Date().toISOString() }),
           }) }).catch(()=>{});
+          _rbFbCloud(kpDaily ? 'daily' : 'key-piece', _kpActiveSaveId, kpFbRating, comment);
           document.getElementById('kp-fb-prompt').hidden = true;
           document.getElementById('kp-fb-expand').hidden = true;
           document.getElementById('kp-fb-done').hidden = false;
@@ -3540,6 +3572,7 @@
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
               context,
               locked: locked || undefined,
+              userId: _waUid() || undefined,
             }),
           });
           guard.done();
@@ -4091,6 +4124,10 @@
           prompt: p.prompt || '',
           looksOutput: p.looksOutput || '',
         }) }).catch(() => {});
+        _rbFbCloud(
+          prefix === 'dl' ? 'daily' : prefix === 'wk' ? 'weekly' : 'travel',
+          prefix === 'dl' ? _dlActiveSaveId : prefix === 'wk' ? _wkActiveSaveId : _tvActiveSaveId,
+          st.rating, comment);
         const pr = document.getElementById(prefix + '-fb-prompt'), ex = document.getElementById(prefix + '-fb-expand'), dn = document.getElementById(prefix + '-fb-done');
         if (pr) pr.hidden = true;
         if (ex) ex.hidden = true;
@@ -4107,10 +4144,12 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal: ctl.signal,
-            body: JSON.stringify(body),
+            body: JSON.stringify({ ...body, userId: _waUid() || undefined }),
           });
           if (!res.ok) throw new Error(await res.text());
-          return await res.json();
+          const out = await res.json();
+          _rbTrack('day_restyled', { endpoint: url });
+          return out;
         } finally {
           clearTimeout(abortTimer);
         }
@@ -4509,6 +4548,7 @@
             img: persistable.find(Boolean) || null,
             dlData: saveCopy,
           });
+          _rbTrack('look_generated', { track: 'daily', item: String(_dlActiveSaveId) });
         } else {
           _dlActiveSaveId = (opts && opts.savedId) || data.id || null;
         }
@@ -4614,6 +4654,7 @@
       };
 
       window.__dlSwapApply = function(idx, wardrobeId) {
+        _rbTrack('piece_swapped', { surface: 'daily', item: String(wardrobeId) });
         const wi = _waItems.find(i => i.id === wardrobeId);
         const item = window.__dlCurrentItems && window.__dlCurrentItems[idx];
         if (!wi || !item || !window.__lastDlData) return;
@@ -4816,6 +4857,7 @@
               name,
               dayPlan,
               weekDays,
+              userId: _waUid() || undefined,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
               context,
@@ -5006,6 +5048,7 @@
         _rbSwapModal(item, { id: 'wk-swap-modal', applyName: '__wkSwapApply', snapName: '__wkSnapMine', idx: ii });
       };
       window.__wkSwapApply = function(ii, wardrobeId) {
+        _rbTrack('piece_swapped', { surface: 'weekly', item: String(wardrobeId) });
         const wi = _waItems.find(i => i.id === wardrobeId);
         const d = _wkState && _wkState.data.days[_wkState.day];
         const item = d && d.items[ii];
@@ -5315,6 +5358,7 @@
             img: firstImg,
             wkData: { ...data, prompt: promptText || '' },
           });
+          _rbTrack('weekly_generated', { item: String(_wkActiveSaveId), days: data.days.filter(d => !d.rest).length });
         }
 
         _rbFeedbackArm('wk', () => ({
@@ -5888,6 +5932,7 @@
               suggestedItems: st.suggested || [],
               dayPlan,
               editOnly: !!editOnly,
+              userId: _waUid() || undefined,
               name,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
@@ -6676,6 +6721,7 @@ body>*:not(#tv-result-page){display:none !important}
             img: persistable[0] || (ownedThumb ? ownedThumb.wardrobe_match.image_url : null),
             tvData: saveCopy,
           });
+          _rbTrack('travel_generated', { item: String(_tvActiveSaveId), destination: data.destination || '', pieces: data.capsule.length });
         } else {
           _tvActiveSaveId = (opts && opts.savedId) || null;
         }
@@ -6750,6 +6796,7 @@ body>*:not(#tv-result-page){display:none !important}
               name,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               capsule: data.capsule.map(c => ({ name: c.name, category: c.category, brand: c.brand, tier: c.tier, owned: !!c.wardrobe_match })),
+              userId: _waUid() || undefined,
             }),
           });
           overlay.style.display = 'none';
@@ -7104,6 +7151,7 @@ body>*:not(#tv-result-page){display:none !important}
       };
 
       window.__tvSwapApply = function(idx, wardrobeId) {
+        _rbTrack('piece_swapped', { surface: 'travel', item: String(wardrobeId) });
         const wi = _waItems.find(i => i.id === wardrobeId);
         const item = window.__lastTvData && window.__lastTvData.capsule[idx];
         if (!wi || !item) return;
@@ -7298,6 +7346,7 @@ body>*:not(#tv-result-page){display:none !important}
         }
         _shareMarkLocal(entry.id, sid);
         entry.share_id = sid;
+        _rbTrack('share_created', { item: String(entry.id), share_id: sid });
         return sid;
       }
 
@@ -7494,6 +7543,7 @@ body>*:not(#tv-result-page){display:none !important}
               prompt: document.getElementById('kp-input') ? document.getElementById('kp-input').value : '',
             }),
           }).catch(() => {});
+          _rbFbCloud('look', null, snFbRating, comment);
           document.getElementById('sn-fb-prompt').hidden = true;
           document.getElementById('sn-fb-expand').hidden = true;
           document.getElementById('sn-fb-done').hidden = false;
@@ -8191,6 +8241,7 @@ body>*:not(#tv-result-page){display:none !important}
             }
           } catch (e) { _cbPhotoData = null; }
         }
+        _rbTrack('wardrobe_pick', { item: String(wi.id), label: wi.label || '' });
         _waShowToast(wi.label + ' anchored to your prompt');
       };
 
@@ -8308,6 +8359,7 @@ body>*:not(#tv-result-page){display:none !important}
             body: JSON.stringify({
               prompt,
               photo: photoData || null,
+              userId: _waUid() || undefined,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeCount: _waItems.length,
               wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })),
@@ -8444,6 +8496,7 @@ body>*:not(#tv-result-page){display:none !important}
       }
 
       function _cbResolve(intent, prompt) {
+        _rbTrack('prompt_submitted', { track: intent || '', has_photo: !!_cbPhotoData, length: (prompt || '').length });
         if (intent === 'travel') {
           // The Travel Edit needs a structured brief (destination + dates) —
           // the typed prompt lands in the modal's notes field
@@ -8557,6 +8610,7 @@ body>*:not(#tv-result-page){display:none !important}
         // styling request is a long cellular hang behind the overlay.
         _rbDownscale(file).then(function(dataUrl) {
           _cbPhotoData = dataUrl;
+          _rbTrack('photo_attached', {});
         }).catch(function() {
           _waShowToast('Couldn’t read that image — try another photo.');
         });
@@ -8615,7 +8669,7 @@ body>*:not(#tv-result-page){display:none !important}
           const res = await fetch('/api/moodboard', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ prompt, wardrobeItems, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons() }),
+            body: JSON.stringify({ prompt, wardrobeItems, userId: _waUid() || undefined, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons() }),
             signal: controller.signal,
           });
           clearTimeout(clientTimeout);
@@ -8993,6 +9047,7 @@ body>*:not(#tv-result-page){display:none !important}
             prompt: data.prompt || data.title || '',
             looksOutput: JSON.stringify({ surface: 'moodboard', title: data.title || '', tags: data.aesthetic_tags || [], location_context: data.location_context || '', ts: new Date().toISOString() }),
           }) }).catch(() => {});
+          _rbFbCloud('moodboard', (panel && panel._savedId) || data.id || null, mbFbRating, comment);
           document.getElementById('mb-fb-prompt').hidden = true;
           document.getElementById('mb-fb-expand').hidden = true;
           document.getElementById('mb-fb-done').hidden = false;
@@ -9170,6 +9225,7 @@ body>*:not(#tv-result-page){display:none !important}
       };
 
       window.__mbSwapApply = function(lookIdx, wardrobeId) {
+        _rbTrack('piece_swapped', { surface: 'moodboard', item: String(wardrobeId) });
         const wi = _waItems.find(i => i.id === wardrobeId);
         if (!wi || !window.__mbCurrentLook?.[lookIdx]) return;
         window.__mbCurrentLook[lookIdx].wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
@@ -9717,6 +9773,7 @@ body>*:not(#tv-result-page){display:none !important}
               body: JSON.stringify({
                 prompt: piece.prompt || '',
                 photo: piece.photo || null,
+                userId: _waUid() || undefined,
                 styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
                 wardrobeCount: Math.max(1, _waItems.length),
                 wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })),
@@ -9749,7 +9806,7 @@ body>*:not(#tv-result-page){display:none !important}
             if (!m) return;
             const analyse = () => fetch('/api/wardrobe/analyse', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ data: m[2], mimeType: m[1] }),
+              body: JSON.stringify({ data: m[2], mimeType: m[1], userId: _waUid() || undefined }),
             }).then(r => r.ok ? r.json() : null).catch(() => null);
             let [tag, up] = await Promise.all([
               analyse(),

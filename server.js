@@ -3,6 +3,7 @@ import express from 'express';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash, randomBytes } from 'crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { readFileSync } from 'fs';
 import { GoogleGenAI } from '@google/genai';
 import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock } from './style_dna.js';
@@ -43,6 +44,109 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 /* ── structured AI logging ───────────────────────────────────────── */
 function logAI(event) {
   console.log(JSON.stringify({ ts: new Date().toISOString(), ...event }));
+}
+
+/* ── generation_log — LLM call trail (admin capture, migration 11) ── */
+// Every Gemini call is recorded to Supabase generation_log with the
+// service role (bypasses RLS by design): endpoint, model, latency,
+// tokens, status and the FULL prompt/response — the learning corpus,
+// admin-read-only. A request-scoped AsyncLocalStorage context carries
+// endpoint + userId into the background image loops, and one wrapper on
+// ai.models.generateContent covers every endpoint without touching them.
+// Degrades to a no-op until SUPABASE_SERVICE_ROLE_KEY is set on the
+// Railway service.
+const SUPA_URL = process.env.SUPABASE_URL || 'https://ayowpaknssulsqqvwpqx.supabase.co';
+const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const APP_ENV = (process.env.PUBLIC_URL || '').includes('www.byrobes.com') ? 'production' : 'beta';
+const genCtx = new AsyncLocalStorage();
+
+app.use('/api', (req, res, next) => {
+  const uid = req.body && typeof req.body.userId === 'string' && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(req.body.userId)
+    ? req.body.userId : null;
+  genCtx.run({ endpoint: req.baseUrl + req.path, userId: uid }, next);
+});
+
+function glog(row) {
+  if (!SUPA_SERVICE_KEY) return;
+  fetch(SUPA_URL + '/rest/v1/generation_log', {
+    method: 'POST',
+    headers: {
+      'apikey': SUPA_SERVICE_KEY,
+      'Authorization': 'Bearer ' + SUPA_SERVICE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal',
+    },
+    body: JSON.stringify({ environment: APP_ENV, ...row }),
+  }).then(r => {
+    if (!r.ok) return r.text().then(t => console.warn('generation_log insert failed:', r.status, t.slice(0, 200)));
+  }).catch(err => console.warn('generation_log insert failed:', err.message));
+}
+
+// Flatten a generateContent params object into loggable prompt text —
+// system instruction + every text part; inline images counted, never stored.
+function genPromptText(params) {
+  const parts = [];
+  const sys = params && params.config && params.config.systemInstruction;
+  if (typeof sys === 'string') parts.push(sys);
+  else if (sys && Array.isArray(sys.parts)) sys.parts.forEach(p => { if (p.text) parts.push(p.text); });
+  let images = 0;
+  const contents = Array.isArray(params?.contents) ? params.contents : (params?.contents ? [params.contents] : []);
+  for (const c of contents) {
+    if (typeof c === 'string') { parts.push(c); continue; }
+    for (const p of (c.parts || [])) {
+      if (p.text) parts.push(p.text);
+      if (p.inlineData) images++;
+    }
+  }
+  return { text: parts.join('\n\n'), images };
+}
+
+if (SUPA_SERVICE_KEY) {
+  const rawGenerate = ai.models.generateContent.bind(ai.models);
+  ai.models.generateContent = async function (params) {
+    const t0 = Date.now();
+    const ctx = genCtx.getStore() || {};
+    const base = {
+      user_id: ctx.userId || null,
+      endpoint: ctx.endpoint || 'background',
+      model: (params && params.model) || null,
+    };
+    const { text: promptText, images: imagesIn } = genPromptText(params);
+    const isImageModel = String(params && params.model || '').includes('image');
+    try {
+      const r = await rawGenerate(params);
+      let respText = null;
+      try { respText = r.text; } catch (_) { /* image-only responses */ }
+      let responseJson = null, hasImage = false;
+      if (isImageModel) {
+        hasImage = !!(r.candidates && r.candidates[0]?.content?.parts?.some(p => p.inlineData));
+        responseJson = { has_image: hasImage };
+      } else if (respText) {
+        try { responseJson = JSON.parse(respText); } catch (_) { responseJson = { text: String(respText) }; }
+      }
+      glog({
+        ...base,
+        tokens_used: (r.usageMetadata && r.usageMetadata.totalTokenCount) ?? null,
+        latency_ms: Date.now() - t0,
+        status: isImageModel && !hasImage ? 'partial' : 'ok',
+        prompt: promptText || null,
+        response: responseJson,
+        detail: { input_images: imagesIn },
+      });
+      return r;
+    } catch (err) {
+      glog({
+        ...base,
+        latency_ms: Date.now() - t0,
+        status: /timeout|timed out|deadline/i.test(String(err && err.message)) ? 'timeout' : 'error',
+        prompt: promptText || null,
+        detail: { input_images: imagesIn, error: String((err && err.message) || err).slice(0, 500) },
+      });
+      throw err;
+    }
+  };
+} else {
+  console.log('generation_log: SUPABASE_SERVICE_ROLE_KEY not set — LLM call trail disabled');
 }
 
 /* ── Airtable ────────────────────────────────────────────────────── */
@@ -134,6 +238,7 @@ app.get('/api/health', (req, res) => {
     airtable: !!process.env.AIRTABLE_TOKEN,
     cloudinary: !!process.env.CLOUDINARY_API_KEY,
     supabase: !!process.env.SUPABASE_ANON_KEY,
+    generation_log: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
   });
 });
 
@@ -1817,6 +1922,12 @@ app.get('/look/:id', (req, res) => {
 
 app.get('/dashboard', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
+// Internal admin record panel — the page itself gates on session +
+// profiles.is_admin (non-admins bounce to the marketing lander).
+app.get('/admin', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'admin.html'));
 });
 
 app.get('/wardrobe', (req, res) => {

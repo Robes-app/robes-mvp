@@ -1084,7 +1084,7 @@
 
       const analyse = () => fetch('/api/wardrobe/analyse', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: P.data, mimeType: P.mimeType }),
+        body: JSON.stringify({ data: P.data, mimeType: P.mimeType, userId: st.uid || undefined }),
       }).then(r => r.ok ? r.json() : null).catch(() => null);
 
       let [tag, up] = await Promise.all([
@@ -1200,6 +1200,7 @@
           wardrobeCount: 1,
           wardrobeItems: t.label ? [{ label: t.label, category: t.category || '', color: t.color || '', times_worn: 0 }] : [],
           intent: 'style',
+          userId: st.uid || undefined,
         }),
       }).then(r => r.ok ? r.json() : null).then(d => {
         if (!d) return;
