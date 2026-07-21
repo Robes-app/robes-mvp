@@ -46,6 +46,9 @@
 
     table { width: 100%; border-collapse: collapse; }
     th { text-align: left; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); font-weight: 500; padding: 10px 14px; border-bottom: 0.5px solid var(--rule-mid); white-space: nowrap; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { color: var(--ink); }
+    .sort-ind { font-size: 8px; color: var(--ink); }
     td { padding: 10px 14px; border-bottom: 0.5px solid var(--rule); vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     tr.row { cursor: pointer; }
@@ -196,6 +199,31 @@
 
   /* ── users list ───────────────────────────────────────────── */
   let usersPage = 0, usersSearch = '';
+  let usersSort = 'created_at', usersDir = 'desc', usersSortServer = true;
+  // key = p_sort value the RPC understands; field = row field for the
+  // page-local fallback sort; asc = default direction on first click
+  const U_COLS = [
+    { key: 'name',         label: 'Name',         field: 'first_name',      asc: true },
+    { key: 'email',        label: 'Email',        field: 'email',           asc: true },
+    { key: 'created_at',   label: 'Joined',       field: 'created_at' },
+    { key: 'onboarded',    label: 'Onboarded',    field: 'onboarded_at' },
+    { key: 'wardrobe',     label: 'Wardrobe',     field: 'wardrobe_count',  num: true },
+    { key: 'lookbook',     label: 'Lookbook',     field: 'lookbook_count',  num: true },
+    { key: 'feedback',     label: 'Feedback',     field: 'feedback_count',  num: true },
+    { key: 'last_event',   label: 'Last action',  field: 'last_event_at' },
+    { key: 'last_sign_in', label: 'Last sign-in', field: 'last_sign_in_at' },
+  ];
+  function sortRowsLocal(rows) {
+    const col = U_COLS.find(c => c.key === usersSort);
+    if (!col) return rows;
+    const dir = usersDir === 'asc' ? 1 : -1;
+    return rows.slice().sort((a, b) => {
+      let va = a[col.field], vb = b[col.field];
+      if (col.num) { va = Number(va) || 0; vb = Number(vb) || 0; return (va - vb) * dir; }
+      if (col.field.indexOf('_at') !== -1) { va = va ? Date.parse(va) : 0; vb = vb ? Date.parse(vb) : 0; return (va - vb) * dir; }
+      return String(va || '').toLowerCase().localeCompare(String(vb || '').toLowerCase()) * dir;
+    });
+  }
   async function renderUsers() {
     main.innerHTML = '<div class="page-h"><h1>Users</h1><span class="sub" id="u-total"></span><span class="grow"></span></div>' +
       '<div class="searchrow"><input class="search" id="u-search" placeholder="Search name or email…" value="' + esc(usersSearch) + '"><button class="btn" id="u-go">Search</button></div>' +
@@ -212,16 +240,28 @@
     const card = document.getElementById('u-card');
     if (!card) return;
     card.innerHTML = '<div class="empty">Loading…</div>';
-    const { data, error } = await sbClient.rpc('admin_user_overview', { p_limit: PAGE, p_offset: usersPage * PAGE, p_search: usersSearch || null });
+    // Sort rides to the RPC so ordering is correct across pages; if the
+    // deployed function predates the sort params (PGRST202), fall back to
+    // the 4-arg call + a page-local sort and say what to run.
+    let { data, error } = await sbClient.rpc('admin_user_overview', { p_limit: PAGE, p_offset: usersPage * PAGE, p_search: usersSearch || null, p_sort: usersSort, p_dir: usersDir });
+    usersSortServer = !error;
+    if (error) {
+      const legacy = await sbClient.rpc('admin_user_overview', { p_limit: PAGE, p_offset: usersPage * PAGE, p_search: usersSearch || null });
+      data = legacy.data; error = legacy.error;
+    }
     if (error) { card.innerHTML = '<div class="err">Couldn\'t load users — has migration 11 (admin_capture_migration.sql) been run, and is your account flagged is_admin? (' + esc(error.message) + ')</div>'; return; }
-    const rows = data || [];
+    let rows = data || [];
+    if (!usersSortServer) rows = sortRowsLocal(rows);
     const total = rows.length ? Number(rows[0].total_count) : 0;
     document.getElementById('u-total').textContent = total + ' user' + (total === 1 ? '' : 's');
     document.getElementById('u-page').textContent = total ? ('Page ' + (usersPage + 1) + ' of ' + Math.max(1, Math.ceil(total / PAGE))) : '';
     document.getElementById('u-prev').disabled = usersPage === 0;
     document.getElementById('u-next').disabled = (usersPage + 1) * PAGE >= total;
     if (!rows.length) { card.innerHTML = '<div class="empty">' + (usersSearch ? 'No users match that search.' : 'No users yet.') + '</div>'; return; }
-    card.innerHTML = '<table><thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Onboarded</th><th>Wardrobe</th><th>Lookbook</th><th>Feedback</th><th>Last action</th><th>Last sign-in</th></tr></thead><tbody>' +
+    const ths = U_COLS.map(c =>
+      '<th class="sortable" data-sort="' + c.key + '" title="Sort by ' + esc(c.label.toLowerCase()) + '">' + esc(c.label) +
+      (usersSort === c.key ? ' <span class="sort-ind">' + (usersDir === 'asc' ? '▲' : '▼') + '</span>' : '') + '</th>').join('');
+    card.innerHTML = '<table><thead><tr>' + ths + '</tr></thead><tbody>' +
       rows.map(u => '<tr class="row" data-id="' + esc(u.id) + '">' +
         '<td class="nowrap">' + esc(u.first_name || '—') + (u.is_admin ? ' <span class="chip ink">admin</span>' : '') + '</td>' +
         '<td>' + esc(u.email || '—') + '</td>' +
@@ -232,8 +272,17 @@
         '<td class="num">' + Number(u.feedback_count) + '</td>' +
         '<td class="nowrap dim">' + ago(u.last_event_at) + '</td>' +
         '<td class="nowrap dim">' + ago(u.last_sign_in_at) + '</td>' +
-      '</tr>').join('') + '</tbody></table>';
+      '</tr>').join('') + '</tbody></table>' +
+      (!usersSortServer && (usersSort !== 'created_at' || usersDir !== 'desc')
+        ? '<div class="note" style="padding:10px 14px">Sorting this page only — re-run the <code>admin_user_overview</code> block of <code>supabase/admin_capture_migration.sql</code> to sort across all pages.</div>' : '');
     card.querySelectorAll('tr.row').forEach(tr => tr.onclick = () => { location.hash = '#user/' + tr.dataset.id; });
+    card.querySelectorAll('th.sortable').forEach(th => th.onclick = () => {
+      const key = th.dataset.sort;
+      if (usersSort === key) { usersDir = usersDir === 'asc' ? 'desc' : 'asc'; }
+      else { usersSort = key; usersDir = (U_COLS.find(c => c.key === key) || {}).asc ? 'asc' : 'desc'; }
+      usersPage = 0;
+      loadUsers();
+    });
   }
 
   /* ── user detail ──────────────────────────────────────────── */
