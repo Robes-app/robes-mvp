@@ -414,6 +414,11 @@
         }).then(r => { if (!r.ok) r.text().then(t => console.warn('[robes] capture ' + table + ' failed:', r.status, String(t).slice(0, 160))); })
           .catch(() => {});
       }
+      // Per-generation correlation id: sent as `genId` in the generation
+      // POST (→ generation_log.detail.gen_id on every LLM call) AND stored
+      // inside the saved lookbook entry's data, so the admin panel can walk
+      // prompt → calls → artifact for one generation.
+      function _rbGenId() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
       function _rbTrack(type, meta) {
         try {
           const uid = _waUid();
@@ -3106,15 +3111,18 @@
             }, 8000);
 
             try {
+              const genId = _rbGenId();
               const res = await fetch('/api/style', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, photo: photoData, userId: _waUid() || undefined, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), wardrobeCount: _waItems.length, wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })), intent: 'style' }),
+                body: JSON.stringify({ prompt, photo: photoData, userId: _waUid() || undefined, genId, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), wardrobeCount: _waItems.length, wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })), intent: 'style' }),
               });
               clearInterval(msgInterval);
               overlay.style.display = 'none';
               if (!res.ok) throw new Error(await res.text());
-              window.__kpRenderResult(await res.json(), prompt);
+              const data = await res.json();
+              data.genId = genId;
+              window.__kpRenderResult(data, prompt);
             } catch (err) {
               clearInterval(msgInterval);
               overlay.style.display = 'none';
@@ -3390,7 +3398,7 @@
             title: pieceName,
             subtitle: (kpDaily ? "Today's outfits · " : 'Worn three ways · ') + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
             img: persistable.find(Boolean) || photoUrl || null,
-            kpData: { ways, fallback, photoUrl, generatedImages: persistable, intent: kpIntent, context: kpCtx },
+            kpData: { ways, fallback, photoUrl, generatedImages: persistable, intent: kpIntent, context: kpCtx, genId: data.genId || null },
           });
           _rbTrack('look_generated', { track: kpDaily ? 'daily-3way' : 'key-piece', item: String(_kpActiveSaveId), fallback: !!fallback });
         } else {
@@ -3610,6 +3618,7 @@
           hint: rc.hint || '',
         };
         const guard = _rbOverlayGuard(overlay);
+        const genId = _rbGenId();
         try {
           const res = await fetch('/api/daily', {
             method: 'POST',
@@ -3623,6 +3632,7 @@
               context,
               locked: locked || undefined,
               userId: _waUid() || undefined,
+              genId,
             }),
           });
           guard.done();
@@ -3630,6 +3640,7 @@
           overlay.style.display = 'none';
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
+          data.genId = genId;
           // Re-mark the anchors on the fresh look so they stay locked
           if (locked && locked.length) {
             const freshFlat = [];
@@ -4900,6 +4911,7 @@
           hint: rc.hint || '',
         };
         const guard = _rbOverlayGuard(overlay);
+        const genId = _rbGenId();
         try {
           const res = await fetch('/api/weekly', {
             method: 'POST',
@@ -4911,6 +4923,7 @@
               dayPlan,
               weekDays,
               userId: _waUid() || undefined,
+              genId,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
               context,
@@ -4921,7 +4934,7 @@
           overlay.style.display = 'none';
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
-          window.__wkRenderResult({ ...data, context }, prompt);
+          window.__wkRenderResult({ ...data, context, genId }, prompt);
         } catch (err) {
           guard.done();
           clearInterval(msgInterval);
@@ -5972,6 +5985,7 @@
           const el = document.getElementById('kp-load-msg');
           if (el) el.textContent = msgs[mi];
         }, 9000);
+        const genId = _rbGenId();
         try {
           const res = await fetch('/api/travel', {
             method: 'POST',
@@ -5986,6 +6000,7 @@
               dayPlan,
               editOnly: !!editOnly,
               userId: _waUid() || undefined,
+              genId,
               name,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn })),
@@ -5995,6 +6010,7 @@
           overlay.style.display = 'none';
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
+          data.genId = genId;
           data.brief = brief;
           data.shortlist_size = shortlistIds.length;
           // A deferred trip keeps her typed plan so the later outfit
@@ -8427,6 +8443,7 @@ body>*:not(#tv-result-page){display:none !important}
           hint: rc.hint || '',
         } : null;
         const guard = _rbOverlayGuard(overlay);
+        const genId = _rbGenId();
         try {
           const res = await fetch('/api/style', {
             method: 'POST',
@@ -8436,6 +8453,7 @@ body>*:not(#tv-result-page){display:none !important}
               prompt,
               photo: photoData || null,
               userId: _waUid() || undefined,
+              genId,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
               wardrobeCount: _waItems.length,
               wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })),
@@ -8447,7 +8465,9 @@ body>*:not(#tv-result-page){display:none !important}
           clearInterval(msgInterval);
           overlay.style.display = 'none';
           if (!res.ok) throw new Error(await res.text());
-          window.__kpRenderResult(await res.json(), prompt, { intent, context });
+          const data = await res.json();
+          data.genId = genId;
+          window.__kpRenderResult(data, prompt, { intent, context });
         } catch (err) {
           guard.done();
           clearInterval(msgInterval);
@@ -8742,10 +8762,11 @@ body>*:not(#tv-result-page){display:none !important}
 
           const controller = new AbortController();
           const clientTimeout = setTimeout(() => controller.abort(), 90000);
+          const genId = _rbGenId();
           const res = await fetch('/api/moodboard', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ prompt, wardrobeItems, userId: _waUid() || undefined, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons() }),
+            body: JSON.stringify({ prompt, wardrobeItems, userId: _waUid() || undefined, genId, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons() }),
             signal: controller.signal,
           });
           clearTimeout(clientTimeout);
@@ -8761,7 +8782,7 @@ body>*:not(#tv-result-page){display:none !important}
             // stream) — surface a clean retry rather than a raw JSON error.
             throw new Error('Moodboard response was cut off — please try again');
           }
-          _mbShowResult({ ...data, prompt });
+          _mbShowResult({ ...data, prompt, genId });
           // Poll for background images if server returned a job id
           if (data.mb_job_id) _mbPollImages(data.mb_job_id);
         } catch (e) {
@@ -9843,6 +9864,7 @@ body>*:not(#tv-result-page){display:none !important}
 
         async function quietStyle() {
           try {
+            const genId = _rbGenId();
             const res = await fetch('/api/style', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -9850,6 +9872,7 @@ body>*:not(#tv-result-page){display:none !important}
                 prompt: piece.prompt || '',
                 photo: piece.photo || null,
                 userId: _waUid() || undefined,
+                genId,
                 styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
                 wardrobeCount: Math.max(1, _waItems.length),
                 wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })),
@@ -9857,7 +9880,9 @@ body>*:not(#tv-result-page){display:none !important}
               }),
             });
             if (!res.ok) throw new Error(await res.text());
-            return await res.json();
+            const forkData = await res.json();
+            forkData.genId = genId;
+            return forkData;
           } catch (e) { return null; }
         }
 

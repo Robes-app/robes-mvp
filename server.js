@@ -63,7 +63,14 @@ const genCtx = new AsyncLocalStorage();
 app.use('/api', (req, res, next) => {
   const uid = req.body && typeof req.body.userId === 'string' && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(req.body.userId)
     ? req.body.userId : null;
-  genCtx.run({ endpoint: req.baseUrl + req.path, userId: uid }, next);
+  // genId: client-minted per-generation correlation id — the same id is
+  // stored inside the saved lookbook entry, so the admin panel can join
+  // "her typed prompt → every LLM call → the artifact" without a schema
+  // change (it lives in generation_log.detail).
+  const genId = req.body && typeof req.body.genId === 'string' ? req.body.genId.slice(0, 24) : null;
+  const rawPrompt = req.body && (req.body.prompt || req.body.brief || req.body.activity);
+  const userPrompt = typeof rawPrompt === 'string' && rawPrompt.trim() ? rawPrompt.trim().slice(0, 400) : null;
+  genCtx.run({ endpoint: req.baseUrl + req.path, userId: uid, genId, userPrompt }, next);
 });
 
 function glog(row) {
@@ -131,7 +138,7 @@ if (SUPA_SERVICE_KEY) {
         status: isImageModel && !hasImage ? 'partial' : 'ok',
         prompt: promptText || null,
         response: responseJson,
-        detail: { input_images: imagesIn },
+        detail: { input_images: imagesIn, ...(ctx.genId ? { gen_id: ctx.genId } : {}), ...(ctx.userPrompt ? { user_prompt: ctx.userPrompt } : {}) },
       });
       return r;
     } catch (err) {
@@ -140,7 +147,7 @@ if (SUPA_SERVICE_KEY) {
         latency_ms: Date.now() - t0,
         status: /timeout|timed out|deadline/i.test(String(err && err.message)) ? 'timeout' : 'error',
         prompt: promptText || null,
-        detail: { input_images: imagesIn, error: String((err && err.message) || err).slice(0, 500) },
+        detail: { input_images: imagesIn, error: String((err && err.message) || err).slice(0, 500), ...(ctx.genId ? { gen_id: ctx.genId } : {}), ...(ctx.userPrompt ? { user_prompt: ctx.userPrompt } : {}) },
       });
       throw err;
     }
