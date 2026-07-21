@@ -486,8 +486,16 @@
         if (!_waLoaded) {
           grid.innerHTML = '<div style="padding:56px 24px;text-align:center"><div style="font-family:\'Cormorant\',Georgia,serif;font-style:italic;font-weight:300;font-size:18px;color:#A89880">Opening your wardrobe…</div></div>';
         } else {
-          // Category (primary) + Refine drawer (secondary) filters
-          const filtered = _waFilteredItems();
+          // Category (primary) + Refine drawer (secondary) filters.
+          // In-season hero pieces lead the grid in rack order (integration
+          // pass 2026-07-21: no separate rail — heroes live IN the grid);
+          // off-season heroes and everything else keep newest-first order.
+          const filtered = _waFilteredItems().sort((a, b) => {
+            const ah = a.hero_position != null && _waInSeasonNow(a);
+            const bh = b.hero_position != null && _waInSeasonNow(b);
+            if (ah !== bh) return ah ? -1 : 1;
+            return ah ? (a.hero_position || 0) - (b.hero_position || 0) : 0;
+          });
           const frag = document.createDocumentFragment();
           filtered.forEach(it => frag.appendChild(_waCard(it)));
           frag.appendChild(_waAddCard());
@@ -1665,46 +1673,13 @@
         }
       };
 
-      function _waHeroCard(it, idx) {
-        const num = String(idx + 1).padStart(2, '0');
-        const img = it.image_url
-          ? '<img src="' + _waEsc(it.image_url) + '" alt="' + _waEsc(it.label) + '" loading="lazy">'
-          : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="font-family:var(--font-serif);font-size:34px;color:var(--cream-400)">' + _waEsc((it.label || '?').charAt(0).toUpperCase()) + '</span></div>';
-        const meta = [it.brand, it.times_worn > 0 ? it.times_worn + '\xd7 worn' : null].filter(Boolean).join(' \xb7 ');
-        return '<div class="rb-hero-card" onclick="window.__wtrkEdit(\'' + _waEsc(String(it.id)) + '\')">' +
-          '<div class="rb-hero-tile">' + img +
-            '<span class="rb-hero-num">' + num + '</span>' +
-            '<button class="rb-star on" title="Remove from Hero Rack" onclick="event.stopPropagation();window.__waHeroToggle(\'' + _waEsc(String(it.id)) + '\')">' + _waStarSvg(true) + '</button>' +
-          '</div>' +
-          '<div class="wg-info"><div class="wg-name">' + _waEsc(it.label) + '</div>' +
-          (meta ? '<div class="wg-metar">' + _waEsc(meta) + '</div>' : '') + '</div></div>';
-      }
-
-      function _waHeroRender() {
-        const wrap = document.getElementById('rb-hero');
-        if (!wrap) return;
-        const all = _waHeroAll();
-        // No title, no empty-state card (integration pass 2026-07-21) — the
-        // rail only exists once she's starred something; the grid-card stars
-        // + their toast are the whole invitation.
-        if (_waView === 'wishlist' || !_waLoaded || !all.length) { wrap.style.display = 'none'; return; }
-        wrap.style.display = '';
-        const onRack = all.filter(_waInSeasonNow);
-        const resting = all.length - onRack.length;
-        const body = document.getElementById('rb-hero-body');
-        if (!body) return;
-        body.innerHTML = '<div class="rb-hero-rail">' + onRack.map(_waHeroCard).join('') +
-          (all.length < _WA_HERO_CAP
-            ? '<button class="rb-hero-add" onclick="window.__waHeroPicker()"><span style="font-size:24px;font-weight:300;line-height:1">+</span><span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase">Feature a piece</span></button>'
-            : '') + '</div>' +
-          (resting > 0
-            ? '<div class="rb-hero-note">' + (onRack.length === 0
-                ? 'All your hero pieces are resting until their season returns.'
-                : resting + ' hero piece' + (resting === 1 ? '' : 's') + ' resting off-season') + '</div>'
-            : '');
-      }
+      // No dedicated hero rail (integration pass 2026-07-21): starred pieces
+      // simply lead the wardrobe grid itself (see the sort in _waRender) and
+      // the grid-card stars + toast are the whole feature surface.
 
       // Hero picker — tap-to-toggle over the whole catalogue, no re-uploads
+      // (door-less since the rail retired; kept for the edit-modal expander
+      // and any future re-entry point)
       window.__waHeroPicker = function() {
         document.getElementById('rb-hero-picker')?.remove();
         const modal = document.createElement('div');
@@ -2294,7 +2269,7 @@
 
       function _waV2Sync() {
         const panel = document.querySelector('.wardrobe-panel');
-        if (!panel || !document.getElementById('rb-hero')) return;
+        if (!panel || !document.getElementById('rb-wsub')) return;
         const wish = _waView === 'wishlist';
         const title = panel.querySelector('.wg-title');
         const sub = panel.querySelector('.wg-sub');
@@ -2326,14 +2301,13 @@
         }
         _waRefineRender();
         if (wish) _wlRender();
-        _waHeroRender();
       }
 
       // One-time DOM augmentation of the static wardrobe panel
       (function _waV2Setup() {
         const panel = document.querySelector('.wardrobe-panel');
         if (!panel) { setTimeout(_waV2Setup, 400); return; }
-        if (document.getElementById('rb-hero')) return;
+        if (document.getElementById('rb-wsub')) return;
 
         // Styles — injected like the tracker/scan style tags
         if (!document.getElementById('rb-wa2-style')) {
@@ -2349,23 +2323,11 @@
             '.rb-wg-cta{padding:10px 18px;border:none;border-radius:100px;background:var(--ink);color:#fff;font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;font-family:inherit;white-space:nowrap;transition:opacity .15s}',
             '.rb-wg-cta:hover{opacity:.85}',
             '.rb-wg-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}',
-            // hero rail (headerless — integration pass 2026-07-21)
-            '#rb-hero{margin:2px 0 24px}',
-            '.rb-hero-note{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:13px;color:var(--ink-faint);padding:2px 2px 0}',
-            '.rb-hero-rail{display:flex;gap:16px;overflow-x:auto;padding:2px 2px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none}',
-            '.rb-hero-rail::-webkit-scrollbar{display:none}',
-            '.rb-hero-card{flex:0 0 auto;width:206px;cursor:pointer}',
-            '.rb-hero-tile{position:relative;aspect-ratio:3/4;border-radius:var(--rad-lg);overflow:hidden;background:var(--cream-200)}',
-            '.rb-hero-tile img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s var(--ease)}',
-            '.rb-hero-card:hover .rb-hero-tile img{transform:scale(1.03)}',
-            '.rb-hero-num{position:absolute;top:9px;left:13px;font-family:var(--font-serif);font-weight:400;font-size:21px;color:#fff;text-shadow:0 1px 10px rgba(0,0,0,.4);pointer-events:none}',
-            '.rb-hero-add{flex:0 0 auto;width:206px;aspect-ratio:3/4;border-radius:var(--rad-lg);border:1.5px dashed var(--rule-mid);background:transparent;color:var(--ink-faint);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;font-family:inherit;transition:all .15s}',
-            '.rb-hero-add:hover{border-color:var(--ink-faint);color:var(--ink)}',
-            // star button (hero rail + grid cards)
+            // star button (grid cards — heroes lead the grid, no separate rail)
             '.rb-star{position:absolute;top:8px;right:8px;width:29px;height:29px;border-radius:100px;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(255,255,255,.86);backdrop-filter:blur(4px);transition:all .15s;z-index:2;padding:0;opacity:0}',
             '.rb-star svg{width:14px;height:14px;display:block}',
             '.rb-star.on{background:var(--ink);opacity:1}',
-            '.wg-item:hover .rb-star,.rb-hero-card:hover .rb-star{opacity:1}',
+            '.wg-item:hover .rb-star{opacity:1}',
             '@media(hover:none){.rb-star{opacity:1}}',
             // refine
             '#rb-refine{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:18px 20px;margin:-12px 0 24px}',
@@ -2421,7 +2383,7 @@
             '.rb-add-serif{font-family:var(--font-serif);font-weight:300;font-size:19px;color:var(--ink)}',
             '.rb-add-hint{font-size:10px;letter-spacing:.05em;color:var(--ink-faint)}',
             // mobile
-            '@media(max-width:767px){.rb-hero-card,.rb-hero-add{width:164px}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-add-pill{display:none}#rb-wa-fab.on{display:flex}}'
+            '@media(max-width:767px){.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-add-pill{display:none}#rb-wa-fab.on{display:flex}}'
           ].join('\n');
           document.head.appendChild(st);
         }
@@ -2479,15 +2441,6 @@
           new MutationObserver(_fabSync).observe(panel, { attributes: true, attributeFilter: ['class'] });
           _fabSync();
         }
-
-        // Hero rail between the sub line and the filters — headerless and
-        // hidden until a piece is starred (integration pass 2026-07-21: the
-        // grid stars are the entry point, not a titled section)
-        const hero = document.createElement('div');
-        hero.id = 'rb-hero';
-        hero.style.display = 'none';
-        hero.innerHTML = '<div id="rb-hero-body"></div>';
-        panel.insertBefore(hero, filters);
 
         // Refine drawer host (hidden until toggled)
         const refine = document.createElement('div');
