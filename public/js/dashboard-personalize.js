@@ -397,11 +397,28 @@
       // policies). Both degrade silently until the migration runs — a
       // failed insert must never surface to the user or block a flow.
       var _RB_ENV = (location.hostname === 'www.byrobes.com' || location.hostname === 'byrobes.com') ? 'production' : 'beta';
+      // Capture inserts MUST use Prefer: return=minimal — the events/feedback
+      // tables are insert-only for ordinary users (select is admin-only), and
+      // return=representation makes PostgREST run INSERT…RETURNING, whose
+      // returned row is checked against SELECT policies → the whole insert
+      // fails 42501 for every non-admin. _waFetch (return=representation) is
+      // therefore the wrong door for these two tables.
+      function _rbCapturePost(table, row) {
+        fetch(_SUPA_URL + '/rest/v1/' + table, {
+          method: 'POST',
+          headers: {
+            'apikey': _SUPA_KEY, 'Authorization': 'Bearer ' + _waToken(),
+            'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify(row)
+        }).then(r => { if (!r.ok) r.text().then(t => console.warn('[robes] capture ' + table + ' failed:', r.status, String(t).slice(0, 160))); })
+          .catch(() => {});
+      }
       function _rbTrack(type, meta) {
         try {
           const uid = _waUid();
           if (!uid || !_waToken()) return;
-          _waFetch('POST', 'events', { user_id: uid, event_type: type, metadata: meta || {}, environment: _RB_ENV }).catch(() => {});
+          _rbCapturePost('events', { user_id: uid, event_type: type, metadata: meta || {}, environment: _RB_ENV });
         } catch (_) {}
       }
       window._rbTrack = _rbTrack;
@@ -409,13 +426,13 @@
         try {
           const uid = _waUid();
           if (!uid || !_waToken()) return;
-          _waFetch('POST', 'feedback', {
+          _rbCapturePost('feedback', {
             user_id: uid,
             lookbook_item_id: itemId != null ? Number(itemId) : null,
             track: track || null,
             rating: rating === 0 || rating === 1 ? rating : null,
             note: note || null,
-          }).catch(() => {});
+          });
           _rbTrack('feedback_given', { track: track || '', rating: rating === 0 || rating === 1 ? rating : null });
         } catch (_) {}
       }
