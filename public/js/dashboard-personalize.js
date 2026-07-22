@@ -3853,15 +3853,117 @@
 @media(max-width:520px){
 .rbc-row{grid-template-columns:88px 1fr;gap:12px}
 .rbc-name{font-size:18px}
+}
+
+/* ══ The Look, recomposed (design brief 2026-07-22) — flag: body.rb-lookv2.
+   The Look becomes the finished artifact: a fixed 4:5 composition with a
+   scale hierarchy, captions removed, one primary action. All v1 rules are
+   left intact; every rule below is scoped to .rb-lookv2. ══ */
+/* Column — 480px fixed, all three surfaces (beats the #id rules → !important) */
+.rb-lookv2 .dlm-console,.rb-lookv2 .wk-con,.rb-lookv2 .tvm-console{grid-template-columns:480px minmax(0,1fr) !important;gap:34px !important}
+/* Panel becomes a flex column so the below-composition blocks can be ordered */
+.rb-lookv2 .rbc-panel{display:flex;flex-direction:column}
+.rb-lookv2 .rbc-lhead{order:0}
+.rb-lookv2 .tvm-occ,.rb-lookv2 .rbc-occ{order:1}
+.rb-lookv2 .rbc-board{order:2}
+.rb-lookv2 .rbc-quote{order:3}
+.rb-lookv2 .rbc-lfoot{display:contents}
+.rb-lookv2 .rbc-palette{order:4}
+.rb-lookv2 .rbc-fabrics{order:5}
+.rb-lookv2 .rbc-yours{order:6}
+.rb-lookv2 .rbc-action{order:7}
+/* The export region — 4:5, 6×7 grid, columns ≈68px, hero ≈296px */
+.rb-lookv2 .rbc-board{aspect-ratio:4/5;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(7,1fr);gap:8px;padding:0;margin:0}
+.rb-lookv2 .rbc-tile{aspect-ratio:auto;border-radius:0;border:none;cursor:default;pointer-events:none;min-width:0;min-height:0;container-type:size}
+.rb-lookv2 .rbc-tile img{object-position:center}
+/* State marker is the only tile chrome that stays (§1) */
+.rb-lookv2 .rbc-tile .tslot,.rb-lookv2 .rbc-tile .tlab,.rb-lookv2 .rbc-tile .tnav,.rb-lookv2 .rbc-tile .tgrad{display:none}
+.rb-lookv2 .rbc-tile .town{top:8px;right:8px;width:19px;height:19px;box-shadow:0 1px 4px rgba(32,32,33,.16)}
+.rb-lookv2 .rbc-tile .tadd{top:8px;right:8px;color:var(--ink);background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(32,32,33,.14)}
+/* Monogram fallback (Weekly) — sized from the tile, not fixed (§F) */
+.rb-lookv2 .rbc-mono{font-size:42cqmin !important}
+/* Scale hierarchy — placement by piece count. Hero is the first tile in
+   slot order (the current wide-tile fallback). Empty cells are deliberate
+   breathing room; the collapse rules avoid holes. */
+.rb-lookv2 .rbc-board[data-n="6"] .rbc-tile:nth-child(1){grid-column:1/5;grid-row:1/5}
+.rb-lookv2 .rbc-board[data-n="6"] .rbc-tile:nth-child(2){grid-column:5/7;grid-row:1/3}
+.rb-lookv2 .rbc-board[data-n="6"] .rbc-tile:nth-child(3){grid-column:5/7;grid-row:3/5}
+.rb-lookv2 .rbc-board[data-n="6"] .rbc-tile:nth-child(4){grid-column:1/3;grid-row:5/8}
+.rb-lookv2 .rbc-board[data-n="6"] .rbc-tile:nth-child(5){grid-column:3/5;grid-row:5/7}
+.rb-lookv2 .rbc-board[data-n="6"] .rbc-tile:nth-child(6){grid-column:5/7;grid-row:5/8}
+.rb-lookv2 .rbc-board[data-n="5"] .rbc-tile:nth-child(1){grid-column:1/5;grid-row:1/5}
+.rb-lookv2 .rbc-board[data-n="5"] .rbc-tile:nth-child(2){grid-column:5/7;grid-row:1/3}
+.rb-lookv2 .rbc-board[data-n="5"] .rbc-tile:nth-child(3){grid-column:5/7;grid-row:3/5}
+.rb-lookv2 .rbc-board[data-n="5"] .rbc-tile:nth-child(4){grid-column:1/4;grid-row:5/8}
+.rb-lookv2 .rbc-board[data-n="5"] .rbc-tile:nth-child(5){grid-column:4/7;grid-row:5/8}
+.rb-lookv2 .rbc-board[data-n="4"] .rbc-tile:nth-child(1){grid-column:1/5;grid-row:1/6}
+.rb-lookv2 .rbc-board[data-n="4"] .rbc-tile:nth-child(2){grid-column:5/7;grid-row:1/4}
+.rb-lookv2 .rbc-board[data-n="4"] .rbc-tile:nth-child(3){grid-column:5/7;grid-row:4/8}
+.rb-lookv2 .rbc-board[data-n="4"] .rbc-tile:nth-child(4){grid-column:1/5;grid-row:6/8}
+.rb-lookv2 .rbc-board[data-n="3"] .rbc-tile:nth-child(1){grid-column:1/5;grid-row:1/8}
+.rb-lookv2 .rbc-board[data-n="3"] .rbc-tile:nth-child(2){grid-column:5/7;grid-row:1/4}
+.rb-lookv2 .rbc-board[data-n="3"] .rbc-tile:nth-child(3){grid-column:5/7;grid-row:4/8}
+.rb-lookv2 .rbc-board[data-n="2"] .rbc-tile:nth-child(1){grid-column:1/5;grid-row:1/8}
+.rb-lookv2 .rbc-board[data-n="2"] .rbc-tile:nth-child(2){grid-column:5/7;grid-row:1/8}
+/* Below the composition (§G): note → palette → fabric → ownership → action */
+.rb-lookv2 .rbc-quote{margin:16px 0 0;padding-left:0;border-left:none;font-size:15px;line-height:1.62}
+.rb-lookv2 .rbc-palette{margin-top:16px;gap:6px}
+.rb-lookv2 .rbc-palette span{width:16px;height:16px}
+.rb-lookv2 .rbc-fabrics{margin-top:16px;padding-top:0;border-top:none;gap:8px}
+.rb-lookv2 .rbc-fabrics .fab{border:1px solid var(--rule-mid);border-radius:100px;padding:4px 9px;gap:6px}
+.rb-lookv2 .rbc-fabrics .sw{width:9px;height:9px;border-radius:2px}
+.rb-lookv2 .rbc-fabrics .fl{font-family:inherit;font-style:normal;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.rb-lookv2 .rbc-yours{margin-top:16px}
+.rb-lookv2 .rbc-action{margin-top:12px;padding-top:14px;border-top:0.5px solid var(--rule)}
+.rb-lookv2 .rbc-action button{width:100%;border:none;background:var(--ink);color:var(--cream-100);border-radius:100px;padding:14px;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:opacity .15s}
+.rb-lookv2 .rbc-action button:hover{opacity:.88}
+/* Responsive — below 1080px stack Look above Rack; composition keeps 4:5 */
+@media(max-width:1080px){
+.rb-lookv2 .dlm-console,.rb-lookv2 .wk-con,.rb-lookv2 .tvm-console{grid-template-columns:1fr !important}
+.rb-lookv2 .rbc-panel{max-width:480px;margin-left:auto;margin-right:auto}
 }`;
 
       function _rbcEnsureCss() {
-        if (document.getElementById('rbc-style')) return;
-        const el = document.createElement('style');
-        el.id = 'rbc-style';
-        el.textContent = _RBC_CSS;
-        document.head.appendChild(el);
+        if (!document.getElementById('rbc-style')) {
+          const el = document.createElement('style');
+          el.id = 'rbc-style';
+          el.textContent = _RBC_CSS;
+          document.head.appendChild(el);
+        }
+        // The Look-panel recomposition (design brief 2026-07-22) is behind a
+        // flag so it can be A/B'd against current on the same URL. Toggle
+        // with ?lookv2 or localStorage rb_look_v2='1' (or window.__rbLookV2()).
+        try { document.body.classList.toggle('rb-lookv2', _rbLookV2()); } catch (e) {}
       }
+
+      function _rbLookV2() {
+        try { return /[?&]lookv2\b/.test(location.search) || localStorage.getItem('rb_look_v2') === '1'; }
+        catch (e) { return false; }
+      }
+      window.__rbLookV2 = function(on) {
+        const v = on === undefined ? !(document.body.classList.contains('rb-lookv2')) : !!on;
+        try { localStorage.setItem('rb_look_v2', v ? '1' : '0'); } catch (e) {}
+        document.body.classList.toggle('rb-lookv2', v);
+        return v;
+      };
+
+      // Recompose transition (design brief §6/§H): when a piece changes on the
+      // Rack, the affected Look tile settles back in. Single-phase settle
+      // (the full re-render has already swapped the image); honours
+      // prefers-reduced-motion. No-op outside v2. The apply handlers call this
+      // with the same idx they operate on (tiles carry data-tilekey="idx").
+      window.__rbcAnimateTile = function(idx) {
+        try {
+          if (!document.body.classList.contains('rb-lookv2')) return;
+          if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+          const el = document.querySelector('.rbc-board .rbc-tile[data-tilekey="' + idx + '"]');
+          if (!el || !el.animate) return;
+          el.animate(
+            [{ opacity: 0.35, transform: 'scale(0.94)' }, { opacity: 1, transform: 'scale(1)' }],
+            { duration: 450, easing: 'cubic-bezier(0.22,0.61,0.36,1)' }
+          );
+        } catch (e) {}
+      };
 
       // "The read" — the one verdict block every day console carries
       // (ownership for Daily/Weekly, the packing case for Travel).
@@ -3933,7 +4035,7 @@
       }
 
       function _rbcTile(it, wide, cfg) {
-        return `<button class="rbc-tile${wide ? ' wide' : ''}${it.isNew ? ' isnew' : ''}" onclick="window.${cfg.onSwap}(${it.idx})" title="Swap the ${_waEsc(it.shortName)}">
+        return `<button class="rbc-tile${wide ? ' wide' : ''}${it.isNew ? ' isnew' : ''}" data-tilekey="${it.idx}" onclick="window.${cfg.onSwap}(${it.idx})" title="Swap the ${_waEsc(it.shortName)}">
           <div${it.frame.pollAttr} style="position:absolute;inset:0;background:var(--cream-200)">${it.frame.inner}</div>
           <div class="tgrad"></div>
           <span class="tslot">${_waEsc(it.slot)}</span>
@@ -3990,6 +4092,13 @@
         // already hands in, rather than three call sites agreeing on a string.
         const ownedCount = items.filter(it => it.owned).length;
         const yoursHtml = `<b>${ownedCount}</b>&thinsp;of&thinsp;${items.length} from your wardrobe`;
+        // Look v2 (design brief 2026-07-22): the composition is a fixed 4:5
+        // export region taking the first six pieces in slot order (the Rack
+        // still lists everything); v1 renders every item in the old board.
+        const v2 = _rbLookV2();
+        const boardItems = v2 ? items.slice(0, 6) : items;
+        const actionHtml = (v2 && cfg.lookActionHtml)
+          ? `<div class="rbc-action">${cfg.lookActionHtml}</div>` : '';
         const lookHtml = `
           <div class="rbc-panel">
             <div class="rbc-lhead">
@@ -3998,12 +4107,13 @@
             </div>
             ${cfg.occHtml || ''}
             ${cfg.quoteHtml ? `<div class="rbc-quote">${cfg.quoteHtml}</div>` : ''}
-            <div class="rbc-board">${items.map((it, i) => _rbcTile(it, i === 0, cfg)).join('')}</div>
+            <div class="rbc-board" data-n="${boardItems.length}">${boardItems.map((it, i) => _rbcTile(it, i === 0, cfg)).join('')}</div>
             ${cfg.fabricsHtml ? `<div class="rbc-fabrics">${cfg.fabricsHtml}</div>` : ''}
             <div class="rbc-lfoot">
               <span class="rbc-palette">${cfg.paletteHtml || ''}</span>
               <span class="rbc-yours">${yoursHtml}</span>
             </div>
+            ${actionHtml}
           </div>
           ${cfg.panelExtraHtml || ''}`;
         const rackHtml = `
@@ -4228,6 +4338,7 @@
         const next = list[(_dlOptIndex(it, list) + dir + list.length) % list.length];
         _dlApplyOption(it, next);
         _dlRerender();
+        window.__rbcAnimateTile(fi);
       };
       window.__dlAnchor = function(fi) {
         const it = window.__dlCurrentItems && window.__dlCurrentItems[fi];
@@ -4476,7 +4587,7 @@
           const phInner = pulse
             ? `<span style="font-family:${serif};font-style:italic;font-size:12px;color:#B8AC9C;text-align:center;padding:0 12px">Creating imagery…</span>`
             : (altered && !wmImg)
-              ? `<span style="font-family:${serif};font-size:30px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`
+              ? `<span class="rbc-mono" style="font-family:${serif};font-size:30px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`
               : phSvg;
           const inner = src && typeof src === 'string'
             ? `<img src="${_waEsc(src)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
@@ -4538,6 +4649,7 @@
           headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
           onFlip: '__dlFlip', onSwap: '__dlSwap', onAnchor: '__dlAnchor', onRemove: '__dlRemove',
           addPieceFn: '__dlAddPiece',
+          lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
         }, conItems);
 
         // Header mirrors the live Moodboard: eyebrow → short serif title →
@@ -4722,6 +4834,7 @@
         // Items are references into __lastDlData.steps, so the re-render
         // picks up the swap and _dlRerender patches the saved entry.
         _dlRerender();
+        window.__rbcAnimateTile(idx);
         _waShowToast(wi.label + ' swapped in');
       };
 
@@ -5006,7 +5119,7 @@
             pollAttr: '',
             inner: m && m.image_url
               ? `<img src="${_waEsc(m.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
-              : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="font-family:${serif};font-size:30px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span></div>`,
+              : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span class="rbc-mono" style="font-family:${serif};font-size:30px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span></div>`,
           };
         };
         const palette = (Array.isArray(_wkState.data.palette) ? _wkState.data.palette : []).filter(h => /^#[0-9A-Fa-f]{6}$/.test(String(h || ''))).slice(0, 3);
@@ -5043,6 +5156,7 @@
           headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button>`,
           onFlip: '__wkFlip', onSwap: '__wkSwap', onAnchor: '__wkAnchor', onRemove: '__wkRemove',
           addPieceFn: '__wkAddPiece',
+          lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
         }, conItems);
 
         host.innerHTML = `
@@ -5063,6 +5177,7 @@
         _wkPaintConsole();
         _wkPaintStrip();
         _wkPatchSaved();
+        window.__rbcAnimateTile(ii);
       };
 
       window.__wkAnchor = function(ii) {
@@ -5114,6 +5229,7 @@
         _wkPaintConsole();
         _wkPaintStrip();
         _wkPatchSaved();
+        window.__rbcAnimateTile(ii);
         _waShowToast(wi.label + ' swapped in');
       };
       window.__wkSnapMine = function() {
@@ -6238,7 +6354,7 @@ body>*:not(#tv-result-page){display:none !important}
         const phInner = pulse
           ? `<span style="font-family:${_tvSerif};font-style:italic;font-size:12px;color:#B8AC9C;text-align:center;padding:0 12px">Creating imagery…</span>`
           : (!genOk && !wmImg)
-            ? `<span style="font-family:${_tvSerif};font-size:28px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`
+            ? `<span class="rbc-mono" style="font-family:${_tvSerif};font-size:28px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`
             : _tvPhSvg;
         const inner = src && typeof src === 'string'
           ? `<img src="${_waEsc(src)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
@@ -6403,6 +6519,7 @@ body>*:not(#tv-result-page){display:none !important}
           headButtonsHtml: `<button class="rbc-hbtn tv-noprint" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>`,
           onFlip: '__tvFlip', onSwap: '__tvSwap', onAnchor: '__tvAnchor', onRemove: '__tvRemoveFromLook',
           addPieceFn: '__tvAddPieceToLook',
+          lookActionHtml: `<button onclick="window.__tvPackLook&&window.__tvPackLook()">Pack this look</button>`,
           noprint: true,
         }, conItems);
 
@@ -6428,6 +6545,7 @@ body>*:not(#tv-result-page){display:none !important}
         window.__tvRenderResult(data, { skipSave: true, savedId });
         if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
         _tvPatchSaved();
+        window.__rbcAnimateTile(ci);
       };
 
       // Anchor — the Daily/Weekly lock: an anchored capsule piece is held
@@ -7225,6 +7343,7 @@ body>*:not(#tv-result-page){display:none !important}
         window.__tvRenderResult(window.__lastTvData, { skipSave: true, savedId });
         if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
         _tvPatchSaved();
+        window.__rbcAnimateTile(idx);
         _waShowToast(wi.label + ' packed instead');
       };
 
