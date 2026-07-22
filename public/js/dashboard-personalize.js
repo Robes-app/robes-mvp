@@ -4900,7 +4900,7 @@
       function _wkPatchSaved() {
         if (!_wkActiveSaveId || !_wkState) return;
         const saved = snLoad().find(x => x.id === _wkActiveSaveId);
-        if (saved) snUpdate(_wkActiveSaveId, { wkData: { ...(saved.wkData || {}), days: _wkState.data.days } });
+        if (saved) snUpdate(_wkActiveSaveId, { wkData: { ...(saved.wkData || {}), days: _wkState.data.days, stylist_summary: _wkState.data.stylist_summary } });
       }
 
       window.__wkSelectDay = function(di) {
@@ -5169,6 +5169,14 @@
         d.rest = false;
         if (activity) d.user_activity = activity;
         d.items = Array.isArray(fresh.items) ? fresh.items : [];
+        // The masthead summary is refreshed by the server on every day
+        // restyle (audit D2) so it can never describe a look that's since
+        // changed — patch it in place rather than re-rendering the header.
+        if (fresh.stylist_summary) {
+          _wkState.data.stylist_summary = fresh.stylist_summary;
+          const sumEl = document.getElementById('wk-summary');
+          if (sumEl) sumEl.textContent = fresh.stylist_summary;
+        }
         // Re-mark anchors on the fresh items (by wardrobe id, then name) and
         // restore a wardrobe_match the model may have dropped.
         anchored.forEach(a => {
@@ -5301,7 +5309,7 @@
           const ws = document.createElement('style');
           ws.id = 'wk-style';
           ws.textContent =
-            '#wk-day .wk-con{display:grid;grid-template-columns:360px 1fr;gap:18px;margin-top:18px;align-items:start}' +
+            '#wk-day .wk-con{display:grid;grid-template-columns:360px minmax(0,1fr);gap:34px;margin-top:18px;align-items:start}' +
             '@media(max-width:900px){#wk-day .wk-con{grid-template-columns:1fr}}';
           document.head.appendChild(ws);
         }
@@ -5326,7 +5334,7 @@
               ${pill ? `<span style="font-size:11px;color:#8A8078;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">🌤 ${_waEsc(pill)}</span>` : ''}
               ${paletteDots ? `<span style="display:inline-flex;gap:5px;align-items:center">${paletteDots}</span>` : ''}
             </div>
-            ${data.stylist_summary ? `<p style="font-family:${serif};font-style:italic;font-size:15.5px;color:#6E6A64;line-height:1.6;margin:0 0 24px;max-width:640px">${_waEsc(data.stylist_summary)}</p>` : ''}
+            ${data.stylist_summary ? `<p id="wk-summary" style="font-family:${serif};font-style:italic;font-size:15.5px;color:#6E6A64;line-height:1.6;margin:0 0 24px;max-width:640px">${_waEsc(data.stylist_summary)}</p>` : ''}
             <div id="wk-strip" class="rbd-strip"></div>
             <div id="wk-day"></div>
             ${_rbFeedbackBlock('wk', { title: 'How does this week feel?', up: '👍 I’d wear it', down: 'Not quite' })}

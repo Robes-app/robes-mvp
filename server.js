@@ -896,6 +896,52 @@ function weeklyNormaliseItem(it, closetItems) {
   };
 }
 
+// Category-coverage validation (audit D1) — a day needs a top + bottom (or
+// a dress) plus footwear; the weekly prompt only asked for this in prose,
+// so coverage could silently drop. Mirrors Travel's unaccounted()/
+// corrective-recall pattern (server.js travelUnderusedItems/unaccounted).
+function weeklyCategorySlot(category) {
+  const c = String(category || '').toLowerCase();
+  if (c.indexOf('top') === 0) return 'top';
+  if (c.indexOf('bottom') === 0) return 'bottom';
+  if (c.indexOf('dress') === 0) return 'dress';
+  if (c.indexOf('shoe') === 0) return 'shoes';
+  return 'other';
+}
+
+// Truncates to `cap` items without dropping the sole occupant of a required
+// slot (top/bottom/dress/shoes) — coverage must survive truncation, not
+// just generation (the old slice(0,6) ran before any coverage check).
+function weeklyTruncateItems(items, cap) {
+  if (items.length <= cap) return items;
+  const soleOccupant = new Set();
+  ['top', 'bottom', 'dress', 'shoes'].forEach(slot => {
+    const idxs = [];
+    items.forEach((it, i) => { if (weeklyCategorySlot(it.category) === slot) idxs.push(i); });
+    if (idxs.length === 1) soleOccupant.add(idxs[0]);
+  });
+  const kept = new Set(items.map((it, i) => i).filter(i => soleOccupant.has(i)));
+  for (let i = 0; i < items.length && kept.size < cap; i++) kept.add(i);
+  return items.filter((it, i) => kept.has(i));
+}
+
+// Days missing required coverage (a top+bottom, or a dress; plus shoes).
+// Rest days are exempt — they carry no items by design.
+function weeklyCoverageGaps(days) {
+  const gaps = [];
+  days.forEach(d => {
+    if (d.rest) return;
+    const slots = new Set(d.items.map(it => weeklyCategorySlot(it.category)));
+    const bodyOk = slots.has('dress') || (slots.has('top') && slots.has('bottom'));
+    if (bodyOk && slots.has('shoes')) return;
+    const missing = [];
+    if (!bodyOk) missing.push(slots.has('top') ? 'a bottom or dress' : slots.has('bottom') ? 'a top or dress' : 'a top and a bottom, or a dress');
+    if (!slots.has('shoes')) missing.push('footwear');
+    gaps.push({ label: d.day_label, missing: missing.join(' and ') });
+  });
+  return gaps;
+}
+
 const WEEKLY_ITEM_RULES = `- Each item: "name" is the piece itself; "brand" is ONE real brand suited to the register (owned pieces: the owned brand or ""); "description" is one hyper-specific sentence — cut, fabric, colour, how it is worn that day.
 - Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" and a realistic EUR "price_point".`;
 
@@ -932,7 +978,8 @@ app.post('/api/weekly', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
     ? `REAL-TIME CONTEXT: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}. This is the atmospheric reality for the week ahead — fabric weight, layers and footwear must answer to it.`
     : '';
 
-  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. You are planning a CHRONOLOGICAL WEEK of dressing — a calendar that routes real wardrobe pieces across her agenda. Never output a generic outfit — name exact cuts, fabrications and styling techniques.
+  function weeklySystem(correctiveNote) {
+    return `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. You are planning a CHRONOLOGICAL WEEK of dressing — a calendar that routes real wardrobe pieces across her agenda. Never output a generic outfit — name exact cuts, fabrications and styling techniques.
 
 THE WEEKLY PLAN RULES:
 1. THE CALENDAR IS AUTHORITATIVE. Generate exactly one entry per calendar day listed, in order, with the given day_label verbatim. Where she wrote a plan for a day, dress exactly that plan and derive the "occasion" from it. Where no plan is given, infer a concrete occasion from the brief.
@@ -951,7 +998,8 @@ FIELD RULES:
 ${WEEKLY_ITEM_RULES}
 - "fallback": true ONLY if the brief is gibberish — then plan a pleasant, unremarkable working week instead. A plain agenda, job or mood is a valid weekly brief.${dnaBlock ? '\n\n' + dnaBlock : ''}
 
-${closetBlock}`;
+${closetBlock}${correctiveNote ? '\n\n' + correctiveNote : ''}`;
+  }
 
   const userText = `${rtLine ? rtLine + '\n\n' : ''}${itineraryBlock}
 
@@ -968,36 +1016,35 @@ Dress every calendar day above, chronologically.`;
     }
   }
 
-  try {
-    const t0 = Date.now();
-    const textResponse = await withRetry(() => ai.models.generateContent({
+  async function generate(correctiveNote) {
+    const r = await withRetry(() => ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: userText }] }],
       config: {
-        systemInstruction,
+        systemInstruction: weeklySystem(correctiveNote),
         responseMimeType: 'application/json',
         responseSchema: WEEKLY_SCHEMA,
         thinkingConfig: { thinkingBudget: 0 },
         maxOutputTokens: 12000,
       },
     }));
-    const parsed = JSON.parse(textResponse.text);
+    return JSON.parse(r.text);
+  }
 
-    const genDays = (Array.isArray(parsed.days) ? parsed.days : [])
-      .filter(d => d && Array.isArray(d.items) && d.items.length);
-    if (!genDays.length) throw new Error('empty weekly plan');
-    let itemCount = 0;
-    // Re-assemble the full calendar: generated entries land on the active
-    // days positionally (day_label from the calendar always wins); left-free
-    // days are stamped as rest days the client renders as a quiet state.
-    const days = cal.map((c, i) => {
+  // Re-assembles the full calendar from the model's generated days: entries
+  // land on the active days positionally (day_label from the calendar
+  // always wins); left-free days are stamped as rest days the client
+  // renders as a quiet state. Truncation runs through weeklyTruncateItems
+  // so a required slot can never be dropped by the 6-item cap.
+  function assembleDays(genDays) {
+    return cal.map((c, i) => {
       if (c.plan === null) {
         return { day_label: c.label, occasion: 'Left free', note: '', rest: true, user_activity: null, items: [] };
       }
       const k = active.findIndex(a => a.i === i);
       const g = genDays[k];
       if (!g) return { day_label: c.label, occasion: 'Left free', note: '', transition_tip: '', rest: true, user_activity: c.plan || null, items: [] };
-      itemCount += Math.min(g.items.length, 6);
+      const kept = weeklyTruncateItems(g.items, 6);
       return {
         day_label: c.label,
         occasion: String(g.occasion || c.plan || '').slice(0, 60),
@@ -1005,9 +1052,58 @@ Dress every calendar day above, chronologically.`;
         transition_tip: String(g.transition_tip || '').slice(0, 200),
         rest: false,
         user_activity: c.plan || null,
-        items: g.items.slice(0, 6).map(it => weeklyNormaliseItem(it, closetItems)),
+        items: kept.map(it => weeklyNormaliseItem(it, closetItems)),
       };
     });
+  }
+
+  try {
+    const t0 = Date.now();
+    let parsed = await generate();
+
+    let genDays = (Array.isArray(parsed.days) ? parsed.days : [])
+      .filter(d => d && Array.isArray(d.items) && d.items.length);
+    if (!genDays.length) throw new Error('empty weekly plan');
+    let days = assembleDays(genDays);
+
+    // Category-coverage validation (audit D1): one corrective regeneration
+    // when a day is missing a required slot, mirroring Travel's
+    // unaccounted()/corrective-recall pattern. If the second attempt still
+    // doesn't clear coverage, keep whichever attempt is better and log the
+    // remaining gap instead of blocking — a logged gap is acceptable, a
+    // silent one was the bug.
+    let gaps = weeklyCoverageGaps(days);
+    if (gaps.length) {
+      logAI({ feature: 'weekly', stage: 'validate', retry: true, gaps: gaps.length });
+      try {
+        const note = `VALIDATION FAILURE ON YOUR LAST ATTEMPT — these days are missing required coverage: ${gaps.map(g => `${g.label} (missing ${g.missing})`).join('; ')}. Rework so every day has a complete top-and-bottom (or dress) build plus footwear.`;
+        const secondParsed = await generate(note);
+        const secondGenDays = (Array.isArray(secondParsed.days) ? secondParsed.days : [])
+          .filter(d => d && Array.isArray(d.items) && d.items.length);
+        if (secondGenDays.length) {
+          const secondDays = assembleDays(secondGenDays);
+          const secondGaps = weeklyCoverageGaps(secondDays);
+          if (secondGaps.length < gaps.length) {
+            parsed = secondParsed; genDays = secondGenDays; days = secondDays; gaps = secondGaps;
+          }
+        }
+      } catch { /* keep first attempt */ }
+    }
+    if (gaps.length) {
+      logAI({ feature: 'weekly', stage: 'validate', retry: false, uncorrected: gaps.length, days: gaps.map(g => g.label) });
+      const gctx = genCtx.getStore() || {};
+      glog({
+        user_id: gctx.userId || null,
+        endpoint: '/api/weekly',
+        model: 'gemini-2.5-flash',
+        status: 'partial',
+        prompt: null,
+        response: null,
+        detail: { stage: 'weekly_coverage_uncorrected', gaps: gaps.map(g => g.label), ...(gctx.genId ? { gen_id: gctx.genId } : {}) },
+      });
+    }
+
+    const itemCount = days.reduce((s, d) => s + d.items.length, 0);
     const owned = days.reduce((s, d) => s + d.items.filter(i => i.wardrobe_match).length, 0);
     logAI({ feature: 'weekly', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, days: days.filter(d => !d.rest).length, items: itemCount, owned, fallback: parsed.fallback === true });
 
@@ -1037,9 +1133,10 @@ const WEEKLY_DAY_SCHEMA = {
     occasion: { type: 'string' },
     note: { type: 'string' },
     transition_tip: { type: 'string' },
+    stylist_summary: { type: 'string' },
     items: WEEKLY_SCHEMA.properties.days.items.properties.items,
   },
-  required: ['occasion', 'note', 'transition_tip', 'items'],
+  required: ['occasion', 'note', 'transition_tip', 'stylist_summary', 'items'],
 };
 
 app.post('/api/weekly/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
@@ -1075,6 +1172,7 @@ FIELD RULES:
 - "occasion": 2–5 words, sentence case, derived from the day's plan.
 - "note": one sentence naming the styling move.
 - "transition_tip": ONE concrete move — subtractive styling or hardware swapping — that shifts this day's look into its evening or next scene. One sentence.
+- "stylist_summary": 1–2 sentences refreshing the week's read now this day has changed — the week's register, weather and shape. Never name a specific garment, so it can't go stale after a later swap.
 ${WEEKLY_ITEM_RULES}${dnaBlock ? '\n\n' + dnaBlock : ''}
 
 ${closetBlock}`;
@@ -1107,6 +1205,7 @@ Dress her for exactly this day.`;
       occasion: String(parsed.occasion || activity || '').slice(0, 60),
       note: String(parsed.note || '').slice(0, 240),
       transition_tip: String(parsed.transition_tip || '').slice(0, 200),
+      stylist_summary: String(parsed.stylist_summary || '').slice(0, 400),
       items,
     });
   } catch (err) {
