@@ -3876,10 +3876,15 @@
 .rb-lookv2 .rbc-board{aspect-ratio:4/5;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(7,1fr);gap:8px;padding:0;margin:0}
 .rb-lookv2 .rbc-tile{aspect-ratio:auto;border-radius:0;border:none;cursor:default;pointer-events:none;min-width:0;min-height:0;container-type:size}
 .rb-lookv2 .rbc-tile img{object-position:center}
-/* State marker is the only tile chrome that stays (§1) */
-.rb-lookv2 .rbc-tile .tslot,.rb-lookv2 .rbc-tile .tlab,.rb-lookv2 .rbc-tile .tnav,.rb-lookv2 .rbc-tile .tgrad{display:none}
+/* The Look is the finished artifact — the only tile chrome kept is the
+   owned tick. The "Add" commercial pill is stripped here (it belongs on the
+   Rack, where she acts on pieces), and every caption/label/chevron is gone. */
+.rb-lookv2 .rbc-tile .tslot,.rb-lookv2 .rbc-tile .tlab,.rb-lookv2 .rbc-tile .tnav,.rb-lookv2 .rbc-tile .tgrad,.rb-lookv2 .rbc-tile .tadd{display:none}
 .rb-lookv2 .rbc-tile .town{top:8px;right:8px;width:19px;height:19px;box-shadow:0 1px 4px rgba(32,32,33,.16)}
-.rb-lookv2 .rbc-tile .tadd{top:8px;right:8px;color:var(--ink);background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(32,32,33,.14)}
+/* Day/Evening selector — equal-width segments (id-scoped to beat the base
+   #tv-result-page rule without !important) */
+.rb-lookv2 #tv-result-page .tvm-occ{display:flex;width:220px;max-width:100%}
+.rb-lookv2 #tv-result-page .tvm-occ button{flex:1;padding-left:4px;padding-right:4px;text-align:center}
 /* Monogram fallback (Weekly) — sized from the tile, not fixed (§F) */
 .rb-lookv2 .rbc-mono{font-size:42cqmin !important}
 /* Scale hierarchy — placement by piece count. Hero is the first tile in
@@ -6519,7 +6524,7 @@ body>*:not(#tv-result-page){display:none !important}
           headButtonsHtml: `<button class="rbc-hbtn tv-noprint" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>`,
           onFlip: '__tvFlip', onSwap: '__tvSwap', onAnchor: '__tvAnchor', onRemove: '__tvRemoveFromLook',
           addPieceFn: '__tvAddPieceToLook',
-          lookActionHtml: `<button onclick="window.__tvPackLook&&window.__tvPackLook()">Pack this look</button>`,
+          lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
           noprint: true,
         }, conItems);
 
@@ -8048,7 +8053,16 @@ body>*:not(#tv-result-page){display:none !important}
           const showPill = detail && window.matchMedia('(max-width:767px)').matches;
           if (backPill) backPill.style.display = showPill ? 'inline-flex' : 'none';
           const shareBtn = document.getElementById('rb-share-btn');
-          if (shareBtn) shareBtn.style.display = showPill ? 'inline-flex' : 'none';
+          if (shareBtn) {
+            // In Look v2 the console surfaces (Daily/Weekly/Travel) carry their
+            // own "Share this look" button inside The Look, so the mobile nav
+            // share icon is redundant there — drop it and let the in-Look
+            // action own sharing. Key-piece has no console Share, so it keeps
+            // the nav icon.
+            const consoleShare = document.body.classList.contains('rb-lookv2') &&
+              [dlResultPage, wkResultPage, tvResultPage].some(p => p && p.style.display !== 'none');
+            shareBtn.style.display = (showPill && !consoleShare) ? 'inline-flex' : 'none';
+          }
           const wm = document.getElementById('nav-wordmark');
           if (wm) {
             if (showPill) wm.style.setProperty('display', 'none', 'important');
