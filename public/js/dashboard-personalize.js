@@ -3741,17 +3741,28 @@
         return m ? '€' + m[1] : s;
       }
 
-      // Shared provenance line for a rack row (audit F1/F4/F5/D5) — owned
-      // pieces show the ownership tick; unowned pieces show brand + a
-      // retailer/price line, with the retailer omitted when it just repeats
-      // the brand (case/whitespace-insensitive). `extraHtml` lets a surface
-      // prefix a state tag (Travel's Worth adding / Added to the pack).
-      function _rbcProvenance(it, extraHtml) {
-        if (it.wardrobe_match) return `<span class="owned">${_rbcCheckSvg} In your wardrobe</span>`;
+      // Deduped retailer + formatted price for an unowned piece (audit
+      // F4/F5/D5) — the retailer is omitted when it just repeats the brand
+      // (case/whitespace-insensitive). Shared by _rbcProvenance (Rack rows)
+      // and the Travel capsule card (brief 2026-07-22 §B.1) — the capsule
+      // card's markup doesn't match the Rack row shape, so it can't reuse
+      // _rbcProvenance's full HTML output, but it must reuse this logic
+      // rather than re-deriving it, which is what produced "ZARA · ZARA".
+      function _rbcRetailPrice(it) {
         const brand = (it.brand || '').trim();
         const retailerRaw = (it.retailer_hint || '').trim();
         const retailer = (retailerRaw && retailerRaw.toLowerCase() !== brand.toLowerCase()) ? retailerRaw : '';
-        const retailPrice = [retailer, _rbcPrice(it.price_point)].filter(Boolean).join(' · ');
+        return [retailer, _rbcPrice(it.price_point)].filter(Boolean).join(' · ');
+      }
+
+      // Shared provenance line for a rack row (audit F1/F4/F5/D5) — owned
+      // pieces show the ownership tick; unowned pieces show brand + a
+      // retailer/price line. `extraHtml` lets a surface prefix a state tag
+      // (Travel's Worth adding / Added to the pack).
+      function _rbcProvenance(it, extraHtml) {
+        if (it.wardrobe_match) return `<span class="owned">${_rbcCheckSvg} In your wardrobe</span>`;
+        const brand = (it.brand || '').trim();
+        const retailPrice = _rbcRetailPrice(it);
         return `${extraHtml || ''}${brand ? `<span class="brand">${_waEsc(brand)}</span>` : ''}${retailPrice ? `<span class="price">${_waEsc(retailPrice)}</span>` : ''}`;
       }
 
@@ -3889,7 +3900,11 @@
 .rb-lookv2 #tv-result-page .tvm-occ{display:flex;width:220px;max-width:100%}
 .rb-lookv2 #tv-result-page .tvm-occ button{flex:1;padding-left:4px;padding-right:4px;text-align:center}
 /* Monogram fallback (Weekly) — sized from the tile, not fixed (§F) */
-.rb-lookv2 .rbc-mono{font-size:42cqmin !important}
+/* Scoped to the Look tile specifically — .rbc-mono is shared with the Rack
+   row viewport (.rbc-vp) and the Travel capsule card, neither of which sets
+   container-type:size; unscoped cqmin there falls back to the viewport and
+   renders wildly oversized (verified: 252px in a 112px cell). */
+.rb-lookv2 .rbc-tile .rbc-mono{font-size:42cqmin !important}
 /* Scale hierarchy — placement by piece count. Hero is the first tile in
    slot order (the current wide-tile fallback). Empty cells are deliberate
    breathing room; the collapse rules avoid holes. */
@@ -5575,36 +5590,60 @@
 
       // Generated frames appear in several places (day console board, rack
       // viewport, edit cards), so frames carry data-tvimg="i" and the poller
-      // patches every instance.
+      // patches every instance. onerror falls back to the monogram treatment
+      // too (brief 2026-07-22 §B.3) — a broken/expired image URL used to
+      // leave a dead <img> (reads as an empty card); the placeholder isn't
+      // removed until the image actually loads, so _tvSettlePlaceholder can
+      // still find and monogram it.
       function _tvSetImage(i, src) {
         document.querySelectorAll('[data-tvimg="' + i + '"]').forEach(wrap => {
           if (wrap.querySelector('img')) return;
-          const ph = wrap.querySelector('.tv-img-ph');
-          if (ph) ph.remove();
           const img = document.createElement('img');
-          img.src = src;
           img.alt = '';
           img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;opacity:0;transition:opacity .5s ease';
+          img.onload = () => {
+            const ph = wrap.querySelector('.tv-img-ph');
+            if (ph) ph.remove();
+            requestAnimationFrame(() => { img.style.opacity = '1'; });
+          };
+          img.onerror = () => { img.remove(); _tvSettlePlaceholder(i); };
+          img.src = src;
           wrap.insertBefore(img, wrap.firstChild);
-          requestAnimationFrame(() => { img.style.opacity = '1'; });
         });
       }
 
+      // A frame that never landed (generation failure, timeout, or a broken
+      // URL via the onerror path above) settles into the same monogram
+      // treatment the design pass uses everywhere else — "an empty card
+      // reads as broken; a monogram reads as pending" (brief §B.3). Returns
+      // whether anything was settled, so the poller can count the rate.
       function _tvSettlePlaceholder(i) {
+        const cap = window.__lastTvData && Array.isArray(window.__lastTvData.capsule) ? window.__lastTvData.capsule : [];
+        const it = cap.find(c => c.image_index === i);
+        const letter = _waEsc(String((it && it.name) || '?').charAt(0).toUpperCase());
+        let settled = false;
         document.querySelectorAll('[data-tvimg="' + i + '"]').forEach(wrap => {
           if (wrap.querySelector('img')) return;
           const ph = wrap.querySelector('.tv-img-ph');
           if (ph) {
             ph.style.animation = 'none';
-            ph.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+            ph.innerHTML = `<span style="font-family:${_tvSerif};font-size:28px;font-weight:300;color:var(--ink-faint)">${letter}</span>`;
+            settled = true;
           }
         });
+        return settled;
       }
 
       function _tvPollImages(jobId, count) {
         _tvStopPolling();
         const t0 = Date.now();
-        function settleAll() { for (let i = 0; i < count; i++) _tvSettlePlaceholder(i); }
+        // Logs the fallback rate once per trip (brief §B.3) — three of eight
+        // in one grid is a pipeline signal, not isolated bad rows.
+        function settleAll() {
+          let failed = 0;
+          for (let i = 0; i < count; i++) { if (_tvSettlePlaceholder(i)) failed++; }
+          if (failed) _rbTrack('image_fallback', { surface: 'travel-edit', failed, of: count });
+        }
         function tick() {
           fetch('/api/images/' + jobId)
             .then(r => r.ok ? r.json() : null)
@@ -6743,21 +6782,32 @@ body>*:not(#tv-result-page){display:none !important}
         const capCard = ({ it, ci }) => {
           const wears = (usage[ci] || []).length;
           const f = _tvFrame(it);
+          // Retailer/price goes through the shared helper (audit F4, brief
+          // §B.1) — this is the one place the "ZARA · ZARA · €60" bug
+          // survived; the card renders brand separately above, so only the
+          // deduped retailer+price is needed here, not the full brand+price
+          // provenance line _rbcProvenance builds for Rack rows.
+          const retailPrice = _rbcRetailPrice(it);
           const badge = it.wardrobe_match
-            ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:500;color:#4A7C59;background:rgba(74,124,89,0.10);border-radius:20px;padding:2px 7px;white-space:nowrap">${checkSvg} Yours</span>`
-            : (it.retailer_hint || it.price_point)
-              ? `<span style="font-size:10px;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;display:inline-block;vertical-align:bottom">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>`
+            ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:500;color:#4A7C59;background:rgba(74,124,89,0.10);border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${checkSvg} Yours</span>`
+            : retailPrice
+              ? `<span style="font-size:10px;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;display:inline-block;vertical-align:bottom">${_waEsc(retailPrice)}</span>`
               : '';
-          return `<div id="tv-cap-${ci}" onclick="window.__tvSelectItem(${ci})" style="background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad);overflow:hidden;cursor:pointer;transition:opacity .2s,outline-color .2s;outline:2px solid transparent;outline-offset:-2px">
-            <div${f.pollAttr} style="position:relative;background:var(--cream-200);overflow:hidden;aspect-ratio:1/1">${f.inner}</div>
-            <div style="padding:10px 12px 11px">
+          // Actions pinned to the card's bottom (brief §B.2) — metadata above
+          // (brand line, badge row) absorbs height variation instead of
+          // pushing the action pair out of baseline alignment with its row
+          // neighbours. Badge row no longer wraps to a second line; the
+          // retailer/price span shrinks + ellipsizes instead.
+          return `<div id="tv-cap-${ci}" onclick="window.__tvSelectItem(${ci})" style="display:flex;flex-direction:column;height:100%;background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad);overflow:hidden;cursor:pointer;transition:opacity .2s,outline-color .2s;outline:2px solid transparent;outline-offset:-2px">
+            <div${f.pollAttr} style="position:relative;background:var(--cream-200);overflow:hidden;aspect-ratio:1/1;flex-shrink:0">${f.inner}</div>
+            <div style="padding:10px 12px 11px;display:flex;flex-direction:column;flex:1;min-height:0">
               <div style="font-size:12.5px;font-weight:500;color:#202021;line-height:1.35">${_waEsc(it.name)}</div>
               ${it.brand ? `<div style="font-family:${serif};font-style:italic;font-size:12px;color:#A89880;margin-top:1px">${_waEsc(it.brand)}</div>` : ''}
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px;flex-wrap:wrap">
-                <span style="display:inline-flex;align-items:center;gap:6px">${badge}</span>
-                ${wears ? `<span style="font-size:9.5px;font-weight:500;letter-spacing:.08em;color:#8A7B62;background:#F0EAE0;border-radius:20px;padding:2px 8px;white-space:nowrap">× ${wears} looks</span>` : ''}
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px;flex-wrap:nowrap;min-width:0">
+                <span style="display:inline-flex;align-items:center;gap:6px;min-width:0;overflow:hidden">${badge}</span>
+                ${wears ? `<span style="font-size:9.5px;font-weight:500;letter-spacing:.08em;color:#8A7B62;background:#F0EAE0;border-radius:20px;padding:2px 8px;white-space:nowrap;flex-shrink:0">× ${wears} looks</span>` : ''}
               </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:11px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:11px">
                 ${(it.wardrobe_match || it.added)
                   ? `<button id="tv-pack-${ci}" onclick="event.stopPropagation();window.__tvPackToggle(${ci})" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:${it.packed ? '#202021' : '#6E6A64'};font-family:${sans}">
                     <span class="tv-pack-box" style="width:15px;height:15px;border-radius:4px;border:1.5px solid ${it.packed ? '#202021' : 'rgba(32,32,33,0.3)'};background:${it.packed ? '#202021' : '#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1;box-sizing:border-box">${it.packed ? '✓' : ''}</span>
