@@ -3855,10 +3855,12 @@
 .rbc-name{font-size:18px}
 }
 
-/* ══ The Look, recomposed (design brief 2026-07-22) — flag: body.rb-lookv2.
-   The Look becomes the finished artifact: a fixed 4:5 composition with a
-   scale hierarchy, captions removed, one primary action. All v1 rules are
-   left intact; every rule below is scoped to .rb-lookv2. ══ */
+/* ══ The Look, recomposed (design brief 2026-07-22) — the standing design.
+   The Look is the finished artifact: a fixed 4:5 composition with a scale
+   hierarchy, captions removed, one primary action. Keyed to body.rb-lookv2
+   (added on every console render). The pre-2026-07-22 board rules above are
+   now dead (always overridden here) — kept out of this pass to keep the
+   graduation diff safe; a later cleanup can drop them. ══ */
 /* Column — 480px fixed, all three surfaces (beats the #id rules → !important) */
 .rb-lookv2 .dlm-console,.rb-lookv2 .wk-con,.rb-lookv2 .tvm-console{grid-template-columns:480px minmax(0,1fr) !important;gap:34px !important}
 /* Panel becomes a flex column so the below-composition blocks can be ordered */
@@ -3935,31 +3937,18 @@
           el.textContent = _RBC_CSS;
           document.head.appendChild(el);
         }
-        // The Look-panel recomposition (design brief 2026-07-22) is behind a
-        // flag so it can be A/B'd against current on the same URL. Toggle
-        // with ?lookv2 or localStorage rb_look_v2='1' (or window.__rbLookV2()).
-        try { document.body.classList.toggle('rb-lookv2', _rbLookV2()); } catch (e) {}
+        // The recomposed Look (design brief 2026-07-22) is the standing design.
+        // rb-lookv2 stays as the stable styling hook the .rbc-* CSS keys on.
+        document.body.classList.add('rb-lookv2');
       }
-
-      function _rbLookV2() {
-        try { return /[?&]lookv2\b/.test(location.search) || localStorage.getItem('rb_look_v2') === '1'; }
-        catch (e) { return false; }
-      }
-      window.__rbLookV2 = function(on) {
-        const v = on === undefined ? !(document.body.classList.contains('rb-lookv2')) : !!on;
-        try { localStorage.setItem('rb_look_v2', v ? '1' : '0'); } catch (e) {}
-        document.body.classList.toggle('rb-lookv2', v);
-        return v;
-      };
 
       // Recompose transition (design brief §6/§H): when a piece changes on the
       // Rack, the affected Look tile settles back in. Single-phase settle
       // (the full re-render has already swapped the image); honours
-      // prefers-reduced-motion. No-op outside v2. The apply handlers call this
-      // with the same idx they operate on (tiles carry data-tilekey="idx").
+      // prefers-reduced-motion. The apply handlers call this with the same idx
+      // they operate on (tiles carry data-tilekey="idx").
       window.__rbcAnimateTile = function(idx) {
         try {
-          if (!document.body.classList.contains('rb-lookv2')) return;
           if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
           const el = document.querySelector('.rbc-board .rbc-tile[data-tilekey="' + idx + '"]');
           if (!el || !el.animate) return;
@@ -4097,12 +4086,10 @@
         // already hands in, rather than three call sites agreeing on a string.
         const ownedCount = items.filter(it => it.owned).length;
         const yoursHtml = `<b>${ownedCount}</b>&thinsp;of&thinsp;${items.length} from your wardrobe`;
-        // Look v2 (design brief 2026-07-22): the composition is a fixed 4:5
-        // export region taking the first six pieces in slot order (the Rack
-        // still lists everything); v1 renders every item in the old board.
-        const v2 = _rbLookV2();
-        const boardItems = v2 ? items.slice(0, 6) : items;
-        const actionHtml = (v2 && cfg.lookActionHtml)
+        // The composition is a fixed 4:5 export region taking the first six
+        // pieces in slot order (the Rack still lists everything).
+        const boardItems = items.slice(0, 6);
+        const actionHtml = cfg.lookActionHtml
           ? `<div class="rbc-action">${cfg.lookActionHtml}</div>` : '';
         const lookHtml = `
           <div class="rbc-panel">
@@ -8054,13 +8041,12 @@ body>*:not(#tv-result-page){display:none !important}
           if (backPill) backPill.style.display = showPill ? 'inline-flex' : 'none';
           const shareBtn = document.getElementById('rb-share-btn');
           if (shareBtn) {
-            // In Look v2 the console surfaces (Daily/Weekly/Travel) carry their
-            // own "Share this look" button inside The Look, so the mobile nav
+            // The console surfaces (Daily/Weekly/Travel) carry their own
+            // "Share this look" button inside The Look, so the mobile nav
             // share icon is redundant there — drop it and let the in-Look
             // action own sharing. Key-piece has no console Share, so it keeps
             // the nav icon.
-            const consoleShare = document.body.classList.contains('rb-lookv2') &&
-              [dlResultPage, wkResultPage, tvResultPage].some(p => p && p.style.display !== 'none');
+            const consoleShare = [dlResultPage, wkResultPage, tvResultPage].some(p => p && p.style.display !== 'none');
             shareBtn.style.display = (showPill && !consoleShare) ? 'inline-flex' : 'none';
           }
           const wm = document.getElementById('nav-wordmark');
