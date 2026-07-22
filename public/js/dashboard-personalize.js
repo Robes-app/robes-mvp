@@ -5893,7 +5893,10 @@
       function _tvSettlePlaceholder(i) {
         const cap = window.__lastTvData && Array.isArray(window.__lastTvData.capsule) ? window.__lastTvData.capsule : [];
         const it = cap.find(c => c.image_index === i);
-        const letter = _waEsc(String((it && it.name) || '?').charAt(0).toUpperCase());
+        // Frame 0 is the trip hero, not a capsule item — monogram it with
+        // the destination's initial, not '?'.
+        const name = (it && it.name) || (i === 0 && window.__lastTvData && window.__lastTvData.destination) || '?';
+        const letter = _waEsc(String(name).charAt(0).toUpperCase());
         let settled = false;
         document.querySelectorAll('[data-tvimg="' + i + '"]').forEach(wrap => {
           if (wrap.querySelector('img')) return;
@@ -7117,6 +7120,27 @@ body>*:not(#tv-result-page){display:none !important}
           </div>` : '',
         ].join('');
 
+        // The hero editorial shot (frame 0) — generated since day one but
+        // orphaned when the day console's "The mood" tile was removed
+        // (2026-07-10: sitting per-day, it read as the day's look). It
+        // surfaces ONCE at trip level here instead, beside the stylist
+        // summary — the per-day confusion can't recur, and the thumbnail +
+        // share OG usage stays unchanged. The tile only renders when the
+        // frame exists or a live job can still deliver it (data-tvimg="0"
+        // lets the poller patch it); an old save with no stored hero simply
+        // shows no tile.
+        const heroSrc = (Array.isArray(data.generatedImages) && typeof data.generatedImages[0] === 'string' && data.generatedImages[0].indexOf('http') === 0) ? data.generatedImages[0] : null;
+        const heroPending = !heroSrc && !!data.jobId;
+        const heroHtml = (heroSrc || heroPending) ? `
+              <div class="tv-noprint" style="width:200px;flex-shrink:0">
+                <div style="font-size:9.5px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--rose);margin-bottom:6px">The mood · ${_waEsc((wx && wx.city) || data.destination || 'the trip')}</div>
+                <div${heroSrc ? '' : ' data-tvimg="0"'} style="position:relative;aspect-ratio:3/4;border-radius:var(--rad);overflow:hidden;background:var(--cream-200)">
+                  ${heroSrc
+                    ? `<img src="${_waEsc(heroSrc)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
+                    : `<div class="tv-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;animation:kpPhPulse 1.8s ease-in-out infinite"><span style="font-family:${serif};font-style:italic;font-size:12px;color:#B8AC9C;text-align:center;padding:0 12px">Creating imagery…</span></div>`}
+                </div>
+              </div>` : '';
+
         // Weather emoji so the pill reads like the other looks' weather-strip
         const _tvWxEmoji = (() => {
           const c = ((wx && wx.condition) || '').toLowerCase();
@@ -7164,8 +7188,13 @@ body>*:not(#tv-result-page){display:none !important}
 
             <div id="tv-pane-edit">
               <div style="font-family:${serif};font-weight:300;font-style:italic;font-size:clamp(24px,3vw,34px);color:var(--ink);line-height:1.05;margin-bottom:6px">The edit.</div>
-              <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:8px;line-height:1.5;max-width:900px">${_waEsc(data.stylist_summary || '')}</div>
-              <div id="tv-matrix-note" style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-bottom:18px;min-height:18px">Tap any piece to see how it multiplies across the trip.</div>
+              <div style="display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap;margin-bottom:2px">
+                <div style="flex:1;min-width:260px">
+                  <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:8px;line-height:1.5;max-width:900px">${_waEsc(data.stylist_summary || '')}</div>
+                  <div id="tv-matrix-note" style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-bottom:18px;min-height:18px">Tap any piece to see how it multiplies across the trip.</div>
+                </div>
+                ${heroHtml}
+              </div>
               ${tiersHtml}
               <button class="tv-noprint" onclick="window.__tvAddPieceToTrip()" style="width:100%;max-width:640px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--rule-mid);border-radius:var(--rad);padding:13px;font-size:12px;letter-spacing:.02em;background:transparent;color:var(--ink-soft);cursor:pointer;font-family:inherit;margin-bottom:16px"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece to this trip</button>
               <div class="tv-noprint" style="margin:4px 0 10px">
