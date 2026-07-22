@@ -4531,6 +4531,10 @@
               : 'Every piece is from your own wardrobe — dressed with nothing new.',
           }),
           rackLabel: `The rack · ${_waEsc(weekday)}`,
+          rackTitleHtml: data.occasion_label ? (() => {
+            const t = cap1(data.occasion_label.toLowerCase());
+            return `<h2>${_waEsc(t)}${!/[.!?]$/.test(t) ? '.' : ''}</h2>`;
+          })() : '',
           headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
           onFlip: '__dlFlip', onSwap: '__dlSwap', onAnchor: '__dlAnchor', onRemove: '__dlRemove',
           addPieceFn: '__dlAddPiece',
@@ -5034,7 +5038,8 @@
               ? `Nearly there — flick or swap the ${_waEsc(wkUnowned[0].name.toLowerCase())} for something you own, or snap it into your wardrobe.`
               : 'Every piece is from your own wardrobe — dressed with nothing new.',
           }),
-          rackLabel: `The rack · ${_waEsc(_wkDayName(d))}${d.occasion ? ' · ' + _waEsc(d.occasion) : ''}`,
+          rackLabel: `The rack · ${_waEsc(_wkDayName(d))}`,
+          rackTitleHtml: d.occasion ? `<h2>${_waEsc(d.occasion)}${!/[.!?]$/.test(d.occasion) ? '.' : ''}</h2>` : '',
           headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button>`,
           onFlip: '__wkFlip', onSwap: '__wkSwap', onAnchor: '__wkAnchor', onRemove: '__wkRemove',
           addPieceFn: '__wkAddPiece',
@@ -6373,10 +6378,16 @@ body>*:not(#tv-result-page){display:none !important}
           const inCase = entries.filter(x => x.it.packed);
           const gaps = entries.filter(x => !x.it.wardrobe_match && !x.it.added);
           const toPack = entries.filter(x => !x.it.packed);
+          // The score counts what's packed — Travel's real question — but the
+          // verdict still names what's owned (audit F2/§3.1): the highest
+          // buying-intent surface shouldn't stop showing wardrobe position
+          // just because it measures packing.
+          const ownedN = entries.filter(x => x.it.wardrobe_match).length;
+          const ownedLine = `${ownedN} of ${entries.length} pieces are already yours.`;
           let verdict;
-          if (gaps.length) verdict = `Nearly there — the ${_waEsc(gaps[0].it.name.toLowerCase())} is the gap worth adding, then this look is complete.`;
-          else if (toPack.length) verdict = `Everything’s chosen — just pack the ${_waEsc(toPack[0].it.name.toLowerCase())} and it’s ready.`;
-          else verdict = 'Every piece is packed and accounted for — this look travels as it is.';
+          if (gaps.length) verdict = `Nearly there — the ${_waEsc(gaps[0].it.name.toLowerCase())} is the gap worth adding, then this look is complete. ${ownedLine}`;
+          else if (toPack.length) verdict = `Everything’s chosen — just pack the ${_waEsc(toPack[0].it.name.toLowerCase())} and it’s ready. ${ownedLine}`;
+          else verdict = `Every piece is packed and accounted for — this look travels as it is. ${ownedLine}`;
           return _rbcReadBlock({ score: inCase.length, total: entries.length, unit: 'in the case', clean: gaps.length === 0, verdict });
         })();
 
@@ -7925,6 +7936,17 @@ body>*:not(#tv-result-page){display:none !important}
             // The wardrobe observer owns the wordmark while the panel is
             // open (force-inline defence) — leave it alone in that state.
             else if (!wOpen && wm.style.getPropertyValue('display') === 'none') wm.style.removeProperty('display');
+          }
+          // The nav weather pill shows her CURRENT city, geolocated — over a
+          // live trip it reads as wrong even though it isn't (audit
+          // C-Weather/§3.3). Suppress it only while a real trip result is on
+          // screen; removeProperty lets the pill's own responsive rules
+          // (incl. its <768px media query) resume the moment it's gone.
+          const wxEl = document.getElementById('nav-weather');
+          if (wxEl) {
+            const tvOpen = !!(tvResultPage && tvResultPage.style.display !== 'none' && window.__lastTvData && window.__lastTvData.destination);
+            if (tvOpen) wxEl.style.setProperty('display', 'none');
+            else if (wxEl.style.display === 'none') wxEl.style.removeProperty('display');
           }
         }
         window._rbNavSync = _rbNavSync;
