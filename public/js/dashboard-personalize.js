@@ -1850,6 +1850,44 @@
         photo:     { label: 'Saved by you',             dot: '#A89880' }
       };
 
+      // Rack "Save"/"Add" pipeline (Build 1, amended 2026-07-22): a
+      // Daily/Weekly/Travel rack piece already carries full metadata from
+      // generation, so this writes wishlist_items directly rather than
+      // reopening the manual capture modal (__wlOpenAdd) — same table, same
+      // pipeline, no parallel one. Idempotent via a flag kept on the item
+      // itself (mirrors how `packed`/`added`/`anchored` already persist
+      // through each surface's patch-saved fn). opts.silent skips the toast
+      // — Travel's `Add` writes here invisibly; its own trip-scoped
+      // confirmation ("added to the pack") already fired.
+      async function _wlSaveFromItem(it, opts) {
+        opts = opts || {};
+        if (it.wishlisted) {
+          if (!opts.silent) _waShowToast('Saved to your wishlist.');
+          return;
+        }
+        if (!_waUid()) return;
+        try {
+          const priceRaw = String(it.price_point || '').replace(/[^0-9.]/g, '');
+          await _waFetch('POST', 'wishlist_items', {
+            user_id: _waUid(),
+            label: it.name,
+            category: it.category === 'Swim' ? 'Swimwear' : (it.category || 'Other'),
+            color: it.color || null,
+            brand: it.brand || null,
+            price: priceRaw ? Number(priceRaw) : null,
+            image_url: null,
+            source_type: 'robes',
+            source_label: _WL_SRC.robes.label,
+          });
+          it.wishlisted = true;
+          _wlLoad();
+          if (!opts.silent) _waShowToast('Saved to your wishlist.');
+        } catch (e) {
+          console.warn('[robes] wishlist save failed:', e);
+          if (!opts.silent) _waShowToast('Could not save it — try again');
+        }
+      }
+
       function _wlCard(w) {
         const src = _WL_SRC[w.source_type] || _WL_SRC.photo;
         const chipLabel = w.source_label || src.label;
@@ -3840,6 +3878,10 @@
 .rbc-act{display:inline-flex;align-items:center;gap:6px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:8px 13px;font-size:11px;letter-spacing:.01em;background:#fff;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
 .rbc-act:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
 .rbc-act.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.rbc-act.save{background:var(--ink);color:#fff;border-color:var(--ink)}
+.rbc-act.save:hover{opacity:.85;color:#fff}
+.rbc-act.done{cursor:default;color:var(--ink-faint)}
+.rbc-act.done:hover{border-color:var(--rule-mid);color:var(--ink-faint)}
 .rbc-addpiece{margin-top:12px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--rule-mid);border-radius:var(--rad);padding:13px;font-size:12px;letter-spacing:.02em;background:transparent;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
 .rbc-addpiece:hover{border-color:var(--ink-faint);color:var(--ink);background:#fff}
 .rbd-strip{display:grid;grid-auto-flow:column;grid-auto-columns:200px;gap:10px;overflow-x:auto;padding-bottom:10px;margin-bottom:24px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
@@ -4075,7 +4117,7 @@
           <div${it.frame.pollAttr} style="position:absolute;inset:0;background:var(--cream-200)">${it.frame.inner}</div>
           <div class="tgrad"></div>
           <span class="tslot">${_waEsc(it.slot)}</span>
-          ${it.owned ? `<span class="town">${_rbcCheckSvg}</span>` : (it.showAddTag ? `<span class="tadd">Add</span>` : '')}
+          ${it.owned ? `<span class="town">${_rbcCheckSvg}</span>` : (it.showAddTag ? `<span class="tadd">${_waEsc(cfg.addChipLabel || 'Add')}</span>` : '')}
           <span class="tnav l" onclick="event.stopPropagation();window.${cfg.onFlip}(${it.idx},-1)" title="Previous">${_rbcChevL}</span>
           <span class="tnav r" onclick="event.stopPropagation();window.${cfg.onFlip}(${it.idx},1)" title="Next">${_rbcChevR}</span>
           <span class="tlab">the ${_waEsc(it.shortName)}</span>
@@ -4429,6 +4471,16 @@
         window.__rbcAddMenu('__dlAddOwned');
       };
 
+      // Save — the account-scoped acquisition verb for an unowned Daily
+      // piece (Build 1, amended). Writes wishlist_items via _wlSaveFromItem;
+      // never touches wardrobe_items.
+      window.__dlSaveWishlist = async function(fi) {
+        const it = window.__dlCurrentItems && window.__dlCurrentItems[fi];
+        if (!it || it.wardrobe_match) return;
+        await _wlSaveFromItem(it);
+        _dlRerender();
+      };
+
       let _dlWorn = false;
       window.__dlWear = async function() {
         if (_dlWorn) { _waShowToast('Already logged for today'); return; }
@@ -4662,6 +4714,9 @@
             showAddTag: !it.wardrobe_match,
             count: { cur: _dlOptIndex(it, list), len: list.length },
             subHtml: _rbcProvenance(it),
+            thirdHtml: it.wardrobe_match ? '' : (it.wishlisted
+              ? `<span class="rbc-act done">${_rbcCheckSvg} Saved</span>`
+              : `<button class="rbc-act save" onclick="window.__dlSaveWishlist(${fi})">Save</button>`),
           };
         });
         const dlUnowned = ordered.filter(x => !x.it.wardrobe_match);
@@ -4671,6 +4726,7 @@
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           verdictHtml: _rbcVerdict(owned, total, dlUnowned.map(x => x.it)),
+          addChipLabel: 'Save',
           rackLabel: `The rack · ${_waEsc(weekday)}`,
           rackTitleHtml: data.occasion_label ? (() => {
             const t = cap1(data.occasion_label.toLowerCase());
@@ -5167,6 +5223,9 @@
             showAddTag: !it.wardrobe_match,
             count: { cur: _dlOptIndex(it, list), len: list.length },
             subHtml: _rbcProvenance(it, '<span class="addtag">Worth adding</span>'),
+            thirdHtml: it.wardrobe_match ? '' : (it.wishlisted
+              ? `<span class="rbc-act done">${_rbcCheckSvg} Saved</span>`
+              : `<button class="rbc-act save" onclick="window.__wkSaveWishlist(${ii})">Save</button>`),
           };
         });
         const wkUnowned = d.items.filter(it => !it.wardrobe_match);
@@ -5176,6 +5235,7 @@
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           verdictHtml: _rbcVerdict(owned, d.items.length, wkUnowned),
+          addChipLabel: 'Save',
           rackLabel: `The rack · ${_waEsc(_wkDayName(d))}`,
           rackTitleHtml: d.occasion ? `<h2>${_waEsc(d.occasion)}${!/[.!?]$/.test(d.occasion) ? '.' : ''}</h2>` : '',
           headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button>`,
@@ -5285,6 +5345,19 @@
       window.__wkAddPiece = function() {
         if (!_wkState) return;
         window.__rbcAddMenu('__wkAddOwned');
+      };
+
+      // Save — the account-scoped acquisition verb for an unowned Weekly
+      // piece (Build 1, amended). Writes wishlist_items via _wlSaveFromItem;
+      // never touches wardrobe_items.
+      window.__wkSaveWishlist = async function(ii) {
+        const d = _wkState && _wkState.data.days[_wkState.day];
+        const it = d && d.items[ii];
+        if (!it || it.wardrobe_match) return;
+        await _wlSaveFromItem(it);
+        _wkPaintConsole();
+        _wkPaintStrip();
+        _wkPatchSaved();
       };
 
       // "Wear today" — logs times_worn on today's owned pieces (the weekly
@@ -6563,6 +6636,7 @@ body>*:not(#tv-result-page){display:none !important}
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           panelExtraHtml: readHtml,
+          addChipLabel: 'Add',
           rackLabel: `The rack · ${_waEsc(dayName)}`,
           rackTitleHtml: `<h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>`,
           headButtonsHtml: `<button class="rbc-hbtn tv-noprint" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>`,
@@ -7244,6 +7318,9 @@ body>*:not(#tv-result-page){display:none !important}
       // auto-wardrobe-insert wrongly assumed ownership). She can still record
       // it for real later via the swap modal's "Snap mine". _tvShowOwnPrompt /
       // __tvOwnSnap / __tvQuickOwn are kept for that conversion path.
+      // Also writes silently to wishlist_items (Build 1, amended 2026-07-22)
+      // — invisible plumbing, not a second confirmation. Confirmation stays
+      // trip-scoped ("added to the pack"), never "Saved to your wishlist."
       window.__tvAddOwn = function(ci) {
         const data = window.__lastTvData;
         const it = data && data.capsule[ci];
@@ -7255,6 +7332,7 @@ body>*:not(#tv-result-page){display:none !important}
         if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
         _tvPatchSaved();
         _waShowToast(it.name + ' added to the pack');
+        _wlSaveFromItem(it, { silent: true }).then(() => _tvPatchSaved());
       };
       function _tvShowOwnPrompt(ci) {
         const data = window.__lastTvData;
