@@ -670,7 +670,7 @@ ${stateDirective}${heroBlock ? '\n\n' + heroBlock : ''}${lockedBlock ? '\n\n' + 
 FIELD RULES:
 - "occasion_label": 1–3 words, ALL CAPS, naming the day's occasion (e.g. "GARDEN PARTY", "STUDIO DAY").
 - "headline": a short serif-worthy line naming place and occasion, sentence case, ending in a full stop (e.g. "A Dublin garden-party look."). Max 8 words.
-- "stylist_summary": 2–3 sentences of stylist reasoning that open with the weather/agenda read, reference the steps by name (The Anchor, The Canvas, The Texture) with their items in parentheses, and show the golden-ratio thinking.
+- "stylist_summary": 2–3 sentences of stylist reasoning that open with the weather/agenda read, name the garments themselves (never the architectural step labels), and show the golden-ratio thinking.
 - "palette": exactly 3 hex colours drawn from the look, ordered neutral to accent.
 - Each item: "name" is the piece itself (e.g. "Cream check blazer"); "brand" is ONE real brand suited to the piece's register (for owned pieces, the owned brand or ""); "description" is one hyper-specific sentence — cut, fabric, colour, and how it is worn.
 - Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and a realistic EUR "price_point" (e.g. "€89").
@@ -942,7 +942,7 @@ function weeklyCoverageGaps(days) {
 }
 
 const WEEKLY_ITEM_RULES = `- Each item: "name" is the piece itself; "brand" is ONE real brand suited to the register (owned pieces: the owned brand or ""); "description" is one hyper-specific sentence — cut, fabric, colour, how it is worn that day.
-- Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" and a realistic EUR "price_point".`;
+- Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" and a realistic EUR "price_point" (e.g. "€89").`;
 
 app.post('/api/weekly', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
   const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, dayPlan, weekDays } = req.body;
@@ -990,7 +990,7 @@ ${stateDirective}
 FIELD RULES:
 - "week_label": 2–4 words, ALL CAPS, naming the week (e.g. "STUDIO WEEK", "BACK TO WORK").
 - "headline": a short serif-worthy line naming the week's mood, sentence case, ending in a full stop. Max 8 words.
-- "stylist_summary": 2–3 sentences of stylist reasoning — the week's register, the routing logic (which pieces anchor it and how they repeat), the weather read.
+- "stylist_summary": 2–3 sentences of stylist reasoning — the week's register, the routing logic (how pieces repeat across days), the weather read. Describe the week in general terms only — never name a specific garment, so the summary can't go stale after she later swaps or restyles a day.
 - "occasion": 2–5 words, sentence case.
 - "palette": exactly 3 hex colours the week is built around, neutral to accent.
 ${WEEKLY_ITEM_RULES}
