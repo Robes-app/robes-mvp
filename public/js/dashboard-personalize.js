@@ -3721,22 +3721,32 @@
         return chips.join('');
       }
       // The flick-through carousel for one rack card: the original styled
-      // piece, the AI alternates the server proposed for this slot, then
-      // owned pieces in the same category. Rebuilt from live data each time.
-      function _dlOptions(it) {
-        if (!it.orig) it.orig = { name: it.name, brand: it.brand || '', retailer_hint: it.retailer_hint || '', price_point: it.price_point || '', wardrobe_match: it.wardrobe_match || null };
-        const list = [{ kind: 'orig', name: it.orig.name, brand: it.orig.brand, retailer_hint: it.orig.retailer_hint, price_point: it.orig.price_point, wardrobe_match: it.orig.wardrobe_match }];
+      // piece, then AI alternates and owned wardrobe matches in whichever
+      // order opts.aiFirst asks for. Rebuilt from live data each time.
+      // opts.aiFirst controls whether AI-suggested alternates or owned
+      // wardrobe matches come first after the served original (Build 2's
+      // ordering guard): Daily keeps its established order (AI alternates
+      // were always generated upfront, ahead of owned); Weekly and Travel
+      // — which are quietly protecting the wear-what-you-own north star by
+      // only ever offering owned matches — must show owned first, with any
+      // newly on-demand-fetched AI alternates trailing behind, never ahead.
+      function _dlOptions(it, opts) {
+        const aiFirst = !opts || opts.aiFirst !== false;
+        if (!it.orig) it.orig = { name: it.name, brand: it.brand || '', retailer_hint: it.retailer_hint || '', price_point: it.price_point || '', wardrobe_match: it.wardrobe_match || null, how: it.how || '' };
+        const origOpt = { kind: 'orig', name: it.orig.name, brand: it.orig.brand, retailer_hint: it.orig.retailer_hint, price_point: it.orig.price_point, wardrobe_match: it.orig.wardrobe_match, how: it.orig.how };
+        const aiOpts = [];
         (Array.isArray(it.alternates) ? it.alternates : []).forEach(a => {
-          if (a && a.name && !list.some(o => (o.name || '').toLowerCase() === a.name.toLowerCase())) {
-            list.push({ kind: 'ai', name: a.name, brand: a.brand || '', retailer_hint: a.retailer_hint || '', price_point: a.price_point || '' });
+          if (a && a.name && a.name.toLowerCase() !== origOpt.name.toLowerCase() && !aiOpts.some(o => (o.name || '').toLowerCase() === a.name.toLowerCase())) {
+            aiOpts.push({ kind: 'ai', name: a.name, brand: a.brand || '', retailer_hint: a.retailer_hint || '', price_point: a.price_point || '', how: a.how || '' });
           }
         });
         const catL = (it.category || '').toLowerCase().replace(/s$/, '');
         const origId = it.orig.wardrobe_match ? String(it.orig.wardrobe_match.id) : null;
+        const ownedOpts = [];
         _waItems.filter(wi => ((wi.category || '').toLowerCase().replace(/s$/, '') === catL) && String(wi.id) !== origId)
           .slice(0, 4)
-          .forEach(wi => list.push({ kind: 'owned', name: wi.label, brand: wi.brand || '', retailer_hint: '', price_point: '', wardrobeId: wi.id, image: wi.image_url || null, color: wi.color || '' }));
-        return list;
+          .forEach(wi => ownedOpts.push({ kind: 'owned', name: wi.label, brand: wi.brand || '', retailer_hint: '', price_point: '', wardrobeId: wi.id, image: wi.image_url || null, color: wi.color || '' }));
+        return aiFirst ? [origOpt, ...aiOpts, ...ownedOpts] : [origOpt, ...ownedOpts, ...aiOpts];
       }
       function _dlOptIndex(it, list) {
         if (it.wardrobe_match) {
@@ -3756,6 +3766,60 @@
           it.name = o.name; it.brand = o.brand; it.retailer_hint = o.retailer_hint; it.price_point = o.price_point;
           it.wardrobe_match = (o.kind === 'orig' && o.wardrobe_match) ? o.wardrobe_match : null;
         }
+        // The row note describes how a SPECIFIC piece is worn — it can't
+        // follow a flick/swap without going stale. The original option keeps
+        // its generated note; an on-demand alternate (Build 2) carries its
+        // own; anything else (a legacy alternate, an owned swap-in) has none
+        // rather than showing a mismatched line.
+        it.how = o.how || '';
+      }
+
+      // ── On-demand AI alternates (Tranche 2, Build 2) — Weekly and Travel
+      // carry no per-item alternates upfront (unlike Daily's schema); a
+      // single small endpoint fetches 2 for ONE piece, triggered when she
+      // engages with Swap — never on render — and cached for the rest of
+      // the session (keyed on surface+category+name) so re-opening Swap on
+      // the same piece never re-fetches. Populating it.alternates here is
+      // enough — the shared carousel (_dlOptions) already reads it live.
+      const _rbAltCache = new Map();
+      function _rbAltKey(surface, it) {
+        return surface + '|' + String(it.category || '').toLowerCase() + '|' + String(it.name || '').toLowerCase();
+      }
+      function _rbFetchAlternates(it, surface, otherNames) {
+        if (Array.isArray(it.alternates) && it.alternates.length) return Promise.resolve(it.alternates);
+        const key = _rbAltKey(surface, it);
+        let p = _rbAltCache.get(key);
+        if (!p) {
+          p = fetch('/api/alternates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              item: { name: it.name, category: it.category, brand: it.brand },
+              context: otherNames || [],
+              styleDna: (typeof _rbStyleDna === 'function') ? _rbStyleDna() : null,
+              styleIcons: (typeof _rbStyleIcons === 'function') ? _rbStyleIcons() : null,
+            }),
+          }).then(r => r.json()).then(d => Array.isArray(d.alternates) ? d.alternates : []).catch(() => []);
+          _rbAltCache.set(key, p);
+        }
+        return p.then(alts => { if (alts.length) it.alternates = alts; return alts; });
+      }
+      // Fires the fetch for every not-yet-fetched piece in the visible
+      // day/slot in the background, then repaints once so the carousel
+      // dot-count reflects whatever landed — this is the "prefetch the
+      // visible day only" half that covers most of Build 2's accepted
+      // latency cost. A no-op (no fetch, no repaint) once everything in
+      // view already has alternates, so it's safe to call on every day/
+      // slot switch without re-fetching or looping.
+      function _rbPrefetchAlternates(items, surface, repaintFn) {
+        if (!Array.isArray(items) || !items.length) return;
+        const pending = items.filter(it => !(Array.isArray(it.alternates) && it.alternates.length));
+        if (!pending.length) return;
+        const names = items.map(it => it.name).filter(Boolean);
+        Promise.all(pending.map(it => _rbFetchAlternates(it, surface, names.filter(n => n !== it.name))))
+          .then(results => {
+            if (results.some(a => a && a.length) && typeof repaintFn === 'function') repaintFn();
+          });
       }
 
       // ── Shared Look/Rack console (audit P1 — one canonical template) ──
@@ -4510,7 +4574,7 @@
 #dl-result-page .dlm-eyebrow{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose);margin-bottom:8px}
 #dl-result-page .dlm-title{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:clamp(30px,4vw,42px);line-height:1.05;color:var(--ink);margin:0}
 #dl-result-page .dlm-kws{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:12px}
-#dl-result-page .dlm-kws .kw{font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
+#dl-result-page .dlm-kws .kw{font-size:9.5px;font-weight:500;letter-spacing:.06em;color:var(--ink-faint)}
 #dl-result-page .dlm-kws .dot{color:var(--mauve)}
 #dl-result-page .dlm-meta-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}
 #dl-result-page .dlm-wx{display:inline-flex;align-items:center;gap:10px;padding:8px 14px;background:#fff;border:0.5px solid var(--rule-mid);border-radius:100px;font-size:11.5px;color:var(--ink-soft)}
@@ -4714,6 +4778,7 @@
             showAddTag: !it.wardrobe_match,
             count: { cur: _dlOptIndex(it, list), len: list.length },
             subHtml: _rbcProvenance(it),
+            noteHtml: it.how ? `<div class="rbc-hownote">${_waEsc(it.how)}</div>` : '',
             thirdHtml: it.wardrobe_match ? '' : (it.wishlisted
               ? `<span class="rbc-act done">${_rbcCheckSvg} Saved</span>`
               : `<button class="rbc-act save" onclick="window.__dlSaveWishlist(${fi})">Save</button>`),
@@ -4749,7 +4814,7 @@
                 <h1 class="dlm-title">${_waEsc(headline)}</h1>
                 <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('dl')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
               </div>
-              ${data.occasion_label ? `<div class="dlm-kws"><span class="kw">${_waEsc(data.occasion_label)}</span></div>` : ''}
+              ${data.occasion_label ? `<div class="dlm-kws"><span class="kw">${_waEsc(cap1(data.occasion_label.toLowerCase()))}</span></div>` : ''}
               <div class="dlm-meta-row">
                 ${ctx && (ctx.city || ctx.tempRange) ? `<div class="dlm-wx"><span>🌤</span><strong>${_waEsc([ctx.city, ctx.month].filter(Boolean).join(' · '))}</strong>${ctx.tempRange ? `<span class="div"></span><span>${_waEsc(ctx.tempRange)}</span>` : ''}${ctx.hint ? `<span class="div"></span><span>${_waEsc(ctx.hint)}</span>` : ''}</div>` : ''}
                 ${data.occasion_label ? `<div class="dlm-tag"><span class="lab">Occasion</span><span class="val">${_waEsc(cap1(data.occasion_label.toLowerCase()))}</span></div>` : ''}
@@ -5211,7 +5276,7 @@
         const palette = (Array.isArray(_wkState.data.palette) ? _wkState.data.palette : []).filter(h => /^#[0-9A-Fa-f]{6}$/.test(String(h || ''))).slice(0, 3);
         const fabricsHtml = _rbcFabricsHtml(d.items, palette);
         const conItems = d.items.map((it, ii) => {
-          const list = _dlOptions(it);
+          const list = _dlOptions(it, { aiFirst: false });
           return {
             idx: ii,
             frame: wkFrame(it),
@@ -5223,6 +5288,7 @@
             showAddTag: !it.wardrobe_match,
             count: { cur: _dlOptIndex(it, list), len: list.length },
             subHtml: _rbcProvenance(it, '<span class="addtag">Worth adding</span>'),
+            noteHtml: it.how ? `<div class="rbc-hownote">${_waEsc(it.how)}</div>` : '',
             thirdHtml: it.wardrobe_match ? '' : (it.wishlisted
               ? `<span class="rbc-act done">${_rbcCheckSvg} Saved</span>`
               : `<button class="rbc-act save" onclick="window.__wkSaveWishlist(${ii})">Save</button>`),
@@ -5249,6 +5315,10 @@
             <div>${con.lookHtml}</div>
             <div>${con.rackHtml}</div>
           </div>`;
+
+        // Build 2 — prefetch alternates for the visible day only, in the
+        // background, so a later flick/swap is usually already warm.
+        _rbPrefetchAlternates(d.items, 'weekly', _wkPaintConsole);
       }
 
       window.__wkFlip = function(ii, dir) {
@@ -5256,7 +5326,7 @@
         const d = _wkState.data.days[_wkState.day];
         const it = d && d.items[ii];
         if (!it) return;
-        const list = _dlOptions(it);
+        const list = _dlOptions(it, { aiFirst: false });
         if (list.length < 2) { _waShowToast('Nothing else fits this slot yet — snap more pieces'); return; }
         _dlApplyOption(it, list[(_dlOptIndex(it, list) + dir + list.length) % list.length]);
         _wkPaintConsole();
@@ -5298,6 +5368,9 @@
         if (!item) return;
         _wkSwapIdx = ii;
         _rbSwapModal(item, { id: 'wk-swap-modal', applyName: '__wkSwapApply', snapName: '__wkSnapMine', idx: ii });
+        // Build 2 — Swap is the explicit trigger for on-demand alternates;
+        // a no-op if the visible-day prefetch already warmed this piece.
+        _rbFetchAlternates(item, 'weekly', d.items.map(i => i.name).filter(n => n && n !== item.name));
       };
       window.__wkSwapApply = function(ii, wardrobeId) {
         _rbTrack('piece_swapped', { surface: 'weekly', item: String(wardrobeId) });
@@ -5579,7 +5652,7 @@
               <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('wk')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-              ${data.week_label ? `<span style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6A5E54;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">${_waEsc(data.week_label)}</span>` : ''}
+              ${data.week_label ? `<span style="font-size:10px;font-weight:500;letter-spacing:.04em;color:#6A5E54;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">${_waEsc(data.week_label.charAt(0).toUpperCase() + data.week_label.slice(1).toLowerCase())}</span>` : ''}
               ${pill ? `<span style="font-size:11px;color:#8A8078;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">🌤 ${_waEsc(pill)}</span>` : ''}
             </div>
             ${data.stylist_summary ? `<p id="wk-summary" style="font-family:${serif};font-style:italic;font-size:15.5px;color:#6E6A64;line-height:1.6;margin:0 0 24px;max-width:640px">${_waEsc(data.stylist_summary)}</p>` : ''}
@@ -6590,7 +6663,7 @@ body>*:not(#tv-result-page){display:none !important}
         const conItems = entries.map(x => {
           const { it, ci } = x;
           const wears = (usage[ci] || []).length;
-          const list = _dlOptions(it);
+          const list = _dlOptions(it, { aiFirst: false });
           return {
             idx: ci,
             frame: _tvFrame(it),
@@ -6649,6 +6722,10 @@ body>*:not(#tv-result-page){display:none !important}
         panel.innerHTML = con.lookHtml;
 
         rackWrap.innerHTML = con.rackHtml;
+
+        // Build 2 — prefetch alternates for the visible day's active slot
+        // only, in the background, so a later flick/swap is usually warm.
+        _rbPrefetchAlternates(entries.map(x => x.it), 'travel', _tvPaintConsole);
       }
 
       // Flick a capsule piece through similar options — the served original,
@@ -6659,7 +6736,7 @@ body>*:not(#tv-result-page){display:none !important}
         const data = window.__lastTvData;
         const it = data && data.capsule[ci];
         if (!it) return;
-        const list = _dlOptions(it);
+        const list = _dlOptions(it, { aiFirst: false });
         if (list.length < 2) { _waShowToast('Nothing else fits this slot yet — snap more pieces'); return; }
         const next = list[(_dlOptIndex(it, list) + dir + list.length) % list.length];
         _dlApplyOption(it, next);
@@ -7461,6 +7538,11 @@ body>*:not(#tv-result-page){display:none !important}
         if (!item) return;
         _tvSwapIdx = idx;
         _rbSwapModal(item, { id: 'tv-swap-modal', applyName: '__tvSwapApply', snapName: '__tvSnapMine', idx });
+        // Build 2 — Swap is the explicit trigger for on-demand alternates;
+        // a no-op if the visible-day prefetch already warmed this piece.
+        const st = _tvLookState();
+        const otherNames = st && st.s ? (st.s.formula || []).map(f => { const c = st.data.capsule[f.item_index]; return c && c.name; }).filter(n => n && n !== item.name) : [];
+        _rbFetchAlternates(item, 'travel', otherNames);
       };
 
       window.__tvSwapApply = function(idx, wardrobeId) {

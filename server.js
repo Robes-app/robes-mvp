@@ -562,6 +562,21 @@ app.get('/api/images/:jobId', (req, res) => {
 // piece for something owned.
 const DAILY_STEP_TITLES = ['The Anchor', 'The Canvas', 'The Texture', 'The Accents'];
 
+// Build 3 copy rules (Tranche 2) — installed once and interpolated into
+// every stylist prompt so Daily/Weekly/Travel speak in one register. The
+// failure pattern the audit found is always the same: copy that justifies
+// a piece instead of describing it. These rules replace that instinct with
+// two distinct jobs — a row note (the physical adjustment) and a panel
+// note (the look's logic) — and a banned-construction list pulled from the
+// actual audited output, not hypotheticals.
+const BANNED_CONSTRUCTIONS_RULE = `BANNED CONSTRUCTIONS — never use these, in any field: the construction "X yet Y" (e.g. "comfortable yet refined"); benefit justification ("perfect for", "ideal for", "suitable for", "great for", "keeping you comfortable"); machine connectives ("ensuring", "while maintaining", "creating a", "allowing for", "centers around"); adverb inflation ("effortlessly", "seamlessly", "timelessly", "meticulously"); dead adjectives ("elevated", "versatile", "polished aesthetic", "vibrant spirit"); sustainability or virtue framing of any kind; quotation marks.`;
+
+const ROW_NOTE_RULE = `ROW NOTE: one sentence, 6–12 words maximum. Describes how THIS piece is worn in THIS look — the physical adjustment a stylist makes with her hands, not the reason for it. Verb-led; start with a participle where natural — Worn, Tucked, Belted, Cuffed, Carried, Layered, Left, Buttoned. Never state why the piece is good, who it suits, or what it achieves. Never repeat the item's name — the rack already names it. Never begin with "Perfect", "Ideal", "Great" or "A". Write for a woman who already has taste; she does not need convincing. Examples: "Worn open, sleeves cuffed once above the wrist." / "Belted at the natural waist, not the hip." / "Cuffed once at the ankle to show the shoe."`;
+
+const PANEL_NOTE_RULE = `PANEL NOTE: 30 words maximum, one or two sentences. Describes the logic of the look — how it balances, what register it sits in, what the weather or occasion asked for. Name garments by TYPE only (the wool, the knit, flat leather) — never list the pieces in order or name internal framework/formula steps; the rack already names them, with prices. Warm, direct and finished — she has been dressed, not sold to.`;
+
+const WEEK_SUMMARY_RULE = `WEEK SUMMARY: 40 words maximum. Describes the week's register, weather and shape only — it covers up to seven days and still should not inventory them. Names no specific garment, so it can't go stale after she later swaps or restyles a day.`;
+
 const DAILY_SCHEMA = {
   type: 'object',
   properties: {
@@ -586,6 +601,7 @@ const DAILY_SCHEMA = {
                 category: { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Other'] },
                 brand: { type: 'string' },
                 description: { type: 'string' },
+                how: { type: 'string' },
                 wardrobe_index: { type: 'integer' },
                 retailer_hint: { type: 'string' },
                 price_point: { type: 'string' },
@@ -603,7 +619,7 @@ const DAILY_SCHEMA = {
                   },
                 },
               },
-              required: ['name', 'category', 'brand', 'description', 'wardrobe_index', 'retailer_hint', 'price_point', 'alternates'],
+              required: ['name', 'category', 'brand', 'how', 'wardrobe_index', 'retailer_hint', 'price_point', 'alternates'],
             },
           },
         },
@@ -668,14 +684,17 @@ THE FRAMEWORK — work through it in this order:
 ${stateDirective}${heroBlock ? '\n\n' + heroBlock : ''}${lockedBlock ? '\n\n' + lockedBlock : ''}
 
 FIELD RULES:
-- "occasion_label": 1–3 words, ALL CAPS, naming the day's occasion (e.g. "GARDEN PARTY", "STUDIO DAY").
+- "occasion_label": 1–3 words, sentence case, naming the day's occasion (e.g. "Garden party", "Studio day").
 - "headline": a short serif-worthy line naming place and occasion, sentence case, ending in a full stop (e.g. "A Dublin garden-party look."). Max 8 words.
-- "stylist_summary": 2–3 sentences of stylist reasoning that open with the weather/agenda read, name the garments themselves (never the architectural step labels), and show the golden-ratio thinking.
+- "stylist_summary" is this look's PANEL NOTE. ${PANEL_NOTE_RULE}
 - "palette": exactly 3 hex colours drawn from the look, ordered neutral to accent.
-- Each item: "name" is the piece itself (e.g. "Cream check blazer"); "brand" is ONE real brand suited to the piece's register (for owned pieces, the owned brand or ""); "description" is one hyper-specific sentence — cut, fabric, colour, and how it is worn.
+- Each item: "name" is the piece itself (e.g. "Cream check blazer"); "brand" is ONE real brand suited to the piece's register (for owned pieces, the owned brand or ""); "description" is one internal reference sentence — cut, fabric, colour — used only to generate its photograph, never shown to her.
+- "how" is this item's ROW NOTE. ${ROW_NOTE_RULE}
 - Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and a realistic EUR "price_point" (e.g. "€89").
 - "alternates": exactly 2 per item — similar-but-distinct options for the SAME slot (a different colour, fabrication or register that still honours the palette, the weather and the DNA below), each with its own real brand, retailer_hint and EUR price_point. These power the flick-through rail, so make them genuinely wearable alternatives, never filler.
 - "fallback": true ONLY if the brief is gibberish or random characters — then dress her for a pleasant, unremarkable day in the given context instead. A plain occasion, agenda or mood is a valid daily brief.${dnaBlock ? '\n\n' + dnaBlock : ''}
+
+${BANNED_CONSTRUCTIONS_RULE}
 
 ${closetBlock}`;
 
@@ -719,6 +738,7 @@ Dress her for this exact day, start to finish, through the four architectural st
         it.wardrobe_match = wi
           ? { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' }
           : null;
+        it.how = String(it.how || '').slice(0, 160);
         it.alternates = (Array.isArray(it.alternates) ? it.alternates : [])
           .filter(a => a && a.name)
           .slice(0, 3)
@@ -796,6 +816,86 @@ Dress her for this exact day, start to finish, through the four architectural st
   }
 });
 
+/* ── on-demand alternates (Tranche 2, Build 2) ───────────────────────── */
+// Weekly and Travel had no per-item AI alternates at all — their
+// flick-through carousel (_dlOptions on the client) only ever offered
+// owned same-category pieces. Generating 2 alternates per item upfront
+// (like Daily does) would be a large schema/token cost across up to 84
+// Weekly items for options that mostly never get viewed, so this is a
+// narrow, cheap, single-item call fetched only when she engages with a
+// piece (Swap) — never on render — and cached client-side per session.
+// A narrow, well-scoped task like this doesn't need a frontier model;
+// gemini-2.5-flash (thinking off) is the cheapest model already proven
+// reliable on this API — see CLAUDE.md's Gemini model chain notes before
+// ever trying a cheaper/smaller model that isn't already validated here.
+const ALTERNATES_SCHEMA = {
+  type: 'object',
+  properties: {
+    alternates: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          brand: { type: 'string' },
+          retailer_hint: { type: 'string' },
+          price_point: { type: 'string' },
+          how: { type: 'string' },
+        },
+        required: ['name', 'brand', 'retailer_hint', 'price_point', 'how'],
+      },
+    },
+  },
+  required: ['alternates'],
+};
+
+app.post('/api/alternates', rateLimit({ windowMs: 60_000, max: 30 }), async (req, res) => {
+  const { item, context, styleDna, styleIcons } = req.body;
+  const itemName = String((item && item.name) || '').trim().slice(0, 120);
+  if (!itemName) return res.status(400).json({ error: 'Missing item.' });
+  const category = String((item && item.category) || '').trim().slice(0, 40);
+  const brand = String((item && item.brand) || '').trim().slice(0, 60);
+  const otherItems = (Array.isArray(context) ? context : [])
+    .filter(s => typeof s === 'string' && s.trim())
+    .slice(0, 8)
+    .map(s => s.trim().slice(0, 80));
+  const dnaBlock = styleDnaPromptBlock(styleDna, 0, styleIcons);
+
+  const systemInstruction = `You are Robes' head stylist. Suggest exactly 2 alternatives to ONE piece already in an existing look — similar-but-distinct options for the SAME slot (a different colour, fabrication or register that still honours the rest of the look), never a repeat of the original piece. Each needs a real brand suited to its register, a real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and a realistic EUR "price_point" (e.g. "€89"). These power a flick-through rail, so make them genuinely wearable, never filler.
+- "how" is this alternative's ROW NOTE. ${ROW_NOTE_RULE}
+
+${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}`;
+
+  const userText = `THE PIECE TO REPLACE: ${itemName}${brand ? ' by ' + brand : ''}${category ? ' [' + category + ']' : ''}.
+${otherItems.length ? `THE REST OF THIS LOOK (do not suggest these): ${otherItems.join(', ')}.\n` : ''}Suggest 2 alternatives for this exact slot.`;
+
+  try {
+    const t0 = Date.now();
+    const r = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: ALTERNATES_SCHEMA,
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: 500,
+      },
+    });
+    const parsed = JSON.parse(r.text);
+    const alternates = (Array.isArray(parsed.alternates) ? parsed.alternates : [])
+      .filter(a => a && a.name && a.name.toLowerCase() !== itemName.toLowerCase())
+      .slice(0, 2)
+      .map(a => ({ name: String(a.name).slice(0, 120), brand: a.brand || '', retailer_hint: a.retailer_hint || '', price_point: a.price_point || '', how: String(a.how || '').slice(0, 160) }));
+    logAI({ feature: 'alternates', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, count: alternates.length });
+    res.json({ alternates });
+  } catch (err) {
+    logAI({ feature: 'alternates', stage: 'text', success: false, reason: err.message });
+    console.error('[alternates] Gemini error:', err.message);
+    res.status(500).json({ error: err.message || 'Alternates failed' });
+  }
+});
+
 /* ── weekly plan (P0 simplification — the Weekly Plan View) ─────────── */
 // A chronological 5–7 day calendar strip routing wardrobe items across
 // the user's agenda. Deliberately lean: one schema-forced flash call,
@@ -828,11 +928,12 @@ const WEEKLY_SCHEMA = {
                 category: { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Other'] },
                 brand: { type: 'string' },
                 description: { type: 'string' },
+                how: { type: 'string' },
                 wardrobe_index: { type: 'integer' },
                 retailer_hint: { type: 'string' },
                 price_point: { type: 'string' },
               },
-              required: ['name', 'category', 'brand', 'description', 'wardrobe_index', 'retailer_hint', 'price_point'],
+              required: ['name', 'category', 'brand', 'how', 'wardrobe_index', 'retailer_hint', 'price_point'],
             },
           },
         },
@@ -886,6 +987,7 @@ function weeklyNormaliseItem(it, closetItems) {
     category: it.category || 'Other',
     brand: it.brand || '',
     description: it.description || '',
+    how: String(it.how || '').slice(0, 160),
     wardrobe_index: wi ? it.wardrobe_index : -1,
     retailer_hint: wi ? '' : (it.retailer_hint || ''),
     price_point: wi ? '' : (it.price_point || ''),
@@ -941,7 +1043,8 @@ function weeklyCoverageGaps(days) {
   return gaps;
 }
 
-const WEEKLY_ITEM_RULES = `- Each item: "name" is the piece itself; "brand" is ONE real brand suited to the register (owned pieces: the owned brand or ""); "description" is one hyper-specific sentence — cut, fabric, colour, how it is worn that day.
+const WEEKLY_ITEM_RULES = `- Each item: "name" is the piece itself; "brand" is ONE real brand suited to the register (owned pieces: the owned brand or ""); "description" is one internal reference sentence — cut, fabric, colour — never shown to her.
+- "how" is this item's ROW NOTE. ${ROW_NOTE_RULE}
 - Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" and a realistic EUR "price_point" (e.g. "€89").`;
 
 app.post('/api/weekly', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
@@ -982,19 +1085,22 @@ app.post('/api/weekly', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
 
 THE WEEKLY PLAN RULES:
 1. THE CALENDAR IS AUTHORITATIVE. Generate exactly one entry per calendar day listed, in order, with the given day_label verbatim. Where she wrote a plan for a day, dress exactly that plan and derive the "occasion" from it. Where no plan is given, infer a concrete occasion from the brief.
-2. THE ROUTING DISCIPLINE. This is a wardrobe ROUTER, not separate shopping briefs: deliberately re-wear key pieces across the week styled differently (a blazer worn formal Tuesday returns undone over denim Thursday). Never repeat an identical full outfit. In "note" (one sentence per day), name the styling move — and when a piece returns, say how it's re-worn.
+2. THE ROUTING DISCIPLINE. This is a wardrobe ROUTER, not separate shopping briefs: deliberately re-wear key pieces across the week styled differently (a blazer worn formal Tuesday returns undone over denim Thursday). Never repeat an identical full outfit. "note" is this day's PANEL NOTE — when a piece returns, its logic is part of that day's balance and register.
 3. THE BUILD. Each day is one complete outfit of 4–6 items: top + bottom (or dress), footwear, and the finishing layer/bag/accessory that makes it deliberate.
 
 ${stateDirective}
 
 FIELD RULES:
-- "week_label": 2–4 words, ALL CAPS, naming the week (e.g. "STUDIO WEEK", "BACK TO WORK").
+- "week_label": 2–4 words, sentence case, naming the week (e.g. "Studio week", "Back to work").
 - "headline": a short serif-worthy line naming the week's mood, sentence case, ending in a full stop. Max 8 words.
-- "stylist_summary": 2–3 sentences of stylist reasoning — the week's register, the routing logic (how pieces repeat across days), the weather read. Describe the week in general terms only — never name a specific garment, so the summary can't go stale after she later swaps or restyles a day.
+- "stylist_summary" is the WEEK SUMMARY. ${WEEK_SUMMARY_RULE}
+- "note" is this day's PANEL NOTE. ${PANEL_NOTE_RULE}
 - "occasion": 2–5 words, sentence case.
 - "palette": exactly 3 hex colours the week is built around, neutral to accent.
 ${WEEKLY_ITEM_RULES}
 - "fallback": true ONLY if the brief is gibberish — then plan a pleasant, unremarkable working week instead. A plain agenda, job or mood is a valid weekly brief.${dnaBlock ? '\n\n' + dnaBlock : ''}
+
+${BANNED_CONSTRUCTIONS_RULE}
 
 ${closetBlock}${correctiveNote ? '\n\n' + correctiveNote : ''}`;
   }
@@ -1166,9 +1272,11 @@ ${stateDirective}${anchorBlock ? '\n\n' + anchorBlock : ''}
 
 FIELD RULES:
 - "occasion": 2–5 words, sentence case, derived from the day's plan.
-- "note": one sentence naming the styling move.
-- "stylist_summary": 1–2 sentences refreshing the week's read now this day has changed — the week's register, weather and shape. Never name a specific garment, so it can't go stale after a later swap.
+- "note" is this day's PANEL NOTE. ${PANEL_NOTE_RULE}
+- "stylist_summary" refreshes the WEEK SUMMARY now this day has changed. ${WEEK_SUMMARY_RULE}
 ${WEEKLY_ITEM_RULES}${dnaBlock ? '\n\n' + dnaBlock : ''}
+
+${BANNED_CONSTRUCTIONS_RULE}
 
 ${closetBlock}`;
 
@@ -1516,7 +1624,7 @@ ${planList}`
 THE PILLARS — all four are hard constraints:
 1. THE 1:3 HIGH-YIELD RULE. Every capsule item must appear in AT LEAST THREE different outfits across the lookbook, in at least two distinct dress codes. No single-outfit passengers — if a piece can't earn three wears, it doesn't get packed.
 2. THE CAPSULE MATRIX. YOU decide the pack count — the smallest capsule that dresses every day of the trip under the 1:3 rule. For this ${tripDays}-day trip that is typically around ${suggest} items (never more than ${capMax}); the maths must hold: pieces × 3 wears ≥ ${tripDays * 2} looks × ~4 formula slots. Split the capsule across the three tiers: "${TRAVEL_TIERS[0]}" (~${foundations} items — architectural basics, tailoring, versatile one-pieces), "${TRAVEL_TIERS[1]}" (~${statements} items — the tactile hero pieces: statement dresses, crochet, plissé, prints), "${TRAVEL_TIERS[2]}" (~${hardware} items — shoes, bags, belts, jewellery that seal silhouettes).${shortIdxs.length ? ' The tier targets are guidance for shaping what you KEEP — never pad the capsule to hit a number.' : ''}
-3. THE 4-STEP DRESSING FORMULA. Every outfit's "formula" is built ONLY from capsule items referenced by "item_index" (0-based index into the capsule array — never invent an item that isn't packed): "The Anchor" ×1 (the context-driven hero), "The Canvas" ×1–2 (the grounding basics), "The Texture" ×1 (the tactile dimension layer), "The Exclamation Point" ×1–2 (footwear/hardware that finish it). Swim or sleep-adjacent looks may drop to 3 entries, never fewer. Each entry's "note" says how that piece is worn in THIS look.
+3. THE 4-STEP DRESSING FORMULA. Every outfit's "formula" is built ONLY from capsule items referenced by "item_index" (0-based index into the capsule array — never invent an item that isn't packed): "The Anchor" ×1 (the context-driven hero), "The Canvas" ×1–2 (the grounding basics), "The Texture" ×1 (the tactile dimension layer), "The Exclamation Point" ×1–2 (footwear/hardware that finish it). Swim or sleep-adjacent looks may drop to 3 entries, never fewer. Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE}
 4. CONTEXT ENGINEERING. Ingest three vectors at once: the Location Vibe (name it in "location_vibe", e.g. "Refined Mediterranean Minimalism"), the Micro-Climate provided, and the client's proportional architecture / style DNA below. Everything packed answers to all three.
 
 ${editOnly
@@ -1535,6 +1643,8 @@ FIELD RULES:
 - "palette": exactly 3 hex colours the capsule is built on, neutral to accent.
 - Capsule items: "name" is the piece (for owned pieces the exact owned label); "brand" ONE real brand (owned brand or ""); "description" one hyper-specific sentence — cut, fabrication, colour, why it earns its place. Owned: wardrobe_index set, retailer_hint and price_point "". New: wardrobe_index -1, real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and realistic EUR "price_point" (e.g. "€145").
 - "fallback": true ONLY if the destination/brief is gibberish — then pack for a pleasant week away somewhere temperate instead.${dnaBlock ? '\n\n' + dnaBlock : ''}
+
+${BANNED_CONSTRUCTIONS_RULE}
 
 ${shortIdxs.length ? `THE SHORTLIST — everything she is bringing (${shortIdxs.length} owned pieces, by wardrobe_index):
 ${shortIdxs.map(i => `${i}: ${closetItems[i].label}${closetItems[i].category ? ' [' + closetItems[i].category + ']' : ''}${closetItems[i].color ? ', ' + closetItems[i].color : ''}`).join('\n')}
@@ -1819,9 +1929,11 @@ ${capList}
 
 RULES:
 1. Re-dress Day ${dayNum} for the user's REAL plan: "${act}". Exactly 2 slots — "Day" then "Evening" — mapping the plan sensibly across them (a single big event: style the lead-up as "Day" and the event itself as "Evening", or vice versa if it's a daytime event).
-2. RE-MIX FIRST. Build every outfit ONLY from the capsule via "item_index" and the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" says how the piece is worn in THIS look.
+2. RE-MIX FIRST. Build every outfit ONLY from the capsule via "item_index" and the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE}
 3. Set "new_item_needed": true ONLY if the plan genuinely cannot be dressed from the capsule (e.g. a formal wedding with nothing remotely formal packed). Then give "new_item" — one real gap piece with retailer_hint, a realistic EUR price_point and a "bridge" clause (what it connects + looks it unlocks) — and reference it in the formulas as item_index ${capIn.length}. Otherwise "new_item_needed": false.
 4. "day_label": "Day ${dayNum} · {2–4 word title of the plan}". "title" per slot: 3–6 words naming the scene. "transition_tip" per slot: ONE concrete subtractive-styling or hardware-swap move that shifts the look into its next scene.${anchorsIn.length ? `\n5. ANCHORED PIECES — the user has LOCKED these into this day: ${anchorsIn.map(a => `item_index ${a.item_index} (${capIn[a.item_index].name})`).join(', ')}. Each anchored piece MUST appear in at least one of the two slots' formulas, exactly as packed — restyle everything AROUND them, never replace them.` : ''}${dnaBlock ? '\n\n' + dnaBlock : ''}
+
+${BANNED_CONSTRUCTIONS_RULE}
 ${wxLine}`;
 
   try {
@@ -1918,9 +2030,11 @@ ${planList}
 
 RULES:
 1. Exactly ${tripDays} entries in "days" — one per trip day, in order. Each dressed day has exactly 2 slots: "Day" and "Evening". A day marked deliberately left free gets "slots": [].
-2. Every formula entry is built ONLY from the capsule via "item_index", using the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" says how the piece is worn in THIS look.
+2. Every formula entry is built ONLY from the capsule via "item_index", using the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE}
 3. THE 1:3 RULE: spread the lookbook so every capsule item appears in at least three different outfits where the trip length allows it — no single-outfit passengers.
 4. Each slot: "title" (3–6 words naming the scene), "how" (ONE hyper-specific styling sentence), "transition_tip" (ONE concrete subtractive-styling or hardware-swap move that shifts the look into its next scene).${dnaBlock ? '\n\n' + dnaBlock : ''}
+
+${BANNED_CONSTRUCTIONS_RULE}
 ${wxLine}`;
 
   try {
