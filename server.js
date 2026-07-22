@@ -749,7 +749,25 @@ Dress her for this exact day, start to finish, through the four architectural st
       });
     });
     if (!flat.length) throw new Error('empty daily look');
-    logAI({ feature: 'daily', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: flat.length, owned: flat.filter(f => f.item.wardrobe_match).length, fallback: parsed.fallback === true });
+    const dailyOwnedCount = flat.filter(f => f.item.wardrobe_match).length;
+    logAI({ feature: 'daily', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: flat.length, owned: dailyOwnedCount, fallback: parsed.fallback === true });
+    // Composition (addendum to Tranche 2 Build 2): logAI only reaches
+    // Railway's console, not the queryable generation_log table — the
+    // owned-vs-total gate the original Build 2 brief asked for was
+    // unanswerable because ownership never landed in `detail`. Write it
+    // here alongside the text call's own automatically-logged row.
+    (function () {
+      const gctx = genCtx.getStore() || {};
+      glog({
+        user_id: gctx.userId || null,
+        endpoint: '/api/daily',
+        model: 'gemini-2.5-flash',
+        status: 'ok',
+        prompt: null,
+        response: null,
+        detail: { stage: 'composition', owned_count: dailyOwnedCount, item_count: flat.length, ...(gctx.genId ? { gen_id: gctx.genId } : {}) },
+      });
+    })();
 
     const jobId = randomBytes(6).toString('hex');
     imageJobs.set(jobId, { images: flat.map(() => null), done: false, created: Date.now() });
@@ -1209,6 +1227,33 @@ Dress every calendar day above, chronologically.`;
     const itemCount = days.reduce((s, d) => s + d.items.length, 0);
     const owned = days.reduce((s, d) => s + d.items.filter(i => i.wardrobe_match).length, 0);
     logAI({ feature: 'weekly', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, days: days.filter(d => !d.rest).length, items: itemCount, owned, fallback: parsed.fallback === true });
+    // Composition (addendum to Tranche 2 Build 2): a week-level ratio
+    // averages seven days together and can hide a single day that's
+    // almost entirely new-to-buy — the exact failure the ownership query
+    // was meant to catch. Carry the per-day breakdown alongside the week
+    // totals in ONE row rather than logging averaged and losing the day.
+    (function () {
+      const gctx = genCtx.getStore() || {};
+      glog({
+        user_id: gctx.userId || null,
+        endpoint: '/api/weekly',
+        model: 'gemini-2.5-flash',
+        status: 'ok',
+        prompt: null,
+        response: null,
+        detail: {
+          stage: 'composition',
+          owned_count: owned,
+          item_count: itemCount,
+          days: days.filter(d => !d.rest).map(d => ({
+            label: d.day_label,
+            owned_count: d.items.filter(i => i.wardrobe_match).length,
+            item_count: d.items.length,
+          })),
+          ...(gctx.genId ? { gen_id: gctx.genId } : {}),
+        },
+      });
+    })();
 
     res.json({
       fallback: parsed.fallback === true,
@@ -1303,7 +1348,22 @@ Dress her for exactly this day.`;
       .slice(0, 6)
       .map(it => weeklyNormaliseItem(it, closetItems));
     if (!items.length) throw new Error('empty day');
-    logAI({ feature: 'weekly-day', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: items.length, owned: items.filter(i => i.wardrobe_match).length });
+    const weeklyDayOwnedCount = items.filter(i => i.wardrobe_match).length;
+    logAI({ feature: 'weekly-day', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: items.length, owned: weeklyDayOwnedCount });
+    // Composition (addendum to Tranche 2 Build 2) — this restyle currently
+    // logged without it; a single-day call needs no per-day breakdown.
+    (function () {
+      const gctx = genCtx.getStore() || {};
+      glog({
+        user_id: gctx.userId || null,
+        endpoint: '/api/weekly/day',
+        model: 'gemini-2.5-flash',
+        status: 'ok',
+        prompt: null,
+        response: null,
+        detail: { stage: 'composition', owned_count: weeklyDayOwnedCount, item_count: items.length, ...(gctx.genId ? { gen_id: gctx.genId } : {}) },
+      });
+    })();
     res.json({
       occasion: String(parsed.occasion || activity || '').slice(0, 60),
       note: String(parsed.note || '').slice(0, 240),
@@ -1776,6 +1836,21 @@ ${shortIdxs.length ? `Pack every shortlisted piece, map the wears each one earns
 
     const owned = capsule.filter(it => it.wardrobe_match).length;
     logAI({ feature: 'travel', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: capsule.length, days: days.length, owned, leftBehind: leftBehind.length, shortlisted: shortIdxs.length, underused: travelUnderusedItems(capsule, days).length, fallback: parsed.fallback === true });
+    // Composition (addendum to Tranche 2 Build 2) — the capsule is one
+    // pack shared across the whole trip (not per-day like Weekly), so one
+    // owned-vs-total figure for the trip is the meaningful unit here.
+    (function () {
+      const gctx = genCtx.getStore() || {};
+      glog({
+        user_id: gctx.userId || null,
+        endpoint: '/api/travel',
+        model: 'gemini-2.5-flash',
+        status: 'ok',
+        prompt: null,
+        response: null,
+        detail: { stage: 'composition', owned_count: owned, item_count: capsule.length, ...(gctx.genId ? { gen_id: gctx.genId } : {}) },
+      });
+    })();
 
     const jobId = randomBytes(6).toString('hex');
     imageJobs.set(jobId, { images: Array.from({ length: frames }, () => null), done: false, created: Date.now() });
