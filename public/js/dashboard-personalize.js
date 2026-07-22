@@ -3664,6 +3664,24 @@
       function _dlAltered(it) {
         return !!(it.orig && (it.orig.name || '').toLowerCase() !== (it.name || '').toLowerCase());
       }
+      // Fabric chip row, deduped by label (audit F8) — each builder used to
+      // map every item independently, so repeated fabrics (three linen
+      // pieces) each rendered their own chip. One chip per distinct fabric,
+      // first-appearance order, swatched from the first matching item.
+      function _rbcFabricsHtml(items, palette) {
+        const seen = new Set();
+        const chips = [];
+        items.forEach(it => {
+          const label = _dlFabric(it.name);
+          const key = label.toLowerCase();
+          if (seen.has(key)) return;
+          seen.add(key);
+          const c = (it.wardrobe_match && it.wardrobe_match.color) || '';
+          const hex = (c && /^#/.test(c)) ? c : (palette[0] || '#E7E0CF');
+          chips.push(`<span class="fab"><span class="sw" style="background:${_waEsc(hex)}"></span><span class="fl">${_waEsc(label)}</span></span>`);
+        });
+        return chips.join('');
+      }
       // The flick-through carousel for one rack card: the original styled
       // piece, the AI alternates the server proposed for this slot, then
       // owned pieces in the same category. Rebuilt from live data each time.
@@ -3713,6 +3731,30 @@
       const _rbcSwapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
       const _rbcCheckSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
+      // Display-side price normaliser (audit F3/D4) — the model sometimes
+      // emits "EUR550" instead of "€550" (only Weekly's prompt lacked the €
+      // example); this is defence in depth, not a substitute for that fix.
+      function _rbcPrice(raw) {
+        const s = String(raw || '').trim();
+        if (!s) return '';
+        const m = s.match(/^(?:EUR|eur)\s*(.+)$/);
+        return m ? '€' + m[1] : s;
+      }
+
+      // Shared provenance line for a rack row (audit F1/F4/F5/D5) — owned
+      // pieces show the ownership tick; unowned pieces show brand + a
+      // retailer/price line, with the retailer omitted when it just repeats
+      // the brand (case/whitespace-insensitive). `extraHtml` lets a surface
+      // prefix a state tag (Travel's Worth adding / Added to the pack).
+      function _rbcProvenance(it, extraHtml) {
+        if (it.wardrobe_match) return `<span class="owned">${_rbcCheckSvg} In your wardrobe</span>`;
+        const brand = (it.brand || '').trim();
+        const retailerRaw = (it.retailer_hint || '').trim();
+        const retailer = (retailerRaw && retailerRaw.toLowerCase() !== brand.toLowerCase()) ? retailerRaw : '';
+        const retailPrice = [retailer, _rbcPrice(it.price_point)].filter(Boolean).join(' · ');
+        return `${extraHtml || ''}${brand ? `<span class="brand">${_waEsc(brand)}</span>` : ''}${retailPrice ? `<span class="price">${_waEsc(retailPrice)}</span>` : ''}`;
+      }
+
       const _RBC_CSS = `
 .rbc-panel{background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);padding:18px}
 .rbc-lhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
@@ -3755,7 +3797,6 @@
 .rbc-hbtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .rbc-hbtn{display:inline-flex;align-items:center;gap:7px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:9px 15px;font-size:11.5px;color:var(--ink-soft);background:#fff;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:inherit}
 .rbc-hbtn:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
-.rbc-hlink{background:none;border:none;cursor:pointer;font-size:11px;color:var(--rose);text-decoration:underline;font-family:inherit;white-space:nowrap;padding:4px 0}
 .rbc-rack{display:flex;flex-direction:column;gap:12px}
 .rbc-row{position:relative;display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:stretch;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:12px;transition:border-color .2s,background .2s}
 .rbc-row.anchored{border-color:var(--ink)}
@@ -3944,6 +3985,11 @@
       function _rbConsole(cfg, items) {
         _rbcEnsureCss();
         _rbcInitSwipe();
+        // Ownership-count copy is canonical across all three surfaces
+        // (audit F1) — computed here, once, from the items every surface
+        // already hands in, rather than three call sites agreeing on a string.
+        const ownedCount = items.filter(it => it.owned).length;
+        const yoursHtml = `<b>${ownedCount}</b>&thinsp;of&thinsp;${items.length} from your wardrobe`;
         const lookHtml = `
           <div class="rbc-panel">
             <div class="rbc-lhead">
@@ -3956,7 +4002,7 @@
             ${cfg.fabricsHtml ? `<div class="rbc-fabrics">${cfg.fabricsHtml}</div>` : ''}
             <div class="rbc-lfoot">
               <span class="rbc-palette">${cfg.paletteHtml || ''}</span>
-              <span class="rbc-yours">${cfg.yoursHtml || ''}</span>
+              <span class="rbc-yours">${yoursHtml}</span>
             </div>
           </div>
           ${cfg.panelExtraHtml || ''}`;
@@ -4452,11 +4498,7 @@
           quote += '.';
         }
 
-        const fabricsHtml = ordered.map(x => {
-          const hex = palette[0] || '#E7E0CF';
-          const c = (x.it.wardrobe_match && x.it.wardrobe_match.color) || '';
-          return `<span class="fab"><span class="sw" style="background:${_waEsc(c && /^#/.test(c) ? c : hex)}"></span><span class="fl">${_waEsc(_dlFabric(x.it.name))}</span></span>`;
-        }).join('');
+        const fabricsHtml = _rbcFabricsHtml(ordered.map(x => x.it), palette);
 
         // The console renders through the shared template (_rbConsole) —
         // this adapter only supplies frames, provenance and handlers.
@@ -4471,10 +4513,9 @@
             name: it.name,
             owned: !!it.wardrobe_match,
             anchored: !!it.anchored,
+            showAddTag: !it.wardrobe_match,
             count: { cur: _dlOptIndex(it, list), len: list.length },
-            subHtml: it.wardrobe_match
-              ? `<span class="owned">${_rbcCheckSvg} In your wardrobe</span>`
-              : `${it.brand ? `<span class="brand">${_waEsc(it.brand)}</span>` : ''}${(it.retailer_hint || it.price_point) ? `<span class="price">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>` : ''}`,
+            subHtml: _rbcProvenance(it),
           };
         });
         const dlUnowned = ordered.filter(x => !x.it.wardrobe_match);
@@ -4483,7 +4524,6 @@
           quoteHtml: summaryHtml || (quote ? '“' + _waEsc(quote) + '”' : ''),
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
-          yoursHtml: `<b>${owned}</b>&thinsp;of&thinsp;${total} from your wardrobe`,
           panelExtraHtml: _rbcReadBlock({
             score: owned, total, unit: 'in your wardrobe', clean: dlUnowned.length === 0,
             verdict: dlUnowned.length
@@ -4966,13 +5006,9 @@
           };
         };
         const palette = (Array.isArray(_wkState.data.palette) ? _wkState.data.palette : []).filter(h => /^#[0-9A-Fa-f]{6}$/.test(String(h || ''))).slice(0, 3);
-        const fabricsHtml = d.items.map(it => {
-          const c = (it.wardrobe_match && it.wardrobe_match.color) || '';
-          return `<span class="fab"><span class="sw" style="background:${_waEsc(c && /^#/.test(c) ? c : (palette[0] || '#E7E0CF'))}"></span><span class="fl">${_waEsc(_dlFabric(it.name))}</span></span>`;
-        }).join('');
+        const fabricsHtml = _rbcFabricsHtml(d.items, palette);
         const conItems = d.items.map((it, ii) => {
           const list = _dlOptions(it);
-          const retail = [it.retailer_hint !== it.brand ? it.retailer_hint : '', it.price_point].filter(Boolean).join(' · ');
           return {
             idx: ii,
             frame: wkFrame(it),
@@ -4981,19 +5017,17 @@
             name: it.name,
             owned: !!it.wardrobe_match,
             anchored: !!it.anchored,
+            showAddTag: !it.wardrobe_match,
             count: { cur: _dlOptIndex(it, list), len: list.length },
-            subHtml: it.wardrobe_match
-              ? `<span class="owned">${_rbcCheckSvg} In your wardrobe</span>`
-              : `${it.brand ? `<span class="brand">${_waEsc(it.brand)}</span>` : ''}${retail ? `<span class="price">${_waEsc(retail)}</span>` : ''}`,
+            subHtml: _rbcProvenance(it, '<span class="addtag">Worth adding</span>'),
           };
         });
         const wkUnowned = d.items.filter(it => !it.wardrobe_match);
         const con = _rbConsole({
           headLabel: `The look · ${_waEsc(_wkDayName(d))} · ${d.items.length} pieces`,
-          quoteHtml: d.note ? '“' + _waEsc(d.note) + '”' : '',
+          quoteHtml: d.note ? _waEsc(d.note) : '',
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
-          yoursHtml: `<b>${owned}</b>&thinsp;of&thinsp;${d.items.length} from your wardrobe`,
           panelExtraHtml: _rbcReadBlock({
             score: owned, total: d.items.length, unit: 'in your wardrobe', clean: wkUnowned.length === 0,
             verdict: wkUnowned.length
@@ -5001,7 +5035,7 @@
               : 'Every piece is from your own wardrobe — dressed with nothing new.',
           }),
           rackLabel: `The rack · ${_waEsc(_wkDayName(d))}${d.occasion ? ' · ' + _waEsc(d.occasion) : ''}`,
-          headButtonsHtml: `<button class="rbc-hlink" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button><button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
+          headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button>`,
           onFlip: '__wkFlip', onSwap: '__wkSwap', onAnchor: '__wkAnchor', onRemove: '__wkRemove',
           addPieceFn: '__wkAddPiece',
         }, conItems);
@@ -5165,7 +5199,6 @@
         const anchored = d.items.filter(it => it.anchored);
         d.occasion = fresh.occasion || activity || d.occasion;
         d.note = fresh.note || d.note;
-        d.transition_tip = fresh.transition_tip || d.transition_tip || '';
         d.rest = false;
         if (activity) d.user_activity = activity;
         d.items = Array.isArray(fresh.items) ? fresh.items : [];
@@ -5318,9 +5351,6 @@
         const total = data.days.reduce((s, d) => s + d.items.length, 0);
         const ctx = data.context || {};
         const pill = [ctx.city, ctx.month].filter(Boolean).join(' · ') + (ctx.tempRange ? ' | ' + ctx.tempRange : '') + (ctx.hint ? ' | ' + ctx.hint : '');
-        const paletteDots = (data.palette || []).map(h =>
-          /^#[0-9a-fA-F]{3,8}$/.test(String(h || '')) ? `<span style="width:14px;height:14px;border-radius:50%;background:${h};border:0.5px solid rgba(32,32,33,0.15);display:inline-block"></span>` : ''
-        ).join('');
 
         wkResultPage.innerHTML = `
           <div style="max-width:var(--shell,1440px);margin:0 auto;padding:36px var(--s6,24px) 0;min-height:calc(100% - 72px);box-sizing:border-box">
@@ -5332,7 +5362,6 @@
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
               ${data.week_label ? `<span style="font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6A5E54;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">${_waEsc(data.week_label)}</span>` : ''}
               ${pill ? `<span style="font-size:11px;color:#8A8078;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">🌤 ${_waEsc(pill)}</span>` : ''}
-              ${paletteDots ? `<span style="display:inline-flex;gap:5px;align-items:center">${paletteDots}</span>` : ''}
             </div>
             ${data.stylist_summary ? `<p id="wk-summary" style="font-family:${serif};font-style:italic;font-size:15.5px;color:#6E6A64;line-height:1.6;margin:0 0 24px;max-width:640px">${_waEsc(data.stylist_summary)}</p>` : ''}
             <div id="wk-strip" class="rbd-strip"></div>
@@ -6303,7 +6332,6 @@ body>*:not(#tv-result-page){display:none !important}
           return;
         }
         const entries = (s.formula || []).map(f => ({ f, it: data.capsule[f.item_index], ci: f.item_index })).filter(x => x.it);
-        const ownedN = entries.filter(x => x.it.wardrobe_match).length;
 
         const occHtml = slots.map((sl, oi) =>
           `<button class="${oi === _tvActiveOcc ? 'on' : ''}" onclick="window.__tvSetOcc(${oi})">${_waEsc(sl.slot || (oi === 0 ? 'Day' : 'Evening'))}</button>`
@@ -6314,10 +6342,7 @@ body>*:not(#tv-result-page){display:none !important}
         // takes the wide slot instead, like the Daily board. Rendering runs
         // through the shared console template (_rbConsole) — this adapter
         // only supplies frames, provenance and the pack third action.
-        const fabricsHtml = entries.map(x => {
-          const c = (x.it.wardrobe_match && x.it.wardrobe_match.color) || '';
-          return `<span class="fab"><span class="sw" style="background:${_waEsc(c && /^#/.test(c) ? c : (palette[0] || '#E7E0CF'))}"></span><span class="fl">${_waEsc(_dlFabric(x.it.name))}</span></span>`;
-        }).join('');
+        const fabricsHtml = _rbcFabricsHtml(entries.map(x => x.it), palette);
 
         const conItems = entries.map(x => {
           const { it, ci } = x;
@@ -6336,9 +6361,7 @@ body>*:not(#tv-result-page){display:none !important}
             rowClass: it.packed ? ' packed' : '',
             count: { cur: _dlOptIndex(it, list), len: list.length },
             wearsHtml: wears ? `<span class="vlooks">× ${wears} looks</span>` : '',
-            subHtml: it.wardrobe_match
-              ? `<span class="owned">${_rbcCheckSvg} In your wardrobe</span>`
-              : `<span class="addtag">${it.added ? 'Added to the pack' : 'Worth adding'}</span>${it.brand ? `<span class="brand">${_waEsc(it.brand)}</span>` : ''}${(it.retailer_hint || it.price_point) ? `<span class="price">${_waEsc([it.retailer_hint, it.price_point].filter(Boolean).join(' · '))}</span>` : ''}`,
+            subHtml: _rbcProvenance(it, `<span class="addtag">${it.added ? 'Added to the pack' : 'Worth adding'}</span>`),
             noteHtml: x.f.note ? `<div class="rbc-hownote">${_waEsc(x.f.note)}</div>` : '',
             thirdHtml: (it.wardrobe_match || it.added)
               ? `<button class="tvm-packbox${it.packed ? ' on' : ''}" onclick="window.__tvPackToggle(${ci})"><span class="box">${it.packed ? _tvCheckSvg : ''}</span>${it.packed ? 'Packed' : 'Pack'}</button>`
@@ -6360,10 +6383,9 @@ body>*:not(#tv-result-page){display:none !important}
         const con = _rbConsole({
           headLabel: `The look · ${_waEsc(dayName)} · ${entries.length} pieces`,
           occHtml: `<div class="tvm-occ">${occHtml}</div>`,
-          quoteHtml: s.how ? '“' + _waEsc(s.how) + '”' : '',
+          quoteHtml: s.how ? _waEsc(s.how) : '',
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
-          yoursHtml: `<b>${ownedN}</b>&thinsp;of&thinsp;${entries.length} already yours`,
           panelExtraHtml: readHtml,
           rackLabel: `The rack · ${_waEsc(dayName)}`,
           rackTitleHtml: `<h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>`,

@@ -819,7 +819,6 @@ const WEEKLY_SCHEMA = {
           day_label: { type: 'string' },
           occasion: { type: 'string' },
           note: { type: 'string' },
-          transition_tip: { type: 'string' },
           items: {
             type: 'array',
             items: {
@@ -837,7 +836,7 @@ const WEEKLY_SCHEMA = {
             },
           },
         },
-        required: ['day_label', 'occasion', 'note', 'transition_tip', 'items'],
+        required: ['day_label', 'occasion', 'note', 'items'],
       },
     },
   },
@@ -993,7 +992,6 @@ FIELD RULES:
 - "headline": a short serif-worthy line naming the week's mood, sentence case, ending in a full stop. Max 8 words.
 - "stylist_summary": 2–3 sentences of stylist reasoning — the week's register, the routing logic (which pieces anchor it and how they repeat), the weather read.
 - "occasion": 2–5 words, sentence case.
-- "transition_tip": per day, ONE concrete move — subtractive styling (drop a layer) or hardware swapping (tote → clutch) — that shifts that day's look into its evening or next scene. One sentence.
 - "palette": exactly 3 hex colours the week is built around, neutral to accent.
 ${WEEKLY_ITEM_RULES}
 - "fallback": true ONLY if the brief is gibberish — then plan a pleasant, unremarkable working week instead. A plain agenda, job or mood is a valid weekly brief.${dnaBlock ? '\n\n' + dnaBlock : ''}
@@ -1043,13 +1041,12 @@ Dress every calendar day above, chronologically.`;
       }
       const k = active.findIndex(a => a.i === i);
       const g = genDays[k];
-      if (!g) return { day_label: c.label, occasion: 'Left free', note: '', transition_tip: '', rest: true, user_activity: c.plan || null, items: [] };
+      if (!g) return { day_label: c.label, occasion: 'Left free', note: '', rest: true, user_activity: c.plan || null, items: [] };
       const kept = weeklyTruncateItems(g.items, 6);
       return {
         day_label: c.label,
         occasion: String(g.occasion || c.plan || '').slice(0, 60),
         note: String(g.note || '').slice(0, 240),
-        transition_tip: String(g.transition_tip || '').slice(0, 200),
         rest: false,
         user_activity: c.plan || null,
         items: kept.map(it => weeklyNormaliseItem(it, closetItems)),
@@ -1132,11 +1129,10 @@ const WEEKLY_DAY_SCHEMA = {
   properties: {
     occasion: { type: 'string' },
     note: { type: 'string' },
-    transition_tip: { type: 'string' },
     stylist_summary: { type: 'string' },
     items: WEEKLY_SCHEMA.properties.days.items.properties.items,
   },
-  required: ['occasion', 'note', 'transition_tip', 'stylist_summary', 'items'],
+  required: ['occasion', 'note', 'stylist_summary', 'items'],
 };
 
 app.post('/api/weekly/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
@@ -1171,7 +1167,6 @@ ${stateDirective}${anchorBlock ? '\n\n' + anchorBlock : ''}
 FIELD RULES:
 - "occasion": 2–5 words, sentence case, derived from the day's plan.
 - "note": one sentence naming the styling move.
-- "transition_tip": ONE concrete move — subtractive styling or hardware swapping — that shifts this day's look into its evening or next scene. One sentence.
 - "stylist_summary": 1–2 sentences refreshing the week's read now this day has changed — the week's register, weather and shape. Never name a specific garment, so it can't go stale after a later swap.
 ${WEEKLY_ITEM_RULES}${dnaBlock ? '\n\n' + dnaBlock : ''}
 
@@ -1204,7 +1199,6 @@ Dress her for exactly this day.`;
     res.json({
       occasion: String(parsed.occasion || activity || '').slice(0, 60),
       note: String(parsed.note || '').slice(0, 240),
-      transition_tip: String(parsed.transition_tip || '').slice(0, 200),
       stylist_summary: String(parsed.stylist_summary || '').slice(0, 400),
       items,
     });
