@@ -5211,6 +5211,101 @@
         if (saved) snUpdate(_wkActiveSaveId, { wkData: { ...(saved.wkData || {}), days: _wkState.data.days, stylist_summary: _wkState.data.stylist_summary } });
       }
 
+      // ── Weekly imagery (2026-07-22) — the /api/weekly still-life job.
+      // Same contract as Daily/Travel: frames appear in two places (board
+      // tile + rack viewport), so wraps carry data-wkimg="i" and the poller
+      // patches every instance; hosted URLs persist into the saved entry so
+      // a reopened plan keeps its frames even if she navigates away mid-job.
+      let _wkPollTimer = null;
+      function _wkStopPolling() { if (_wkPollTimer) { clearTimeout(_wkPollTimer); _wkPollTimer = null; } }
+
+      function _wkPersistImages() {
+        if (!_wkActiveSaveId || !window.__lastWkData) return;
+        const urls = (window.__lastWkData.generatedImages || []).map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
+        if (!urls.some(Boolean)) return;
+        const it = snLoad().find(x => x.id === _wkActiveSaveId);
+        if (!it) return;
+        snUpdate(_wkActiveSaveId, {
+          img: it.img || urls.find(Boolean) || null,
+          wkData: { ...(it.wkData || {}), generatedImages: urls },
+        });
+      }
+
+      function _wkSetImage(i, src) {
+        document.querySelectorAll('[data-wkimg="' + i + '"]').forEach(wrap => {
+          if (wrap.querySelector('img')) return;
+          const img = document.createElement('img');
+          img.alt = '';
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;opacity:0;transition:opacity .5s ease';
+          img.onload = () => {
+            const ph = wrap.querySelector('.wk-img-ph');
+            if (ph) ph.remove();
+            requestAnimationFrame(() => { img.style.opacity = '1'; });
+          };
+          img.onerror = () => { img.remove(); _wkSettlePlaceholder(i); };
+          img.src = src;
+          wrap.insertBefore(img, wrap.firstChild);
+        });
+      }
+
+      // A frame that never landed settles into the monogram treatment —
+      // "an empty card reads as broken; a monogram reads as pending".
+      function _wkSettlePlaceholder(i) {
+        const serif = "'Cormorant',Georgia,serif";
+        const days = (window.__lastWkData && Array.isArray(window.__lastWkData.days)) ? window.__lastWkData.days : [];
+        let name = '?';
+        for (const d of days) { const hit = (d.items || []).find(it => it.image_index === i); if (hit) { name = hit.name || '?'; break; } }
+        const letter = _waEsc(String(name).charAt(0).toUpperCase());
+        let settled = false;
+        document.querySelectorAll('[data-wkimg="' + i + '"]').forEach(wrap => {
+          if (wrap.querySelector('img')) return;
+          const ph = wrap.querySelector('.wk-img-ph');
+          if (ph) {
+            ph.style.animation = 'none';
+            ph.innerHTML = `<span style="font-family:${serif};font-size:28px;font-weight:300;color:var(--ink-faint)">${letter}</span>`;
+            settled = true;
+          }
+        });
+        return settled;
+      }
+
+      function _wkPollImages(jobId, count) {
+        _wkStopPolling();
+        const t0 = Date.now();
+        function settleAll() {
+          let failed = 0;
+          for (let i = 0; i < count; i++) { if (_wkSettlePlaceholder(i)) failed++; }
+          if (failed) _rbTrack('image_fallback', { surface: 'weekly-plan', failed, of: count });
+        }
+        function tick() {
+          fetch('/api/images/' + jobId)
+            .then(r => r.ok ? r.json() : null)
+            .then(job => {
+              if (job && Array.isArray(job.images)) {
+                let changed = false;
+                job.images.forEach((src, i) => {
+                  if (src) {
+                    _wkSetImage(i, src);
+                    if (window.__lastWkData) {
+                      if (!Array.isArray(window.__lastWkData.generatedImages)) window.__lastWkData.generatedImages = [];
+                      if (window.__lastWkData.generatedImages[i] !== src) { window.__lastWkData.generatedImages[i] = src; changed = true; }
+                    }
+                  }
+                });
+                if (changed) _wkPersistImages();
+                if (job.done) { settleAll(); return; }
+              } else if (!job) { settleAll(); return; }
+              if (Date.now() - t0 < 300000) _wkPollTimer = setTimeout(tick, 4000);
+              else settleAll();
+            })
+            .catch(() => {
+              if (Date.now() - t0 < 300000) _wkPollTimer = setTimeout(tick, 6000);
+              else settleAll();
+            });
+        }
+        _wkPollTimer = setTimeout(tick, 3000);
+      }
+
       window.__wkSelectDay = function(di) {
         if (!_wkState) return;
         _wkState.day = di;
@@ -5231,7 +5326,9 @@
             meta: d.rest
               ? 'left free'
               : `${d.items.length} pieces${owned ? ' · ' + owned + ' yours' : ''}${d.user_activity ? ' <span style="color:var(--rose)">· your plan</span>' : ''}`,
-            thumbs: d.rest ? [] : d.items.slice(0, 4).map(it => (it.wardrobe_match && it.wardrobe_match.image_url) || null),
+            thumbs: d.rest ? [] : d.items.slice(0, 4).map(it =>
+              (it.wardrobe_match && it.wardrobe_match.image_url) ||
+              ((!_dlAltered(it) && Number.isInteger(it.image_index)) ? ((_wkState.data.generatedImages || [])[it.image_index] || null) : null)),
             onclick: `window.__wkSelectDay(${di})`,
           };
         }), _wkState.day);
@@ -5261,16 +5358,28 @@
         }
 
         // Thin adapter over the shared console template (_rbConsole) —
-        // weekly has no imagery jobs, so frames are wardrobe photos or a
-        // serif monogram, and the flick set is original + owned pieces.
+        // frame source mirrors Daily/Travel: wardrobe photo first, generated
+        // still (patched in by the poller via data-wkimg) second, monogram
+        // last. A flicked-in piece must never wear the original's still.
         const owned = d.items.filter(it => it.wardrobe_match).length;
+        const wkImages = Array.isArray(_wkState.data.generatedImages) ? _wkState.data.generatedImages : [];
+        const wkPending = !!_wkState.data.jobId && !wkImages.some(Boolean);
+        const wkPhSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
         const wkFrame = (it) => {
-          const m = it.wardrobe_match;
+          const wmImg = it.wardrobe_match && it.wardrobe_match.image_url;
+          const genOk = !_dlAltered(it) && Number.isInteger(it.image_index);
+          const src = wmImg || (genOk ? wkImages[it.image_index] : null);
+          const pollAttr = (!wmImg && genOk) ? ' data-wkimg="' + it.image_index + '"' : '';
+          const pulse = !src && !wmImg && genOk && wkPending;
+          const mono = `<span class="rbc-mono" style="font-family:${serif};font-size:30px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`;
+          const phInner = pulse
+            ? `<span style="font-family:${serif};font-style:italic;font-size:12px;color:#B8AC9C;text-align:center;padding:0 12px">Creating imagery…</span>`
+            : (genOk && _wkState.data.jobId) ? wkPhSvg : mono;
           return {
-            pollAttr: '',
-            inner: m && m.image_url
-              ? `<img src="${_waEsc(m.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
-              : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span class="rbc-mono" style="font-family:${serif};font-size:30px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span></div>`,
+            pollAttr,
+            inner: src && typeof src === 'string'
+              ? `<img src="${_waEsc(src)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
+              : `<div class="wk-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${pulse ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${phInner}</div>`,
           };
         };
         const palette = (Array.isArray(_wkState.data.palette) ? _wkState.data.palette : []).filter(h => /^#[0-9A-Fa-f]{6}$/.test(String(h || ''))).slice(0, 3);
@@ -5489,11 +5598,22 @@
       function _wkApplyDay(di, activity, fresh) {
         const d = _wkState.data.days[di];
         const anchored = d.items.filter(it => it.anchored);
+        // The single-day call generates no imagery — collect the week's
+        // existing stills (by name, across all days incl. this one's
+        // outgoing items) so an unchanged piece keeps its frame.
+        const stillByName = new Map();
+        _wkState.data.days.forEach(dd => (dd.items || []).forEach(it => {
+          if (Number.isInteger(it.image_index) && !(it.wardrobe_match && it.wardrobe_match.image_url)) stillByName.set((it.name || '').toLowerCase(), it.image_index);
+        }));
         d.occasion = fresh.occasion || activity || d.occasion;
         d.note = fresh.note || d.note;
         d.rest = false;
         if (activity) d.user_activity = activity;
         d.items = Array.isArray(fresh.items) ? fresh.items : [];
+        d.items.forEach(it => {
+          const key = (it.name || '').toLowerCase();
+          if (!(it.wardrobe_match && it.wardrobe_match.image_url) && stillByName.has(key)) it.image_index = stillByName.get(key);
+        });
         // The masthead summary is refreshed by the server on every day
         // restyle (audit D2) so it can never describe a look that's since
         // changed — patch it in place rather than re-rendering the header.
@@ -5620,6 +5740,9 @@
         const serif = "'Cormorant',Georgia,serif";
         if (!data || !Array.isArray(data.days) || !data.days.length) { _waShowToast('That plan didn’t load — try planning the week again.'); return; }
         _rbHideResultPages('wk');
+        // A stale poller from an earlier plan must not patch its frames
+        // into this one — __lastWkData is about to point at new data.
+        _wkStopPolling();
         window.__lastWkData = data;
         _wkState = { data, prompt: promptText || '', day: 0 };
         _wkWorn = false;
@@ -5683,6 +5806,7 @@
         _wkPaintStrip();
         _wkPaintConsole();
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Plan the week' }]);
+        if (data.jobId) _wkPollImages(data.jobId, data.imageCount || 0);
 
         if (opts && opts.skipSave) {
           _wkActiveSaveId = (opts && opts.savedId) || null;
@@ -5693,12 +5817,15 @@
             }
             return null;
           })();
+          // jobId is stripped so a reopened entry never polls a dead job;
+          // hosted stills are patched in later by _wkPersistImages.
+          const persistable = (data.generatedImages || []).map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
           _wkActiveSaveId = snAdd({
             type: 'weekly-plan',
             title: data.headline || 'Your week, planned',
             subtitle: data.days.filter(d => !d.rest).length + ' days · ' + (data.week_label || '').toLowerCase(),
             img: firstImg,
-            wkData: { ...data, prompt: promptText || '' },
+            wkData: { ...data, jobId: undefined, generatedImages: persistable, prompt: promptText || '' },
           });
           _rbTrack('weekly_generated', { item: String(_wkActiveSaveId), days: data.days.filter(d => !d.rest).length });
         }

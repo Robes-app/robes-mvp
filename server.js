@@ -1255,6 +1255,30 @@ Dress every calendar day above, chronologically.`;
       });
     })();
 
+    // Image frames — Weekly was the one generated surface with no imagery
+    // at all (generation_log 2026-07-22: zero image rows against Daily's 29
+    // and Travel's 8), so every unowned piece rendered as a monogram tile
+    // forever. Owned pieces keep their wardrobe photos (truthful and free);
+    // each DISTINCT unowned piece gets one still-life — the routing
+    // discipline re-wears pieces across days, so every appearance of the
+    // same name shares one frame. Capped like Travel so the staggered loop
+    // stays under the client's 5-minute polling ceiling.
+    const stillItems = [];
+    const stillIdxByName = new Map();
+    days.forEach(d => d.items.forEach(it => {
+      if (it.wardrobe_match && it.wardrobe_match.image_url) return;
+      const key = String(it.name || '').trim().toLowerCase();
+      if (!key) return;
+      if (stillIdxByName.has(key)) { it.image_index = stillIdxByName.get(key); return; }
+      if (stillItems.length >= 8) return;
+      it.image_index = stillItems.length;
+      stillIdxByName.set(key, it.image_index);
+      stillItems.push(it);
+    }));
+    const frames = stillItems.length;
+
+    const jobId = frames ? randomBytes(6).toString('hex') : null;
+    if (jobId) imageJobs.set(jobId, { images: Array.from({ length: frames }, () => null), done: false, created: Date.now() });
     res.json({
       fallback: parsed.fallback === true,
       week_label: parsed.week_label || '',
@@ -1263,7 +1287,47 @@ Dress every calendar day above, chronologically.`;
       palette: Array.isArray(parsed.palette) ? parsed.palette.slice(0, 3) : [],
       days,
       itemCount,
+      ...(jobId ? { jobId, imageCount: frames } : {}),
     });
+
+    if (jobId) {
+      const t1 = Date.now();
+      (async () => {
+        for (let f = 0; f < frames; f++) {
+          if (f > 0) await new Promise(r => setTimeout(r, 3000));
+          const item = stillItems[f];
+          const imgPrompt = `Editorial still-life photograph of a single ${item.name}${item.brand ? ' by ' + item.brand : ''} — ${item.description || ''}. The garment styled alone on a neutral cream-linen surface, soft daylight, quiet luxury catalogue aesthetic. No model, no text, no collage, one item only.`;
+          try {
+            const r = await Promise.race([
+              ai.models.generateContent({
+                model: 'gemini-3.1-flash-image',
+                contents: [{ role: 'user', parts: [{ text: imgPrompt }] }],
+                config: { responseModalities: ['TEXT', 'IMAGE'] },
+              }),
+              new Promise(resolve => setTimeout(() => resolve(null), 50000)),
+            ]);
+            const part = r?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+            if (!part?.inlineData) {
+              logAI({ feature: 'weekly', stage: 'image', index: f, success: false, reason: r ? 'no_inline_data' : 'timeout_50s' });
+              continue;
+            }
+            const url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+            if (!url) {
+              logAI({ feature: 'weekly', stage: 'image', index: f, success: false, reason: 'cloudinary_failed' });
+              continue;
+            }
+            logAI({ feature: 'weekly', stage: 'image', index: f, success: true, ms: Date.now() - t1 });
+            const job = imageJobs.get(jobId);
+            if (job) job.images[f] = url;
+          } catch (err) {
+            logAI({ feature: 'weekly', stage: 'image', index: f, success: false, reason: err.message });
+          }
+        }
+        const job = imageJobs.get(jobId);
+        if (job) job.done = true;
+        logAI({ feature: 'weekly', stage: 'images_complete', jobId, totalMs: Date.now() - t0 });
+      })();
+    }
   } catch (err) {
     if (res.headersSent) return;
     logAI({ feature: 'weekly', stage: 'text', success: false, reason: err.message });
@@ -2332,7 +2396,7 @@ function publicSharePayload(row) {
     (Array.isArray(wk.days) ? wk.days : []).forEach(day => (Array.isArray(day && day.items) ? day.items : []).forEach(i => {
       if (!i) return;
       addPiece(i.name, i.brand, i.price_point);
-      addImg(i.wardrobe_match && i.wardrobe_match.image_url);
+      addImg((i.wardrobe_match && i.wardrobe_match.image_url) || (Number.isInteger(i.image_index) ? (wk.generatedImages || [])[i.image_index] : null));
     }));
     if (typeof wk.stylist_summary === 'string') editorial = wk.stylist_summary;
   } else {
