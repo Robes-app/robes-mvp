@@ -3873,7 +3873,8 @@
 .rb-lookv2 .rbc-palette{order:4}
 .rb-lookv2 .rbc-fabrics{order:5}
 .rb-lookv2 .rbc-yours{order:6}
-.rb-lookv2 .rbc-action{order:7}
+.rb-lookv2 .rbc-verdict{order:7}
+.rb-lookv2 .rbc-action{order:8}
 /* The export region — 4:5, 6×7 grid, columns ≈68px, hero ≈296px */
 .rb-lookv2 .rbc-board{aspect-ratio:4/5;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(7,1fr);gap:8px;padding:0;margin:0}
 .rb-lookv2 .rbc-tile{aspect-ratio:auto;border-radius:0;border:none;cursor:default;pointer-events:none;min-width:0;min-height:0;container-type:size}
@@ -3921,6 +3922,9 @@
 .rb-lookv2 .rbc-fabrics .sw{width:9px;height:9px;border-radius:2px}
 .rb-lookv2 .rbc-fabrics .fl{font-family:inherit;font-style:normal;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
 .rb-lookv2 .rbc-yours{margin-top:16px}
+/* Daily/Weekly verdict line — bare copy beneath the ownership count, no box,
+   no rule (the boxed "Read" is Travel-only now) */
+.rb-lookv2 .rbc-verdict{margin:12px 0 0;font-size:11px;line-height:1.5;color:rgba(32,32,33,.62)}
 .rb-lookv2 .rbc-action{margin-top:12px;padding-top:14px;border-top:0.5px solid var(--rule)}
 .rb-lookv2 .rbc-action button{width:100%;border:none;background:var(--ink);color:var(--cream-100);border-radius:100px;padding:14px;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:opacity .15s}
 .rb-lookv2 .rbc-action button:hover{opacity:.88}
@@ -3959,8 +3963,12 @@
         } catch (e) {}
       };
 
-      // "The read" — the one verdict block every day console carries
-      // (ownership for Daily/Weekly, the packing case for Travel).
+      // "The read" — the boxed verdict block. Now a TRAVEL-ONLY component
+      // (brief 2026-07-22 supersedes Tranche 1 §3.1): Travel has a real
+      // completion state (packed count), so the score + bar are meaningful.
+      // Daily/Weekly render a bare verdict line in the footer instead — no
+      // box, no header score, no bar (a 6/6 target nobody's reaching reads
+      // as a shortfall). _rbcReadBlock itself is unchanged.
       function _rbcReadBlock(opts) {
         const pct = opts.total ? Math.round(opts.score / opts.total * 100) : 0;
         return `<div class="rbc-read">
@@ -3971,6 +3979,25 @@
           <div class="bar"><span style="width:${pct}%;background:${opts.clean ? 'var(--sage)' : '#B98A4E'}"></span></div>
           <p>${opts.verdict}</p>
         </div>`;
+      }
+
+      // Daily/Weekly footer verdict line — the console's one piece of
+      // north-star copy (wear over buy; catch her at the catalogue moment).
+      // Register is keyed to the owned ratio, never congratulatory at the low
+      // end (brief 2026-07-22). {piece} is the highest-value unowned item.
+      function _rbcVerdict(owned, total, unowned) {
+        if (!total) return '';
+        if (owned >= total) return 'All yours. Nothing to buy.';
+        const pct = owned / total * 100;
+        let top = unowned[0], best = -1;
+        (unowned || []).forEach(it => {
+          const p = parseFloat(String(it.price_point || '').replace(/[^0-9.]/g, '')) || 0;
+          if (p > best) { best = p; top = it; }
+        });
+        const piece = _waEsc(String((top && top.name) || 'piece').toLowerCase());
+        if (pct <= 33) return `Mostly new today. Swap the ${piece} for something you own, or snap it into your wardrobe.`;
+        if (pct <= 66) return `Half of this is already yours. The ${piece} is the one worth adding.`;
+        return `Almost entirely your own. Only the ${piece} is new.`;
       }
 
       // Swipe-to-remove (mobile): a horizontal drag past the threshold on
@@ -4105,6 +4132,7 @@
               <span class="rbc-palette">${cfg.paletteHtml || ''}</span>
               <span class="rbc-yours">${yoursHtml}</span>
             </div>
+            ${cfg.verdictHtml ? `<p class="rbc-verdict">${cfg.verdictHtml}</p>` : ''}
             ${actionHtml}
           </div>
           ${cfg.panelExtraHtml || ''}`;
@@ -4627,12 +4655,7 @@
           quoteHtml: summaryHtml || (quote ? '“' + _waEsc(quote) + '”' : ''),
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
-          panelExtraHtml: _rbcReadBlock({
-            score: owned, total, unit: 'in your wardrobe', clean: dlUnowned.length === 0,
-            verdict: dlUnowned.length
-              ? `Nearly there — flick or swap the ${_waEsc(dlUnowned[0].it.name.toLowerCase())} for something you own, or snap it into your wardrobe.`
-              : 'Every piece is from your own wardrobe — dressed with nothing new.',
-          }),
+          verdictHtml: _rbcVerdict(owned, total, dlUnowned.map(x => x.it)),
           rackLabel: `The rack · ${_waEsc(weekday)}`,
           rackTitleHtml: data.occasion_label ? (() => {
             const t = cap1(data.occasion_label.toLowerCase());
@@ -5137,12 +5160,7 @@
           quoteHtml: d.note ? _waEsc(d.note) : '',
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
-          panelExtraHtml: _rbcReadBlock({
-            score: owned, total: d.items.length, unit: 'in your wardrobe', clean: wkUnowned.length === 0,
-            verdict: wkUnowned.length
-              ? `Nearly there — flick or swap the ${_waEsc(wkUnowned[0].name.toLowerCase())} for something you own, or snap it into your wardrobe.`
-              : 'Every piece is from your own wardrobe — dressed with nothing new.',
-          }),
+          verdictHtml: _rbcVerdict(owned, d.items.length, wkUnowned),
           rackLabel: `The rack · ${_waEsc(_wkDayName(d))}`,
           rackTitleHtml: d.occasion ? `<h2>${_waEsc(d.occasion)}${!/[.!?]$/.test(d.occasion) ? '.' : ''}</h2>` : '',
           headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button>`,
