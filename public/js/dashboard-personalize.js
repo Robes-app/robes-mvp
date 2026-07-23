@@ -10513,21 +10513,30 @@ body>*:not(#tv-result-page){display:none !important}
         // image per card — never a rainbow thumb row — with the text in a
         // clean stack beneath. The warm cast comes from a CSS filter so any
         // wardrobe photo sits inside the brand's cream/neutral register.
+        //
+        // GEOMETRY IS LOCKED (second design pass, same day): every card in
+        // the row shares one frame ratio (4:3) and one text-zone height
+        // (two title lines RESERVED whether one or two are used) — Today
+        // differs in color only, never in shape. Home's deliberate height
+        // ladder: week-ahead compact (this row, 4:3 frame + fixed stack)
+        // < concierge medium (.svc-img 16:9) < lookbook tall hero
+        // (.rb-sn-img 3:4 portrait). Don't tune one row in isolation.
         const RAIL_CSS = `
 #rb-rail{margin:6px 0 34px}
 #rb-rail .rb-rail-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 12px}
 #rb-rail .rb-rail-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#A89880)}
 #rb-rail .rb-rail-hint{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:#C4B8A4}
-#rb-rail .rb-rail-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) repeat(5,minmax(0,1fr));gap:12px}
-#rb-rail .rb-rc{position:relative;display:flex;flex-direction:column;min-height:172px;padding:0;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;cursor:pointer;box-sizing:border-box;overflow:hidden;transition:border-color .2s;text-align:left}
+#rb-rail .rb-rail-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px}
+#rb-rail .rb-rc{position:relative;display:flex;flex-direction:column;padding:0;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;cursor:pointer;box-sizing:border-box;overflow:hidden;transition:border-color .2s;text-align:left}
 #rb-rail .rb-rc:hover{border-color:rgba(32,32,33,0.4)}
-#rb-rail .rb-rc-img{flex:none;height:88px;background:#EFE9DC}
+#rb-rail .rb-rc-img{flex:none;aspect-ratio:4/3;background:#EFE9DC}
 #rb-rail .rb-rc-img img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.55) sepia(.18) contrast(.95) brightness(1.02)}
-#rb-rail .rb-rc-body{flex:1;display:flex;flex-direction:column;gap:5px;padding:11px 13px 13px;min-width:0}
+#rb-rail .rb-rc-body{flex:1;display:flex;flex-direction:column;gap:5px;padding:11px 13px 13px;min-width:0;min-height:132px}
 #rb-rail .rb-rc-wk{font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#rb-rail .rb-rc-act{font-family:'Cormorant',Georgia,serif;font-size:17.5px;line-height:1.15;color:var(--ink,#202021);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#rb-rail .rb-rc-act{font-family:'Cormorant',Georgia,serif;font-size:17.5px;line-height:1.15;color:var(--ink,#202021);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:2.3em}
 #rb-rail .rb-rc-eve{font-size:10px;color:#8A8078;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rb-rail .rb-rc-eve b{font-weight:500;color:#6E6A64}
+#rb-rail .rb-rc-src{font-size:10px;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rb-rail .rb-rc-cta{margin-top:auto;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;background:none;border:none;padding:0;cursor:pointer;text-align:left;font-family:inherit;transition:color .2s}
 #rb-rail .rb-rc:hover .rb-rc-cta{color:var(--ink,#202021)}
 #rb-rail .rb-rc.is-today{background:var(--ink,#202021);border-color:var(--ink,#202021)}
@@ -10537,6 +10546,7 @@ body>*:not(#tv-result-page){display:none !important}
 #rb-rail .rb-rc.is-today .rb-rc-eve{color:#C4B8A4}
 #rb-rail .rb-rc.is-today .rb-rc-eve b{color:#E7E0CF}
 #rb-rail .rb-rc.is-today .rb-rc-img{background:#3a3a3b}
+#rb-rail .rb-rc.is-today .rb-rc-src{color:#8A8078}
 #rb-rail .rb-rc.is-today .rb-rc-cta{color:#C4B8A4}
 #rb-rail .rb-rc.is-today:hover .rb-rc-cta{color:#FAF8F5}
 #rb-rail .rb-rc.is-past{opacity:.78}
@@ -10562,8 +10572,7 @@ body>*:not(#tv-result-page){display:none !important}
 @media(max-width:999px){
   #rb-rail .rb-rail-row{display:flex;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   #rb-rail .rb-rail-row::-webkit-scrollbar{display:none}
-  #rb-rail .rb-rc{flex:none;width:166px;min-height:176px;scroll-snap-align:center}
-  #rb-rail .rb-rc.is-today,#rb-rail .rb-rc.is-empty-today{width:206px}
+  #rb-rail .rb-rc{flex:none;width:172px;scroll-snap-align:center}
   #rb-rail .rb-upnext{flex-wrap:wrap;gap:8px}
   #rb-rail .rb-upnext .cta{margin-left:0}
 }`;
@@ -10606,6 +10615,17 @@ body>*:not(#tv-result-page){display:none !important}
           if (slot.moments.every(m => m.status === 'free')) return 'free';
           return past ? 'past' : today ? 'today' : 'planned';
         }
+        // One glanceable fact, not a description: the destination for a
+        // trip, the week's start for a plan, "Daily look" for a one-off.
+        function srcFact(m) {
+          const it = snLoad().find(x => String(x.id) === String(m.source_id));
+          if (m.source_type === 'travel') return (it && it.tvData && it.tvData.destination) || 'Travel edit';
+          if (m.source_type === 'weekly') {
+            const iso = (it && it.wkData && Array.isArray(it.wkData.week_iso)) ? it.wkData.week_iso[0] : null;
+            return iso ? 'Week of ' + new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Weekly plan';
+          }
+          return 'Daily look';
+        }
 
         function cardHtml(slot, i) {
           const state = cardState(slot);
@@ -10640,6 +10660,7 @@ body>*:not(#tv-result-page){display:none !important}
           if (eveMoment && eveMoment.status !== 'free') {
             body += `<div class="rb-rc-eve">Evening · <b>${_waEsc(eveMoment.activity || eveMoment.headline || 'planned')}</b></div>`;
           }
+          body += `<div class="rb-rc-src">${_waEsc(srcFact(dayMoment))}</div>`;
           let cta;
           if (state === 'past') {
             // COPY: needs sign-off
