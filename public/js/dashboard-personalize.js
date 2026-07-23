@@ -2648,6 +2648,9 @@
           snRenderPage();
           _mbRenderPage();
           console.log('[robes] lookbook cloud sync: ' + cloudSn.length + ' looks, ' + cloudMb.length + ' moodboards');
+          // Rail cards name their parent plan from this cache — repaint now
+          // that titles can resolve
+          if (window._rbRailPaint) window._rbRailPaint();
         } catch (e) {
           console.warn('[robes] lookbook cloud pull skipped:', String(e.message || e).slice(0, 120));
         }
@@ -2730,7 +2733,7 @@
           const rest = !!d.rest;
           rows.push({
             ..._pdBase('weekly', sourceId, i, iso[i], 'day'),
-            status: rest ? 'free' : 'planned',
+            status: rest ? 'free' : (d.worn ? 'worn' : 'planned'),
             activity: rest ? null : (d.user_activity || d.occasion || null),
             headline: rest ? null : (d.note || d.occasion || null),
             thumb_urls: rest ? [] : _pdThumbs(d.items, w.generatedImages),
@@ -2774,7 +2777,7 @@
               .map(f => (t.capsule || [])[f.item_index]).filter(Boolean);
             rows.push({
               ..._pdBase('travel', sourceId, i, date, slotName),
-              status: 'planned',
+              status: d.worn ? 'worn' : 'planned',
               activity: d.user_activity || label || null,
               headline: s.title || null,
               thumb_urls: _pdThumbs(pieces, t.generatedImages),
@@ -2821,6 +2824,8 @@
             del('&day_index=gte.' + built.totalDays);
             const evIdx = built.rows.filter(x => x.slot === 'evening').map(x => x.day_index);
             del('&slot=eq.evening' + (evIdx.length ? '&day_index=not.in.(' + evIdx.join(',') + ')' : ''));
+            // A fresh plan should show on the home rail when she returns
+            if (window._rbRailPaint) setTimeout(window._rbRailPaint, 700);
           })
           .catch(() => {});
       }
@@ -9234,6 +9239,7 @@ body>*:not(#tv-result-page){display:none !important}
       function _cbReset() {
         _cbIntent = null;
         _cbSeedPrefix = null;
+        _cbAnchorDate = null;
         const ta = document.getElementById('cb-ta');
         if (ta) { ta.value = ''; ta.placeholder = _CB_PLACEHOLDER; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input')); }
         _cbResetCta();
@@ -9434,6 +9440,10 @@ body>*:not(#tv-result-page){display:none !important}
         row.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
 
+      // Armed by a rail-card tap: the next dress-me submit dresses THAT
+      // calendar date, not today (the pre-scope-chip bridge to the Diary's
+      // "dress this day" — Stage 3 replaces this with the real scope state).
+      var _cbAnchorDate = null;
       function _cbResolve(intent, prompt) {
         _rbTrack('prompt_submitted', { track: intent || '', has_photo: !!_cbPhotoData, length: (prompt || '').length });
         if (intent === 'travel') {
@@ -9450,8 +9460,9 @@ body>*:not(#tv-result-page){display:none !important}
           if (_waItems.length < 15 && _waItems.length > 0) {
             _waShowToast(`Your closet is growing (${_waItems.length}/15) — Robes will mix what you own with editorial finds.`);
           }
+          const anchorDate = _cbAnchorDate;
           _cbReset();
-          window.__dlSubmit(prompt);
+          window.__dlSubmit(prompt, anchorDate ? { anchorDate } : undefined);
           return;
         }
         if (intent === 'weekly') {
@@ -10484,6 +10495,292 @@ body>*:not(#tv-result-page){display:none !important}
       // no gate — a card on the dashboard itself, loading → styled, sitting
       // right under the wardrobe progress module. Tapping through opens the
       // full three-look render (which also saves it to the lookbook).
+      // ── The home calendar rail (Diary Stage 2 / handoff Phase 5) ───────
+      // Seven cards across the top of home: yesterday, today, the next five
+      // days — the read surface planned_days was built for. DATE-driven:
+      // seven cards always, one per date, never one per moment (a date with
+      // two moments shows the evening as a quiet second line). Empty states
+      // are the cold-start surface: a user with nothing planned sees
+      // invitations, never a blank strip. Card tap opens the day's plan;
+      // empty cards aim the prompt at that date (the interim for the Stage 3
+      // scope chip — when the chip ships, populated-card tap becomes scope
+      // too and open moves fully onto the card CTA).
+      (function _rbRail() {
+        var _railSlots = null;
+        var _railToday = null;
+
+        const RAIL_CSS = `
+#rb-rail{margin:6px 0 34px}
+#rb-rail .rb-rail-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 12px}
+#rb-rail .rb-rail-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#A89880)}
+#rb-rail .rb-rail-hint{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:#C4B8A4}
+#rb-rail .rb-rail-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) repeat(5,minmax(0,1fr));gap:12px}
+#rb-rail .rb-rc{position:relative;display:flex;flex-direction:column;gap:6px;min-height:148px;padding:13px 13px 14px;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;cursor:pointer;box-sizing:border-box;transition:border-color .2s,transform .2s;text-align:left}
+#rb-rail .rb-rc:hover{border-color:rgba(32,32,33,0.4)}
+#rb-rail .rb-rc-wk{font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#A89880}
+#rb-rail .rb-rc-act{font-family:'Cormorant',Georgia,serif;font-size:18px;line-height:1.14;color:var(--ink,#202021);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#rb-rail .rb-rc-eve{font-size:10.5px;color:#8A8078}
+#rb-rail .rb-rc-eve b{font-weight:500;color:#6E6A64}
+#rb-rail .rb-rc-src{font-size:10.5px;color:#A89880;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#rb-rail .rb-rc-thumbs{display:flex;gap:4px;margin-top:2px}
+#rb-rail .rb-rc-thumbs i{flex:1;aspect-ratio:1;max-width:44px;background:#EFE9DC;border-radius:6px;overflow:hidden;display:block}
+#rb-rail .rb-rc-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+#rb-rail .rb-rc-cta{margin-top:auto;font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#A89880;background:none;border:none;padding:0;cursor:pointer;text-align:left;font-family:inherit;transition:color .2s}
+#rb-rail .rb-rc:hover .rb-rc-cta{color:var(--ink,#202021)}
+#rb-rail .rb-rc.is-today{background:var(--ink,#202021);border-color:var(--ink,#202021)}
+#rb-rail .rb-rc.is-today .rb-rc-wk{color:#C4B8A4}
+#rb-rail .rb-rc.is-today .rb-rc-act{color:#FAF8F5}
+#rb-rail .rb-rc.is-today .rb-rc-eve{color:#C4B8A4}
+#rb-rail .rb-rc.is-today .rb-rc-eve b{color:#E7E0CF}
+#rb-rail .rb-rc.is-today .rb-rc-src{color:#A89880}
+#rb-rail .rb-rc.is-today .rb-rc-thumbs i{background:#3a3a3b}
+#rb-rail .rb-rc.is-today .rb-rc-cta{color:#C4B8A4}
+#rb-rail .rb-rc.is-today:hover .rb-rc-cta{color:#FAF8F5}
+#rb-rail .rb-rc.is-past{background:#F5F0E8;opacity:.75}
+#rb-rail .rb-rc.is-free{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.2)}
+#rb-rail .rb-rc.is-free .rb-rc-act{font-style:italic;font-size:16px;color:#C4B8A4}
+#rb-rail .rb-rc.is-empty-future{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.2)}
+#rb-rail .rb-rc.is-empty-future .rb-rc-act{font-style:italic;font-size:15.5px;color:#C4B8A4}
+#rb-rail .rb-rc.is-empty-today{background:transparent;border:1px dashed var(--ink,#202021)}
+#rb-rail .rb-rc.is-empty-today .rb-rc-act{font-style:italic;font-size:16px;color:var(--ink,#202021)}
+#rb-rail .rb-rc.is-empty-past{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.1);opacity:.45;cursor:default}
+#rb-rail .rb-rc.is-pinned{border-color:var(--mauve,#D4C8C4);box-shadow:0 0 0 1px var(--mauve,#D4C8C4) inset}
+#rb-rail .rb-rc-worn{font-size:10px;letter-spacing:.06em;color:#7E7C5A;margin-top:auto}
+#rb-rail .rb-upnext{display:flex;align-items:baseline;gap:12px;width:100%;box-sizing:border-box;text-align:left;margin-top:12px;padding:13px 16px;background:rgba(212,200,196,0.16);border:0.5px solid rgba(32,32,33,0.1);border-radius:12px;cursor:pointer;font-family:inherit;transition:border-color .2s}
+#rb-rail .rb-upnext:hover{border-color:rgba(32,32,33,0.35)}
+#rb-rail .rb-upnext .k{flex:none;font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#A89880}
+#rb-rail .rb-upnext .t{font-family:'Cormorant',Georgia,serif;font-size:17px;color:var(--ink,#202021)}
+#rb-rail .rb-upnext .m{font-size:11px;color:#A89880}
+@media(max-width:999px){
+  #rb-rail .rb-rail-row{display:flex;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #rb-rail .rb-rail-row::-webkit-scrollbar{display:none}
+  #rb-rail .rb-rc{flex:none;width:166px;min-height:152px;scroll-snap-align:center}
+  #rb-rail .rb-rc.is-today,#rb-rail .rb-rc.is-empty-today{width:206px}
+  #rb-rail .rb-upnext{flex-wrap:wrap;gap:5px}
+}`;
+
+        function mount() {
+          const dash = document.getElementById('dash');
+          const conc = dash && dash.querySelector('.concierge');
+          if (!conc) return false;
+          if (!document.getElementById('rb-rail-style')) {
+            const st = document.createElement('style');
+            st.id = 'rb-rail-style';
+            st.textContent = RAIL_CSS;
+            document.head.appendChild(st);
+          }
+          if (!document.getElementById('rb-rail')) {
+            const el = document.createElement('section');
+            el.id = 'rb-rail';
+            conc.parentNode.insertBefore(el, conc.nextSibling);
+          }
+          return true;
+        }
+
+        function fmtCard(iso) {
+          if (iso === _railToday) return 'Today';
+          if (iso === _pdAddISO(_railToday, -1)) return 'Yesterday';
+          if (iso === _pdAddISO(_railToday, 1)) return 'Tomorrow';
+          const d = new Date(iso + 'T00:00:00');
+          return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+        }
+        function fmtLong(iso) {
+          const d = new Date(iso + 'T00:00:00');
+          return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+        }
+        function srcLabel(m) {
+          const p = m.parent || {};
+          if (p.title) return p.title;
+          return m.source_type === 'weekly' ? 'Your week' : m.source_type === 'travel' ? 'Travel edit' : 'Daily look';
+        }
+        function cardState(slot) {
+          const past = slot.date < _railToday, today = slot.date === _railToday;
+          if (!slot.moments.length) return past ? 'empty-past' : today ? 'empty-today' : 'empty-future';
+          if (slot.moments.every(m => m.status === 'free')) return 'free';
+          return past ? 'past' : today ? 'today' : 'planned';
+        }
+
+        function cardHtml(slot, i) {
+          const state = cardState(slot);
+          const dayMoment = slot.moments.find(m => (m.slot || 'day') === 'day') || slot.moments[0];
+          const eveMoment = slot.moments.find(m => m.slot === 'evening');
+          const pinned = slot.moments.some(m => m.pinned);
+          const worn = slot.moments.some(m => m.status === 'worn');
+          const wk = `<div class="rb-rc-wk">${_waEsc(fmtCard(slot.date))}</div>`;
+          let body = '', cta = '', cls = 'is-' + state + (pinned ? ' is-pinned' : '');
+          if (state === 'empty-past') {
+            body = '<div class="rb-rc-act" style="font-style:italic;color:#D8CFC0">—</div>';
+            return `<div class="rb-rc ${cls}">${wk}${body}</div>`;
+          }
+          if (state === 'empty-today' || state === 'empty-future') {
+            // COPY: needs sign-off
+            body = `<div class="rb-rc-act">${state === 'empty-today' ? 'Nothing planned yet' : 'Nothing planned'}</div>`;
+            cta = `<span class="rb-rc-cta">${state === 'empty-today' ? 'Dress today →' : 'Dress this day →'}</span>`;
+            return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailScope(${i})">${wk}${body}${cta}</div>`;
+          }
+          if (state === 'free') {
+            body = `<div class="rb-rc-act">Left free</div><div class="rb-rc-src">· ${_waEsc(srcLabel(dayMoment))}</div>`;
+            return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailOpen(${i})">${wk}${body}</div>`;
+          }
+          const act = dayMoment.activity || dayMoment.headline || 'Planned';
+          body = `<div class="rb-rc-act">${_waEsc(act)}</div>`;
+          if (eveMoment && eveMoment.status !== 'free') {
+            body += `<div class="rb-rc-eve">Evening · <b>${_waEsc(eveMoment.activity || eveMoment.headline || 'planned')}</b></div>`;
+          }
+          body += `<div class="rb-rc-src">· ${_waEsc(srcLabel(dayMoment))}</div>`;
+          const thumbs = [];
+          slot.moments.forEach(m => (m.thumb_urls || []).forEach(u => { if (thumbs.length < 4 && thumbs.indexOf(u) === -1) thumbs.push(u); }));
+          if (thumbs.length) body += '<div class="rb-rc-thumbs">' + thumbs.map(u => `<i><img src="${_waEsc(u)}" alt="" loading="lazy" onerror="this.parentNode.style.display='none'"></i>`).join('') + '</div>';
+          if (state === 'past') {
+            cta = worn
+              ? '<div class="rb-rc-worn">Worn ✓</div>'
+              : `<button class="rb-rc-cta" onclick="window.__rbRailWear(${i},event)">Mark worn ✓</button>`;
+          } else {
+            cta = `<span class="rb-rc-cta">${state === 'today' ? 'Open the look →' : 'Open →'}</span>`;
+          }
+          return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailOpen(${i})">${wk}${body}${cta}</div>`;
+        }
+
+        function paint(slots) {
+          _railSlots = slots;
+          if (!mount()) return;
+          const host = document.getElementById('rb-rail');
+          // COPY: needs sign-off (eyebrow + hint)
+          host.innerHTML =
+            '<div class="rb-rail-head"><span class="rb-rail-ey">The week ahead</span>' +
+            '<span class="rb-rail-hint">Tap a day to dress it</span></div>' +
+            '<div class="rb-rail-row">' + slots.map((s, i) => cardHtml(s, i)).join('') + '</div>' +
+            '<div id="rb-rail-up"></div>';
+          // Mobile: the strip only works if today is in view on mount
+          const row = host.querySelector('.rb-rail-row');
+          const t = host.querySelector('.rb-rc.is-today, .rb-rc.is-empty-today');
+          if (row && t && row.scrollWidth > row.clientWidth + 8) {
+            row.scrollLeft = Math.max(0, t.offsetLeft - (row.clientWidth - t.offsetWidth) / 2);
+          }
+          comingUp();
+        }
+
+        // "Coming up" — the next plan starting OUTSIDE the rail window.
+        // Renders only if one exists; real title, real dates.
+        function comingUp() {
+          const holder = document.getElementById('rb-rail-up');
+          if (!holder || _pdDown || !_waUid() || !_waToken()) return;
+          _waFetch('GET', 'planned_days?user_id=eq.' + _waUid() + '&day_date=gt.' + _pdAddISO(_railToday, 5)
+            + '&order=day_date.asc&limit=60&select=source_id,source_type,day_date')
+            .then(rows => {
+              if (!Array.isArray(rows) || !rows.length) { holder.innerHTML = ''; return; }
+              const first = rows[0];
+              const mine = rows.filter(r => r.source_id === first.source_id).map(r => r.day_date);
+              const parent = _pdParent(first.source_id);
+              const range = fmtLong(mine[0]) + (mine.length > 1 ? ' – ' + fmtLong(mine[mine.length - 1]) : '');
+              const title = parent.title || (first.source_type === 'travel' ? 'A trip' : 'A plan');
+              holder.innerHTML =
+                `<button class="rb-upnext" onclick="window.__snOpenItem(${Number(first.source_id)})">` +
+                `<span class="k">Coming up</span><span class="t">${_waEsc(title)}</span>` +
+                `<span class="m">${_waEsc(range)} · ${mine.length} day${mine.length === 1 ? '' : 's'}</span></button>`;
+            })
+            .catch(() => {});
+        }
+
+        function refresh() {
+          _railToday = _pdLocalISO();
+          _pdRail(_pdAddISO(_railToday, -1), _pdAddISO(_railToday, 5), paint);
+        }
+        window._rbRailPaint = refresh;
+
+        // Tap a populated card → open the day inside its parent plan
+        window.__rbRailOpen = function(i) {
+          const slot = _railSlots && _railSlots[i];
+          if (!slot || !slot.moments.length) return;
+          const m = slot.moments.find(x => (x.slot || 'day') === 'day') || slot.moments[0];
+          _rbTrack('day_opened_from_rail', { source_type: m.source_type, state: cardState(slot) });
+          window.__snOpenItem(Number(m.source_id));
+          // Land on the tapped day, not the plan's first day
+          if (m.source_type === 'weekly') {
+            setTimeout(() => { window.__wkSelectDay && window.__wkSelectDay(m.day_index); }, 300);
+          } else if (m.source_type === 'travel') {
+            setTimeout(() => {
+              window.__tvSetTab && window.__tvSetTab('outfits');
+              window.__tvSelectDay && window.__tvSelectDay(m.day_index);
+            }, 300);
+          }
+        };
+
+        // Tap an empty card → aim the prompt at that date (dress-me armed
+        // with an anchor date; Stage 3's scope chip replaces this wiring)
+        window.__rbRailScope = function(i) {
+          const slot = _railSlots && _railSlots[i];
+          if (!slot) return;
+          const state = cardState(slot);
+          const offset = Math.round((new Date(slot.date + 'T00:00:00Z') - new Date(_railToday + 'T00:00:00Z')) / 86400000);
+          _rbTrack('rail_day_scoped', { state, offset_from_today: offset });
+          const ta = document.getElementById('cb-ta');
+          if (!ta) return;
+          _cbAnchorDate = slot.date;
+          _cbIntent = 'dress-me';
+          _cbSeedPrefix = 'an outfit for';
+          const label = slot.date === _railToday ? 'today' : fmtLong(slot.date);
+          ta.value = 'An outfit for ' + label + ' — [the plan]';
+          ta.dispatchEvent(new Event('input'));
+          _cbAutoGrow(ta);
+          const def = _CHIP_DEFS.find(c => c.intent === 'dress-me');
+          if (def) _cbSetCta(def.cta);
+          ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => {
+            ta.focus();
+            const b = ta.value.indexOf('[');
+            if (b >= 0) { const e = ta.value.indexOf(']', b); ta.setSelectionRange(b, e > b ? e + 1 : ta.value.length); }
+          }, 300);
+        };
+
+        // Mark a past day worn: blob-first (so a resync can never revert),
+        // then the wear count on every owned piece the day used — the
+        // times_worn write path the rail exists to feed.
+        window.__rbRailWear = function(i, ev) {
+          if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+          const slot = _railSlots && _railSlots[i];
+          if (!slot || !slot.moments.length) return;
+          const ids = [];
+          slot.moments.forEach(m => {
+            const it = snLoad().find(x => String(x.id) === String(m.source_id));
+            if (it) {
+              if (it.type === 'weekly-plan' && it.wkData && it.wkData.days && it.wkData.days[m.day_index]) {
+                it.wkData.days[m.day_index].worn = true;
+                snUpdate(it.id, { wkData: it.wkData });
+              } else if (it.type === 'travel-edit' && it.tvData && it.tvData.days && it.tvData.days[m.day_index]) {
+                it.tvData.days[m.day_index].worn = true;
+                snUpdate(it.id, { tvData: it.tvData });
+              } else if (it.type === 'daily-look' && it.dlData) {
+                it.dlData.worn = true;
+                snUpdate(it.id, { dlData: it.dlData });
+              }
+              _pdSyncSaved(it.id);
+            }
+            (m.item_ids || []).forEach(id => { if (ids.indexOf(id) === -1) ids.push(id); });
+            m.status = 'worn';
+          });
+          ids.forEach(id => {
+            const wi = _waItems.find(w => String(w.id) === String(id));
+            if (wi) _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 }).catch(() => {});
+          });
+          if (ids.length) setTimeout(_waLoad, 900);
+          paint(_railSlots);
+          _waShowToast('Logged — Robes remembers what you wore ✓');
+        };
+
+        // Boot: wait for the session (same lazy pattern as _waInit), then
+        // paint — cache first via _pdRail's cb, fresh follows.
+        let tries = 0;
+        const t = setInterval(() => {
+          if (_waUid()) { clearInterval(t); refresh(); }
+          else if (++tries > 80) clearInterval(t);
+        }, 250);
+        // The rail is the heartbeat — re-read when she comes back to the tab
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden && _waUid()) refresh();
+        });
+      })();
+
       (function _rbOnboardHandoff() {
         let piece = null;
         try {
