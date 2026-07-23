@@ -10509,35 +10509,39 @@ body>*:not(#tv-result-page){display:none !important}
         var _railSlots = null;
         var _railToday = null;
 
+        // "One warm frame" (design pass 2026-07-23): a single warm-toned
+        // image per card — never a rainbow thumb row — with the text in a
+        // clean stack beneath. The warm cast comes from a CSS filter so any
+        // wardrobe photo sits inside the brand's cream/neutral register.
         const RAIL_CSS = `
 #rb-rail{margin:6px 0 34px}
 #rb-rail .rb-rail-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 12px}
 #rb-rail .rb-rail-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#A89880)}
 #rb-rail .rb-rail-hint{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:#C4B8A4}
 #rb-rail .rb-rail-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) repeat(5,minmax(0,1fr));gap:12px}
-#rb-rail .rb-rc{position:relative;display:flex;flex-direction:column;gap:6px;min-height:148px;padding:13px 13px 14px;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;cursor:pointer;box-sizing:border-box;transition:border-color .2s,transform .2s;text-align:left}
+#rb-rail .rb-rc{position:relative;display:flex;flex-direction:column;min-height:172px;padding:0;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;cursor:pointer;box-sizing:border-box;overflow:hidden;transition:border-color .2s;text-align:left}
 #rb-rail .rb-rc:hover{border-color:rgba(32,32,33,0.4)}
-#rb-rail .rb-rc-wk{font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#A89880}
-#rb-rail .rb-rc-act{font-family:'Cormorant',Georgia,serif;font-size:18px;line-height:1.14;color:var(--ink,#202021);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-#rb-rail .rb-rc-eve{font-size:10.5px;color:#8A8078}
+#rb-rail .rb-rc-img{flex:none;height:88px;background:#EFE9DC}
+#rb-rail .rb-rc-img img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.55) sepia(.18) contrast(.95) brightness(1.02)}
+#rb-rail .rb-rc-body{flex:1;display:flex;flex-direction:column;gap:5px;padding:11px 13px 13px;min-width:0}
+#rb-rail .rb-rc-wk{font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rb-rail .rb-rc-act{font-family:'Cormorant',Georgia,serif;font-size:17.5px;line-height:1.15;color:var(--ink,#202021);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#rb-rail .rb-rc-eve{font-size:10px;color:#8A8078;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rb-rail .rb-rc-eve b{font-weight:500;color:#6E6A64}
-#rb-rail .rb-rc-src{font-size:10.5px;color:#A89880;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-#rb-rail .rb-rc-thumbs{display:flex;gap:4px;margin-top:2px}
-#rb-rail .rb-rc-thumbs i{flex:1;aspect-ratio:1;max-width:44px;background:#EFE9DC;border-radius:6px;overflow:hidden;display:block}
-#rb-rail .rb-rc-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
-#rb-rail .rb-rc-cta{margin-top:auto;font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#A89880;background:none;border:none;padding:0;cursor:pointer;text-align:left;font-family:inherit;transition:color .2s}
+#rb-rail .rb-rc-cta{margin-top:auto;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;background:none;border:none;padding:0;cursor:pointer;text-align:left;font-family:inherit;transition:color .2s}
 #rb-rail .rb-rc:hover .rb-rc-cta{color:var(--ink,#202021)}
 #rb-rail .rb-rc.is-today{background:var(--ink,#202021);border-color:var(--ink,#202021)}
+#rb-rail .rb-rc.is-today .rb-rc-body{background:var(--ink,#202021)}
 #rb-rail .rb-rc.is-today .rb-rc-wk{color:#C4B8A4}
 #rb-rail .rb-rc.is-today .rb-rc-act{color:#FAF8F5}
 #rb-rail .rb-rc.is-today .rb-rc-eve{color:#C4B8A4}
 #rb-rail .rb-rc.is-today .rb-rc-eve b{color:#E7E0CF}
-#rb-rail .rb-rc.is-today .rb-rc-src{color:#A89880}
-#rb-rail .rb-rc.is-today .rb-rc-thumbs i{background:#3a3a3b}
+#rb-rail .rb-rc.is-today .rb-rc-img{background:#3a3a3b}
 #rb-rail .rb-rc.is-today .rb-rc-cta{color:#C4B8A4}
 #rb-rail .rb-rc.is-today:hover .rb-rc-cta{color:#FAF8F5}
-#rb-rail .rb-rc.is-past{background:#F5F0E8;opacity:.75}
-#rb-rail .rb-rc.is-free{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.2)}
+#rb-rail .rb-rc.is-past{opacity:.78}
+#rb-rail .rb-rc.is-past .rb-rc-body{background:#F5F0E8}
+#rb-rail .rb-rc.is-free{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.2);background-image:repeating-linear-gradient(45deg,rgba(32,32,33,0.028) 0 6px,transparent 6px 13px)}
 #rb-rail .rb-rc.is-free .rb-rc-act{font-style:italic;font-size:16px;color:#C4B8A4}
 #rb-rail .rb-rc.is-empty-future{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.2)}
 #rb-rail .rb-rc.is-empty-future .rb-rc-act{font-style:italic;font-size:15.5px;color:#C4B8A4}
@@ -10546,17 +10550,22 @@ body>*:not(#tv-result-page){display:none !important}
 #rb-rail .rb-rc.is-empty-past{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.1);opacity:.45;cursor:default}
 #rb-rail .rb-rc.is-pinned{border-color:var(--mauve,#D4C8C4);box-shadow:0 0 0 1px var(--mauve,#D4C8C4) inset}
 #rb-rail .rb-rc-worn{font-size:10px;letter-spacing:.06em;color:#7E7C5A;margin-top:auto}
-#rb-rail .rb-upnext{display:flex;align-items:baseline;gap:12px;width:100%;box-sizing:border-box;text-align:left;margin-top:12px;padding:13px 16px;background:rgba(212,200,196,0.16);border:0.5px solid rgba(32,32,33,0.1);border-radius:12px;cursor:pointer;font-family:inherit;transition:border-color .2s}
+#rb-rail .rb-upnext{display:flex;align-items:center;gap:14px;width:100%;box-sizing:border-box;text-align:left;margin-top:12px;padding:10px 14px;background:rgba(212,200,196,0.16);border:0.5px solid rgba(32,32,33,0.1);border-radius:12px;cursor:pointer;font-family:inherit;transition:border-color .2s}
 #rb-rail .rb-upnext:hover{border-color:rgba(32,32,33,0.35)}
+#rb-rail .rb-upnext .th{flex:none;width:46px;height:46px;border-radius:8px;overflow:hidden;background:#EFE9DC}
+#rb-rail .rb-upnext .th img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.55) sepia(.18) contrast(.95)}
 #rb-rail .rb-upnext .k{flex:none;font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#A89880}
-#rb-rail .rb-upnext .t{font-family:'Cormorant',Georgia,serif;font-size:17px;color:var(--ink,#202021)}
-#rb-rail .rb-upnext .m{font-size:11px;color:#A89880}
+#rb-rail .rb-upnext .t{font-family:'Cormorant',Georgia,serif;font-size:17px;color:var(--ink,#202021);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rb-rail .rb-upnext .m{font-size:11px;color:#A89880;white-space:nowrap}
+#rb-rail .rb-upnext .cta{margin-left:auto;flex:none;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880}
+#rb-rail .rb-upnext:hover .cta{color:var(--ink,#202021)}
 @media(max-width:999px){
   #rb-rail .rb-rail-row{display:flex;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   #rb-rail .rb-rail-row::-webkit-scrollbar{display:none}
-  #rb-rail .rb-rc{flex:none;width:166px;min-height:152px;scroll-snap-align:center}
+  #rb-rail .rb-rc{flex:none;width:166px;min-height:176px;scroll-snap-align:center}
   #rb-rail .rb-rc.is-today,#rb-rail .rb-rc.is-empty-today{width:206px}
-  #rb-rail .rb-upnext{flex-wrap:wrap;gap:5px}
+  #rb-rail .rb-upnext{flex-wrap:wrap;gap:8px}
+  #rb-rail .rb-upnext .cta{margin-left:0}
 }`;
 
         function mount() {
@@ -10578,20 +10587,18 @@ body>*:not(#tv-result-page){display:none !important}
         }
 
         function fmtCard(iso) {
-          if (iso === _railToday) return 'Today';
-          if (iso === _pdAddISO(_railToday, -1)) return 'Yesterday';
-          if (iso === _pdAddISO(_railToday, 1)) return 'Tomorrow';
           const d = new Date(iso + 'T00:00:00');
-          return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+          const now = new Date(_railToday + 'T00:00:00');
+          const sameMonth = d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+          const dm = d.toLocaleDateString('en-GB', sameMonth ? { weekday: 'short', day: 'numeric' } : { weekday: 'short', day: 'numeric', month: 'short' });
+          if (iso === _railToday) return 'Today · ' + dm;
+          if (iso === _pdAddISO(_railToday, -1)) return 'Yesterday · ' + dm;
+          if (iso === _pdAddISO(_railToday, 1)) return 'Tomorrow · ' + dm;
+          return dm;
         }
         function fmtLong(iso) {
           const d = new Date(iso + 'T00:00:00');
           return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
-        }
-        function srcLabel(m) {
-          const p = m.parent || {};
-          if (p.title) return p.title;
-          return m.source_type === 'weekly' ? 'Your week' : m.source_type === 'travel' ? 'Travel edit' : 'Daily look';
         }
         function cardState(slot) {
           const past = slot.date < _railToday, today = slot.date === _railToday;
@@ -10607,38 +10614,42 @@ body>*:not(#tv-result-page){display:none !important}
           const pinned = slot.moments.some(m => m.pinned);
           const worn = slot.moments.some(m => m.status === 'worn');
           const wk = `<div class="rb-rc-wk">${_waEsc(fmtCard(slot.date))}</div>`;
-          let body = '', cta = '', cls = 'is-' + state + (pinned ? ' is-pinned' : '');
+          const cls = 'is-' + state + (pinned ? ' is-pinned' : '');
           if (state === 'empty-past') {
-            body = '<div class="rb-rc-act" style="font-style:italic;color:#D8CFC0">—</div>';
-            return `<div class="rb-rc ${cls}">${wk}${body}</div>`;
+            return `<div class="rb-rc ${cls}"><div class="rb-rc-body">${wk}<div class="rb-rc-act" style="font-style:italic;color:#D8CFC0">—</div></div></div>`;
           }
           if (state === 'empty-today' || state === 'empty-future') {
             // COPY: needs sign-off
-            body = `<div class="rb-rc-act">${state === 'empty-today' ? 'Nothing planned yet' : 'Nothing planned'}</div>`;
-            cta = `<span class="rb-rc-cta">${state === 'empty-today' ? 'Dress today →' : 'Dress this day →'}</span>`;
-            return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailScope(${i})">${wk}${body}${cta}</div>`;
+            return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailScope(${i})"><div class="rb-rc-body">${wk}` +
+              `<div class="rb-rc-act">${state === 'empty-today' ? 'Nothing planned yet' : 'Nothing planned'}</div>` +
+              `<span class="rb-rc-cta">${state === 'empty-today' ? 'Dress today →' : 'Dress this day →'}</span></div></div>`;
           }
           if (state === 'free') {
-            body = `<div class="rb-rc-act">Left free</div><div class="rb-rc-src">· ${_waEsc(srcLabel(dayMoment))}</div>`;
-            return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailOpen(${i})">${wk}${body}</div>`;
+            // A deliberately free day has nothing to open — the CTA dresses it
+            return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailScope(${i})"><div class="rb-rc-body">${wk}` +
+              `<div class="rb-rc-act">Left free</div><span class="rb-rc-cta">Dress it →</span></div></div>`;
           }
+          // One warm frame: the first truthful image the day's moments carry.
+          // The title renders once — no source line, no truncated description
+          // (design pass 2026-07-23).
+          let frame = null;
+          for (const m of slot.moments) { for (const u of (m.thumb_urls || [])) { if (u) { frame = u; break; } } if (frame) break; }
+          const img = `<div class="rb-rc-img">${frame ? `<img src="${_waEsc(frame)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>`;
           const act = dayMoment.activity || dayMoment.headline || 'Planned';
-          body = `<div class="rb-rc-act">${_waEsc(act)}</div>`;
+          let body = wk + `<div class="rb-rc-act">${_waEsc(act)}</div>`;
           if (eveMoment && eveMoment.status !== 'free') {
             body += `<div class="rb-rc-eve">Evening · <b>${_waEsc(eveMoment.activity || eveMoment.headline || 'planned')}</b></div>`;
           }
-          body += `<div class="rb-rc-src">· ${_waEsc(srcLabel(dayMoment))}</div>`;
-          const thumbs = [];
-          slot.moments.forEach(m => (m.thumb_urls || []).forEach(u => { if (thumbs.length < 4 && thumbs.indexOf(u) === -1) thumbs.push(u); }));
-          if (thumbs.length) body += '<div class="rb-rc-thumbs">' + thumbs.map(u => `<i><img src="${_waEsc(u)}" alt="" loading="lazy" onerror="this.parentNode.style.display='none'"></i>`).join('') + '</div>';
+          let cta;
           if (state === 'past') {
+            // COPY: needs sign-off
             cta = worn
               ? '<div class="rb-rc-worn">Worn ✓</div>'
-              : `<button class="rb-rc-cta" onclick="window.__rbRailWear(${i},event)">Mark worn ✓</button>`;
+              : `<button class="rb-rc-cta" onclick="window.__rbRailWear(${i},event)">Wore it?</button>`;
           } else {
             cta = `<span class="rb-rc-cta">${state === 'today' ? 'Open the look →' : 'Open →'}</span>`;
           }
-          return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailOpen(${i})">${wk}${body}${cta}</div>`;
+          return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailOpen(${i})">${img}<div class="rb-rc-body">${body}${cta}</div></div>`;
         }
 
         function paint(slots) {
@@ -10671,13 +10682,29 @@ body>*:not(#tv-result-page){display:none !important}
               if (!Array.isArray(rows) || !rows.length) { holder.innerHTML = ''; return; }
               const first = rows[0];
               const mine = rows.filter(r => r.source_id === first.source_id).map(r => r.day_date);
-              const parent = _pdParent(first.source_id);
-              const range = fmtLong(mine[0]) + (mine.length > 1 ? ' – ' + fmtLong(mine[mine.length - 1]) : '');
-              const title = parent.title || (first.source_type === 'travel' ? 'A trip' : 'A plan');
+              const item = snLoad().find(x => String(x.id) === String(first.source_id));
+              const title = (item && item.title) || (first.source_type === 'travel' ? 'A trip' : 'A plan');
+              const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+              const range = fmt(mine[0]) + (mine.length > 1 ? ' – ' + fmt(mine[mine.length - 1]) : '');
+              // Counts are derived, never stored: capsule membership + look
+              // count for a trip, dressed-day count for a week.
+              let counts = '';
+              if (item && item.tvData) {
+                const pieces = (item.tvData.capsule || []).length;
+                const looks = (item.tvData.days || []).reduce((n, d) => n + ((d.slots || []).length), 0);
+                counts = (pieces ? ' · ' + pieces + ' pieces' : '') + (looks ? ' · ' + looks + ' looks' : '');
+              } else if (item && item.wkData) {
+                const nd = (item.wkData.days || []).filter(d => !d.rest).length;
+                counts = nd ? ' · ' + nd + ' days' : '';
+              }
+              // The trip's editorial hero (the lookbook card thumbnail) leads
+              const thumb = (item && item.img && String(item.img).indexOf('http') === 0)
+                ? `<span class="th"><img src="${_waEsc(item.img)}" alt="" onerror="this.parentNode.style.display='none'"></span>` : '';
+              const cta = first.source_type === 'travel' ? 'Open the trip →' : first.source_type === 'weekly' ? 'Open the week →' : 'Open →';
               holder.innerHTML =
-                `<button class="rb-upnext" onclick="window.__snOpenItem(${Number(first.source_id)})">` +
+                `<button class="rb-upnext" onclick="window.__snOpenItem(${Number(first.source_id)})">${thumb}` +
                 `<span class="k">Coming up</span><span class="t">${_waEsc(title)}</span>` +
-                `<span class="m">${_waEsc(range)} · ${mine.length} day${mine.length === 1 ? '' : 's'}</span></button>`;
+                `<span class="m">${_waEsc(range + counts)}</span><span class="cta">${cta}</span></button>`;
             })
             .catch(() => {});
         }
