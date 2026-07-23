@@ -10515,29 +10515,32 @@ body>*:not(#tv-result-page){display:none !important}
         // wardrobe photo sits inside the brand's cream/neutral register.
         //
         // GEOMETRY IS LOCKED (second design pass, same day): every card in
-        // the row shares one frame ratio (4:3) and one text-zone height
-        // (two title lines RESERVED whether one or two are used) — Today
-        // differs in color only, never in shape. Home's deliberate height
-        // ladder: week-ahead compact (this row, 4:3 frame + fixed stack)
-        // < concierge medium (.svc-img 16:9) < lookbook tall hero
-        // (.rb-sn-img 3:4 portrait). Don't tune one row in isolation.
+        // the row shares one frame ratio and one text-zone height (two
+        // title lines RESERVED whether one or two are used) — Today differs
+        // in color only, never in shape. Balanced against the full page
+        // (third pass): the rail is an INDEX, not a gallery — shallow 3:2
+        // frames, tight stack, total card ≈200px so it sits quietly under
+        // the prompt. Home's deliberate height ladder: week-ahead compact
+        // (≈200px) < concierge medium (.svc-img 16:9, ≈300px) < lookbook
+        // tall hero (.rb-sn-img 3:4 portrait, ≈500px). Don't tune one row
+        // in isolation.
         const RAIL_CSS = `
-#rb-rail{margin:6px 0 34px}
-#rb-rail .rb-rail-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 12px}
+#rb-rail{margin:6px 0 30px}
+#rb-rail .rb-rail-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 10px}
 #rb-rail .rb-rail-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#A89880)}
 #rb-rail .rb-rail-hint{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:#C4B8A4}
 #rb-rail .rb-rail-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px}
 #rb-rail .rb-rc{position:relative;display:flex;flex-direction:column;padding:0;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;cursor:pointer;box-sizing:border-box;overflow:hidden;transition:border-color .2s;text-align:left}
 #rb-rail .rb-rc:hover{border-color:rgba(32,32,33,0.4)}
-#rb-rail .rb-rc-img{flex:none;aspect-ratio:4/3;background:#EFE9DC}
+#rb-rail .rb-rc-img{flex:none;aspect-ratio:3/2;background:#EFE9DC}
 #rb-rail .rb-rc-img img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.55) sepia(.18) contrast(.95) brightness(1.02)}
-#rb-rail .rb-rc-body{flex:1;display:flex;flex-direction:column;gap:5px;padding:11px 13px 13px;min-width:0;min-height:132px}
+#rb-rail .rb-rc-body{flex:1;display:flex;flex-direction:column;gap:4px;padding:10px 12px 11px;min-width:0}
 #rb-rail .rb-rc-wk{font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#rb-rail .rb-rc-act{font-family:'Cormorant',Georgia,serif;font-size:17.5px;line-height:1.15;color:var(--ink,#202021);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:2.3em}
-#rb-rail .rb-rc-eve{font-size:10px;color:#8A8078;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rb-rail .rb-rc-act{font-family:'Cormorant',Georgia,serif;font-size:16px;line-height:1.15;color:var(--ink,#202021);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:2.3em}
+#rb-rail .rb-rc-eve{font-size:9.5px;color:#8A8078;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rb-rail .rb-rc-eve b{font-weight:500;color:#6E6A64}
-#rb-rail .rb-rc-src{font-size:10px;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#rb-rail .rb-rc-cta{margin-top:auto;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;background:none;border:none;padding:0;cursor:pointer;text-align:left;font-family:inherit;transition:color .2s}
+#rb-rail .rb-rc-src{font-size:9.5px;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rb-rail .rb-rc-cta{margin-top:auto;padding-top:5px;font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;background:none;border:none;padding-left:0;padding-right:0;padding-bottom:0;cursor:pointer;text-align:left;font-family:inherit;transition:color .2s}
 #rb-rail .rb-rc:hover .rb-rc-cta{color:var(--ink,#202021)}
 #rb-rail .rb-rc.is-today{background:var(--ink,#202021);border-color:var(--ink,#202021)}
 #rb-rail .rb-rc.is-today .rb-rc-body{background:var(--ink,#202021)}
@@ -10560,19 +10563,19 @@ body>*:not(#tv-result-page){display:none !important}
 #rb-rail .rb-rc.is-empty-past{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.1);opacity:.45;cursor:default}
 #rb-rail .rb-rc.is-pinned{border-color:var(--mauve,#D4C8C4);box-shadow:0 0 0 1px var(--mauve,#D4C8C4) inset}
 #rb-rail .rb-rc-worn{font-size:10px;letter-spacing:.06em;color:#7E7C5A;margin-top:auto}
-#rb-rail .rb-upnext{display:flex;align-items:center;gap:14px;width:100%;box-sizing:border-box;text-align:left;margin-top:12px;padding:10px 14px;background:rgba(212,200,196,0.16);border:0.5px solid rgba(32,32,33,0.1);border-radius:12px;cursor:pointer;font-family:inherit;transition:border-color .2s}
+#rb-rail .rb-upnext{display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;text-align:left;margin-top:10px;padding:8px 14px;background:rgba(212,200,196,0.16);border:0.5px solid rgba(32,32,33,0.1);border-radius:12px;cursor:pointer;font-family:inherit;transition:border-color .2s}
 #rb-rail .rb-upnext:hover{border-color:rgba(32,32,33,0.35)}
-#rb-rail .rb-upnext .th{flex:none;width:46px;height:46px;border-radius:8px;overflow:hidden;background:#EFE9DC}
+#rb-rail .rb-upnext .th{flex:none;width:36px;height:36px;border-radius:7px;overflow:hidden;background:#EFE9DC}
 #rb-rail .rb-upnext .th img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.55) sepia(.18) contrast(.95)}
-#rb-rail .rb-upnext .k{flex:none;font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#A89880}
-#rb-rail .rb-upnext .t{font-family:'Cormorant',Georgia,serif;font-size:17px;color:var(--ink,#202021);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#rb-rail .rb-upnext .m{font-size:11px;color:#A89880;white-space:nowrap}
-#rb-rail .rb-upnext .cta{margin-left:auto;flex:none;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880}
+#rb-rail .rb-upnext .k{flex:none;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#A89880}
+#rb-rail .rb-upnext .t{font-family:'Cormorant',Georgia,serif;font-size:16px;color:var(--ink,#202021);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rb-rail .rb-upnext .m{font-size:10.5px;color:#A89880;white-space:nowrap}
+#rb-rail .rb-upnext .cta{margin-left:auto;flex:none;font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880}
 #rb-rail .rb-upnext:hover .cta{color:var(--ink,#202021)}
 @media(max-width:999px){
   #rb-rail .rb-rail-row{display:flex;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   #rb-rail .rb-rail-row::-webkit-scrollbar{display:none}
-  #rb-rail .rb-rc{flex:none;width:172px;scroll-snap-align:center}
+  #rb-rail .rb-rc{flex:none;width:158px;scroll-snap-align:center}
   #rb-rail .rb-upnext{flex-wrap:wrap;gap:8px}
   #rb-rail .rb-upnext .cta{margin-left:0}
 }`;
