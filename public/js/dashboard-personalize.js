@@ -10509,21 +10509,19 @@ body>*:not(#tv-result-page){display:none !important}
         var _railSlots = null;
         var _railToday = null;
 
-        // "One warm frame" (design pass 2026-07-23): a single warm-toned
-        // image per card — never a rainbow thumb row — with the text in a
-        // clean stack beneath. The warm cast comes from a CSS filter so any
-        // wardrobe photo sits inside the brand's cream/neutral register.
+        // "Palette whisper" (design 1c, 2026-07-23 — supersedes the warm
+        // frame): text-led calendar cells with NO imagery. Three small
+        // swatches stand in for photos — the look's colour story in a
+        // whisper, derived from the day's owned pieces (item_dna hex, then
+        // the _ALL_SWATCHES name map). A dot-coded source tag identifies
+        // the day's plan: cream = daily, sage = week, mauve = trip.
         //
-        // GEOMETRY IS LOCKED (second design pass, same day): every card in
-        // the row shares one frame ratio and one text-zone height (two
-        // title lines RESERVED whether one or two are used) — Today differs
-        // in color only, never in shape. Balanced against the full page
-        // (third pass): the rail is an INDEX, not a gallery — shallow 3:2
-        // frames, tight stack, total card ≈200px so it sits quietly under
-        // the prompt. Home's deliberate height ladder: week-ahead compact
-        // (≈200px) < concierge medium (.svc-img 16:9, ≈300px) < lookbook
-        // tall hero (.rb-sn-img 3:4 portrait, ≈500px). Don't tune one row
-        // in isolation.
+        // GEOMETRY IS LOCKED: seven equal columns, today the same width
+        // (color only), one card height — two title lines reserved, row
+        // heights equalise via grid stretch. Home's height ladder:
+        // week-ahead compact < concierge medium (.svc-img 16:9) < lookbook
+        // tall hero (.rb-sn-img 3:4). Judge changes on the FULL homepage,
+        // never the rail alone.
         const RAIL_CSS = `
 #rb-rail{margin:6px 0 30px}
 #rb-rail .rb-rail-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 10px}
@@ -10532,14 +10530,16 @@ body>*:not(#tv-result-page){display:none !important}
 #rb-rail .rb-rail-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px}
 #rb-rail .rb-rc{position:relative;display:flex;flex-direction:column;padding:0;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;cursor:pointer;box-sizing:border-box;overflow:hidden;transition:border-color .2s;text-align:left}
 #rb-rail .rb-rc:hover{border-color:rgba(32,32,33,0.4)}
-#rb-rail .rb-rc-img{flex:none;aspect-ratio:3/2;background:#EFE9DC}
-#rb-rail .rb-rc-img img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.55) sepia(.18) contrast(.95) brightness(1.02)}
-#rb-rail .rb-rc-body{flex:1;display:flex;flex-direction:column;gap:4px;padding:10px 12px 11px;min-width:0}
+#rb-rail .rb-rc-body{flex:1;display:flex;flex-direction:column;gap:5px;padding:13px 14px 13px;min-width:0;min-height:172px}
 #rb-rail .rb-rc-wk{font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rb-rail .rb-rc-act{font-family:'Cormorant',Georgia,serif;font-size:16px;line-height:1.15;color:var(--ink,#202021);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:2.3em}
 #rb-rail .rb-rc-eve{font-size:9.5px;color:#8A8078;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rb-rail .rb-rc-eve b{font-weight:500;color:#6E6A64}
-#rb-rail .rb-rc-src{font-size:9.5px;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rb-rail .rb-rc-tag{display:flex;align-items:center;gap:6px;font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+#rb-rail .rb-rc-tag i{flex:none;width:7px;height:7px;border-radius:50%;box-shadow:inset 0 0 0 0.5px rgba(32,32,33,0.15)}
+#rb-rail .rb-rc-sw{display:flex;gap:6px;margin-top:auto;padding:10px 0 8px}
+#rb-rail .rb-rc-sw i{width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 0.5px rgba(32,32,33,0.16)}
+#rb-rail .rb-rc-sw + .rb-rc-cta{margin-top:0}
 #rb-rail .rb-rc-cta{margin-top:auto;padding-top:5px;font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;background:none;border:none;padding-left:0;padding-right:0;padding-bottom:0;cursor:pointer;text-align:left;font-family:inherit;transition:color .2s}
 #rb-rail .rb-rc:hover .rb-rc-cta{color:var(--ink,#202021)}
 #rb-rail .rb-rc.is-today{background:var(--ink,#202021);border-color:var(--ink,#202021)}
@@ -10548,8 +10548,8 @@ body>*:not(#tv-result-page){display:none !important}
 #rb-rail .rb-rc.is-today .rb-rc-act{color:#FAF8F5}
 #rb-rail .rb-rc.is-today .rb-rc-eve{color:#C4B8A4}
 #rb-rail .rb-rc.is-today .rb-rc-eve b{color:#E7E0CF}
-#rb-rail .rb-rc.is-today .rb-rc-img{background:#3a3a3b}
-#rb-rail .rb-rc.is-today .rb-rc-src{color:#8A8078}
+#rb-rail .rb-rc.is-today .rb-rc-tag{color:#C4B8A4}
+#rb-rail .rb-rc.is-today .rb-rc-sw i{box-shadow:inset 0 0 0 0.5px rgba(250,248,245,0.35)}
 #rb-rail .rb-rc.is-today .rb-rc-cta{color:#C4B8A4}
 #rb-rail .rb-rc.is-today:hover .rb-rc-cta{color:#FAF8F5}
 #rb-rail .rb-rc.is-past{opacity:.78}
@@ -10622,12 +10622,38 @@ body>*:not(#tv-result-page){display:none !important}
         // trip, the week's start for a plan, "Daily look" for a one-off.
         function srcFact(m) {
           const it = snLoad().find(x => String(x.id) === String(m.source_id));
-          if (m.source_type === 'travel') return (it && it.tvData && it.tvData.destination) || 'Travel edit';
+          if (m.source_type === 'travel') {
+            const dest = it && it.tvData && it.tvData.destination;
+            return dest ? dest + ' trip' : 'Travel edit';
+          }
           if (m.source_type === 'weekly') {
             const iso = (it && it.wkData && Array.isArray(it.wkData.week_iso)) ? it.wkData.week_iso[0] : null;
             return iso ? 'Week of ' + new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Weekly plan';
           }
           return 'Daily look';
+        }
+        // Dot-coded source identity: cream = daily, sage = week, mauve = trip
+        function srcDot(type) { return type === 'travel' ? '#D4C8C4' : type === 'weekly' ? '#9BA17B' : '#E3D9C6'; }
+        function tagHtml(m) {
+          return `<div class="rb-rc-tag"><i style="background:${srcDot(m.source_type)}"></i>${_waEsc(srcFact(m))}</div>`;
+        }
+        // The look's colour story in a whisper: up to three swatches from
+        // the day's owned pieces — item_dna hex first, then the palette
+        // name map. No colours resolvable → no row (never placeholder dots).
+        function dayColors(slot) {
+          const out = [];
+          slot.moments.forEach(m => (m.item_ids || []).forEach(id => {
+            if (out.length >= 3) return;
+            const wi = _waItems.find(w => String(w.id) === String(id));
+            if (!wi) return;
+            let hex = wi.item_dna && wi.item_dna.display && wi.item_dna.display.primary_color_hex;
+            if (!hex || !/^#[0-9a-fA-F]{3,8}$/.test(String(hex))) {
+              const sw = _ALL_SWATCHES.find(s => s.name.toLowerCase() === String(wi.color || '').toLowerCase());
+              hex = sw ? sw.hex : null;
+            }
+            if (hex && out.indexOf(hex) === -1) out.push(hex);
+          }));
+          return out;
         }
 
         function cardHtml(slot, i) {
@@ -10648,32 +10674,31 @@ body>*:not(#tv-result-page){display:none !important}
               `<span class="rb-rc-cta">${state === 'empty-today' ? 'Dress today →' : 'Dress this day →'}</span></div></div>`;
           }
           if (state === 'free') {
-            // A deliberately free day has nothing to open — the CTA dresses it
+            // A deliberately free day has nothing to open — the CTA dresses
+            // it. The tag still names the plan the free day belongs to.
             return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailScope(${i})"><div class="rb-rc-body">${wk}` +
-              `<div class="rb-rc-act">Left free</div><span class="rb-rc-cta">Dress it →</span></div></div>`;
+              `<div class="rb-rc-act">Left free</div>${tagHtml(dayMoment)}<span class="rb-rc-cta">Dress it →</span></div></div>`;
           }
-          // One warm frame: the first truthful image the day's moments carry.
-          // The title renders once — no source line, no truncated description
-          // (design pass 2026-07-23).
-          let frame = null;
-          for (const m of slot.moments) { for (const u of (m.thumb_urls || [])) { if (u) { frame = u; break; } } if (frame) break; }
-          const img = `<div class="rb-rc-img">${frame ? `<img src="${_waEsc(frame)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>`;
+          // Palette whisper: the title once, the plan's dot-coded tag, then
+          // up to three colour swatches from the day's owned pieces.
           const act = dayMoment.activity || dayMoment.headline || 'Planned';
           let body = wk + `<div class="rb-rc-act">${_waEsc(act)}</div>`;
           if (eveMoment && eveMoment.status !== 'free') {
             body += `<div class="rb-rc-eve">Evening · <b>${_waEsc(eveMoment.activity || eveMoment.headline || 'planned')}</b></div>`;
           }
-          body += `<div class="rb-rc-src">${_waEsc(srcFact(dayMoment))}</div>`;
+          body += tagHtml(dayMoment);
+          const colors = dayColors(slot);
+          if (colors.length) body += '<div class="rb-rc-sw">' + colors.map(h => `<i style="background:${h}"></i>`).join('') + '</div>';
           let cta;
           if (state === 'past') {
             // COPY: needs sign-off
             cta = worn
-              ? '<div class="rb-rc-worn">Worn ✓</div>'
+              ? '<div class="rb-rc-worn"' + (colors.length ? ' style="margin-top:0"' : '') + '>Worn ✓</div>'
               : `<button class="rb-rc-cta" onclick="window.__rbRailWear(${i},event)">Wore it?</button>`;
           } else {
             cta = `<span class="rb-rc-cta">${state === 'today' ? 'Open the look →' : 'Open →'}</span>`;
           }
-          return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailOpen(${i})">${img}<div class="rb-rc-body">${body}${cta}</div></div>`;
+          return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailOpen(${i})"><div class="rb-rc-body">${body}${cta}</div></div>`;
         }
 
         function paint(slots) {
