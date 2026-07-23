@@ -2623,6 +2623,9 @@
         if (!_waUid()) return;
         _waFetch('DELETE', 'lookbook_items?id=eq.' + id + '&user_id=eq.' + _waUid())
           .catch(() => {});
+        // No FK cascade exists (lookbook PK is (user_id,id), source_id is
+        // plain text) — orphaned index rows paint ghost days on the rail.
+        _pdDeleteSource(String(id));
       }
       async function _lbCloudPull() {
         // Wait for the session-dependent helpers (same lazy pattern as _waInit)
@@ -2649,6 +2652,299 @@
           console.warn('[robes] lookbook cloud pull skipped:', String(e.message || e).slice(0, 120));
         }
       }
+
+      // ── planned_days index (migration 12) ────────────────────────────
+      // The dated-day index over the lookbook blobs: one row per MOMENT
+      // (a date holds a 'day' slot and optionally an 'evening'), keyed
+      // (user_id, source_id, day_index, slot), upserted alongside every
+      // blob write. The blob stays authoritative for rendering; these rows
+      // exist so a rail card or month cell never parses a blob. Until the
+      // migration runs every call warns once and no-ops (the app behaves
+      // exactly as before) — the same degradation convention as wishlist.
+      var _pdDown = false;      // table missing → stop trying this session
+      var _pdWarned = false;
+      var _pdTimers = {};       // per-source debounce so a flick-storm coalesces
+      function _pdWarn(msg) {
+        if (!_pdWarned) { console.warn('[robes] planned_days: ' + msg + ' — run supabase/planned_days_migration.sql'); _pdWarned = true; }
+      }
+      function _pdMissing(t) {
+        return /planned_days/.test(t) && (/PGRST205|42P01|Could not find the table|does not exist/.test(t));
+      }
+      // A day is a local-calendar concept — always the LOCAL date, never
+      // toISOString() (which is UTC and goes wrong at 23:00 in the US).
+      function _pdLocalISO(d) {
+        const x = d || new Date();
+        return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+      }
+      // Day arithmetic on ISO strings rides UTC internally so DST shifts
+      // can never skip or double a calendar date.
+      function _pdAddISO(iso, n) {
+        const d = new Date(iso + 'T00:00:00Z');
+        if (isNaN(d)) return null;
+        d.setUTCDate(d.getUTCDate() + n);
+        return d.toISOString().slice(0, 10);
+      }
+      function _pdHttp(u) { return (typeof u === 'string' && u.indexOf('http') === 0) ? u : null; }
+      function _pdBase(sourceType, sourceId, dayIndex, dayDate, slot) {
+        return {
+          user_id: _waUid(), day_date: dayDate,
+          source_type: sourceType, source_id: String(sourceId), day_index: dayIndex,
+          slot: slot || 'day', environment: _RB_ENV,
+          updated_at: new Date().toISOString(),
+        };
+      }
+      // Frame for the thumb strip: truthful wardrobe photo first, then the
+      // generated still — but never a still on a flicked piece (same rule
+      // as _tvFrame/_dlAltered: an altered piece must not wear the
+      // original's imagery).
+      function _pdItemThumb(it, gen) {
+        if (it && it.wardrobe_match && _pdHttp(it.wardrobe_match.image_url)) return it.wardrobe_match.image_url;
+        try { if (typeof _dlAltered === 'function' && _dlAltered(it)) return null; } catch (_) {}
+        if (it && Number.isInteger(it.image_index) && Array.isArray(gen)) return _pdHttp(gen[it.image_index]);
+        return null;
+      }
+      function _pdThumbs(items, gen) {
+        const out = [];
+        for (const it of items || []) {
+          const u = _pdItemThumb(it, gen);
+          if (u && out.indexOf(u) === -1) out.push(u);
+          if (out.length >= 3) break;
+        }
+        return out;
+      }
+      function _pdOwnedIds(items) {
+        const out = [];
+        (items || []).forEach(it => { if (it && it.wardrobe_match && it.wardrobe_match.id != null) out.push(it.wardrobe_match.id); });
+        return out;
+      }
+
+      // Row builders — one per track. Each returns {rows, totalDays} or
+      // null when the blob can't emit dated rows (old saves without ISO
+      // dates: skipped here, covered by the backfill script).
+      function _pdRowsWk(sourceId, w) {
+        const iso = w && Array.isArray(w.week_iso) ? w.week_iso : null;
+        if (!iso || !Array.isArray(w.days) || !w.days.length) return null;
+        const rows = [];
+        w.days.forEach((d, i) => {
+          if (!iso[i]) return;
+          const rest = !!d.rest;
+          rows.push({
+            ..._pdBase('weekly', sourceId, i, iso[i], 'day'),
+            status: rest ? 'free' : 'planned',
+            activity: rest ? null : (d.user_activity || d.occasion || null),
+            headline: rest ? null : (d.note || d.occasion || null),
+            thumb_urls: rest ? [] : _pdThumbs(d.items, w.generatedImages),
+            item_ids: rest ? [] : _pdOwnedIds(d.items),
+          });
+        });
+        return rows.length ? { rows, totalDays: w.days.length } : null;
+      }
+      function _pdRowsTv(sourceId, t) {
+        if (!t || !t.dateFrom) return null;
+        const from = new Date(t.dateFrom + 'T00:00:00Z');
+        if (isNaN(from)) return null;
+        const rows = [];
+        const days = Array.isArray(t.days) ? t.days : [];
+        if (!days.length) {
+          // Deferred trip — the trip must band on the calendar before any
+          // outfits exist: one 'planned' row per date, no headline/thumbs.
+          const n = _tvTripDays({ dateFrom: t.dateFrom, dateTo: t.dateTo }).n;
+          const plan = Array.isArray(t.trip_day_plan) ? t.trip_day_plan : [];
+          for (let i = 0; i < n; i++) {
+            rows.push({
+              ..._pdBase('travel', sourceId, i, _pdAddISO(t.dateFrom, i), 'day'),
+              status: plan[i] === null ? 'free' : 'planned',
+              activity: (typeof plan[i] === 'string' && plan[i]) ? plan[i] : null,
+              headline: null, thumb_urls: [], item_ids: [],
+            });
+          }
+          return { rows, totalDays: n };
+        }
+        days.forEach((d, i) => {
+          const date = _pdAddISO(t.dateFrom, i);
+          if (!date) return;
+          const label = ((d.day_label || '').split('·')[1] || '').trim();
+          if (d.rest || !Array.isArray(d.slots) || !d.slots.length) {
+            rows.push({ ..._pdBase('travel', sourceId, i, date, 'day'), status: 'free', activity: d.user_activity || null, headline: null, thumb_urls: [], item_ids: [] });
+            return;
+          }
+          d.slots.slice(0, 2).forEach((s, si) => {
+            const slotName = (String(s.slot || '').toLowerCase() === 'evening' || si === 1) ? 'evening' : 'day';
+            const pieces = (Array.isArray(s.formula) ? s.formula : [])
+              .map(f => (t.capsule || [])[f.item_index]).filter(Boolean);
+            rows.push({
+              ..._pdBase('travel', sourceId, i, date, slotName),
+              status: 'planned',
+              activity: d.user_activity || label || null,
+              headline: s.title || null,
+              thumb_urls: _pdThumbs(pieces, t.generatedImages),
+              item_ids: _pdOwnedIds(pieces),
+            });
+          });
+        });
+        return rows.length ? { rows, totalDays: days.length } : null;
+      }
+      function _pdRowsDl(sourceId, d) {
+        if (!d || !d.anchor_date) return null; // pre-index saves: no date, no row
+        const items = [];
+        (d.steps || []).forEach(s => (s.items || []).forEach(it => items.push(it)));
+        return {
+          rows: [{
+            ..._pdBase('daily', sourceId, 0, d.anchor_date, 'day'),
+            status: d.worn ? 'worn' : 'planned',
+            activity: d.occasion_label || (d.prompt ? String(d.prompt).slice(0, 120) : null),
+            headline: d.headline || null,
+            thumb_urls: _pdThumbs(items, d.generatedImages),
+            item_ids: _pdOwnedIds(items),
+          }],
+          totalDays: 1,
+        };
+      }
+
+      // The sync: upsert every emitted row, then sweep rows the blob no
+      // longer produces — a shrunk range (day_index past the end) and
+      // evenings that no longer exist. An evening that survives in the
+      // index but not the blob paints a ghost moment on the rail — the
+      // same bug class as orphaned rows on delete.
+      function _pdWrite(built, sourceId) {
+        const url = _SUPA_URL + '/rest/v1/planned_days';
+        const headers = {
+          'apikey': _SUPA_KEY, 'Authorization': 'Bearer ' + _waToken(),
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal',
+        };
+        fetch(url + '?on_conflict=user_id,source_id,day_index,slot', { method: 'POST', headers, body: JSON.stringify(built.rows) })
+          .then(r => {
+            if (!r.ok) return r.text().then(t => { if (_pdMissing(t)) { _pdDown = true; _pdWarn('table missing'); } else console.warn('[robes] planned_days upsert failed:', r.status, String(t).slice(0, 160)); });
+            const base = url + '?user_id=eq.' + _waUid() + '&source_id=eq.' + encodeURIComponent(String(sourceId));
+            const del = q => fetch(base + q, { method: 'DELETE', headers }).catch(() => {});
+            del('&day_index=gte.' + built.totalDays);
+            const evIdx = built.rows.filter(x => x.slot === 'evening').map(x => x.day_index);
+            del('&slot=eq.evening' + (evIdx.length ? '&day_index=not.in.(' + evIdx.join(',') + ')' : ''));
+          })
+          .catch(() => {});
+      }
+      function _pdSync(sourceType, sourceId, blob) {
+        try {
+          if (_pdDown || !sourceId || !_waUid() || !_waToken()) return;
+          clearTimeout(_pdTimers[sourceId]);
+          _pdTimers[sourceId] = setTimeout(() => {
+            try {
+              const built = sourceType === 'weekly' ? _pdRowsWk(sourceId, blob)
+                : sourceType === 'travel' ? _pdRowsTv(sourceId, blob)
+                : sourceType === 'daily' ? _pdRowsDl(sourceId, blob) : null;
+              if (built && built.rows.length) _pdWrite(built, sourceId);
+            } catch (e) { console.warn('[robes] planned_days sync skipped:', String(e && e.message || e).slice(0, 120)); }
+          }, 600);
+        } catch (_) {}
+      }
+      // Convenience: re-sync a source from whatever the lookbook cache now
+      // holds — the one call every patch path shares.
+      function _pdSyncSaved(id) {
+        if (!id) return;
+        const it = snLoad().find(x => x.id === id);
+        if (!it) return;
+        if (it.type === 'weekly-plan' && it.wkData) _pdSync('weekly', id, it.wkData);
+        else if (it.type === 'travel-edit' && it.tvData) _pdSync('travel', id, it.tvData);
+        else if (it.type === 'daily-look' && it.dlData) _pdSync('daily', id, it.dlData);
+      }
+      function _pdDeleteSource(sourceId) {
+        if (_pdDown || !_waUid() || sourceId == null) return;
+        clearTimeout(_pdTimers[sourceId]);
+        fetch(_SUPA_URL + '/rest/v1/planned_days?user_id=eq.' + _waUid() + '&source_id=eq.' + encodeURIComponent(String(sourceId)), {
+          method: 'DELETE',
+          headers: { 'apikey': _SUPA_KEY, 'Authorization': 'Bearer ' + _waToken(), 'Content-Type': 'application/json' },
+        }).catch(() => {});
+      }
+
+      // ── planned_days read helpers (nothing consumes them until the rail
+      // ships — built now so the design build lands on a proven contract).
+      // Precedence is a READ-time question resolved per (date, slot):
+      // explicit Daily > Travel > Weekly > auto-planned, ties to the most
+      // recent updated_at. A trip's evening contends with a week's evening;
+      // it never displaces the week's daytime.
+      function _pdTier(t) { return t === 'daily' ? 3 : t === 'travel' ? 2 : t === 'weekly' ? 1 : 0; }
+      function _pdWinner(rows) {
+        return rows.slice().sort((a, b) =>
+          (_pdTier(b.source_type) - _pdTier(a.source_type)) ||
+          (new Date(b.updated_at || 0) - new Date(a.updated_at || 0)))[0] || null;
+      }
+      // Parent resolution rides the local lookbook cache (synced by
+      // _lbCloudPull at boot) — never a second query per card.
+      function _pdParent(sourceId) {
+        const it = snLoad().find(x => String(x.id) === String(sourceId));
+        return it ? { title: it.title || null, type: it.type || null } : { title: null, type: null };
+      }
+      function _pdCacheKey() { const u = _waUid(); return u ? 'robes_planned_days__' + u : null; }
+      function _pdCacheRead() {
+        const k = _pdCacheKey(); if (!k) return [];
+        try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch (_) { return []; }
+      }
+      function _pdCacheWrite(rows) {
+        const k = _pdCacheKey(); if (!k) return;
+        try { localStorage.setItem(k, JSON.stringify(rows.slice(0, 400))); } catch (_) {}
+      }
+      async function _pdFetch(fromISO, toISO) {
+        const rows = await _waFetch('GET', 'planned_days?user_id=eq.' + _waUid()
+          + '&day_date=gte.' + fromISO + '&day_date=lte.' + toISO
+          + '&order=day_date.asc&select=*');
+        return Array.isArray(rows) ? rows : [];
+      }
+      function _pdDateList(fromISO, toISO) {
+        const out = [];
+        let d = fromISO;
+        for (let i = 0; i < 62 && d; i++) { out.push(d); if (d === toISO) break; d = _pdAddISO(d, 1); }
+        return out;
+      }
+      function _pdSlots(rows, fromISO, toISO) {
+        return _pdDateList(fromISO, toISO).map(date => {
+          const here = rows.filter(r => r.day_date === date);
+          const moments = [];
+          ['day', 'evening'].forEach(slot => {
+            const w = _pdWinner(here.filter(r => (r.slot || 'day') === slot));
+            if (w) moments.push({ ...w, parent: _pdParent(w.source_id) });
+          });
+          return { date, moments };
+        });
+      }
+      // The rail is DATE-driven: seven slots whether or not rows exist —
+      // an unplanned Thursday is still a Thursday. Paints from the local
+      // cache instantly (cb fires once with cached, again with fresh).
+      function _pdRail(fromISO, toISO, cb) {
+        const from = fromISO || _pdAddISO(_pdLocalISO(), -1);
+        const to = toISO || _pdAddISO(from, 6);
+        const cached = _pdCacheRead().filter(r => r.day_date >= from && r.day_date <= to);
+        if (cb && cached.length) { try { cb(_pdSlots(cached, from, to), true); } catch (_) {} }
+        const p = (_pdDown ? Promise.resolve(cached) : _pdFetch(from, to).then(rows => {
+          const rest = _pdCacheRead().filter(r => r.day_date < from || r.day_date > to);
+          _pdCacheWrite(rest.concat(rows));
+          return rows;
+        }).catch(e => {
+          const t = String(e && e.message || e);
+          if (_pdMissing(t)) { _pdDown = true; _pdWarn('table missing'); }
+          else console.warn('[robes] planned_days rail read failed:', t.slice(0, 120));
+          return cached;
+        })).then(rows => _pdSlots(rows, from, to));
+        if (cb) p.then(slots => { try { cb(slots, false); } catch (_) {} });
+        return p;
+      }
+      // The month needs the LOSING rows too (band extents come from every
+      // row of a source) — return all rows unresolved, grouped by source.
+      function _pdMonth(fromISO, toISO) {
+        return (_pdDown ? Promise.resolve([]) : _pdFetch(fromISO, toISO).catch(e => {
+          const t = String(e && e.message || e);
+          if (_pdMissing(t)) { _pdDown = true; _pdWarn('table missing'); }
+          else console.warn('[robes] planned_days month read failed:', t.slice(0, 120));
+          return [];
+        })).then(rows => {
+          const sources = {};
+          rows.forEach(r => { if (!sources[r.source_id]) sources[r.source_id] = _pdParent(r.source_id); });
+          return { rows, sources };
+        });
+      }
+      window._pdRail = _pdRail;
+      window._pdMonth = _pdMonth;
+      window._pdLocalISO = _pdLocalISO;
 
       function snAdd(item) {
         const items = snLoad();
@@ -3437,6 +3733,7 @@
           img: urls.find(Boolean) || it.img || null,
           dlData: { ...(it.dlData || {}), generatedImages: urls },
         });
+        _pdSyncSaved(_dlActiveSaveId);
       }
 
       // Generated frames appear in TWO places now (the moodboard tile and
@@ -3626,6 +3923,14 @@
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
           data.genId = genId;
+          // Every daily look is anchored to a local calendar date — the
+          // change that makes "dress this day" addressable from the rail.
+          // A restyle keeps the saved look's original date; a fresh submit
+          // defaults to today unless the caller aimed it (opts.anchorDate).
+          const savedPrev = (opts && opts.savedId) ? snLoad().find(x => x.id === opts.savedId) : null;
+          data.anchor_date = (opts && opts.anchorDate)
+            || (savedPrev && savedPrev.dlData && savedPrev.dlData.anchor_date)
+            || _pdLocalISO();
           // Re-mark the anchors on the fresh look so they stay locked
           if (locked && locked.length) {
             const freshFlat = [];
@@ -3649,10 +3954,13 @@
           window.__dlRenderResult({ ...data, context }, prompt, savedId ? { skipSave: true, savedId } : undefined);
           if (savedId) {
             const saved = snLoad().find(x => x.id === savedId);
-            if (saved) snUpdate(savedId, {
-              title: data.headline || saved.title,
-              dlData: { ...data, context, jobId: undefined, generatedImages: [], prompt: prompt || '' },
-            });
+            if (saved) {
+              snUpdate(savedId, {
+                title: data.headline || saved.title,
+                dlData: { ...data, context, jobId: undefined, generatedImages: [], prompt: prompt || '' },
+              });
+              _pdSyncSaved(savedId);
+            }
           }
         } catch (err) {
           guard.done();
@@ -4462,7 +4770,10 @@
       function _dlPatchSaved() {
         if (!_dlActiveSaveId || !window.__lastDlData) return;
         const saved = snLoad().find(x => x.id === _dlActiveSaveId);
-        if (saved) snUpdate(_dlActiveSaveId, { dlData: { ...(saved.dlData || {}), steps: window.__lastDlData.steps } });
+        if (saved) {
+          snUpdate(_dlActiveSaveId, { dlData: { ...(saved.dlData || {}), steps: window.__lastDlData.steps } });
+          _pdSyncSaved(_dlActiveSaveId);
+        }
       }
       function _dlRerender() {
         const data = window.__lastDlData;
@@ -4558,6 +4869,14 @@
             if (wi) await _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 });
           }
           _waLoad();
+          // The worn signal lands on the day's index row too — stamped into
+          // the blob first so a later patch/resync can't revert the status.
+          if (window.__lastDlData) window.__lastDlData.worn = true;
+          if (_dlActiveSaveId) {
+            const saved = snLoad().find(x => x.id === _dlActiveSaveId);
+            if (saved && saved.dlData) snUpdate(_dlActiveSaveId, { dlData: { ...saved.dlData, worn: true } });
+            _pdSyncSaved(_dlActiveSaveId);
+          }
           _waShowToast('On you today — Robes logged the wear ✓');
         } catch (e) {
           _dlWorn = false;
@@ -4867,6 +5186,7 @@
             dlData: saveCopy,
           });
           _rbTrack('look_generated', { track: 'daily', item: String(_dlActiveSaveId) });
+          _pdSync('daily', _dlActiveSaveId, saveCopy);
         } else {
           _dlActiveSaveId = (opts && opts.savedId) || data.id || null;
         }
@@ -5019,6 +5339,10 @@
           out.push({
             label: d.toLocaleDateString('en-GB', { weekday: 'long' }),
             date: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            // Real ISO date alongside the display strings — the display
+            // never round-trips back into a date (migration 12 needs the
+            // local calendar date, and "14 Jul" has no year).
+            iso: _pdLocalISO(d),
           });
         }
         return out;
@@ -5111,8 +5435,9 @@
         const dayPlan = days.map(d => d.free ? null : (skip ? '' : (d.activity || '').trim()));
         if (!dayPlan.some(p => p !== null)) { _waShowToast('Every day is left free — keep at least one dressed'); return; }
         const weekDays = days.map(d => d.label + ' · ' + d.date);
+        const weekIso = days.map(d => d.iso || null);
         document.getElementById('wk-plan-modal')?.remove();
-        _wkGenerate(_wkPlan.brief, dayPlan, weekDays);
+        _wkGenerate(_wkPlan.brief, dayPlan, weekDays, weekIso);
       };
 
       // Routing entry — the weekly track always goes through the planner
@@ -5121,7 +5446,7 @@
         window.__wkOpen({ brief: prompt || '' });
       };
 
-      async function _wkGenerate(prompt, dayPlan, weekDays) {
+      async function _wkGenerate(prompt, dayPlan, weekDays, weekIso) {
         let overlay = document.getElementById('kp-loading-overlay');
         if (!overlay) {
           overlay = document.createElement('div');
@@ -5189,7 +5514,10 @@
           overlay.style.display = 'none';
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
-          window.__wkRenderResult({ ...data, context, genId }, prompt);
+          // The server generates positionally against the calendar, so
+          // week_iso[i] is days[i]'s real date — carried in the render data
+          // (and therefore the save) for the planned_days index.
+          window.__wkRenderResult({ ...data, context, genId, week_iso: Array.isArray(weekIso) ? weekIso : undefined }, prompt);
         } catch (err) {
           guard.done();
           clearInterval(msgInterval);
@@ -5208,7 +5536,10 @@
       function _wkPatchSaved() {
         if (!_wkActiveSaveId || !_wkState) return;
         const saved = snLoad().find(x => x.id === _wkActiveSaveId);
-        if (saved) snUpdate(_wkActiveSaveId, { wkData: { ...(saved.wkData || {}), days: _wkState.data.days, stylist_summary: _wkState.data.stylist_summary } });
+        if (saved) {
+          snUpdate(_wkActiveSaveId, { wkData: { ...(saved.wkData || {}), days: _wkState.data.days, stylist_summary: _wkState.data.stylist_summary } });
+          _pdSyncSaved(_wkActiveSaveId);
+        }
       }
 
       // ── Weekly imagery (2026-07-22) — the /api/weekly still-life job.
@@ -5229,6 +5560,7 @@
           img: it.img || urls.find(Boolean) || null,
           wkData: { ...(it.wkData || {}), generatedImages: urls },
         });
+        _pdSyncSaved(_wkActiveSaveId);
       }
 
       function _wkSetImage(i, src) {
@@ -5636,6 +5968,7 @@
         _wkPaintStrip();
         _wkPaintConsole();
         _wkPatchSaved();
+        if (activity) _rbTrack('day_planned', { source_type: 'weekly', day_index: di });
       }
 
       let _wkRestyling = false;
@@ -5820,14 +6153,16 @@
           // jobId is stripped so a reopened entry never polls a dead job;
           // hosted stills are patched in later by _wkPersistImages.
           const persistable = (data.generatedImages || []).map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
+          const wkSave = { ...data, jobId: undefined, generatedImages: persistable, prompt: promptText || '' };
           _wkActiveSaveId = snAdd({
             type: 'weekly-plan',
             title: data.headline || 'Your week, planned',
             subtitle: data.days.filter(d => !d.rest).length + ' days · ' + (data.week_label || '').toLowerCase(),
             img: firstImg,
-            wkData: { ...data, jobId: undefined, generatedImages: persistable, prompt: promptText || '' },
+            wkData: wkSave,
           });
           _rbTrack('weekly_generated', { item: String(_wkActiveSaveId), days: data.days.filter(d => !d.rest).length });
+          _pdSync('weekly', _wkActiveSaveId, wkSave);
         }
 
         _rbFeedbackArm('wk', () => ({
@@ -5859,6 +6194,7 @@
           img: urls[0] || it.img || null,
           tvData: { ...(it.tvData || {}), generatedImages: urls },
         });
+        _pdSyncSaved(_tvActiveSaveId);
       }
 
       // Generated frames appear in several places (day console board, rack
@@ -7264,6 +7600,7 @@ body>*:not(#tv-result-page){display:none !important}
             tvData: saveCopy,
           });
           _rbTrack('travel_generated', { item: String(_tvActiveSaveId), destination: data.destination || '', pieces: data.capsule.length });
+          _pdSync('travel', _tvActiveSaveId, saveCopy);
         } else {
           _tvActiveSaveId = (opts && opts.savedId) || null;
         }
@@ -7282,13 +7619,16 @@ body>*:not(#tv-result-page){display:none !important}
         const savedId = _tvActiveSaveId;
         if (!savedId || !window.__lastTvData) return;
         const saved = snLoad().find(x => x.id === savedId);
-        if (saved) snUpdate(savedId, { tvData: {
-          ...(saved.tvData || {}),
-          capsule: window.__lastTvData.capsule,
-          days: window.__lastTvData.days,
-          outfits_deferred: !(window.__lastTvData.days || []).length,
-          trip_day_plan: window.__lastTvData.trip_day_plan || null,
-        } });
+        if (saved) {
+          snUpdate(savedId, { tvData: {
+            ...(saved.tvData || {}),
+            capsule: window.__lastTvData.capsule,
+            days: window.__lastTvData.days,
+            outfits_deferred: !(window.__lastTvData.days || []).length,
+            trip_day_plan: window.__lastTvData.trip_day_plan || null,
+          } });
+          _pdSyncSaved(savedId);
+        }
       }
 
       // Deferred outfit planning — she took the packing edit first, gathered
@@ -7460,6 +7800,7 @@ body>*:not(#tv-result-page){display:none !important}
         window.__tvRenderResult(data, { skipSave: true, savedId });
         if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
         _tvPatchSaved();
+        if (userActivity) _rbTrack('day_planned', { source_type: 'travel', day_index: di });
       }
 
       window.__tvDayApply = async function(di) {
