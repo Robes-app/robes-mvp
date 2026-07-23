@@ -5134,7 +5134,7 @@
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           verdictHtml: _rbcVerdict(owned, total, dlUnowned.map(x => x.it)),
-          addChipLabel: 'Save',
+          addChipLabel: _rbTrackCfg('daily').console.addVerb,
           rackLabel: `The rack · ${_waEsc(weekday)}`,
           rackTitleHtml: data.occasion_label ? (() => {
             const t = cap1(data.occasion_label.toLowerCase());
@@ -5152,7 +5152,7 @@
         try { dlResultPage.innerHTML = `
           <div class="dlm-wrap">
             <header>
-              <div class="dlm-eyebrow">Your daily look</div>
+              <div class="dlm-eyebrow">${_waEsc(_rbTrackCfg('daily').artifact.eyebrow)}</div>
               <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
                 <h1 class="dlm-title">${_waEsc(headline)}</h1>
                 <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('dl')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
@@ -5774,7 +5774,7 @@
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           verdictHtml: _rbcVerdict(owned, d.items.length, wkUnowned),
-          addChipLabel: 'Save',
+          addChipLabel: _rbTrackCfg('weekly').console.addVerb,
           rackLabel: `The rack · ${_waEsc(_wkDayName(d))}`,
           rackTitleHtml: d.occasion ? `<h2>${_waEsc(d.occasion)}${!/[.!?]$/.test(d.occasion) ? '.' : ''}</h2>` : '',
           headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button>`,
@@ -6134,7 +6134,7 @@
 
         wkResultPage.innerHTML = `
           <div style="max-width:var(--shell,1440px);margin:0 auto;padding:36px var(--s6,24px) 0;min-height:calc(100% - 72px);box-sizing:border-box">
-            <div style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#8E7077;margin-bottom:10px">Your week, planned</div>
+            <div style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#8E7077;margin-bottom:10px">${_waEsc(_rbTrackCfg('weekly').artifact.eyebrow)}</div>
             <div style="display:flex;align-items:flex-start;gap:12px;margin:0 0 12px;max-width:780px">
               <h1 id="wk-headline" style="font-family:${serif};font-size:clamp(28px,4.5vw,42px);font-weight:300;font-style:italic;color:#202021;line-height:1.12;margin:0;max-width:720px;min-width:0;flex:1">${_waEsc(data.headline || 'The week ahead.')}</h1>
               <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('wk')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
@@ -7210,7 +7210,7 @@ body>*:not(#tv-result-page){display:none !important}
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           panelExtraHtml: readHtml,
-          addChipLabel: 'Add',
+          addChipLabel: _rbTrackCfg('travel').console.addVerb,
           rackLabel: `The rack · ${_waEsc(dayName)}`,
           rackTitleHtml: `<h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>`,
           headButtonsHtml: `<button class="rbc-hbtn tv-noprint" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>`,
@@ -7527,7 +7527,7 @@ body>*:not(#tv-result-page){display:none !important}
           <div class="tvm-wrap">
             <header class="tvm-mast">
               <div style="min-width:0">
-                <div class="tvm-eyebrow">The travel edit</div>
+                <div class="tvm-eyebrow">${_waEsc(_rbTrackCfg('travel').artifact.eyebrow)}</div>
                 <div style="display:flex;align-items:flex-start;gap:10px;min-width:0">
                   <h1 class="tvm-title" id="tv-headline" style="min-width:0;flex:1">${_waEsc(data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.'))}</h1>
                   <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('tv')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
@@ -10923,6 +10923,64 @@ body>*:not(#tv-result-page){display:none !important}
       // fast-paths first (no model call), then the /api/intent classifier,
       // then the unfurl intake that reads the request back before anything
       // is committed. An abandoned intake writes nothing.
+      // ═══ Track config (Stage 4 / handoff Phase 3) ═════════════════════
+      // A week and a trip are the same object with different constraints —
+      // one config object, three consumers (intake, artifact shell,
+      // console). A difference that can't be expressed here is a genuine
+      // product difference (the capsule constraint, Phase 4) and gets
+      // documented, never buried as an if(isTrip) in a component body.
+      // Adding a fourth track = a config entry, no component changes
+      // (proven by a throwaway fixture in the harness). Eyebrow strings
+      // deliberately match the pre-refactor artifacts verbatim — the
+      // reference tests assert zero visual drift.
+      var _RB_TRACKS = {
+        weekly: {
+          key: 'weekly',
+          engine: 'weekly',
+          intake: {
+            defaultDays: 7, maxDays: 21, requiresDates: false,
+            // COPY: needs sign-off
+            rackLabel: 'Build it around',
+            quickAdd: ['Office', 'WFH', 'Big meeting', 'Dinner out', 'Date night', 'Pilates', 'School run', 'Drinks'],
+            primaryLabel: st => 'Plan my week · ' + st.rows.filter(r => !r.free).length + ' days →',
+            maxDaysError: 'That’s more than three weeks — Robes plans up to 21 days at a time.',
+          },
+          artifact: { eyebrow: 'Your week, planned', hasCapsuleTab: false, hasPackProgress: false },
+          console: { rackScope: 'wardrobe', addVerb: 'Save', rackHint: '' },
+        },
+        travel: {
+          key: 'travel',
+          engine: 'travel',
+          intake: {
+            defaultDays: 7, maxDays: 10, requiresDates: true,
+            rackLabel: 'What’s tempting you?',
+            quickAdd: ['Beach day', 'Exploring', 'Boat day', 'Big dinner', 'A day trip', 'Slow morning'],
+            primaryLabel: st => 'Pack for ' + (st.where || 'the trip') + ' →',
+            maxDaysError: 'Trips plan up to 10 days at a time — split a longer stay in two.',
+          },
+          artifact: { eyebrow: 'The travel edit', hasCapsuleTab: true, hasPackProgress: true },
+          // rackScope 'capsule' is Phase 4's enforcement target — the ONE
+          // deliberate structural difference (dress from a case, not a
+          // wardrobe). rackHint copy lands with it.
+          console: { rackScope: 'capsule', addVerb: 'Add', rackHint: '' },
+        },
+        daily: {
+          key: 'daily',
+          engine: 'daily',
+          intake: {
+            defaultDays: 1, maxDays: 1, requiresDates: false,
+            rackLabel: 'Build it around',
+            quickAdd: ['Office', 'WFH', 'Big meeting', 'Dinner out', 'Date night', 'Pilates', 'School run', 'Drinks'],
+            primaryLabel: () => 'Dress this day →',
+            maxDaysError: '',
+          },
+          artifact: { eyebrow: 'Your daily look', hasCapsuleTab: false, hasPackProgress: false },
+          console: { rackScope: 'wardrobe', addVerb: 'Save', rackHint: '' },
+        },
+      };
+      window._RB_TRACKS = _RB_TRACKS;
+      function _rbTrackCfg(kind) { return _RB_TRACKS[kind] || _RB_TRACKS.weekly; }
+
       var _IK_FLAG_KEY = 'rb_diary_prompt';
       var _ikScope = { kind: 'none', id: null, label: '', date: null };
       var _ikPlanScope = null;   // the auto-scope (weekly plan covering today)
@@ -11278,18 +11336,19 @@ body>*:not(#tv-result-page){display:none !important}
         seed = seed || {};
         const wait = _ikState && _ikState.reading ? Math.max(0, 400 - (Date.now() - _ikState.openedAt)) : 0;
         const build = () => {
+          const cfg = _rbTrackCfg(kind).intake;
           let from = null, days = 0;
-          if (kind === 'weekly') {
-            if (seed.date_start && seed.date_end) {
-              from = seed.date_start;
-              days = Math.round((new Date(seed.date_end + 'T00:00:00Z') - new Date(seed.date_start + 'T00:00:00Z')) / 86400000) + 1;
-              if (days < 1 || days > 21) { from = null; days = 0; }
-            }
-            if (!from) { const wd = _wkWeekDays(7); from = wd[0].iso; days = 7; }
-          } else if (kind === 'travel' && seed.date_start && seed.date_end) {
+          if (kind !== 'clarify' && seed.date_start && seed.date_end) {
             from = seed.date_start;
-            days = Math.min(10, Math.round((new Date(seed.date_end + 'T00:00:00Z') - new Date(seed.date_start + 'T00:00:00Z')) / 86400000) + 1);
+            days = Math.min(cfg.maxDays, Math.round((new Date(seed.date_end + 'T00:00:00Z') - new Date(seed.date_start + 'T00:00:00Z')) / 86400000) + 1);
             if (days < 1) { from = null; days = 0; }
+          }
+          // Tracks that don't demand dates default to the upcoming week;
+          // date-demanding tracks (travel) leave the days empty until the
+          // when crumb is filled — never an invented range.
+          if (!from && kind !== 'clarify' && !cfg.requiresDates) {
+            const wd = _wkWeekDays(cfg.defaultDays);
+            from = wd[0].iso; days = cfg.defaultDays;
           }
           _ikState = {
             kind,
@@ -11378,7 +11437,7 @@ body>*:not(#tv-result-page){display:none !important}
           const items = (st.cat === 'All' ? _waItems : _waItems.filter(w => w.category === st.cat)).slice(0, 30);
           // Travel's rack IS the shortlist — everything she picks is kept
           // and the engine says what earns its place (COPY: needs sign-off)
-          ba = `<div class="ik-ba"><div class="ik-ba-hd"><span class="ik-ba-lab">${st.kind === 'travel' ? 'What’s tempting you?' : 'Build it around'}</span>${cats.map(c =>
+          ba = `<div class="ik-ba"><div class="ik-ba-hd"><span class="ik-ba-lab">${_ikEsc(_rbTrackCfg(st.kind).intake.rackLabel)}</span>${cats.map(c =>
               `<button class="ik-ba-cat${c === st.cat ? ' on' : ''}" onclick="window._ikCat('${_ikEsc(c)}')">${_ikEsc(c)}</button>`).join('')}</div>
             <div class="ik-rack">${items.map(w => `
               <button class="ik-ri${st.anchors.indexOf(w.id) !== -1 ? ' sel' : ''}" onclick="window._ikAnchor(${JSON.stringify(String(w.id)).replace(/"/g, '&quot;')})">
@@ -11389,9 +11448,7 @@ body>*:not(#tv-result-page){display:none !important}
 
         // The day list — the primary path is SPARSE: pin the two things
         // she knows about, commit, Robes fills the rest.
-        const chips = st.kind === 'travel'
-          ? ['Beach day', 'Exploring', 'Boat day', 'Big dinner', 'A day trip', 'Slow morning']
-          : ['Office', 'WFH', 'Big meeting', 'Dinner out', 'Date night', 'Pilates', 'School run', 'Drinks'];
+        const chips = _rbTrackCfg(st.kind).intake.quickAdd;
         const rowsHtml = st.rows.map((r, i) => {
           const cellV = r.free
             ? '<span class="v free">Left free</span>'
@@ -11416,10 +11473,8 @@ body>*:not(#tv-result-page){display:none !important}
         const daysBlock = st.rows.length
           ? `<div class="ik-days-hd"><span class="ik-ba-lab">The days</span><span class="ik-days-hint">Pin what’s fixed — Robes dresses the rest</span></div>${rowsHtml}`
           : (st.kind === 'travel' ? '<div class="ik-note" style="margin-bottom:10px">Add dates above and the days appear here.</div>' : '');
-        // COPY: needs sign-off (primary labels)
-        const goLabel = st.kind === 'travel'
-          ? ('Pack for ' + (st.where || 'the trip') + ' →')
-          : ('Plan my week · ' + st.rows.filter(r => !r.free).length + ' days →');
+        // COPY: needs sign-off (primary labels live in _RB_TRACKS)
+        const goLabel = _rbTrackCfg(st.kind).intake.primaryLabel(st);
         host.innerHTML = `<p class="ik-said">${_ikSaid()}</p>${crumbs}${st.err ? `<div class="ik-err">${_ikEsc(st.err)}</div>` : ''}${ba}${daysBlock}
           <div class="ik-actions"><button class="ik-cancel" onclick="window._ikCancel()">Never mind</button>
           <button class="ik-go" onclick="window._ikCommit()">${_ikEsc(goLabel)}</button></div>`;
@@ -11459,15 +11514,11 @@ body>*:not(#tv-result-page){display:none !important}
         if (!f || !t) { _ikPaint(); return; }
         if (t < f) { const x = f; f = t; t = x; } // end before start swaps, never errors
         const days = Math.round((new Date(t + 'T00:00:00Z') - new Date(f + 'T00:00:00Z')) / 86400000) + 1;
-        // Travel caps at 10 (the capsule engine's trip ceiling — showing 14
-        // rows the server would silently cut is worse than saying so)
-        const cap = st.kind === 'travel' ? 10 : 21;
-        if (days > cap) {
-          st.err = st.kind === 'travel'
-            ? 'Trips plan up to 10 days at a time — split a longer stay in two.'
-            : 'That’s more than three weeks — Robes plans up to 21 days at a time.';
-          _ikPaint(); return;
-        }
+        // Each track caps its range (travel = the capsule engine's 10-day
+        // ceiling — showing rows the server would silently cut is worse
+        // than saying so)
+        const cfg = _rbTrackCfg(st.kind).intake;
+        if (days > cfg.maxDays) { st.err = cfg.maxDaysError; _ikPaint(); return; }
         // Re-derive rows, preserving activity + pin + evening BY DATE where
         // dates overlap, discarding the rest
         const old = st.rows;
@@ -11543,7 +11594,9 @@ body>*:not(#tv-result-page){display:none !important}
       window._ikCommit = function() {
         const st = _ikState; if (!st) return;
         st.rows.forEach((r, i) => _ikRowSync(i));
-        if (st.kind === 'travel') {
+        // Commit routes by the track's ENGINE, not its name — a fourth
+        // track is a config entry riding an existing generator.
+        if (_rbTrackCfg(st.kind).engine === 'travel') {
           // Everything happens in the prompt, never the modal (Annie,
           // 2026-07-23): the unfurl IS the brief — crumbs are the
           // destination/dates, the day list is the day planner, and the
