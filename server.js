@@ -914,6 +914,93 @@ ${otherItems.length ? `THE REST OF THIS LOOK (do not suggest these): ${otherItem
   }
 });
 
+/* ── intent classifier (Diary Phase 1 — the prompt as single entry) ── */
+// Routes a free-typed prompt to a track. Structured JSON only; the two
+// non-negotiables: it NEVER invents a destination or a date (a guessed
+// "Ibiza" is the failure mode that destroys trust in the field), and
+// relative dates resolve against the CLIENT's local calendar date, never
+// server now(). Captured in generation_log via the wrapped ai client.
+const INTENT_SCHEMA = {
+  type: 'object',
+  properties: {
+    intent: { type: 'string', enum: ['daily', 'weekly', 'travel', 'unclear'] },
+    destination: { type: 'string' },
+    date_start: { type: 'string' },
+    date_end: { type: 'string' },
+    day_intents: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { date: { type: 'string' }, label: { type: 'string' } },
+        required: ['date', 'label'],
+      },
+    },
+    confidence: { type: 'number' },
+  },
+  required: ['intent', 'confidence'],
+};
+
+app.post('/api/intent', rateLimit({ windowMs: 60_000, max: 30 }), async (req, res) => {
+  const prompt = String(req.body.prompt || '').trim().slice(0, 400);
+  if (!prompt) return res.status(400).json({ error: 'Empty prompt.' });
+  const clientDate = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.clientDate || '')) ? req.body.clientDate : null;
+
+  const systemInstruction = `You classify ONE styling prompt from a fashion app user into a track. Return JSON only.
+TRACKS:
+- "daily" — one outfit for one occasion or one day ("dinner tonight", "an outfit for Friday's interview").
+- "weekly" — a plan spanning several routine days or a week ("plan my work week", "outfits for next week").
+- "travel" — a trip away: a destination, packing, a holiday, a stay ("pack for Ibiza", "a week in Rome", "my honeymoon").
+- "unclear" — none of the above reads confidently.
+A named trip outranks the occasions inside it ("dinners on my Lisbon trip" → travel). A week span outranks a single occasion inside it.
+HARD RULES — breaking these is worse than "unclear":
+1. NEVER invent a destination. "destination" is filled ONLY with a place the user actually wrote. "Somewhere warm" is NOT a destination — leave it empty.
+2. NEVER invent dates. Fill "date_start"/"date_end" (ISO YYYY-MM-DD) ONLY when the prompt states them explicitly ("4–11 Aug") or relatively resolvable ("next week", "this weekend") against TODAY, which is ${clientDate || 'unknown — in that case emit NO dates at all'} in the user's own timezone. A season or vague future ("in September", "soon") fills nothing.
+3. "day_intents": only when the prompt names specific activities on resolvable specific days ("Friday is a client dinner") — one entry per stated day, label in her words. Never padded.
+4. "confidence" 0–1: how sure you are of the track. Below 0.6 means the app will ask her instead of acting.
+Leave any unknown string field as an empty string.`;
+
+  try {
+    const t0 = Date.now();
+    const r = await Promise.race([
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: `THE PROMPT: "${prompt}"` }] }],
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: INTENT_SCHEMA,
+          temperature: 0,
+          thinkingConfig: { thinkingBudget: 0 },
+          maxOutputTokens: 500,
+        },
+      }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('intent timeout')), 5000)),
+    ]);
+    const parsed = JSON.parse(r.text);
+    const isoOk = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
+    const out = {
+      intent: ['daily', 'weekly', 'travel', 'unclear'].includes(parsed.intent) ? parsed.intent : 'unclear',
+      destination: String(parsed.destination || '').trim().slice(0, 60) || null,
+      date_start: isoOk(parsed.date_start) ? parsed.date_start : null,
+      date_end: isoOk(parsed.date_end) ? parsed.date_end : null,
+      day_intents: (Array.isArray(parsed.day_intents) ? parsed.day_intents : [])
+        .filter(d => d && isoOk(d.date) && d.label)
+        .slice(0, 14)
+        .map(d => ({ date: d.date, label: String(d.label).slice(0, 120) })),
+      confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
+    };
+    if (out.date_start && out.date_end && out.date_end < out.date_start) {
+      const t = out.date_start; out.date_start = out.date_end; out.date_end = t;
+    }
+    logAI({ feature: 'intent', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, intent: out.intent, confidence: out.confidence });
+    res.json(out);
+  } catch (err) {
+    logAI({ feature: 'intent', stage: 'text', success: false, reason: err.message });
+    console.error('[intent] classify error:', err.message);
+    res.status(502).json({ error: 'intent_failed' });
+  }
+});
+
 /* ── weekly plan (P0 simplification — the Weekly Plan View) ─────────── */
 // A chronological 5–7 day calendar strip routing wardrobe items across
 // the user's agenda. Deliberately lean: one schema-forced flash call,
@@ -1066,12 +1153,24 @@ const WEEKLY_ITEM_RULES = `- Each item: "name" is the piece itself; "brand" is O
 - Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" and a realistic EUR "price_point" (e.g. "€89").`;
 
 app.post('/api/weekly', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
-  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, dayPlan, weekDays } = req.body;
+  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, dayPlan, weekDays, anchorItemIds } = req.body;
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
   const n = closetItems.length;
   const dnaBlock = styleDnaPromptBlock(styleDna, n, styleIcons);
   const { closetBlock, stateDirective } = weeklyClosetBlocks(closetItems);
+
+  // Build-around pieces from the intake (Diary Phase 2 §2.5): pieces she
+  // multi-selected to seed the plan — woven in where they serve, never
+  // forced into every look.
+  const anchorLabels = (Array.isArray(anchorItemIds) ? anchorItemIds.slice(0, 12) : [])
+    .map(id => closetItems.find(c => String(c.id) === String(id)))
+    .filter(Boolean)
+    .map(c => c.label)
+    .filter(Boolean);
+  const anchorBlock = anchorLabels.length
+    ? `\n\nBUILD-AROUND PIECES — she picked these herself to seed the week: ${anchorLabels.map(l => `"${l}"`).join(', ')}. Treat them as pieces to build the week AROUND — each earns real wears where it genuinely serves the day, never forced into every look and never ignored.`
+    : '';
 
   // The calendar: weekDays are the client's day labels ("Monday · 14 Jul"),
   // dayPlan is her pre-generation itinerary — string = her plan (authoritative),
@@ -1123,7 +1222,7 @@ ${BANNED_CONSTRUCTIONS_RULE}
 ${closetBlock}${correctiveNote ? '\n\n' + correctiveNote : ''}`;
   }
 
-  const userText = `${rtLine ? rtLine + '\n\n' : ''}${itineraryBlock}
+  const userText = `${rtLine ? rtLine + '\n\n' : ''}${itineraryBlock}${anchorBlock}
 
 The user's brief for the week: "${(prompt || '').trim() || 'A regular working week.'}"
 

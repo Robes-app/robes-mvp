@@ -2728,16 +2728,33 @@
         const iso = w && Array.isArray(w.week_iso) ? w.week_iso : null;
         if (!iso || !Array.isArray(w.days) || !w.days.length) return null;
         const rows = [];
+        // Pinned = a fixed moment SHE placed (intake pin or a prompt-stated
+        // day) — a generation constraint, not decoration. Evenings are the
+        // intake's second moments: one 'evening' row each, her activity,
+        // no look content until Phase 3 parity gives weekly per-slot looks.
+        const pinnedSet = new Set(Array.isArray(w.pinned_days) ? w.pinned_days : []);
         w.days.forEach((d, i) => {
           if (!iso[i]) return;
           const rest = !!d.rest;
           rows.push({
             ..._pdBase('weekly', sourceId, i, iso[i], 'day'),
+            pinned: pinnedSet.has(i),
             status: rest ? 'free' : (d.worn ? 'worn' : 'planned'),
             activity: rest ? null : (d.user_activity || d.occasion || null),
             headline: rest ? null : (d.note || d.occasion || null),
             thumb_urls: rest ? [] : _pdThumbs(d.items, w.generatedImages),
             item_ids: rest ? [] : _pdOwnedIds(d.items),
+          });
+        });
+        (Array.isArray(w.evenings) ? w.evenings : []).forEach(ev => {
+          const i = ev && ev.day_index;
+          if (!Number.isInteger(i) || !iso[i] || !w.days[i] || w.days[i].rest) return;
+          rows.push({
+            ..._pdBase('weekly', sourceId, i, iso[i], 'evening'),
+            pinned: !!ev.pinned,
+            status: 'planned',
+            activity: ev.activity || null,
+            headline: null, thumb_urls: [], item_ids: [],
           });
         });
         return rows.length ? { rows, totalDays: w.days.length } : null;
@@ -5451,7 +5468,7 @@
         window.__wkOpen({ brief: prompt || '' });
       };
 
-      async function _wkGenerate(prompt, dayPlan, weekDays, weekIso) {
+      async function _wkGenerate(prompt, dayPlan, weekDays, weekIso, extra) {
         let overlay = document.getElementById('kp-loading-overlay');
         if (!overlay) {
           overlay = document.createElement('div');
@@ -5507,6 +5524,7 @@
               name,
               dayPlan,
               weekDays,
+              anchorItemIds: (extra && Array.isArray(extra.anchorItemIds) && extra.anchorItemIds.length) ? extra.anchorItemIds : undefined,
               userId: _waUid() || undefined,
               genId,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
@@ -5521,8 +5539,15 @@
           const data = await res.json();
           // The server generates positionally against the calendar, so
           // week_iso[i] is days[i]'s real date — carried in the render data
-          // (and therefore the save) for the planned_days index.
-          window.__wkRenderResult({ ...data, context, genId, week_iso: Array.isArray(weekIso) ? weekIso : undefined }, prompt);
+          // (and therefore the save) for the planned_days index. The intake's
+          // pinned moments + evening moments ride the blob the same way
+          // (blob-first: the index rows re-derive from them on every sync).
+          window.__wkRenderResult({
+            ...data, context, genId,
+            week_iso: Array.isArray(weekIso) ? weekIso : undefined,
+            pinned_days: (extra && Array.isArray(extra.pinnedDays) && extra.pinnedDays.length) ? extra.pinnedDays : undefined,
+            evenings: (extra && Array.isArray(extra.evenings) && extra.evenings.length) ? extra.evenings : undefined,
+          }, prompt);
         } catch (err) {
           guard.done();
           clearInterval(msgInterval);
@@ -6508,12 +6533,15 @@
           // Light heuristic prefill — the user reviews everything in the modal
           const destGuess = (rawBrief.match(/\b(?:to|in|for)\s+([A-Z][A-Za-z'’-]+(?:\s+[A-Z][A-Za-z'’-]+){0,2})/) || [])[1] || '';
           _tvBrief = {
-            dest: destGuess,
-            dateFrom: iso(new Date(Date.now() + 14 * 86400000)),
-            dateTo: iso(new Date(Date.now() + 21 * 86400000)),
+            // The Diary intake hands over classifier-read crumbs she has
+            // already reviewed — they outrank the regex guess. Never a
+            // place or date she didn't give us.
+            dest: (opts && opts.dest) || destGuess,
+            dateFrom: (opts && opts.dateFrom) || iso(new Date(Date.now() + 14 * 86400000)),
+            dateTo: (opts && opts.dateTo) || iso(new Date(Date.now() + 21 * 86400000)),
             brief: rawBrief,
             anchors: (opts && Array.isArray(opts.anchors) ? opts.anchors.map(String) : []),
-            plan: [],
+            plan: (opts && Array.isArray(opts.plan)) ? opts.plan : [],
             suggested: (opts && Array.isArray(opts.suggested) ? opts.suggested : []),
           };
           _tvCat = 'All';
@@ -9503,6 +9531,10 @@ body>*:not(#tv-result-page){display:none !important}
           prompt = prompt.replace(/\[([^\]]*)\]/g, '$1').replace(/\s{2,}/g, ' ').trim();
           if (ta) { ta.value = prompt; _cbAutoGrow(ta); }
         }
+        // Diary prompt (flag diary_prompt_intake): the field becomes the
+        // single entry point — scope-aware routing + the unfurl intake
+        // replace chip detection entirely while the flag is on.
+        if (typeof _rbDiaryOn === 'function' && _rbDiaryOn()) { _ikSubmit(prompt); return; }
         let intent = _cbIntent;
         // A card-armed intent is invisible (no chips) — only trust it while
         // the prompt still descends from the injected scaffold. A wholesale
@@ -10696,9 +10728,11 @@ body>*:not(#tv-result-page){display:none !important}
               ? '<div class="rb-rc-worn"' + (colors.length ? ' style="margin-top:0"' : '') + '>Worn ✓</div>'
               : `<button class="rb-rc-cta" onclick="window.__rbRailWear(${i},event)">Wore it?</button>`;
           } else {
-            cta = `<span class="rb-rc-cta">${state === 'today' ? 'Open the look →' : 'Open →'}</span>`;
+            // The CTA is its own hit target: it always OPENS. Under the
+            // diary flag the card body scopes the prompt instead (§5.4).
+            cta = `<button class="rb-rc-cta" onclick="window.__rbRailOpenCta(${i},event)">${state === 'today' ? 'Open the look →' : 'Open →'}</button>`;
           }
-          return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailOpen(${i})"><div class="rb-rc-body">${body}${cta}</div></div>`;
+          return `<div class="rb-rc ${cls}" role="button" tabindex="0" onclick="window.__rbRailTap(${i})"><div class="rb-rc-body">${body}${cta}</div></div>`;
         }
 
         function paint(slots) {
@@ -10764,6 +10798,23 @@ body>*:not(#tv-result-page){display:none !important}
         }
         window._rbRailPaint = refresh;
 
+        // Populated-card body tap: diary flag on → scope the prompt to the
+        // date (§5.4 — scoping is date-level, both moments); flag off →
+        // open (the pre-scope-chip interim).
+        window.__rbRailTap = function(i) {
+          if (typeof _rbDiaryOn === 'function' && _rbDiaryOn() && typeof window._ikScopeDay === 'function') {
+            const slot = _railSlots && _railSlots[i];
+            if (!slot) return;
+            _rbTrack('rail_day_scoped', { state: cardState(slot), offset_from_today: Math.round((new Date(slot.date + 'T00:00:00Z') - new Date(_railToday + 'T00:00:00Z')) / 86400000) });
+            window._ikScopeDay(slot.date, slot);
+            return;
+          }
+          window.__rbRailOpen(i);
+        };
+        window.__rbRailOpenCta = function(i, ev) {
+          if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+          window.__rbRailOpen(i);
+        };
         // Tap a populated card → open the day inside its parent plan
         window.__rbRailOpen = function(i) {
           const slot = _railSlots && _railSlots[i];
@@ -10790,6 +10841,10 @@ body>*:not(#tv-result-page){display:none !important}
           const state = cardState(slot);
           const offset = Math.round((new Date(slot.date + 'T00:00:00Z') - new Date(_railToday + 'T00:00:00Z')) / 86400000);
           _rbTrack('rail_day_scoped', { state, offset_from_today: offset });
+          if (typeof _rbDiaryOn === 'function' && _rbDiaryOn() && typeof window._ikScopeDay === 'function') {
+            window._ikScopeDay(slot.date, slot);
+            return;
+          }
           const ta = document.getElementById('cb-ta');
           if (!ta) return;
           _cbAnchorDate = slot.date;
@@ -10855,6 +10910,706 @@ body>*:not(#tv-result-page){display:none !important}
         document.addEventListener('visibilitychange', () => {
           if (!document.hidden && _waUid()) refresh();
         });
+      })();
+
+      // ═══ The Diary prompt + unfurl (Stage 3 — Phases 1–2, behind the
+      // diary_prompt_intake flag) ═══════════════════════════════════════
+      // One field that generates, scopes and restyles. Flag OFF (default):
+      // everything below is inert and the concierge behaves exactly as
+      // before. Flag ON (?diary=on, persisted per device; ?diary=off
+      // reverts): _cbSubmit routes through _ikSubmit — deterministic scope
+      // fast-paths first (no model call), then the /api/intent classifier,
+      // then the unfurl intake that reads the request back before anything
+      // is committed. An abandoned intake writes nothing.
+      var _IK_FLAG_KEY = 'rb_diary_prompt';
+      var _ikScope = { kind: 'none', id: null, label: '', date: null };
+      var _ikPlanScope = null;   // the auto-scope (weekly plan covering today)
+      var _ikState = null;       // intake-local state; null = closed
+      var _ikOpenedAt = 0;
+
+      function _rbDiaryOn() {
+        try { return localStorage.getItem(_IK_FLAG_KEY) === 'on'; } catch (_) { return false; }
+      }
+
+      var _IK_CSS = `
+#rb-scopechip{display:none;flex:none;align-items:center;gap:6px;margin-right:10px;padding:6px 11px;border:none;border-radius:6px;background:var(--ink,#202021);color:#FAF8F5;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;font-family:inherit;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+#rb-scopechip.on{display:inline-flex}
+#rb-scopechip.sel{background:var(--mauve,#D4C8C4);color:var(--ink,#202021)}
+#rb-scopechip .x{opacity:.65;font-size:11px}
+#rb-sugg{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#rb-sugg .rb-schip{padding:8px 14px;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;background:#fff;font-size:12px;color:#6E6A64;cursor:pointer;font-family:inherit;transition:all .2s}
+#rb-sugg .rb-schip:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
+#rb-intake{display:none;background:#fff;border:0.5px solid rgba(32,32,33,0.16);border-top:none;border-radius:0 0 18px 18px;padding:20px 22px 22px;margin-top:-14px;box-sizing:border-box}
+.concierge-box.rb-attached{border-bottom-left-radius:0!important;border-bottom-right-radius:0!important}
+#rb-intake .ik-read{display:flex;align-items:center;gap:10px;font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:17px;color:#A89880;padding:2px 0 14px}
+#rb-intake .ik-sk{height:18px;border-radius:4px;background:linear-gradient(90deg,#EFE9DC 25%,#F5F0E8 50%,#EFE9DC 75%);background-size:200% 100%;animation:rbIkSh 1.3s infinite;margin-bottom:10px}
+@keyframes rbIkSh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+#rb-intake .ik-said{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:18px;line-height:1.35;color:var(--ink,#202021);margin:0 0 14px;max-width:640px}
+#rb-intake .ik-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-bottom:16px;padding-bottom:15px;border-bottom:0.5px solid rgba(32,32,33,0.08)}
+#rb-intake .ik-crumb{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:0.5px solid rgba(32,32,33,0.14);border-radius:8px;font-size:12px;color:var(--ink,#202021);background:#FAF8F5;cursor:pointer;font-family:inherit}
+#rb-intake .ik-crumb em{font-style:normal;color:#A89880}
+#rb-intake .ik-crumb input{border:none;background:none;outline:none;font-family:inherit;font-size:12px;color:var(--ink,#202021);width:120px}
+#rb-intake .ik-note{font-size:11px;color:#A89880;font-style:italic;font-family:'Cormorant',Georgia,serif}
+#rb-intake .ik-dates input{border:0.5px solid rgba(32,32,33,0.18);border-radius:6px;padding:4px 6px;font-size:11.5px;font-family:inherit;background:#fff;color:var(--ink,#202021)}
+#rb-intake .ik-dates .done{font-size:9px;letter-spacing:.1em;text-transform:uppercase;background:var(--ink,#202021);color:#FAF8F5;border:none;border-radius:6px;padding:6px 11px;cursor:pointer;font-family:inherit}
+#rb-intake .ik-err{font-size:11.5px;color:#B0654F;margin:-8px 0 12px}
+#rb-intake .ik-ba{margin-bottom:16px}
+#rb-intake .ik-ba-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:9px}
+#rb-intake .ik-ba-lab{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#A89880}
+#rb-intake .ik-ba-cat{padding:4px 10px;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;background:#fff;font-size:10.5px;color:#6E6A64;cursor:pointer;font-family:inherit}
+#rb-intake .ik-ba-cat.on{background:var(--ink,#202021);color:#FAF8F5;border-color:var(--ink,#202021)}
+#rb-intake .ik-rack{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+#rb-intake .ik-rack::-webkit-scrollbar{display:none}
+#rb-intake .ik-ri{flex:none;width:84px;border:0.5px solid rgba(32,32,33,0.12);border-radius:10px;background:#fff;cursor:pointer;overflow:hidden;text-align:left;padding:0;font-family:inherit}
+#rb-intake .ik-ri.sel{border-color:var(--ink,#202021);box-shadow:0 0 0 1px var(--ink,#202021) inset}
+#rb-intake .ik-ri .im{aspect-ratio:1;background:#EFE9DC;position:relative}
+#rb-intake .ik-ri .im img{width:100%;height:100%;object-fit:cover;display:block}
+#rb-intake .ik-ri .ck{position:absolute;top:5px;right:5px;width:16px;height:16px;border-radius:50%;background:var(--ink,#202021);color:#FAF8F5;display:flex;align-items:center;justify-content:center;font-size:9px}
+#rb-intake .ik-ri .nm{display:block;padding:6px 8px 8px;font-size:10px;line-height:1.25;color:var(--ink,#202021);height:26px;overflow:hidden}
+#rb-intake .ik-days-hd{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+#rb-intake .ik-days-hint{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:13px;color:#C4B8A4}
+#rb-intake .ik-row{display:grid;grid-template-columns:22px 92px minmax(0,1fr);align-items:center;gap:12px;padding:8px 6px;border-bottom:0.5px solid rgba(32,32,33,0.07);border-radius:6px}
+#rb-intake .ik-row.pinned{background:rgba(212,200,196,0.16)}
+#rb-intake .ik-pin{width:22px;height:22px;border:0.5px solid rgba(32,32,33,0.22);border-radius:50%;background:none;display:flex;align-items:center;justify-content:center;font-size:9px;color:#C4B8A4;cursor:pointer;font-family:inherit;line-height:1;padding:0}
+#rb-intake .ik-pin.on{background:var(--mauve,#D4C8C4);border-color:var(--mauve,#D4C8C4);color:var(--ink,#202021)}
+#rb-intake .ik-dm .dd{font-size:11px;font-weight:500;color:var(--ink,#202021)}
+#rb-intake .ik-dm .dt{font-size:9.5px;color:#A89880;margin-top:1px}
+#rb-intake .ik-cell{text-align:left;background:none;border:0.5px solid transparent;border-radius:6px;padding:5px 9px;cursor:pointer;font-family:inherit;width:100%;min-width:0}
+#rb-intake .ik-cell:hover{border-color:rgba(32,32,33,0.14);background:#FAF8F5}
+#rb-intake .ik-cell .v{font-family:'Cormorant',Georgia,serif;font-size:16.5px;line-height:1.15;color:var(--ink,#202021);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rb-intake .ik-cell .v.free,#rb-intake .ik-cell .v.blank{font-style:italic;color:#C4B8A4}
+#rb-intake .ik-cell .s{font-size:9.5px;color:#A89880;margin-top:1px}
+#rb-intake .ik-tray{grid-column:1/-1;padding:10px 4px 6px;display:flex;flex-direction:column;gap:9px}
+#rb-intake .ik-tray input{width:100%;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:8px;padding:9px 11px;font-size:12.5px;font-family:inherit;background:#fff;color:var(--ink,#202021);outline:none}
+#rb-intake .ik-chips{display:flex;gap:6px;flex-wrap:wrap}
+#rb-intake .ik-qc{padding:6px 11px;border:0.5px solid rgba(32,32,33,0.13);border-radius:100px;background:#FAF8F5;font-size:11px;color:var(--ink,#202021);cursor:pointer;font-family:inherit}
+#rb-intake .ik-qc.free{border-style:dashed;color:#A89880}
+#rb-intake .ik-eve{display:flex;align-items:center;gap:8px}
+#rb-intake .ik-eve .lab{flex:none;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880}
+#rb-intake .ik-eve .rm{flex:none;background:none;border:none;color:#A89880;cursor:pointer;font-size:13px;padding:2px}
+#rb-intake .ik-addeve{align-self:flex-start;background:none;border:none;padding:2px 0;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#A89880;cursor:pointer;font-family:inherit}
+#rb-intake .ik-addeve:hover{color:var(--ink,#202021)}
+#rb-intake .ik-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap}
+#rb-intake .ik-cancel{background:none;border:none;font-size:11.5px;color:#A89880;text-decoration:underline;cursor:pointer;font-family:inherit;padding:4px 0}
+#rb-intake .ik-go{background:var(--ink,#202021);color:#fff;border:none;border-radius:100px;padding:13px 24px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit}
+#rb-intake .ik-clar{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+#rb-intake .ik-clar button{padding:9px 16px;border:0.5px solid rgba(32,32,33,0.16);border-radius:100px;background:#fff;font-size:12px;color:var(--ink,#202021);cursor:pointer;font-family:inherit}
+#rb-intake .ik-clar button:hover{border-color:var(--ink,#202021)}
+@media(max-width:767px){#rb-intake{padding:16px 14px 18px}#rb-intake .ik-row{grid-template-columns:20px 74px minmax(0,1fr);gap:8px}}`;
+
+      function _ikEsc(s) { return _waEsc(s); }
+      function _ikChipDateLabel(iso) {
+        const d = new Date(iso + 'T00:00:00');
+        return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+      }
+
+      // ── scope ──────────────────────────────────────────────────────
+      function _ikChipPaint() {
+        let chip = document.getElementById('rb-scopechip');
+        if (!chip) {
+          // A scope can land before the boot poll has wired the chip
+          // (e.g. a rail tap seconds after load) — create it on demand.
+          const input = document.querySelector('.cb-input');
+          const ta = document.getElementById('cb-ta');
+          if (!input || !ta) return;
+          chip = document.createElement('button');
+          chip.id = 'rb-scopechip';
+          chip.onclick = _ikScopeBack;
+          input.insertBefore(chip, ta);
+        }
+        if (_ikScope.kind === 'none') { chip.className = ''; chip.style.display = 'none'; return; }
+        chip.style.display = '';
+        chip.className = 'on' + (_ikScope.kind === 'day' ? ' sel' : '');
+        chip.innerHTML = _ikEsc(_ikScope.label) + ' <span class="x">×</span>';
+      }
+      function _ikSetScope(s) { _ikScope = s || { kind: 'none', id: null, label: '', date: null }; _ikChipPaint(); _ikPillsPaint(); }
+      // Never straight to none from day — a scoped day returns to its plan
+      function _ikScopeBack() {
+        if (_ikScope.kind === 'day') {
+          const plan = _ikPlanScope || _ikComputePlanScope();
+          if (plan) { _ikPlanScope = plan; _ikSetScope(plan); return; }
+        }
+        _ikSetScope(null);
+      }
+      window._ikScopeDay = function(date, slot) {
+        const m = slot && slot.moments && slot.moments.length ? slot.moments[0] : null;
+        _ikSetScope({ kind: 'day', id: m ? m.source_id : null, date, label: _ikChipDateLabel(date) });
+        const ta = document.getElementById('cb-ta');
+        if (ta) { ta.focus(); ta.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      };
+      // Only a WEEKLY plan covering today auto-scopes — a week is ambient,
+      // a trip is an occasion: someone on holiday typing into the field is
+      // more likely starting something new than amending eight days of
+      // Ibiza, and silently aiming the field at a trip is an expensive way
+      // to be wrong. Trips scope on explicit selection only (decision 3).
+      function _ikComputePlanScope() {
+        const today = _pdLocalISO();
+        const rows = _pdCacheRead().filter(r => r.day_date === today && r.source_type === 'weekly');
+        if (!rows.length) return null;
+        const src = rows[0].source_id;
+        const p = _pdParent(src);
+        // The label is always the plan's REAL title; date-range fallback,
+        // never a "Your week" placeholder for a plan not called that.
+        const item = snLoad().find(x => String(x.id) === String(src));
+        const iso0 = item && item.wkData && Array.isArray(item.wkData.week_iso) ? item.wkData.week_iso[0] : null;
+        const label = p.title || (iso0 ? 'Week of ' + new Date(iso0 + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'This week');
+        return { kind: 'plan', id: src, label, date: null };
+      }
+      function _ikAutoScope() {
+        if (!_rbDiaryOn()) return;
+        // Always keep the parent scope current (Esc from a day must return
+        // to it) — but only APPLY it when the field is unscoped.
+        _ikPlanScope = _ikComputePlanScope() || _ikPlanScope;
+        if (_ikPlanScope && _ikScope.kind === 'none') _ikSetScope(_ikPlanScope);
+      }
+
+      // ── suggestion pills — the cold-start mechanism. Never a place or
+      // date that isn't already in the user's data. ──────────────────
+      function _ikPillsPaint() {
+        const host = document.getElementById('rb-sugg');
+        if (!host) return;
+        const pills = [];
+        const today = _pdLocalISO();
+        const cached = _pdCacheRead();
+        if (_ikScope.kind === 'day') {
+          // Tone modifiers — never dated, never placed
+          ['A touch warmer', 'Softer and easier', 'Flats today'].forEach(t =>
+            pills.push({ label: t, act: () => { _ikTrack('pill', 'restyle_day'); _ikRestyleDay(t); } }));
+        } else if (_ikScope.kind === 'plan') {
+          pills.push({ label: 'Lean the week smarter', act: () => { _ikTrack('pill', 'restyle_plan'); _ikRestylePlan('Lean the week smarter — sharper, simpler'); } });
+          pills.push({ label: 'More colour this week', act: () => { _ikTrack('pill', 'restyle_plan'); _ikRestylePlan('Bring more colour into the week'); } });
+          if (!cached.some(r => r.day_date === today && r.status !== 'free')) {
+            pills.push({ label: 'Dress today', act: () => { _ikTrack('pill', 'daily'); window.__dlSubmit('An outfit for today'); } });
+          }
+        } else {
+          if (_waItems.length < 15) {
+            pills.push({ label: '+ Add pieces to your wardrobe', act: () => { _ikTrack('pill', 'wardrobe'); if (window.__waAddChooser) window.__waAddChooser(); else if (window.App && App.showWardrobe) App.showWardrobe(); } });
+          }
+          const weekCovered = cached.some(r => r.source_type === 'weekly' && r.day_date >= today && r.day_date <= _pdAddISO(today, 6));
+          if (!weekCovered) {
+            const city = (window.__rbCtx && window.__rbCtx.city) || '';
+            pills.push({ label: 'Plan my week' + (city ? ' in ' + city : ''), act: () => { _ikTrack('pill', 'weekly'); _ikOpen('weekly', { prompt: '' }); } });
+          }
+          const deferred = snLoad().find(t => t.type === 'travel-edit' && t.tvData && (!Array.isArray(t.tvData.days) || !t.tvData.days.length));
+          if (deferred) {
+            pills.push({ label: 'Finish ' + (deferred.title || 'your trip'), act: () => { _ikTrack('pill', 'travel'); window.__snOpenItem(deferred.id); } });
+          }
+          if (!cached.some(r => r.day_date === today)) {
+            pills.push({ label: 'Dress today', act: () => { _ikTrack('pill', 'daily'); window.__dlSubmit('An outfit for today'); } });
+          }
+        }
+        host.innerHTML = '';
+        pills.slice(0, 3).forEach((p, i) => {
+          const b = document.createElement('button');
+          b.className = 'rb-schip';
+          b.textContent = p.label;
+          b.onclick = p.act;
+          host.appendChild(b);
+        });
+      }
+      window._ikPillsPaint = _ikPillsPaint;
+      function _ikTrack(source, intent, extra) {
+        _rbTrack('prompt_submitted', { intent: intent || '', scope: _ikScope.kind, source, ...(extra || {}) });
+      }
+
+      // ── routing (Phase 1 §1.3) — deterministic fast paths first ────
+      function _ikHasSignal(text) {
+        return /\b(trip|travel|pack|fly|flight|holiday|weekend away)\b|\d{1,2}\s*(?:–|-|to)\s*\d{1,2}|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(text);
+      }
+      function _ikClearPrompt() {
+        const ta = document.getElementById('cb-ta');
+        if (ta) { ta.value = ''; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input')); }
+      }
+      function _ikSubmit(prompt) {
+        const t0 = Date.now();
+        // The bundle's send pipeline can fire twice for one tap — a classify
+        // already in flight, or a ready panel for this exact prompt, must
+        // not be knocked back to the reading state.
+        if (_ikState && _ikState.reading) return;
+        if (_ikState && prompt && _ikState.prompt === prompt) return;
+        if (_ikState && !_ikState.reading) _ikClose(true);
+        // A photo attachment always means the style track (P0 rule) — the
+        // classifier never sees it.
+        if (_cbPhotoData) {
+          const photo = _cbPhotoData;
+          _ikTrack('typed', 'style', { has_photo: true });
+          _cbReset();
+          _cbStyleSubmit(prompt, photo, { intent: 'style' });
+          return;
+        }
+        if (!prompt) {
+          _waShowToast(_ikScope.kind === 'day' ? 'Tell Robes the day’s plan — or tap a suggestion' : 'Tell Robes what you’re dressing for');
+          _rbTrack('prompt_submitted', { intent: '', scope: _ikScope.kind, source: 'typed', ok: false });
+          return;
+        }
+        if (_ikScope.kind === 'day') { _ikTrack('typed', 'restyle_day'); _ikRestyleDay(prompt); _ikClearPrompt(); return; }
+        if (_ikScope.kind === 'plan' && !_ikHasSignal(prompt)) { _ikTrack('typed', 'restyle_plan'); _ikRestylePlan(prompt); _ikClearPrompt(); return; }
+        // Model call — open the reading state immediately, resolve into
+        // ready (or clarify); a failure is never a dead end and never
+        // loses the prompt.
+        _ikOpenReading(prompt);
+        _ikClassify(prompt).then(seed => {
+          const ms = Date.now() - t0;
+          _rbTrack('prompt_submitted', { intent: seed.intent, scope: _ikScope.kind, source: 'typed', latency_ms: ms, ok: true });
+          const conf = seed.confidence >= 0.6 && seed.intent !== 'unclear';
+          if (!conf) { _ikOpen('clarify', { prompt }); return; }
+          if (seed.intent === 'daily') { _ikClose(); _ikClearPrompt(); window.__dlSubmit(prompt); return; }
+          _ikOpen(seed.intent, { ...seed, prompt });
+        }).catch(() => {
+          _rbTrack('prompt_submitted', { intent: 'error', scope: _ikScope.kind, source: 'typed', latency_ms: Date.now() - t0, ok: false });
+          _ikOpen('clarify', { prompt, failed: true });
+        });
+      }
+      async function _ikClassify(prompt) {
+        const ctl = new AbortController();
+        const t = setTimeout(() => ctl.abort(), 4000);
+        try {
+          const res = await fetch('/api/intent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: ctl.signal,
+            body: JSON.stringify({ prompt, clientDate: _pdLocalISO(), userId: _waUid() || undefined, genId: _rbGenId() }),
+          });
+          if (!res.ok) throw new Error('intent ' + res.status);
+          return await res.json();
+        } finally { clearTimeout(t); }
+      }
+
+      // ── restyle fast paths ─────────────────────────────────────────
+      function _ikRestyleDay(text) {
+        const date = _ikScope.date || _pdLocalISO();
+        const rows = _pdCacheRead().filter(r => r.day_date === date);
+        const m = _pdWinner(rows.filter(r => (r.slot || 'day') === 'day'));
+        const item = m ? snLoad().find(x => String(x.id) === String(m.source_id)) : null;
+        if (!m || m.source_type === 'daily' || !item) {
+          window.__dlSubmit(text, { anchorDate: date });
+          return;
+        }
+        // The day belongs to a plan: open it AT that day and run the
+        // single-day restyle with her words as the activity — the same
+        // surgical /api/weekly/day | /api/travel/day the artifacts use.
+        window.__snOpenItem(item.id);
+        if (m.source_type === 'weekly') {
+          setTimeout(() => {
+            if (window.__wkSelectDay) window.__wkSelectDay(m.day_index);
+            if (window.__wkEditDay) window.__wkEditDay(m.day_index);
+            setTimeout(() => {
+              const inp = document.getElementById('wk-day-input');
+              if (inp) { inp.value = text; if (window.__wkDayApply) window.__wkDayApply(m.day_index); }
+            }, 150);
+          }, 400);
+        } else {
+          setTimeout(() => {
+            if (window.__tvSetTab) window.__tvSetTab('outfits');
+            if (window.__tvSelectDay) window.__tvSelectDay(m.day_index);
+            if (window.__tvEditDay) window.__tvEditDay(m.day_index);
+            setTimeout(() => {
+              const inp = document.getElementById('tv-day-input');
+              if (inp) { inp.value = text; if (window.__tvDayApply) window.__tvDayApply(m.day_index); }
+            }, 150);
+          }, 400);
+        }
+      }
+      function _ikRestylePlan(text) {
+        const item = snLoad().find(x => String(x.id) === String(_ikScope.id));
+        const w = item && item.wkData;
+        if (!w || !Array.isArray(w.week_iso) || !Array.isArray(w.days)) { _ikOpen('weekly', { prompt: text }); return; }
+        // Re-plan over the same dates: a NEW lookbook row that coexists in
+        // planned_days and wins at read time (latest updated_at).
+        const dayPlan = w.days.map(d => d.rest ? null : (d.user_activity || ''));
+        const weekDays = w.days.map(d => d.day_label);
+        _ikClearPrompt();
+        _wkGenerate(text, dayPlan, weekDays, w.week_iso, {});
+      }
+
+      // ── the unfurl (Phase 2) ───────────────────────────────────────
+      function _ikHost() {
+        let host = document.getElementById('rb-intake');
+        if (host) return host;
+        const box = document.querySelector('.concierge-box');
+        if (!box) return null;
+        host = document.createElement('div');
+        host.id = 'rb-intake';
+        box.parentNode.insertBefore(host, box.nextSibling);
+        return host;
+      }
+      function _ikAttach(on) {
+        const box = document.querySelector('.concierge-box');
+        if (box) box.classList.toggle('rb-attached', !!on);
+        const host = document.getElementById('rb-intake');
+        if (host) host.style.display = on ? 'block' : 'none';
+      }
+      function _ikOpenReading(prompt) {
+        const host = _ikHost();
+        if (!host) return;
+        _ikState = { kind: 'reading', reading: true, prompt, openedAt: Date.now() };
+        _ikOpenedAt = Date.now();
+        _ikAttach(true);
+        // COPY: needs sign-off
+        host.innerHTML = '<div class="ik-read">Reading your week<span>…</span></div>'
+          + '<div class="ik-sk" style="width:60%"></div><div class="ik-sk" style="width:84%"></div><div class="ik-sk" style="width:72%"></div>';
+      }
+      function _ikRows(fromISO, days, dayIntents) {
+        const rows = [];
+        for (let i = 0; i < days; i++) {
+          const iso = _pdAddISO(fromISO, i);
+          const d = new Date(iso + 'T00:00:00');
+          const di = (dayIntents || []).find(x => x.date === iso);
+          rows.push({
+            iso,
+            label: d.toLocaleDateString('en-GB', { weekday: 'long' }),
+            date: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            activity: di ? di.label : '',
+            free: false,
+            // A prompt-stated day IS a fixed moment she placed — pin it
+            pinned: !!di,
+            src: di ? 'your prompt' : '',
+            evening: null,
+            expanded: false,
+          });
+        }
+        return rows;
+      }
+      function _ikOpen(kind, seed) {
+        const host = _ikHost();
+        if (!host) return;
+        seed = seed || {};
+        const wait = _ikState && _ikState.reading ? Math.max(0, 400 - (Date.now() - _ikState.openedAt)) : 0;
+        const build = () => {
+          let from = null, days = 0;
+          if (kind === 'weekly') {
+            if (seed.date_start && seed.date_end) {
+              from = seed.date_start;
+              days = Math.round((new Date(seed.date_end + 'T00:00:00Z') - new Date(seed.date_start + 'T00:00:00Z')) / 86400000) + 1;
+              if (days < 1 || days > 21) { from = null; days = 0; }
+            }
+            if (!from) { const wd = _wkWeekDays(7); from = wd[0].iso; days = 7; }
+          } else if (kind === 'travel' && seed.date_start && seed.date_end) {
+            from = seed.date_start;
+            days = Math.min(21, Math.round((new Date(seed.date_end + 'T00:00:00Z') - new Date(seed.date_start + 'T00:00:00Z')) / 86400000) + 1);
+            if (days < 1) { from = null; days = 0; }
+          }
+          _ikState = {
+            kind,
+            prompt: seed.prompt || '',
+            failed: !!seed.failed,
+            where: seed.destination || '',
+            whereEdited: false, datesEdited: false,
+            from, days,
+            rows: from ? _ikRows(from, days, seed.day_intents) : [],
+            anchors: [], cat: 'All',
+            editingDates: false, err: '',
+            openedAt: _ikOpenedAt || Date.now(),
+          };
+          _rbTrack('intake_opened', { kind, from: seed.failed ? 'classifier_failed' : 'prompt' });
+          _ikAttach(true);
+          _ikPaint();
+        };
+        if (wait) setTimeout(build, wait); else build();
+      }
+      function _ikClose(abandon) {
+        if (abandon && _ikState && _ikState.kind !== 'reading') {
+          _rbTrack('intake_abandoned', { kind: _ikState.kind, seconds_open: Math.round((Date.now() - (_ikState.openedAt || Date.now())) / 1000) });
+        }
+        _ikState = null;
+        _ikAttach(false);
+        const host = document.getElementById('rb-intake');
+        if (host) host.innerHTML = '';
+      }
+      window._ikCancel = function() { _ikClose(true); };
+
+      function _ikSaid() {
+        const st = _ikState;
+        // COPY: needs sign-off
+        if (st.kind === 'clarify') {
+          return st.failed
+            ? 'Robes couldn’t quite read that — what are we dressing for?'
+            : 'One question — what should this become?';
+        }
+        if (st.kind === 'travel') {
+          return st.where
+            ? `A trip to <b>${_ikEsc(st.where)}</b>${st.from ? ', ' + st.days + ' days' : ''} — here’s the shape of it.`
+            : 'A trip — tell Robes where, and the days follow.';
+        }
+        return `Your week${st.where ? ' in <b>' + _ikEsc(st.where) + '</b>' : ''}, day by day — pin what’s fixed, Robes dresses the rest.`;
+      }
+      function _ikPaint() {
+        const host = document.getElementById('rb-intake');
+        const st = _ikState;
+        if (!host || !st || st.kind === 'reading') return;
+        if (st.kind === 'clarify') {
+          host.innerHTML = `<p class="ik-said">${_ikSaid()}</p>
+            <div class="ik-clar">
+              <button onclick="window._ikClarify('daily')">One outfit, one day</button>
+              <button onclick="window._ikClarify('weekly')">Plan a week</button>
+              <button onclick="window._ikClarify('travel')">Pack for a trip</button>
+              <button class="ik-cancel" onclick="window._ikCancel()">Never mind</button>
+            </div>`;
+          return;
+        }
+        const fmtRange = () => {
+          if (!st.from) return 'Add dates';
+          const f = new Date(st.from + 'T00:00:00'), t = new Date(_pdAddISO(st.from, st.days - 1) + 'T00:00:00');
+          const fs = f.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          const ts = t.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          return `${fs} – ${ts} <em>· ${st.days} days</em>`;
+        };
+        const whereCrumb = st.editingWhere
+          ? `<span class="ik-crumb"><em>Where</em><input id="ik-where" value="${_ikEsc(st.where)}" placeholder="${st.kind === 'travel' ? 'Destination' : 'Your city'}" onkeydown="if(event.key==='Enter')window._ikWhereDone()" onblur="window._ikWhereDone()"></span>`
+          : `<button class="ik-crumb" onclick="window._ikWhereEdit()"><em>Where</em> ${st.where ? _ikEsc(st.where) : '<span style="font-style:italic;color:#C4B8A4">add a place</span>'} ✎</button>`;
+        const whenCrumb = st.editingDates
+          ? `<span class="ik-crumb ik-dates"><em>When</em>
+               <input type="date" id="ik-from" value="${st.from || ''}">
+               <span style="color:#A89880">–</span>
+               <input type="date" id="ik-to" value="${st.from ? _pdAddISO(st.from, st.days - 1) : ''}">
+               <button class="done" onclick="window._ikDatesDone()">Done</button></span>`
+          : `<button class="ik-crumb" onclick="window._ikDatesEdit()"><em>When</em> ${fmtRange()} ✎</button>`;
+        const provenance = st.whereEdited || st.datesEdited ? 'edited by you' : (st.where || st.from ? 'read from your prompt' : 'our suggestion — change anything');
+        const crumbs = `<div class="ik-crumbs">${whereCrumb}${whenCrumb}<span class="ik-note">${provenance}</span></div>`;
+
+        // Build-around: category chips derive from HER wardrobe; empty
+        // wardrobe → the whole section stays out (that's the cataloguing
+        // problem showing up in the wrong place).
+        let ba = '';
+        if (_waItems.length) {
+          const cats = ['All'].concat([...new Set(_waItems.map(w => w.category).filter(Boolean))]);
+          const items = (st.cat === 'All' ? _waItems : _waItems.filter(w => w.category === st.cat)).slice(0, 30);
+          ba = `<div class="ik-ba"><div class="ik-ba-hd"><span class="ik-ba-lab">Build it around</span>${cats.map(c =>
+              `<button class="ik-ba-cat${c === st.cat ? ' on' : ''}" onclick="window._ikCat('${_ikEsc(c)}')">${_ikEsc(c)}</button>`).join('')}</div>
+            <div class="ik-rack">${items.map(w => `
+              <button class="ik-ri${st.anchors.indexOf(w.id) !== -1 ? ' sel' : ''}" onclick="window._ikAnchor(${JSON.stringify(String(w.id)).replace(/"/g, '&quot;')})">
+                <span class="im">${w.image_url ? `<img src="${_ikEsc(w.image_url)}" alt="" loading="lazy">` : ''}${st.anchors.indexOf(w.id) !== -1 ? '<span class="ck">✓</span>' : ''}</span>
+                <span class="nm">${_ikEsc(w.label || '')}</span>
+              </button>`).join('')}</div></div>`;
+        }
+
+        // The day list — the primary path is SPARSE: pin the two things
+        // she knows about, commit, Robes fills the rest.
+        const chips = st.kind === 'travel'
+          ? ['Beach day', 'Exploring', 'Boat day', 'Big dinner', 'A day trip', 'Slow morning']
+          : ['Office', 'WFH', 'Big meeting', 'Dinner out', 'Date night', 'Pilates', 'School run', 'Drinks'];
+        const rowsHtml = st.rows.map((r, i) => {
+          const cellV = r.free
+            ? '<span class="v free">Left free</span>'
+            : (r.activity ? `<span class="v">${_ikEsc(r.activity)}</span>` : '<span class="v blank">Robes plans it</span>');
+          const src = r.free ? 'left free' : (r.src || (r.activity ? 'quick-added' : ''));
+          const eveLine = r.evening ? `<div class="s">Evening · ${_ikEsc(r.evening.activity || '')}</div>` : '';
+          const tray = !r.expanded ? '' : `<div class="ik-tray">
+              <input id="ik-act-${i}" value="${_ikEsc(r.free ? '' : r.activity)}" placeholder="What’s happening this day?" onkeydown="if(event.key==='Enter')window._ikRowDone(${i})">
+              <div class="ik-chips">${chips.map(c => `<button class="ik-qc" onclick="window._ikRowChip(${i},'${_ikEsc(c)}')">${_ikEsc(c)}</button>`).join('')}<button class="ik-qc free" onclick="window._ikRowFree(${i})">${r.free ? 'Un-free it' : 'Leave free'}</button></div>
+              ${r.evening
+                ? `<div class="ik-eve"><span class="lab">Evening</span><input id="ik-eve-${i}" value="${_ikEsc(r.evening.activity || '')}" placeholder="Dinner, a date, drinks…" onkeydown="if(event.key==='Enter')window._ikRowDone(${i})"><button class="rm" onclick="window._ikEveRemove(${i})" aria-label="Remove evening">×</button></div>`
+                : `<button class="ik-addeve" onclick="window._ikEveAdd(${i})">+ Add an evening</button>`}
+              <button class="ik-addeve" style="align-self:flex-end" onclick="window._ikRowDone(${i})">Done</button>
+            </div>`;
+          return `<div class="ik-row${r.pinned ? ' pinned' : ''}">
+            <button class="ik-pin${r.pinned ? ' on' : ''}" onclick="window._ikPinRow(${i})" aria-label="Pin this day" title="Pinned = fixed — Robes dresses around it"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 17v5"/><path d="M9 3h6l-1 7 3 3H7l3-3z"/></svg></button>
+            <div class="ik-dm"><div class="dd">${_ikEsc(r.label)}</div><div class="dt">${_ikEsc(r.date)}</div></div>
+            <button class="ik-cell" onclick="window._ikRowOpen(${i})">${cellV}${src ? `<div class="s">${_ikEsc(src)}</div>` : ''}${eveLine}</button>
+            ${tray}
+          </div>`;
+        }).join('');
+        const daysBlock = st.rows.length
+          ? `<div class="ik-days-hd"><span class="ik-ba-lab">The days</span><span class="ik-days-hint">Pin what’s fixed — Robes dresses the rest</span></div>${rowsHtml}`
+          : (st.kind === 'travel' ? '<div class="ik-note" style="margin-bottom:10px">Add dates above and the days appear here.</div>' : '');
+        // COPY: needs sign-off (primary labels)
+        const goLabel = st.kind === 'travel'
+          ? ('Pack for ' + (st.where || 'the trip') + ' →')
+          : ('Plan my week · ' + st.rows.filter(r => !r.free).length + ' days →');
+        host.innerHTML = `<p class="ik-said">${_ikSaid()}</p>${crumbs}${st.err ? `<div class="ik-err">${_ikEsc(st.err)}</div>` : ''}${ba}${daysBlock}
+          <div class="ik-actions"><button class="ik-cancel" onclick="window._ikCancel()">Never mind</button>
+          <button class="ik-go" onclick="window._ikCommit()">${_ikEsc(goLabel)}</button></div>`;
+      }
+
+      // Intake interaction handlers (state → repaint; nothing writes to
+      // planned_days or the lookbook until commit)
+      window._ikClarify = function(kind) {
+        const p = _ikState ? _ikState.prompt : '';
+        if (kind === 'daily') { _ikClose(); _ikClearPrompt(); window.__dlSubmit(p || 'An outfit for today'); return; }
+        _ikOpen(kind, { prompt: p });
+      };
+      window._ikCat = function(c) { if (_ikState) { _ikState.cat = c; _ikPaint(); } };
+      window._ikAnchor = function(id) {
+        const st = _ikState; if (!st) return;
+        const k = st.anchors.findIndex(x => String(x) === String(id));
+        if (k !== -1) st.anchors.splice(k, 1);
+        else { st.anchors.push(_waItems.find(w => String(w.id) === String(id)) ? _waItems.find(w => String(w.id) === String(id)).id : id); }
+        _rbTrack('intake_anchor_selected', { kind: st.kind, count: st.anchors.length });
+        _ikPaint();
+      };
+      window._ikWhereEdit = function() { if (_ikState) { _ikState.editingWhere = true; _ikPaint(); setTimeout(() => { const el = document.getElementById('ik-where'); if (el) el.focus(); }, 40); } };
+      window._ikWhereDone = function() {
+        const st = _ikState; if (!st) return;
+        const el = document.getElementById('ik-where');
+        const v = ((el && el.value) || '').trim();
+        if (v !== st.where) { st.where = v; st.whereEdited = true; }
+        st.editingWhere = false;
+        _ikPaint();
+      };
+      window._ikDatesEdit = function() { if (_ikState) { _ikState.editingDates = true; _ikPaint(); } };
+      window._ikDatesDone = function() {
+        const st = _ikState; if (!st) return;
+        let f = (document.getElementById('ik-from') || {}).value || '';
+        let t = (document.getElementById('ik-to') || {}).value || '';
+        st.editingDates = false; st.err = '';
+        if (!f || !t) { _ikPaint(); return; }
+        if (t < f) { const x = f; f = t; t = x; } // end before start swaps, never errors
+        const days = Math.round((new Date(t + 'T00:00:00Z') - new Date(f + 'T00:00:00Z')) / 86400000) + 1;
+        if (days > 21) { st.err = 'That’s more than three weeks — Robes plans up to 21 days at a time.'; _ikPaint(); return; }
+        // Re-derive rows, preserving activity + pin + evening BY DATE where
+        // dates overlap, discarding the rest
+        const old = st.rows;
+        const before = old.length;
+        st.from = f; st.days = days; st.datesEdited = true;
+        st.rows = _ikRows(f, days, null).map(r => {
+          const prev = old.find(o => o.iso === r.iso);
+          return prev ? { ...prev, expanded: false } : r;
+        });
+        _rbTrack('intake_dates_edited', { kind: st.kind, days_before: before, days_after: days });
+        _ikPaint();
+      };
+      window._ikRowOpen = function(i) {
+        const st = _ikState; if (!st || !st.rows[i]) return;
+        st.rows.forEach((r, k) => { r.expanded = k === i ? !r.expanded : false; });
+        _ikPaint();
+        setTimeout(() => { const el = document.getElementById('ik-act-' + i); if (el) el.focus(); }, 40);
+      };
+      function _ikRowSync(i) {
+        const st = _ikState; if (!st || !st.rows[i]) return;
+        const r = st.rows[i];
+        const a = document.getElementById('ik-act-' + i);
+        if (a && !r.free) { if (a.value.trim() !== r.activity) { r.activity = a.value.trim(); r.src = r.activity ? 'quick-added' : ''; } }
+        const e = document.getElementById('ik-eve-' + i);
+        if (e && r.evening) r.evening.activity = e.value.trim();
+      }
+      window._ikRowDone = function(i) {
+        _ikRowSync(i);
+        const st = _ikState; if (!st) return;
+        _rbTrack('intake_day_edited', { kind: st.kind, day_index: i, action: 'edit' });
+        st.rows[i].expanded = false;
+        _ikPaint();
+      };
+      window._ikRowChip = function(i, txt) {
+        const st = _ikState; if (!st || !st.rows[i]) return;
+        st.rows[i].free = false;
+        st.rows[i].activity = txt;
+        st.rows[i].src = 'quick-added';
+        _rbTrack('intake_day_edited', { kind: st.kind, day_index: i, action: 'chip' });
+        _ikPaint();
+      };
+      window._ikRowFree = function(i) {
+        const st = _ikState; if (!st || !st.rows[i]) return;
+        const r = st.rows[i];
+        r.free = !r.free;
+        if (r.free) { r.activity = ''; r.pinned = false; r.evening = null; r.src = ''; }
+        _rbTrack('intake_day_edited', { kind: st.kind, day_index: i, action: r.free ? 'free' : 'unfree' });
+        _ikPaint();
+      };
+      window._ikPinRow = function(i) {
+        const st = _ikState; if (!st || !st.rows[i]) return;
+        _ikRowSync(i);
+        const r = st.rows[i];
+        if (r.free) return;
+        r.pinned = !r.pinned;
+        _rbTrack('intake_day_pinned', { kind: st.kind, day_index: i, slot: 'day', on: r.pinned });
+        _ikPaint();
+      };
+      window._ikEveAdd = function(i) {
+        const st = _ikState; if (!st || !st.rows[i]) return;
+        _ikRowSync(i);
+        st.rows[i].evening = { activity: '', pinned: false };
+        _rbTrack('intake_evening_added', { kind: st.kind, day_index: i });
+        _ikPaint();
+        setTimeout(() => { const el = document.getElementById('ik-eve-' + i); if (el) el.focus(); }, 40);
+      };
+      window._ikEveRemove = function(i) {
+        const st = _ikState; if (!st || !st.rows[i]) return;
+        st.rows[i].evening = null;
+        _ikPaint();
+      };
+
+      window._ikCommit = function() {
+        const st = _ikState; if (!st) return;
+        st.rows.forEach((r, i) => _ikRowSync(i));
+        if (st.kind === 'travel') {
+          if (!st.where) { st.err = 'Tell Robes where you’re going first.'; _ikPaint(); return; }
+          _rbTrack('intake_committed', { kind: 'travel', days: st.rows.length, moments: st.rows.length, pinned_count: st.rows.filter(r => r.pinned).length, evenings: 0, anchors: st.anchors.length, free_days: st.rows.filter(r => r.free).length });
+          const plan = st.rows.map(r => r.free ? null : (r.activity || ''));
+          const opts = {
+            brief: st.prompt, dest: st.where,
+            anchors: st.anchors.map(String), plan,
+          };
+          if (st.from) { opts.dateFrom = st.from; opts.dateTo = _pdAddISO(st.from, st.days - 1); }
+          _ikClose(); _ikClearPrompt();
+          // Travel finishes in its own brief modal (piece shortlist + the
+          // day planner) — crumbs, plan and build-around all carry over.
+          // Full travel generation from the unfurl lands with Phase 3 parity.
+          window.__tvOpen(opts);
+          return;
+        }
+        // Weekly: evenings fold into the day's authoritative plan line
+        // (one look reads the whole day until Phase 3 gives weekly
+        // per-slot looks); the evening MOMENT still gets its own index row
+        // via wkData.evenings.
+        const dayPlan = st.rows.map(r => {
+          if (r.free) return null;
+          const eve = r.evening && r.evening.activity ? (r.activity ? r.activity + ' — evening: ' + r.evening.activity : 'Evening: ' + r.evening.activity) : r.activity;
+          return eve || '';
+        });
+        if (!dayPlan.some(p => p !== null)) { st.err = 'Every day is left free — keep at least one dressed.'; _ikPaint(); return; }
+        const weekDays = st.rows.map(r => r.label + ' · ' + r.date);
+        const weekIso = st.rows.map(r => r.iso);
+        const pinnedDays = st.rows.map((r, i) => r.pinned ? i : -1).filter(i => i !== -1);
+        const evenings = st.rows.map((r, i) => r.evening && r.evening.activity ? { day_index: i, activity: r.evening.activity, pinned: !!r.evening.pinned } : null).filter(Boolean);
+        _rbTrack('intake_committed', { kind: 'weekly', days: st.rows.length, moments: st.rows.length + evenings.length, pinned_count: pinnedDays.length, evenings: evenings.length, anchors: st.anchors.length, free_days: st.rows.filter(r => r.free).length });
+        const anchors = st.anchors.slice();
+        const brief = st.prompt;
+        _ikClose(); _ikClearPrompt();
+        _wkGenerate(brief, dayPlan, weekDays, weekIso, { anchorItemIds: anchors, pinnedDays, evenings });
+      };
+
+      // ── boot wiring ────────────────────────────────────────────────
+      (function _ikBoot() {
+        try {
+          const m = location.search.match(/[?&]diary=(on|off)/);
+          if (m) localStorage.setItem(_IK_FLAG_KEY, m[1]);
+        } catch (_) {}
+        if (!_rbDiaryOn()) return;
+        if (!document.getElementById('rb-ik-style')) {
+          const st = document.createElement('style');
+          st.id = 'rb-ik-style';
+          st.textContent = _IK_CSS;
+          document.head.appendChild(st);
+        }
+        const wire = () => {
+          const input = document.querySelector('.cb-input');
+          const ta = document.getElementById('cb-ta');
+          if (!input || !ta) return false;
+          if (!document.getElementById('rb-scopechip')) {
+            const chip = document.createElement('button');
+            chip.id = 'rb-scopechip';
+            chip.onclick = _ikScopeBack;
+            input.insertBefore(chip, ta);
+          }
+          const box = document.querySelector('.concierge-box');
+          if (box && !document.getElementById('rb-sugg')) {
+            const sugg = document.createElement('div');
+            sugg.id = 'rb-sugg';
+            const host = _ikHost(); // ensures #rb-intake sits flush under the box
+            box.parentNode.insertBefore(sugg, host ? host.nextSibling : box.nextSibling);
+          }
+          ta.addEventListener('keydown', e => { if (e.key === 'Escape') _ikScopeBack(); });
+          return true;
+        };
+        let tries = 0;
+        const t = setInterval(() => { if (wire() || ++tries > 40) clearInterval(t); }, 250);
+        // Auto-scope + pills once the session and rail cache have landed
+        let tries2 = 0;
+        const t2 = setInterval(() => {
+          if (_waUid()) { _ikAutoScope(); _ikPillsPaint(); if (++tries2 > 3) clearInterval(t2); }
+          else if (++tries2 > 60) clearInterval(t2);
+        }, 1500);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) _ikPillsPaint(); });
       })();
 
       (function _rbOnboardHandoff() {
