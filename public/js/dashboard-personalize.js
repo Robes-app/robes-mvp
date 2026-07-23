@@ -3897,7 +3897,7 @@
         const loadTitle = document.getElementById('kp-load-title');
         if (loadTitle) loadTitle.innerHTML = locked && locked.length
           ? 'Restyling around<br><em>your anchors…</em>'
-          : 'Dressing you<br><em>for today…</em>';
+          : 'One prompt.<br><em>Dressed for anything.</em>';
         overlay.style.display = 'flex';
         const msgs = ['Reading the day’s context', 'Building anchor to accents…', 'Balancing the proportions…', 'Almost ready…'];
         let mi = 0;
@@ -5038,7 +5038,9 @@
         const hexOk = h => typeof h === 'string' && /^#[0-9A-Fa-f]{6}$/.test(h);
         const palette = (Array.isArray(data.palette) ? data.palette : []).filter(hexOk).slice(0, 3);
         const headline = data.headline || 'A look for today.';
-        const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
+        // The look belongs to its anchor date, not to whenever it renders —
+        // a Friday look scoped from the rail must read Friday everywhere.
+        const weekday = (data.anchor_date ? new Date(data.anchor_date + 'T00:00:00') : new Date()).toLocaleDateString('en-GB', { weekday: 'long' });
         const provenance = owned === total && total > 0
           ? 'All ' + total + ' pieces from your wardrobe'
           : owned > 0 ? owned + ' of ' + total + ' from your wardrobe' : total + ' pieces · an editorial build';
@@ -5203,7 +5205,7 @@
           _dlActiveSaveId = snAdd({
             type: 'daily-look',
             title: data.headline || 'Today’s look',
-            subtitle: 'Daily look · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
+            subtitle: 'Daily look · ' + weekday,
             img: persistable.find(Boolean) || null,
             dlData: saveCopy,
           });
@@ -9296,7 +9298,7 @@ body>*:not(#tv-result-page){display:none !important}
         }
         const loadTitle = document.getElementById('kp-load-title');
         if (loadTitle) loadTitle.innerHTML = daily
-          ? 'Dressing you<br><em>for today…</em>'
+          ? 'One prompt.<br><em>Dressed for anything.</em>'
           : 'Styling your piece<br><em>three ways…</em>';
         overlay.style.display = 'flex';
         const msgs = ['Generating editorial looks', 'Composing outfits…', 'Creating images…', 'Almost ready…'];
