@@ -11286,7 +11286,7 @@ body>*:not(#tv-result-page){display:none !important}
             if (!from) { const wd = _wkWeekDays(7); from = wd[0].iso; days = 7; }
           } else if (kind === 'travel' && seed.date_start && seed.date_end) {
             from = seed.date_start;
-            days = Math.min(21, Math.round((new Date(seed.date_end + 'T00:00:00Z') - new Date(seed.date_start + 'T00:00:00Z')) / 86400000) + 1);
+            days = Math.min(10, Math.round((new Date(seed.date_end + 'T00:00:00Z') - new Date(seed.date_start + 'T00:00:00Z')) / 86400000) + 1);
             if (days < 1) { from = null; days = 0; }
           }
           _ikState = {
@@ -11374,7 +11374,9 @@ body>*:not(#tv-result-page){display:none !important}
         if (_waItems.length) {
           const cats = ['All'].concat([...new Set(_waItems.map(w => w.category).filter(Boolean))]);
           const items = (st.cat === 'All' ? _waItems : _waItems.filter(w => w.category === st.cat)).slice(0, 30);
-          ba = `<div class="ik-ba"><div class="ik-ba-hd"><span class="ik-ba-lab">Build it around</span>${cats.map(c =>
+          // Travel's rack IS the shortlist — everything she picks is kept
+          // and the engine says what earns its place (COPY: needs sign-off)
+          ba = `<div class="ik-ba"><div class="ik-ba-hd"><span class="ik-ba-lab">${st.kind === 'travel' ? 'What’s tempting you?' : 'Build it around'}</span>${cats.map(c =>
               `<button class="ik-ba-cat${c === st.cat ? ' on' : ''}" onclick="window._ikCat('${_ikEsc(c)}')">${_ikEsc(c)}</button>`).join('')}</div>
             <div class="ik-rack">${items.map(w => `
               <button class="ik-ri${st.anchors.indexOf(w.id) !== -1 ? ' sel' : ''}" onclick="window._ikAnchor(${JSON.stringify(String(w.id)).replace(/"/g, '&quot;')})">
@@ -11455,7 +11457,15 @@ body>*:not(#tv-result-page){display:none !important}
         if (!f || !t) { _ikPaint(); return; }
         if (t < f) { const x = f; f = t; t = x; } // end before start swaps, never errors
         const days = Math.round((new Date(t + 'T00:00:00Z') - new Date(f + 'T00:00:00Z')) / 86400000) + 1;
-        if (days > 21) { st.err = 'That’s more than three weeks — Robes plans up to 21 days at a time.'; _ikPaint(); return; }
+        // Travel caps at 10 (the capsule engine's trip ceiling — showing 14
+        // rows the server would silently cut is worse than saying so)
+        const cap = st.kind === 'travel' ? 10 : 21;
+        if (days > cap) {
+          st.err = st.kind === 'travel'
+            ? 'Trips plan up to 10 days at a time — split a longer stay in two.'
+            : 'That’s more than three weeks — Robes plans up to 21 days at a time.';
+          _ikPaint(); return;
+        }
         // Re-derive rows, preserving activity + pin + evening BY DATE where
         // dates overlap, discarding the rest
         const old = st.rows;
@@ -11532,19 +11542,36 @@ body>*:not(#tv-result-page){display:none !important}
         const st = _ikState; if (!st) return;
         st.rows.forEach((r, i) => _ikRowSync(i));
         if (st.kind === 'travel') {
+          // Everything happens in the prompt, never the modal (Annie,
+          // 2026-07-23): the unfurl IS the brief — crumbs are the
+          // destination/dates, the day list is the day planner, and the
+          // build-around rack is the shortlist ("what's tempting you?").
+          // The modal's guardrails move inline.
           if (!st.where) { st.err = 'Tell Robes where you’re going first.'; _ikPaint(); return; }
-          _rbTrack('intake_committed', { kind: 'travel', days: st.rows.length, moments: st.rows.length, pinned_count: st.rows.filter(r => r.pinned).length, evenings: 0, anchors: st.anchors.length, free_days: st.rows.filter(r => r.free).length });
-          const plan = st.rows.map(r => r.free ? null : (r.activity || ''));
-          const opts = {
-            brief: st.prompt, dest: st.where,
-            anchors: st.anchors.map(String), plan,
+          if (!st.from) { st.err = 'Add the dates — even rough ones — and Robes plans the days.'; _ikPaint(); return; }
+          if (_waItems.length >= _TV_MIN_ANCHORS && st.anchors.length < _TV_MIN_ANCHORS) {
+            st.err = 'Pick at least ' + _TV_MIN_ANCHORS + ' pieces you’re tempted to bring — Robes tells you what earns its place.';
+            _ikPaint(); return;
+          }
+          _rbTrack('intake_committed', { kind: 'travel', days: st.rows.length, moments: st.rows.length, pinned_count: st.rows.filter(r => r.pinned).length, evenings: st.rows.filter(r => r.evening && r.evening.activity).length, anchors: st.anchors.length, free_days: st.rows.filter(r => r.free).length });
+          // Evening moments fold into the day's plan line — travel
+          // generation already dresses Day + Evening slots per day.
+          const plan = st.rows.map(r => {
+            if (r.free) return null;
+            const eve = r.evening && r.evening.activity ? (r.activity ? r.activity + ' — evening: ' + r.evening.activity : 'Evening: ' + r.evening.activity) : r.activity;
+            return eve || '';
+          });
+          _tvBrief = {
+            dest: st.where,
+            dateFrom: st.from,
+            dateTo: _pdAddISO(st.from, st.days - 1),
+            brief: st.prompt,
+            anchors: st.anchors.map(String),
+            plan,
+            suggested: [],
           };
-          if (st.from) { opts.dateFrom = st.from; opts.dateTo = _pdAddISO(st.from, st.days - 1); }
           _ikClose(); _ikClearPrompt();
-          // Travel finishes in its own brief modal (piece shortlist + the
-          // day planner) — crumbs, plan and build-around all carry over.
-          // Full travel generation from the unfurl lands with Phase 3 parity.
-          window.__tvOpen(opts);
+          _tvGenerate(plan);
           return;
         }
         // Weekly: evenings fold into the day's authoritative plan line
