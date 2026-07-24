@@ -2922,9 +2922,26 @@
         for (let i = 0; i < 62 && d; i++) { out.push(d); if (d === toISO) break; d = _pdAddISO(d, 1); }
         return out;
       }
+      // Same-type supersession for ONE date's rows: re-planning the same
+      // dates COEXISTS in the table (decision: write-time exclusion loses
+      // data) — but at read time a newer plan of the SAME type supersedes
+      // an older one WHOLESALE for the date. Without this, a superseded
+      // plan's evening row (no contender in the fresh plan, which left its
+      // evening free) wins the evening slot and paints a ghost moment on
+      // the rail that's empty on click-through. Cross-type complements (a
+      // trip's evening beside a week's day) still resolve per slot.
+      function _pdFreshest(here) {
+        const latest = {};
+        here.forEach(r => {
+          const u = new Date(r.updated_at || 0).getTime();
+          const c = latest[r.source_type];
+          if (!c || u > c.u) latest[r.source_type] = { id: r.source_id, u };
+        });
+        return here.filter(r => String(latest[r.source_type].id) === String(r.source_id));
+      }
       function _pdSlots(rows, fromISO, toISO) {
         return _pdDateList(fromISO, toISO).map(date => {
-          const here = rows.filter(r => r.day_date === date);
+          const here = _pdFreshest(rows.filter(r => r.day_date === date));
           const moments = [];
           ['day', 'evening'].forEach(slot => {
             const w = _pdWinner(here.filter(r => (r.slot || 'day') === slot));
@@ -4815,6 +4832,80 @@
         window.__dlRenderResult(data, window.__lastDlPrompt || data.prompt || '', { skipSave: true, savedId: _dlActiveSaveId, keepScroll: sc });
         _dlPatchSaved();
       }
+      // ── Day/Evening on the daily track (evening rules 2026-07-24) —
+      // the date's two moments are two SEPARATE saved looks; the sibling
+      // is the newest daily look at the same anchor date wearing the
+      // other slot (newest-first matches read-time precedence).
+      function _dlSibling(data, excludeId) {
+        if (!data || !data.anchor_date) return null;
+        const eve = data.slot === 'evening';
+        return snLoad().find(x => x.type === 'daily-look' && x.dlData
+          && x.dlData.anchor_date === data.anchor_date
+          && ((x.dlData.slot === 'evening') !== eve)
+          && (excludeId == null || x.id !== excludeId)) || null;
+      }
+      window.__dlSetSlot = function(oi) {
+        const data = window.__lastDlData;
+        if (!data) return;
+        const tgtEve = oi === 1;
+        if (tgtEve === (data.slot === 'evening')) { _dlRerender(); return; }
+        const sib = _dlSibling(data, _dlActiveSaveId);
+        if (sib) {
+          window.__dlRenderResult(sib.dlData, sib.dlData.prompt || sib.title || '', { skipSave: true, savedId: sib.id });
+          return;
+        }
+        // Another track may own this date's moment (a trip's dinner, a
+        // week's evening) — the tab honours the calendar and opens THAT
+        // artifact at the day instead of inviting a duplicate look.
+        const xRow = _pdWinner(_pdFreshest(_pdCacheRead().filter(r =>
+          r.day_date === data.anchor_date && (r.slot || 'day') === (tgtEve ? 'evening' : 'day')
+          && r.source_type !== 'daily' && r.status !== 'free')));
+        const xItem = xRow ? snLoad().find(x => String(x.id) === String(xRow.source_id)) : null;
+        if (xItem) {
+          window.__snOpenItem(xItem.id);
+          setTimeout(() => {
+            if (xRow.source_type === 'weekly') {
+              if (window.__wkSelectDay) window.__wkSelectDay(xRow.day_index);
+              if (tgtEve && window.__wkSetSlot) window.__wkSetSlot(1);
+            } else {
+              if (window.__tvSetTab) window.__tvSetTab('outfits');
+              if (window.__tvSelectDay) window.__tvSelectDay(xRow.day_index);
+              if (tgtEve && window.__tvSetOcc) window.__tvSetOcc(1);
+            }
+          }, 400);
+          return;
+        }
+        // That moment has no look yet — the invitation (dressing it is an
+        // ADDITION: this look is never restyled). Rendered in place of the
+        // console; the switcher stays so she can flip straight back.
+        const conEl = dlResultPage && dlResultPage.querySelector('.dlm-console');
+        if (!conEl) return;
+        const serif = "'Cormorant',Georgia,serif";
+        const seg = (label, o, on) =>
+          `<button onclick="window.__dlSetSlot(${o})" style="border:none;border-radius:100px;padding:5px 13px;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;background:${on ? '#202021' : 'transparent'};color:${on ? '#fff' : '#8A8078'};white-space:nowrap">${label}</button>`;
+        const pair = `<div style="display:inline-flex;gap:2px;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.1);border-radius:100px;padding:2px">`
+          + seg('Day' + (tgtEve ? '' : ' · free'), 0, !tgtEve)
+          + seg('Evening' + (tgtEve ? ' · free' : ''), 1, tgtEve)
+          + `</div>`;
+        // COPY: needs sign-off (invitation strings)
+        conEl.innerHTML = `
+          <div style="grid-column:1/-1">
+            <div style="margin-bottom:10px">${pair}</div>
+            <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:40px 24px;text-align:center">
+              <div style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">The ${tgtEve ? 'evening' : 'day'}, <em style="font-style:italic">left free.</em></div>
+              <div style="font-size:12.5px;color:#8A8078;margin-bottom:16px">${tgtEve ? 'Add a plan and the evening gets its own look — the day stays exactly as it is.' : 'Give the day a plan and it gets its own look — the evening stays exactly as it is.'}</div>
+              <input id="dl-eve-act" placeholder="${tgtEve ? 'Date night, drinks, a dinner out…' : 'Office day, errands, a lunch…'}" style="width:100%;max-width:320px;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:100px;padding:11px 16px;font-size:13px;font-family:inherit;color:#202021;background:#FAF8F5;outline:none;margin:0 auto 14px;display:block" onkeydown="if(event.key==='Enter')window.__dlDressSlot(${oi})">
+              <button onclick="window.__dlDressSlot(${oi})" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✨ Dress the ${tgtEve ? 'evening' : 'day'} →</button>
+            </div>
+          </div>`;
+      };
+      window.__dlDressSlot = function(oi) {
+        const data = window.__lastDlData;
+        if (!data) return;
+        const typed = ((document.getElementById('dl-eve-act') || {}).value || '').trim();
+        if (!typed) { const el = document.getElementById('dl-eve-act'); if (el) el.focus(); return; }
+        window.__dlSubmit(typed, { anchorDate: data.anchor_date, slot: oi === 1 ? 'evening' : undefined });
+      };
       window.__dlFlip = function(fi, dir) {
         const it = window.__dlCurrentItems && window.__dlCurrentItems[fi];
         if (!it || !window.__lastDlData) return;
@@ -5139,14 +5230,37 @@
           };
         });
         const dlUnowned = ordered.filter(x => !x.it.wardrobe_match);
+        // Day/Evening pair (evening rules 2026-07-24): the daily track's
+        // two moments are two SAVED LOOKS at the same anchor date — the
+        // switcher navigates between them, or invites dressing the empty
+        // one (always an addition, never a restyle of this look).
+        const dlEve = data.slot === 'evening';
+        // Exclusion comes from opts, not _dlActiveSaveId — the module var
+        // still points at the PREVIOUS look this early in the render.
+        const dlSib = _dlSibling(data, (opts && opts.savedId) || data.id || null);
+        // "· free" must be truthful: another track can own the moment (a
+        // trip's dinner on this date) — same supersession as the rail.
+        const dlXRows = data.anchor_date ? _pdFreshest(_pdCacheRead().filter(r =>
+          r.day_date === data.anchor_date && r.source_type !== 'daily' && r.status !== 'free')) : [];
+        const dlXHas = slot => dlXRows.some(r => (r.slot || 'day') === slot);
+        const dlSeg = (label, oi, on) =>
+          `<button onclick="window.__dlSetSlot(${oi})" style="border:none;border-radius:100px;padding:5px 13px;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;background:${on ? '#202021' : 'transparent'};color:${on ? '#fff' : '#8A8078'};white-space:nowrap">${label}</button>`;
+        const dlOccHtml = data.anchor_date
+          ? `<div style="display:inline-flex;width:max-content;gap:2px;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.1);border-radius:100px;padding:2px;margin:2px 0 4px;align-self:flex-start">`
+            + dlSeg('Day' + (!dlEve || dlSib || dlXHas('day') ? '' : ' · free'), 0, !dlEve)
+            + dlSeg('Evening' + (dlEve || dlSib || dlXHas('evening') ? '' : ' · free'), 1, dlEve)
+            + `</div>`
+          : '';
+        const dlMomentLabel = weekday + (dlEve ? ' evening' : '');
         const con = _rbConsole({
-          headLabel: `The look · ${_waEsc(weekday)} · ${total} pieces`,
+          headLabel: `The look · ${_waEsc(dlMomentLabel)} · ${total} pieces`,
+          occHtml: dlOccHtml,
           quoteHtml: summaryHtml || (quote ? '“' + _waEsc(quote) + '”' : ''),
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           verdictHtml: _rbcVerdict(owned, total, dlUnowned.map(x => x.it)),
           addChipLabel: _rbTrackCfg('daily').console.addVerb,
-          rackLabel: `The rack · ${_waEsc(weekday)}`,
+          rackLabel: `The rack · ${_waEsc(dlMomentLabel)}`,
           rackTitleHtml: data.occasion_label ? (() => {
             const t = cap1(data.occasion_label.toLowerCase());
             return `<h2>${_waEsc(t)}${!/[.!?]$/.test(t) ? '.' : ''}</h2>`;
