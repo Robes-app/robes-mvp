@@ -11259,6 +11259,13 @@ body>*:not(#tv-result-page){display:none !important}
           if (!slot || !slot.moments.length) return;
           const m = slot.moments.find(x => (x.slot || 'day') === 'day') || slot.moments[0];
           _rbTrack('day_opened_from_rail', { source_type: m.source_type, state: cardState(slot) });
+          window._rbOpenPlannedDay(m);
+        };
+        // ONE opener for a planned_days moment — rail card, month cell and
+        // the ?d= deep link all land on the same console through this
+        // (§6.4: a day is one identity; three openers is how they drift).
+        window._rbOpenPlannedDay = function(m) {
+          if (!m) return;
           window.__snOpenItem(Number(m.source_id));
           // Land on the tapped day, not the plan's first day
           if (m.source_type === 'weekly') {
@@ -11348,6 +11355,273 @@ body>*:not(#tv-result-page){display:none !important}
         document.addEventListener('visibilitychange', () => {
           if (!document.hidden && _waUid()) refresh();
         });
+      })();
+
+      // ═══ The Diary month view (Stage 6 — Phase 6, the continuous spine) ═
+      // Lives INSIDE the Lookbook (no /calendar route — out of scope §9):
+      // a Grid | Calendar toggle in the lookbook header. A trip is ONE
+      // event — it bands continuously across however many week rows it
+      // crosses. Daily looks never band (decision 7): the cell is the only
+      // place a standalone daily look appears, visually equal to a planned
+      // day. Same-type supersession (_pdFreshest) applies per date before
+      // anything renders, so a re-planned trip never paints twice.
+      (function _rbMonthView() {
+        var _mvView = 'grid';
+        var _mvY = null, _mvM = null; // 1-based month
+        var _mvRows = [];             // fetched grid±7d rows, freshest-filtered per date
+        var _mvSources = {};
+        const pad2 = n => String(n).padStart(2, '0');
+        const dISO = iso => Date.parse(iso + 'T00:00:00Z');
+        const diffD = (a, b) => Math.round((dISO(b) - dISO(a)) / 86400000);
+
+        if (!document.getElementById('rb-mv-style')) {
+          const st = document.createElement('style');
+          st.id = 'rb-mv-style';
+          st.textContent = `
+#sn-viewseg{display:inline-flex;border:0.5px solid rgba(32,32,33,0.18);border-radius:100px;overflow:hidden}
+#sn-viewseg button{border:none;background:transparent;padding:7px 15px;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#8A8078;cursor:pointer;font-family:inherit;white-space:nowrap}
+#sn-viewseg button.on{background:#202021;color:#fff}
+#sn-cal{display:none}
+#sn-page.rb-cal-on #sn-tabs{display:none!important}
+#sn-page.rb-cal-on #sn-grid{display:none!important}
+#sn-page.rb-cal-on #sn-empty{display:none!important}
+.rb-mv-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 18px}
+.rb-mv-title{font-family:'Cormorant',Georgia,serif;font-size:34px;font-weight:300;color:var(--ink,#202021);margin:0}
+.rb-mv-nav{display:flex;gap:6px}
+.rb-mv-nav button{width:32px;height:32px;border:0.5px solid rgba(32,32,33,0.18);border-radius:50%;background:#fff;color:#6E6A64;font-size:14px;cursor:pointer;line-height:1}
+.rb-mv-nav button:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
+.rb-mv-dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-bottom:8px}
+.rb-mv-dow div{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;padding-left:2px}
+.rb-mv-cal{display:flex;flex-direction:column;gap:8px}
+.rb-mw{position:relative}
+.rb-mcells{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.rb-mc{aspect-ratio:1.25;border:0.5px solid rgba(32,32,33,0.14);border-radius:10px;padding:8px;display:flex;flex-direction:column;background:#fff;min-width:0;box-sizing:border-box;text-align:left;font-family:inherit;position:relative}
+.rb-mc[onclick]{cursor:pointer;transition:border-color .15s}
+.rb-mc[onclick]:hover{border-color:var(--ink,#202021)}
+.rb-mc .n{font-family:'Cormorant',Georgia,serif;font-size:17px;color:var(--ink,#202021);line-height:1}
+.rb-mc-eve{position:absolute;top:8px;right:9px;font-size:9px;color:#8E7077}
+.rb-mc.is-past{background:#F5F0E8}
+.rb-mc.is-fut{border-style:dashed;border-color:rgba(32,32,33,0.22)}
+.rb-mc.is-bare{border-color:rgba(32,32,33,0.07)}
+.rb-mc.is-bare .n{color:#D8CFC0}
+.rb-mc.is-free{border-style:dashed}
+.rb-mc.is-free .tag{margin-top:auto;font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:11px;color:#B8AC9C}
+.rb-mc.is-today{border-color:var(--ink,#202021);box-shadow:0 0 0 1px var(--ink,#202021) inset}
+.rb-mc.is-today .n{font-weight:500}
+.rb-mc.is-pinned{border-color:#8E7077;box-shadow:0 0 0 1px #8E7077 inset}
+.rb-mc .act{margin-top:auto;font-family:'Cormorant',Georgia,serif;font-size:12px;line-height:1.25;color:var(--ink,#202021);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rb-mc.is-fut .act{color:#8A8078}
+.rb-mc-strip{display:flex;gap:3px;margin-top:6px;flex:none}
+.rb-mc-strip img{flex:1;min-width:0;height:16px;object-fit:cover;border-radius:2px;display:block}
+.rb-mband{position:absolute;height:16px;border:none;border-radius:100px;display:flex;align-items:center;padding:0 10px;font-size:9px;font-weight:500;letter-spacing:.06em;white-space:nowrap;overflow:hidden;font-family:inherit;box-sizing:border-box;text-overflow:ellipsis;cursor:pointer}
+.rb-mband.week{background:rgba(155,161,123,0.30);color:#5F6247}
+.rb-mband.trip{background:rgba(212,200,196,0.60);color:#6A4F48}
+.rb-mband.cont{opacity:.72;font-style:italic}
+.rb-mv-more{position:absolute;right:0;top:0;font-size:9px;color:#A89880}
+@media(max-width:1000px){.rb-mc-strip{display:none}}
+@media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:8px}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}.rb-mband{font-size:8px;padding:0 6px;height:14px}.rb-mv-title{font-size:26px}}`;
+          document.head.appendChild(st);
+        }
+
+        // Mount: the toggle beside #sn-count, the calendar after #sn-tabs
+        const headRow = snPage.querySelector('#sn-count') && snPage.querySelector('#sn-count').parentNode;
+        if (!headRow) return;
+        const seg = document.createElement('div');
+        seg.id = 'sn-viewseg';
+        seg.innerHTML = `<button class="on" data-mv="grid">Grid</button><button data-mv="cal">Calendar</button>`;
+        headRow.appendChild(seg);
+        seg.addEventListener('click', e => {
+          const b = e.target.closest('button[data-mv]');
+          if (b) _mvSetView(b.dataset.mv);
+        });
+        const cal = document.createElement('div');
+        cal.id = 'sn-cal';
+        snPage.querySelector('#sn-tabs').parentNode.insertBefore(cal, snPage.querySelector('#sn-grid'));
+
+        function _mvSetView(v) {
+          _mvView = v;
+          seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.mv === v));
+          const calOn = v === 'cal';
+          // Class, not inline styles — async repaints (snRenderPage after
+          // _lbCloudPull) re-set the grid's inline display underneath us.
+          snPage.classList.toggle('rb-cal-on', calOn);
+          if (!calOn) snRenderPage();
+          cal.style.display = calOn ? 'block' : 'none';
+          if (calOn) {
+            if (_mvY == null) { const t = _pdLocalISO(); _mvY = +t.slice(0, 4); _mvM = +t.slice(5, 7); }
+            _mvLoad();
+          }
+        }
+        window._mvSetView = _mvSetView;
+        window.__mvNav = function(d) {
+          _mvM += d;
+          if (_mvM < 1) { _mvM = 12; _mvY--; }
+          if (_mvM > 12) { _mvM = 1; _mvY++; }
+          _mvLoad();
+        };
+        // The lookbook always reopens on the grid (wardrobe convention)
+        const _snOpenPrev = window.__snOpen;
+        window.__snOpen = function() { _snOpenPrev(); _mvSetView('grid'); };
+
+        function _mvGrid() {
+          const first = _mvY + '-' + pad2(_mvM) + '-01';
+          const lastDay = new Date(Date.UTC(_mvY, _mvM, 0)).getUTCDate();
+          const last = _mvY + '-' + pad2(_mvM) + '-' + pad2(lastDay);
+          // Weeks start Monday — real weekday offsets, never a hardcoded col
+          const startCol = (new Date(dISO(first)).getUTCDay() + 6) % 7;
+          const gridStart = _pdAddISO(first, -startCol);
+          const endCol = (new Date(dISO(last)).getUTCDay() + 6) % 7;
+          const gridEnd = _pdAddISO(last, 6 - endCol);
+          return { first, last, gridStart, gridEnd, weeks: (diffD(gridStart, gridEnd) + 1) / 7 };
+        }
+        function _mvFresh(rows) {
+          const byDate = {};
+          rows.forEach(r => { (byDate[r.day_date] = byDate[r.day_date] || []).push(r); });
+          return Object.keys(byDate).reduce((out, d) => out.concat(_pdFreshest(byDate[d])), []);
+        }
+        function _mvLoad() {
+          const g = _mvGrid();
+          _mvPaint(g, _mvRows, _mvSources); // last data first — no blank flash
+          // ±7d beyond the grid so a band clipped by the boundary knows it
+          _pdMonth(_pdAddISO(g.gridStart, -7), _pdAddISO(g.gridEnd, 7)).then(res => {
+            _mvRows = _mvFresh(res.rows || []);
+            _mvSources = res.sources || {};
+            _mvPaint(g, _mvRows, _mvSources);
+          }).catch(() => {});
+        }
+
+        // Bands: weekly + travel only (daily looks are cell content, never
+        // a band — decision 7). Extent = the source's row dates; segments
+        // computed per week row from real weekday offsets.
+        function _mvBands(g, rows, sources) {
+          const bySrc = {};
+          rows.forEach(r => {
+            if (r.source_type !== 'weekly' && r.source_type !== 'travel') return;
+            (bySrc[r.source_id] = bySrc[r.source_id] || []).push(r.day_date);
+          });
+          const bands = [];
+          Object.keys(bySrc).forEach(sid => {
+            const dates = bySrc[sid].sort();
+            const s = dates[0], e = dates[dates.length - 1];
+            if (e < g.gridStart || s > g.gridEnd) return;
+            const type = rows.find(r => r.source_id === sid).source_type;
+            const parent = sources[sid] || _pdParent(sid);
+            const title = (parent && parent.title) || (type === 'travel' ? 'Trip' : 'Weekly plan');
+            const segs = [];
+            for (let w = 0; w < g.weeks; w++) {
+              const ws = _pdAddISO(g.gridStart, w * 7), we = _pdAddISO(ws, 6);
+              if (e < ws || s > we) continue;
+              const a = s > ws ? s : ws, b = e < we ? e : we;
+              segs.push({ week: w, start_col: diffD(ws, a), span: diffD(a, b) + 1, is_start: a === s && s >= g.gridStart });
+            }
+            bands.push({ sid, type, title, segs });
+          });
+          return bands;
+        }
+
+        function _mvPaint(g, rows, sources) {
+          const today = _pdLocalISO();
+          const bands = _mvBands(g, rows, sources);
+          // Lane assignment per week row (max two lanes + quiet overflow)
+          const laneEnd = [], weekLanes = [], weekMore = [];
+          for (let w = 0; w < g.weeks; w++) { laneEnd.push([-1, -1]); weekLanes.push(0); weekMore.push(0); }
+          const placed = [];
+          bands.forEach(band => band.segs.forEach((sg, si) => {
+            const le = laneEnd[sg.week];
+            let lane = le[0] < sg.start_col ? 0 : (le[1] < sg.start_col ? 1 : -1);
+            if (lane === -1) { weekMore[sg.week]++; return; }
+            le[lane] = sg.start_col + sg.span - 1;
+            weekLanes[sg.week] = Math.max(weekLanes[sg.week], lane + 1);
+            placed.push({ band, sg, si, lane });
+          }));
+          const monthName = new Date(dISO(g.first)).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+          let html = `
+            <div class="rb-mv-head">
+              <h2 class="rb-mv-title">${_waEsc(monthName)}</h2>
+              <div class="rb-mv-nav"><button onclick="window.__mvNav(-1)" aria-label="Previous month">‹</button><button onclick="window.__mvNav(1)" aria-label="Next month">›</button></div>
+            </div>
+            <div class="rb-mv-dow">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => '<div>' + d + '</div>').join('')}</div>
+            <div class="rb-mv-cal">`;
+          for (let w = 0; w < g.weeks; w++) {
+            const lanes = weekLanes[w];
+            const padTop = lanes ? 4 + lanes * 18 : 0;
+            html += `<div class="rb-mw" style="padding-top:${padTop}px">`;
+            placed.filter(p => p.sg.week === w).forEach(p => {
+              // First VISIBLE segment carries the label only when the band
+              // genuinely starts there; anything else is a continuation.
+              const contHtml = '↳ ' + _waEsc(p.band.title) + ', continued';
+              const label = (p.si === 0 && p.sg.is_start) ? _waEsc(p.band.title) : contHtml;
+              const cont = !(p.si === 0 && p.sg.is_start);
+              html += `<button class="rb-mband ${p.band.type === 'travel' ? 'trip' : 'week'}${cont ? ' cont' : ''}" style="left:${(p.sg.start_col / 7 * 100).toFixed(4)}%;width:${(p.sg.span / 7 * 100).toFixed(4)}%;top:${2 + p.lane * 18}px" onclick="window.__mvBand('${String(p.band.sid).replace(/'/g, '')}','${p.band.type}')">${label}</button>`;
+            });
+            if (weekMore[w]) html += `<span class="rb-mv-more">+${weekMore[w]} more</span>`;
+            html += `<div class="rb-mcells">`;
+            for (let c = 0; c < 7; c++) {
+              const date = _pdAddISO(g.gridStart, w * 7 + c);
+              const here = rows.filter(r => r.day_date === date);
+              const dayW = _pdWinner(here.filter(r => (r.slot || 'day') === 'day'));
+              const eveW = _pdWinner(here.filter(r => (r.slot || 'day') === 'evening'));
+              const inMonth = date >= g.first && date <= g.last;
+              const n = inMonth ? String(+date.slice(8, 10)) : '&nbsp;';
+              const free = dayW && dayW.status === 'free' && !eveW;
+              const cls = ['rb-mc'];
+              if (!inMonth || (!dayW && !eveW)) cls.push('is-bare');
+              else if (free) cls.push('is-free');
+              else if (date < today) cls.push('is-past');
+              else if (date > today) cls.push('is-fut');
+              if (date === today && inMonth) cls.push('is-today');
+              if ((dayW && dayW.pinned) || (eveW && eveW.pinned)) cls.push('is-pinned');
+              const act = dayW && dayW.status !== 'free' ? (dayW.activity || dayW.headline || '') : (!dayW && eveW ? (eveW.activity || eveW.headline || '') : '');
+              // One legible line at month scale — the evening is a marker,
+              // never a second stacked line (§6.3)
+              const eveMark = eveW ? '<span class="rb-mc-eve" title="Evening planned">☾</span>' : '';
+              const thumbs = (dayW && Array.isArray(dayW.thumb_urls) ? dayW.thumb_urls : []).slice(0, 3)
+                .filter(u => typeof u === 'string' && u.indexOf('http') === 0);
+              const open = inMonth && (dayW || eveW) ? ` onclick="window.__mvCell('${date}')" role="button" tabindex="0"` : '';
+              html += `<div class="${cls.join(' ')}"${open}><span class="n">${n}</span>${eveMark}`
+                + (free ? `<span class="tag">left free</span>` : '')
+                + (act ? `<span class="act">${_waEsc(String(act))}</span>` : '')
+                + (thumbs.length ? `<span class="rb-mc-strip">${thumbs.map(u => `<img src="${_waEsc(u)}" alt="" onerror="this.style.display='none'">`).join('')}</span>` : '')
+                + `</div>`;
+            }
+            html += `</div></div>`;
+          }
+          html += `</div>`;
+          cal.innerHTML = html;
+        }
+
+        // Tapping a cell opens the day console at that date; tapping a
+        // band opens the parent artifact — the same objects the rail opens
+        window.__mvCell = function(date) {
+          const here = _mvRows.filter(r => r.day_date === date);
+          if (!here.length) return;
+          const m = _pdWinner(here.filter(r => (r.slot || 'day') === 'day')) || _pdWinner(here);
+          window._rbOpenPlannedDay(m);
+        };
+        window.__mvBand = function(sid, type) {
+          _rbTrack('month_band_opened', { source_type: type });
+          window.__snOpenItem(Number(sid));
+        };
+
+        // ?d=YYYY-MM-DD — deep-link a day: opens the console for whichever
+        // plan wins precedence on that date (§6.4), from boot.
+        (function _mvDeepLink() {
+          let d = null;
+          try { d = new URL(window.location.href).searchParams.get('d'); } catch (_) {}
+          if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+          let tries = 0;
+          const t = setInterval(() => {
+            if (_waUid()) {
+              clearInterval(t);
+              _pdRail(d, d).then(slots => {
+                const s = slots && slots[0];
+                if (!s || !s.moments.length) return;
+                const m = s.moments.find(x => (x.slot || 'day') === 'day') || s.moments[0];
+                window._rbOpenPlannedDay(m);
+              }).catch(() => {});
+            } else if (++tries > 80) clearInterval(t);
+          }, 250);
+        })();
       })();
 
       // ═══ The Diary prompt + unfurl (Stage 3 — Phases 1–2, behind the
