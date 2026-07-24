@@ -4854,27 +4854,12 @@
           window.__dlRenderResult(sib.dlData, sib.dlData.prompt || sib.title || '', { skipSave: true, savedId: sib.id });
           return;
         }
-        // Another track may own this date's moment (a trip's dinner, a
-        // week's evening) — the tab honours the calendar and opens THAT
-        // artifact at the day instead of inviting a duplicate look.
-        const xRow = _pdWinner(_pdFreshest(_pdCacheRead().filter(r =>
-          r.day_date === data.anchor_date && (r.slot || 'day') === (tgtEve ? 'evening' : 'day')
-          && r.source_type !== 'daily' && r.status !== 'free')));
-        const xItem = xRow ? snLoad().find(x => String(x.id) === String(xRow.source_id)) : null;
-        if (xItem) {
-          window.__snOpenItem(xItem.id);
-          setTimeout(() => {
-            if (xRow.source_type === 'weekly') {
-              if (window.__wkSelectDay) window.__wkSelectDay(xRow.day_index);
-              if (tgtEve && window.__wkSetSlot) window.__wkSetSlot(1);
-            } else {
-              if (window.__tvSetTab) window.__tvSetTab('outfits');
-              if (window.__tvSelectDay) window.__tvSelectDay(xRow.day_index);
-              if (tgtEve && window.__tvSetOcc) window.__tvSetOcc(1);
-            }
-          }, 400);
-          return;
-        }
+        // The tab stays in the DAILY context — even when another track
+        // holds a moment on this date (a trip's dinner), never bounce her
+        // into that artifact from here (first cut did; it read as being
+        // dumped into the travel edit — the rail is the cross-track
+        // surface). A daily evening she creates simply outranks it at
+        // read time (daily > travel > weekly).
         // That moment has no look yet — the invitation (dressing it is an
         // ADDITION: this look is never restyled). Rendered in place of the
         // console; the switcher stays so she can flip straight back.
@@ -5238,17 +5223,12 @@
         // Exclusion comes from opts, not _dlActiveSaveId — the module var
         // still points at the PREVIOUS look this early in the render.
         const dlSib = _dlSibling(data, (opts && opts.savedId) || data.id || null);
-        // "· free" must be truthful: another track can own the moment (a
-        // trip's dinner on this date) — same supersession as the rail.
-        const dlXRows = data.anchor_date ? _pdFreshest(_pdCacheRead().filter(r =>
-          r.day_date === data.anchor_date && r.source_type !== 'daily' && r.status !== 'free')) : [];
-        const dlXHas = slot => dlXRows.some(r => (r.slot || 'day') === slot);
         const dlSeg = (label, oi, on) =>
           `<button onclick="window.__dlSetSlot(${oi})" style="border:none;border-radius:100px;padding:5px 13px;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;background:${on ? '#202021' : 'transparent'};color:${on ? '#fff' : '#8A8078'};white-space:nowrap">${label}</button>`;
         const dlOccHtml = data.anchor_date
           ? `<div style="display:inline-flex;width:max-content;gap:2px;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.1);border-radius:100px;padding:2px;margin:2px 0 4px;align-self:flex-start">`
-            + dlSeg('Day' + (!dlEve || dlSib || dlXHas('day') ? '' : ' · free'), 0, !dlEve)
-            + dlSeg('Evening' + (dlEve || dlSib || dlXHas('evening') ? '' : ' · free'), 1, dlEve)
+            + dlSeg('Day' + (!dlEve || dlSib ? '' : ' · free'), 0, !dlEve)
+            + dlSeg('Evening' + (dlEve || dlSib ? '' : ' · free'), 1, dlEve)
             + `</div>`
           : '';
         const dlMomentLabel = weekday + (dlEve ? ' evening' : '');
