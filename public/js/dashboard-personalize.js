@@ -2939,7 +2939,38 @@
         });
         return here.filter(r => String(latest[r.source_type].id) === String(r.source_id));
       }
+      // SOURCE-level supersession (audit D-08, 2026-07-24): two weekly
+      // plans or two trips whose date ranges OVERLAP are the same
+      // real-world plan re-planned — only the freshest survives,
+      // WHOLESALE. Per-date _pdFreshest can't drop a stale source's rows
+      // on dates the fresh plan no longer covers (a trip shifted by two
+      // days), which is how a ghost band paints beside its replacement on
+      // the month grid and a stale day wins an uncontested rail slot.
+      // Daily looks are exempt — a date's day + evening are two separate
+      // saved siblings that coexist by design.
+      function _pdSupersede(rows) {
+        const src = {};
+        rows.forEach(r => {
+          const s = src[r.source_id] = src[r.source_id] || { type: r.source_type, min: r.day_date, max: r.day_date, u: 0 };
+          if (r.day_date < s.min) s.min = r.day_date;
+          if (r.day_date > s.max) s.max = r.day_date;
+          const t = new Date(r.updated_at || 0).getTime();
+          if (t > s.u) s.u = t;
+        });
+        const ids = Object.keys(src);
+        const dead = {};
+        ids.forEach(a => ids.forEach(b => {
+          if (a === b) return;
+          const A = src[a], B = src[b];
+          if (A.type !== B.type || A.type === 'daily') return;
+          if (A.min <= B.max && B.min <= A.max) {
+            if (A.u < B.u || (A.u === B.u && String(a) < String(b))) dead[a] = true;
+          }
+        }));
+        return Object.keys(dead).length ? rows.filter(r => !dead[r.source_id]) : rows;
+      }
       function _pdSlots(rows, fromISO, toISO) {
+        rows = _pdSupersede(rows);
         return _pdDateList(fromISO, toISO).map(date => {
           const here = _pdFreshest(rows.filter(r => r.day_date === date));
           const moments = [];
@@ -4645,6 +4676,414 @@
           </button>`).join('');
       }
 
+      // ═══ DayCard — the one canonical day renderer (design spec v2.0 +
+      // engineering brief, 2026-07-24) ════════════════════════════════════
+      // Four surfaces render a day (home rail, weekly strip, travel strip,
+      // lookbook calendar) through ONE normalised shape (_dcMoments) and
+      // ONE renderer (_dcCard). Two densities, bound to the surface, never
+      // chosen: full (rail + strips) / compact (calendar). The strips
+      // derive their DayCardData LIVE from the plan blob through the SAME
+      // row builders the planned_days index uses (_pdRowsWk/_pdRowsTv,
+      // §6.4 decision) — one shape, no freshness gap, the index stays
+      // persistence-only. Action model (spec §6): the card BODY opens the
+      // day (a peek overlay on rail + calendar, the console on the
+      // strips); the top-right RING sets the day as focus (scopes the
+      // prompt on home, re-points the console on the strips). No "Open →"
+      // label anywhere — the body is the affordance.
+      // ?daycard=off is the per-device kill switch (all four surfaces fall
+      // back to their pre-DayCard renders, persisted); ?daycard=on clears.
+      var _DC_FLAG_KEY = 'rb_daycard';
+      (function () {
+        try {
+          const v = new URL(window.location.href).searchParams.get('daycard');
+          if (v === 'off') localStorage.setItem(_DC_FLAG_KEY, 'off');
+          else if (v === 'on') localStorage.removeItem(_DC_FLAG_KEY);
+        } catch (_) {}
+      })();
+      function _rbDayCardOn() {
+        try { return localStorage.getItem(_DC_FLAG_KEY) !== 'off'; } catch (_) { return true; }
+      }
+      // Whose words win the title — ONE config point (audit D-02; Annie
+      // 2026-07-24: the USER'S words win, the generated headline is the
+      // fallback). 'robes' flips the preference with no render changes.
+      // _wkApplyDay's occasion overwrite is deliberately untouched — the
+      // row builders already prefer user_activity, so her words surface
+      // here regardless.
+      var _DC_TITLE_MODE = 'user';
+      // §10.1 — thumbnails are wardrobe-truth (spec v2.0 recommendation,
+      // shipped). 'swatch' restores the palette-whisper treatment (hex
+      // dots) if the escalated decision reopens.
+      var _DC_THUMB_MODE = 'image';
+
+      var _DC_RING_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 L11 7 L16 9 L11 11 L9 16 L7 11 L2 9 L7 7 Z"></path><path d="M18.5 14 L19.5 16.5 L22 17.5 L19.5 18.5 L18.5 21 L17.5 18.5 L15 17.5 L17.5 16.5 Z"></path></svg>';
+
+      var _DC_CSS = `
+.rb-dc{position:relative;box-sizing:border-box;width:100%;height:100%;display:flex;flex-direction:column;padding:16px;border-radius:2px;min-height:176px;font-family:'Inter',-apple-system,sans-serif;background:#fff;color:var(--ink,#202021);border:1px solid #E7E0CF;transition:border-color .2s cubic-bezier(0.4,0,0.2,1),background .2s;text-align:left}
+.rb-dc[onclick]{cursor:pointer}
+.rb-dc[onclick]:hover{border-color:rgba(32,32,33,0.42)}
+.rb-dc.dc-compact{padding:11px;min-height:150px}
+.rb-dc.is-today{background:#EEE3DF;border-color:#D4C8C4}
+.rb-dc.is-past{background:#FCFAF7;opacity:.62}
+.rb-dc.is-empty{background:#FAF8F5;border-style:dashed;border-color:#D8CFC0}
+.rb-dc.is-empty-past{background:#FAF8F5;opacity:.4}
+.rb-dc.is-void{border-color:rgba(32,32,33,0.05);background:transparent}
+.rb-dc.is-pinned{border-color:#8E6A7C;box-shadow:0 0 0 1px #8E6A7C inset}
+.rb-dc.is-focus{border-color:var(--ink,#202021);box-shadow:0 0 0 1px var(--ink,#202021) inset}
+.rb-dc .dc-ey{font-weight:500;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-dc.dc-compact .dc-ey{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:22px;letter-spacing:0;text-transform:none;opacity:.9;line-height:1;margin-bottom:2px}
+.rb-dc .dc-title{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:22px;line-height:1.08;letter-spacing:.002em;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.16em}
+.rb-dc.dc-compact .dc-title{font-weight:400;font-size:17px;min-height:0}
+.rb-dc .dc-eve{font-weight:300;font-size:11.5px;line-height:1.4;opacity:.62;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-dc .dc-chip{margin-top:10px}
+.rb-dc .dc-chip span{display:inline-flex;align-items:center;gap:6px;font-weight:400;font-size:9px;letter-spacing:.18em;text-transform:uppercase;opacity:.7}
+.rb-dc .dc-chip i{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.5;flex:none}
+.rb-dc .dc-sp{flex:1}
+.rb-dc .dc-th{display:flex;gap:5px;margin-top:12px}
+.rb-dc.dc-compact .dc-th{gap:3px;margin-top:8px}
+.rb-dc .dc-th i{width:34px;height:34px;border-radius:2px;flex:0 0 auto;background-size:cover;background-position:center;background-color:#EFE9DC;box-shadow:inset 0 0 0 1px rgba(32,32,33,0.08)}
+.rb-dc.dc-compact .dc-th i{width:16px;height:16px}
+.rb-dc .dc-th .ov{width:34px;height:34px;border-radius:2px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:400;opacity:.55;box-shadow:inset 0 0 0 1px rgba(32,32,33,0.14)}
+.rb-dc.dc-compact .dc-th .ov{width:16px;height:16px;font-size:8px}
+.rb-dc .dc-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.rb-dc.dc-compact .dc-foot{margin-top:8px}
+.rb-dc .dc-status{font-weight:400;font-size:10px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;opacity:.45}
+.rb-dc .dc-empty{flex:1;display:flex;flex-direction:column;justify-content:flex-end}
+.rb-dc .dc-empty .t{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:19px;line-height:1.1;opacity:.55}
+.rb-dc .dc-empty .s{font-weight:300;font-size:11px;opacity:.42;margin-top:4px}
+.rb-dc .dc-ring{position:absolute;top:11px;right:11px;height:20px;border:none;background:transparent;cursor:pointer;padding:0;color:inherit;display:flex;align-items:center;gap:5px;opacity:.45;transition:opacity .2s;font-family:inherit;z-index:2}
+.rb-dc .dc-ring .tip{font-weight:500;font-size:8px;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;pointer-events:none;opacity:0;transform:translateX(4px);transition:opacity .2s,transform .2s}
+.rb-dc .dc-ring:hover{opacity:.9}
+.rb-dc .dc-ring:hover .tip{opacity:1;transform:translateX(0)}
+#rb-dpk{position:fixed;inset:0;z-index:940;display:flex;align-items:center;justify-content:center;padding:24px}
+#rb-dpk .dpk-veil{position:absolute;inset:0;background:rgba(32,32,33,0.38)}
+#rb-dpk .dpk-card{position:relative;background:#FAF8F5;border-radius:14px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;padding:24px 26px 22px;box-shadow:0 18px 60px rgba(32,32,33,0.22)}
+#rb-dpk .dpk-x{position:absolute;top:12px;right:14px;border:none;background:none;font-size:20px;color:#A89880;cursor:pointer;line-height:1;padding:4px}
+#rb-dpk .dpk-date{font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880;margin-bottom:14px}
+#rb-dpk .mo{padding:12px 0;border-top:0.5px solid rgba(32,32,33,0.08)}
+#rb-dpk .mo:first-of-type{border-top:none;padding-top:0}
+#rb-dpk .mo .sl{font-size:9px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#A89880}
+#rb-dpk .mo .sl .ch{font-weight:400;letter-spacing:.1em;color:#C4B8A4}
+#rb-dpk .mo .ti{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:21px;line-height:1.15;color:var(--ink,#202021);margin-top:4px}
+#rb-dpk .mo .th{display:flex;gap:5px;margin-top:9px}
+#rb-dpk .mo .th i{width:38px;height:38px;border-radius:3px;background-size:cover;background-position:center;background-color:#EFE9DC;box-shadow:inset 0 0 0 1px rgba(32,32,33,0.08)}
+#rb-dpk .dpk-acts{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:16px;padding-top:14px;border-top:0.5px solid rgba(32,32,33,0.08)}
+#rb-dpk .dpk-btn{border:0.5px solid rgba(32,32,33,0.22);border-radius:100px;background:#fff;padding:10px 18px;font-size:11.5px;letter-spacing:.02em;color:var(--ink,#202021);cursor:pointer;font-family:inherit;transition:all .15s}
+#rb-dpk .dpk-btn:hover{border-color:var(--ink,#202021)}
+#rb-dpk .dpk-btn.primary{background:var(--ink,#202021);border-color:var(--ink,#202021);color:#fff}
+#rb-dpk .dpk-btn.primary:hover{opacity:.85}
+#rb-dpk .dpk-worn{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7E7C5A;margin-right:auto}
+@media(max-width:640px){#rb-dpk{align-items:flex-end;padding:0}#rb-dpk .dpk-card{border-radius:14px 14px 0 0;max-width:none}}`;
+      function _dcEnsureCss() {
+        if (document.getElementById('rb-dc-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-dc-style';
+        st.textContent = _DC_CSS;
+        document.head.appendChild(st);
+      }
+
+      // Word-boundary truncation (spec §4.3 — the evening line must never
+      // cut mid-word).
+      function _dcTruncate(str, max) {
+        str = String(str || '');
+        if (str.length <= max) return str;
+        const cut = str.slice(0, max);
+        const sp = cut.lastIndexOf(' ');
+        return (sp > max * 0.5 ? cut.slice(0, sp) : cut).replace(/[\s,·—-]+$/, '') + '…';
+      }
+      // Sentence case = first letter capped, the rest left as typed —
+      // lowercasing user text would wreck proper nouns ("Dalt Vila").
+      function _dcSentence(s) {
+        s = String(s || '').trim();
+        return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+      }
+      function _dcTitleOf(m) {
+        if (!m) return '';
+        const user = m.activity, gen = m.headline;
+        return _dcSentence((_DC_TITLE_MODE === 'user' ? (user || gen) : (gen || user)) || '');
+      }
+      // Context chip = MEMBERSHIP only (spec §4.6): a trip or week the day
+      // belongs to. A daily look belongs to nothing → no chip, never a
+      // type label filling the slot.
+      function _dcChipOf(m) {
+        if (!m) return null;
+        const it = snLoad().find(x => String(x.id) === String(m.source_id));
+        if (m.source_type === 'travel') {
+          const dest = it && it.tvData && it.tvData.destination;
+          return dest ? dest + ' trip' : 'Trip';
+        }
+        if (m.source_type === 'weekly') {
+          const iso = (it && it.wkData && Array.isArray(it.wkData.week_iso)) ? it.wkData.week_iso[0] : null;
+          return iso ? 'Week of ' + new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Weekly plan';
+        }
+        return null;
+      }
+      // The +N denominator — the moment's full piece count, resolved from
+      // the parent blob (live blob when the caller has it, else the local
+      // lookbook cache — same pattern as _pdParent). planned_days.item_ids
+      // is owned-only and can't carry a total (audit D-03; the ownership
+      // count itself is DROPPED by product decision — never resurrect it).
+      function _dcPieceTotal(m, liveBlob) {
+        if (!m) return 0;
+        try {
+          let blob = liveBlob;
+          if (!blob) {
+            const it = snLoad().find(x => String(x.id) === String(m.source_id));
+            blob = it && (it.wkData || it.tvData || it.dlData);
+          }
+          if (!blob) return 0;
+          if (m.source_type === 'weekly') {
+            const d = (blob.days || [])[m.day_index];
+            if (!d) return 0;
+            if (m.slot === 'evening') return (d.evening_look && Array.isArray(d.evening_look.items)) ? d.evening_look.items.length : 0;
+            return Array.isArray(d.items) ? d.items.length : 0;
+          }
+          if (m.source_type === 'travel') {
+            const d = (blob.days || [])[m.day_index];
+            const slots = (d && d.slots) || [];
+            const s = m.slot === 'evening'
+              ? (slots.find(x => String(x.slot || '').toLowerCase() === 'evening') || slots[1])
+              : (slots.find(x => String(x.slot || '').toLowerCase() !== 'evening') || slots[0]);
+            return (s && Array.isArray(s.formula)) ? s.formula.length : 0;
+          }
+          if (m.source_type === 'daily') {
+            let n = 0;
+            (blob.steps || []).forEach(s => { n += (s.items || []).length; });
+            return n;
+          }
+        } catch (_) {}
+        return 0;
+      }
+      // Swatch fallback (thumbMode 'swatch', §10.1 escape hatch): hex dots
+      // from the day's owned pieces — the old palette whisper.
+      function _dcSwatches(dayM, eveM) {
+        const out = [];
+        [dayM, eveM].forEach(m => m && (m.item_ids || []).forEach(id => {
+          if (out.length >= 3) return;
+          const wi = _waItems.find(w => String(w.id) === String(id));
+          if (!wi) return;
+          let hex = wi.item_dna && wi.item_dna.display && wi.item_dna.display.primary_color_hex;
+          if (!hex || !/^#[0-9a-fA-F]{3,8}$/.test(String(hex))) {
+            const sw = _ALL_SWATCHES.find(s => s.name.toLowerCase() === String(wi.color || '').toLowerCase());
+            hex = sw ? sw.hex : null;
+          }
+          if (hex && out.indexOf(hex) === -1) out.push(hex);
+        }));
+        return out;
+      }
+
+      // ── The normaliser: (day moment, evening moment) → DayCardData.
+      // Moments are planned_days-shaped rows — from the index (rail,
+      // calendar) or freshly derived from the live blob (strips). 'free'
+      // and empty-future fold into ONE empty state (the component's rule:
+      // an unfilled day always offers the CTA); a past empty day is its
+      // own quiet state; 'void' (out-of-month) is the caller's to set.
+      function _dcMoments(dayM, eveM, o) {
+        o = o || {};
+        const has = !!(dayM || eveM);
+        const allFree = has && (!dayM || dayM.status === 'free') && (!eveM || eveM.status === 'free');
+        const past = o.date && o.today && o.date < o.today;
+        const todayIs = o.date && o.date === o.today;
+        const state = (!has || allFree)
+          ? (past ? 'empty-past' : 'empty')
+          : (past ? 'past' : todayIs ? 'today' : 'planned');
+        const d = {
+          eyebrow: o.eyebrow || '',
+          state,
+          pinned: !!((dayM && dayM.pinned) || (eveM && eveM.pinned)),
+          modifier: null,
+          title: '', evening: null, chip: null, pieces: [], pieceTotal: 0,
+          date: o.date || null,
+        };
+        if (state === 'empty' || state === 'empty-past') return d;
+        const lead = (dayM && dayM.status !== 'free') ? dayM : (eveM || dayM);
+        d.title = _dcTitleOf(lead);
+        if (eveM && eveM.status !== 'free' && lead !== eveM) {
+          const a = eveM.activity || eveM.headline;
+          // 'Evening · Evening look' placeholder copy never reaches the
+          // card (§11.3) — a contentless evening renders the bare mark.
+          d.evening = (a && !/^evening( look| plan| outfit)?$/i.test(String(a).trim())) ? _dcSentence(a) : true;
+        }
+        d.chip = _dcChipOf(lead);
+        if (_DC_THUMB_MODE === 'swatch') {
+          d.pieces = _dcSwatches(dayM, eveM);
+          d.pieceTotal = d.pieces.length;
+        } else {
+          // Thumbs come from the LEAD moment only (the day's look) so the
+          // +N denominator and the visible pieces describe ONE look; the
+          // other moment fills in only when the lead has no imagery.
+          const other = lead === dayM ? eveM : dayM;
+          const push = (th, list) => (Array.isArray(list) ? list : []).forEach(u => {
+            if (th.length < 3 && typeof u === 'string' && u.indexOf('http') === 0 && th.indexOf(u) === -1) th.push(u);
+          });
+          const th = [];
+          push(th, lead && lead.thumb_urls);
+          if (!th.length) push(th, other && other.thumb_urls);
+          d.pieces = th;
+          d.pieceTotal = _dcPieceTotal(lead, o.blob) || th.length;
+        }
+        if ((dayM && dayM.status === 'worn') || (eveM && eveM.status === 'worn')) d.modifier = 'worn';
+        return d;
+      }
+
+      // ── The renderer. opts: {density, body, ring, ringTip, ringTipShort,
+      // focus, extraClass}. body/ring are inline onclick strings; the ring
+      // renders only on full, populated, unmodified cards (component rule).
+      function _dcCard(d, opts) {
+        _dcEnsureCss();
+        opts = opts || {};
+        const compact = opts.density === 'compact';
+        const state = d.state || 'planned';
+        const isEmpty = state === 'empty' || state === 'empty-past' || state === 'void';
+        const cls = ['rb-dc'];
+        if (compact) cls.push('dc-compact');
+        cls.push('is-' + state);
+        if (d.pinned && state !== 'void') cls.push('is-pinned');
+        if (opts.focus) cls.push('is-focus');
+        if (opts.extraClass) cls.push(opts.extraClass);
+        const body = opts.body && state !== 'void' && state !== 'empty-past'
+          ? ` onclick="${opts.body}" role="button" tabindex="0"` : '';
+        const eyTxt = d.eyebrow != null && d.eyebrow !== '' ? _waEsc(String(d.eyebrow)) : '&nbsp;';
+        let inner = `<div class="dc-ey">${eyTxt}</div>`;
+        const ring = (!compact && !isEmpty && !d.modifier && opts.ring)
+          ? `<button class="dc-ring" title="${_waEsc(opts.ringTip || 'Set this day as focus')}" onclick="${opts.ring}"><span class="tip">${_waEsc(opts.ringTipShort || 'Refine prompt')}</span>${_DC_RING_SVG}</button>`
+          : '';
+        if (isEmpty) {
+          // Compact empties are bare numerals — no body copy (component)
+          if (!compact && state !== 'void') {
+            inner += state === 'empty-past'
+              ? `<div class="dc-empty"><div class="t">—</div></div>`
+              : `<div class="dc-empty"><div class="t">Nothing yet.</div><div class="s">Tap to dress it.</div></div>`;
+          }
+        } else {
+          inner += `<div class="dc-title">${_waEsc(d.title || '')}</div>`;
+          if (d.evening) {
+            const txt = typeof d.evening === 'string' ? 'Evening · ' + _dcTruncate(d.evening, compact ? 16 : 34) : 'Evening';
+            inner += `<div class="dc-eve">${_waEsc(txt)}</div>`;
+          }
+          if (!compact && d.chip) inner += `<div class="dc-chip"><span><i></i>${_waEsc(d.chip)}</span></div>`;
+          inner += `<div class="dc-sp"></div>`;
+          const th = (d.pieces || []).slice(0, 3);
+          if (th.length) {
+            const ov = Math.max(0, (d.pieceTotal != null ? d.pieceTotal : th.length) - th.length);
+            inner += `<div class="dc-th">` + th.map(u =>
+              (typeof u === 'string' && u.charAt(0) === '#')
+                ? `<i style="background-color:${_waEsc(u)}"></i>`
+                : `<i style="background-image:url('${_waEsc(u)}')"></i>`).join('')
+              + (ov > 0 ? `<span class="ov">+${ov}</span>` : '') + `</div>`;
+          }
+          if (d.modifier === 'worn') inner += `<div class="dc-foot"><span class="dc-status">Worn ✓</span></div>`;
+          else if (d.modifier === 'packed') inner += `<div class="dc-foot"><span class="dc-status">Packed ✓</span></div>`;
+        }
+        return `<div class="${cls.join(' ')}"${body}>${ring}${inner}</div>`;
+      }
+
+      // ── The ring's shared handler (§2.3): what the strip body USED to
+      // do (re-point the console) and what the flagged rail tap did
+      // (scope the prompt) — one function, surface-aware.
+      window._rbSetFocus = function(surface, arg) {
+        if (surface === 'weekly') { if (window.__wkSelectDay) window.__wkSelectDay(arg); return; }
+        if (surface === 'travel') { if (window.__tvSelectDay) window.__tvSelectDay(arg); return; }
+        if (surface === 'home' && arg && arg.date) {
+          if (typeof _rbDiaryOn === 'function' && _rbDiaryOn() && typeof window._ikScopeDay === 'function') {
+            window._ikScopeDay(arg.date, arg.slot || null);
+          }
+        }
+      };
+
+      // ── Day peek (Annie §6.2, 2026-07-24): body-tap on the rail and the
+      // calendar opens a light overlay — the day at a glance with a
+      // click-through to the full opener. Mark-worn lives here for past
+      // days (the card footer only ever carries a status, never a CTA).
+      var _dpkState = null;
+      function _dcMarkWorn(moments) {
+        // Blob-first stamping + times_worn on every owned piece — the same
+        // discipline as the rail's legacy __rbRailWear (kept untouched for
+        // the flag-off path).
+        const ids = [];
+        (moments || []).forEach(m => {
+          const it = snLoad().find(x => String(x.id) === String(m.source_id));
+          if (it) {
+            if (it.type === 'weekly-plan' && it.wkData && it.wkData.days && it.wkData.days[m.day_index]) {
+              it.wkData.days[m.day_index].worn = true;
+              snUpdate(it.id, { wkData: it.wkData });
+            } else if (it.type === 'travel-edit' && it.tvData && it.tvData.days && it.tvData.days[m.day_index]) {
+              it.tvData.days[m.day_index].worn = true;
+              snUpdate(it.id, { tvData: it.tvData });
+            } else if (it.type === 'daily-look' && it.dlData) {
+              it.dlData.worn = true;
+              snUpdate(it.id, { dlData: it.dlData });
+            }
+            _pdSyncSaved(it.id);
+          }
+          (m.item_ids || []).forEach(id => { if (ids.indexOf(id) === -1) ids.push(id); });
+          m.status = 'worn';
+        });
+        ids.forEach(id => {
+          const wi = _waItems.find(w => String(w.id) === String(id));
+          if (wi) _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 }).catch(() => {});
+        });
+        if (ids.length) setTimeout(_waLoad, 900);
+        _waShowToast('Logged — Robes remembers what you wore ✓');
+      }
+      window.__rbDayPeek = function(date, moments) {
+        if (!moments || !moments.length) return;
+        _dcEnsureCss();
+        _dpkState = { date, moments };
+        document.getElementById('rb-dpk')?.remove();
+        const today = _pdLocalISO();
+        const long = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+        const dayM = moments.find(m => (m.slot || 'day') === 'day') || moments[0];
+        const worn = moments.some(m => m.status === 'worn');
+        const isPast = date < today;
+        const moBlock = m => {
+          const t = _dcTitleOf(m) || (m.status === 'free' ? 'Left free' : 'Planned');
+          const chip = _dcChipOf(m);
+          const th = (Array.isArray(m.thumb_urls) ? m.thumb_urls : [])
+            .filter(u => typeof u === 'string' && u.indexOf('http') === 0).slice(0, 3);
+          return `<div class="mo"><div class="sl">${m.slot === 'evening' ? 'Evening' : 'Day'}${chip ? ` <span class="ch">· ${_waEsc(chip)}</span>` : ''}</div>` +
+            `<div class="ti">${_waEsc(t)}</div>` +
+            (th.length ? `<div class="th">${th.map(u => `<i style="background-image:url('${_waEsc(u)}')"></i>`).join('')}</div>` : '') +
+            `</div>`;
+        };
+        const wear = isPast && !worn
+          ? `<button class="dpk-btn" onclick="window.__rbDayPeekWear()">Wore it ✓</button>`
+          : (worn ? `<span class="dpk-worn">Worn ✓</span>` : '');
+        const el = document.createElement('div');
+        el.id = 'rb-dpk';
+        el.innerHTML = `<div class="dpk-veil" onclick="window.__rbDayPeekClose()"></div>` +
+          `<div class="dpk-card" role="dialog" aria-modal="true">` +
+          `<button class="dpk-x" onclick="window.__rbDayPeekClose()" aria-label="Close">×</button>` +
+          `<div class="dpk-date">${_waEsc(long)}</div>` +
+          moments.map(moBlock).join('') +
+          `<div class="dpk-acts">${wear}<button class="dpk-btn primary" onclick="window.__rbDayPeekOpen()">Open the day →</button></div>` +
+          `</div>`;
+        document.body.appendChild(el);
+        _rbTrack('day_peek_opened', { source_type: dayM.source_type });
+      };
+      window.__rbDayPeekClose = function() {
+        document.getElementById('rb-dpk')?.remove();
+        _dpkState = null;
+      };
+      window.__rbDayPeekOpen = function() {
+        const s = _dpkState;
+        window.__rbDayPeekClose();
+        if (!s) return;
+        const m = s.moments.find(x => (x.slot || 'day') === 'day') || s.moments[0];
+        _rbTrack('day_opened_from_peek', { source_type: m.source_type });
+        window._rbOpenPlannedDay(m);
+      };
+      window.__rbDayPeekWear = function() {
+        const s = _dpkState;
+        if (!s) return;
+        _dcMarkWorn(s.moments);
+        window.__rbDayPeekClose();
+        if (window._rbRailRepaint) window._rbRailRepaint();
+        else if (window._rbRailPaint) window._rbRailPaint();
+      };
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && document.getElementById('rb-dpk')) window.__rbDayPeekClose();
+      });
+
       // ── "+ Add a piece" chooser — the rack's add flow offers her three
       // doors: an already-catalogued piece, the camera, or an upload (the
       // same trio as the concierge + menu). applyName is the per-surface
@@ -5817,6 +6256,7 @@
       function _wkPaintStrip() {
         const strip = document.getElementById('wk-strip');
         if (!strip || !_wkState) return;
+        if (_rbDayCardOn() && _wkStripV2(strip)) return;
         strip.innerHTML = _rbDayStrip(_wkState.data.days.map((d, di) => {
           const owned = d.items.filter(it => it.wardrobe_match).length;
           return {
@@ -5834,6 +6274,46 @@
           };
         }), _wkState.day);
       }
+
+      // DayCard path (spec v2.0): the LIVE blob through the SAME row
+      // builder the planned_days index uses (_pdRowsWk, §6.4) — one
+      // shape, no freshness gap. Old saves without week_iso can't emit
+      // dated rows → legacy strip (return false). The card gains the
+      // evening line and loses the "your plan" meta flag (provenance, not
+      // state — spec §9); membership chips stay off INSIDE the artifact
+      // (the masthead carries it at the right altitude).
+      function _wkStripV2(strip) {
+        const data = _wkState.data;
+        const built = _pdRowsWk(_wkActiveSaveId || 'live', data);
+        if (!built) return false;
+        const today = _pdLocalISO();
+        const byIdx = {};
+        built.rows.forEach(r => { (byIdx[r.day_index] = byIdx[r.day_index] || {})[r.slot === 'evening' ? 'eve' : 'day'] = r; });
+        strip.innerHTML = data.days.map((d, di) => {
+          const rows = byIdx[di] || {};
+          const date = (data.week_iso || [])[di] || null;
+          const ey = date
+            ? new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }).toUpperCase()
+            : _wkDayName(d).toUpperCase();
+          const dc = _dcMoments(rows.day || null, rows.eve || null, { date, today, eyebrow: ey, blob: data });
+          dc.chip = null;
+          return _dcCard(dc, {
+            density: 'full',
+            body: `window.__wkOpenDay(${di})`,
+            ring: `window._rbSetFocus('weekly',${di});event.stopPropagation()`,
+            ringTip: 'Focus the console on this day',
+            ringTipShort: 'Focus day',
+            focus: di === _wkState.day,
+          });
+        }).join('');
+        return true;
+      }
+      // Body = open (spec §6). Inside the artifact, the console below IS
+      // the day's open view — landing on it is the open, without a full
+      // artifact re-render.
+      window.__wkOpenDay = function(di) {
+        if (window.__wkSelectDay) window.__wkSelectDay(di);
+      };
 
       // ── Weekly evening moments (Stage 5 / handoff §3.3): a day holding
       // two moments gets a Day/Evening switcher; every console mutation
@@ -7125,19 +7605,6 @@
 #tv-result-page .tvm-weekhead h2{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:23px;margin:0;color:var(--ink)}
 #tv-result-page .tvm-weekhead .hint{font-size:11px;color:var(--ink-faint);letter-spacing:.02em}
 #tv-result-page .tvm-week{display:grid;grid-auto-flow:column;grid-auto-columns:200px;grid-template-columns:none;gap:10px;margin-bottom:34px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x proximity}
-#tv-result-page .tvm-week .tvm-day{scroll-snap-align:start}
-#tv-result-page .tvm-day{position:relative;text-align:left;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:13px 13px 12px;min-height:132px;display:flex;flex-direction:column;cursor:pointer;transition:border-color .2s,background .2s;font-family:inherit}
-#tv-result-page .tvm-day:hover{border-color:rgba(32,32,33,0.22)}
-#tv-result-page .tvm-day.active{border-color:var(--ink);background:var(--cream-100)}
-#tv-result-page .tvm-day .dtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-#tv-result-page .tvm-day .ddow{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);font-weight:500}
-#tv-result-page .tvm-day .dst{width:8px;height:8px;border-radius:50%;border:1px solid var(--cream-400);background:transparent}
-#tv-result-page .tvm-day .dst.done{background:var(--sage);border-color:var(--sage)}
-#tv-result-page .tvm-day .dev{font-family:var(--font-serif);font-weight:400;font-size:16px;line-height:1.12;color:var(--ink);margin-bottom:4px}
-#tv-result-page .tvm-day .dmeta{font-size:10px;color:var(--ink-faint);line-height:1.4;margin-bottom:10px}
-#tv-result-page .tvm-day .dth{margin-top:auto;display:flex}
-#tv-result-page .tvm-day .dth span{width:24px;height:32px;border-radius:4px;overflow:hidden;border:0.5px solid var(--rule-mid);margin-left:-5px;background:var(--cream-200);display:block;background-size:cover;background-position:center}
-#tv-result-page .tvm-day .dth span:first-child{margin-left:0}
 #tv-result-page .tvm-console{display:grid;grid-template-columns:360px minmax(0,1fr);gap:34px;align-items:start}
 #tv-result-page .tvm-look{position:sticky;top:18px;display:flex;flex-direction:column;gap:13px}
 #tv-result-page .tvm-panel{background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);padding:18px}
@@ -7240,7 +7707,6 @@
 #tv-result-page .tvm-mast{flex-direction:column;align-items:flex-start;gap:16px}
 #tv-result-page .tvm-progress{align-items:flex-start}
 #tv-result-page .tvm-week{display:grid;grid-auto-flow:column;grid-auto-columns:150px;grid-template-columns:none;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory}
-#tv-result-page .tvm-day{scroll-snap-align:start}
 #tv-result-page .tvm-payoff-in{padding:11px 16px;gap:12px}
 #tv-result-page .tvm-pmeta{display:none}
 #tv-result-page .tvm-pbtns{width:100%;justify-content:space-between}
@@ -7367,6 +7833,7 @@ body>*:not(#tv-result-page){display:none !important}
         const el = document.getElementById('tv-weekstrip');
         const data = window.__lastTvData;
         if (!el || !data) return;
+        if (_rbDayCardOn() && _tvWeekV2(el, data)) return;
         el.innerHTML = _rbDayStrip(data.days.map((d, di) => {
           const slots = d.slots || [];
           const label = (d.day_label || 'Day ' + (di + 1));
@@ -7391,6 +7858,46 @@ body>*:not(#tv-result-page){display:none !important}
           };
         }), _tvActiveDay);
       }
+
+      // DayCard path (spec v2.0): live blob → _pdRowsTv → cards. The trip
+      // eyebrow is DAY N, no calendar date (a trip is day-indexed — spec
+      // §4.1); the "2 looks" count is gone, replaced by the evening line
+      // (spec §9); Packed ✓ is the Travel-only modifier (spec §8.3). Old
+      // saves without a parseable dateFrom → legacy strip.
+      function _tvWeekV2(el, data) {
+        if (!Array.isArray(data.days) || !data.days.length) return false;
+        const built = _pdRowsTv(_tvActiveSaveId || 'live', data);
+        if (!built) return false;
+        const today = _pdLocalISO();
+        const byIdx = {};
+        built.rows.forEach(r => { (byIdx[r.day_index] = byIdx[r.day_index] || {})[r.slot === 'evening' ? 'eve' : 'day'] = r; });
+        el.innerHTML = data.days.map((d, di) => {
+          const rows = byIdx[di] || {};
+          const date = _pdAddISO(data.dateFrom, di);
+          const dc = _dcMoments(rows.day || null, rows.eve || null, { date, today, eyebrow: 'DAY ' + (di + 1), blob: data });
+          dc.chip = null;
+          if (!dc.modifier) {
+            const pieceIdx = [];
+            (d.slots || []).forEach(s => (s.formula || []).forEach(f => {
+              if (pieceIdx.indexOf(f.item_index) === -1 && (data.capsule || [])[f.item_index]) pieceIdx.push(f.item_index);
+            }));
+            if (pieceIdx.length && pieceIdx.every(ci => data.capsule[ci].packed)) dc.modifier = 'packed';
+          }
+          return _dcCard(dc, {
+            density: 'full',
+            body: `window.__tvOpenDay(${di})`,
+            ring: `window._rbSetFocus('travel',${di});event.stopPropagation()`,
+            ringTip: 'Focus the console on this day',
+            ringTipShort: 'Focus day',
+            focus: di === _tvActiveDay,
+          });
+        }).join('');
+        return true;
+      }
+      window.__tvOpenDay = function(di) {
+        if (window.__tvSetTab) window.__tvSetTab('outfits');
+        if (window.__tvSelectDay) window.__tvSelectDay(di);
+      };
 
       // The console — this day's look, read piece by piece (emulates Daily)
       function _tvPaintConsole() {
@@ -11046,6 +11553,7 @@ body>*:not(#tv-result-page){display:none !important}
   #rb-rail .rb-rail-row{display:flex;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   #rb-rail .rb-rail-row::-webkit-scrollbar{display:none}
   #rb-rail .rb-rc{flex:none;width:158px;scroll-snap-align:center}
+  #rb-rail .rb-dc{flex:none;width:170px;scroll-snap-align:center}
   #rb-rail .rb-upnext{flex-wrap:wrap;gap:8px}
   #rb-rail .rb-upnext .cta{margin-left:0}
 }`;
@@ -11126,7 +11634,32 @@ body>*:not(#tv-result-page){display:none !important}
           return out;
         }
 
+        // DayCard path (spec v2.0): full density, wardrobe thumbnails
+        // (§10.1 — replaces the palette-whisper swatches), membership-only
+        // chip (a daily look carries none). Body-tap on a populated card
+        // opens the day PEEK (Annie §6.2); on an empty/free card it aims
+        // the prompt (the component folds free into empty — "Tap to dress
+        // it"). The ring scopes the prompt to the date — the old
+        // flag-dependent body branch (__rbRailTap) survives only for the
+        // ?daycard=off path.
+        function cardV2(slot, i) {
+          const dayM = slot.moments.find(m => (m.slot || 'day') === 'day') || slot.moments[0] || null;
+          const eveM = slot.moments.find(m => m.slot === 'evening') || null;
+          const d = _dcMoments(dayM, eveM, { date: slot.date, today: _railToday, eyebrow: fmtCard(slot.date).toUpperCase() });
+          const populated = d.state === 'past' || d.state === 'today' || d.state === 'planned';
+          const body = d.state === 'empty-past' ? null
+            : populated ? `window.__rbRailPeek(${i})` : `window.__rbRailScope(${i})`;
+          return _dcCard(d, {
+            density: 'full',
+            body,
+            ring: populated ? `window.__rbRailFocus(${i},event)` : null,
+            ringTip: 'Refine the prompt for this day',
+            ringTipShort: 'Refine prompt',
+          });
+        }
+
         function cardHtml(slot, i) {
+          if (_rbDayCardOn()) return cardV2(slot, i);
           const state = cardState(slot);
           const dayMoment = slot.moments.find(m => (m.slot || 'day') === 'day') || slot.moments[0];
           const eveMoment = slot.moments.find(m => m.slot === 'evening');
@@ -11185,7 +11718,7 @@ body>*:not(#tv-result-page){display:none !important}
             '<div id="rb-rail-up"></div>';
           // Mobile: the strip only works if today is in view on mount
           const row = host.querySelector('.rb-rail-row');
-          const t = host.querySelector('.rb-rc.is-today, .rb-rc.is-empty-today');
+          const t = host.querySelector('.rb-rc.is-today, .rb-rc.is-empty-today, .rb-dc.is-today');
           if (row && t && row.scrollWidth > row.clientWidth + 8) {
             row.scrollLeft = Math.max(0, t.offsetLeft - (row.clientWidth - t.offsetWidth) / 2);
           }
@@ -11235,6 +11768,10 @@ body>*:not(#tv-result-page){display:none !important}
           _pdRail(_pdAddISO(_railToday, -1), _pdAddISO(_railToday, 5), paint);
         }
         window._rbRailPaint = refresh;
+        // Soft repaint from the slots already in hand — the peek's
+        // mark-worn mutates moments in place, and a refetch would revert
+        // the stamp until the debounced planned_days upsert lands.
+        window._rbRailRepaint = function() { if (_railSlots) paint(_railSlots); };
 
         // Populated-card body tap: diary flag on → scope the prompt to the
         // date (§5.4 — scoping is date-level, both moments); flag off →
@@ -11252,6 +11789,24 @@ body>*:not(#tv-result-page){display:none !important}
         window.__rbRailOpenCta = function(i, ev) {
           if (ev) { ev.stopPropagation(); ev.preventDefault(); }
           window.__rbRailOpen(i);
+        };
+        // DayCard handlers: body → peek, ring → scope (the §2.3 split;
+        // the flag-dependent __rbRailTap branch is retired on this path)
+        window.__rbRailPeek = function(i) {
+          const slot = _railSlots && _railSlots[i];
+          if (!slot || !slot.moments.length) return;
+          window.__rbDayPeek(slot.date, slot.moments);
+        };
+        window.__rbRailFocus = function(i, ev) {
+          if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+          const slot = _railSlots && _railSlots[i];
+          if (!slot) return;
+          _rbTrack('rail_day_scoped', { state: cardState(slot), offset_from_today: Math.round((new Date(slot.date + 'T00:00:00Z') - new Date(_railToday + 'T00:00:00Z')) / 86400000) });
+          if (typeof _rbDiaryOn === 'function' && _rbDiaryOn() && typeof window._ikScopeDay === 'function') {
+            window._rbSetFocus('home', { date: slot.date, slot });
+            return;
+          }
+          window.__rbRailScope(i);
         };
         // Tap a populated card → open the day inside its parent plan
         window.__rbRailOpen = function(i) {
@@ -11370,6 +11925,7 @@ body>*:not(#tv-result-page){display:none !important}
         var _mvY = null, _mvM = null; // 1-based month
         var _mvRows = [];             // fetched grid±7d rows, freshest-filtered per date
         var _mvSources = {};
+        var _mvHidden = [];           // per-week bands beyond the two lanes (+N reveal)
         const pad2 = n => String(n).padStart(2, '0');
         const dISO = iso => Date.parse(iso + 'T00:00:00Z');
         const diffD = (a, b) => Math.round((dISO(b) - dISO(a)) / 86400000);
@@ -11418,6 +11974,15 @@ body>*:not(#tv-result-page){display:none !important}
 .rb-mband.trip{background:rgba(212,200,196,0.60);color:#6A4F48}
 .rb-mband.cont{opacity:.72;font-style:italic}
 .rb-mv-more{position:absolute;right:0;top:0;font-size:9px;color:#A89880}
+button.rb-mv-morebtn{border:none;background:transparent;cursor:pointer;font-family:inherit;color:#8E6A7C;letter-spacing:.08em;text-transform:uppercase;padding:2px 4px}
+button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
+#rb-mv-pop{position:fixed;inset:0;z-index:930}
+#rb-mv-pop .veil{position:absolute;inset:0}
+#rb-mv-pop .card{position:absolute;min-width:220px;max-width:320px;background:#FAF8F5;border:0.5px solid rgba(32,32,33,0.16);border-radius:10px;box-shadow:0 10px 34px rgba(32,32,33,0.16);padding:6px;display:flex;flex-direction:column}
+#rb-mv-pop .card button{display:flex;align-items:center;gap:9px;border:none;background:transparent;padding:9px 11px;border-radius:7px;font-size:11.5px;color:var(--ink,#202021);cursor:pointer;font-family:inherit;text-align:left}
+#rb-mv-pop .card button:hover{background:rgba(32,32,33,0.05)}
+#rb-mv-pop .card button i{flex:none;width:8px;height:8px;border-radius:50%}
+.rb-mcells .rb-dc.dc-compact{min-height:150px}
 @media(max-width:1000px){.rb-mc-strip{display:none}}
 @media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:8px}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}.rb-mband{font-size:8px;padding:0 6px;height:14px}.rb-mv-title{font-size:26px}}`;
           document.head.appendChild(st);
@@ -11475,6 +12040,7 @@ body>*:not(#tv-result-page){display:none !important}
           return { first, last, gridStart, gridEnd, weeks: (diffD(gridStart, gridEnd) + 1) / 7 };
         }
         function _mvFresh(rows) {
+          rows = _pdSupersede(rows); // rescheduled plans never ghost-band (D-08)
           const byDate = {};
           rows.forEach(r => { (byDate[r.day_date] = byDate[r.day_date] || []).push(r); });
           return Object.keys(byDate).reduce((out, d) => out.concat(_pdFreshest(byDate[d])), []);
@@ -11521,19 +12087,33 @@ body>*:not(#tv-result-page){display:none !important}
 
         function _mvPaint(g, rows, sources) {
           const today = _pdLocalISO();
+          const dcOn = _rbDayCardOn();
           const bands = _mvBands(g, rows, sources);
-          // Lane assignment per week row (max two lanes + quiet overflow)
-          const laneEnd = [], weekLanes = [], weekMore = [];
-          for (let w = 0; w < g.weeks; w++) { laneEnd.push([-1, -1]); weekLanes.push(0); weekMore.push(0); }
+          // Lane assignment per week row (max two lanes + overflow).
+          // Segments are SORTED by start column before the greedy pass
+          // (audit D-08 latent gap: assignment used to run in source
+          // discovery order, so a later-fetched early-starting band could
+          // lose a lane it should have won).
+          const laneEnd = [], weekLanes = [], weekMore = [], weekHidden = [];
+          for (let w = 0; w < g.weeks; w++) { laneEnd.push([-1, -1]); weekLanes.push(0); weekMore.push(0); weekHidden.push([]); }
+          const segList = [];
+          bands.forEach(band => band.segs.forEach((sg, si) => segList.push({ band, sg, si })));
+          segList.sort((a, b) => a.sg.week - b.sg.week || a.sg.start_col - b.sg.start_col || b.sg.span - a.sg.span);
           const placed = [];
-          bands.forEach(band => band.segs.forEach((sg, si) => {
+          segList.forEach(p => {
+            const sg = p.sg;
             const le = laneEnd[sg.week];
             let lane = le[0] < sg.start_col ? 0 : (le[1] < sg.start_col ? 1 : -1);
-            if (lane === -1) { weekMore[sg.week]++; return; }
+            if (lane === -1) {
+              weekMore[sg.week]++;
+              weekHidden[sg.week].push({ sid: p.band.sid, type: p.band.type, title: p.band.title });
+              return;
+            }
             le[lane] = sg.start_col + sg.span - 1;
             weekLanes[sg.week] = Math.max(weekLanes[sg.week], lane + 1);
-            placed.push({ band, sg, si, lane });
-          }));
+            placed.push({ band: p.band, sg, si: p.si, lane });
+          });
+          _mvHidden = weekHidden;
           const monthName = new Date(dISO(g.first)).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
           let html = `
             <div class="rb-mv-head">
@@ -11544,7 +12124,12 @@ body>*:not(#tv-result-page){display:none !important}
             <div class="rb-mv-cal">`;
           for (let w = 0; w < g.weeks; w++) {
             const lanes = weekLanes[w];
-            const padTop = lanes ? 4 + lanes * 18 : 0;
+            // DayCard path: EVERY row reserves the same two band lanes, so
+            // band-carrying weeks no longer sit taller than band-free ones
+            // — the month grid holds vertical rhythm (spec §11.2; the
+            // "blank hero slot" the audit dismissed was this reservation
+            // varying per row).
+            const padTop = dcOn ? 4 + 2 * 18 : (lanes ? 4 + lanes * 18 : 0);
             html += `<div class="rb-mw" style="padding-top:${padTop}px">`;
             placed.filter(p => p.sg.week === w).forEach(p => {
               // First VISIBLE segment carries the label only when the band
@@ -11554,7 +12139,13 @@ body>*:not(#tv-result-page){display:none !important}
               const cont = !(p.si === 0 && p.sg.is_start);
               html += `<button class="rb-mband ${p.band.type === 'travel' ? 'trip' : 'week'}${cont ? ' cont' : ''}" style="left:${(p.sg.start_col / 7 * 100).toFixed(4)}%;width:${(p.sg.span / 7 * 100).toFixed(4)}%;top:${2 + p.lane * 18}px" onclick="window.__mvBand('${String(p.band.sid).replace(/'/g, '')}','${p.band.type}')">${label}</button>`;
             });
-            if (weekMore[w]) html += `<span class="rb-mv-more">+${weekMore[w]} more</span>`;
+            if (weekMore[w]) {
+              // +N more gets a designed reveal (spec §11.1) — a popover of
+              // the hidden bands, each opening its artifact.
+              html += dcOn
+                ? `<button class="rb-mv-more rb-mv-morebtn" onclick="window.__mvMore(${w},event)">+${weekMore[w]} more</button>`
+                : `<span class="rb-mv-more">+${weekMore[w]} more</span>`;
+            }
             html += `<div class="rb-mcells">`;
             for (let c = 0; c < 7; c++) {
               const date = _pdAddISO(g.gridStart, w * 7 + c);
@@ -11562,6 +12153,20 @@ body>*:not(#tv-result-page){display:none !important}
               const dayW = _pdWinner(here.filter(r => (r.slot || 'day') === 'day'));
               const eveW = _pdWinner(here.filter(r => (r.slot || 'day') === 'evening'));
               const inMonth = date >= g.first && date <= g.last;
+              if (dcOn) {
+                // Compact DayCard cell: numeral eyebrow, evening line,
+                // thumbnails, Worn ✓ (the §10.4 proposal, live). Void
+                // (out-of-month) and past-empty are DISTINCT states now
+                // (§7 — they used to collapse into one is-bare branch).
+                const dc = _dcMoments(dayW, eveW, { date, today, eyebrow: inMonth ? String(+date.slice(8, 10)) : '' });
+                if (!inMonth) dc.state = 'void';
+                const populated = dc.state === 'past' || dc.state === 'today' || dc.state === 'planned';
+                html += _dcCard(dc, {
+                  density: 'compact',
+                  body: populated ? `window.__mvCell('${date}')` : null,
+                });
+                continue;
+              }
               const n = inMonth ? String(+date.slice(8, 10)) : '&nbsp;';
               const free = dayW && dayW.status === 'free' && !eveW;
               const cls = ['rb-mc'];
@@ -11595,12 +12200,47 @@ body>*:not(#tv-result-page){display:none !important}
         window.__mvCell = function(date) {
           const here = _mvRows.filter(r => r.day_date === date);
           if (!here.length) return;
+          if (_rbDayCardOn()) {
+            // Body-tap = the day peek (Annie §6.2) — click-through to the
+            // shared opener lives inside it.
+            const moments = [];
+            ['day', 'evening'].forEach(sl => {
+              const w = _pdWinner(here.filter(r => (r.slot || 'day') === sl));
+              if (w) moments.push(w);
+            });
+            if (moments.length) window.__rbDayPeek(date, moments);
+            return;
+          }
           const m = _pdWinner(here.filter(r => (r.slot || 'day') === 'day')) || _pdWinner(here);
           window._rbOpenPlannedDay(m);
         };
         window.__mvBand = function(sid, type) {
           _rbTrack('month_band_opened', { source_type: type });
           window.__snOpenItem(Number(sid));
+        };
+        // The +N reveal (spec §11.1): a small popover listing the bands
+        // the two lanes couldn't hold — each row opens its artifact.
+        window.__mvMore = function(w, ev) {
+          if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+          document.getElementById('rb-mv-pop')?.remove();
+          const hidden = _mvHidden[w] || [];
+          if (!hidden.length) return;
+          const seen = {}, list = hidden.filter(h => (seen[h.sid] ? false : (seen[h.sid] = true)));
+          const pop = document.createElement('div');
+          pop.id = 'rb-mv-pop';
+          pop.innerHTML = `<div class="veil" onclick="document.getElementById('rb-mv-pop').remove()"></div>` +
+            `<div class="card">` + list.map(h =>
+              `<button onclick="document.getElementById('rb-mv-pop').remove();window.__mvBand('${String(h.sid).replace(/'/g, '')}','${h.type}')">` +
+              `<i style="background:${h.type === 'travel' ? 'rgba(212,200,196,0.9)' : 'rgba(155,161,123,0.7)'}"></i>${_waEsc(h.title)}</button>`).join('') +
+            `</div>`;
+          document.body.appendChild(pop);
+          const btn = ev && ev.currentTarget;
+          const card = pop.querySelector('.card');
+          if (btn && card) {
+            const r = btn.getBoundingClientRect();
+            card.style.top = Math.min(window.innerHeight - card.offsetHeight - 12, r.bottom + 6) + 'px';
+            card.style.left = Math.max(12, Math.min(window.innerWidth - card.offsetWidth - 12, r.right - card.offsetWidth)) + 'px';
+          }
         };
 
         // ?d=YYYY-MM-DD — deep-link a day: opens the console for whichever
