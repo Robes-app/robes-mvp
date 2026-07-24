@@ -2749,12 +2749,16 @@
         (Array.isArray(w.evenings) ? w.evenings : []).forEach(ev => {
           const i = ev && ev.day_index;
           if (!Number.isInteger(i) || !iso[i] || !w.days[i] || w.days[i].rest) return;
+          // A dressed evening (lazy per-slot look, Stage 5) enriches its row
+          const el = w.days[i].evening_look;
           rows.push({
             ..._pdBase('weekly', sourceId, i, iso[i], 'evening'),
             pinned: !!ev.pinned,
             status: 'planned',
             activity: ev.activity || null,
-            headline: null, thumb_urls: [], item_ids: [],
+            headline: el ? (el.note || el.occasion || null) : null,
+            thumb_urls: el ? _pdThumbs(el.items, w.generatedImages) : [],
+            item_ids: el ? _pdOwnedIds(el.items) : [],
           });
         });
         return rows.length ? { rows, totalDays: w.days.length } : null;
@@ -4595,6 +4599,7 @@
             </div>
             <div class="rbc-hbtns">${cfg.headButtonsHtml || ''}</div>
           </div>
+          ${cfg.rackHintHtml || ''}
           <div class="rbc-rack">${items.map(it => _rbcRow(it, cfg)).join('')}</div>
           ${cfg.addPieceFn ? `<button class="rbc-addpiece${cfg.noprint ? ' tv-noprint' : ''}" onclick="window.${cfg.addPieceFn}()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>` : ''}`;
         return { lookHtml, rackHtml };
@@ -5228,15 +5233,20 @@
         document.getElementById(cfg.id)?.remove();
 
         const catLower = (item.category || '').toLowerCase();
-        const candidates = _waItems.filter(wi => {
+        const catMatch = wi => {
           const wiCat = (wi.category || '').toLowerCase();
           return wiCat === catLower || catLower.includes(wiCat) || wiCat.includes(catLower) || wiCat.replace(/s$/, '') === catLower.replace(/s$/, '');
-        });
+        };
+        // cfg.pool scopes the primary candidates (Phase 4: a trip day swaps
+        // within its capsule); default is the full wardrobe. Each pool entry:
+        // {id, label, image_url, category}.
+        const scoped = Array.isArray(cfg.pool);
+        const candidates = (scoped ? cfg.pool : _waItems).filter(catMatch);
         const retailer = item.retailer_hint || '';
         const price = item.price_point || '';
 
         let aiAlt = null;
-        if (!candidates.length && _waItems.length > 0) aiAlt = _waItems[0];
+        if (!scoped && !candidates.length && _waItems.length > 0) aiAlt = _waItems[0];
 
         const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
         const cameraSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
@@ -5253,7 +5263,7 @@
             </div>`).join('');
           wardrobeSection = `
             <div style="margin-bottom:24px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 10px">From your wardrobe</p>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 10px">${scoped ? 'From your case' : 'From your wardrobe'}</p>
               <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${itemsHtml}</div>
             </div>`;
         } else if (aiAlt) {
@@ -5263,6 +5273,32 @@
               <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don’t have a ${_waEsc((item.category || 'piece').toLowerCase())}, but your <em>${_waEsc(aiAlt.label)}</em> creates a similar outline.</p>
               <button onclick="window.${cfg.applyName}(${cfg.idx},'${_waEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
             </div>`;
+        }
+
+        // Adoption (Phase 4 §4.2): a scoped (capsule) swap can still reach
+        // the rest of her wardrobe — but picking one ADDS it to the case
+        // (membership, counters, pack progress) and restyles this day only.
+        // The one-line note IS the inline confirmation. COPY: needs sign-off
+        let adoptSection = '';
+        if (cfg.adopt && scoped) {
+          const inPool = new Set(cfg.pool.map(p => String(p.wid != null ? p.wid : '')));
+          ((cfg.adopt.exclude || [])).forEach(id => inPool.add(String(id)));
+          const outside = _waItems.filter(wi => catMatch(wi) && !inPool.has(String(wi.id))).slice(0, 8);
+          if (outside.length) {
+            const adoptItems = outside.map(wi => `
+              <div onclick="window.${cfg.adopt.applyName}(${cfg.idx},'${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;border:0.5px dashed rgba(32,32,33,0.2)">
+                ${wi.image_url
+                  ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" alt="">`
+                  : `<div style="aspect-ratio:1;background:#EDE8E0"></div>`}
+                <div style="padding:7px 8px;font-size:10.5px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
+              </div>`).join('');
+            adoptSection = `
+              <div style="margin-bottom:24px">
+                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 4px">From the rest of your wardrobe</p>
+                <p style="font-size:11px;color:#A89880;margin:0 0 10px">Picking one adds it to your case and restyles this day only.</p>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${adoptItems}</div>
+              </div>`;
+          }
         }
 
         const modal = document.createElement('div');
@@ -5281,7 +5317,7 @@
               <div style="height:1px;background:rgba(32,32,33,0.08);margin:0 -20px 20px"></div>
             </div>
             <div style="padding:0 20px 32px">
-              ${wardrobeSection}
+              ${wardrobeSection}${adoptSection}
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${(retailer || price) ? '10px' : '0'}">
                 <button onclick="window.${cfg.snapName}()" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#EDE8E0;border:none;border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
                   ${cameraSvg} Snap mine
@@ -5673,6 +5709,7 @@
       window.__wkSelectDay = function(di) {
         if (!_wkState) return;
         _wkState.day = di;
+        _wkActiveSlot = 0;
         _wkPaintStrip();
         _wkPaintConsole();
       };
@@ -5698,6 +5735,57 @@
         }), _wkState.day);
       }
 
+      // ── Weekly evening moments (Stage 5 / handoff §3.3): a day holding
+      // two moments gets a Day/Evening switcher; every console mutation
+      // applies to the SELECTED moment only. The evening's look generates
+      // lazily through the existing /api/weekly/day endpoint on first open
+      // — no schema change — and lands in d.evening_look (rides the blob,
+      // so it persists and enriches the evening's planned_days row).
+      var _wkActiveSlot = 0; // 0 = day, 1 = evening
+      function _wkEveningFor(di) {
+        const evs = _wkState && _wkState.data && Array.isArray(_wkState.data.evenings) ? _wkState.data.evenings : [];
+        return evs.find(e => e && e.day_index === di) || null;
+      }
+      // The active moment's item array — the ONE reference every console
+      // mutation targets (flick/anchor/swap/remove/add/save).
+      function _wkConItems() {
+        const d = _wkState && _wkState.data.days[_wkState.day];
+        if (!d) return null;
+        if (_wkActiveSlot === 1) {
+          return (d.evening_look && Array.isArray(d.evening_look.items)) ? d.evening_look.items : null;
+        }
+        return d.items;
+      }
+      window.__wkSetSlot = function(oi) {
+        _wkActiveSlot = oi ? 1 : 0;
+        _wkPaintConsole();
+      };
+      window.__wkDressEvening = async function() {
+        if (!_wkState) return;
+        const di = _wkState.day;
+        const d = _wkState.data.days[di];
+        const ev = _wkEveningFor(di);
+        if (!d || !ev) return;
+        const host = document.getElementById('wk-day');
+        if (host) host.style.opacity = '0.5';
+        try {
+          const fresh = await _wkDayFetch(di, (ev.activity || 'An evening out')
+            + ' — the EVENING of this day only (the daytime plan, already dressed separately: '
+            + (d.user_activity || d.occasion || 'the day') + '). One evening look.');
+          d.evening_look = { occasion: fresh.occasion || ev.activity || 'The evening', note: fresh.note || '', items: Array.isArray(fresh.items) ? fresh.items : [] };
+          _wkActiveSlot = 1;
+          _wkPaintConsole();
+          _wkPatchSaved();
+          _rbTrack('day_planned', { source_type: 'weekly', day_index: di });
+        } catch (e) {
+          console.error('[Robes] /api/weekly/day (evening) error:', e.message);
+          _waShowToast('Robes couldn’t dress that evening — please try again.');
+        } finally {
+          const h = document.getElementById('wk-day');
+          if (h) h.style.opacity = '';
+        }
+      };
+
       // ── The day console — Daily Match parity: LEFT "The Look" stylist
       // moodboard (tiles with hover flick), RIGHT "The Rack" (per-card
       // flick-through, Anchor, day restyle). Flicking reuses the Daily
@@ -5710,6 +5798,26 @@
         const serif = "'Cormorant',Georgia,serif";
         const d = _wkState.data.days[_wkState.day];
         if (!d) { host.innerHTML = ''; return; }
+        const ev = _wkEveningFor(_wkState.day);
+        if (!ev || d.rest) _wkActiveSlot = 0;
+        const slotEv = _wkActiveSlot === 1;
+        // COPY: needs sign-off (switcher labels)
+        const occHtml = (ev && !d.rest)
+          ? `<div style="display:inline-flex;gap:4px;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.1);border-radius:100px;padding:3px;margin:2px 0 4px">`
+            + `<button onclick="window.__wkSetSlot(0)" style="border:none;border-radius:100px;padding:6px 14px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit;background:${slotEv ? 'none' : '#202021'};color:${slotEv ? '#8A8078' : '#fff'}">Day</button>`
+            + `<button onclick="window.__wkSetSlot(1)" style="border:none;border-radius:100px;padding:6px 14px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit;background:${slotEv ? '#202021' : 'none'};color:${slotEv ? '#fff' : '#8A8078'}">Evening</button>`
+            + `</div>` : '';
+        // Evening selected but not yet dressed → the invitation, not a form
+        if (slotEv && !(d.evening_look && Array.isArray(d.evening_look.items) && d.evening_look.items.length)) {
+          host.innerHTML = `
+            <div style="margin-top:18px">${occHtml}</div>
+            <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:44px 24px;margin-top:10px;text-align:center">
+              <div style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">${_waEsc(_wkDayName(d))} evening — <em style="font-style:italic">${_waEsc(ev.activity || 'the plan')}.</em></div>
+              <div style="font-size:12.5px;color:#8A8078;margin-bottom:18px">Its own look, styled to follow the day.</div>
+              <button onclick="window.__wkDressEvening()" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✨ Dress the evening →</button>
+            </div>`;
+          return;
+        }
 
         if (d.rest) {
           host.innerHTML = `
@@ -5725,7 +5833,11 @@
         // frame source mirrors Daily/Travel: wardrobe photo first, generated
         // still (patched in by the poller via data-wkimg) second, monogram
         // last. A flicked-in piece must never wear the original's still.
-        const owned = d.items.filter(it => it.wardrobe_match).length;
+        const items = slotEv ? d.evening_look.items : d.items;
+        const conOccasion = slotEv ? (d.evening_look.occasion || ev.activity || 'The evening') : d.occasion;
+        const conNote = slotEv ? d.evening_look.note : d.note;
+        const dayLabel = _wkDayName(d) + (slotEv ? ' evening' : '');
+        const owned = items.filter(it => it.wardrobe_match).length;
         const wkImages = Array.isArray(_wkState.data.generatedImages) ? _wkState.data.generatedImages : [];
         const wkPending = !!_wkState.data.jobId && !wkImages.some(Boolean);
         const wkPhSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
@@ -5747,8 +5859,8 @@
           };
         };
         const palette = (Array.isArray(_wkState.data.palette) ? _wkState.data.palette : []).filter(h => /^#[0-9A-Fa-f]{6}$/.test(String(h || ''))).slice(0, 3);
-        const fabricsHtml = _rbcFabricsHtml(d.items, palette);
-        const conItems = d.items.map((it, ii) => {
+        const fabricsHtml = _rbcFabricsHtml(items, palette);
+        const conItems = items.map((it, ii) => {
           const list = _dlOptions(it, { aiFirst: false });
           return {
             idx: ii,
@@ -5767,17 +5879,20 @@
               : `<button class="rbc-act save" onclick="window.__wkSaveWishlist(${ii})">Save</button>`),
           };
         });
-        const wkUnowned = d.items.filter(it => !it.wardrobe_match);
+        const wkUnowned = items.filter(it => !it.wardrobe_match);
         const con = _rbConsole({
-          headLabel: `The look · ${_waEsc(_wkDayName(d))} · ${d.items.length} pieces`,
-          quoteHtml: d.note ? _waEsc(d.note) : '',
+          headLabel: `The look · ${_waEsc(dayLabel)} · ${items.length} pieces`,
+          occHtml,
+          quoteHtml: conNote ? _waEsc(conNote) : '',
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
-          verdictHtml: _rbcVerdict(owned, d.items.length, wkUnowned),
+          verdictHtml: _rbcVerdict(owned, items.length, wkUnowned),
           addChipLabel: _rbTrackCfg('weekly').console.addVerb,
-          rackLabel: `The rack · ${_waEsc(_wkDayName(d))}`,
-          rackTitleHtml: d.occasion ? `<h2>${_waEsc(d.occasion)}${!/[.!?]$/.test(d.occasion) ? '.' : ''}</h2>` : '',
-          headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button>`,
+          rackLabel: `The rack · ${_waEsc(dayLabel)}`,
+          rackTitleHtml: conOccasion ? `<h2>${_waEsc(conOccasion)}${!/[.!?]$/.test(conOccasion) ? '.' : ''}</h2>` : '',
+          headButtonsHtml: slotEv
+            ? `<button class="rbc-hbtn" onclick="window.__wkDressEvening()" title="A fresh evening look">↻ Restyle the evening</button>`
+            : `<button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button>`,
           onFlip: '__wkFlip', onSwap: '__wkSwap', onAnchor: '__wkAnchor', onRemove: '__wkRemove',
           addPieceFn: '__wkAddPiece',
           lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
@@ -5789,15 +5904,15 @@
             <div>${con.rackHtml}</div>
           </div>`;
 
-        // Build 2 — prefetch alternates for the visible day only, in the
+        // Build 2 — prefetch alternates for the visible moment only, in the
         // background, so a later flick/swap is usually already warm.
-        _rbPrefetchAlternates(d.items, 'weekly', _wkPaintConsole);
+        _rbPrefetchAlternates(items, 'weekly', _wkPaintConsole);
       }
 
       window.__wkFlip = function(ii, dir) {
         if (!_wkState) return;
-        const d = _wkState.data.days[_wkState.day];
-        const it = d && d.items[ii];
+        const arr = _wkConItems();
+        const it = arr && arr[ii];
         if (!it) return;
         const list = _dlOptions(it, { aiFirst: false });
         if (list.length < 2) { _waShowToast('Nothing else fits this slot yet — snap more pieces'); return; }
@@ -5810,8 +5925,8 @@
 
       window.__wkAnchor = function(ii) {
         if (!_wkState) return;
-        const d = _wkState.data.days[_wkState.day];
-        const it = d && d.items[ii];
+        const arr = _wkConItems();
+        const it = arr && arr[ii];
         if (!it) return;
         it.anchored = !it.anchored;
         _wkPaintConsole();
@@ -5822,10 +5937,11 @@
       // Remove a piece she doesn't need from the day's look.
       window.__wkRemove = function(ii) {
         const d = _wkState && _wkState.data.days[_wkState.day];
-        const it = d && d.items[ii];
-        if (!it) return;
-        if (d.items.length <= 2) { _waShowToast('A look needs at least two pieces'); _wkPaintConsole(); return; }
-        d.items.splice(ii, 1);
+        const arr = _wkConItems();
+        const it = arr && arr[ii];
+        if (!it || !d) return;
+        if (arr.length <= 2) { _waShowToast('A look needs at least two pieces'); _wkPaintConsole(); return; }
+        arr.splice(ii, 1);
         _wkPaintConsole();
         _wkPaintStrip();
         _wkPatchSaved();
@@ -5836,20 +5952,20 @@
       let _wkSwapIdx = null;
       window.__wkSwap = function(ii) {
         if (!_wkState) return;
-        const d = _wkState.data.days[_wkState.day];
-        const item = d && d.items[ii];
+        const arr = _wkConItems();
+        const item = arr && arr[ii];
         if (!item) return;
         _wkSwapIdx = ii;
         _rbSwapModal(item, { id: 'wk-swap-modal', applyName: '__wkSwapApply', snapName: '__wkSnapMine', idx: ii });
         // Build 2 — Swap is the explicit trigger for on-demand alternates;
         // a no-op if the visible-day prefetch already warmed this piece.
-        _rbFetchAlternates(item, 'weekly', d.items.map(i => i.name).filter(n => n && n !== item.name));
+        _rbFetchAlternates(item, 'weekly', arr.map(i => i.name).filter(n => n && n !== item.name));
       };
       window.__wkSwapApply = function(ii, wardrobeId) {
         _rbTrack('piece_swapped', { surface: 'weekly', item: String(wardrobeId) });
         const wi = _waItems.find(i => i.id === wardrobeId);
-        const d = _wkState && _wkState.data.days[_wkState.day];
-        const item = d && d.items[ii];
+        const arr = _wkConItems();
+        const item = arr && arr[ii];
         if (!wi || !item) return;
         item.wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
         item.name = wi.label;
@@ -5877,8 +5993,9 @@
       window.__wkAddOwned = function(id) {
         const wi = _waItems.find(i => String(i.id) === String(id));
         const d = _wkState && _wkState.data.days[_wkState.day];
-        if (!wi || !d || d.rest) return;
-        d.items.push({
+        const arr = _wkConItems();
+        if (!wi || !d || d.rest || !arr) return;
+        arr.push({
           name: wi.label, category: wi.category || 'Other', brand: wi.brand || '', description: '',
           wardrobe_index: -1, retailer_hint: '', price_point: '',
           wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
@@ -5897,8 +6014,8 @@
       // piece (Build 1, amended). Writes wishlist_items via _wlSaveFromItem;
       // never touches wardrobe_items.
       window.__wkSaveWishlist = async function(ii) {
-        const d = _wkState && _wkState.data.days[_wkState.day];
-        const it = d && d.items[ii];
+        const arr = _wkConItems();
+        const it = arr && arr[ii];
         if (!it || it.wardrobe_match) return;
         await _wlSaveFromItem(it);
         _wkPaintConsole();
@@ -6110,6 +6227,7 @@
         _wkStopPolling();
         window.__lastWkData = data;
         _wkState = { data, prompt: promptText || '', day: 0 };
+        _wkActiveSlot = 0;
         _wkWorn = false;
 
         if (!wkResultPage) {
@@ -7164,7 +7282,11 @@ body>*:not(#tv-result-page){display:none !important}
         const conItems = entries.map(x => {
           const { it, ci } = x;
           const wears = (usage[ci] || []).length;
-          const list = _dlOptions(it, { aiFirst: false });
+          // Capsule constraint (Phase 4): on a trip you dress from the CASE
+          // — flick candidates are the trip's other capsule members in this
+          // slot, never the wardrobe at large.
+          const pool = _tvCapsulePool(data, ci);
+          const list = { length: pool.length };
           return {
             idx: ci,
             frame: _tvFrame(it),
@@ -7176,7 +7298,7 @@ body>*:not(#tv-result-page){display:none !important}
             isNew: !it.wardrobe_match,
             showAddTag: !it.wardrobe_match && !it.added,
             rowClass: it.packed ? ' packed' : '',
-            count: { cur: _dlOptIndex(it, list), len: list.length },
+            count: { cur: Math.max(0, pool.indexOf(ci)), len: pool.length },
             wearsHtml: wears ? `<span class="vlooks">× ${wears} looks</span>` : '',
             subHtml: _rbcProvenance(it, `<span class="addtag">${it.added ? 'Added to the pack' : 'Worth adding'}</span>`),
             noteHtml: x.f.note ? `<div class="rbc-hownote">${_waEsc(x.f.note)}</div>` : '',
@@ -7212,9 +7334,12 @@ body>*:not(#tv-result-page){display:none !important}
           panelExtraHtml: readHtml,
           addChipLabel: _rbTrackCfg('travel').console.addVerb,
           rackLabel: `The rack · ${_waEsc(dayName)}`,
+          // The hint names MEMBERSHIP, not packing (decision 4 — the packed
+          // checklist never constrains generation). COPY: needs sign-off
+          rackHintHtml: `<div class="tv-noprint" style="font-size:11px;color:#A89880;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.08);border-radius:8px;padding:8px 12px;margin:8px 0 14px">Styled from your case — the ${data.capsule.length} pieces this trip is built from. Swapping in anything else adds it to the case.</div>`,
           rackTitleHtml: `<h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>`,
           headButtonsHtml: `<button class="rbc-hbtn tv-noprint" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>`,
-          onFlip: '__tvFlip', onSwap: '__tvSwap', onAnchor: '__tvAnchor', onRemove: '__tvRemoveFromLook',
+          onFlip: '__tvFlip', onSwap: '__tvDaySwap', onAnchor: '__tvAnchor', onRemove: '__tvRemoveFromLook',
           addPieceFn: '__tvAddPieceToLook',
           lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
           noprint: true,
@@ -7223,30 +7348,51 @@ body>*:not(#tv-result-page){display:none !important}
         panel.innerHTML = con.lookHtml;
 
         rackWrap.innerHTML = con.rackHtml;
-
-        // Build 2 — prefetch alternates for the visible day's active slot
-        // only, in the background, so a later flick/swap is usually warm.
-        _rbPrefetchAlternates(entries.map(x => x.it), 'travel', _tvPaintConsole);
+        // (Build 2's travel alternates prefetch is retired — a trip day's
+        // candidates are capsule members now, so AI alternates never render
+        // on this surface and the tokens are saved.)
       }
 
-      // Flick a capsule piece through similar options — the served original,
-      // then owned pieces in the same category (the Daily rack's carousel,
-      // reusing its option helpers). The capsule item is a shared reference,
-      // so the flick carries across every day that wears it, like a swap.
-      window.__tvFlip = function(ci, dir) {
-        const data = window.__lastTvData;
-        const it = data && data.capsule[ci];
-        if (!it) return;
-        const list = _dlOptions(it, { aiFirst: false });
-        if (list.length < 2) { _waShowToast('Nothing else fits this slot yet — snap more pieces'); return; }
-        const next = list[(_dlOptIndex(it, list) + dir + list.length) % list.length];
-        _dlApplyOption(it, next);
+      // Capsule constraint (Phase 4): on a trip you dress from a CASE, not
+      // a wardrobe. A day-console flick cycles this slot through the trip's
+      // OTHER capsule members in the category — re-pointing THIS day's
+      // formula reference only, never mutating membership and never
+      // touching other days. (The pre-Phase-4 flick offered owned wardrobe
+      // pieces and applied trip-wide; membership changes now live on the
+      // Edit tab and the adopt path.)
+      function _tvCatNorm(c) { return String(c || '').toLowerCase().replace(/s$/, ''); }
+      function _tvCapsulePool(data, ci) {
+        const member = data.capsule[ci];
+        if (!member) return [ci];
+        const catL = _tvCatNorm(member.category);
+        const pool = [];
+        data.capsule.forEach((c, k) => { if (_tvCatNorm(c.category) === catL) pool.push(k); });
+        return pool.length ? pool : [ci];
+      }
+      function _tvRepointDay(ci, targetCi) {
+        const st = _tvLookState();
+        if (!st || !st.s) return false;
+        let hit = false;
+        (st.s.formula || []).forEach(f => { if (f.item_index === ci) { f.item_index = Number(targetCi); hit = true; } });
+        return hit;
+      }
+      function _tvDayRerender(animateCi) {
         const savedId = _tvActiveSaveId;
         const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
-        window.__tvRenderResult(data, { skipSave: true, savedId });
+        window.__tvRenderResult(window.__lastTvData, { skipSave: true, savedId });
         if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
         _tvPatchSaved();
-        window.__rbcAnimateTile(ci);
+        if (animateCi != null) window.__rbcAnimateTile(animateCi);
+      }
+      window.__tvFlip = function(ci, dir) {
+        const data = window.__lastTvData;
+        if (!data || !data.capsule[ci]) return;
+        const pool = _tvCapsulePool(data, ci);
+        if (pool.length < 2) { _waShowToast('Nothing else in the case fits this slot — Swap to bring a piece in'); return; }
+        const cur = Math.max(0, pool.indexOf(ci));
+        const next = pool[(cur + dir + pool.length) % pool.length];
+        if (!_tvRepointDay(ci, next)) return;
+        _tvDayRerender(next);
       };
 
       // Anchor — the Daily/Weekly lock: an anchored capsule piece is held
@@ -7533,11 +7679,11 @@ body>*:not(#tv-result-page){display:none !important}
                   <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('tv')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
                 </div>
               </div>
-              <div class="tvm-progress">
+              ${_rbTrackCfg('travel').artifact.hasPackProgress ? `<div class="tvm-progress">
                 <span class="tvm-mpcount"><b id="tv-mp-n">0</b><span class="of"> / ${total} packed</span></span>
                 <div class="tvm-mpbar"><span id="tv-mp-fill"></span></div>
                 <span class="tvm-mplab">${total} pieces · ${deferred ? 'outfits to plan' : lookCount + ' looks'}</span>
-              </div>
+              </div>` : ''}
             </header>
             <div class="tvm-meta-row">
               <div class="tvm-wx"><span>${_tvWxEmoji}</span><strong>${_waEsc([wx && wx.city ? wx.city + (wx.country ? ', ' + wx.country : '') : data.destination, data.dateLine].filter(Boolean).join(' · ')) || 'Your trip'}</strong>${wx && wx.tempRange ? `<span class="div"></span><span>${_waEsc(wx.tempRange)}</span>` : ''}${wx && wx.condition ? `<span class="div"></span><span style="font-style:italic">${_waEsc(wx.condition)}${wx.seasonal ? ' · seasonal read' : ''}</span>` : ''}</div>
@@ -7546,7 +7692,7 @@ body>*:not(#tv-result-page){display:none !important}
             ${data.fallback ? `<p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:12px 0 0">Robes couldn’t quite read the brief, so it’s packed you for a lovely week away instead.</p>` : ''}
             <div class="tvm-rule"></div>
 
-            <div class="tvm-tabs">
+            ${_rbTrackCfg('travel').artifact.hasCapsuleTab ? `<div class="tvm-tabs">
               <button class="tvm-tab" id="tv-tab-edit" onclick="window.__tvSetTab('edit')">
                 <span class="tt">01 · The Edit</span>
                 <span class="ts">What to pack · ${total} pieces</span>
@@ -7555,7 +7701,7 @@ body>*:not(#tv-result-page){display:none !important}
                 <span class="tt">02 · Outfits</span>
                 <span class="ts">${deferred ? 'Not planned yet — plan as you pack' : `Day by day · ${data.days.length} days · ${lookCount} looks`}</span>
               </button>
-            </div>
+            </div>` : ''}
 
             <div id="tv-pane-edit">
               <div style="font-family:${serif};font-weight:300;font-style:italic;font-size:clamp(24px,3vw,34px);color:var(--ink);line-height:1.05;margin-bottom:6px">The edit.</div>
@@ -7675,7 +7821,9 @@ body>*:not(#tv-result-page){display:none !important}
         const data = window.__lastTvData;
         if (!data || !Array.isArray(data.capsule) || !data.capsule.length) return;
         const n = _tvTripDays({ dateFrom: data.dateFrom, dateTo: data.dateTo }).n;
-        const plan = skip ? [] : _tvPlanRead(n);
+        // An array = a ready-made plan (the batched capsule-swap restyle
+        // passes the current days' activities); true = "Robes plans it".
+        const plan = Array.isArray(skip) ? skip : (skip ? [] : _tvPlanRead(n));
         document.getElementById('tv-plan-modal')?.remove();
         const send = plan.some(p => p === null || p) ? plan : [];
         let overlay = document.getElementById('kp-loading-overlay');
@@ -8065,16 +8213,89 @@ body>*:not(#tv-result-page){display:none !important}
         if (window.WA && WA.open) WA.open();
       };
 
+      // Capsule-level swap (Edit tab): a MEMBERSHIP change — the piece's
+      // identity changes everywhere it's worn. Never silently regenerates:
+      // __tvSwapApply reports how many days wear the slot and offers ONE
+      // batched restyle (Phase 4 §4.2).
       window.__tvSwap = function(idx) {
         const item = window.__lastTvData && window.__lastTvData.capsule[idx];
         if (!item) return;
         _tvSwapIdx = idx;
         _rbSwapModal(item, { id: 'tv-swap-modal', applyName: '__tvSwapApply', snapName: '__tvSnapMine', idx });
-        // Build 2 — Swap is the explicit trigger for on-demand alternates;
-        // a no-op if the visible-day prefetch already warmed this piece.
-        const st = _tvLookState();
-        const otherNames = st && st.s ? (st.s.formula || []).map(f => { const c = st.data.capsule[f.item_index]; return c && c.name; }).filter(n => n && n !== item.name) : [];
-        _rbFetchAlternates(item, 'travel', otherNames);
+      };
+
+      // Day-console swap (Phase 4): candidates are the CASE — other capsule
+      // members in the slot re-point this day's formula; the rest of her
+      // wardrobe appears as the adoption section (joins the case, restyles
+      // this day only).
+      window.__tvDaySwap = function(ci) {
+        const data = window.__lastTvData;
+        const item = data && data.capsule[ci];
+        if (!item) return;
+        const pool = _tvCapsulePool(data, ci)
+          .filter(k => k !== ci)
+          .map(k => {
+            const c = data.capsule[k];
+            return {
+              id: k, wid: c.wardrobe_match ? c.wardrobe_match.id : null,
+              label: c.name, category: c.category || item.category || '',
+              image_url: (c.wardrobe_match && c.wardrobe_match.image_url) || null,
+            };
+          });
+        _rbSwapModal(item, {
+          id: 'tv-swap-modal', idx: ci,
+          applyName: '__tvDaySwapApply', snapName: '__tvSnapMine',
+          pool,
+          adopt: {
+            applyName: '__tvAdoptApply',
+            // never offer the slot's own piece for adoption
+            exclude: item.wardrobe_match ? [item.wardrobe_match.id] : [],
+          },
+        });
+      };
+      window.__tvDaySwapApply = function(ci, poolId) {
+        const target = Number(poolId);
+        if (!Number.isInteger(target) || target === ci) { document.getElementById('tv-swap-modal')?.remove(); return; }
+        if (!_tvRepointDay(ci, target)) return;
+        _rbTrack('piece_swapped', { surface: 'travel-day', item: String(target) });
+        document.getElementById('tv-swap-modal')?.remove();
+        _tvDayRerender(target);
+        const c = window.__lastTvData.capsule[target];
+        _waShowToast((c ? c.name : 'That piece') + ' takes this slot today');
+      };
+      // Adoption: an out-of-capsule wardrobe piece joins the case (membership
+      // + counters + pack progress) and restyles the CURRENT day only.
+      window.__tvAdoptApply = function(ci, wardrobeId) {
+        const data = window.__lastTvData;
+        const wi = _waItems.find(i => String(i.id) === String(wardrobeId));
+        const old = data && data.capsule[ci];
+        if (!data || !wi || !old) return;
+        data.capsule.push({
+          name: wi.label, category: wi.category || old.category || '', brand: wi.brand || '',
+          tier: old.tier || 'Foundations & Tailoring',
+          reason: 'Adopted from your wardrobe mid-trip',
+          wardrobe_index: -1,
+          wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
+          retailer_hint: '', price_point: '',
+        });
+        const newCi = data.capsule.length - 1;
+        _tvRepointDay(ci, newCi);
+        _rbTrack('capsule_adopted', { from: 'console' });
+        document.getElementById('tv-swap-modal')?.remove();
+        _tvDayRerender(newCi);
+        _waShowToast(wi.label + ' joins the case — today wears it');
+      };
+
+      // The one batched restyle after a membership swap: re-mixes every day
+      // from the updated case in ONE /api/travel/outfits call, keeping her
+      // per-day plans.
+      var _tvStaleDays = 0;
+      window.__tvRestyleAllDays = function() {
+        const data = window.__lastTvData;
+        if (!data || !Array.isArray(data.capsule) || !data.capsule.length) return;
+        document.getElementById('tv-stale-bar')?.remove();
+        _rbTrack('capsule_swap_restyle', { days_affected: _tvStaleDays });
+        window.__tvOutfitsGo((data.days || []).map(d => d.rest ? null : (d.user_activity || '')));
       };
 
       window.__tvSwapApply = function(idx, wardrobeId) {
@@ -8097,6 +8318,25 @@ body>*:not(#tv-result-page){display:none !important}
         _tvPatchSaved();
         window.__rbcAnimateTile(idx);
         _waShowToast(wi.label + ' packed instead');
+        // Membership changed — report the blast radius and offer ONE
+        // batched restyle instead of silently regenerating N days
+        // (Phase 4 §4.2). COPY: needs sign-off
+        const affected = (window.__lastTvData.days || []).filter(d => !d.rest && (d.slots || []).some(s => (s.formula || []).some(f => f.item_index === idx))).length;
+        if (affected > 0) {
+          _tvStaleDays = affected;
+          const pane = document.getElementById('tv-pane-edit');
+          if (pane) {
+            document.getElementById('tv-stale-bar')?.remove();
+            const bar = document.createElement('div');
+            bar.id = 'tv-stale-bar';
+            bar.className = 'tv-noprint';
+            bar.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.1);border-radius:10px;padding:10px 14px;margin:0 0 16px;font-size:12px;color:#6E6A64';
+            bar.innerHTML = `<span><b>${_waEsc(wi.label)}</b> now packs — ${affected} day${affected === 1 ? '' : 's'} wear this slot.</span>` +
+              `<button onclick="window.__tvRestyleAllDays()" style="margin-left:auto;background:#202021;color:#fff;border:none;border-radius:100px;padding:8px 16px;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">↻ Restyle those days</button>` +
+              `<button onclick="document.getElementById('tv-stale-bar').remove()" aria-label="Dismiss" style="background:none;border:none;color:#A89880;font-size:15px;cursor:pointer;padding:2px">×</button>`;
+            pane.insertBefore(bar, pane.firstChild);
+          }
+        }
       };
 
       // The moodboard's "Pack this trip" CTA feeds the real Travel Edit —
