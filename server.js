@@ -1794,7 +1794,7 @@ app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
       : p || '(no plan given — infer a plausible day from the brief and destination)'}`
   ).join('\n');
   const planBlock = hasPlan && !editOnly
-    ? `THE USER'S OWN ITINERARY — she has told you her real plans. This is AUTHORITATIVE: dress each planned day for EXACTLY what she is doing (both slots answer to it — the Day slot dresses the plan itself, the Evening slot its natural evening). Never invent a different agenda for a planned day. For a planned day, "day_label" is "Day N · {2–4 word title of her plan}".
+    ? `THE USER'S OWN ITINERARY — she has told you her real plans. This is AUTHORITATIVE: dress each planned day for EXACTLY what she is doing (every slot answers to it — the Day slot dresses the plan itself; an Evening slot exists ONLY when her plan names an evening moment). Never invent a different agenda for a planned day. For a planned day, "day_label" is "Day N · {2–4 word title of her plan}".
 ${planList}`
     : (hasPlan && editOnly
       ? `HER ITINERARY (context for the edit — the outfits come later, but what you keep must be able to dress these plans):
@@ -1852,7 +1852,7 @@ THE PILLARS — all four are hard constraints:
 
 ${editOnly
   ? `THE LOOKBOOK IS DEFERRED: she is still gathering pieces and will plan the outfits later, as she packs. Return "days": [] (an empty array). STILL apply the 1:3 discipline when deciding what to keep — every kept piece must plausibly earn at least three wears across the ~${tripDays * 2} looks this trip will eventually hold.`
-  : `THE LOOKBOOK: exactly ${tripDays} entries in "days" — one per trip day, "day_label" like "Day 1 · Arrival"${dateLine ? ` (the trip runs ${dateLine})` : ''}. Each day has exactly 2 slots: "Day" and "Evening", ${hasPlan ? 'mapped to the user\'s own itinerary below' : 'mapped to a plausible itinerary drawn from the brief'}. Each slot: "title" (3–6 words naming the scene), "how" (ONE hyper-specific styling sentence — the anti-generic constraint applies), "transition_tip" (ONE concrete subtractive-styling or hardware-swap move that shifts the look into its next scene) and the "formula". A day the itinerary marks as deliberately left free gets "slots": [] — no looks.`}
+  : `THE LOOKBOOK: exactly ${tripDays} entries in "days" — one per trip day, "day_label" like "Day 1 · Arrival"${dateLine ? ` (the trip runs ${dateLine})` : ''}. Each dressed day gets a "Day" slot; add an "Evening" slot ONLY when that day's plan names an evening moment (a dinner, a night out, an event) or the brief clearly calls for one — by default the evening is LEFT FREE and the day carries just its "Day" slot. Slots are ${hasPlan ? 'mapped to the user\'s own itinerary below' : 'mapped to a plausible itinerary drawn from the brief'}. Each slot: "title" (3–6 words naming the scene), "how" (ONE hyper-specific styling sentence — the anti-generic constraint applies), "transition_tip" (ONE concrete subtractive-styling or hardware-swap move that shifts the look into its next scene) and the "formula". A day the itinerary marks as deliberately left free gets "slots": [] — no looks.`}
 
 ${planBlock ? planBlock + '\n\n' : ''}${[stateDirective, heroBlock].filter(Boolean).join('\n\n')}
 
@@ -2166,7 +2166,7 @@ THE PACKED CAPSULE (referenced by "item_index"):
 ${capList}
 
 RULES:
-1. Re-dress Day ${dayNum} for the user's REAL plan: "${act}". Exactly 2 slots — "Day" then "Evening" — mapping the plan sensibly across them (a single big event: style the lead-up as "Day" and the event itself as "Evening", or vice versa if it's a daytime event).
+1. Re-dress Day ${dayNum} for the user's REAL plan: "${act}". A "Day" slot always comes first; add an "Evening" slot ONLY when the plan names an evening moment (a dinner, a night out, an event — or the plan explicitly asks for the evening) — otherwise return just the "Day" slot and the evening stays free. When the plan IS a single evening event, style the lead-up as "Day" and the event itself as "Evening".
 2. RE-MIX FIRST. Build every outfit ONLY from the capsule via "item_index" and the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE}
 3. Set "new_item_needed": true ONLY if the plan genuinely cannot be dressed from the capsule (e.g. a formal wedding with nothing remotely formal packed). Then give "new_item" — one real gap piece with retailer_hint, a realistic EUR price_point and a "bridge" clause (what it connects + looks it unlocks) — and reference it in the formulas as item_index ${capIn.length}. Otherwise "new_item_needed": false.
 4. "day_label": "Day ${dayNum} · {2–4 word title of the plan}". "title" per slot: 3–6 words naming the scene. "transition_tip" per slot: ONE concrete subtractive-styling or hardware-swap move that shifts the look into its next scene.${anchorsIn.length ? `\n5. ANCHORED PIECES — the user has LOCKED these into this day: ${anchorsIn.map(a => `item_index ${a.item_index} (${capIn[a.item_index].name})`).join(', ')}. Each anchored piece MUST appear in at least one of the two slots' formulas, exactly as packed — restyle everything AROUND them, never replace them.` : ''}${dnaBlock ? '\n\n' + dnaBlock : ''}
@@ -2267,7 +2267,7 @@ THE ITINERARY — authoritative: dress each planned day for EXACTLY what she is 
 ${planList}
 
 RULES:
-1. Exactly ${tripDays} entries in "days" — one per trip day, in order. Each dressed day has exactly 2 slots: "Day" and "Evening". A day marked deliberately left free gets "slots": [].
+1. Exactly ${tripDays} entries in "days" — one per trip day, in order. Each dressed day gets a "Day" slot; add an "Evening" slot ONLY when that day's plan names an evening moment (a dinner, a night out, an event) — by default the evening is LEFT FREE. A day marked deliberately left free gets "slots": [].
 2. Every formula entry is built ONLY from the capsule via "item_index", using the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE}
 3. THE 1:3 RULE: spread the lookbook so every capsule item appears in at least three different outfits where the trip length allows it — no single-outfit passengers.
 4. Each slot: "title" (3–6 words naming the scene), "how" (ONE hyper-specific styling sentence), "transition_tip" (ONE concrete subtractive-styling or hardware-swap move that shifts the look into its next scene).${dnaBlock ? '\n\n' + dnaBlock : ''}

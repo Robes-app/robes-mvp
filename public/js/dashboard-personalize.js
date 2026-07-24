@@ -2814,7 +2814,7 @@
         (d.steps || []).forEach(s => (s.items || []).forEach(it => items.push(it)));
         return {
           rows: [{
-            ..._pdBase('daily', sourceId, 0, d.anchor_date, 'day'),
+            ..._pdBase('daily', sourceId, 0, d.anchor_date, d.slot === 'evening' ? 'evening' : 'day'),
             status: d.worn ? 'worn' : 'planned',
             activity: d.occasion_label || (d.prompt ? String(d.prompt).slice(0, 120) : null),
             headline: d.headline || null,
@@ -3957,6 +3957,12 @@
           data.anchor_date = (opts && opts.anchorDate)
             || (savedPrev && savedPrev.dlData && savedPrev.dlData.anchor_date)
             || _pdLocalISO();
+          // An evening ask lands as the date's EVENING moment — it
+          // coexists with the day's look in planned_days instead of
+          // displacing it (restyles keep the saved look's slot).
+          data.slot = (opts && opts.slot)
+            || (savedPrev && savedPrev.dlData && savedPrev.dlData.slot)
+            || undefined;
           // Re-mark the anchors on the fresh look so they stay locked
           if (locked && locked.length) {
             const freshFlat = [];
@@ -5605,7 +5611,7 @@
         if (!_wkActiveSaveId || !_wkState) return;
         const saved = snLoad().find(x => x.id === _wkActiveSaveId);
         if (saved) {
-          snUpdate(_wkActiveSaveId, { wkData: { ...(saved.wkData || {}), days: _wkState.data.days, stylist_summary: _wkState.data.stylist_summary } });
+          snUpdate(_wkActiveSaveId, { wkData: { ...(saved.wkData || {}), days: _wkState.data.days, evenings: _wkState.data.evenings, stylist_summary: _wkState.data.stylist_summary } });
           _pdSyncSaved(_wkActiveSaveId);
         }
       }
@@ -5760,17 +5766,30 @@
         _wkActiveSlot = oi ? 1 : 0;
         _wkPaintConsole();
       };
-      window.__wkDressEvening = async function() {
+      // Dress the evening — an ADDITION, never a restyle of the day
+      // (Annie, 2026-07-24: evening looks are consistent across all three
+      // tracks — left free by default, populated on request). An activity
+      // passed in (or typed in the invitation input) creates/updates the
+      // evening MOMENT in wkData.evenings, then generates its look.
+      window.__wkDressEvening = async function(activity) {
         if (!_wkState) return;
         const di = _wkState.day;
         const d = _wkState.data.days[di];
-        const ev = _wkEveningFor(di);
-        if (!d || !ev) return;
+        if (!d || d.rest) return;
+        const typed = (typeof activity === 'string' && activity.trim())
+          || ((document.getElementById('wk-eve-act') || {}).value || '').trim();
+        let ev = _wkEveningFor(di);
+        if (!ev && !typed) { const el = document.getElementById('wk-eve-act'); if (el) el.focus(); return; }
+        if (!ev) {
+          if (!Array.isArray(_wkState.data.evenings)) _wkState.data.evenings = [];
+          ev = { day_index: di, activity: typed, pinned: false };
+          _wkState.data.evenings.push(ev);
+        } else if (typed) ev.activity = typed;
         const host = document.getElementById('wk-day');
         if (host) host.style.opacity = '0.5';
         try {
           const fresh = await _wkDayFetch(di, (ev.activity || 'An evening out')
-            + ' — the EVENING of this day only (the daytime plan, already dressed separately: '
+            + ' — the EVENING of this day only (the daytime plan, already dressed separately and NOT to be changed: '
             + (d.user_activity || d.occasion || 'the day') + '). One evening look.');
           d.evening_look = { occasion: fresh.occasion || ev.activity || 'The evening', note: fresh.note || '', items: Array.isArray(fresh.items) ? fresh.items : [] };
           _wkActiveSlot = 1;
@@ -5799,21 +5818,28 @@
         const d = _wkState.data.days[_wkState.day];
         if (!d) { host.innerHTML = ''; return; }
         const ev = _wkEveningFor(_wkState.day);
-        if (!ev || d.rest) _wkActiveSlot = 0;
+        if (d.rest) _wkActiveSlot = 0;
         const slotEv = _wkActiveSlot === 1;
+        // Every dressed day carries the Day/Evening pair — the evening is
+        // simply "left free" until she asks for it. Compact segmented
+        // control matching the travel console's register.
         // COPY: needs sign-off (switcher labels)
-        const occHtml = (ev && !d.rest)
-          ? `<div style="display:inline-flex;gap:4px;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.1);border-radius:100px;padding:3px;margin:2px 0 4px">`
-            + `<button onclick="window.__wkSetSlot(0)" style="border:none;border-radius:100px;padding:6px 14px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit;background:${slotEv ? 'none' : '#202021'};color:${slotEv ? '#8A8078' : '#fff'}">Day</button>`
-            + `<button onclick="window.__wkSetSlot(1)" style="border:none;border-radius:100px;padding:6px 14px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit;background:${slotEv ? '#202021' : 'none'};color:${slotEv ? '#fff' : '#8A8078'}">Evening</button>`
-            + `</div>` : '';
-        // Evening selected but not yet dressed → the invitation, not a form
+        const segBtn = (label, oi, on) =>
+          `<button onclick="window.__wkSetSlot(${oi})" style="border:none;border-radius:100px;padding:5px 13px;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;background:${on ? '#202021' : 'transparent'};color:${on ? '#fff' : '#8A8078'};white-space:nowrap">${label}</button>`;
+        const occHtml = d.rest ? '' :
+          `<div style="display:inline-flex;width:max-content;gap:2px;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.1);border-radius:100px;padding:2px;margin:2px 0 4px;align-self:flex-start">`
+          + segBtn('Day', 0, !slotEv)
+          + segBtn('Evening' + (d.evening_look || ev ? '' : ' · free'), 1, slotEv)
+          + `</div>`;
+        // Evening selected but not yet dressed → the invitation (with her
+        // typed occasion when the moment exists), never a restyled day
         if (slotEv && !(d.evening_look && Array.isArray(d.evening_look.items) && d.evening_look.items.length)) {
           host.innerHTML = `
             <div style="margin-top:18px">${occHtml}</div>
-            <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:44px 24px;margin-top:10px;text-align:center">
-              <div style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">${_waEsc(_wkDayName(d))} evening — <em style="font-style:italic">${_waEsc(ev.activity || 'the plan')}.</em></div>
-              <div style="font-size:12.5px;color:#8A8078;margin-bottom:18px">Its own look, styled to follow the day.</div>
+            <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:40px 24px;margin-top:10px;text-align:center">
+              <div style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">${_waEsc(_wkDayName(d))} evening${ev && ev.activity ? ` — <em style="font-style:italic">${_waEsc(ev.activity)}.</em>` : ', <em style="font-style:italic">left free.</em>'}</div>
+              <div style="font-size:12.5px;color:#8A8078;margin-bottom:16px">${ev ? 'Its own look, styled to follow the day.' : 'Add a plan and the evening gets its own look — the day stays exactly as it is.'}</div>
+              ${ev && ev.activity ? '' : `<input id="wk-eve-act" placeholder="Date night, drinks, a dinner out…" style="width:100%;max-width:320px;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:100px;padding:11px 16px;font-size:13px;font-family:inherit;color:#202021;background:#FAF8F5;outline:none;margin:0 auto 14px;display:block" onkeydown="if(event.key==='Enter')window.__wkDressEvening()">`}
               <button onclick="window.__wkDressEvening()" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✨ Dress the evening →</button>
             </div>`;
           return;
@@ -7185,9 +7211,51 @@ body>*:not(#tv-result-page){display:none !important}
         // s is null for a deliberately free day — the console renders its
         // rest state instead of a look.
         if (!slots.length) return { data, d, slots, s: null };
-        if (_tvActiveOcc >= slots.length) _tvActiveOcc = 0;
-        return { data, d, slots, s: slots[_tvActiveOcc] };
+        // Every dressed day carries the Day/Evening pair; the evening slot
+        // may simply not exist yet ("left free") — eveFree tells the
+        // console to render the invitation, never to snap back to Day.
+        const eveS = slots.find(x => String(x.slot || '').toLowerCase() === 'evening') || null;
+        const dayS = slots.find(x => String(x.slot || '').toLowerCase() !== 'evening') || slots[0] || null;
+        if (_tvActiveOcc === 1) return { data, d, slots, s: eveS, eveFree: !eveS };
+        return { data, d, slots, s: dayS };
       }
+
+      // Dress a trip day's evening as an ADDITION: /api/travel/day runs with
+      // an evening-only brief and ONLY its Evening slot is taken — the
+      // existing Day slot is never replaced.
+      window.__tvDressEvening = async function(activity) {
+        const data = window.__lastTvData;
+        const di = _tvActiveDay;
+        const d = data && data.days[di];
+        if (!d || d.rest) return;
+        const typed = (typeof activity === 'string' && activity.trim())
+          || ((document.getElementById('tv-eve-act') || {}).value || '').trim();
+        if (!typed) { const el = document.getElementById('tv-eve-act'); if (el) el.focus(); return; }
+        const host = document.getElementById('tv-rackwrap');
+        if (host) host.style.opacity = '0.5';
+        try {
+          const dayPlanTxt = d.user_activity || ((d.day_label || '').split('·')[1] || '').trim() || 'the day as planned';
+          const out = await _tvDayRequest(di, 'The day itself stays EXACTLY as planned (' + dayPlanTxt + ') — do not restyle it. Dress ONLY the EVENING: ' + typed);
+          const outSlots = Array.isArray(out.slots) ? out.slots : [];
+          const eveSlot = outSlots.find(s => String(s.slot || '').toLowerCase() === 'evening') || outSlots[1] || outSlots[0];
+          if (!eveSlot) throw new Error('no evening slot returned');
+          if (out.new_item) data.capsule.push({ ...out.new_item, wardrobe_match: null });
+          eveSlot.slot = 'Evening';
+          const k = (d.slots || []).findIndex(s => String(s.slot || '').toLowerCase() === 'evening');
+          if (k === -1) d.slots.push(eveSlot); else d.slots[k] = eveSlot;
+          if (!d.user_activity) d.user_activity = dayPlanTxt === 'the day as planned' ? undefined : d.user_activity;
+          _tvActiveOcc = 1;
+          _tvDayRerender();
+          _rbTrack('day_planned', { source_type: 'travel', day_index: di });
+          _waShowToast('The evening gets its own look — the day is untouched');
+        } catch (e) {
+          console.error('[Robes] /api/travel/day (evening) error:', e.message);
+          _waShowToast('Robes couldn’t dress that evening — please try again.');
+        } finally {
+          const h = document.getElementById('tv-rackwrap');
+          if (h) h.style.opacity = '';
+        }
+      };
 
       window.__tvSelectDay = function(di) {
         _tvActiveDay = di;
@@ -7242,6 +7310,38 @@ body>*:not(#tv-result-page){display:none !important}
         const palette = (Array.isArray(data.palette) ? data.palette : []).filter(hexOk).slice(0, 3);
         const dayName = ((d.day_label || 'Day ' + (_tvActiveDay + 1)).split('·')[0] || '').trim();
 
+        // Evening selected but left free (the default) — the invitation to
+        // ADD an evening look; the Day slot stays exactly as dressed either
+        // way. Mirrors the weekly console's evening-empty state.
+        if (!s && st.eveFree) {
+          const occPair = ['Day', 'Evening · free'].map((lab, oi) =>
+            `<button class="${oi === 1 ? 'on' : ''}" onclick="window.__tvSetOcc(${oi})">${lab}</button>`
+          ).join('');
+          panel.innerHTML = `
+            <div class="tvm-panel">
+              <div class="tvm-lhead">
+                <span class="lab">The look · ${_waEsc(dayName)}</span>
+                <span class="robes">Robes</span>
+              </div>
+              <div class="tvm-occ tv-noprint">${occPair}</div>
+              <div class="tvm-quote">“The evening is a blank page — the day is already dressed.”</div>
+              <p style="font-size:12.5px;line-height:1.6;color:var(--ink-faint);margin:0">Tell Robes the evening's plan and it gets its own look from the case — the day's outfit stays exactly as it is.</p>
+            </div>`;
+          rackWrap.innerHTML = `
+            <div class="tvm-rackhead">
+              <div style="min-width:0">
+                <span class="ey">The rack · ${_waEsc(dayName)} evening</span>
+                <h2>Left free.</h2>
+              </div>
+            </div>
+            <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:36px 24px;text-align:center">
+              <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:14px">Add a plan and the evening gets its own look.</div>
+              <input id="tv-eve-act" placeholder="Date night, drinks, a dinner out…" style="width:100%;max-width:320px;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:100px;padding:11px 16px;font-size:13px;font-family:inherit;color:var(--ink);background:#FAF8F5;outline:none;margin:0 auto 14px;display:block" onkeydown="if(event.key==='Enter')window.__tvDressEvening()">
+              <button class="tvm-hbtn tv-noprint" style="background:var(--ink);color:#fff;border-color:var(--ink)" onclick="window.__tvDressEvening()">✨ Dress the evening →</button>
+            </div>`;
+          return;
+        }
+
         // A deliberately free day — no look to read, just the rest state
         // and the door back in (✎ dresses it via the reactive restyle).
         if (!s) {
@@ -7268,8 +7368,10 @@ body>*:not(#tv-result-page){display:none !important}
         }
         const entries = (s.formula || []).map(f => ({ f, it: data.capsule[f.item_index], ci: f.item_index })).filter(x => x.it);
 
-        const occHtml = slots.map((sl, oi) =>
-          `<button class="${oi === _tvActiveOcc ? 'on' : ''}" onclick="window.__tvSetOcc(${oi})">${_waEsc(sl.slot || (oi === 0 ? 'Day' : 'Evening'))}</button>`
+        // The pair is ALWAYS Day + Evening (evening "· free" until dressed)
+        const hasEve = slots.some(x => String(x.slot || '').toLowerCase() === 'evening');
+        const occHtml = ['Day', 'Evening' + (hasEve ? '' : ' · free')].map((lab, oi) =>
+          `<button class="${oi === _tvActiveOcc ? 'on' : ''}" onclick="window.__tvSetOcc(${oi})">${lab}</button>`
         ).join('');
 
         // No "The mood" hero tile here — the trip hero is static across days
@@ -11476,22 +11578,34 @@ body>*:not(#tv-result-page){display:none !important}
       }
 
       // ── restyle fast paths ─────────────────────────────────────────
+      // An evening ASK on a scoped day is an ADDITION, never a restyle —
+      // the day's look stays exactly as planned (Annie, 2026-07-24: "Add
+      // an evening look for a date night" on an office Thursday must add
+      // an evening moment, not re-dress the office day). Deliberately
+      // narrow: bare "dinner"/"drinks" still restyle the day — only an
+      // explicit evening framing routes to the addition.
+      function _ikEveningIntent(text) {
+        return /\b(add\s+an?\s+evening|evening\s+(look|outfit|plan)|for\s+the\s+evening|in\s+the\s+evening|this\s+evening|tonight|date\s*night|after\s*dark)\b/i.test(text);
+      }
       function _ikRestyleDay(text) {
         const date = _ikScope.date || _pdLocalISO();
         const rows = _pdCacheRead().filter(r => r.day_date === date);
         const m = _pdWinner(rows.filter(r => (r.slot || 'day') === 'day'));
         const item = m ? snLoad().find(x => String(x.id) === String(m.source_id)) : null;
+        const evening = _ikEveningIntent(text);
         if (!m || m.source_type === 'daily' || !item) {
-          window.__dlSubmit(text, { anchorDate: date });
+          window.__dlSubmit(text, { anchorDate: date, slot: evening ? 'evening' : undefined });
           return;
         }
-        // The day belongs to a plan: open it AT that day and run the
-        // single-day restyle with her words as the activity — the same
-        // surgical /api/weekly/day | /api/travel/day the artifacts use.
+        // The day belongs to a plan: open it AT that day, then either ADD
+        // the evening moment (evening ask) or run the single-day restyle
+        // with her words as the activity — the same surgical
+        // /api/weekly/day | /api/travel/day the artifacts use.
         window.__snOpenItem(item.id);
         if (m.source_type === 'weekly') {
           setTimeout(() => {
             if (window.__wkSelectDay) window.__wkSelectDay(m.day_index);
+            if (evening) { if (window.__wkDressEvening) window.__wkDressEvening(text); return; }
             if (window.__wkEditDay) window.__wkEditDay(m.day_index);
             setTimeout(() => {
               const inp = document.getElementById('wk-day-input');
@@ -11502,6 +11616,7 @@ body>*:not(#tv-result-page){display:none !important}
           setTimeout(() => {
             if (window.__tvSetTab) window.__tvSetTab('outfits');
             if (window.__tvSelectDay) window.__tvSelectDay(m.day_index);
+            if (evening) { if (window.__tvDressEvening) window.__tvDressEvening(text); return; }
             if (window.__tvEditDay) window.__tvEditDay(m.day_index);
             setTimeout(() => {
               const inp = document.getElementById('tv-day-input');
