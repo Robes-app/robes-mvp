@@ -11624,15 +11624,16 @@ body>*:not(#tv-result-page){display:none !important}
         })();
       })();
 
-      // ═══ The Diary prompt + unfurl (Stage 3 — Phases 1–2, behind the
+      // ═══ The Diary prompt + unfurl (Stage 3 — Phases 1–2, the
       // diary_prompt_intake flag) ═══════════════════════════════════════
-      // One field that generates, scopes and restyles. Flag OFF (default):
-      // everything below is inert and the concierge behaves exactly as
-      // before. Flag ON (?diary=on, persisted per device; ?diary=off
-      // reverts): _cbSubmit routes through _ikSubmit — deterministic scope
-      // fast-paths first (no model call), then the /api/intent classifier,
-      // then the unfurl intake that reads the request back before anything
-      // is committed. An abandoned intake writes nothing.
+      // One field that generates, scopes and restyles. Flag ON by default
+      // (2026-07-24): _cbSubmit routes through _ikSubmit — deterministic
+      // scope fast-paths first (no model call), then the /api/intent
+      // classifier, then the unfurl intake that reads the request back
+      // before anything is committed. An abandoned intake writes nothing.
+      // ?diary=off is the per-device kill switch (everything below goes
+      // inert and the concierge behaves exactly as before); ?diary=on
+      // clears it.
       // ═══ Track config (Stage 4 / handoff Phase 3) ═════════════════════
       // A week and a trip are the same object with different constraints —
       // one config object, three consumers (intake, artifact shell,
@@ -11698,7 +11699,10 @@ body>*:not(#tv-result-page){display:none !important}
       var _ikOpenedAt = 0;
 
       function _rbDiaryOn() {
-        try { return localStorage.getItem(_IK_FLAG_KEY) === 'on'; } catch (_) { return false; }
+        // Default ON for everyone (Annie, 2026-07-24 — the Diary is the
+        // product now). ?diary=off is the per-device kill switch,
+        // persisted; ?diary=on clears it.
+        try { return localStorage.getItem(_IK_FLAG_KEY) !== 'off'; } catch (_) { return true; }
       }
 
       var _IK_CSS = `
