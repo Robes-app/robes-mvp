@@ -4718,7 +4718,7 @@
       var _DC_RING_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 L11 7 L16 9 L11 11 L9 16 L7 11 L2 9 L7 7 Z"></path><path d="M18.5 14 L19.5 16.5 L22 17.5 L19.5 18.5 L18.5 21 L17.5 18.5 L15 17.5 L17.5 16.5 Z"></path></svg>';
 
       var _DC_CSS = `
-.rb-dc{position:relative;box-sizing:border-box;width:100%;height:100%;display:flex;flex-direction:column;padding:16px;border-radius:2px;min-height:176px;font-family:'Inter',-apple-system,sans-serif;background:#fff;color:var(--ink,#202021);border:1px solid #E7E0CF;transition:border-color .2s cubic-bezier(0.4,0,0.2,1),background .2s;text-align:left}
+.rb-dc{position:relative;box-sizing:border-box;width:100%;height:100%;display:flex;flex-direction:column;padding:16px;border-radius:2px;min-height:176px;font-family:'Inter',-apple-system,sans-serif;background:#fff;color:var(--ink,#202021);border:1px solid #E7E0CF;transition:border-color .2s cubic-bezier(0.4,0,0.2,1),background .2s;text-align:left;overflow:hidden}
 .rb-dc[onclick]{cursor:pointer}
 .rb-dc[onclick]:hover{border-color:rgba(32,32,33,0.42)}
 .rb-dc.dc-compact{padding:11px;min-height:150px}
@@ -4744,6 +4744,22 @@
 .rb-dc.dc-compact .dc-th i{width:16px;height:16px}
 .rb-dc .dc-th .ov{width:34px;height:34px;border-radius:2px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:400;opacity:.55;box-shadow:inset 0 0 0 1px rgba(32,32,33,0.14)}
 .rb-dc.dc-compact .dc-th .ov{width:16px;height:16px;font-size:8px}
+.rb-dc .dc-th .ov.m{display:none}
+.rb-dc .dc-evemark{display:none;position:absolute;top:6px;right:7px;font-size:9px;color:#8E7077}
+@media(max-width:767px){
+.rb-dc .dc-th i.t3{display:none}
+.rb-dc .dc-th .ov.d{display:none}
+.rb-dc .dc-th .ov.m{display:flex}
+}
+@media(max-width:1000px){.rb-mcells .rb-dc.dc-compact .dc-th{display:none}}
+@media(max-width:767px){
+.rb-mcells .rb-dc.dc-compact{min-height:0;aspect-ratio:1;padding:5px;border-radius:8px}
+.rb-mcells .rb-dc.dc-compact .dc-ey{font-size:13px;margin-bottom:0}
+.rb-mcells .rb-dc.dc-compact .dc-title{font-size:10px;line-height:1.25;margin-top:2px;min-height:0}
+.rb-mcells .rb-dc.dc-compact .dc-eve{display:none}
+.rb-mcells .rb-dc.dc-compact .dc-foot{display:none}
+.rb-mcells .rb-dc.dc-compact .dc-evemark{display:block}
+}
 .rb-dc .dc-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
 .rb-dc.dc-compact .dc-foot{margin-top:8px}
 .rb-dc .dc-status{font-weight:400;font-size:10px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;opacity:.45}
@@ -4959,17 +4975,30 @@
           if (d.evening) {
             const txt = typeof d.evening === 'string' ? 'Evening · ' + _dcTruncate(d.evening, compact ? 16 : 34) : 'Evening';
             inner += `<div class="dc-eve">${_waEsc(txt)}</div>`;
+            // Phone-scale calendar drops the text line — the ☾ mark keeps
+            // the two-moment signal legible (§6.3 at 48px cells)
+            if (compact) inner += `<span class="dc-evemark" title="Evening planned">☾</span>`;
           }
           if (!compact && d.chip) inner += `<div class="dc-chip"><span><i></i>${_waEsc(d.chip)}</span></div>`;
           inner += `<div class="dc-sp"></div>`;
           const th = (d.pieces || []).slice(0, 3);
           if (th.length) {
-            const ov = Math.max(0, (d.pieceTotal != null ? d.pieceTotal : th.length) - th.length);
-            inner += `<div class="dc-th">` + th.map(u =>
-              (typeof u === 'string' && u.charAt(0) === '#')
-                ? `<i style="background-color:${_waEsc(u)}"></i>`
-                : `<i style="background-image:url('${_waEsc(u)}')"></i>`).join('')
-              + (ov > 0 ? `<span class="ov">+${ov}</span>` : '') + `</div>`;
+            // Mobile shows 2 thumbs (3 + the +N chip bled off narrow
+            // cards — Annie's live pass): the 3rd thumb hides ≤767px and
+            // a mobile-only +N re-counts against 2 shown.
+            const total = d.pieceTotal != null ? d.pieceTotal : th.length;
+            const ovD = Math.max(0, total - th.length);
+            const ovM = Math.max(0, total - Math.min(2, th.length));
+            const cell = u => (typeof u === 'string' && u.charAt(0) === '#')
+              ? `background-color:${_waEsc(u)}` : `background-image:url('${_waEsc(u)}')`;
+            let row = th.map((u, i) => `<i${i === 2 ? ' class="t3"' : ''} style="${cell(u)}"></i>`).join('');
+            if (ovM !== ovD) {
+              if (ovD > 0) row += `<span class="ov d">+${ovD}</span>`;
+              if (ovM > 0) row += `<span class="ov m">+${ovM}</span>`;
+            } else if (ovD > 0) {
+              row += `<span class="ov">+${ovD}</span>`;
+            }
+            inner += `<div class="dc-th">${row}</div>`;
           }
           if (d.modifier === 'worn') inner += `<div class="dc-foot"><span class="dc-status">Worn ✓</span></div>`;
           else if (d.modifier === 'packed') inner += `<div class="dc-foot"><span class="dc-status">Packed ✓</span></div>`;
@@ -6297,12 +6326,13 @@
             : _wkDayName(d).toUpperCase();
           const dc = _dcMoments(rows.day || null, rows.eve || null, { date, today, eyebrow: ey, blob: data });
           dc.chip = null;
+          // No ring on the strips (Annie, 2026-07-24 live pass): body-tap
+          // already lands the console on the day, so a second "Focus day"
+          // control read as a different action. The ring survives on the
+          // home rail, where it genuinely differs from the body (peek).
           return _dcCard(dc, {
             density: 'full',
             body: `window.__wkOpenDay(${di})`,
-            ring: `window._rbSetFocus('weekly',${di});event.stopPropagation()`,
-            ringTip: 'Focus the console on this day',
-            ringTipShort: 'Focus day',
             focus: di === _wkState.day,
           });
         }).join('');
@@ -7886,9 +7916,6 @@ body>*:not(#tv-result-page){display:none !important}
           return _dcCard(dc, {
             density: 'full',
             body: `window.__tvOpenDay(${di})`,
-            ring: `window._rbSetFocus('travel',${di});event.stopPropagation()`,
-            ringTip: 'Focus the console on this day',
-            ringTipShort: 'Focus day',
             focus: di === _tvActiveDay,
           });
         }).join('');
