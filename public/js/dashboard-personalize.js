@@ -5676,7 +5676,6 @@
           quoteHtml: summaryHtml || (quote ? '“' + _waEsc(quote) + '”' : ''),
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
-          verdictHtml: _rbcVerdict(owned, total, dlUnowned.map(x => x.it)),
           addChipLabel: _rbTrackCfg('daily').console.addVerb,
           rackLabel: `The rack · ${_waEsc(dlMomentLabel)}`,
           rackTitleHtml: data.occasion_label ? (() => {
@@ -6472,7 +6471,6 @@
           quoteHtml: conNote ? _waEsc(conNote) : '',
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
-          verdictHtml: _rbcVerdict(owned, items.length, wkUnowned),
           addChipLabel: _rbTrackCfg('weekly').console.addVerb,
           rackLabel: `The rack · ${_waEsc(dayLabel)}`,
           rackTitleHtml: conOccasion ? `<h2>${_waEsc(conOccasion)}${!/[.!?]$/.test(conOccasion) ? '.' : ''}</h2>` : '',
