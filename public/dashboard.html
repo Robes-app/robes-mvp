@@ -600,11 +600,6 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
   .wardrobe-panel{padding-bottom:110px}
   #sn-page > div{padding-bottom:130px !important}
   .nav-weather{display:none}
-  /* result-page action bars ride above the dock — the actions tier */
-  .rb-sfoot{bottom:86px !important}
-  #dl-result-page .dlm-payoff,#tv-result-page .tvm-payoff{bottom:86px !important}
-  /* Share moved to the header on mobile — footer copy retires */
-  .rb-share-foot{display:none !important}
 }
 /* Tablet band: keep the ambient pill but condense to place · temp when
    the bar crowds (drop the day + its dot) */
@@ -938,24 +933,6 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
 .mb-btn-primary{background:var(--ink);border-color:var(--ink);color:#fff}
 .mb-btn-primary:hover{opacity:.85;color:#fff;border-color:var(--ink)}
 
-/* ── shared sticky footer (result surfaces: moodboard / key piece / …) ── */
-.rb-sfoot{position:sticky;bottom:0;z-index:6;background:rgba(250,248,245,0.94);backdrop-filter:blur(16px);border-top:0.5px solid var(--rule-mid)}
-.rb-sfoot-in{max-width:var(--shell);margin:0 auto;padding:12px var(--s6);display:flex;align-items:center;justify-content:space-between;gap:20px;box-sizing:border-box}
-.rb-sfoot-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
-.rb-sfoot-meta .t{font-family:var(--font-serif);font-style:italic;font-size:18px;font-weight:400;line-height:1.1;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rb-sfoot-meta .s{font-size:11px;color:var(--ink-faint);letter-spacing:0.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rb-sfoot-btns{display:flex;gap:9px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
-.rb-sfbtn{display:inline-flex;align-items:center;gap:7px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:11px 18px;font-size:12px;background:#fff;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
-.rb-sfbtn:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
-.rb-sfbtn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
-.rb-sfbtn.primary:hover{opacity:.85;color:#fff}
-.rb-sfbtn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-@media(max-width:900px){
-  .rb-sfoot-in{padding:10px 16px;gap:12px}
-  .rb-sfoot-meta{display:none}
-  .rb-sfoot-btns{width:100%;justify-content:space-between}
-  .rb-sfbtn{flex:1;justify-content:center;padding:12px 6px}
-}
 
 /* right rail */
 .mb-rail{display:flex;flex-direction:column;background:#fff}
@@ -1158,17 +1135,6 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
 .step-swaps{display:flex;align-items:center;gap:8px;margin-top:18px;flex-wrap:wrap}
 .step-swaps-label{font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint)}
 
-/* sticky action bar */
-.look-bar{position:sticky;bottom:0;z-index:5;background:rgba(250,248,245,0.92);backdrop-filter:blur(12px);border-top:0.5px solid var(--rule)}
-.look-bar-inner{max-width:760px;margin:0 auto;padding:13px 32px;display:flex;align-items:center;justify-content:space-between;gap:16px}
-.look-bar-meta{font-family:var(--font-serif);font-style:italic;font-size:14px;color:var(--ink-soft);white-space:nowrap}
-.look-bar-btns{display:flex;gap:8px}
-.lb-btn{display:inline-flex;align-items:center;gap:7px;padding:10px 15px;border-radius:100px;font-size:12px;font-weight:500;white-space:nowrap;transition:all .15s}
-.lb-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.lb-ghost{border:0.5px solid var(--rule-mid);background:#fff;color:var(--ink-soft)}
-.lb-ghost:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
-.lb-primary{background:var(--ink);color:var(--cream)}
-.lb-primary:hover{opacity:.86}
 
 /* ─── WARDROBE GRID ────────────────────────────────────────────────── */
 .wardrobe-panel{display:none;flex-direction:column;min-height:calc(100vh - var(--nav-h));
@@ -1348,9 +1314,6 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
   .step{grid-template-columns:1fr;gap:18px;padding:28px 0}
   .step-imgs{max-width:300px}
   .step-title{font-size:27px}
-  .look-bar-inner{padding:12px 22px;flex-wrap:wrap;gap:10px}
-  .look-bar-meta{order:2}
-  .look-bar-btns{order:1;width:100%;flex-wrap:wrap}
 }
 @media(max-width:620px){
   /* Mosaic on mobile: hero + editorial text each span the full width so the
@@ -2291,20 +2254,6 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
           <div class="mb-rail-pieces" id="mb-rail-pieces"></div>
         </aside>
       </div>
-      <div class="rb-sfoot">
-        <div class="rb-sfoot-in">
-          <div class="rb-sfoot-meta">
-            <span class="t" id="mb-sfoot-title">Moodboard</span>
-            <span class="s" id="mb-sfoot-sub"></span>
-          </div>
-          <div class="rb-sfoot-btns">
-            <button class="rb-sfbtn primary" onclick="App.packFromBoard()"><svg viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3.5S18 3 16.5 4.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"></path></svg>Pack a trip</button>
-            <button class="rb-sfbtn" onclick="App.openShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg>Share my edit</button>
-            <button class="rb-sfbtn" onclick="App.openRename()"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Rename</button>
-            <button class="rb-sfbtn" onclick="App.chooseInspire()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="5 12 12 5 19 12"></polyline></svg>Create a new moodboard</button>
-          </div>
-        </div>
-      </div>
     </section>
 
     <!-- STYLE A PIECE · RESULT (worn three ways) -->
@@ -2346,16 +2295,6 @@ worn three ways</div>
           </div>
         </header>
         <div class="look-board" id="look-board"></div>
-      </div>
-      <div class="look-bar">
-        <div class="look-bar-inner">
-          <div class="look-bar-meta"><span id="gd-piececount">6 pieces</span> · all yours</div>
-          <div class="look-bar-btns">
-            <button class="lb-btn lb-ghost" onclick="App.openShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg>Share</button>
-            <button class="lb-btn lb-ghost" onclick="App.chooseInspire()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="5 12 12 5 19 12"></polyline></svg>New</button>
-            <button class="lb-btn lb-primary" onclick="App.toast('Look saved — laid out for today')"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>Wear this today</button>
-          </div>
-        </div>
       </div>
     </section>
 

@@ -3719,18 +3719,6 @@
               </div>
               <div id="kp-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
             </div>
-          </div>
-          <div class="rb-sfoot">
-            <div class="rb-sfoot-in">
-              <div class="rb-sfoot-meta">
-                <span class="t">${_waEsc(pieceName || (kpDaily ? 'Today’s looks' : 'Your piece'))}</span>
-                <span class="s">${kpDaily ? 'Daily look' : 'Styled three ways'}</span>
-              </div>
-              <div class="rb-sfoot-btns">
-                <button class="rb-sfbtn rb-share-foot" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg>Share</button>
-                <button class="rb-sfbtn primary" onclick="window.__kpGoBack();setTimeout(()=>{KP&&KP.openKeyPiece&&KP.openKeyPiece()},200)">Style another piece</button>
-              </div>
-            </div>
           </div>`; } catch(e) {
           console.error('[Robes] kpResultPage render error:', e);
           kpResultPage.innerHTML = `<div style="padding:80px 24px;text-align:center;font-family:${sans};color:#6E6A64">Something went wrong rendering your looks — please try again.</div>`;
@@ -5542,25 +5530,10 @@
 #dl-result-page .dlm-act.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 #dl-result-page .dlm-act.shop{background:var(--ink);color:#fff;border-color:var(--ink)}
 #dl-result-page .dlm-act.shop:hover{opacity:.85;color:#fff}
-#dl-result-page .dlm-payoff{position:sticky;bottom:0;z-index:5;background:rgba(250,248,245,0.94);backdrop-filter:blur(16px);border-top:0.5px solid var(--rule-mid)}
-#dl-result-page .dlm-payoff-in{max-width:var(--shell,1440px);margin:0 auto;padding:13px var(--s6,36px);display:flex;align-items:center;justify-content:space-between;gap:22px;box-sizing:border-box}
-#dl-result-page .dlm-pmeta{display:flex;flex-direction:column;gap:3px;min-width:0}
-#dl-result-page .dlm-pmeta .t{font-family:var(--font-serif);font-size:18px;font-weight:400;font-style:italic;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
-#dl-result-page .dlm-pmeta .s{font-size:11px;letter-spacing:.02em;color:var(--ink-faint)}
-#dl-result-page .dlm-pmeta .s b{color:#4A7C59;font-weight:500}
-#dl-result-page .dlm-pbtns{display:flex;gap:9px;flex-shrink:0}
-#dl-result-page .dlm-pbtn{display:inline-flex;align-items:center;gap:7px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:11px 18px;font-size:12px;background:#fff;color:var(--ink-soft);cursor:pointer;transition:all .15s}
-#dl-result-page .dlm-pbtn:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
-#dl-result-page .dlm-pbtn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
-#dl-result-page .dlm-pbtn.primary:hover{opacity:.85;color:#fff}
 @media(max-width:900px){
 #dl-result-page .dlm-console{grid-template-columns:1fr;gap:26px}
 #dl-result-page .dlm-look{position:static}
 #dl-result-page .dlm-wrap{padding:28px 20px 20px}
-#dl-result-page .dlm-payoff-in{padding:11px 16px;gap:12px}
-#dl-result-page .dlm-pmeta{display:none}
-#dl-result-page .dlm-pbtns{width:100%;justify-content:space-between}
-#dl-result-page .dlm-pbtn{flex:1;justify-content:center;padding:12px 8px}
 }
 @media(max-width:520px){
 #dl-result-page .dlm-row{grid-template-columns:88px 1fr;gap:12px}
@@ -5745,20 +5718,6 @@
             </div>
 
             ${_rbFeedbackBlock('dl', { title: 'How is today’s look?', up: '👍 I’d wear it', down: 'Not quite' })}
-          </div>
-
-          <div class="dlm-payoff">
-            <div class="dlm-payoff-in">
-              <div class="dlm-pmeta">
-                <span class="t">${_waEsc(headline)}</span>
-                <span class="s"><b>${owned === total && total > 0 ? 'All yours.' : 'It works.'}</b> · ${_waEsc(provenance)}</span>
-              </div>
-              <div class="dlm-pbtns">
-                <button class="dlm-pbtn rb-share-foot" onclick="window.__rbShare&&window.__rbShare()"><span>Share</span></button>
-                <button class="dlm-pbtn" onclick="window.__dlWear()"><span>Wear today</span></button>
-                <button class="dlm-pbtn primary" onclick="window.__dlDressAgain()">${restyleSvg}<span>Dress me again</span></button>
-              </div>
-            </div>
           </div>`; } catch (e) {
           console.error('[Robes] dlResultPage render error:', e);
           dlResultPage.innerHTML = `<div style="padding:80px 24px;text-align:center;font-family:${sans};color:#6E6A64">Something went wrong rendering today’s look — please try again.</div>`;
@@ -6896,19 +6855,6 @@
             <div id="wk-day"></div>
             ${_rbFeedbackBlock('wk', { title: 'How does this week feel?', up: '👍 I’d wear it', down: 'Not quite' })}
             <div style="height:36px"></div>
-          </div>
-          <div class="rb-sfoot">
-            <div class="rb-sfoot-in">
-              <div class="rb-sfoot-meta">
-                <span class="t">${_waEsc(data.headline || 'Your week')}</span>
-                <span class="s">${data.days.length} days · ${total} pieces${owned ? ' · ' + owned + ' from your wardrobe' : ''}</span>
-              </div>
-              <div class="rb-sfoot-btns">
-                <button class="rb-sfbtn rb-share-foot" onclick="window.__rbShare&&window.__rbShare()">Share</button>
-                <button class="rb-sfbtn" onclick="window.__wkWear()">Wear today</button>
-                <button class="rb-sfbtn primary" onclick="window.__wkPlanAgain()">Plan a new week</button>
-              </div>
-            </div>
           </div>`;
 
         wkResultPage.style.display = 'block';
@@ -7718,18 +7664,6 @@
 #tv-result-page .tvm-packbox .box{width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(32,32,33,0.3);background:#fff;display:inline-flex;align-items:center;justify-content:center;color:#fff;box-sizing:border-box}
 #tv-result-page .tvm-packbox.on .box{border-color:var(--ink);background:var(--ink)}
 #tv-result-page .tvm-packbox .box svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
-#tv-result-page .tvm-payoff{position:sticky;bottom:0;z-index:5;background:rgba(250,248,245,0.94);backdrop-filter:blur(16px);border-top:0.5px solid var(--rule-mid)}
-#tv-result-page .tvm-payoff-in{max-width:var(--shell,1440px);margin:0 auto;padding:13px var(--s6,36px);display:flex;align-items:center;justify-content:space-between;gap:22px;box-sizing:border-box}
-#tv-result-page .tvm-pmeta{display:flex;flex-direction:column;gap:3px;min-width:0}
-#tv-result-page .tvm-pmeta .t{font-family:var(--font-serif);font-size:18px;font-weight:400;font-style:italic;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
-#tv-result-page .tvm-pmeta .s{font-size:11px;letter-spacing:.02em;color:var(--ink-faint)}
-#tv-result-page .tvm-pmeta .s b{color:var(--sage);font-weight:500}
-#tv-result-page .tvm-pbtns{display:flex;gap:9px;flex-shrink:0}
-#tv-result-page .tvm-pbtn{display:inline-flex;align-items:center;gap:7px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:11px 18px;font-size:12px;background:#fff;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
-#tv-result-page .tvm-pbtn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-#tv-result-page .tvm-pbtn:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
-#tv-result-page .tvm-pbtn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
-#tv-result-page .tvm-pbtn.primary:hover{opacity:.85;color:#fff}
 @media(max-width:900px){
 #tv-result-page .tvm-console{grid-template-columns:1fr;gap:26px}
 #tv-result-page .tvm-look{position:static}
@@ -7737,10 +7671,6 @@
 #tv-result-page .tvm-mast{flex-direction:column;align-items:flex-start;gap:16px}
 #tv-result-page .tvm-progress{align-items:flex-start}
 #tv-result-page .tvm-week{display:grid;grid-auto-flow:column;grid-auto-columns:150px;grid-template-columns:none;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory}
-#tv-result-page .tvm-payoff-in{padding:11px 16px;gap:12px}
-#tv-result-page .tvm-pmeta{display:none}
-#tv-result-page .tvm-pbtns{width:100%;justify-content:space-between}
-#tv-result-page .tvm-pbtn{flex:1;justify-content:center;padding:12px 8px}
 }
 @media(max-width:520px){
 #tv-result-page .tvm-row{grid-template-columns:84px 1fr;gap:12px}
@@ -8469,19 +8399,6 @@ body>*:not(#tv-result-page){display:none !important}
             </div>
 
             <div class="tv-noprint">${_rbFeedbackBlock('tv', { title: 'How is this edit?', up: '👍 I’d pack it', down: 'Not quite' })}</div>
-          </div>
-
-          <div class="tvm-payoff tv-noprint">
-            <div class="tvm-payoff-in">
-              <div class="tvm-pmeta">
-                <span class="t">The ${_waEsc((wx && wx.city) || data.destination || 'travel')} capsule</span>
-                <span class="s"><b id="tv-pm-count">0 of ${total}</b> packed · ${total} pieces${deferred ? ' · outfits to plan' : ', ' + lookCount + ' looks'}</span>
-              </div>
-              <div class="tvm-pbtns">
-                <button class="tvm-pbtn rb-share-foot" onclick="window.__rbShare&&window.__rbShare()"><svg viewBox="0 0 24 24"><polygon points="3 3 21 12 3 21 3 3"></polygon><line x1="3" y1="12" x2="21" y2="12"></line></svg><span>Share</span></button>
-                <button class="tvm-pbtn primary" onclick="window.__tvGoBack();setTimeout(()=>{window.__tvOpen()},200)"><span>Pack a new trip</span></button>
-              </div>
-            </div>
           </div>`; } catch (e) {
           console.error('[Robes] tvResultPage render error:', e);
           tvResultPage.innerHTML = `<div style="padding:80px 24px;text-align:center;font-family:${sans};color:#6E6A64">Something went wrong rendering this trip — please try again.</div>`;
@@ -9164,7 +9081,6 @@ body>*:not(#tv-result-page){display:none !important}
           cur = (saved && saved.title) || (window.__lastKpData && window.__lastKpData.headline) || '';
           applyLive = (v) => {
             const h = document.getElementById('kp-headline'); if (h) h.textContent = v;
-            const m = document.querySelector('#kp-result-page .rb-sfoot-meta .t'); if (m) m.textContent = v;
             if (window.__lastKpData) window.__lastKpData.headline = v;
           };
         } else if (kind === 'dl') {
@@ -9172,7 +9088,6 @@ body>*:not(#tv-result-page){display:none !important}
           cur = (window.__lastDlData && window.__lastDlData.headline) || '';
           applyLive = (v) => {
             const h = document.querySelector('#dl-result-page .dlm-title'); if (h) h.textContent = v;
-            const m = document.querySelector('#dl-result-page .dlm-payoff .dlm-pmeta .t'); if (m) m.textContent = v;
             if (window.__lastDlData) window.__lastDlData.headline = v;
           };
         } else if (kind === 'wk') {
@@ -9180,7 +9095,6 @@ body>*:not(#tv-result-page){display:none !important}
           cur = (window.__lastWkData && window.__lastWkData.headline) || '';
           applyLive = (v) => {
             const h = document.getElementById('wk-headline'); if (h) h.textContent = v;
-            const m = document.querySelector('#wk-result-page .rb-sfoot-meta .t'); if (m) m.textContent = v;
             if (window.__lastWkData) window.__lastWkData.headline = v;
           };
         } else return;
@@ -10893,12 +10807,6 @@ body>*:not(#tv-result-page){display:none !important}
           : `${the_look.length} pieces`;
         if (railSubEl) railSubEl.textContent = railSubText;
 
-        // Sticky-footer meta mirrors the board title + piece provenance
-        const sfTitle = document.getElementById('mb-sfoot-title');
-        const sfSub = document.getElementById('mb-sfoot-sub');
-        if (sfTitle) sfTitle.textContent = String(title || 'Moodboard').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-        if (sfSub) sfSub.textContent = railSubText;
-
         // Breadcrumb: ROBES / {title} when opened from dashboard,
         // or ROBES / Your Moodboards / {title} when opened from the full list
         if (window._mbOpenedFromList) {
@@ -10977,14 +10885,7 @@ body>*:not(#tv-result-page){display:none !important}
             <button onclick="window.__mbFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit">Send feedback</button>
           </div>
           <div id="mb-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>`;
-        // Insert before the sticky footer (not appendChild) — the footer is
-        // static markup inside #moodboard-panel and must stay the panel's
-        // last child so it reads as a sticky bottom bar, matching the
-        // key-piece/daily-look/travel result pages where the feedback block
-        // sits above the footer, not below it.
-        const stickyFoot = panel.querySelector('.rb-sfoot');
-        if (stickyFoot) panel.insertBefore(fb, stickyFoot);
-        else panel.appendChild(fb);
+        panel.appendChild(fb);
         let mbFbRating = null;
         window.__mbFbRate = function(val) {
           mbFbRating = val;
