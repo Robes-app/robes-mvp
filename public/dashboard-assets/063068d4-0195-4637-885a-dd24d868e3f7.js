@@ -773,7 +773,7 @@ const App = (function () {
     // THE HEADER (the context) — address her directly, name the destination + vibe
     $('gd-hero-eyebrow').textContent = gdCtx ? gdCtx.eyebrow : `${fw.brief.weather} · Dublin · ${fw.brief.time}`;
     $('gd-hero-title').innerHTML = `From your wardrobe, ${first}.<br><em>${LOOK_VIBES[occasion] || LOOK_VIBES['Garden party']}</em>`;
-    $('gd-piececount').textContent = `${outfit.length} pieces`;
+    { const _pc = $('gd-piececount'); if (_pc) _pc.textContent = `${outfit.length} pieces`; }
 
     // the three-colour palette — visual only, no prose
     $('look-palette').innerHTML = [fw.colour.dominant, fw.colour.supporting, fw.colour.accent]
