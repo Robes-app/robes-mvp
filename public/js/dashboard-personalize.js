@@ -3061,9 +3061,8 @@
       snPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:var(--nav-h,64px);z-index:45;background:#FAF8F5;overflow-y:auto';
       snPage.innerHTML = `
         <div style="padding:32px var(--s6,24px) 24px;max-width:var(--shell,1440px);margin:0 auto;box-sizing:border-box">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 16px">
+          <div id="sn-headrow" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 16px">
             <p style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0">Lookbook</p>
-            <span id="sn-count" style="font-size:11px;color:#A89880;white-space:nowrap"></span>
           </div>
           <div id="sn-tabs" style="display:flex;gap:22px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-bottom:0.5px solid rgba(32,32,33,0.12);margin:0 0 24px"></div>
           <div id="sn-grid" style="display:grid;gap:20px"></div>
@@ -3180,8 +3179,6 @@
         const grid = document.getElementById('sn-grid');
         const empty = document.getElementById('sn-empty');
         if (!grid) return;
-        const snCount = document.getElementById('sn-count');
-        if (snCount) snCount.textContent = items.length ? items.length + ' kept' : '';
         const visible = _snFilter === 'all' ? items : items.filter(i => i.type === _snFilter);
         const emptyT = document.getElementById('sn-empty-t');
         const emptyS = document.getElementById('sn-empty-s');
@@ -9895,7 +9892,7 @@ body>*:not(#tv-result-page){display:none !important}
         el.innerHTML = `
           <div class="rb-sec-head">
             <span class="rb-sec-ey">Lookbook</span>
-            <button class="rb-sec-link" onclick="window.__snOpen()">${snLoad().length} kept</button>
+            <button class="rb-sec-link" onclick="window.__snOpen()">View all</button>
           </div>
           <div class="rb-sn-grid">
             ${items.map(item => `
@@ -11916,8 +11913,8 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           document.head.appendChild(st);
         }
 
-        // Mount: the toggle beside #sn-count, the calendar after #sn-tabs
-        const headRow = snPage.querySelector('#sn-count') && snPage.querySelector('#sn-count').parentNode;
+        // Mount: the toggle in the #sn-headrow, the calendar after #sn-tabs
+        const headRow = snPage.querySelector('#sn-headrow');
         if (!headRow) return;
         const seg = document.createElement('div');
         seg.id = 'sn-viewseg';
