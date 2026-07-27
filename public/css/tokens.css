@@ -1,0 +1,32 @@
+/* ══════════════════════════════════════════════════════════════════
+   ROBES — Design tokens · THE single source of truth
+   Every consumer page links this file first; page styles may alias
+   these names (e.g. --bg: var(--cream)) but must never redeclare
+   the values. Change a colour here, it changes everywhere.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  /* Neutrals */
+  --cream:#FAF8F5;
+  --cream-100:#F5F0E8; --cream-200:#EFE9DC; --cream-300:#E7E0CF; --cream-400:#D8CFC0;
+  --ink:#202021; --ink-soft:#6E6A64; --ink-faint:#7E6F50;
+  --rule:rgba(32,32,33,0.075); --rule-mid:rgba(32,32,33,0.12);
+
+  /* Accents */
+  --mauve:#D4C8C4; --rose:#8E7077; --sage:#7E7C5A;
+  --rose-bg:rgba(212,200,196,0.26); --rose-mid:rgba(212,200,196,0.6);
+  --sage-bg:rgba(227,225,204,0.40); --sage-mid:rgba(227,225,204,0.72);
+
+  /* Type */
+  --font-serif:'Cormorant',Georgia,serif;
+  --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+
+  /* Structure */
+  --rad-sm:8px; --rad:12px; --rad-card:14px; --rad-lg:18px;
+  --nav-h:64px;
+  --shell:1440px;
+  --ease:cubic-bezier(0.4,0,0.2,1);
+  --s6:80px;
+}
+@media(max-width:1199px){:root{--s6:64px}}
+@media(max-width:1023px){:root{--s6:40px}}
+@media(max-width:767px){:root{--s6:24px}}

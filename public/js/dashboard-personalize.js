@@ -9484,64 +9484,48 @@ body>*:not(#tv-result-page){display:none !important}
         const s = document.createElement('style');
         s.id = 'rb-v2-styles';
         s.textContent = `
-          /* Design system tokens (matching uploaded Claude Design file) */
-          :root {
-            --rb-mauve: #C4B0B4;
-            --rb-sage-mid: #B4C2B0;
-            --rb-rose-mid: #C4AEAD;
-            --rb-rose-bg: #EEE5E4;
-            --rb-sage-bg: #E4EDE6;
-            --rb-cream: #FAF8F5;
-            --rb-cream-100: #F2EDE8;
-            --rb-rule: rgba(32,32,33,0.1);
-            --rb-rule-mid: rgba(32,32,33,0.14);
-            --rb-ink: #202021;
-            --rb-ink-soft: #6E6A64;
-            --rb-rose-ey: #7E6F50;
-            --rb-sage-ey: #616F5C;
-            --rb-rad-lg: 14px;
-          }
+          /* Tokens come from /css/tokens.css — do not redeclare here. */
 
           .rb-section { margin-bottom: 52px; }
           .rb-sec-head { display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px; }
-          .rb-sec-ey { font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--rb-rose-ey); }
-          .rb-sec-meta { font-size:11px;color:var(--rb-rose-ey);letter-spacing:.03em; }
-          .rb-sec-link { background:none;border:none;cursor:pointer;font-size:11px;color:var(--rb-rose-ey);letter-spacing:.04em;padding:0;text-decoration:underline;text-underline-offset:3px; }
-          .rb-sec-h { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:clamp(22px,2.6vw,28px);color:var(--rb-ink);line-height:1.15;margin:0 0 16px; }
+          .rb-sec-ey { font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint); }
+          .rb-sec-meta { font-size:11px;color:var(--ink-faint);letter-spacing:.03em; }
+          .rb-sec-link { background:none;border:none;cursor:pointer;font-size:11px;color:var(--ink-faint);letter-spacing:.04em;padding:0;text-decoration:underline;text-underline-offset:3px; }
+          .rb-sec-h { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:clamp(22px,2.6vw,28px);color:var(--ink);line-height:1.15;margin:0 0 16px; }
           .rb-sec-h em { font-style:italic; }
 
           /* ES card — shared art+body layout (matches .es-card in uploaded design) */
           .rb-es-card { display:flex;width:100%;text-align:left;cursor:pointer;overflow:hidden;
-            border:0.5px solid var(--rb-rule-mid);border-radius:var(--rb-rad-lg);background:#fff;
+            border:0.5px solid var(--rule-mid);border-radius:var(--rad-card);background:#fff;
             transition:border-color .22s,box-shadow .22s; }
           .rb-es-card:hover { border-color:rgba(32,32,33,0.2);box-shadow:0 22px 54px -30px rgba(32,32,33,0.24); }
           .rb-es-art { flex:1 1 46%;min-width:0;min-height:248px;padding:20px;display:grid;gap:10px;
-            background:linear-gradient(150deg,var(--rb-cream-100),var(--rb-cream)); }
+            background:linear-gradient(150deg,var(--cream-100),var(--cream)); }
 
           /* Moodboard art: 2-col grid, hero spans 2 rows */
           .rb-es-art-board { grid-template-columns:1.35fr 1fr;grid-template-rows:1fr 1fr; }
-          .rb-es-art-board .rb-esb { border-radius:9px;border:0.5px solid var(--rb-rule); }
-          .rb-es-art-board .rb-esb-hero { grid-row:1 / span 2;background:var(--rb-mauve); }
-          .rb-es-art-board .rb-esb-2 { background:var(--rb-sage-mid); }
-          .rb-es-art-board .rb-esb-3 { background:var(--rb-rose-mid); }
+          .rb-es-art-board .rb-esb { border-radius:9px;border:0.5px solid var(--rule); }
+          .rb-es-art-board .rb-esb-hero { grid-row:1 / span 2;background:var(--mauve); }
+          .rb-es-art-board .rb-esb-2 { background:var(--sage-mid); }
+          .rb-es-art-board .rb-esb-3 { background:var(--rose-mid); }
 
           /* Style-notes art: 3 staggered frames */
           .rb-es-art-ways { grid-template-columns:repeat(3,1fr);align-items:start; }
-          .rb-es-frame { border-radius:9px;border:0.5px solid var(--rb-rule);aspect-ratio:3/4;padding:13px; }
-          .rb-es-frame.f1 { background:var(--rb-rose-bg); }
-          .rb-es-frame.f2 { background:var(--rb-sage-bg);margin-top:18px; }
-          .rb-es-frame.f3 { background:var(--rb-rose-mid);margin-top:36px; }
+          .rb-es-frame { border-radius:9px;border:0.5px solid var(--rule);aspect-ratio:3/4;padding:13px; }
+          .rb-es-frame.f1 { background:var(--rose-bg); }
+          .rb-es-frame.f2 { background:var(--sage-bg);margin-top:18px; }
+          .rb-es-frame.f3 { background:var(--rose-mid);margin-top:36px; }
           .rb-es-frame-num { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:23px;line-height:1;color:rgba(32,32,33,0.46); }
 
           /* ES body (text panel) */
           .rb-es-body { flex:1 1 54%;min-width:0;padding:38px 42px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center; }
-          .rb-es-eyebrow { font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rb-rose-ey);margin-bottom:16px; }
-          .rb-es-eyebrow.sage { color:var(--rb-sage-ey); }
-          .rb-es-h { font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:33px;line-height:1.04;color:var(--rb-ink);margin:0; }
-          .rb-es-h em { font-style:italic;color:var(--rb-ink-soft); }
-          .rb-es-sub { font-size:13.5px;line-height:1.62;color:var(--rb-ink-soft);margin-top:14px;max-width:38ch; }
+          .rb-es-eyebrow { font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:16px; }
+          .rb-es-eyebrow.sage { color:#616F5C; }
+          .rb-es-h { font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:33px;line-height:1.04;color:var(--ink);margin:0; }
+          .rb-es-h em { font-style:italic;color:var(--ink-soft); }
+          .rb-es-sub { font-size:13.5px;line-height:1.62;color:var(--ink-soft);margin-top:14px;max-width:38ch; }
           .rb-es-cta { margin-top:26px;display:inline-flex;align-items:center;gap:9px;padding:12px 22px;
-            border-radius:100px;background:var(--rb-ink);color:var(--rb-cream);font-size:11px;font-weight:500;
+            border-radius:100px;background:var(--ink);color:var(--cream);font-size:11px;font-weight:500;
             letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer;
             transition:opacity .18s,transform .18s; }
           .rb-es-card:hover .rb-es-cta { opacity:.9;transform:translateY(-1px); }
@@ -9549,28 +9533,28 @@ body>*:not(#tv-result-page){display:none !important}
 
           /* Populated: moodboard 4-up grid (2×2) */
           .rb-mb-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
-          .rb-mb-card { cursor:pointer;border-radius:var(--rb-rad-lg);overflow:hidden;background:#fff;border:0.5px solid var(--rb-rule);transition:border-color .2s,box-shadow .2s; }
+          .rb-mb-card { cursor:pointer;border-radius:var(--rad-card);overflow:hidden;background:#fff;border:0.5px solid var(--rule);transition:border-color .2s,box-shadow .2s; }
           .rb-mb-card:hover { border-color:rgba(32,32,33,0.2);box-shadow:0 12px 32px -16px rgba(32,32,33,0.18); }
-          .rb-mb-imgs { display:grid;grid-template-columns:1.35fr 1fr;grid-template-rows:1fr 1fr;gap:3px;min-height:200px;background:var(--rb-cream-100); }
+          .rb-mb-imgs { display:grid;grid-template-columns:1.35fr 1fr;grid-template-rows:1fr 1fr;gap:3px;min-height:200px;background:var(--cream-100); }
           .rb-mb-img-main { grid-row:1/3;width:100%;height:100%;object-fit:cover;display:block; }
-          .rb-mb-img-ph-main { grid-row:1/3;background:var(--rb-mauve); }
-          .rb-mb-img-ph-sm { background:var(--rb-sage-mid); }
-          .rb-mb-img-ph-sm:nth-child(3) { background:var(--rb-rose-mid); }
+          .rb-mb-img-ph-main { grid-row:1/3;background:var(--mauve); }
+          .rb-mb-img-ph-sm { background:var(--sage-mid); }
+          .rb-mb-img-ph-sm:nth-child(3) { background:var(--rose-mid); }
           .rb-mb-foot { padding:14px 16px 16px;position:relative; }
-          .rb-mb-foot-title { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:16px;color:var(--rb-ink);line-height:1.25;margin-bottom:3px; }
-          .rb-mb-foot-meta { font-size:10px;color:var(--rb-rose-ey);letter-spacing:.02em; }
-          .rb-mb-new { position:absolute;top:14px;right:16px;font-size:9px;font-weight:600;letter-spacing:.14em;color:var(--rb-rose-ey);text-transform:uppercase; }
+          .rb-mb-foot-title { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:16px;color:var(--ink);line-height:1.25;margin-bottom:3px; }
+          .rb-mb-foot-meta { font-size:10px;color:var(--ink-faint);letter-spacing:.02em; }
+          .rb-mb-new { position:absolute;top:14px;right:16px;font-size:9px;font-weight:600;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase; }
 
           /* Populated: style notes 4-up grid */
           .rb-sn-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:12px; }
-          .rb-sn-card { cursor:pointer;border-radius:10px;overflow:hidden;background:#fff;border:0.5px solid var(--rb-rule);transition:border-color .2s; }
+          .rb-sn-card { cursor:pointer;border-radius:10px;overflow:hidden;background:#fff;border:0.5px solid var(--rule);transition:border-color .2s; }
           .rb-sn-card:hover { border-color:rgba(32,32,33,0.2); }
           .rb-sn-img { width:100%;aspect-ratio:3/4;object-fit:cover;display:block; }
-          .rb-sn-img-ph { aspect-ratio:3/4;background:var(--rb-cream-100); }
+          .rb-sn-img-ph { aspect-ratio:3/4;background:var(--cream-100); }
           .rb-sn-body { padding:11px 13px 13px; }
-          .rb-sn-type { font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--rb-rose-ey);margin-bottom:4px; }
-          .rb-sn-title { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:15px;color:var(--rb-ink);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-          .rb-sn-meta { font-size:10px;color:var(--rb-rose-ey);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+          .rb-sn-type { font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px; }
+          .rb-sn-title { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:15px;color:var(--ink);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+          .rb-sn-meta { font-size:10px;color:var(--ink-faint);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
 
           /* Daily outfit lock — matches .lock-pill in uploaded design */
           .rb-lock-pill { display:inline-flex;align-items:center;gap:5px;padding:5px 10px;

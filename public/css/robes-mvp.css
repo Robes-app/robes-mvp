@@ -3,20 +3,17 @@
    Tokens drawn from the Robes Design System (colors_and_type.css)
    ══════════════════════════════════════════════════════════════════ */
 
+/* Canonical values come from /css/tokens.css (linked before this file).
+   This block only declares landing-specific ALIASES and deliberate
+   exceptions — never redeclare a canonical token's value here. */
 :root{
-  --bg:#FAF8F5;
-  --cream-100:#F5F0E8; --cream-200:#EFE9DC; --cream-300:#E7E0CF; --cream-400:#D8CFC0;
-  --ink:#202021; --ink-2:#2E2E2F;
-  --ink-soft:#6E665C; --ink-faint:#7E6F50;
-  --rule:#E7E0CF; --rule-mid:#D8CFC0;
-  --primary:#202021;
-  --rose:#8E7077; --sage:#7E7C5A;
-  --accent:#D4C8C4; --muted:#E8D5D2; --secondary:#E3E1CC;
-  --on-dark-1:#FAF8F5; --on-dark-2:#A89880;
+  --bg:var(--cream);
+  --ink-2:#2E2E2F;
+  --rule:var(--cream-300); --rule-mid:var(--cream-400); /* deliberate: landing borders are opaque */
+  --primary:var(--ink);
+  --accent:var(--mauve); --muted:#E8D5D2; --secondary:#E3E1CC;
+  --on-dark-1:var(--cream); --on-dark-2:#A89880;
   --border-on-dark:rgba(250,248,245,0.12);
-  --font-serif:'Cormorant','Cormorant Garamond',Georgia,serif;
-  --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  --ease:cubic-bezier(0.4,0,0.2,1);
 }
 
 *{box-sizing:border-box;margin:0;padding:0}

@@ -18,6 +18,7 @@
 <title>Robes — Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="/css/tokens.css">
 <style>/* cyrillic-ext */
 @font-face {
   font-family: 'Cormorant';
@@ -487,26 +488,10 @@
 button{font-family:inherit;cursor:pointer;background:none;border:none;padding:0;color:inherit}
 
 :root{
-  --cream:#FAF8F5;
-  --cream-100:#F5F0E8; --cream-200:#EFE9DC; --cream-300:#E7E0CF; --cream-400:#D8CFC0;
-  --ink:#202021; --ink-soft:#6E6A64; --ink-faint:#7E6F50;
-  --mauve:#D4C8C4; --rose:#8E7077; --sage:#7E7C5A;
-  --rule:rgba(32,32,33,0.075); --rule-mid:rgba(32,32,33,0.12);
-  --rose-bg:rgba(212,200,196,0.26); --rose-mid:rgba(212,200,196,0.6);
-  --sage-bg:rgba(227,225,204,0.40); --sage-mid:rgba(227,225,204,0.72);
-  --font-serif:'Cormorant',Georgia,serif;
-  --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  --ease:cubic-bezier(0.4,0,0.2,1);
-  --rad-sm:8px; --rad:12px; --rad-lg:18px;
-  --nav-h:64px;
-  /* Layout spec 2026-07 — held canvas, fluid content: one centred shell,
-     gutter steps by breakpoint. Width follows the content, not one rule. */
-  --shell:1440px;
-  --s6:80px;
+  /* Tokens live in /css/tokens.css — the single source of truth.
+     Declare only dashboard-EXCLUSIVE tokens here; never redeclare
+     shared values (that is how the namespaces forked last time). */
 }
-@media(max-width:1199px){:root{--s6:64px}}
-@media(max-width:1023px){:root{--s6:40px}}
-@media(max-width:767px){:root{--s6:24px}}
 
 html{font-size:16px}
 body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
