@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <style id="rb-boot">body{opacity:0}
+/* Shared overlay progress-bar sweep — declared ONCE here; the five
+   per-overlay <style> injections that each duplicated it are gone */
+@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}
 /* a11y: keyboard focus + no-zoom-needed input sizing (Wave 2) */
 :focus-visible{outline:2px solid var(--ink,#202021);outline-offset:2px}
 @media (max-width:820px){input:not([type=checkbox]):not([type=radio]):not([type=color]),select,textarea{font-size:16px !important}}

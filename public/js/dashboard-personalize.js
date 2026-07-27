@@ -811,7 +811,7 @@
         // the packing connection lives across the platform)
         const packBtn = document.createElement('button');
         packBtn.className = 'wg-pill wg-pack-pill';
-        packBtn.textContent = '✈ Pack a trip';
+        packBtn.textContent = 'Pack a trip';
         packBtn.addEventListener('click', () => {
           if (_wgPackMode) window.__wgPackCancel(); else window.__wgPackStart();
         });
@@ -3472,13 +3472,10 @@
               overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
               overlay.innerHTML = `
                 <div style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center">Styling your piece<br><em>three ways…</em></div>
-                <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+                <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Composing your looks</div>
                 <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
                   <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
                 </div>`;
-              const style = document.createElement('style');
-              style.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}'
-              document.head.appendChild(style);
               document.body.appendChild(overlay);
             }
             overlay.style.display = 'flex';
@@ -3903,18 +3900,6 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
-      // Footer "Dress me again" (bug report 4.7): return her to the home
-      // prompt to start a fresh brief, rather than silently re-mixing this
-      // look (that's what the in-context "Restyle it" does).
-      window.__dlDressAgain = function() {
-        window.__dlGoBack();
-        setTimeout(() => {
-          if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me');
-          const ta = document.getElementById('cb-ta');
-          if (ta) ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 220);
-      };
-
       // opts.locked = anchored pieces a restyle must keep; opts.savedId =
       // the lookbook entry a restyle evolves (instead of minting a new one).
       // Guards the full-screen generation overlay: a hung fetch must never
@@ -3955,13 +3940,10 @@
           overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
           overlay.innerHTML = `
             <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
-            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Composing your looks</div>
             <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
               <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
             </div>`;
-          const ks = document.createElement('style');
-          ks.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}';
-          document.head.appendChild(ks);
           document.body.appendChild(overlay);
         }
         const loadTitle = document.getElementById('kp-load-title');
@@ -4396,7 +4378,6 @@
 .rb-lookv2 .rbc-palette{order:4}
 .rb-lookv2 .rbc-fabrics{order:5}
 .rb-lookv2 .rbc-yours{order:6}
-.rb-lookv2 .rbc-verdict{order:7}
 .rb-lookv2 .rbc-action{order:8}
 /* The export region — 4:5, 6×7 grid, columns ≈68px, hero ≈296px */
 .rb-lookv2 .rbc-board{aspect-ratio:4/5;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(7,1fr);gap:8px;padding:0;margin:0}
@@ -4451,7 +4432,6 @@
 .rb-lookv2 .rbc-yours{margin-top:16px}
 /* Daily/Weekly verdict line — bare copy beneath the ownership count, no box,
    no rule (the boxed "Read" is Travel-only now) */
-.rb-lookv2 .rbc-verdict{margin:12px 0 0;font-size:11px;line-height:1.5;color:rgba(32,32,33,.62)}
 .rb-lookv2 .rbc-action{margin-top:12px;padding-top:14px;border-top:0.5px solid var(--rule)}
 .rb-lookv2 .rbc-action button{width:100%;border:none;background:var(--ink);color:var(--cream-100);border-radius:100px;padding:14px;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:opacity .15s}
 .rb-lookv2 .rbc-action button:hover{opacity:.88}
@@ -4506,25 +4486,6 @@
           <div class="bar"><span style="width:${pct}%;background:${opts.clean ? 'var(--sage)' : '#B98A4E'}"></span></div>
           <p>${opts.verdict}</p>
         </div>`;
-      }
-
-      // Daily/Weekly footer verdict line — the console's one piece of
-      // north-star copy (wear over buy; catch her at the catalogue moment).
-      // Register is keyed to the owned ratio, never congratulatory at the low
-      // end (brief 2026-07-22). {piece} is the highest-value unowned item.
-      function _rbcVerdict(owned, total, unowned) {
-        if (!total) return '';
-        if (owned >= total) return 'All yours. Nothing to buy.';
-        const pct = owned / total * 100;
-        let top = unowned[0], best = -1;
-        (unowned || []).forEach(it => {
-          const p = parseFloat(String(it.price_point || '').replace(/[^0-9.]/g, '')) || 0;
-          if (p > best) { best = p; top = it; }
-        });
-        const piece = _waEsc(String((top && top.name) || 'piece').toLowerCase());
-        if (pct <= 33) return `Mostly new today. Swap the ${piece} for something you own, or snap it into your wardrobe.`;
-        if (pct <= 66) return `Half of this is already yours. The ${piece} is the one worth adding.`;
-        return `Almost entirely your own. Only the ${piece} is new.`;
       }
 
       // Swipe-to-remove (mobile): a horizontal drag past the threshold on
@@ -4595,12 +4556,11 @@
       }
 
       function _rbcRow(it, cfg) {
-        const np = cfg.noprint ? ' tv-noprint' : '';
         const dots = it.count.len > 1 && it.count.len <= 8
           ? `<span class="rbc-dots">${Array.from({ length: it.count.len }, (_, k) => `<span${k === it.count.cur ? ' class="on"' : ''}></span>`).join('')}</span>`
           : (it.count.len > 8 ? `<span style="font-size:9px;letter-spacing:.08em;color:var(--ink-faint)">${it.count.cur + 1} / ${it.count.len}</span>` : '');
         return `<div class="rbc-row${it.anchored ? ' anchored' : ''}${it.rowClass || ''}"${cfg.onRemove ? ` data-rmfn="${cfg.onRemove}" data-rmidx="${it.idx}"` : ''}>
-          ${cfg.onRemove ? `<button class="rbc-rm${np}" onclick="window.${cfg.onRemove}(${it.idx})" title="Remove from this look" aria-label="Remove from this look">×</button>` : ''}
+          ${cfg.onRemove ? `<button class="rbc-rm" onclick="window.${cfg.onRemove}(${it.idx})" title="Remove from this look" aria-label="Remove from this look">×</button>` : ''}
           <div class="rbc-vp">
             <span class="vslot">${_waEsc(it.slot)}</span>
             <div${it.frame.pollAttr} style="position:absolute;inset:0">${it.frame.inner}</div>
@@ -4617,14 +4577,14 @@
               ${it.noteHtml || ''}
             </div>
             <div class="rbc-foot">
-              <div class="rbc-flip${np}">
+              <div class="rbc-flip">
                 <button class="rbc-arrow" onclick="window.${cfg.onFlip}(${it.idx},-1)" aria-label="Previous option">${_rbcChevL}</button>
                 ${dots}
                 <button class="rbc-arrow" onclick="window.${cfg.onFlip}(${it.idx},1)" aria-label="Next option">${_rbcChevR}</button>
               </div>
               <div class="rbc-acts">
-                ${cfg.onAnchor ? `<button class="rbc-act${it.anchored ? ' on' : ''}${np}" onclick="window.${cfg.onAnchor}(${it.idx})" title="Lock this piece through restyles">${_rbcLockSvg} ${it.anchored ? 'Anchored' : 'Anchor'}</button>` : ''}
-                <button class="rbc-act${np}" onclick="window.${cfg.onSwap}(${it.idx})">${_rbcSwapSvg} Swap</button>
+                ${cfg.onAnchor ? `<button class="rbc-act${it.anchored ? ' on' : ''}" onclick="window.${cfg.onAnchor}(${it.idx})" title="Lock this piece through restyles">${_rbcLockSvg} ${it.anchored ? 'Anchored' : 'Anchor'}</button>` : ''}
+                <button class="rbc-act" onclick="window.${cfg.onSwap}(${it.idx})">${_rbcSwapSvg} Swap</button>
                 ${it.thirdHtml || ''}
               </div>
             </div>
@@ -4659,7 +4619,6 @@
               <span class="rbc-palette">${cfg.paletteHtml || ''}</span>
               <span class="rbc-yours">${yoursHtml}</span>
             </div>
-            ${cfg.verdictHtml ? `<p class="rbc-verdict">${cfg.verdictHtml}</p>` : ''}
             ${actionHtml}
           </div>
           ${cfg.panelExtraHtml || ''}`;
@@ -4673,7 +4632,7 @@
           </div>
           ${cfg.rackHintHtml || ''}
           <div class="rbc-rack">${items.map(it => _rbcRow(it, cfg)).join('')}</div>
-          ${cfg.addPieceFn ? `<button class="rbc-addpiece${cfg.noprint ? ' tv-noprint' : ''}" onclick="window.${cfg.addPieceFn}()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>` : ''}`;
+          ${cfg.addPieceFn ? `<button class="rbc-addpiece" onclick="window.${cfg.addPieceFn}()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>` : ''}`;
         return { lookHtml, rackHtml };
       }
 
@@ -5381,7 +5340,7 @@
               <div style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">The ${tgtEve ? 'evening' : 'day'}, <em style="font-style:italic">left free.</em></div>
               <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:16px">${tgtEve ? 'Add a plan and the evening gets its own look — the day stays exactly as it is.' : 'Give the day a plan and it gets its own look — the evening stays exactly as it is.'}</div>
               <input id="dl-eve-act" placeholder="${tgtEve ? 'Date night, drinks, a dinner out…' : 'Office day, errands, a lunch…'}" style="width:100%;max-width:320px;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:100px;padding:11px 16px;font-size:13px;font-family:inherit;color:#202021;background:#FAF8F5;outline:none;margin:0 auto 14px;display:block" onkeydown="if(event.key==='Enter')window.__dlDressSlot(${oi})">
-              <button onclick="window.__dlDressSlot(${oi})" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✨ Dress the ${tgtEve ? 'evening' : 'day'} →</button>
+              <button onclick="window.__dlDressSlot(${oi})" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✦ Dress the ${tgtEve ? 'evening' : 'day'} →</button>
             </div>
           </div>`;
       };
@@ -5528,74 +5487,74 @@
 #dl-result-page .dlm-rule{height:0.5px;background:var(--rule);margin:22px 0 28px}
 #dl-result-page .dlm-console{display:grid;grid-template-columns:360px minmax(0,1fr);gap:34px;align-items:start}
 #dl-result-page .dlm-look{position:sticky;top:18px;display:flex;flex-direction:column;gap:13px}
-#dl-result-page .dlm-panel{background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);padding:18px}
-#dl-result-page .dlm-lhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-#dl-result-page .dlm-lhead .lab{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
-#dl-result-page .dlm-lhead .robes{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose)}
-#dl-result-page .dlm-quote{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:16px;line-height:1.42;color:var(--ink-soft);margin-bottom:14px;padding-left:13px;border-left:2px solid var(--rose-mid)}
-#dl-result-page .dlm-board{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-#dl-result-page .dlm-tile{position:relative;border-radius:var(--rad-sm);overflow:hidden;aspect-ratio:1/1.16;text-align:left;padding:0;background:var(--cream-200);border:0.5px solid var(--rule-mid);cursor:pointer}
-#dl-result-page .dlm-tile.wide{grid-column:span 2;aspect-ratio:2/1.05}
-#dl-result-page .dlm-tile .tgrad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,0.42));z-index:1;pointer-events:none}
-#dl-result-page .dlm-tile .tslot{position:absolute;left:9px;top:8px;z-index:2;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#fff;background:rgba(32,32,33,0.42);padding:3px 7px;border-radius:100px}
-#dl-result-page .dlm-tile .tlab{position:absolute;left:10px;bottom:9px;right:10px;z-index:2;font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:15px;color:#fff;line-height:1.05;pointer-events:none}
-#dl-result-page .dlm-tile .town{position:absolute;top:7px;right:7px;z-index:2;width:18px;height:18px;border-radius:50%;background:#fff;display:grid;place-items:center;color:#4A7C59}
-#dl-result-page .dlm-tile .tshop{position:absolute;top:7px;right:7px;z-index:2;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);background:rgba(255,255,255,0.9);padding:2px 7px;border-radius:100px}
-#dl-result-page .dlm-tile .tnav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.92);border:0.5px solid var(--rule-mid);display:grid;place-items:center;opacity:0;transition:opacity .15s;padding:0;color:var(--ink);cursor:pointer}
-#dl-result-page .dlm-tile:hover .tnav{opacity:1}
-#dl-result-page .dlm-tile .tnav.l{left:6px}
-#dl-result-page .dlm-tile .tnav.r{right:6px}
-#dl-result-page .dlm-fabrics{display:flex;flex-wrap:wrap;gap:9px 14px;margin-top:14px;padding-top:13px;border-top:0.5px solid var(--rule)}
-#dl-result-page .dlm-fabrics .fab{display:flex;align-items:center;gap:7px}
-#dl-result-page .dlm-fabrics .sw{width:14px;height:14px;border-radius:3px;border:0.5px solid var(--rule-mid);display:block}
-#dl-result-page .dlm-fabrics .fl{font-family:var(--font-serif);font-style:italic;font-size:12.5px;color:var(--ink-faint)}
-#dl-result-page .dlm-lfoot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:13px;border-top:0.5px solid var(--rule)}
-#dl-result-page .dlm-palette{display:flex;gap:5px}
-#dl-result-page .dlm-palette span{width:14px;height:14px;border-radius:50%;border:0.5px solid var(--rule-mid);display:block}
-#dl-result-page .dlm-yours{font-size:10px;letter-spacing:.02em;color:var(--ink-faint)}
-#dl-result-page .dlm-yours b{color:var(--ink);font-weight:500}
-#dl-result-page .dlm-ttip{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:0.5px solid var(--rule)}
-#dl-result-page .dlm-ttip .tl{font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
-#dl-result-page .dlm-ttip .tt{font-size:12px;line-height:1.6;color:var(--ink-soft);font-style:italic;flex:1;min-width:180px}
-#dl-result-page .dlm-rackhead{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
-#dl-result-page .dlm-rackhead .ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose)}
-#dl-result-page .dlm-restyle{display:inline-flex;align-items:center;gap:7px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:10px 16px;font-size:12px;color:var(--ink-soft);background:#fff;cursor:pointer;transition:all .15s;white-space:nowrap}
-#dl-result-page .dlm-restyle:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
-#dl-result-page .dlm-rack{display:flex;flex-direction:column;gap:12px}
-#dl-result-page .dlm-addpiece{margin-top:12px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--rule-mid);border-radius:var(--rad);padding:13px;font-size:12px;letter-spacing:.02em;background:transparent;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
-#dl-result-page .dlm-addpiece:hover{border-color:var(--ink-faint);color:var(--ink);background:#fff}
-#dl-result-page .dlm-row{display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:stretch;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:12px;transition:border-color .2s}
-#dl-result-page .dlm-row.anchored{border-color:var(--ink)}
-#dl-result-page .dlm-vp{position:relative;align-self:start;width:100%;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200);aspect-ratio:1/1}
-#dl-result-page .dlm-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
-#dl-result-page .dlm-vp .vcount{position:absolute;bottom:8px;right:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
-#dl-result-page .dlm-body{display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:2px 0}
-#dl-result-page .dlm-name{font-family:var(--font-serif);font-weight:400;font-size:21px;line-height:1.08;color:var(--ink)}
-#dl-result-page .dlm-sub{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--ink-faint);flex-wrap:wrap}
-#dl-result-page .dlm-sub .price{color:var(--ink)}
-#dl-result-page .dlm-owned{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#4A7C59}
-#dl-result-page .dlm-anchpill{display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);border:0.5px solid var(--rule-mid);border-radius:100px;padding:3px 9px}
-#dl-result-page .dlm-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;flex-wrap:wrap}
-#dl-result-page .dlm-flip{display:flex;align-items:center;gap:9px}
-#dl-result-page .dlm-arrow{width:32px;height:32px;border:0.5px solid var(--rule-mid);border-radius:50%;display:grid;place-items:center;background:#fff;cursor:pointer;transition:all .15s;color:var(--ink)}
-#dl-result-page .dlm-arrow:hover{background:var(--ink);border-color:var(--ink);color:#fff}
-#dl-result-page .dlm-dots{display:flex;gap:5px;padding:0 2px}
-#dl-result-page .dlm-dots span{width:5px;height:5px;border-radius:50%;background:var(--cream-400);display:block;transition:all .2s}
-#dl-result-page .dlm-dots span.on{background:var(--ink);transform:scale(1.25)}
-#dl-result-page .dlm-acts{display:flex;gap:7px;flex-wrap:wrap}
-#dl-result-page .dlm-act{display:inline-flex;align-items:center;gap:6px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:8px 13px;font-size:11px;letter-spacing:.01em;background:#fff;color:var(--ink-soft);cursor:pointer;transition:all .15s}
-#dl-result-page .dlm-act:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
-#dl-result-page .dlm-act.on{background:var(--ink);color:#fff;border-color:var(--ink)}
-#dl-result-page .dlm-act.shop{background:var(--ink);color:#fff;border-color:var(--ink)}
-#dl-result-page .dlm-act.shop:hover{opacity:.85;color:#fff}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @media(max-width:900px){
 #dl-result-page .dlm-console{grid-template-columns:1fr;gap:26px}
 #dl-result-page .dlm-look{position:static}
 #dl-result-page .dlm-wrap{padding:28px 20px 20px}
 }
 @media(max-width:520px){
-#dl-result-page .dlm-row{grid-template-columns:88px 1fr;gap:12px}
-#dl-result-page .dlm-name{font-size:18px}
+
+
 }`;
 
       window.__dlRenderResult = function(data, promptText, opts) {
@@ -5713,7 +5672,6 @@
               : `<button class="rbc-act save" onclick="window.__dlSaveWishlist(${fi})">Save</button>`),
           };
         });
-        const dlUnowned = ordered.filter(x => !x.it.wardrobe_match);
         // Day/Evening pair (evening rules 2026-07-24): the daily track's
         // two moments are two SAVED LOOKS at the same anchor date — the
         // switcher navigates between them, or invites dressing the empty
@@ -6104,9 +6062,6 @@
             <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
               <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
             </div>`;
-          const ks = document.createElement('style');
-          ks.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}';
-          document.head.appendChild(ks);
           document.body.appendChild(overlay);
         }
         const loadTitle = document.getElementById('kp-load-title');
@@ -6462,7 +6417,7 @@
               <div style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">${_waEsc(_wkDayName(d))} evening${ev && ev.activity ? ` — <em style="font-style:italic">${_waEsc(ev.activity)}.</em>` : ', <em style="font-style:italic">left free.</em>'}</div>
               <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:16px">${ev ? 'Its own look, styled to follow the day.' : 'Add a plan and the evening gets its own look — the day stays exactly as it is.'}</div>
               ${ev && ev.activity ? '' : `<input id="wk-eve-act" placeholder="Date night, drinks, a dinner out…" style="width:100%;max-width:320px;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:100px;padding:11px 16px;font-size:13px;font-family:inherit;color:#202021;background:#FAF8F5;outline:none;margin:0 auto 14px;display:block" onkeydown="if(event.key==='Enter')window.__wkDressEvening()">`}
-              <button onclick="window.__wkDressEvening()" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✨ Dress the evening →</button>
+              <button onclick="window.__wkDressEvening()" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✦ Dress the evening →</button>
             </div>`;
           return;
         }
@@ -6527,7 +6482,6 @@
               : `<button class="rbc-act save" onclick="window.__wkSaveWishlist(${ii})">Save</button>`),
           };
         });
-        const wkUnowned = items.filter(it => !it.wardrobe_match);
         const con = _rbConsole({
           headLabel: `The look · ${_waEsc(dayLabel)} · ${items.length} pieces`,
           occHtml,
@@ -6860,11 +6814,6 @@
         window.rbClearCrumb && window.rbClearCrumb();
         window._rbNav && window._rbNav('/dashboard');
         window.scrollTo({ top: 0, behavior: 'smooth' });
-      };
-
-      window.__wkPlanAgain = function() {
-        window.__wkGoBack();
-        window.__wkOpen();
       };
 
       window.__wkRenderResult = function(data, promptText, opts) {
@@ -7519,13 +7468,10 @@
           overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
           overlay.innerHTML = `
             <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
-            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Composing your looks</div>
             <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
               <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
             </div>`;
-          const ks = document.createElement('style');
-          ks.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}';
-          document.head.appendChild(ks);
           document.body.appendChild(overlay);
         }
         const loadTitle = document.getElementById('kp-load-title');
@@ -7640,7 +7586,7 @@
 #tv-result-page .tvm-weekhead{display:flex;align-items:baseline;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:14px}
 #tv-result-page .tvm-weekhead h2{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:23px;margin:0;color:var(--ink)}
 #tv-result-page .tvm-weekhead .hint{font-size:11px;color:var(--ink-faint);letter-spacing:.02em}
-#tv-result-page .tvm-week{display:grid;grid-auto-flow:column;grid-auto-columns:200px;grid-template-columns:none;gap:10px;margin-bottom:34px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x proximity}
+
 #tv-result-page .tvm-console{display:grid;grid-template-columns:360px minmax(0,1fr);gap:34px;align-items:start}
 #tv-result-page .tvm-look{position:sticky;top:18px;display:flex;flex-direction:column;gap:13px}
 #tv-result-page .tvm-panel{background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);padding:18px}
@@ -7651,74 +7597,74 @@
 #tv-result-page .tvm-occ button{padding:6px 16px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);background:transparent;border:none;cursor:pointer;transition:all .18s;font-family:inherit}
 #tv-result-page .tvm-occ button.on{background:var(--ink);color:#fff}
 #tv-result-page .tvm-quote{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:15px;line-height:1.42;color:var(--ink-soft);margin-bottom:14px;padding-left:13px;border-left:2px solid var(--rose-mid)}
-#tv-result-page .tvm-board{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-#tv-result-page .tvm-tile{position:relative;border-radius:var(--rad-sm);overflow:hidden;aspect-ratio:1/1.16;text-align:left;padding:0;background:var(--cream-200);border:0.5px solid var(--rule-mid);cursor:pointer}
-#tv-result-page .tvm-tile.wide{grid-column:span 2;aspect-ratio:2/1.05}
-#tv-result-page .tvm-tile.isnew{border:1px dashed rgba(185,138,78,0.6)}
-#tv-result-page .tvm-tile .tgrad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,0.42));z-index:1;pointer-events:none}
-#tv-result-page .tvm-tile .tslot{position:absolute;left:9px;top:8px;z-index:2;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#fff;background:rgba(32,32,33,0.42);padding:3px 7px;border-radius:100px}
-#tv-result-page .tvm-tile .tlab{position:absolute;left:10px;bottom:9px;right:10px;z-index:2;font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:15px;color:#fff;line-height:1.05;pointer-events:none}
-#tv-result-page .tvm-tile .town{position:absolute;top:7px;right:7px;z-index:2;width:18px;height:18px;border-radius:50%;background:#fff;display:grid;place-items:center;color:#4A7C59}
-#tv-result-page .tvm-tile .tadd{position:absolute;top:7px;right:7px;z-index:2;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:rgba(185,138,78,0.92);padding:2px 7px;border-radius:100px}
-#tv-result-page .tvm-tile .tnav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.92);border:0.5px solid var(--rule-mid);display:grid;place-items:center;opacity:0;transition:opacity .15s;padding:0;color:var(--ink);cursor:pointer}
-#tv-result-page .tvm-tile:hover .tnav{opacity:1}
-#tv-result-page .tvm-tile .tnav.l{left:6px}
-#tv-result-page .tvm-tile .tnav.r{right:6px}
-#tv-result-page .tvm-fabrics{display:flex;flex-wrap:wrap;gap:9px 14px;margin-top:14px;padding-top:13px;border-top:0.5px solid var(--rule)}
-#tv-result-page .tvm-fabrics .fab{display:flex;align-items:center;gap:7px}
-#tv-result-page .tvm-fabrics .sw{width:14px;height:14px;border-radius:3px;border:0.5px solid var(--rule-mid);display:block}
-#tv-result-page .tvm-fabrics .fl{font-family:var(--font-serif);font-style:italic;font-size:12.5px;color:var(--ink-faint)}
-#tv-result-page .tvm-lfoot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:13px;border-top:0.5px solid var(--rule)}
-#tv-result-page .tvm-palette{display:flex;gap:5px}
-#tv-result-page .tvm-palette span{width:14px;height:14px;border-radius:50%;border:0.5px solid var(--rule-mid);display:block}
-#tv-result-page .tvm-yours{font-size:10px;letter-spacing:.02em;color:var(--ink-faint)}
-#tv-result-page .tvm-yours b{color:var(--ink);font-weight:500}
-#tv-result-page .tvm-read{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:var(--cream-100);padding:15px 16px}
-#tv-result-page .tvm-read .rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-#tv-result-page .tvm-read .lab{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
-#tv-result-page .tvm-read .score{font-family:var(--font-serif);font-weight:300;font-size:20px;color:var(--ink)}
-#tv-result-page .tvm-read .score .of{font-size:11px;color:var(--ink-faint)}
-#tv-result-page .tvm-read .bar{position:relative;height:5px;border-radius:100px;background:var(--cream-200);overflow:hidden}
-#tv-result-page .tvm-read .bar span{position:absolute;left:0;top:0;height:100%;border-radius:100px;transition:width .4s,background .4s;display:block}
-#tv-result-page .tvm-read p{font-size:12.5px;line-height:1.6;color:#3A3733;margin:11px 0 0}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #tv-result-page .tvm-rackhead{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;flex-wrap:wrap}
 #tv-result-page .tvm-rackhead .ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose)}
 #tv-result-page .tvm-rackhead h2{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:25px;line-height:1.05;margin:6px 0 0;color:var(--ink)}
 #tv-result-page .tvm-hbtn{display:inline-flex;align-items:center;gap:7px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:9px 15px;font-size:11.5px;color:var(--ink-soft);background:#fff;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:inherit}
 #tv-result-page .tvm-hbtn:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
-#tv-result-page .tvm-rack{display:flex;flex-direction:column;gap:12px}
-#tv-result-page .tvm-row{display:grid;grid-template-columns:108px 1fr;gap:16px;align-items:stretch;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:12px;transition:border-color .2s,background .2s}
-#tv-result-page .tvm-row.packed{border-color:rgba(126,124,90,0.5);background:var(--sage-bg)}
-#tv-result-page .tvm-vp{position:relative;align-self:start;width:100%;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200);aspect-ratio:4/5}
-#tv-result-page .tvm-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
-#tv-result-page .tvm-vp .vlooks{position:absolute;bottom:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px;white-space:nowrap}
-#tv-result-page .tvm-vp .vcount{position:absolute;bottom:8px;right:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
-#tv-result-page .tvm-body{display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:2px 0}
-#tv-result-page .tvm-name{font-family:var(--font-serif);font-weight:400;font-size:20px;line-height:1.08;color:var(--ink)}
-#tv-result-page .tvm-sub{display:flex;align-items:center;gap:8px;margin-top:5px;font-size:12px;color:var(--ink-faint);flex-wrap:wrap}
-#tv-result-page .tvm-sub .price{color:var(--ink)}
-#tv-result-page .tvm-owned{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#4A7C59}
-#tv-result-page .tvm-addtag{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#8F6A2E}
-#tv-result-page .tvm-hownote{font-size:11.5px;line-height:1.5;color:var(--ink-soft);margin-top:7px;font-style:italic;font-family:var(--font-serif)}
-#tv-result-page .tvm-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;flex-wrap:wrap}
-#tv-result-page .tvm-flip{display:flex;align-items:center;gap:9px}
-#tv-result-page .tvm-arrow{width:32px;height:32px;border:0.5px solid var(--rule-mid);border-radius:50%;display:grid;place-items:center;background:#fff;cursor:pointer;transition:all .15s;color:var(--ink);padding:0}
-#tv-result-page .tvm-arrow:hover{background:var(--ink);border-color:var(--ink);color:#fff}
-#tv-result-page .tvm-dots{display:flex;gap:5px;padding:0 2px}
-#tv-result-page .tvm-dots span{width:5px;height:5px;border-radius:50%;background:var(--cream-400);display:block;transition:all .2s}
-#tv-result-page .tvm-dots span.on{background:var(--ink);transform:scale(1.25)}
-#tv-result-page .tvm-acts{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #tv-result-page .tvm-act{display:inline-flex;align-items:center;gap:6px;border:0.5px solid var(--rule-mid);border-radius:100px;padding:8px 13px;font-size:11px;letter-spacing:.01em;background:#fff;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
 #tv-result-page .tvm-act:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
 #tv-result-page .tvm-act.on{background:var(--sage);color:#fff;border-color:var(--sage)}
 #tv-result-page .tvm-act.add{background:var(--ink);color:#fff;border-color:var(--ink)}
 #tv-result-page .tvm-act.add:hover{opacity:.85;color:#fff;border-color:var(--ink)}
 #tv-result-page .tvm-act.anch.on{background:var(--ink);color:#fff;border-color:var(--ink)}
-#tv-result-page .tvm-row.anchored{border-color:var(--ink)}
-#tv-result-page .tvm-anchpill{display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);border:0.5px solid var(--rule-mid);border-radius:100px;padding:3px 9px;flex:none}
-#tv-result-page .tvm-ttip{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:0.5px solid var(--rule)}
-#tv-result-page .tvm-ttip .tl{font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
-#tv-result-page .tvm-ttip .tt{font-size:12px;line-height:1.6;color:var(--ink-soft);font-style:italic;flex:1;min-width:180px}
+
+
+
+
+
 #tv-result-page .tvm-packbox{display:inline-flex;align-items:center;gap:7px;background:none;border:none;padding:6px 4px;cursor:pointer;font-size:11px;letter-spacing:.01em;color:var(--ink-soft);font-family:inherit;transition:color .15s}
 #tv-result-page .tvm-packbox.on{color:var(--ink)}
 #tv-result-page .tvm-packbox .box{width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(32,32,33,0.3);background:#fff;display:inline-flex;align-items:center;justify-content:center;color:#fff;box-sizing:border-box}
@@ -7730,20 +7676,12 @@
 #tv-result-page .tvm-wrap{padding:28px 20px 20px}
 #tv-result-page .tvm-mast{flex-direction:column;align-items:flex-start;gap:16px}
 #tv-result-page .tvm-progress{align-items:flex-start}
-#tv-result-page .tvm-week{display:grid;grid-auto-flow:column;grid-auto-columns:150px;grid-template-columns:none;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory}
+
 }
 @media(max-width:520px){
-#tv-result-page .tvm-row{grid-template-columns:84px 1fr;gap:12px}
-#tv-result-page .tvm-name{font-size:17px}
-#tv-result-page .tvm-vp .vlooks{display:none}
-}
-@media print{
-body>*:not(#tv-result-page){display:none !important}
-#tv-result-page{position:static !important;overflow:visible !important}
-#tv-result-page .tv-noprint{display:none !important}
-#tv-result-page .tvm-tabs{display:none !important}
-#tv-result-page #tv-pane-edit,#tv-result-page #tv-pane-outfits{display:block !important}
-#tv-result-page .tvm-look{position:static}
+
+
+
 }
 @media(max-width:900px){
 .tv-sheet-wrap{align-items:flex-end !important;padding:0 !important}
@@ -7941,7 +7879,7 @@ body>*:not(#tv-result-page){display:none !important}
                 <span class="lab">The look · ${_waEsc(dayName)}</span>
                 <span class="robes">Robes</span>
               </div>
-              <div class="tvm-occ tv-noprint">${occPair}</div>
+              <div class="tvm-occ">${occPair}</div>
               <div class="tvm-quote">“The evening is a blank page — the day is already dressed.”</div>
               <p style="font-size:12.5px;line-height:1.6;color:var(--ink-faint);margin:0">Tell Robes the evening's plan and it gets its own look from the case — the day's outfit stays exactly as it is.</p>
             </div>`;
@@ -7955,7 +7893,7 @@ body>*:not(#tv-result-page){display:none !important}
             <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:36px 24px;text-align:center">
               <div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:14px">Add a plan and the evening gets its own look.</div>
               <input id="tv-eve-act" placeholder="Date night, drinks, a dinner out…" style="width:100%;max-width:320px;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:100px;padding:11px 16px;font-size:13px;font-family:inherit;color:var(--ink);background:#FAF8F5;outline:none;margin:0 auto 14px;display:block" onkeydown="if(event.key==='Enter')window.__tvDressEvening()">
-              <button class="tvm-hbtn tv-noprint" style="background:var(--ink);color:#fff;border-color:var(--ink)" onclick="window.__tvDressEvening()">✨ Dress the evening →</button>
+              <button class="tvm-hbtn" style="background:var(--ink);color:#fff;border-color:var(--ink)" onclick="window.__tvDressEvening()">✦ Dress the evening →</button>
             </div>`;
           return;
         }
@@ -7979,7 +7917,7 @@ body>*:not(#tv-result-page){display:none !important}
                 <h2>Left free.</h2>
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <button class="tvm-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Give this day a plan after all">✎ Dress this day</button>
+                <button class="tvm-hbtn" onclick="window.__tvEditDay(${_tvActiveDay})" title="Give this day a plan after all">✎ Dress this day</button>
               </div>
             </div>`;
           return;
@@ -8056,13 +7994,12 @@ body>*:not(#tv-result-page){display:none !important}
           rackLabel: `The rack · ${_waEsc(dayName)}`,
           // The hint names MEMBERSHIP, not packing (decision 4 — the packed
           // checklist never constrains generation). COPY: needs sign-off
-          rackHintHtml: `<div class="tv-noprint" style="font-size:11px;color:var(--ink-faint);background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.08);border-radius:8px;padding:8px 12px;margin:8px 0 14px">Styled from your case — the ${data.capsule.length} pieces this trip is built from. Swapping in anything else adds it to the case.</div>`,
+          rackHintHtml: `<div style="font-size:11px;color:var(--ink-faint);background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.08);border-radius:8px;padding:8px 12px;margin:8px 0 14px">Styled from your case — the ${data.capsule.length} pieces this trip is built from. Swapping in anything else adds it to the case.</div>`,
           rackTitleHtml: `<h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>`,
-          headButtonsHtml: `<button class="rbc-hbtn tv-noprint" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>`,
+          headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button><button class="rbc-hbtn" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>`,
           onFlip: '__tvFlip', onSwap: '__tvDaySwap', onAnchor: '__tvAnchor', onRemove: '__tvRemoveFromLook',
           addPieceFn: '__tvAddPieceToLook',
           lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
-          noprint: true,
         }, conItems);
 
         panel.innerHTML = con.lookHtml;
@@ -8203,18 +8140,6 @@ body>*:not(#tv-result-page){display:none !important}
         _waShowToast(changed ? 'Look packed — ' + changed + ' piece' + (changed === 1 ? '' : 's') + ' into the case' : 'This look is already packed');
       };
 
-      window.__tvPackAll = function() {
-        const data = window.__lastTvData;
-        if (!data) return;
-        data.capsule.forEach(it => { it.packed = true; });
-        _tvPaintConsole();
-        _tvPaintWeek();
-        _tvPaintPackProgress();
-        _tvPaintEditCards();
-        _tvPatchSaved();
-        _waShowToast('Suitcase packed — bon voyage ✈');
-      };
-
       // Sync every Packed checkbox in The Edit's cards without a re-render
       function _tvPaintEditCards() {
         const data = window.__lastTvData;
@@ -8332,7 +8257,7 @@ body>*:not(#tv-result-page){display:none !important}
                     <span class="tv-pack-lbl">${it.packed ? 'Packed' : 'Pack'}</span>
                   </button>`
                   : `<button onclick="event.stopPropagation();window.__tvAddOwn(${ci})" style="display:inline-flex;align-items:center;gap:4px;padding:6px 13px;border:none;border-radius:100px;background:#202021;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:${sans}"><span style="font-size:13px;line-height:1;margin-top:-1px">+</span> Add</button>`}
-                <button class="tv-noprint" onclick="event.stopPropagation();window.__tvSwap(${ci})" style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:var(--ink-soft);font-family:${sans}">${swapSvg} Swap</button>
+                <button onclick="event.stopPropagation();window.__tvSwap(${ci})" style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:var(--ink-soft);font-family:${sans}">${swapSvg} Swap</button>
               </div>
             </div>
           </div>`;
@@ -8369,7 +8294,7 @@ body>*:not(#tv-result-page){display:none !important}
         const heroSrc = (Array.isArray(data.generatedImages) && typeof data.generatedImages[0] === 'string' && data.generatedImages[0].indexOf('http') === 0) ? data.generatedImages[0] : null;
         const heroPending = !heroSrc && !!data.jobId;
         const heroHtml = (heroSrc || heroPending) ? `
-              <div class="tv-noprint" style="width:200px;flex-shrink:0">
+              <div style="width:200px;flex-shrink:0">
                 <div style="font-size:9.5px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--rose);margin-bottom:6px">The mood · ${_waEsc((wx && wx.city) || data.destination || 'the trip')}</div>
                 <div${heroSrc ? '' : ' data-tvimg="0"'} style="position:relative;aspect-ratio:3/4;border-radius:var(--rad);overflow:hidden;background:var(--cream-200)">
                   ${heroSrc
@@ -8433,15 +8358,15 @@ body>*:not(#tv-result-page){display:none !important}
                 ${heroHtml}
               </div>
               ${tiersHtml}
-              <button class="tv-noprint" onclick="window.__tvAddPieceToTrip()" style="width:100%;max-width:640px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--rule-mid);border-radius:var(--rad);padding:13px;font-size:12px;letter-spacing:.02em;background:transparent;color:var(--ink-soft);cursor:pointer;font-family:inherit;margin-bottom:16px"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece to this trip</button>
-              <div class="tv-noprint" style="margin:4px 0 10px">
+              <button onclick="window.__tvAddPieceToTrip()" style="width:100%;max-width:640px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--rule-mid);border-radius:var(--rad);padding:13px;font-size:12px;letter-spacing:.02em;background:transparent;color:var(--ink-soft);cursor:pointer;font-family:inherit;margin-bottom:16px"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece to this trip</button>
+              <div style="margin:4px 0 10px">
                 <button class="tvm-crosscta" onclick="${deferred ? 'window.__tvPlanOutfits()' : `window.__tvSetTab('outfits')`}">${deferred ? 'Plan your outfits, day by day →' : 'See your outfits, day by day →'}</button>
               </div>
             </div>
 
             <div id="tv-pane-outfits" style="display:none">
               ${deferred ? `
-              <div class="tv-noprint" style="padding:38px 26px;background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);text-align:center;max-width:640px">
+              <div style="padding:38px 26px;background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);text-align:center;max-width:640px">
                 <div style="font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose);margin-bottom:10px">Outfits</div>
                 <div style="font-family:${serif};font-size:24px;font-weight:300;font-style:italic;color:var(--ink);line-height:1.2;margin-bottom:8px">Plan the days when you’re ready.</div>
                 <p style="font-size:13px;line-height:1.65;color:var(--ink-faint);margin:0 0 20px">Your edit is saved — keep gathering and swapping pieces as the trip takes shape. When it’s time to pack, Robes dresses every day from exactly what you’re bringing.</p>
@@ -8458,7 +8383,7 @@ body>*:not(#tv-result-page){display:none !important}
               </div>`}
             </div>
 
-            <div class="tv-noprint">${_rbFeedbackBlock('tv', { title: 'How is this edit?', up: '👍 I’d pack it', down: 'Not quite' })}</div>
+            <div>${_rbFeedbackBlock('tv', { title: 'How is this edit?', up: '👍 I’d pack it', down: 'Not quite' })}</div>
           </div>`; } catch (e) {
           console.error('[Robes] tvResultPage render error:', e);
           tvResultPage.innerHTML = `<div style="padding:80px 24px;text-align:center;font-family:${sans};color:#6E6A64">Something went wrong rendering this trip — please try again.</div>`;
@@ -8497,98 +8422,6 @@ body>*:not(#tv-result-page){display:none !important}
           prompt: [data.destination, data.dateLine, data.brief].filter(Boolean).join(' · '),
           looksOutput: JSON.stringify({ surface: 'travel-edit', destination: data.destination || '', trip_label: data.trip_label || '', owned: data.capsule.filter(c => c.wardrobe_match).length, total, packed: data.capsule.filter(c => c.packed).length, looks: lookCount, ts: new Date().toISOString() }),
         }));
-      };
-
-      // One-Click Export (PRD §5) — the print stylesheet in #tv-style turns
-      // the page into a clean PDF via the browser's print-to-PDF.
-      window.__tvExport = function() { window.print(); };
-
-      function _tvPatchSaved() {
-        const savedId = _tvActiveSaveId;
-        if (!savedId || !window.__lastTvData) return;
-        const saved = snLoad().find(x => x.id === savedId);
-        if (saved) {
-          snUpdate(savedId, { tvData: {
-            ...(saved.tvData || {}),
-            capsule: window.__lastTvData.capsule,
-            days: window.__lastTvData.days,
-            outfits_deferred: !(window.__lastTvData.days || []).length,
-            trip_day_plan: window.__lastTvData.trip_day_plan || null,
-          } });
-          _pdSyncSaved(savedId);
-        }
-      }
-
-      // Deferred outfit planning — she took the packing edit first, gathered
-      // pieces over days, and now dresses the whole trip from the capsule as
-      // it stands (packed ticks, swaps and added pieces intact).
-      window.__tvPlanOutfits = function() { _tvShowPlanModal({ forTrip: true }); };
-
-      window.__tvOutfitsGo = async function(skip) {
-        const data = window.__lastTvData;
-        if (!data || !Array.isArray(data.capsule) || !data.capsule.length) return;
-        const n = _tvTripDays({ dateFrom: data.dateFrom, dateTo: data.dateTo }).n;
-        // An array = a ready-made plan (the batched capsule-swap restyle
-        // passes the current days' activities); true = "Robes plans it".
-        const plan = Array.isArray(skip) ? skip : (skip ? [] : _tvPlanRead(n));
-        document.getElementById('tv-plan-modal')?.remove();
-        const send = plan.some(p => p === null || p) ? plan : [];
-        let overlay = document.getElementById('kp-loading-overlay');
-        if (!overlay) {
-          overlay = document.createElement('div');
-          overlay.id = 'kp-loading-overlay';
-          overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
-          overlay.innerHTML = `
-            <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
-            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg"></div>
-            <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
-              <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
-            </div>`;
-          const ks = document.createElement('style');
-          ks.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}';
-          document.head.appendChild(ks);
-          document.body.appendChild(overlay);
-        }
-        const loadTitle = document.getElementById('kp-load-title');
-        if (loadTitle) loadTitle.innerHTML = 'Dressing your days in<br><em>' + _waEsc(data.destination || 'the trip') + '…</em>';
-        const msgEl = document.getElementById('kp-load-msg');
-        if (msgEl) msgEl.textContent = 'Mapping every look, day by evening…';
-        overlay.style.display = 'flex';
-        try {
-          const res = await fetch('/api/travel/outfits', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              destination: data.destination || '',
-              brief: data.brief || '',
-              dateFrom: data.dateFrom || '',
-              dateTo: data.dateTo || '',
-              dayPlan: send,
-              weather: data.weather || null,
-              name,
-              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(),
-              capsule: data.capsule.map(c => ({ name: c.name, category: c.category, brand: c.brand, tier: c.tier, owned: !!c.wardrobe_match })),
-              userId: _waUid() || undefined,
-            }),
-          });
-          overlay.style.display = 'none';
-          if (!res.ok) throw new Error(await res.text());
-          const out = await res.json();
-          if (!Array.isArray(out.days) || !out.days.length) throw new Error('empty days');
-          data.days = out.days;
-          data.outfits_deferred = false;
-          data.trip_day_plan = undefined;
-          _tvActiveTab = 'outfits';
-          _tvActiveDay = 0;
-          _tvActiveOcc = 0;
-          window.__tvRenderResult(data, { skipSave: true, savedId: _tvActiveSaveId });
-          _tvPatchSaved();
-          _waShowToast('Your days are dressed — every look from what you’re packing');
-        } catch (e) {
-          overlay.style.display = 'none';
-          console.error('[Robes] /api/travel/outfits error:', e.message);
-          _waShowToast('Couldn’t plan the outfits — please try again');
-        }
       };
 
       // "+ Add a piece to this trip" — the gather-over-days loop: the
@@ -8754,7 +8587,7 @@ body>*:not(#tv-result-page){display:none !important}
         if (n) n.textContent = packedN;
         if (bar) bar.style.width = (totalN ? Math.round((packedN / totalN) * 100) : 0) + '%';
         if (pm) pm.textContent = totalN > 0 && packedN === totalN
-          ? 'Suitcase closed ✈'
+          ? 'Suitcase closed'
           : packedN + ' of ' + totalN;
       }
 
@@ -9036,7 +8869,7 @@ body>*:not(#tv-result-page){display:none !important}
             document.getElementById('tv-stale-bar')?.remove();
             const bar = document.createElement('div');
             bar.id = 'tv-stale-bar';
-            bar.className = 'tv-noprint';
+            bar.className = '';
             bar.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.1);border-radius:10px;padding:10px 14px;margin:0 0 16px;font-size:12px;color:#6E6A64';
             bar.innerHTML = `<span><b>${_waEsc(wi.label)}</b> now packs — ${affected} day${affected === 1 ? '' : 's'} wear this slot.</span>` +
               `<button onclick="window.__tvRestyleAllDays()" style="margin-left:auto;background:#202021;color:#fff;border:none;border-radius:100px;padding:8px 16px;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">↻ Restyle those days</button>` +
@@ -10215,13 +10048,10 @@ body>*:not(#tv-result-page){display:none !important}
           overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
           overlay.innerHTML = `
             <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center">Styling your piece<br><em>three ways…</em></div>
-            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Composing your looks</div>
             <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
               <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
             </div>`;
-          const ks = document.createElement('style');
-          ks.textContent = '@keyframes kpLoadBar{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}';
-          document.head.appendChild(ks);
           document.body.appendChild(overlay);
         }
         const loadTitle = document.getElementById('kp-load-title');
@@ -11219,39 +11049,9 @@ body>*:not(#tv-result-page){display:none !important}
       };
 
       // Persona-aware masthead (Phase 3 — the returning-user home). The static
-      // markup ships a hardcoded "Good evening, Annie." / "What are we dressing
-      // for today?". First-timers get a time-of-day greeting + the static echo;
-      // returners (onboarded, plus a genuine prior visit or an established
-      // ≥3-piece closet) get a "Welcome back" register and a count-aware steer
-      // toward styling today or cataloguing what's new. Detection stays local:
-      // a per-uid last-visit timestamp, no backend.
-      // NOTE: var (not let) — _waSyncCounts runs early in boot and calls
-      // _rbUpdateMasthead → _rbIsReturner, which reads _rbPriorVisit. Those
-      // are hoisted function declarations, so they can fire before execution
-      // reaches this line; a let binding would still be in its temporal dead
-      // zone and throw ("Cannot access '_rbPriorVisit' before initialization"),
-      // failing the whole dashboard boot. var hoists to undefined (falsy) so
-      // the early call reads first-timer state, and the _rbMarkVisit IIFE +
-      // the later _rbUpdateMasthead() call below apply the real returner state.
-      var _rbLastVisitTs = 0, _rbPriorVisit = false;
-      (function _rbMarkVisit() {
-        try {
-          const p = window.__robes_profile || {};
-          const uid = p.id || (window.__robes_session && window.__robes_session.user && window.__robes_session.user.id) || '';
-          if (!uid) return;
-          const key = 'rb_last_visit__' + uid;
-          const prev = Number(localStorage.getItem(key) || 0);
-          const now = Date.now();
-          // A reload inside the same session isn't a "return" — require a 30-min gap.
-          if (prev && (now - prev) > 30 * 60 * 1000) { _rbPriorVisit = true; _rbLastVisitTs = prev; }
-          localStorage.setItem(key, String(now));
-        } catch (e) {}
-      })();
-      function _rbIsReturner() {
-        const p = window.__robes_profile || {};
-        if (!p.onboarded_at) return false;
-        return _rbPriorVisit || (_waLoaded && _waItems.length >= 3);
-      }
+      // Masthead: one register for everyone — time-of-day greeting + the
+      // static echo. (The returner-detection path was removed in the Wave 5
+      // sweep: _rbUpdateMasthead stopped consuming it in bug report 4.7.)
       function _rbUpdateMasthead() {
         // One masthead for everyone (bug report 4.7): time-of-day greeting +
         // the static echo. The returner "Welcome back · N pieces catalogued …"
@@ -11479,7 +11279,6 @@ body>*:not(#tv-result-page){display:none !important}
 #rb-rail{margin:6px 0 30px}
 #rb-rail .rb-rail-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 10px}
 #rb-rail .rb-rail-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}
-#rb-rail .rb-rail-hint{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:var(--ink-faint)}
 #rb-rail .rb-rail-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px}
 #rb-rail .rb-rc{position:relative;display:flex;flex-direction:column;padding:0;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;cursor:pointer;box-sizing:border-box;overflow:hidden;transition:border-color .2s;text-align:left}
 #rb-rail .rb-rc:hover{border-color:rgba(32,32,33,0.4)}
