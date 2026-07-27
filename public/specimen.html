@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Robes — serif specimen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;1,300;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--cream);color:var(--ink);font-family:var(--font-sans);padding:56px clamp(24px,6vw,90px) 120px}
+  .head{max-width:920px;margin:0 auto 54px}
+  .ey{font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px}
+  .head h1{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:34px;line-height:1.15}
+  .head p{font-size:13.5px;line-height:1.7;color:var(--ink-soft);max-width:560px;margin-top:12px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:0;max-width:1240px;margin:0 auto;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);overflow:hidden;background:#fff}
+  .col{padding:40px 44px 48px}
+  .col+.col{border-left:0.5px solid var(--rule-mid)}
+  .col .tag{font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);padding-bottom:20px;border-bottom:0.5px solid var(--rule);margin-bottom:34px}
+  .col .tag b{color:var(--ink);font-weight:500}
+  .a{--serif:'Cormorant',Georgia,serif}
+  .b{--serif:'Cormorant Garamond',Georgia,serif}
+  .row{margin-bottom:40px}
+  .lbl{font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px}
+  .wordmark{font-family:var(--serif);font-weight:400;font-size:17px;letter-spacing:.34em;text-transform:uppercase}
+  .kp{font-family:var(--serif);font-weight:300;font-size:52px;line-height:1.1}
+  .kp em{font-style:italic;color:var(--ink-faint)}
+  .greet{font-family:var(--serif);font-weight:300;font-size:44px;line-height:1.08}
+  .invite{font-family:var(--serif);font-weight:300;font-size:32px;line-height:1.15}
+  .invite em{font-style:italic}
+  .card{font-family:var(--serif);font-weight:300;font-size:22px;line-height:1.2}
+  .fb{font-family:var(--serif);font-style:italic;font-weight:300;font-size:22px}
+  .small{font-family:var(--serif);font-style:italic;font-weight:300;font-size:17px;color:var(--ink-soft)}
+  .flourish{font-family:var(--serif);font-style:italic;font-weight:300;font-size:64px;line-height:1;color:var(--ink)}
+  .note{max-width:920px;margin:44px auto 0;font-size:12.5px;line-height:1.7;color:var(--ink-soft)}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}.col+.col{border-left:none;border-top:0.5px solid var(--rule-mid)}}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div class="ey">Robes · internal specimen</div>
+  <h1>One serif, two cuts.</h1>
+  <p>The same production strings, sizes and weights, set in the family the build ships (left) and the family the style guide specified (right). Judge the italics and the large settings first — that is where the two cuts differ most.</p>
+</div>
+
+<div class="cols">
+  <div class="col a">
+    <div class="tag"><b>Cormorant</b> · current build</div>
+    <div class="row"><div class="lbl">Wordmark · 17px / 400</div><div class="wordmark">Robes</div></div>
+    <div class="row"><div class="lbl">Result masthead · 52px / 300 + italic</div><div class="kp">Your piece,<br><em>worn three ways.</em></div></div>
+    <div class="row"><div class="lbl">Greeting · 44px / 300</div><div class="greet">Good morning, Annie.</div></div>
+    <div class="row"><div class="lbl">Wardrobe invitation · 32px / 300 + italic</div><div class="invite">Every look curated,<em> starting with a photograph.</em></div></div>
+    <div class="row"><div class="lbl">Day card title · 22px / 300</div><div class="card">Stroll &amp; Sundowners</div></div>
+    <div class="row"><div class="lbl">Feedback ask · 22px / 300 italic</div><div class="fb">How is this edit?</div></div>
+    <div class="row"><div class="lbl">Reading state · 17px / 300 italic (the floor)</div><div class="small">Reading your week…</div></div>
+    <div class="row"><div class="lbl">Italic at display scale · 64px / 300</div><div class="flourish">dressed for anything</div></div>
+  </div>
+  <div class="col b">
+    <div class="tag"><b>Cormorant Garamond</b> · original spec</div>
+    <div class="row"><div class="lbl">Wordmark · 17px / 400</div><div class="wordmark">Robes</div></div>
+    <div class="row"><div class="lbl">Result masthead · 52px / 300 + italic</div><div class="kp">Your piece,<br><em>worn three ways.</em></div></div>
+    <div class="row"><div class="lbl">Greeting · 44px / 300</div><div class="greet">Good morning, Annie.</div></div>
+    <div class="row"><div class="lbl">Wardrobe invitation · 32px / 300 + italic</div><div class="invite">Every look curated,<em> starting with a photograph.</em></div></div>
+    <div class="row"><div class="lbl">Day card title · 22px / 300</div><div class="card">Stroll &amp; Sundowners</div></div>
+    <div class="row"><div class="lbl">Feedback ask · 22px / 300 italic</div><div class="fb">How is this edit?</div></div>
+    <div class="row"><div class="lbl">Reading state · 17px / 300 italic (the floor)</div><div class="small">Reading your week…</div></div>
+    <div class="row"><div class="lbl">Italic at display scale · 64px / 300</div><div class="flourish">dressed for anything</div></div>
+  </div>
+</div>
+
+<p class="note">What to look for: the left cut carries higher stroke contrast and longer, sharper serifs — showier at scale, especially in the italic. The right cut sits closer to a classical Garamond — rounder, quieter, a touch wider in the lowercase. "Restrained not minimal" is the right column's temperament; "a little more Jacquemus" is the left's. Both hold weight 300 at these sizes; below ~17px both get fragile, which is why the app floors its serifs there.</p>
+
+</body>
+</html>

@@ -543,9 +543,9 @@
       function _wtrkCopy(n) {
         const left = Math.max(0, _WA_TARGET - n);
         if (n === 0)  return ['Start here', 'Photograph your first pieces — several at once works — and Robes starts weaving your own wardrobe into every look. <strong>0 of 15 catalogued</strong>.'];
-        if (n < 5)   return ['Keep going', 'Add ' + left + ' more — a batch of photos at once is fastest — and Robes can dress you head to toe from your own closet. <strong>' + n + ' of 15 catalogued</strong>.'];
-        if (n < 10)  return ['Keep going', 'Every piece you add pulls more of your real wardrobe into your daily looks — <strong>' + n + ' of 15 catalogued</strong>.'];
-        if (n < 15)  return ['Nearly there', 'Add ' + left + ' more and every look is built entirely from your own wardrobe — <strong>' + n + ' of 15 catalogued</strong>.'];
+        if (n < 5)   return ['Taking shape', 'Add ' + left + ' more — a batch of photos at once is fastest — and Robes can dress you head to toe from your own closet. <strong>' + n + ' of 15 catalogued</strong>.'];
+        if (n < 10)  return ['Coming together', 'Every piece you add pulls more of your real wardrobe into your daily looks — <strong>' + n + ' of 15 catalogued</strong>.'];
+        if (n < 15)  return ['Nearly whole', 'Add ' + left + ' more and every look is built entirely from your own wardrobe — <strong>' + n + ' of 15 catalogued</strong>.'];
         return ['Growing wardrobe', '<strong>' + n + ' pieces catalogued</strong> — the more you add, the sharper every look Robes builds.'];
       }
       window.__wtrkEdit = function(id) {
@@ -1221,7 +1221,7 @@
               <button onclick="window.__waRetake&&window.__waRetake()" style="background:#fff;border:1px solid #D8CEBC;border-radius:20px;padding:6px 14px;font-size:12px;color:#6A5E54;cursor:pointer;white-space:nowrap;font-family:inherit;">↺ Retake</button>
             </div>
             <div style="margin-bottom:12px;">
-              <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">ITEM NAME</label>
+              <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">THE PIECE</label>
               <input id="wa-saw-label" value="${(tag.label||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:15px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawLabel=this.value">
             </div>
             <div style="display:flex;gap:10px;margin-bottom:12px;">
@@ -1693,7 +1693,7 @@
           _waHeroPickerPaint();
           if (/PGRST204|column/i.test(String(e && e.message || e))) {
             _waV2Cols = false;
-            _waShowToast('The Hero Rack isn’t ready yet — try again shortly');
+            _waShowToast('Robes couldn’t save that just now — try again shortly');
           } else _waShowToast('Could not update the Hero Rack');
         }
       };
@@ -2126,7 +2126,7 @@
             } catch (e) {
               console.error('wishlist save:', e);
               const missing = /relation|does not exist|PGRST205|schema cache/i.test(String(e && e.message || e));
-              _waShowToast(missing ? 'The wishlist isn’t ready yet — try again shortly' : 'Could not save — try again');
+              _waShowToast(missing ? 'Robes couldn’t save that just now — try again shortly' : 'Could not save — try again');
               btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'SAVE TO WISHLIST →';
             }
           };
@@ -9902,16 +9902,30 @@
 
       function _cbGetSendBtn() { return document.querySelector('.cb-send'); }
 
+      // Swap only the label span — btn.textContent used to destroy the
+      // arrow SVG permanently on the first intent change (review finding).
+      function _cbLabelEl(btn) {
+        let l = btn.querySelector('.cb-send-lbl');
+        if (!l) {
+          l = document.createElement('span');
+          l.className = 'cb-send-lbl';
+          l.textContent = (btn.textContent || 'Send').trim();
+          btn.insertBefore(l, btn.firstChild);
+          Array.from(btn.childNodes).forEach(n => { if (n.nodeType === 3) n.remove(); });
+        }
+        return l;
+      }
       function _cbSetCta(text) {
         const btn = _cbGetSendBtn();
         if (!btn) return;
-        if (!btn.dataset.origText) btn.dataset.origText = btn.textContent || 'Send';
-        btn.textContent = text;
+        const l = _cbLabelEl(btn);
+        if (!btn.dataset.origText) btn.dataset.origText = l.textContent || 'Send';
+        l.textContent = text;
       }
 
       function _cbResetCta() {
         const btn = _cbGetSendBtn();
-        if (btn && btn.dataset.origText) btn.textContent = btn.dataset.origText;
+        if (btn && btn.dataset.origText) _cbLabelEl(btn).textContent = btn.dataset.origText;
       }
 
       // "Add from Wardrobe" (beta feedback) — anchor a styling prompt to a
