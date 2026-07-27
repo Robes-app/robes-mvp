@@ -546,7 +546,7 @@
       clearMessage();
       const { error } = await sbClient.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin + '/dashboard' }
+        options: { redirectTo: window.location.origin + '/onboarding' }
       });
       if (error) showMessage(friendlyAuthError(error.message));
     });
@@ -593,7 +593,7 @@
         password,
         options: {
           data: { first_name: firstName },
-          emailRedirectTo: window.location.origin + '/dashboard'
+          emailRedirectTo: window.location.origin + '/onboarding'
         }
       });
 

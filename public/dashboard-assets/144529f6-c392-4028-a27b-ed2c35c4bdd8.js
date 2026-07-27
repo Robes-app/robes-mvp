@@ -29,16 +29,16 @@ const Dash = (function () {
   /* ── greeting + date ──────────────────────────────────────────── */
   function greetWord() {
     const h = new Date().getHours();
-    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   }
   function readName() {
     try { const s = JSON.parse(localStorage.getItem('robes-tweaks') || '{}'); if (s.name && s.name.trim()) return s.name.trim(); } catch (e) {}
-    return 'Annie';
+    return '';
   }
   function applyGreet(name) {
     const first = (name || readName()).split(/\s+/)[0];
     const el = $('dash-greet');
-    if (el) el.innerHTML = `${greetWord()}, ${first}.`;
+    if (el) el.innerHTML = first ? `${greetWord()}, ${first}.` : `${greetWord()}.`;
   }
   function applyDate() {
     const wd = new Date().toLocaleDateString('en-GB', { weekday: 'long' });

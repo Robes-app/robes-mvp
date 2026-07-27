@@ -10243,6 +10243,10 @@ body>*:not(#tv-result-page){display:none !important}
       // around it?" — the cataloguing loop's reward, on every add.
       window.__rbAddFork = function(row) {
         if (!row || !row.label) return;
+        // Below the 15-piece threshold she is cataloguing, not styling — a
+        // modal on every add taxes the exact behaviour the product needs
+        // most. The fork returns once the wardrobe is built.
+        if (_waItems.length < 15) return;
         document.getElementById('rb-addfork')?.remove();
         const serif = "'Cormorant',Georgia,serif";
         const modal = document.createElement('div');

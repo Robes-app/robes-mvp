@@ -2529,7 +2529,7 @@ app.get('/board/:shareId', rateLimit({ windowMs: 60_000, max: 40 }), async (req,
     res.status(status).type('html').send(_boardTpl.replace('<!--__OG__-->', og).replace('__BOARD_JSON__', json));
   };
   const notFound = () => send(404, { notFound: true },
-    `<title>Robes — this look isn’t shared any more</title>\n<meta property="og:title" content="Robes — styled for you">`);
+    `<title>Robes — this look isn’t shared any more</title>\n<meta name="robots" content="noindex">\n<meta property="og:title" content="Robes — styled for you">`);
 
   if (!shareId) return notFound();
   try {
@@ -2547,6 +2547,7 @@ app.get('/board/:shareId', rateLimit({ windowMs: 60_000, max: 40 }), async (req,
     const og = [
       `<title>${htmlEsc(payload.title)} — styled by Robes</title>`,
       `<meta name="description" content="${htmlEsc(desc)}">`,
+      `<link rel="canonical" href="${htmlEsc(pageUrl)}">`,
       `<meta property="og:type" content="website">`,
       `<meta property="og:site_name" content="Robes">`,
       `<meta property="og:title" content="${htmlEsc(payload.title)} — styled by Robes">`,

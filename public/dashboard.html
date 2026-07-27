@@ -1905,12 +1905,12 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
     </div>
     <button class="nav-wbtn" onclick="App.showWardrobe()">
       <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>
-      Wardrobe<span class="nav-wbtn-count">10</span>
+      Wardrobe<span class="nav-wbtn-count"></span>
     </button>
     <div class="av-wrap">
       <div class="avatar" id="avatar" onclick="App.toggleAvatarMenu(event)">A</div>
       <div class="av-menu" id="av-menu">
-        <div class="av-name"><strong id="av-name">Annie</strong><span>Founding Stylist</span></div>
+        <div class="av-name"><strong id="av-name"></strong><span>Founding Stylist</span></div>
         <button class="av-item" onclick="App.showWardrobe()"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>My wardrobe</button>
         <button class="av-item" onclick="App.goHome()"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Style notes</button>
       </div>
@@ -2024,7 +2024,7 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
 
         <!-- masthead -->
         <header class="dash-mast">
-          <h1 class="dash-greet" id="dash-greet" data-comment-anchor="b8c791de12-h1">Good evening, Annie.</h1>
+          <h1 class="dash-greet" id="dash-greet" data-comment-anchor="b8c791de12-h1">&nbsp;</h1>
           <div class="dash-echo">What are you dressing for today?</div>
           <!-- Mobile-only ambient weather strip (the nav pill hides <768px) -->
           <div class="dash-wx-m" id="dash-wx-m" aria-hidden="true"></div>
@@ -2101,7 +2101,7 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
         <section class="services">
           <div class="sec-head"><span class="sec-ey">The styling concierge</span><span class="sec-meta">Specialised edits, on request</span></div>
           <div class="services-grid">
-            <button class="svc" onclick="KP.comingSoon('Weekly planner,&lt;br&gt;&lt;em&gt;coming soon.&lt;/em&gt;', 'Outfits for the week ahead, synced to your events and the forecast. Almost ready.')">
+            <button class="svc" onclick="window.__wkOpen&amp;&amp;window.__wkOpen()">
               <div class="svc-img"><img src="/dashboard-assets/d46f5942-73c0-444f-8cb4-a5b47f6c57b1.png" style="object-position:50% 28%" alt=""><span class="svc-num">01</span></div>
               <div class="svc-body">
                 <div class="svc-title">Weekly planner</div>
@@ -2109,7 +2109,7 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
                 <span class="svc-cta">Plan my week<svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span>
               </div>
             </button>
-            <button class="svc" onclick="KP.comingSoon('Travel edit,&lt;br&gt;&lt;em&gt;coming soon.&lt;/em&gt;', 'A cohesive packing list built from your wardrobe, weather-checked for the trip ahead. Almost ready.')">
+            <button class="svc" onclick="window.__tvOpen&amp;&amp;window.__tvOpen()">
               <div class="svc-img"><img src="/dashboard-assets/4414a012-2ae1-4631-8951-6000bfc851e2.png" style="object-position:52% 16%" alt=""><span class="svc-num">02</span></div>
               <div class="svc-body">
                 <div class="svc-title">Travel edit</div>

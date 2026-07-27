@@ -1105,7 +1105,7 @@ const App = (function () {
       userName = name.trim();
       const first = userName.split(/\s+/)[0];
       const h = new Date().getHours();
-      const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+      const greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
       $('greeting').innerHTML = `${greet},<br>${first}.`;
       $('avatar').textContent = first[0].toUpperCase();
       $('av-name').textContent = first;
@@ -1117,7 +1117,7 @@ const App = (function () {
   function init() {
     // greeting time-of-day
     const h = new Date().getHours();
-    const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    const greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
     $('greeting').innerHTML = `${greet},<br>${userName}.`;
     // composer + pills set by applyComposer (mode-aware)
     renderGallery();
@@ -1180,7 +1180,7 @@ const App = (function () {
     userName = name.trim();
     const first = userName.split(/\s+/)[0];
     const h = new Date().getHours();
-    const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    const greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
     $('greeting').innerHTML = `${greet},<br>${first}.`;
     $('avatar').textContent = first[0].toUpperCase();
     $('av-name').textContent = first;

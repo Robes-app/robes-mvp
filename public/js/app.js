@@ -23,18 +23,19 @@ const App = (function () {
     shareIdx: 0, idx: 0,
   };
 
-  const FLOW = ['landing', 'confirm', 'name', 'capture', 'gen', 'result'];
+  const FLOW = ['landing', 'name', 'capture', 'gen', 'result'];
   const order = () => FLOW;
 
   /* ── screen switching ───────────────────────────────────────────── */
   function show(id) {
     $$('.screen').forEach(s => s.classList.remove('active'));
     const el = document.getElementById('s-' + id);
+    if (!el) return;
     el.classList.add('active');
     window.scrollTo(0, 0);
-    $('#nav').classList.toggle('on-dark', id === 'confirm' || id === 'name');
+    $('#nav').classList.toggle('on-dark', id === 'name');
     $('#nav').classList.toggle('on-landing', id === 'landing');
-    const splash = id === 'landing' || id === 'confirm' || id === 'name';
+    const splash = id === 'landing' || id === 'name';
     $('#nav-cta').style.display = id === 'landing' ? '' : 'none';
     paintProgress(id);
     if (id === 'landing') prepLanding();
@@ -46,7 +47,7 @@ const App = (function () {
   function paintProgress(id) {
     const el = $('#nav-progress');
     if (!el) return;
-    const seq = order().filter(s => s !== 'gen' && s !== 'landing' && s !== 'confirm' && s !== 'name');
+    const seq = order().filter(s => s !== 'gen' && s !== 'landing' && s !== 'name');
     const curPos = seq.indexOf(id);
     el.innerHTML = seq.map((s, i) => {
       const cls = i < curPos ? 'done' : i === curPos ? 'cur' : '';
@@ -134,37 +135,6 @@ const App = (function () {
     }
   }
 
-  function submitLandingEmail(e) {
-    if (e) e.preventDefault();
-    const inp = $('#land-email');
-    const v = (inp.value || '').trim();
-    if (!v || !/.+@.+\..+/.test(v)) { inp.focus(); return false; }
-    st.email = v;
-    st.emailGuess = guessName(v);
-    persist();
-
-    // fire-and-forget: save to waitlist (non-blocking so UX stays snappy)
-    fetch('/api/waitlist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: v }),
-    }).catch(() => {}); // swallow errors — waitlist is best-effort
-
-    openModal();
-    return false;
-  }
-  function focusEmail() {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    const inp = $('#land-email');
-    if (inp) setTimeout(() => inp.focus(), 200);
-  }
-  function pickNeed(card, text) {
-    clearInterval(lcTimer); clearTimeout(lcTimer);
-    const el = $('#lc-typed');
-    if (el) el.textContent = text;
-    $$('.use-card').forEach(c => c.classList.toggle('active', c === card));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
   function guessName(email) {
     let local = email.split('@')[0].replace(/[0-9._-]+/g, ' ').trim().split(' ')[0];
     if (!local) return '';
@@ -182,14 +152,6 @@ const App = (function () {
     const v = ($('#name-input').value || '').trim();
     st.name = v ? v.replace(/\s+.*$/, '') : '';
     persist();
-    // update Airtable contact with the name now that we have it
-    if (st.name && st.email) {
-      fetch('/api/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: st.email, name: st.name }),
-      }).catch(() => {});
-    }
     next();
   }
 
@@ -616,13 +578,6 @@ const App = (function () {
     const v = (document.getElementById('fm-name-input').value || '').trim();
     st.name = v ? v.replace(/\s+.*$/, '') : '';
     persist();
-    if (st.name && st.email) {
-      fetch('/api/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: st.email, name: st.name }),
-      }).catch(() => {});
-    }
     startGenModal();
   }
 
@@ -885,19 +840,12 @@ const App = (function () {
   function init() {
     wireDrop();
     loadPersisted();
-    const params = new URLSearchParams(location.search);
-    if (params.get('from') === 'share' && st.email) {
-      history.replaceState({}, '', '/');
-      go('landing');
-      setTimeout(openModal, 80);
-    } else {
-      go('landing');
-    }
+    go('landing');
   }
 
   return {
     init, next, go, restart, goHome, startFlow, back, styleAnother, reopenResult,
-    submitLandingEmail, focusEmail, pickNeed, submitName,
+    submitName,
     onFile, clearPhoto, syncPrompt, submitPrompt,
     toggleAddMenu, menuUpload, menuCamera, menuLink, removeLink,
     openShare, closeShare, goShare,

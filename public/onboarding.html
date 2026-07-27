@@ -431,6 +431,11 @@
         <div class="dk-inner"><div style="text-align:center"><div class="dk-wordmark">Robes</div></div></div>
       </div>`;
     splashTimer = setTimeout(() => go('intro'), 2000);
+    // Tap anywhere to skip the splash — never make her wait for chrome.
+    root.querySelector('.dk-splash').addEventListener('click', () => {
+      clearTimeout(splashTimer);
+      if (st.stage === 'splash') go('intro');
+    });
   }
 
   /* ── Intro ──────────────────────────────────────────────────────── */
@@ -1249,28 +1254,9 @@
       </div></div>`;
     const enter = document.getElementById('ob-enter');
     enter.onclick = () => { window.location.href = '/dashboard'; };
-    // The styling prefire is killed the instant we navigate — give it a short
-    // head start so the looks are usually waiting when she lands.
-    let prefireLanded = false;
-    try { prefireLanded = !!sessionStorage.getItem('rb_onboard_styled'); } catch (e) {}
-    if (st.pieceStyled && !prefireLanded) {
-      const label = enter.textContent;
-      enter.disabled = true;
-      enter.style.opacity = '0.55';
-      enter.textContent = 'Composing your looks…';
-      let waited = 0;
-      const hold = setInterval(() => {
-        waited += 500;
-        let ready = false;
-        try { ready = !!sessionStorage.getItem('rb_onboard_styled'); } catch (e) {}
-        if (ready || waited >= 4000) {
-          clearInterval(hold);
-          enter.disabled = false;
-          enter.style.opacity = '';
-          enter.textContent = label;
-        }
-      }, 500);
-    }
+    // No hold: the CTA stays live even while the prefire is in flight — the
+    // dashboard's "Your piece, styled" card carries the composing state, and
+    // the done-sub copy already says the looks are on their way.
   }
 
   /* ── Boot ───────────────────────────────────────────────────────── */
@@ -1287,11 +1273,19 @@
     if (!session) { window.location.href = '/signup.html?mode=signin'; return; }
     st.uid = session.user.id;
 
+    // Already-onboarded users land here directly now (OAuth + email-confirm
+    // redirects target /onboarding) — pass them straight through to the
+    // dashboard rather than re-running the flow.
+    let alreadyOnboarded = false;
+    try { alreadyOnboarded = !!sessionStorage.getItem('rb_onboarded'); } catch (e) {}
+    if (alreadyOnboarded) { window.location.href = '/dashboard'; return; }
+
     const meta = session.user.user_metadata || {};
     const metaName = meta.first_name || meta.given_name || String(meta.full_name || meta.name || '').split(/\s+/)[0] || '';
 
     const { data: profile } = await sbClient.from('profiles')
-      .select('first_name, style_icons, style_dna').eq('id', st.uid).single();
+      .select('first_name, style_icons, style_dna, onboarded_at').eq('id', st.uid).single();
+    if (profile && profile.onboarded_at) { window.location.href = '/dashboard'; return; }
     if (profile) {
       if (profile.first_name) st.savedName = profile.first_name;
       if (profile.style_icons && profile.style_icons.length) st.icons = profile.style_icons;
