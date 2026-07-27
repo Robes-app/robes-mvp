@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-<script>(function(){var iOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(/Mac/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);if(iOS){var v=document.querySelector('meta[name="viewport"]');if(v)v.setAttribute('content','width=device-width, initial-scale=1, maximum-scale=1');}})();</script>
   <title>Sign Up — Robes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,7 +12,7 @@
     *, *::before, *::after { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; overflow-x: hidden; }
 
-    ::placeholder { color: #C4B8A4; opacity: 1; }
+    ::placeholder { color: #7E6F50; opacity: 1; }
 
     @keyframes robesFadeUp {
       from { opacity: 0; transform: translateY(16px); }
@@ -110,7 +109,7 @@
       background: none;
       border: none;
       cursor: pointer;
-      color: #A89880;
+      color: #7E6F50;
       font-size: 18px;
       line-height: 1;
       padding: 4px;
@@ -132,7 +131,7 @@
 
     h1 em {
       font-style: italic;
-      color: #A89880;
+      color: #7E6F50;
     }
 
     /* Subtext */
@@ -141,7 +140,7 @@
       font-weight: 300;
       font-size: 14px;
       line-height: 1.65;
-      color: #A89880;
+      color: #7E6F50;
     }
 
     /* OAuth */
@@ -193,7 +192,7 @@
       font-size: 9px;
       letter-spacing: 0.22em;
       text-transform: uppercase;
-      color: #C4B8A4;
+      color: #7E6F50;
     }
 
     /* Form fields */
@@ -215,7 +214,7 @@
       font-size: 9px;
       letter-spacing: 0.24em;
       text-transform: uppercase;
-      color: #A89880;
+      color: #7E6F50;
     }
 
     .btn-show {
@@ -227,7 +226,7 @@
       font-size: 9px;
       letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: #C4B8A4;
+      color: #7E6F50;
       padding: 0;
       transition: color 0.2s;
     }
@@ -248,7 +247,7 @@
       transition: border-color 0.2s;
     }
 
-    .field input:focus { border-color: #A89880; }
+    .field input:focus { border-color: #7E6F50; }
 
     .field-password {
       margin-bottom: 26px;
@@ -292,7 +291,7 @@
       text-align: center;
       font-weight: 300;
       font-size: 13px;
-      color: #A89880;
+      color: #7E6F50;
     }
 
     .signin-prompt a {
@@ -317,16 +316,16 @@
       font-weight: 300;
       font-size: 11px;
       line-height: 1.6;
-      color: #C4B8A4;
+      color: #7E6F50;
     }
 
     .legal a {
-      color: #A89880;
+      color: #7E6F50;
       text-decoration: none;
       border-bottom: 1px solid #E7E0CF;
     }
 
-    .legal a:hover { border-color: #A89880; }
+    .legal a:hover { border-color: #7E6F50; }
 
     /* Error / success messages */
     .message {
@@ -351,7 +350,11 @@
     }
 
     .message.visible { display: block; }
-  </style>
+  
+/* a11y: keyboard focus + no-zoom-needed input sizing (Wave 2) */
+:focus-visible{outline:2px solid var(--ink,#202021);outline-offset:2px}
+@media (max-width:820px){input:not([type=checkbox]):not([type=radio]):not([type=color]),select,textarea{font-size:16px !important}}
+</style>
   <link rel="icon" type="image/png" sizes="64x64" href="/images/robes-icon-64.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">

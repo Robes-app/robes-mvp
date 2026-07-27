@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-  :root { --ink:#202021; --cream:#FAF8F5; --faint:#A89880; --rule:#E5DED2; }
+  :root { --ink:#202021; --cream:#FAF8F5; --faint:#7E6F50; --rule:#E5DED2; }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--cream); color:var(--ink); font-family:'Inter',sans-serif; font-weight:300; -webkit-font-smoothing:antialiased; }
   .top { display:flex; align-items:center; justify-content:space-between; padding:18px clamp(20px,5vw,48px); border-bottom:0.5px solid var(--rule); }
@@ -43,6 +43,10 @@
   .nf { text-align:center; padding:80px 20px 40px; }
   .nf h1 { margin-bottom:14px; }
   .nf p { font-size:14px; color:var(--faint); }
+
+/* a11y: keyboard focus + no-zoom-needed input sizing (Wave 2) */
+:focus-visible{outline:2px solid var(--ink,#202021);outline-offset:2px}
+
 </style>
   <link rel="icon" type="image/png" sizes="64x64" href="/images/robes-icon-64.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">

@@ -75,9 +75,9 @@
       const _acctEsc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
       acctModal.innerHTML = `
         <div style="background:#FAF8F5;border-radius:16px;padding:36px 32px;width:100%;max-width:420px;position:relative;box-shadow:0 8px 40px rgba(32,32,33,0.14)">
-          <button onclick="document.getElementById('acct-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;color:#A89880;cursor:pointer;padding:4px">✕</button>
+          <button onclick="document.getElementById('acct-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;color:var(--ink-faint);cursor:pointer;padding:4px">✕</button>
           <h2 style="font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:26px;margin:0 0 4px;color:#202021">Account details</h2>
-          <p style="font-size:12px;color:#A89880;margin:0 0 28px;letter-spacing:.04em">${_acctEsc(userEmail)}</p>
+          <p style="font-size:12px;color:var(--ink-faint);margin:0 0 28px;letter-spacing:.04em">${_acctEsc(userEmail)}</p>
           <div id="acct-msg" style="font-size:13px;margin-bottom:16px;min-height:18px"></div>
           <label style="display:block;margin-bottom:16px">
             <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">First name</span>
@@ -484,7 +484,7 @@
         _waRendering = true;
         _waObserver.disconnect();
         if (!_waLoaded) {
-          grid.innerHTML = '<div style="padding:56px 24px;text-align:center"><div style="font-family:\'Cormorant\',Georgia,serif;font-style:italic;font-weight:300;font-size:18px;color:#A89880">Opening your wardrobe…</div></div>';
+          grid.innerHTML = '<div style="padding:56px 24px;text-align:center"><div style="font-family:\'Cormorant\',Georgia,serif;font-style:italic;font-weight:300;font-size:18px;color:var(--ink-faint)">Opening your wardrobe…</div></div>';
         } else {
           // Category (primary) + Refine drawer (secondary) filters.
           // In-season hero pieces lead the grid in rack order (integration
@@ -850,7 +850,7 @@
               const wrap = document.createElement('div');
               wrap.id = 'rb-fit-pills-wrap';
               wrap.style.cssText = 'margin-top:12px;';
-              wrap.innerHTML = `<label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:8px;">SILHOUETTE &amp; FIT</label><div id="rb-fit-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>`;
+              wrap.innerHTML = `<label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:8px;">SILHOUETTE &amp; FIT</label><div id="rb-fit-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>`;
               swatchContainer.parentNode.insertBefore(wrap, swatchContainer.nextSibling);
             }
             window.__rbRemovePill = function(i) {
@@ -864,7 +864,7 @@
               const c = document.getElementById('rb-fit-pills');
               if (!c) return;
               c.innerHTML = window.__waSawFit.map(function(p, i) {
-                return `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C8B8A2;border-radius:20px;font-size:12px;color:#4A3F35;background:#FAF8F5;white-space:nowrap;">${p}<button onclick="window.__rbRemovePill(${i})" style="background:none;border:none;cursor:pointer;color:#9A8E82;font-size:13px;line-height:1;padding:0;margin-left:2px;">×</button></span>`;
+                return `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C8B8A2;border-radius:20px;font-size:12px;color:#4A3F35;background:#FAF8F5;white-space:nowrap;">${p}<button onclick="window.__rbRemovePill(${i})" style="background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:13px;line-height:1;padding:0;margin-left:2px;">×</button></span>`;
               }).join('');
             }
             _rbRenderEditPills();
@@ -945,7 +945,7 @@
           // Replace bundle swatch container with our custom rows
           const swatchContainer = document.getElementById('wa-swatches');
           if (swatchContainer) {
-            swatchContainer.innerHTML = `<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;"><span style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;">COLOUR</span><span id="rb-sw-label" style="font-size:12px;color:#6A5E54;font-style:italic;">${selectedColor||''}</span></div>${_buildSwatchRows(selectedColor)}`;
+            swatchContainer.innerHTML = `<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;"><span style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);">COLOUR</span><span id="rb-sw-label" style="font-size:12px;color:#6A5E54;font-style:italic;">${selectedColor||''}</span></div>${_buildSwatchRows(selectedColor)}`;
             swatchContainer.style.cssText = 'display:block';
             return;
           }
@@ -1005,11 +1005,11 @@
           if (!step) return;
           step.innerHTML = `
             <h2 class="fm-h">Add a piece.</h2>
-            <p style="font-size:14px;color:#9A8E82;margin:0 0 20px;">Snap it or attach it. Robes reads the colour, the cut and the label — and fills in the rest.</p>
+            <p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">Snap it or attach it. Robes reads the colour, the cut and the label — and fills in the rest.</p>
             <label id="wa-rb-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:240px;border:1.5px dashed #C8B8A2;border-radius:12px;background:#FAF8F5;cursor:pointer;text-align:center;padding:20px;box-sizing:border-box;">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               <span style="font-size:16px;color:#6A5E54;letter-spacing:0.01em;">Snap or attach the piece</span>
-              <span style="font-size:13px;color:#B0A090;">Take a photo — or select several and Robes files them one after another</span>
+              <span style="font-size:13px;color:var(--ink-faint);">Take a photo — or select several and Robes files them one after another</span>
               <input id="wa-rb-file" type="file" accept="image/*" multiple style="display:none;">
             </label>`;
           _setDot(1);
@@ -1076,7 +1076,7 @@
           step.innerHTML = `
             ${_waBatchTag()}
             <h2 class="fm-h" style="margin-bottom:4px;">Reading your piece…</h2>
-            <p style="font-size:14px;color:#9A8E82;margin:0 0 16px;">One moment — Robes is looking at the photo.</p>
+            <p style="font-size:14px;color:var(--ink-faint);margin:0 0 16px;">One moment — Robes is looking at the photo.</p>
             <div style="position:relative;height:280px;border-radius:12px;overflow:hidden;background:#1A1410;">
               <img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;display:block;opacity:0.85;">
               <div style="position:absolute;inset:0;background:rgba(10,8,6,0.18);pointer-events:none;"></div>
@@ -1170,7 +1170,7 @@
             const container = document.getElementById('rb-fit-pills');
             if (!container) return;
             container.innerHTML = window.__waSawFit.map(function(p, i) {
-              return `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C8B8A2;border-radius:20px;font-size:12px;color:#4A3F35;background:#FAF8F5;white-space:nowrap;">${p}<button onclick="window.__rbRemovePill(${i})" style="background:none;border:none;cursor:pointer;color:#9A8E82;font-size:13px;line-height:1;padding:0;margin-left:2px;">×</button></span>`;
+              return `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C8B8A2;border-radius:20px;font-size:12px;color:#4A3F35;background:#FAF8F5;white-space:nowrap;">${p}<button onclick="window.__rbRemovePill(${i})" style="background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:13px;line-height:1;padding:0;margin-left:2px;">×</button></span>`;
             }).join('');
           }
           window.__rbRemovePill = function(i) {
@@ -1186,7 +1186,7 @@
           step.innerHTML = `
             ${_waBatchTag()}
             <h2 class="fm-h" style="margin-bottom:4px;">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
-            <p style="font-size:13px;color:#9A8E82;margin:0 0 16px;">${tag.label ? `Pre-filled from your photo. Adjust anything that isn't quite right.` : `Robes couldn't quite read this one — give it a name and it files all the same.`}</p>
+            <p style="font-size:13px;color:var(--ink-faint);margin:0 0 16px;">${tag.label ? `Pre-filled from your photo. Adjust anything that isn't quite right.` : `Robes couldn't quite read this one — give it a name and it files all the same.`}</p>
             <div style="display:flex;align-items:center;gap:12px;background:#F0EBE3;border-radius:10px;padding:10px 14px;margin-bottom:16px;">
               <img id="wa-saw-thumb" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">
               <div style="flex:1;min-width:0;">
@@ -1196,34 +1196,34 @@
               <button onclick="window.__waRetake&&window.__waRetake()" style="background:#fff;border:1px solid #D8CEBC;border-radius:20px;padding:6px 14px;font-size:12px;color:#6A5E54;cursor:pointer;white-space:nowrap;font-family:inherit;">↺ Retake</button>
             </div>
             <div style="margin-bottom:12px;">
-              <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">ITEM NAME</label>
+              <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">ITEM NAME</label>
               <input id="wa-saw-label" value="${(tag.label||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawLabel=this.value">
             </div>
             <div style="display:flex;gap:10px;margin-bottom:12px;">
               <div style="flex:1;">
-                <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">CATEGORY</label>
+                <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">CATEGORY</label>
                 <select id="wa-saw-cat" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" onchange="window.__waSawCat=this.value">
                   ${cats.map(o => `<option${tag.category===o?' selected':''}>${o}</option>`).join('')}
                 </select>
               </div>
               <div style="flex:1;">
-                <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">BRAND</label>
+                <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">BRAND</label>
                 <input id="wa-saw-brand" value="${(tag.brand||'').replace(/"/g,'&quot;')}" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawBrand=this.value">
               </div>
             </div>
             <div style="margin-bottom:12px;">
               <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;">
-                <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;">COLOUR</label>
+                <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);">COLOUR</label>
                 <span id="rb-sw-label" style="font-size:12px;color:#6A5E54;font-style:italic;">${initColor}</span>
               </div>
               ${rowsHTML}
             </div>
             ${fitPills.length ? `<div style="margin-bottom:12px;">
-              <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:8px;">SILHOUETTE &amp; FIT</label>
+              <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:8px;">SILHOUETTE &amp; FIT</label>
               <div id="rb-fit-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
             </div>` : ''}
             <div style="margin-bottom:16px;">
-              <label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px;">NOTES <span style="font-weight:400;letter-spacing:0;text-transform:none;color:#B0A090;">optional</span></label>
+              <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">NOTES <span style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-faint);">optional</span></label>
               <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${aiNotes.replace(/</g,'&lt;')}</textarea>
             </div>
             <div id="rb-wa-detail-host"></div>
@@ -1688,7 +1688,7 @@
         modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
         modal.innerHTML = '<div style="background:var(--cream,#FAF8F5);width:100%;max-width:880px;border-radius:18px 18px 0 0;max-height:82vh;display:flex;flex-direction:column;box-sizing:border-box">' +
           '<div style="padding:22px 26px 14px;border-bottom:0.5px solid rgba(32,32,33,0.12);display:flex;align-items:flex-end;justify-content:space-between;gap:14px">' +
-            '<div><div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin-bottom:6px">Build your Hero Rack</div>' +
+            '<div><div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px">Build your Hero Rack</div>' +
             '<div style="font-family:var(--font-serif);font-weight:300;font-size:26px;color:var(--ink);line-height:1">Tap the pieces you reach for first</div></div>' +
             '<button onclick="document.getElementById(\'rb-hero-picker\').remove()" style="border:none;background:var(--cream-200,#EFE9DC);width:32px;height:32px;border-radius:100px;cursor:pointer;color:var(--ink);font-size:15px;flex-shrink:0">✕</button></div>' +
           '<div id="rb-hero-pick-grid" style="overflow-y:auto;padding:18px 26px;display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:14px 12px"></div>' +
@@ -1987,16 +1987,16 @@
         let photo = '';
 
         function stepPick() {
-          card.innerHTML = '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin-bottom:10px">The Wishlist</div>' +
+          card.innerHTML = '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px">The Wishlist</div>' +
             '<div style="font-family:' + serif + ';font-size:26px;font-weight:300;color:#202021;line-height:1.15;margin-bottom:6px">Save what catches your eye.</div>' +
             '<div style="font-size:12px;color:#6E6A64;margin-bottom:18px">A screenshot, a photo, a saved image — Robes reads what it can.</div>' +
             '<label id="rb-wl-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:168px;border:1.5px dashed #C8B8A2;border-radius:12px;background:#fff;cursor:pointer;text-align:center;padding:16px;box-sizing:border-box">' +
               '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>' +
               '<span style="font-size:14px;color:#6A5E54">Screenshot or photo</span>' +
-              '<span style="font-size:11.5px;color:#B0A090">From Instagram, Substack, or your camera roll</span>' +
+              '<span style="font-size:11.5px;color:var(--ink-faint)">From Instagram, Substack, or your camera roll</span>' +
               '<input id="rb-wl-file" type="file" accept="image/*" style="display:none"></label>' +
-            '<button id="rb-wl-link" style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px;background:#fff;color:#A89880;font-size:12px;cursor:pointer;font-family:inherit">Paste a link <span class="rb-soon-tag">Coming soon</span></button>' +
-            '<button id="rb-wl-cancel" style="display:block;margin:12px auto 0;background:none;border:none;color:#A89880;font-size:11.5px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:4px">Cancel</button>';
+            '<button id="rb-wl-link" style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px;background:#fff;color:var(--ink-faint);font-size:12px;cursor:pointer;font-family:inherit">Paste a link <span class="rb-soon-tag">Coming soon</span></button>' +
+            '<button id="rb-wl-cancel" style="display:block;margin:12px auto 0;background:none;border:none;color:var(--ink-faint);font-size:11.5px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:4px">Cancel</button>';
           card.querySelector('#rb-wl-file').addEventListener('change', function() {
             if (this.files && this.files[0]) {
               _rbDownscale(this.files[0]).then(stepRead).catch(function() { _waShowToast('Could not read that image'); });
@@ -2011,7 +2011,7 @@
           card.innerHTML = '<div style="text-align:center;padding:34px 10px">' +
             '<div style="width:26px;height:26px;border:2px solid #E7E0CF;border-top-color:#202021;border-radius:100px;margin:0 auto 16px;animation:wa-spin 0.9s linear infinite"></div>' +
             '<div style="font-family:' + serif + ';font-style:italic;font-weight:300;font-size:19px;color:#202021">Reading the piece…</div>' +
-            '<div style="font-size:12px;color:#A89880;margin-top:6px">Robes is looking at the image.</div></div>';
+            '<div style="font-size:12px;color:var(--ink-faint);margin-top:6px">Robes is looking at the image.</div></div>';
           const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
           if (!m) { stepConfirm({}); return; }
           fetch('/api/wardrobe/analyse', {
@@ -2023,21 +2023,21 @@
         function stepConfirm(tag) {
           let src = 'screenshot';
           const srcDefs = [['screenshot', 'Screenshot'], ['instagram', 'Instagram'], ['substack', 'Substack'], ['photo', 'In person']];
-          card.innerHTML = '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin-bottom:10px">The Wishlist</div>' +
+          card.innerHTML = '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px">The Wishlist</div>' +
             '<div style="font-family:' + serif + ';font-size:26px;font-weight:300;color:#202021;line-height:1.15;margin-bottom:16px">' + (tag.label ? 'Here’s what Robes <em style="font-style:italic;color:#9A7060">saw.</em>' : 'Name the piece.') + '</div>' +
             '<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px">' +
               '<img id="rb-wl-thumb" style="width:74px;height:96px;object-fit:cover;border-radius:8px;flex-shrink:0" alt="">' +
               '<div style="flex:1;min-width:0">' +
-                '<label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px">PIECE</label>' +
+                '<label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px">PIECE</label>' +
                 '<input id="rb-wl-label" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;margin-bottom:9px">' +
-                '<label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px">BRAND</label>' +
+                '<label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px">BRAND</label>' +
                 '<input id="rb-wl-brand" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520">' +
               '</div></div>' +
             '<div style="display:flex;gap:10px;margin-bottom:14px">' +
-              '<div style="flex:1"><label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:5px">PRICE <span style="color:#B0A090;letter-spacing:0;text-transform:none">optional</span></label>' +
-              '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#A89880;font-size:13px">€</span>' +
+              '<div style="flex:1"><label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px">PRICE <span style="color:var(--ink-faint);letter-spacing:0;text-transform:none">optional</span></label>' +
+              '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-size:13px">€</span>' +
               '<input id="rb-wl-price" inputmode="decimal" placeholder="0" style="width:100%;box-sizing:border-box;padding:10px 12px 10px 26px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520"></div></div></div>' +
-            '<label style="font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:7px">WHERE DID YOU SPOT IT?</label>' +
+            '<label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:7px">WHERE DID YOU SPOT IT?</label>' +
             '<div id="rb-wl-src" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:20px">' +
               srcDefs.map(d => '<button data-src="' + d[0] + '" style="padding:7px 13px;border-radius:100px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;border:1px solid ' + (d[0] === src ? '#2A2520;background:#2A2520;color:#F8F5F0' : '#D8CEBC;background:#fff;color:#6A5E54') + '">' + d[1] + '</button>').join('') + '</div>' +
             '<button id="rb-wl-save" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:13px;letter-spacing:0.08em;cursor:pointer;font-family:inherit">SAVE TO WISHLIST →</button>';
@@ -2117,17 +2117,17 @@
             '<span style="width:32px;height:32px;border-radius:9px;background:#F0EBE3;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#202021">' + icon + '</span>' +
             '<span style="flex:1;min-width:0"><span style="display:block;font-size:13px;font-weight:500;color:#202021">' + label +
             (soon ? ' <span class="rb-soon-tag">Coming soon</span>' : '') + '</span>' +
-            '<span style="display:block;font-size:11px;color:#A89880;margin-top:1px">' + hint + '</span></span></button>';
+            '<span style="display:block;font-size:11px;color:var(--ink-faint);margin-top:1px">' + hint + '</span></span></button>';
         }
         modal.innerHTML = '<div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:400px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px">' +
-          '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin-bottom:8px">Add a piece</div>' +
+          '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px">Add a piece</div>' +
           '<div style="font-family:' + serif + ';font-size:25px;font-weight:300;color:#202021;line-height:1.15;margin-bottom:18px">How would you like to add it?</div>' +
           '<div style="display:flex;flex-direction:column;gap:9px">' +
             door('rb-add-photo', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>', 'Photograph', 'Snap it or attach it — Robes reads the rest', false) +
             door('rb-add-link', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>', 'Paste a link', 'From any retailer page', true) +
             door('rb-add-receipt', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>', 'Import a receipt', 'Robes reads the line items', true) +
           '</div>' +
-          '<button id="rb-add-close" style="display:block;margin:14px auto 0;background:none;border:none;color:#A89880;font-size:11.5px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:4px">Cancel</button></div>';
+          '<button id="rb-add-close" style="display:block;margin:14px auto 0;background:none;border:none;color:var(--ink-faint);font-size:11.5px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:4px">Cancel</button></div>';
         document.body.appendChild(modal);
         modal.querySelector('#rb-add-photo').onclick = function() {
           modal.remove();
@@ -2246,10 +2246,10 @@
         const host = document.getElementById('rb-wa-detail-host');
         const d = window.__rbWaDetail;
         if (!host || !d) return;
-        const lbl = 'font-size:10px;letter-spacing:0.1em;color:#9A8E82;display:block;margin-bottom:8px;';
+        const lbl = 'font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:8px;';
         if (!d.open) {
           const has = d.when.length + (d.price ? 1 : 0) + (d.fitConf ? 1 : 0) + (d.sentiment ? 1 : 0) + (d.hero ? 1 : 0);
-          host.innerHTML = '<button onclick="window.__rbWaDetOpen()" style="width:100%;margin:2px 0 14px;border:1px solid #D8CEBC;border-radius:10px;background:#fff;padding:12px;font-size:12px;letter-spacing:0.03em;color:#9A8E82;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;transition:all .15s">' +
+          host.innerHTML = '<button onclick="window.__rbWaDetOpen()" style="width:100%;margin:2px 0 14px;border:1px solid #D8CEBC;border-radius:10px;background:#fff;padding:12px;font-size:12px;letter-spacing:0.03em;color:var(--ink-faint);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;transition:all .15s">' +
             '<span style="font-size:14px;line-height:1">+</span> Add more detail' +
             '<span style="font-size:10.5px;color:#C8B8A2">— season, cost-per-wear, fit' + (has ? ' \xb7 ' + has + ' set' : '') + '</span></button>';
           return;
@@ -2261,21 +2261,21 @@
         }).join('');
         const tagCtl = d.addingTag
           ? '<input id="rb-wa-tag-in" placeholder="Type &amp; press Enter" onkeydown="window.__rbWaDetTagKey(event,this)" onblur="window.__rbWaDetTagKey(event,this)" style="border:1px solid #2A2520;border-radius:100px;padding:6px 13px;font-size:12px;background:#fff;color:#2A2520;width:140px;font-family:inherit">'
-          : '<button onclick="window.__rbWaDetTagStart()" style="padding:6px 13px;border:1px dashed #C8B8A2;background:none;border-radius:100px;font-size:12px;color:#9A8E82;cursor:pointer;font-family:inherit">+ tag</button>';
+          : '<button onclick="window.__rbWaDetTagStart()" style="padding:6px 13px;border:1px dashed #C8B8A2;background:none;border-radius:100px;font-size:12px;color:var(--ink-faint);cursor:pointer;font-family:inherit">+ tag</button>';
         const fitOpts = ['True to size', 'Runs small', 'Runs large'].map(function(f) {
           const on = d.fitConf === f;
-          return '<button onclick="window.__rbWaDetFit(\'' + f + '\')" style="border:none;cursor:pointer;border-radius:100px;padding:7px 13px;font-size:11.5px;font-family:inherit;transition:all .15s;background:' + (on ? '#2A2520;color:#F8F5F0' : 'transparent;color:#9A8E82') + '">' + f + '</button>';
+          return '<button onclick="window.__rbWaDetFit(\'' + f + '\')" style="border:none;cursor:pointer;border-radius:100px;padding:7px 13px;font-size:11.5px;font-family:inherit;transition:all .15s;background:' + (on ? '#2A2520;color:#F8F5F0' : 'transparent;color:var(--ink-faint)') + '">' + f + '</button>';
         }).join('');
         const sentOpts = [['Irreplaceable', 'Robes will never suggest letting it go'], ['Would repurchase', 'Fine to replace if it wears out']].map(function(s) {
           const on = d.sentiment === s[0];
           return '<button onclick="window.__rbWaDetSent(\'' + s[0] + '\')" style="flex:1;min-width:140px;border:1px solid ' + (on ? '#2A2520' : '#D8CEBC') + ';background:' + (on ? '#F0EBE3' : '#fff') + ';color:#2A2520;border-radius:10px;padding:11px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;text-align:left;line-height:1.3;transition:all .15s">' + s[0] +
-            '<span style="display:block;font-size:10.5px;color:#9A8E82;margin-top:2px">' + s[1] + '</span></button>';
+            '<span style="display:block;font-size:10.5px;color:var(--ink-faint);margin-top:2px">' + s[1] + '</span></button>';
         }).join('');
         host.innerHTML = '<div style="margin:2px 0 14px;border:1px solid #D8CEBC;border-radius:12px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:16px">' +
           '<div><label style="' + lbl + '">WHEN DO YOU WEAR THIS</label><div style="display:flex;flex-wrap:wrap;gap:7px">' + whenChips + tagCtl + '</div></div>' +
-          '<div><label style="' + lbl + '">PURCHASE PRICE <span style="letter-spacing:0;text-transform:none;color:#B0A090">private — powers cost-per-wear</span></label>' +
+          '<div><label style="' + lbl + '">PURCHASE PRICE <span style="letter-spacing:0;text-transform:none;color:var(--ink-faint)">private — powers cost-per-wear</span></label>' +
             '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
-            '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#A89880;font-size:13px">€</span>' +
+            '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-size:13px">€</span>' +
             '<input value="' + _waEsc(d.price) + '" inputmode="decimal" placeholder="0" oninput="window.__rbWaDetPrice(this)" style="width:110px;box-sizing:border-box;padding:9px 12px 9px 26px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520"></div>' +
             '<span id="rb-wa-cpw" style="font-family:var(--font-serif);font-style:italic;font-size:15px;color:#7E7C5A">' + _rbWaCpwLabel(d) + '</span></div></div>' +
           '<div><label style="' + lbl + '">FIT CONFIDENCE</label><div style="display:inline-flex;background:#F0EBE3;border:1px solid #E7E0CF;border-radius:100px;padding:3px;flex-wrap:wrap">' + fitOpts + '</div></div>' +
@@ -2283,7 +2283,7 @@
           '<div onclick="window.__rbWaDetHero()" style="border:1px solid ' + (d.hero ? '#2A2520' : '#D8CEBC') + ';background:' + (d.hero ? '#F0EBE3' : '#fff') + ';border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s">' +
             '<svg viewBox="0 0 24 24" width="17" height="17" fill="' + (d.hero ? '#2A2520' : 'none') + '" stroke="#2A2520" stroke-width="1.3"><path d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9 6.75 19.7l1-5.85L3.5 9.65l5.9-.85z"/></svg>' +
             '<span style="flex:1"><span style="font-size:12.5px;font-weight:500;color:#2A2520">Feature in Hero Rack</span>' +
-            '<span style="display:block;font-size:10.5px;color:#9A8E82;margin-top:1px">Pin it to the shelf you reach for first</span></span>' +
+            '<span style="display:block;font-size:10.5px;color:var(--ink-faint);margin-top:1px">Pin it to the shelf you reach for first</span></span>' +
             '<span style="width:38px;height:22px;border-radius:100px;background:' + (d.hero ? '#2A2520' : '#D8CEBC') + ';position:relative;transition:all .2s;flex-shrink:0"><span style="position:absolute;top:2px;left:' + (d.hero ? '18px' : '2px') + ';width:18px;height:18px;border-radius:100px;background:#fff;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span></span></div>' +
           '</div>';
       }
@@ -2413,7 +2413,7 @@
             '.rb-wl-rm{padding:9px 12px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;color:var(--ink-faint);font-size:10.5px;cursor:pointer;font-family:inherit;transition:all .15s}',
             '.rb-wl-rm:hover{color:#b03030;border-color:#b03030}',
             '.rb-wl-empty{border:1.5px dashed var(--cream-400);border-radius:var(--rad-lg);background:var(--rose-bg);padding:clamp(30px,6vw,56px) 24px;text-align:center}',
-            '.rb-soon-tag{font-size:8.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;background:var(--cream-200);color:var(--ink-soft);border-radius:100px;padding:3px 8px;vertical-align:1px}',
+            '.rb-soon-tag{font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;background:var(--cream-200);color:var(--ink-soft);border-radius:100px;padding:3px 8px;vertical-align:1px}',
             // amplified add-entry card
             '.rb-add-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;aspect-ratio:3/4;border-radius:var(--rad);border:1.5px dashed var(--rule-mid);background:var(--cream-100);cursor:pointer;transition:all .15s;text-align:center;padding:14px;box-sizing:border-box;font-family:inherit}',
             '.rb-add-card:hover{border-color:var(--ink-faint);background:var(--cream-200)}',
@@ -3068,7 +3068,7 @@
           <div id="sn-grid" style="display:grid;gap:20px"></div>
           <div id="sn-empty" style="display:none;padding:80px 0;text-align:center">
             <p id="sn-empty-t" style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">Nothing saved yet.</p>
-            <p id="sn-empty-s" style="font-size:13px;color:#A89880;line-height:1.6">Style a key piece or save today's look<br>and it will appear here.</p>
+            <p id="sn-empty-s" style="font-size:13px;color:var(--ink-faint);line-height:1.6">Style a key piece or save today's look<br>and it will appear here.</p>
           </div>
         </div>`;
       document.body.appendChild(snPage);
@@ -3087,7 +3087,7 @@
           '#sn-grid{grid-template-columns:repeat(3,minmax(0,1fr))}' +
           '@media(max-width:1023px){#sn-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
           '@media(max-width:767px){#sn-grid{grid-template-columns:1fr}}' +
-          '.sn-ftab{background:none;border:none;border-bottom:1.5px solid transparent;padding:2px 1px 10px;margin-bottom:-1px;font-size:13px;font-family:inherit;color:#C4B8A4;cursor:pointer;white-space:nowrap;letter-spacing:.01em;transition:color .15s;flex-shrink:0}' +
+          '.sn-ftab{background:none;border:none;border-bottom:1.5px solid transparent;padding:2px 1px 10px;margin-bottom:-1px;font-size:13px;font-family:inherit;color:var(--ink-faint);cursor:pointer;white-space:nowrap;letter-spacing:.01em;transition:color .15s;flex-shrink:0}' +
           '.sn-ftab.active{color:#202021;font-weight:500;border-bottom-color:#202021}' +
           '.sn-ftab:hover{color:#202021}';
         document.head.appendChild(snSt);
@@ -3208,9 +3208,9 @@
             </button>
             ${item.img ? `<img src="${_waEsc(item.img)}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block" alt="">` : `<div style="width:100%;aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
             <div style="padding:14px 16px 16px">
-              <span style="display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:6px">${_snTypeLabel(item.type)}</span>
+              <span style="display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px">${_snTypeLabel(item.type)}</span>
               <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;font-weight:300;color:#202021;line-height:1.3;margin-bottom:4px">${_waEsc(item.title)}</div>
-              <div style="font-size:11px;color:#A89880">${_waEsc(item.subtitle || '')}</div>
+              <div style="font-size:11px;color:var(--ink-faint)">${_waEsc(item.subtitle || '')}</div>
             </div>
           </div>`).join('');
       }
@@ -3241,8 +3241,8 @@
         _rbcInitSwipe();
         row.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-            <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880">Lookbook</span>
-            <button onclick="window.__snOpen()" style="background:none;border:none;cursor:pointer;font-size:11px;color:#A89880;letter-spacing:.04em;padding:0;text-decoration:underline;text-underline-offset:3px">View all</button>
+            <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint)">Lookbook</span>
+            <button onclick="window.__snOpen()" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--ink-faint);letter-spacing:.04em;padding:0;text-decoration:underline;text-underline-offset:3px">View all</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
             ${items.map(item => `
@@ -3251,7 +3251,7 @@
                   ? `<img src="${item.img}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block" alt="">`
                   : `<div style="width:100%;aspect-ratio:1/1;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
                 <div style="padding:10px 12px 12px">
-                  <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#A89880;margin-bottom:3px">${_snTypeLabel(item.type)}</div>
+                  <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:3px">${_snTypeLabel(item.type)}</div>
                   <div style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title}</div>
                 </div>
               </div>`).join('')}
@@ -3441,7 +3441,7 @@
               overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
               overlay.innerHTML = `
                 <div style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center">Styling your piece<br><em>three ways…</em></div>
-                <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+                <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
                 <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
                   <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
                 </div>`;
@@ -3652,7 +3652,7 @@
           <div style="width:100%;max-width:900px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
 
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 12px">
-              <h1 id="kp-headline" style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0">${kpHeadline ? _waEsc(kpHeadline) : (kpDaily ? 'Your day,<br><em style="color:#A89880">dressed three ways.</em>' : 'Your piece,<br><em style="color:#A89880">worn three ways.</em>')}</h1>
+              <h1 id="kp-headline" style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0">${kpHeadline ? _waEsc(kpHeadline) : (kpDaily ? 'Your day,<br><em style="color:var(--ink-faint)">dressed three ways.</em>' : 'Your piece,<br><em style="color:var(--ink-faint)">worn three ways.</em>')}</h1>
               <button class="rb-rename-tbtn" title="Rename" style="margin-top:8px" onclick="window.__rbRename&&window.__rbRename('kp')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
             </div>
             <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : kpDaily ? 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.' : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
@@ -3668,9 +3668,9 @@
             <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:12px;background:#fff;max-width:400px;margin-bottom:40px">
               ${photoUrl ? `<img src="${photoUrl}" style="width:64px;height:80px;border-radius:4px;object-fit:cover;flex-shrink:0" alt="">` : ''}
               <div>
-                <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#A89880;margin-bottom:4px">${kpDaily ? "Today's brief" : 'Your piece'}</div>
+                <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px">${kpDaily ? "Today's brief" : 'Your piece'}</div>
                 <div style="font-family:${serif};font-size:22px;font-weight:400;color:#202021;line-height:1.1">${_waEsc(pieceName)}</div>
-                ${photoUrl ? '<div style="font-size:12px;color:#A89880;margin-top:4px">✓ The one you uploaded</div>' : ''}
+                ${photoUrl ? '<div style="font-size:12px;color:var(--ink-faint);margin-top:4px">✓ The one you uploaded</div>' : ''}
               </div>
             </div>
 
@@ -3678,7 +3678,7 @@
               ${ways.map((w, i) => {
                 const genImg = generatedImages && generatedImages[i];
                 const phInner = imagesPending
-                  ? `<span style="font-family:${serif};font-style:italic;font-size:15px;color:#B8AC9C;text-align:center;padding:0 24px">Creating your editorial image…</span>`
+                  ? `<span style="font-family:${serif};font-style:italic;font-size:15px;color:var(--ink-faint);text-align:center;padding:0 24px">Creating your editorial image…</span>`
                   : `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
                 return `
                 <div class="kp-look-card" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:24px;background:#fff;border-radius:12px;overflow:hidden;border:0.5px solid rgba(32,32,33,0.08)">
@@ -3704,7 +3704,7 @@
             <div style="margin-top:48px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center">
               <div style="font-family:${serif};font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How were these looks?</div>
               <div id="kp-fb-prompt">
-                <div style="font-size:13px;color:#A89880;margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
+                <div style="font-size:13px;color:var(--ink-faint);margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
                 <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
                   <button id="kp-fb-up" onclick="window.__kpFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">👍 Loved them</button>
                   <button id="kp-fb-dn" onclick="window.__kpFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Not quite</button>
@@ -3896,7 +3896,7 @@
           if (!c) {
             c = document.createElement('button');
             c.id = 'kp-load-cancel';
-            c.style.cssText = 'margin-top:14px;background:none;border:none;cursor:pointer;font-size:12px;letter-spacing:.06em;color:#A89880;text-decoration:underline;font-family:inherit';
+            c.style.cssText = 'margin-top:14px;background:none;border:none;cursor:pointer;font-size:12px;letter-spacing:.06em;color:var(--ink-faint);text-decoration:underline;font-family:inherit';
             overlay.appendChild(c);
           }
           c.textContent = 'Cancel';
@@ -3922,7 +3922,7 @@
           overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
           overlay.innerHTML = `
             <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
-            <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
             <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
               <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
             </div>`;
@@ -4252,10 +4252,10 @@
 .rbc-tile.wide{grid-column:span 2;aspect-ratio:2/1.05}
 .rbc-tile.isnew{border:1px dashed rgba(185,138,78,0.6)}
 .rbc-tile .tgrad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,0.42));z-index:1;pointer-events:none}
-.rbc-tile .tslot{position:absolute;left:9px;top:8px;z-index:2;font-size:7.5px;letter-spacing:.16em;text-transform:uppercase;color:#fff;background:rgba(32,32,33,0.42);padding:3px 7px;border-radius:100px}
+.rbc-tile .tslot{position:absolute;left:9px;top:8px;z-index:2;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#fff;background:rgba(32,32,33,0.42);padding:3px 7px;border-radius:100px}
 .rbc-tile .tlab{position:absolute;left:10px;bottom:9px;right:10px;z-index:2;font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:15px;color:#fff;line-height:1.05;pointer-events:none}
 .rbc-tile .town{position:absolute;top:7px;right:7px;z-index:2;width:18px;height:18px;border-radius:50%;background:#fff;display:grid;place-items:center;color:#4A7C59}
-.rbc-tile .tadd{position:absolute;top:7px;right:7px;z-index:2;font-size:7.5px;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:rgba(185,138,78,0.92);padding:2px 7px;border-radius:100px}
+.rbc-tile .tadd{position:absolute;top:7px;right:7px;z-index:2;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:rgba(185,138,78,0.92);padding:2px 7px;border-radius:100px}
 .rbc-tile .tnav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.92);border:0.5px solid var(--rule-mid);display:grid;place-items:center;opacity:0;transition:opacity .15s;padding:0;color:var(--ink);cursor:pointer}
 .rbc-tile:hover .tnav{opacity:1}
 .rbc-tile .tnav.l{left:6px}
@@ -4291,7 +4291,7 @@
 .rbc-row:hover .rbc-rm{opacity:1}
 .rbc-rm:hover{color:var(--ink);border-color:rgba(32,32,33,0.25)}
 .rbc-vp{position:relative;align-self:start;width:100%;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200);aspect-ratio:1/1}
-.rbc-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
+.rbc-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
 .rbc-vp .vlooks{position:absolute;bottom:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px;white-space:nowrap}
 .rbc-vp .vcount{position:absolute;bottom:8px;right:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
 .rbc-body{display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:2px 0}
@@ -4302,7 +4302,7 @@
 .rbc-sub .price{color:var(--ink)}
 .rbc-sub .brand{font-family:var(--font-serif);font-style:italic;font-size:13px}
 .rbc-sub .owned{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#4A7C59}
-.rbc-sub .addtag{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#B98A4E}
+.rbc-sub .addtag{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#8F6A2E}
 .rbc-hownote{font-size:11.5px;line-height:1.5;color:var(--ink-soft);margin-top:7px;font-style:italic;font-family:var(--font-serif)}
 .rbc-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;flex-wrap:wrap}
 .rbc-flip{display:flex;align-items:center;gap:9px}
@@ -4728,7 +4728,7 @@
 .rb-dc .dc-th i{width:34px;height:34px;border-radius:2px;flex:0 0 auto;background-size:cover;background-position:center;background-color:#EFE9DC;box-shadow:inset 0 0 0 1px rgba(32,32,33,0.08)}
 .rb-dc.dc-compact .dc-th i{width:16px;height:16px}
 .rb-dc .dc-th .ov{width:34px;height:34px;border-radius:2px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:400;opacity:.55;box-shadow:inset 0 0 0 1px rgba(32,32,33,0.14)}
-.rb-dc.dc-compact .dc-th .ov{width:16px;height:16px;font-size:8px}
+.rb-dc.dc-compact .dc-th .ov{width:16px;height:16px;font-size:9px}
 .rb-dc .dc-th .ov.m{display:none}
 .rb-dc .dc-evemark{display:none;position:absolute;top:6px;right:7px;font-size:9px;color:#8E7077}
 @media(max-width:767px){
@@ -4752,18 +4752,18 @@
 .rb-dc .dc-empty .t{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:19px;line-height:1.1;opacity:.55}
 .rb-dc .dc-empty .s{font-weight:300;font-size:11px;opacity:.42;margin-top:4px}
 .rb-dc .dc-ring{position:absolute;top:11px;right:11px;height:20px;border:none;background:transparent;cursor:pointer;padding:0;color:inherit;display:flex;align-items:center;gap:5px;opacity:.45;transition:opacity .2s;font-family:inherit;z-index:2}
-.rb-dc .dc-ring .tip{font-weight:500;font-size:8px;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;pointer-events:none;opacity:0;transform:translateX(4px);transition:opacity .2s,transform .2s}
+.rb-dc .dc-ring .tip{font-weight:500;font-size:9px;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;pointer-events:none;opacity:0;transform:translateX(4px);transition:opacity .2s,transform .2s}
 .rb-dc .dc-ring:hover{opacity:.9}
 .rb-dc .dc-ring:hover .tip{opacity:1;transform:translateX(0)}
 #rb-dpk{position:fixed;inset:0;z-index:940;display:flex;align-items:center;justify-content:center;padding:24px}
 #rb-dpk .dpk-veil{position:absolute;inset:0;background:rgba(32,32,33,0.38)}
 #rb-dpk .dpk-card{position:relative;background:#FAF8F5;border-radius:14px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;padding:24px 26px 22px;box-shadow:0 18px 60px rgba(32,32,33,0.22)}
-#rb-dpk .dpk-x{position:absolute;top:12px;right:14px;border:none;background:none;font-size:20px;color:#A89880;cursor:pointer;line-height:1;padding:4px}
-#rb-dpk .dpk-date{font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880;margin-bottom:14px}
+#rb-dpk .dpk-x{position:absolute;top:12px;right:14px;border:none;background:none;font-size:20px;color:var(--ink-faint);cursor:pointer;line-height:1;padding:4px}
+#rb-dpk .dpk-date{font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px}
 #rb-dpk .mo{padding:12px 0;border-top:0.5px solid rgba(32,32,33,0.08)}
 #rb-dpk .mo:first-of-type{border-top:none;padding-top:0}
-#rb-dpk .mo .sl{font-size:9px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#A89880}
-#rb-dpk .mo .sl .ch{font-weight:400;letter-spacing:.1em;color:#C4B8A4}
+#rb-dpk .mo .sl{font-size:9px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
+#rb-dpk .mo .sl .ch{font-weight:400;letter-spacing:.1em;color:var(--ink-faint)}
 #rb-dpk .mo .ti{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:21px;line-height:1.15;color:var(--ink,#202021);margin-top:4px}
 #rb-dpk .mo .th{display:flex;gap:5px;margin-top:9px}
 #rb-dpk .mo .th i{width:38px;height:38px;border-radius:3px;background-size:cover;background-position:center;background-color:#EFE9DC;box-shadow:inset 0 0 0 1px rgba(32,32,33,0.08)}
@@ -5112,7 +5112,7 @@
         const opt = (svg, label, sub, click) =>
           `<button onclick="${click}" style="display:flex;align-items:center;gap:13px;width:100%;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px;background:#fff;cursor:pointer;font-family:inherit;text-align:left;margin-bottom:9px">
             ${svg}
-            <span style="min-width:0"><span style="display:block;font-size:13.5px;color:#202021">${label}</span><span style="display:block;font-size:11px;color:#A89880;margin-top:1px">${sub}</span></span>
+            <span style="min-width:0"><span style="display:block;font-size:13.5px;color:#202021">${label}</span><span style="display:block;font-size:11px;color:var(--ink-faint);margin-top:1px">${sub}</span></span>
           </button>`;
         const modal = document.createElement('div');
         modal.id = 'rbc-add-menu';
@@ -5121,8 +5121,8 @@
         modal.innerHTML = `
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:400px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 22px 16px">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">Add a piece</p>
-              <button onclick="document.getElementById('rbc-add-menu').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">Add a piece</p>
+              <button onclick="document.getElementById('rbc-add-menu').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
             </div>
             <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 16px;line-height:1.15">Bring a piece into the look.</p>
             ${opt(waSvg, 'From your wardrobe', 'Pick something already catalogued', `window.__rbcWaPick('${applyName}')`)}
@@ -5163,7 +5163,7 @@
           <div onclick="document.getElementById('rbc-wa-pick').remove();window.${applyName}('${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
             ${wi.image_url
               ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" alt="">`
-              : `<div style="aspect-ratio:1;background:#EDE8E0;display:flex;align-items:center;justify-content:center"><span style="font-family:${serif};font-size:22px;color:#A89880">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</span></div>`}
+              : `<div style="aspect-ratio:1;background:#EDE8E0;display:flex;align-items:center;justify-content:center"><span style="font-family:${serif};font-size:22px;color:var(--ink-faint)">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</span></div>`}
             <div style="padding:7px 8px;font-size:10.5px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
           </div>`).join('') : '';
         const modal = document.createElement('div');
@@ -5174,8 +5174,8 @@
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28)">
             <div style="position:sticky;top:0;background:#FAF8F5;padding:20px 20px 0;z-index:2">
               <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
-                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">From your wardrobe</p>
-                <button onclick="document.getElementById('rbc-wa-pick').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">From your wardrobe</p>
+                <button onclick="document.getElementById('rbc-wa-pick').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
               </div>
               <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 14px;line-height:1.15">Pick the piece.</p>
               <div style="height:1px;background:rgba(32,32,33,0.08);margin:0 -20px 16px"></div>
@@ -5331,7 +5331,7 @@
             <div style="margin-bottom:10px">${pair}</div>
             <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:40px 24px;text-align:center">
               <div style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">The ${tgtEve ? 'evening' : 'day'}, <em style="font-style:italic">left free.</em></div>
-              <div style="font-size:12.5px;color:#8A8078;margin-bottom:16px">${tgtEve ? 'Add a plan and the evening gets its own look — the day stays exactly as it is.' : 'Give the day a plan and it gets its own look — the evening stays exactly as it is.'}</div>
+              <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:16px">${tgtEve ? 'Add a plan and the evening gets its own look — the day stays exactly as it is.' : 'Give the day a plan and it gets its own look — the evening stays exactly as it is.'}</div>
               <input id="dl-eve-act" placeholder="${tgtEve ? 'Date night, drinks, a dinner out…' : 'Office day, errands, a lunch…'}" style="width:100%;max-width:320px;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:100px;padding:11px 16px;font-size:13px;font-family:inherit;color:#202021;background:#FAF8F5;outline:none;margin:0 auto 14px;display:block" onkeydown="if(event.key==='Enter')window.__dlDressSlot(${oi})">
               <button onclick="window.__dlDressSlot(${oi})" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✨ Dress the ${tgtEve ? 'evening' : 'day'} →</button>
             </div>
@@ -5476,10 +5476,10 @@
 #dl-result-page .dlm-tile{position:relative;border-radius:var(--rad-sm);overflow:hidden;aspect-ratio:1/1.16;text-align:left;padding:0;background:var(--cream-200);border:0.5px solid var(--rule-mid);cursor:pointer}
 #dl-result-page .dlm-tile.wide{grid-column:span 2;aspect-ratio:2/1.05}
 #dl-result-page .dlm-tile .tgrad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,0.42));z-index:1;pointer-events:none}
-#dl-result-page .dlm-tile .tslot{position:absolute;left:9px;top:8px;z-index:2;font-size:7.5px;letter-spacing:.16em;text-transform:uppercase;color:#fff;background:rgba(32,32,33,0.42);padding:3px 7px;border-radius:100px}
+#dl-result-page .dlm-tile .tslot{position:absolute;left:9px;top:8px;z-index:2;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#fff;background:rgba(32,32,33,0.42);padding:3px 7px;border-radius:100px}
 #dl-result-page .dlm-tile .tlab{position:absolute;left:10px;bottom:9px;right:10px;z-index:2;font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:15px;color:#fff;line-height:1.05;pointer-events:none}
 #dl-result-page .dlm-tile .town{position:absolute;top:7px;right:7px;z-index:2;width:18px;height:18px;border-radius:50%;background:#fff;display:grid;place-items:center;color:#4A7C59}
-#dl-result-page .dlm-tile .tshop{position:absolute;top:7px;right:7px;z-index:2;font-size:7.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);background:rgba(255,255,255,0.9);padding:2px 7px;border-radius:100px}
+#dl-result-page .dlm-tile .tshop{position:absolute;top:7px;right:7px;z-index:2;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);background:rgba(255,255,255,0.9);padding:2px 7px;border-radius:100px}
 #dl-result-page .dlm-tile .tnav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.92);border:0.5px solid var(--rule-mid);display:grid;place-items:center;opacity:0;transition:opacity .15s;padding:0;color:var(--ink);cursor:pointer}
 #dl-result-page .dlm-tile:hover .tnav{opacity:1}
 #dl-result-page .dlm-tile .tnav.l{left:6px}
@@ -5494,7 +5494,7 @@
 #dl-result-page .dlm-yours{font-size:10px;letter-spacing:.02em;color:var(--ink-faint)}
 #dl-result-page .dlm-yours b{color:var(--ink);font-weight:500}
 #dl-result-page .dlm-ttip{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:0.5px solid var(--rule)}
-#dl-result-page .dlm-ttip .tl{font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+#dl-result-page .dlm-ttip .tl{font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
 #dl-result-page .dlm-ttip .tt{font-size:12px;line-height:1.6;color:var(--ink-soft);font-style:italic;flex:1;min-width:180px}
 #dl-result-page .dlm-rackhead{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
 #dl-result-page .dlm-rackhead .ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose)}
@@ -5506,7 +5506,7 @@
 #dl-result-page .dlm-row{display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:stretch;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:12px;transition:border-color .2s}
 #dl-result-page .dlm-row.anchored{border-color:var(--ink)}
 #dl-result-page .dlm-vp{position:relative;align-self:start;width:100%;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200);aspect-ratio:1/1}
-#dl-result-page .dlm-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
+#dl-result-page .dlm-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
 #dl-result-page .dlm-vp .vcount{position:absolute;bottom:8px;right:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
 #dl-result-page .dlm-body{display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:2px 0}
 #dl-result-page .dlm-name{font-family:var(--font-serif);font-weight:400;font-size:21px;line-height:1.08;color:var(--ink)}
@@ -5604,7 +5604,7 @@
           const pollAttr = (!wmImg && genOk) ? ' data-dlimg="' + it.image_index + '"' : '';
           const pulse = !src && !wmImg && genOk && imagesPending;
           const phInner = pulse
-            ? `<span style="font-family:${serif};font-style:italic;font-size:12px;color:#B8AC9C;text-align:center;padding:0 12px">Creating imagery…</span>`
+            ? `<span style="font-family:${serif};font-style:italic;font-size:12px;color:var(--ink-faint);text-align:center;padding:0 12px">Creating imagery…</span>`
             : (altered && !wmImg)
               ? `<span class="rbc-mono" style="font-family:${serif};font-size:30px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`
               : phSvg;
@@ -5786,13 +5786,13 @@
             </div>`).join('');
           wardrobeSection = `
             <div style="margin-bottom:24px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 10px">${scoped ? 'From your case' : 'From your wardrobe'}</p>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px">${scoped ? 'From your case' : 'From your wardrobe'}</p>
               <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${itemsHtml}</div>
             </div>`;
         } else if (aiAlt) {
           wardrobeSection = `
             <div style="margin-bottom:24px;background:#F5F2EE;border-radius:12px;padding:14px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">Robes’ suggestion</p>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 6px">Robes’ suggestion</p>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don’t have a ${_waEsc((item.category || 'piece').toLowerCase())}, but your <em>${_waEsc(aiAlt.label)}</em> creates a similar outline.</p>
               <button onclick="window.${cfg.applyName}(${cfg.idx},'${_waEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
             </div>`;
@@ -5817,8 +5817,8 @@
               </div>`).join('');
             adoptSection = `
               <div style="margin-bottom:24px">
-                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 4px">From the rest of your wardrobe</p>
-                <p style="font-size:11px;color:#A89880;margin:0 0 10px">Picking one adds it to your case and restyles this day only.</p>
+                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 4px">From the rest of your wardrobe</p>
+                <p style="font-size:11px;color:var(--ink-faint);margin:0 0 10px">Picking one adds it to your case and restyles this day only.</p>
                 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${adoptItems}</div>
               </div>`;
           }
@@ -5832,11 +5832,11 @@
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28)">
             <div style="position:sticky;top:0;background:#FAF8F5;padding:20px 20px 0;z-index:2">
               <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
-                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">Swap this piece</p>
-                <button onclick="document.getElementById('${cfg.id}').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">Swap this piece</p>
+                <button onclick="document.getElementById('${cfg.id}').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
               </div>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:26px;font-weight:300;color:#202021;margin:0 0 2px;line-height:1.15">${_waEsc(item.name)}</p>
-              ${(item.brand || retailer) ? `<p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 18px">${_waEsc(item.brand || retailer)}</p>` : `<div style="height:18px"></div>`}
+              ${(item.brand || retailer) ? `<p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:0 0 18px">${_waEsc(item.brand || retailer)}</p>` : `<div style="height:18px"></div>`}
               <div style="height:1px;background:rgba(32,32,33,0.08);margin:0 -20px 20px"></div>
             </div>
             <div style="padding:0 20px 32px">
@@ -5849,7 +5849,7 @@
                   Shop via Affiliate ${arrowSvg}
                 </button>
               </div>
-              ${(retailer || price) ? `<p style="text-align:center;font-size:11px;color:#A89880;margin:0">Opens ${_waEsc(retailer)}${price ? ' · ' + _waEsc(price) : ''}</p>` : ''}
+              ${(retailer || price) ? `<p style="text-align:center;font-size:11px;color:var(--ink-faint);margin:0">Opens ${_waEsc(retailer)}${price ? ' · ' + _waEsc(price) : ''}</p>` : ''}
             </div>
           </div>`;
         document.body.appendChild(modal);
@@ -5984,7 +5984,7 @@
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
             <div style="flex-shrink:0;width:96px">
               <div style="font-family:${serif};font-size:15px;color:#202021;line-height:1.1">${_waEsc(d.label)}</div>
-              <div style="font-size:10px;color:#A89880">${_waEsc(d.date)}</div>
+              <div style="font-size:10px;color:var(--ink-faint)">${_waEsc(d.date)}</div>
             </div>
             <input id="wk-plan-${i}" value="${_waEsc(d.free ? '' : d.activity)}"${d.free ? ' disabled' : ''} placeholder="${_waEsc(d.free ? 'Left free — no outfit this day' : ph[i % ph.length])}" onfocus="window.__wkPlanFocusSet(${i})" style="${inputCss}${d.free ? ';opacity:.5;background:#F0EDE8' : ''}">
             <button onclick="window.__wkPlanFree(${i})" style="flex-shrink:0;background:none;border:0.5px solid rgba(32,32,33,0.18);border-radius:100px;padding:7px 12px;font-size:10px;letter-spacing:.06em;cursor:pointer;color:${d.free ? '#fff' : '#6E6A64'};background:${d.free ? '#202021' : '#fff'};font-family:inherit;white-space:nowrap">${d.free ? 'Freed' : 'Leave free'}</button>
@@ -5995,17 +5995,17 @@
         modal.innerHTML = `
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:560px;max-height:86vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">The weekly plan</p>
-              <button onclick="(function(){document.getElementById('wk-plan-modal').remove()})()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;font-size:16px;line-height:1">×</button>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">The weekly plan</p>
+              <button onclick="(function(){document.getElementById('wk-plan-modal').remove()})()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);font-size:16px;line-height:1">×</button>
             </div>
             <p style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin:0 0 6px;line-height:1.15">What does the week hold?</p>
-            <p style="font-size:12.5px;color:#8A8078;line-height:1.5;margin:0 0 16px">Tell Robes each day's plan, leave it blank and Robes reads the week, or leave the day free — free days get no outfit.</p>
+            <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:0 0 16px">Tell Robes each day's plan, leave it blank and Robes reads the week, or leave the day free — free days get no outfit.</p>
             <input id="wk-brief" value="${_waEsc(_wkPlan.brief)}" placeholder="The week's mood — smart, comfortable, no repeats…" style="${inputCss};margin-bottom:16px">
             <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 14px">${chipsHtml}</div>
             ${rows}
             ${_wkPlan.days.length < 14 ? `<button onclick="window.__wkPlanExtend()" style="width:100%;margin-top:4px;background:none;border:1px dashed rgba(32,32,33,0.22);border-radius:8px;padding:10px;font-size:11.5px;color:#6E6A64;cursor:pointer;font-family:inherit">+ Plan next week too</button>` : ''}
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;flex-wrap:wrap">
-              <button onclick="window.__wkPlanGo(true)" style="background:none;border:none;cursor:pointer;font-size:11.5px;color:#A89880;text-decoration:underline;font-family:inherit;padding:4px 0">Skip — let Robes plan the days</button>
+              <button onclick="window.__wkPlanGo(true)" style="background:none;border:none;cursor:pointer;font-size:11.5px;color:var(--ink-faint);text-decoration:underline;font-family:inherit;padding:4px 0">Skip — let Robes plan the days</button>
               <button onclick="window.__wkPlanGo()" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:13px 24px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Create my week · ${nActive} days →</button>
             </div>
           </div>`;
@@ -6037,7 +6037,7 @@
           overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
           overlay.innerHTML = `
             <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
-            <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg"></div>
+            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg"></div>
             <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
               <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
             </div>`;
@@ -6397,7 +6397,7 @@
             <div style="margin-top:18px">${occHtml}</div>
             <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:40px 24px;margin-top:10px;text-align:center">
               <div style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">${_waEsc(_wkDayName(d))} evening${ev && ev.activity ? ` — <em style="font-style:italic">${_waEsc(ev.activity)}.</em>` : ', <em style="font-style:italic">left free.</em>'}</div>
-              <div style="font-size:12.5px;color:#8A8078;margin-bottom:16px">${ev ? 'Its own look, styled to follow the day.' : 'Add a plan and the evening gets its own look — the day stays exactly as it is.'}</div>
+              <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:16px">${ev ? 'Its own look, styled to follow the day.' : 'Add a plan and the evening gets its own look — the day stays exactly as it is.'}</div>
               ${ev && ev.activity ? '' : `<input id="wk-eve-act" placeholder="Date night, drinks, a dinner out…" style="width:100%;max-width:320px;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:100px;padding:11px 16px;font-size:13px;font-family:inherit;color:#202021;background:#FAF8F5;outline:none;margin:0 auto 14px;display:block" onkeydown="if(event.key==='Enter')window.__wkDressEvening()">`}
               <button onclick="window.__wkDressEvening()" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✨ Dress the evening →</button>
             </div>`;
@@ -6408,7 +6408,7 @@
           host.innerHTML = `
             <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:44px 24px;margin-top:18px;text-align:center">
               <div style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">${_waEsc(_wkDayName(d))}, <em style="font-style:italic">left free.</em></div>
-              <div style="font-size:12.5px;color:#8A8078;margin-bottom:18px">No outfit planned — a deliberately blank page in the week.</div>
+              <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:18px">No outfit planned — a deliberately blank page in the week.</div>
               <button onclick="window.__wkEditDay(${_wkState.day})" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✎ Dress this day</button>
             </div>`;
           return;
@@ -6434,7 +6434,7 @@
           const pulse = !src && !wmImg && genOk && wkPending;
           const mono = `<span class="rbc-mono" style="font-family:${serif};font-size:30px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`;
           const phInner = pulse
-            ? `<span style="font-family:${serif};font-style:italic;font-size:12px;color:#B8AC9C;text-align:center;padding:0 12px">Creating imagery…</span>`
+            ? `<span style="font-family:${serif};font-style:italic;font-size:12px;color:var(--ink-faint);text-align:center;padding:0 12px">Creating imagery…</span>`
             : (genOk && _wkState.data.jobId) ? wkPhSvg : mono;
           return {
             pollAttr,
@@ -6743,14 +6743,14 @@
         modal.innerHTML = `
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:460px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">${_waEsc(d.day_label)}</p>
-              <button onclick="document.getElementById('wk-day-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;font-size:16px;line-height:1">×</button>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">${_waEsc(d.day_label)}</p>
+              <button onclick="document.getElementById('wk-day-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);font-size:16px;line-height:1">×</button>
             </div>
             <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 14px;line-height:1.15">What are you actually doing?</p>
             <input id="wk-day-input" value="${_waEsc(d.user_activity || '')}" placeholder="Client presentation, then drinks" style="width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:14px">
             <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:20px">${chipsHtml}</div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-              ${d.rest ? '<span></span>' : `<button onclick="window.__wkFreeDay(${di})" style="background:none;border:none;cursor:pointer;font-size:11.5px;color:#A89880;text-decoration:underline;font-family:inherit;padding:4px 0">Leave this day free</button>`}
+              ${d.rest ? '<span></span>' : `<button onclick="window.__wkFreeDay(${di})" style="background:none;border:none;cursor:pointer;font-size:11.5px;color:var(--ink-faint);text-decoration:underline;font-family:inherit;padding:4px 0">Leave this day free</button>`}
               <button id="wk-day-go" onclick="window.__wkDayApply(${di})" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Dress this day →</button>
             </div>
           </div>`;
@@ -6843,7 +6843,7 @@
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
               ${data.week_label ? `<span style="font-size:10px;font-weight:500;letter-spacing:.04em;color:#6A5E54;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">${_waEsc(data.week_label.charAt(0).toUpperCase() + data.week_label.slice(1).toLowerCase())}</span>` : ''}
-              ${pill ? `<span style="font-size:11px;color:#8A8078;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">🌤 ${_waEsc(pill)}</span>` : ''}
+              ${pill ? `<span style="font-size:11px;color:var(--ink-soft);background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">🌤 ${_waEsc(pill)}</span>` : ''}
             </div>
             ${data.stylist_summary ? `<p id="wk-summary" style="font-family:${serif};font-style:italic;font-size:15.5px;color:#6E6A64;line-height:1.6;margin:0 0 24px;max-width:640px">${_waEsc(data.stylist_summary)}</p>` : ''}
             <div id="wk-strip" class="rbd-strip"></div>
@@ -7137,10 +7137,10 @@
             <span class="tv-anc-chk" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:#202021;color:#fff;font-size:10px;align-items:center;justify-content:center;z-index:2;line-height:1">✓</span>
             ${wi.image_url
               ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block" alt="">`
-              : `<div style="width:100%;aspect-ratio:1/1;background:#EDE8E0;display:flex;align-items:center;justify-content:center;font-family:${serif};font-size:26px;color:#B8AC9C">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</div>`}
+              : `<div style="width:100%;aspect-ratio:1/1;background:#EDE8E0;display:flex;align-items:center;justify-content:center;font-family:${serif};font-size:26px;color:var(--ink-faint)">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</div>`}
             <div style="padding:6px 8px 7px">
               <div style="font-size:10px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
-              ${wi.category ? `<div style="font-size:7.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#B8AC9C;margin-top:1px">${_waEsc(wi.category)}</div>` : ''}
+              ${wi.category ? `<div style="font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-top:1px">${_waEsc(wi.category)}</div>` : ''}
             </div>
           </div>`).join('');
         grid.innerHTML = `
@@ -7149,7 +7149,7 @@
             <span style="font-size:9px;font-weight:500;letter-spacing:.08em;text-transform:uppercase">Snap new</span>
           </div>
           ${tiles}
-          ${!items.length && _waItems.length ? `<div style="grid-column:1/-1;padding:14px 4px;font-size:12px;color:#A89880;font-style:italic">Nothing in this filter — try another category${_tvWxOnly ? ' or untick the weather filter' : ''}.</div>` : ''}`;
+          ${!items.length && _waItems.length ? `<div style="grid-column:1/-1;padding:14px 4px;font-size:12px;color:var(--ink-faint);font-style:italic">Nothing in this filter — try another category${_tvWxOnly ? ' or untick the weather filter' : ''}.</div>` : ''}`;
         _tvAnchorPaint();
       }
 
@@ -7240,7 +7240,7 @@
         }
         const st = _tvBrief;
         const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:11px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit';
-        const labelCss = 'font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 8px';
+        const labelCss = 'font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px';
         const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 
         // Category pills — only the categories she actually owns, plus All
@@ -7252,7 +7252,7 @@
         const browser = `
           <p style="${labelCss}">What’s tempting you?</p>
           ${(st.suggested || []).length ? `<p style="font-size:11px;color:#6E6A64;font-style:italic;margin:0 0 10px">✦ ${st.suggested.length} piece${st.suggested.length === 1 ? '' : 's'} from your moodboard will join the edit under Worth Adding.</p>` : ''}
-          <p id="tv-anchor-hint" style="font-size:11px;color:#A89880;font-style:italic;margin:0 0 10px"></p>
+          <p id="tv-anchor-hint" style="font-size:11px;color:var(--ink-faint);font-style:italic;margin:0 0 10px"></p>
           <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px">${catPills}</div>
           <label id="tv-wx-row" style="display:none;align-items:center;gap:8px;font-size:11.5px;color:#6E6A64;cursor:pointer;margin:0 0 10px">
             <input id="tv-wx-box" type="checkbox" onchange="window.__tvWxToggle(this)" style="accent-color:#202021;margin:0"${_tvWxOnly ? ' checked' : ''}>
@@ -7267,11 +7267,11 @@
         modal.innerHTML = `
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:86vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 24px 28px">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">Travel edit</p>
-              <button onclick="document.getElementById('tv-brief-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">Travel edit</p>
+              <button onclick="document.getElementById('tv-brief-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
             </div>
             <p style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin:0 0 4px;line-height:1.15">Where are we packing for?</p>
-            <p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 20px">Select everything you’re tempted to bring — Robes tells you what earns its place.</p>
+            <p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:0 0 20px">Select everything you’re tempted to bring — Robes tells you what earns its place.</p>
             <p style="${labelCss}">Destination</p>
             <input id="tv-dest" value="${_waEsc(st.dest || '')}" placeholder="Ibiza, Spain" onchange="window.__tvWxRefetch()" style="${inputCss};margin-bottom:16px">
             <p style="${labelCss}">Dates</p>
@@ -7348,7 +7348,7 @@
           <div id="tv-plan-row-${i}" data-free="${free ? '1' : ''}">
             <label for="tv-plan-${i}" style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px">
               <span style="font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#202021">Day ${i + 1}</span>
-              ${fmtDay(i) ? `<span style="font-size:10px;color:#A89880">${_waEsc(fmtDay(i))}</span>` : ''}
+              ${fmtDay(i) ? `<span style="font-size:10px;color:var(--ink-faint)">${_waEsc(fmtDay(i))}</span>` : ''}
               <button type="button" id="tv-plan-freebtn-${i}" onclick="window.__tvPlanFree(${i})" style="margin-left:auto;padding:3px 10px;border:0.5px solid ${free ? '#202021' : 'rgba(32,32,33,0.16)'};border-radius:40px;background:${free ? '#202021' : '#fff'};color:${free ? '#fff' : '#A89880'};font-size:9px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">${free ? '✓ Left free' : 'Leave free'}</button>
             </label>
             <input id="tv-plan-${i}" value="${_waEsc(free ? '' : (plan[i] || ''))}"${free ? ' disabled' : ''} placeholder="${_waEsc(free ? 'Left free — no outfits this day' : ph(i))}" onfocus="window.__tvPlanFocusSet(${i})" style="${inputCss}${free ? ';opacity:.5;background:#F0EDE8' : ''}" data-ph="${_waEsc(ph(i))}">
@@ -7369,17 +7369,17 @@
           <div class="tv-sheet" style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:86vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 24px 28px">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
               ${forTrip
-                ? `<p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">${_waEsc(data.destination || 'Your trip')}</p>`
-                : `<button onclick="window.__tvPlanBack()" style="background:none;border:none;cursor:pointer;padding:0;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;font-family:inherit">← Your pieces</button>`}
-              <button onclick="document.getElementById('tv-plan-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+                ? `<p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">${_waEsc(data.destination || 'Your trip')}</p>`
+                : `<button onclick="window.__tvPlanBack()" style="background:none;border:none;cursor:pointer;padding:0;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);font-family:inherit">← Your pieces</button>`}
+              <button onclick="document.getElementById('tv-plan-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
             </div>
             <p style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin:8px 0 4px;line-height:1.15">What’s the plan, day by day?</p>
-            <p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 18px">Every outfit gets built around what you’re actually doing. Leave a day blank and Robes reads the trip; “Leave free” means no outfits that day.</p>
+            <p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:0 0 18px">Every outfit gets built around what you’re actually doing. Leave a day blank and Robes reads the trip; “Leave free” means no outfits that day.</p>
             <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:14px">${rows}</div>
             <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 16px">${chipsHtml}</div>
             <button onclick="${go}" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Create my outfits · ${n} day${n > 1 ? 's' : ''} →</button>
             ${forTrip ? '' : `<button onclick="window.__tvPlanGo('defer')" style="width:100%;margin-top:9px;padding:13px 24px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#fff;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">Still gathering pieces? Get the edit first →</button>`}
-            <button onclick="${goSkip}" style="display:block;margin:12px auto 0;background:none;border:none;padding:4px;cursor:pointer;font-size:11px;color:#A89880;text-decoration:underline;text-underline-offset:3px;font-family:inherit">Skip — let Robes plan the days</button>
+            <button onclick="${goSkip}" style="display:block;margin:12px auto 0;background:none;border:none;padding:4px;cursor:pointer;font-size:11px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:inherit">Skip — let Robes plan the days</button>
           </div>`;
         document.body.appendChild(modal);
         setTimeout(() => { const el = document.getElementById('tv-plan-0'); if (el && !el.disabled) el.focus(); }, 60);
@@ -7454,7 +7454,7 @@
           overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
           overlay.innerHTML = `
             <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
-            <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
             <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
               <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
             </div>`;
@@ -7591,10 +7591,10 @@
 #tv-result-page .tvm-tile.wide{grid-column:span 2;aspect-ratio:2/1.05}
 #tv-result-page .tvm-tile.isnew{border:1px dashed rgba(185,138,78,0.6)}
 #tv-result-page .tvm-tile .tgrad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,0.42));z-index:1;pointer-events:none}
-#tv-result-page .tvm-tile .tslot{position:absolute;left:9px;top:8px;z-index:2;font-size:7.5px;letter-spacing:.16em;text-transform:uppercase;color:#fff;background:rgba(32,32,33,0.42);padding:3px 7px;border-radius:100px}
+#tv-result-page .tvm-tile .tslot{position:absolute;left:9px;top:8px;z-index:2;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#fff;background:rgba(32,32,33,0.42);padding:3px 7px;border-radius:100px}
 #tv-result-page .tvm-tile .tlab{position:absolute;left:10px;bottom:9px;right:10px;z-index:2;font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:15px;color:#fff;line-height:1.05;pointer-events:none}
 #tv-result-page .tvm-tile .town{position:absolute;top:7px;right:7px;z-index:2;width:18px;height:18px;border-radius:50%;background:#fff;display:grid;place-items:center;color:#4A7C59}
-#tv-result-page .tvm-tile .tadd{position:absolute;top:7px;right:7px;z-index:2;font-size:7.5px;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:rgba(185,138,78,0.92);padding:2px 7px;border-radius:100px}
+#tv-result-page .tvm-tile .tadd{position:absolute;top:7px;right:7px;z-index:2;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:rgba(185,138,78,0.92);padding:2px 7px;border-radius:100px}
 #tv-result-page .tvm-tile .tnav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.92);border:0.5px solid var(--rule-mid);display:grid;place-items:center;opacity:0;transition:opacity .15s;padding:0;color:var(--ink);cursor:pointer}
 #tv-result-page .tvm-tile:hover .tnav{opacity:1}
 #tv-result-page .tvm-tile .tnav.l{left:6px}
@@ -7625,7 +7625,7 @@
 #tv-result-page .tvm-row{display:grid;grid-template-columns:108px 1fr;gap:16px;align-items:stretch;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:12px;transition:border-color .2s,background .2s}
 #tv-result-page .tvm-row.packed{border-color:rgba(126,124,90,0.5);background:var(--sage-bg)}
 #tv-result-page .tvm-vp{position:relative;align-self:start;width:100%;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200);aspect-ratio:4/5}
-#tv-result-page .tvm-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
+#tv-result-page .tvm-vp .vslot{position:absolute;top:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
 #tv-result-page .tvm-vp .vlooks{position:absolute;bottom:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px;white-space:nowrap}
 #tv-result-page .tvm-vp .vcount{position:absolute;bottom:8px;right:8px;z-index:2;font-size:9px;letter-spacing:.04em;color:var(--ink);background:rgba(255,255,255,0.86);padding:3px 7px;border-radius:100px}
 #tv-result-page .tvm-body{display:flex;flex-direction:column;justify-content:space-between;min-width:0;padding:2px 0}
@@ -7633,7 +7633,7 @@
 #tv-result-page .tvm-sub{display:flex;align-items:center;gap:8px;margin-top:5px;font-size:12px;color:var(--ink-faint);flex-wrap:wrap}
 #tv-result-page .tvm-sub .price{color:var(--ink)}
 #tv-result-page .tvm-owned{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#4A7C59}
-#tv-result-page .tvm-addtag{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#B98A4E}
+#tv-result-page .tvm-addtag{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#8F6A2E}
 #tv-result-page .tvm-hownote{font-size:11.5px;line-height:1.5;color:var(--ink-soft);margin-top:7px;font-style:italic;font-family:var(--font-serif)}
 #tv-result-page .tvm-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;flex-wrap:wrap}
 #tv-result-page .tvm-flip{display:flex;align-items:center;gap:9px}
@@ -7652,7 +7652,7 @@
 #tv-result-page .tvm-row.anchored{border-color:var(--ink)}
 #tv-result-page .tvm-anchpill{display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);border:0.5px solid var(--rule-mid);border-radius:100px;padding:3px 9px;flex:none}
 #tv-result-page .tvm-ttip{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:0.5px solid var(--rule)}
-#tv-result-page .tvm-ttip .tl{font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+#tv-result-page .tvm-ttip .tl{font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
 #tv-result-page .tvm-ttip .tt{font-size:12px;line-height:1.6;color:var(--ink-soft);font-style:italic;flex:1;min-width:180px}
 #tv-result-page .tvm-packbox{display:inline-flex;align-items:center;gap:7px;background:none;border:none;padding:6px 4px;cursor:pointer;font-size:11px;letter-spacing:.01em;color:var(--ink-soft);font-family:inherit;transition:color .15s}
 #tv-result-page .tvm-packbox.on{color:var(--ink)}
@@ -7707,7 +7707,7 @@ body>*:not(#tv-result-page){display:none !important}
         const pollAttr = (!wmImg && genOk) ? ' data-tvimg="' + it.image_index + '"' : '';
         const pulse = !src && !wmImg && genOk && imagesPending;
         const phInner = pulse
-          ? `<span style="font-family:${_tvSerif};font-style:italic;font-size:12px;color:#B8AC9C;text-align:center;padding:0 12px">Creating imagery…</span>`
+          ? `<span style="font-family:${_tvSerif};font-style:italic;font-size:12px;color:var(--ink-faint);text-align:center;padding:0 12px">Creating imagery…</span>`
           : (!genOk && !wmImg)
             ? `<span class="rbc-mono" style="font-family:${_tvSerif};font-size:28px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`
             : _tvPhSvg;
@@ -7991,7 +7991,7 @@ body>*:not(#tv-result-page){display:none !important}
           rackLabel: `The rack · ${_waEsc(dayName)}`,
           // The hint names MEMBERSHIP, not packing (decision 4 — the packed
           // checklist never constrains generation). COPY: needs sign-off
-          rackHintHtml: `<div class="tv-noprint" style="font-size:11px;color:#A89880;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.08);border-radius:8px;padding:8px 12px;margin:8px 0 14px">Styled from your case — the ${data.capsule.length} pieces this trip is built from. Swapping in anything else adds it to the case.</div>`,
+          rackHintHtml: `<div class="tv-noprint" style="font-size:11px;color:var(--ink-faint);background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.08);border-radius:8px;padding:8px 12px;margin:8px 0 14px">Styled from your case — the ${data.capsule.length} pieces this trip is built from. Swapping in anything else adds it to the case.</div>`,
           rackTitleHtml: `<h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>`,
           headButtonsHtml: `<button class="rbc-hbtn tv-noprint" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button><button class="rbc-hbtn tv-noprint" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>`,
           onFlip: '__tvFlip', onSwap: '__tvDaySwap', onAnchor: '__tvAnchor', onRemove: '__tvRemoveFromLook',
@@ -8244,7 +8244,7 @@ body>*:not(#tv-result-page){display:none !important}
           const badge = it.wardrobe_match
             ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:500;color:#4A7C59;background:rgba(74,124,89,0.10);border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${checkSvg} Yours</span>`
             : retailPrice
-              ? `<span style="font-size:10px;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;display:inline-block;vertical-align:bottom">${_waEsc(retailPrice)}</span>`
+              ? `<span style="font-size:10px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;display:inline-block;vertical-align:bottom">${_waEsc(retailPrice)}</span>`
               : '';
           // Actions pinned to the card's bottom (brief §B.2) — metadata above
           // (brand line, badge row) absorbs height variation instead of
@@ -8255,7 +8255,7 @@ body>*:not(#tv-result-page){display:none !important}
             <div${f.pollAttr} style="position:relative;background:var(--cream-200);overflow:hidden;aspect-ratio:1/1;flex-shrink:0">${f.inner}</div>
             <div style="padding:10px 12px 11px;display:flex;flex-direction:column;flex:1;min-height:0">
               <div style="font-size:12.5px;font-weight:500;color:#202021;line-height:1.35">${_waEsc(it.name)}</div>
-              ${it.brand ? `<div style="font-family:${serif};font-style:italic;font-size:12px;color:#A89880;margin-top:1px">${_waEsc(it.brand)}</div>` : ''}
+              ${it.brand ? `<div style="font-family:${serif};font-style:italic;font-size:12px;color:var(--ink-faint);margin-top:1px">${_waEsc(it.brand)}</div>` : ''}
               <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px;flex-wrap:nowrap;min-width:0">
                 <span style="display:inline-flex;align-items:center;gap:6px;min-width:0;overflow:hidden">${badge}</span>
                 ${wears ? `<span style="font-size:9.5px;font-weight:500;letter-spacing:.08em;color:#8A7B62;background:#F0EAE0;border-radius:20px;padding:2px 8px;white-space:nowrap;flex-shrink:0">× ${wears} looks</span>` : ''}
@@ -8278,9 +8278,9 @@ body>*:not(#tv-result-page){display:none !important}
         const sectionHead = (title, sub, count) => `
           <div style="display:flex;align-items:baseline;gap:10px;margin:0 0 4px">
             <span style="font-family:${serif};font-size:20px;font-weight:400;color:#202021">${title}</span>
-            <span style="font-size:10.5px;color:#A89880;letter-spacing:.06em">${count} ${count === 1 ? 'piece' : 'pieces'}</span>
+            <span style="font-size:10.5px;color:var(--ink-faint);letter-spacing:.06em">${count} ${count === 1 ? 'piece' : 'pieces'}</span>
           </div>
-          <div style="font-size:11.5px;color:#A89880;font-style:italic;margin-bottom:12px">${sub}</div>`;
+          <div style="font-size:11.5px;color:var(--ink-faint);font-style:italic;margin-bottom:12px">${sub}</div>`;
         const tiersHtml = [
           keptCards.length ? `<div style="margin-bottom:28px">
             ${sectionHead('Keep', 'Packed for this trip — each one earns its place.', keptCards.length)}
@@ -8309,7 +8309,7 @@ body>*:not(#tv-result-page){display:none !important}
                 <div${heroSrc ? '' : ' data-tvimg="0"'} style="position:relative;aspect-ratio:3/4;border-radius:var(--rad);overflow:hidden;background:var(--cream-200)">
                   ${heroSrc
                     ? `<img src="${_waEsc(heroSrc)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
-                    : `<div class="tv-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;animation:kpPhPulse 1.8s ease-in-out infinite"><span style="font-family:${serif};font-style:italic;font-size:12px;color:#B8AC9C;text-align:center;padding:0 12px">Creating imagery…</span></div>`}
+                    : `<div class="tv-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;animation:kpPhPulse 1.8s ease-in-out infinite"><span style="font-family:${serif};font-style:italic;font-size:12px;color:var(--ink-faint);text-align:center;padding:0 12px">Creating imagery…</span></div>`}
                 </div>
               </div>` : '';
 
@@ -8475,7 +8475,7 @@ body>*:not(#tv-result-page){display:none !important}
           overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
           overlay.innerHTML = `
             <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
-            <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg"></div>
+            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg"></div>
             <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
               <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
             </div>`;
@@ -8575,11 +8575,11 @@ body>*:not(#tv-result-page){display:none !important}
         modal.innerHTML = `
           <div class="tv-sheet" style="background:#FAF8F5;border-radius:20px;width:100%;max-width:440px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 24px 28px">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">${_waEsc(dayName)}</p>
-              <button onclick="document.getElementById('tv-day-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">${_waEsc(dayName)}</p>
+              <button onclick="document.getElementById('tv-day-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
             </div>
             <p style="font-family:${serif};font-size:25px;font-weight:300;color:#202021;margin:0 0 6px;line-height:1.15">What are you actually doing?</p>
-            <p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 16px">Robes re-mixes the capsule you’ve packed — a new piece only appears if the plan truly needs it.</p>
+            <p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:0 0 16px">Robes re-mixes the capsule you’ve packed — a new piece only appears if the plan truly needs it.</p>
             <input id="tv-day-input" value="${_waEsc(d.user_activity || '')}" placeholder="Attending a formal sunset wedding reception" style="width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:14px">
             <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:20px">${chipsHtml}</div>
             <button id="tv-day-apply" onclick="window.__tvDayApply(${di})" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Update day</button>
@@ -8745,13 +8745,13 @@ body>*:not(#tv-result-page){display:none !important}
         modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
         modal.innerHTML = `
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:420px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:28px 26px;text-align:center">
-            <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 8px">Add to wardrobe</p>
+            <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px">Add to wardrobe</p>
             <p style="font-family:${serif};font-size:25px;font-weight:300;color:#202021;margin:0 0 8px;line-height:1.2">Add the ${_waEsc(it.name)}?</p>
             <p style="font-size:12.5px;color:#6E6A64;line-height:1.65;margin:0 0 20px">It moves into <em>Keep</em> and joins your wardrobe — ready to pack, and every future look can style it.</p>
             <div style="display:flex;flex-direction:column;gap:9px">
               <button onclick="window.__tvOwnSnap(${ci})" style="width:100%;padding:13px 20px;border:none;border-radius:100px;background:#202021;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">📷 Snap it now</button>
               <button onclick="window.__tvQuickOwn(${ci})" style="width:100%;padding:13px 20px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">Add without a photo</button>
-              <button onclick="document.getElementById('tv-own-modal').remove()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;color:#A89880;text-decoration:underline;text-underline-offset:3px;font-family:inherit">Not now</button>
+              <button onclick="document.getElementById('tv-own-modal').remove()" style="background:none;border:none;padding:6px;cursor:pointer;font-size:11px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:inherit">Not now</button>
             </div>
           </div>`;
         document.body.appendChild(modal);
@@ -8841,7 +8841,7 @@ body>*:not(#tv-result-page){display:none !important}
               const slot = ((day.slots || [])[u[1]]) || {};
               return _waEsc(((day.day_label || 'Day ' + (u[0] + 1)).split('·')[0] || '').trim() + ' ' + (slot.slot === 'Evening' ? 'evening' : 'day'));
             });
-            noteEl.innerHTML = `<strong style="color:#202021;font-style:normal">${_waEsc(data.capsule[sel].name)}</strong> earns ${labels.length} wear${labels.length === 1 ? '' : 's'}${labels.length ? ' — ' + labels.join(', ') : ''} · <button onclick="window.__tvSelectItem(${sel})" style="background:none;border:none;padding:0;cursor:pointer;font-size:12px;color:#A89880;text-decoration:underline;text-underline-offset:2px;font-family:inherit;font-style:italic">clear</button>`;
+            noteEl.innerHTML = `<strong style="color:#202021;font-style:normal">${_waEsc(data.capsule[sel].name)}</strong> earns ${labels.length} wear${labels.length === 1 ? '' : 's'}${labels.length ? ' — ' + labels.join(', ') : ''} · <button onclick="window.__tvSelectItem(${sel})" style="background:none;border:none;padding:0;cursor:pointer;font-size:12px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:2px;font-family:inherit;font-style:italic">clear</button>`;
           }
         }
       };
@@ -8975,7 +8975,7 @@ body>*:not(#tv-result-page){display:none !important}
             bar.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.1);border-radius:10px;padding:10px 14px;margin:0 0 16px;font-size:12px;color:#6E6A64';
             bar.innerHTML = `<span><b>${_waEsc(wi.label)}</b> now packs — ${affected} day${affected === 1 ? '' : 's'} wear this slot.</span>` +
               `<button onclick="window.__tvRestyleAllDays()" style="margin-left:auto;background:#202021;color:#fff;border:none;border-radius:100px;padding:8px 16px;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">↻ Restyle those days</button>` +
-              `<button onclick="document.getElementById('tv-stale-bar').remove()" aria-label="Dismiss" style="background:none;border:none;color:#A89880;font-size:15px;cursor:pointer;padding:2px">×</button>`;
+              `<button onclick="document.getElementById('tv-stale-bar').remove()" aria-label="Dismiss" style="background:none;border:none;color:var(--ink-faint);font-size:15px;cursor:pointer;padding:2px">×</button>`;
             pane.insertBefore(bar, pane.firstChild);
           }
         }
@@ -9105,8 +9105,8 @@ body>*:not(#tv-result-page){display:none !important}
         modal.innerHTML = `
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:420px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 24px 26px">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">Rename</p>
-              <button onclick="document.getElementById('rb-rename-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">Rename</p>
+              <button onclick="document.getElementById('rb-rename-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
             </div>
             <p style="font-family:${serif};font-size:25px;font-weight:300;font-style:italic;color:#202021;margin:0 0 16px;line-height:1.15">Give it a name.</p>
             <input id="rb-rename-input" value="${_waEsc(cur)}" placeholder="A name you’ll recognise" style="width:100%;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.18);border-radius:8px;padding:12px 13px;font-size:14px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:16px">
@@ -9194,16 +9194,16 @@ body>*:not(#tv-result-page){display:none !important}
           : `<div style="width:52px;height:64px;border-radius:8px;background:#EDE8E0;flex:none"></div>`;
         modal.innerHTML = `
           <div style="position:relative;background:#FAF8F5;border-radius:18px;width:100%;max-width:440px;padding:34px 32px 30px;box-shadow:0 24px 60px -12px rgba(32,32,33,0.3)">
-            <button onclick="document.getElementById('rb-share-modal').remove()" style="position:absolute;top:14px;right:14px;width:32px;height:32px;background:none;border:none;cursor:pointer;color:#A89880;font-size:20px;line-height:1">×</button>
+            <button onclick="document.getElementById('rb-share-modal').remove()" style="position:absolute;top:14px;right:14px;width:32px;height:32px;background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:20px;line-height:1">×</button>
             <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
               ${thumb}
-              <div><p style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 4px">Share</p>
+              <div><p style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 4px">Share</p>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:19px;font-weight:300;color:#202021;margin:0;line-height:1.2">${_waEsc(entry.title || 'Your look')}</p></div>
             </div>
             <h3 style="font-family:'Cormorant',Georgia,serif;font-size:27px;font-weight:300;color:#202021;margin:0 0 8px;line-height:1.1">Can we share your look?</h3>
-            <p style="font-size:12.5px;color:#A89880;line-height:1.6;margin:0 0 18px">Add your Instagram handle and we’ll tag you when we showcase this week’s best looks.</p>
+            <p style="font-size:12.5px;color:var(--ink-faint);line-height:1.6;margin:0 0 18px">Add your Instagram handle and we’ll tag you when we showcase this week’s best looks.</p>
             <div style="display:flex;align-items:center;gap:8px;border:1px solid rgba(32,32,33,0.15);border-radius:10px;padding:12px 14px;background:#fff;margin-bottom:12px">
-              <span style="color:#A89880;font-size:14px">@</span>
+              <span style="color:var(--ink-faint);font-size:14px">@</span>
               <input id="rb-share-ig" type="text" placeholder="yourhandle" autocomplete="off" style="flex:1;min-width:0;border:none;outline:none;background:none;font-size:16px;font-family:inherit;color:#202021">
             </div>
             <button id="rb-share-go" style="width:100%;padding:15px;background:#202021;color:#FAF8F5;border:none;border-radius:10px;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;margin-bottom:14px">Share my look</button>
@@ -9212,7 +9212,7 @@ body>*:not(#tv-result-page){display:none !important}
               <span id="rb-share-url" style="flex:1;min-width:0;font-size:12px;color:#6E6A64;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Preparing your link…</span>
               <button id="rb-share-copy" style="background:none;border:none;cursor:pointer;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#202021" disabled>Copy</button>
             </div>
-            <p id="rb-share-note" style="font-size:11px;color:#A89880;text-align:center;margin:12px 0 0">Anyone with the link can view this look — no account details are shown.</p>
+            <p id="rb-share-note" style="font-size:11px;color:var(--ink-faint);text-align:center;margin:12px 0 0">Anyone with the link can view this look — no account details are shown.</p>
           </div>`;
         document.body.appendChild(modal);
 
@@ -9329,7 +9329,7 @@ body>*:not(#tv-result-page){display:none !important}
           <div id="sn-fb" style="width:100%;background:rgba(32,32,33,0.03);border-radius:12px;padding:28px 24px;text-align:center;margin-bottom:8px">
             <div style="font-family:'Cormorant',Georgia,serif;font-size:20px;font-weight:300;color:#202021;margin-bottom:6px">How were these looks?</div>
             <div id="sn-fb-prompt">
-              <div style="font-size:12px;color:#A89880;margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
+              <div style="font-size:12px;color:var(--ink-faint);margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
               <div style="display:flex;gap:10px;justify-content:center">
                 <button id="sn-fb-up" onclick="window.__snFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;transition:all .15s">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"></path><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
@@ -9432,8 +9432,8 @@ body>*:not(#tv-result-page){display:none !important}
             --rb-rule-mid: rgba(32,32,33,0.14);
             --rb-ink: #202021;
             --rb-ink-soft: #6E6A64;
-            --rb-rose-ey: #A89880;
-            --rb-sage-ey: #7E8C7A;
+            --rb-rose-ey: #7E6F50;
+            --rb-sage-ey: #616F5C;
             --rb-rad-lg: 14px;
           }
 
@@ -10054,8 +10054,8 @@ body>*:not(#tv-result-page){display:none !important}
         modal.innerHTML = `
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">From your wardrobe</p>
-              <button onclick="document.getElementById('cb-wa-pick').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;font-size:16px;line-height:1">×</button>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">From your wardrobe</p>
+              <button onclick="document.getElementById('cb-wa-pick').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);font-size:16px;line-height:1">×</button>
             </div>
             <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 16px;line-height:1.2">Which piece are we styling?</p>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px">${tiles}</div>
@@ -10166,7 +10166,7 @@ body>*:not(#tv-result-page){display:none !important}
           overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
           overlay.innerHTML = `
             <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center">Styling your piece<br><em>three ways…</em></div>
-            <div style="font-size:12px;color:#A89880;letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
+            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Generating editorial looks</div>
             <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
               <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
             </div>`;
@@ -10258,18 +10258,18 @@ body>*:not(#tv-result-page){display:none !important}
           : `<div style="width:64px;height:82px;border-radius:8px;background:#F0EDE8;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-family:${serif};font-size:24px;color:#C8B8A2">${_waEsc((row.label || '?').charAt(0).toUpperCase())}</span></div>`;
         modal.innerHTML = `
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:420px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px 26px 22px">
-            <div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin-bottom:14px">In your wardrobe ✓</div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px">In your wardrobe ✓</div>
             <div style="display:flex;gap:16px;align-items:center;margin-bottom:20px">
               ${thumb}
               <div style="flex:1;min-width:0">
                 <div style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;line-height:1.15">Your ${_waEsc(row.label.toLowerCase())} is filed.</div>
-                <div style="font-size:12px;color:#A89880;font-style:italic;margin-top:4px">Want it styled straight away?</div>
+                <div style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-top:4px">Want it styled straight away?</div>
               </div>
             </div>
             <div style="display:flex;flex-direction:column;gap:9px">
               <button id="rb-fork-ways" style="width:100%;padding:13px 20px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit">Style it 3 ways</button>
               <button id="rb-fork-daily" style="width:100%;padding:13px 20px;border-radius:100px;border:0.5px solid rgba(32,32,33,0.2);background:#fff;color:#202021;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit">Build today's look around it</button>
-              <button id="rb-fork-skip" style="background:none;border:none;cursor:pointer;font-size:12px;color:#A89880;text-decoration:underline;font-family:inherit;padding:6px">Not now — keep cataloguing</button>
+              <button id="rb-fork-skip" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--ink-faint);text-decoration:underline;font-family:inherit;padding:6px">Not now — keep cataloguing</button>
             </div>
           </div>`;
         document.body.appendChild(modal);
@@ -10635,7 +10635,7 @@ body>*:not(#tv-result-page){display:none !important}
       _mbGenOverlay.innerHTML = `
         <div style="text-align:center;max-width:340px">
           <div id="mb-gen-spinner" style="width:48px;height:48px;border:1.5px solid rgba(32,32,33,0.12);border-top-color:#202021;border-radius:50%;animation:mbSpin 0.9s linear infinite;margin:0 auto 28px"></div>
-          <p style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 12px">Robes is building your board</p>
+          <p style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 12px">Robes is building your board</p>
           <p id="mb-gen-prompt" style="font-family:'Cormorant',Georgia,serif;font-size:26px;font-weight:300;line-height:1.25;color:#202021;margin:0 0 16px"></p>
           <p style="font-size:13px;color:#B8B0A6;line-height:1.6;margin:0">Curating the look · matching your wardrobe<br>generating editorial images…</p>
         </div>`;
@@ -10873,7 +10873,7 @@ body>*:not(#tv-result-page){display:none !important}
         fb.innerHTML = `
           <div style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How is this board?</div>
           <div id="mb-fb-prompt">
-            <div style="font-size:13px;color:#A89880;margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
+            <div style="font-size:13px;color:var(--ink-faint);margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
             <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
               <button id="mb-fb-up" onclick="window.__mbFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">👍 Love it</button>
               <button id="mb-fb-dn" onclick="window.__mbFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">Not quite</button>
@@ -11036,13 +11036,13 @@ body>*:not(#tv-result-page){display:none !important}
             </div>`).join('');
           wardrobeSection = `
             <div style="margin-bottom:24px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 10px">From your wardrobe</p>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px">From your wardrobe</p>
               <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${itemsHtml}</div>
             </div>`;
         } else if (aiAlt) {
           wardrobeSection = `
             <div style="margin-bottom:24px;background:#F5F2EE;border-radius:12px;padding:14px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">Robes’ suggestion</p>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 6px">Robes’ suggestion</p>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don't have a ${_mbEsc(item.category.toLowerCase())}, but your <em>${_mbEsc(aiAlt.label)}</em> creates a similar outline.</p>
               <button onclick="window.__mbSwapApply(${idx},'${_mbEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
             </div>`;
@@ -11056,11 +11056,11 @@ body>*:not(#tv-result-page){display:none !important}
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28)">
             <div style="position:sticky;top:0;background:#FAF8F5;padding:20px 20px 0;z-index:2">
               <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
-                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0">Swap this piece</p>
-                <button onclick="document.getElementById('mb-swap-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:#A89880;line-height:1;margin-top:-2px">${closeSvg}</button>
+                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">Swap this piece</p>
+                <button onclick="document.getElementById('mb-swap-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
               </div>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:26px;font-weight:300;color:#202021;margin:0 0 2px;line-height:1.15">${_mbEsc(item.name)}</p>
-              ${retailer ? `<p style="font-size:12px;color:#A89880;font-style:italic;margin:0 0 18px">${_mbEsc(retailer)}</p>` : `<div style="height:18px"></div>`}
+              ${retailer ? `<p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:0 0 18px">${_mbEsc(retailer)}</p>` : `<div style="height:18px"></div>`}
               <div style="height:1px;background:rgba(32,32,33,0.08);margin:0 -20px 20px"></div>
             </div>
             <div style="padding:0 20px 32px">
@@ -11073,7 +11073,7 @@ body>*:not(#tv-result-page){display:none !important}
                   Shop via Affiliate ${arrowSvg}
                 </button>
               </div>
-              ${(retailer || price) ? `<p style="text-align:center;font-size:11px;color:#A89880;margin:0">Opens ${_mbEsc(retailer)}${price ? ' · ' + _mbEsc(price) : ''}</p>` : ''}
+              ${(retailer || price) ? `<p style="text-align:center;font-size:11px;color:var(--ink-faint);margin:0">Opens ${_mbEsc(retailer)}${price ? ' · ' + _mbEsc(price) : ''}</p>` : ''}
             </div>
           </div>`;
         document.body.appendChild(modal);
@@ -11098,13 +11098,13 @@ body>*:not(#tv-result-page){display:none !important}
       _mbListPage.innerHTML = `
         <div style="padding:32px 24px 80px;max-width:960px;margin:0 auto">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
-            <p style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;margin:0">Your moodboards</p>
+            <p style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin:0">Your moodboards</p>
             <button onclick="window.__mbCloseList();window.__rbStartMoodboard()" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:100px;background:#202021;color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer">+ New</button>
           </div>
           <div id="mb-list-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
           <div id="mb-list-empty" style="display:none;padding:80px 0;text-align:center">
             <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">No moodboards yet.</p>
-            <p style="font-size:13px;color:#A89880;line-height:1.6">Describe a trip or season and Robes<br>will build the board.</p>
+            <p style="font-size:13px;color:var(--ink-faint);line-height:1.6">Describe a trip or season and Robes<br>will build the board.</p>
           </div>
         </div>`;
       document.body.appendChild(_mbListPage);
@@ -11128,7 +11128,7 @@ body>*:not(#tv-result-page){display:none !important}
             </div>
             <div style="padding:14px 16px 18px">
               <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;font-weight:300;color:#202021;line-height:1.3;margin-bottom:4px">${_mbEsc(item.title)}</div>
-              <div style="font-size:11px;color:#A89880">${_mbEsc(item.subtitle || '')}</div>
+              <div style="font-size:11px;color:var(--ink-faint)">${_mbEsc(item.subtitle || '')}</div>
             </div>
           </div>`).join('');
       }
@@ -11378,12 +11378,12 @@ body>*:not(#tv-result-page){display:none !important}
           card.style.cssText = 'max-width:1140px;margin:26px auto;padding:20px 24px;background:#FDFCFA;border:1px solid #E7E0CF;border-radius:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:relative';
           card.innerHTML =
             '<div style="flex:1;min-width:230px">' +
-              '<div style="font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#A89880;margin-bottom:6px">' + eyebrow + '</div>' +
+              '<div style="font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px">' + eyebrow + '</div>' +
               '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:21px;font-weight:400;color:#202021;margin-bottom:4px">' + headline + '</div>' +
-              '<div style="font-size:13px;color:#9A8E82;line-height:1.55">' + body + '</div>' +
+              '<div style="font-size:13px;color:var(--ink-faint);line-height:1.55">' + body + '</div>' +
             '</div>' +
             '<button id="rb-sil-go" style="flex-shrink:0;background:#202021;color:#F8F5F0;border:none;border-radius:100px;padding:11px 22px;font-size:13px;letter-spacing:.03em;cursor:pointer;font-family:inherit">' + cta + '</button>' +
-            '<button id="rb-sil-x" aria-label="Not now" style="position:absolute;top:10px;right:14px;background:none;border:none;cursor:pointer;color:#B0A090;font-size:16px;line-height:1;padding:4px">×</button>';
+            '<button id="rb-sil-x" aria-label="Not now" style="position:absolute;top:10px;right:14px;background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:16px;line-height:1;padding:4px">×</button>';
           host.parentNode.insertBefore(card, host);
           card.querySelector('#rb-sil-go').onclick = function() { window.location.href = target; };
           card.querySelector('#rb-sil-x').onclick = function() {
@@ -11429,39 +11429,39 @@ body>*:not(#tv-result-page){display:none !important}
         const RAIL_CSS = `
 #rb-rail{margin:6px 0 30px}
 #rb-rail .rb-rail-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 10px}
-#rb-rail .rb-rail-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#A89880)}
-#rb-rail .rb-rail-hint{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:#C4B8A4}
+#rb-rail .rb-rail-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}
+#rb-rail .rb-rail-hint{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:var(--ink-faint)}
 #rb-rail .rb-rail-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px}
 #rb-rail .rb-rc{position:relative;display:flex;flex-direction:column;padding:0;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;cursor:pointer;box-sizing:border-box;overflow:hidden;transition:border-color .2s;text-align:left}
 #rb-rail .rb-rc:hover{border-color:rgba(32,32,33,0.4)}
 #rb-rail .rb-rc-body{flex:1;display:flex;flex-direction:column;gap:5px;padding:13px 14px 13px;min-width:0;min-height:172px}
-#rb-rail .rb-rc-wk{font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rb-rail .rb-rc-wk{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rb-rail .rb-rc-act{font-family:'Cormorant',Georgia,serif;font-size:16px;line-height:1.15;color:var(--ink,#202021);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:2.3em}
-#rb-rail .rb-rc-eve{font-size:9.5px;color:#8A8078;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rb-rail .rb-rc-eve{font-size:9.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rb-rail .rb-rc-eve b{font-weight:500;color:#6E6A64}
-#rb-rail .rb-rc-tag{display:flex;align-items:center;gap:6px;font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+#rb-rail .rb-rc-tag{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 #rb-rail .rb-rc-tag i{flex:none;width:7px;height:7px;border-radius:50%;box-shadow:inset 0 0 0 0.5px rgba(32,32,33,0.15)}
 #rb-rail .rb-rc-sw{display:flex;gap:6px;margin-top:auto;padding:10px 0 8px}
 #rb-rail .rb-rc-sw i{width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 0.5px rgba(32,32,33,0.16)}
 #rb-rail .rb-rc-sw + .rb-rc-cta{margin-top:0}
-#rb-rail .rb-rc-cta{margin-top:auto;padding-top:5px;font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880;background:none;border:none;padding-left:0;padding-right:0;padding-bottom:0;cursor:pointer;text-align:left;font-family:inherit;transition:color .2s}
+#rb-rail .rb-rc-cta{margin-top:auto;padding-top:5px;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);background:none;border:none;padding-left:0;padding-right:0;padding-bottom:0;cursor:pointer;text-align:left;font-family:inherit;transition:color .2s}
 #rb-rail .rb-rc:hover .rb-rc-cta{color:var(--ink,#202021)}
 #rb-rail .rb-rc.is-today{background:var(--ink,#202021);border-color:var(--ink,#202021)}
 #rb-rail .rb-rc.is-today .rb-rc-body{background:var(--ink,#202021)}
-#rb-rail .rb-rc.is-today .rb-rc-wk{color:#C4B8A4}
+#rb-rail .rb-rc.is-today .rb-rc-wk{color:var(--ink-faint)}
 #rb-rail .rb-rc.is-today .rb-rc-act{color:#FAF8F5}
-#rb-rail .rb-rc.is-today .rb-rc-eve{color:#C4B8A4}
+#rb-rail .rb-rc.is-today .rb-rc-eve{color:var(--ink-faint)}
 #rb-rail .rb-rc.is-today .rb-rc-eve b{color:#E7E0CF}
-#rb-rail .rb-rc.is-today .rb-rc-tag{color:#C4B8A4}
+#rb-rail .rb-rc.is-today .rb-rc-tag{color:var(--ink-faint)}
 #rb-rail .rb-rc.is-today .rb-rc-sw i{box-shadow:inset 0 0 0 0.5px rgba(250,248,245,0.35)}
-#rb-rail .rb-rc.is-today .rb-rc-cta{color:#C4B8A4}
+#rb-rail .rb-rc.is-today .rb-rc-cta{color:var(--ink-faint)}
 #rb-rail .rb-rc.is-today:hover .rb-rc-cta{color:#FAF8F5}
 #rb-rail .rb-rc.is-past{opacity:.78}
 #rb-rail .rb-rc.is-past .rb-rc-body{background:#F5F0E8}
 #rb-rail .rb-rc.is-free{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.2);background-image:repeating-linear-gradient(45deg,rgba(32,32,33,0.028) 0 6px,transparent 6px 13px)}
-#rb-rail .rb-rc.is-free .rb-rc-act{font-style:italic;font-size:16px;color:#C4B8A4}
+#rb-rail .rb-rc.is-free .rb-rc-act{font-style:italic;font-size:16px;color:var(--ink-faint)}
 #rb-rail .rb-rc.is-empty-future{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.2)}
-#rb-rail .rb-rc.is-empty-future .rb-rc-act{font-style:italic;font-size:15.5px;color:#C4B8A4}
+#rb-rail .rb-rc.is-empty-future .rb-rc-act{font-style:italic;font-size:15.5px;color:var(--ink-faint)}
 #rb-rail .rb-rc.is-empty-today{background:transparent;border:1px dashed var(--ink,#202021)}
 #rb-rail .rb-rc.is-empty-today .rb-rc-act{font-style:italic;font-size:16px;color:var(--ink,#202021)}
 #rb-rail .rb-rc.is-empty-past{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.1);opacity:.45;cursor:default}
@@ -11471,10 +11471,10 @@ body>*:not(#tv-result-page){display:none !important}
 #rb-rail .rb-upnext:hover{border-color:rgba(32,32,33,0.35)}
 #rb-rail .rb-upnext .th{flex:none;width:36px;height:36px;border-radius:7px;overflow:hidden;background:#EFE9DC}
 #rb-rail .rb-upnext .th img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.55) sepia(.18) contrast(.95)}
-#rb-rail .rb-upnext .k{flex:none;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#A89880}
+#rb-rail .rb-upnext .k{flex:none;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
 #rb-rail .rb-upnext .t{font-family:'Cormorant',Georgia,serif;font-size:16px;color:var(--ink,#202021);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#rb-rail .rb-upnext .m{font-size:10.5px;color:#A89880;white-space:nowrap}
-#rb-rail .rb-upnext .cta{margin-left:auto;flex:none;font-size:8.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880}
+#rb-rail .rb-upnext .m{font-size:10.5px;color:var(--ink-faint);white-space:nowrap}
+#rb-rail .rb-upnext .cta{margin-left:auto;flex:none;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint)}
 #rb-rail .rb-upnext:hover .cta{color:var(--ink,#202021)}
 @media(max-width:999px){
   #rb-rail .rb-rail-row{display:flex;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -11862,7 +11862,7 @@ body>*:not(#tv-result-page){display:none !important}
           st.id = 'rb-mv-style';
           st.textContent = `
 #sn-viewseg{display:inline-flex;border:0.5px solid rgba(32,32,33,0.18);border-radius:100px;overflow:hidden}
-#sn-viewseg button{border:none;background:transparent;padding:7px 15px;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#8A8078;cursor:pointer;font-family:inherit;white-space:nowrap}
+#sn-viewseg button{border:none;background:transparent;padding:7px 15px;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);cursor:pointer;font-family:inherit;white-space:nowrap}
 #sn-viewseg button.on{background:#202021;color:#fff}
 #sn-cal{display:none}
 #sn-page.rb-cal-on #sn-tabs{display:none!important}
@@ -11874,7 +11874,7 @@ body>*:not(#tv-result-page){display:none !important}
 .rb-mv-nav button{width:32px;height:32px;border:0.5px solid rgba(32,32,33,0.18);border-radius:50%;background:#fff;color:#6E6A64;font-size:14px;cursor:pointer;line-height:1}
 .rb-mv-nav button:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
 .rb-mv-dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-bottom:8px}
-.rb-mv-dow div{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;padding-left:2px}
+.rb-mv-dow div{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);padding-left:2px}
 .rb-mv-cal{display:flex;flex-direction:column;gap:8px}
 .rb-mw{position:relative}
 .rb-mcells{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
@@ -11888,19 +11888,19 @@ body>*:not(#tv-result-page){display:none !important}
 .rb-mc.is-bare{border-color:rgba(32,32,33,0.07)}
 .rb-mc.is-bare .n{color:#D8CFC0}
 .rb-mc.is-free{border-style:dashed}
-.rb-mc.is-free .tag{margin-top:auto;font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:11px;color:#B8AC9C}
+.rb-mc.is-free .tag{margin-top:auto;font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:11px;color:var(--ink-faint)}
 .rb-mc.is-today{border-color:var(--ink,#202021);box-shadow:0 0 0 1px var(--ink,#202021) inset}
 .rb-mc.is-today .n{font-weight:500}
 .rb-mc.is-pinned{border-color:#8E7077;box-shadow:0 0 0 1px #8E7077 inset}
 .rb-mc .act{margin-top:auto;font-family:'Cormorant',Georgia,serif;font-size:12px;line-height:1.25;color:var(--ink,#202021);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.rb-mc.is-fut .act{color:#8A8078}
+.rb-mc.is-fut .act{color:var(--ink-soft)}
 .rb-mc-strip{display:flex;gap:3px;margin-top:6px;flex:none}
 .rb-mc-strip img{flex:1;min-width:0;height:16px;object-fit:cover;border-radius:2px;display:block}
 .rb-mband{position:absolute;height:16px;border:none;border-radius:100px;display:flex;align-items:center;padding:0 10px;font-size:9px;font-weight:500;letter-spacing:.06em;white-space:nowrap;overflow:hidden;font-family:inherit;box-sizing:border-box;text-overflow:ellipsis;cursor:pointer}
 .rb-mband.week{background:rgba(155,161,123,0.30);color:#5F6247}
 .rb-mband.trip{background:rgba(212,200,196,0.60);color:#6A4F48}
 .rb-mband.cont{opacity:.72;font-style:italic}
-.rb-mv-more{position:absolute;right:0;top:0;font-size:9px;color:#A89880}
+.rb-mv-more{position:absolute;right:0;top:0;font-size:9px;color:var(--ink-faint)}
 button.rb-mv-morebtn{border:none;background:transparent;cursor:pointer;font-family:inherit;color:#8E6A7C;letter-spacing:.08em;text-transform:uppercase;padding:2px 4px}
 button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-mv-pop{position:fixed;inset:0;z-index:930}
@@ -11911,7 +11911,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-mv-pop .card button i{flex:none;width:8px;height:8px;border-radius:50%}
 .rb-mcells .rb-dc.dc-compact{min-height:150px}
 @media(max-width:1000px){.rb-mc-strip{display:none}}
-@media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:8px}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}.rb-mband{font-size:8px;padding:0 6px;height:14px}.rb-mv-title{font-size:26px}}`;
+@media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:8px}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}.rb-mband{font-size:9px;padding:0 6px;height:14px}.rb-mv-title{font-size:26px}}`;
           document.head.appendChild(st);
         }
 
@@ -12282,21 +12282,21 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-sugg .rb-schip:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
 #rb-intake{display:none;background:#fff;border:0.5px solid rgba(32,32,33,0.16);border-top:none;border-radius:0 0 18px 18px;padding:20px 22px 22px;margin-top:-14px;box-sizing:border-box}
 .concierge-box.rb-attached{border-bottom-left-radius:0!important;border-bottom-right-radius:0!important}
-#rb-intake .ik-read{display:flex;align-items:center;gap:10px;font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:17px;color:#A89880;padding:2px 0 14px}
+#rb-intake .ik-read{display:flex;align-items:center;gap:10px;font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:17px;color:var(--ink-faint);padding:2px 0 14px}
 #rb-intake .ik-sk{height:18px;border-radius:4px;background:linear-gradient(90deg,#EFE9DC 25%,#F5F0E8 50%,#EFE9DC 75%);background-size:200% 100%;animation:rbIkSh 1.3s infinite;margin-bottom:10px}
 @keyframes rbIkSh{0%{background-position:200% 0}100%{background-position:-200% 0}}
 #rb-intake .ik-said{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:18px;line-height:1.35;color:var(--ink,#202021);margin:0 0 14px;max-width:640px}
 #rb-intake .ik-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-bottom:16px;padding-bottom:15px;border-bottom:0.5px solid rgba(32,32,33,0.08)}
 #rb-intake .ik-crumb{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:0.5px solid rgba(32,32,33,0.14);border-radius:8px;font-size:12px;color:var(--ink,#202021);background:#FAF8F5;cursor:pointer;font-family:inherit}
-#rb-intake .ik-crumb em{font-style:normal;color:#A89880}
+#rb-intake .ik-crumb em{font-style:normal;color:var(--ink-faint)}
 #rb-intake .ik-crumb input{border:none;background:none;outline:none;font-family:inherit;font-size:12px;color:var(--ink,#202021);width:120px}
-#rb-intake .ik-note{font-size:11px;color:#A89880;font-style:italic;font-family:'Cormorant',Georgia,serif}
+#rb-intake .ik-note{font-size:11px;color:var(--ink-faint);font-style:italic;font-family:'Cormorant',Georgia,serif}
 #rb-intake .ik-dates input{border:0.5px solid rgba(32,32,33,0.18);border-radius:6px;padding:4px 6px;font-size:11.5px;font-family:inherit;background:#fff;color:var(--ink,#202021)}
 #rb-intake .ik-dates .done{font-size:9px;letter-spacing:.1em;text-transform:uppercase;background:var(--ink,#202021);color:#FAF8F5;border:none;border-radius:6px;padding:6px 11px;cursor:pointer;font-family:inherit}
 #rb-intake .ik-err{font-size:11.5px;color:#B0654F;margin:-8px 0 12px}
 #rb-intake .ik-ba{margin-bottom:16px}
 #rb-intake .ik-ba-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:9px}
-#rb-intake .ik-ba-lab{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#A89880}
+#rb-intake .ik-ba-lab{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
 #rb-intake .ik-ba-cat{padding:4px 10px;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;background:#fff;font-size:10.5px;color:#6E6A64;cursor:pointer;font-family:inherit}
 #rb-intake .ik-ba-cat.on{background:var(--ink,#202021);color:#FAF8F5;border-color:var(--ink,#202021)}
 #rb-intake .ik-rack{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
@@ -12308,30 +12308,30 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-intake .ik-ri .ck{position:absolute;top:5px;right:5px;width:16px;height:16px;border-radius:50%;background:var(--ink,#202021);color:#FAF8F5;display:flex;align-items:center;justify-content:center;font-size:9px}
 #rb-intake .ik-ri .nm{display:block;padding:6px 8px 8px;font-size:10px;line-height:1.25;color:var(--ink,#202021);height:26px;overflow:hidden}
 #rb-intake .ik-days-hd{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
-#rb-intake .ik-days-hint{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:13px;color:#C4B8A4}
+#rb-intake .ik-days-hint{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:13px;color:var(--ink-faint)}
 #rb-intake .ik-row{display:grid;grid-template-columns:22px 92px minmax(0,1fr);align-items:center;gap:12px;padding:8px 6px;border-bottom:0.5px solid rgba(32,32,33,0.07);border-radius:6px}
 #rb-intake .ik-row.pinned{background:rgba(212,200,196,0.16)}
-#rb-intake .ik-pin{width:22px;height:22px;border:0.5px solid rgba(32,32,33,0.22);border-radius:50%;background:none;display:flex;align-items:center;justify-content:center;font-size:9px;color:#C4B8A4;cursor:pointer;font-family:inherit;line-height:1;padding:0}
+#rb-intake .ik-pin{width:22px;height:22px;border:0.5px solid rgba(32,32,33,0.22);border-radius:50%;background:none;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--ink-faint);cursor:pointer;font-family:inherit;line-height:1;padding:0}
 #rb-intake .ik-pin.on{background:var(--mauve,#D4C8C4);border-color:var(--mauve,#D4C8C4);color:var(--ink,#202021)}
 #rb-intake .ik-dm .dd{font-size:11px;font-weight:500;color:var(--ink,#202021)}
-#rb-intake .ik-dm .dt{font-size:9.5px;color:#A89880;margin-top:1px}
+#rb-intake .ik-dm .dt{font-size:9.5px;color:var(--ink-faint);margin-top:1px}
 #rb-intake .ik-cell{text-align:left;background:none;border:0.5px solid transparent;border-radius:6px;padding:5px 9px;cursor:pointer;font-family:inherit;width:100%;min-width:0}
 #rb-intake .ik-cell:hover{border-color:rgba(32,32,33,0.14);background:#FAF8F5}
 #rb-intake .ik-cell .v{font-family:'Cormorant',Georgia,serif;font-size:16.5px;line-height:1.15;color:var(--ink,#202021);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#rb-intake .ik-cell .v.free,#rb-intake .ik-cell .v.blank{font-style:italic;color:#C4B8A4}
-#rb-intake .ik-cell .s{font-size:9.5px;color:#A89880;margin-top:1px}
+#rb-intake .ik-cell .v.free,#rb-intake .ik-cell .v.blank{font-style:italic;color:var(--ink-faint)}
+#rb-intake .ik-cell .s{font-size:9.5px;color:var(--ink-faint);margin-top:1px}
 #rb-intake .ik-tray{grid-column:1/-1;padding:10px 4px 6px;display:flex;flex-direction:column;gap:9px}
 #rb-intake .ik-tray input{width:100%;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:8px;padding:9px 11px;font-size:12.5px;font-family:inherit;background:#fff;color:var(--ink,#202021);outline:none}
 #rb-intake .ik-chips{display:flex;gap:6px;flex-wrap:wrap}
 #rb-intake .ik-qc{padding:6px 11px;border:0.5px solid rgba(32,32,33,0.13);border-radius:100px;background:#FAF8F5;font-size:11px;color:var(--ink,#202021);cursor:pointer;font-family:inherit}
-#rb-intake .ik-qc.free{border-style:dashed;color:#A89880}
+#rb-intake .ik-qc.free{border-style:dashed;color:var(--ink-faint)}
 #rb-intake .ik-eve{display:flex;align-items:center;gap:8px}
-#rb-intake .ik-eve .lab{flex:none;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#A89880}
-#rb-intake .ik-eve .rm{flex:none;background:none;border:none;color:#A89880;cursor:pointer;font-size:13px;padding:2px}
-#rb-intake .ik-addeve{align-self:flex-start;background:none;border:none;padding:2px 0;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#A89880;cursor:pointer;font-family:inherit}
+#rb-intake .ik-eve .lab{flex:none;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint)}
+#rb-intake .ik-eve .rm{flex:none;background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:13px;padding:2px}
+#rb-intake .ik-addeve{align-self:flex-start;background:none;border:none;padding:2px 0;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);cursor:pointer;font-family:inherit}
 #rb-intake .ik-addeve:hover{color:var(--ink,#202021)}
 #rb-intake .ik-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap}
-#rb-intake .ik-cancel{background:none;border:none;font-size:11.5px;color:#A89880;text-decoration:underline;cursor:pointer;font-family:inherit;padding:4px 0}
+#rb-intake .ik-cancel{background:none;border:none;font-size:11.5px;color:var(--ink-faint);text-decoration:underline;cursor:pointer;font-family:inherit;padding:4px 0}
 #rb-intake .ik-go{background:var(--ink,#202021);color:#fff;border:none;border-radius:100px;padding:13px 24px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit}
 #rb-intake .ik-clar{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 #rb-intake .ik-clar button{padding:9px 16px;border:0.5px solid rgba(32,32,33,0.16);border-radius:100px;background:#fff;font-size:12px;color:var(--ink,#202021);cursor:pointer;font-family:inherit}
@@ -12711,11 +12711,11 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         };
         const whereCrumb = st.editingWhere
           ? `<span class="ik-crumb"><em>Where</em><input id="ik-where" value="${_ikEsc(st.where)}" placeholder="${st.kind === 'travel' ? 'Destination' : 'Your city'}" onkeydown="if(event.key==='Enter')window._ikWhereDone()" onblur="window._ikWhereDone()"></span>`
-          : `<button class="ik-crumb" onclick="window._ikWhereEdit()"><em>Where</em> ${st.where ? _ikEsc(st.where) : '<span style="font-style:italic;color:#C4B8A4">add a place</span>'} ✎</button>`;
+          : `<button class="ik-crumb" onclick="window._ikWhereEdit()"><em>Where</em> ${st.where ? _ikEsc(st.where) : '<span style="font-style:italic;color:var(--ink-faint)">add a place</span>'} ✎</button>`;
         const whenCrumb = st.editingDates
           ? `<span class="ik-crumb ik-dates"><em>When</em>
                <input type="date" id="ik-from" value="${st.from || ''}">
-               <span style="color:#A89880">–</span>
+               <span style="color:var(--ink-faint)">–</span>
                <input type="date" id="ik-to" value="${st.from ? _pdAddISO(st.from, st.days - 1) : ''}">
                <button class="done" onclick="window._ikDatesDone()">Done</button></span>`
           : `<button class="ik-crumb" onclick="window._ikDatesEdit()"><em>When</em> ${fmtRange()} ✎</button>`;
@@ -13061,12 +13061,12 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         const pieceName = (piece.prompt || 'your piece').slice(0, 48);
 
         function shell(title, sub, tiles, ctaRow, footer) {
-          return '<div style="font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880;margin:0 0 12px">Your piece, styled</div>' +
+          return '<div style="font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 12px">Your piece, styled</div>' +
             '<div style="border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;background:#fff;padding:22px 24px">' +
               '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">' + photoThumb +
                 '<div style="flex:1;min-width:200px">' +
                   '<div style="font-family:' + serif + ';font-size:24px;font-weight:300;color:#202021;line-height:1.15">' + title + '</div>' +
-                  '<div style="font-size:12px;color:#A89880;font-style:italic;margin-top:4px">' + sub + '</div>' +
+                  '<div style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-top:4px">' + sub + '</div>' +
                 '</div>' + (ctaRow || '') +
               '</div>' +
               (tiles ? '<div id="rb-styled-tiles" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">' + tiles + '</div>' : '') +
