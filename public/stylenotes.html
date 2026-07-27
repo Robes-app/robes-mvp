@@ -97,7 +97,8 @@
     .eyebrow-md { font: 400 9px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: #A89880; }
     .note-it { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-weight: 300; font-size: 14px; color: #C4B8A4; }
     .sec-head { display: flex; align-items: baseline; justify-content: space-between; }
-    .sec-toggle { width: 100%; background: none; border: none; padding: 0; cursor: pointer; text-align: left; font-family: inherit; align-items: center; }
+    .sec-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; background: none; border: none; padding: 0; cursor: pointer; text-align: left; font-family: inherit; }
+    .spend-sub-toggle { margin-top: 26px; }
     .sec-toggle #spend-chevron { transition: transform 0.2s; flex: none; }
     .sec-toggle.open #spend-chevron { transform: rotate(180deg); }
     .optional-tag { color: #A89880; border: 1px solid #E0D8C8; background: transparent; }
@@ -487,19 +488,22 @@
       <div class="hr" style="margin:56px 0;"></div>
 
       <section>
-        <button type="button" class="sec-head sec-toggle" id="spend-toggle" onclick="window.toggleSpend()">
+        <div class="sec-head">
+          <div class="eyebrow">How you like to invest</div>
+          <div class="note-it">Where you splurge</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:11px;margin-top:22px;" id="splurge-chips"></div>
+
+        <div style="height:1px;background:#E7E0CF;margin:32px 0 0;"></div>
+        <button type="button" class="sec-toggle spend-sub-toggle" id="spend-toggle" onclick="window.toggleSpend()">
           <div style="display:flex;align-items:baseline;gap:11px;">
-            <div class="eyebrow">How you like to invest</div>
+            <div class="eyebrow-md">How much you spend a year</div>
             <span class="tag optional-tag">Optional</span>
           </div>
           <svg id="spend-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
-        <div id="spend-body" hidden>
-          <div class="note-it" style="margin-top:22px;">Where you splurge</div>
-          <div style="display:flex;flex-wrap:wrap;gap:11px;margin-top:12px;" id="splurge-chips"></div>
-
-          <div class="eyebrow-md" style="margin-top:38px;">How much you spend a year</div>
-          <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;" id="spend-rows"></div>
+        <div id="spend-body" hidden style="margin-top:14px;">
+          <div style="display:flex;flex-direction:column;gap:10px;" id="spend-rows"></div>
         </div>
       </section>
 
