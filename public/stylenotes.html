@@ -97,6 +97,10 @@
     .eyebrow-md { font: 400 9px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: #A89880; }
     .note-it { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-weight: 300; font-size: 14px; color: #C4B8A4; }
     .sec-head { display: flex; align-items: baseline; justify-content: space-between; }
+    .sec-toggle { width: 100%; background: none; border: none; padding: 0; cursor: pointer; text-align: left; font-family: inherit; align-items: center; }
+    .sec-toggle #spend-chevron { transition: transform 0.2s; flex: none; }
+    .sec-toggle.open #spend-chevron { transform: rotate(180deg); }
+    .optional-tag { color: #A89880; border: 1px solid #E0D8C8; background: transparent; }
     .chapter-h1 { font-family: 'Cormorant', Georgia, serif; font-weight: 300; font-size: 62px; line-height: 0.98; letter-spacing: -0.014em; color: #202021; margin: 18px 0 0; }
     .lead { font: 300 14px/1.7 'Inter'; color: #A89880; max-width: 420px; margin: 18px 0 0; }
     .hr { height: 1px; background: #E7E0CF; margin: 60px 0; }
@@ -174,14 +178,11 @@
     .tier-brands { font: 400 12.5px/1.45 'Inter'; color: #6E6354; margin-top: 6px; }
     .tier-price { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 19px; color: #A89880; }
     .tier-row.on .tier-price { color: #202021; }
-    .radio { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; border: 1px solid #D8CFC0; background: #FAF8F5; flex: none; }
-    .tier-row.on .radio { border-color: #9A8C76; }
-    .radio-dot { width: 8px; height: 8px; border-radius: 50%; background: #3A352F; }
 
     .splurge-chip { display: inline-flex; align-items: center; gap: 10px; padding: 11px 16px; border-radius: 6px; border: 1px solid #E7E0CF; background: transparent; cursor: pointer; transition: all 0.2s; }
     .splurge-chip.on { border-color: #C9BCA6; background: #F3EFE6; }
     .splurge-box { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 3px; border: 1px solid #C4B8A4; background: transparent; flex: none; }
-    .splurge-chip.on .splurge-box { border-color: #3A352F; background: #3A352F; }
+    .splurge-chip.on .splurge-box, .tier-row.on .splurge-box { border-color: #3A352F; background: #3A352F; }
     .splurge-label { font: 400 13px/1 'Inter'; color: #6E6354; }
     .splurge-chip.on .splurge-label { color: #202021; }
 
@@ -431,8 +432,7 @@
           <h1 class="chapter-h1">Taste<br>&amp; budget.</h1>
         </div>
         <div>
-          <p style="font:300 14px/1.7 'Inter';color:#A89880;max-width:430px;margin:0;">Who you dress like, how you mostly shop, and the pieces you'll always spend more on. Robes styles within your taste and your budget — so nothing it pulls is out of reach.</p>
-          <div style="display:flex;gap:44px;margin-top:24px;padding-top:22px;border-top:1px solid #E7E0CF;">
+          <div style="display:flex;gap:44px;">
             <div>
               <div class="eyebrow-sm">Your tier</div>
               <div class="metric-val" id="tier-metric"></div>
@@ -478,8 +478,8 @@
 
       <section>
         <div class="sec-head">
-          <div class="eyebrow">Budget</div>
-          <div class="note-it">How you mostly shop</div>
+          <div class="eyebrow">Your range</div>
+          <div class="note-it">How you mostly shop — pick as many as apply</div>
         </div>
         <div style="margin-top:22px;display:flex;flex-direction:column;gap:10px;" id="tier-rows"></div>
       </section>
@@ -487,14 +487,20 @@
       <div class="hr" style="margin:56px 0;"></div>
 
       <section>
-        <div class="sec-head">
-          <div class="eyebrow">Spend profile</div>
-          <div class="note-it">Where you splurge</div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:11px;margin-top:22px;" id="splurge-chips"></div>
+        <button type="button" class="sec-head sec-toggle" id="spend-toggle" onclick="window.toggleSpend()">
+          <div style="display:flex;align-items:baseline;gap:11px;">
+            <div class="eyebrow">How you like to invest</div>
+            <span class="tag optional-tag">Optional</span>
+          </div>
+          <svg id="spend-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div id="spend-body" hidden>
+          <div class="note-it" style="margin-top:22px;">Where you splurge</div>
+          <div style="display:flex;flex-wrap:wrap;gap:11px;margin-top:12px;" id="splurge-chips"></div>
 
-        <div class="eyebrow-md" style="margin-top:38px;">How much you spend a year</div>
-        <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;" id="spend-rows"></div>
+          <div class="eyebrow-md" style="margin-top:38px;">How much you spend a year</div>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;" id="spend-rows"></div>
+        </div>
       </section>
 
     </div>
@@ -536,7 +542,7 @@
       sil: null,
       styleDna: {},
       icons: ['Totême', 'Sienna Miller'],
-      tier: 'Contemporary',
+      tiers: ['Contemporary'],
       splurge: ['Shoes', 'Bags'],
       spend: '€500–1,500',
       headshotUrl: null,
@@ -709,7 +715,7 @@
     /* ── Tab 03 — taste & budget ─────────────────────────────────── */
 
     function renderStats() {
-      document.getElementById('tier-metric').textContent = st.tier;
+      document.getElementById('tier-metric').textContent = st.tiers.join(', ') || '—';
       document.getElementById('icon-count-metric').textContent = st.icons.length;
       document.getElementById('splurge-count-metric').textContent = st.splurge.length;
       document.getElementById('icon-count').textContent = st.icons.length;
@@ -748,22 +754,22 @@
 
     function renderTiers() {
       document.getElementById('tier-rows').innerHTML = TIERS.map(t => {
-        const on = t.name === st.tier;
-        return '<div class="tier-row' + (on ? ' on' : '') + '" onclick="setTier(this.dataset.name)" data-name="' + esc(t.name) + '">' +
+        const on = st.tiers.indexOf(t.name) !== -1;
+        return '<div class="tier-row' + (on ? ' on' : '') + '" onclick="toggleTier(this.dataset.name)" data-name="' + esc(t.name) + '">' +
           '<div><div class="tier-name">' + t.name + '</div><div class="tier-brands">' + t.brands + '</div></div>' +
           '<div style="display:flex;align-items:center;gap:24px;">' +
             '<div class="tier-price">' + t.price + '</div>' +
-            '<span class="radio">' + (on ? '<span class="radio-dot"></span>' : '') + '</span>' +
+            '<span class="splurge-box">' + (on ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FAF8F5" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : '') + '</span>' +
           '</div>' +
         '</div>';
       }).join('');
       renderStats();
     }
 
-    window.setTier = function(name) {
-      st.tier = name;
+    window.toggleTier = function(name) {
+      st.tiers = st.tiers.indexOf(name) !== -1 ? st.tiers.filter(x => x !== name) : st.tiers.concat([name]);
       renderTiers();
-      save({ budget: name });
+      save({ budget: st.tiers.join(', ') });
     };
 
     function renderSplurge() {
@@ -797,6 +803,14 @@
       st.spend = v;
       renderSpend();
       save({ annual_spend: v });
+    };
+
+    window.toggleSpend = function() {
+      const body = document.getElementById('spend-body');
+      const toggle = document.getElementById('spend-toggle');
+      const open = body.hidden;
+      body.hidden = !open;
+      toggle.classList.toggle('open', open);
     };
 
     /* ── Photo slots + analysis ──────────────────────────────────── */
@@ -993,7 +1007,7 @@
         if (profile.colour_analysis && profile.colour_analysis.season) st.colour = profile.colour_analysis;
         if (profile.silhouette_analysis && profile.silhouette_analysis.body_type) st.sil = profile.silhouette_analysis;
         if (profile.style_icons && profile.style_icons.length) st.icons = profile.style_icons;
-        if (profile.budget) st.tier = profile.budget;
+        if (profile.budget) st.tiers = profile.budget.split(',').map(s => s.trim()).filter(Boolean);
         if (profile.splurge_categories && profile.splurge_categories.length) st.splurge = profile.splurge_categories;
         if (profile.annual_spend) st.spend = profile.annual_spend;
         if (profile.headshot_url) st.headshotUrl = profile.headshot_url;
