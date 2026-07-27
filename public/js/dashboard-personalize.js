@@ -3655,7 +3655,7 @@
 
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 12px">
               <h1 id="kp-headline" style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0">${kpHeadline ? _waEsc(kpHeadline) : (kpDaily ? 'Your day,<br><em style="color:var(--ink-faint)">dressed three ways.</em>' : 'Your piece,<br><em style="color:var(--ink-faint)">worn three ways.</em>')}</h1>
-              <button class="rb-kp-share" title="Share this result" style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:9px 18px;border:0.5px solid rgba(32,32,33,0.2);border-radius:100px;background:#fff;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit;flex-shrink:0" onclick="window.__rbShare&&window.__rbShare()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>Share</button><button class="rb-rename-tbtn" title="Rename" style="margin-top:8px" onclick="window.__rbRename&&window.__rbRename('kp')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-shrink:0"><button class="rb-kp-share" title="Share this look" style="border:none;background:var(--ink);color:var(--cream-100);border-radius:100px;padding:12px 22px;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:opacity .15s" onclick="window.__rbShare&&window.__rbShare()">Share this look</button><button class="rb-rename-tbtn" title="Rename" onclick="window.__rbRename&&window.__rbRename('kp')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button></div>
             </div>
             <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : kpDaily ? 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.' : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
 
@@ -5422,7 +5422,7 @@
 
       let _dlWorn = false;
       window.__dlWear = async function() {
-        if (_dlWorn) { _waShowToast('Already logged for today'); return; }
+        if (_dlWorn) { _waShowToast('Already logged for this look'); return; }
         const flat = window.__dlCurrentItems || [];
         const ownedIds = flat.filter(it => it.wardrobe_match).map(it => it.wardrobe_match.id);
         if (!ownedIds.length) { _waShowToast('Nothing owned in this look yet — snap your pieces to log wears'); return; }
@@ -5441,7 +5441,18 @@
             if (saved && saved.dlData) snUpdate(_dlActiveSaveId, { dlData: { ...saved.dlData, worn: true } });
             _pdSyncSaved(_dlActiveSaveId);
           }
-          _waShowToast('On you today — Robes logged the wear ✓');
+          // The look may be anchored to a past (or future) date — the toast
+          // must describe the wear it actually logged, never assume "today".
+          const anchor = (window.__lastDlData && window.__lastDlData.anchor_date) || null;
+          const todayISO = window._pdLocalISO ? window._pdLocalISO(new Date()) : null;
+          let wearToast = 'On you today — Robes logged the wear ✓';
+          if (anchor && todayISO && anchor !== todayISO) {
+            const wd = new Date(anchor + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long' });
+            wearToast = anchor < todayISO
+              ? `Logged — the ${wd} wear counts ✓`
+              : `Noted for ${wd} — Robes will count the wear ✓`;
+          }
+          _waShowToast(wearToast);
           const wb = document.getElementById('dl-wear-btn');
           if (wb) { wb.textContent = 'Worn ✓'; wb.style.opacity = '.55'; wb.style.pointerEvents = 'none'; }
         } catch (e) {
