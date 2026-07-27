@@ -16,7 +16,10 @@
   --rose-bg:rgba(212,200,196,0.26); --rose-mid:rgba(212,200,196,0.6);
   --sage-bg:rgba(227,225,204,0.40); --sage-mid:rgba(227,225,204,0.72);
 
-  /* Type */
+  /* Type — Cormorant (the display cut) is the RATIFIED serif, decided
+     over the style guide's original Cormorant Garamond via the /specimen
+     side-by-side (founder call, 2026-07-27). Display 300–400 only;
+     floor serifs at ~17px — weight 300 gets fragile below that. */
   --font-serif:'Cormorant',Georgia,serif;
   --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 
