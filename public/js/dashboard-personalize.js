@@ -483,6 +483,9 @@
         if (!grid) return;
         _waRendering = true;
         _waObserver.disconnect();
+        // A full innerHTML swap resets window scroll — starring a piece at
+        // the bottom of a 60-item grid used to throw her back to the top.
+        const _waScrollY = window.scrollY;
         if (!_waLoaded) {
           grid.innerHTML = '<div style="padding:56px 24px;text-align:center"><div style="font-family:\'Cormorant\',Georgia,serif;font-style:italic;font-weight:300;font-size:18px;color:var(--ink-faint)">Opening your wardrobe…</div></div>';
         } else {
@@ -497,6 +500,27 @@
             return ah ? (a.hero_position || 0) - (b.hero_position || 0) : 0;
           });
           const frag = document.createDocumentFragment();
+          if (!_waItems.length) {
+            // True cold start — the module the whole product depends on gets
+            // an invitation, not a lone dashed tile in an empty grid.
+            // COPY: needs sign-off
+            const invite = document.createElement('div');
+            invite.style.cssText = 'grid-column:1/-1;padding:44px 28px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);background:#fff;text-align:center';
+            invite.innerHTML =
+              '<div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px">Your wardrobe</div>' +
+              '<div style="font-family:\'Cormorant\',Georgia,serif;font-weight:300;font-size:clamp(24px,3vw,32px);color:var(--ink);line-height:1.15;margin-bottom:12px">Everything Robes styles from<em style="font-style:italic">, starting with one photo.</em></div>' +
+              '<p style="font-size:13.5px;line-height:1.7;color:var(--ink-soft);max-width:440px;margin:0 auto 22px">Photograph a few pieces — select several at once and Robes files them one after another, reading the colour, the cut and the label. From fifteen, every look is built entirely from your own closet.</p>' +
+              '<button onclick="window.WA&&WA.open&&WA.open()" style="border:none;background:var(--ink);color:#fff;border-radius:100px;padding:14px 28px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Add your first pieces</button>';
+            frag.appendChild(invite);
+          } else if (!filtered.length) {
+            // Filter miss is NOT the empty wardrobe — say so, offer the way back.
+            const miss = document.createElement('div');
+            miss.style.cssText = 'grid-column:1/-1;padding:40px 24px;text-align:center';
+            miss.innerHTML =
+              '<div style="font-family:\'Cormorant\',Georgia,serif;font-style:italic;font-weight:300;font-size:19px;color:var(--ink-soft);margin-bottom:12px">Nothing matches those filters.</div>' +
+              '<button onclick="window.__waFiltersClear&&__waFiltersClear()" style="border:0.5px solid var(--rule-mid);background:#fff;color:var(--ink);border-radius:100px;padding:9px 20px;font-size:11.5px;cursor:pointer;font-family:inherit">Show all ' + _waItems.length + ' pieces</button>';
+            frag.appendChild(miss);
+          }
           filtered.forEach(it => frag.appendChild(_waCard(it)));
           frag.appendChild(_waAddCard());
           grid.innerHTML = '';
@@ -504,6 +528,7 @@
           _waSyncCounts();
         }
         _waObserver.observe(grid, { childList: true });
+        if (_waLoaded && window.scrollY !== _waScrollY) window.scrollTo(0, _waScrollY);
         _waRendering = false;
         // Keep the v2 sections (hero rail, sub-tabs, wishlist) in step
         _waV2Sync();
@@ -517,8 +542,8 @@
       // toe from your closet once the wardrobe is built out.
       function _wtrkCopy(n) {
         const left = Math.max(0, _WA_TARGET - n);
-        if (n === 0)  return ['Start here', 'Add your first piece and Robes starts weaving your own wardrobe into every look — <strong>0 of 15 catalogued</strong>.'];
-        if (n < 5)   return ['Keep going', 'Add ' + left + ' more and Robes can dress you head to toe from your own closet — <strong>' + n + ' of 15 catalogued</strong>.'];
+        if (n === 0)  return ['Start here', 'Photograph your first pieces — several at once works — and Robes starts weaving your own wardrobe into every look. <strong>0 of 15 catalogued</strong>.'];
+        if (n < 5)   return ['Keep going', 'Add ' + left + ' more — a batch of photos at once is fastest — and Robes can dress you head to toe from your own closet. <strong>' + n + ' of 15 catalogued</strong>.'];
         if (n < 10)  return ['Keep going', 'Every piece you add pulls more of your real wardrobe into your daily looks — <strong>' + n + ' of 15 catalogued</strong>.'];
         if (n < 15)  return ['Nearly there', 'Add ' + left + ' more and every look is built entirely from your own wardrobe — <strong>' + n + ' of 15 catalogued</strong>.'];
         return ['Growing wardrobe', '<strong>' + n + ' pieces catalogued</strong> — the more you add, the sharper every look Robes builds.'];
@@ -1726,6 +1751,12 @@
       };
       window.__waRefWorn = function(v) { _waRefine.worn = v; _waRender(); _waRefineRender(); };
       window.__waRefBrand = function(el) { _waRefine.brand = el.value; _waRender(); _waRefineRender(); };
+      // One clear for both filter tiers — category tabs back to All, drawer wiped.
+      window.__waFiltersClear = function() {
+        _waCat = 'All';
+        window.__waRefClear();
+        document.querySelectorAll('#wg-filters .wg-tab').forEach(p => p.classList.toggle('active', p.textContent === 'All'));
+      };
       window.__waRefClear = function() {
         _waRefine = { seasons: [], colors: [], fits: [], worn: 'all', brand: '' };
         _waRender();
@@ -2421,7 +2452,7 @@
             '.rb-add-serif{font-family:var(--font-serif);font-weight:300;font-size:19px;color:var(--ink)}',
             '.rb-add-hint{font-size:10px;letter-spacing:.05em;color:var(--ink-faint)}',
             // mobile
-            '@media(max-width:767px){.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-add-pill{display:none}#rb-wa-fab.on{display:flex}}'
+            '@media(max-width:767px){#wg-packbar{bottom:96px !important}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-add-pill{display:none}#rb-wa-fab.on{display:flex}}'
           ].join('\n');
           document.head.appendChild(st);
         }
@@ -4712,6 +4743,8 @@
 .rb-dc.is-today{background:#EEE3DF;border-color:#D4C8C4}
 .rb-dc.is-past{background:#FCFAF7;opacity:.62}
 .rb-dc.is-empty{background:#FAF8F5;border-style:dashed;border-color:#D8CFC0}
+.rb-dc.is-free{background:#FAF8F5;border-style:dashed;border-color:#D8CFC0}
+.rb-dc .dc-freetag{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:12px;color:var(--ink-soft);margin-top:4px}
 .rb-dc.is-empty-past{background:#FAF8F5;opacity:.4}
 .rb-dc.is-void{border-color:rgba(32,32,33,0.05);background:transparent}
 .rb-dc.is-pinned{border-color:#8E6A7C;box-shadow:0 0 0 1px #8E6A7C inset}
@@ -4753,7 +4786,7 @@
 .rb-dc .dc-empty{flex:1;display:flex;flex-direction:column;justify-content:flex-end}
 .rb-dc .dc-empty .t{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:19px;line-height:1.1;opacity:.55}
 .rb-dc .dc-empty .s{font-weight:300;font-size:11px;opacity:.42;margin-top:4px}
-.rb-dc .dc-ring{position:absolute;top:11px;right:11px;height:20px;border:none;background:transparent;cursor:pointer;padding:0;color:inherit;display:flex;align-items:center;gap:5px;opacity:.45;transition:opacity .2s;font-family:inherit;z-index:2}
+.rb-dc .dc-ring{position:absolute;top:7px;right:7px;height:28px;min-width:28px;justify-content:center;border:none;background:transparent;cursor:pointer;padding:4px;color:inherit;display:flex;align-items:center;gap:5px;opacity:.6;transition:opacity .2s;font-family:inherit;z-index:2}
 .rb-dc .dc-ring .tip{font-weight:500;font-size:9px;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;pointer-events:none;opacity:0;transform:translateX(4px);transition:opacity .2s,transform .2s}
 .rb-dc .dc-ring:hover{opacity:.9}
 .rb-dc .dc-ring:hover .tip{opacity:1;transform:translateX(0)}
@@ -4886,9 +4919,14 @@
         const allFree = has && (!dayM || dayM.status === 'free') && (!eveM || eveM.status === 'free');
         const past = o.date && o.today && o.date < o.today;
         const todayIs = o.date && o.date === o.today;
-        const state = (!has || allFree)
+        // A deliberately-free day is HER decision, not an absence — it keeps
+        // its own state (+ the parent plan's chip) instead of folding into
+        // empty and telling her "Nothing yet." (Wave 4, review finding).
+        const state = !has
           ? (past ? 'empty-past' : 'empty')
-          : (past ? 'past' : todayIs ? 'today' : 'planned');
+          : allFree
+            ? (past ? 'empty-past' : 'free')
+            : (past ? 'past' : todayIs ? 'today' : 'planned');
         const d = {
           eyebrow: o.eyebrow || '',
           state,
@@ -4897,6 +4935,7 @@
           title: '', evening: null, chip: null, pieces: [], pieceTotal: 0,
           date: o.date || null,
         };
+        if (state === 'free') { d.chip = _dcChipOf(dayM || eveM); return d; }
         if (state === 'empty' || state === 'empty-past') return d;
         const lead = (dayM && dayM.status !== 'free') ? dayM : (eveM || dayM);
         d.title = _dcTitleOf(lead);
@@ -4948,7 +4987,7 @@
         const eyTxt = d.eyebrow != null && d.eyebrow !== '' ? _waEsc(String(d.eyebrow)) : '&nbsp;';
         let inner = `<div class="dc-ey">${eyTxt}</div>`;
         const ring = (!compact && !isEmpty && !d.modifier && opts.ring)
-          ? `<button class="dc-ring" title="${_waEsc(opts.ringTip || 'Set this day as focus')}" onclick="${opts.ring}"><span class="tip">${_waEsc(opts.ringTipShort || 'Refine prompt')}</span>${_DC_RING_SVG}</button>`
+          ? `<button class="dc-ring" title="${_waEsc(opts.ringTip || 'Set this day as focus')}" aria-label="${_waEsc(opts.ringTip || 'Set this day as focus')}" onclick="${opts.ring}"><span class="tip">${_waEsc(opts.ringTipShort || 'Refine prompt')}</span>${_DC_RING_SVG}</button>`
           : '';
         if (isEmpty) {
           // Compact empties are bare numerals — no body copy (component)
@@ -4957,6 +4996,13 @@
               ? `<div class="dc-empty"><div class="t">—</div></div>`
               : `<div class="dc-empty"><div class="t">Nothing yet.</div><div class="s">Tap to dress it.</div></div>`;
           }
+        } else if (state === 'free') {
+          // Her deliberate blank page — named as such, carrying the plan it
+          // belongs to; the tap still offers to dress it. COPY: needs sign-off
+          inner += compact
+            ? `<div class="dc-freetag">left free</div>`
+            : `<div class="dc-empty"><div class="t" style="font-style:italic">Left free.</div><div class="s">Tap to dress it.</div></div>`;
+          if (!compact && d.chip) inner += `<div class="dc-chip"><span><i></i>${_waEsc(d.chip)}</span></div>`;
         } else {
           inner += `<div class="dc-title">${_waEsc(d.title || '')}</div>`;
           if (d.evening) {
@@ -11659,7 +11705,7 @@ body>*:not(#tv-result-page){display:none !important}
           // COPY: needs sign-off (eyebrow + hint)
           host.innerHTML =
             '<div class="rb-rail-head"><span class="rb-rail-ey">The week ahead</span>' +
-            '<span class="rb-rail-hint">Tap a day to dress it</span></div>' +
+            '<span class="rb-rail-hint">Tap a day — open its look, or dress it</span></div>' +
             '<div class="rb-rail-row">' + slots.map((s, i) => cardHtml(s, i)).join('') + '</div>' +
             '<div id="rb-rail-up"></div>';
           // Mobile: the strip only works if today is in view on mount
@@ -12443,7 +12489,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           }
         } else {
           if (_waItems.length < 15) {
-            pills.push({ label: '+ Add pieces to your wardrobe', act: () => { _ikTrack('pill', 'wardrobe'); if (window.__waAddChooser) window.__waAddChooser(); else if (window.App && App.showWardrobe) App.showWardrobe(); } });
+            pills.push({ label: '+ Add pieces — a few photos at once', act: () => { _ikTrack('pill', 'wardrobe'); if (window.__waAddChooser) window.__waAddChooser(); else if (window.App && App.showWardrobe) App.showWardrobe(); } });
           }
           const weekCovered = cached.some(r => r.source_type === 'weekly' && r.day_date >= today && r.day_date <= _pdAddISO(today, 6));
           if (!weekCovered) {
