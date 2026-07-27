@@ -81,17 +81,17 @@
           <div id="acct-msg" style="font-size:13px;margin-bottom:16px;min-height:18px"></div>
           <label style="display:block;margin-bottom:16px">
             <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">First name</span>
-            <input id="acct-first" value="${_acctEsc(prof.first_name)}" style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
+            <input id="acct-first" value="${_acctEsc(prof.first_name)}" style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:var(--rad-sm);padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
           </label>
           <label style="display:block;margin-bottom:16px">
             <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">Last name</span>
-            <input id="acct-last" value="${_acctEsc(prof.last_name)}" style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
+            <input id="acct-last" value="${_acctEsc(prof.last_name)}" style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:var(--rad-sm);padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
           </label>
           <label style="display:block;margin-bottom:28px">
             <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">Mobile number</span>
-            <input id="acct-mobile" type="tel" value="${_acctEsc(prof.mobile)}" placeholder="+353..." style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:8px;padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
+            <input id="acct-mobile" type="tel" value="${_acctEsc(prof.mobile)}" placeholder="+353..." style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:var(--rad-sm);padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
           </label>
-          <button onclick="window.__saveAcctDetails()" style="width:100%;height:48px;background:#202021;color:#fff;border:none;border-radius:8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;font-weight:500">Save changes</button>
+          <button onclick="window.__saveAcctDetails()" style="width:100%;height:48px;background:#202021;color:#fff;border:none;border-radius:var(--rad-sm);font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;font-weight:500">Save changes</button>
         </div>`;
       document.body.appendChild(acctModal);
       acctModal.addEventListener('click', (e) => { if (e.target === acctModal) acctModal.style.display = 'none'; });
@@ -1031,7 +1031,7 @@
           step.innerHTML = `
             <h2 class="fm-h">Add a piece.</h2>
             <p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">Snap it or attach it. Robes reads the colour, the cut and the label — and fills in the rest.</p>
-            <label id="wa-rb-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:240px;border:1.5px dashed #C8B8A2;border-radius:12px;background:#FAF8F5;cursor:pointer;text-align:center;padding:20px;box-sizing:border-box;">
+            <label id="wa-rb-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:240px;border:1.5px dashed #C8B8A2;border-radius:var(--rad);background:#FAF8F5;cursor:pointer;text-align:center;padding:20px;box-sizing:border-box;">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               <span style="font-size:16px;color:#6A5E54;letter-spacing:0.01em;">Snap or attach the piece</span>
               <span style="font-size:13px;color:var(--ink-faint);">Take a photo — or select several and Robes files them one after another</span>
@@ -1102,7 +1102,7 @@
             ${_waBatchTag()}
             <h2 class="fm-h" style="margin-bottom:4px;">Reading your piece…</h2>
             <p style="font-size:14px;color:var(--ink-faint);margin:0 0 16px;">One moment — Robes is looking at the photo.</p>
-            <div style="position:relative;height:280px;border-radius:12px;overflow:hidden;background:#1A1410;">
+            <div style="position:relative;height:280px;border-radius:var(--rad);overflow:hidden;background:#1A1410;">
               <img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;display:block;opacity:0.85;">
               <div style="position:absolute;inset:0;background:rgba(10,8,6,0.18);pointer-events:none;"></div>
               <div style="position:absolute;left:0;right:0;height:2px;animation:rb-scan-line 2.2s linear infinite;pointer-events:none;">
@@ -1222,18 +1222,18 @@
             </div>
             <div style="margin-bottom:12px;">
               <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">ITEM NAME</label>
-              <input id="wa-saw-label" value="${(tag.label||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:15px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawLabel=this.value">
+              <input id="wa-saw-label" value="${(tag.label||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:15px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawLabel=this.value">
             </div>
             <div style="display:flex;gap:10px;margin-bottom:12px;">
               <div style="flex:1;">
                 <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">CATEGORY</label>
-                <select id="wa-saw-cat" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" onchange="window.__waSawCat=this.value">
+                <select id="wa-saw-cat" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" onchange="window.__waSawCat=this.value">
                   ${cats.map(o => `<option${tag.category===o?' selected':''}>${o}</option>`).join('')}
                 </select>
               </div>
               <div style="flex:1;">
                 <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">BRAND</label>
-                <input id="wa-saw-brand" value="${(tag.brand||'').replace(/"/g,'&quot;')}" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawBrand=this.value">
+                <input id="wa-saw-brand" value="${(tag.brand||'').replace(/"/g,'&quot;')}" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawBrand=this.value">
               </div>
             </div>
             <div style="margin-bottom:12px;">
@@ -1249,10 +1249,10 @@
             </div>` : ''}
             <div style="margin-bottom:16px;">
               <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">NOTES <span style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-faint);">optional</span></label>
-              <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${aiNotes.replace(/</g,'&lt;')}</textarea>
+              <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${aiNotes.replace(/</g,'&lt;')}</textarea>
             </div>
             <div id="rb-wa-detail-host"></div>
-            <button id="wa-saw-cta" onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
+            <button id="wa-saw-cta" onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:var(--rad-sm);font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
 
           // Set thumbnail src via DOM (not innerHTML) so large data URLs aren't truncated
           const thumbEl = document.getElementById('wa-saw-thumb');
@@ -1711,7 +1711,7 @@
         modal.id = 'rb-hero-picker';
         modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:flex-end;justify-content:center';
         modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-        modal.innerHTML = '<div style="background:var(--cream,#FAF8F5);width:100%;max-width:880px;border-radius:18px 18px 0 0;max-height:82vh;display:flex;flex-direction:column;box-sizing:border-box">' +
+        modal.innerHTML = '<div style="background:var(--cream,#FAF8F5);width:100%;max-width:880px;border-radius:var(--rad-lg) 18px 0 0;max-height:82vh;display:flex;flex-direction:column;box-sizing:border-box">' +
           '<div style="padding:22px 26px 14px;border-bottom:0.5px solid rgba(32,32,33,0.12);display:flex;align-items:flex-end;justify-content:space-between;gap:14px">' +
             '<div><div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px">Build your Hero Rack</div>' +
             '<div style="font-family:var(--font-serif);font-weight:300;font-size:26px;color:var(--ink);line-height:1">Tap the pieces you reach for first</div></div>' +
@@ -2021,12 +2021,12 @@
           card.innerHTML = '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px">The Wishlist</div>' +
             '<div style="font-family:' + serif + ';font-size:26px;font-weight:300;color:#202021;line-height:1.15;margin-bottom:6px">Save what catches your eye.</div>' +
             '<div style="font-size:12px;color:#6E6A64;margin-bottom:18px">A screenshot, a photo, a saved image — Robes reads what it can.</div>' +
-            '<label id="rb-wl-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:168px;border:1.5px dashed #C8B8A2;border-radius:12px;background:#fff;cursor:pointer;text-align:center;padding:16px;box-sizing:border-box">' +
+            '<label id="rb-wl-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:168px;border:1.5px dashed #C8B8A2;border-radius:var(--rad);background:#fff;cursor:pointer;text-align:center;padding:16px;box-sizing:border-box">' +
               '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>' +
               '<span style="font-size:14px;color:#6A5E54">Screenshot or photo</span>' +
               '<span style="font-size:11.5px;color:var(--ink-faint)">From Instagram, Substack, or your camera roll</span>' +
               '<input id="rb-wl-file" type="file" accept="image/*" style="display:none"></label>' +
-            '<button id="rb-wl-link" style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px;background:#fff;color:var(--ink-faint);font-size:12px;cursor:pointer;font-family:inherit">Paste a link <span class="rb-soon-tag">Coming soon</span></button>' +
+            '<button id="rb-wl-link" style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad);background:#fff;color:var(--ink-faint);font-size:12px;cursor:pointer;font-family:inherit">Paste a link <span class="rb-soon-tag">Coming soon</span></button>' +
             '<button id="rb-wl-cancel" style="display:block;margin:12px auto 0;background:none;border:none;color:var(--ink-faint);font-size:11.5px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:4px">Cancel</button>';
           card.querySelector('#rb-wl-file').addEventListener('change', function() {
             if (this.files && this.files[0]) {
@@ -2057,21 +2057,21 @@
           card.innerHTML = '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px">The Wishlist</div>' +
             '<div style="font-family:' + serif + ';font-size:26px;font-weight:300;color:#202021;line-height:1.15;margin-bottom:16px">' + (tag.label ? 'Here’s what Robes <em style="font-style:italic;color:#9A7060">saw.</em>' : 'Name the piece.') + '</div>' +
             '<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px">' +
-              '<img id="rb-wl-thumb" style="width:74px;height:96px;object-fit:cover;border-radius:8px;flex-shrink:0" alt="">' +
+              '<img id="rb-wl-thumb" style="width:74px;height:96px;object-fit:cover;border-radius:var(--rad-sm);flex-shrink:0" alt="">' +
               '<div style="flex:1;min-width:0">' +
                 '<label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px">PIECE</label>' +
-                '<input id="rb-wl-label" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520;margin-bottom:9px">' +
+                '<input id="rb-wl-label" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;margin-bottom:9px">' +
                 '<label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px">BRAND</label>' +
-                '<input id="rb-wl-brand" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520">' +
+                '<input id="rb-wl-brand" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520">' +
               '</div></div>' +
             '<div style="display:flex;gap:10px;margin-bottom:14px">' +
               '<div style="flex:1"><label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px">PRICE <span style="color:var(--ink-faint);letter-spacing:0;text-transform:none">optional</span></label>' +
               '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-size:13px">€</span>' +
-              '<input id="rb-wl-price" inputmode="decimal" placeholder="0" style="width:100%;box-sizing:border-box;padding:10px 12px 10px 26px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520"></div></div></div>' +
+              '<input id="rb-wl-price" inputmode="decimal" placeholder="0" style="width:100%;box-sizing:border-box;padding:10px 12px 10px 26px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520"></div></div></div>' +
             '<label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:7px">WHERE DID YOU SPOT IT?</label>' +
             '<div id="rb-wl-src" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:20px">' +
               srcDefs.map(d => '<button data-src="' + d[0] + '" style="padding:7px 13px;border-radius:100px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;border:1px solid ' + (d[0] === src ? '#2A2520;background:#2A2520;color:#F8F5F0' : '#D8CEBC;background:#fff;color:#6A5E54') + '">' + d[1] + '</button>').join('') + '</div>' +
-            '<button id="rb-wl-save" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:8px;font-size:13px;letter-spacing:0.08em;cursor:pointer;font-family:inherit">SAVE TO WISHLIST →</button>';
+            '<button id="rb-wl-save" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:var(--rad-sm);font-size:13px;letter-spacing:0.08em;cursor:pointer;font-family:inherit">SAVE TO WISHLIST →</button>';
           const thumb = card.querySelector('#rb-wl-thumb');
           if (thumb && photo) thumb.src = photo;
           const lblEl = card.querySelector('#rb-wl-label');
@@ -2144,7 +2144,7 @@
         modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
         modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
         function door(id, icon, label, hint, soon) {
-          return '<button id="' + id + '" style="display:flex;align-items:center;gap:13px;width:100%;padding:13px 14px;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px;background:#fff;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s' + (soon ? ';opacity:.62' : '') + '">' +
+          return '<button id="' + id + '" style="display:flex;align-items:center;gap:13px;width:100%;padding:13px 14px;border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad);background:#fff;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s' + (soon ? ';opacity:.62' : '') + '">' +
             '<span style="width:32px;height:32px;border-radius:9px;background:#F0EBE3;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#202021">' + icon + '</span>' +
             '<span style="flex:1;min-width:0"><span style="display:block;font-size:13px;font-weight:500;color:#202021">' + label +
             (soon ? ' <span class="rb-soon-tag">Coming soon</span>' : '') + '</span>' +
@@ -2302,12 +2302,12 @@
           return '<button onclick="window.__rbWaDetSent(\'' + s[0] + '\')" style="flex:1;min-width:140px;border:1px solid ' + (on ? '#2A2520' : '#D8CEBC') + ';background:' + (on ? '#F0EBE3' : '#fff') + ';color:#2A2520;border-radius:10px;padding:11px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;text-align:left;line-height:1.3;transition:all .15s">' + s[0] +
             '<span style="display:block;font-size:10.5px;color:var(--ink-faint);margin-top:2px">' + s[1] + '</span></button>';
         }).join('');
-        host.innerHTML = '<div style="margin:2px 0 14px;border:1px solid #D8CEBC;border-radius:12px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:16px">' +
+        host.innerHTML = '<div style="margin:2px 0 14px;border:1px solid #D8CEBC;border-radius:var(--rad);background:#fff;padding:16px;display:flex;flex-direction:column;gap:16px">' +
           '<div><label style="' + lbl + '">WHEN DO YOU WEAR THIS</label><div style="display:flex;flex-wrap:wrap;gap:7px">' + whenChips + tagCtl + '</div></div>' +
           '<div><label style="' + lbl + '">PURCHASE PRICE <span style="letter-spacing:0;text-transform:none;color:var(--ink-faint)">private — powers cost-per-wear</span></label>' +
             '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
             '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-size:13px">€</span>' +
-            '<input value="' + _waEsc(d.price) + '" inputmode="decimal" placeholder="0" oninput="window.__rbWaDetPrice(this)" style="width:110px;box-sizing:border-box;padding:9px 12px 9px 26px;border:1px solid #D8CEBC;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#2A2520"></div>' +
+            '<input value="' + _waEsc(d.price) + '" inputmode="decimal" placeholder="0" oninput="window.__rbWaDetPrice(this)" style="width:110px;box-sizing:border-box;padding:9px 12px 9px 26px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520"></div>' +
             '<span id="rb-wa-cpw" style="font-family:var(--font-serif);font-style:italic;font-size:15px;color:#7E7C5A">' + _rbWaCpwLabel(d) + '</span></div></div>' +
           '<div><label style="' + lbl + '">FIT CONFIDENCE</label><div style="display:inline-flex;background:#F0EBE3;border:1px solid #E7E0CF;border-radius:100px;padding:3px;flex-wrap:wrap">' + fitOpts + '</div></div>' +
           '<div><label style="' + lbl + '">IF IT WERE LOST TOMORROW</label><div style="display:flex;gap:9px;flex-wrap:wrap">' + sentOpts + '</div></div>' +
@@ -3233,7 +3233,7 @@
         empty.style.display = 'none';
         _rbcInitSwipe();
         grid.innerHTML = visible.map(item => `
-          <div onclick="window.__snOpenItem(${item.id})" data-rmfn="__snRemove" data-rmidx="${item.id}" data-rmconfirm="1" style="position:relative;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08);cursor:pointer" onmouseenter="this.querySelector('.sn-rm').style.opacity='1'" onmouseleave="this.querySelector('.sn-rm').style.opacity='0'">
+          <div onclick="window.__snOpenItem(${item.id})" data-rmfn="__snRemove" data-rmidx="${item.id}" data-rmconfirm="1" style="position:relative;background:#fff;border-radius:var(--rad);overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08);cursor:pointer" onmouseenter="this.querySelector('.sn-rm').style.opacity='1'" onmouseleave="this.querySelector('.sn-rm').style.opacity='0'">
             <button class="sn-rm" onclick="event.stopPropagation();window.__snRemove(${item.id})" style="position:absolute;top:10px;right:10px;opacity:0;transition:opacity .15s;background:rgba(32,32,33,0.55);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
@@ -3695,7 +3695,7 @@
               ${kpCtx.hint ? `<span style="color:rgba(32,32,33,0.2)">|</span><span style="font-style:italic">${_waEsc(kpCtx.hint)}</span>` : ''}
             </div>` : ''}
 
-            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:12px;background:#fff;max-width:400px;margin-bottom:40px">
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:var(--rad);background:#fff;max-width:400px;margin-bottom:40px">
               ${photoUrl ? `<img src="${_waEsc(photoUrl)}" style="width:64px;height:80px;border-radius:4px;object-fit:cover;flex-shrink:0" alt="">` : ''}
               <div>
                 <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px">${kpDaily ? "Today's brief" : 'Your piece'}</div>
@@ -3711,7 +3711,7 @@
                   ? `<span style="font-family:${serif};font-style:italic;font-size:15px;color:var(--ink-faint);text-align:center;padding:0 24px">Creating your editorial image…</span>`
                   : `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
                 return `
-                <div class="kp-look-card" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:24px;background:#fff;border-radius:12px;overflow:hidden;border:0.5px solid rgba(32,32,33,0.08)">
+                <div class="kp-look-card" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:24px;background:#fff;border-radius:var(--rad);overflow:hidden;border:0.5px solid rgba(32,32,33,0.08)">
                   <div class="kp-look-imgwrap" id="kp-look-imgwrap-${i}" style="position:relative;background:#EDE9E2;min-height:340px">
                     ${genImg
                       ? `<img src="${_waEsc(genImg)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
@@ -3731,7 +3731,7 @@
               }).join('')}
             </div>
 
-            <div style="margin-top:48px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center">
+            <div style="margin-top:48px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:var(--rad);text-align:center">
               <div style="font-family:${serif};font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How were these looks?</div>
               <div id="kp-fb-prompt">
                 <div style="font-size:13px;color:var(--ink-faint);margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
@@ -3741,7 +3741,7 @@
                 </div>
               </div>
               <div id="kp-fb-expand" hidden style="margin-top:16px">
-                <textarea id="kp-fb-text" placeholder="What would have made them better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
+                <textarea id="kp-fb-text" placeholder="What would have made them better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:var(--rad-sm);padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
                 <button onclick="window.__kpFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:${sans}">Send feedback</button>
               </div>
               <div id="kp-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
@@ -4732,7 +4732,7 @@
 }
 @media(max-width:1000px){.rb-mcells .rb-dc.dc-compact .dc-th{display:none}}
 @media(max-width:767px){
-.rb-mcells .rb-dc.dc-compact{min-height:0;aspect-ratio:1;padding:5px;border-radius:8px}
+.rb-mcells .rb-dc.dc-compact{min-height:0;aspect-ratio:1;padding:5px;border-radius:var(--rad-sm)}
 .rb-mcells .rb-dc.dc-compact .dc-ey{font-size:13px;margin-bottom:0}
 .rb-mcells .rb-dc.dc-compact .dc-title{font-size:10px;line-height:1.25;margin-top:2px;min-height:0}
 .rb-mcells .rb-dc.dc-compact .dc-eve{display:none}
@@ -4750,7 +4750,7 @@
 .rb-dc.has-ring .dc-ey{padding-right:32px}
 #rb-dpk{position:fixed;inset:0;z-index:940;display:flex;align-items:center;justify-content:center;padding:24px}
 #rb-dpk .dpk-veil{position:absolute;inset:0;background:rgba(32,32,33,0.38)}
-#rb-dpk .dpk-card{position:relative;background:#FAF8F5;border-radius:14px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;padding:24px 26px 22px;box-shadow:0 18px 60px rgba(32,32,33,0.22)}
+#rb-dpk .dpk-card{position:relative;background:#FAF8F5;border-radius:var(--rad-card);max-width:420px;width:100%;max-height:80vh;overflow-y:auto;padding:24px 26px 22px;box-shadow:0 18px 60px rgba(32,32,33,0.22)}
 #rb-dpk .dpk-x{position:absolute;top:12px;right:14px;border:none;background:none;font-size:20px;color:var(--ink-faint);cursor:pointer;line-height:1;padding:4px}
 #rb-dpk .dpk-date{font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px}
 #rb-dpk .mo{padding:12px 0;border-top:0.5px solid rgba(32,32,33,0.08)}
@@ -4766,7 +4766,7 @@
 #rb-dpk .dpk-btn.primary{background:var(--ink,#202021);border-color:var(--ink,#202021);color:#fff}
 #rb-dpk .dpk-btn.primary:hover{opacity:.85}
 #rb-dpk .dpk-worn{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7E7C5A;margin-right:auto}
-@media(max-width:640px){#rb-dpk{align-items:flex-end;padding:0}#rb-dpk .dpk-card{border-radius:14px 14px 0 0;max-width:none}}`;
+@media(max-width:640px){#rb-dpk{align-items:flex-end;padding:0}#rb-dpk .dpk-card{border-radius:var(--rad-card) var(--rad-card) 0 0;max-width:none}}`;
       function _dcEnsureCss() {
         if (document.getElementById('rb-dc-style')) return;
         const st = document.createElement('style');
@@ -5117,7 +5117,7 @@
         const upSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6A64" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
         const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
         const opt = (svg, label, sub, click) =>
-          `<button onclick="${click}" style="display:flex;align-items:center;gap:13px;width:100%;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px;background:#fff;cursor:pointer;font-family:inherit;text-align:left;margin-bottom:9px">
+          `<button onclick="${click}" style="display:flex;align-items:center;gap:13px;width:100%;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad);background:#fff;cursor:pointer;font-family:inherit;text-align:left;margin-bottom:9px">
             ${svg}
             <span style="min-width:0"><span style="display:block;font-size:13.5px;color:#202021">${label}</span><span style="display:block;font-size:11px;color:var(--ink-faint);margin-top:1px">${sub}</span></span>
           </button>`;
@@ -5167,7 +5167,7 @@
         const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
         const items = _waItems.slice(0, 60);
         const grid = items.length ? items.map(wi => `
-          <div onclick="document.getElementById('rbc-wa-pick').remove();window.${applyName}('${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
+          <div onclick="document.getElementById('rbc-wa-pick').remove();window.${applyName}('${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:var(--rad-sm);overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
             ${wi.image_url
               ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" alt="">`
               : `<div style="aspect-ratio:1;background:#EDE8E0;display:flex;align-items:center;justify-content:center"><span style="font-family:${serif};font-size:22px;color:var(--ink-faint)">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</span></div>`}
@@ -5799,7 +5799,7 @@
         let wardrobeSection = '';
         if (candidates.length > 0) {
           const itemsHtml = candidates.slice(0, 8).map(wi => `
-            <div onclick="window.${cfg.applyName}(${cfg.idx},'${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
+            <div onclick="window.${cfg.applyName}(${cfg.idx},'${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:var(--rad-sm);overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
               ${wi.image_url
                 ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" alt="">`
                 : `<div style="aspect-ratio:1;background:#EDE8E0;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8C0B8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`}
@@ -5812,7 +5812,7 @@
             </div>`;
         } else if (aiAlt) {
           wardrobeSection = `
-            <div style="margin-bottom:24px;background:#F5F2EE;border-radius:12px;padding:14px">
+            <div style="margin-bottom:24px;background:#F5F2EE;border-radius:var(--rad);padding:14px">
               <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 6px">Robes’ suggestion</p>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don’t have a ${_waEsc((item.category || 'piece').toLowerCase())}, but your <em>${_waEsc(aiAlt.label)}</em> creates a similar outline.</p>
               <button onclick="window.${cfg.applyName}(${cfg.idx},'${_waEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
@@ -5830,7 +5830,7 @@
           const outside = _waItems.filter(wi => catMatch(wi) && !inPool.has(String(wi.id))).slice(0, 8);
           if (outside.length) {
             const adoptItems = outside.map(wi => `
-              <div onclick="window.${cfg.adopt.applyName}(${cfg.idx},'${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;border:0.5px dashed rgba(32,32,33,0.2)">
+              <div onclick="window.${cfg.adopt.applyName}(${cfg.idx},'${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:var(--rad-sm);overflow:hidden;background:#fff;border:0.5px dashed rgba(32,32,33,0.2)">
                 ${wi.image_url
                   ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" alt="">`
                   : `<div style="aspect-ratio:1;background:#EDE8E0"></div>`}
@@ -5994,7 +5994,7 @@
       function _wkPlanPaint() {
         document.getElementById('wk-plan-modal')?.remove();
         const serif = "'Cormorant',Georgia,serif";
-        const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:11px 12px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit';
+        const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:var(--rad-sm);padding:11px 12px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit';
         const ph = ['Office day', 'Client dinner', 'WFH + errands', 'Pilates, then lunch out', 'School run + meetings', 'Date night', 'Slow morning, drinks later'];
         const chips = ['Office', 'WFH', 'Big meeting', 'Dinner out', 'Date night', 'Pilates', 'School run', 'Drinks'];
         const modal = document.createElement('div');
@@ -6024,7 +6024,7 @@
             <input id="wk-brief" value="${_waEsc(_wkPlan.brief)}" placeholder="The week's mood — smart, comfortable, no repeats…" style="${inputCss};margin-bottom:16px">
             <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 14px">${chipsHtml}</div>
             ${rows}
-            ${_wkPlan.days.length < 14 ? `<button onclick="window.__wkPlanExtend()" style="width:100%;margin-top:4px;background:none;border:1px dashed rgba(32,32,33,0.22);border-radius:8px;padding:10px;font-size:11.5px;color:#6E6A64;cursor:pointer;font-family:inherit">+ Plan next week too</button>` : ''}
+            ${_wkPlan.days.length < 14 ? `<button onclick="window.__wkPlanExtend()" style="width:100%;margin-top:4px;background:none;border:1px dashed rgba(32,32,33,0.22);border-radius:var(--rad-sm);padding:10px;font-size:11.5px;color:#6E6A64;cursor:pointer;font-family:inherit">+ Plan next week too</button>` : ''}
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;flex-wrap:wrap">
               <button onclick="window.__wkPlanGo(true)" style="background:none;border:none;cursor:pointer;font-size:11.5px;color:var(--ink-faint);text-decoration:underline;font-family:inherit;padding:4px 0">Skip — let Robes plan the days</button>
               <button onclick="window.__wkPlanGo()" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:13px 24px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Create my week · ${nActive} days →</button>
@@ -6766,7 +6766,7 @@
               <button onclick="document.getElementById('wk-day-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);font-size:16px;line-height:1">×</button>
             </div>
             <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 14px;line-height:1.15">What are you actually doing?</p>
-            <input id="wk-day-input" value="${_waEsc(d.user_activity || '')}" placeholder="Client presentation, then drinks" style="width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:14px">
+            <input id="wk-day-input" value="${_waEsc(d.user_activity || '')}" placeholder="Client presentation, then drinks" style="width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:var(--rad-sm);padding:12px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:14px">
             <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:20px">${chipsHtml}</div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
               ${d.rest ? '<span></span>' : `<button onclick="window.__wkFreeDay(${di})" style="background:none;border:none;cursor:pointer;font-size:11.5px;color:var(--ink-faint);text-decoration:underline;font-family:inherit;padding:4px 0">Leave this day free</button>`}
@@ -7253,7 +7253,7 @@
           _tvWxOnly = false;
         }
         const st = _tvBrief;
-        const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:11px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit';
+        const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:var(--rad-sm);padding:11px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit';
         const labelCss = 'font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px';
         const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 
@@ -7347,7 +7347,7 @@
           : (Array.isArray(st.plan) ? st.plan : []);
         _tvPlanFocus = 0;
         const serif = "'Cormorant',Georgia,serif";
-        const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:10px 12px;font-size:13px;color:#202021;background:#fff;outline:none;font-family:inherit';
+        const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:var(--rad-sm);padding:10px 12px;font-size:13px;color:#202021;background:#fff;outline:none;font-family:inherit';
         const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
         const sugg = ['Arrival — settle in, dinner nearby', 'Beach or pool, then a dressy dinner', 'Exploring the town, casual lunch', 'Boat day', 'A big night out', 'Slow morning, shopping, aperitivo', 'A day trip', 'Brunch, then rooftop drinks', 'Departure — travel comfortable'];
         const ph = i => i === 0 ? sugg[0] : i === n - 1 ? sugg[sugg.length - 1] : sugg[1 + ((i - 1) % (sugg.length - 2))];
@@ -7994,7 +7994,7 @@
           rackLabel: `The rack · ${_waEsc(dayName)}`,
           // The hint names MEMBERSHIP, not packing (decision 4 — the packed
           // checklist never constrains generation). COPY: needs sign-off
-          rackHintHtml: `<div style="font-size:11px;color:var(--ink-faint);background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.08);border-radius:8px;padding:8px 12px;margin:8px 0 14px">Styled from your case — the ${data.capsule.length} pieces this trip is built from. Swapping in anything else adds it to the case.</div>`,
+          rackHintHtml: `<div style="font-size:11px;color:var(--ink-faint);background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.08);border-radius:var(--rad-sm);padding:8px 12px;margin:8px 0 14px">Styled from your case — the ${data.capsule.length} pieces this trip is built from. Swapping in anything else adds it to the case.</div>`,
           rackTitleHtml: `<h2>${_waEsc(s.title || 'The look')}${s.title && !/[.!?]$/.test(s.title) ? '.' : ''}</h2>`,
           headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__tvRestyleDay()" title="A fresh day — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__tvEditDay(${_tvActiveDay})" title="Tell Robes this day’s real plan">✎ The real plan</button><button class="rbc-hbtn" onclick="window.__tvPackLook()">${_tvCheckSvg} Pack this look</button>`,
           onFlip: '__tvFlip', onSwap: '__tvDaySwap', onAnchor: '__tvAnchor', onRemove: '__tvRemoveFromLook',
@@ -8478,7 +8478,7 @@
             </div>
             <p style="font-family:${serif};font-size:25px;font-weight:300;color:#202021;margin:0 0 6px;line-height:1.15">What are you actually doing?</p>
             <p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:0 0 16px">Robes re-mixes the capsule you’ve packed — a new piece only appears if the plan truly needs it.</p>
-            <input id="tv-day-input" value="${_waEsc(d.user_activity || '')}" placeholder="Attending a formal sunset wedding reception" style="width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:14px">
+            <input id="tv-day-input" value="${_waEsc(d.user_activity || '')}" placeholder="Attending a formal sunset wedding reception" style="width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:var(--rad-sm);padding:12px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:14px">
             <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:20px">${chipsHtml}</div>
             <button id="tv-day-apply" onclick="window.__tvDayApply(${di})" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Update day</button>
           </div>`;
@@ -9007,7 +9007,7 @@
               <button onclick="document.getElementById('rb-rename-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
             </div>
             <p style="font-family:${serif};font-size:25px;font-weight:300;font-style:italic;color:#202021;margin:0 0 16px;line-height:1.15">Give it a name.</p>
-            <input id="rb-rename-input" value="${_waEsc(cur)}" placeholder="A name you’ll recognise" style="width:100%;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.18);border-radius:8px;padding:12px 13px;font-size:14px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:16px">
+            <input id="rb-rename-input" value="${_waEsc(cur)}" placeholder="A name you’ll recognise" style="width:100%;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.18);border-radius:var(--rad-sm);padding:12px 13px;font-size:14px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:16px">
             <button onclick="window.__rbRenameSave()" style="width:100%;padding:13px 20px;border:none;border-radius:100px;background:#202021;font-size:12px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Save name</button>
           </div>`;
         document.body.appendChild(modal);
@@ -9088,10 +9088,10 @@
         modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(32,32,33,0.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px';
         modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
         const thumb = entry.img
-          ? `<img src="${_waEsc(entry.img)}" style="width:52px;height:64px;object-fit:cover;border-radius:8px;flex:none" alt="">`
-          : `<div style="width:52px;height:64px;border-radius:8px;background:#EDE8E0;flex:none"></div>`;
+          ? `<img src="${_waEsc(entry.img)}" style="width:52px;height:64px;object-fit:cover;border-radius:var(--rad-sm);flex:none" alt="">`
+          : `<div style="width:52px;height:64px;border-radius:var(--rad-sm);background:#EDE8E0;flex:none"></div>`;
         modal.innerHTML = `
-          <div style="position:relative;background:#FAF8F5;border-radius:18px;width:100%;max-width:440px;padding:34px 32px 30px;box-shadow:0 24px 60px -12px rgba(32,32,33,0.3)">
+          <div style="position:relative;background:#FAF8F5;border-radius:var(--rad-lg);width:100%;max-width:440px;padding:34px 32px 30px;box-shadow:0 24px 60px -12px rgba(32,32,33,0.3)">
             <button onclick="document.getElementById('rb-share-modal').remove()" style="position:absolute;top:14px;right:14px;width:32px;height:32px;background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:20px;line-height:1">×</button>
             <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
               ${thumb}
@@ -9224,7 +9224,7 @@
           kpData: kpDataToSave,
         });
         actionsEl.innerHTML = `
-          <div id="sn-fb" style="width:100%;background:rgba(32,32,33,0.03);border-radius:12px;padding:28px 24px;text-align:center;margin-bottom:8px">
+          <div id="sn-fb" style="width:100%;background:rgba(32,32,33,0.03);border-radius:var(--rad);padding:28px 24px;text-align:center;margin-bottom:8px">
             <div style="font-family:'Cormorant',Georgia,serif;font-size:20px;font-weight:300;color:#202021;margin-bottom:6px">How were these looks?</div>
             <div id="sn-fb-prompt">
               <div style="font-size:12px;color:var(--ink-faint);margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
@@ -9240,7 +9240,7 @@
               </div>
             </div>
             <div id="sn-fb-expand" hidden style="margin-top:16px">
-              <textarea id="sn-fb-text" placeholder="What would have made them better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:inherit"></textarea>
+              <textarea id="sn-fb-text" placeholder="What would have made them better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:var(--rad-sm);padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:inherit"></textarea>
               <button onclick="window.__snFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer">Send feedback</button>
             </div>
             <div id="sn-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
@@ -10133,8 +10133,8 @@
         modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
         modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
         const thumb = row.image_url
-          ? `<img src="${_waEsc(row.image_url)}" style="width:64px;height:82px;border-radius:8px;object-fit:cover;flex-shrink:0" alt="">`
-          : `<div style="width:64px;height:82px;border-radius:8px;background:#F0EDE8;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-family:${serif};font-size:24px;color:#C8B8A2">${_waEsc((row.label || '?').charAt(0).toUpperCase())}</span></div>`;
+          ? `<img src="${_waEsc(row.image_url)}" style="width:64px;height:82px;border-radius:var(--rad-sm);object-fit:cover;flex-shrink:0" alt="">`
+          : `<div style="width:64px;height:82px;border-radius:var(--rad-sm);background:#F0EDE8;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-family:${serif};font-size:24px;color:#C8B8A2">${_waEsc((row.label || '?').charAt(0).toUpperCase())}</span></div>`;
         modal.innerHTML = `
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:420px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px 26px 22px">
             <div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px">In your wardrobe ✓</div>
@@ -10216,7 +10216,7 @@
         if (!anchor || !anchor.parentNode) { _cbReset(); window.__dlSubmit(prompt); return; }
         const row = document.createElement('div');
         row.id = 'cb-clarify';
-        row.style.cssText = 'margin:12px 0 0;padding:16px 18px;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:12px';
+        row.style.cssText = 'margin:12px 0 0;padding:16px 18px;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad)';
         row.innerHTML = `
           <div style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#6E6A64;margin-bottom:10px">Lovely — a look for your day, your week planned, a trip packed, or one piece three ways?</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -10748,7 +10748,7 @@
         if (old) old.remove();
         const fb = document.createElement('div');
         fb.id = 'mb-fb';
-        fb.style.cssText = 'margin:36px auto 40px;max-width:640px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:12px;text-align:center';
+        fb.style.cssText = 'margin:36px auto 40px;max-width:640px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:var(--rad);text-align:center';
         fb.innerHTML = `
           <div style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How is this board?</div>
           <div id="mb-fb-prompt">
@@ -10759,7 +10759,7 @@
             </div>
           </div>
           <div id="mb-fb-expand" hidden style="margin-top:16px">
-            <textarea id="mb-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:8px;padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:inherit"></textarea>
+            <textarea id="mb-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:var(--rad-sm);padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:inherit"></textarea>
             <button onclick="window.__mbFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit">Send feedback</button>
           </div>
           <div id="mb-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>`;
@@ -10908,7 +10908,7 @@
         let wardrobeSection = '';
         if (candidates.length > 0) {
           const itemsHtml = candidates.slice(0, 8).map(wi => `
-            <div onclick="window.__mbSwapApply(${idx},'${_mbEsc(wi.id)}')" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
+            <div onclick="window.__mbSwapApply(${idx},'${_mbEsc(wi.id)}')" style="cursor:pointer;border-radius:var(--rad-sm);overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
               ${wi.image_url
                 ? `<img src="${_mbEsc(wi.image_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" alt="">`
                 : `<div style="aspect-ratio:1;background:#EDE8E0;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8C0B8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`}
@@ -10920,7 +10920,7 @@
             </div>`;
         } else if (aiAlt) {
           wardrobeSection = `
-            <div style="margin-bottom:24px;background:#F5F2EE;border-radius:12px;padding:14px">
+            <div style="margin-bottom:24px;background:#F5F2EE;border-radius:var(--rad);padding:14px">
               <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 6px">Robes’ suggestion</p>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don't have a ${_mbEsc(item.category.toLowerCase())}, but your <em>${_mbEsc(aiAlt.label)}</em> creates a similar outline.</p>
               <button onclick="window.__mbSwapApply(${idx},'${_mbEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
@@ -10996,7 +10996,7 @@
         if (!items.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
         grid.style.display = 'grid'; empty.style.display = 'none';
         grid.innerHTML = items.map(item => `
-          <div onclick="window.__mbOpenSaved(${item.id})" style="cursor:pointer;border-radius:14px;overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.1);transition:box-shadow .2s" onmouseenter="this.style.boxShadow='0 12px 32px -16px rgba(32,32,33,0.18)'" onmouseleave="this.style.boxShadow='none'">
+          <div onclick="window.__mbOpenSaved(${item.id})" style="cursor:pointer;border-radius:var(--rad-card);overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.1);transition:box-shadow .2s" onmouseenter="this.style.boxShadow='0 12px 32px -16px rgba(32,32,33,0.18)'" onmouseleave="this.style.boxShadow='none'">
             <div style="position:relative">
               ${item.img
                 ? `<img src="${_mbEsc(item.img)}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" alt="">`
@@ -11224,7 +11224,7 @@
           const host = grid.closest('section') || grid;
           const card = document.createElement('section');
           card.id = 'rb-sil-prompt';
-          card.style.cssText = 'max-width:1140px;margin:26px auto;padding:20px 24px;background:#FDFCFA;border:1px solid #E7E0CF;border-radius:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:relative';
+          card.style.cssText = 'max-width:1140px;margin:26px auto;padding:20px 24px;background:#FDFCFA;border:1px solid #E7E0CF;border-radius:var(--rad-card);display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:relative';
           card.innerHTML =
             '<div style="flex:1;min-width:230px">' +
               '<div style="font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px">' + eyebrow + '</div>' +
@@ -11280,7 +11280,7 @@
 #rb-rail .rb-rail-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 10px}
 #rb-rail .rb-rail-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}
 #rb-rail .rb-rail-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px}
-#rb-rail .rb-rc{position:relative;display:flex;flex-direction:column;padding:0;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;cursor:pointer;box-sizing:border-box;overflow:hidden;transition:border-color .2s;text-align:left}
+#rb-rail .rb-rc{position:relative;display:flex;flex-direction:column;padding:0;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad-card);cursor:pointer;box-sizing:border-box;overflow:hidden;transition:border-color .2s;text-align:left}
 #rb-rail .rb-rc:hover{border-color:rgba(32,32,33,0.4)}
 #rb-rail .rb-rc-body{flex:1;display:flex;flex-direction:column;gap:5px;padding:13px 14px 13px;min-width:0;min-height:172px}
 #rb-rail .rb-rc-wk{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -11315,7 +11315,7 @@
 #rb-rail .rb-rc.is-empty-past{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.1);opacity:.45;cursor:default}
 #rb-rail .rb-rc.is-pinned{border-color:var(--mauve,#D4C8C4);box-shadow:0 0 0 1px var(--mauve,#D4C8C4) inset}
 #rb-rail .rb-rc-worn{font-size:10px;letter-spacing:.06em;color:#7E7C5A;margin-top:auto}
-#rb-rail .rb-upnext{display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;text-align:left;margin-top:10px;padding:8px 14px;background:rgba(212,200,196,0.16);border:0.5px solid rgba(32,32,33,0.1);border-radius:12px;cursor:pointer;font-family:inherit;transition:border-color .2s}
+#rb-rail .rb-upnext{display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;text-align:left;margin-top:10px;padding:8px 14px;background:rgba(212,200,196,0.16);border:0.5px solid rgba(32,32,33,0.1);border-radius:var(--rad);cursor:pointer;font-family:inherit;transition:border-color .2s}
 #rb-rail .rb-upnext:hover{border-color:rgba(32,32,33,0.35)}
 #rb-rail .rb-upnext .th{flex:none;width:36px;height:36px;border-radius:7px;overflow:hidden;background:#EFE9DC}
 #rb-rail .rb-upnext .th img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.55) sepia(.18) contrast(.95)}
@@ -11759,7 +11759,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-mv-pop .card button i{flex:none;width:8px;height:8px;border-radius:50%}
 .rb-mcells .rb-dc.dc-compact{min-height:150px}
 @media(max-width:1000px){.rb-mc-strip{display:none}}
-@media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:8px}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}.rb-mband{font-size:9px;padding:0 6px;height:14px}.rb-mv-title{font-size:26px}}`;
+@media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:var(--rad-sm)}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}.rb-mband{font-size:9px;padding:0 6px;height:14px}.rb-mv-title{font-size:26px}}`;
           document.head.appendChild(st);
         }
 
@@ -12135,7 +12135,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 @keyframes rbIkSh{0%{background-position:200% 0}100%{background-position:-200% 0}}
 #rb-intake .ik-said{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:18px;line-height:1.35;color:var(--ink,#202021);margin:0 0 14px;max-width:640px}
 #rb-intake .ik-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-bottom:16px;padding-bottom:15px;border-bottom:0.5px solid rgba(32,32,33,0.08)}
-#rb-intake .ik-crumb{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:0.5px solid rgba(32,32,33,0.14);border-radius:8px;font-size:12px;color:var(--ink,#202021);background:#FAF8F5;cursor:pointer;font-family:inherit}
+#rb-intake .ik-crumb{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:0.5px solid rgba(32,32,33,0.14);border-radius:var(--rad-sm);font-size:12px;color:var(--ink,#202021);background:#FAF8F5;cursor:pointer;font-family:inherit}
 #rb-intake .ik-crumb em{font-style:normal;color:var(--ink-faint)}
 #rb-intake .ik-crumb input{border:none;background:none;outline:none;font-family:inherit;font-size:12px;color:var(--ink,#202021);width:120px}
 #rb-intake .ik-note{font-size:11px;color:var(--ink-faint);font-style:italic;font-family:'Cormorant',Georgia,serif}
@@ -12169,7 +12169,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-intake .ik-cell .v.free,#rb-intake .ik-cell .v.blank{font-style:italic;color:var(--ink-faint)}
 #rb-intake .ik-cell .s{font-size:9.5px;color:var(--ink-faint);margin-top:1px}
 #rb-intake .ik-tray{grid-column:1/-1;padding:10px 4px 6px;display:flex;flex-direction:column;gap:9px}
-#rb-intake .ik-tray input{width:100%;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:8px;padding:9px 11px;font-size:12.5px;font-family:inherit;background:#fff;color:var(--ink,#202021);outline:none}
+#rb-intake .ik-tray input{width:100%;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:var(--rad-sm);padding:9px 11px;font-size:12.5px;font-family:inherit;background:#fff;color:var(--ink,#202021);outline:none}
 #rb-intake .ik-chips{display:flex;gap:6px;flex-wrap:wrap}
 #rb-intake .ik-qc{padding:6px 11px;border:0.5px solid rgba(32,32,33,0.13);border-radius:100px;background:#FAF8F5;font-size:11px;color:var(--ink,#202021);cursor:pointer;font-family:inherit}
 #rb-intake .ik-qc.free{border-style:dashed;color:var(--ink-faint)}
@@ -12910,7 +12910,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 
         function shell(title, sub, tiles, ctaRow, footer) {
           return '<div style="font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 12px">Your piece, styled</div>' +
-            '<div style="border:0.5px solid rgba(32,32,33,0.12);border-radius:14px;background:#fff;padding:22px 24px">' +
+            '<div style="border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad-card);background:#fff;padding:22px 24px">' +
               '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">' + photoThumb +
                 '<div style="flex:1;min-width:200px">' +
                   '<div style="font-family:' + serif + ';font-size:24px;font-weight:300;color:#202021;line-height:1.15">' + title + '</div>' +
@@ -12924,7 +12924,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 
         function paintLoading() {
           const tiles = [0, 1, 2].map(() =>
-            '<div style="aspect-ratio:4/5;border-radius:8px;background:#EDE9E2;animation:rbStyPulse 1.8s ease-in-out infinite"></div>'
+            '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);background:#EDE9E2;animation:rbStyPulse 1.8s ease-in-out infinite"></div>'
           ).join('');
           card.innerHTML = shell(
             'Styling your ' + _waEsc(pieceName.toLowerCase()) + '<em>…</em>',
@@ -12972,7 +12972,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const tiles = ways.map(function(w, i) {
             const src = typeof imgs[i] === 'string' ? imgs[i] : null;
             return '<div style="cursor:pointer" onclick="document.getElementById(\'rb-styled-open\').click()">' +
-              '<div id="rb-styled-img-' + i + '" style="aspect-ratio:4/5;border-radius:8px;overflow:hidden;background:#EDE9E2;' + (!src && pending ? 'animation:rbStyPulse 1.8s ease-in-out infinite' : '') + '">' +
+              '<div id="rb-styled-img-' + i + '" style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:#EDE9E2;' + (!src && pending ? 'animation:rbStyPulse 1.8s ease-in-out infinite' : '') + '">' +
                 (src ? '<img src="' + _waEsc(src) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' : '') +
               '</div>' +
               '<div style="font-family:' + serif + ';font-size:14px;color:#202021;margin-top:8px;line-height:1.25">' + _waEsc(w.title || 'Look ' + (i + 1)) + '</div>' +
