@@ -3642,7 +3642,9 @@
             // box (min-height) — a cover-fit portrait image loses head + feet
             // to the crop. Let the image flow at its natural ratio instead;
             // min-height only backstops the pending-placeholder state.
-            '@media(max-width:700px){.kp-look-card{grid-template-columns:1fr !important}.kp-look-card>div:last-child{padding:20px 22px 26px !important}.kp-look-imgwrap{min-height:300px !important}.kp-look-imgwrap img{position:static !important;height:auto !important}}';
+            '@media(max-width:700px){.kp-look-card{grid-template-columns:1fr !important}.kp-look-card>div:last-child{padding:20px 22px 26px !important}.kp-look-imgwrap{min-height:300px !important}.kp-look-imgwrap img{position:static !important;height:auto !important}}' +
+            // <=767px the glass header share circle covers kp — hide the in-page one
+            '@media(max-width:767px){.rb-kp-share{display:none !important}}';
           document.head.appendChild(kis);
         }
         const imagesPending = !!data.jobId;
@@ -3653,7 +3655,7 @@
 
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 12px">
               <h1 id="kp-headline" style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0">${kpHeadline ? _waEsc(kpHeadline) : (kpDaily ? 'Your day,<br><em style="color:var(--ink-faint)">dressed three ways.</em>' : 'Your piece,<br><em style="color:var(--ink-faint)">worn three ways.</em>')}</h1>
-              <button class="rb-rename-tbtn" title="Rename" style="margin-top:8px" onclick="window.__rbRename&&window.__rbRename('kp')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
+              <button class="rb-kp-share" title="Share this result" style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:9px 18px;border:0.5px solid rgba(32,32,33,0.2);border-radius:100px;background:#fff;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit;flex-shrink:0" onclick="window.__rbShare&&window.__rbShare()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>Share</button><button class="rb-rename-tbtn" title="Rename" style="margin-top:8px" onclick="window.__rbRename&&window.__rbRename('kp')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
             </div>
             <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : kpDaily ? 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.' : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
 
@@ -3666,7 +3668,7 @@
             </div>` : ''}
 
             <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:12px;background:#fff;max-width:400px;margin-bottom:40px">
-              ${photoUrl ? `<img src="${photoUrl}" style="width:64px;height:80px;border-radius:4px;object-fit:cover;flex-shrink:0" alt="">` : ''}
+              ${photoUrl ? `<img src="${_waEsc(photoUrl)}" style="width:64px;height:80px;border-radius:4px;object-fit:cover;flex-shrink:0" alt="">` : ''}
               <div>
                 <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px">${kpDaily ? "Today's brief" : 'Your piece'}</div>
                 <div style="font-family:${serif};font-size:22px;font-weight:400;color:#202021;line-height:1.1">${_waEsc(pieceName)}</div>
@@ -3684,17 +3686,17 @@
                 <div class="kp-look-card" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:24px;background:#fff;border-radius:12px;overflow:hidden;border:0.5px solid rgba(32,32,33,0.08)">
                   <div class="kp-look-imgwrap" id="kp-look-imgwrap-${i}" style="position:relative;background:#EDE9E2;min-height:340px">
                     ${genImg
-                      ? `<img src="${genImg}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
+                      ? `<img src="${_waEsc(genImg)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
                       : `<div class="kp-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${imagesPending ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${phInner}</div>`}
                     <span style="position:absolute;top:14px;left:16px;font-family:${serif};font-weight:300;font-size:20px;color:${genImg ? 'rgba(255,255,255,0.85);text-shadow:0 1px 8px rgba(32,32,33,0.35)' : 'rgba(32,32,33,0.35)'}">${String(i+1).padStart(2,'0')}</span>
                   </div>
                   <div style="padding:28px 28px 28px 4px;display:flex;flex-direction:column;gap:16px">
-                    <div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#B8A898">${w.eyebrow}</div>
-                    <div style="font-family:${serif};font-weight:300;font-size:28px;color:#202021;line-height:1.08">${w.title}</div>
+                    <div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#B8A898">${_waEsc(w.eyebrow || '')}</div>
+                    <div style="font-family:${serif};font-weight:300;font-size:28px;color:#202021;line-height:1.08">${_waEsc(w.title || '')}</div>
                     <div style="display:flex;flex-direction:column;gap:14px;margin-top:4px">
-                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">The Outfit</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${w.outfit}</p></div>
-                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Key Details</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${w.details}</p></div>
-                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Accessories</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${w.accessories}</p></div>
+                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">The Outfit</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${_waEsc(w.outfit || '')}</p></div>
+                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Key Details</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${_waEsc(w.details || '')}</p></div>
+                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Accessories</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${_waEsc(w.accessories || '')}</p></div>
                     </div>
                   </div>
                 </div>`;
@@ -5440,6 +5442,8 @@
             _pdSyncSaved(_dlActiveSaveId);
           }
           _waShowToast('On you today — Robes logged the wear ✓');
+          const wb = document.getElementById('dl-wear-btn');
+          if (wb) { wb.textContent = 'Worn ✓'; wb.style.opacity = '.55'; wb.style.pointerEvents = 'none'; }
         } catch (e) {
           _dlWorn = false;
           console.warn('[robes] wear log failed:', e);
@@ -5682,7 +5686,9 @@
             const t = cap1(data.occasion_label.toLowerCase());
             return `<h2>${_waEsc(t)}${!/[.!?]$/.test(t) ? '.' : ''}</h2>`;
           })() : '',
-          headButtonsHtml: `<button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
+          headButtonsHtml: (data && data.worn)
+            ? `<span class="rbc-hbtn" style="opacity:.55;pointer-events:none">Worn ✓</span><button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`
+            : `<button class="rbc-hbtn" id="dl-wear-btn" onclick="window.__dlWear()" title="Log these pieces as worn — wear counts feed cost-per-wear">✓ Wore it</button><button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
           onFlip: '__dlFlip', onSwap: '__dlSwap', onAnchor: '__dlAnchor', onRemove: '__dlRemove',
           addPieceFn: '__dlAddPiece',
           lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
@@ -6476,7 +6482,7 @@
           rackTitleHtml: conOccasion ? `<h2>${_waEsc(conOccasion)}${!/[.!?]$/.test(conOccasion) ? '.' : ''}</h2>` : '',
           headButtonsHtml: slotEv
             ? `<button class="rbc-hbtn" onclick="window.__wkDressEvening()" title="A fresh evening look">↻ Restyle the evening</button>`
-            : `<button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button>`,
+            : `<button class="rbc-hbtn" id="wk-wear-btn" onclick="window.__wkWear()" title="Log today’s pieces as worn — wear counts feed cost-per-wear">✓ Wore it today</button><button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button>`,
           onFlip: '__wkFlip', onSwap: '__wkSwap', onAnchor: '__wkAnchor', onRemove: '__wkRemove',
           addPieceFn: '__wkAddPiece',
           lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
@@ -6627,6 +6633,8 @@
           }
           _waLoad();
           _waShowToast('On you today — Robes logged the wear ✓');
+          const wb = document.getElementById('wk-wear-btn');
+          if (wb) { wb.textContent = 'Worn ✓'; wb.style.opacity = '.55'; wb.style.pointerEvents = 'none'; }
         } catch (e) {
           _wkWorn = false;
           console.warn('[robes] wear log failed:', e);

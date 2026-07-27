@@ -2479,7 +2479,7 @@ function publicSharePayload(row) {
     (Array.isArray(dl.steps) ? dl.steps : []).forEach(s => (Array.isArray(s && s.items) ? s.items : []).forEach(i => {
       if (!i) return;
       addPiece(i.name, i.brand, i.price_point);
-      addImg(i.image_url || i.img);
+      addImg((i.wardrobe_match && i.wardrobe_match.image_url) || (Number.isInteger(i.image_index) ? (dl.generatedImages || [])[i.image_index] : null) || i.image_url || i.img);
     }));
     if (typeof dl.stylist_summary === 'string') editorial = dl.stylist_summary;
   } else if (type === 'travel-edit') {
@@ -2487,7 +2487,7 @@ function publicSharePayload(row) {
     (Array.isArray(tv.capsule) ? tv.capsule : []).forEach(i => {
       if (!i) return;
       addPiece(i.name, i.brand, i.price_point);
-      addImg(i.image_url || i.img);
+      addImg((i.wardrobe_match && i.wardrobe_match.image_url) || (Number.isInteger(i.image_index) ? (tv.generatedImages || [])[i.image_index] : null) || i.image_url || i.img);
     });
     if (typeof tv.stylist_summary === 'string') editorial = tv.stylist_summary;
   } else if (type === 'weekly-plan') {
