@@ -4,75 +4,250 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Robes — serif specimen</title>
+<title>Robes — brand guidelines</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;1,300;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/tokens.css">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--cream);color:var(--ink);font-family:var(--font-sans);padding:56px clamp(24px,6vw,90px) 120px}
-  .head{max-width:920px;margin:0 auto 54px}
-  .ey{font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px}
-  .head h1{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:34px;line-height:1.15}
-  .head p{font-size:13.5px;line-height:1.7;color:var(--ink-soft);max-width:560px;margin-top:12px}
-  .cols{display:grid;grid-template-columns:1fr 1fr;gap:0;max-width:1240px;margin:0 auto;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);overflow:hidden;background:#fff}
-  .col{padding:40px 44px 48px}
-  .col+.col{border-left:0.5px solid var(--rule-mid)}
-  .col .tag{font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);padding-bottom:20px;border-bottom:0.5px solid var(--rule);margin-bottom:34px}
-  .col .tag b{color:var(--ink);font-weight:500}
-  .a{--serif:'Cormorant',Georgia,serif}
-  .b{--serif:'Cormorant Garamond',Georgia,serif}
-  .row{margin-bottom:40px}
-  .lbl{font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px}
-  .wordmark{font-family:var(--serif);font-weight:400;font-size:17px;letter-spacing:.34em;text-transform:uppercase}
-  .kp{font-family:var(--serif);font-weight:300;font-size:52px;line-height:1.1}
-  .kp em{font-style:italic;color:var(--ink-faint)}
-  .greet{font-family:var(--serif);font-weight:300;font-size:44px;line-height:1.08}
-  .invite{font-family:var(--serif);font-weight:300;font-size:32px;line-height:1.15}
-  .invite em{font-style:italic}
-  .card{font-family:var(--serif);font-weight:300;font-size:22px;line-height:1.2}
-  .fb{font-family:var(--serif);font-style:italic;font-weight:300;font-size:22px}
-  .small{font-family:var(--serif);font-style:italic;font-weight:300;font-size:17px;color:var(--ink-soft)}
-  .flourish{font-family:var(--serif);font-style:italic;font-weight:300;font-size:64px;line-height:1;color:var(--ink)}
-  .note{max-width:920px;margin:44px auto 0;font-size:12.5px;line-height:1.7;color:var(--ink-soft)}
-  @media(max-width:900px){.cols{grid-template-columns:1fr}.col+.col{border-left:none;border-top:0.5px solid var(--rule-mid)}}
+  body{background:var(--cream);color:var(--ink);font-family:var(--font-sans);font-weight:300;padding:64px clamp(24px,6vw,90px) 140px}
+  .shell{max-width:1080px;margin:0 auto}
+  .ey{font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+  h1{font-family:var(--font-serif);font-weight:300;font-size:clamp(40px,5vw,58px);line-height:1.08;margin:14px 0 18px}
+  h1 em{font-style:italic;color:var(--ink-faint)}
+  .lede{font-size:15px;line-height:1.75;color:var(--ink-soft);max-width:600px}
+  .lede b{font-weight:500;color:var(--ink)}
+  section{margin-top:84px}
+  h2{font-family:var(--font-serif);font-weight:300;font-size:30px;margin:10px 0 6px}
+  .sub{font-size:13px;line-height:1.7;color:var(--ink-soft);max-width:600px;margin-bottom:30px}
+  .card{background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);padding:34px 38px}
+  .grid{display:grid;gap:14px}
+  .lbl{font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--ink-soft);background:var(--cream-100);border-radius:4px;padding:2px 6px}
+  /* type samples */
+  .trow{display:grid;grid-template-columns:200px 1fr;gap:26px;align-items:baseline;padding:20px 0;border-bottom:0.5px solid var(--rule)}
+  .trow:last-child{border-bottom:none}
+  .tmeta{font-size:11px;line-height:1.7;color:var(--ink-soft)}
+  .tmeta b{display:block;font-weight:500;color:var(--ink);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+  /* swatches */
+  .swg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+  .sw{border:0.5px solid var(--rule-mid);border-radius:var(--rad);overflow:hidden;background:#fff}
+  .sw .chip{height:76px}
+  .sw .m{padding:10px 13px}
+  .sw .m b{display:block;font-size:11px;font-weight:500;letter-spacing:.04em}
+  .sw .m span{display:block;font-size:10px;color:var(--ink-soft);margin-top:3px;line-height:1.5}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);padding:0 14px 10px 0;border-bottom:0.5px solid var(--rule-mid)}
+  td{padding:11px 14px 11px 0;border-bottom:0.5px solid var(--rule);color:var(--ink-soft);vertical-align:top;line-height:1.6}
+  td b{font-weight:500;color:var(--ink)}
+  .ok{color:var(--sage);font-weight:500}
+  .no{color:var(--rose);font-weight:500}
+  /* structure demos */
+  .radrow{display:flex;gap:18px;flex-wrap:wrap}
+  .rad-demo{width:110px;height:74px;background:var(--cream-100);border:0.5px solid var(--rule-mid);display:flex;align-items:flex-end;padding:9px}
+  .pill-demos{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:18px}
+  .btn-ink{border:none;background:var(--ink);color:var(--cream-100);border-radius:100px;padding:12px 22px;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;font-family:inherit;cursor:pointer}
+  .btn-out{border:0.5px solid var(--rule-mid);background:#fff;color:var(--ink);border-radius:100px;padding:11px 20px;font-size:11px;font-family:inherit;cursor:pointer}
+  .btn-ghost{border:none;background:none;color:var(--ink-faint);font-size:12px;text-decoration:underline;text-underline-offset:3px;font-family:inherit;cursor:pointer}
+  .chip-dashed{border:1.5px dashed var(--cream-400);border-radius:var(--rad);padding:11px 18px;font-size:12px;color:var(--ink-soft);background:transparent}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:860px){.trow{grid-template-columns:1fr;gap:8px}.two{grid-template-columns:1fr}.card{padding:26px 22px}}
+  .voice li{margin:0 0 14px 18px;font-size:13px;line-height:1.7;color:var(--ink-soft)}
+  .voice li b{font-weight:500;color:var(--ink)}
+  .voice .say{font-family:var(--font-serif);font-style:italic;font-size:15px;color:var(--ink)}
+  footer{margin-top:90px;font-size:11px;color:var(--ink-faint);line-height:1.8}
 </style>
 </head>
 <body>
+<div class="shell">
 
-<div class="head">
-  <div class="ey">Robes · internal specimen</div>
-  <h1>One serif, two cuts.</h1>
-  <p>The same production strings, sizes and weights, set in the family the build ships (left) and the family the style guide specified (right). Judge the italics and the large settings first — that is where the two cuts differ most.</p>
+  <header>
+    <div class="ey">Robes · brand guidelines · v1.0 — July 2026</div>
+    <h1>Warm, not cold.<br><em>Restrained, not minimal.</em></h1>
+    <p class="lede"><b>Jacquemus meets Bottega.</b> Robes is editorial luxury in product form — a stylist's hand, not a tech product's. The word "AI" never appears in anything she reads. Every value on this page renders live from <code>/css/tokens.css</code>, the single source of truth: if the tokens change, this page changes with them.</p>
+  </header>
+
+  <!-- ══ TYPOGRAPHY ══ -->
+  <section>
+    <div class="ey">01</div>
+    <h2>Typography</h2>
+    <p class="sub"><b style="font-weight:500;color:var(--ink)">Cormorant</b> (the display cut — ratified over Cormorant Garamond, founder decision 27&nbsp;Jul&nbsp;2026) for display, weights 300–400, never below ~17px. <b style="font-weight:500;color:var(--ink)">Inter</b> 300/400/500 for body and UI. Italic Cormorant is the brand's accent voice — the second line of a headline, a hint, an aside.</p>
+    <div class="card">
+      <div class="trow">
+        <div class="tmeta"><b>Masthead</b>Cormorant 300 · 52px<br>italic second line in --ink-faint</div>
+        <div style="font-family:var(--font-serif);font-weight:300;font-size:52px;line-height:1.1">Your piece,<br><em style="font-style:italic;color:var(--ink-faint)">worn three ways.</em></div>
+      </div>
+      <div class="trow">
+        <div class="tmeta"><b>Section head</b>Cormorant 300 · 30–32px</div>
+        <div style="font-family:var(--font-serif);font-weight:300;font-size:32px;line-height:1.15">Every look curated,<em style="font-style:italic"> starting with a photograph.</em></div>
+      </div>
+      <div class="trow">
+        <div class="tmeta"><b>Card title</b>Cormorant 300 · 22px · 2-line clamp</div>
+        <div style="font-family:var(--font-serif);font-weight:300;font-size:22px;line-height:1.2">Stroll &amp; Sundowners</div>
+      </div>
+      <div class="trow">
+        <div class="tmeta"><b>Serif floor</b>Cormorant 300 italic · 17px<br>never smaller — weight 300 gets fragile</div>
+        <div style="font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:17px;color:var(--ink-soft)">Reading your week…</div>
+      </div>
+      <div class="trow">
+        <div class="tmeta"><b>Wordmark</b>Cormorant 400 · 17px · .34em tracking</div>
+        <div style="font-family:var(--font-serif);font-weight:400;font-size:17px;letter-spacing:.34em;text-transform:uppercase">Robes</div>
+      </div>
+      <div class="trow">
+        <div class="tmeta"><b>Body</b>Inter 300 · 13–14px · 1.7 line height</div>
+        <div style="font-size:13.5px;line-height:1.7;color:var(--ink-soft);max-width:520px">Add your favorite pieces in batches. Robes reads cut, color, and designer atelier — translating your physical wardrobe into a living rotation of tailored looks.</div>
+      </div>
+      <div class="trow">
+        <div class="tmeta"><b>Eyebrow</b>Inter 500 · 10px · .2em tracking · uppercase<br>always --ink-faint</div>
+        <div class="ey" style="font-size:10px">The week ahead</div>
+      </div>
+      <div class="trow">
+        <div class="tmeta"><b>UI floor</b>Inter · 9px minimum, uppercase + tracked only<br>nothing renders below 9px</div>
+        <div style="font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase">Share this look</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ COLOUR ══ -->
+  <section>
+    <div class="ey">02</div>
+    <h2>Colour</h2>
+    <p class="sub">Warm neutrals do the work; the three accents whisper. Every chip below is painted with its live token. Text sits only on colours that carry it — the contrast table is the law, measured on cream <code>#FAF8F5</code>.</p>
+    <div class="card" style="margin-bottom:14px">
+      <div class="lbl" style="margin-bottom:14px">Neutrals</div>
+      <div class="swg">
+        <div class="sw"><div class="chip" style="background:var(--cream);border-bottom:0.5px solid var(--rule)"></div><div class="m"><b>--cream</b><span>#FAF8F5 · the ground everything sits on</span></div></div>
+        <div class="sw"><div class="chip" style="background:var(--cream-100)"></div><div class="m"><b>--cream-100</b><span>#F5F0E8 · panel fills, chips</span></div></div>
+        <div class="sw"><div class="chip" style="background:var(--cream-200)"></div><div class="m"><b>--cream-200</b><span>#EFE9DC · image placeholders</span></div></div>
+        <div class="sw"><div class="chip" style="background:var(--cream-300)"></div><div class="m"><b>--cream-300</b><span>#E7E0CF · opaque borders (landing)</span></div></div>
+        <div class="sw"><div class="chip" style="background:var(--cream-400)"></div><div class="m"><b>--cream-400</b><span>#D8CFC0 · dashed invites, deep tint</span></div></div>
+        <div class="sw"><div class="chip" style="background:var(--ink)"></div><div class="m"><b>--ink</b><span>#202021 · primary text, filled CTAs</span></div></div>
+        <div class="sw"><div class="chip" style="background:var(--ink-soft)"></div><div class="m"><b>--ink-soft</b><span>#6E6A64 · secondary text</span></div></div>
+        <div class="sw"><div class="chip" style="background:var(--ink-faint)"></div><div class="m"><b>--ink-faint</b><span>#7E6F50 · eyebrows, meta, hints — the warm tertiary</span></div></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="lbl" style="margin-bottom:14px">Accents — never body text</div>
+      <div class="swg">
+        <div class="sw"><div class="chip" style="background:var(--mauve)"></div><div class="m"><b>--mauve</b><span>#D4C8C4 · trips, pinned, day-scope · decorative only</span></div></div>
+        <div class="sw"><div class="chip" style="background:var(--rose)"></div><div class="m"><b>--rose</b><span>#8E7077 · brand accents, large labels only</span></div></div>
+        <div class="sw"><div class="chip" style="background:var(--sage)"></div><div class="m"><b>--sage</b><span>#7E7C5A · weeks, worn, progress · large labels only</span></div></div>
+        <div class="sw"><div class="chip" style="background:var(--rose-bg)"></div><div class="m"><b>--rose-bg / --rose-mid</b><span>washes for trip bands + tints</span></div></div>
+        <div class="sw"><div class="chip" style="background:var(--sage-bg)"></div><div class="m"><b>--sage-bg / --sage-mid</b><span>washes for week bands + tints</span></div></div>
+        <div class="sw"><div class="chip" style="background:linear-gradient(to right,var(--rule) 50%,var(--rule-mid) 50%)"></div><div class="m"><b>--rule / --rule-mid</b><span>hairlines · rgba ink at .075 / .12</span></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="lbl" style="margin-bottom:14px">Contrast law — WCAG 2.2 AA, on cream</div>
+      <table>
+        <tr><th>Colour</th><th>Ratio</th><th>May carry text?</th></tr>
+        <tr><td><b>--ink</b></td><td>15.4 : 1</td><td class="ok">Yes — any size</td></tr>
+        <tr><td><b>--ink-soft</b></td><td>5.1 : 1</td><td class="ok">Yes — body and smaller</td></tr>
+        <tr><td><b>--ink-faint</b></td><td>4.6 : 1</td><td class="ok">Yes — the smallest text tier lives here</td></tr>
+        <tr><td><b>--rose / --sage</b></td><td>4.2 / 4.0 : 1</td><td class="no">Large labels and icons only (≥19px bold / 24px)</td></tr>
+        <tr><td><b>--mauve + all tints</b></td><td>&lt; 2 : 1</td><td class="no">Never — surfaces and ornament only</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══ STRUCTURE ══ -->
+  <section>
+    <div class="ey">03</div>
+    <h2>Structure &amp; space</h2>
+    <p class="sub">One centred shell, gutters that step with the viewport, four radii and the pill. Grids hold their columns with <code>minmax(0,1fr)</code> — cells never widen a track.</p>
+    <div class="two">
+      <div class="card">
+        <div class="lbl" style="margin-bottom:16px">Radii — tokens only</div>
+        <div class="radrow">
+          <div class="rad-demo" style="border-radius:var(--rad-sm)"><span class="lbl">sm · 8</span></div>
+          <div class="rad-demo" style="border-radius:var(--rad)"><span class="lbl">rad · 12</span></div>
+          <div class="rad-demo" style="border-radius:var(--rad-card)"><span class="lbl">card · 14</span></div>
+          <div class="rad-demo" style="border-radius:var(--rad-lg)"><span class="lbl">lg · 18</span></div>
+        </div>
+        <div class="pill-demos">
+          <button class="btn-ink">Share this look</button>
+          <span class="lbl">pills are always 100px</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="lbl" style="margin-bottom:16px">Canvas</div>
+        <table>
+          <tr><td><b>--shell</b></td><td>1440px max content width</td></tr>
+          <tr><td><b>--nav-h</b></td><td>64px sticky nav</td></tr>
+          <tr><td><b>--s6</b> gutter</td><td>80 → 64 → 40 → 24px at 1200 / 1024 / 768</td></tr>
+          <tr><td>Mobile shell</td><td>&lt;768px — dock nav, single columns; the 768–1023 tablet band stays desktop-shaped</td></tr>
+          <tr><td>Reading measures</td><td>prompt 760px · masthead 620px · prose ≤720px</td></tr>
+          <tr><td><b>--ease</b></td><td>cubic-bezier(0.4, 0, 0.2, 1) — everything moves on this curve</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ COMPONENT LANGUAGE ══ -->
+  <section>
+    <div class="ey">04</div>
+    <h2>Component language</h2>
+    <p class="sub">A small set of moves, repeated with discipline.</p>
+    <div class="card">
+      <div class="pill-demos" style="margin:0 0 22px">
+        <button class="btn-ink">Primary — ink pill</button>
+        <button class="btn-out">Secondary — hairline pill</button>
+        <button class="btn-ghost">Tertiary — underlined text</button>
+        <span class="chip-dashed">Dashed = an invitation, or not-yours-yet</span>
+      </div>
+      <table>
+        <tr><td><b>Cards</b></td><td>white on cream, 0.5px hairline border, token radius — shadows are for floating elements only</td></tr>
+        <tr><td><b>Eyebrow pattern</b></td><td>10px / 500 / .2em uppercase --ink-faint above every section and card</td></tr>
+        <tr><td><b>Small-caps CTAs</b></td><td>uppercase + tracked is the house CTA voice (9–11px, 500–600) — it earns its place by being small, never loud</td></tr>
+        <tr><td><b>Selected states</b></td><td>warm cream fill + darker warm border + small ink mark — never heavy black fills</td></tr>
+        <tr><td><b>Separators</b></td><td>the interpunct · between meta fragments; hairlines between sections</td></tr>
+        <tr><td><b>Symbols</b></td><td>typographic only — ✦ ☾ ✓ ↺ ‹ → · Platform emoji never ship in chrome (weather glyphs are the one earned exception)</td></tr>
+        <tr><td><b>Images</b></td><td>3:4 portrait as default; frames self-hide on error; a missing frame settles to a serif monogram — "an empty card reads as broken; a monogram reads as pending"</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══ VOICE ══ -->
+  <section>
+    <div class="ey">05</div>
+    <h2>Voice &amp; register</h2>
+    <p class="sub">Robes speaks as a stylist with a point of view — warm, specific, never machine, never salesy.</p>
+    <div class="card">
+      <ul class="voice" style="list-style:none">
+        <li><b>Never "AI".</b> Not in product copy, not in marketing, not in error states. Robes reads, files, composes, dresses — verbs of hands, not processors. ("Generating…" is equally banned.)</li>
+        <li><b>Errors own the failure warmly.</b> <span class="say">"Robes couldn't finish those looks — please try again in a moment."</span> Never raw server text, never blame, never a schema leaking into her ear.</li>
+        <li><b>Banned constructions</b> (enforced on generated copy, held by hand in product copy): <i>effortlessly · elevated · versatile · perfect for · ensuring · "X yet Y"</i> — and no exclamation marks, anywhere.</li>
+        <li><b>Honesty over promise.</b> Below 15 pieces the copy says looks are woven from what she owns plus editorial fills — it never claims closet-only styling it can't deliver. Her decisions are named as hers: a free day reads <span class="say">"Left free."</span>, never "Nothing yet."</li>
+        <li><b>The italic is the wink.</b> The serif's italic second line carries the charm — <span class="say">"worn three ways." · "dressed for anything."</span> — so the sans stays plain and working.</li>
+        <li><b>Her words win.</b> Wherever her typed plan and a rewrite compete for a title, her words surface.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ══ ACCESSIBILITY ══ -->
+  <section>
+    <div class="ey">06</div>
+    <h2>Accessibility floor</h2>
+    <p class="sub">Non-negotiables, verified in the build.</p>
+    <div class="card">
+      <table>
+        <tr><td><b>Text contrast</b></td><td>every text colour ≥ 4.5:1 on its surface; accents demoted to large-label duty where they fall short</td></tr>
+        <tr><td><b>Type floors</b></td><td>9px UI (uppercase + tracked only) · ~17px serif</td></tr>
+        <tr><td><b>Touch targets</b></td><td>44px minimum — small visual controls get invisible <code>::after</code> hit areas</td></tr>
+        <tr><td><b>Keyboard</b></td><td>global <code>:focus-visible</code> — 2px ink outline, 2px offset</td></tr>
+        <tr><td><b>Zoom</b></td><td>never locked; inputs render 16px on mobile so focus-zoom has no reason to fire</td></tr>
+        <tr><td><b>Motion</b></td><td>decorative animation respects <code>prefers-reduced-motion</code></td></tr>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    Source of truth: <code>/css/tokens.css</code> — this page renders it live.<br>
+    Typography ratified by founder decision, 27 July 2026 (Cormorant display cut over Cormorant Garamond).<br>
+    Internal document · unlinked · noindex.
+  </footer>
+
 </div>
-
-<div class="cols">
-  <div class="col a">
-    <div class="tag"><b>Cormorant</b> · current build</div>
-    <div class="row"><div class="lbl">Wordmark · 17px / 400</div><div class="wordmark">Robes</div></div>
-    <div class="row"><div class="lbl">Result masthead · 52px / 300 + italic</div><div class="kp">Your piece,<br><em>worn three ways.</em></div></div>
-    <div class="row"><div class="lbl">Greeting · 44px / 300</div><div class="greet">Good morning, Annie.</div></div>
-    <div class="row"><div class="lbl">Wardrobe invitation · 32px / 300 + italic</div><div class="invite">Every look curated,<em> starting with a photograph.</em></div></div>
-    <div class="row"><div class="lbl">Day card title · 22px / 300</div><div class="card">Stroll &amp; Sundowners</div></div>
-    <div class="row"><div class="lbl">Feedback ask · 22px / 300 italic</div><div class="fb">How is this edit?</div></div>
-    <div class="row"><div class="lbl">Reading state · 17px / 300 italic (the floor)</div><div class="small">Reading your week…</div></div>
-    <div class="row"><div class="lbl">Italic at display scale · 64px / 300</div><div class="flourish">dressed for anything</div></div>
-  </div>
-  <div class="col b">
-    <div class="tag"><b>Cormorant Garamond</b> · original spec</div>
-    <div class="row"><div class="lbl">Wordmark · 17px / 400</div><div class="wordmark">Robes</div></div>
-    <div class="row"><div class="lbl">Result masthead · 52px / 300 + italic</div><div class="kp">Your piece,<br><em>worn three ways.</em></div></div>
-    <div class="row"><div class="lbl">Greeting · 44px / 300</div><div class="greet">Good morning, Annie.</div></div>
-    <div class="row"><div class="lbl">Wardrobe invitation · 32px / 300 + italic</div><div class="invite">Every look curated,<em> starting with a photograph.</em></div></div>
-    <div class="row"><div class="lbl">Day card title · 22px / 300</div><div class="card">Stroll &amp; Sundowners</div></div>
-    <div class="row"><div class="lbl">Feedback ask · 22px / 300 italic</div><div class="fb">How is this edit?</div></div>
-    <div class="row"><div class="lbl">Reading state · 17px / 300 italic (the floor)</div><div class="small">Reading your week…</div></div>
-    <div class="row"><div class="lbl">Italic at display scale · 64px / 300</div><div class="flourish">dressed for anything</div></div>
-  </div>
-</div>
-
-<p class="note">What to look for: the left cut carries higher stroke contrast and longer, sharper serifs — showier at scale, especially in the italic. The right cut sits closer to a classical Garamond — rounder, quieter, a touch wider in the lowercase. "Restrained not minimal" is the right column's temperament; "a little more Jacquemus" is the left's. Both hold weight 300 at these sizes; below ~17px both get fragile, which is why the app floors its serifs there.</p>
-
 </body>
 </html>
