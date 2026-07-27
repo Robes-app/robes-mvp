@@ -503,14 +503,14 @@
           if (!_waItems.length) {
             // True cold start — the module the whole product depends on gets
             // an invitation, not a lone dashed tile in an empty grid.
-            // COPY: needs sign-off
+            // Copy: Annie, 2026-07-27 (approved verbatim)
             const invite = document.createElement('div');
             invite.style.cssText = 'grid-column:1/-1;padding:44px 28px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);background:#fff;text-align:center';
             invite.innerHTML =
               '<div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px">Your wardrobe</div>' +
-              '<div style="font-family:\'Cormorant\',Georgia,serif;font-weight:300;font-size:clamp(24px,3vw,32px);color:var(--ink);line-height:1.15;margin-bottom:12px">Everything Robes styles from<em style="font-style:italic">, starting with one photo.</em></div>' +
-              '<p style="font-size:13.5px;line-height:1.7;color:var(--ink-soft);max-width:440px;margin:0 auto 22px">Photograph a few pieces — select several at once and Robes files them one after another, reading the colour, the cut and the label. From fifteen, every look is built entirely from your own closet.</p>' +
-              '<button onclick="window.WA&&WA.open&&WA.open()" style="border:none;background:var(--ink);color:#fff;border-radius:100px;padding:14px 28px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Add your first pieces</button>';
+              '<div style="font-family:\'Cormorant\',Georgia,serif;font-weight:300;font-size:clamp(24px,3vw,32px);color:var(--ink);line-height:1.15;margin-bottom:12px">Every look effortlessly curated,<em style="font-style:italic"> starting with a photograph.</em></div>' +
+              '<p style="font-size:13.5px;line-height:1.7;color:var(--ink-soft);max-width:440px;margin:0 auto 22px">Add your favorite pieces in batches. Robes intelligently archives them, reading cut, color, and designer atelier&mdash;translating your physical wardrobe into a living, endless rotation of tailored looks.</p>' +
+              '<button onclick="window.WA&&WA.open&&WA.open()" style="border:none;background:var(--ink);color:#fff;border-radius:100px;padding:14px 28px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Catalogue your wardrobe</button>';
             frag.appendChild(invite);
           } else if (!filtered.length) {
             // Filter miss is NOT the empty wardrobe — say so, offer the way back.
