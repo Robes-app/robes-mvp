@@ -508,7 +508,7 @@
             invite.style.cssText = 'grid-column:1/-1;padding:44px 28px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);background:#fff;text-align:center';
             invite.innerHTML =
               '<div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px">Your wardrobe</div>' +
-              '<div style="font-family:\'Cormorant\',Georgia,serif;font-weight:300;font-size:clamp(24px,3vw,32px);color:var(--ink);line-height:1.15;margin-bottom:12px">Every look effortlessly curated,<em style="font-style:italic"> starting with a photograph.</em></div>' +
+              '<div style="font-family:\'Cormorant\',Georgia,serif;font-weight:300;font-size:clamp(24px,3vw,32px);color:var(--ink);line-height:1.15;margin-bottom:12px">Every look curated,<em style="font-style:italic"> starting with a photograph.</em></div>' +
               '<p style="font-size:13.5px;line-height:1.7;color:var(--ink-soft);max-width:440px;margin:0 auto 22px">Add your favorite pieces in batches. Robes intelligently archives them, reading cut, color, and designer atelier&mdash;translating your physical wardrobe into a living, endless rotation of tailored looks.</p>' +
               '<button onclick="window.WA&&WA.open&&WA.open()" style="border:none;background:var(--ink);color:#fff;border-radius:100px;padding:14px 28px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Catalogue your wardrobe</button>';
             frag.appendChild(invite);
@@ -4787,9 +4787,8 @@
 .rb-dc .dc-empty .t{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:19px;line-height:1.1;opacity:.55}
 .rb-dc .dc-empty .s{font-weight:300;font-size:11px;opacity:.42;margin-top:4px}
 .rb-dc .dc-ring{position:absolute;top:7px;right:7px;height:28px;min-width:28px;justify-content:center;border:none;background:transparent;cursor:pointer;padding:4px;color:inherit;display:flex;align-items:center;gap:5px;opacity:.6;transition:opacity .2s;font-family:inherit;z-index:2}
-.rb-dc .dc-ring .tip{font-weight:500;font-size:9px;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;pointer-events:none;opacity:0;transform:translateX(4px);transition:opacity .2s,transform .2s}
 .rb-dc .dc-ring:hover{opacity:.9}
-.rb-dc .dc-ring:hover .tip{opacity:1;transform:translateX(0)}
+.rb-dc.has-ring .dc-ey{padding-right:32px}
 #rb-dpk{position:fixed;inset:0;z-index:940;display:flex;align-items:center;justify-content:center;padding:24px}
 #rb-dpk .dpk-veil{position:absolute;inset:0;background:rgba(32,32,33,0.38)}
 #rb-dpk .dpk-card{position:relative;background:#FAF8F5;border-radius:14px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;padding:24px 26px 22px;box-shadow:0 18px 60px rgba(32,32,33,0.22)}
@@ -4987,8 +4986,9 @@
         const eyTxt = d.eyebrow != null && d.eyebrow !== '' ? _waEsc(String(d.eyebrow)) : '&nbsp;';
         let inner = `<div class="dc-ey">${eyTxt}</div>`;
         const ring = (!compact && !isEmpty && !d.modifier && opts.ring)
-          ? `<button class="dc-ring" title="${_waEsc(opts.ringTip || 'Set this day as focus')}" aria-label="${_waEsc(opts.ringTip || 'Set this day as focus')}" onclick="${opts.ring}"><span class="tip">${_waEsc(opts.ringTipShort || 'Refine prompt')}</span>${_DC_RING_SVG}</button>`
+          ? `<button class="dc-ring" title="${_waEsc(opts.ringTip || 'Set this day as focus')}" aria-label="${_waEsc(opts.ringTip || 'Set this day as focus')}" onclick="${opts.ring}">${_DC_RING_SVG}</button>`
           : '';
+        if (ring) cls.push('has-ring');
         if (isEmpty) {
           // Compact empties are bare numerals — no body copy (component)
           if (!compact && state !== 'void') {
@@ -7611,7 +7611,7 @@
       // cream/white, rounded-pill language used everywhere else).
       const _TV_CSS = `
 #tv-result-page{color:var(--ink);font-weight:300}
-#tv-result-page .tvm-wrap{max-width:var(--shell,1440px);margin:0 auto;padding:34px var(--s6,36px) 28px;box-sizing:border-box}\n#tv-result-page .tvm-capgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}\n@media(max-width:1199px){#tv-result-page .tvm-capgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}\n@media(max-width:767px){#tv-result-page .tvm-capgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+#tv-result-page .tvm-wrap{max-width:var(--shell,1440px);margin:0 auto;padding:34px var(--s6,36px) 28px;box-sizing:border-box}\n#tv-result-page .tvm-capgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}\n@media(max-width:1199px){#tv-result-page .tvm-capgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}\n@media(max-width:767px){#tv-result-page .tvm-capgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}
 #tv-result-page .tvm-eyebrow{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose);margin-bottom:8px}
 #tv-result-page .tvm-mast{display:flex;justify-content:space-between;align-items:flex-end;gap:28px}
 #tv-result-page .tvm-title{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:clamp(30px,4vw,44px);line-height:1.05;margin:0;color:var(--ink);max-width:18ch}
@@ -11705,7 +11705,7 @@ body>*:not(#tv-result-page){display:none !important}
           // COPY: needs sign-off (eyebrow + hint)
           host.innerHTML =
             '<div class="rb-rail-head"><span class="rb-rail-ey">The week ahead</span>' +
-            '<span class="rb-rail-hint">Tap a day — open its look, or dress it</span></div>' +
+            '</div>' +
             '<div class="rb-rail-row">' + slots.map((s, i) => cardHtml(s, i)).join('') + '</div>' +
             '<div id="rb-rail-up"></div>';
           // Mobile: the strip only works if today is in view on mount
