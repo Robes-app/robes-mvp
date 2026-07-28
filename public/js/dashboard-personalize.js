@@ -235,26 +235,30 @@
 
       if (daySpan) daySpan.textContent = DAYS[new Date().getDay()];
 
-      // Mobile-only ambient strip under the greeting — the nav pill hides
-      // <768px, so this carries the "Monday · Dublin · 20°C" context there.
-      // Built from window.__rbCtx once geolocation + forecast land; stays
-      // hidden until at least day + one of city/temp is known.
-      const mWxEl = document.getElementById('dash-wx-m');
-      function _rbSyncMobileWx(code) {
-        if (!mWxEl) return;
-        const day = DAYS[new Date().getDay()];
+      // Ambient strip under the greeting, every width. Built from
+      // window.__rbCtx once geolocation + forecast land. The right-hand read
+      // is the condition summary, never the layer hint — styling advice
+      // belongs to the look Robes builds, not the chrome. Falls back to the
+      // place label alone when no summary is available, and never paints at
+      // all when location was denied (nothing calls this).
+      const dashWxEl = document.getElementById('dash-wx');
+      function _rbSyncDashWx() {
+        if (!dashWxEl) return;
         const city = window.__rbCtx.city || '';
         const temp = (window.__rbCtx.tempC != null && !isNaN(window.__rbCtx.tempC)) ? window.__rbCtx.tempC + '°C' : '';
-        const parts = [day, city, temp].filter(Boolean);
-        if (parts.length < 2) { mWxEl.classList.remove('on'); return; }
-        mWxEl.textContent = '';
-        const icon = (code !== undefined && WX_ICONS[code]) || '';
-        if (icon) { const s = document.createElement('span'); s.className = 'wx'; s.textContent = icon; mWxEl.appendChild(s); }
-        parts.forEach((p, i) => {
-          if (i > 0 || icon) { const d = document.createElement('span'); d.className = 'dot'; mWxEl.appendChild(d); }
-          const s = document.createElement('span'); s.textContent = p; mWxEl.appendChild(s);
-        });
-        mWxEl.classList.add('on');
+        const place = [city, temp].filter(Boolean).join(' · ');
+        if (!place) { dashWxEl.classList.remove('on'); return; }
+        dashWxEl.textContent = '';
+        const p = document.createElement('span');
+        p.className = 'place';
+        p.textContent = place;
+        dashWxEl.appendChild(p);
+        const read = window.__rbCtx.condition || '';
+        if (read) {
+          const sep = document.createElement('span'); sep.className = 'sep'; dashWxEl.appendChild(sep);
+          const r = document.createElement('span'); r.className = 'read'; r.textContent = read; dashWxEl.appendChild(r);
+        }
+        dashWxEl.classList.add('on');
       }
 
       function layerHint(tmin, tmax, code) {
@@ -286,7 +290,7 @@
               const city = geoData.address?.city || geoData.address?.town ||
                            geoData.address?.village || geoData.address?.county || '';
               if (city && citySpan) citySpan.textContent = city;
-              if (city) { window.__rbCtx.city = city; _rbSyncMobileWx(); }
+              if (city) { window.__rbCtx.city = city; _rbSyncDashWx(); }
 
               // Weather from Open-Meteo (free, no API key)
               const wxRes = await fetch(
@@ -305,7 +309,7 @@
               if (code !== undefined && WX_TEXT[code]) window.__rbCtx.condition = WX_TEXT[code];
               window.__rbCtx.hint = layerHint(tmin, tmax, code);
               if (window.__rbCtx.city || window.__rbCtx.tempC != null) weatherEl.style.visibility = '';
-              _rbSyncMobileWx(code);
+              _rbSyncDashWx();
             } catch (e) { /* keep the strip hidden on error */ }
             resolve();
           }, () => resolve() /* permission denied — strip stays hidden */);
@@ -555,16 +559,29 @@
           const frag = document.createDocumentFragment();
           if (!_waItems.length) {
             // True cold start — the module the whole product depends on gets
-            // an invitation, not a lone dashed tile in an empty grid.
-            // Copy: Annie, 2026-07-27 (approved verbatim)
+            // an invitation, not a lone dashed tile in an empty grid. The
+            // prose that used to sit here is gone (FTUE 2026-07-28: too text
+            // heavy on the emptiest screen); what the pieces actually buy her
+            // is shown, not described, by the SAME milestone bar home uses —
+            // identical thresholds and wording, so the promise reads the same
+            // in both places.
             const invite = document.createElement('div');
             invite.style.cssText = 'grid-column:1/-1;padding:44px 28px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);background:#fff;text-align:center';
             invite.innerHTML =
               '<div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px">Your wardrobe</div>' +
-              '<div style="font-family:\'Cormorant\',Georgia,serif;font-weight:300;font-size:clamp(24px,3vw,32px);color:var(--ink);line-height:1.15;margin-bottom:12px">Every look curated,<em style="font-style:italic"> starting with a photograph.</em></div>' +
-              '<p style="font-size:13.5px;line-height:1.7;color:var(--ink-soft);max-width:440px;margin:0 auto 22px">Add your favorite pieces in batches. Robes intelligently archives them, reading cut, color, and designer atelier&mdash;translating your physical wardrobe into a living, endless rotation of tailored looks.</p>' +
-              '<button onclick="window.WA&&WA.open&&WA.open()" style="border:none;background:var(--ink);color:#fff;border-radius:100px;padding:14px 28px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Catalogue your wardrobe</button>';
+              '<div style="font-family:\'Cormorant\',Georgia,serif;font-weight:300;font-size:clamp(24px,3vw,32px);color:var(--ink);line-height:1.15;margin-bottom:22px">Every look starts with<em style="font-style:italic"> a photograph.</em></div>' +
+              '<button onclick="window.WA&&WA.open&&WA.open()" style="border:none;background:var(--ink);color:#fff;border-radius:100px;padding:14px 28px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Catalogue your wardrobe</button>' +
+              '<div style="margin-top:16px"><button onclick="window.WA&&WA.open&&WA.open()" style="border:none;background:none;padding:0;font-size:12.5px;color:var(--ink-soft);border-bottom:0.5px solid var(--rule-mid);cursor:pointer;font-family:inherit">Or photograph what you&rsquo;re wearing now</button></div>';
             frag.appendChild(invite);
+
+            const unlocks = document.createElement('div');
+            unlocks.style.cssText = 'grid-column:1/-1;padding:18px 22px;border-radius:var(--rad-card);background:var(--sage-bg)';
+            unlocks.innerHTML =
+              '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px">' +
+                '<div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)">What pieces unlock</div>' +
+                '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:19px;color:var(--ink)">0<span style="color:var(--ink-faint)"> / ' + _WA_TARGET + '</span></div>' +
+              '</div>' + _msBarHtml(0, { status: false });
+            frag.appendChild(unlocks);
           } else if (!filtered.length) {
             // Filter miss is NOT the empty wardrobe — say so, offer the way back.
             const miss = document.createElement('div');
@@ -576,6 +593,16 @@
           }
           filtered.forEach(it => frag.appendChild(_waCard(it)));
           frag.appendChild(_waAddCard());
+          if (!_waItems.length) {
+            // Ghost tiles behind the live add card — they show the shape the
+            // filled grid takes. Decorative only, at a lighter dash.
+            for (let g = 0; g < 2; g++) {
+              const ghost = document.createElement('div');
+              ghost.className = 'wg-item rb-ghost-card';
+              ghost.setAttribute('aria-hidden', 'true');
+              frag.appendChild(ghost);
+            }
+          }
           grid.innerHTML = '';
           grid.appendChild(frag);
           _waSyncCounts();
@@ -588,19 +615,154 @@
       }
 
       const _WA_TARGET = 15;
-      // Wardrobe-first tracker copy (kicker, body) per milestone. Benefit-led:
-      // the reason to add the next piece leads, the count trails as proof.
-      // Copy stays honest about cold-start — below 15 pieces Robes weaves in
-      // what you own but still fills gaps editorially; it only styles head to
-      // toe from your closet once the wardrobe is built out.
-      function _wtrkCopy(n) {
-        const left = Math.max(0, _WA_TARGET - n);
-        if (n === 0)  return ['Start here', 'Photograph your first pieces — several at once works — and Robes starts weaving your own wardrobe into every look. <strong>0 of 15 catalogued</strong>.'];
-        if (n < 5)   return ['Taking shape', 'Add ' + left + ' more — a batch of photos at once is fastest — and Robes can dress you head to toe from your own closet. <strong>' + n + ' of 15 catalogued</strong>.'];
-        if (n < 10)  return ['Coming together', 'Every piece you add pulls more of your real wardrobe into your daily looks — <strong>' + n + ' of 15 catalogued</strong>.'];
-        if (n < 15)  return ['Nearly whole', 'Add ' + left + ' more and every look is built entirely from your own wardrobe — <strong>' + n + ' of 15 catalogued</strong>.'];
-        return ['Growing wardrobe', '<strong>' + n + ' pieces catalogued</strong> — the more you add, the sharper every look Robes builds.'];
+
+      // ── Milestone unlocks (Homescreen FTUE) ──────────────────────────
+      // Thresholds are config, never literals in the view — re-tune here and
+      // the progress card, the wardrobe empty state and the concierge gate
+      // all follow. `at` is the piece count that opens `label`.
+      const _MS_UNLOCKS = [
+        { at: 3,  key: 'daily',      label: 'Daily look' },
+        { at: 5,  key: 'weekly',     label: 'Weekly planner' },
+        { at: 10, key: 'travel',     label: 'Travel edit' },
+        { at: 15, key: 'styleNotes', label: 'Style notes' },
+      ];
+      function _msUnlocked(key, n) {
+        const u = _MS_UNLOCKS.find(x => x.key === key);
+        return !!u && (n == null ? _waItems.length : n) >= u.at;
       }
+      function _msNext(n) { return _MS_UNLOCKS.find(u => u.at > n) || null; }
+
+      // "Just unlocked" is a one-session label. _msPrevCount seeds from the
+      // last count this browser saw, so a threshold crossed between sessions
+      // still reads as earned on the first render back — and crossings made
+      // live in-session accumulate on top. var, not let: _waSyncCounts can
+      // reach this before execution passes the assignment (TDZ trap).
+      var _msPrevCount = null;
+      var _msCrossed = {};
+      function _msCrossKey() { const u = _waUid(); return u ? 'rb_ms_last__' + u : null; }
+      function _msTrack(n) {
+        const k = _msCrossKey();
+        if (!k) return;
+        if (_msPrevCount == null) {
+          const raw = parseInt(localStorage.getItem(k), 10);
+          _msPrevCount = isNaN(raw) ? n : raw;
+        }
+        if (n > _msPrevCount) {
+          _MS_UNLOCKS.forEach(u => { if (u.at > _msPrevCount && u.at <= n) _msCrossed[u.key] = true; });
+        }
+        if (n >= _msPrevCount) { _msPrevCount = n; try { localStorage.setItem(k, String(n)); } catch (e) {} }
+      }
+
+      const _MS_WORDS = ['no', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven',
+        'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen'];
+      function _msWord(n) { return _MS_WORDS[n] || String(n); }
+
+      // Derived, never authored: names the next unlock and the distance to it,
+      // or what was just earned at a boundary.
+      function _msHeadline(n) {
+        const next = _msNext(n);
+        if (!next) return 'Your wardrobe is there —<br>every look is built from it.';
+        const left = next.at - n;
+        const pieces = left === 1 ? 'more piece' : 'more pieces';
+        const reach = next.key === 'daily'
+          ? _msWord(left) + ' ' + pieces + ' and Robes<br>dresses you every morning.'
+          : _msWord(left) + ' ' + pieces + ' and the<br>' + next.label.toLowerCase() + ' opens.';
+        if (n === 0) return 'Three pieces and Robes<br>dresses you every morning.';
+        const earned = _MS_UNLOCKS.filter(u => u.at <= n && _msCrossed[u.key]).pop();
+        if (earned) return earned.label + ' unlocked.<br>' + _msWord(left) + ' ' + pieces + ' for the ' + next.label.toLowerCase() + '.';
+        return reach;
+      }
+
+      function _msStatus(u, n) {
+        if (n >= u.at) return _msCrossed[u.key] ? 'Just unlocked' : 'Unlocked';
+        const next = _msNext(n);
+        return (next && next.key === u.key) ? (u.at - n) + ' away' : 'Locked';
+      }
+
+      function _msEnsureCss() {
+        if (document.getElementById('rb-ms-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-ms-style';
+        // --ms-locked is the one tone with no token: light enough to read as
+        // not-yet-earned, dark enough to sit visibly on the track.
+        st.textContent =
+          '.rb-ms{--ms-locked:#C4B8A4;display:flex;flex-direction:column;gap:12px}' +
+          '.rb-ms-track{position:relative;height:3px;background:var(--cream-400);border-radius:2px}' +
+          '.rb-ms-fill{position:absolute;left:0;top:0;bottom:0;background:var(--ink);border-radius:2px;' +
+            'transition:width 650ms cubic-bezier(0.4,0,0.2,1)}' +
+          '.rb-ms-tick{position:absolute;top:-3px;width:1px;height:9px;background:var(--ms-locked)}' +
+          '.rb-ms-tick.on{background:var(--ink-soft)}' +
+          '.rb-ms-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}' +
+          '.rb-ms-col{display:flex;flex-direction:column;gap:3px}' +
+          '.rb-ms-at{font-family:var(--font-serif);font-size:17px;color:var(--ms-locked);line-height:1}' +
+          '.rb-ms-col.on .rb-ms-at{color:var(--ink)}' +
+          '.rb-ms-lbl{font-size:10px;font-weight:400;line-height:1.35;min-height:27px;color:var(--ink-soft)}' +
+          '.rb-ms-col.on .rb-ms-lbl{color:var(--ink)}' +
+          '.rb-ms-st{font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ms-locked)}' +
+          '.rb-ms-col.on .rb-ms-st{color:var(--ink)}' +
+          '@media(prefers-reduced-motion:reduce){.rb-ms-fill{transition:none}}';
+        document.head.appendChild(st);
+      }
+
+      // The one milestone bar — home progress card and the wardrobe empty
+      // state render the identical component so the promise reads the same
+      // in both places. opts.status = false drops the per-tick status line.
+      function _msBarHtml(n, opts) {
+        _msEnsureCss();
+        const showStatus = !opts || opts.status !== false;
+        const pct = Math.min(100, (n / _WA_TARGET) * 100);
+        const ticks = _MS_UNLOCKS.map(u =>
+          '<div class="rb-ms-tick' + (n >= u.at ? ' on' : '') + '" style="left:' + (u.at / _WA_TARGET * 100) + '%"></div>'
+        ).join('');
+        const next = _msNext(n);
+        const cols = _MS_UNLOCKS.map(u => {
+          const lit = n >= u.at || (next && next.key === u.key);
+          return '<div class="rb-ms-col' + (lit ? ' on' : '') + '">' +
+            '<div class="rb-ms-at">' + String(u.at).padStart(2, '0') + '</div>' +
+            '<div class="rb-ms-lbl">' + u.label + '</div>' +
+            (showStatus ? '<div class="rb-ms-st">' + _msStatus(u, n) + '</div>' : '') +
+          '</div>';
+        }).join('');
+        return '<div class="rb-ms">' +
+          '<div class="rb-ms-track"><div class="rb-ms-fill" style="width:' + pct + '%"></div>' + ticks + '</div>' +
+          '<div class="rb-ms-cols">' + cols + '</div>' +
+        '</div>';
+      }
+
+      // Home module order, by piece count. Below the first unlock there is
+      // little to prompt about, so the progress card leads directly under the
+      // greeting (FTUE) — from 3 pieces on the prompt leads again, as it does
+      // today. The rail travels with the prompt in both; #rb-styled always
+      // sits immediately above the tracker, which is where its own mount()
+      // puts it, so the two never fight. Idempotent — safe on every sync.
+      function _rbFtueOrder(n) {
+        const dash = document.getElementById('dash');
+        const mast = dash && dash.querySelector('.dash-mast');
+        const conc = dash && dash.querySelector('.concierge');
+        const trk = document.getElementById('wtrk');
+        if (!dash || !mast || !conc || !trk) return;
+        const rail = document.getElementById('rb-rail');
+        const styled = document.getElementById('rb-styled');
+        const seq = (n < _MS_UNLOCKS[0].at
+          ? [styled, trk, conc, rail]
+          : [conc, rail, styled, trk]).filter(Boolean);
+        seq.forEach((el, i) => {
+          const prev = i === 0 ? mast : seq[i - 1];
+          if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
+        });
+      }
+
+      // The concierge is absent until the first unlock — a brand-new user is
+      // never shown a shelf of edits she has nothing to feed. From 3 pieces
+      // the section appears with ALL THREE edits open: Daily Look, Weekly
+      // Planner and Travel Edit are all built and live, and the app-wide
+      // convention is that a working feature is never locked behind a count.
+      function _rbGateConcierge(n) {
+        const svc = document.querySelector('.services');
+        if (!svc) return;
+        svc.style.display = n >= _MS_UNLOCKS[0].at ? '' : 'none';
+      }
+
       window.__wtrkEdit = function(id) {
         const it = _waItems.find(w => String(w.id) === String(id));
         if (it) _waOpenEdit(it);
@@ -614,12 +776,10 @@
         const n = _waItems.length;
         const label = n + ' piece' + (n !== 1 ? 's' : '');
 
-        // Graduated ≥15 tracker: at the styling threshold the progress-to-15
-        // job is done, so the 100% bar + the pre-15 pitch headline retire.
         if (!document.getElementById('rb-wtrk-style')) {
           const st = document.createElement('style');
           st.id = 'rb-wtrk-style';
-          st.textContent = '.wtrk-complete .wtrk-h{display:none}.wtrk-complete .wtrk-bar{display:none}.wtrk-complete .wtrk-num span{display:none}' +
+          st.textContent =
             '.wtrk-star{position:absolute;top:5px;right:5px;width:18px;height:18px;border-radius:100px;background:var(--ink,#202021);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none}' +
             '.wtrk-star svg{width:9px;height:9px;display:block}';
           document.head.appendChild(st);
@@ -634,28 +794,27 @@
         const navBadge = document.querySelector('.nav-wbtn-count');
         if (navBadge) navBadge.textContent = n;
 
-        // dashboard tracker (wardrobe-first redesign: count + copy + bar +
-        // the catalogued pieces themselves, so the wardrobe is visible on
-        // the dashboard, not just counted)
+        // dashboard tracker: derived headline + milestone bar + the
+        // catalogued pieces themselves, so the wardrobe is visible on the
+        // dashboard, not just counted
+        _msTrack(n);
         const numEl = document.getElementById('wtrk-num');
-        const fillEl = document.getElementById('wtrk-fill');
-        const kickEl = document.getElementById('wtrk-kicker');
-        const copyEl = document.getElementById('wtrk-copy');
-        // At/after the 15-piece threshold the module retires completely
-        // (beta feedback: it read as clutter once the closet was built out).
-        // The section stays in the DOM — it's _rbApplyLayout's anchor and
-        // #rb-styled glues after it — it's just no longer painted.
-        const complete = n >= _WA_TARGET;
+        const headEl = document.getElementById('wtrk-head');
+        const msEl = document.getElementById('wtrk-ms');
+        // The card retires for good one piece PAST the last milestone — at 15
+        // it still has a job (Style notes has only just unlocked); at 16 count
+        // and adding both live in the Wardrobe tab and nothing takes its place.
+        // The section stays in the DOM — it's _rbApplyLayout's anchor.
+        const complete = n > _WA_TARGET;
         const trkSection = document.getElementById('wtrk');
         if (trkSection) {
-          trkSection.classList.toggle('wtrk-complete', complete);
           trkSection.style.display = complete ? 'none' : '';
         }
-        if (numEl) numEl.innerHTML = complete ? String(n) : (n + '<span> / ' + _WA_TARGET + '</span>');
-        if (fillEl) fillEl.style.width = Math.min(100, Math.round(n / _WA_TARGET * 100)) + '%';
-        const [kicker, body] = _wtrkCopy(n);
-        if (kickEl) kickEl.textContent = kicker;
-        if (copyEl) copyEl.innerHTML = body;
+        if (numEl) numEl.innerHTML = n + '<span> / ' + _WA_TARGET + '</span>';
+        if (headEl) headEl.innerHTML = _msHeadline(n);
+        if (msEl) msEl.innerHTML = _msBarHtml(n);
+        const eyEl = trkSection && trkSection.querySelector('.wtrk-ey');
+        if (eyEl) eyEl.textContent = n === 0 ? 'Your wardrobe' : 'Wardrobe completion';
 
         const itemsEl = document.getElementById('wtrk-items');
         if (itemsEl) {
@@ -687,7 +846,7 @@
 
         const ctaEl = document.getElementById('wtrk-cta');
         if (ctaEl) {
-          ctaEl.childNodes[0].textContent = n === 0 ? 'Add your first piece' : 'Add pieces';
+          ctaEl.childNodes[0].textContent = n === 0 ? 'Add your first pieces' : 'Add pieces';
           ctaEl.onclick = function(e) { e.preventDefault(); e.stopPropagation(); _wtrkOpenAdd(); };
         }
         const snapEl = document.getElementById('wtrk-snap');
@@ -697,6 +856,9 @@
         // the real number (and an established ≥3-piece closet flips a first
         // load to the returner register).
         if (typeof _rbUpdateMasthead === 'function') _rbUpdateMasthead();
+        _rbFtueOrder(n);
+        _rbGateConcierge(n);
+        if (typeof _rbSilPrompt === 'function') _rbSilPrompt();
       }
 
       // ── Pack-for-a-trip multi-select (wardrobe-first PRD: the connection
@@ -2504,6 +2666,8 @@
             '.rb-add-plus{width:40px;height:40px;border-radius:100px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:300;line-height:1}',
             '.rb-add-serif{font-family:var(--font-serif);font-weight:300;font-size:19px;color:var(--ink)}',
             '.rb-add-hint{font-size:10px;letter-spacing:.05em;color:var(--ink-faint)}',
+            // decorative ghost tiles behind the add card at zero pieces
+            '.rb-ghost-card{aspect-ratio:3/4;border-radius:var(--rad);border:1px dashed var(--rule);pointer-events:none}',
             // mobile
             '@media(max-width:767px){#wg-packbar{bottom:96px !important}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-add-pill{display:none}#rb-wa-fab.on{display:flex}}'
           ].join('\n');
@@ -3258,6 +3422,68 @@
         }
       };
 
+      // ── Lookbook empty state · "Ways to fill it" ──────────────────────
+      // An empty lookbook raises exactly one question — so how do I fill it?
+      // Its own filters are the concierge's outputs, so the concierge answers
+      // it here, in the invitation register (home keeps it as the live entry
+      // point). Every route is open: all four are built, and a working
+      // feature is never locked behind a count. The block is removed the
+      // moment anything is saved — it never sits above her own looks.
+      const _SN_WAYS = [
+        { k: 'piece',  t: 'Style a key piece', d: 'Pick something you own and Robes builds three looks around it.', c: 'Style a piece →', lead: true },
+        { k: 'daily',  t: 'Daily look',        d: 'One complete outfit for the day ahead, read against the forecast.', c: 'Dress me today →' },
+        { k: 'weekly', t: 'Weekly planner',    d: 'Your week mapped day by day, every outfit routed through your wardrobe.', c: 'Plan my week →' },
+        { k: 'travel', t: 'Travel edit',       d: 'A tight capsule for your next trip, every piece worn several ways.', c: 'Start packing →' },
+      ];
+      window.__snWay = function(kind) {
+        if (window.__snClose) window.__snClose();
+        setTimeout(function () {
+          if (kind === 'piece' && window.KP && KP.openKeyPiece) KP.openKeyPiece();
+          else if (kind === 'weekly' && window.__wkOpen) window.__wkOpen();
+          else if (kind === 'travel' && window.__tvOpen) window.__tvOpen();
+          else if (kind === 'daily' && typeof _cbSetIntent === 'function') _cbSetIntent('dress-me');
+        }, 60);
+      };
+      function _snClearWays() {
+        const el = document.getElementById('sn-ways');
+        if (el) el.remove();
+        const empty = document.getElementById('sn-empty');
+        if (empty) empty.style.padding = '80px 0';
+      }
+      function _snPaintWays() {
+        _snClearWays();
+        const empty = document.getElementById('sn-empty');
+        if (!empty) return;
+        const n = _waItems.length;
+        const lead = _SN_WAYS.find(w => w.lead);
+        const rest = _SN_WAYS.filter(w => !w.lead);
+        const row = w =>
+          '<button onclick="window.__snWay(\'' + w.k + '\')" style="width:100%;text-align:left;border:0.5px solid var(--rule-mid);border-radius:var(--rad-card);background:#fff;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer;font-family:inherit">' +
+            '<span style="display:block">' +
+              '<span style="display:block;font-family:\'Cormorant\',Georgia,serif;font-size:19px;font-weight:300;color:var(--ink)">' + w.t + '</span>' +
+              '<span style="display:block;font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin-top:2px">' + w.d + '</span>' +
+            '</span>' +
+            '<span style="flex-shrink:0;font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)">Open</span>' +
+          '</button>';
+        empty.style.padding = '44px 0 24px';
+        const ways = document.createElement('div');
+        ways.id = 'sn-ways';
+        ways.style.cssText = 'max-width:560px;margin:30px auto 0;text-align:left';
+        ways.innerHTML =
+          '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 14px">' +
+            '<span style="font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)">Ways to fill it</span>' +
+            '<span style="font-size:11px;color:var(--ink-soft)">' + n + ' of ' + _WA_TARGET + ' catalogued</span>' +
+          '</div>' +
+          '<button onclick="window.__snWay(\'' + lead.k + '\')" style="width:100%;text-align:left;border:0.5px solid var(--rule-mid);border-radius:var(--rad-card);background:#fff;padding:20px 22px;cursor:pointer;font-family:inherit;margin-bottom:10px">' +
+            '<span style="display:block;font-family:\'Cormorant\',Georgia,serif;font-size:22px;font-weight:300;color:var(--ink)">' + lead.t + '</span>' +
+            '<span style="display:block;font-size:12px;color:var(--ink-soft);line-height:1.6;margin:6px 0 12px">' + lead.d + ' Available from your first piece.</span>' +
+            '<span style="display:block;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink)">' + lead.c + '</span>' +
+          '</button>' +
+          '<div style="display:flex;flex-direction:column;gap:10px">' + rest.map(row).join('') + '</div>' +
+          '<button onclick="window.WA&&WA.open&&WA.open()" style="width:100%;margin-top:16px;border:none;background:var(--ink);color:#fff;border-radius:100px;padding:16px;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit">Add pieces to your wardrobe +</button>';
+        empty.appendChild(ways);
+      }
+
       function snRenderPage() {
         const items = snLoad();
         const grid = document.getElementById('sn-grid');
@@ -3270,7 +3496,8 @@
           grid.style.display = 'none';
           empty.style.display = 'block';
           if (emptyT) emptyT.textContent = 'Nothing saved yet.';
-          if (emptyS) emptyS.innerHTML = "Style a key piece or save today's look<br>and it will appear here.";
+          if (emptyS) emptyS.innerHTML = 'Every look Robes builds is filed here.';
+          _snPaintWays();
           return;
         }
         if (!visible.length) {
@@ -3280,10 +3507,12 @@
           empty.style.display = 'block';
           if (emptyT) emptyT.textContent = 'No ' + lbl + ' yet.';
           if (emptyS) emptyS.innerHTML = 'When you save one, it will appear here.';
+          _snClearWays();
           return;
         }
         grid.style.display = 'grid';
         empty.style.display = 'none';
+        _snClearWays();
         _rbcInitSwipe();
         grid.innerHTML = visible.map(item => `
           <div onclick="window.__snOpenItem(${item.id})" data-rmfn="__snRemove" data-rmidx="${item.id}" data-rmconfirm="1" style="position:relative;background:#fff;border-radius:var(--rad);overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08);cursor:pointer" onmouseenter="this.querySelector('.sn-rm').style.opacity='1'" onmouseleave="this.querySelector('.sn-rm').style.opacity='0'">
@@ -11185,6 +11414,8 @@
         _rbRenderMoodboards();
         _rbRenderStyleNotes();
         _rbUpdateDailyOutfitLock();
+        _rbFtueOrder(_waItems.length);
+        _rbGateConcierge(_waItems.length);
       }, 900);
 
       // Also update lock state whenever wardrobe count changes
@@ -11255,52 +11486,53 @@
       // local-only entries from before the migration).
       _lbCloudPull();
 
-      // ── Style Note completion prompt ─────────────────────────────────────
+      // ── Style Notes, introduced at the last milestone ────────────────────
       // Onboarding deliberately asks for NO photos of her (the face scan was
-      // the likeliest bail point — beta feedback 4.7 removed it entirely);
-      // this quiet below-the-fold card invites her to capture her colour and
-      // silhouette chapters in Style Notes on her own time. Gated on
+      // the likeliest bail point — beta feedback 4.7 removed it entirely).
+      // Style Notes is now framed as the advanced refinement it is: it does
+      // not exist on the dashboard until the wardrobe is built out, then
+      // arrives once as a dark card — the only dark surface on home, so the
+      // introduction reads as an arrival rather than another nudge. Gated on
       // style_dna (already in the boot select) and dismissible per user.
-      // Delayed past _rbApplyLayout (900ms) so the reshuffle can't displace it.
-      setTimeout(function _rbSilPrompt() {
+      // Re-run from _waSyncCounts because the count lands async.
+      setTimeout(_rbSilPrompt, 1200);
+      function _rbSilPrompt() {
         try {
+          const card0 = document.getElementById('rb-sil-prompt');
+          if (_waItems.length < _MS_UNLOCKS[_MS_UNLOCKS.length - 1].at) {
+            if (card0) card0.remove();
+            return;
+          }
           const prof = window.__robes_profile || {};
           const dna = prof.style_dna || {};
           const needsColour = !dna.color_harmony;
           const needsSil = !dna.silhouette_proportions;
-          if (!needsColour && !needsSil) return;
+          if (!needsColour && !needsSil) { if (card0) card0.remove(); return; }
           const uid = prof.id || _waUid() || '';
           if (!uid) return;
           if (localStorage.getItem('rb_sil_prompt_off__' + uid)) return;
-          if (document.getElementById('rb-sil-prompt')) return;
+          if (card0) return;
           const grid = document.querySelector('.services-grid');
           if (!grid) return;
           const both = needsColour && needsSil;
-          const eyebrow = both ? 'Style notes · your style, read once' : 'Style notes · one chapter left';
           const headline = both
-            ? 'Your colours & silhouette, <em style="font-style:italic">whenever suits.</em>'
+            ? 'Your colours &amp; silhouette, <em style="font-style:italic;color:#C4B8A4">whenever suits.</em>'
             : (needsColour
-              ? 'Your colour harmony, <em style="font-style:italic">whenever suits.</em>'
-              : 'Your silhouette, <em style="font-style:italic">whenever suits.</em>');
-          const body = both
-            ? 'Two photos teach Robes your colouring and your line — the shades and cuts that flatter, woven into every look it builds. Two minutes, only ever seen by Robes.'
-            : (needsColour
-              ? 'One close-up teaches Robes your colouring — your season, undertone and the shades that are yours, woven into every look it builds. Two minutes, only ever seen by Robes.'
-              : 'One full-length photo teaches Robes your line — the cuts that flatter, woven into every look it builds. Two minutes, only ever seen by Robes.');
+              ? 'Your colour harmony, <em style="font-style:italic;color:#C4B8A4">whenever suits.</em>'
+              : 'Your silhouette, <em style="font-style:italic;color:#C4B8A4">whenever suits.</em>');
           const cta = both ? 'Complete my style notes →' : (needsColour ? 'Complete my colours →' : 'Complete my silhouette →');
           const target = needsColour ? '/stylenotes' : '/stylenotes#silhouette';
           const host = grid.closest('section') || grid;
           const card = document.createElement('section');
           card.id = 'rb-sil-prompt';
-          card.style.cssText = 'max-width:1140px;margin:26px auto;padding:20px 24px;background:#FDFCFA;border:1px solid #E7E0CF;border-radius:var(--rad-card);display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:relative';
+          card.style.cssText = 'max-width:1140px;margin:26px auto;position:relative';
           card.innerHTML =
-            '<div style="flex:1;min-width:230px">' +
-              '<div style="font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px">' + eyebrow + '</div>' +
-              '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:21px;font-weight:400;color:#202021;margin-bottom:4px">' + headline + '</div>' +
-              '<div style="font-size:13px;color:var(--ink-faint);line-height:1.55">' + body + '</div>' +
+            '<div style="font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--sage);margin-bottom:10px">Style notes · newly available</div>' +
+            '<div style="background:#202021;border-radius:var(--rad-card);padding:24px 26px;display:flex;flex-direction:column;gap:16px;align-items:flex-start">' +
+              '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:23px;font-weight:300;line-height:1.2;color:#FAF8F5">' + headline + '</div>' +
+              '<button id="rb-sil-go" style="background:#FAF8F5;color:#202021;border:none;border-radius:100px;padding:13px 22px;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit">' + cta + '</button>' +
             '</div>' +
-            '<button id="rb-sil-go" style="flex-shrink:0;background:#202021;color:#F8F5F0;border:none;border-radius:100px;padding:11px 22px;font-size:13px;letter-spacing:.03em;cursor:pointer;font-family:inherit">' + cta + '</button>' +
-            '<button id="rb-sil-x" aria-label="Not now" style="position:absolute;top:10px;right:14px;background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:16px;line-height:1;padding:4px">×</button>';
+            '<button id="rb-sil-x" aria-label="Not now" style="position:absolute;top:28px;right:16px;background:none;border:none;cursor:pointer;color:rgba(250,248,245,0.55);font-size:16px;line-height:1;padding:4px">×</button>';
           host.parentNode.insertBefore(card, host);
           card.querySelector('#rb-sil-go').onclick = function() { window.location.href = target; };
           card.querySelector('#rb-sil-x').onclick = function() {
@@ -11308,7 +11540,7 @@
             card.remove();
           };
         } catch (e) { console.warn('[robes] style-note prompt:', e); }
-      }, 1200);
+      }
 
       // ── Onboarding handoff — "Your piece, styled" as an inline card ─────
       // /onboarding step 04 stores {prompt, photo} then lands here. The

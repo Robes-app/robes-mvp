@@ -1463,14 +1463,17 @@ body[data-density="compact"] .dash-mast{margin-bottom:28px}
   .dash-echo{font-size:18px;margin-top:6px}
   .concierge{margin-bottom:32px}
 }
-/* Ambient weather strip under the greeting — mobile only (the nav pill is
-   hidden <768px). Reads "Monday · Dublin · 20°C"; revealed via .on once
-   geolocation + forecast land, so it never shows placeholder values. */
-.dash-wx-m{display:none;align-items:center;gap:8px;margin-top:14px;
-  font-size:10.5px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-faint)}
-.dash-wx-m .wx{font-size:13px;letter-spacing:0}
-.dash-wx-m .dot{width:3px;height:3px;border-radius:50%;background:var(--ink-faint);opacity:0.6}
-@media(max-width:767px){ .dash-wx-m.on{display:flex} }
+/* Ambient weather strip under the greeting — every width (FTUE). Hairline
+   above and below; place + temperature as a tracked label, then one short
+   read of the day in body weight. Revealed via .on once geolocation and the
+   forecast land, so it never shows placeholder values, and it stays absent
+   entirely when location is denied. */
+.dash-wx{display:none;align-items:baseline;gap:12px;margin-top:18px;padding:12px 0;
+  border-top:0.5px solid var(--rule-mid);border-bottom:0.5px solid var(--rule-mid)}
+.dash-wx.on{display:flex}
+.dash-wx .place{flex:none;font-size:10px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink)}
+.dash-wx .sep{flex:none;width:1px;height:10px;background:var(--rule-mid)}
+.dash-wx .read{font-size:12px;font-weight:300;color:var(--ink-soft)}
 
 /* ── CONCIERGE PROMPT (hero) ──────────────────────────────────────── */
 /* Reading measure — single-input controls cap at 760px (layout spec) */
@@ -1564,24 +1567,20 @@ body[data-density="compact"] .dual{margin-bottom:40px}
 .tracker{display:block;width:100%;text-align:left;margin-bottom:56px}
 body[data-density="compact"] .tracker{margin-bottom:40px}
 .wtrk-ey{font-size:10px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:var(--sage);margin-bottom:10px}
-.wtrk-h{font-family:var(--font-serif);font-weight:300;font-size:clamp(24px,3vw,31px);line-height:1.18;color:var(--ink);margin:0 0 20px}
-.wtrk-h em{font-style:italic}
 .wtrk-card{border:0.5px solid var(--rule-mid);border-radius:var(--rad-card);background:var(--sage-bg);padding:24px 26px 22px}
 body[data-density="compact"] .wtrk-card{padding:18px 22px}
-.wtrk-toprow{display:flex;align-items:center;gap:22px}
+.wtrk-toprow{display:flex;align-items:flex-start;gap:22px}
 .wtrk-num{font-family:var(--font-serif);font-weight:300;font-size:44px;line-height:0.9;color:var(--ink);flex-shrink:0;white-space:nowrap}
 .wtrk-num span{font-size:19px;color:var(--ink-faint)}
 .wtrk-body{flex:1;min-width:0}
-.wtrk-kicker{font-size:10px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:var(--sage);margin-bottom:5px}
-.wtrk-copy{font-size:12.5px;color:var(--ink-soft);line-height:1.55}
-.wtrk-copy strong{font-weight:500;color:var(--ink)}
+.wtrk-head{font-family:var(--font-serif);font-weight:300;font-size:21px;line-height:1.25;color:var(--ink)}
+.wtrk-ms{margin:18px 0 20px}
+.wtrk-card > .wtrk-cta{display:flex;width:100%;justify-content:center;margin-bottom:20px;background:#fff}
 .wtrk-cta{flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:11px 20px;white-space:nowrap;cursor:pointer;
   border-radius:100px;border:0.5px solid rgba(126,124,90,0.4);background:#fff;
   font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink);transition:all .16s}
 .wtrk-cta:hover{background:var(--sage);color:#fff;border-color:var(--sage)}
 .wtrk-cta svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.wtrk-bar{height:4px;border-radius:100px;background:rgba(32,32,33,0.08);overflow:hidden;margin:16px 0 20px}
-.wtrk-fill{height:100%;border-radius:100px;background:var(--ink);transition:width .4s}
 .wtrk-items{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px}
 .wtrk-it{flex:0 0 96px;height:128px;border-radius:6px;overflow:hidden;position:relative;cursor:pointer;background:var(--cream-200);border:0.5px solid var(--rule-mid);padding:0}
 .wtrk-it img{width:100%;height:100%;object-fit:cover;display:block}
@@ -2023,8 +2022,8 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
         <header class="dash-mast">
           <h1 class="dash-greet" id="dash-greet" data-comment-anchor="b8c791de12-h1">&nbsp;</h1>
           <div class="dash-echo">What are you dressing for today?</div>
-          <!-- Mobile-only ambient weather strip (the nav pill hides <768px) -->
-          <div class="dash-wx-m" id="dash-wx-m" aria-hidden="true"></div>
+          <!-- Ambient weather strip — revealed once the forecast lands -->
+          <div class="dash-wx" id="dash-wx" aria-hidden="true"></div>
         </header>
 
         <!-- concierge prompt -->
@@ -2079,14 +2078,13 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
           <div class="wtrk-ey">Your wardrobe</div>
           <div class="wtrk-card">
             <div class="wtrk-toprow">
-              <div class="wtrk-num" id="wtrk-num">0<span> / 15</span></div>
               <div class="wtrk-body">
-                <div class="wtrk-kicker" id="wtrk-kicker">Start here</div>
-                <div class="wtrk-copy" id="wtrk-copy">Add your first piece and Robes starts weaving your own wardrobe into every look — <strong>0 of 15 catalogued</strong>.</div>
+                <div class="wtrk-head" id="wtrk-head">Three pieces and Robes<br>dresses you every morning.</div>
               </div>
-              <button class="wtrk-cta" id="wtrk-cta">Add pieces<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+              <div class="wtrk-num" id="wtrk-num">0<span> / 15</span></div>
             </div>
-            <div class="wtrk-bar"><div class="wtrk-fill" id="wtrk-fill" style="width:0%"></div></div>
+            <div class="wtrk-ms" id="wtrk-ms"></div>
+            <button class="wtrk-cta" id="wtrk-cta">Add pieces<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
             <div class="wtrk-items" id="wtrk-items"></div>
             <div class="wtrk-fastrow">
               <span class="wtrk-fast-ey">Fastest add</span>
