@@ -12177,7 +12177,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 
       var _IK_FLAG_KEY = 'rb_diary_prompt';
       var _ikScope = { kind: 'none', id: null, label: '', date: null };
-      var _ikPlanScope = null;   // the auto-scope (weekly plan covering today)
+      var _ikPlanScope = null;   // unused while plan auto-scope is disabled — see _ikAutoScope
       var _ikState = null;       // intake-local state; null = closed
       var _ikOpenedAt = 0;
 
@@ -12189,10 +12189,11 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
       }
 
       var _IK_CSS = `
-#rb-scopechip{display:none;flex:none;align-items:center;gap:6px;margin-right:10px;padding:6px 11px;border:none;border-radius:6px;background:var(--ink,#202021);color:#FAF8F5;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;font-family:inherit;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+#rb-scopechip{display:none;flex:none;align-items:center;gap:6px;margin-right:10px;padding:6px 11px;border:none;border-radius:6px;background:var(--ink,#202021);color:#FAF8F5;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;font-family:inherit;max-width:220px}
 #rb-scopechip.on{display:inline-flex}
 #rb-scopechip.sel{background:var(--mauve,#D4C8C4);color:var(--ink,#202021)}
-#rb-scopechip .x{opacity:.65;font-size:11px}
+#rb-scopechip .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+#rb-scopechip .x{opacity:.65;font-size:11px;flex:none}
 #rb-sugg{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 #rb-sugg .rb-schip{padding:8px 14px;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;background:#fff;font-size:12px;color:#6E6A64;cursor:pointer;font-family:inherit;transition:all .2s}
 #rb-sugg .rb-schip:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
@@ -12277,15 +12278,13 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         if (_ikScope.kind === 'none') { chip.className = ''; chip.style.display = 'none'; return; }
         chip.style.display = '';
         chip.className = 'on' + (_ikScope.kind === 'day' ? ' sel' : '');
-        chip.innerHTML = _ikEsc(_ikScope.label) + ' <span class="x">×</span>';
+        chip.innerHTML = '<span class="lbl">' + _ikEsc(_ikScope.label) + '</span><span class="x">×</span>';
       }
       function _ikSetScope(s) { _ikScope = s || { kind: 'none', id: null, label: '', date: null }; _ikChipPaint(); _ikPillsPaint(); }
-      // Never straight to none from day — a scoped day returns to its plan
+      // Escaping a day scope always clears the chip — the plan auto-scope
+      // this used to fall back to is disabled (product call: the day chip
+      // is the only chip that should ever appear).
       function _ikScopeBack() {
-        if (_ikScope.kind === 'day') {
-          const plan = _ikPlanScope || _ikComputePlanScope();
-          if (plan) { _ikPlanScope = plan; _ikSetScope(plan); return; }
-        }
         _ikSetScope(null);
       }
       window._ikScopeDay = function(date, slot) {
@@ -12312,13 +12311,15 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         const label = p.title || (iso0 ? 'Week of ' + new Date(iso0 + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'This week');
         return { kind: 'plan', id: src, label, date: null };
       }
-      function _ikAutoScope() {
-        if (!_rbDiaryOn()) return;
-        // Always keep the parent scope current (Esc from a day must return
-        // to it) — but only APPLY it when the field is unscoped.
-        _ikPlanScope = _ikComputePlanScope() || _ikPlanScope;
-        if (_ikPlanScope && _ikScope.kind === 'none') _ikSetScope(_ikPlanScope);
-      }
+      // Disabled (product call): a weekly plan covering today used to
+      // auto-scope the field, but its title chip rendered as a broken-looking
+      // black block (long stylist headlines have no clean truncation next to
+      // the × button) and appeared without her asking for it. The day chip
+      // (window._ikScopeDay, explicit tap only) is the only chip that should
+      // ever appear now. _ikComputePlanScope/_ikPlanScope stay in place —
+      // still read by the plan-restyle routing below — should an explicit
+      // "scope to this plan" entry point return.
+      function _ikAutoScope() {}
 
       // ── suggestion pills — the cold-start mechanism. Never a place or
       // date that isn't already in the user's data. ──────────────────
