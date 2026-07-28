@@ -3441,14 +3441,36 @@
         const empty = document.getElementById('sn-empty');
         if (empty) empty.style.padding = '80px 0';
       }
+      // Repaint if the cards get transformed while the empty state is open.
+      function _snRepaintWays() {
+        const page = document.getElementById('sn-page');
+        const empty = document.getElementById('sn-empty');
+        if (page && page.style.display !== 'none' && empty && empty.style.display !== 'none') _snPaintWays();
+      }
+      var _snWaysTries = 0;
       function _snPaintWays() {
         _snClearWays();
         const empty = document.getElementById('sn-empty');
         const svcs = document.querySelectorAll('.services .svc');
-        // The bundle renders the cards after boot — without them there is
-        // nothing to clone, so show the bare empty state rather than a
-        // half-built block, and try again on the next open.
-        if (!empty || !svcs.length) return;
+        // Clone ONLY after personalize has relabelled + reordered the cards
+        // at 600ms — `.svc-daily` is the marker it leaves behind. Cloning the
+        // raw bundle markup gave the empty Lookbook the legacy trio ("Key
+        // piece, three ways", photo imagery, wrong order) on any open that
+        // beat the transform, which corrected itself on refresh. Keying on
+        // the transformed DOM rather than a timer makes it deterministic:
+        // until it lands, show the bare empty state and retry briefly.
+        const ready = document.querySelector('.services .svc-daily');
+        if (!empty || !svcs.length || !ready) {
+          if (_snWaysTries < 20) {
+            _snWaysTries++;
+            setTimeout(function () {
+              const e = document.getElementById('sn-empty');
+              if (e && e.style.display !== 'none') _snPaintWays();
+            }, 150);
+          }
+          return;
+        }
+        _snWaysTries = 0;
         empty.style.padding = '44px 0 24px';
         const ways = document.createElement('div');
         ways.id = 'sn-ways';
@@ -3478,6 +3500,7 @@
       }
 
       function snRenderPage() {
+        _snWaysTries = 0;
         const items = snLoad();
         const grid = document.getElementById('sn-grid');
         const empty = document.getElementById('sn-empty');
@@ -3722,6 +3745,9 @@
               if (num) num.textContent = String(i + 1).padStart(2, '0');
               grid.appendChild(el);
             });
+            // The empty Lookbook clones these — if it painted before now it
+            // is showing the legacy trio, so repaint it against the real set.
+            if (typeof _snRepaintWays === 'function') _snRepaintWays();
           }
         }
 

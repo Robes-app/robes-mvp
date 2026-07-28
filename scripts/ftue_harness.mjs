@@ -257,6 +257,56 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 
+// First load: opening the Lookbook BEFORE the 600ms card transform must never
+// paint the legacy bundle trio ("Key piece, three ways", photo imagery, wrong
+// order) — the bug was that it corrected itself only on refresh.
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 1100 } });
+  const page = await ctx.newPage();
+  await page.route('**cdn.jsdelivr.net/**', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/javascript', body: SUPA_STUB }));
+  await page.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  await page.route('**nominatim**', (r) => r.abort());
+  await page.route('**open-meteo**', (r) => r.abort());
+  await page.addInitScript(() => {
+    window.__TEST_PROFILE = { first_name: 'Annie', style_dna: {}, wardrobe_items_count: 0,
+      onboarded_at: '2026-07-01', gender_identity: 'woman', style_icons: [] };
+    // Open the Lookbook the instant personalize exposes it — well inside the
+    // 600ms window the concierge transform runs in.
+    const t = setInterval(() => {
+      if (window.__snOpen) { clearInterval(t); window.__snOpen(); }
+    }, 10);
+  });
+  await page.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
+
+  // Immediately after opening, the block must be ABSENT rather than legacy.
+  await page.waitForFunction(() => !!document.getElementById('sn-empty') &&
+    document.getElementById('sn-empty').style.display !== 'none', null, { timeout: 8000 });
+  const early = await page.evaluate(() => {
+    const ways = document.getElementById('sn-ways');
+    const titles = ways ? Array.from(ways.querySelectorAll('.svc-title')).map((t) => t.textContent) : [];
+    return { legacy: titles.some((t) => /key piece, three ways/i.test(t)), titles };
+  });
+  check('first load · never paints the legacy trio', !early.legacy, JSON.stringify(early.titles));
+
+  // …and once the transform lands it must fill in, without a refresh.
+  await page.waitForTimeout(2200);
+  const settled = await page.evaluate(() => {
+    const ways = document.getElementById('sn-ways');
+    const titles = ways ? Array.from(ways.querySelectorAll('.svc-title')).map((t) => t.textContent.trim()) : [];
+    const home = Array.from(document.querySelectorAll('.services .svc .svc-title')).map((t) => t.textContent.trim());
+    return { titles, home, imgs: ways ? ways.querySelectorAll('.svc-img img').length : 0 };
+  });
+  check('first load · fills in without a refresh', settled.titles.length === 3, JSON.stringify(settled.titles));
+  check('first load · matches the transformed cards',
+    JSON.stringify(settled.titles) === JSON.stringify(settled.home),
+    `${JSON.stringify(settled.titles)} vs ${JSON.stringify(settled.home)}`);
+  check('first load · no "Key piece, three ways"',
+    !settled.titles.some((t) => /key piece, three ways/i.test(t)), JSON.stringify(settled.titles));
+  await ctx.close();
+}
+
 // Ways block disappears once anything is saved
 {
   const { ctx, page } = await boot(browser, 1);
