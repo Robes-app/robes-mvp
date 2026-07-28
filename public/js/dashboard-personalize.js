@@ -1236,11 +1236,13 @@
           step.innerHTML = `
             <h2 class="fm-h">Add a piece.</h2>
             <p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">Snap it or attach it. Robes reads the colour, the cut and the label — and fills in the rest.</p>
-            <label id="wa-rb-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:240px;border:1.5px dashed #C8B8A2;border-radius:var(--rad);background:#FAF8F5;cursor:pointer;text-align:center;padding:20px;box-sizing:border-box;">
+            <label id="wa-rb-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:240px;border:1.5px dashed #C8B8A2;border-radius:var(--rad);background:#FAF8F5;cursor:pointer;text-align:center;padding:20px;box-sizing:border-box;position:relative;">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               <span style="font-size:16px;color:#6A5E54;letter-spacing:0.01em;">Snap or attach the piece</span>
               <span style="font-size:13px;color:var(--ink-faint);">Take a photo — or select several and Robes files them one after another</span>
-              <input id="wa-rb-file" type="file" accept="image/*" multiple style="display:none;">
+              <input id="wa-rb-file" type="file" multiple
+                accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp"
+                style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
             </label>`;
           _setDot(1);
 
@@ -12475,11 +12477,11 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-intake .ik-ba-lab{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
 #rb-intake .ik-ba-cat{padding:4px 10px;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;background:#fff;font-size:10.5px;color:#6E6A64;cursor:pointer;font-family:inherit}
 #rb-intake .ik-ba-cat.on{background:var(--ink,#202021);color:#FAF8F5;border-color:var(--ink,#202021)}
-#rb-intake .ik-rack{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+#rb-intake .ik-rack{display:flex;align-items:flex-start;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
 #rb-intake .ik-rack::-webkit-scrollbar{display:none}
 #rb-intake .ik-ri{flex:none;width:84px;border:0.5px solid rgba(32,32,33,0.12);border-radius:10px;background:#fff;cursor:pointer;overflow:hidden;text-align:left;padding:0;font-family:inherit}
 #rb-intake .ik-ri.sel{border-color:var(--ink,#202021);box-shadow:0 0 0 1px var(--ink,#202021) inset}
-#rb-intake .ik-ri .im{aspect-ratio:1;background:#EFE9DC;position:relative}
+#rb-intake .ik-ri .im{display:block;aspect-ratio:1;background:#EFE9DC;position:relative}
 #rb-intake .ik-ri .im img{width:100%;height:100%;object-fit:cover;display:block}
 #rb-intake .ik-ri .ck{position:absolute;top:5px;right:5px;width:16px;height:16px;border-radius:50%;background:var(--ink,#202021);color:#FAF8F5;display:flex;align-items:center;justify-content:center;font-size:9px}
 #rb-intake .ik-ri .nm{display:block;padding:6px 8px 8px;font-size:10px;line-height:1.25;color:var(--ink,#202021);height:26px;overflow:hidden}
@@ -12874,7 +12876,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
               <button onclick="window._ikClarify('daily')">One outfit, one day</button>
               <button onclick="window._ikClarify('weekly')">Plan a week</button>
               <button onclick="window._ikClarify('travel')">Pack for a trip</button>
-              <button class="ik-cancel" onclick="window._ikCancel()">Never mind</button>
+              <button class="ik-cancel" onclick="window._ikCancel()">Cancel</button>
             </div>`;
           return;
         }
@@ -12946,7 +12948,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         // COPY: needs sign-off (primary labels live in _RB_TRACKS)
         const goLabel = _rbTrackCfg(st.kind).intake.primaryLabel(st);
         host.innerHTML = `<p class="ik-said">${_ikSaid()}</p>${crumbs}${st.err ? `<div class="ik-err">${_ikEsc(st.err)}</div>` : ''}${ba}${daysBlock}
-          <div class="ik-actions"><button class="ik-cancel" onclick="window._ikCancel()">Never mind</button>
+          <div class="ik-actions"><button class="ik-cancel" onclick="window._ikCancel()">Cancel</button>
           <button class="ik-go" onclick="window._ikCommit()">${_ikEsc(goLabel)}</button></div>`;
       }
 
