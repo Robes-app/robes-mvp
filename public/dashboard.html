@@ -2605,7 +2605,10 @@ worn three ways</div>
       // First-time users go through onboarding. Only redirect when the profile
       // row actually loaded (a failed select must never bounce users), and the
       // rb_onboarded session flag guards against loops if the DB write failed.
-      if (_profile && !_profile.onboarded_at && !sessionStorage.getItem('rb_onboarded')) {
+      // The flag is scoped per user — an unscoped key made a tab that had
+      // already onboarded one account skip the flow for the next one.
+      try { sessionStorage.removeItem('rb_onboarded'); } catch (e) {}
+      if (_profile && !_profile.onboarded_at && !sessionStorage.getItem('rb_onboarded__' + _sess2.user.id)) {
         window.location.href = '/onboarding';
         return;
       }

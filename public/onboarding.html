@@ -1043,7 +1043,7 @@
   function renderDone() {
     if (!st.doneMarked) {
       st.doneMarked = true;
-      try { sessionStorage.setItem('rb_onboarded', '1'); } catch (e) {}
+      try { sessionStorage.setItem('rb_onboarded__' + st.uid, '1'); } catch (e) {}
       save({ onboarded_at: new Date().toISOString() });
     }
     const first = st.name.trim().split(/\s+/)[0];
@@ -1085,8 +1085,15 @@
     // Already-onboarded users land here directly now (OAuth + email-confirm
     // redirects target /onboarding) — pass them straight through to the
     // dashboard rather than re-running the flow.
+    // The flag is scoped PER USER: an unscoped key let a tab that had already
+    // onboarded one account skip the flow entirely for the next account signed
+    // up in it, because this guard runs BEFORE the onboarded_at lookup. Same
+    // bug class as the lookbook's `__anon` keys — purge the legacy global.
     let alreadyOnboarded = false;
-    try { alreadyOnboarded = !!sessionStorage.getItem('rb_onboarded'); } catch (e) {}
+    try {
+      sessionStorage.removeItem('rb_onboarded');
+      alreadyOnboarded = !!sessionStorage.getItem('rb_onboarded__' + st.uid);
+    } catch (e) {}
     if (alreadyOnboarded) { window.location.href = '/dashboard'; return; }
 
     const meta = session.user.user_metadata || {};
