@@ -698,7 +698,16 @@
   }
 
   /* renderPhotoStep (the removed colour/silhouette photo capture) was
-     deleted in the Wave 5 sweep — Style Notes owns photo capture now. */
+     deleted in the Wave 5 sweep — Style Notes owns photo capture now.
+     KP_SPOTS/KP_READ stayed in use by renderKeyPiece below and are
+     restored here after the sweep took them along with it. */
+  const KP_SPOTS = [
+    { top: '10%', left: '8%' },
+    { top: '30%', right: '8%' },
+    { top: '52%', left: '10%' },
+    { top: '68%', right: '12%' },
+  ];
+  const KP_READ = ['The piece', 'Category', 'Brand', 'Colour', 'Cut'];
 
   function renderKeyPiece(i) {
     const P = st.piece;
