@@ -331,6 +331,28 @@ function styleIconsImageLine(styleIcons) {
     : '';
 }
 
+/* ── gender identity (profiles.gender_identity, migration 13) ─────────
+   'woman' (default — every signup starts here, and any missing/invalid
+   value normalises to it, so pre-migration clients behave exactly as
+   before), 'man' (menswear only, everywhere), or 'unspecified'
+   ("Prefer not to say" — the model judges from the brief). The stylist
+   prompts use "she"/"her" generically throughout; rewriting every
+   pronoun per-request would be fragile, so the directive tells the
+   model how to read them instead. */
+const normGender = (g) => (g === 'man' || g === 'unspecified') ? g : 'woman';
+
+function genderDirective(gender) {
+  if (gender === 'man')
+    return 'The user identifies as a man. Every piece, look and recommendation must be menswear — male cuts, sizing and styling codes, menswear brands and male style references throughout. Never suggest womenswear. Where these instructions use "she"/"her" generically, they refer to this male client — read them as "he"/"him".';
+  if (gender === 'unspecified')
+    return 'The user has not said how they identify. Use your best judgement from their words, their pieces and their wardrobe to decide whose clothing to recommend; when nothing points a direction, keep pieces and styling gender-neutral. Where these instructions use "she"/"her" generically, they simply refer to this client.';
+  return 'Unless the brief clearly indicates a male wearer, style for a woman.';
+}
+
+// Image-prompt fragments — who stands in the editorial frame.
+const wearerNoun = (g) => g === 'man' ? 'man' : g === 'unspecified' ? 'person' : 'woman';
+const wearerWears = (g) => g === 'man' ? 'He wears' : g === 'unspecified' ? 'They wear' : 'She wears';
+
 const STYLE_SCHEMA = {
   type: 'object',
   properties: {
@@ -356,7 +378,8 @@ const STYLE_SCHEMA = {
 };
 
 app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { photo, link, prompt, name, pieceName, styleDna, styleIcons, wardrobeCount, wardrobeItems, intent, context: rtContext } = req.body;
+  const { photo, link, prompt, name, pieceName, styleDna, styleIcons, wardrobeCount, wardrobeItems, intent, context: rtContext, gender } = req.body;
+  const g = normGender(gender);
 
   if (!photo && !link && !prompt) {
     return res.status(400).json({ error: 'Provide at least a photo, link, or prompt.' });
@@ -393,9 +416,17 @@ STYLING SANITY CHECK: every styling move must be something a respected stylist w
     ? `IMPORTANT: Set "fallback": true ONLY if the input is gibberish or random characters. A plain occasion, agenda or mood (e.g. "brunch", "a day of meetings") is a valid daily brief — set "fallback": false and dress the user for it.`
     : `IMPORTANT: You must set "fallback": true if ANY of these apply — the input is gibberish or random characters; no specific clothing item, garment, or accessory can be identified; the request is too vague to style (e.g. just a colour, a single generic word, or a non-fashion concept). When fallback is true, style a ${FALLBACK_PIECE} instead. Only set "fallback": false when a real, nameable fashion piece is clearly present.`;
 
-  const wearerRule = `Set "wearer" to who the looks are styled for: "woman" unless the user's words clearly state the wearer is male — the piece itself being menswear or unisex (sportswear, an oversized jacket, boyfriend jeans) NEVER makes the wearer male.`;
+  const wearerRule = g === 'man'
+    ? `Set "wearer" to "man" — the user is a man and every look is styled for him.`
+    : g === 'unspecified'
+      ? `Set "wearer" to your best judgement of who the looks are styled for, based only on the user's words and the piece itself.`
+      : `Set "wearer" to who the looks are styled for: "woman" unless the user's words clearly state the wearer is male — the piece itself being menswear or unisex (sportswear, an oversized jacket, boyfriend jeans) NEVER makes the wearer male.`;
 
-  const systemInstruction = `You are an expert fashion stylist known for elegant, directional styling advice. Your tone is warm, precise, and editorial — like a trusted stylist who truly understands clothes. Your user is a stylish, fashion-forward woman — unless the input clearly indicates a male wearer, style all looks for a woman. ${who}
+  const genderBlock = g === 'woman'
+    ? 'Your user is a stylish, fashion-forward woman — unless the input clearly indicates a male wearer, style all looks for a woman.'
+    : genderDirective(g);
+
+  const systemInstruction = `You are an expert fashion stylist known for elegant, directional styling advice. Your tone is warm, precise, and editorial — like a trusted stylist who truly understands clothes. ${genderBlock} ${who}
 
 ${brief}
 
@@ -469,7 +500,10 @@ Style this key piece three ways. Make each look genuinely distinct — different
 
     // Background image generation — never blocks the client
     const t1 = Date.now();
-    const wearer = parsed.wearer === 'man' ? 'man' : 'woman';
+    // 'man' setting always wins; otherwise the model's wearer judgement
+    // stands (for 'unspecified' that judgement IS the routing decision, so
+    // the frames match the looks it wrote).
+    const wearer = g === 'man' ? 'man' : parsed.wearer === 'man' ? 'man' : 'woman';
     const iconLine = styleIconsImageLine(styleIcons);
     const briefLine = !fallback && prompt ? `The user's brief: "${String(prompt).slice(0, 200)}". ` : '';
     // Strictly ONE generation in flight at a time — the daily/travel/
@@ -631,7 +665,8 @@ const DAILY_SCHEMA = {
 };
 
 app.post('/api/daily', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, locked } = req.body;
+  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, locked, gender } = req.body;
+  const g = normGender(gender);
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
   const n = closetItems.length;
@@ -669,7 +704,7 @@ app.post('/api/daily', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
     ? `REAL-TIME CONTEXT: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}. This is the atmospheric reality — fabric weight, layers and footwear must answer to it.`
     : '';
 
-  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. You dress clients for real days using the Context-to-Core Framework. Never output a generic outfit — name exact cuts, fabrications and styling techniques (e.g. "French-tuck a heavyweight silk button-down into high-waisted wide-leg wool trousers").
+  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}${genderDirective(g)} You dress clients for real days using the Context-to-Core Framework. Never output a generic outfit — name exact cuts, fabrications and styling techniques (e.g. "French-tuck a heavyweight silk button-down into high-waisted wide-leg wool trousers").
 
 THE FRAMEWORK — work through it in this order:
 1. THE CONTEXT FILTERS. Fix the day's parameters before pulling a single garment: the agenda & mobility in the brief (what she physically does today), the atmospheric reality (the real-time weather provided — it dictates fabric weight and outerwear), and the psychological goal (how she needs to feel and be perceived).
@@ -794,7 +829,7 @@ Dress her for this exact day, start to finish, through the four architectural st
         if (i > 0) await new Promise(r => setTimeout(r, 3000));
         const { stepTitle, item } = flat[i];
         const imgPrompt = stepTitle === 'The Anchor'
-          ? `PORTRAIT ORIENTATION ONLY. Single editorial fashion photograph — one woman, alone, one scene, no collage, no split panels, no text overlays. ${FULL_BODY_FRAME} ${styleIconsImageLine(styleIcons)}She wears the complete outfit: ${allNames}. The ${item.name} leads the frame. ${scene ? `Setting: ${scene}. ` : ''}Soft natural light, luxury campaign aesthetic.`
+          ? `PORTRAIT ORIENTATION ONLY. Single editorial fashion photograph — one ${wearerNoun(g)}, alone, one scene, no collage, no split panels, no text overlays. ${FULL_BODY_FRAME} ${styleIconsImageLine(styleIcons)}${wearerWears(g)} the complete outfit: ${allNames}. The ${item.name} leads the frame. ${scene ? `Setting: ${scene}. ` : ''}Soft natural light, luxury campaign aesthetic.`
           : `Editorial still-life photograph of a single ${item.name}${item.brand ? ' by ' + item.brand : ''} — ${item.description || ''}. The garment styled alone on a neutral cream-linen surface, soft daylight, quiet luxury catalogue aesthetic. No model, no text, no collage, one item only.`;
         try {
           const r = await Promise.race([
@@ -868,7 +903,8 @@ const ALTERNATES_SCHEMA = {
 };
 
 app.post('/api/alternates', rateLimit({ windowMs: 60_000, max: 30 }), async (req, res) => {
-  const { item, context, styleDna, styleIcons } = req.body;
+  const { item, context, styleDna, styleIcons, gender } = req.body;
+  const g = normGender(gender);
   const itemName = String((item && item.name) || '').trim().slice(0, 120);
   if (!itemName) return res.status(400).json({ error: 'Missing item.' });
   const category = String((item && item.category) || '').trim().slice(0, 40);
@@ -879,7 +915,7 @@ app.post('/api/alternates', rateLimit({ windowMs: 60_000, max: 30 }), async (req
     .map(s => s.trim().slice(0, 80));
   const dnaBlock = styleDnaPromptBlock(styleDna, 0, styleIcons);
 
-  const systemInstruction = `You are Robes' head stylist. Suggest exactly 2 alternatives to ONE piece already in an existing look — similar-but-distinct options for the SAME slot (a different colour, fabrication or register that still honours the rest of the look), never a repeat of the original piece. Each needs a real brand suited to its register, a real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and a realistic EUR "price_point" (e.g. "€89"). These power a flick-through rail, so make them genuinely wearable, never filler.
+  const systemInstruction = `You are Robes' head stylist. ${genderDirective(g)} Suggest exactly 2 alternatives to ONE piece already in an existing look — similar-but-distinct options for the SAME slot (a different colour, fabrication or register that still honours the rest of the look), never a repeat of the original piece. Each needs a real brand suited to its register, a real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and a realistic EUR "price_point" (e.g. "€89"). These power a flick-through rail, so make them genuinely wearable, never filler.
 - "how" is this alternative's ROW NOTE. ${ROW_NOTE_RULE}
 
 ${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}`;
@@ -1153,7 +1189,8 @@ const WEEKLY_ITEM_RULES = `- Each item: "name" is the piece itself; "brand" is O
 - Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" and a realistic EUR "price_point" (e.g. "€89").`;
 
 app.post('/api/weekly', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
-  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, dayPlan, weekDays, anchorItemIds } = req.body;
+  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, dayPlan, weekDays, anchorItemIds, gender } = req.body;
+  const g = normGender(gender);
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
   const n = closetItems.length;
@@ -1198,7 +1235,7 @@ app.post('/api/weekly', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
     : '';
 
   function weeklySystem(correctiveNote) {
-    return `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. You are planning a CHRONOLOGICAL WEEK of dressing — a calendar that routes real wardrobe pieces across her agenda. Never output a generic outfit — name exact cuts, fabrications and styling techniques.
+    return `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}${genderDirective(g)} You are planning a CHRONOLOGICAL WEEK of dressing — a calendar that routes real wardrobe pieces across her agenda. Never output a generic outfit — name exact cuts, fabrications and styling techniques.
 
 THE WEEKLY PLAN RULES:
 1. THE CALENDAR IS AUTHORITATIVE. Generate exactly one entry per calendar day listed, in order, with the given day_label verbatim. Where she wrote a plan for a day, dress exactly that plan and derive the "occasion" from it. Where no plan is given, infer a concrete occasion from the brief.
@@ -1450,7 +1487,8 @@ const WEEKLY_DAY_SCHEMA = {
 };
 
 app.post('/api/weekly/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { activity, dayLabel, brief, anchors, weekSummary, name, styleDna, styleIcons, wardrobeItems, context: rtContext } = req.body;
+  const { activity, dayLabel, brief, anchors, weekSummary, name, styleDna, styleIcons, wardrobeItems, context: rtContext, gender } = req.body;
+  const g = normGender(gender);
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
   const n = closetItems.length;
@@ -1474,7 +1512,7 @@ app.post('/api/weekly/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req
     ? `REAL-TIME CONTEXT: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}.`
     : '';
 
-  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. You are dressing ONE day inside an already-planned week. One complete outfit of 4–6 items: top + bottom (or dress), footwear, and the finishing layer/bag/accessory. Never output a generic outfit — name exact cuts, fabrications and styling techniques.
+  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}${genderDirective(g)} You are dressing ONE day inside an already-planned week. One complete outfit of 4–6 items: top + bottom (or dress), footwear, and the finishing layer/bag/accessory. Never output a generic outfit — name exact cuts, fabrications and styling techniques.
 
 ${stateDirective}${anchorBlock ? '\n\n' + anchorBlock : ''}
 
@@ -1729,7 +1767,8 @@ function travelUnderusedItems(capsule, days) {
 }
 
 app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
-  const { destination, dateFrom, dateTo, brief, name, styleDna, styleIcons, wardrobeItems, shortlistIds, anchorIds, dayPlan } = req.body;
+  const { destination, dateFrom, dateTo, brief, name, styleDna, styleIcons, wardrobeItems, shortlistIds, anchorIds, dayPlan, gender } = req.body;
+  const g = normGender(gender);
   if (!destination || !String(destination).trim()) {
     return res.status(400).json({ error: 'Tell us where you’re going first.' });
   }
@@ -1842,7 +1881,7 @@ ${planList}`
   const hardware = suggest - foundations - statements;
 
   function travelSystem(correctiveNote) {
-    return `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. You are building a Capsule Packing Edit & Lookbook for a trip, governed by the StyleAlchemist 4-Core Pillars. Never output a generic outfit — ban flat phrasing ("jeans and a top"); render every look with high descriptive specificity (e.g. "Deep-V tuck the oversized alabaster silk button-down into the wide-leg linen trousers, cinched with the molten gold waist-belt").
+    return `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}${genderDirective(g)} You are building a Capsule Packing Edit & Lookbook for a trip, governed by the StyleAlchemist 4-Core Pillars. Never output a generic outfit — ban flat phrasing ("jeans and a top"); render every look with high descriptive specificity (e.g. "Deep-V tuck the oversized alabaster silk button-down into the wide-leg linen trousers, cinched with the molten gold waist-belt").
 
 THE PILLARS — all four are hard constraints:
 1. THE 1:3 HIGH-YIELD RULE. Every capsule item must appear in AT LEAST THREE different outfits across the lookbook, in at least two distinct dress codes. No single-outfit passengers — if a piece can't earn three wears, it doesn't get packed.
@@ -2046,7 +2085,7 @@ ${shortIdxs.length ? `Pack every shortlisted piece, map the wears each one earns
         if (f > 0) await new Promise(r => setTimeout(r, 3000));
         const item = f === 0 ? null : stills[f - 1];
         const imgPrompt = f === 0
-          ? `PORTRAIT ORIENTATION ONLY. Single editorial travel-fashion photograph — one woman, alone, one scene, no collage, no split panels, no text overlays. ${FULL_BODY_FRAME} ${styleIconsImageLine(styleIcons)}${parsed.location_vibe ? parsed.location_vibe + ' aesthetic. ' : ''}Setting: ${dest}${monthName ? ' in ' + monthName : ''}. She wears a complete look drawn from this capsule: ${capsuleNames}. Soft natural light, luxury resort campaign aesthetic.`
+          ? `PORTRAIT ORIENTATION ONLY. Single editorial travel-fashion photograph — one ${wearerNoun(g)}, alone, one scene, no collage, no split panels, no text overlays. ${FULL_BODY_FRAME} ${styleIconsImageLine(styleIcons)}${parsed.location_vibe ? parsed.location_vibe + ' aesthetic. ' : ''}Setting: ${dest}${monthName ? ' in ' + monthName : ''}. ${wearerWears(g)} a complete look drawn from this capsule: ${capsuleNames}. Soft natural light, luxury resort campaign aesthetic.`
           : `Editorial still-life photograph of a single ${item.name}${item.brand ? ' by ' + item.brand : ''} — ${item.description || ''}. The piece styled alone on a neutral cream-linen surface, soft daylight, quiet luxury catalogue aesthetic. No model, no text, no collage, one item only.`;
         try {
           const r = await Promise.race([
@@ -2140,7 +2179,8 @@ const TRAVEL_DAY_SCHEMA = {
 };
 
 app.post('/api/travel/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { destination, brief, dayIndex, activity, capsule, anchors, weather, name, styleDna, styleIcons } = req.body;
+  const { destination, brief, dayIndex, activity, capsule, anchors, weather, name, styleDna, styleIcons, gender } = req.body;
+  const g = normGender(gender);
   const act = String(activity || '').trim().slice(0, 200);
   const capIn = (Array.isArray(capsule) ? capsule : []).filter(c => c && c.name).slice(0, 20);
   const anchorsIn = (Array.isArray(anchors) ? anchors : [])
@@ -2160,7 +2200,7 @@ app.post('/api/travel/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req
     ? `MICRO-CLIMATE: ${weather.city || dest} — ${weather.tempRange}, mostly ${weather.condition || 'mixed conditions'}.`
     : '';
 
-  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. The user is refining ONE day of an existing capsule lookbook for ${dest}${brief ? ` (trip brief: "${String(brief).slice(0, 300)}")` : ''}. Never output a generic outfit — ban flat phrasing; every "how" line is hyper-specific (cut, fabric, styling move).
+  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}${genderDirective(g)} The user is refining ONE day of an existing capsule lookbook for ${dest}${brief ? ` (trip brief: "${String(brief).slice(0, 300)}")` : ''}. Never output a generic outfit — ban flat phrasing; every "how" line is hyper-specific (cut, fabric, styling move).
 
 THE PACKED CAPSULE (referenced by "item_index"):
 ${capList}
@@ -2231,7 +2271,8 @@ const TRAVEL_OUTFITS_SCHEMA = {
 };
 
 app.post('/api/travel/outfits', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
-  const { destination, brief, dateFrom, dateTo, dayPlan, weather, name, styleDna, styleIcons, capsule } = req.body;
+  const { destination, brief, dateFrom, dateTo, dayPlan, weather, name, styleDna, styleIcons, capsule, gender } = req.body;
+  const g = normGender(gender);
   const capIn = (Array.isArray(capsule) ? capsule : []).filter(c => c && c.name).slice(0, 20);
   if (!capIn.length) return res.status(400).json({ error: 'Missing capsule.' });
   const dest = String(destination || '').trim().slice(0, 120) || 'the trip';
@@ -2258,7 +2299,7 @@ app.post('/api/travel/outfits', rateLimit({ windowMs: 60_000, max: 6 }), async (
       : planDays[i] || '(no plan given — infer a plausible day from the brief and destination)'}`
   ).join('\n');
 
-  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}Unless the brief clearly indicates a male wearer, style for a woman. The user packed a capsule for ${dest}${brief ? ` (trip brief: "${String(brief).slice(0, 300)}")` : ''} and is now planning the outfits, day by day. Never output a generic outfit — ban flat phrasing; every "how" line is hyper-specific (cut, fabric, styling move).
+  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}${genderDirective(g)} The user packed a capsule for ${dest}${brief ? ` (trip brief: "${String(brief).slice(0, 300)}")` : ''} and is now planning the outfits, day by day. Never output a generic outfit — ban flat phrasing; every "how" line is hyper-specific (cut, fabric, styling move).
 
 THE PACKED CAPSULE (referenced by "item_index" — build ONLY from these, never invent an item):
 ${capList}
@@ -2968,14 +3009,15 @@ app.post('/api/stylenotes/tryon', rateLimit({ windowMs: 60_000, max: 6 }), async
 
 /* ── moodboard ───────────────────────────────────────────────────── */
 app.post('/api/moodboard', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { prompt, wardrobeItems = [], styleDna = null, styleIcons = [] } = req.body;
+  const { prompt, wardrobeItems = [], styleDna = null, styleIcons = [], gender } = req.body;
+  const g = normGender(gender);
   if (!prompt?.trim()) return res.status(400).json({ error: 'prompt required' });
 
   const wardrobeCtx = wardrobeItems.length
     ? `The user's wardrobe contains these pieces: ${wardrobeItems.map(i => `${i.label} (${i.category}${i.color ? ', ' + i.color : ''})`).join('; ')}.`
     : 'The user has not yet digitised their wardrobe.';
 
-  const systemPrompt = `You are Robes, an elite personal stylist AI. The user has given you a specific styling brief — your entire response must be tailored to THAT brief. Return ONLY valid JSON with no markdown fences.`;
+  const systemPrompt = `You are Robes, an elite personal stylist AI. ${genderDirective(g)} The user has given you a specific styling brief — your entire response must be tailored to THAT brief. Return ONLY valid JSON with no markdown fences.`;
 
   const userPrompt = `USER'S STYLING BRIEF: "${prompt}"
 
@@ -3019,6 +3061,7 @@ Return this JSON shape (all fields must reflect the user's brief, not a generic 
 
 Rules:
 - the_look: exactly 8 items
+- hero_looks image prompts: the model depicted must be a ${wearerNoun(g)}
 - aesthetic_tags: ALL CAPS, 3–5 tags, relevant to THIS brief
 - Never use generic descriptions — name cuts, fabrics, colours precisely
 - Do NOT default to a London or Wimbledon aesthetic unless the brief says so`;

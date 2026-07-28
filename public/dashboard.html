@@ -2585,14 +2585,23 @@ worn three ways</div>
     window.__robes_profile = {};
     if (_sess2.user) {
       let { data: _profile, error: _pErr } = await _sb.from('profiles')
-        .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description, style_dna, wardrobe_items_count, onboarded_at')
+        .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description, style_dna, wardrobe_items_count, onboarded_at, gender_identity')
         .eq('id', _sess2.user.id).single();
       if (_pErr) {
-        // onboarding_migration.sql not run yet — retry without onboarded_at
-        const retry = await _sb.from('profiles')
-          .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description, style_dna, wardrobe_items_count')
+        // gender_identity_migration.sql not run yet — retry without it
+        // (missing column defaults to 'woman' everywhere it's read)
+        const gRetry = await _sb.from('profiles')
+          .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description, style_dna, wardrobe_items_count, onboarded_at')
           .eq('id', _sess2.user.id).single();
-        _profile = retry.data ? { ...retry.data, onboarded_at: 'unknown' } : null;
+        if (gRetry.data) {
+          _profile = gRetry.data;
+        } else {
+          // onboarding_migration.sql not run yet — retry without onboarded_at
+          const retry = await _sb.from('profiles')
+            .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description, style_dna, wardrobe_items_count')
+            .eq('id', _sess2.user.id).single();
+          _profile = retry.data ? { ...retry.data, onboarded_at: 'unknown' } : null;
+        }
       }
       window.__robes_profile = _profile || {};
       // First-time users go through onboarding. Only redirect when the profile
