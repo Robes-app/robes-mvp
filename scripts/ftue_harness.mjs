@@ -210,21 +210,50 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await page.waitForTimeout(600);
   const l = await page.evaluate(() => {
     const ways = document.getElementById('sn-ways');
+    const cards = ways ? Array.from(ways.querySelectorAll('.svc')) : [];
     return {
       present: !!ways,
       title: document.getElementById('sn-empty-t')?.textContent || '',
       sub: document.getElementById('sn-empty-s')?.textContent || '',
-      routes: ways ? Array.from(ways.querySelectorAll('button')).map((b) => b.getAttribute('onclick')) : [],
-      locked: ways ? /locked/i.test(ways.textContent) : false,
-      count: ways ? /0 of 15 catalogued/.test(ways.textContent) : false,
+      count: cards.length,
+      titles: cards.map((c) => c.querySelector('.svc-title')?.textContent || ''),
+      // the bundle's modal openers must not survive the clone
+      inlineOnclick: cards.filter((c) => c.hasAttribute('onclick')).length,
+      wired: cards.filter((c) => typeof c.onclick === 'function').length,
+      hasImagery: cards.filter((c) => c.querySelector('.svc-img img')).length,
+      lockPills: cards.filter((c) => c.querySelector('.rb-lock-wrap')).length,
+      matchesHome: (() => {
+        const home = Array.from(document.querySelectorAll('.services .svc'))
+          .map((c) => c.querySelector('.svc-title')?.textContent || '');
+        return JSON.stringify(home) === JSON.stringify(cards.map((c) => c.querySelector('.svc-title')?.textContent || ''));
+      })(),
     };
   });
   check('lookbook empty · ways block', l.present);
   check('lookbook empty · title', l.title === 'Nothing saved yet.', l.title);
   check('lookbook empty · subtitle', /filed here/.test(l.sub), l.sub);
-  check('lookbook empty · four routes + add', l.routes.length === 5, JSON.stringify(l.routes));
-  check('lookbook empty · nothing locked', !l.locked);
-  check('lookbook empty · catalogued count', l.count);
+  check('lookbook empty · uses the real concierge cards', l.count === 3, String(l.count));
+  check('lookbook empty · same cards as home', l.matchesHome, JSON.stringify(l.titles));
+  check('lookbook empty · keeps card imagery', l.hasImagery === 3, String(l.hasImagery));
+  check('lookbook empty · no inline modal openers', l.inlineOnclick === 0, String(l.inlineOnclick));
+  check('lookbook empty · no dashboard progress pill', l.lockPills === 0, String(l.lockPills));
+  check('lookbook empty · every card wired', l.wired === 3, String(l.wired));
+
+  // Tapping a card must land on the dashboard prompt, not a modal
+  const routed = await page.evaluate(async () => {
+    document.querySelector('#sn-ways .svc').click();
+    await new Promise((r) => setTimeout(r, 700));
+    const ta = document.getElementById('cb-ta');
+    return {
+      lookbookClosed: document.getElementById('sn-page').style.display === 'none',
+      prompt: ta ? ta.value : '',
+      modalOpen: !!document.querySelector('#tv-brief-modal[style*="flex"], #wk-plan-modal[style*="flex"]'),
+    };
+  });
+  check('lookbook empty · card closes the lookbook', routed.lookbookClosed);
+  check('lookbook empty · card fills the prompt', routed.prompt.length > 0, routed.prompt);
+  check('lookbook empty · card opens no modal', !routed.modalOpen);
+
   await ctx.close();
 }
 

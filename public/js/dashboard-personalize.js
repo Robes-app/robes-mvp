@@ -3415,24 +3415,25 @@
       // ── Lookbook empty state · "Ways to fill it" ──────────────────────
       // An empty lookbook raises exactly one question — so how do I fill it?
       // Its own filters are the concierge's outputs, so the concierge answers
-      // it here, in the invitation register (home keeps it as the live entry
-      // point). Every route is open: all four are built, and a working
-      // feature is never locked behind a count. The block is removed the
-      // moment anything is saved — it never sits above her own looks.
-      const _SN_WAYS = [
-        { k: 'piece',  t: 'Style a key piece', d: 'Pick something you own and Robes builds three looks around it.', c: 'Style a piece →', lead: true },
-        { k: 'daily',  t: 'Daily look',        d: 'One complete outfit for the day ahead, read against the forecast.', c: 'Dress me today →' },
-        { k: 'weekly', t: 'Weekly planner',    d: 'Your week mapped day by day, every outfit routed through your wardrobe.', c: 'Plan my week →' },
-        { k: 'travel', t: 'Travel edit',       d: 'A tight capsule for your next trip, every piece worn several ways.', c: 'Start packing →' },
-      ];
-      window.__snWay = function(kind) {
+      // it, using the REAL .svc cards cloned from the dashboard rather than a
+      // second set of hand-rolled rows: one design, one place to change it.
+      // Every card routes back to the home prompt box with its intent armed —
+      // the prompt is the one front door, so the empty Lookbook never opens a
+      // modal of its own. Removed the moment anything is saved.
+      function _snWayIntent(card) {
+        if (card.classList.contains('svc-daily')) return 'dress-me';
+        const t = (card.querySelector('.svc-title') || {}).textContent || '';
+        const l = t.toLowerCase();
+        if (l.indexOf('week') >= 0) return 'weekly';
+        if (l.indexOf('travel') >= 0 || l.indexOf('pack') >= 0) return 'travel';
+        return 'style';
+      }
+      window.__snWay = function(intent) {
         if (window.__snClose) window.__snClose();
+        // Let the overlay drop before the prompt scrolls itself into view.
         setTimeout(function () {
-          if (kind === 'piece' && window.KP && KP.openKeyPiece) KP.openKeyPiece();
-          else if (kind === 'weekly' && window.__wkOpen) window.__wkOpen();
-          else if (kind === 'travel' && window.__tvOpen) window.__tvOpen();
-          else if (kind === 'daily' && typeof _cbSetIntent === 'function') _cbSetIntent('dress-me');
-        }, 60);
+          if (typeof _cbSetIntent === 'function') _cbSetIntent(intent);
+        }, 80);
       };
       function _snClearWays() {
         const el = document.getElementById('sn-ways');
@@ -3443,34 +3444,36 @@
       function _snPaintWays() {
         _snClearWays();
         const empty = document.getElementById('sn-empty');
-        if (!empty) return;
-        const n = _waItems.length;
-        const lead = _SN_WAYS.find(w => w.lead);
-        const rest = _SN_WAYS.filter(w => !w.lead);
-        const row = w =>
-          '<button onclick="window.__snWay(\'' + w.k + '\')" style="width:100%;text-align:left;border:0.5px solid var(--rule-mid);border-radius:var(--rad-card);background:#fff;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer;font-family:inherit">' +
-            '<span style="display:block">' +
-              '<span style="display:block;font-family:\'Cormorant\',Georgia,serif;font-size:19px;font-weight:300;color:var(--ink)">' + w.t + '</span>' +
-              '<span style="display:block;font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin-top:2px">' + w.d + '</span>' +
-            '</span>' +
-            '<span style="flex-shrink:0;font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)">Open</span>' +
-          '</button>';
+        const svcs = document.querySelectorAll('.services .svc');
+        // The bundle renders the cards after boot — without them there is
+        // nothing to clone, so show the bare empty state rather than a
+        // half-built block, and try again on the next open.
+        if (!empty || !svcs.length) return;
         empty.style.padding = '44px 0 24px';
         const ways = document.createElement('div');
         ways.id = 'sn-ways';
-        ways.style.cssText = 'max-width:560px;margin:30px auto 0;text-align:left';
+        ways.style.cssText = 'margin:34px auto 0;text-align:left';
         ways.innerHTML =
-          '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 14px">' +
-            '<span style="font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)">Ways to fill it</span>' +
-            '<span style="font-size:11px;color:var(--ink-soft)">' + n + ' of ' + _WA_TARGET + ' catalogued</span>' +
-          '</div>' +
-          '<button onclick="window.__snWay(\'' + lead.k + '\')" style="width:100%;text-align:left;border:0.5px solid var(--rule-mid);border-radius:var(--rad-card);background:#fff;padding:20px 22px;cursor:pointer;font-family:inherit;margin-bottom:10px">' +
-            '<span style="display:block;font-family:\'Cormorant\',Georgia,serif;font-size:22px;font-weight:300;color:var(--ink)">' + lead.t + '</span>' +
-            '<span style="display:block;font-size:12px;color:var(--ink-soft);line-height:1.6;margin:6px 0 12px">' + lead.d + ' Available from your first piece.</span>' +
-            '<span style="display:block;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink)">' + lead.c + '</span>' +
-          '</button>' +
-          '<div style="display:flex;flex-direction:column;gap:10px">' + rest.map(row).join('') + '</div>' +
-          '<button onclick="window.WA&&WA.open&&WA.open()" style="width:100%;margin-top:16px;border:none;background:var(--ink);color:#fff;border-radius:100px;padding:16px;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit">Add pieces to your wardrobe +</button>';
+          '<div class="sec-head"><span class="sec-ey">Ways to fill it</span>' +
+          '<span class="sec-meta">Each one starts from the prompt on your dashboard</span></div>' +
+          '<div class="services-grid" id="sn-ways-grid"></div>';
+        const grid = ways.querySelector('#sn-ways-grid');
+        svcs.forEach(function (src) {
+          const card = src.cloneNode(true);
+          // cloneNode carries the inline onclick ATTRIBUTE (the bundle's
+          // modal openers) even where personalize overrode the property —
+          // strip it or the clone reopens the very paths this replaces.
+          card.removeAttribute('onclick');
+          card.removeAttribute('data-comment-anchor');
+          // The cataloguing progress pill belongs to the dashboard card —
+          // here it reads as a gate on an invitation. The wardrobe count
+          // already sits on the dashboard she is being sent back to.
+          const pill = card.querySelector('.rb-lock-wrap');
+          if (pill) pill.remove();
+          const intent = _snWayIntent(src);
+          card.onclick = function () { window.__snWay(intent); };
+          grid.appendChild(card);
+        });
         empty.appendChild(ways);
       }
 
@@ -10171,6 +10174,14 @@
           inject: 'A weekly plan for [my upcoming work week]',
           placeholder: 'Describe your week — meetings, dinners, plans…',
           intent: 'weekly' },
+        // No chip renders this one — it exists so _cbSetIntent('travel') can
+        // arm the prompt from a concierge card (the empty Lookbook routes
+        // every card back here). _cbResolve already routes 'travel'.
+        { id: 'chip-travel', label: 'Pack a trip',
+          cta: 'PACK MY TRIP',
+          inject: 'A travel edit for [five days in Lisbon]',
+          placeholder: 'Where are you going, and when?',
+          intent: 'travel' },
       ];
 
       function _cbGetSendBtn() { return document.querySelector('.cb-send'); }
