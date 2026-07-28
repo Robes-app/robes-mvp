@@ -503,7 +503,7 @@
         <main class="ob-body">
           <div class="ob-eyebrow">${cfg.eyebrow}</div>
           <h1 class="ob-title">${cfg.title}</h1>
-          <p class="ob-sub">${cfg.sub}</p>
+          ${cfg.sub ? `<p class="ob-sub">${cfg.sub}</p>` : ''}
           <div class="ob-input-zone" id="ob-zone"></div>
         </main>
         <footer class="ob-footer">
@@ -526,7 +526,7 @@
     stepChrome(i, {
       step: 'Step 01 · Icons', eyebrow: 'Style',
       title: 'Whose style<br><em>do you love?</em>',
-      sub: 'Add the people and brands you keep coming back to. The more you add, the faster Robes learns your taste.',
+      sub: 'The more you add, the faster Robes learns your taste.',
     });
 
     const zone = document.getElementById('ob-zone');
@@ -714,7 +714,6 @@
     stepChrome(i, {
       step: 'Step 02 · First piece', eyebrow: 'Your wardrobe',
       title: 'Add your first<br><em>key piece.</em>',
-      sub: 'Show Robes one piece you love and it starts styling it before you even reach your dashboard — the label, brand, colour and cut all read from a single photo.',
       continueLabel: P.tag ? 'Continue to your dashboard' : 'Style my first piece',
     });
 
