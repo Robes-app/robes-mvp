@@ -235,30 +235,26 @@
 
       if (daySpan) daySpan.textContent = DAYS[new Date().getDay()];
 
-      // Ambient strip under the greeting, every width. Built from
-      // window.__rbCtx once geolocation + forecast land. The right-hand read
-      // is the condition summary, never the layer hint — styling advice
-      // belongs to the look Robes builds, not the chrome. Falls back to the
-      // place label alone when no summary is available, and never paints at
-      // all when location was denied (nothing calls this).
-      const dashWxEl = document.getElementById('dash-wx');
-      function _rbSyncDashWx() {
-        if (!dashWxEl) return;
+      // Mobile-only ambient strip under the greeting — the nav pill hides
+      // <768px, so this carries the "Monday · Dublin · 20°C" context there.
+      // Built from window.__rbCtx once geolocation + forecast land; stays
+      // hidden until at least day + one of city/temp is known.
+      const mWxEl = document.getElementById('dash-wx-m');
+      function _rbSyncMobileWx(code) {
+        if (!mWxEl) return;
+        const day = DAYS[new Date().getDay()];
         const city = window.__rbCtx.city || '';
         const temp = (window.__rbCtx.tempC != null && !isNaN(window.__rbCtx.tempC)) ? window.__rbCtx.tempC + '°C' : '';
-        const place = [city, temp].filter(Boolean).join(' · ');
-        if (!place) { dashWxEl.classList.remove('on'); return; }
-        dashWxEl.textContent = '';
-        const p = document.createElement('span');
-        p.className = 'place';
-        p.textContent = place;
-        dashWxEl.appendChild(p);
-        const read = window.__rbCtx.condition || '';
-        if (read) {
-          const sep = document.createElement('span'); sep.className = 'sep'; dashWxEl.appendChild(sep);
-          const r = document.createElement('span'); r.className = 'read'; r.textContent = read; dashWxEl.appendChild(r);
-        }
-        dashWxEl.classList.add('on');
+        const parts = [day, city, temp].filter(Boolean);
+        if (parts.length < 2) { mWxEl.classList.remove('on'); return; }
+        mWxEl.textContent = '';
+        const icon = (code !== undefined && WX_ICONS[code]) || '';
+        if (icon) { const s = document.createElement('span'); s.className = 'wx'; s.textContent = icon; mWxEl.appendChild(s); }
+        parts.forEach((p, i) => {
+          if (i > 0 || icon) { const d = document.createElement('span'); d.className = 'dot'; mWxEl.appendChild(d); }
+          const s = document.createElement('span'); s.textContent = p; mWxEl.appendChild(s);
+        });
+        mWxEl.classList.add('on');
       }
 
       function layerHint(tmin, tmax, code) {
@@ -290,7 +286,7 @@
               const city = geoData.address?.city || geoData.address?.town ||
                            geoData.address?.village || geoData.address?.county || '';
               if (city && citySpan) citySpan.textContent = city;
-              if (city) { window.__rbCtx.city = city; _rbSyncDashWx(); }
+              if (city) { window.__rbCtx.city = city; _rbSyncMobileWx(); }
 
               // Weather from Open-Meteo (free, no API key)
               const wxRes = await fetch(
@@ -309,7 +305,7 @@
               if (code !== undefined && WX_TEXT[code]) window.__rbCtx.condition = WX_TEXT[code];
               window.__rbCtx.hint = layerHint(tmin, tmax, code);
               if (window.__rbCtx.city || window.__rbCtx.tempC != null) weatherEl.style.visibility = '';
-              _rbSyncDashWx();
+              _rbSyncMobileWx(code);
             } catch (e) { /* keep the strip hidden on error */ }
             resolve();
           }, () => resolve() /* permission denied — strip stays hidden */);
