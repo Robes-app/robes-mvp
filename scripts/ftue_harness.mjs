@@ -101,7 +101,6 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     const cols = Array.from(document.querySelectorAll('#wtrk-ms .rb-ms-col')).map((c) => ({
       at: c.querySelector('.rb-ms-at')?.textContent,
       label: c.querySelector('.rb-ms-lbl')?.textContent,
-      status: c.querySelector('.rb-ms-st')?.textContent,
       on: c.classList.contains('on'),
     }));
     return {
@@ -113,6 +112,9 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       fill: document.querySelector('#wtrk-ms .rb-ms-fill')?.style.width || '',
       cols,
       styleNotes: !!document.getElementById('rb-sil-prompt'),
+      hasStatus: !!document.querySelector('#wtrk-ms .rb-ms-st'),
+      msText: (document.getElementById('wtrk-ms')?.textContent || '').trim(),
+      trackerH: Math.round(document.getElementById('wtrk')?.getBoundingClientRect().height || 0),
       railAfterConcierge: (() => {
         const c = dash?.querySelector('.concierge');
         return !!c && c.nextElementSibling?.id === 'rb-rail';
@@ -144,6 +146,11 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       JSON.stringify(state.order));
   }
 
+  // The section must stay near its pre-FTUE height (was 337-353 desktop)
+  if (n <= 15) {
+    check(`n=${n} · tracker height <= 380`, state.trackerH <= 380, String(state.trackerH));
+  }
+
   // Milestone bar shape + fill
   if (n <= 15) {
     check(`n=${n} · four milestones`, state.cols.length === 4, JSON.stringify(state.cols));
@@ -158,17 +165,15 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       state.num.replace(/\s+/g, ' ').trim() === `${n} / 15`, state.num);
   }
 
-  // Status ladder: passed = Unlocked/Just unlocked, next = "k away", rest Locked
+  // No per-tick status text anywhere — "Locked" would be a lie, and the
+  // headline already carries earned/next. Lit state = passed or next target.
   if (n <= 15) {
-    const ladder = state.cols.map((c) => c.status);
+    check(`n=${n} · no status text`,
+      !state.hasStatus && !/locked/i.test(state.msText), state.msText);
     const ats = [3, 5, 10, 15];
     const nextIdx = ats.findIndex((a) => a > n);
-    const ok = ladder.every((s, i) => {
-      if (n >= ats[i]) return s === 'Unlocked' || s === 'Just unlocked';
-      if (i === nextIdx) return s === `${ats[i] - n} away`;
-      return s === 'Locked';
-    });
-    check(`n=${n} · status ladder`, ok, ladder.join('|'));
+    const litOk = state.cols.every((c, i) => c.on === (n >= ats[i] || i === nextIdx));
+    check(`n=${n} · lit milestones`, litOk, state.cols.map((c) => c.at + ':' + c.on).join('|'));
   }
 
   if (n === 0) {

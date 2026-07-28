@@ -576,7 +576,7 @@
               '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px">' +
                 '<div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)">What pieces unlock</div>' +
                 '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:19px;color:var(--ink)">0<span style="color:var(--ink-faint)"> / ' + _WA_TARGET + '</span></div>' +
-              '</div>' + _msBarHtml(0, { status: false });
+              '</div>' + _msBarHtml(0);
             frag.appendChild(unlocks);
           } else if (!filtered.length) {
             // Filter miss is NOT the empty wardrobe — say so, offer the way back.
@@ -669,12 +669,6 @@
         return reach;
       }
 
-      function _msStatus(u, n) {
-        if (n >= u.at) return _msCrossed[u.key] ? 'Just unlocked' : 'Unlocked';
-        const next = _msNext(n);
-        return (next && next.key === u.key) ? (u.at - n) + ' away' : 'Locked';
-      }
-
       function _msEnsureCss() {
         if (document.getElementById('rb-ms-style')) return;
         const st = document.createElement('style');
@@ -682,30 +676,31 @@
         // --ms-locked is the one tone with no token: light enough to read as
         // not-yet-earned, dark enough to sit visibly on the track.
         st.textContent =
-          '.rb-ms{--ms-locked:#C4B8A4;display:flex;flex-direction:column;gap:12px}' +
+          '.rb-ms{--ms-locked:#C4B8A4;display:flex;flex-direction:column;gap:9px}' +
           '.rb-ms-track{position:relative;height:3px;background:var(--cream-400);border-radius:2px}' +
           '.rb-ms-fill{position:absolute;left:0;top:0;bottom:0;background:var(--ink);border-radius:2px;' +
             'transition:width 650ms cubic-bezier(0.4,0,0.2,1)}' +
           '.rb-ms-tick{position:absolute;top:-3px;width:1px;height:9px;background:var(--ms-locked)}' +
           '.rb-ms-tick.on{background:var(--ink-soft)}' +
           '.rb-ms-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}' +
-          '.rb-ms-col{display:flex;flex-direction:column;gap:3px}' +
-          '.rb-ms-at{font-family:var(--font-serif);font-size:17px;color:var(--ms-locked);line-height:1}' +
+          '.rb-ms-col{display:flex;align-items:baseline;gap:5px;min-width:0}' +
+          '.rb-ms-at{font-family:var(--font-serif);font-size:13px;line-height:1;color:var(--ms-locked);flex:none}' +
           '.rb-ms-col.on .rb-ms-at{color:var(--ink)}' +
-          '.rb-ms-lbl{font-size:10px;font-weight:400;line-height:1.35;min-height:27px;color:var(--ink-soft)}' +
+          '.rb-ms-lbl{font-size:10px;line-height:1.3;color:var(--ink-soft)}' +
           '.rb-ms-col.on .rb-ms-lbl{color:var(--ink)}' +
-          '.rb-ms-st{font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ms-locked)}' +
-          '.rb-ms-col.on .rb-ms-st{color:var(--ink)}' +
+          '@media(max-width:520px){.rb-ms-col{flex-direction:column;align-items:flex-start;gap:1px}}' +
           '@media(prefers-reduced-motion:reduce){.rb-ms-fill{transition:none}}';
         document.head.appendChild(st);
       }
 
       // The one milestone bar — home progress card and the wardrobe empty
       // state render the identical component so the promise reads the same
-      // in both places. opts.status = false drops the per-tick status line.
-      function _msBarHtml(n, opts) {
+      // in both places. Structure only: no per-tick status text. "Locked"
+      // would be a lie (every edit is built and open), "n away" repeats the
+      // headline, and "unlocked" is already carried by the tick and numeral
+      // going dark — so the headline states, the bar shows.
+      function _msBarHtml(n) {
         _msEnsureCss();
-        const showStatus = !opts || opts.status !== false;
         const pct = Math.min(100, (n / _WA_TARGET) * 100);
         const ticks = _MS_UNLOCKS.map(u =>
           '<div class="rb-ms-tick' + (n >= u.at ? ' on' : '') + '" style="left:' + (u.at / _WA_TARGET * 100) + '%"></div>'
@@ -714,9 +709,8 @@
         const cols = _MS_UNLOCKS.map(u => {
           const lit = n >= u.at || (next && next.key === u.key);
           return '<div class="rb-ms-col' + (lit ? ' on' : '') + '">' +
-            '<div class="rb-ms-at">' + String(u.at).padStart(2, '0') + '</div>' +
-            '<div class="rb-ms-lbl">' + u.label + '</div>' +
-            (showStatus ? '<div class="rb-ms-st">' + _msStatus(u, n) + '</div>' : '') +
+            '<span class="rb-ms-at">' + String(u.at).padStart(2, '0') + '</span>' +
+            '<span class="rb-ms-lbl">' + u.label + '</span>' +
           '</div>';
         }).join('');
         return '<div class="rb-ms">' +
