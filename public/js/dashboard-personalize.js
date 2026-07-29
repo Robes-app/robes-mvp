@@ -1427,72 +1427,210 @@
             : [];
           window.__waSawFit = fitPills.slice();
 
-          function _renderFitPills() {
+          // `sync` is set on the pill-removal path only — the initial render
+          // must not pre-paint the Cut row ahead of the ledger reveal.
+          function _renderFitPills(sync) {
             const container = document.getElementById('rb-fit-pills');
             if (!container) return;
             container.innerHTML = window.__waSawFit.map(function(p, i) {
               return `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C8B8A2;border-radius:20px;font-size:12px;color:#4A3F35;background:#FAF8F5;white-space:nowrap;">${p}<button onclick="window.__rbRemovePill(${i})" style="background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:13px;line-height:1;padding:0;margin-left:2px;">×</button></span>`;
             }).join('');
+            if (sync && window.__rbSawSync) window.__rbSawSync(4, window.__waSawFit.slice(0, 2).join(' · ') || '—');
           }
           window.__rbRemovePill = function(i) {
             window.__waSawFit.splice(i, 1);
             if (window.__waSawItemDna && window.__waSawItemDna.structural_dna) {
               window.__waSawItemDna.structural_dna.silhouette_fit = window.__waSawFit.slice();
             }
-            _renderFitPills();
+            _renderFitPills(true);
           };
 
           const aiNotes = (tag.item_dna && tag.item_dna.ai_generated_notes) || tag.notes || '';
 
+          // ── The reveal (wardrobe-logging rework 2026-07-29) ─────────────
+          // The onboarding filing "magic" — tag pops over the photo, the
+          // "What Robes files" ledger filling row by row — plays on EVERY
+          // add; the full correction form (label/category/brand/swatches/
+          // pills/notes + the progressive-capture expander) collapses behind
+          // one "Adjust the details" row. Info on demand, wow by default.
+          function _sawEsc(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+          }
+          if (!document.getElementById('rb-wa-saw-style')) {
+            const sawSt = document.createElement('style');
+            sawSt.id = 'rb-wa-saw-style';
+            sawSt.textContent =
+              '.rb-saw-panel{position:relative;height:260px;border-radius:var(--rad);overflow:hidden;background:#1A1410;margin-bottom:14px}' +
+              '.rb-saw-panel>img{width:100%;height:100%;object-fit:cover;display:block}' +
+              '.rb-saw-retake{position:absolute;top:10px;right:10px;z-index:5;background:rgba(250,248,245,0.92);border:1px solid #D8CEBC;border-radius:100px;padding:6px 13px;font-size:12px;color:#6A5E54;cursor:pointer;font-family:inherit}' +
+              '.rb-saw-tag{position:absolute;display:inline-flex;align-items:center;gap:7px;background:rgba(250,248,245,0.94);border:1px solid #E3DCD0;border-radius:100px;padding:6px 10px;font-weight:500;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#2A2520;white-space:nowrap;max-width:84%;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 10px rgba(32,32,33,0.18);opacity:0;animation:rbSawPop .5s cubic-bezier(0.22,1,0.36,1) both;z-index:3}' +
+              ".rb-saw-tag::before{content:'';width:5px;height:5px;border-radius:50%;background:#AE9290;flex:none}" +
+              '.rb-saw-banner{position:absolute;left:10px;right:10px;bottom:10px;z-index:3;background:rgba(32,32,33,0.86);color:#FAF8F5;border-radius:2px;padding:11px 14px;font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:16px;letter-spacing:0.01em;text-align:center;opacity:0;animation:rbSawPop .55s cubic-bezier(0.22,1,0.36,1) both}' +
+              '@keyframes rbSawPop{from{opacity:0;transform:translateY(6px) scale(0.7)}60%{opacity:1;transform:translateY(0) scale(1.04)}to{opacity:1;transform:none}}' +
+              '.rb-saw-read{list-style:none;margin:0 0 14px;padding:0}' +
+              '.rb-saw-row{display:flex;align-items:baseline;gap:14px;padding:9px 2px;border-bottom:1px solid #EFE9DF}' +
+              '.rb-saw-num{font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:15px;color:#C9BCA6;width:18px;flex:none}' +
+              '.rb-saw-lbl{flex:1;font-weight:500;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#9A8070;align-self:center}' +
+              '.rb-saw-val{font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:16px;color:#2A2520;text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+              '.rb-saw-val.is-on{color:#B9AC96;font-style:italic;animation:rbSawPulse 1.4s ease-in-out infinite}' +
+              '@keyframes rbSawPulse{0%,100%{opacity:1}50%{opacity:.45}}' +
+              '.rb-saw-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;background:#FAF8F5;border:1px solid #E3DCD0;border-radius:var(--rad-sm);padding:12px 14px;font-size:13px;color:#6A5E54;cursor:pointer;font-family:inherit;margin-bottom:14px;box-sizing:border-box}' +
+              '.rb-saw-toggle svg{transition:transform .25s ease;flex:none}' +
+              '.rb-saw-toggle.open svg{transform:rotate(180deg)}' +
+              '@media(prefers-reduced-motion:reduce){.rb-saw-tag,.rb-saw-banner{animation-duration:0s}.rb-saw-val.is-on{animation:none}}';
+            document.head.appendChild(sawSt);
+          }
+
+          const dna = tag.item_dna || {};
+          const edColor = (dna.display && dna.display.editorial_color_name) || initColor;
+          // A readable piece gets the theatre; an unreadable one goes straight
+          // to the (expanded) form — there is nothing to celebrate yet.
+          const readable = !!tag.label;
+          const ledgerVals = [
+            tag.label || '',
+            tag.category || '',
+            tag.brand || (dna.display && dna.display.brand_raw) || 'Unlabelled',
+            edColor || 'Read',
+            fitPills.slice(0, 2).join(' · ') || '—',
+          ];
+          const LEDGER_LBLS = ['The piece', 'Category', 'Brand', 'Colour', 'Cut'];
+          const SAW_SPOTS = [
+            { top: '10%', left: '8%' },
+            { top: '30%', right: '8%' },
+            { top: '52%', left: '10%' },
+            { top: '68%', right: '12%' },
+          ];
+          const chips = [];
+          if (tag.category) chips.push(tag.category);
+          if (edColor) chips.push(edColor);
+          if (tag.brand) chips.push(tag.brand);
+          fitPills.forEach(function(f) { if (chips.length < SAW_SPOTS.length) chips.push(f); });
+
+          const tagsHtml = readable
+            ? chips.map(function(c, idx) {
+                const s = SAW_SPOTS[idx];
+                const pos = 'top:' + s.top + ';' + (s.left ? 'left:' + s.left : 'right:' + s.right) + ';';
+                return `<span class="rb-saw-tag" style="${pos}animation-delay:${(0.15 + idx * 0.4).toFixed(2)}s">${_sawEsc(c)}</span>`;
+              }).join('') +
+              `<span class="rb-saw-banner" style="animation-delay:${(0.35 + chips.length * 0.4).toFixed(2)}s">${_sawEsc(tag.label)}</span>`
+            : '';
+
+          const ledgerHtml = readable
+            ? `<ul class="rb-saw-read" id="rb-saw-read">${LEDGER_LBLS.map(function(l, idx) {
+                return `<li class="rb-saw-row"><span class="rb-saw-num">${String(idx + 1).padStart(2, '0')}</span><span class="rb-saw-lbl">${l}</span><span class="rb-saw-val is-on">Reading</span></li>`;
+              }).join('')}</ul>`
+            : '';
+
           step.innerHTML = `
             ${_waBatchTag()}
             <h2 class="fm-h" style="margin-bottom:4px;">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
-            <p style="font-size:13px;color:var(--ink-faint);margin:0 0 16px;">${tag.label ? `Pre-filled from your photo. Adjust anything that isn't quite right.` : `Robes couldn't quite read this one — give it a name and it files all the same.`}</p>
-            <div style="display:flex;align-items:center;gap:12px;background:#F0EBE3;border-radius:10px;padding:10px 14px;margin-bottom:16px;">
-              <img id="wa-saw-thumb" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:10px;letter-spacing:0.12em;color:#9A8070;margin-bottom:2px;">${tag.label ? '✦ ROBES FILLED THIS IN' : '✦ NAME THIS PIECE'}</div>
-                <div style="font-size:12px;color:#6A5E54;">${tag.label ? 'Glance over it, tweak anything, then save.' : 'A name and category is all it needs.'}</div>
+            <p style="font-size:13px;color:var(--ink-faint);margin:0 0 16px;">${readable ? `Filed from your photo — adjust the details only if something isn't quite right.` : `Robes couldn't quite read this one — give it a name and it files all the same.`}</p>
+            <div class="rb-saw-panel" id="rb-saw-panel">
+              <img id="wa-saw-photo" alt="">
+              ${tagsHtml}
+              <button type="button" class="rb-saw-retake" onclick="window.__waRetake&&window.__waRetake()">↺ Retake</button>
+            </div>
+            ${ledgerHtml}
+            <button type="button" class="rb-saw-toggle" id="rb-saw-toggle" onclick="window.__rbSawExpand&&window.__rbSawExpand()">
+              <span>✎ Adjust the details</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9A8070" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div id="rb-saw-edit" style="display:none;">
+              <div style="margin-bottom:12px;">
+                <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">THE PIECE</label>
+                <input id="wa-saw-label" value="${(tag.label||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:15px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawLabel=this.value;window.__rbSawSync&&window.__rbSawSync(0,this.value)">
               </div>
-              <button onclick="window.__waRetake&&window.__waRetake()" style="background:#fff;border:1px solid #D8CEBC;border-radius:20px;padding:6px 14px;font-size:12px;color:#6A5E54;cursor:pointer;white-space:nowrap;font-family:inherit;">↺ Retake</button>
-            </div>
-            <div style="margin-bottom:12px;">
-              <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">THE PIECE</label>
-              <input id="wa-saw-label" value="${(tag.label||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:15px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawLabel=this.value">
-            </div>
-            <div style="display:flex;gap:10px;margin-bottom:12px;">
-              <div style="flex:1;">
-                <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">CATEGORY</label>
-                <select id="wa-saw-cat" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" onchange="window.__waSawCat=this.value">
-                  ${cats.map(o => `<option${tag.category===o?' selected':''}>${o}</option>`).join('')}
-                </select>
+              <div style="display:flex;gap:10px;margin-bottom:12px;">
+                <div style="flex:1;">
+                  <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">CATEGORY</label>
+                  <select id="wa-saw-cat" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" onchange="window.__waSawCat=this.value;window.__rbSawSync&&window.__rbSawSync(1,this.value)">
+                    ${cats.map(o => `<option${tag.category===o?' selected':''}>${o}</option>`).join('')}
+                  </select>
+                </div>
+                <div style="flex:1;">
+                  <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">BRAND</label>
+                  <input id="wa-saw-brand" value="${(tag.brand||'').replace(/"/g,'&quot;')}" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawBrand=this.value;window.__rbSawSync&&window.__rbSawSync(2,this.value||'Unlabelled')">
+                </div>
               </div>
-              <div style="flex:1;">
-                <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">BRAND</label>
-                <input id="wa-saw-brand" value="${(tag.brand||'').replace(/"/g,'&quot;')}" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawBrand=this.value">
+              <div style="margin-bottom:12px;">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;">
+                  <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);">COLOUR</label>
+                  <span id="rb-sw-label" style="font-size:12px;color:#6A5E54;font-style:italic;">${initColor}</span>
+                </div>
+                ${rowsHTML}
               </div>
-            </div>
-            <div style="margin-bottom:12px;">
-              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;">
-                <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);">COLOUR</label>
-                <span id="rb-sw-label" style="font-size:12px;color:#6A5E54;font-style:italic;">${initColor}</span>
+              ${fitPills.length ? `<div style="margin-bottom:12px;">
+                <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:8px;">SILHOUETTE &amp; FIT</label>
+                <div id="rb-fit-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+              </div>` : ''}
+              <div style="margin-bottom:16px;">
+                <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">NOTES <span style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-faint);">optional</span></label>
+                <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${aiNotes.replace(/</g,'&lt;')}</textarea>
               </div>
-              ${rowsHTML}
+              <div id="rb-wa-detail-host"></div>
             </div>
-            ${fitPills.length ? `<div style="margin-bottom:12px;">
-              <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:8px;">SILHOUETTE &amp; FIT</label>
-              <div id="rb-fit-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
-            </div>` : ''}
-            <div style="margin-bottom:16px;">
-              <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">NOTES <span style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-faint);">optional</span></label>
-              <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${aiNotes.replace(/</g,'&lt;')}</textarea>
-            </div>
-            <div id="rb-wa-detail-host"></div>
             <button id="wa-saw-cta" onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:var(--rad-sm);font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
 
-          // Set thumbnail src via DOM (not innerHTML) so large data URLs aren't truncated
-          const thumbEl = document.getElementById('wa-saw-thumb');
-          if (thumbEl) thumbEl.src = dataUrl;
+          // Set the photo src via DOM (not innerHTML) so large data URLs aren't truncated
+          const photoEl = document.getElementById('wa-saw-photo');
+          if (photoEl) photoEl.src = dataUrl;
+
+          // Live sync: an edit in the collapsed form updates the ledger row
+          // (and the photo banner for the name) so the reveal never lies.
+          window.__rbSawSync = function(idx, txt) {
+            ledgerVals[idx] = txt;
+            const spans = document.querySelectorAll('#rb-saw-read .rb-saw-val');
+            if (spans[idx]) { spans[idx].textContent = txt; spans[idx].className = 'rb-saw-val'; }
+            if (idx === 0) {
+              const b = document.querySelector('#rb-saw-panel .rb-saw-banner');
+              if (b) b.textContent = txt;
+            }
+          };
+
+          // The collapsed details editor. force=true (empty-label guard) always opens.
+          window.__rbSawExpand = function(force) {
+            const box = document.getElementById('rb-saw-edit');
+            const tg = document.getElementById('rb-saw-toggle');
+            if (!box) return;
+            const open = force === true ? true : box.style.display === 'none';
+            box.style.display = open ? 'block' : 'none';
+            if (tg) {
+              tg.classList.toggle('open', open);
+              const lbl = tg.querySelector('span');
+              if (lbl) lbl.textContent = open ? 'Hide the details' : '✎ Adjust the details';
+            }
+          };
+
+          // Swatch picks route through the shared __rbPickSwatch — sync the
+          // Colour ledger row off the committed value a tick later.
+          const editBox = document.getElementById('rb-saw-edit');
+          if (editBox) {
+            editBox.addEventListener('click', function(e) {
+              if (e.target && e.target.closest && e.target.closest('button[aria-label]')) {
+                setTimeout(function() { window.__rbSawSync && window.__rbSawSync(3, window.__waSawColor || ''); }, 0);
+              }
+            });
+          }
+
+          // The filing reveal — ledger rows fill one at a time, mirroring
+          // onboarding's revealLedger. Bails silently if the step re-renders
+          // (retake, batch advance) mid-play.
+          if (readable) {
+            let rc = 0;
+            const revealTick = function() {
+              const spans = document.querySelectorAll('#rb-saw-read .rb-saw-val');
+              if (!spans.length) return;
+              spans.forEach(function(sp, idx) {
+                const done = idx < rc;
+                sp.textContent = done ? ledgerVals[idx] : 'Reading';
+                sp.className = 'rb-saw-val' + (done ? '' : ' is-on');
+              });
+              if (rc < ledgerVals.length) { rc++; setTimeout(revealTick, 420); }
+            };
+            setTimeout(revealTick, 250);
+          } else {
+            window.__rbSawExpand(true);
+          }
 
           // Render pills after innerHTML is set
           _renderFitPills();
@@ -1511,7 +1649,10 @@
             if (!step) return;
             // The bundle's WA.submit silently returns on an empty label, which
             // would leave the CTA stuck on "Saving…" — catch it here instead.
+            // The name field lives in the collapsed details editor, so open it
+            // before pointing at it.
             if (!(window.__waSawLabel || '').trim()) {
+              if (window.__rbSawExpand) window.__rbSawExpand(true);
               const nameEl = document.getElementById('wa-saw-label');
               if (nameEl) {
                 nameEl.style.borderColor = '#B0533B';
