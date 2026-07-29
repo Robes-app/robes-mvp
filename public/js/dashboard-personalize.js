@@ -1339,7 +1339,7 @@
             <h2 class="fm-h" style="margin-bottom:4px;">Reading your piece…</h2>
             <p style="font-size:14px;color:var(--ink-faint);margin:0 0 16px;">One moment — Robes is looking at the photo.</p>
             <div style="position:relative;height:280px;border-radius:var(--rad);overflow:hidden;background:#1A1410;">
-              <img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;display:block;opacity:0.85;">
+              <img src="${dataUrl}" style="width:100%;height:100%;object-fit:contain;display:block;opacity:0.85;">
               <div style="position:absolute;inset:0;background:rgba(10,8,6,0.18);pointer-events:none;"></div>
               <div style="position:absolute;left:0;right:0;height:2px;animation:rb-scan-line 2.2s linear infinite;pointer-events:none;">
                 <div style="height:2px;background:linear-gradient(to right,transparent,rgba(255,255,255,0.9),transparent);box-shadow:0 0 12px 3px rgba(255,255,255,0.35);animation:rb-scan-glow 2.2s ease-in-out infinite;"></div>
@@ -1460,8 +1460,14 @@
             const sawSt = document.createElement('style');
             sawSt.id = 'rb-wa-saw-style';
             sawSt.textContent =
-              '.rb-saw-panel{position:relative;height:260px;border-radius:var(--rad);overflow:hidden;background:#1A1410;margin-bottom:14px}' +
-              '.rb-saw-panel>img{width:100%;height:100%;object-fit:cover;display:block}' +
+              // contain, never cover — a portrait garment photo in this wide
+              // frame would otherwise zoom until its width fills the box,
+              // cropping the piece top and bottom (beta report 2026-07-29).
+              // The dark panel letterboxes the spare space like a specimen
+              // plate; the tags sit on the panel, not the image, so their
+              // spots are unaffected.
+              '.rb-saw-panel{position:relative;height:300px;border-radius:var(--rad);overflow:hidden;background:#1A1410;margin-bottom:14px}' +
+              '.rb-saw-panel>img{width:100%;height:100%;object-fit:contain;display:block}' +
               '.rb-saw-retake{position:absolute;top:10px;right:10px;z-index:5;background:rgba(250,248,245,0.92);border:1px solid #D8CEBC;border-radius:100px;padding:6px 13px;font-size:12px;color:#6A5E54;cursor:pointer;font-family:inherit}' +
               '.rb-saw-tag{position:absolute;display:inline-flex;align-items:center;gap:7px;background:rgba(250,248,245,0.94);border:1px solid #E3DCD0;border-radius:100px;padding:6px 10px;font-weight:500;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#2A2520;white-space:nowrap;max-width:84%;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 10px rgba(32,32,33,0.18);opacity:0;animation:rbSawPop .5s cubic-bezier(0.22,1,0.36,1) both;z-index:3}' +
               ".rb-saw-tag::before{content:'';width:5px;height:5px;border-radius:50%;background:#AE9290;flex:none}" +

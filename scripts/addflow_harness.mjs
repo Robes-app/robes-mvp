@@ -110,8 +110,10 @@ const browser = await chromium.launch(
   const scan = await page.evaluate(() => ({
     heading: document.querySelector('#wa-modal .fm-h')?.textContent || '',
     readTxt: !!document.getElementById('wa-read-txt'),
+    fit: (() => { const i = document.querySelector('#wa-modal .fm-step img'); return i ? getComputedStyle(i).objectFit : ''; })(),
   }));
   check('step2 · scan screen shows', /Reading your piece/.test(scan.heading) && scan.readTxt, scan.heading);
+  check('step2 · photo contained, never cropped', scan.fit === 'contain', scan.fit);
 
   await page.waitForSelector('#rb-saw-panel', { timeout: 8000 });
   const early = await page.evaluate(() => ({
@@ -130,6 +132,9 @@ const browser = await chromium.launch(
   check('step3 · details collapsed by default', early.collapsed);
   check('step3 · photo set', early.photo);
   check('step3 · CTA present', /ADD TO WARDROBE/.test(early.cta), early.cta);
+  const revealFit = await page.evaluate(() =>
+    getComputedStyle(document.getElementById('wa-saw-photo')).objectFit);
+  check('step3 · photo contained, never cropped', revealFit === 'contain', revealFit);
 
   await page.waitForTimeout(2800);
   const settled = await page.evaluate(() =>
