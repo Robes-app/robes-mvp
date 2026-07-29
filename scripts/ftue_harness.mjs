@@ -111,6 +111,15 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       num: document.getElementById('wtrk-num')?.textContent || '',
       fill: document.querySelector('#wtrk-ms .rb-ms-fill')?.style.width || '',
       cols,
+      tickLefts: Array.from(document.querySelectorAll('#wtrk-ms .rb-ms-tick')).map((t) => t.style.left),
+      trackMask: (() => {
+        const t = document.querySelector('#wtrk-ms .rb-ms-track');
+        if (!t) return '';
+        const cs = getComputedStyle(t);
+        return cs.maskImage && cs.maskImage !== 'none' ? cs.maskImage : (cs.webkitMaskImage || '');
+      })(),
+      pill: document.querySelector('.svc-daily .rb-lock-pill')?.textContent || '',
+      eyebrow: document.querySelector('#wtrk .wtrk-ey')?.textContent || '',
       styleNotes: !!document.getElementById('rb-sil-prompt'),
       hasStatus: !!document.querySelector('#wtrk-ms .rb-ms-st'),
       msText: (document.getElementById('wtrk-ms')?.textContent || '').trim(),
@@ -151,18 +160,45 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     check(`n=${n} · tracker height <= 380`, state.trackerH <= 380, String(state.trackerH));
   }
 
-  // Milestone bar shape + fill
+  // Milestone bar shape + fill — the LEARNING meter (2026-07-29): capability
+  // copy, a 20-piece track with the last milestone at 78%, a faded final
+  // quarter, and NO denominator anywhere on the card.
   if (n <= 15) {
     check(`n=${n} · four milestones`, state.cols.length === 4, JSON.stringify(state.cols));
-    check(`n=${n} · labels`,
+    check(`n=${n} · capability labels`,
       state.cols.map((c) => c.at + ' ' + c.label).join('|') ===
-      '03 Daily look|05 Weekly planner|10 Travel edit|15 Style notes',
+      '03 Dresses today|05 Plans your week|10 Packs your trips|15 Knows your taste',
       state.cols.map((c) => c.at + ' ' + c.label).join('|'));
-    const want = Math.min(100, (n / 15) * 100);
+    check(`n=${n} · ticks at 15/25/50/78%`,
+      state.tickLefts.join('|') === '15%|25%|50%|78%', state.tickLefts.join('|'));
+    const pts = [[0, 0], [3, 15], [5, 25], [10, 50], [15, 78], [20, 100]];
+    const want = (() => {
+      for (let i = 1; i < pts.length; i++) {
+        if (n <= pts[i][0]) {
+          const a = pts[i - 1], b = pts[i];
+          return a[1] + ((n - a[0]) / (b[0] - a[0])) * (b[1] - a[1]);
+        }
+      }
+      return 100;
+    })();
     check(`n=${n} · fill ${want.toFixed(1)}%`,
       Math.abs(parseFloat(state.fill) - want) < 0.6, `got ${state.fill}`);
-    check(`n=${n} · count reads ${n} / 15`,
-      state.num.replace(/\s+/g, ' ').trim() === `${n} / 15`, state.num);
+    check(`n=${n} · track fades out (no endpoint)`,
+      /gradient/.test(state.trackMask), state.trackMask.slice(0, 80));
+    const numText = state.num.replace(/\s+/g, ' ').trim();
+    check(`n=${n} · bare count, "pieces filed" beneath`,
+      new RegExp(`^${n}\\s*Pieces? filed$`, 'i').test(numText), numText);
+    check(`n=${n} · no denominator on the card`,
+      !/\/\s*\d|of 15/i.test(numText + ' ' + state.head + ' ' + state.msText),
+      numText + ' | ' + state.head);
+    check(`n=${n} · eyebrow reads "Robes is learning"`,
+      state.eyebrow === 'Robes is learning', state.eyebrow);
+  }
+
+  // Concierge progress pill (visible 3–14): no fraction, no lock language
+  if (n >= 3 && n < 15) {
+    check(`n=${n} · concierge pill carries no fraction`,
+      state.pill.length > 0 && !/\/\s*\d|of 15|unlock|lock/i.test(state.pill), state.pill);
   }
 
   // No per-tick status text anywhere — "Locked" would be a lie, and the
@@ -197,12 +233,17 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     headline: document.querySelector('#wg-grid div')?.textContent || '',
     hasBar: !!document.querySelector('#wg-grid .rb-ms'),
     barHasStatus: !!document.querySelector('#wg-grid .rb-ms-st'),
+    unlocksText: (document.querySelector('#wg-grid .rb-ms')?.closest('div[style]')?.textContent || '').replace(/\s+/g, ' '),
     ghosts: document.querySelectorAll('#wg-grid .rb-ghost-card').length,
     prose: (document.querySelector('#wg-grid p') || {}).textContent || '',
   }));
   check('wardrobe empty · serif line', /Every look starts with a photograph/.test(w.headline), w.headline.slice(0, 80));
   check('wardrobe empty · milestone bar shown', w.hasBar);
   check('wardrobe empty · bar drops status line', !w.barHasStatus);
+  check('wardrobe empty · header reads "What more pieces bring"',
+    /What more pieces bring/i.test(w.unlocksText), w.unlocksText.slice(0, 90));
+  check('wardrobe empty · no denominator, no unlock language',
+    !/\/\s*\d|of 15|unlock/i.test(w.unlocksText), w.unlocksText.slice(0, 90));
   check('wardrobe empty · two ghost tiles', w.ghosts === 2, String(w.ghosts));
   check('wardrobe empty · no prose block', !w.prose, w.prose.slice(0, 60));
 

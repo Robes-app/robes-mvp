@@ -574,8 +574,8 @@
             unlocks.style.cssText = 'grid-column:1/-1;padding:18px 22px;border-radius:var(--rad-card);background:var(--sage-bg)';
             unlocks.innerHTML =
               '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px">' +
-                '<div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)">What pieces unlock</div>' +
-                '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:19px;color:var(--ink)">0<span style="color:var(--ink-faint)"> / ' + _WA_TARGET + '</span></div>' +
+                '<div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)">What more pieces bring</div>' +
+                '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:19px;color:var(--ink)">0<span style="font-family:var(--font-sans,\'Inter\',sans-serif);font-size:9px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-left:7px">Pieces filed</span></div>' +
               '</div>' + _msBarHtml(0);
             frag.appendChild(unlocks);
           } else if (!filtered.length) {
@@ -612,15 +612,20 @@
 
       const _WA_TARGET = 15;
 
-      // ── Milestone unlocks (Homescreen FTUE) ──────────────────────────
+      // ── Milestone capabilities — the learning meter (Homescreen FTUE;
+      // reframed 2026-07-29 after the Clodagh test) ─────────────────────
       // Thresholds are config, never literals in the view — re-tune here and
       // the progress card, the wardrobe empty state and the concierge gate
-      // all follow. `at` is the piece count that opens `label`.
+      // all follow. `at` is the piece count that earns the milestone;
+      // `label` stays the feature's name (headlines, gating copy); `cap` is
+      // what Robes can DO from that count — the bar columns render `cap`,
+      // never `label` (capability, not a feature to unlock); `pos` is the
+      // tick's % position on the endless track (see _msBarHtml).
       const _MS_UNLOCKS = [
-        { at: 3,  key: 'daily',      label: 'Daily look' },
-        { at: 5,  key: 'weekly',     label: 'Weekly planner' },
-        { at: 10, key: 'travel',     label: 'Travel edit' },
-        { at: 15, key: 'styleNotes', label: 'Style notes' },
+        { at: 3,  key: 'daily',      label: 'Daily look',     cap: 'Dresses today',    pos: 15 },
+        { at: 5,  key: 'weekly',     label: 'Weekly planner', cap: 'Plans your week',  pos: 25 },
+        { at: 10, key: 'travel',     label: 'Travel edit',    cap: 'Packs your trips', pos: 50 },
+        { at: 15, key: 'styleNotes', label: 'Style notes',    cap: 'Knows your taste', pos: 78 },
       ];
       function _msUnlocked(key, n) {
         const u = _MS_UNLOCKS.find(x => x.key === key);
@@ -665,7 +670,7 @@
           : _msWord(left) + ' ' + pieces + ' and the<br>' + next.label.toLowerCase() + ' opens.';
         if (n === 0) return 'Three pieces and Robes<br>dresses you every morning.';
         const earned = _MS_UNLOCKS.filter(u => u.at <= n && _msCrossed[u.key]).pop();
-        if (earned) return earned.label + ' unlocked.<br>' + _msWord(left) + ' ' + pieces + ' for the ' + next.label.toLowerCase() + '.';
+        if (earned) return earned.label + ' just opened.<br>' + _msWord(left) + ' ' + pieces + ' for the ' + next.label.toLowerCase() + '.';
         return reach;
       }
 
@@ -677,7 +682,12 @@
         // not-yet-earned, dark enough to sit visibly on the track.
         st.textContent =
           '.rb-ms{--ms-locked:#C4B8A4;display:flex;flex-direction:column;gap:9px}' +
-          '.rb-ms-track{position:relative;height:3px;background:var(--cream-400);border-radius:2px}' +
+          // The last quarter of the track fades to near-transparent — the
+          // meter has no endpoint to fill (learning meter, 2026-07-29). Mask,
+          // not background, so the fill and any tick inside the fade dim too.
+          '.rb-ms-track{position:relative;height:3px;background:var(--cream-400);border-radius:2px;' +
+            '-webkit-mask-image:linear-gradient(90deg,#000 0,#000 75%,rgba(0,0,0,0.05) 100%);' +
+            'mask-image:linear-gradient(90deg,#000 0,#000 75%,rgba(0,0,0,0.05) 100%)}' +
           '.rb-ms-fill{position:absolute;left:0;top:0;bottom:0;background:var(--ink);border-radius:2px;' +
             'transition:width 650ms cubic-bezier(0.4,0,0.2,1)}' +
           '.rb-ms-tick{position:absolute;top:-3px;width:1px;height:9px;background:var(--ms-locked)}' +
@@ -695,22 +705,41 @@
 
       // The one milestone bar — home progress card and the wardrobe empty
       // state render the identical component so the promise reads the same
-      // in both places. Structure only: no per-tick status text. "Locked"
-      // would be a lie (every edit is built and open), "n away" repeats the
-      // headline, and "unlocked" is already carried by the tick and numeral
-      // going dark — so the headline states, the bar shows.
+      // in both places. A LEARNING meter, not a completion meter (Clodagh
+      // test 2026-07-29 — the old n/15 fraction read as the wardrobe's item
+      // limit): the track is scaled to _MS_SCALE so the last milestone sits
+      // at 78%, the final quarter fades out (no endpoint to fill), and the
+      // columns name capability (`cap`), never a feature to unlock.
+      // Structure only: no per-tick status text. "Locked" would be a lie
+      // (every edit is built and open), "n away" repeats the headline, and
+      // earned is already carried by the tick and numeral going dark — so
+      // the headline states, the bar shows.
+      const _MS_SCALE = 20;
+      // Piecewise through the tick positions so the fill meets each tick
+      // exactly at its milestone count (a straight n/_MS_SCALE would underrun
+      // the nudged 78% last tick).
+      function _msFillPct(n) {
+        const pts = [{ at: 0, pos: 0 }].concat(_MS_UNLOCKS, [{ at: _MS_SCALE, pos: 100 }]);
+        for (let i = 1; i < pts.length; i++) {
+          if (n <= pts[i].at) {
+            const a = pts[i - 1], b = pts[i];
+            return a.pos + ((n - a.at) / (b.at - a.at)) * (b.pos - a.pos);
+          }
+        }
+        return 100;
+      }
       function _msBarHtml(n) {
         _msEnsureCss();
-        const pct = Math.min(100, (n / _WA_TARGET) * 100);
+        const pct = Math.min(100, _msFillPct(n));
         const ticks = _MS_UNLOCKS.map(u =>
-          '<div class="rb-ms-tick' + (n >= u.at ? ' on' : '') + '" style="left:' + (u.at / _WA_TARGET * 100) + '%"></div>'
+          '<div class="rb-ms-tick' + (n >= u.at ? ' on' : '') + '" style="left:' + u.pos + '%"></div>'
         ).join('');
         const next = _msNext(n);
         const cols = _MS_UNLOCKS.map(u => {
           const lit = n >= u.at || (next && next.key === u.key);
           return '<div class="rb-ms-col' + (lit ? ' on' : '') + '">' +
             '<span class="rb-ms-at">' + String(u.at).padStart(2, '0') + '</span>' +
-            '<span class="rb-ms-lbl">' + u.label + '</span>' +
+            '<span class="rb-ms-lbl">' + u.cap + '</span>' +
           '</div>';
         }).join('');
         return '<div class="rb-ms">' +
@@ -800,11 +829,11 @@
         if (trkSection) {
           trkSection.style.display = complete ? 'none' : '';
         }
-        if (numEl) numEl.innerHTML = n + '<span> / ' + _WA_TARGET + '</span>';
+        // Bare count, no denominator — "n / 15" read as the wardrobe's item
+        // limit (Clodagh test 2026-07-29). Never reintroduce a fraction here.
+        if (numEl) numEl.innerHTML = n + '<span class="wtrk-num-lbl">Piece' + (n === 1 ? '' : 's') + ' filed</span>';
         if (headEl) headEl.innerHTML = _msHeadline(n);
         if (msEl) msEl.innerHTML = _msBarHtml(n);
-        const eyEl = trkSection && trkSection.querySelector('.wtrk-ey');
-        if (eyEl) eyEl.textContent = n === 0 ? 'Your wardrobe' : 'Wardrobe completion';
 
         const itemsEl = document.getElementById('wtrk-items');
         if (itemsEl) {
@@ -10113,7 +10142,9 @@
             pill.className = 'rb-lock-wrap';
             svcImg.appendChild(pill);
           }
-          pill.innerHTML = `<span class="rb-lock-pill">✦ ${Math.max(1, _WA_TARGET - _waItems.length)} more pieces and every look is closet-only · ${_waItems.length}/15</span>`;
+          // No trailing count fraction — "n/15" reads as an item limit
+          // (learning-meter reframe 2026-07-29).
+          pill.innerHTML = `<span class="rb-lock-pill">✦ ${Math.max(1, _WA_TARGET - _waItems.length)} more pieces and every look is closet-only</span>`;
         } else if (pill) {
           pill.remove();
         }
@@ -13314,7 +13345,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const nCat = Math.max(1, _waItems.length);
           const leftCat = Math.max(0, _WA_TARGET - nCat);
           const nudge = leftCat > 0
-            ? 'That’s piece ' + nCat + ' of 15. Add ' + leftCat + ' more and Robes builds every look entirely from your own closet.'
+            ? 'That’s piece ' + nCat + ' filed. Add ' + leftCat + ' more and Robes builds every look entirely from your own closet.'
             : 'Your wardrobe’s there — Robes now styles you head to toe from what you own.';
           const footer =
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.10)">' +

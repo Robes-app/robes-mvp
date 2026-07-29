@@ -1567,8 +1567,8 @@ body[data-density="compact"] .tracker{margin-bottom:40px}
 .wtrk-card{border:0.5px solid var(--rule-mid);border-radius:var(--rad-card);background:var(--sage-bg);padding:24px 26px 22px}
 body[data-density="compact"] .wtrk-card{padding:18px 22px}
 .wtrk-toprow{display:flex;align-items:flex-start;gap:22px}
-.wtrk-num{font-family:var(--font-serif);font-weight:300;font-size:44px;line-height:0.9;color:var(--ink);flex-shrink:0;white-space:nowrap}
-.wtrk-num span{font-size:19px;color:var(--ink-faint)}
+.wtrk-num{font-family:var(--font-serif);font-weight:300;font-size:44px;line-height:0.9;color:var(--ink);flex-shrink:0;white-space:nowrap;text-align:right}
+.wtrk-num .wtrk-num-lbl{display:block;font-family:var(--font-sans);font-size:9px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-faint);margin-top:7px}
 .wtrk-body{flex:1;min-width:0}
 .wtrk-head{font-family:var(--font-serif);font-weight:300;font-size:21px;line-height:1.25;color:var(--ink)}
 .wtrk-ms{margin:14px 0 16px}
@@ -2072,13 +2072,13 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
 
         <!-- wardrobe cataloguing tracker — wardrobe-first redesign -->
         <section class="tracker" id="wtrk">
-          <div class="wtrk-ey">Your wardrobe</div>
+          <div class="wtrk-ey">Robes is learning</div>
           <div class="wtrk-card">
             <div class="wtrk-toprow">
               <div class="wtrk-body">
                 <div class="wtrk-head" id="wtrk-head">Three pieces and Robes<br>dresses you every morning.</div>
               </div>
-              <div class="wtrk-num" id="wtrk-num">0<span> / 15</span></div>
+              <div class="wtrk-num" id="wtrk-num">0<span class="wtrk-num-lbl">Pieces filed</span></div>
               <button class="wtrk-cta" id="wtrk-cta">Add pieces<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
             </div>
             <div class="wtrk-ms" id="wtrk-ms"></div>
