@@ -6483,6 +6483,11 @@
             '<button type="button" class="rb-lk-act" onclick="window.__lkNew()">Add another</button>' +
             '</div></div>';
         }
+        // The composer is rbc-markup throughout, and on the zero-piece and
+        // photo paths _rbConsole (which injects the stylesheet) never runs —
+        // ensure it here or a session that hasn't rendered a console yet
+        // gets the naked markup (Annie's screenshot, 2026-07-30).
+        _rbcEnsureCss();
         try { document.body.classList.add('rb-lookv2'); } catch (_) {}
         const used = _lkUsed();
         const nPlaced = used.length;

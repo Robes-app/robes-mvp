@@ -474,6 +474,19 @@ const browser = await chromium.launch(
     };
   });
   check('composer · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  // A fresh session has rendered no console — the composer must inject the
+  // shared stylesheet itself, and the styles must actually apply.
+  const css = await page.evaluate(() => {
+    const row = document.querySelector('.rbc-row');
+    const ey = document.querySelector('.rbc-rackhead .ey');
+    return {
+      sheet: !!document.getElementById('rbc-style'),
+      rowIsGrid: row ? getComputedStyle(row).display === 'grid' : false,
+      eyCaps: ey ? getComputedStyle(ey).textTransform === 'uppercase' : false,
+    };
+  });
+  check('composer · shared console stylesheet is injected without a console render',
+    css.sheet && css.rowIsGrid && css.eyCaps, JSON.stringify(css));
   check('composer · the standing console scale: 480px look column',
     /^480px/.test(c0.cols) && c0.lookv2, c0.cols + ' lookv2=' + c0.lookv2);
   check('composer · the look panel is the shared rbc-panel', c0.panel === true);
