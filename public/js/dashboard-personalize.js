@@ -6253,7 +6253,15 @@
             photo: l.photo_url,
             meta: _lkN(_lkPieceIds(l).length, 'piece') + ' · ' + (n ? _lkN(n, 'wear') + ' · last ' + _lkFmt(last) : 'not worn yet'),
           }, { body: "window.__lkOpen('" + l.id + "')" });
-        }).join('');
+        }).join('') +
+        // The way in stays on the grid — the same amplified add card the
+        // pieces grid carries (Annie, 2026-07-30: the CTA vanished once a
+        // look existed; only the empty state offered one).
+        '<div class="rb-add-card" onclick="window.__lkNew()" role="button" tabindex="0">' +
+          '<span class="rb-add-plus">+</span>' +
+          '<span class="rb-add-serif">New look</span>' +
+          '<span class="rb-add-hint">Built from your pieces</span>' +
+        '</div>';
       }
 
       // Never-worn falls to the end descending, the front ascending.
@@ -6371,7 +6379,7 @@
             '<div class="nm">' + _waEsc(name) + (wi ? '<em>' + _waEsc(wi.category || '') + (Number(wi.times_worn) ? ' · ' + Number(wi.times_worn) + '× worn' : '') + '</em>' : '') + '</div>' +
             (wi ? '<button type="button" class="rb-lk-quiet" onclick="window.__lkSwap(\'' + _waEsc(String(id)) + '\')">' + (open ? 'Close' : 'Swap') + '</button>' : '') +
             '</div>';
-          if (open) h += _lkPickerHtml(_lkAlts(l, id), '__lkSwapPick', String(id));
+          if (open) h += _lkPickerHtml(_lkAlts(l, id), '__lkSwapPick', String(id), '__lkSwapSnap');
         });
 
         h += '<div class="rb-lk-sec" style="display:flex;align-items:baseline;gap:14px">Worn' +
@@ -6408,9 +6416,18 @@
           .filter(x => x.category === wi.category && inLook.indexOf(String(x.id)) === -1)
           .slice(0, 8);
       }
-      function _lkPickerHtml(items, fnName, ctx) {
+      // addFn (optional): the normal wardrobe add flow, offered alongside the
+      // catalogued options — and AS the way forward when the category is
+      // empty. A slot must never dead-end on "nothing in that category"
+      // (Annie's shoe, 2026-07-30): filing the piece IS the flow.
+      function _lkPickerHtml(items, fnName, ctx, addFn) {
+        const camSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
         if (!items.length) {
-          return '<div style="padding:0 0 12px;font-family:var(--font-serif);font-style:italic;font-size:15px;color:var(--ink-faint)">Nothing else in that category yet.</div>';
+          if (!addFn) return '<div style="padding:0 0 12px;font-family:var(--font-serif);font-style:italic;font-size:15px;color:var(--ink-faint)">Nothing else in that category yet.</div>';
+          return '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 0 4px;border-top:0.5px solid var(--rule);margin-top:12px">' +
+            '<span style="font-family:var(--font-serif);font-style:italic;font-size:15px;color:var(--ink-faint)">Nothing filed here yet — add it and Robes keeps it.</span>' +
+            '<button type="button" class="rbc-act" onclick="window.' + addFn + '(\'' + _waEsc(String(ctx)) + '\')" style="display:inline-flex;align-items:center;gap:7px">' + camSvg + ' Add a piece</button>' +
+            '</div>';
         }
         return '<div class="rb-lk-pick">' + items.map(x => {
           const url = _pdHttp(x.image_url);
@@ -6418,7 +6435,13 @@
           return '<button type="button" class="rb-lk-opt" onclick="window.' + fnName + '(\'' + _waEsc(String(ctx)) + '\',\'' + _waEsc(String(x.id)) + '\')">' +
             '<i style="' + (url ? "background-image:url('" + _waEsc(url) + "')" : 'background-color:' + _waEsc(tone || 'var(--cream-200)')) + '"></i>' +
             '<span>' + _waEsc(x.label) + '</span></button>';
-        }).join('') + '</div>';
+        }).join('') +
+        (addFn
+          ? '<button type="button" class="rb-lk-opt" onclick="window.' + addFn + '(\'' + _waEsc(String(ctx)) + '\')" style="border-style:dashed">' +
+            '<i style="background:var(--cream-100);display:flex;align-items:center;justify-content:center;color:var(--ink-faint)">' + camSvg + '</i>' +
+            '<span>New piece</span></button>'
+          : '') +
+        '</div>';
       }
 
       // ── The composer (Phase 2) ──────────────────────────────────────────
@@ -6555,7 +6578,7 @@
               '<div class="rbc-foot"><div></div><div class="rbc-acts">' +
                 '<button class="rbc-act' + (open ? '' : ' on') + '" onclick="window.__lkRowOpen(\'' + r.key + '\')">' + (open ? 'Close' : 'From your wardrobe') + '</button>' +
               '</div></div>' +
-              (open ? _lkPickerHtml(_lkRowOptions(r), '__lkRowPick', r.key) : '') +
+              (open ? _lkPickerHtml(_lkRowOptions(r), '__lkRowPick', r.key, '__lkRowSnap') : '') +
             '</div></div>';
         });
         rackHtml += '</div>' +
@@ -6677,6 +6700,20 @@
         _lkPending = null; _lkDone = null;
         _lkPaint();
       };
+      // Detail-swap's add-new door: file a piece, then it swaps in — which
+      // still routes through the promotion question when there is history.
+      window.__lkSwapSnap = function(pieceId) {
+        _waEditId = null;
+        _waAfterAdd = (newId) => window.__lkSwapPick(pieceId, newId);
+        if (window.WA && WA.open) WA.open();
+        let tries = 0;
+        const poke = () => {
+          const inp = document.getElementById('wa-rb-file');
+          if (inp) { inp.click(); return; }
+          if (++tries < 8) setTimeout(poke, 120);
+        };
+        setTimeout(poke, 220);
+      };
       window.__lkSwapPick = function(from, to) {
         const l = _lkFind(_lkActive);
         if (!l) return;
@@ -6745,6 +6782,21 @@
         _rbTrack('look_compose_opened', {});
       };
       window.__lkRowOpen = function(key) { _lkOpenRow = _lkOpenRow === key ? null : key; _lkPaint(); };
+      // The normal add flow, aimed at a slot: the standard wardrobe add modal
+      // (photograph → Robes files it), with the post-add hook landing the new
+      // piece straight in the row — the same arming pattern as __rbcAddSnap.
+      window.__lkRowSnap = function(key) {
+        _waEditId = null;
+        _waAfterAdd = (newId) => window.__lkRowPick(key, newId);
+        if (window.WA && WA.open) WA.open();
+        let tries = 0;
+        const poke = () => {
+          const inp = document.getElementById('wa-rb-file');
+          if (inp) { inp.click(); return; }
+          if (++tries < 8) setTimeout(poke, 120);
+        };
+        setTimeout(poke, 220);
+      };
       window.__lkRowPick = function(key, id) {
         // Moving a piece to a second slot removes it from the first
         _lkRows = _lkRows.map(r => r.key === key ? Object.assign({}, r, { piece: id })

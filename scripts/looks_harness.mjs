@@ -97,7 +97,7 @@ const SEED_WEARS = [
 // Every write the module makes is captured so the harness can assert on the
 // payloads — that a wear is INSERTed and undone by DELETE (never updated), and
 // that a promotion writes a new look rather than mutating the old one.
-async function boot(browser, { width = 1280, looksTable = true, seed = true } = {}) {
+async function boot(browser, { width = 1280, looksTable = true, seed = true, dropCat = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height: 1200 } });
   const page = await ctx.newPage();
   const writes = [];
@@ -121,7 +121,7 @@ async function boot(browser, { width = 1280, looksTable = true, seed = true } = 
     if (/\/(looks|look_pieces|wears)\b/.test(u) && !looksTable) return missing();
     if (m !== 'GET') return r.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
     let body = '[]';
-    if (u.includes('wardrobe_items')) body = JSON.stringify(wardrobe());
+    if (u.includes('wardrobe_items')) body = JSON.stringify(wardrobe().filter((w) => !dropCat || w.category !== dropCat));
     else if (u.includes('/looks')) body = JSON.stringify(seed ? SEED_LOOKS : []);
     else if (u.includes('look_pieces')) body = JSON.stringify(seed ? SEED_PIECES : []);
     else if (u.includes('/wears')) body = JSON.stringify(seed ? SEED_WEARS : []);
@@ -218,6 +218,8 @@ const browser = await chromium.launch(
       piecesGridHidden: !vis('wg-grid'),
       filtersHidden: !vis('wg-filters'),
       tiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length,
+      addCard: !!document.querySelector('#rb-lk-grid .rb-add-card'),
+      addCardText: document.querySelector('#rb-lk-grid .rb-add-card')?.textContent,
       titles: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).map((t) => t.textContent),
       provisional: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title.prov')).map((t) => t.textContent),
       mosaicCells: document.querySelectorAll('#rb-lk-grid .rb-lk-tile:first-child .rb-lk-mos i').length,
@@ -239,6 +241,8 @@ const browser = await chromium.launch(
     JSON.stringify([s.wrapVisible, s.piecesGridHidden, s.filtersHidden]));
   check('tab · deep-linkable path', s.path === '/looks', s.path);
   check('grid · one tile per look', s.tiles === 2, String(s.tiles));
+  check('grid · a New look add card mirrors the pieces grid',
+    s.addCard === true && /New look/.test(s.addCardText || ''), JSON.stringify([s.addCard, s.addCardText]));
   check('grid · mosaic always renders four cells', s.mosaicCells === 4, String(s.mosaicCells));
   check('grid · provisional title renders provisional', s.provisional.length === 1 && s.provisional[0] === 'The tank one', JSON.stringify(s.provisional));
   check('sort · defaults to Last worn ↓', s.sortLabel === 'Last worn' && s.sortArrow === '↓', `${s.sortLabel} ${s.sortArrow}`);
@@ -366,8 +370,8 @@ const browser = await chromium.launch(
       options: Array.from(document.querySelectorAll('.rb-lk-opt span')).map((s) => s.textContent),
     };
   });
-  check('swap · offers her own same-category pieces only',
-    swap.options.length === 1 && swap.options[0] === 'Raffia basket bag', JSON.stringify(swap.options));
+  check('swap · offers her own same-category pieces plus the add door',
+    swap.options.join(',') === 'Raffia basket bag,New piece', JSON.stringify(swap.options));
 
   const promo = await page.evaluate(() => {
     window.__lkSwapPick('w-bag1', 'w-bag2');
@@ -514,6 +518,9 @@ const browser = await chromium.launch(
   check('composer · the Top row offers tops and dresses, not bottoms',
     pick.opts.includes('Cream silk shirt') && pick.opts.includes('Bias slip dress') && !pick.opts.includes('Linen shorts'),
     JSON.stringify(pick.opts));
+  check('composer · the picker always offers the normal add flow ("New piece")',
+    pick.opts.includes('New piece'), JSON.stringify(pick.opts));
+
 
   const one = await page.evaluate(() => {
     window.__lkRowPick('r1', 'w-top1');
@@ -662,6 +669,41 @@ const browser = await chromium.launch(
   const provWrite = writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop();
   check('composer · and is marked provisional', provWrite?.body?.name_provisional === true,
     JSON.stringify(provWrite?.body || null));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 5b · An empty category never dead-ends — the normal add flow from a slot
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs } = await boot(browser, { dropCat: 'Shoes', seed: false });
+  await openLooks(page);
+  await page.evaluate(() => window.__lkNew());
+  await page.waitForTimeout(300);
+
+  const shoe = await page.evaluate(() => {
+    window.__lkRowOpen('r3');
+    const row = Array.from(document.querySelectorAll('.rb-lk-rempty'))
+      .find((r) => r.querySelector('.vslot')?.textContent === 'Shoe');
+    return {
+      deadEnd: /Nothing else in that category yet/.test(row?.textContent || ''),
+      invite: /Nothing filed here yet/.test(row?.textContent || ''),
+      addBtn: !!Array.from(row?.querySelectorAll('button') || []).find((b) => /Add a piece/.test(b.textContent)),
+    };
+  });
+  check('no-shoes · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  check('no-shoes · the empty category invites instead of dead-ending',
+    !shoe.deadEnd && shoe.invite, JSON.stringify(shoe));
+  check('no-shoes · and offers the normal add flow', shoe.addBtn === true);
+
+  const wa = await page.evaluate(() => {
+    window.__lkRowSnap('r3');
+    return new Promise((res) => setTimeout(() => {
+      const m = document.getElementById('wa-modal');
+      res({ open: !!m && m.classList.contains('open') });
+    }, 600));
+  });
+  check('no-shoes · the slot opens the standard wardrobe add modal', wa.open === true, JSON.stringify(wa));
   await ctx.close();
 }
 
