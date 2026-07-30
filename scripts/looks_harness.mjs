@@ -447,7 +447,8 @@ const browser = await chromium.launch(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// 5 · The composer (Phase 2) — look card left, rack right, save at two
+// 5 · The composer (Phase 2) — the live console: Look panel left at 480px,
+// rack rows with flick / swap / ✕ right, save at two pieces
 // ─────────────────────────────────────────────────────────────────────────
 {
   const { ctx, page, errs, writes } = await boot(browser);
@@ -456,109 +457,156 @@ const browser = await chromium.launch(
   await page.waitForTimeout(300);
 
   const c0 = await page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll('.rb-lk-rrow'));
-    const card = document.querySelector('.rb-lk-card');
-    const rack = document.querySelector('.rb-lk-rack');
+    const empties = Array.from(document.querySelectorAll('.rbc-row.rb-lk-rempty'));
+    const con = document.querySelector('.rb-lk-con');
     return {
-      errs: 0,
-      slots: rows.map((r) => r.querySelector('.rb-lk-rthumb b')?.textContent),
-      emptyNames: rows.map((r) => r.querySelector('.rb-lk-rname')?.textContent),
-      allItalic: rows.every((r) => r.querySelector('.rb-lk-rname')?.classList.contains('empty')),
-      cardBeforeRack: !!card && !!rack && card.compareDocumentPosition(rack) === Node.DOCUMENT_POSITION_FOLLOWING,
-      hasSideRail: !!document.querySelector('#rb-lk-shelf'),
+      lookv2: document.body.classList.contains('rb-lookv2'),
+      cols: con ? getComputedStyle(con).gridTemplateColumns : '',
+      slots: empties.map((r) => r.querySelector('.vslot')?.textContent),
+      emptyNames: empties.map((r) => r.querySelector('.rbc-name')?.textContent),
+      panel: !!document.querySelector('.rb-lk-con .rbc-panel'),
       saveShown: !!document.querySelector('.rb-lk-save'),
-      titleEyebrow: document.querySelector('.rb-lk-rack .rb-lk-eyebrow')?.textContent,
-      titleProvisional: document.getElementById('rb-lk-newtitle')?.classList.contains('prov'),
-      addRow: !!document.querySelector('.rb-lk-add'),
-      eyebrowCount: document.querySelector('.rb-lk-card-hd b')?.textContent,
+      rackEyebrow: document.querySelector('.rbc-rackhead .ey')?.textContent,
+      titleValue: document.getElementById('rb-lk-newtitle')?.value,
+      titlePlaceholder: document.getElementById('rb-lk-newtitle')?.placeholder,
+      namedByYou: /Named by you/.test(document.body.textContent || ''),
+      addPiece: !!document.querySelector('.rbc-addpiece'),
     };
   });
   check('composer · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
-  check('composer · four slot rows: Top, Bottom, Shoe, Bag',
+  check('composer · the standing console scale: 480px look column',
+    /^480px/.test(c0.cols) && c0.lookv2, c0.cols + ' lookv2=' + c0.lookv2);
+  check('composer · the look panel is the shared rbc-panel', c0.panel === true);
+  check('composer · four empty slot rows: Top, Bottom, Shoe, Bag',
     c0.slots.join(',') === 'Top,Bottom,Shoe,Bag', JSON.stringify(c0.slots));
-  check('composer · empty rows invite in italics',
-    c0.allItalic && c0.emptyNames.join(' | ') === 'Add a top | Add a bottom | Add a shoe | Add a bag',
+  check('composer · empty rows invite ("Add a top" …)',
+    c0.emptyNames.join(' | ') === 'Add a top | Add a bottom | Add a shoe | Add a bag',
     JSON.stringify(c0.emptyNames));
-  check('composer · look card sits left of the rack', c0.cardBeforeRack === true);
-  check('composer · no side rail of pieces (the rows are the picker)', c0.hasSideRail === false);
   check('composer · Save is withheld until there is a look', c0.saveShown === false);
-  check('composer · the title is the rack header and is offered',
-    c0.titleEyebrow === 'Robes suggests' && c0.titleProvisional === true, `${c0.titleEyebrow}/${c0.titleProvisional}`);
-  check('composer · "+ Add a piece" is available', c0.addRow === true);
-  check('composer · card eyebrow counts pieces', c0.eyebrowCount === 'The look · 0 pieces', c0.eyebrowCount);
+  check('composer · the rack header reads The Rack', c0.rackEyebrow === 'The Rack', c0.rackEyebrow);
+  check('composer · the name field is a placeholder, "Name your Look"',
+    c0.titleValue === '' && c0.titlePlaceholder === 'Name your Look',
+    JSON.stringify([c0.titleValue, c0.titlePlaceholder]));
+  check('composer · no "Named by you" subtext', c0.namedByYou === false);
+  check('composer · the shared "+ Add a piece" is available', c0.addPiece === true);
 
-  // Picking happens inside the row
+  // Picking happens inside the empty row
   const pick = await page.evaluate(() => {
     window.__lkRowOpen('r1');
-    const inRow = document.querySelector('.rb-lk-rrow.on .rb-lk-pick');
-    const opts = Array.from(document.querySelectorAll('.rb-lk-rrow.on .rb-lk-opt span')).map((s) => s.textContent);
+    const inRow = document.querySelector('.rb-lk-rempty .rb-lk-pick');
+    const opts = Array.from(document.querySelectorAll('.rb-lk-rempty .rb-lk-opt span')).map((s) => s.textContent);
     return { insideTheRow: !!inRow, opts };
   });
-  check('composer · the picker opens inside the row', pick.insideTheRow === true);
-  check('composer · the Top row offers tops, dresses and layers',
+  check('composer · the picker opens inside the empty row', pick.insideTheRow === true);
+  check('composer · the Top row offers tops and dresses, not bottoms',
     pick.opts.includes('Cream silk shirt') && pick.opts.includes('Bias slip dress') && !pick.opts.includes('Linen shorts'),
     JSON.stringify(pick.opts));
 
   const one = await page.evaluate(() => {
     window.__lkRowPick('r1', 'w-top1');
+    const row = document.querySelector('.rbc-row:not(.rb-lk-rempty)');
     return {
-      name: document.querySelector('.rb-lk-rrow .rb-lk-rname')?.textContent,
-      meta: document.querySelector('.rb-lk-rrow .rb-lk-rmeta')?.textContent,
-      cta: document.querySelector('.rb-lk-rrow .rb-lk-rcta')?.textContent,
-      remove: !!Array.from(document.querySelectorAll('.rb-lk-rrow .rb-lk-quiet')).find((b) => b.textContent === 'Remove'),
+      name: row?.querySelector('.rbc-name')?.textContent,
+      owned: /In your wardrobe/.test(row?.querySelector('.rbc-sub')?.textContent || ''),
+      flick: row?.querySelectorAll('.rbc-arrow').length,
+      swap: !!Array.from(row?.querySelectorAll('.rbc-act') || []).find((b) => /Swap/.test(b.textContent)),
+      x: !!row?.querySelector('.rbc-rm'),
+      boardTiles: document.querySelectorAll('.rb-lk-con .rbc-board .rbc-tile').length,
       saveShown: !!document.querySelector('.rb-lk-save'),
-      note: document.querySelector('.rb-lk-note')?.textContent,
-      eyebrowCount: document.querySelector('.rb-lk-card-hd b')?.textContent,
     };
   });
-  check('composer · a filled row shows the piece and its provenance',
-    one.name === 'Cream silk shirt' && /In your wardrobe/.test(one.meta || ''), `${one.name} / ${one.meta}`);
-  check('composer · a filled row offers Swap and Remove', one.cta === 'Swap' && one.remove === true, `${one.cta}/${one.remove}`);
+  check('composer · a filled row is the shared rack card',
+    one.name === 'Cream silk shirt' && one.owned === true, `${one.name}/${one.owned}`);
+  check('composer · the card carries the flick cluster', one.flick === 2, String(one.flick));
+  check('composer · the card carries Swap', one.swap === true);
+  check('composer · the card carries the corner ✕', one.x === true);
+  check('composer · the look board populates as pieces land', one.boardTiles === 1, String(one.boardTiles));
   check('composer · one piece is not yet a look (no Save)', one.saveShown === false);
-  check('composer · one piece writes no styling note', one.note === '', JSON.stringify(one.note));
-  check('composer · eyebrow follows the count', one.eyebrowCount === 'The look · 1 piece', one.eyebrowCount);
+
+  // The flick cycles same-category pieces
+  const flicked = await page.evaluate(() => {
+    window.__lkCFlip(0, 1);
+    return { name: document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-name')?.textContent };
+  });
+  check('composer · flick moves to the next piece of that kind',
+    flicked.name === 'Ribbed white tank' || flicked.name === 'Bias slip dress', flicked.name);
+  await page.evaluate(() => window.__lkRowPick('r1', 'w-top1'));
+
+  // Swap opens the SAME modal the consoles use
+  const swap = await page.evaluate(() => {
+    window.__lkCSwap(0);
+    const modal = document.getElementById('lk-swap-modal');
+    return {
+      open: !!modal,
+      head: modal?.querySelector('p')?.textContent,
+      wardrobe: /From your wardrobe/.test(modal?.textContent || ''),
+      snap: /Snap mine/.test(modal?.textContent || ''),
+    };
+  });
+  check('composer · Swap opens the shared swap modal', swap.open === true);
+  check('composer · the modal offers her wardrobe and Snap mine',
+    swap.wardrobe === true && swap.snap === true, JSON.stringify(swap));
+  const swapped = await page.evaluate(() => {
+    window.__lkCSwapApply(0, 'w-top2');
+    return {
+      modalGone: !document.getElementById('lk-swap-modal'),
+      name: document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-name')?.textContent,
+    };
+  });
+  check('composer · the swap applies and closes the modal',
+    swapped.modalGone && swapped.name === 'Ribbed white tank', JSON.stringify(swapped));
+
+  // ✕ returns a core slot to its placeholder
+  const xed = await page.evaluate(() => {
+    document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-rm').click();
+    return {
+      empties: document.querySelectorAll('.rbc-row.rb-lk-rempty').length,
+      filled: document.querySelectorAll('.rbc-row:not(.rb-lk-rempty)').length,
+    };
+  });
+  check('composer · ✕ empties the slot back to a placeholder',
+    xed.empties === 4 && xed.filled === 0, JSON.stringify(xed));
 
   const two = await page.evaluate(() => {
+    window.__lkRowPick('r1', 'w-top1');
     window.__lkRowPick('r2', 'w-bot1');
     return {
       saveShown: !!document.querySelector('.rb-lk-save'),
-      note: document.querySelector('.rb-lk-note')?.textContent,
-      title: document.getElementById('rb-lk-newtitle')?.value,
-      palette: document.querySelectorAll('.rb-lk-pal i').length,
-      allYours: document.querySelector('.rb-lk-pal span')?.textContent,
-      mosaicFilled: Array.from(document.querySelectorAll('.rb-lk-card .rb-lk-mos i')).filter((i) => !i.classList.contains('e')).length,
+      note: document.querySelector('.rb-lk-con .rbc-quote')?.textContent,
+      boardTiles: document.querySelectorAll('.rb-lk-con .rbc-board .rbc-tile').length,
+      yours: document.querySelector('.rb-lk-con .rbc-yours')?.textContent,
     };
   });
   check('composer · Save appears at two pieces', two.saveShown === true);
   check('composer · Robes describes the look once it can',
     two.note === 'Cream silk shirt with the barrel-leg jeans.', two.note);
-  check('composer · the offered name comes from the look itself', two.title === 'The shirt one', two.title);
-  check('composer · palette dots follow the pieces', two.palette === 2, String(two.palette));
-  check('composer · says how much of it is hers', two.allYours === 'All 2 from your wardrobe', two.allYours);
-  check('composer · the mosaic fills as pieces land', two.mosaicFilled === 2, String(two.mosaicFilled));
+  check('composer · both pieces are on the board', two.boardTiles === 2, String(two.boardTiles));
+  check('composer · ownership line is the canonical console copy',
+    /2.of.2 from your wardrobe/.test(two.yours || ''), two.yours);
 
   // A dress in the Top slot retires the Bottom row
   const dress = await page.evaluate(() => {
     window.__lkRowClear('r2');
     window.__lkRowPick('r1', 'w-dre1');
-    return {
-      slots: Array.from(document.querySelectorAll('.rb-lk-rrow .rb-lk-rthumb b')).map((b) => b.textContent),
-      rows: document.querySelectorAll('.rb-lk-rrow').length,
-    };
+    return { slots: Array.from(document.querySelectorAll('.rbc-row .vslot')).map((b) => b.textContent) };
   });
   check('composer · a dress quietly retires the Bottom slot',
     !dress.slots.includes('Bottom'), JSON.stringify(dress.slots));
 
-  // Moving a piece between slots doesn't duplicate it
-  const moved = await page.evaluate(() => {
+  // "+ Add a piece" routes through the shared chooser and its apply lands
+  const added = await page.evaluate(() => {
     window.__lkRowPick('r1', 'w-top1');
-    window.__lkAddRow();
-    const key = Array.from(document.querySelectorAll('.rb-lk-rrow')).pop();
     window.__lkRowPick('r3', 'w-sho1');
-    return { used: (document.querySelector('.rb-lk-pal span') || {}).textContent };
+    window.__lkApplyNew('w-acc1');
+    return {
+      names: Array.from(document.querySelectorAll('.rbc-row:not(.rb-lk-rempty) .rbc-name')).map((n) => n.textContent),
+      yours: document.querySelector('.rb-lk-con .rbc-yours')?.textContent,
+    };
   });
-  check('composer · pieces are not double-counted across slots',
-    moved.used === 'All 2 from your wardrobe', String(moved.used));
+  check('composer · an added piece lands as its own rack card',
+    added.names.includes('Gold hoops'), JSON.stringify(added.names));
+  check('composer · pieces are never double-counted',
+    /3.of.3 from your wardrobe/.test(added.yours || ''), added.yours);
 
   const saved = await page.evaluate(() => {
     window.__lkRowPick('r4', 'w-bag1');
@@ -579,11 +627,28 @@ const browser = await chromium.launch(
   check('composer · writes the look with her name, not provisional',
     !!lookWrite && lookWrite.body?.name === 'Terrace mornings' && lookWrite.body?.name_provisional === false && lookWrite.body?.source === 'manual',
     JSON.stringify(lookWrite?.body || null));
+  // the hoops landed in the Bag slot (first empty slot taking Accessories)
+  // and the test then swapped the tote in over them — 3 pieces at save
   check('composer · writes its composition with slots',
     Array.isArray(pieceWrite?.body) && pieceWrite.body.length === 3 && pieceWrite.body.every((p) => !!p.slot),
     JSON.stringify(pieceWrite?.body || null));
   check('composer · a saved look has no wears (it is a plan, not a fact)',
     !writes.some((w) => w.method === 'POST' && /^wears/.test(w.url)));
+
+  // An untouched name saves as the offered name, provisional
+  const offered = await page.evaluate(() => {
+    window.__lkNew();
+    window.__lkRowPick('r1', 'w-top2');
+    window.__lkRowPick('r2', 'w-bot2');
+    window.__lkSave();
+    return { line: document.querySelector('#rb-lk-body h3')?.textContent };
+  });
+  check('composer · an untouched name saves as the offered name',
+    /^The tank one, saved\.$/.test(offered.line || ''), offered.line);
+  await page.waitForTimeout(400);
+  const provWrite = writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop();
+  check('composer · and is marked provisional', provWrite?.body?.name_provisional === true,
+    JSON.stringify(provWrite?.body || null));
   await ctx.close();
 }
 
@@ -665,12 +730,12 @@ const browser = await chromium.launch(
 
   const mc = await page.evaluate(() => {
     window.__lkNew();
-    const n = document.querySelector('.rb-lk-new');
+    const n = document.querySelector('.rb-lk-con');
     return {
-      stacked: n ? getComputedStyle(n).flexDirection === 'column' : false,
+      stacked: n ? getComputedStyle(n).gridTemplateColumns.split(' ').length === 1 : false,
       rowsFullWidth: (() => {
-        const r = document.querySelector('.rb-lk-rrow');
-        const rack = document.querySelector('.rb-lk-rack');
+        const r = document.querySelector('.rbc-row');
+        const rack = document.querySelector('.rbc-rack');
         return !!r && !!rack && Math.abs(r.getBoundingClientRect().width - rack.getBoundingClientRect().width) < 2;
       })(),
       overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,

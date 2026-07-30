@@ -6176,6 +6176,15 @@
 .rb-lk-rname.empty{font-style:italic;color:var(--ink-faint)}
 .rb-lk-rmeta{font-size:11px;color:var(--ink-faint);margin-top:4px}
 .rb-lk-ract{display:flex;align-items:center;gap:10px;flex:none}
+.rb-lk-title-in::placeholder{color:var(--ink-faint);font-style:italic;opacity:1}
+.rb-lk-con{display:grid;grid-template-columns:480px minmax(0,1fr);gap:34px;align-items:start}
+@media(max-width:1080px){.rb-lk-con{grid-template-columns:1fr;gap:24px}.rb-lk-con>div:first-child{max-width:480px}}
+.rbc-row.rb-lk-rempty{border-style:dashed;background:transparent}
+.rb-lk-rempty .rbc-vp{background:var(--cream-100)}
+.rb-lk-rempty .rbc-name{font-style:italic;color:var(--ink-faint)}
+/* One piece placed: the standing scale sheet starts at data-n=2 — give the
+   lone hero the whole composition rather than an unplaced 68px cell. */
+.rb-lookv2 .rbc-board[data-n="1"] .rbc-tile:nth-child(1){grid-column:1/7;grid-row:1/8}
 .rb-lk-rcta{padding:8px 14px;border-radius:100px;border:0.5px solid var(--ink);background:var(--ink);color:#fff;font-family:inherit;font-size:11px;cursor:pointer;white-space:nowrap;transition:all .15s}
 .rb-lk-rcta.ghost{background:#fff;color:var(--ink);border-color:var(--rule-mid)}
 .rb-lk-rcta.ghost:hover{border-color:var(--ink)}
@@ -6413,10 +6422,54 @@
       }
 
       // ── The composer (Phase 2) ──────────────────────────────────────────
-      // The live wireframe: the look card on the LEFT, a rack of slot rows on
-      // the RIGHT, picking INSIDE each row. No side rail — mobile is the same
-      // rows stacked full width.
+      // The live console, verbatim (Annie, 2026-07-30: "the entire
+      // functionality should carry across — we are not reinventing the
+      // wheel"): _rbConsole draws The Look at the ratified 480px scale,
+      // _rbcRow draws every filled rack card — same flick cluster, same
+      // Swap through _rbSwapModal (wardrobe candidates + Snap mine), same
+      // corner ✕. The only markup of our own is the dashed placeholder row
+      // an empty slot shows, which no generated console ever needs.
       function _lkUsed() { return _lkRows.map(r => r.piece).filter(Boolean); }
+      // Rows the rack shows, in slot order. A dress in the Top slot quietly
+      // retires an empty Bottom row.
+      function _lkVisibleRows() {
+        const topPiece = (_lkRows.find(r => r.slot === 'Top') || {}).piece;
+        const topIsDress = !!topPiece && (_waItems.find(w => String(w.id) === String(topPiece)) || {}).category === 'Dresses';
+        return _lkRows.filter(r => !(topIsDress && r.slot === 'Bottom' && !r.piece));
+      }
+      // idx → row key map for the shared row/tile handlers (rebuilt on paint)
+      var _lkConMap = [];
+      function _lkConItems() {
+        _lkConMap = [];
+        return _lkVisibleRows().filter(r => r.piece).map(r => {
+          const wi = _waItems.find(w => String(w.id) === String(r.piece));
+          if (!wi) return null;
+          _lkConMap.push(r.key);
+          const idx = _lkConMap.length - 1;
+          const url = _pdHttp(wi.image_url);
+          const tone = _ltToneOf(wi);
+          const opts = _lkRowOptions(r);
+          const cur = Math.max(0, opts.findIndex(o => String(o.id) === String(wi.id)));
+          return {
+            idx,
+            slot: r.slot,
+            name: wi.label,
+            shortName: String(wi.label || 'piece').split(/\s+/).slice(-1)[0].toLowerCase(),
+            owned: true,
+            anchored: false,
+            isNew: false,
+            frame: {
+              pollAttr: '',
+              inner: url
+                ? `<img src="${_waEsc(url)}" style="width:100%;height:100%;object-fit:cover;display:block" alt="${_waEsc(wi.label)}">`
+                : `<div style="width:100%;height:100%;background:${_waEsc(tone || 'var(--cream-200)')}"></div>`,
+            },
+            subHtml: _rbcProvenance({ wardrobe_match: true }),
+            noteHtml: '',
+            count: { cur, len: Math.max(1, opts.length) },
+          };
+        }).filter(Boolean);
+      }
       function _lkNewHtml() {
         if (_lkSaved) {
           const l = _lkSaved;
@@ -6430,70 +6483,81 @@
             '<button type="button" class="rb-lk-act" onclick="window.__lkNew()">Add another</button>' +
             '</div></div>';
         }
+        try { document.body.classList.add('rb-lookv2'); } catch (_) {}
         const used = _lkUsed();
-        const cells = _ltCells(used);
         const nPlaced = used.length;
         const canSave = nPlaced >= 2;
-        const suggested = _lkOfferName(used, null);
-        const title = _lkNewTitleDraft != null ? _lkNewTitleDraft : suggested;
-        // A dress in the Top slot quietly retires the Bottom slot.
-        const topPiece = (_lkRows.find(r => r.slot === 'Top') || {}).piece;
-        const topIsDress = !!topPiece && (_waItems.find(w => String(w.id) === String(topPiece)) || {}).category === 'Dresses';
+        const items = _lkConItems();
 
-        let h = '<button type="button" class="rb-lk-back" onclick="window.__lkBack()">← Wardrobe · Looks</button>' +
-          '<div class="rb-lk-new"><div class="rb-lk-card">' +
-          '<div class="rb-lk-card-hd"><b>The look · ' + _lkN(nPlaced, 'piece') + '</b><i>Robes</i></div>' +
-          _ltMosaicHtml(cells, { photo: _lkPhoto && _lkPhoto.url, alt: title, hero: true }) +
-          '<div class="rb-lk-note">' + _waEsc(_lkStyleNote(used)) + '</div>' +
-          '<div class="rb-lk-pal">' +
-            used.slice(0, 4).map(id => {
+        // The Look — the console panel. Zero pieces and the photo case get a
+        // quiet stand-in with the same chrome (states no generated console has).
+        let lookHtml;
+        if (_lkPhoto && _lkPhoto.url) {
+          lookHtml = '<div class="rbc-panel"><div class="rbc-lhead">' +
+            '<span class="lab">The look · ' + _lkN(nPlaced, 'piece') + '</span><span class="robes">Robes</span></div>' +
+            '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
+              '<img src="' + _waEsc(_lkPhoto.url) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="This look"></div>' +
+            (nPlaced ? '<div class="rbc-lfoot"><span class="rbc-palette"></span><span class="rbc-yours"><b>' + nPlaced + '</b>&thinsp;of&thinsp;' + nPlaced + ' from your wardrobe</span></div>' : '') +
+            '</div>';
+        } else if (!items.length) {
+          lookHtml = '<div class="rbc-panel"><div class="rbc-lhead">' +
+            '<span class="lab">The look · 0 pieces</span><span class="robes">Robes</span></div>' +
+            '<div style="aspect-ratio:4/5;border:1.5px dashed var(--rule-mid);border-radius:var(--rad-sm);display:flex;align-items:center;justify-content:center;padding:24px;text-align:center">' +
+              '<span style="font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:19px;color:var(--ink-faint)">The look, once you start.</span></div>' +
+            '</div>';
+        } else {
+          const note = _lkStyleNote(used);
+          lookHtml = _rbConsole({
+            headLabel: 'The look · ' + _lkN(nPlaced, 'piece'),
+            quoteHtml: note ? _waEsc(note) : '',
+            paletteHtml: used.map(id => {
               const tone = _ltToneOf(_waItems.find(w => String(w.id) === String(id)));
-              return '<i' + (tone ? ' style="background:' + _waEsc(tone) + '"' : '') + '></i>';
-            }).join('') +
-            '<span>' + (nPlaced ? 'All ' + nPlaced + ' from your wardrobe' : '') + '</span>' +
+              return tone ? '<span style="background:' + _waEsc(tone) + '"></span>' : '';
+            }).join(''),
+            rackLabel: 'The Rack',
+            onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove',
+          }, items).lookHtml;
+        }
+        const photoRow = '<div style="display:flex;align-items:baseline;gap:14px;margin-top:12px">' +
+          '<button type="button" class="rb-lk-quiet" onclick="window.__lkPhotoToggle()">' + (_lkPhoto ? 'Remove the photo' : 'Add a photo') + '</button>' +
+          (_lkPhoto && _lkPhoto.pending ? '<span style="font-size:11px;color:var(--ink-faint)">Uploading…</span>' : '') +
           '</div>' +
-          '<div class="rb-lk-card-foot">' +
-            '<button type="button" class="rb-lk-quiet" onclick="window.__lkPhotoToggle()">' +
-              (_lkPhoto ? 'Remove the photo' : 'Add a photo') + '</button>' +
-            (_lkPhoto && _lkPhoto.pending ? '<span style="font-size:11px;color:var(--ink-faint)">Uploading…</span>' : '') +
-          '</div>' +
-          (canSave ? '<button type="button" class="rb-lk-save" onclick="window.__lkSave()">Save this look</button>' : '') +
-          '</div>';
+          (canSave ? '<button type="button" class="rb-lk-save" onclick="window.__lkSave()">Save this look</button>' : '');
 
-        h += '<div class="rb-lk-rack">' +
-          '<div class="rb-lk-eyebrow">' + (_lkNewTitleTouched ? 'Your name for it' : 'Robes suggests') + '</div>' +
-          '<input id="rb-lk-newtitle" class="rb-lk-title-in' + (_lkNewTitleTouched ? '' : ' prov') + '" value="' + _waEsc(title) + '"' +
-            ' oninput="window.__lkNewTitleInput(this.value)" style="font-size:clamp(22px,2.4vw,28px)">' +
-          '<div class="rb-lk-hint">' + (_lkNewTitleTouched ? 'Named by you.' : 'Leave it and it keeps this name.') + '</div>' +
-          '<div style="margin-top:18px">';
-
-        _lkRows.forEach(r => {
-          if (topIsDress && r.slot === 'Bottom' && !r.piece) return;
+        // The Rack — the name leads it (placeholder until she types), then
+        // the same rack rows the consoles use; empty slots keep the dashed
+        // placeholder with the picker inside the row.
+        let rackHtml = '<div class="rbc-rackhead"><div style="min-width:0;flex:1">' +
+          '<span class="ey">The Rack</span>' +
+          '<input id="rb-lk-newtitle" class="rb-lk-title-in" value="' + _waEsc(_lkNewTitleDraft != null ? _lkNewTitleDraft : '') + '"' +
+            ' placeholder="Name your Look" oninput="window.__lkNewTitleInput(this.value)" style="font-size:clamp(22px,2.4vw,28px)">' +
+          '</div></div>' +
+          '<div class="rbc-rack">';
+        const rowCfg = { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove' };
+        let fi = 0;
+        _lkVisibleRows().forEach(r => {
+          if (r.piece) {
+            // `items` above is the same enumeration, so idx and _lkConMap agree
+            if (items[fi]) rackHtml += _rbcRow(items[fi], rowCfg);
+            fi++;
+            return;
+          }
           const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
-          const wi = r.piece ? _waItems.find(w => String(w.id) === String(r.piece)) : null;
           const open = _lkOpenRow === r.key;
-          const url = wi ? _pdHttp(wi.image_url) : null;
-          const tone = _ltToneOf(wi);
-          h += '<div class="rb-lk-rrow' + (open ? ' on' : '') + '"><div class="rb-lk-rmain">' +
-            '<div class="rb-lk-rthumb" style="' +
-              (url ? "background-image:url('" + _waEsc(url) + "')" : (wi && tone ? 'background-color:' + _waEsc(tone) : '')) + '">' +
-              (wi ? '' : '<b>' + _waEsc(r.slot) + '</b>') + '</div>' +
-            '<div class="rb-lk-rbody">' +
-              '<div class="rb-lk-rname' + (wi ? '' : ' empty') + '">' + _waEsc(wi ? wi.label : def.add) + '</div>' +
-              '<div class="rb-lk-rmeta">' + (wi ? 'In your wardrobe' + (wi.brand ? ' · ' + _waEsc(wi.brand) : '') : _waEsc(r.slot)) + '</div>' +
-            '</div>' +
-            '<div class="rb-lk-ract">' +
-              '<button type="button" class="rb-lk-rcta' + (wi || open ? ' ghost' : '') + '" onclick="window.__lkRowOpen(\'' + r.key + '\')">' +
-                (open ? 'Close' : (wi ? 'Swap' : 'From your wardrobe')) + '</button>' +
-              (wi ? '<button type="button" class="rb-lk-quiet" onclick="window.__lkRowClear(\'' + r.key + '\')">Remove</button>' : '') +
+          rackHtml += '<div class="rbc-row rb-lk-rempty">' +
+            '<div class="rbc-vp"><span class="vslot">' + _waEsc(r.slot) + '</span></div>' +
+            '<div class="rbc-body"><div><div class="rbc-name">' + _waEsc(def.add) + '</div></div>' +
+              '<div class="rbc-foot"><div></div><div class="rbc-acts">' +
+                '<button class="rbc-act' + (open ? '' : ' on') + '" onclick="window.__lkRowOpen(\'' + r.key + '\')">' + (open ? 'Close' : 'From your wardrobe') + '</button>' +
+              '</div></div>' +
+              (open ? _lkPickerHtml(_lkRowOptions(r), '__lkRowPick', r.key) : '') +
             '</div></div>';
-          if (open) h += _lkPickerHtml(_lkRowOptions(r), '__lkRowPick', r.key);
-          h += '</div>';
         });
+        rackHtml += '</div>' +
+          '<button class="rbc-addpiece" onclick="window.__rbcAddMenu(\'__lkApplyNew\')"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>';
 
-        h += '<button type="button" class="rb-lk-add" onclick="window.__lkAddRow()">+ Add a piece</button>' +
-          '</div></div></div>';
-        return h;
+        return '<button type="button" class="rb-lk-back" onclick="window.__lkBack()">← Wardrobe · Looks</button>' +
+          '<div class="rb-lk-con"><div>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div>';
       }
       function _lkRowOptions(r) {
         const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
@@ -6691,20 +6755,79 @@
         _lkOpenRow = null;
         _lkPaint();
       };
-      window.__lkAddRow = function() {
-        _lkRowSeq++;
-        const key = 'r' + _lkRowSeq;
-        _lkRows = _lkRows.concat({ key, slot: 'Accessory', piece: null });
-        _lkOpenRow = key;
-        _lkPaint();
+      // ── Console handlers — idx comes from the shared row/tile markup and
+      // maps back to a row through _lkConMap (rebuilt on every paint).
+      function _lkRowByIdx(idx) {
+        const key = _lkConMap[idx];
+        return key ? _lkRows.find(r => r.key === key) || null : null;
+      }
+      // The flick: cycle the slot through her same-category pieces — the same
+      // gesture as the consoles' option flick, wardrobe-only by construction.
+      window.__lkCFlip = function(idx, dir) {
+        const row = _lkRowByIdx(idx);
+        if (!row) return;
+        const opts = _lkRowOptions(row);
+        if (opts.length < 2) { _waShowToast('Nothing else in that category yet'); return; }
+        const cur = Math.max(0, opts.findIndex(o => String(o.id) === String(row.piece)));
+        const next = opts[(cur + dir + opts.length) % opts.length];
+        window.__lkRowPick(row.key, next.id);
+      };
+      // The swap: the SAME modal every console uses — her wardrobe by
+      // category, Snap mine to file a new piece straight into the look.
+      var _lkSwapIdx = null; // row the open swap modal is targeting
+      window.__lkCSwap = function(idx) {
+        const row = _lkRowByIdx(idx);
+        const wi = row && _waItems.find(w => String(w.id) === String(row.piece));
+        if (!wi) return;
+        _lkSwapIdx = idx;
+        _rbSwapModal(
+          { name: wi.label, category: wi.category, brand: wi.brand || '', retailer_hint: '', price_point: '' },
+          { id: 'lk-swap-modal', applyName: '__lkCSwapApply', snapName: '__lkCSnapMine', idx });
+      };
+      window.__lkCSwapApply = function(idx, wardrobeId) {
+        const row = _lkRowByIdx(idx);
+        if (!row) return;
+        document.getElementById('lk-swap-modal')?.remove();
+        window.__lkRowPick(row.key, wardrobeId);
+        const wi = _waItems.find(w => String(w.id) === String(wardrobeId));
+        if (wi) _waShowToast(wi.label + ' swapped in');
+        _rbTrack('piece_swapped', { surface: 'look-compose', item: String(wardrobeId) });
+      };
+      window.__lkCSnapMine = function() {
+        // Post-add hook: the piece she's about to snap lands in the row the
+        // modal was opened for — the same arming pattern as __dlSnapMine.
+        const idx = _lkSwapIdx;
+        document.getElementById('lk-swap-modal')?.remove();
+        _waEditId = null;
+        _waAfterAdd = (newId) => window.__lkCSwapApply(idx, newId);
+        if (window.WA && WA.open) WA.open();
+      };
+      // The corner ✕ (shared .rbc-rm): a core slot returns to its placeholder,
+      // an added row drops out.
+      window.__lkCRemove = function(idx) {
+        const row = _lkRowByIdx(idx);
+        if (row) window.__lkRowClear(row.key);
+      };
+      // "+ Add a piece" and Snap-mine land here with a wardrobe id: fill the
+      // first empty core slot that takes the piece's category, else append.
+      window.__lkApplyNew = function(id) {
+        const wi = _waItems.find(w => String(w.id) === String(id));
+        if (!wi) return;
+        if (_lkUsed().map(String).indexOf(String(id)) > -1) { _lkPaint(); return; }
+        const slotFor = _lkRows.find(r => !r.piece && (_LK_SLOTS[r.slot] || _LK_SLOTS.Accessory).cats.indexOf(wi.category) > -1);
+        if (slotFor) {
+          window.__lkRowPick(slotFor.key, id);
+        } else {
+          _lkRowSeq++;
+          _lkRows = _lkRows.concat({ key: 'r' + _lkRowSeq, slot: 'Accessory', piece: id });
+          _lkOpenRow = null;
+          _lkPaint();
+        }
+        _waShowToast(wi.label + ' added to the look');
       };
       window.__lkNewTitleInput = function(v) {
         _lkNewTitleDraft = v;
-        if (!_lkNewTitleTouched) {
-          _lkNewTitleTouched = true;
-          const el = document.getElementById('rb-lk-newtitle');
-          if (el) el.classList.remove('prov');
-        }
+        _lkNewTitleTouched = String(v || '').trim().length > 0;
       };
       // The photo is the look's image and nothing more — no reading, no
       // extraction (Phase 3 is a later, smaller problem). Hosted before it is
@@ -6748,9 +6871,11 @@
         _lkBusy = true;
         const slots = {};
         _lkRows.forEach(r => { if (r.piece) slots[r.piece] = r.slot; });
-        const name = String(_lkNewTitleDraft != null ? _lkNewTitleDraft : _lkOfferName(used, null)).trim() || _lkOfferName(used, null);
+        // The field is a placeholder until she types (A6 still holds at save:
+        // an untouched field gets the offered name, marked provisional).
+        const typed = String(_lkNewTitleDraft || '').trim();
         const l = _lkCreate({
-          pieces: used, name, name_provisional: !_lkNewTitleTouched,
+          pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed,
           source: 'manual', photo_url: _lkPhoto && _lkPhoto.url, slots,
         });
         _lkSaved = l;
