@@ -12,6 +12,28 @@
 -- cache, cloud writes warn once to the console and no-op, and nothing in the
 -- rest of the app changes. Run it before flipping beta traffic.
 
+-- ── preflight ───────────────────────────────────────────────────────────
+-- Robes_p0 already had an unused, empty `public.looks` table from an earlier
+-- experiment (found 30 Jul, nothing in the codebase read it). `create table if
+-- not exists` SKIPS silently in that case, and the first policy below then
+-- fails with a bare `42703: column "user_id" does not exist` — which says
+-- nothing about the actual problem. This turns that into a sentence, and
+-- refuses to touch a table that holds anything.
+do $$
+declare n bigint;
+begin
+  if to_regclass('public.looks') is not null then
+    execute 'select count(*) from public.looks' into n;
+    if not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'looks' and column_name = 'user_id'
+    ) then
+      raise exception
+        'public.looks already exists with a different shape (% row(s)). Drop it first if it is disposable — see the guarded drop in CLAUDE.md — or rename these tables.', n;
+    end if;
+  end if;
+end $$;
+
 -- ── looks ───────────────────────────────────────────────────────────────
 -- name_provisional carries the offered-not-applied title rule (brief A6):
 -- Robes' suggestion pre-populates and renders as provisional; it BECOMES the

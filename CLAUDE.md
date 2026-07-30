@@ -21,6 +21,20 @@ Wardrobe was a catalogue of pieces with no catalogue of **looks** — a generate
 - **Variant promotion is explicit or it doesn't happen** (A5/B5): swapping a piece on a look **with history** opens Update this look / Save as a new look / Leave it, and nothing is applied until she picks. Update mutates composition and says the wears stand; promote writes a new row carrying `origin_look_id` + `source:'variant'` and never touches the ancestor's `look_pieces` (harness-asserted). A look with no history just takes the edit.
 - **The composer is the live wireframe** (Phase 2): look card LEFT (mosaic filling as pieces land, synthesised styling note at two pieces, palette dots, "All N from your wardrobe", Save under the card), rack of slot rows RIGHT (TOP / BOTTOM / SHOE / BAG, the picker opens **inside the row**, "+ Add a piece" appends an accessory row), editable offered title as the rack header. **No side rail** — mobile is the same rows stacked full width. A dress in the Top slot quietly retires the Bottom row; moving a piece to a second slot removes it from the first. **No extraction anywhere**: a photo is the look's image and fills the whole panel, hosted via `/api/wardrobe/upload` first so base64 never reaches a row.
 - **Pin writes `planned_days` with `source_type:'look'`** — the pin store is the index, so a pinned look shows on the home rail and month calendar through the same DayCard. `_pdTier` gives `'look'` the top tier (an explicit pin of a named look is the most deliberate statement about a day; it only ever wins on the index-fed surfaces, since the weekly/travel artifacts derive their strips from their own blob), `_rbOpenPlannedDay` branches to the Look detail (source_id is a uuid, never a numeric lookbook id), and `_dcPieceTotal` resolves the total from the look.
+- **Migration 14 gotcha, hit on the first run**: Robes_p0 already carried an **unused, empty `public.looks`** table from an earlier experiment (nothing in the client, server or edge functions read it). `create table if not exists` skips silently against it, and the first policy then fails with a bare `42703: column "user_id" does not exist` — an error that names nothing useful. The migration now opens with a **preflight `do $$` block** that raises a sentence instead, and refuses to proceed if a foreign `looks` table exists. The guarded drop used to clear it (aborts rather than destroying data, so it is safe to paste):
+  ```sql
+  do $$
+  declare n bigint;
+  begin
+    if to_regclass('public.looks') is not null then
+      execute 'select count(*) from public.looks' into n;
+      if n > 0 then raise exception 'public.looks holds % row(s) — not dropping.', n; end if;
+    end if;
+    drop table if exists public.wears cascade;
+    drop table if exists public.look_pieces cascade;
+    drop table if exists public.looks cascade;
+  end $$;
+  ```
 - **Deliberately NOT built**: garment extraction from a photo (Phase 3 — must not gate 1 and 2); the Travel Edit day-card restructure (blocked on this, briefed separately) — `Pack it` instead routes to the trip intake with the look's pieces as the shortlist (`window._lkPackSeed`), per the standing rule that every route lands on the home prompt. **The wireframes' explanatory copy was not carried over** (founder instruction, 2026-07-30): the design doc's object-model cards, the 01/02/03 empty-state columns, "A wear is a fact, so it needs a date", the immutability footnotes — all annotation, not product copy. The empty state is a headline, ONE line and two ways forward.
 
 ### 2026-07-29 — Wardrobe logging: the onboarding reveal, every time
