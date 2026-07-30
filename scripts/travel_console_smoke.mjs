@@ -165,6 +165,46 @@ await page.evaluate(() => window.__tvSelectLook(0));
 await page.waitForTimeout(150);
 ok(!(await page.locator('#tv-look-console').innerText()).toLowerCase().includes('swapped for day'), 'look console carries no day badge');
 
+// ── 4b. The worked example: Look 01 pinned to Day 1 + Day 2. Day 2 adds
+// a piece and Day 1 drops one — each day's wear is its own, the look stays
+// ONE look.
+await page.evaluate(() => window.__tvSelectDay(1));
+await page.waitForTimeout(150);
+await page.evaluate(() => window.__tvDayConAddApply('w2'));
+await page.waitForTimeout(200);
+const wex = await page.evaluate(() => ({
+  adds: JSON.parse(JSON.stringify(window.__lastTvData.looks[0].dayAdds || {})),
+  rows: document.querySelectorAll('#tv-day-console .rbc-row').length,
+}));
+ok(Array.isArray(wex.adds['1']) && wex.adds['1'].length === 1, 'day add lands in dayAdds for Day 2 only');
+ok(wex.rows === 4, 'Day 2 rack shows the added piece');
+ok((await page.locator('#tv-day-console').innerText()).toLowerCase().includes('added for day 2 only'), 'added piece carries its day badge');
+await page.evaluate(() => window.__tvSelectDay(0));
+await page.waitForTimeout(150);
+ok(await page.locator('#tv-day-console .rbc-row').count() === 3, 'Day 1 keeps 3 pieces — one look, two wears');
+await page.evaluate(() => window.__tvDayConRemove(0));
+await page.waitForTimeout(200);
+const drops = await page.evaluate(() => JSON.parse(JSON.stringify(window.__lastTvData.looks[0].dayDrops || {})));
+ok(Array.isArray(drops['0']) && drops['0'][0] === 0, 'day remove registers a Day-1-only drop');
+ok(await page.locator('#tv-day-console .rbc-row').count() === 2, 'Day 1 rack loses the piece');
+await page.evaluate(() => window.__tvSelectDay(1));
+await page.waitForTimeout(150);
+ok(await page.locator('#tv-day-console .rbc-row').count() === 4, 'Day 2 still wears it');
+// Look scope: an add from the Looks tab reaches every pinned day; a remove
+// remaps the fi-keyed overrides down with the splice.
+await page.evaluate(() => window.__tvSelectLook(1));
+await page.waitForTimeout(150);
+await page.evaluate(() => window.__tvLookConAddApply('w1'));
+await page.waitForTimeout(200);
+ok(await page.evaluate(() => window.__lastTvData.looks[1].formula.length) === 4, 'look-scope add grows the formula everywhere');
+const remap = await page.evaluate(() => {
+  const l = window.__lastTvData.looks[1];
+  l.slotOverrides = { 2: 4 };
+  window.__tvLookConRemove(0);
+  return JSON.parse(JSON.stringify(l.slotOverrides));
+});
+ok(Object.keys(remap).length === 1 && remap['1'] === 4, 'look-scope remove remaps overrides down');
+
 // ── 5. Free day invitation ──
 await page.evaluate(() => window.__tvSelectDay(3));
 await page.waitForTimeout(150);

@@ -3238,7 +3238,9 @@
               continue;
             }
             pinned.slice(0, 2).forEach((l, k) => {
-              const pieces = (l.formula || []).map((f, fi) => (t.capsule || [])[effCi(l, fi, i)]).filter(Boolean);
+              const drops = (l.dayDrops && l.dayDrops[i]) || [];
+              const pieces = (l.formula || []).map((f, fi) => drops.indexOf(fi) !== -1 ? null : (t.capsule || [])[effCi(l, fi, i)]).filter(Boolean)
+                .concat(((l.dayAdds && l.dayAdds[i]) || []).map(ci => (t.capsule || [])[ci]).filter(Boolean));
               rows.push({
                 ..._pdBase('travel', sourceId, i, date, k === 0 ? 'day' : 'evening'),
                 status: 'planned',
@@ -9801,6 +9803,8 @@ body>*:not(#tv-result-page){display:none !important}
           if (!Array.isArray(l.pins)) l.pins = [];
           if (!l.overrides || typeof l.overrides !== 'object') l.overrides = {};
           if (!l.slotOverrides || typeof l.slotOverrides !== 'object') l.slotOverrides = {};
+          if (!l.dayAdds || typeof l.dayAdds !== 'object') l.dayAdds = {};
+          if (!l.dayDrops || typeof l.dayDrops !== 'object') l.dayDrops = {};
         });
         // Imported looks (packed whole from her saved Looks) resolve their
         // pieces to REAL capsule formula entries, so they ride the exact
@@ -9851,16 +9855,30 @@ body>*:not(#tv-result-page){display:none !important}
         return l.formula && l.formula[fi] ? l.formula[fi].item_index : -1;
       }
 
+      // A look's effective pieces at a scope. Day scope also honours the
+      // day's own adjustments (worked example 2026-07-30): dayDrops hide a
+      // slot for that day alone, dayAdds append extra case pieces for that
+      // day alone — Wear B gets the blazer, Wear A never knows. A day-add's
+      // synthetic fi (formula.length + k) is how the swap sheet finds it.
       function _tvLookEntries(li, di) {
         const data = window.__lastTvData || {};
         const l = (data.looks || [])[li];
         if (!l) return [];
-        return (l.formula || []).map((f, fi) => {
+        const drops = (di != null && l.dayDrops && l.dayDrops[di]) || [];
+        const out = (l.formula || []).map((f, fi) => {
+          if (di != null && drops.indexOf(fi) !== -1) return null;
           const ci = _tvEffCi(l, fi, di);
           const it = (data.capsule || [])[ci];
           const dayScoped = di != null && l.overrides && l.overrides[di] && Number.isInteger(l.overrides[di][fi]);
           return it ? { f, fi, ci, it, dayScoped, baseCi: f.item_index } : null;
         }).filter(Boolean);
+        if (di != null && l.dayAdds && Array.isArray(l.dayAdds[di])) {
+          l.dayAdds[di].forEach((ci, k) => {
+            const it = (data.capsule || [])[ci];
+            if (it) out.push({ f: null, fi: (l.formula || []).length + k, ci, it, dayScoped: true, dayAdd: true, addIdx: k, baseCi: ci });
+          });
+        }
+        return out;
       }
 
       function _tvCatNorm(c) { return String(c || '').toLowerCase().replace(/s$/, ''); }
@@ -10035,26 +10053,31 @@ body>*:not(#tv-result-page){display:none !important}
       // applied at the current scope. From a day it changes that day only;
       // from the Looks tab it carries across the look. Landing back on the
       // look's own piece clears the override.
-      function _tvConFlip(li, di, fi, dir) {
+      function _tvConFlip(li, di, e, dir) {
         const data = window.__lastTvData;
         const l = data && data.looks[li];
-        if (!l || !l.formula[fi]) return;
-        const base = l.formula[fi].item_index;
-        if (!Number.isInteger(base) || base < 0) return;
-        const pool = _tvCapsulePool(data, base);
+        if (!l || !e) return;
+        const anchorCi = e.dayAdd ? e.ci : (l.formula[e.fi] ? l.formula[e.fi].item_index : -1);
+        if (!Number.isInteger(anchorCi) || anchorCi < 0) return;
+        const pool = _tvCapsulePool(data, anchorCi);
         if (pool.length < 2) { _waShowToast('Nothing else in the case fits this slot — Swap reaches your wardrobe'); return; }
-        const cur = _tvEffCi(l, fi, di);
-        const next = pool[(Math.max(0, pool.indexOf(cur)) + dir + pool.length) % pool.length];
-        const lookEff = (l.slotOverrides && Number.isInteger(l.slotOverrides[fi])) ? l.slotOverrides[fi] : base;
-        if (di != null) {
-          if (!l.overrides) l.overrides = {};
-          if (!l.overrides[di]) l.overrides[di] = {};
-          if (next === lookEff) delete l.overrides[di][fi];
-          else l.overrides[di][fi] = next;
+        const next = pool[(Math.max(0, pool.indexOf(e.ci)) + dir + pool.length) % pool.length];
+        if (e.dayAdd) {
+          l.dayAdds[di][e.addIdx] = next;
         } else {
-          if (!l.slotOverrides) l.slotOverrides = {};
-          if (next === base) delete l.slotOverrides[fi];
-          else l.slotOverrides[fi] = next;
+          const fi = e.fi;
+          const base = l.formula[fi].item_index;
+          const lookEff = (l.slotOverrides && Number.isInteger(l.slotOverrides[fi])) ? l.slotOverrides[fi] : base;
+          if (di != null) {
+            if (!l.overrides) l.overrides = {};
+            if (!l.overrides[di]) l.overrides[di] = {};
+            if (next === lookEff) delete l.overrides[di][fi];
+            else l.overrides[di][fi] = next;
+          } else {
+            if (!l.slotOverrides) l.slotOverrides = {};
+            if (next === base) delete l.slotOverrides[fi];
+            else l.slotOverrides[fi] = next;
+          }
         }
         _tvPatchSaved();
       }
@@ -10066,13 +10089,15 @@ body>*:not(#tv-result-page){display:none !important}
       function _tvConItems(li, di) {
         const data = window.__lastTvData;
         const l = data.looks[li];
-        return _tvLookEntries(li, di).map(x => {
-          const { it, ci, fi } = x;
-          const base = l.formula[fi] ? l.formula[fi].item_index : -1;
-          const pool = Number.isInteger(base) && base >= 0 ? _tvCapsulePool(data, base) : [ci];
-          const scope = x.dayScoped ? `<span class="tvm-scopetag">Swapped for Day ${di + 1} only</span>` : '';
+        return _tvLookEntries(li, di).map((x, i) => {
+          const { it, ci } = x;
+          const anchorCi = x.dayAdd ? ci : (l.formula[x.fi] ? l.formula[x.fi].item_index : -1);
+          const pool = Number.isInteger(anchorCi) && anchorCi >= 0 ? _tvCapsulePool(data, anchorCi) : [ci];
+          const scope = x.dayAdd
+            ? `<span class="tvm-scopetag">Added for Day ${di + 1} only</span>`
+            : (x.dayScoped ? `<span class="tvm-scopetag">Swapped for Day ${di + 1} only</span>` : '');
           return {
-            idx: fi,
+            idx: i,
             frame: _tvFrame(it),
             slot: _dlSlot(it).l,
             shortName: _dlShort(it.name),
@@ -10081,7 +10106,7 @@ body>*:not(#tv-result-page){display:none !important}
             showAddTag: !it.wardrobe_match,
             count: { cur: Math.max(0, pool.indexOf(ci)), len: Math.max(1, pool.length) },
             subHtml: _rbcProvenance(it, '<span class="addtag">Worth adding</span>') + scope,
-            noteHtml: (x.f.note && ci === x.baseCi) ? `<div class="rbc-hownote">${_waEsc(x.f.note)}</div>` : '',
+            noteHtml: (x.f && x.f.note && ci === x.baseCi) ? `<div class="rbc-hownote">${_waEsc(x.f.note)}</div>` : '',
             thirdHtml: (it.wardrobe_match || it.added)
               ? `<button class="rbc-act${it.packed ? ' on' : ''}" onclick="window.__tvPackToggle(${ci})">${it.packed ? _rbcCheckSvg + ' Packed' : 'Pack'}</button>`
               : `<button class="rbc-act save" onclick="window.__tvAddOwn(${ci})">+ Add</button>`,
@@ -10112,7 +10137,8 @@ body>*:not(#tv-result-page){display:none !important}
             ? `<button class="rbc-hbtn" onclick="window.__tvUnpin(${li},${di})">Unpin from this day</button>`
             : `<button class="rbc-hbtn" onclick="window.__tvPinOpen(${li})">📌 Pin to days</button>`)
             + `<button class="rbc-hbtn" onclick="window.__tvPackLook(${li},${di == null ? 'null' : di})">${_tvCheckSvg} Pack this look</button>`,
-          onFlip: opts.onFlip, onSwap: opts.onSwap,
+          onFlip: opts.onFlip, onSwap: opts.onSwap, onRemove: opts.onRemove,
+          addPieceFn: opts.addPieceFn,
           lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
         }, conItems);
         return `<div class="tv-con"><div>${con.lookHtml}</div><div>${con.rackHtml}</div></div>`;
@@ -10152,7 +10178,7 @@ body>*:not(#tv-result-page){display:none !important}
             + `</div>`
           : '';
         const x = pinned[_tvDayLookIdx];
-        el.innerHTML = _tvConsoleFor(x.li, di, { occHtml: seg, onFlip: '__tvDayConFlip', onSwap: '__tvDayConSwap' });
+        el.innerHTML = _tvConsoleFor(x.li, di, { occHtml: seg, onFlip: '__tvDayConFlip', onSwap: '__tvDayConSwap', onRemove: '__tvDayConRemove', addPieceFn: '__tvDayConAdd' });
       }
 
       // The look console — a look card unfolds the same view, dayless:
@@ -10169,7 +10195,7 @@ body>*:not(#tv-result-page){display:none !important}
           ? 'Pinned to ' + pins.map(di => 'Day ' + (di + 1)).join(' · ') + ' — changes here reach every pinned day'
           : 'Not pinned yet — it stays in the row';
         const occ = `<div style="font-size:10.5px;color:var(--ink-faint);font-style:italic;margin:2px 0 6px">${_waEsc(pinsLine)}</div>`;
-        el.innerHTML = _tvConsoleFor(li, null, { occHtml: occ, onFlip: '__tvLookConFlip', onSwap: '__tvLookConSwap' });
+        el.innerHTML = _tvConsoleFor(li, null, { occHtml: occ, onFlip: '__tvLookConFlip', onSwap: '__tvLookConSwap', onRemove: '__tvLookConRemove', addPieceFn: '__tvLookConAdd' });
       }
 
       // Every existing repaint funnel (pin sync, pack toggle, render) calls
@@ -10179,26 +10205,134 @@ body>*:not(#tv-result-page){display:none !important}
         _tvPaintLookConsole();
       }
 
-      window.__tvDayConFlip = function(fi, dir) {
-        const x = _tvDayPinned()[_tvDayLookIdx];
-        if (!x) return;
-        _tvConFlip(x.li, _tvSelDayI, fi, dir);
+      // A look is always adjustable, and the adjustment knows its scope
+      // (worked example 2026-07-30): from a day, add/remove/flick/swap
+      // belong to that day alone; from the Looks tab they are the look
+      // itself, everywhere it's pinned. One look, worn many ways — a
+      // variant becomes its own look only by her explicit action, never
+      // inferred from a changed piece.
+      function _tvRemoveEntry(li, di, i) {
+        const data = window.__lastTvData;
+        const l = data && data.looks[li];
+        const entries = _tvLookEntries(li, di);
+        const e = entries[i];
+        if (!l || !e) return;
+        if (entries.length <= 2) { _waShowToast('A look needs at least two pieces'); return; }
+        if (e.dayAdd) {
+          l.dayAdds[di].splice(e.addIdx, 1);
+          _waShowToast(_dlShort(e.it.name) + ' off again for Day ' + (di + 1));
+        } else if (di != null) {
+          if (!l.dayDrops) l.dayDrops = {};
+          if (!l.dayDrops[di]) l.dayDrops[di] = [];
+          if (l.dayDrops[di].indexOf(e.fi) === -1) l.dayDrops[di].push(e.fi);
+          _waShowToast(_dlShort(e.it.name) + ' left off for Day ' + (di + 1) + ' only');
+        } else {
+          // The slot leaves the look everywhere; every fi-keyed map shifts
+          // down with the splice or later slots would point at the wrong
+          // piece.
+          l.formula.splice(e.fi, 1);
+          const remap = obj => {
+            if (!obj) return obj;
+            const out = {};
+            Object.keys(obj).forEach(k => {
+              const nk = Number(k);
+              if (nk === e.fi) return;
+              out[nk > e.fi ? nk - 1 : nk] = obj[k];
+            });
+            return out;
+          };
+          l.slotOverrides = remap(l.slotOverrides) || {};
+          Object.keys(l.overrides || {}).forEach(d => { l.overrides[d] = remap(l.overrides[d]) || {}; });
+          Object.keys(l.dayDrops || {}).forEach(d => {
+            l.dayDrops[d] = l.dayDrops[d].filter(v => v !== e.fi).map(v => (v > e.fi ? v - 1 : v));
+          });
+          _waShowToast(_dlShort(e.it.name) + ' removed from the look');
+        }
+        _tvPatchSaved();
+      }
+
+      function _tvAddApply(li, di, wardrobeId) {
+        const data = window.__lastTvData;
+        const l = data && data.looks[li];
+        const wi = _waItems.find(w => String(w.id) === String(wardrobeId));
+        if (!l || !wi) return;
+        const ci = _tvCapsuleIndexFor(wi);
+        if (_tvLookEntries(li, di).some(e => e.ci === ci)) { _waShowToast(wi.label + ' is already in this look'); return; }
+        if (di != null) {
+          if (!l.dayAdds) l.dayAdds = {};
+          if (!Array.isArray(l.dayAdds[di])) l.dayAdds[di] = [];
+          l.dayAdds[di].push(ci);
+          _waShowToast(wi.label + ' added for Day ' + (di + 1) + ' only');
+        } else {
+          l.formula.push({ role: 'The Canvas', item_index: ci, note: '' });
+          _waShowToast(wi.label + ' added to the look');
+        }
+        _tvPatchSaved();
+      }
+
+      function _tvDayRepaint() {
         _tvPaintWeek();
         _tvPaintDayConsole();
-        window.__rbcAnimateTile && window.__rbcAnimateTile(fi);
-      };
-      window.__tvDayConSwap = function(fi) {
+        _tvPaintPackProgress();
+      }
+      function _tvLookRepaint() {
+        _tvPaintLooks();
+        _tvPaintWeek();
+        _tvPaintLookConsole();
+        _tvPaintPackProgress();
+      }
+
+      window.__tvDayConFlip = function(i, dir) {
         const x = _tvDayPinned()[_tvDayLookIdx];
-        if (x) window.__tvLookSwap(x.li, fi, _tvSelDayI);
+        const e = x && _tvLookEntries(x.li, _tvSelDayI)[i];
+        if (!e) return;
+        _tvConFlip(x.li, _tvSelDayI, e, dir);
+        _tvPaintWeek();
+        _tvPaintDayConsole();
+        window.__rbcAnimateTile && window.__rbcAnimateTile(i);
       };
-      window.__tvLookConFlip = function(fi, dir) {
-        _tvConFlip(_tvSelLookI, null, fi, dir);
+      window.__tvDayConSwap = function(i) {
+        const x = _tvDayPinned()[_tvDayLookIdx];
+        const e = x && _tvLookEntries(x.li, _tvSelDayI)[i];
+        if (e) window.__tvLookSwap(x.li, e.fi, _tvSelDayI);
+      };
+      window.__tvDayConRemove = function(i) {
+        const x = _tvDayPinned()[_tvDayLookIdx];
+        if (!x) return;
+        _tvRemoveEntry(x.li, _tvSelDayI, i);
+        _tvDayRepaint();
+      };
+      window.__tvDayConAdd = function() {
+        window.__rbcAddMenu('__tvDayConAddApply');
+      };
+      window.__tvDayConAddApply = function(wardrobeId) {
+        const x = _tvDayPinned()[_tvDayLookIdx];
+        if (!x) return;
+        _tvAddApply(x.li, _tvSelDayI, wardrobeId);
+        _tvDayRepaint();
+      };
+      window.__tvLookConFlip = function(i, dir) {
+        const e = _tvLookEntries(_tvSelLookI, null)[i];
+        if (!e) return;
+        _tvConFlip(_tvSelLookI, null, e, dir);
         _tvPaintLooks();
         _tvPaintLookConsole();
-        window.__rbcAnimateTile && window.__rbcAnimateTile(fi);
+        window.__rbcAnimateTile && window.__rbcAnimateTile(i);
       };
-      window.__tvLookConSwap = function(fi) {
-        window.__tvLookSwap(_tvSelLookI, fi, null);
+      window.__tvLookConSwap = function(i) {
+        const e = _tvLookEntries(_tvSelLookI, null)[i];
+        if (e) window.__tvLookSwap(_tvSelLookI, e.fi, null);
+      };
+      window.__tvLookConRemove = function(i) {
+        _tvRemoveEntry(_tvSelLookI, null, i);
+        _tvLookRepaint();
+      };
+      window.__tvLookConAdd = function() {
+        window.__rbcAddMenu('__tvLookConAddApply');
+      };
+      window.__tvLookConAddApply = function(wardrobeId) {
+        _tvAddApply(_tvSelLookI, null, wardrobeId);
+        _tvLookRepaint();
       };
 
       // ── Pin to days — one look, many days ──
@@ -10254,7 +10388,10 @@ body>*:not(#tv-result-page){display:none !important}
         const i = l.pins.indexOf(di);
         if (i !== -1) {
           l.pins.splice(i, 1);
-          if (l.overrides) delete l.overrides[di]; // day-scoped swaps die with the pin
+          // the day's adjustments die with the pin
+          if (l.overrides) delete l.overrides[di];
+          if (l.dayAdds) delete l.dayAdds[di];
+          if (l.dayDrops) delete l.dayDrops[di];
         } else {
           l.pins.push(di);
           _rbTrack('look_pinned', { surface: 'travel', day_index: di });
@@ -10949,11 +11086,15 @@ body>*:not(#tv-result-page){display:none !important}
         const data = window.__lastTvData;
         const l = data && data.looks[li];
         if (!l) return;
-        const ci = _tvEffCi(l, fi, di == null ? null : di);
-        const item = data.capsule[ci];
+        const fl = (l.formula || []).length;
+        const addIdx = (di != null && fi >= fl) ? fi - fl : null;
+        const ci = addIdx != null
+          ? ((l.dayAdds && l.dayAdds[di]) || [])[addIdx]
+          : _tvEffCi(l, fi, di == null ? null : di);
+        const item = Number.isInteger(ci) ? data.capsule[ci] : null;
         if (!item) return;
-        const multi = di != null && (l.pins || []).length > 1;
-        _tvSwapCtx = { li, fi, di: di == null ? null : di, scope: di == null ? 'look' : 'day' };
+        const multi = addIdx == null && di != null && (l.pins || []).length > 1;
+        _tvSwapCtx = { li, fi, di: di == null ? null : di, scope: di == null ? 'look' : 'day', addIdx };
         const pool = _tvCapsulePool(data, ci)
           .filter(k => k !== ci)
           .map(k => {
@@ -10964,10 +11105,12 @@ body>*:not(#tv-result-page){display:none !important}
               image_url: (c.wardrobe_match && c.wardrobe_match.image_url) || null,
             };
           });
-        const hasOverride = di != null
+        const hasOverride = addIdx == null && (di != null
           ? !!(l.overrides && l.overrides[di] && Number.isInteger(l.overrides[di][fi]))
-          : !!(l.slotOverrides && Number.isInteger(l.slotOverrides[fi]));
-        const headHtml = (multi ? `
+          : !!(l.slotOverrides && Number.isInteger(l.slotOverrides[fi])));
+        const headHtml = (addIdx != null ? `
+              <p style="font-size:11px;color:var(--ink-faint);font-style:italic;margin:0 0 14px">Added for Day ${di + 1} — the swap changes this day only.</p>` : '')
+          + (multi ? `
               <div style="display:flex;border:0.5px solid rgba(32,32,33,0.16);border-radius:100px;overflow:hidden;margin-bottom:8px">
                 <button id="tv-scope-day" onclick="window.__tvScopeSet('day')" style="flex:1;padding:9px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:none;cursor:pointer;font-family:inherit;background:#202021;color:#fff">Only Day ${di + 1}</button>
                 <button id="tv-scope-all" onclick="window.__tvScopeSet('all')" style="flex:1;padding:9px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:none;cursor:pointer;font-family:inherit;background:transparent;color:#202021">All pinned days</button>
@@ -11005,7 +11148,12 @@ body>*:not(#tv-result-page){display:none !important}
         const data = window.__lastTvData;
         const l = data && data.looks[ctx.li];
         if (!l || !Number.isInteger(ci2) || !data.capsule[ci2]) return;
-        if (ctx.di != null && ctx.scope === 'day') {
+        if (ctx.addIdx != null) {
+          if (!l.dayAdds) l.dayAdds = {};
+          if (!Array.isArray(l.dayAdds[ctx.di])) l.dayAdds[ctx.di] = [];
+          l.dayAdds[ctx.di][ctx.addIdx] = ci2;
+          _waShowToast(label + ' — swapped for Day ' + (ctx.di + 1) + ' only');
+        } else if (ctx.di != null && ctx.scope === 'day') {
           if (!l.overrides) l.overrides = {};
           if (!l.overrides[ctx.di]) l.overrides[ctx.di] = {};
           l.overrides[ctx.di][ctx.fi] = ci2;
