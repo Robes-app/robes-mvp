@@ -4080,6 +4080,7 @@
       // list, lookbook page) so an in-flow view like the wardrobe panel can
       // actually be seen. Used by the patched App.showWardrobe.
       window.__rbCloseResultOverlays = function() {
+        document.getElementById('tv-build-page')?.remove();
         if (kpResultPage) kpResultPage.style.display = 'none';
         if (dlResultPage) dlResultPage.style.display = 'none';
         if (tvResultPage) tvResultPage.style.display = 'none';
@@ -4096,6 +4097,7 @@
       // not open order, decides who paints on top, so every render must hide
       // its siblings or a stale later-appended page stays visible above it.
       function _rbHideResultPages(except) {
+        document.getElementById('tv-build-page')?.remove();
         if (except !== 'kp' && kpResultPage) kpResultPage.style.display = 'none';
         if (except !== 'dl' && dlResultPage) dlResultPage.style.display = 'none';
         if (except !== 'tv' && tvResultPage) tvResultPage.style.display = 'none';
@@ -8960,6 +8962,7 @@
       }
 
       window.__tvGoBack = function() {
+        document.getElementById('tv-build-page')?.remove();
         if (tvResultPage) tvResultPage.style.display = 'none';
         _waAfterAdd = null; // leaving the edit cancels any armed snap-mine swap
         window.rbClearCrumb && window.rbClearCrumb();
@@ -9135,10 +9138,9 @@
       // "Snap new" inside the anchor row — the wardrobe add flow runs, the
       // fresh piece lands back here already selected as an anchor.
       window.__tvAnchorSnap = function() {
-        document.getElementById('tv-build-modal')?.remove();
         _waEditId = null;
         _waAfterAdd = function(newId) {
-          _tvShowBuildModal();
+          _tvShowBuildPage();
           setTimeout(function() { window.__tvAnchorToggle(newId); }, 150);
         };
         if (window.WA && WA.open) WA.open();
@@ -9150,7 +9152,6 @@
       // saved Looks packed whole, and the key pieces for the case.
       window.__tvOpen = function(opts) {
         document.getElementById('tv-brief-modal')?.remove();
-        document.getElementById('tv-build-modal')?.remove();
         const serif = "'Cormorant',Georgia,serif";
         const iso = d => d.toISOString().slice(0, 10);
         const rawBrief = (opts && opts.brief) || '';
@@ -9224,7 +9225,7 @@
         const st = _tvBrief || {};
         if (!st.dest) { _waShowToast('Tell us where you’re going first'); return; }
         document.getElementById('tv-brief-modal')?.remove();
-        _tvShowBuildModal();
+        _tvShowBuildPage();
       };
 
       // Step 2 of 2 — build the outfits (looks-first UX 2026-07-30, the
@@ -9239,13 +9240,25 @@
       // quote must be escaped for the JS string, not just the HTML.
       function _tvAttrJs(s) { return _waEsc(String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
 
-      function _tvShowBuildModal() {
-        document.getElementById('tv-build-modal')?.remove();
+      function _tvBuildClose() {
+        document.getElementById('tv-build-page')?.remove();
+      }
+
+      // Step 2 of 2 is a DEDICATED PAGE, not a modal (design feedback
+      // 2026-07-30): the unfurl stays slim — where/when/vibe — and the
+      // outfits are built here: the trip's plans, saved Looks packed
+      // whole, and the key pieces for the case. The trip pill rides
+      // along the top; editing it reopens step 1 over the page.
+      function _tvShowBuildPage() {
+        _tvBuildClose();
         const st = _tvBrief || {};
         const serif = "'Cormorant',Georgia,serif";
+        const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
         const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:var(--rad-sm);padding:11px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit';
         const labelCss = 'font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px';
-        const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        const fmtD = iso => { const d = new Date(String(iso || '') + 'T00:00:00'); return isNaN(d) ? '' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); };
+        const whenLabel = st.dateFrom && st.dateTo ? fmtD(st.dateFrom) + ' – ' + fmtD(st.dateTo) + ' · ' + _tvTripDays(st).n + ' days' : 'Add dates';
+        const pillCrumb = (em, val, empty) => `<button onclick="window.__tvOpen({restore:true})" style="display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:0.5px solid rgba(32,32,33,0.14);border-radius:var(--rad-sm);font-size:12px;color:#202021;background:#FAF8F5;cursor:pointer;font-family:inherit"><em style="font-style:normal;color:var(--ink-faint)">${em}</em> ${val ? _waEsc(val) : `<span style="font-style:italic;color:var(--ink-faint)">${empty}</span>`} ✎</button>`;
 
         // Saved Looks she can pack whole — drawn through _rbLookTile's
         // mosaic (never a second look card).
@@ -9255,11 +9268,11 @@
         const lookRow = packable.length ? `
           <p style="${labelCss}">Looks you already love</p>
           <p style="font-size:11px;color:var(--ink-faint);font-style:italic;margin:0 0 10px">Tick a saved look and it travels whole — nothing re-styled.</p>
-          <div style="display:grid;grid-auto-flow:column;grid-auto-columns:110px;gap:8px;overflow-x:auto;padding:2px 0 16px">${packable.map(l => `
-            <div data-plook="${_waEsc(String(l.id))}" onclick="window.__tvLookPackToggle('${_waEsc(String(l.id))}')" style="cursor:pointer;border-radius:10px;overflow:hidden;background:#fff;outline:1px solid rgba(32,32,33,0.1);outline-offset:-1px;position:relative;padding:5px">
-              <span class="tv-plook-chk" style="display:none;position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:#202021;color:#fff;font-size:10px;align-items:center;justify-content:center;z-index:2;line-height:1">✓</span>
+          <div style="display:grid;grid-auto-flow:column;grid-auto-columns:128px;gap:10px;overflow-x:auto;padding:2px 0 20px">${packable.map(l => `
+            <div data-plook="${_waEsc(String(l.id))}" onclick="window.__tvLookPackToggle('${_waEsc(String(l.id))}')" style="cursor:pointer;border-radius:10px;overflow:hidden;background:#fff;outline:1px solid rgba(32,32,33,0.1);outline-offset:-1px;position:relative;padding:6px">
+              <span class="tv-plook-chk" style="display:none;position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:#202021;color:#fff;font-size:10px;align-items:center;justify-content:center;z-index:2;line-height:1">✓</span>
               ${mos(cells(l.pieces.map(p => p.id)), { photo: l.photo_url || undefined, alt: l.name || 'Saved look' })}
-              <div style="padding:6px 3px 2px;font-size:9.5px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(l.name || 'Saved look')}</div>
+              <div style="padding:6px 3px 2px;font-size:10px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(l.name || 'Saved look')}</div>
             </div>`).join('')}</div>` : '';
 
         // Category pills — only the categories she actually owns, plus All
@@ -9268,44 +9281,52 @@
           `<button data-tvcat="${_waEsc(c)}" onclick="window.__tvCatSet('${_waEsc(c)}')" style="padding:6px 13px;border:0.5px solid ${c === _tvCat ? '#202021' : 'rgba(32,32,33,0.15)'};border-radius:40px;background:${c === _tvCat ? '#202021' : '#fff'};color:${c === _tvCat ? '#fff' : '#202021'};font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">${_waEsc(c)}</button>`
         ).join('');
 
-        const modal = document.createElement('div');
-        modal.id = 'tv-build-modal';
-        modal.className = 'tv-sheet-wrap';
-        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
-        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-        modal.innerHTML = `
-          <div class="tv-sheet" style="background:#FAF8F5;border-radius:20px;width:100%;max-width:520px;max-height:86vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 24px 28px">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
-              <button onclick="window.__tvBuildBack()" style="background:none;border:none;cursor:pointer;padding:0;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);font-family:inherit">← The trip</button>
-              <button onclick="document.getElementById('tv-build-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
+        const page = document.createElement('div');
+        page.id = 'tv-build-page';
+        page.style.cssText = 'position:fixed;left:0;top:var(--nav-h,60px);right:0;bottom:0;z-index:40;background:#FAF8F5;overflow-y:auto;font-family:' + sans;
+        page.innerHTML = `
+          <div style="max-width:var(--shell,1440px);margin:0 auto;padding:30px var(--s6,36px) 60px;box-sizing:border-box">
+            <button onclick="window.__tvBuildBack()" style="background:none;border:none;cursor:pointer;padding:0;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);font-family:inherit">← The trip</button>
+            <div style="font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose);margin:16px 0 8px">The travel edit · step 2 of 2</div>
+            <h1 style="font-family:${serif};font-weight:300;font-style:italic;font-size:clamp(28px,3.5vw,40px);line-height:1.05;margin:0 0 6px;color:var(--ink)">Build the outfits.</h1>
+            <p style="font-size:12.5px;color:var(--ink-faint);font-style:italic;margin:0 0 16px">Looks come first — you’ll pin each one to its days once they’re styled.</p>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-bottom:26px;padding-bottom:22px;border-bottom:0.5px solid rgba(32,32,33,0.08)">
+              ${pillCrumb('Where', st.dest, 'add a place')}
+              ${pillCrumb('When', whenLabel === 'Add dates' ? '' : whenLabel, 'add dates')}
+              ${pillCrumb('Vibe', st.vibe, 'add the mood')}
+              <span style="font-size:11px;color:var(--ink-faint);font-style:italic;font-family:${serif}">edit anything — it reopens the trip</span>
             </div>
-            <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:10px 0 2px">${_waEsc(st.dest || 'Travel edit')} · step 2 of 2</p>
-            <p style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin:0 0 4px;line-height:1.15">Build the outfits.</p>
-            <p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:0 0 18px">Looks come first — you’ll pin each one to its days once they’re styled.</p>
-            <p style="${labelCss}">The plan</p>
-            <p style="font-size:11px;color:var(--ink-faint);font-style:italic;margin:0 0 10px">What does this trip hold? Every plan you pick gets a look of its own.</p>
-            <div id="tv-plan-chips" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px"></div>
-            <div style="display:flex;gap:8px;margin-bottom:18px">
-              <input id="tv-plan-custom" placeholder="Add your own — “Gallery morning”" onkeydown="if(event.key==='Enter'){event.preventDefault();window.__tvPlanAdd()}" style="${inputCss}">
-              <button onclick="window.__tvPlanAdd()" style="flex-shrink:0;padding:0 18px;border:0.5px solid rgba(32,32,33,0.16);border-radius:40px;background:#fff;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Add</button>
+            <div style="max-width:760px">
+              <p style="${labelCss}">The plan</p>
+              <p style="font-size:11px;color:var(--ink-faint);font-style:italic;margin:0 0 10px">What does this trip hold? Every plan you pick gets a look of its own.</p>
+              <div id="tv-plan-chips" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px"></div>
+              <div style="display:flex;gap:8px;margin-bottom:22px">
+                <input id="tv-plan-custom" placeholder="Add your own — “Gallery morning”" onkeydown="if(event.key==='Enter'){event.preventDefault();window.__tvPlanAdd()}" style="${inputCss}">
+                <button onclick="window.__tvPlanAdd()" style="flex-shrink:0;padding:0 18px;border:0.5px solid rgba(32,32,33,0.16);border-radius:40px;background:#fff;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Add</button>
+              </div>
+              ${lookRow}
+              <p style="${labelCss}">Key pieces for the case</p>
+              <p id="tv-anchor-hint" style="font-size:11px;color:var(--ink-faint);font-style:italic;margin:0 0 10px"></p>
+              ${(st.suggested || []).length ? `<p style="font-size:11px;color:#6E6A64;font-style:italic;margin:0 0 10px">✦ ${st.suggested.length} piece${st.suggested.length === 1 ? '' : 's'} from your moodboard will join the edit under Worth Adding.</p>` : ''}
+              <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px">${catPills}</div>
+              <label id="tv-wx-row" style="display:none;align-items:center;gap:8px;font-size:11.5px;color:#6E6A64;cursor:pointer;margin:0 0 10px">
+                <input id="tv-wx-box" type="checkbox" onchange="window.__tvWxToggle(this)" style="accent-color:#202021;margin:0"${_tvWxOnly ? ' checked' : ''}>
+                <span id="tv-wx-label">Weather-ready pieces only</span>
+              </label>
+              <div id="tv-anchor-row" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;max-height:296px;overflow-y:auto;padding:2px;margin-bottom:26px"></div>
+              <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+                <button id="tv-build-cta" onclick="window.__tvBuildGo()" style="padding:14px 32px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit;transition:opacity .2s">Create my looks →</button>
+                <button onclick="window.__tvBuildCancel()" style="background:none;border:none;padding:0;cursor:pointer;font-size:11px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:inherit">Cancel</button>
+              </div>
             </div>
-            ${lookRow}
-            <p style="${labelCss}">Key pieces for the case</p>
-            <p id="tv-anchor-hint" style="font-size:11px;color:var(--ink-faint);font-style:italic;margin:0 0 10px"></p>
-            ${(st.suggested || []).length ? `<p style="font-size:11px;color:#6E6A64;font-style:italic;margin:0 0 10px">✦ ${st.suggested.length} piece${st.suggested.length === 1 ? '' : 's'} from your moodboard will join the edit under Worth Adding.</p>` : ''}
-            <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px">${catPills}</div>
-            <label id="tv-wx-row" style="display:none;align-items:center;gap:8px;font-size:11.5px;color:#6E6A64;cursor:pointer;margin:0 0 10px">
-              <input id="tv-wx-box" type="checkbox" onchange="window.__tvWxToggle(this)" style="accent-color:#202021;margin:0"${_tvWxOnly ? ' checked' : ''}>
-              <span id="tv-wx-label">Weather-ready pieces only</span>
-            </label>
-            <div id="tv-anchor-row" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;max-height:236px;overflow-y:auto;padding:2px;margin-bottom:20px"></div>
-            <button id="tv-build-cta" onclick="window.__tvBuildGo()" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit;transition:opacity .2s">Create my looks →</button>
           </div>`;
-        document.body.appendChild(modal);
+        document.body.appendChild(page);
+        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Pack a trip' }]);
         _tvPlanChipsPaint();
         _tvPlookPaint();
         _tvGridPaint();
         _tvFetchWx();
+        page.scrollTo({ top: 0 });
       }
 
       function _tvPlanChipsPaint() {
@@ -9373,14 +9394,18 @@
       };
 
       window.__tvBuildBack = function() {
-        document.getElementById('tv-build-modal')?.remove();
         window.__tvOpen({ restore: true });
+      };
+
+      window.__tvBuildCancel = function() {
+        _tvBuildClose();
+        window.rbClearCrumb && window.rbClearCrumb();
       };
 
       window.__tvBuildGo = function() {
         const st = _tvBrief || {};
         if (!(st.plans || []).length) { _waShowToast('Pick at least one plan first'); return; }
-        document.getElementById('tv-build-modal')?.remove();
+        _tvBuildClose();
         _tvGenerate();
       };
 
@@ -9450,6 +9475,7 @@
               dateFrom: st.dateFrom || '',
               dateTo: st.dateTo || '',
               brief: st.brief || '',
+              vibe: st.vibe || '',
               plans: st.plans || [],
               shortlistIds,
               suggestedItems: st.suggested || [],
@@ -9467,6 +9493,7 @@
           const data = await res.json();
           data.genId = genId;
           data.brief = st.brief || '';
+          data.vibe = st.vibe || '';
           data.shortlist_size = shortlistIds.length;
           data.looks = (Array.isArray(data.looks) ? data.looks : []).map(l => ({ ...l, pins: [] })).concat(imported);
           _tvBrief = null;
@@ -10426,6 +10453,7 @@ body>*:not(#tv-result-page){display:none !important}
             body: JSON.stringify({
               destination: data.destination || '',
               brief: data.brief || '',
+              vibe: data.vibe || '',
               occasions: _tvMoreSel,
               weather: data.weather || null,
               userId: _waUid() || undefined,
@@ -14073,7 +14101,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             defaultDays: 7, maxDays: 10, requiresDates: true,
             rackLabel: 'Key pieces for the case',
             quickAdd: ['Beach day', 'Exploring', 'Boat day', 'Big dinner', 'A day trip', 'Slow morning'],
-            primaryLabel: st => 'Create my looks · ' + ((st.plans || []).length || 'no') + ' plan' + ((st.plans || []).length === 1 ? '' : 's') + ' →',
+            primaryLabel: () => 'Next · Build the outfits →',
             maxDaysError: 'Trips plan up to 10 days at a time — split a longer stay in two.',
           },
           artifact: { eyebrow: 'The travel edit', hasCapsuleTab: true, hasPackProgress: true },
@@ -14504,6 +14532,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             rows: from ? _ikRows(from, days, seed.day_intents) : [],
             anchors: packSeed, cat: 'All',
             plans: seedPlans, packLookIds: packSeedLook ? [packSeedLook] : [],
+            vibe: (isTravel && seed.vibe) || '', editingVibe: false, vibeEdited: false,
             editingDates: false, err: '',
             openedAt: _ikOpenedAt || Date.now(),
           };
@@ -14563,6 +14592,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         const whereCrumb = st.editingWhere
           ? `<span class="ik-crumb"><em>Where</em><input id="ik-where" value="${_ikEsc(st.where)}" placeholder="${st.kind === 'travel' ? 'Destination' : 'Your city'}" onkeydown="if(event.key==='Enter')window._ikWhereDone()" onblur="window._ikWhereDone()"></span>`
           : `<button class="ik-crumb" onclick="window._ikWhereEdit()"><em>Where</em> ${st.where ? _ikEsc(st.where) : '<span style="font-style:italic;color:var(--ink-faint)">add a place</span>'} ✎</button>`;
+        const ikTravel = _rbTrackCfg(st.kind).engine === 'travel';
         const whenCrumb = st.editingDates
           ? `<span class="ik-crumb ik-dates"><em>When</em>
                <input type="date" id="ik-from" value="${st.from || ''}">
@@ -14570,14 +14600,19 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
                <input type="date" id="ik-to" value="${st.from ? _pdAddISO(st.from, st.days - 1) : ''}">
                <button class="done" onclick="window._ikDatesDone()">Done</button></span>`
           : `<button class="ik-crumb" onclick="window._ikDatesEdit()"><em>When</em> ${fmtRange()} ✎</button>`;
-        const provenance = st.whereEdited || st.datesEdited ? 'edited by you' : (st.where || st.from ? 'read from your prompt' : 'our suggestion — change anything');
-        const crumbs = `<div class="ik-crumbs">${whereCrumb}${whenCrumb}<span class="ik-note">${provenance}</span></div>`;
+        // Travel carries the vibe as a first-class crumb (looks-first UX
+        // feedback 2026-07-30) — the unfurl is where/when/vibe, no more.
+        const vibeCrumb = !ikTravel ? '' : (st.editingVibe
+          ? `<span class="ik-crumb"><em>Vibe</em><input id="ik-vibe" value="${_ikEsc(st.vibe || '')}" placeholder="The mood — “refined Mediterranean”" onkeydown="if(event.key==='Enter')window._ikVibeDone()" onblur="window._ikVibeDone()"></span>`
+          : `<button class="ik-crumb" onclick="window._ikVibeEdit()"><em>Vibe</em> ${st.vibe ? _ikEsc(st.vibe) : '<span style="font-style:italic;color:var(--ink-faint)">add the mood</span>'} ✎</button>`);
+        const provenance = st.whereEdited || st.datesEdited || st.vibeEdited ? 'edited by you' : (st.where || st.from || st.vibe ? 'read from your prompt' : 'our suggestion — change anything');
+        const crumbs = `<div class="ik-crumbs">${whereCrumb}${whenCrumb}${vibeCrumb}<span class="ik-note">${provenance}</span></div>`;
 
         // Build-around: category chips derive from HER wardrobe; empty
         // wardrobe → the whole section stays out (that's the cataloguing
         // problem showing up in the wrong place).
         let ba = '';
-        if (_waItems.length) {
+        if (_waItems.length && !ikTravel) {
           const cats = ['All'].concat([...new Set(_waItems.map(w => w.category).filter(Boolean))]);
           const items = (st.cat === 'All' ? _waItems : _waItems.filter(w => w.category === st.cat)).slice(0, 30);
           // Travel's rack IS the shortlist — everything she picks is kept
@@ -14615,38 +14650,12 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             ${tray}
           </div>`;
         }).join('');
-        // Travel is looks-first (2026-07-30): no day planner — the trip's
-        // high-level plans (chips) + saved Looks packed whole replace the
-        // per-day list; looks pin to days on the result page.
-        const ikTravel = _rbTrackCfg(st.kind).engine === 'travel';
-        const plansBlock = !ikTravel ? '' : (() => {
-          const sel = st.plans || [];
-          const all = [];
-          sel.concat(_TV_PLAN_DEFAULTS).forEach(p => { if (p && !all.some(x => x.toLowerCase() === p.toLowerCase())) all.push(p); });
-          const planChips = all.map(p => {
-            const on = sel.some(x => x.toLowerCase() === p.toLowerCase());
-            return `<button class="ik-qc" style="${on ? 'background:#202021;color:#fff;border-color:#202021' : ''}" onclick="window._ikPlanToggle('${_tvAttrJs(p)}')">${on ? '✓ ' : ''}${_waEsc(p)}</button>`;
-          }).join('');
-          const mosFn = (window._rbLookTile && window._rbLookTile.mosaic) || _ltMosaicHtml;
-          const cellsFn = (window._rbLookTile && window._rbLookTile.cells) || _ltCells;
-          const packable = (Array.isArray(_lkLooks) ? _lkLooks : []).filter(l => l && (l.pieces || []).length >= 2).slice(0, 10);
-          const looksRow = !packable.length ? '' : `
-            <div class="ik-days-hd" style="margin-top:14px"><span class="ik-ba-lab">Looks you already love</span><span class="ik-days-hint">Ticked looks travel whole — nothing re-styled</span></div>
-            <div style="display:grid;grid-auto-flow:column;grid-auto-columns:96px;gap:8px;overflow-x:auto;padding:2px 0 8px">${packable.map(l => {
-              const on = (st.packLookIds || []).indexOf(String(l.id)) !== -1;
-              return `<div onclick="window._ikLookToggle('${_waEsc(String(l.id))}')" role="button" style="cursor:pointer;border-radius:8px;overflow:hidden;background:#fff;outline:${on ? '2px solid #202021' : '1px solid rgba(32,32,33,0.1)'};outline-offset:-1px;position:relative;padding:4px">
-                ${on ? '<span style="position:absolute;top:7px;right:7px;width:16px;height:16px;border-radius:50%;background:#202021;color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;z-index:2;line-height:1">✓</span>' : ''}
-                ${mosFn(cellsFn(l.pieces.map(p => p.id)), { photo: l.photo_url || undefined, alt: l.name || 'Saved look' })}
-                <div style="padding:4px 2px 1px;font-size:9px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(l.name || 'Saved look')}</div>
-              </div>`;
-            }).join('')}</div>`;
-          return `<div class="ik-days-hd"><span class="ik-ba-lab">The plan</span><span class="ik-days-hint">Every plan you pick gets a look — pin looks to days after</span></div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px">${planChips}</div>
-            <div style="display:flex;gap:8px;margin-bottom:4px">
-              <input id="ik-plan-custom" placeholder="Add your own — “Gallery morning”" style="flex:1;box-sizing:border-box;border:1px solid rgba(32,32,33,0.14);border-radius:8px;padding:9px 12px;font-size:12.5px;font-family:inherit;background:#fff;outline:none" onkeydown="if(event.key==='Enter'){event.preventDefault();window._ikPlanAdd()}">
-              <button class="ik-qc" onclick="window._ikPlanAdd()">Add</button>
-            </div>${looksRow}`;
-        })();
+        // Travel is looks-first (2026-07-30): the unfurl stays SLIM —
+        // where/when/vibe plus a quiet note of the plans it read. Plans,
+        // saved Looks and key pieces live on the dedicated build page.
+        const plansBlock = !ikTravel ? '' : ((st.plans || []).length
+          ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px"><span class="ik-ba-lab">Plans noted, yours to place</span>${st.plans.map(p => `<span class="ik-qc" style="cursor:default">${_waEsc(p)}</span>`).join('')}</div>`
+          : '');
         const daysBlock = ikTravel ? plansBlock : (st.rows.length
           ? `<div class="ik-days-hd"><span class="ik-ba-lab">The days</span><span class="ik-days-hint">Pin what’s fixed — Robes dresses the rest</span></div>${rowsHtml}`
           : '');
@@ -14680,6 +14689,15 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         const v = ((el && el.value) || '').trim();
         if (v !== st.where) { st.where = v; st.whereEdited = true; }
         st.editingWhere = false;
+        _ikPaint();
+      };
+      window._ikVibeEdit = function() { if (_ikState) { _ikState.editingVibe = true; _ikPaint(); setTimeout(() => { const el = document.getElementById('ik-vibe'); if (el) el.focus(); }, 40); } };
+      window._ikVibeDone = function() {
+        const st = _ikState; if (!st) return;
+        const el = document.getElementById('ik-vibe');
+        const v = ((el && el.value) || '').trim().slice(0, 120);
+        if (v !== (st.vibe || '')) { st.vibe = v; st.vibeEdited = true; }
+        st.editingVibe = false;
         _ikPaint();
       };
       window._ikDatesEdit = function() { if (_ikState) { _ikState.editingDates = true; _ikPaint(); } };
@@ -14806,20 +14824,20 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           // key-piece list. No day planner: looks pin to days on the result.
           if (!st.where) { st.err = 'Tell Robes where you’re going first.'; _ikPaint(); return; }
           if (!st.from) { st.err = 'Add the dates — even rough ones — and Robes plans the trip.'; _ikPaint(); return; }
-          if (!(st.plans || []).length) { st.err = 'Pick at least one plan — every plan you name gets a look of its own.'; _ikPaint(); return; }
-          _rbTrack('intake_committed', { kind: 'travel', days: st.days, plans: st.plans.length, packed_looks: (st.packLookIds || []).length, anchors: st.anchors.length });
+          _rbTrack('intake_committed', { kind: 'travel', days: st.days, plans: (st.plans || []).length, packed_looks: (st.packLookIds || []).length, anchors: st.anchors.length });
           _tvBrief = {
             dest: st.where,
             dateFrom: st.from,
             dateTo: _pdAddISO(st.from, st.days - 1),
             brief: st.prompt,
+            vibe: st.vibe || '',
             anchors: st.anchors.map(String),
             plans: (st.plans || []).slice(),
             packLookIds: (st.packLookIds || []).slice(),
             suggested: [],
           };
           _ikClose(); _ikClearPrompt();
-          _tvGenerate();
+          _tvShowBuildPage();
           return;
         }
         // Weekly: evenings fold into the day's authoritative plan line

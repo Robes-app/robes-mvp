@@ -963,6 +963,7 @@ const INTENT_SCHEMA = {
     destination: { type: 'string' },
     date_start: { type: 'string' },
     date_end: { type: 'string' },
+    vibe: { type: 'string' },
     day_intents: {
       type: 'array',
       items: {
@@ -992,7 +993,8 @@ HARD RULES — breaking these is worse than "unclear":
 1. NEVER invent a destination. "destination" is filled ONLY with a place the user actually wrote. "Somewhere warm" is NOT a destination — leave it empty.
 2. NEVER invent dates. Fill "date_start"/"date_end" (ISO YYYY-MM-DD) ONLY when the prompt states them explicitly ("4–11 Aug") or relatively resolvable ("next week", "this weekend") against TODAY, which is ${clientDate || 'unknown — in that case emit NO dates at all'} in the user's own timezone. A season or vague future ("in September", "soon") fills nothing.
 3. "day_intents": only when the prompt names specific activities on resolvable specific days ("Friday is a client dinner") — one entry per stated day, label in her words. Never padded.
-4. "confidence" 0–1: how sure you are of the track. Below 0.6 means the app will ask her instead of acting.
+4. "vibe": the styling mood/aesthetic the prompt itself carries, as a short phrase in her register ("refined Mediterranean", "quiet luxury", "festival-ready") — ONLY what the prompt states or strongly implies, never invented. Empty when she gave none.
+5. "confidence" 0–1: how sure you are of the track. Below 0.6 means the app will ask her instead of acting.
 Leave any unknown string field as an empty string.`;
 
   try {
@@ -1023,6 +1025,7 @@ Leave any unknown string field as an empty string.`;
         .filter(d => d && isoOk(d.date) && d.label)
         .slice(0, 14)
         .map(d => ({ date: d.date, label: String(d.label).slice(0, 120) })),
+      vibe: String(parsed.vibe || '').trim().slice(0, 120) || null,
       confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
     };
     if (out.date_start && out.date_end && out.date_end < out.date_start) {
@@ -1756,7 +1759,7 @@ function travelUnderusedItems(capsule, looks) {
 }
 
 app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
-  const { destination, dateFrom, dateTo, brief, plans, importedLooks, name, styleDna, styleIcons, wardrobeItems, shortlistIds, anchorIds, gender } = req.body;
+  const { destination, dateFrom, dateTo, brief, vibe, plans, importedLooks, name, styleDna, styleIcons, wardrobeItems, shortlistIds, anchorIds, gender } = req.body;
   const g = normGender(gender);
   if (!destination || !String(destination).trim()) {
     return res.status(400).json({ error: 'Tell us where you’re going first.' });
@@ -1812,6 +1815,7 @@ app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
     .filter(p => typeof p === 'string' && p.trim())
     .map(p => p.trim().slice(0, 60))
     .slice(0, 10);
+  const vibeLine = String(vibe || '').trim().slice(0, 240);
 
   // Finished looks she's packing whole (Look entities / lookbook) —
   // context only: their owned pieces arrive via shortlistIds, and the
@@ -1904,7 +1908,7 @@ Include EACH of these as a new capsule piece (wardrobe_index -1) with its brand 
 ` : ''}${closetBlock}${correctiveNote ? '\n\n' + correctiveNote : ''}`;
   }
 
-  const userText = `${wxLine ? wxLine + '\n\n' : ''}THE TRIP BRIEF: ${dest}${dateLine ? ', ' + dateLine : ''}${monthName ? ' (' + monthName + ')' : ''}, ${tripDays} day${tripDays > 1 ? 's' : ''}. ${String(brief || '').trim() || 'No further notes — read the destination and season for the vibe.'}
+  const userText = `${wxLine ? wxLine + '\n\n' : ''}THE TRIP BRIEF: ${dest}${dateLine ? ', ' + dateLine : ''}${monthName ? ' (' + monthName + ')' : ''}, ${tripDays} day${tripDays > 1 ? 's' : ''}. ${String(brief || '').trim() || 'No further notes — read the destination and season for the vibe.'}${vibeLine ? `\nTHE VIBE, IN HER WORDS: ${vibeLine}` : ''}
 
 ${shortIdxs.length ? `Pack every key piece, map the wears each one earns, add only what's genuinely missing — and build` : 'Build the capsule and'} the ~${looksTarget} looks${planList.length ? ' around her plans' : ''}.`;
 
@@ -2156,7 +2160,7 @@ const TRAVEL_MORE_SCHEMA = {
 };
 
 app.post('/api/travel/looks', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { destination, brief, occasions, weather, name, styleDna, styleIcons, capsule, gender } = req.body;
+  const { destination, brief, vibe, occasions, weather, name, styleDna, styleIcons, capsule, gender } = req.body;
   const g = normGender(gender);
   const capIn = (Array.isArray(capsule) ? capsule : []).filter(c => c && c.name).slice(0, 24);
   const occList = (Array.isArray(occasions) ? occasions : [])
@@ -2168,6 +2172,7 @@ app.post('/api/travel/looks', rateLimit({ windowMs: 60_000, max: 10 }), async (r
   }
   const dest = String(destination || '').trim().slice(0, 120) || 'the trip';
   const dnaBlock = styleDnaPromptBlock(styleDna, capIn.filter(c => c.owned).length, styleIcons);
+  const vibeLine = String(vibe || '').trim().slice(0, 240);
 
   const capList = capIn.map((c, i) =>
     `${i}: ${c.name}${c.category ? ' [' + c.category + ']' : ''}${c.brand ? ', ' + c.brand : ''}${c.owned ? ' (hers)' : ''}`
@@ -2176,7 +2181,7 @@ app.post('/api/travel/looks', rateLimit({ windowMs: 60_000, max: 10 }), async (r
     ? `MICRO-CLIMATE: ${weather.city || dest} — ${weather.tempRange}, mostly ${weather.condition || 'mixed conditions'}.`
     : '';
 
-  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}${genderDirective(g)} The user packed a capsule for ${dest}${brief ? ` (trip brief: "${String(brief).slice(0, 300)}")` : ''} and wants fresh looks styled from it. Never output a generic outfit — ban flat phrasing; every look is rendered with high descriptive specificity.
+  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}${genderDirective(g)} The user packed a capsule for ${dest}${brief ? ` (trip brief: "${String(brief).slice(0, 300)}")` : ''}${vibeLine ? ` — the vibe, in her words: "${vibeLine}"` : ''} and wants fresh looks styled from it. Never output a generic outfit — ban flat phrasing; every look is rendered with high descriptive specificity.
 
 THE PACKED CAPSULE (referenced by "item_index"):
 ${capList}
