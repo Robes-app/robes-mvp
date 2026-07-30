@@ -5296,6 +5296,7 @@
       // A look photograph fills the whole panel when there is one — the
       // pieces are still the record, the picture is just the look's image.
       function _ltMosaicHtml(cells, opts) {
+        _ltEnsureCss();
         opts = opts || {};
         const cls = 'rb-lk-mos' + (opts.hero ? ' lt-hero' : '');
         if (opts.photo) {
