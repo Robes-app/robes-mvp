@@ -309,7 +309,7 @@ const browser = await chromium.launch(
   const d = await page.evaluate(() => ({
     back: !!document.querySelector('.rb-lk-back'),
     eyebrow: document.querySelector('.rb-lk-eyebrow')?.textContent,
-    title: document.getElementById('rb-lk-title')?.value,
+    title: ((e) => e ? (e.tagName === 'INPUT' ? e.value : e.textContent) : null)(document.getElementById('rb-lk-title')),
     provisional: document.getElementById('rb-lk-title')?.classList.contains('prov'),
     stats: Array.from(document.querySelectorAll('.rb-lk-stat')).map((s) => [s.querySelector('b')?.textContent, s.querySelector('span')?.textContent]),
     actions: Array.from(document.querySelectorAll('.rb-lk-acts .rb-lk-act')).map((b) => b.textContent),
@@ -344,8 +344,45 @@ const browser = await chromium.launch(
   await page.waitForTimeout(200);
   check('detail · named title is not provisional', d.title === 'The Thursday one' && d.provisional === false, `${d.title}/${d.provisional}`);
   check('detail · eyebrow reads Look for a named look', d.eyebrow === 'Look', d.eyebrow);
-  check('detail · four load-bearing actions (Restyle renamed — vocabulary collision)',
-    d.actions.join(' | ') === 'Wear it today | Pin to a day | Pack it | Swap a piece', JSON.stringify(d.actions));
+  check('detail · three load-bearing actions (Swap-a-piece dropped — every rack row swaps)',
+    d.actions.join(' | ') === 'Wear it today | Pin to a day | Pack it', JSON.stringify(d.actions));
+  const layout = await page.evaluate(() => {
+    const mast = document.querySelector('.rb-lk-mast');
+    const con = document.querySelector('.rb-lk-con');
+    const rack = con?.querySelector('.rbc-rack');
+    const stats = con?.querySelector('.rb-lk-stats');
+    return {
+      mastFirst: !!(mast && con) && !!(mast.compareDocumentPosition(con) & Node.DOCUMENT_POSITION_FOLLOWING),
+      titleInMast: !!mast?.querySelector('#rb-lk-title'),
+      pencil: !!mast?.querySelector('.rb-rename-tbtn'),
+      rackLabel: con?.querySelector('.rb-lk-sec')?.textContent,
+      statsBelowRack: !!(rack && stats) && !!(rack.compareDocumentPosition(stats) & Node.DOCUMENT_POSITION_FOLLOWING),
+    };
+  });
+  check('detail · the name leads the page (masthead above the console)', layout.mastFirst && layout.titleInMast, JSON.stringify(layout));
+  check('detail · rename is the pencil, not a standing input', layout.pencil === true);
+  check('detail · the card list is The Rack', layout.rackLabel === 'The Rack', String(layout.rackLabel));
+  check('detail · stats live below the Rack', layout.statsBelowRack === true);
+  const renamed = await page.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    window.__lkTitleEdit();
+    await wait(120);
+    const inp = document.getElementById('rb-lk-title');
+    const isInput = !!inp && inp.tagName === 'INPUT';
+    if (isInput) { inp.value = 'Thursday, renamed'; window.__lkTitleCommit(inp.value); }
+    await wait(120);
+    const mid = document.getElementById('rb-lk-title');
+    const out = { isInput, tag: mid?.tagName, title: mid?.textContent };
+    window.__lkTitleEdit();
+    await wait(120);
+    const back = document.getElementById('rb-lk-title');
+    if (back && back.tagName === 'INPUT') { back.value = 'The Thursday one'; window.__lkTitleCommit(back.value); }
+    await wait(120);
+    return out;
+  });
+  check('detail · pencil opens the inline input', renamed.isInput === true);
+  check('detail · commit lands the name back as the static title',
+    renamed.tag === 'H2' && renamed.title === 'Thursday, renamed', JSON.stringify(renamed));
   check('detail · stats show pieces, wears, last worn',
     JSON.stringify(d.stats.slice(0, 3)) === JSON.stringify([['4', 'Pieces'], ['2', 'Wears'], ['23 Jul', 'Last worn']]),
     JSON.stringify(d.stats));
@@ -450,7 +487,7 @@ const browser = await chromium.launch(
   const promoted = await page.evaluate(() => {
     window.__lkPromote();
     return {
-      title: document.getElementById('rb-lk-title')?.value,
+      title: ((e) => e ? (e.tagName === 'INPUT' ? e.value : e.textContent) : null)(document.getElementById('rb-lk-title')),
       wears: document.querySelectorAll('.rb-lk-stat')[1]?.querySelector('b')?.textContent,
       note: document.querySelector('.rb-lk-panel .pl')?.textContent,
       count: document.getElementById('wg-count')?.textContent,
@@ -854,7 +891,7 @@ const browser = await chromium.launch(
     };
   });
   check('390px · detail stacks', md.stacked === true);
-  check('390px · all four actions survive', md.actions === 4, String(md.actions));
+  check('390px · all three actions survive', md.actions === 3, String(md.actions));
   check('390px · no horizontal overflow on the detail', md.overflow === true);
 
   const mc = await page.evaluate(() => {

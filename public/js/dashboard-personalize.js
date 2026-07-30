@@ -5814,7 +5814,7 @@
       var _lkPending = null;         // {from,to,pieces} awaiting Update / Save as new
       var _lkDone = null;            // quiet confirmation line after a resolution
       var _lkActNote = null;            // transient action note key
-      var _lkTitleDraft = null, _lkTitleTouched = false;
+      var _lkTitleDraft = null, _lkTitleTouched = false, _lkTitleEditing = false;
       var _lkRetro = false;
       var _lkBusy = false;
 
@@ -6155,13 +6155,16 @@
 .rb-lk-title-in{width:100%;margin-top:7px;padding:2px 0 9px;border:none;border-bottom:0.5px solid var(--rule-mid);background:transparent;font-family:var(--font-serif);font-weight:300;font-size:clamp(26px,3vw,34px);line-height:1.1;color:var(--ink);outline:none}
 .rb-lk-title-in.prov{font-style:italic;color:var(--ink-soft)}
 .rb-lk-title-in:focus{border-bottom-color:var(--ink)}
+.rb-lk-mast{margin:0 0 22px}
+.rb-lk-title{font-family:var(--font-serif);font-weight:300;font-size:clamp(26px,3vw,34px);line-height:1.1;color:var(--ink);margin:7px 0 0;min-width:0;overflow-wrap:anywhere}
+.rb-lk-title.prov{font-style:italic;color:var(--ink-soft)}
 .rb-lk-hint{font-size:11.5px;color:var(--ink-faint);margin-top:8px;min-height:1.2em}
 .rb-lk-stats{display:flex;gap:28px;flex-wrap:wrap;margin-top:22px;padding:16px 0;border-top:0.5px solid var(--rule);border-bottom:0.5px solid var(--rule)}
 .rb-lk-stat b{display:block;font-family:var(--font-serif);font-weight:300;font-size:25px;line-height:1;color:var(--ink)}
 .rb-lk-stat span{display:block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-top:4px}
 .rb-lk-acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}
-.rb-lk-act{padding:11px 18px;border-radius:100px;border:0.5px solid var(--rule-mid);background:#fff;color:var(--ink);font-family:inherit;font-size:11.5px;cursor:pointer;transition:all .15s;white-space:nowrap}
-.rb-lk-act:hover{border-color:var(--ink)}
+.rb-lk-act{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:100px;border:0.5px solid var(--rule-mid);background:#fff;color:var(--ink-soft);font-family:inherit;font-size:11.5px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.rb-lk-act:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
 .rb-lk-act.primary{background:var(--ink);border-color:var(--ink);color:#fff}
 .rb-lk-act.primary:hover{opacity:.85}
 .rb-lk-panel{margin-top:14px;padding:14px 16px;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:var(--cream-100)}
@@ -6367,34 +6370,39 @@
               const tone = _ltToneOf(_waItems.find(w => String(w.id) === String(id)));
               return tone ? '<span style="background:' + _waEsc(tone) + '"></span>' : '';
             }).join(''),
-            rackLabel: 'The pieces',
+            rackLabel: 'The Rack',
             onFlip: '__lkDFlip', onSwap: '__lkDSwap',
           }, items).lookHtml;
         }
 
-        let h = '<div class="rb-lk-con"><div>' + lookPanel + '</div><div>';
+        // Masthead first — name + rename + actions lead the page on web AND
+        // mobile (streamline pass 2026-07-30: the title was buried below the
+        // Look panel once the columns stacked). Rename is the app's pencil
+        // (rb-rename-tbtn), not a standing input — an always-on input reads
+        // as a form and invites accidental edits.
+        let h = '<div class="rb-lk-mast">' +
+          '<div class="rb-lk-eyebrow">' + (prov ? 'Robes named it' : 'Look') + '</div>';
+        if (_lkTitleEditing) {
+          h += '<input id="rb-lk-title" class="rb-lk-title-in' + (prov ? ' prov' : '') + '" value="' + _waEsc(title) + '"' +
+            ' oninput="window.__lkTitleInput(this.value)" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="window.__lkTitleCommit(this.value)">' +
+            '<div class="rb-lk-hint" id="rb-lk-hint">' + (prov ? 'Leave it and it keeps this name.' : '') + '</div>';
+        } else {
+          h += '<div style="display:flex;align-items:baseline;gap:10px;min-width:0">' +
+            '<h2 class="rb-lk-title' + (prov ? ' prov' : '') + '" id="rb-lk-title">' + _waEsc(title) + '</h2>' +
+            '<button type="button" class="rb-rename-tbtn" title="Rename" onclick="window.__lkTitleEdit()"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>' +
+            '</div>';
+        }
 
-        h += '<div class="rb-lk-eyebrow">' + (prov ? 'Robes named it' : 'Look') + '</div>' +
-          '<input id="rb-lk-title" class="rb-lk-title-in' + (prov ? ' prov' : '') + '" value="' + _waEsc(title) + '"' +
-            ' oninput="window.__lkTitleInput(this.value)" onchange="window.__lkTitleCommit(this.value)" onblur="window.__lkTitleCommit(this.value)">' +
-          '<div class="rb-lk-hint" id="rb-lk-hint">' + (prov ? 'Leave it and it keeps this name.' : '') + '</div>';
-
-        h += '<div class="rb-lk-stats">' +
-          '<div class="rb-lk-stat"><b>' + ids.length + '</b><span>Pieces</span></div>' +
-          '<div class="rb-lk-stat"><b>' + n + '</b><span>Wears</span></div>' +
-          '<div class="rb-lk-stat"><b>' + _lkFmt(_lkLastWorn(l)) + '</b><span>Last worn</span></div>' +
-          (cpw ? '<div class="rb-lk-stat"><b>' + cpw + '</b><span>Per wear</span></div>' : '') +
-          '</div>';
-
-        // The four actions are load-bearing (A3) — without them the tab is a
+        // The actions are load-bearing (A3) — without them the tab is a
         // gallery; with them Looks is the tissue between Daily and Travel.
+        // (Swap-a-piece was dropped, streamline pass — every rack row
+        // already carries Swap.)
         h += '<div class="rb-lk-acts">' +
           (wornToday
             ? '<button type="button" class="rb-lk-act" disabled style="opacity:.5;cursor:default">Worn today ✓</button>'
             : '<button type="button" class="rb-lk-act primary" onclick="window.__lkWearToday()">Wear it today</button>') +
           '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pin\')">Pin to a day</button>' +
           '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pack\')">Pack it</button>' +
-          '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'restyle\')">Swap a piece</button>' +
           '</div>';
 
         // Quiet undo on the day, not a toast (A4)
@@ -6415,9 +6423,6 @@
             '<input type="date" min="' + today + '" onchange="window.__lkPinTo(this.value)" style="border:0.5px solid var(--rule-mid);border-radius:100px;padding:10px 14px;font-family:inherit;font-size:11.5px;background:#fff;color:var(--ink)">' +
             '<button type="button" class="rb-lk-quiet" onclick="window.__lkAct(null)">Cancel</button>' +
             '</div></div>';
-        } else if (_lkActNote === 'restyle') {
-          h += '<div class="rb-lk-panel"><div class="pl">Swap any piece below.</div>' +
-            '<div class="pb">Robes asks before it touches the history.</div></div>';
         }
 
         if (pins.length) {
@@ -6440,11 +6445,22 @@
             '</div></div>';
         }
 
-        // The pieces — the same rack rows every console uses. Flick and Swap
+        h += '</div>';
+        h += '<div class="rb-lk-con"><div>' + lookPanel + '</div><div>';
+
+        // The Rack — the same rack rows every console uses. Flick and Swap
         // both route through the promotion gate when there is history.
-        h += '<div class="rb-lk-sec">The pieces</div>' +
+        h += '<div class="rb-lk-sec" style="margin-top:0">The Rack</div>' +
           '<div class="rbc-rack">' +
           items.map(it => _rbcRow(it, { onFlip: '__lkDFlip', onSwap: '__lkDSwap' })).join('') +
+          '</div>';
+
+        // Stats read as the payoff of the rack, below it (streamline pass).
+        h += '<div class="rb-lk-stats">' +
+          '<div class="rb-lk-stat"><b>' + ids.length + '</b><span>Pieces</span></div>' +
+          '<div class="rb-lk-stat"><b>' + n + '</b><span>Wears</span></div>' +
+          '<div class="rb-lk-stat"><b>' + _lkFmt(_lkLastWorn(l)) + '</b><span>Last worn</span></div>' +
+          (cpw ? '<div class="rb-lk-stat"><b>' + cpw + '</b><span>Per wear</span></div>' : '') +
           '</div>';
 
         h += '<div class="rb-lk-sec" style="display:flex;align-items:baseline;gap:14px">Worn' +
@@ -6644,7 +6660,7 @@
         if (_waView !== 'looks') window.__waSetView('looks');
         _lkActive = id; _lkView = 'detail';
         _lkPending = null; _lkDone = null; _lkActNote = null;
-        _lkTitleDraft = null; _lkTitleTouched = false; _lkRetro = false;
+        _lkTitleDraft = null; _lkTitleTouched = false; _lkTitleEditing = false; _lkRetro = false;
         _lkPaint();
         _rbTrack('look_opened', {});
       };
@@ -6743,11 +6759,22 @@
         const hint = document.getElementById('rb-lk-hint');
         if (hint) hint.textContent = 'Named by you.';
       };
+      // Pencil → inline input; blur/Enter commits (consistent with the
+      // result pages' rename pencil, streamline pass 2026-07-30).
+      window.__lkTitleEdit = function() {
+        _lkTitleEditing = true;
+        _lkPaint();
+        try {
+          const el = document.getElementById('rb-lk-title');
+          if (el && el.focus) { el.focus(); el.select && el.select(); }
+        } catch (_) {}
+      };
       window.__lkTitleCommit = function(v) {
+        _lkTitleEditing = false;
         const l = _lkFind(_lkActive);
         if (!l) return;
         const name = String(v || '').trim();
-        if (!name || name === l.name) { _lkTitleDraft = null; return; }
+        if (!name || name === l.name) { _lkTitleDraft = null; _lkPaint(); return; }
         _lkPatch(l.id, { name, name_provisional: false });
         _lkTitleDraft = null;
         _rbTrack('look_renamed', {});
@@ -7636,10 +7663,6 @@
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           addChipLabel: _rbTrackCfg('daily').console.addVerb,
           rackLabel: `The rack · ${_waEsc(dlMomentLabel)}`,
-          rackTitleHtml: data.occasion_label ? (() => {
-            const t = cap1(data.occasion_label.toLowerCase());
-            return `<h2>${_waEsc(t)}${!/[.!?]$/.test(t) ? '.' : ''}</h2>`;
-          })() : '',
           headButtonsHtml: (data && data.worn)
             ? `<span class="rbc-hbtn" style="opacity:.55;pointer-events:none">Worn ✓</span><button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`
             : `<button class="rbc-hbtn" id="dl-wear-btn" onclick="window.__dlWear()" title="Log these pieces as worn — wear counts feed cost-per-wear">✓ Wore it</button><button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
