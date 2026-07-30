@@ -3238,17 +3238,15 @@
               continue;
             }
             pinned.slice(0, 2).forEach((l, k) => {
-              const pieces = l.imported
-                ? []
-                : (l.formula || []).map((f, fi) => (t.capsule || [])[effCi(l, fi, i)]).filter(Boolean);
+              const pieces = (l.formula || []).map((f, fi) => (t.capsule || [])[effCi(l, fi, i)]).filter(Boolean);
               rows.push({
                 ..._pdBase('travel', sourceId, i, date, k === 0 ? 'day' : 'evening'),
                 status: 'planned',
                 activity: l.occasion || null,
                 headline: l.title || l.occasion || null,
-                thumb_urls: l.imported
-                  ? (l.pieces || []).map(p => _pdHttp(p.image)).filter(Boolean).slice(0, 4)
-                  : _pdThumbs(pieces, t.generatedImages),
+                thumb_urls: pieces.length
+                  ? _pdThumbs(pieces, t.generatedImages)
+                  : (l.pieces || []).map(p => _pdHttp(p.image)).filter(Boolean).slice(0, 4),
                 item_ids: _pdOwnedIds(pieces),
               });
             });
@@ -9494,7 +9492,7 @@
           const pieces = (lk.pieces || []).map(p => {
             const wi = _waItems.find(w => String(w.id) === String(p.id));
             if (wi) anchorSet.add(String(wi.id));
-            return wi ? { name: wi.label, image: wi.image_url || null } : null;
+            return wi ? { id: wi.id, name: wi.label, image: wi.image_url || null, category: wi.category || '' } : null;
           }).filter(Boolean);
           imported.push({
             imported: true,
@@ -9781,6 +9779,32 @@ body>*:not(#tv-result-page){display:none !important}
           if (!l.overrides || typeof l.overrides !== 'object') l.overrides = {};
           if (!l.slotOverrides || typeof l.slotOverrides !== 'object') l.slotOverrides = {};
         });
+        // Imported looks (packed whole from her saved Looks) resolve their
+        // pieces to REAL capsule formula entries, so they ride the exact
+        // same interactive console as generated looks (UX feedback
+        // 2026-07-30: "it should all be exactly the same"). Match by
+        // wardrobe id first, exact label second; a piece the server didn't
+        // pack joins the capsule — packing stays truthful either way.
+        (data.looks || []).forEach(l => {
+          if (!l.imported || (Array.isArray(l.formula) && l.formula.length)) return;
+          l.formula = (l.pieces || []).map((p, k) => {
+            let ci = p.id != null
+              ? data.capsule.findIndex(c => c.wardrobe_match && String(c.wardrobe_match.id) === String(p.id))
+              : -1;
+            if (ci === -1) ci = data.capsule.findIndex(c => String(c.name || '').toLowerCase() === String(p.name || '').toLowerCase());
+            if (ci === -1) {
+              data.capsule.push({
+                name: p.name || 'The piece', category: p.category || 'Other', brand: '',
+                tier: 'Foundations & Tailoring', description: '',
+                reason: 'Travels in ' + (l.title || 'your saved look') + '.',
+                wardrobe_index: -1, retailer_hint: '', price_point: '',
+                wardrobe_match: p.id != null ? { id: p.id, label: p.name || '', image_url: p.image || null, color: '' } : null,
+              });
+              ci = data.capsule.length - 1;
+            }
+            return { role: k === 0 ? 'The Anchor' : 'The Canvas', item_index: ci, note: '' };
+          });
+        });
       }
 
       function _tvDayInfo(di) {
@@ -9807,7 +9831,7 @@ body>*:not(#tv-result-page){display:none !important}
       function _tvLookEntries(li, di) {
         const data = window.__lastTvData || {};
         const l = (data.looks || [])[li];
-        if (!l || l.imported) return [];
+        if (!l) return [];
         return (l.formula || []).map((f, fi) => {
           const ci = _tvEffCi(l, fi, di);
           const it = (data.capsule || [])[ci];
@@ -9858,7 +9882,7 @@ body>*:not(#tv-result-page){display:none !important}
         const data = window.__lastTvData || {};
         const l = (data.looks || [])[li];
         if (!l) return [];
-        if (l.imported) {
+        if (l.imported && !(l.formula || []).length) {
           return (l.pieces || []).slice(0, 4).map(p => ({ url: p.image || null, tone: null, name: p.name || '' }));
         }
         return _tvLookEntries(li, null).slice(0, 4).map(x => ({
@@ -9879,7 +9903,7 @@ body>*:not(#tv-result-page){display:none !important}
           const pinsLine = pins.length
             ? 'Pinned to ' + pins.map(di => 'Day ' + (di + 1)).join(' · ')
             : 'In the row — not pinned yet';
-          const pieceN = l.imported ? (l.pieces || []).length : _tvLookEntries(li, null).length;
+          const pieceN = _tvLookEntries(li, null).length || (l.pieces || []).length;
           return `<div class="tvm-lookcard${sel ? ' active' : ''}" onclick="window.__tvSelectLook(${li})" role="button" tabindex="0">
             <span class="locc">${_waEsc(l.occasion || 'The look')}${pieceN ? ' · ' + pieceN + ' pieces' : ''}${l.imported ? ' · yours' : ''}</span>
             ${mos(_tvLookCells(li), { photo: l.img || undefined, alt: l.title || l.occasion || 'Look' })}
@@ -9991,7 +10015,7 @@ body>*:not(#tv-result-page){display:none !important}
       function _tvConFlip(li, di, fi, dir) {
         const data = window.__lastTvData;
         const l = data && data.looks[li];
-        if (!l || l.imported || !l.formula[fi]) return;
+        if (!l || !l.formula[fi]) return;
         const base = l.formula[fi].item_index;
         if (!Number.isInteger(base) || base < 0) return;
         const pool = _tvCapsulePool(data, base);
@@ -10046,7 +10070,7 @@ body>*:not(#tv-result-page){display:none !important}
         const data = window.__lastTvData;
         const l = data.looks[li];
         if (!l) return '';
-        if (l.imported) return (opts.occHtml ? `<div style="margin-top:14px">${opts.occHtml}</div>` : '') + _tvLookBlock(li, di);
+        if (l.imported && !(Array.isArray(l.formula) && l.formula.length)) return (opts.occHtml ? `<div style="margin-top:14px">${opts.occHtml}</div>` : '') + _tvLookBlock(li, di);
         const conItems = _tvConItems(li, di);
         const items = _tvLookEntries(li, di).map(e => e.it);
         const palette = (Array.isArray(data.palette) ? data.palette : []).filter(h => /^#[0-9A-Fa-f]{6}$/.test(String(h || ''))).slice(0, 3);
@@ -10055,7 +10079,7 @@ body>*:not(#tv-result-page){display:none !important}
         const con = _rbConsole({
           headLabel: `The look · ${_waEsc(labelCtx)} · ${conItems.length} pieces`,
           occHtml: opts.occHtml || '',
-          quoteHtml: l.how ? _waEsc(l.how) : '',
+          quoteHtml: l.how ? _waEsc(l.how) : (l.imported ? 'Packed whole from your looks — worn exactly as you styled it.' : ''),
           fabricsHtml: _rbcFabricsHtml(items, palette),
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           addChipLabel: _rbTrackCfg('travel').console.addVerb,

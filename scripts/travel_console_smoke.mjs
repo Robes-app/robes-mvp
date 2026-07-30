@@ -63,7 +63,7 @@ const FIXTURE = {
     { occasion: 'Beach day', title: 'Tide-line morning', how: 'The tank and jeans, sandals in hand.', pins: [0], overrides: {}, slotOverrides: {},
       formula: [ { role: 'The Anchor', item_index: 1, note: 'Tucked loosely' }, { role: 'The Canvas', item_index: 2, note: 'Cuffed to the shin' }, { role: 'The Exclamation Point', item_index: 3, note: 'Off more than on' } ] },
     { imported: true, lookId: 'lk-9', occasion: 'Dinner out', title: 'The Thursday one', how: '', img: null, pins: [1], overrides: {}, slotOverrides: {},
-      pieces: [ { name: 'Cream silk shirt', image: null }, { name: 'Barrel-leg jeans', image: null } ], formula: [] },
+      pieces: [ { id: 'w1', name: 'Cream silk shirt', image: null, category: 'Tops' }, { id: 'w3', name: 'Barrel-leg jeans', image: null, category: 'Bottoms' }, { id: 'w9', name: 'Gold hoops', image: null, category: 'Accessories' } ], formula: [] },
   ],
 };
 
@@ -119,11 +119,22 @@ ok((await page.locator('#tv-look-console .rbc-rackhead').innerText()).toLowerCas
 ok(await page.locator('#tv-look-console .rbc-hbtn', { hasText: 'Pin to days' }).count() === 1, 'dayless head has Pin to days');
 ok((await page.locator('#tv-look-console').innerText()).includes('Pinned to Day 1 · Day 2'), 'pins line reads');
 
-// select the imported look → reader, not console
+// select the imported look → the SAME interactive console, pieces resolved
+// into real capsule formula entries (unpacked pieces join the case)
 await page.evaluate(() => window.__tvSelectLook(2));
 await page.waitForTimeout(150);
-ok((await page.locator('#tv-look-console').innerText()).toLowerCase().includes('travels as styled'), 'imported look reads as packed whole');
-ok(await page.locator('#tv-look-console .rbc-panel').count() === 0, 'imported look gets no interactive console');
+ok(await page.locator('#tv-look-console .rbc-panel').count() === 1, 'imported look draws the same console');
+ok(await page.locator('#tv-look-console .rbc-row').count() === 3, 'imported rack has 3 rows');
+ok((await page.locator('#tv-look-console').innerText()).toLowerCase().includes('packed whole from your looks'), 'imported quote reads packed whole');
+const impState = await page.evaluate(() => ({
+  cap: window.__lastTvData.capsule.length,
+  formula: window.__lastTvData.looks[2].formula.map(f => f.item_index),
+  hoops: window.__lastTvData.capsule.some(c => c.name === 'Gold hoops' && c.wardrobe_match),
+}));
+ok(impState.cap === 7, 'unpacked piece joined the case');
+ok(impState.formula.length === 3 && impState.formula[0] === 0 && impState.formula[1] === 2, 'pieces resolved to capsule indexes');
+ok(impState.hoops, 'joined piece keeps its wardrobe identity');
+ok(await page.locator('#tv-look-console .rbc-hbtn', { hasText: 'Pack this look' }).count() === 1, 'imported look can be packed');
 
 // ── 3. Days tab: day console + multi-look switcher ──
 await page.evaluate(() => window.__tvSelectDay(0));
