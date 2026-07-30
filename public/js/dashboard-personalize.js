@@ -2704,27 +2704,34 @@
 
       // ── View switching + panel augmentation ───────────────────────────
       window.__waSetView = function(v) {
-        _waView = v === 'wishlist' ? 'wishlist' : 'all';
+        _waView = v === 'wishlist' ? 'wishlist' : v === 'looks' ? 'looks' : 'all';
         _waV2Sync();
         if (window.rbSetCrumb) {
-          if (_waView === 'wishlist') {
+          if (_waView === 'all') {
+            rbSetCrumb([{ label: 'Wardrobe' }]);
+          } else {
             rbSetCrumb([
               { label: 'Wardrobe', action: function() { window.__waSetView && window.__waSetView('all'); } },
-              { label: 'Wishlist' }
+              { label: _waView === 'wishlist' ? 'Wishlist' : 'Looks' }
             ]);
-          } else {
-            rbSetCrumb([{ label: 'Wardrobe' }]);
           }
         }
-        if (window._rbNav) _rbNav(_waView === 'wishlist' ? '/wishlist' : '/wardrobe');
+        if (window._rbNav) _rbNav(_waView === 'wishlist' ? '/wishlist' : _waView === 'looks' ? '/looks' : '/wardrobe');
       };
 
       function _waV2Sync() {
         const panel = document.querySelector('.wardrobe-panel');
         if (!panel || !document.getElementById('rb-wsub')) return;
         const wish = _waView === 'wishlist';
+        const looks = _waView === 'looks';
+        // Build the Looks surface BEFORE the visibility pass below reads it —
+        // on the first switch the wrap doesn't exist yet, and a display it
+        // never received leaves the tab blank behind its own CSS default.
+        if (looks) _lkEnsureDom();
         const title = panel.querySelector('.wg-title');
         const sub = panel.querySelector('.wg-sub');
+        // Looks is a tab INSIDE the wardrobe, not a destination (brief A1) —
+        // the header keeps saying Wardrobe.
         if (title) title.textContent = wish ? 'Your wishlist' : 'Your wardrobe';
         if (sub) sub.textContent = wish
           ? 'Pieces you don’t own yet — Robes weighs each against what’s already yours.'
@@ -2733,16 +2740,20 @@
         if (count) {
           count.textContent = wish
             ? _wlItems.length + ' saved'
-            : _waItems.length + ' piece' + (_waItems.length === 1 ? '' : 's');
+            : looks
+              ? _lkLooks.length + ' look' + (_lkLooks.length === 1 ? '' : 's')
+              : _waItems.length + ' piece' + (_waItems.length === 1 ? '' : 's');
         }
         const cta = document.getElementById('rb-wg-cta-head');
         if (cta) cta.style.display = wish ? '' : 'none'; // wishlist-only add path
         const filters = document.getElementById('wg-filters');
-        if (filters) filters.style.display = wish ? 'none' : '';
+        if (filters) filters.style.display = wish || looks ? 'none' : '';
         const grid = document.getElementById('wg-grid');
-        if (grid) grid.style.display = wish ? 'none' : '';
+        if (grid) grid.style.display = wish || looks ? 'none' : '';
         const wlGrid = document.getElementById('rb-wl-grid');
         if (wlGrid) wlGrid.style.display = wish ? 'grid' : 'none';
+        const lkWrap = document.getElementById('rb-lk-wrap');
+        if (lkWrap) lkWrap.style.display = looks ? 'block' : 'none';
         const tabs = document.getElementById('rb-wsub');
         if (tabs) {
           tabs.querySelectorAll('button').forEach(function(b) {
@@ -2750,9 +2761,12 @@
           });
           const wlTab = tabs.querySelector('[data-view="wishlist"]');
           if (wlTab) wlTab.textContent = 'Wishlist' + (_wlItems.length ? ' (' + _wlItems.length + ')' : '');
+          const lkTab = tabs.querySelector('[data-view="looks"]');
+          if (lkTab) lkTab.textContent = 'Looks' + (_lkLooks.length ? ' (' + _lkLooks.length + ')' : '');
         }
         _waRefineRender();
         if (wish) _wlRender();
+        if (looks) _lkPaint();
       }
 
       // One-time DOM augmentation of the static wardrobe panel
@@ -2853,7 +2867,11 @@
         const tabs = document.createElement('div');
         tabs.id = 'rb-wsub';
         tabs.className = 'rb-wsub';
+        // Pieces | Looks | Wishlist — the vocabulary is already in the product
+        // ("10 pieces · 7 looks" in the Travel Edit), so this needs no new
+        // language and no nav change (brief A1).
         tabs.innerHTML = '<button data-view="all" class="active">All pieces</button>' +
+          '<button data-view="looks">Looks</button>' +
           '<button data-view="wishlist">Wishlist</button>';
         tabs.addEventListener('click', function(e) {
           const b = e.target.closest('button[data-view]');
@@ -2916,8 +2934,10 @@
       _waSyncCounts();
 
       // Poll until Supabase session is ready, then load real wardrobe data.
+      // The Looks catalogue rides the same gate — it resolves piece photos out
+      // of _waItems, so it must never load first.
       (function _waInit() {
-        if (_waUid()) { _waLoad(); }
+        if (_waUid()) { _waLoad().then(function() { if (typeof _lkLoad === 'function') _lkLoad(); }); }
         else { setTimeout(_waInit, 250); }
       })();
 
@@ -2954,6 +2974,14 @@
       // and auto-open the matching page
       if (window.location.pathname === '/wardrobe' && window.App && App.showWardrobe) {
         setTimeout(() => App.showWardrobe(), 100);
+      }
+      if (window.location.pathname === '/looks' && window.App && App.showWardrobe) {
+        // Looks nests under the wardrobe panel — open it, then switch view
+        // (after the visibility observer has set the base Wardrobe crumb)
+        setTimeout(() => {
+          App.showWardrobe();
+          setTimeout(() => window.__waSetView && window.__waSetView('looks'), 150);
+        }, 100);
       }
       if (window.location.pathname === '/wishlist' && window.App && App.showWardrobe) {
         // Wishlist nests under the wardrobe panel — open it, then switch view
@@ -3305,7 +3333,11 @@
       // explicit Daily > Travel > Weekly > auto-planned, ties to the most
       // recent updated_at. A trip's evening contends with a week's evening;
       // it never displaces the week's daytime.
-      function _pdTier(t) { return t === 'daily' ? 3 : t === 'travel' ? 2 : t === 'weekly' ? 1 : 0; }
+      // 'look' outranks everything: pinning a specific saved look at a date is
+      // the most deliberate statement she can make about that day (brief A3).
+      // It only ever wins on the index-fed surfaces (rail, calendar) — the
+      // weekly and travel artifacts derive their strips from their own blob.
+      function _pdTier(t) { return t === 'look' ? 4 : t === 'daily' ? 3 : t === 'travel' ? 2 : t === 'weekly' ? 1 : 0; }
       function _pdWinner(rows) {
         return rows.slice().sort((a, b) =>
           (_pdTier(b.source_type) - _pdTier(a.source_type)) ||
@@ -5133,8 +5165,136 @@
           </button>`).join('');
       }
 
+      // ═══ LookTile — the shared look primitive (brief A2, engineering B2)
+      // ════════════════════════════════════════════════════════════════════
+      // A Look renders in three places: the Looks grid (mosaic), a DayCard
+      // (thumb strip), the Look detail hero (large mosaic). ONE renderer,
+      // three densities — a DayCard IS a LookTile plus day context (date,
+      // weather, occasion, evening line). There is deliberately no second
+      // component drawing a look: two components rendering the same content
+      // on different surfaces is precisely the failure that produced the
+      // planned_days divergence, and it is cheapest to avoid it here, before
+      // the Looks tab exists.
+      //
+      // The class PREFIX is a parameter (`dc` on day surfaces, `lt` on look
+      // surfaces) so DayCard's markup is byte-identical to its pre-extraction
+      // output — the DayCard harness pins those strings, and this extraction
+      // is explicitly a no-visual-change refactor.
+      var _LT_CSS = `
+.rb-lk-tile{cursor:pointer;text-align:left;font-family:inherit}
+.rb-lk-mos{position:relative;aspect-ratio:3/4;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1px;background:var(--rule-mid);border-radius:var(--rad);overflow:hidden}
+.rb-lk-mos.lt-hero{aspect-ratio:1/1;border-radius:var(--rad-card)}
+.rb-lk-mos i{display:block;background-size:cover;background-position:center;background-color:var(--cream-200);transition:transform .4s var(--ease)}
+.rb-lk-mos i.e{background-color:var(--cream-100)}
+.rb-lk-tile:hover .rb-lk-mos i{transform:scale(1.03)}
+.rb-lk-mos .lt-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.lt-info{padding:9px 2px 0}
+.lt-title{font-family:var(--font-serif);font-weight:400;font-size:19px;line-height:1.15;color:var(--ink)}
+.lt-title.prov{font-style:italic;color:var(--ink-soft)}
+.lt-meta{font-size:10.5px;color:var(--ink-faint);margin-top:3px;opacity:0;transition:opacity .18s}
+.rb-lk-tile:hover .lt-meta,.rb-lk-tile:focus-within .lt-meta{opacity:1}
+@media(hover:none){.lt-meta{opacity:1}}
+@media(max-width:767px){.lt-title{font-size:17px}.lt-meta{opacity:1}}`;
+      function _ltEnsureCss() {
+        if (document.getElementById('rb-lt-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-lt-style';
+        st.textContent = _LT_CSS;
+        document.head.appendChild(st);
+      }
+
+      // A piece's colour, for the cells a photo can't fill: the item's own
+      // analysed hex first, then the shared garment palette by colour name.
+      function _ltToneOf(wi) {
+        if (!wi) return null;
+        let hex = wi.item_dna && wi.item_dna.display && wi.item_dna.display.primary_color_hex;
+        if (hex && /^#[0-9a-fA-F]{3,8}$/.test(String(hex))) return hex;
+        const sw = _ALL_SWATCHES.find(s => s.name.toLowerCase() === String(wi.color || '').toLowerCase());
+        return (sw && sw.hex) || null;
+      }
+
+      // Wardrobe ids → mosaic cells. Photo if she has one, else the piece's
+      // colour — a look must stay legible before every piece is photographed.
+      function _ltCells(ids) {
+        return (ids || []).map(id => {
+          const wi = _waItems.find(w => String(w.id) === String(id));
+          if (!wi) return null;
+          return { url: _pdHttp(wi.image_url), tone: _ltToneOf(wi), name: wi.label || '' };
+        }).filter(Boolean);
+      }
+
+      function _ltTitleHtml(title, p, provisional) {
+        const cls = p + '-title' + (p === 'lt' && provisional ? ' prov' : '');
+        return `<div class="${cls}">${_waEsc(title || '')}</div>`;
+      }
+
+      // The thumb strip (day surfaces). Mobile shows 2 thumbs — 3 + the +N
+      // chip bled off narrow cards — so the 3rd carries .t3 and a mobile-only
+      // chip re-counts against 2 shown.
+      function _ltStripHtml(pieces, pieceTotal, p) {
+        const th = (pieces || []).slice(0, 3);
+        if (!th.length) return '';
+        const total = pieceTotal != null ? pieceTotal : th.length;
+        const ovD = Math.max(0, total - th.length);
+        const ovM = Math.max(0, total - Math.min(2, th.length));
+        const cell = u => (typeof u === 'string' && u.charAt(0) === '#')
+          ? `background-color:${_waEsc(u)}` : `background-image:url('${_waEsc(u)}')`;
+        let row = th.map((u, i) => `<i${i === 2 ? ' class="t3"' : ''} style="${cell(u)}"></i>`).join('');
+        if (ovM !== ovD) {
+          if (ovD > 0) row += `<span class="ov d">+${ovD}</span>`;
+          if (ovM > 0) row += `<span class="ov m">+${ovM}</span>`;
+        } else if (ovD > 0) {
+          row += `<span class="ov">+${ovD}</span>`;
+        }
+        return `<div class="${p}-th">${row}</div>`;
+      }
+
+      // The mosaic (look surfaces): four cells, the look read as its pieces.
+      // A look photograph fills the whole panel when there is one — the
+      // pieces are still the record, the picture is just the look's image.
+      function _ltMosaicHtml(cells, opts) {
+        opts = opts || {};
+        const cls = 'rb-lk-mos' + (opts.hero ? ' lt-hero' : '');
+        if (opts.photo) {
+          return `<div class="${cls}"><img class="lt-photo" src="${_waEsc(opts.photo)}" alt="${_waEsc(opts.alt || 'This look')}" loading="lazy"></div>`;
+        }
+        let inner = '';
+        for (let i = 0; i < 4; i++) {
+          const c = (cells || [])[i];
+          if (!c) { inner += `<i class="e"></i>`; continue; }
+          inner += c.url
+            ? `<i style="background-image:url('${_waEsc(c.url)}')" title="${_waEsc(c.name)}"></i>`
+            : `<i style="background-color:${_waEsc(c.tone || 'var(--cream-200)')}" title="${_waEsc(c.name)}"></i>`;
+        }
+        return `<div class="${cls}">${inner}</div>`;
+      }
+
+      // The standalone tile — the Looks grid. Title only; the count lives on
+      // hover and on the detail (tile metadata decision, 2026-07-30).
+      function _ltTile(d, opts) {
+        _ltEnsureCss();
+        opts = opts || {};
+        const body = opts.body ? ` onclick="${opts.body}" role="button" tabindex="0"` : '';
+        return `<div class="rb-lk-tile${opts.extraClass ? ' ' + opts.extraClass : ''}"${body}>` +
+          _ltMosaicHtml(d.cells, { photo: d.photo, alt: d.title, hero: opts.hero }) +
+          `<div class="lt-info">` +
+            _ltTitleHtml(d.title, 'lt', d.provisional) +
+            (d.meta ? `<div class="lt-meta">${_waEsc(d.meta)}</div>` : '') +
+          `</div>` +
+        `</div>`;
+      }
+
+      // The primitive is the app's, not this module's — any surface that needs
+      // to draw a look composes these rather than hand-rolling a second card.
+      window._rbLookTile = {
+        tile: _ltTile, strip: _ltStripHtml, title: _ltTitleHtml,
+        mosaic: _ltMosaicHtml, cells: _ltCells, tone: _ltToneOf,
+      };
+
       // ═══ DayCard — the one canonical day renderer (design spec v2.0 +
       // engineering brief, 2026-07-24) ════════════════════════════════════
+      // Composes LookTile (above) for the look itself — title and pieces —
+      // and owns only the day context around it.
       // Four surfaces render a day (home rail, weekly strip, travel strip,
       // lookbook calendar) through ONE normalised shape (_dcMoments) and
       // ONE renderer (_dcCard). Two densities, bound to the surface, never
@@ -5299,6 +5459,11 @@
       function _dcPieceTotal(m, liveBlob) {
         if (!m) return 0;
         try {
+          // A pinned Look carries its own composition — no blob to parse.
+          if (m.source_type === 'look') {
+            const l = typeof _lkFind === 'function' ? _lkFind(m.source_id) : null;
+            return l ? _lkPieceIds(l).length : (m.item_ids || []).length;
+          }
           let blob = liveBlob;
           if (!blob) {
             const it = snLoad().find(x => String(x.id) === String(m.source_id));
@@ -5333,13 +5498,7 @@
         const out = [];
         [dayM, eveM].forEach(m => m && (m.item_ids || []).forEach(id => {
           if (out.length >= 3) return;
-          const wi = _waItems.find(w => String(w.id) === String(id));
-          if (!wi) return;
-          let hex = wi.item_dna && wi.item_dna.display && wi.item_dna.display.primary_color_hex;
-          if (!hex || !/^#[0-9a-fA-F]{3,8}$/.test(String(hex))) {
-            const sw = _ALL_SWATCHES.find(s => s.name.toLowerCase() === String(wi.color || '').toLowerCase());
-            hex = sw ? sw.hex : null;
-          }
+          const hex = _ltToneOf(_waItems.find(w => String(w.id) === String(id)));
           if (hex && out.indexOf(hex) === -1) out.push(hex);
         }));
         return out;
@@ -5443,7 +5602,7 @@
             : `<div class="dc-empty"><div class="t" style="font-style:italic">Left free.</div><div class="s">Tap to dress it.</div></div>`;
           if (!compact && d.chip) inner += `<div class="dc-chip"><span><i></i>${_waEsc(d.chip)}</span></div>`;
         } else {
-          inner += `<div class="dc-title">${_waEsc(d.title || '')}</div>`;
+          inner += _ltTitleHtml(d.title, 'dc');
           if (d.evening) {
             const txt = typeof d.evening === 'string' ? 'Evening · ' + _dcTruncate(d.evening, compact ? 16 : 34) : 'Evening';
             inner += `<div class="dc-eve">${_waEsc(txt)}</div>`;
@@ -5453,25 +5612,9 @@
           }
           if (!compact && d.chip) inner += `<div class="dc-chip"><span><i></i>${_waEsc(d.chip)}</span></div>`;
           inner += `<div class="dc-sp"></div>`;
-          const th = (d.pieces || []).slice(0, 3);
-          if (th.length) {
-            // Mobile shows 2 thumbs (3 + the +N chip bled off narrow
-            // cards — Annie's live pass): the 3rd thumb hides ≤767px and
-            // a mobile-only +N re-counts against 2 shown.
-            const total = d.pieceTotal != null ? d.pieceTotal : th.length;
-            const ovD = Math.max(0, total - th.length);
-            const ovM = Math.max(0, total - Math.min(2, th.length));
-            const cell = u => (typeof u === 'string' && u.charAt(0) === '#')
-              ? `background-color:${_waEsc(u)}` : `background-image:url('${_waEsc(u)}')`;
-            let row = th.map((u, i) => `<i${i === 2 ? ' class="t3"' : ''} style="${cell(u)}"></i>`).join('');
-            if (ovM !== ovD) {
-              if (ovD > 0) row += `<span class="ov d">+${ovD}</span>`;
-              if (ovM > 0) row += `<span class="ov m">+${ovM}</span>`;
-            } else if (ovD > 0) {
-              row += `<span class="ov">+${ovD}</span>`;
-            }
-            inner += `<div class="dc-th">${row}</div>`;
-          }
+          // The pieces are LookTile's (the strip density) — mobile's 2-thumb
+          // treatment and the +N denominator live there, once.
+          inner += _ltStripHtml(d.pieces, d.pieceTotal, 'dc');
           if (d.modifier === 'worn') inner += `<div class="dc-foot"><span class="dc-status">Worn ✓</span></div>`;
           else if (d.modifier === 'packed') inner += `<div class="dc-foot"><span class="dc-status">Packed ✓</span></div>`;
         }
@@ -5519,10 +5662,24 @@
           (m.item_ids || []).forEach(id => { if (ids.indexOf(id) === -1) ids.push(id); });
           m.status = 'worn';
         });
-        ids.forEach(id => {
-          const wi = _waItems.find(w => String(w.id) === String(id));
-          if (wi) _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 }).catch(() => {});
-        });
+        // Passive accrual (brief B3): a confirmed wear IS the save. Create the
+        // Look if this exact composition isn't one yet, then write the Wear —
+        // no separate step, no modal. __lkAccrue owns times_worn for the pieces
+        // it records, so only the un-accrued path patches them here.
+        const acc = (moments || []).length && typeof window.__lkAccrue === 'function'
+          ? window.__lkAccrue(ids, {
+              date: (moments[0] && moments[0].day_date) || _pdLocalISO(),
+              hint: _dcTitleOf(moments[0]),
+              source: (moments[0] && moments[0].source_type) || 'daily',
+              sourceId: moments[0] && moments[0].source_id,
+            })
+          : null;
+        if (!acc || !acc.wear) {
+          ids.forEach(id => {
+            const wi = _waItems.find(w => String(w.id) === String(id));
+            if (wi) _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 }).catch(() => {});
+          });
+        }
         if (ids.length) setTimeout(_waLoad, 900);
         _waShowToast('Logged — Robes remembers what you wore ✓');
       }
@@ -5584,6 +5741,1026 @@
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape' && document.getElementById('rb-dpk')) window.__rbDayPeekClose();
       });
+
+      // ═══ Looks — the Look as a saved entity ══════════════════════════════
+      // Brief: docs/look-entity-brief.md (30 Jul 2026). Phase 1 (the entity,
+      // accruing from wears she already confirms) + Phase 2 (manual build).
+      //
+      // Three objects, never one (§2). The question "does changing the shoes
+      // create a new look?" dissolves once the THING is separated from THE
+      // OCCASION IT WAS WORN:
+      //   Look — saved, named, reusable. Mutable; small edits keep identity.
+      //   Wear — this look, these exact pieces, this date. NEVER mutable.
+      //   DayCard — presentation only (it composes LookTile, above).
+      // Promotion to a new Look is only ever an EXPLICIT user action (A5/B5):
+      // there is no similarity threshold and no inference in this module.
+      //
+      // Wardrobe gains a tab, not a destination (A1) — the nav stays
+      // Wardrobe / Lookbook, and Looks sits beside All pieces and Wishlist in
+      // the existing sub-tab row.
+      //
+      // Persistence: supabase/looks_migration.sql (migration 14). Until it
+      // runs, every read/write falls back to the per-user localStorage cache
+      // and warns ONCE — the planned_days / wishlist degradation convention.
+      var _lkDown = false, _lkWarned = false, _lkLoaded = false;
+      var _lkLooks = [];
+      // Last worn ↓ by default; never-worn looks fall to the END descending
+      // and to the FRONT ascending, so "what have I not worn?" is one tap.
+      var _lkSortDesc = true;
+      var _lkView = 'grid';          // 'grid' | 'detail' | 'new'
+      var _lkActive = null;          // open look id
+      var _lkSwapFor = null;         // piece id whose alternates are open
+      var _lkPending = null;         // {from,to,pieces} awaiting Update / Save as new
+      var _lkDone = null;            // quiet confirmation line after a resolution
+      var _lkActNote = null;            // transient action note key
+      var _lkTitleDraft = null, _lkTitleTouched = false;
+      var _lkRetro = false;
+      var _lkBusy = false;
+
+      // The composer's rack. Slots are PRESENTATIONAL — the wardrobe's own
+      // categories decide what can fill each one.
+      var _LK_SLOTS = {
+        Top:       { cats: ['Tops', 'Dresses', 'Outerwear'], add: 'Add a top' },
+        Bottom:    { cats: ['Bottoms'],                      add: 'Add a bottom' },
+        Shoe:      { cats: ['Shoes'],                        add: 'Add a shoe' },
+        Bag:       { cats: ['Bags', 'Accessories'],           add: 'Add a bag' },
+        Accessory: { cats: ['Accessories', 'Outerwear', 'Swimwear', 'Other'], add: 'Add a piece' },
+      };
+      var _LK_START_ROWS = [
+        { key: 'r1', slot: 'Top', piece: null },
+        { key: 'r2', slot: 'Bottom', piece: null },
+        { key: 'r3', slot: 'Shoe', piece: null },
+        { key: 'r4', slot: 'Bag', piece: null },
+      ];
+      var _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
+      var _lkOpenRow = null, _lkRowSeq = 4;
+      var _lkPhoto = null;           // {url} once hosted, or {pending:true}
+      var _lkNewTitleDraft = null, _lkNewTitleTouched = false;
+      var _lkSaved = null;           // the just-saved look, for the confirmation
+
+      function LK_KEY() { const u = _waUid(); return u ? 'rb_looks__' + u : null; }
+      function _lkCacheRead() {
+        const k = LK_KEY(); if (!k) return [];
+        try { const v = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(v) ? v : []; } catch (_) { return []; }
+      }
+      function _lkCacheWrite() {
+        const k = LK_KEY(); if (!k) return;
+        try { localStorage.setItem(k, JSON.stringify(_lkLooks)); } catch (_) {}
+      }
+      function _lkMissing(t) {
+        return /looks|look_pieces|wears/.test(t) && /PGRST205|42P01|Could not find the table|does not exist/.test(t);
+      }
+      function _lkGuard(e, what) {
+        const t = String(e && e.message || e);
+        if (_lkMissing(t)) {
+          _lkDown = true;
+          if (!_lkWarned) { console.warn('[robes] looks: table missing — run supabase/looks_migration.sql'); _lkWarned = true; }
+        } else {
+          console.warn('[robes] looks ' + what + ' failed:', t.slice(0, 160));
+        }
+      }
+      function _lkUuid() {
+        try { if (crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (_) {}
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = Math.random() * 16 | 0;
+          return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+      }
+
+      // ── Reads ───────────────────────────────────────────────────────────
+      // Three tables, one stitch. look_pieces and wears are RLS-scoped, so
+      // neither needs a user filter — the policies are the filter.
+      async function _lkLoad() {
+        _lkLooks = _lkCacheRead();
+        if (_lkLooks.length) _lkPaint();
+        if (_lkDown || !_waUid() || !_waToken()) { _lkLoaded = true; _lkPaint(); return; }
+        try {
+          const [looks, pieces, wears] = await Promise.all([
+            _waFetch('GET', 'looks?user_id=eq.' + _waUid() + '&order=created_at.desc&select=*'),
+            _waFetch('GET', 'look_pieces?order=position.asc&select=*'),
+            _waFetch('GET', 'wears?user_id=eq.' + _waUid() + '&order=worn_on.desc&select=*'),
+          ]);
+          const byId = {};
+          (looks || []).forEach(l => {
+            byId[l.id] = {
+              id: l.id, name: l.name || '', name_provisional: !!l.name_provisional,
+              note: l.note || '', photo_url: l.photo_url || null,
+              source: l.source || 'wear', origin_look_id: l.origin_look_id || null,
+              created_at: l.created_at, pieces: [], wears: [],
+            };
+          });
+          (pieces || []).forEach(p => {
+            const l = byId[p.look_id];
+            if (l) l.pieces.push({ id: p.wardrobe_item_id, slot: p.slot || null, position: p.position || 0 });
+          });
+          (wears || []).forEach(w => {
+            const l = byId[w.look_id];
+            if (l) l.wears.push({ id: w.id, worn_on: w.worn_on, piece_ids: w.piece_ids || [], source: w.source || null, source_id: w.source_id || null });
+          });
+          const cloud = Object.keys(byId).map(k => byId[k]);
+          // Local-only looks (saved before the migration ran, or offline) sync up
+          _lkCacheRead().forEach(l => {
+            if (!cloud.find(c => String(c.id) === String(l.id))) { cloud.push(l); _lkPushCloud(l); }
+          });
+          _lkLooks = cloud.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+          _lkCacheWrite();
+          _lkLoaded = true;
+          _lkPaint();
+          _waV2Sync();
+        } catch (e) {
+          _lkGuard(e, 'load');
+          _lkLoaded = true;
+          _lkPaint();
+        }
+      }
+
+      function _lkFind(id) { return _lkLooks.find(l => String(l.id) === String(id)) || null; }
+      function _lkPieceIds(l) { return ((l && l.pieces) || []).map(p => p.id); }
+      // Identity for passive accrual (B3): the exact SET of pieces. Not a
+      // similarity threshold — an identical composition IS the same look.
+      function _lkSig(ids) { return (ids || []).map(String).slice().sort().join('|'); }
+      function _lkFindByPieces(ids) {
+        const sig = _lkSig(ids);
+        return sig ? _lkLooks.find(l => _lkSig(_lkPieceIds(l)) === sig) || null : null;
+      }
+      function _lkLastWorn(l) {
+        const w = (l.wears || []).slice().sort((a, b) => String(b.worn_on).localeCompare(String(a.worn_on)))[0];
+        return w ? w.worn_on : null;
+      }
+      function _lkWearCount(l) { return (l.wears || []).length; }
+      // Cost per wear — the wear-more-buy-less payoff, and a real number or
+      // nothing: only pieces she has priced count, and it needs a wear.
+      function _lkCpw(l) {
+        const n = _lkWearCount(l);
+        if (!n) return null;
+        let sum = 0, priced = 0;
+        _lkPieceIds(l).forEach(id => {
+          const wi = _waItems.find(w => String(w.id) === String(id));
+          const p = wi && Number(wi.price);
+          if (p > 0) { sum += p; priced++; }
+        });
+        return priced ? '€' + Math.max(1, Math.round(sum / n)) : null;
+      }
+      function _lkFmt(iso) {
+        if (!iso) return '—';
+        const d = new Date(String(iso).slice(0, 10) + 'T00:00:00');
+        return isNaN(d) ? '—' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      }
+      function _lkN(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+      function _lkNames(ids) {
+        return (ids || []).map(id => {
+          const wi = _waItems.find(w => String(w.id) === String(id));
+          return wi ? wi.label : null;
+        }).filter(Boolean).join(' · ');
+      }
+      // The offered title (A6): her own words first (the occasion she typed,
+      // the generated headline), then the look's own strongest piece. There is
+      // no null state — a Look cannot be unnamed without breaking the grid.
+      function _lkOfferName(ids, hint) {
+        const h = _dcSentence(String(hint || '').trim());
+        if (h && h.length > 2) return h.slice(0, 60);
+        const first = (ids || []).map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean)[0];
+        if (first && first.label) {
+          const word = String(first.label).trim().split(/\s+/).slice(-1)[0].toLowerCase();
+          if (word) return 'The ' + word + ' one';
+        }
+        return 'Untitled look';
+      }
+      // The styling note, synthesised from the pieces — the same sentence
+      // shape the generators produce, so a hand-built look reads like a
+      // styled one.
+      function _lkStyleNote(ids) {
+        const names = (ids || []).map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean).map(w => w.label);
+        if (names.length < 2) return '';
+        const lc = s => s.charAt(0).toLowerCase() + s.slice(1);
+        return names[0] + ' with the ' + lc(names[1]) + (names[2] ? ', ' + lc(names[2]) : '') + '.';
+      }
+
+      // ── Writes ──────────────────────────────────────────────────────────
+      function _lkPushCloud(l) {
+        if (_lkDown || !_waUid()) return;
+        _waFetch('POST', 'looks', {
+          id: l.id, user_id: _waUid(), name: l.name, name_provisional: !!l.name_provisional,
+          note: l.note || null, photo_url: l.photo_url || null,
+          source: l.source || 'wear', origin_look_id: l.origin_look_id || null,
+        }).then(() => _lkPiecesCloud(l)).catch(e => _lkGuard(e, 'create'));
+      }
+      function _lkPiecesCloud(l) {
+        if (_lkDown || !_waUid()) return;
+        const rows = (l.pieces || []).map((p, i) => ({
+          look_id: l.id, wardrobe_item_id: p.id, slot: p.slot || null, position: p.position != null ? p.position : i,
+        }));
+        _waFetch('DELETE', 'look_pieces?look_id=eq.' + l.id)
+          .then(() => rows.length ? _waFetch('POST', 'look_pieces', rows) : null)
+          .catch(e => _lkGuard(e, 'pieces'));
+      }
+      function _lkPatchCloud(l, patch) {
+        if (_lkDown || !_waUid()) return;
+        _waFetch('PATCH', 'looks?id=eq.' + l.id + '&user_id=eq.' + _waUid(),
+          Object.assign({ updated_at: new Date().toISOString() }, patch))
+          .catch(e => _lkGuard(e, 'patch'));
+      }
+      function _lkPatch(id, patch, pieces) {
+        const l = _lkFind(id);
+        if (!l) return null;
+        Object.assign(l, patch);
+        _lkCacheWrite();
+        _lkPatchCloud(l, patch);
+        if (pieces) _lkPiecesCloud(l);
+        return l;
+      }
+      function _lkCreate(o) {
+        const ids = o.pieces || [];
+        const l = {
+          id: _lkUuid(),
+          name: o.name || _lkOfferName(ids, o.hint),
+          name_provisional: o.name_provisional !== false,
+          note: o.note != null ? o.note : _lkStyleNote(ids),
+          photo_url: o.photo_url || null,
+          source: o.source || 'wear',
+          origin_look_id: o.origin_look_id || null,
+          created_at: new Date().toISOString(),
+          pieces: ids.map((id, i) => ({ id, slot: (o.slots || {})[id] || null, position: i })),
+          wears: [],
+        };
+        _lkLooks.unshift(l);
+        _lkCacheWrite();
+        _lkPushCloud(l);
+        _rbTrack('look_created', { source: l.source, pieces: ids.length });
+        return l;
+      }
+
+      // A wear is written once and never updated (B4). Idempotent per
+      // (look, date) so a double-tap or a re-synced blob can't inflate the
+      // count that "wear more, buy less" is measured on.
+      function _lkAddWear(l, o) {
+        o = o || {};
+        const date = o.date || _pdLocalISO();
+        if ((l.wears || []).some(w => String(w.worn_on).slice(0, 10) === date)) return null;
+        const w = {
+          id: _lkUuid(), worn_on: date, piece_ids: _lkPieceIds(l).slice(),
+          source: o.source || 'looks', source_id: o.sourceId != null ? String(o.sourceId) : null,
+        };
+        l.wears.unshift(w);
+        _lkCacheWrite();
+        if (!_lkDown && _waUid()) {
+          _waFetch('POST', 'wears', {
+            id: w.id, look_id: l.id, user_id: _waUid(), worn_on: w.worn_on,
+            piece_ids: w.piece_ids, source: w.source, source_id: w.source_id,
+          }).catch(e => {
+            // A duplicate is the unique index doing its job, not a failure
+            if (!/23505|duplicate key/.test(String(e && e.message || e))) _lkGuard(e, 'wear');
+          });
+        }
+        // times_worn on the pieces is what the rest of the app already reads
+        w.piece_ids.forEach(id => {
+          const wi = _waItems.find(x => String(x.id) === String(id));
+          if (wi) {
+            wi.times_worn = (Number(wi.times_worn) || 0) + 1;
+            _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: wi.times_worn }).catch(() => {});
+          }
+        });
+        _rbTrack('wear_confirmed', { source: w.source, pieces: w.piece_ids.length });
+        return w;
+      }
+      // Undo is a DELETE — the only correction path a wear has (B4).
+      function _lkRemoveWear(l, date) {
+        const i = (l.wears || []).findIndex(w => String(w.worn_on).slice(0, 10) === date);
+        if (i < 0) return;
+        const w = l.wears.splice(i, 1)[0];
+        _lkCacheWrite();
+        if (!_lkDown && _waUid()) _waFetch('DELETE', 'wears?id=eq.' + w.id + '&user_id=eq.' + _waUid()).catch(e => _lkGuard(e, 'unwear'));
+        (w.piece_ids || []).forEach(id => {
+          const wi = _waItems.find(x => String(x.id) === String(id));
+          if (wi && Number(wi.times_worn) > 0) {
+            wi.times_worn = Number(wi.times_worn) - 1;
+            _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: wi.times_worn }).catch(() => {});
+          }
+        });
+        _rbTrack('wear_undone', {});
+      }
+
+      // ── Passive accrual (B3) ────────────────────────────────────────────
+      // On a confirmed wear of ANY look — generated or hand-built — create
+      // the Look if it doesn't exist, then create the Wear. No separate save
+      // step, no modal: the catalogue grows from behaviour she already has.
+      window.__lkAccrue = function(pieceIds, o) {
+        o = o || {};
+        const ids = (pieceIds || []).map(String).filter(Boolean);
+        if (ids.length < 2) return null;   // a single piece is not a look
+        let l = _lkFindByPieces(ids);
+        if (!l) l = _lkCreate({ pieces: ids, hint: o.hint, source: 'wear' });
+        const w = _lkAddWear(l, { date: o.date, source: o.source, sourceId: o.sourceId });
+        _lkPaint();
+        return { look: l, wear: w };
+      };
+      window.__lkUnaccrue = function(pieceIds, date) {
+        const l = _lkFindByPieces((pieceIds || []).map(String));
+        if (l) { _lkRemoveWear(l, date || _pdLocalISO()); _lkPaint(); }
+      };
+
+      // ── Pins (A3 "Pin to a day") ────────────────────────────────────────
+      // planned_days IS the pin store — a pinned look is a dated moment like
+      // any other, so the home rail and the month calendar show it with the
+      // same DayCard the plans use. No new table, no new surface.
+      function _lkPins(id) {
+        return _pdCacheRead()
+          .filter(r => r.source_type === 'look' && String(r.source_id) === String(id))
+          .map(r => r.day_date)
+          .sort();
+      }
+      function _pdRowsLk(l, dates) {
+        const ids = _lkPieceIds(l);
+        const thumbs = ids.map(id => {
+          const wi = _waItems.find(w => String(w.id) === String(id));
+          return wi ? _pdHttp(wi.image_url) : null;
+        }).filter(Boolean).slice(0, 3);
+        return {
+          rows: dates.map((date, i) => Object.assign(_pdBase('look', l.id, i, date, 'day'), {
+            status: (l.wears || []).some(w => String(w.worn_on).slice(0, 10) === date) ? 'worn' : 'planned',
+            activity: l.name || null,
+            headline: l.name || null,
+            thumb_urls: thumbs,
+            item_ids: ids,
+          })),
+          totalDays: dates.length,
+        };
+      }
+      function _lkPin(id, date) {
+        const l = _lkFind(id);
+        if (!l || !date) return;
+        const dates = _lkPins(id);
+        if (dates.indexOf(date) === -1) dates.push(date);
+        dates.sort();
+        const built = _pdRowsLk(l, dates);
+        // Optimistic cache write so the rail shows the pin before the round trip
+        const rest = _pdCacheRead().filter(r => !(r.source_type === 'look' && String(r.source_id) === String(id)));
+        _pdCacheWrite(rest.concat(built.rows));
+        if (!_pdDown && _waUid() && _waToken()) _pdWrite(built, id);
+        if (window._rbRailPaint) setTimeout(window._rbRailPaint, 300);
+        _rbTrack('look_pinned', { offset_from_today: Math.round((new Date(date + 'T00:00:00Z') - new Date(_pdLocalISO() + 'T00:00:00Z')) / 86400000) });
+      }
+
+      // ── The tab ─────────────────────────────────────────────────────────
+      var _LK_CSS = `
+#rb-lk-wrap{display:none}
+#rb-lk-bar{display:flex;align-items:center;gap:12px;margin:0 0 18px}
+.rb-lk-sort{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border:0.5px solid var(--rule-mid);background:#fff;border-radius:100px;cursor:pointer;font-family:inherit;font-size:11.5px;color:var(--ink);transition:border-color .15s}
+.rb-lk-sort:hover{border-color:var(--ink)}
+.rb-lk-sort b{font-weight:400;color:var(--ink-faint)}
+#rb-lk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+@media(max-width:1199px){#rb-lk-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:767px){#rb-lk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}}
+.rb-lk-back{background:none;border:none;padding:0 0 18px;font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);cursor:pointer;font-family:inherit}
+.rb-lk-back:hover{color:var(--ink)}
+.rb-lk-det{display:flex;gap:40px;align-items:flex-start}
+.rb-lk-det-l{flex:0 0 360px;max-width:360px}
+.rb-lk-det-r{flex:1;min-width:0}
+.rb-lk-eyebrow{font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
+.rb-lk-title-in{width:100%;margin-top:7px;padding:2px 0 9px;border:none;border-bottom:0.5px solid var(--rule-mid);background:transparent;font-family:var(--font-serif);font-weight:300;font-size:clamp(26px,3vw,34px);line-height:1.1;color:var(--ink);outline:none}
+.rb-lk-title-in.prov{font-style:italic;color:var(--ink-soft)}
+.rb-lk-title-in:focus{border-bottom-color:var(--ink)}
+.rb-lk-hint{font-size:11.5px;color:var(--ink-faint);margin-top:8px;min-height:1.2em}
+.rb-lk-stats{display:flex;gap:28px;flex-wrap:wrap;margin-top:22px;padding:16px 0;border-top:0.5px solid var(--rule);border-bottom:0.5px solid var(--rule)}
+.rb-lk-stat b{display:block;font-family:var(--font-serif);font-weight:300;font-size:25px;line-height:1;color:var(--ink)}
+.rb-lk-stat span{display:block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-top:4px}
+.rb-lk-acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}
+.rb-lk-act{padding:11px 18px;border-radius:100px;border:0.5px solid var(--rule-mid);background:#fff;color:var(--ink);font-family:inherit;font-size:11.5px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.rb-lk-act:hover{border-color:var(--ink)}
+.rb-lk-act.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.rb-lk-act.primary:hover{opacity:.85}
+.rb-lk-panel{margin-top:14px;padding:14px 16px;border:0.5px solid var(--ink);border-radius:var(--rad);background:var(--cream-100)}
+.rb-lk-panel .pl{font-family:var(--font-serif);font-size:19px;line-height:1.25;color:var(--ink)}
+.rb-lk-panel .pb{font-size:12.5px;line-height:1.6;color:var(--ink-soft);margin-top:6px}
+.rb-lk-panel-acts{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px}
+.rb-lk-quiet{background:none;border:none;padding:0 0 2px;font-family:inherit;font-size:11.5px;color:var(--ink-soft);border-bottom:0.5px solid var(--rule-mid);cursor:pointer}
+.rb-lk-quiet:hover{color:var(--ink);border-bottom-color:var(--ink)}
+.rb-lk-sec{font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin:26px 0 12px}
+.rb-lk-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-top:0.5px solid var(--rule)}
+.rb-lk-row .th{width:38px;height:48px;flex:none;border-radius:var(--rad-sm);background-size:cover;background-position:center;background-color:var(--cream-200)}
+.rb-lk-row .nm{flex:1;min-width:0;font-size:13px;color:var(--ink)}
+.rb-lk-row .nm em{display:block;font-style:normal;font-size:11px;color:var(--ink-faint);margin-top:2px}
+.rb-lk-pick{display:flex;gap:10px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
+.rb-lk-pick::-webkit-scrollbar{width:0;height:0}
+.rb-lk-opt{flex:none;width:92px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);overflow:hidden;cursor:pointer;background:#fff;padding:0;font-family:inherit;text-align:left;transition:border-color .15s}
+.rb-lk-opt:hover{border-color:var(--ink)}
+.rb-lk-opt i{display:block;height:74px;background-size:cover;background-position:center;background-color:var(--cream-200)}
+.rb-lk-opt span{display:block;padding:7px 8px;font-size:10.5px;line-height:1.3;color:var(--ink)}
+.rb-lk-wear{display:flex;align-items:baseline;gap:14px;padding:10px 0;border-top:0.5px solid var(--rule)}
+.rb-lk-wear .dt{width:74px;flex:none;font-family:var(--font-serif);font-size:18px;color:var(--ink)}
+.rb-lk-wear .pc{flex:1;font-size:11.5px;line-height:1.5;color:var(--ink-soft)}
+.rb-lk-wear .tg{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+.rb-lk-empty{padding:56px 0 32px;max-width:520px}
+.rb-lk-empty h3{font-family:var(--font-serif);font-weight:300;font-size:clamp(24px,3vw,30px);line-height:1.14;color:var(--ink);margin:0}
+.rb-lk-empty h3 em{font-style:italic;color:var(--ink-soft)}
+.rb-lk-empty p{font-size:13px;line-height:1.6;color:var(--ink-soft);margin:14px 0 0;max-width:420px}
+.rb-lk-empty-acts{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.rb-lk-new{display:flex;gap:32px;align-items:flex-start}
+.rb-lk-card{flex:0 0 340px;max-width:340px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-card);background:#fff;padding:18px}
+.rb-lk-card-hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:13px}
+.rb-lk-card-hd b{font-size:9.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+.rb-lk-card-hd i{font-style:normal;font-family:var(--font-serif);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
+.rb-lk-note{font-family:var(--font-serif);font-style:italic;font-size:17px;line-height:1.45;color:var(--ink);margin-top:14px;min-height:1.4em}
+.rb-lk-pal{display:flex;align-items:center;gap:7px;margin-top:12px}
+.rb-lk-pal i{width:15px;height:15px;border-radius:100px;background:var(--cream-200);box-shadow:inset 0 0 0 0.5px var(--rule-mid)}
+.rb-lk-pal span{margin-left:auto;font-size:11px;color:var(--ink-faint)}
+.rb-lk-card-foot{display:flex;align-items:center;gap:14px;margin-top:14px;padding-top:13px;border-top:0.5px solid var(--rule)}
+.rb-lk-rack{flex:1;min-width:0}
+.rb-lk-rrow{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:13px 15px;margin-bottom:11px;transition:border-color .2s}
+.rb-lk-rrow.on{border-color:var(--ink)}
+.rb-lk-rmain{display:flex;align-items:center;gap:14px}
+.rb-lk-rthumb{width:62px;height:78px;flex:none;border-radius:var(--rad-sm);background-size:cover;background-position:center;background-color:var(--cream-100);box-shadow:inset 0 0 0 0.5px var(--rule-mid);display:flex;align-items:flex-end;padding:6px;box-sizing:border-box}
+.rb-lk-rthumb b{font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
+.rb-lk-rbody{flex:1;min-width:0}
+.rb-lk-rname{font-family:var(--font-serif);font-weight:400;font-size:21px;line-height:1.15;color:var(--ink)}
+.rb-lk-rname.empty{font-style:italic;color:var(--ink-faint)}
+.rb-lk-rmeta{font-size:11px;color:var(--ink-faint);margin-top:4px}
+.rb-lk-ract{display:flex;align-items:center;gap:10px;flex:none}
+.rb-lk-rcta{padding:8px 14px;border-radius:100px;border:0.5px solid var(--ink);background:var(--ink);color:#fff;font-family:inherit;font-size:11px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.rb-lk-rcta.ghost{background:#fff;color:var(--ink);border-color:var(--rule-mid)}
+.rb-lk-rcta.ghost:hover{border-color:var(--ink)}
+.rb-lk-add{width:100%;padding:15px;border:1.5px dashed var(--rule-mid);border-radius:var(--rad);background:transparent;font-family:inherit;font-size:11.5px;color:var(--ink-faint);cursor:pointer;transition:all .15s}
+.rb-lk-add:hover{border-color:var(--ink-faint);color:var(--ink)}
+.rb-lk-save{width:100%;margin-top:16px;padding:14px;border:none;border-radius:100px;background:var(--ink);color:#fff;font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:opacity .15s}
+.rb-lk-save:hover{opacity:.85}
+@media(max-width:900px){
+.rb-lk-det,.rb-lk-new{flex-direction:column;gap:24px}
+.rb-lk-det-l,.rb-lk-card{flex:1 1 auto;max-width:none;width:100%}
+.rb-lk-ract{flex-direction:column;align-items:stretch;gap:7px}
+}
+@media(max-width:767px){
+.rb-lk-stats{gap:20px}
+.rb-lk-rmain{align-items:flex-start}
+.rb-lk-rname{font-size:19px}
+}`;
+      function _lkEnsureCss() {
+        if (document.getElementById('rb-lk-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-lk-style';
+        st.textContent = _LK_CSS;
+        document.head.appendChild(st);
+      }
+
+      // One-time DOM: the Looks surface rides INSIDE the wardrobe panel, so
+      // nav state, crumbs and the mobile FAB keep working untouched.
+      function _lkEnsureDom() {
+        if (document.getElementById('rb-lk-wrap')) return true;
+        const grid = document.getElementById('wg-grid');
+        if (!grid) return false;
+        _lkEnsureCss();
+        const wrap = document.createElement('div');
+        wrap.id = 'rb-lk-wrap';
+        wrap.innerHTML = '<div id="rb-lk-bar"></div><div id="rb-lk-grid"></div><div id="rb-lk-body"></div>';
+        const wl = document.getElementById('rb-wl-grid');
+        (wl || grid).parentNode.insertBefore(wrap, (wl || grid).nextSibling);
+        return true;
+      }
+
+      function _lkPaint() {
+        if (_waView !== 'looks' || !_lkEnsureDom()) return;
+        const bar = document.getElementById('rb-lk-bar');
+        const grid = document.getElementById('rb-lk-grid');
+        const body = document.getElementById('rb-lk-body');
+        if (!bar || !grid || !body) return;
+        const detail = _lkView !== 'grid';
+        bar.style.display = detail || !_lkLooks.length ? 'none' : 'flex';
+        grid.style.display = detail || !_lkLooks.length ? 'none' : 'grid';
+        if (detail) {
+          body.innerHTML = _lkView === 'new' ? _lkNewHtml() : _lkDetailHtml();
+          return;
+        }
+        body.innerHTML = _lkLooks.length ? '' : _lkEmptyHtml();
+        if (!_lkLooks.length) return;
+        bar.innerHTML = '<button type="button" class="rb-lk-sort" onclick="window.__lkSort()">' +
+          '<span>' + (_lkSortDesc ? 'Last worn' : 'First worn') + '</span>' +
+          '<b>' + (_lkSortDesc ? '↓' : '↑') + '</b></button>';
+        grid.innerHTML = _lkSorted().map(l => {
+          const n = _lkWearCount(l);
+          const last = _lkLastWorn(l);
+          return _ltTile({
+            title: l.name,
+            provisional: l.name_provisional,
+            cells: _ltCells(_lkPieceIds(l)),
+            photo: l.photo_url,
+            meta: _lkN(_lkPieceIds(l).length, 'piece') + ' · ' + (n ? _lkN(n, 'wear') + ' · last ' + _lkFmt(last) : 'not worn yet'),
+          }, { body: "window.__lkOpen('" + l.id + "')" });
+        }).join('');
+      }
+
+      // Never-worn falls to the end descending, the front ascending.
+      function _lkSorted() {
+        return _lkLooks.slice().sort((a, b) => {
+          const av = _lkLastWorn(a) || '', bv = _lkLastWorn(b) || '';
+          return _lkSortDesc ? bv.localeCompare(av) : av.localeCompare(bv);
+        });
+      }
+
+      function _lkEmptyHtml() {
+        return '<div class="rb-lk-empty">' +
+          '<h3>Nothing saved yet.<br><em>Wear something and it lands here.</em></h3>' +
+          '<p>Confirm what you wore and Robes keeps it — named, reusable, countable.</p>' +
+          '<div class="rb-lk-empty-acts">' +
+            '<button type="button" class="rb-lk-act primary" onclick="window.__lkToday()">See today\'s look</button>' +
+            '<button type="button" class="rb-lk-act" onclick="window.__lkNew()">Add one now</button>' +
+          '</div></div>';
+      }
+
+      // ── Look detail (A3) ────────────────────────────────────────────────
+      function _lkDetailHtml() {
+        const l = _lkFind(_lkActive);
+        if (!l) return _lkEmptyHtml();
+        const ids = _lkPieceIds(l);
+        const n = _lkWearCount(l);
+        const cpw = _lkCpw(l);
+        const today = _pdLocalISO();
+        const wornToday = (l.wears || []).some(w => String(w.worn_on).slice(0, 10) === today);
+        const prov = !!l.name_provisional;
+        const title = _lkTitleDraft != null ? _lkTitleDraft : l.name;
+        const pins = _lkPins(l.id).filter(d => d >= today);
+
+        let h = '<button type="button" class="rb-lk-back" onclick="window.__lkBack()">← Wardrobe · Looks</button>' +
+          '<div class="rb-lk-det"><div class="rb-lk-det-l">' +
+          _ltMosaicHtml(_ltCells(ids), { photo: l.photo_url, alt: l.name, hero: true }) +
+          (l.note ? '<div class="rb-lk-note">' + _waEsc(l.note) + '</div>' : '') +
+          '</div><div class="rb-lk-det-r">';
+
+        h += '<div class="rb-lk-eyebrow">' + (prov ? 'Robes named it' : 'Look') + '</div>' +
+          '<input id="rb-lk-title" class="rb-lk-title-in' + (prov ? ' prov' : '') + '" value="' + _waEsc(title) + '"' +
+            ' oninput="window.__lkTitleInput(this.value)" onchange="window.__lkTitleCommit(this.value)" onblur="window.__lkTitleCommit(this.value)">' +
+          '<div class="rb-lk-hint" id="rb-lk-hint">' + (prov ? 'Leave it and it keeps this name.' : '') + '</div>';
+
+        h += '<div class="rb-lk-stats">' +
+          '<div class="rb-lk-stat"><b>' + ids.length + '</b><span>Pieces</span></div>' +
+          '<div class="rb-lk-stat"><b>' + n + '</b><span>Wears</span></div>' +
+          '<div class="rb-lk-stat"><b>' + _lkFmt(_lkLastWorn(l)) + '</b><span>Last worn</span></div>' +
+          (cpw ? '<div class="rb-lk-stat"><b>' + cpw + '</b><span>Per wear</span></div>' : '') +
+          '</div>';
+
+        // The four actions are load-bearing (A3) — without them the tab is a
+        // gallery; with them Looks is the tissue between Daily and Travel.
+        h += '<div class="rb-lk-acts">' +
+          (wornToday
+            ? '<button type="button" class="rb-lk-act" disabled style="opacity:.5;cursor:default">Worn today ✓</button>'
+            : '<button type="button" class="rb-lk-act primary" onclick="window.__lkWearToday()">Wear it today</button>') +
+          '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pin\')">Pin to a day</button>' +
+          '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pack\')">Pack it</button>' +
+          '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'restyle\')">Restyle</button>' +
+          '</div>';
+
+        // Quiet undo on the day, not a toast (A4)
+        if (wornToday) {
+          h += '<div class="rb-lk-panel" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">' +
+            '<div style="flex:1;min-width:0"><div class="pl">Worn today.</div>' +
+            '<div class="pb">' + _lkN(n, 'wear') + (cpw ? ' · ' + cpw + ' per wear' : '') + '</div></div>' +
+            '<button type="button" class="rb-lk-quiet" onclick="window.__lkUndoToday()">Not this, actually</button></div>';
+        }
+
+        if (_lkActNote === 'pin') {
+          const d1 = today, d2 = _pdAddISO(today, 1), d3 = _pdAddISO(today, 2);
+          h += '<div class="rb-lk-panel"><div class="pl">Which day?</div>' +
+            '<div class="rb-lk-panel-acts">' +
+            '<button type="button" class="rb-lk-act" onclick="window.__lkPinTo(\'' + d1 + '\')">Today</button>' +
+            '<button type="button" class="rb-lk-act" onclick="window.__lkPinTo(\'' + d2 + '\')">Tomorrow</button>' +
+            '<button type="button" class="rb-lk-act" onclick="window.__lkPinTo(\'' + d3 + '\')">' + _lkFmt(d3) + '</button>' +
+            '<input type="date" min="' + today + '" onchange="window.__lkPinTo(this.value)" style="border:0.5px solid var(--rule-mid);border-radius:100px;padding:10px 14px;font-family:inherit;font-size:11.5px;background:#fff;color:var(--ink)">' +
+            '<button type="button" class="rb-lk-quiet" onclick="window.__lkAct(null)">Cancel</button>' +
+            '</div></div>';
+        } else if (_lkActNote === 'restyle') {
+          h += '<div class="rb-lk-panel"><div class="pl">Swap a piece below.</div>' +
+            '<div class="pb">Robes asks before it touches the history.</div></div>';
+        }
+
+        if (pins.length) {
+          h += '<div class="rb-lk-panel" style="border-color:var(--rule-mid);background:var(--sage-bg)">' +
+            '<div class="pl">Pinned to ' + pins.map(_lkFmt).join(' and ') + '.</div>' +
+            '<div class="rb-lk-panel-acts"><button type="button" class="rb-lk-quiet" onclick="window.__lkSeeDay(\'' + pins[0] + '\')">See the day</button></div></div>';
+        }
+        if (_lkDone) h += '<div class="rb-lk-panel" style="border-color:var(--rule-mid);background:#fff"><div class="pl">' + _waEsc(_lkDone) + '</div></div>';
+
+        // Variant promotion (A5) — never silent, never inferred.
+        if (_lkPending) {
+          const toName = (_waItems.find(w => String(w.id) === String(_lkPending.to)) || {}).label || 'that piece';
+          h += '<div class="rb-lk-panel"><div class="pl">' + _waEsc(l.name) + ' has been worn ' + _lkN(n, 'time') + '.</div>' +
+            '<div class="pb">Swapping the ' + _waEsc(String(toName).toLowerCase()) + ' in keeps one look with ' + _lkN(n, 'wear') +
+            ' — the days you already wore stay exactly as they were. Or keep both, if this is a different thing.</div>' +
+            '<div class="rb-lk-panel-acts">' +
+            '<button type="button" class="rb-lk-act primary" onclick="window.__lkUpdate()">Update this look</button>' +
+            '<button type="button" class="rb-lk-act" onclick="window.__lkPromote()">Save as a new look</button>' +
+            '<button type="button" class="rb-lk-quiet" onclick="window.__lkCancelPromote()">Leave it</button>' +
+            '</div></div>';
+        }
+
+        h += '<div class="rb-lk-sec">The pieces</div>';
+        ids.forEach(id => {
+          const wi = _waItems.find(w => String(w.id) === String(id));
+          const name = wi ? wi.label : 'A piece no longer in your wardrobe';
+          const url = wi ? _pdHttp(wi.image_url) : null;
+          const tone = _ltToneOf(wi);
+          const open = String(_lkSwapFor) === String(id);
+          h += '<div class="rb-lk-row"><div class="th" style="' +
+            (url ? "background-image:url('" + _waEsc(url) + "')" : 'background-color:' + _waEsc(tone || 'var(--cream-200)')) + '"></div>' +
+            '<div class="nm">' + _waEsc(name) + (wi ? '<em>' + _waEsc(wi.category || '') + (Number(wi.times_worn) ? ' · ' + Number(wi.times_worn) + '× worn' : '') + '</em>' : '') + '</div>' +
+            (wi ? '<button type="button" class="rb-lk-quiet" onclick="window.__lkSwap(\'' + _waEsc(String(id)) + '\')">' + (open ? 'Close' : 'Swap') + '</button>' : '') +
+            '</div>';
+          if (open) h += _lkPickerHtml(_lkAlts(l, id), '__lkSwapPick', String(id));
+        });
+
+        h += '<div class="rb-lk-sec" style="display:flex;align-items:baseline;gap:14px">Worn' +
+          '<button type="button" class="rb-lk-quiet" style="letter-spacing:0;text-transform:none;font-weight:400" onclick="window.__lkRetro()">I wore this — add a date</button></div>';
+        if (_lkRetro) {
+          h += '<div class="rb-lk-panel-acts" style="margin:0 0 12px">' +
+            '<button type="button" class="rb-lk-act" onclick="window.__lkRetroPick(\'' + today + '\')">Today</button>' +
+            '<button type="button" class="rb-lk-act" onclick="window.__lkRetroPick(\'' + _pdAddISO(today, -1) + '\')">Yesterday</button>' +
+            '<input type="date" max="' + today + '" onchange="window.__lkRetroPick(this.value)" style="border:0.5px solid var(--rule-mid);border-radius:100px;padding:10px 14px;font-family:inherit;font-size:11.5px;background:#fff;color:var(--ink)">' +
+            '</div>';
+        }
+        if (n) {
+          const cur = _lkSig(ids);
+          (l.wears || []).slice().sort((a, b) => String(b.worn_on).localeCompare(String(a.worn_on))).forEach(w => {
+            const names = _lkNames(w.piece_ids);
+            h += '<div class="rb-lk-wear"><div class="dt">' + _lkFmt(w.worn_on) + '</div>' +
+              '<div class="pc">' + _waEsc(names || '—') + '</div>' +
+              '<div class="tg">' + (_lkSig(w.piece_ids) === cur ? 'Confirmed' : 'As worn') + '</div></div>';
+          });
+        } else {
+          h += '<div class="rb-lk-wear"><div class="pc" style="font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">Not worn yet.</div></div>';
+        }
+
+        return h + '</div></div>';
+      }
+
+      // Alternates for a swap: her OWN pieces in the same category, not
+      // already in the look. No suggestions from outside the wardrobe.
+      function _lkAlts(l, id) {
+        const wi = _waItems.find(w => String(w.id) === String(id));
+        if (!wi) return [];
+        const inLook = _lkPieceIds(l).map(String);
+        return _waItems
+          .filter(x => x.category === wi.category && inLook.indexOf(String(x.id)) === -1)
+          .slice(0, 8);
+      }
+      function _lkPickerHtml(items, fnName, ctx) {
+        if (!items.length) {
+          return '<div style="padding:0 0 12px;font-family:var(--font-serif);font-style:italic;font-size:15px;color:var(--ink-faint)">Nothing else in that category yet.</div>';
+        }
+        return '<div class="rb-lk-pick">' + items.map(x => {
+          const url = _pdHttp(x.image_url);
+          const tone = _ltToneOf(x);
+          return '<button type="button" class="rb-lk-opt" onclick="window.' + fnName + '(\'' + _waEsc(String(ctx)) + '\',\'' + _waEsc(String(x.id)) + '\')">' +
+            '<i style="' + (url ? "background-image:url('" + _waEsc(url) + "')" : 'background-color:' + _waEsc(tone || 'var(--cream-200)')) + '"></i>' +
+            '<span>' + _waEsc(x.label) + '</span></button>';
+        }).join('') + '</div>';
+      }
+
+      // ── The composer (Phase 2) ──────────────────────────────────────────
+      // The live wireframe: the look card on the LEFT, a rack of slot rows on
+      // the RIGHT, picking INSIDE each row. No side rail — mobile is the same
+      // rows stacked full width.
+      function _lkUsed() { return _lkRows.map(r => r.piece).filter(Boolean); }
+      function _lkNewHtml() {
+        if (_lkSaved) {
+          const l = _lkSaved;
+          return '<button type="button" class="rb-lk-back" onclick="window.__lkBack()">← Wardrobe · Looks</button>' +
+            '<div style="max-width:520px"><h3 style="font-family:var(--font-serif);font-weight:300;font-size:28px;line-height:1.15;color:var(--ink);margin:0">' +
+            _waEsc(l.name) + ', saved.</h3>' +
+            '<p style="font-size:13px;line-height:1.6;color:var(--ink-soft);margin:10px 0 0">' +
+            _lkN(_lkPieceIds(l).length, 'piece') + ' from your own wardrobe. It sits in Looks until you wear it.</p>' +
+            '<div class="rb-lk-empty-acts">' +
+            '<button type="button" class="rb-lk-act primary" onclick="window.__lkOpen(\'' + l.id + '\')">Open it</button>' +
+            '<button type="button" class="rb-lk-act" onclick="window.__lkNew()">Add another</button>' +
+            '</div></div>';
+        }
+        const used = _lkUsed();
+        const cells = _ltCells(used);
+        const nPlaced = used.length;
+        const canSave = nPlaced >= 2;
+        const suggested = _lkOfferName(used, null);
+        const title = _lkNewTitleDraft != null ? _lkNewTitleDraft : suggested;
+        // A dress in the Top slot quietly retires the Bottom slot.
+        const topPiece = (_lkRows.find(r => r.slot === 'Top') || {}).piece;
+        const topIsDress = !!topPiece && (_waItems.find(w => String(w.id) === String(topPiece)) || {}).category === 'Dresses';
+
+        let h = '<button type="button" class="rb-lk-back" onclick="window.__lkBack()">← Wardrobe · Looks</button>' +
+          '<div class="rb-lk-new"><div class="rb-lk-card">' +
+          '<div class="rb-lk-card-hd"><b>The look · ' + _lkN(nPlaced, 'piece') + '</b><i>Robes</i></div>' +
+          _ltMosaicHtml(cells, { photo: _lkPhoto && _lkPhoto.url, alt: title, hero: true }) +
+          '<div class="rb-lk-note">' + _waEsc(_lkStyleNote(used)) + '</div>' +
+          '<div class="rb-lk-pal">' +
+            used.slice(0, 4).map(id => {
+              const tone = _ltToneOf(_waItems.find(w => String(w.id) === String(id)));
+              return '<i' + (tone ? ' style="background:' + _waEsc(tone) + '"' : '') + '></i>';
+            }).join('') +
+            '<span>' + (nPlaced ? 'All ' + nPlaced + ' from your wardrobe' : '') + '</span>' +
+          '</div>' +
+          '<div class="rb-lk-card-foot">' +
+            '<button type="button" class="rb-lk-quiet" onclick="window.__lkPhotoToggle()">' +
+              (_lkPhoto ? 'Remove the photo' : 'Add a photo') + '</button>' +
+            (_lkPhoto && _lkPhoto.pending ? '<span style="font-size:11px;color:var(--ink-faint)">Uploading…</span>' : '') +
+          '</div>' +
+          (canSave ? '<button type="button" class="rb-lk-save" onclick="window.__lkSave()">Save this look</button>' : '') +
+          '</div>';
+
+        h += '<div class="rb-lk-rack">' +
+          '<div class="rb-lk-eyebrow">' + (_lkNewTitleTouched ? 'Your name for it' : 'Robes suggests') + '</div>' +
+          '<input id="rb-lk-newtitle" class="rb-lk-title-in' + (_lkNewTitleTouched ? '' : ' prov') + '" value="' + _waEsc(title) + '"' +
+            ' oninput="window.__lkNewTitleInput(this.value)" style="font-size:clamp(22px,2.4vw,28px)">' +
+          '<div class="rb-lk-hint">' + (_lkNewTitleTouched ? 'Named by you.' : 'Leave it and it keeps this name.') + '</div>' +
+          '<div style="margin-top:18px">';
+
+        _lkRows.forEach(r => {
+          if (topIsDress && r.slot === 'Bottom' && !r.piece) return;
+          const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
+          const wi = r.piece ? _waItems.find(w => String(w.id) === String(r.piece)) : null;
+          const open = _lkOpenRow === r.key;
+          const url = wi ? _pdHttp(wi.image_url) : null;
+          const tone = _ltToneOf(wi);
+          h += '<div class="rb-lk-rrow' + (open ? ' on' : '') + '"><div class="rb-lk-rmain">' +
+            '<div class="rb-lk-rthumb" style="' +
+              (url ? "background-image:url('" + _waEsc(url) + "')" : (wi && tone ? 'background-color:' + _waEsc(tone) : '')) + '">' +
+              (wi ? '' : '<b>' + _waEsc(r.slot) + '</b>') + '</div>' +
+            '<div class="rb-lk-rbody">' +
+              '<div class="rb-lk-rname' + (wi ? '' : ' empty') + '">' + _waEsc(wi ? wi.label : def.add) + '</div>' +
+              '<div class="rb-lk-rmeta">' + (wi ? 'In your wardrobe' + (wi.brand ? ' · ' + _waEsc(wi.brand) : '') : _waEsc(r.slot)) + '</div>' +
+            '</div>' +
+            '<div class="rb-lk-ract">' +
+              '<button type="button" class="rb-lk-rcta' + (wi || open ? ' ghost' : '') + '" onclick="window.__lkRowOpen(\'' + r.key + '\')">' +
+                (open ? 'Close' : (wi ? 'Swap' : 'From your wardrobe')) + '</button>' +
+              (wi ? '<button type="button" class="rb-lk-quiet" onclick="window.__lkRowClear(\'' + r.key + '\')">Remove</button>' : '') +
+            '</div></div>';
+          if (open) h += _lkPickerHtml(_lkRowOptions(r), '__lkRowPick', r.key);
+          h += '</div>';
+        });
+
+        h += '<button type="button" class="rb-lk-add" onclick="window.__lkAddRow()">+ Add a piece</button>' +
+          '</div></div></div>';
+        return h;
+      }
+      function _lkRowOptions(r) {
+        const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
+        const used = _lkUsed().map(String);
+        return _waItems.filter(x =>
+          def.cats.indexOf(x.category) > -1 && (String(x.id) === String(r.piece) || used.indexOf(String(x.id)) === -1));
+      }
+
+      // ── Handlers ────────────────────────────────────────────────────────
+      window.__lkSort = function() { _lkSortDesc = !_lkSortDesc; _lkPaint(); _rbTrack('looks_sorted', { desc: _lkSortDesc }); };
+      window.__lkOpen = function(id) {
+        _lkActive = id; _lkView = 'detail';
+        _lkSwapFor = null; _lkPending = null; _lkDone = null; _lkActNote = null;
+        _lkTitleDraft = null; _lkTitleTouched = false; _lkRetro = false;
+        if (_waView !== 'looks') window.__waSetView('looks');
+        else _lkPaint();
+        _rbTrack('look_opened', {});
+      };
+      window.__lkBack = function() {
+        _lkView = 'grid'; _lkActive = null; _lkSaved = null; _lkActNote = null; _lkDone = null;
+        _lkPaint();
+      };
+      window.__lkAct = function(kind) {
+        _lkActNote = kind;
+        _lkDone = null;
+        if (kind === 'restyle') {
+          const l = _lkFind(_lkActive);
+          const ids = _lkPieceIds(l);
+          _lkSwapFor = ids[ids.length - 1] || null;   // the shoe/bag end: what she changes most
+        }
+        if (kind === 'pack') { _lkActNote = null; _lkPackIt(); return; }
+        _lkPaint();
+      };
+      // Pack it → the trip intake, with this look's pieces as the shortlist.
+      // Every route lands on the prompt (the app's standing rule) rather than
+      // opening a second door into packing.
+      function _lkPackIt() {
+        const l = _lkFind(_lkActive);
+        if (!l) return;
+        const ids = _lkPieceIds(l).map(String);
+        try { window._lkPackSeed = ids; } catch (_) {}
+        _rbTrack('look_pack_routed', { pieces: ids.length });
+        if (window.__rbNavGo) window.__rbNavGo('home');
+        setTimeout(() => {
+          if (typeof _cbSetIntent === 'function') _cbSetIntent('travel');
+          _waShowToast(_lkN(ids.length, 'piece') + ' ready for the trip');
+        }, 240);
+      }
+      window.__lkSeeDay = function(iso) {
+        const l = _lkFind(_lkActive);
+        if (!l || !iso) return;
+        window.__rbDayPeek && window.__rbDayPeek(iso, [{
+          source_type: 'look', source_id: l.id, day_index: 0, slot: 'day',
+          day_date: iso, activity: l.name, headline: l.name,
+          item_ids: _lkPieceIds(l),
+          thumb_urls: _ltCells(_lkPieceIds(l)).map(c => c.url).filter(Boolean),
+          status: (l.wears || []).some(w => String(w.worn_on).slice(0, 10) === iso) ? 'worn' : 'planned',
+        }]);
+      };
+      window.__lkPinTo = function(iso) {
+        if (!iso) return;
+        _lkPin(_lkActive, iso);
+        _lkActNote = null;
+        _lkDone = 'Pinned to ' + _lkFmt(iso) + '.';
+        _lkPaint();
+      };
+      // A tap is intent, so the tap IS the wear — with a quiet undo on the
+      // card, never a confirm dialog and never a toast (A4, C1).
+      window.__lkWearToday = function() {
+        const l = _lkFind(_lkActive);
+        if (!l) return;
+        _lkAddWear(l, { source: 'looks' });
+        _lkDone = null;
+        _lkPaint();
+      };
+      window.__lkUndoToday = function() {
+        const l = _lkFind(_lkActive);
+        if (!l) return;
+        _lkRemoveWear(l, _pdLocalISO());
+        _lkPaint();
+      };
+      window.__lkRetro = function() { _lkRetro = !_lkRetro; _lkPaint(); };
+      window.__lkRetroPick = function(iso) {
+        const l = _lkFind(_lkActive);
+        if (!l || !iso) return;
+        const w = _lkAddWear(l, { date: iso, source: 'retro' });
+        _lkRetro = false;
+        _lkDone = w ? 'Recorded — worn ' + _lkFmt(iso) + '.' : 'Already recorded for ' + _lkFmt(iso) + '.';
+        _lkPaint();
+      };
+      // Titles are offered, not applied (A6): the suggestion IS the name
+      // until she types over it, and typing makes it hers.
+      window.__lkTitleInput = function(v) {
+        _lkTitleDraft = v; _lkTitleTouched = true;
+        const el = document.getElementById('rb-lk-title');
+        if (el) el.classList.remove('prov');
+        const hint = document.getElementById('rb-lk-hint');
+        if (hint) hint.textContent = 'Named by you.';
+      };
+      window.__lkTitleCommit = function(v) {
+        const l = _lkFind(_lkActive);
+        if (!l) return;
+        const name = String(v || '').trim();
+        if (!name || name === l.name) { _lkTitleDraft = null; return; }
+        _lkPatch(l.id, { name, name_provisional: false });
+        _lkTitleDraft = null;
+        _rbTrack('look_renamed', {});
+        _lkPaint();
+      };
+      window.__lkSwap = function(id) {
+        _lkSwapFor = String(_lkSwapFor) === String(id) ? null : id;
+        _lkPending = null; _lkDone = null;
+        _lkPaint();
+      };
+      window.__lkSwapPick = function(from, to) {
+        const l = _lkFind(_lkActive);
+        if (!l) return;
+        const next = _lkPieceIds(l).map(id => (String(id) === String(from) ? to : id));
+        _lkSwapFor = null;
+        // With history, the scope question is HERS to answer (A5). Without it,
+        // there is nothing to protect — the edit just lands.
+        if (_lkWearCount(l)) {
+          _lkPending = { from, to, pieces: next };
+        } else {
+          l.pieces = next.map((id, i) => ({ id, slot: (l.pieces[i] || {}).slot || null, position: i }));
+          l.note = _lkStyleNote(next);
+          _lkCacheWrite();
+          _lkPatchCloud(l, { note: l.note });
+          _lkPiecesCloud(l);
+          _lkDone = 'Swapped.';
+        }
+        _lkPaint();
+      };
+      window.__lkUpdate = function() {
+        const l = _lkFind(_lkActive);
+        if (!l || !_lkPending) return;
+        const n = _lkWearCount(l);
+        l.pieces = _lkPending.pieces.map((id, i) => ({ id, slot: (l.pieces[i] || {}).slot || null, position: i }));
+        l.note = _lkStyleNote(_lkPending.pieces);
+        _lkCacheWrite();
+        _lkPatchCloud(l, { note: l.note });
+        _lkPiecesCloud(l);
+        _lkPending = null;
+        // The wears keep their own snapshots — history is never rewritten.
+        _lkDone = 'Updated. Its ' + _lkN(n, 'wear') + ' stay as they were.';
+        _rbTrack('look_updated', { wears: n });
+        _lkPaint();
+      };
+      window.__lkPromote = function() {
+        const l = _lkFind(_lkActive);
+        if (!l || !_lkPending) return;
+        const toName = (_waItems.find(w => String(w.id) === String(_lkPending.to)) || {}).label || '';
+        const word = String(toName).trim().split(/\s+/).slice(-1)[0];
+        const nl = _lkCreate({
+          pieces: _lkPending.pieces,
+          name: l.name + (word ? ', in the ' + word.toLowerCase() : ' (variant)'),
+          source: 'variant',
+          origin_look_id: l.id,
+        });
+        _lkPending = null;
+        _lkActive = nl.id;
+        _lkDone = 'Saved as its own look. ' + l.name + ' is untouched.';
+        _rbTrack('look_promoted', {});
+        _lkPaint();
+      };
+      window.__lkCancelPromote = function() { _lkPending = null; _lkPaint(); };
+      window.__lkToday = function() {
+        if (window.__rbNavGo) window.__rbNavGo('home');
+        setTimeout(() => { if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me'); }, 240);
+      };
+
+      // ── Composer handlers ───────────────────────────────────────────────
+      window.__lkNew = function() {
+        _lkView = 'new';
+        _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
+        _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null; _lkSaved = null;
+        _lkNewTitleDraft = null; _lkNewTitleTouched = false;
+        if (_waView !== 'looks') window.__waSetView('looks');
+        else _lkPaint();
+        _rbTrack('look_compose_opened', {});
+      };
+      window.__lkRowOpen = function(key) { _lkOpenRow = _lkOpenRow === key ? null : key; _lkPaint(); };
+      window.__lkRowPick = function(key, id) {
+        // Moving a piece to a second slot removes it from the first
+        _lkRows = _lkRows.map(r => r.key === key ? Object.assign({}, r, { piece: id })
+          : (String(r.piece) === String(id) ? Object.assign({}, r, { piece: null }) : r));
+        _lkOpenRow = null;
+        _lkPaint();
+      };
+      window.__lkRowClear = function(key) {
+        const row = _lkRows.find(r => r.key === key);
+        // An emptied accessory row drops out; a core slot stays as a placeholder
+        if (row && row.slot === 'Accessory') _lkRows = _lkRows.filter(r => r.key !== key);
+        else _lkRows = _lkRows.map(r => r.key === key ? Object.assign({}, r, { piece: null }) : r);
+        _lkOpenRow = null;
+        _lkPaint();
+      };
+      window.__lkAddRow = function() {
+        _lkRowSeq++;
+        const key = 'r' + _lkRowSeq;
+        _lkRows = _lkRows.concat({ key, slot: 'Accessory', piece: null });
+        _lkOpenRow = key;
+        _lkPaint();
+      };
+      window.__lkNewTitleInput = function(v) {
+        _lkNewTitleDraft = v;
+        if (!_lkNewTitleTouched) {
+          _lkNewTitleTouched = true;
+          const el = document.getElementById('rb-lk-newtitle');
+          if (el) el.classList.remove('prov');
+        }
+      };
+      // The photo is the look's image and nothing more — no reading, no
+      // extraction (Phase 3 is a later, smaller problem). Hosted before it is
+      // stored: base64 never goes into a row.
+      window.__lkPhotoToggle = function() {
+        if (_lkPhoto) { _lkPhoto = null; _lkPaint(); return; }
+        const inp = document.createElement('input');
+        inp.type = 'file';
+        inp.accept = 'image/*,.jpg,.jpeg,.png,.heic,.heif,.webp';
+        inp.style.cssText = 'position:absolute;width:1px;height:1px;clip:rect(0 0 0 0);overflow:hidden';
+        document.body.appendChild(inp);
+        inp.addEventListener('change', () => {
+          const f = inp.files && inp.files[0];
+          inp.remove();
+          if (!f) return;
+          _lkPhoto = { pending: true };
+          _lkPaint();
+          _rbDownscale(f).then(dataUrl => {
+            const m = String(dataUrl).match(/^data:([^;]+);base64,(.+)$/);
+            if (!m) throw new Error('unreadable');
+            return fetch('/api/wardrobe/upload', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ data: m[2], mimeType: m[1] }),
+            }).then(r => r.json());
+          }).then(j => {
+            if (j && j.url) { _lkPhoto = { url: j.url }; }
+            else { _lkPhoto = null; _waShowToast('That photo would not upload — try again shortly'); }
+            _lkPaint();
+          }).catch(() => {
+            _lkPhoto = null;
+            _waShowToast('That photo would not upload — try again shortly');
+            _lkPaint();
+          });
+        });
+        inp.click();
+      };
+      window.__lkSave = function() {
+        const used = _lkUsed();
+        if (used.length < 2 || _lkBusy) return;
+        if (_lkPhoto && _lkPhoto.pending) { _waShowToast('One moment — the photo is still uploading'); return; }
+        _lkBusy = true;
+        const slots = {};
+        _lkRows.forEach(r => { if (r.piece) slots[r.piece] = r.slot; });
+        const name = String(_lkNewTitleDraft != null ? _lkNewTitleDraft : _lkOfferName(used, null)).trim() || _lkOfferName(used, null);
+        const l = _lkCreate({
+          pieces: used, name, name_provisional: !_lkNewTitleTouched,
+          source: 'manual', photo_url: _lkPhoto && _lkPhoto.url, slots,
+        });
+        _lkSaved = l;
+        _lkBusy = false;
+        _lkPaint();
+        _waV2Sync();
+      };
+
+      // Grid + tab entry points used elsewhere in the app
+      window.__lkGo = function() { window.__waSetView('looks'); };
 
       // ── "+ Add a piece" chooser — the rack's add flow offers her three
       // doors: an already-catalogued piece, the camera, or an upload (the
@@ -5913,9 +7090,22 @@
         if (!ownedIds.length) { _waShowToast('Nothing owned in this look yet — snap your pieces to log wears'); return; }
         _dlWorn = true;
         try {
-          for (const id of ownedIds) {
-            const wi = _waItems.find(w => String(w.id) === String(id));
-            if (wi) await _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 });
+          // Passive accrual (brief B3): this confirmed wear saves the Look, so
+          // the daily look she wore becomes a catalogue entry with no extra
+          // step. __lkAccrue owns times_worn for the wear it writes; the manual
+          // patch below is the fallback when it declined (already logged today,
+          // or fewer than two owned pieces).
+          const anchorISO = (window.__lastDlData && window.__lastDlData.anchor_date) || null;
+          const acc = typeof window.__lkAccrue === 'function' ? window.__lkAccrue(ownedIds, {
+            date: anchorISO || _pdLocalISO(),
+            hint: (window.__lastDlData && (window.__lastDlData.occasion_label || window.__lastDlData.headline)) || null,
+            source: 'daily', sourceId: _dlActiveSaveId,
+          }) : null;
+          if (!acc || !acc.wear) {
+            for (const id of ownedIds) {
+              const wi = _waItems.find(w => String(w.id) === String(id));
+              if (wi) await _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 });
+            }
           }
           _waLoad();
           // The worn signal lands on the day's index row too — stamped into
@@ -12103,6 +13293,13 @@
         // (§6.4: a day is one identity; three openers is how they drift).
         window._rbOpenPlannedDay = function(m) {
           if (!m) return;
+          // A pinned Look has no lookbook blob to open — its own detail IS the
+          // day's open view (source_id is a looks uuid, never a numeric id).
+          if (m.source_type === 'look') {
+            if (window.__rbNavGo) window.__rbNavGo('wardrobe');
+            setTimeout(() => { window.__lkOpen && window.__lkOpen(m.source_id); }, 260);
+            return;
+          }
           window.__snOpenItem(Number(m.source_id));
           // Land on the tapped day, not the plan's first day
           if (m.source_type === 'weekly') {
@@ -12172,10 +13369,19 @@
             (m.item_ids || []).forEach(id => { if (ids.indexOf(id) === -1) ids.push(id); });
             m.status = 'worn';
           });
-          ids.forEach(id => {
-            const wi = _waItems.find(w => String(w.id) === String(id));
-            if (wi) _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 }).catch(() => {});
-          });
+          // Accrue the Look here too (brief B3) — a wear confirmed on the
+          // ?daycard=off path must count exactly the same as on the flagged one.
+          const acc = typeof window.__lkAccrue === 'function' ? window.__lkAccrue(ids, {
+            date: slot.date, hint: _dcTitleOf(slot.moments[0]),
+            source: (slot.moments[0] && slot.moments[0].source_type) || 'daily',
+            sourceId: slot.moments[0] && slot.moments[0].source_id,
+          }) : null;
+          if (!acc || !acc.wear) {
+            ids.forEach(id => {
+              const wi = _waItems.find(w => String(w.id) === String(id));
+              if (wi) _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 }).catch(() => {});
+            });
+          }
           if (ids.length) setTimeout(_waLoad, 900);
           paint(_railSlots);
           _waShowToast('Logged — Robes remembers what you wore ✓');

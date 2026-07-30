@@ -2461,6 +2461,11 @@ app.get('/wardrobe', (req, res) => {
 });
 
 // Wishlist nests under the wardrobe panel — same shell, client opens the view
+// Looks is a tab inside the wardrobe (brief A1), linkable like /wishlist
+app.get('/looks', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
 app.get('/wishlist', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
