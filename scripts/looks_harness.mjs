@@ -283,7 +283,7 @@ const browser = await chromium.launch(
   await page.waitForTimeout(400);
 
   const d = await page.evaluate(() => ({
-    back: document.querySelector('.rb-lk-back')?.textContent,
+    back: !!document.querySelector('.rb-lk-back'),
     eyebrow: document.querySelector('.rb-lk-eyebrow')?.textContent,
     title: document.getElementById('rb-lk-title')?.value,
     provisional: document.getElementById('rb-lk-title')?.classList.contains('prov'),
@@ -296,8 +296,19 @@ const browser = await chromium.launch(
     heroCells: document.querySelectorAll('.rb-lk-det-l .rb-lk-mos i').length,
   }));
   check('detail · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
-  check('detail · back link returns to the tab', /Wardrobe · Looks/.test(d.back || ''), d.back);
+  check('detail · no sub-sub-nav back line', d.back === false);
   check('detail · grid yields to the detail', d.gridHidden === true);
+  const tabBack = await page.evaluate(() => {
+    document.querySelector('#rb-wsub [data-view="looks"]').click();
+    return {
+      gridShown: document.getElementById('rb-lk-grid')?.style.display !== 'none',
+      tiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length,
+    };
+  });
+  check('detail · clicking the Looks tab lands the landing grid',
+    tabBack.gridShown && tabBack.tiles === 2, JSON.stringify(tabBack));
+  await page.evaluate(() => window.__lkOpen('lk-1'));
+  await page.waitForTimeout(200);
   check('detail · named title is not provisional', d.title === 'The Thursday one' && d.provisional === false, `${d.title}/${d.provisional}`);
   check('detail · eyebrow reads Look for a named look', d.eyebrow === 'Look', d.eyebrow);
   check('detail · four load-bearing actions',
@@ -633,13 +644,16 @@ const browser = await chromium.launch(
     window.__lkNewTitleInput('Terrace mornings');
     window.__lkSave();
     return {
-      line: document.querySelector('#rb-lk-body h3')?.textContent,
-      acts: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-act')).map((b) => b.textContent),
+      gridShown: document.getElementById('rb-lk-grid')?.style.display !== 'none',
+      titles: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).map((t) => t.textContent),
+      toast: (document.getElementById('toast-msg') || document.getElementById('toast'))?.textContent,
       tab: document.querySelector('#rb-wsub [data-view="looks"]')?.textContent,
     };
   });
-  check('composer · save confirms by name', /^Terrace mornings, saved\.$/.test(saved.line || ''), saved.line);
-  check('composer · offers the look and another build', saved.acts.join(' | ') === 'Open it | Add another', JSON.stringify(saved.acts));
+  check('composer · save lands back on the grid, no interstitial',
+    saved.gridShown && saved.titles.includes('Terrace mornings'), JSON.stringify([saved.gridShown, saved.titles]));
+  check('composer · the confirmation is a quiet toast',
+    /Terrace mornings saved to Looks/.test(saved.toast || ''), saved.toast);
   check('composer · the tab count grows', saved.tab === 'Looks (3)', String(saved.tab));
   await page.waitForTimeout(600);
   const lookWrite = writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop();
@@ -661,10 +675,11 @@ const browser = await chromium.launch(
     window.__lkRowPick('r1', 'w-top2');
     window.__lkRowPick('r2', 'w-bot2');
     window.__lkSave();
-    return { line: document.querySelector('#rb-lk-body h3')?.textContent };
+    const tile = Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).find((t) => t.textContent === 'The tank one' && t.classList.contains('prov'));
+    return { onGrid: !!tile };
   });
-  check('composer · an untouched name saves as the offered name',
-    /^The tank one, saved\.$/.test(offered.line || ''), offered.line);
+  check('composer · an untouched name saves as the offered name, provisional on the grid',
+    offered.onGrid === true, JSON.stringify(offered));
   await page.waitForTimeout(400);
   const provWrite = writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop();
   check('composer · and is marked provisional', provWrite?.body?.name_provisional === true,
@@ -741,13 +756,10 @@ const browser = await chromium.launch(
     window.__lkRowPick('r1', 'w-top1');
     window.__lkRowPick('r3', 'w-sho1');
     window.__lkSave();
-    const line = document.querySelector('#rb-lk-body h3')?.textContent;
-    window.__lkBack();
-    return { line, tiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length };
+    return { tiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length };
   });
   check('degrade · no page errors when the tables are missing', errs.length === 0, errs.join(' | ').slice(0, 240));
-  check('degrade · a look still saves locally', /saved\.$/.test(g.line || ''), g.line);
-  check('degrade · and still renders in the grid', g.tiles === 1, String(g.tiles));
+  check('degrade · a look still saves locally and lands on the grid', g.tiles === 1, String(g.tiles));
   await ctx.close();
 }
 

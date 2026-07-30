@@ -2705,6 +2705,11 @@
       // ── View switching + panel augmentation ───────────────────────────
       window.__waSetView = function(v) {
         _waView = v === 'wishlist' ? 'wishlist' : v === 'looks' ? 'looks' : 'all';
+        // Clicking Looks always lands the tab's landing grid (Annie,
+        // 2026-07-30: no sub-sub-nav — the tab is the way back from a
+        // detail or the composer). __lkOpen/__lkNew route through here
+        // FIRST, then set their own view.
+        if (_waView === 'looks') { _lkView = 'grid'; _lkActive = null; }
         _waV2Sync();
         if (window.rbSetCrumb) {
           if (_waView === 'all') {
@@ -5796,7 +5801,6 @@
       var _lkOpenRow = null, _lkRowSeq = 4;
       var _lkPhoto = null;           // {url} once hosted, or {pending:true}
       var _lkNewTitleDraft = null, _lkNewTitleTouched = false;
-      var _lkSaved = null;           // the just-saved look, for the confirmation
 
       function LK_KEY() { const u = _waUid(); return u ? 'rb_looks__' + u : null; }
       function _lkCacheRead() {
@@ -6111,8 +6115,6 @@
 #rb-lk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
 @media(max-width:1199px){#rb-lk-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:767px){#rb-lk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}}
-.rb-lk-back{background:none;border:none;padding:0 0 18px;font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);cursor:pointer;font-family:inherit}
-.rb-lk-back:hover{color:var(--ink)}
 .rb-lk-det{display:flex;gap:40px;align-items:flex-start}
 .rb-lk-det-l{flex:0 0 360px;max-width:360px}
 .rb-lk-det-r{flex:1;min-width:0}
@@ -6295,8 +6297,7 @@
         const title = _lkTitleDraft != null ? _lkTitleDraft : l.name;
         const pins = _lkPins(l.id).filter(d => d >= today);
 
-        let h = '<button type="button" class="rb-lk-back" onclick="window.__lkBack()">← Wardrobe · Looks</button>' +
-          '<div class="rb-lk-det"><div class="rb-lk-det-l">' +
+        let h = '<div class="rb-lk-det"><div class="rb-lk-det-l">' +
           _ltMosaicHtml(_ltCells(ids), { photo: l.photo_url, alt: l.name, hero: true }) +
           (l.note ? '<div class="rb-lk-note">' + _waEsc(l.note) + '</div>' : '') +
           '</div><div class="rb-lk-det-r">';
@@ -6494,18 +6495,6 @@
         }).filter(Boolean);
       }
       function _lkNewHtml() {
-        if (_lkSaved) {
-          const l = _lkSaved;
-          return '<button type="button" class="rb-lk-back" onclick="window.__lkBack()">← Wardrobe · Looks</button>' +
-            '<div style="max-width:520px"><h3 style="font-family:var(--font-serif);font-weight:300;font-size:28px;line-height:1.15;color:var(--ink);margin:0">' +
-            _waEsc(l.name) + ', saved.</h3>' +
-            '<p style="font-size:13px;line-height:1.6;color:var(--ink-soft);margin:10px 0 0">' +
-            _lkN(_lkPieceIds(l).length, 'piece') + ' from your own wardrobe. It sits in Looks until you wear it.</p>' +
-            '<div class="rb-lk-empty-acts">' +
-            '<button type="button" class="rb-lk-act primary" onclick="window.__lkOpen(\'' + l.id + '\')">Open it</button>' +
-            '<button type="button" class="rb-lk-act" onclick="window.__lkNew()">Add another</button>' +
-            '</div></div>';
-        }
         // The composer is rbc-markup throughout, and on the zero-piece and
         // photo paths _rbConsole (which injects the stylesheet) never runs —
         // ensure it here or a session that hasn't rendered a console yet
@@ -6584,8 +6573,7 @@
         rackHtml += '</div>' +
           '<button class="rbc-addpiece" onclick="window.__rbcAddMenu(\'__lkApplyNew\')"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>';
 
-        return '<button type="button" class="rb-lk-back" onclick="window.__lkBack()">← Wardrobe · Looks</button>' +
-          '<div class="rb-lk-con"><div>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div>';
+        return '<div class="rb-lk-con"><div>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div>';
       }
       function _lkRowOptions(r) {
         const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
@@ -6597,15 +6585,15 @@
       // ── Handlers ────────────────────────────────────────────────────────
       window.__lkSort = function() { _lkSortDesc = !_lkSortDesc; _lkPaint(); _rbTrack('looks_sorted', { desc: _lkSortDesc }); };
       window.__lkOpen = function(id) {
+        if (_waView !== 'looks') window.__waSetView('looks');
         _lkActive = id; _lkView = 'detail';
         _lkSwapFor = null; _lkPending = null; _lkDone = null; _lkActNote = null;
         _lkTitleDraft = null; _lkTitleTouched = false; _lkRetro = false;
-        if (_waView !== 'looks') window.__waSetView('looks');
-        else _lkPaint();
+        _lkPaint();
         _rbTrack('look_opened', {});
       };
       window.__lkBack = function() {
-        _lkView = 'grid'; _lkActive = null; _lkSaved = null; _lkActNote = null; _lkDone = null;
+        _lkView = 'grid'; _lkActive = null; _lkActNote = null; _lkDone = null;
         _lkPaint();
       };
       window.__lkAct = function(kind) {
@@ -6773,12 +6761,12 @@
 
       // ── Composer handlers ───────────────────────────────────────────────
       window.__lkNew = function() {
+        if (_waView !== 'looks') window.__waSetView('looks');
         _lkView = 'new';
         _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
-        _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null; _lkSaved = null;
+        _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null;
         _lkNewTitleDraft = null; _lkNewTitleTouched = false;
-        if (_waView !== 'looks') window.__waSetView('looks');
-        else _lkPaint();
+        _lkPaint();
         _rbTrack('look_compose_opened', {});
       };
       window.__lkRowOpen = function(key) { _lkOpenRow = _lkOpenRow === key ? null : key; _lkPaint(); };
@@ -6935,10 +6923,14 @@
           pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed,
           source: 'manual', photo_url: _lkPhoto && _lkPhoto.url, slots,
         });
-        _lkSaved = l;
         _lkBusy = false;
+        // Save lands her back on the grid, new look visible — no interstitial
+        // (Annie, 2026-07-30: the confirmation page read as a broken landing).
+        _lkView = 'grid';
+        _lkActive = null;
         _lkPaint();
         _waV2Sync();
+        _waShowToast(l.name + ' saved to Looks ✓');
       };
 
       // Grid + tab entry points used elsewhere in the app
