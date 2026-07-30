@@ -8986,6 +8986,7 @@
           anchors: (_tvBrief && _tvBrief.anchors) || [],
           plans: (_tvBrief && _tvBrief.plans) || [],
           packLookIds: (_tvBrief && _tvBrief.packLookIds) || [],
+          planMap: (_tvBrief && _tvBrief.planMap) || {},
           suggested: (_tvBrief && _tvBrief.suggested) || [],
         };
       }
@@ -9242,6 +9243,7 @@
       function _tvAttrJs(s) { return _waEsc(String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
 
       function _tvBuildClose() {
+        _tvMapOpenPlan = null;
         document.getElementById('tv-build-page')?.remove();
       }
 
@@ -9260,21 +9262,6 @@
         const fmtD = iso => { const d = new Date(String(iso || '') + 'T00:00:00'); return isNaN(d) ? '' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); };
         const whenLabel = st.dateFrom && st.dateTo ? fmtD(st.dateFrom) + ' – ' + fmtD(st.dateTo) + ' · ' + _tvTripDays(st).n + ' days' : 'Add dates';
         const pillCrumb = (em, val, empty) => `<button onclick="window.__tvOpen({restore:true})" style="display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:0.5px solid rgba(32,32,33,0.14);border-radius:var(--rad-sm);font-size:12px;color:#202021;background:#FAF8F5;cursor:pointer;font-family:inherit"><em style="font-style:normal;color:var(--ink-faint)">${em}</em> ${val ? _waEsc(val) : `<span style="font-style:italic;color:var(--ink-faint)">${empty}</span>`} ✎</button>`;
-
-        // Saved Looks she can pack whole — drawn through _rbLookTile's
-        // mosaic (never a second look card).
-        const mos = (window._rbLookTile && window._rbLookTile.mosaic) || _ltMosaicHtml;
-        const cells = (window._rbLookTile && window._rbLookTile.cells) || _ltCells;
-        const packable = (Array.isArray(_lkLooks) ? _lkLooks : []).filter(l => l && (l.pieces || []).length >= 2).slice(0, 12);
-        const lookRow = packable.length ? `
-          <p style="${labelCss}">Looks you already love</p>
-          <p style="font-size:11px;color:var(--ink-faint);font-style:italic;margin:0 0 10px">Tick a saved look and it travels whole — nothing re-styled.</p>
-          <div style="display:grid;grid-auto-flow:column;grid-auto-columns:128px;gap:10px;overflow-x:auto;padding:2px 0 20px">${packable.map(l => `
-            <div data-plook="${_waEsc(String(l.id))}" onclick="window.__tvLookPackToggle('${_waEsc(String(l.id))}')" style="cursor:pointer;border-radius:10px;overflow:hidden;background:#fff;outline:1px solid rgba(32,32,33,0.1);outline-offset:-1px;position:relative;padding:6px">
-              <span class="tv-plook-chk" style="display:none;position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:#202021;color:#fff;font-size:10px;align-items:center;justify-content:center;z-index:2;line-height:1">✓</span>
-              ${mos(cells(l.pieces.map(p => p.id)), { photo: l.photo_url || undefined, alt: l.name || 'Saved look' })}
-              <div style="padding:6px 3px 2px;font-size:10px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(l.name || 'Saved look')}</div>
-            </div>`).join('')}</div>` : '';
 
         // Category pills — only the categories she actually owns, plus All
         const cats = ['All'].concat(WA_CATS.slice(1).filter(c => _waItems.some(w => w.category === c)));
@@ -9305,7 +9292,7 @@
                 <input id="tv-plan-custom" placeholder="Add your own — “Gallery morning”" onkeydown="if(event.key==='Enter'){event.preventDefault();window.__tvPlanAdd()}" style="${inputCss}">
                 <button onclick="window.__tvPlanAdd()" style="flex-shrink:0;padding:0 18px;border:0.5px solid rgba(32,32,33,0.16);border-radius:40px;background:#fff;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Add</button>
               </div>
-              ${lookRow}
+              <div id="tv-plan-map"></div>
               <p style="${labelCss}">Key pieces for the case</p>
               <p id="tv-anchor-hint" style="font-size:11px;color:var(--ink-faint);font-style:italic;margin:0 0 10px"></p>
               ${(st.suggested || []).length ? `<p style="font-size:11px;color:#6E6A64;font-style:italic;margin:0 0 10px">✦ ${st.suggested.length} piece${st.suggested.length === 1 ? '' : 's'} from your moodboard will join the edit under Worth Adding.</p>` : ''}
@@ -9324,7 +9311,7 @@
         document.body.appendChild(page);
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Pack a trip' }]);
         _tvPlanChipsPaint();
-        _tvPlookPaint();
+        _tvPlanMapPaint();
         _tvGridPaint();
         _tvFetchWx();
         page.scrollTo({ top: 0 });
@@ -9359,9 +9346,15 @@
         if (!_tvBrief) _tvBrief = { plans: [] };
         if (!Array.isArray(_tvBrief.plans)) _tvBrief.plans = [];
         const i = _tvBrief.plans.findIndex(x => x.toLowerCase() === String(p).toLowerCase());
-        if (i !== -1) _tvBrief.plans.splice(i, 1);
-        else _tvBrief.plans.push(String(p));
+        if (i !== -1) {
+          const rm = _tvBrief.plans.splice(i, 1)[0];
+          if (_tvBrief.planMap) delete _tvBrief.planMap[rm];
+          if (_tvMapOpenPlan === rm) _tvMapOpenPlan = null;
+        } else {
+          _tvBrief.plans.push(String(p));
+        }
         _tvPlanChipsPaint();
+        _tvPlanMapPaint();
       };
 
       window.__tvPlanAdd = function() {
@@ -9371,17 +9364,92 @@
         if (el) el.value = '';
         if (!_tvBrief.plans.some(x => x.toLowerCase() === v.toLowerCase())) _tvBrief.plans.push(v);
         _tvPlanChipsPaint();
+        _tvPlanMapPaint();
       };
 
-      function _tvPlookPaint() {
-        const sel = ((_tvBrief || {}).packLookIds) || [];
-        document.querySelectorAll('[data-plook]').forEach(el => {
-          const on = sel.indexOf(String(el.dataset.plook)) !== -1;
-          el.style.outline = on ? '2px solid #202021' : '1px solid rgba(32,32,33,0.1)';
-          const chk = el.querySelector('.tv-plook-chk');
-          if (chk) chk.style.display = on ? 'flex' : 'none';
-        });
+      // Plan → look mapping (UX feedback 2026-07-30: 4 plans + 4 ticked
+      // looks generated 8 — coverage was never declared). Each selected
+      // plan is either assigned one of her saved Looks (it travels as
+      // styled and Robes styles NOTHING for that occasion) or left with
+      // Robes. A Pack-it seed with no plan yet rides as "packed whole"
+      // until she gives it one.
+      var _tvMapOpenPlan = null;
+
+      function _tvPackableLooks() {
+        return (Array.isArray(_lkLooks) ? _lkLooks : []).filter(l => l && (l.pieces || []).length >= 2).slice(0, 12);
       }
+
+      function _tvPlanMapPaint() {
+        const host = document.getElementById('tv-plan-map');
+        if (!host) return;
+        const st = _tvBrief || {};
+        if (!st.planMap) st.planMap = {};
+        const plans = st.plans || [];
+        const looks = _tvPackableLooks();
+        const mos = (window._rbLookTile && window._rbLookTile.mosaic) || _ltMosaicHtml;
+        const cells = (window._rbLookTile && window._rbLookTile.cells) || _ltCells;
+        const labelCss = 'font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px';
+        const usedBy = {};
+        plans.forEach(p => { if (st.planMap[p] != null) usedBy[String(st.planMap[p])] = p; });
+        let html = '';
+        if (plans.length && looks.length) {
+          html += `
+            <p style="${labelCss}">Your looks, your plans</p>
+            <p style="font-size:11px;color:var(--ink-faint);font-style:italic;margin:0 0 4px">Give a plan one of your saved looks and it travels as styled — Robes dresses the rest.</p>
+            ${plans.map(p => {
+              const lid = st.planMap[p] != null ? String(st.planMap[p]) : null;
+              const lk = lid ? looks.find(l => String(l.id) === lid) : null;
+              const open = _tvMapOpenPlan === p && !lk;
+              const right = lk
+                ? `<span style="display:inline-flex;align-items:center;gap:9px;min-width:0"><span style="display:block;width:34px;flex-shrink:0">${mos(cells((lk.pieces || []).map(x => x.id)), { photo: lk.photo_url || undefined, alt: lk.name || 'Saved look' })}</span><span style="min-width:0;text-align:right"><span style="display:block;font-size:12px;color:#202021;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(lk.name || 'Saved look')}</span><span style="display:block;font-size:10px;color:var(--ink-faint);font-style:italic">travels as styled</span></span><button onclick="window.__tvMapClear('${_tvAttrJs(p)}')" aria-label="Robes styles it instead" style="border:none;background:none;cursor:pointer;color:var(--ink-faint);font-size:13px;padding:2px 4px;font-family:inherit">✕</button></span>`
+                : `<button onclick="window.__tvMapOpen('${_tvAttrJs(p)}')" style="border:0.5px solid rgba(32,32,33,0.15);border-radius:40px;background:${open ? '#F3EFE6' : '#fff'};padding:7px 13px;font-size:11px;color:#202021;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">✨ Robes styles it · <span style="text-decoration:underline;text-underline-offset:2px">use a saved look</span></button>`;
+              const picker = open ? `
+                <div style="display:grid;grid-auto-flow:column;grid-auto-columns:96px;gap:8px;overflow-x:auto;padding:8px 0 4px">${looks.map(l => {
+                  const el = usedBy[String(l.id)];
+                  return `<div onclick="window.__tvMapPick('${_tvAttrJs(p)}','${_waEsc(String(l.id))}')" role="button" style="cursor:pointer;border-radius:8px;background:#fff;outline:1px solid rgba(32,32,33,0.1);outline-offset:-1px;padding:5px${el ? ';opacity:0.55' : ''}">
+                    ${mos(cells((l.pieces || []).map(x => x.id)), { photo: l.photo_url || undefined, alt: l.name || 'Saved look' })}
+                    <div style="padding:5px 2px 1px;font-size:9.5px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(l.name || 'Saved look')}</div>
+                    ${el ? `<div style="padding:0 2px;font-size:9px;color:var(--ink-faint);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">with ${_waEsc(el)}</div>` : ''}
+                  </div>`;
+                }).join('')}</div>` : '';
+              return `<div style="border-bottom:0.5px solid rgba(32,32,33,0.08);padding:9px 0">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                  <span style="font-size:13px;color:#202021">${_waEsc(p)}</span>${right}
+                </div>${picker}
+              </div>`;
+            }).join('')}`;
+        }
+        const packed = (st.packLookIds || []).map(String).filter(id => !usedBy[id]).map(id => looks.find(l => String(l.id) === id)).filter(Boolean);
+        if (packed.length) {
+          html += `<div style="margin:${html ? '14px' : '0'} 0 0;font-size:11px;color:var(--ink-faint);font-style:italic">Packed whole${plans.length && looks.length ? ' — map it to a plan above to give it an occasion' : ''}: ${packed.map(l => `<span style="white-space:nowrap">${_waEsc(l.name || 'Saved look')} <button onclick="window.__tvLookPackToggle('${_waEsc(String(l.id))}')" aria-label="Remove from the trip" style="border:none;background:none;cursor:pointer;color:var(--ink-faint);padding:0;font-family:inherit">✕</button></span>`).join(', ')}</div>`;
+        }
+        host.innerHTML = html ? `<div style="margin:0 0 26px">${html}</div>` : '';
+      }
+
+      window.__tvMapOpen = function(p) {
+        _tvMapOpenPlan = _tvMapOpenPlan === p ? null : p;
+        _tvPlanMapPaint();
+      };
+
+      window.__tvMapPick = function(p, lookId) {
+        const st = _tvBrief;
+        if (!st) return;
+        if (!st.planMap) st.planMap = {};
+        Object.keys(st.planMap).forEach(k => { if (String(st.planMap[k]) === String(lookId)) delete st.planMap[k]; });
+        st.planMap[p] = String(lookId);
+        if (Array.isArray(st.packLookIds)) {
+          const i = st.packLookIds.indexOf(String(lookId));
+          if (i !== -1) st.packLookIds.splice(i, 1);
+        }
+        _tvMapOpenPlan = null;
+        _tvPlanMapPaint();
+      };
+
+      window.__tvMapClear = function(p) {
+        if (_tvBrief && _tvBrief.planMap) delete _tvBrief.planMap[p];
+        _tvMapOpenPlan = null;
+        _tvPlanMapPaint();
+      };
 
       window.__tvLookPackToggle = function(id) {
         if (!_tvBrief) _tvBrief = { packLookIds: [] };
@@ -9391,7 +9459,7 @@
         const i = a.indexOf(id);
         if (i !== -1) a.splice(i, 1);
         else a.push(id);
-        _tvPlookPaint();
+        _tvPlanMapPaint();
       };
 
       window.__tvBuildBack = function() {
@@ -9414,14 +9482,15 @@
         const st = _tvBrief || {};
         const dest = st.dest || '';
 
-        // Saved Looks she's packing whole: their pieces ride as key-piece
-        // ids (the capsule must keep them) and the looks themselves join
-        // the row client-side, un-restyled.
+        // Her looks join the trip two ways: MAPPED to a plan (that occasion
+        // is covered — the server styles nothing for it) or packed whole
+        // with no occasion yet. Either way the pieces ride as key-piece ids
+        // (the capsule must keep them) and the look itself joins the row
+        // client-side, un-restyled.
+        const looksAll = Array.isArray(_lkLooks) ? _lkLooks : [];
         const imported = [];
         const anchorSet = new Set((st.anchors || []).map(String));
-        (st.packLookIds || []).forEach(id => {
-          const lk = (Array.isArray(_lkLooks) ? _lkLooks : []).find(x => String(x.id) === String(id));
-          if (!lk) return;
+        const importLook = (lk, occasion) => {
           const pieces = (lk.pieces || []).map(p => {
             const wi = _waItems.find(w => String(w.id) === String(p.id));
             if (wi) anchorSet.add(String(wi.id));
@@ -9430,7 +9499,7 @@
           imported.push({
             imported: true,
             lookId: lk.id,
-            occasion: 'Packed whole',
+            occasion,
             title: lk.name || 'Saved look',
             how: lk.note || '',
             img: lk.photo_url || null,
@@ -9438,7 +9507,19 @@
             formula: [],
             pins: [],
           });
+        };
+        const planMap = st.planMap || {};
+        const covered = [];
+        (st.plans || []).forEach(p => {
+          const lk = planMap[p] != null ? looksAll.find(x => String(x.id) === String(planMap[p])) : null;
+          if (lk) { covered.push(p); importLook(lk, p); }
         });
+        (st.packLookIds || []).forEach(id => {
+          if (covered.some(p => String(planMap[p]) === String(id))) return;
+          const lk = looksAll.find(x => String(x.id) === String(id));
+          if (lk) importLook(lk, 'Packed whole');
+        });
+        const plansToStyle = (st.plans || []).filter(p => covered.indexOf(p) === -1);
         const shortlistIds = Array.from(anchorSet);
 
         let overlay = document.getElementById('kp-loading-overlay');
@@ -9477,10 +9558,11 @@
               dateTo: st.dateTo || '',
               brief: st.brief || '',
               vibe: st.vibe || '',
-              plans: st.plans || [],
+              plans: plansToStyle,
+              coveredPlans: covered,
               shortlistIds,
               suggestedItems: st.suggested || [],
-              importedLooks: imported.map(l => ({ title: l.title, pieces: l.pieces.map(p => p.name) })),
+              importedLooks: imported.map(l => ({ title: l.title, occasion: covered.indexOf(l.occasion) !== -1 ? l.occasion : '', pieces: l.pieces.map(p => p.name) })),
               userId: _waUid() || undefined,
               genId,
               name,
