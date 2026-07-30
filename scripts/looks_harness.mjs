@@ -205,7 +205,7 @@ const browser = await chromium.launch(
 // 2 · The Looks tab — grid, sort, tab semantics (A1)
 // ─────────────────────────────────────────────────────────────────────────
 {
-  const { ctx, page, errs } = await boot(browser);
+  const { ctx, page, errs, writes } = await boot(browser);
   await openLooks(page);
   check('tab · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
 
@@ -220,9 +220,10 @@ const browser = await chromium.launch(
       tiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length,
       addCard: !!document.querySelector('#rb-lk-grid .rb-add-card'),
       addCardText: document.querySelector('#rb-lk-grid .rb-add-card')?.textContent,
+      rmx: document.querySelectorAll('#rb-lk-grid .rb-lk-rmx').length,
       titles: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).map((t) => t.textContent),
       provisional: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title.prov')).map((t) => t.textContent),
-      mosaicCells: document.querySelectorAll('#rb-lk-grid .rb-lk-tile:first-child .rb-lk-mos i').length,
+      mosaicCells: document.querySelectorAll('#rb-lk-grid .rb-lk-tilewrap:first-child .rb-lk-mos i').length,
       sortLabel: document.querySelector('.rb-lk-sort span')?.textContent,
       sortArrow: document.querySelector('.rb-lk-sort b')?.textContent,
       headerTitle: document.querySelector('.wardrobe-panel .wg-title')?.textContent,
@@ -243,6 +244,7 @@ const browser = await chromium.launch(
   check('grid · one tile per look', s.tiles === 2, String(s.tiles));
   check('grid · a New look add card mirrors the pieces grid',
     s.addCard === true && /New look/.test(s.addCardText || ''), JSON.stringify([s.addCard, s.addCardText]));
+
   check('grid · mosaic always renders four cells', s.mosaicCells === 4, String(s.mosaicCells));
   check('grid · provisional title renders provisional', s.provisional.length === 1 && s.provisional[0] === 'The tank one', JSON.stringify(s.provisional));
   check('sort · defaults to Last worn ↓', s.sortLabel === 'Last worn' && s.sortArrow === '↓', `${s.sortLabel} ${s.sortArrow}`);
@@ -267,9 +269,31 @@ const browser = await chromium.launch(
     const el = tile && tile.querySelector('.lt-meta');
     return el ? { txt: el.textContent, opacity: getComputedStyle(el).opacity } : null;
   });
-  check('grid · metadata is hover-revealed, not printed', meta && meta.opacity === '0', JSON.stringify(meta));
+  check('grid · metadata is printed, like every neighbouring grid', meta && meta.opacity === '1', JSON.stringify(meta));
   check('grid · metadata carries pieces + wears + last worn',
     !!meta && /4 pieces · 2 wears · last 23 Jul/.test(meta.txt), meta && meta.txt);
+
+  // Delete runs LAST — it consumes the fixture
+  check('grid · tiles carry the lookbook hover-✕', s.rmx === 2, String(s.rmx));
+  const deleted = await page.evaluate(() => {
+    window._rbConfirmDelete = (msg, cb) => { window.__lastConfirmMsg = msg; cb(); };
+    const wrap = Array.from(document.querySelectorAll('.rb-lk-tilewrap'))
+      .find((w) => w.querySelector('.lt-title')?.textContent === 'The tank one');
+    wrap.querySelector('.rb-lk-rmx').click();
+    return {
+      msg: window.__lastConfirmMsg,
+      tiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length,
+      tab: document.querySelector('#rb-wsub [data-view="looks"]')?.textContent,
+    };
+  });
+  check('grid · ✕ deletes through the shared confirm',
+    /Delete The tank one\?/.test(deleted.msg || '') && deleted.tiles === 1 && deleted.tab === 'Looks (1)',
+    JSON.stringify(deleted));
+  await page.waitForTimeout(400);
+  const delWrite = await page.evaluate(() => null);
+  check('grid · the delete reaches the cloud',
+    writes.some((w) => w.method === 'DELETE' && /^looks\?id=eq\.lk-2/.test(w.url)),
+    JSON.stringify(writes.filter((w) => w.method === 'DELETE').map((w) => w.url)));
   await ctx.close();
 }
 
@@ -289,11 +313,20 @@ const browser = await chromium.launch(
     provisional: document.getElementById('rb-lk-title')?.classList.contains('prov'),
     stats: Array.from(document.querySelectorAll('.rb-lk-stat')).map((s) => [s.querySelector('b')?.textContent, s.querySelector('span')?.textContent]),
     actions: Array.from(document.querySelectorAll('.rb-lk-acts .rb-lk-act')).map((b) => b.textContent),
-    pieceRows: document.querySelectorAll('.rb-lk-row').length,
+    pieceRows: document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-row').length,
     wearRows: document.querySelectorAll('.rb-lk-wear').length,
     wearTags: Array.from(document.querySelectorAll('.rb-lk-wear .tg')).map((t) => t.textContent),
     gridHidden: document.getElementById('rb-lk-grid')?.style.display === 'none',
-    heroCells: document.querySelectorAll('.rb-lk-det-l .rb-lk-mos i').length,
+    boardTiles: document.querySelectorAll('.rb-lk-con .rbc-board .rbc-tile').length,
+    boardN: document.querySelector('.rb-lk-con .rbc-board')?.dataset.n,
+    headLabel: document.querySelector('.rb-lk-con .rbc-lhead .lab')?.textContent,
+    quote: document.querySelector('.rb-lk-con .rbc-quote')?.textContent,
+    yours: document.querySelector('.rb-lk-con .rbc-yours')?.textContent,
+    lookv2: document.body.classList.contains('rb-lookv2'),
+    deleteLink: !!Array.from(document.querySelectorAll('.rb-lk-quiet')).find((b) => b.textContent === 'Delete this look'),
+    inlineStrip: !!document.querySelector('.rb-lk-con .rb-lk-pick'),
+    flicks: document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-arrow').length,
+    rowSwaps: document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-act').length,
   }));
   check('detail · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('detail · no sub-sub-nav back line', d.back === false);
@@ -311,18 +344,26 @@ const browser = await chromium.launch(
   await page.waitForTimeout(200);
   check('detail · named title is not provisional', d.title === 'The Thursday one' && d.provisional === false, `${d.title}/${d.provisional}`);
   check('detail · eyebrow reads Look for a named look', d.eyebrow === 'Look', d.eyebrow);
-  check('detail · four load-bearing actions',
-    d.actions.join(' | ') === 'Wear it today | Pin to a day | Pack it | Restyle', JSON.stringify(d.actions));
+  check('detail · four load-bearing actions (Restyle renamed — vocabulary collision)',
+    d.actions.join(' | ') === 'Wear it today | Pin to a day | Pack it | Swap a piece', JSON.stringify(d.actions));
   check('detail · stats show pieces, wears, last worn',
     JSON.stringify(d.stats.slice(0, 3)) === JSON.stringify([['4', 'Pieces'], ['2', 'Wears'], ['23 Jul', 'Last worn']]),
     JSON.stringify(d.stats));
   check('detail · cost per wear derives from priced pieces (700/2)',
     d.stats.some((s) => s[1] === 'Per wear' && s[0] === '€350'), JSON.stringify(d.stats));
-  check('detail · every piece is listed', d.pieceRows === 4, String(d.pieceRows));
+  check('detail · every piece is a shared rack row', d.pieceRows === 4, String(d.pieceRows));
+  check('detail · the rack rows carry flick and Swap', d.flicks === 8 && d.rowSwaps === 4, JSON.stringify([d.flicks, d.rowSwaps]));
+  check('detail · the inline swap strip is gone', d.inlineStrip === false);
+  check('detail · The Look is the standing 4:5 board',
+    d.lookv2 && d.boardTiles === 4 && d.boardN === '4', JSON.stringify([d.lookv2, d.boardTiles, d.boardN]));
+  check('detail · the panel head is the console\'s', d.headLabel === 'The look · 4 pieces', d.headLabel);
+  check('detail · the styling note rides the panel quote slot', /Cream silk shirt with/.test(d.quote || ''), d.quote);
+  check('detail · ownership line is the canonical copy', /4.of.4 from your wardrobe/.test(d.yours || ''), d.yours);
+  check('detail · a quiet delete exists', d.deleteLink === true);
   check('detail · wear history lists both wears', d.wearRows === 2, String(d.wearRows));
   check('detail · a wear whose snapshot differs is not labelled Confirmed',
     d.wearTags.join(',') === 'Confirmed,As worn', JSON.stringify(d.wearTags));
-  check('detail · hero mosaic renders', d.heroCells === 4, String(d.heroCells));
+
 
   // The tap IS the wear, with a quiet undo on the card (A4/C1)
   const worn = await page.evaluate(() => {
@@ -376,22 +417,27 @@ const browser = await chromium.launch(
   await page.waitForTimeout(300);
 
   const swap = await page.evaluate(() => {
-    window.__lkSwap('w-bag1');
+    window.__lkDSwap(3);   // the tote
+    const modal = document.getElementById('lkd-swap-modal');
     return {
-      options: Array.from(document.querySelectorAll('.rb-lk-opt span')).map((s) => s.textContent),
+      open: !!modal,
+      candidate: /Raffia basket bag/.test(modal?.textContent || ''),
+      snap: /Snap mine/.test(modal?.textContent || ''),
     };
   });
-  check('swap · offers her own same-category pieces plus the add door',
-    swap.options.join(',') === 'Raffia basket bag,New piece', JSON.stringify(swap.options));
+  check('swap · opens the SAME modal the consoles use', swap.open === true);
+  check('swap · her wardrobe by category, plus Snap mine',
+    swap.candidate === true && swap.snap === true, JSON.stringify(swap));
 
   const promo = await page.evaluate(() => {
-    window.__lkSwapPick('w-bag1', 'w-bag2');
+    window.__lkDSwapApply(3, 'w-bag2');
     const panel = document.querySelector('.rb-lk-panel');
     return {
       line: panel?.querySelector('.pl')?.textContent,
       body: panel?.querySelector('.pb')?.textContent,
       acts: Array.from(panel?.querySelectorAll('.rb-lk-panel-acts button') || []).map((b) => b.textContent),
-      piecesUnchanged: Array.from(document.querySelectorAll('.rb-lk-row .nm')).map((n) => n.childNodes[0].textContent.trim()),
+      piecesUnchanged: Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((n) => n.textContent),
+      modalGone: !document.getElementById('lkd-swap-modal'),
     };
   });
   check('promotion · a look with history asks before it changes',
@@ -399,7 +445,7 @@ const browser = await chromium.launch(
   check('promotion · offers Update / Save as a new look / Leave it',
     promo.acts.join(' | ') === 'Update this look | Save as a new look | Leave it', JSON.stringify(promo.acts));
   check('promotion · nothing is applied until she chooses',
-    promo.piecesUnchanged.includes('Woven straw tote'), JSON.stringify(promo.piecesUnchanged));
+    promo.piecesUnchanged.includes('Woven straw tote') && promo.modalGone, JSON.stringify(promo.piecesUnchanged));
 
   const promoted = await page.evaluate(() => {
     window.__lkPromote();
@@ -425,13 +471,12 @@ const browser = await chromium.launch(
   // Update-this-look keeps identity and history
   const upd = await page.evaluate(() => {
     window.__lkOpen('lk-1');
-    window.__lkSwap('w-sho1');
-    window.__lkSwapPick('w-sho1', 'w-sho2');
+    window.__lkDSwapApply(2, 'w-sho2');
     window.__lkUpdate();
     return {
       note: document.querySelector('.rb-lk-panel .pl')?.textContent,
       wears: document.querySelectorAll('.rb-lk-stat')[1]?.querySelector('b')?.textContent,
-      pieces: Array.from(document.querySelectorAll('.rb-lk-row .nm')).map((n) => n.childNodes[0].textContent.trim()),
+      pieces: Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((n) => n.textContent),
       firstWearSnapshot: document.querySelector('.rb-lk-wear .pc')?.textContent,
     };
   });
@@ -441,6 +486,23 @@ const browser = await chromium.launch(
   check('update · composition changed', upd.pieces.includes('Tan leather slides'), JSON.stringify(upd.pieces));
   check('update · the wear keeps its own snapshot (history never rewritten)',
     /Flat leather sandals/.test(upd.firstWearSnapshot || ''), upd.firstWearSnapshot);
+
+  // Flick routes through the same gate: history asks, no history applies
+  const flickGate = await page.evaluate(() => {
+    window.__lkDFlip(3, 1);   // lk-1 has wears → must ask, not apply
+    const asked = !!Array.from(document.querySelectorAll('.rb-lk-panel .pl'))
+      .find((el) => /has been worn/.test(el.textContent));
+    window.__lkCancelPromote();
+    window.__lkOpen('lk-2');
+    const before = document.querySelector('.rb-lk-con .rbc-rack .rbc-row:nth-child(3) .rbc-name')?.textContent;
+    window.__lkDFlip(2, 1);   // no history → applies directly
+    const after = document.querySelector('.rb-lk-con .rbc-rack .rbc-row:nth-child(3) .rbc-name')?.textContent;
+    window.__lkOpen('lk-1');
+    return { asked, before, after };
+  });
+  check('flick · a look with history asks first', flickGate.asked === true, JSON.stringify(flickGate));
+  check('flick · a look without history just takes it',
+    flickGate.before === 'Tan leather slides' && flickGate.after === 'Flat leather sandals', JSON.stringify(flickGate));
 
   // Pin to a day
   const pinned = await page.evaluate(() => {
@@ -784,9 +846,9 @@ const browser = await chromium.launch(
 
   const md = await page.evaluate(() => {
     window.__lkOpen('lk-1');
-    const det = document.querySelector('.rb-lk-det');
+    const det = document.querySelector('.rb-lk-con');
     return {
-      stacked: det ? getComputedStyle(det).flexDirection === 'column' : false,
+      stacked: det ? getComputedStyle(det).gridTemplateColumns.split(' ').length === 1 : false,
       overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
       actions: document.querySelectorAll('.rb-lk-acts .rb-lk-act').length,
     };

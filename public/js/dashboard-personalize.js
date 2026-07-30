@@ -5196,10 +5196,8 @@
 .lt-info{padding:9px 2px 0}
 .lt-title{font-family:var(--font-serif);font-weight:400;font-size:19px;line-height:1.15;color:var(--ink)}
 .lt-title.prov{font-style:italic;color:var(--ink-soft)}
-.lt-meta{font-size:10.5px;color:var(--ink-faint);margin-top:3px;opacity:0;transition:opacity .18s}
-.rb-lk-tile:hover .lt-meta,.rb-lk-tile:focus-within .lt-meta{opacity:1}
-@media(hover:none){.lt-meta{opacity:1}}
-@media(max-width:767px){.lt-title{font-size:17px}.lt-meta{opacity:1}}`;
+.lt-meta{font-size:10.5px;color:var(--ink-faint);margin-top:3px}
+@media(max-width:767px){.lt-title{font-size:17px}}`;
       function _ltEnsureCss() {
         if (document.getElementById('rb-lt-style')) return;
         const st = document.createElement('style');
@@ -5774,7 +5772,6 @@
       var _lkSortDesc = true;
       var _lkView = 'grid';          // 'grid' | 'detail' | 'new'
       var _lkActive = null;          // open look id
-      var _lkSwapFor = null;         // piece id whose alternates are open
       var _lkPending = null;         // {from,to,pieces} awaiting Update / Save as new
       var _lkDone = null;            // quiet confirmation line after a resolution
       var _lkActNote = null;            // transient action note key
@@ -6115,9 +6112,6 @@
 #rb-lk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
 @media(max-width:1199px){#rb-lk-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:767px){#rb-lk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}}
-.rb-lk-det{display:flex;gap:40px;align-items:flex-start}
-.rb-lk-det-l{flex:0 0 360px;max-width:360px}
-.rb-lk-det-r{flex:1;min-width:0}
 .rb-lk-eyebrow{font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
 .rb-lk-title-in{width:100%;margin-top:7px;padding:2px 0 9px;border:none;border-bottom:0.5px solid var(--rule-mid);background:transparent;font-family:var(--font-serif);font-weight:300;font-size:clamp(26px,3vw,34px);line-height:1.1;color:var(--ink);outline:none}
 .rb-lk-title-in.prov{font-style:italic;color:var(--ink-soft)}
@@ -6131,17 +6125,13 @@
 .rb-lk-act:hover{border-color:var(--ink)}
 .rb-lk-act.primary{background:var(--ink);border-color:var(--ink);color:#fff}
 .rb-lk-act.primary:hover{opacity:.85}
-.rb-lk-panel{margin-top:14px;padding:14px 16px;border:0.5px solid var(--ink);border-radius:var(--rad);background:var(--cream-100)}
+.rb-lk-panel{margin-top:14px;padding:14px 16px;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:var(--cream-100)}
 .rb-lk-panel .pl{font-family:var(--font-serif);font-size:19px;line-height:1.25;color:var(--ink)}
 .rb-lk-panel .pb{font-size:12.5px;line-height:1.6;color:var(--ink-soft);margin-top:6px}
 .rb-lk-panel-acts{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px}
 .rb-lk-quiet{background:none;border:none;padding:0 0 2px;font-family:inherit;font-size:11.5px;color:var(--ink-soft);border-bottom:0.5px solid var(--rule-mid);cursor:pointer}
 .rb-lk-quiet:hover{color:var(--ink);border-bottom-color:var(--ink)}
 .rb-lk-sec{font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin:26px 0 12px}
-.rb-lk-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-top:0.5px solid var(--rule)}
-.rb-lk-row .th{width:38px;height:48px;flex:none;border-radius:var(--rad-sm);background-size:cover;background-position:center;background-color:var(--cream-200)}
-.rb-lk-row .nm{flex:1;min-width:0;font-size:13px;color:var(--ink)}
-.rb-lk-row .nm em{display:block;font-style:normal;font-size:11px;color:var(--ink-faint);margin-top:2px}
 .rb-lk-pick{display:flex;gap:10px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
 .rb-lk-pick::-webkit-scrollbar{width:0;height:0}
 .rb-lk-opt{flex:none;width:92px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);overflow:hidden;cursor:pointer;background:#fff;padding:0;font-family:inherit;text-align:left;transition:border-color .15s}
@@ -6157,28 +6147,12 @@
 .rb-lk-empty h3 em{font-style:italic;color:var(--ink-soft)}
 .rb-lk-empty p{font-size:13px;line-height:1.6;color:var(--ink-soft);margin:14px 0 0;max-width:420px}
 .rb-lk-empty-acts{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
-.rb-lk-new{display:flex;gap:32px;align-items:flex-start}
-.rb-lk-card{flex:0 0 340px;max-width:340px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-card);background:#fff;padding:18px}
-.rb-lk-card-hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:13px}
-.rb-lk-card-hd b{font-size:9.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
-.rb-lk-card-hd i{font-style:normal;font-family:var(--font-serif);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
-.rb-lk-note{font-family:var(--font-serif);font-style:italic;font-size:17px;line-height:1.45;color:var(--ink);margin-top:14px;min-height:1.4em}
-.rb-lk-pal{display:flex;align-items:center;gap:7px;margin-top:12px}
-.rb-lk-pal i{width:15px;height:15px;border-radius:100px;background:var(--cream-200);box-shadow:inset 0 0 0 0.5px var(--rule-mid)}
-.rb-lk-pal span{margin-left:auto;font-size:11px;color:var(--ink-faint)}
-.rb-lk-card-foot{display:flex;align-items:center;gap:14px;margin-top:14px;padding-top:13px;border-top:0.5px solid var(--rule)}
 .rb-lk-rack{flex:1;min-width:0}
-.rb-lk-rrow{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:13px 15px;margin-bottom:11px;transition:border-color .2s}
-.rb-lk-rrow.on{border-color:var(--ink)}
-.rb-lk-rmain{display:flex;align-items:center;gap:14px}
-.rb-lk-rthumb{width:62px;height:78px;flex:none;border-radius:var(--rad-sm);background-size:cover;background-position:center;background-color:var(--cream-100);box-shadow:inset 0 0 0 0.5px var(--rule-mid);display:flex;align-items:flex-end;padding:6px;box-sizing:border-box}
-.rb-lk-rthumb b{font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
-.rb-lk-rbody{flex:1;min-width:0}
-.rb-lk-rname{font-family:var(--font-serif);font-weight:400;font-size:21px;line-height:1.15;color:var(--ink)}
-.rb-lk-rname.empty{font-style:italic;color:var(--ink-faint)}
-.rb-lk-rmeta{font-size:11px;color:var(--ink-faint);margin-top:4px}
-.rb-lk-ract{display:flex;align-items:center;gap:10px;flex:none}
 .rb-lk-title-in::placeholder{color:var(--ink-faint);font-style:italic;opacity:1}
+.rb-lk-tilewrap{position:relative}
+.rb-lk-rmx{position:absolute;top:10px;right:10px;z-index:2;width:28px;height:28px;border-radius:50%;border:none;background:rgba(32,32,33,0.55);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;padding:0}
+.rb-lk-tilewrap:hover .rb-lk-rmx{opacity:1}
+@media(hover:none){.rb-lk-rmx{opacity:1}}
 .rb-lk-con{display:grid;grid-template-columns:480px minmax(0,1fr);gap:34px;align-items:start}
 @media(max-width:1080px){.rb-lk-con{grid-template-columns:1fr;gap:24px}.rb-lk-con>div:first-child{max-width:480px}}
 .rbc-row.rb-lk-rempty{border-style:dashed;background:transparent}
@@ -6187,22 +6161,10 @@
 /* One piece placed: the standing scale sheet starts at data-n=2 — give the
    lone hero the whole composition rather than an unplaced 68px cell. */
 .rb-lookv2 .rbc-board[data-n="1"] .rbc-tile:nth-child(1){grid-column:1/7;grid-row:1/8}
-.rb-lk-rcta{padding:8px 14px;border-radius:100px;border:0.5px solid var(--ink);background:var(--ink);color:#fff;font-family:inherit;font-size:11px;cursor:pointer;white-space:nowrap;transition:all .15s}
-.rb-lk-rcta.ghost{background:#fff;color:var(--ink);border-color:var(--rule-mid)}
-.rb-lk-rcta.ghost:hover{border-color:var(--ink)}
-.rb-lk-add{width:100%;padding:15px;border:1.5px dashed var(--rule-mid);border-radius:var(--rad);background:transparent;font-family:inherit;font-size:11.5px;color:var(--ink-faint);cursor:pointer;transition:all .15s}
-.rb-lk-add:hover{border-color:var(--ink-faint);color:var(--ink)}
 .rb-lk-save{width:100%;margin-top:16px;padding:14px;border:none;border-radius:100px;background:var(--ink);color:#fff;font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:opacity .15s}
 .rb-lk-save:hover{opacity:.85}
-@media(max-width:900px){
-.rb-lk-det,.rb-lk-new{flex-direction:column;gap:24px}
-.rb-lk-det-l,.rb-lk-card{flex:1 1 auto;max-width:none;width:100%}
-.rb-lk-ract{flex-direction:column;align-items:stretch;gap:7px}
-}
 @media(max-width:767px){
 .rb-lk-stats{gap:20px}
-.rb-lk-rmain{align-items:flex-start}
-.rb-lk-rname{font-size:19px}
 }`;
       function _lkEnsureCss() {
         if (document.getElementById('rb-lk-style')) return;
@@ -6248,13 +6210,16 @@
         grid.innerHTML = _lkSorted().map(l => {
           const n = _lkWearCount(l);
           const last = _lkLastWorn(l);
-          return _ltTile({
+          return '<div class="rb-lk-tilewrap">' + _ltTile({
             title: l.name,
             provisional: l.name_provisional,
             cells: _ltCells(_lkPieceIds(l)),
             photo: l.photo_url,
             meta: _lkN(_lkPieceIds(l).length, 'piece') + ' · ' + (n ? _lkN(n, 'wear') + ' · last ' + _lkFmt(last) : 'not worn yet'),
-          }, { body: "window.__lkOpen('" + l.id + "')" });
+          }, { body: "window.__lkOpen('" + l.id + "')" }) +
+          '<button class="rb-lk-rmx" onclick="window.__lkDeleteAsk(\'' + l.id + '\', event)" title="Delete this look" aria-label="Delete this look">' +
+            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+          '</button></div>';
         }).join('') +
         // The way in stays on the grid — the same amplified add card the
         // pieces grid carries (Annie, 2026-07-30: the CTA vanished once a
@@ -6285,9 +6250,57 @@
       }
 
       // ── Look detail (A3) ────────────────────────────────────────────────
+      // The saved look's pieces as shared console items — the detail's board
+      // and its rack rows are the SAME components every generated console
+      // uses (UX review, 2026-07-30: the detail was drawing a look in a
+      // language the app retired on 22 Jul).
+      function _lkDetailItems(l) {
+        return _lkPieceIds(l).map((id, idx) => {
+          const wi = _waItems.find(w => String(w.id) === String(id));
+          const slot = ((l.pieces || [])[idx] || {}).slot || (wi && wi.category) || 'Piece';
+          if (!wi) {
+            return {
+              idx, slot, name: 'A piece no longer in your wardrobe', shortName: 'piece',
+              owned: false, anchored: false, isNew: false,
+              frame: { pollAttr: '', inner: '<div style="width:100%;height:100%;background:var(--cream-200)"></div>' },
+              subHtml: '<span style="font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint)">Removed from the wardrobe</span>',
+              noteHtml: '', count: { cur: 0, len: 1 },
+            };
+          }
+          const url = _pdHttp(wi.image_url);
+          const tone = _ltToneOf(wi);
+          const opts = _lkDOpts(l, id);
+          return {
+            idx, slot,
+            name: wi.label,
+            shortName: String(wi.label || 'piece').split(/\s+/).slice(-1)[0].toLowerCase(),
+            owned: true, anchored: false, isNew: false,
+            frame: {
+              pollAttr: '',
+              inner: url
+                ? `<img src="${_waEsc(url)}" style="width:100%;height:100%;object-fit:cover;display:block" alt="${_waEsc(wi.label)}">`
+                : `<div style="width:100%;height:100%;background:${_waEsc(tone || 'var(--cream-200)')}"></div>`,
+            },
+            subHtml: _rbcProvenance({ wardrobe_match: true }),
+            noteHtml: '',
+            count: { cur: Math.max(0, opts.findIndex(o => String(o.id) === String(id))), len: Math.max(1, opts.length) },
+          };
+        });
+      }
+      // Flick/count options for a saved look's piece: her same-category
+      // pieces not already in the look, current first-class among them.
+      function _lkDOpts(l, pieceId) {
+        const wi = _waItems.find(w => String(w.id) === String(pieceId));
+        if (!wi) return [];
+        const inLook = _lkPieceIds(l).map(String);
+        return _waItems.filter(x => x.category === wi.category &&
+          (String(x.id) === String(pieceId) || inLook.indexOf(String(x.id)) === -1));
+      }
       function _lkDetailHtml() {
         const l = _lkFind(_lkActive);
         if (!l) return _lkEmptyHtml();
+        _rbcEnsureCss();
+        try { document.body.classList.add('rb-lookv2'); } catch (_) {}
         const ids = _lkPieceIds(l);
         const n = _lkWearCount(l);
         const cpw = _lkCpw(l);
@@ -6296,11 +6309,31 @@
         const prov = !!l.name_provisional;
         const title = _lkTitleDraft != null ? _lkTitleDraft : l.name;
         const pins = _lkPins(l.id).filter(d => d >= today);
+        const items = _lkDetailItems(l);
 
-        let h = '<div class="rb-lk-det"><div class="rb-lk-det-l">' +
-          _ltMosaicHtml(_ltCells(ids), { photo: l.photo_url, alt: l.name, hero: true }) +
-          (l.note ? '<div class="rb-lk-note">' + _waEsc(l.note) + '</div>' : '') +
-          '</div><div class="rb-lk-det-r">';
+        // The Look — the standing 4:5 composition, or the look's photograph
+        let lookPanel;
+        if (l.photo_url) {
+          lookPanel = '<div class="rbc-panel"><div class="rbc-lhead">' +
+            '<span class="lab">The look · ' + _lkN(ids.length, 'piece') + '</span><span class="robes">Robes</span></div>' +
+            '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
+              '<img src="' + _waEsc(l.photo_url) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="' + _waEsc(l.name) + '"></div>' +
+            (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
+            '</div>';
+        } else {
+          lookPanel = _rbConsole({
+            headLabel: 'The look · ' + _lkN(ids.length, 'piece'),
+            quoteHtml: l.note ? _waEsc(l.note) : '',
+            paletteHtml: ids.map(id => {
+              const tone = _ltToneOf(_waItems.find(w => String(w.id) === String(id)));
+              return tone ? '<span style="background:' + _waEsc(tone) + '"></span>' : '';
+            }).join(''),
+            rackLabel: 'The pieces',
+            onFlip: '__lkDFlip', onSwap: '__lkDSwap',
+          }, items).lookHtml;
+        }
+
+        let h = '<div class="rb-lk-con"><div>' + lookPanel + '</div><div>';
 
         h += '<div class="rb-lk-eyebrow">' + (prov ? 'Robes named it' : 'Look') + '</div>' +
           '<input id="rb-lk-title" class="rb-lk-title-in' + (prov ? ' prov' : '') + '" value="' + _waEsc(title) + '"' +
@@ -6322,7 +6355,7 @@
             : '<button type="button" class="rb-lk-act primary" onclick="window.__lkWearToday()">Wear it today</button>') +
           '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pin\')">Pin to a day</button>' +
           '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pack\')">Pack it</button>' +
-          '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'restyle\')">Restyle</button>' +
+          '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'restyle\')">Swap a piece</button>' +
           '</div>';
 
         // Quiet undo on the day, not a toast (A4)
@@ -6344,7 +6377,7 @@
             '<button type="button" class="rb-lk-quiet" onclick="window.__lkAct(null)">Cancel</button>' +
             '</div></div>';
         } else if (_lkActNote === 'restyle') {
-          h += '<div class="rb-lk-panel"><div class="pl">Swap a piece below.</div>' +
+          h += '<div class="rb-lk-panel"><div class="pl">Swap any piece below.</div>' +
             '<div class="pb">Robes asks before it touches the history.</div></div>';
         }
 
@@ -6368,20 +6401,12 @@
             '</div></div>';
         }
 
-        h += '<div class="rb-lk-sec">The pieces</div>';
-        ids.forEach(id => {
-          const wi = _waItems.find(w => String(w.id) === String(id));
-          const name = wi ? wi.label : 'A piece no longer in your wardrobe';
-          const url = wi ? _pdHttp(wi.image_url) : null;
-          const tone = _ltToneOf(wi);
-          const open = String(_lkSwapFor) === String(id);
-          h += '<div class="rb-lk-row"><div class="th" style="' +
-            (url ? "background-image:url('" + _waEsc(url) + "')" : 'background-color:' + _waEsc(tone || 'var(--cream-200)')) + '"></div>' +
-            '<div class="nm">' + _waEsc(name) + (wi ? '<em>' + _waEsc(wi.category || '') + (Number(wi.times_worn) ? ' · ' + Number(wi.times_worn) + '× worn' : '') + '</em>' : '') + '</div>' +
-            (wi ? '<button type="button" class="rb-lk-quiet" onclick="window.__lkSwap(\'' + _waEsc(String(id)) + '\')">' + (open ? 'Close' : 'Swap') + '</button>' : '') +
-            '</div>';
-          if (open) h += _lkPickerHtml(_lkAlts(l, id), '__lkSwapPick', String(id), '__lkSwapSnap');
-        });
+        // The pieces — the same rack rows every console uses. Flick and Swap
+        // both route through the promotion gate when there is history.
+        h += '<div class="rb-lk-sec">The pieces</div>' +
+          '<div class="rbc-rack">' +
+          items.map(it => _rbcRow(it, { onFlip: '__lkDFlip', onSwap: '__lkDSwap' })).join('') +
+          '</div>';
 
         h += '<div class="rb-lk-sec" style="display:flex;align-items:baseline;gap:14px">Worn' +
           '<button type="button" class="rb-lk-quiet" style="letter-spacing:0;text-transform:none;font-weight:400" onclick="window.__lkRetro()">I wore this — add a date</button></div>';
@@ -6404,18 +6429,10 @@
           h += '<div class="rb-lk-wear"><div class="pc" style="font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">Not worn yet.</div></div>';
         }
 
-        return h + '</div></div>';
-      }
+        h += '<div style="margin-top:26px;padding-top:16px;border-top:0.5px solid var(--rule)">' +
+          '<button type="button" class="rb-lk-quiet" onclick="window.__lkDeleteAsk(\'' + l.id + '\')">Delete this look</button></div>';
 
-      // Alternates for a swap: her OWN pieces in the same category, not
-      // already in the look. No suggestions from outside the wardrobe.
-      function _lkAlts(l, id) {
-        const wi = _waItems.find(w => String(w.id) === String(id));
-        if (!wi) return [];
-        const inLook = _lkPieceIds(l).map(String);
-        return _waItems
-          .filter(x => x.category === wi.category && inLook.indexOf(String(x.id)) === -1)
-          .slice(0, 8);
+        return h + '</div></div>';
       }
       // addFn (optional): the normal wardrobe add flow, offered alongside the
       // catalogued options — and AS the way forward when the category is
@@ -6587,7 +6604,7 @@
       window.__lkOpen = function(id) {
         if (_waView !== 'looks') window.__waSetView('looks');
         _lkActive = id; _lkView = 'detail';
-        _lkSwapFor = null; _lkPending = null; _lkDone = null; _lkActNote = null;
+        _lkPending = null; _lkDone = null; _lkActNote = null;
         _lkTitleDraft = null; _lkTitleTouched = false; _lkRetro = false;
         _lkPaint();
         _rbTrack('look_opened', {});
@@ -6599,11 +6616,6 @@
       window.__lkAct = function(kind) {
         _lkActNote = kind;
         _lkDone = null;
-        if (kind === 'restyle') {
-          const l = _lkFind(_lkActive);
-          const ids = _lkPieceIds(l);
-          _lkSwapFor = ids[ids.length - 1] || null;   // the shoe/bag end: what she changes most
-        }
         if (kind === 'pack') { _lkActNote = null; _lkPackIt(); return; }
         _lkPaint();
       };
@@ -6622,6 +6634,25 @@
           _waShowToast(_lkN(ids.length, 'piece') + ' ready for the trip');
         }, 240);
       }
+      // Delete — the lookbook's own pattern: shared confirm, then the row
+      // goes (FK cascade takes look_pieces + wears; pins are swept).
+      window.__lkDeleteAsk = function(id, ev) {
+        if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+        const l = _lkFind(id);
+        if (!l) return;
+        const nW = _lkWearCount(l);
+        window._rbConfirmDelete('Delete ' + (l.name || 'this look') + '?' + (nW ? ' Its ' + _lkN(nW, 'wear') + ' go with it.' : ''), function() {
+          _lkLooks = _lkLooks.filter(x => String(x.id) !== String(id));
+          _lkCacheWrite();
+          if (!_lkDown && _waUid()) _waFetch('DELETE', 'looks?id=eq.' + id + '&user_id=eq.' + _waUid()).catch(e => _lkGuard(e, 'delete'));
+          _pdDeleteSource(String(id));
+          if (String(_lkActive) === String(id)) { _lkView = 'grid'; _lkActive = null; }
+          _lkPaint();
+          _waV2Sync();
+          _waShowToast('Deleted');
+          _rbTrack('look_deleted', { wears: nW });
+        });
+      };
       window.__lkSeeDay = function(iso) {
         const l = _lkFind(_lkActive);
         if (!l || !iso) return;
@@ -6683,16 +6714,42 @@
         _rbTrack('look_renamed', {});
         _lkPaint();
       };
-      window.__lkSwap = function(id) {
-        _lkSwapFor = String(_lkSwapFor) === String(id) ? null : id;
-        _lkPending = null; _lkDone = null;
-        _lkPaint();
+      // Detail flick: the console gesture, routed through the same edit
+      // logic as a swap — so a look with history still asks first (A5).
+      window.__lkDFlip = function(idx, dir) {
+        const l = _lkFind(_lkActive);
+        if (!l) return;
+        const from = _lkPieceIds(l)[idx];
+        const opts = _lkDOpts(l, from);
+        if (opts.length < 2) { _waShowToast('Nothing else in that category yet'); return; }
+        const cur = Math.max(0, opts.findIndex(o => String(o.id) === String(from)));
+        const next = opts[(cur + dir + opts.length) % opts.length];
+        window.__lkSwapPick(from, next.id);
       };
-      // Detail-swap's add-new door: file a piece, then it swaps in — which
-      // still routes through the promotion question when there is history.
-      window.__lkSwapSnap = function(pieceId) {
+      // Detail swap: the SAME modal every console uses (UX review item 2).
+      var _lkDSwapIdx = null;
+      window.__lkDSwap = function(idx) {
+        const l = _lkFind(_lkActive);
+        const wi = l && _waItems.find(w => String(w.id) === String(_lkPieceIds(l)[idx]));
+        if (!wi) return;
+        _lkDSwapIdx = idx;
+        _rbSwapModal(
+          { name: wi.label, category: wi.category, brand: wi.brand || '', retailer_hint: '', price_point: '' },
+          { id: 'lkd-swap-modal', applyName: '__lkDSwapApply', snapName: '__lkDSnapMine', idx });
+      };
+      window.__lkDSwapApply = function(idx, wardrobeId) {
+        const l = _lkFind(_lkActive);
+        if (!l) return;
+        document.getElementById('lkd-swap-modal')?.remove();
+        const from = _lkPieceIds(l)[idx];
+        if (_lkPieceIds(l).map(String).indexOf(String(wardrobeId)) > -1) { _waShowToast('Already in this look'); return; }
+        window.__lkSwapPick(from, wardrobeId);
+      };
+      window.__lkDSnapMine = function() {
+        const idx = _lkDSwapIdx;
+        document.getElementById('lkd-swap-modal')?.remove();
         _waEditId = null;
-        _waAfterAdd = (newId) => window.__lkSwapPick(pieceId, newId);
+        _waAfterAdd = (newId) => window.__lkDSwapApply(idx, newId);
         if (window.WA && WA.open) WA.open();
         let tries = 0;
         const poke = () => {
@@ -6706,7 +6763,6 @@
         const l = _lkFind(_lkActive);
         if (!l) return;
         const next = _lkPieceIds(l).map(id => (String(id) === String(from) ? to : id));
-        _lkSwapFor = null;
         // With history, the scope question is HERS to answer (A5). Without it,
         // there is nothing to protect — the edit just lands.
         if (_lkWearCount(l)) {
