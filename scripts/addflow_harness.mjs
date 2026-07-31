@@ -181,6 +181,74 @@ const browser = await chromium.launch(
   await ctx.close();
 }
 
+// ── 3-level taxonomy: prefilled cascade, sheet-L1 display, fold on save ─
+{
+  const { ctx, page, errs, supaPosts } = await boot(browser, {
+    label: 'Blue skinny jeans', category: 'Bottoms', category_l2: 'Jeans', category_l3: 'Skinny jeans',
+    color: 'Navy', brand: 'Levi’s', notes: 'High-rise skinny jeans.',
+    item_dna: {
+      display: { title: 'Blue skinny jeans', editorial_color_name: 'Indigo', primary_color_hex: '#28304D', brand_raw: 'Levi’s' },
+      structural_dna: { silhouette_fit: ['Skinny', 'High-rise'] },
+      llm_styling_context: {}, ai_generated_notes: 'High-rise skinny jeans.',
+    },
+  });
+  await page.evaluate(() => window.WA && WA.open());
+  await page.waitForTimeout(400);
+  await page.setInputFiles('#wa-rb-file', { name: 'jeans.png', mimeType: 'image/png', buffer: PNG });
+  await page.waitForSelector('#rb-saw-panel', { timeout: 8000 });
+  await page.waitForTimeout(2800);
+
+  const catRow = await page.evaluate(() =>
+    document.querySelectorAll('#rb-saw-read .rb-saw-val')[1]?.textContent || '');
+  check('tax · ledger Category shows sheet L1 + item type', catRow === 'Bottoms · Skinny jeans', catRow);
+
+  await page.click('#rb-saw-toggle');
+  const pre = await page.evaluate(() => ({
+    cat: document.getElementById('wa-saw-cat')?.value || '',
+    cats: Array.from(document.querySelectorAll('#wa-saw-cat option')).map((o) => o.value),
+    l2: document.getElementById('wa-saw-l2')?.value || '',
+    l3: document.getElementById('wa-saw-l3')?.value || '',
+  }));
+  check('tax · category select lists the sheet L1s', pre.cats.includes('Knitwear') && pre.cats.includes('Tailoring & suiting') && pre.cats.includes('Jewellery'),
+    pre.cats.join('|').slice(0, 120));
+  check('tax · cascade prefilled from analyse', pre.cat === 'Bottoms' && pre.l2 === 'Jeans' && pre.l3 === 'Skinny jeans',
+    `${pre.cat}|${pre.l2}|${pre.l3}`);
+
+  // Re-file across a split L2: Knitwear › Cardigans › coatigan folds to Outerwear
+  await page.selectOption('#wa-saw-cat', 'Knitwear');
+  const reset = await page.evaluate(() => ({
+    l2: document.getElementById('wa-saw-l2')?.value || '',
+    l2opts: Array.from(document.querySelectorAll('#wa-saw-l2 option')).map((o) => o.value),
+    l3disabled: !!document.getElementById('wa-saw-l3')?.disabled,
+  }));
+  check('tax · L1 change resets + repopulates the cascade', reset.l2 === '' && reset.l2opts.includes('Cardigans') && reset.l3disabled,
+    JSON.stringify(reset).slice(0, 140));
+  await page.selectOption('#wa-saw-l2', 'Cardigans');
+  await page.selectOption('#wa-saw-l3', 'Cardigan coat / coatigan');
+  const synced = await page.evaluate(() =>
+    document.querySelectorAll('#rb-saw-read .rb-saw-val')[1]?.textContent || '');
+  check('tax · ledger tracks the re-filing', synced === 'Knitwear · Cardigan coat / coatigan', synced);
+
+  await page.click('#wa-saw-cta');
+  await page.waitForTimeout(1800);
+  const row = supaPosts[0] || {};
+  check('tax · save folds the split L2 to its legacy category', row.category === 'Outerwear',
+    String(row.category));
+  check('tax · save carries the pair', row.category_l2 === 'Cardigans' && row.category_l3 === 'Cardigan coat / coatigan',
+    `${row.category_l2}|${row.category_l3}`);
+
+  // Wardrobe tabs are the sheet L1s
+  await page.evaluate(() => window.App && App.showWardrobe());
+  await page.waitForTimeout(600);
+  const tabs = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('#wg-filters .wg-tab')).map((t) => t.textContent));
+  check('tax · wardrobe tabs list the sheet L1 categories',
+    tabs.includes('Knitwear') && tabs.includes('Dresses & jumpsuits') && tabs.includes('Swim & beach') && tabs[0] === 'All',
+    tabs.join('|').slice(0, 160));
+  check('no page errors (taxonomy)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
 // ── Unreadable piece: no theatre, editor open, name guard ──────────────
 {
   const { ctx, page, errs } = await boot(browser, {

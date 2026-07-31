@@ -7,7 +7,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { readFileSync } from 'fs';
 import { GoogleGenAI } from '@google/genai';
 import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock } from './style_dna.js';
-import { taxonomyPromptBlock, resolveTaxonomy } from './wardrobe_taxonomy.js';
+import { taxonomyPromptBlock, resolveTaxonomy, TAXONOMY_GROUPS } from './wardrobe_taxonomy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -2560,6 +2560,14 @@ const ANALYSE_SCHEMA = {
   },
   required: ['no_item_detected', 'label', 'category', 'category_l2', 'category_l3', 'color', 'primary_color_hex', 'editorial_color_name', 'brand', 'silhouette_fit', 'ai_generated_notes'],
 };
+
+// The full taxonomy tree for the client's Category / Subcategory / Item type
+// selects — served rather than duplicated client-side so wardrobe_taxonomy.js
+// stays the single source of truth.
+app.get('/api/wardrobe/taxonomy', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.json({ groups: TAXONOMY_GROUPS });
+});
 
 app.post('/api/wardrobe/analyse', async (req, res) => {
   const { data, mimeType } = req.body;

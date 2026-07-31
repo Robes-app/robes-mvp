@@ -343,6 +343,120 @@
 
       const WA_CATS = ['All','Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear','Other'];
 
+      // ── 3-level taxonomy display layer (migration 15) ─────────────────
+      // The DISPLAYED L1 is the taxonomy sheet's 14 categories; the STORED
+      // `category` stays the legacy enum every generation/swap surface reads
+      // (wardrobe_taxonomy.js owns the fold). Pieces carry their sheet
+      // category via L2; legacy-only pieces map through _WA_LEGACY_TO_SHEET.
+      const _WA_SHEET_CATS = ['Tops','Knitwear','Bottoms','Dresses & jumpsuits','Outerwear','Tailoring & suiting','Shoes','Bags','Accessories','Jewellery','Activewear','Loungewear & sleepwear','Underwear & intimates','Swim & beach'];
+      const _WA_TAB_CATS = ['All'].concat(_WA_SHEET_CATS).concat(['Other']);
+      const _WA_LEGACY_TO_SHEET = { 'Tops':'Tops', 'Bottoms':'Bottoms', 'Outerwear':'Outerwear', 'Shoes':'Shoes', 'Bags':'Bags', 'Accessories':'Accessories', 'Dresses':'Dresses & jumpsuits', 'Swimwear':'Swim & beach', 'Other':'Other' };
+      // Sheet L1 → the legacy category an L1-only pick stores (no L2 chosen).
+      const _WA_SHEET_DEFAULT_LEGACY = { 'Tops':'Tops', 'Knitwear':'Tops', 'Bottoms':'Bottoms', 'Dresses & jumpsuits':'Dresses', 'Outerwear':'Outerwear', 'Tailoring & suiting':'Other', 'Shoes':'Shoes', 'Bags':'Bags', 'Accessories':'Accessories', 'Jewellery':'Accessories', 'Activewear':'Other', 'Loungewear & sleepwear':'Other', 'Underwear & intimates':'Other', 'Swim & beach':'Swimwear', 'Other':'Other' };
+      // L2 subcategory → its sheet L1 (L2 names are unique tree-wide).
+      const _WA_L2_SHEET = {
+        "T-shirts & tees":"Tops", "Shirts & blouses":"Tops", "Camisoles & sleeveless":"Tops", "Bodysuits":"Tops",
+        "Statement tops":"Tops", "Sweatshirts & hoodies":"Tops", "Jumpers & sweaters":"Knitwear", "Cardigans":"Knitwear",
+        "Vests & waistcoats":"Knitwear", "Knit separates & sets":"Knitwear", "Trousers":"Bottoms", "Jeans":"Bottoms",
+        "Skirts":"Bottoms", "Shorts":"Bottoms", "Day dresses":"Dresses & jumpsuits", "Occasion & evening":"Dresses & jumpsuits",
+        "Jumpsuits & playsuits":"Dresses & jumpsuits", "Co-ord sets":"Dresses & jumpsuits", "Coats":"Outerwear", "Jackets":"Outerwear",
+        "Blazers":"Outerwear", "Gilets & waistcoats":"Outerwear", "Suit separates":"Tailoring & suiting", "Full suits":"Tailoring & suiting",
+        "Flats":"Shoes", "Heels":"Shoes", "Sandals":"Shoes", "Boots":"Shoes",
+        "Trainers":"Shoes", "Everyday bags":"Bags", "Occasion bags":"Bags", "Travel & utility":"Bags",
+        "Small leather goods":"Bags", "Belts":"Accessories", "Scarves & wraps":"Accessories", "Hats & headwear":"Accessories",
+        "Eyewear":"Accessories", "Gloves & hosiery":"Accessories", "Other accessories":"Accessories", "Necklaces":"Jewellery",
+        "Earrings":"Jewellery", "Bracelets & rings":"Jewellery", "Watches & pins":"Jewellery", "Active tops":"Activewear",
+        "Active bottoms":"Activewear", "Active layers & sets":"Activewear", "Sport-specific":"Activewear", "Loungewear":"Loungewear & sleepwear",
+        "Sleepwear":"Loungewear & sleepwear", "Slippers":"Loungewear & sleepwear", "Bras":"Underwear & intimates", "Briefs":"Underwear & intimates",
+        "Shapewear & base layers":"Underwear & intimates", "Swimwear":"Swim & beach", "Cover-ups":"Swim & beach",
+      };
+      function _waSheetCatOf(it) {
+        if (it && it.category_l2 && _WA_L2_SHEET[it.category_l2]) return _WA_L2_SHEET[it.category_l2];
+        return _WA_LEGACY_TO_SHEET[it && it.category] || 'Other';
+      }
+      // The full tree (for the Subcategory / Item type selects) is served by
+      // the server so wardrobe_taxonomy.js stays the single source of truth.
+      // Until it lands (or if the fetch fails) the add/edit UI degrades to
+      // the legacy single-level category select.
+      var _waTaxTree = null;
+      (function _waTaxFetch() {
+        try {
+          fetch('/api/wardrobe/taxonomy').then(r => r.ok ? r.json() : null).then(j => {
+            if (j && Array.isArray(j.groups) && j.groups.length) _waTaxTree = j.groups;
+          }).catch(() => {});
+        } catch (e) {}
+      })();
+      function _waTaxL2s(sheet) {
+        const out = [];
+        (_waTaxTree || []).forEach(g => { if (g.sheet_l1 === sheet && out.indexOf(g.l2) === -1) out.push(g.l2); });
+        return out;
+      }
+      function _waTaxL3s(l2) {
+        const out = [];
+        (_waTaxTree || []).forEach(g => { if (g.l2 === l2) g.l3.forEach(x => out.push(x)); });
+        return out;
+      }
+      // Sheet L1 + L2 + L3 → the legacy category to STORE (the fold). Split
+      // L2s (Cardigans, Suit separates…) resolve per L3 via the tree.
+      function _waTaxLegacy(sheet, l2, l3) {
+        if (l2 && _waTaxTree) {
+          let first = null;
+          for (const g of _waTaxTree) {
+            if (g.l2 !== l2) continue;
+            if (!first) first = g;
+            if (l3 && g.l3.indexOf(l3) !== -1) return g.l1;
+          }
+          if (first) return first.l1;
+        }
+        return _WA_SHEET_DEFAULT_LEGACY[sheet] || 'Other';
+      }
+      // Cascading Category / Subcategory / Item type selects — shared by the
+      // add flow's step-3 editor and the edit modal. State: __waSawTaxSel
+      // {sheet, l2, l3}, null when the tree isn't available (legacy UI).
+      function _waTaxOptions(list, sel, emptyLabel) {
+        return '<option value="">' + emptyLabel + '</option>' +
+          list.map(v => '<option' + (v === sel ? ' selected' : '') + '>' + _waEsc(v) + '</option>').join('');
+      }
+      function _waTaxPaintSelects() {
+        const s = window.__waSawTaxSel;
+        if (!s) return;
+        const l2El = document.getElementById('wa-saw-l2');
+        const l3El = document.getElementById('wa-saw-l3');
+        if (l2El) l2El.innerHTML = _waTaxOptions(s.sheet ? _waTaxL2s(s.sheet) : [], s.l2, s.sheet ? 'Choose…' : '—');
+        if (l3El) {
+          l3El.innerHTML = _waTaxOptions(s.l2 ? _waTaxL3s(s.l2) : [], s.l3, s.l2 ? 'Choose…' : '—');
+          l3El.disabled = !s.l2;
+        }
+      }
+      function _waTaxSync() {
+        const s = window.__waSawTaxSel;
+        if (!s) return;
+        _waTaxPaintSelects();
+        // Keep the legacy-facing state in step (hidden #wa-cat + save payload).
+        window.__waSawCat = _waTaxLegacy(s.sheet, s.l2, s.l3);
+        window.__waSawL2  = s.l2;
+        window.__waSawL3  = s.l3;
+        if (window.__rbSawSync) window.__rbSawSync(1, s.l3 ? s.sheet + ' · ' + s.l3 : (s.sheet || '—'));
+      }
+      window.__waTaxCatChange = function(v) {
+        const s = window.__waSawTaxSel;
+        if (!s) return;
+        s.sheet = v; s.l2 = ''; s.l3 = '';
+        _waTaxSync();
+      };
+      window.__waTaxL2Change = function(v) {
+        const s = window.__waSawTaxSel;
+        if (!s) return;
+        s.l2 = v; s.l3 = '';
+        _waTaxSync();
+      };
+      window.__waTaxL3Change = function(v) {
+        const s = window.__waSawTaxSel;
+        if (!s) return;
+        s.l3 = v;
+        _waTaxSync();
+      };
+
       // Shared garment palette — used by the add/edit modal swatch rows AND
       // the Refine drawer's colour filter (lifted out of the autotag closure).
       const _ALL_SWATCHES = [
@@ -1006,8 +1120,11 @@
         container.innerHTML = '';
         _waFiltersBuilt = true;
         // Light text tabs, not pills (design handoff: 10 heavy pills read
-        // cluttered, especially on mobile — underline marks the active one)
-        WA_CATS.forEach(cat => {
+        // cluttered, especially on mobile — underline marks the active one).
+        // Tabs are the taxonomy sheet's L1 categories (display layer) — a
+        // piece lands under the tab its L2 rolls up to, legacy-only pieces
+        // under the legacy mapping (_waSheetCatOf).
+        _WA_TAB_CATS.forEach(cat => {
           const btn = document.createElement('button');
           btn.className = 'wg-tab' + (cat === _waCat ? ' active' : '');
           btn.textContent = cat;
@@ -1094,6 +1211,32 @@
 
           // Store item_dna for WA.submit to save back
           window.__waSawItemDna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : {};
+
+          // 3-level taxonomy: the category select displays the sheet's L1
+          // categories, with Subcategory / Item type selects beneath — same
+          // cascade as add step 3 (WA.submit derives the stored legacy
+          // category from the picks). Tree unavailable → legacy select as-is.
+          if (_waTaxTree && cat) {
+            const sheet0 = (it.category_l2 && _WA_L2_SHEET[it.category_l2]) || _WA_LEGACY_TO_SHEET[it.category] || '';
+            window.__waSawTaxSel = { sheet: sheet0, l2: it.category_l2 || '', l3: it.category_l3 || '' };
+            cat.innerHTML = '<option value=""' + (sheet0 ? '' : ' selected') + ' disabled>Choose a category</option>' +
+              _WA_SHEET_CATS.concat(['Other']).map(o => '<option' + (o === sheet0 ? ' selected' : '') + '>' + _waEsc(o) + '</option>').join('');
+            cat.onchange = function() { window.__waTaxCatChange(this.value); };
+            if (!document.getElementById('wa-saw-l2') && cat.parentNode) {
+              const row = document.createElement('div');
+              row.id = 'rb-saw-taxrow';
+              row.style.cssText = 'display:flex;gap:10px;margin-top:10px;';
+              row.innerHTML =
+                '<div style="flex:1;"><label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">SUBCATEGORY</label>' +
+                '<select id="wa-saw-l2" class="wa-select" onchange="window.__waTaxL2Change(this.value)"></select></div>' +
+                '<div style="flex:1;"><label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">ITEM TYPE</label>' +
+                '<select id="wa-saw-l3" class="wa-select" onchange="window.__waTaxL3Change(this.value)"></select></div>';
+              cat.parentNode.insertBefore(row, cat.nextSibling);
+            }
+            _waTaxPaintSelects();
+          } else {
+            window.__waSawTaxSel = null;
+          }
 
           // Inject custom swatches + pre-select the saved colour
           if (window.__rbInjectSwatches) window.__rbInjectSwatches(it.color || '');
@@ -1393,6 +1536,7 @@
           if (!step) return;
           _setDot(3);
           const cats = ['Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear'];
+          const _sawSelCss = 'width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;';
 
           // Map Gemini's returned colour names → our fashion names
           const GEMINI_MAP = {
@@ -1492,9 +1636,16 @@
           // A readable piece gets the theatre; an unreadable one goes straight
           // to the (expanded) form — there is nothing to celebrate yet.
           const readable = !!tag.label;
+          // Display category = the taxonomy sheet's L1 (derived from the
+          // analysed L2, else the legacy mapping); the stored `category`
+          // stays legacy. The full cascade only mounts when the tree landed.
+          const treeOn = !!_waTaxTree;
+          const dispSheet = (tag.category_l2 && _WA_L2_SHEET[tag.category_l2]) || _WA_LEGACY_TO_SHEET[tag.category] || '';
+          window.__waSawTaxSel = treeOn ? { sheet: dispSheet, l2: tag.category_l2 || '', l3: tag.category_l3 || '' } : null;
+          const dispCat = dispSheet || tag.category || '';
           const ledgerVals = [
             tag.label || '',
-            tag.category || '',
+            tag.category_l3 ? dispCat + ' · ' + tag.category_l3 : dispCat,
             tag.brand || (dna.display && dna.display.brand_raw) || 'Unlabelled',
             edColor || 'Read',
             fitPills.slice(0, 2).join(' · ') || '—',
@@ -1507,7 +1658,7 @@
             { top: '68%', right: '12%' },
           ];
           const chips = [];
-          if (tag.category) chips.push(tag.category);
+          if (dispCat) chips.push(dispCat);
           if (edColor) chips.push(edColor);
           if (tag.brand) chips.push(tag.brand);
           fitPills.forEach(function(f) { if (chips.length < SAW_SPOTS.length) chips.push(f); });
@@ -1549,8 +1700,10 @@
               <div style="display:flex;gap:10px;margin-bottom:12px;">
                 <div style="flex:1;">
                   <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">CATEGORY</label>
-                  <select id="wa-saw-cat" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" onchange="window.__waSawCat=this.value;window.__rbSawSync&&window.__rbSawSync(1,this.value)">
-                    ${cats.map(o => `<option${tag.category===o?' selected':''}>${o}</option>`).join('')}
+                  <select id="wa-saw-cat" style="${_sawSelCss}" onchange="${treeOn ? 'window.__waTaxCatChange(this.value)' : 'window.__waSawCat=this.value;window.__rbSawSync&&window.__rbSawSync(1,this.value)'}">
+                    ${treeOn
+                      ? `<option value=""${dispSheet ? '' : ' selected'} disabled>Choose…</option>` + _WA_SHEET_CATS.concat(['Other']).map(o => `<option${dispSheet===o?' selected':''}>${o}</option>`).join('')
+                      : cats.map(o => `<option${tag.category===o?' selected':''}>${o}</option>`).join('')}
                   </select>
                 </div>
                 <div style="flex:1;">
@@ -1558,6 +1711,16 @@
                   <input id="wa-saw-brand" value="${(tag.brand||'').replace(/"/g,'&quot;')}" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawBrand=this.value;window.__rbSawSync&&window.__rbSawSync(2,this.value||'Unlabelled')">
                 </div>
               </div>
+              ${treeOn ? `<div style="display:flex;gap:10px;margin-bottom:12px;" id="rb-saw-taxrow">
+                <div style="flex:1;">
+                  <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">SUBCATEGORY</label>
+                  <select id="wa-saw-l2" style="${_sawSelCss}" onchange="window.__waTaxL2Change(this.value)"></select>
+                </div>
+                <div style="flex:1;">
+                  <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">ITEM TYPE</label>
+                  <select id="wa-saw-l3" style="${_sawSelCss}" onchange="window.__waTaxL3Change(this.value)"></select>
+                </div>
+              </div>` : ''}
               <div style="margin-bottom:12px;">
                 <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;">
                   <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);">COLOUR</label>
@@ -1580,6 +1743,9 @@
           // Set the photo src via DOM (not innerHTML) so large data URLs aren't truncated
           const photoEl = document.getElementById('wa-saw-photo');
           if (photoEl) photoEl.src = dataUrl;
+
+          // Fill the Subcategory / Item type selects from the taxonomy tree
+          if (treeOn) _waTaxPaintSelects();
 
           // Live sync: an edit in the collapsed form updates the ledger row
           // (and the photo banner for the name) so the reveal never lies.
@@ -1793,8 +1959,9 @@
             WA.close = function() {
               _photoDataUrl = '';
               _waBatchQueue = []; _waBatchTotal = 0; _waBatchDone = 0;
-              // Progressive-capture state must not leak into the next open
+              // Progressive-capture + taxonomy state must not leak into the next open
               window.__rbWaDetail = null;
+              window.__waSawTaxSel = null;
               document.getElementById('rb-wa-detail-host')?.remove();
               _origClose.apply(this, arguments);
             };
@@ -1893,19 +2060,31 @@
               payload.hero_position  = det.hero ? (det.heroPos != null ? det.heroPos : _waHeroNextPos()) : null;
             }
 
-            // 3-level taxonomy (migration 15): a fresh add carries the analyse
-            // read; an edit carries the row's saved pair forward untouched.
+            // 3-level taxonomy (migration 15). When the cascade UI mounted
+            // (add step 3 or edit modal, tree loaded), __waSawTaxSel owns the
+            // filing: the stored legacy `category` is DERIVED from the picks
+            // (the fold), so it can never disagree with the pair — and the
+            // sheet-L1 names the selects display never reach the column.
             const _TAX_KEYS = ['category_l2', 'category_l3'];
+            const taxSel = window.__waSawTaxSel;
+            if (taxSel) payload.category = _waTaxLegacy(taxSel.sheet, taxSel.l2, taxSel.l3);
             if (_waTaxCols) {
-              const prev = editId ? (_waItems.find(i => i.id === editId) || {}) : null;
-              payload.category_l2 = (prev ? prev.category_l2 : window.__waSawL2) || null;
-              payload.category_l3 = (prev ? prev.category_l3 : window.__waSawL3) || null;
-              // A manual category pick that contradicts the filed L2 drops the
-              // pair — L2 must never disagree with the L1 surfaces filter on.
-              const okCats = payload.category_l2 ? _WA_TAX_L2[payload.category_l2] : null;
-              if (payload.category_l2 && (!okCats || okCats.indexOf(payload.category) === -1)) {
-                payload.category_l2 = null;
-                payload.category_l3 = null;
+              if (taxSel) {
+                payload.category_l2 = taxSel.l2 || null;
+                payload.category_l3 = taxSel.l3 || null;
+              } else {
+                // Degrade path (tree unavailable): a fresh add carries the
+                // analyse read; an edit carries the row's saved pair forward.
+                const prev = editId ? (_waItems.find(i => i.id === editId) || {}) : null;
+                payload.category_l2 = (prev ? prev.category_l2 : window.__waSawL2) || null;
+                payload.category_l3 = (prev ? prev.category_l3 : window.__waSawL3) || null;
+                // A manual category pick that contradicts the filed L2 drops the
+                // pair — L2 must never disagree with the L1 surfaces filter on.
+                const okCats = payload.category_l2 ? _WA_TAX_L2[payload.category_l2] : null;
+                if (payload.category_l2 && (!okCats || okCats.indexOf(payload.category) === -1)) {
+                  payload.category_l2 = null;
+                  payload.category_l3 = null;
+                }
               }
               if (!payload.category_l2) payload.category_l3 = null;
             }
@@ -2018,7 +2197,7 @@
       var _waV2Cols = true;                // v2 columns present? flipped off on PGRST204
       var _waTaxCols = true;               // migration 15 (category_l2/l3) present? flipped off on PGRST204
       var _wlItems = [], _wlLoaded = false, _wlTableMissing = false;
-      var _waRefine = { seasons: [], colors: [], types: [], fits: [], worn: 'all', brand: '' };
+      var _waRefine = { seasons: [], colors: [], types: [], itemTypes: [], fits: [], worn: 'all', brand: '' };
       var _waRefineOpen = false;
 
       const WA_SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter', 'Year-round'];
@@ -2077,10 +2256,12 @@
         if (r.worn === 'worn' && !(it.times_worn > 0)) return false;
         if (r.worn === 'never' && it.times_worn > 0) return false;
         if (r.colors.length && r.colors.indexOf(it.color) === -1) return false;
-        // Type = category_l2 (3-level taxonomy). Pre-migration pieces carry
-        // null and only match while no type is picked — same posture as a
-        // colour no piece wears, never a hidden-by-default state.
+        // Subcategory = category_l2, Item type = category_l3 (3-level
+        // taxonomy). Pre-migration pieces carry null and only match while no
+        // chip is picked — same posture as a colour no piece wears, never a
+        // hidden-by-default state.
         if (r.types.length && r.types.indexOf(it.category_l2) === -1) return false;
+        if (r.itemTypes.length && r.itemTypes.indexOf(it.category_l3) === -1) return false;
         if (r.brand && (it.brand || '') !== r.brand) return false;
         if (r.fits.length) {
           const f = (it.item_dna && it.item_dna.structural_dna && Array.isArray(it.item_dna.structural_dna.silhouette_fit))
@@ -2091,10 +2272,10 @@
       }
       function _waRefineCount() {
         const r = _waRefine;
-        return r.seasons.length + r.colors.length + r.types.length + r.fits.length + (r.brand ? 1 : 0) + (r.worn !== 'all' ? 1 : 0);
+        return r.seasons.length + r.colors.length + r.types.length + r.itemTypes.length + r.fits.length + (r.brand ? 1 : 0) + (r.worn !== 'all' ? 1 : 0);
       }
       function _waFilteredItems() {
-        return _waItems.filter(i => (_waCat === 'All' || i.category === _waCat) && _waMatchRefine(i));
+        return _waItems.filter(i => (_waCat === 'All' || _waSheetCatOf(i) === _waCat) && _waMatchRefine(i));
       }
 
       // "Coming soon" door — reuses the bundle's dialog like the affiliate CTA
@@ -2202,7 +2383,7 @@
         document.querySelectorAll('#wg-filters .wg-tab').forEach(p => p.classList.toggle('active', p.textContent === 'All'));
       };
       window.__waRefClear = function() {
-        _waRefine = { seasons: [], colors: [], types: [], fits: [], worn: 'all', brand: '' };
+        _waRefine = { seasons: [], colors: [], types: [], itemTypes: [], fits: [], worn: 'all', brand: '' };
         _waRender();
         _waRefineRender();
       };
@@ -2253,21 +2434,26 @@
           return '<button class="rb-ref-chip' + (on ? ' on' : '') + '" onclick="window.__waRefTog(\'' + kind + '\',\'' + _waEsc(label).replace(/'/g, '\\\'') + '\')">' + _waEsc(label) + '</button>';
         };
         const seasonChips = WA_SEASONS.map(s => chip('seasons', s, r.seasons.indexOf(s) !== -1)).join('');
-        // Type: the L2 subcategories her pieces actually carry (3-level
-        // taxonomy, migration 15), scoped to the active category tab so
-        // Shoes never offers "Jeans". Pre-migration wardrobes carry none —
-        // the section simply doesn't render. A type selected on another tab
-        // stays visible here regardless of scope: it still filters, so it
-        // must stay deselectable.
+        // Subcategory (L2) + Item type (L3): the taxonomy nodes her pieces
+        // actually carry (migration 15), scoped to the active category tab so
+        // Shoes never offers "Jeans"; item types additionally narrow to any
+        // selected subcategories. Pre-migration wardrobes carry none — the
+        // sections simply don't render. A chip selected on another tab stays
+        // visible regardless of scope: it still filters, so it must stay
+        // deselectable.
         const typeSet = [];
+        const l3Set = [];
         _waItems.forEach(function(i) {
-          if (!i.category_l2) return;
-          if (_waCat !== 'All' && i.category !== _waCat) return;
-          if (typeSet.indexOf(i.category_l2) === -1) typeSet.push(i.category_l2);
+          if (_waCat !== 'All' && _waSheetCatOf(i) !== _waCat) return;
+          if (i.category_l2 && typeSet.indexOf(i.category_l2) === -1) typeSet.push(i.category_l2);
+          if (i.category_l3 && (!r.types.length || r.types.indexOf(i.category_l2) !== -1) && l3Set.indexOf(i.category_l3) === -1) l3Set.push(i.category_l3);
         });
         r.types.forEach(function(t) { if (typeSet.indexOf(t) === -1) typeSet.push(t); });
+        r.itemTypes.forEach(function(t) { if (l3Set.indexOf(t) === -1) l3Set.push(t); });
         typeSet.sort();
+        l3Set.sort();
         const typeChips = typeSet.map(t => chip('types', t, r.types.indexOf(t) !== -1)).join('');
+        const l3Chips = l3Set.map(t => chip('itemTypes', t, r.itemTypes.indexOf(t) !== -1)).join('');
         // Colour: the FULL palette items are saved to (same set as the
         // add/edit modal), closed by the colour wheel — a custom pick maps
         // to the nearest palette colour. (Design handoff: don't limit the
@@ -2304,7 +2490,8 @@
         const n = _waFilteredItems().length;
         drawer.innerHTML = '<div class="rb-ref-grid">' +
           '<div><div class="rb-ref-lbl">Season</div><div class="rb-ref-chips">' + seasonChips + '</div></div>' +
-          (typeChips ? '<div><div class="rb-ref-lbl">Type</div><div class="rb-ref-chips">' + typeChips + '</div></div>' : '') +
+          (typeChips ? '<div><div class="rb-ref-lbl">Subcategory</div><div class="rb-ref-chips">' + typeChips + '</div></div>' : '') +
+          (l3Chips ? '<div><div class="rb-ref-lbl">Item type</div><div class="rb-ref-chips">' + l3Chips + '</div></div>' : '') +
           '<div><div class="rb-ref-lbl">Colour</div><div class="rb-ref-chips" style="gap:9px;max-width:252px">' + colorHtml + '</div></div>' +
           (fitChips ? '<div><div class="rb-ref-lbl">Silhouette &amp; fit</div><div class="rb-ref-chips">' + fitChips + '</div></div>' : '') +
           '<div><div class="rb-ref-lbl">Wear</div><div class="rb-ref-segwrap">' + wornOpts + '</div></div>' +
