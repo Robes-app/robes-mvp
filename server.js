@@ -7,6 +7,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { readFileSync } from 'fs';
 import { GoogleGenAI } from '@google/genai';
 import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock } from './style_dna.js';
+import { taxonomyPromptBlock, resolveTaxonomy } from './wardrobe_taxonomy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -2548,6 +2549,8 @@ const ANALYSE_SCHEMA = {
     no_item_detected: { type: 'boolean' },
     label:                { type: 'string' },
     category:             { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Swimwear', 'Other'] },
+    category_l2:          { type: 'string' },
+    category_l3:          { type: 'string' },
     color:                { type: 'string' },
     primary_color_hex:    { type: 'string' },
     editorial_color_name: { type: 'string' },
@@ -2555,7 +2558,7 @@ const ANALYSE_SCHEMA = {
     silhouette_fit:       { type: 'array', items: { type: 'string' } },
     ai_generated_notes:   { type: 'string' },
   },
-  required: ['no_item_detected', 'label', 'category', 'color', 'primary_color_hex', 'editorial_color_name', 'brand', 'silhouette_fit', 'ai_generated_notes'],
+  required: ['no_item_detected', 'label', 'category', 'category_l2', 'category_l3', 'color', 'primary_color_hex', 'editorial_color_name', 'brand', 'silhouette_fit', 'ai_generated_notes'],
 };
 
 app.post('/api/wardrobe/analyse', async (req, res) => {
@@ -2576,6 +2579,9 @@ IMPORTANT: If no clothing item, garment, or accessory is clearly visible (e.g. t
 If a clothing item IS present, set "no_item_detected": false and fill every field:
 "label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans")
 "category": one of — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other
+"category_l2" and "category_l3": file the piece in the Robes taxonomy below. Each line reads Category › Subcategory: item types. Pick the ONE line whose subcategory fits best, copy the subcategory name EXACTLY into category_l2, then copy the best-fitting item type from that line EXACTLY into category_l3. If no item type on the line fits, set category_l3 to "". If no subcategory fits at all, set both to "".
+TAXONOMY:
+${taxonomyPromptBlock()}
 "color": pick ONE from this list only —
   Foundations: White, Cream, Navy, Charcoal, Black, Espresso
   Dimension Builders: Camel, Taupe, Olive, Aubergine, Forest, Bordeaux, Blush
@@ -2588,7 +2594,7 @@ If a clothing item IS present, set "no_item_detected": false and fill every fiel
 "ai_generated_notes": one editorial sentence under 15 words` }
         ]
       }],
-      config: { responseMimeType: 'application/json', responseSchema: ANALYSE_SCHEMA, maxOutputTokens: 600, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
+      config: { responseMimeType: 'application/json', responseSchema: ANALYSE_SCHEMA, maxOutputTokens: 700, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
     });
 
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
@@ -2596,8 +2602,15 @@ If a clothing item IS present, set "no_item_detected": false and fill every fiel
     logAI({ feature: 'wardrobe_analyse', ms: Date.now() - t0, no_item_detected: parsed.no_item_detected, success: true });
 
     if (parsed.no_item_detected) {
-      return res.json({ noItemDetected: true, label: '', category: 'Other', color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, llm_styling_context: {}, ai_generated_notes: '' } });
+      return res.json({ noItemDetected: true, label: '', category: 'Other', category_l2: null, category_l3: null, color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, llm_styling_context: {}, ai_generated_notes: '' } });
     }
+
+    // 3-level taxonomy: validate the emitted (l2, l3) pair against the tree.
+    // A valid pair also DECIDES the legacy category (the deterministic fold in
+    // wardrobe_taxonomy.js) so `category` and `category_l2` can never disagree
+    // on a surface that filters both; an invalid pair degrades to the model's
+    // own single-level category with null L2/L3 — the pre-migration shape.
+    const tax = resolveTaxonomy(parsed.category_l2, parsed.category_l3);
 
     const item_dna = {
       display: {
@@ -2615,7 +2628,9 @@ If a clothing item IS present, set "no_item_detected": false and fill every fiel
 
     res.json({
       label: parsed.label || '',
-      category: parsed.category || 'Other',
+      category: tax ? tax.category : (parsed.category || 'Other'),
+      category_l2: tax ? tax.category_l2 : null,
+      category_l3: tax ? tax.category_l3 : null,
       color: parsed.color || '',
       brand: parsed.brand || '',
       notes: parsed.ai_generated_notes || '',
@@ -2624,7 +2639,7 @@ If a clothing item IS present, set "no_item_detected": false and fill every fiel
   } catch (err) {
     logAI({ feature: 'wardrobe_analyse', ms: Date.now() - t0, success: false, reason: err.message });
     console.error('[analyse] Gemini error:', err.message);
-    res.json({ analysisFailed: true, label: '', category: 'Other', color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, llm_styling_context: {}, ai_generated_notes: '' } });
+    res.json({ analysisFailed: true, label: '', category: 'Other', category_l2: null, category_l3: null, color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, llm_styling_context: {}, ai_generated_notes: '' } });
   }
 });
 

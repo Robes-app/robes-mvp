@@ -932,16 +932,29 @@
 
       P.tag = tag;
       if (up && up.url) P.url = up.url;
-      P.savePromise = sbClient.from('wardrobe_items').insert({
+      const row = {
         user_id: st.uid,
         label: tag.label,
         category: tag.category || 'Other',
+        category_l2: tag.category_l2 || null,
+        category_l3: tag.category_l3 || null,
         color: tag.color || null,
         brand: tag.brand || null,
         notes: tag.notes || null,
         image_url: P.url || null,
         item_dna: tag.item_dna || {},
-      }).then(({ error }) => {
+      };
+      P.savePromise = sbClient.from('wardrobe_items').insert(row).then(({ error }) => {
+        if (error && /category_l|column/i.test(error.message || '')) {
+          // Migration 15 not run — retry without the taxonomy columns.
+          delete row.category_l2;
+          delete row.category_l3;
+          return sbClient.from('wardrobe_items').insert(row).then(({ error: e2 }) => {
+            if (e2) { console.warn('Wardrobe save failed:', e2.message); return false; }
+            P.saved = true;
+            return true;
+          });
+        }
         if (error) { console.warn('Wardrobe save failed:', error.message); return false; }
         P.saved = true;
         return true;

@@ -1647,6 +1647,8 @@
 
           window.__waSawLabel = tag.label || '';
           window.__waSawCat   = tag.category || '';
+          window.__waSawL2    = tag.category_l2 || '';
+          window.__waSawL3    = tag.category_l3 || '';
           window.__waSawBrand = tag.brand || '';
           window.__waSawNotes = aiNotes;
           window.__waRetake   = function() { _showStep1(); };
@@ -1891,26 +1893,53 @@
               payload.hero_position  = det.hero ? (det.heroPos != null ? det.heroPos : _waHeroNextPos()) : null;
             }
 
-            let created = null;
-            try {
-              if (editId) {
-                await _waFetch('PATCH', 'wardrobe_items?id=eq.' + editId, payload);
-              } else {
-                created = await _waFetch('POST', 'wardrobe_items', payload);
+            // 3-level taxonomy (migration 15): a fresh add carries the analyse
+            // read; an edit carries the row's saved pair forward untouched.
+            const _TAX_KEYS = ['category_l2', 'category_l3'];
+            if (_waTaxCols) {
+              const prev = editId ? (_waItems.find(i => i.id === editId) || {}) : null;
+              payload.category_l2 = (prev ? prev.category_l2 : window.__waSawL2) || null;
+              payload.category_l3 = (prev ? prev.category_l3 : window.__waSawL3) || null;
+              // A manual category pick that contradicts the filed L2 drops the
+              // pair — L2 must never disagree with the L1 surfaces filter on.
+              const okCats = payload.category_l2 ? _WA_TAX_L2[payload.category_l2] : null;
+              if (payload.category_l2 && (!okCats || okCats.indexOf(payload.category) === -1)) {
+                payload.category_l2 = null;
+                payload.category_l3 = null;
               }
-            } catch (err) {
-              // Pre-migration Supabase rejects unknown columns (PGRST204) —
-              // strip the v2 fields, remember, and retry once so the core
-              // save never fails on a schema that hasn't caught up yet.
-              if (det && /PGRST204|column/i.test(String(err && err.message || err))) {
-                _waV2Cols = false;
-                _V2_KEYS.forEach(k => delete payload[k]);
+              if (!payload.category_l2) payload.category_l3 = null;
+            }
+
+            // Pre-migration Supabase rejects unknown columns (PGRST204) —
+            // strip the tier the error names (taxonomy cols are named in the
+            // message; otherwise the v2 fields), remember, and retry so the
+            // core save never fails on a schema that hasn't caught up yet.
+            // Each pass flips a flag off, so the loop is bounded at 2 retries.
+            let created = null;
+            for (;;) {
+              try {
                 if (editId) {
                   await _waFetch('PATCH', 'wardrobe_items?id=eq.' + editId, payload);
                 } else {
                   created = await _waFetch('POST', 'wardrobe_items', payload);
                 }
-              } else throw err;
+                break;
+              } catch (err) {
+                const msg = String(err && err.message || err);
+                if (/PGRST204|column/i.test(msg)) {
+                  if (_waTaxCols && /category_l[23]/.test(msg)) {
+                    _waTaxCols = false;
+                    _TAX_KEYS.forEach(k => delete payload[k]);
+                    continue;
+                  }
+                  if (det && _waV2Cols) {
+                    _waV2Cols = false;
+                    _V2_KEYS.forEach(k => delete payload[k]);
+                    continue;
+                  }
+                }
+                throw err;
+              }
             }
 
             if (!editId) _rbTrack('wardrobe_added', { label: payload.label || '', category: payload.category || '' });
@@ -1987,13 +2016,41 @@
       // callbacks) must see undefined/default, never throw (TDZ gotcha).
       var _waView = 'all';                 // 'all' | 'wishlist'
       var _waV2Cols = true;                // v2 columns present? flipped off on PGRST204
+      var _waTaxCols = true;               // migration 15 (category_l2/l3) present? flipped off on PGRST204
       var _wlItems = [], _wlLoaded = false, _wlTableMissing = false;
-      var _waRefine = { seasons: [], colors: [], fits: [], worn: 'all', brand: '' };
+      var _waRefine = { seasons: [], colors: [], types: [], fits: [], worn: 'all', brand: '' };
       var _waRefineOpen = false;
 
       const WA_SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter', 'Year-round'];
       const WA_OCCASIONS = ['Everyday', 'Work', 'Evening', 'Travel'];
       const _WA_HERO_CAP = 10;
+
+      // 3-level taxonomy (migration 15): every L2 subcategory → the legacy
+      // categories its item types fold into (wardrobe_taxonomy.js is the
+      // source of truth — split L2s like Cardigans span two). Used to drop a
+      // saved L2/L3 pair when a manual category edit contradicts it: an L2
+      // must never disagree with the L1 the surfaces filter on.
+      const _WA_TAX_L2 = {
+        "T-shirts & tees": ["Tops"], "Shirts & blouses": ["Tops"], "Camisoles & sleeveless": ["Tops"],
+        "Bodysuits": ["Tops"], "Statement tops": ["Tops"], "Sweatshirts & hoodies": ["Tops"],
+        "Jumpers & sweaters": ["Tops"], "Cardigans": ["Tops","Outerwear"], "Vests & waistcoats": ["Tops"],
+        "Knit separates & sets": ["Dresses","Other","Bottoms"], "Trousers": ["Bottoms"], "Jeans": ["Bottoms"],
+        "Skirts": ["Bottoms"], "Shorts": ["Bottoms"], "Day dresses": ["Dresses"],
+        "Occasion & evening": ["Dresses"], "Jumpsuits & playsuits": ["Dresses"], "Co-ord sets": ["Other"],
+        "Coats": ["Outerwear"], "Jackets": ["Outerwear"], "Blazers": ["Outerwear"],
+        "Gilets & waistcoats": ["Outerwear"], "Suit separates": ["Outerwear","Bottoms"], "Full suits": ["Other"],
+        "Flats": ["Shoes"], "Heels": ["Shoes"], "Sandals": ["Shoes"],
+        "Boots": ["Shoes"], "Trainers": ["Shoes"], "Everyday bags": ["Bags"],
+        "Occasion bags": ["Bags"], "Travel & utility": ["Bags"], "Small leather goods": ["Bags"],
+        "Belts": ["Accessories"], "Scarves & wraps": ["Accessories"], "Hats & headwear": ["Accessories"],
+        "Eyewear": ["Accessories"], "Gloves & hosiery": ["Accessories"], "Other accessories": ["Accessories"],
+        "Necklaces": ["Accessories"], "Earrings": ["Accessories"], "Bracelets & rings": ["Accessories"],
+        "Watches & pins": ["Accessories"], "Active tops": ["Tops","Outerwear"], "Active bottoms": ["Bottoms"],
+        "Active layers & sets": ["Outerwear","Other","Tops"], "Sport-specific": ["Other"], "Loungewear": ["Other","Bottoms","Tops"],
+        "Sleepwear": ["Other"], "Slippers": ["Shoes"], "Bras": ["Other"],
+        "Briefs": ["Other"], "Shapewear & base layers": ["Other"], "Swimwear": ["Swimwear"],
+        "Cover-ups": ["Swimwear"],
+      };
 
       function _waSeasonNow() {
         const m = new Date().getMonth();
@@ -2020,6 +2077,10 @@
         if (r.worn === 'worn' && !(it.times_worn > 0)) return false;
         if (r.worn === 'never' && it.times_worn > 0) return false;
         if (r.colors.length && r.colors.indexOf(it.color) === -1) return false;
+        // Type = category_l2 (3-level taxonomy). Pre-migration pieces carry
+        // null and only match while no type is picked — same posture as a
+        // colour no piece wears, never a hidden-by-default state.
+        if (r.types.length && r.types.indexOf(it.category_l2) === -1) return false;
         if (r.brand && (it.brand || '') !== r.brand) return false;
         if (r.fits.length) {
           const f = (it.item_dna && it.item_dna.structural_dna && Array.isArray(it.item_dna.structural_dna.silhouette_fit))
@@ -2030,7 +2091,7 @@
       }
       function _waRefineCount() {
         const r = _waRefine;
-        return r.seasons.length + r.colors.length + r.fits.length + (r.brand ? 1 : 0) + (r.worn !== 'all' ? 1 : 0);
+        return r.seasons.length + r.colors.length + r.types.length + r.fits.length + (r.brand ? 1 : 0) + (r.worn !== 'all' ? 1 : 0);
       }
       function _waFilteredItems() {
         return _waItems.filter(i => (_waCat === 'All' || i.category === _waCat) && _waMatchRefine(i));
@@ -2141,7 +2202,7 @@
         document.querySelectorAll('#wg-filters .wg-tab').forEach(p => p.classList.toggle('active', p.textContent === 'All'));
       };
       window.__waRefClear = function() {
-        _waRefine = { seasons: [], colors: [], fits: [], worn: 'all', brand: '' };
+        _waRefine = { seasons: [], colors: [], types: [], fits: [], worn: 'all', brand: '' };
         _waRender();
         _waRefineRender();
       };
@@ -2192,6 +2253,21 @@
           return '<button class="rb-ref-chip' + (on ? ' on' : '') + '" onclick="window.__waRefTog(\'' + kind + '\',\'' + _waEsc(label).replace(/'/g, '\\\'') + '\')">' + _waEsc(label) + '</button>';
         };
         const seasonChips = WA_SEASONS.map(s => chip('seasons', s, r.seasons.indexOf(s) !== -1)).join('');
+        // Type: the L2 subcategories her pieces actually carry (3-level
+        // taxonomy, migration 15), scoped to the active category tab so
+        // Shoes never offers "Jeans". Pre-migration wardrobes carry none —
+        // the section simply doesn't render. A type selected on another tab
+        // stays visible here regardless of scope: it still filters, so it
+        // must stay deselectable.
+        const typeSet = [];
+        _waItems.forEach(function(i) {
+          if (!i.category_l2) return;
+          if (_waCat !== 'All' && i.category !== _waCat) return;
+          if (typeSet.indexOf(i.category_l2) === -1) typeSet.push(i.category_l2);
+        });
+        r.types.forEach(function(t) { if (typeSet.indexOf(t) === -1) typeSet.push(t); });
+        typeSet.sort();
+        const typeChips = typeSet.map(t => chip('types', t, r.types.indexOf(t) !== -1)).join('');
         // Colour: the FULL palette items are saved to (same set as the
         // add/edit modal), closed by the colour wheel — a custom pick maps
         // to the nearest palette colour. (Design handoff: don't limit the
@@ -2228,6 +2304,7 @@
         const n = _waFilteredItems().length;
         drawer.innerHTML = '<div class="rb-ref-grid">' +
           '<div><div class="rb-ref-lbl">Season</div><div class="rb-ref-chips">' + seasonChips + '</div></div>' +
+          (typeChips ? '<div><div class="rb-ref-lbl">Type</div><div class="rb-ref-chips">' + typeChips + '</div></div>' : '') +
           '<div><div class="rb-ref-lbl">Colour</div><div class="rb-ref-chips" style="gap:9px;max-width:252px">' + colorHtml + '</div></div>' +
           (fitChips ? '<div><div class="rb-ref-lbl">Silhouette &amp; fit</div><div class="rb-ref-chips">' + fitChips + '</div></div>' : '') +
           '<div><div class="rb-ref-lbl">Wear</div><div class="rb-ref-segwrap">' + wornOpts + '</div></div>' +
@@ -15585,16 +15662,27 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             let tries = 0;
             while (!_waUid() && tries++ < 20) await new Promise(r => setTimeout(r, 250));
             if (!_waUid()) return;
-            await _waFetch('POST', 'wardrobe_items', {
+            const row = {
               user_id: _waUid(),
               label,
               category: (tag && tag.category) || 'Other',
+              category_l2: (tag && tag.category_l2) || null,
+              category_l3: (tag && tag.category_l3) || null,
               color: (tag && tag.color) || null,
               brand: (tag && tag.brand) || null,
               notes: (tag && tag.notes) || null,
               image_url: (up && up.url) || null,
               item_dna: (tag && tag.item_dna) || undefined,
-            });
+            };
+            try {
+              await _waFetch('POST', 'wardrobe_items', row);
+            } catch (err) {
+              // Migration 15 not run — retry without the taxonomy columns.
+              if (!/PGRST204|column/i.test(String(err && err.message || err))) throw err;
+              delete row.category_l2;
+              delete row.category_l3;
+              await _waFetch('POST', 'wardrobe_items', row);
+            }
             await _waLoad();
             console.log('[robes] onboarding key piece saved to wardrobe:', label);
           } catch (e) { console.warn('[robes] onboarding wardrobe persist failed:', e); }
