@@ -562,18 +562,29 @@ const browser = await chromium.launch(
   check('refine · four groups in order — Season / Wear it for / Colour / Brand',
     ref.labels.length === 4 && /Season/.test(ref.labels[0]) && /Wear it for/i.test(ref.labels[1]) && /Colour/.test(ref.labels[2]) && /Brand/.test(ref.labels[3]),
     ref.labels.join('|'));
-  check('refine · wear chips = vocabulary + owned free tags, no Everyday',
-    ref.wear.join('|') === 'Work|Evening|Occasion|Travel|Active|Skiing', ref.wear.join('|'));
+  check('refine · wear chips = Everyday + vocabulary + owned free tags',
+    ref.wear.join('|') === 'Everyday|Work|Evening|Occasion|Travel|Active|Skiing', ref.wear.join('|'));
   check('refine · full palette, no wheel', ref.sw === 21 && !ref.wheel, String(ref.sw));
   check('refine · worn / fits sections gone', !ref.worn && !ref.fits);
   check('refine · Show-N footer', ref.foot);
-  await page.click('#rb-refine .rb-ref-chip.ctx:has-text("Work")');
+  // row-1 carries Everyday, row-2 is untagged (= Everyday), row-3 is
+  // Work/Skiing only — an "Occasion" pick keeps the two everyday pieces
+  // and hides the mismatched tagged one (the Year-round posture).
+  await page.click('#rb-refine .rb-ref-chip.ctx:has-text("Occasion")');
   await page.waitForTimeout(200);
   const wearFiltered = await page.evaluate(() => ({
     grid: document.querySelectorAll('#wg-grid .wg-item:not(.rb-add-card):not(.rb-ghost-card)').length,
-    foot: /Show 1 piece/.test(document.getElementById('rb-refine')?.textContent || ''),
+    foot: /Show 2 pieces/.test(document.getElementById('rb-refine')?.textContent || ''),
   }));
-  check('refine · Wear-it-for pick filters on occasions', wearFiltered.grid === 1 && wearFiltered.foot, JSON.stringify(wearFiltered));
+  check('refine · wear pick keeps Everyday/untagged, hides mismatched tags', wearFiltered.grid === 2 && wearFiltered.foot, JSON.stringify(wearFiltered));
+  await page.click('#rb-refine .rb-ref-chip.ctx:has-text("Occasion")');
+  await page.waitForTimeout(200);
+  // A Work pick keeps everything: the Work piece plus both everyday pieces
+  await page.click('#rb-refine .rb-ref-chip.ctx:has-text("Work")');
+  await page.waitForTimeout(200);
+  const wearAll = await page.evaluate(() =>
+    document.querySelectorAll('#wg-grid .wg-item:not(.rb-add-card):not(.rb-ghost-card)').length);
+  check('refine · Everyday pieces pass any wear pick', wearAll === 3, String(wearAll));
   await page.click('#rb-refine .rb-ref-chip.ctx:has-text("Work")');
   await page.waitForTimeout(200);
   await page.click('#rb-refine .rb-sw[aria-label="Navy"]');

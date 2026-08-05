@@ -2566,6 +2566,12 @@
         const s = _waItemSeasons(it);
         return s.indexOf('Year-round') !== -1 || s.indexOf(_waSeasonNow()) !== -1;
       }
+      // Untagged pieces are Everyday — the same posture as Year-round on
+      // the season axis. Most of the catalogue starts untagged, and a wear
+      // filter that hid it all would read as broken, not strict.
+      function _waItemWear(it) {
+        return (Array.isArray(it.occasions) && it.occasions.length) ? it.occasions : ['Everyday'];
+      }
 
       function _waMatchRefine(it) {
         const r = _waRefine;
@@ -2575,13 +2581,12 @@
           if (s.indexOf('Year-round') === -1 && !r.seasons.some(x => s.indexOf(x) !== -1)) return false;
         }
         if (r.colors.length && r.colors.indexOf(it.color) === -1) return false;
-        // Wear it for filters on the occasions axis. Untagged pieces are
-        // hidden while a pick is active — "Everyday" is the default state,
-        // not a tag, so an untagged piece isn't "for work" specifically
-        // (deliberately NOT the seasons posture, where untagged=Year-round).
+        // Wear it for filters on the occasions axis with the Year-round
+        // posture (founder call 2026-08-05): untagged = Everyday, and an
+        // Everyday piece passes any pick — she wears it for anything.
         if (r.wear.length) {
-          const o = Array.isArray(it.occasions) ? it.occasions : [];
-          if (!r.wear.some(x => o.indexOf(x) !== -1)) return false;
+          const o = _waItemWear(it);
+          if (o.indexOf('Everyday') === -1 && !r.wear.some(x => o.indexOf(x) !== -1)) return false;
         }
         if (r.brand && (it.brand || '') !== r.brand) return false;
         return true;
@@ -2739,12 +2744,13 @@
           return '<button class="rb-ref-chip' + (axis ? ' ' + axis : '') + (on ? ' on' : '') + '" onclick="window.__waRefTog(\'' + kind + '\',\'' + _waEsc(label).replace(/'/g, '\\\'') + '\')">' + _waEsc(label) + '</button>';
         };
         const seasonChips = WA_SEASONS.map(s => chip('seasons', s, r.seasons.indexOf(s) !== -1, 'sea')).join('');
-        // Wear it for — the context vocabulary + any free tags her pieces
-        // actually carry (a custom "Skiing" must stay filterable), + any
-        // selected-elsewhere value so a pick is always deselectable.
-        const wearSet = WA_OCCASIONS.slice();
+        // Wear it for — Everyday leads (the untagged default, filterable
+        // like Year-round), then the context vocabulary + any free tags her
+        // pieces actually carry (a custom "Skiing" must stay filterable),
+        // + any selected-elsewhere value so a pick is always deselectable.
+        const wearSet = ['Everyday'].concat(WA_OCCASIONS);
         _waItems.forEach(i => (Array.isArray(i.occasions) ? i.occasions : []).forEach(o => {
-          if (o !== 'Everyday' && wearSet.indexOf(o) === -1) wearSet.push(o);
+          if (wearSet.indexOf(o) === -1) wearSet.push(o);
         }));
         r.wear.forEach(w => { if (wearSet.indexOf(w) === -1) wearSet.push(w); });
         const wearChips = wearSet.map(w => chip('wear', w, r.wear.indexOf(w) !== -1, 'ctx')).join('');
