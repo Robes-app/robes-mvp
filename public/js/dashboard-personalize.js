@@ -2508,11 +2508,12 @@
       var _waV2Cols = true;                // v2 columns present? flipped off on PGRST204
       var _waTaxCols = true;               // migration 15 (category_l2/l3) present? flipped off on PGRST204
       var _wlItems = [], _wlLoaded = false, _wlTableMissing = false;
-      // Refine holds three things (redesign 2026-08-05): season, colour,
-      // brand. Category / subcategory / item type live in the tab cascade
-      // (_waDrill), silhouette & fit is cut, worn/never retired (the
-      // Never-worn badge on the card carries that signal).
-      var _waRefine = { seasons: [], colors: [], brand: '' };
+      // Refine holds four things (redesign 2026-08-05 + same-day design
+      // follow-up): season, wear-it-for, colour, brand. Category /
+      // subcategory / item type live in the tab cascade (_waDrill),
+      // silhouette & fit is cut, worn/never retired (the Never-worn badge
+      // on the card carries that signal).
+      var _waRefine = { seasons: [], colors: [], wear: [], brand: '' };
       var _waRefineOpen = false;
       // The browse drill — Subcategory › Item type picked through the
       // category tabs' cascade, scoped to the active sheet-L1 tab.
@@ -2574,12 +2575,20 @@
           if (s.indexOf('Year-round') === -1 && !r.seasons.some(x => s.indexOf(x) !== -1)) return false;
         }
         if (r.colors.length && r.colors.indexOf(it.color) === -1) return false;
+        // Wear it for filters on the occasions axis. Untagged pieces are
+        // hidden while a pick is active — "Everyday" is the default state,
+        // not a tag, so an untagged piece isn't "for work" specifically
+        // (deliberately NOT the seasons posture, where untagged=Year-round).
+        if (r.wear.length) {
+          const o = Array.isArray(it.occasions) ? it.occasions : [];
+          if (!r.wear.some(x => o.indexOf(x) !== -1)) return false;
+        }
         if (r.brand && (it.brand || '') !== r.brand) return false;
         return true;
       }
       function _waRefineCount() {
         const r = _waRefine;
-        return r.seasons.length + r.colors.length + (r.brand ? 1 : 0);
+        return r.seasons.length + r.colors.length + r.wear.length + (r.brand ? 1 : 0);
       }
       function _waFilteredItems() {
         // Category tab, then the cascade drill (Subcategory › Item type —
@@ -2702,7 +2711,7 @@
         document.querySelectorAll('#wg-filters .wg-tab').forEach(p => p.classList.toggle('active', (p.dataset.cat || p.textContent) === 'All'));
       };
       window.__waRefClear = function() {
-        _waRefine = { seasons: [], colors: [], brand: '' };
+        _waRefine = { seasons: [], colors: [], wear: [], brand: '' };
         _waRender();
         _waRefineRender();
       };
@@ -2726,10 +2735,19 @@
         if (!_waRefineOpen || _waView !== 'all') { drawer.style.display = 'none'; return; }
         drawer.style.display = '';
         const r = _waRefine;
-        const chip = function(kind, label, on) {
-          return '<button class="rb-ref-chip' + (on ? ' on' : '') + '" onclick="window.__waRefTog(\'' + kind + '\',\'' + _waEsc(label).replace(/'/g, '\\\'') + '\')">' + _waEsc(label) + '</button>';
+        const chip = function(kind, label, on, axis) {
+          return '<button class="rb-ref-chip' + (axis ? ' ' + axis : '') + (on ? ' on' : '') + '" onclick="window.__waRefTog(\'' + kind + '\',\'' + _waEsc(label).replace(/'/g, '\\\'') + '\')">' + _waEsc(label) + '</button>';
         };
-        const seasonChips = WA_SEASONS.map(s => chip('seasons', s, r.seasons.indexOf(s) !== -1)).join('');
+        const seasonChips = WA_SEASONS.map(s => chip('seasons', s, r.seasons.indexOf(s) !== -1, 'sea')).join('');
+        // Wear it for — the context vocabulary + any free tags her pieces
+        // actually carry (a custom "Skiing" must stay filterable), + any
+        // selected-elsewhere value so a pick is always deselectable.
+        const wearSet = WA_OCCASIONS.slice();
+        _waItems.forEach(i => (Array.isArray(i.occasions) ? i.occasions : []).forEach(o => {
+          if (o !== 'Everyday' && wearSet.indexOf(o) === -1) wearSet.push(o);
+        }));
+        r.wear.forEach(w => { if (wearSet.indexOf(w) === -1) wearSet.push(w); });
+        const wearChips = wearSet.map(w => chip('wear', w, r.wear.indexOf(w) !== -1, 'ctx')).join('');
         // Colour: the FULL palette items are saved to (same set as the
         // add/edit form's popover) + any off-palette colours old rows carry.
         const ownColors = [];
@@ -2749,12 +2767,17 @@
         const brandOpts = '<option value="">All brands</option>' + brands.map(b =>
           '<option value="' + _waEsc(b) + '"' + (r.brand === b ? ' selected' : '') + '>' + _waEsc(b) + '</option>').join('');
         const n = _waFilteredItems().length;
+        // DOM order is the MOBILE order (Season, Wear it for, Colour,
+        // Brand — the sheet stacks it); desktop re-places the sections via
+        // grid areas: Season | Colour | Brand on the first row, Wear it for
+        // full-width above the footer (design screen 08).
         drawer.innerHTML =
           '<div class="rb-ref-mhead"><span>Refine</span><button onclick="window.__waRefToggle()" aria-label="Close">✕</button></div>' +
-          '<div class="rb-ref-grid">' +
-          '<div><div class="rb-ref-lbl">Season</div><div class="rb-ref-chips">' + seasonChips + '</div></div>' +
-          '<div><div class="rb-ref-lbl">Colour' + colNote + '</div><div class="rb-ref-chips" style="gap:11px;max-width:300px">' + colorHtml + '</div></div>' +
-          (brands.length ? '<div><div class="rb-ref-lbl">Brand</div><select class="rb-ref-select" onchange="window.__waRefBrand(this)">' + brandOpts + '</select></div>' : '') +
+          '<div class="rb-ref-grid' + (brands.length ? '' : ' nobrand') + '">' +
+          '<div class="rb-ref-sec sea"><div class="rb-ref-lbl">Season</div><div class="rb-ref-chips">' + seasonChips + '</div></div>' +
+          '<div class="rb-ref-sec wear"><div class="rb-ref-lbl">Wear it for</div><div class="rb-ref-chips">' + wearChips + '</div></div>' +
+          '<div class="rb-ref-sec col"><div class="rb-ref-lbl">Colour' + colNote + '</div><div class="rb-ref-chips" style="gap:11px;max-width:300px">' + colorHtml + '</div></div>' +
+          (brands.length ? '<div class="rb-ref-sec brand"><div class="rb-ref-lbl">Brand</div><select class="rb-ref-select" onchange="window.__waRefBrand(this)">' + brandOpts + '</select></div>' : '') +
           '</div>' +
           '<div class="rb-ref-foot">' +
             '<button onclick="window.__waRefClear()" style="border:none;background:none;color:var(--ink-faint);font-size:11.5px;cursor:pointer;font-family:inherit;letter-spacing:.03em;padding:0">Clear all</button>' +
@@ -3163,11 +3186,20 @@
             '#rb-refine{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:18px 20px;margin:0 0 24px}',
             '.rb-ref-mhead{display:none}',
             '.rb-ref-note{font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint);text-transform:none;letter-spacing:0;font-weight:300;margin-left:8px}',
-            '.rb-ref-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:20px 28px}',
+            '.rb-ref-grid{display:grid;grid-template-columns:1fr 1.4fr 1fr;grid-template-areas:"sea col brand" "wear wear wear";gap:20px 28px}',
+            '.rb-ref-grid.nobrand{grid-template-columns:1fr 1.4fr;grid-template-areas:"sea col" "wear wear"}',
+            '.rb-ref-sec.sea{grid-area:sea}',
+            '.rb-ref-sec.col{grid-area:col}',
+            '.rb-ref-sec.brand{grid-area:brand}',
+            '.rb-ref-sec.wear{grid-area:wear;border-top:0.5px solid var(--rule);padding-top:18px}',
             '.rb-ref-lbl{font-size:9.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px}',
             '.rb-ref-chips{display:flex;flex-wrap:wrap;gap:7px;align-items:center}',
             '.rb-ref-chip{padding:6px 13px;border:0.5px solid var(--rule-mid);background:#fff;border-radius:100px;font-size:11.5px;color:var(--ink-soft);cursor:pointer;font-family:inherit;transition:all .15s}',
             '.rb-ref-chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}',
+            // The two tag axes keep their form tints in the filter too —
+            // Season sage, Wear-it-for rose (never one merged control)
+            '.rb-ref-chip.sea.on{background:#E3E1CC;border-color:#E3E1CC;color:var(--ink)}',
+            '.rb-ref-chip.ctx.on{background:#D4C8C4;border-color:#D4C8C4;color:var(--ink)}',
             '.rb-sw{width:26px;height:26px;border-radius:100px;border:none;cursor:pointer;position:relative;box-shadow:inset 0 1px 3px rgba(0,0,0,.15),0 0 0 1px rgba(0,0,0,.07);padding:0;flex-shrink:0}',
             '.rb-sw.on{outline:2px solid var(--ink);outline-offset:2px}',
             '.rb-ref-select{width:100%;max-width:210px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);padding:9px 12px;font-size:12.5px;background:#fff;color:var(--ink);font-family:inherit;cursor:pointer}',
@@ -3238,7 +3270,7 @@
             // decorative ghost tiles behind the add card at zero pieces
             '.rb-ghost-card{aspect-ratio:3/4;border-radius:var(--rad);border:1px dashed var(--rule);pointer-events:none}',
             // mobile
-            '@media(max-width:767px){.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-refine{position:fixed;left:0;right:0;bottom:0;z-index:960;margin:0;border-radius:18px 18px 0 0;max-height:80vh;overflow-y:auto;box-shadow:0 -14px 40px rgba(32,32,33,.22)}.rb-ref-mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-family:var(--font-serif);font-weight:300;font-size:24px;color:var(--ink)}.rb-ref-mhead button{background:none;border:none;font-size:16px;color:var(--ink);cursor:pointer;font-family:inherit;padding:2px 4px}}'
+            '@media(max-width:767px){.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-refine{position:fixed;left:0;right:0;bottom:0;z-index:960;margin:0;border-radius:18px 18px 0 0;max-height:80vh;overflow-y:auto;box-shadow:0 -14px 40px rgba(32,32,33,.22)}.rb-ref-mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-family:var(--font-serif);font-weight:300;font-size:24px;color:var(--ink)}.rb-ref-grid{display:flex;flex-direction:column;gap:18px}.rb-ref-sec{border-top:1px solid #EFE9DC;padding-top:16px}.rb-ref-sec.sea{border-top:none;padding-top:0}.rb-ref-sec.wear{border-top:1px solid #EFE9DC;padding-top:16px}.rb-ref-foot{flex-direction:column-reverse;align-items:stretch;gap:12px}.rb-ref-foot .rb-wg-cta{width:100%;padding:15px}.rb-ref-foot button:first-child{align-self:center}.rb-ref-mhead button{background:none;border:none;font-size:16px;color:var(--ink);cursor:pointer;font-family:inherit;padding:2px 4px}}'
           ].join('\n');
           document.head.appendChild(st);
         }

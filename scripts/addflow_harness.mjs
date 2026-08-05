@@ -72,7 +72,7 @@ const TAG_TAX = {
 const ROWS = [
   { id: 'row-1', user_id: 'u-test', label: 'Blue skinny jeans', category: 'Bottoms', category_l2: 'Jeans', category_l3: 'Skinny jeans', color: 'Navy', brand: 'Levi’s', notes: '', image_url: null, times_worn: 2, item_dna: {}, seasons: ['Summer'], occasions: ['Everyday', 'Travel'], hero_position: 1, created_at: '2026-08-01' },
   { id: 'row-2', user_id: 'u-test', label: 'Wide-leg jeans', category: 'Bottoms', category_l2: 'Jeans', category_l3: 'Wide-leg jeans', color: 'Black', brand: 'Arket', notes: '', image_url: null, times_worn: 0, item_dna: {}, seasons: [], occasions: [], hero_position: null, created_at: '2026-08-02' },
-  { id: 'row-3', user_id: 'u-test', label: 'White tee', category: 'Tops', category_l2: 'T-shirts & tees', category_l3: 'Classic crewneck tee', color: 'White', brand: 'Cos', notes: '', image_url: null, times_worn: 5, item_dna: {}, seasons: [], occasions: [], hero_position: null, created_at: '2026-08-03' },
+  { id: 'row-3', user_id: 'u-test', label: 'White tee', category: 'Tops', category_l2: 'T-shirts & tees', category_l3: 'Classic crewneck tee', color: 'White', brand: 'Cos', notes: '', image_url: null, times_worn: 5, item_dna: {}, seasons: [], occasions: ['Work', 'Skiing'], hero_position: null, created_at: '2026-08-03' },
 ];
 
 const results = [];
@@ -552,18 +552,30 @@ const browser = await chromium.launch(
   await page.waitForTimeout(200);
   const ref = await page.evaluate(() => ({
     labels: Array.from(document.querySelectorAll('#rb-refine .rb-ref-lbl')).map((l) => l.textContent.trim().split('\n')[0]),
+    wear: Array.from(document.querySelectorAll('#rb-refine .rb-ref-chip.ctx')).map((c) => c.textContent),
     sw: document.querySelectorAll('#rb-refine .rb-sw').length,
     wheel: !!document.querySelector('#rb-refine .rb-sw-wheel'),
     worn: /Never worn/.test(document.getElementById('rb-refine')?.textContent || ''),
     fits: /Silhouette/.test(document.getElementById('rb-refine')?.textContent || ''),
-    types: /Subcategory|Item type/.test(document.getElementById('rb-refine')?.textContent || ''),
     foot: /Show 3 pieces/.test(document.getElementById('rb-refine')?.textContent || ''),
   }));
-  check('refine · Season / Colour / Brand only', ref.labels.length === 3 && /Season/.test(ref.labels[0]) && /Colour/.test(ref.labels[1]) && /Brand/.test(ref.labels[2]),
+  check('refine · four groups in order — Season / Wear it for / Colour / Brand',
+    ref.labels.length === 4 && /Season/.test(ref.labels[0]) && /Wear it for/i.test(ref.labels[1]) && /Colour/.test(ref.labels[2]) && /Brand/.test(ref.labels[3]),
     ref.labels.join('|'));
+  check('refine · wear chips = vocabulary + owned free tags, no Everyday',
+    ref.wear.join('|') === 'Work|Evening|Occasion|Travel|Active|Skiing', ref.wear.join('|'));
   check('refine · full palette, no wheel', ref.sw === 21 && !ref.wheel, String(ref.sw));
-  check('refine · worn / fits / taxonomy sections gone', !ref.worn && !ref.fits && !ref.types);
+  check('refine · worn / fits sections gone', !ref.worn && !ref.fits);
   check('refine · Show-N footer', ref.foot);
+  await page.click('#rb-refine .rb-ref-chip.ctx:has-text("Work")');
+  await page.waitForTimeout(200);
+  const wearFiltered = await page.evaluate(() => ({
+    grid: document.querySelectorAll('#wg-grid .wg-item:not(.rb-add-card):not(.rb-ghost-card)').length,
+    foot: /Show 1 piece/.test(document.getElementById('rb-refine')?.textContent || ''),
+  }));
+  check('refine · Wear-it-for pick filters on occasions', wearFiltered.grid === 1 && wearFiltered.foot, JSON.stringify(wearFiltered));
+  await page.click('#rb-refine .rb-ref-chip.ctx:has-text("Work")');
+  await page.waitForTimeout(200);
   await page.click('#rb-refine .rb-sw[aria-label="Navy"]');
   await page.waitForTimeout(200);
   const refFiltered = await page.evaluate(() => ({
@@ -607,9 +619,15 @@ const browser = await chromium.launch(
   const mref = await page.evaluate(() => {
     const d = document.getElementById('rb-refine');
     const cs = d ? getComputedStyle(d) : null;
-    return { fixed: cs ? cs.position : '', head: !!document.querySelector('.rb-ref-mhead') && getComputedStyle(document.querySelector('.rb-ref-mhead')).display !== 'none' };
+    return {
+      fixed: cs ? cs.position : '',
+      head: !!document.querySelector('.rb-ref-mhead') && getComputedStyle(document.querySelector('.rb-ref-mhead')).display !== 'none',
+      labels: Array.from(document.querySelectorAll('#rb-refine .rb-ref-lbl')).map((l) => l.textContent.trim().split('\n')[0]).slice(0, 2),
+    };
   });
   check('mobile · refine opens as a bottom sheet with its header', mref.fixed === 'fixed' && mref.head, JSON.stringify(mref));
+  check('mobile · Wear-it-for sits after Season in the sheet', /Season/.test(mref.labels[0] || '') && /Wear it for/i.test(mref.labels[1] || ''),
+    mref.labels.join('|'));
   check('no page errors (mobile)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
