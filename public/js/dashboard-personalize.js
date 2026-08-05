@@ -410,33 +410,18 @@
         }
         return _WA_SHEET_DEFAULT_LEGACY[sheet] || 'Other';
       }
-      // Cascading Category / Subcategory / Item type selects — shared by the
-      // add flow's step-3 editor and the edit modal. State: __waSawTaxSel
-      // {sheet, l2, l3}, null when the tree isn't available (legacy UI).
-      function _waTaxOptions(list, sel, emptyLabel) {
-        return '<option value="">' + emptyLabel + '</option>' +
-          list.map(v => '<option' + (v === sel ? ' selected' : '') + '>' + _waEsc(v) + '</option>').join('');
-      }
-      function _waTaxPaintSelects() {
-        const s = window.__waSawTaxSel;
-        if (!s) return;
-        const l2El = document.getElementById('wa-saw-l2');
-        const l3El = document.getElementById('wa-saw-l3');
-        if (l2El) l2El.innerHTML = _waTaxOptions(s.sheet ? _waTaxL2s(s.sheet) : [], s.l2, s.sheet ? 'Choose…' : '—');
-        if (l3El) {
-          l3El.innerHTML = _waTaxOptions(s.l2 ? _waTaxL3s(s.l2) : [], s.l3, s.l2 ? 'Choose…' : '—');
-          l3El.disabled = !s.l2;
-        }
-      }
+      // Cascading Category / Subcategory / Item type picks — shared by the
+      // add/edit form's custom pickers (add/edit redesign 2026-08-05: no
+      // native OS dropdown for category). State: __waSawTaxSel {sheet, l2,
+      // l3}, null when the tree isn't available (legacy category list).
       function _waTaxSync() {
         const s = window.__waSawTaxSel;
         if (!s) return;
-        _waTaxPaintSelects();
         // Keep the legacy-facing state in step (hidden #wa-cat + save payload).
         window.__waSawCat = _waTaxLegacy(s.sheet, s.l2, s.l3);
         window.__waSawL2  = s.l2;
         window.__waSawL3  = s.l3;
-        if (window.__rbSawSync) window.__rbSawSync(1, s.l3 ? s.sheet + ' · ' + s.l3 : (s.sheet || '—'));
+        if (window.__waFormRepaint) window.__waFormRepaint();
       }
       window.__waTaxCatChange = function(v) {
         const s = window.__waSawTaxSel;
@@ -482,6 +467,16 @@
         { name: 'Multi',      hex: null,      tier: 'Exclamation Points' },
         { name: 'Print',      hex: null,      tier: 'Exclamation Points' },
       ];
+      // One background rule per colour name — the form's single swatch, the
+      // Change popover and the Refine grid all draw the same dot. Unknown
+      // names (old rows saved before the palette) get a quiet cream disc.
+      function _waSwatchBg(name) {
+        const sw = _ALL_SWATCHES.find(s => s.name === name);
+        if (sw && sw.hex) return 'background:' + sw.hex + (sw.hex === '#FFFFFF' ? ';box-shadow:inset 0 0 0 1px #D8CFC0' : '');
+        if (name === 'Multi') return 'background:conic-gradient(#FF1493,#FF4500,#E1FD2E,#00A86B,#0047AB,#4B0082,#FF1493)';
+        if (name === 'Print') return 'background:repeating-linear-gradient(45deg,#EDE8E0 0 3px,#A89880 3px 4px)';
+        return 'background:#EFE9DC;box-shadow:inset 0 0 0 1px #E7E0CF';
+      }
 
       let _waItems = [], _waCat = 'All', _waEditId = null;
       // One-shot callback fired after a NEW wardrobe piece is added + reloaded,
@@ -722,6 +717,7 @@
         _waRendering = false;
         // Keep the v2 sections (hero rail, sub-tabs, wishlist) in step
         _waV2Sync();
+        _waTrailSync();
       }
 
       const _WA_TARGET = 15;
@@ -1104,7 +1100,7 @@
         div.className = 'wg-item rb-add-card';
         div.innerHTML = '<span class="rb-add-plus">+</span>' +
           '<span class="rb-add-serif">Add a piece</span>' +
-          '<span class="rb-add-hint">Photograph \xb7 Link \xb7 Receipt</span>';
+          '<span class="rb-add-hint">Photograph \xb7 Link \xb7 Without a photo</span>';
         div.addEventListener('click', () => window.__waAddChooser());
         return div;
       }
@@ -1116,178 +1112,210 @@
         // Only rebuild if the bundle has overwritten our tabs (its mock pills
         // carry no .wg-tab class, so their write leaves none behind)
         const existing = container.querySelector('.wg-tab');
-        if (_waFiltersBuilt && existing) return;
+        if (_waFiltersBuilt && existing) { _waTrailSync(); return; }
         container.innerHTML = '';
         _waFiltersBuilt = true;
-        // Light text tabs, not pills (design handoff: 10 heavy pills read
-        // cluttered, especially on mobile — underline marks the active one).
-        // Tabs are the taxonomy sheet's L1 categories (display layer) — a
-        // piece lands under the tab its L2 rolls up to, legacy-only pieces
-        // under the legacy mapping (_waSheetCatOf).
+        // Light text tabs — the taxonomy sheet's L1 categories. A tab whose
+        // category carries subcategories opens the Subcategory › Item type
+        // cascade (redesign 2026-08-05): the browse drill reads the SAME
+        // taxonomy tree the add/edit pickers do — one source of truth.
         _WA_TAB_CATS.forEach(cat => {
           const btn = document.createElement('button');
           btn.className = 'wg-tab' + (cat === _waCat ? ' active' : '');
+          btn.dataset.cat = cat;
           btn.textContent = cat;
-          btn.addEventListener('click', () => {
-            _waCat = cat;
-            container.querySelectorAll('.wg-tab').forEach(p => p.classList.toggle('active', p.textContent === cat));
-            _waRender();
-          });
+          btn.addEventListener('click', () => window.__waCatTap(cat));
           container.appendChild(btn);
         });
-        // Add piece — the primary toolbar action (add rework 2026-07:
-        // adding beats filtering, so Add is the ink button and Refine
-        // demoted to outline). Hidden ≤640px — the FAB covers mobile.
-        const addBtn = document.createElement('button');
-        addBtn.className = 'wg-pill rb-add-pill';
-        addBtn.id = 'rb-add-pill';
-        addBtn.style.marginLeft = 'auto';
-        addBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="flex-shrink:0"><path d="M12 5v14M5 12h14"/></svg>Add piece';
-        addBtn.addEventListener('click', () => {
-          if (_waView === 'wishlist') window.__wlOpenAdd();
-          else window.__waAddChooser();
-        });
-        container.appendChild(addBtn);
-        // Refine — the secondary filter layer (season, colour, fit, wear,
-        // brand) collapses into one drawer instead of more pills (design
-        // brief: the primary row is already at 10 tabs and won't scale)
-        const refBtn = document.createElement('button');
-        refBtn.className = 'wg-pill rb-refine-pill';
-        refBtn.id = 'rb-refine-pill';
-        refBtn.innerHTML = 'Refine';
-        refBtn.addEventListener('click', () => window.__waRefToggle());
-        container.appendChild(refBtn);
+        // The trail row below the tabs: breadcrumb + live count on the left,
+        // Add piece + Refine on the right (the mobile FAB and the wardrobe
+        // Pack-a-trip pill retired with this layout — packing lives in the
+        // travel intake).
+        if (!document.getElementById('rb-wg-trail')) {
+          const trail = document.createElement('div');
+          trail.id = 'rb-wg-trail';
+          trail.innerHTML = '<div id="rb-wg-crumbs" class="rb-wg-crumbs"></div>' +
+            '<div class="rb-wg-trailbtns">' +
+              '<button class="wg-pill rb-add-pill" id="rb-add-pill">+ Add piece</button>' +
+              '<button class="wg-pill rb-refine-pill" id="rb-refine-pill">Refine</button>' +
+            '</div>';
+          container.parentNode.insertBefore(trail, container.nextSibling);
+          trail.querySelector('#rb-add-pill').addEventListener('click', () => {
+            if (_waView === 'wishlist') window.__wlOpenAdd();
+            else window.__waAddChooser();
+          });
+          trail.querySelector('#rb-refine-pill').addEventListener('click', () => window.__waRefToggle());
+        }
         _waRefinePillSync();
-        // Multi-select → Travel Edit, straight from the wardrobe (PRD:
-        // the packing connection lives across the platform)
-        const packBtn = document.createElement('button');
-        packBtn.className = 'wg-pill wg-pack-pill';
-        packBtn.textContent = 'Pack a trip';
-        packBtn.addEventListener('click', () => {
-          if (_wgPackMode) window.__wgPackCancel(); else window.__wgPackStart();
-        });
-        container.appendChild(packBtn);
+        _waTrailSync();
       }
 
-      function _waShowDeleteBtn(show) {
-        let btn = document.getElementById('wa-del-btn');
-        if (!btn && show) {
-          btn = document.createElement('button');
-          btn.id = 'wa-del-btn';
-          btn.style.cssText = 'display:block;width:100%;margin-top:10px;padding:12px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--ink-faint);letter-spacing:.06em;transition:color .2s';
-          btn.textContent = 'Remove from wardrobe';
-          btn.onmouseover = () => { btn.style.color = '#b03030'; };
-          btn.onmouseout  = () => { btn.style.color = ''; };
-          btn.onclick = _waDelete;
-          const cta = document.getElementById('wa-cta');
-          if (cta && cta.parentNode) cta.parentNode.insertBefore(btn, cta.nextSibling);
+      // Tab tap: switch category; a category with subcategories also opens
+      // its cascade (second tap on the active tab toggles it).
+      window.__waCatTap = function(cat) {
+        const drillable = cat !== 'All' && cat !== 'Other' && !!_waTaxTree && _waTaxL2s(cat).length > 0;
+        if (_waCat === cat && drillable) {
+          if (document.getElementById('rb-wg-cascade')) _waCascadeClose();
+          else _waCascadeOpen(cat);
+          return;
         }
-        if (btn) btn.style.display = show ? 'block' : 'none';
+        _waCat = cat;
+        _waDrill = { l2: '', l3: '' };
+        document.querySelectorAll('#wg-filters .wg-tab').forEach(p => p.classList.toggle('active', p.dataset.cat === cat));
+        _waRender();
+        if (drillable) _waCascadeOpen(cat); else _waCascadeClose();
+      };
+
+      // ── The category cascade (screens 01 / 09) ────────────────────────
+      // Desktop: a two-column flyout under the active tab (Subcategory ›
+      // Item type). Mobile (≤767px): a bottom sheet that drills one level
+      // at a time. Picking filters the grid live; "All {…}" rows clear the
+      // level; outside tap or ✕ closes.
+      var _casL2 = ''; // the L2 whose item types are listed (col 2 / level 2)
+      function _waCascadeClose() {
+        document.getElementById('rb-wg-cascade')?.remove();
+        document.removeEventListener('pointerdown', _waCascadeOutside, true);
+      }
+      function _waCascadeOutside(e) {
+        const c = document.getElementById('rb-wg-cascade');
+        if (!c) { _waCascadeClose(); return; }
+        const tabs = document.getElementById('wg-filters');
+        if (!c.contains(e.target) && !(tabs && tabs.contains(e.target))) _waCascadeClose();
+      }
+      function _waCascadeOpen(cat) {
+        _waCascadeClose();
+        _casL2 = _waDrill.l2 || '';
+        const wrap = document.createElement('div');
+        wrap.id = 'rb-wg-cascade';
+        const mobile = window.matchMedia('(max-width: 767px)').matches;
+        wrap.className = 'rb-wg-cas' + (mobile ? ' sheet' : '');
+        if (mobile) {
+          document.body.appendChild(wrap);
+        } else {
+          const container = document.getElementById('wg-filters');
+          if (!container) return;
+          container.style.position = 'relative';
+          const tab = Array.prototype.find.call(container.querySelectorAll('.wg-tab'), t => t.dataset.cat === cat);
+          wrap.style.left = Math.max(0, tab ? tab.offsetLeft : 0) + 'px';
+          container.appendChild(wrap);
+        }
+        _waCascadePaint();
+        setTimeout(function() { document.addEventListener('pointerdown', _waCascadeOutside, true); }, 0);
+      }
+      function _waCascadePaint() {
+        const wrap = document.getElementById('rb-wg-cascade');
+        if (!wrap) return;
+        const cat = _waCat;
+        const l2s = _waTaxL2s(cat);
+        const mobile = wrap.classList.contains('sheet');
+        const esc = _waEsc;
+        function countFor(l2, l3) {
+          return _waItems.filter(i => _waSheetCatOf(i) === cat
+            && (!l2 || i.category_l2 === l2)
+            && (!l3 || i.category_l3 === l3)
+            && _waMatchRefine(i)).length;
+        }
+        if (mobile) {
+          if (!_casL2) {
+            wrap.innerHTML = '<div class="cas-hd"><span class="cas-title">' + esc(cat) + '</span><button class="cas-x" data-act="close">✕</button></div>' +
+              '<div class="cas-ey">Subcategory</div>' +
+              '<div class="cas-list">' +
+                '<button class="cas-row all" data-act="all-cat">All ' + esc(cat.toLowerCase()) + '</button>' +
+                l2s.map(v => '<button class="cas-row" data-act="l2" data-v="' + esc(v) + '"><span>' + esc(v) + '</span><span class="mk">›</span></button>').join('') +
+              '</div>';
+          } else {
+            const l3s = _waTaxL3s(_casL2);
+            const n = countFor(_waDrill.l2 || _casL2, _waDrill.l3);
+            wrap.innerHTML = '<div class="cas-hd"><button class="cas-back" data-act="back">‹ ' + esc(cat) + '</button><button class="cas-x" data-act="close">✕</button></div>' +
+              '<div class="cas-title" style="margin:2px 0 8px">' + esc(_casL2) + '</div>' +
+              '<div class="cas-ey">Item type</div>' +
+              '<div class="cas-list">' +
+                '<button class="cas-row all' + (_waDrill.l2 === _casL2 && !_waDrill.l3 ? ' sel' : '') + '" data-act="all-l2">All ' + esc(_casL2.toLowerCase()) + '</button>' +
+                l3s.map(v => '<button class="cas-row' + (_waDrill.l3 === v ? ' sel' : '') + '" data-act="l3" data-v="' + esc(v) + '"><span>' + esc(v) + '</span>' + (_waDrill.l3 === v ? '<span class="mk">✓</span>' : '') + '</button>').join('') +
+              '</div>' +
+              '<button class="cas-cta" data-act="close">Show ' + n + ' piece' + (n === 1 ? '' : 's') + '</button>';
+          }
+        } else {
+          const col1 = '<div class="cas-col c1"><div class="cas-ey">Subcategory</div>' +
+            '<button class="cas-row all' + (!_waDrill.l2 ? ' sel' : '') + '" data-act="all-cat">All ' + esc(cat.toLowerCase()) + '</button>' +
+            l2s.map(v => '<button class="cas-row' + (_casL2 === v ? ' sel' : '') + '" data-act="l2" data-v="' + esc(v) + '"><span>' + esc(v) + '</span><span class="mk">›</span></button>').join('') +
+            '</div>';
+          const col2 = _casL2
+            ? '<div class="cas-col c2"><div class="cas-ey">Item type</div>' +
+              '<button class="cas-row all' + (_waDrill.l2 === _casL2 && !_waDrill.l3 ? ' sel' : '') + '" data-act="all-l2">All ' + esc(_casL2.toLowerCase()) + '</button>' +
+              _waTaxL3s(_casL2).map(v => '<button class="cas-row' + (_waDrill.l3 === v ? ' sel' : '') + '" data-act="l3" data-v="' + esc(v) + '"><span>' + esc(v) + '</span>' + (_waDrill.l3 === v ? '<span class="mk">✓</span>' : '') + '</button>').join('') +
+              '</div>'
+            : '';
+          wrap.innerHTML = col1 + col2;
+        }
+        if (!wrap.dataset.wired) {
+          wrap.dataset.wired = '1';
+          wrap.addEventListener('click', function(e) {
+            const b = e.target.closest('[data-act]');
+            if (!b) return;
+            const act = b.dataset.act;
+            if (act === 'close') { _waCascadeClose(); return; }
+            if (act === 'back') { _casL2 = ''; _waCascadePaint(); return; }
+            if (act === 'all-cat') {
+              _waDrill = { l2: '', l3: '' };
+              _casL2 = '';
+              _waRender();
+              _waCascadeClose();
+              return;
+            }
+            if (act === 'l2') {
+              _casL2 = b.dataset.v;
+              _waDrill = { l2: b.dataset.v, l3: '' };
+              _waRender();
+              _waCascadePaint();
+              return;
+            }
+            if (act === 'all-l2') {
+              _waDrill = { l2: _casL2, l3: '' };
+              _waRender();
+              _waCascadePaint();
+              return;
+            }
+            if (act === 'l3') {
+              _waDrill = { l2: _casL2, l3: b.dataset.v };
+              _waRender();
+              if (wrap.classList.contains('sheet')) _waCascadePaint();
+              else _waCascadeClose();
+            }
+          });
+        }
+      }
+
+      // The breadcrumb trail — "Robes › Bottoms › Jeans › Barrel-leg jeans
+      // ✕ · 4 pieces". The ✕ clears the whole category trail (tab back to
+      // All); Refine picks survive it.
+      window.__waTrailClear = function() {
+        _waCat = 'All';
+        _waDrill = { l2: '', l3: '' };
+        document.querySelectorAll('#wg-filters .wg-tab').forEach(p => p.classList.toggle('active', p.dataset.cat === 'All'));
+        _waCascadeClose();
+        _waRender();
+      };
+      function _waTrailSync() {
+        const crumbs = document.getElementById('rb-wg-crumbs');
+        if (!crumbs) return;
+        const n = _waFilteredItems().length;
+        const countHtml = '<span class="rb-wg-trailcount">' + n + ' piece' + (n === 1 ? '' : 's') + '</span>';
+        if (_waCat === 'All') { crumbs.innerHTML = countHtml; return; }
+        const path = [_waCat].concat(_waDrill.l2 ? [_waDrill.l2] : []).concat(_waDrill.l3 ? [_waDrill.l3] : []);
+        crumbs.innerHTML = '<span class="rb-wg-crumb-mark">Robes</span>' +
+          path.map((p, i) => '<span class="rb-wg-crumb-sep">›</span><span class="rb-wg-crumb' + (i === path.length - 1 ? ' cur' : '') + '">' + _waEsc(p) + '</span>').join('') +
+          '<button class="rb-wg-trailx" onclick="window.__waTrailClear()" title="Clear">✕</button>' +
+          countHtml;
       }
 
       function _waOpenEdit(it) {
         _waEditId = it.id;
         if (!window.WA) return;
+        // The patched WA.open's edit branch renders the shared add/edit
+        // form prefilled from the row (redesign 2026-08-05) — nothing to
+        // populate here any more.
         WA.open();
-        // Use 100ms — enough time for both _patchWA's 50ms restore and any bundle timers to settle
-        setTimeout(() => {
-          const label = document.getElementById('wa-label-in');
-          const cat   = document.getElementById('wa-cat');
-          const brand = document.getElementById('wa-brand');
-          const notes = document.getElementById('wa-notes');
-          const cta   = document.getElementById('wa-cta');
-          if (!label) { console.warn('[robes] edit: #wa-label-in still missing at 100ms'); return; }
-          label.value = it.label  || '';
-          if (cat)   cat.value   = it.category || '';
-          if (brand) brand.value = it.brand   || '';
-          if (notes) notes.value = it.notes   || '';
-          if (cta)   cta.textContent = 'Update piece';
-          // Bundle's validate() only enables #wa-cta when the label is non-empty,
-          // and it last ran during open() while the field was still blank — re-run
-          // it now that the saved label is populated, else "Update piece" stays disabled.
-          label.dispatchEvent(new Event('input', { bubbles: true }));
-          if (window.WA && typeof WA.validate === 'function') WA.validate();
-          else if (cta) cta.removeAttribute('disabled');
-
-          // Store item_dna for WA.submit to save back
-          window.__waSawItemDna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : {};
-
-          // 3-level taxonomy: the category select displays the sheet's L1
-          // categories, with Subcategory / Item type selects beneath — same
-          // cascade as add step 3 (WA.submit derives the stored legacy
-          // category from the picks). Tree unavailable → legacy select as-is.
-          if (_waTaxTree && cat) {
-            const sheet0 = (it.category_l2 && _WA_L2_SHEET[it.category_l2]) || _WA_LEGACY_TO_SHEET[it.category] || '';
-            window.__waSawTaxSel = { sheet: sheet0, l2: it.category_l2 || '', l3: it.category_l3 || '' };
-            cat.innerHTML = '<option value=""' + (sheet0 ? '' : ' selected') + ' disabled>Choose a category</option>' +
-              _WA_SHEET_CATS.concat(['Other']).map(o => '<option' + (o === sheet0 ? ' selected' : '') + '>' + _waEsc(o) + '</option>').join('');
-            cat.onchange = function() { window.__waTaxCatChange(this.value); };
-            if (!document.getElementById('wa-saw-l2') && cat.parentNode) {
-              const row = document.createElement('div');
-              row.id = 'rb-saw-taxrow';
-              row.style.cssText = 'display:flex;gap:10px;margin-top:10px;';
-              row.innerHTML =
-                '<div style="flex:1;"><label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">SUBCATEGORY</label>' +
-                '<select id="wa-saw-l2" class="wa-select" onchange="window.__waTaxL2Change(this.value)"></select></div>' +
-                '<div style="flex:1;"><label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">ITEM TYPE</label>' +
-                '<select id="wa-saw-l3" class="wa-select" onchange="window.__waTaxL3Change(this.value)"></select></div>';
-              cat.parentNode.insertBefore(row, cat.nextSibling);
-            }
-            _waTaxPaintSelects();
-          } else {
-            window.__waSawTaxSel = null;
-          }
-
-          // Inject custom swatches + pre-select the saved colour
-          if (window.__rbInjectSwatches) window.__rbInjectSwatches(it.color || '');
-
-          // Render silhouette pills from item_dna if present
-          const dnaFit = it.item_dna && it.item_dna.structural_dna && Array.isArray(it.item_dna.structural_dna.silhouette_fit)
-            ? it.item_dna.structural_dna.silhouette_fit : [];
-          if (dnaFit.length) {
-            window.__waSawFit = dnaFit.slice();
-            // Inject pills section after swatch container
-            const swatchContainer = document.getElementById('wa-swatches');
-            if (swatchContainer && !document.getElementById('rb-fit-pills-wrap')) {
-              const wrap = document.createElement('div');
-              wrap.id = 'rb-fit-pills-wrap';
-              wrap.style.cssText = 'margin-top:12px;';
-              wrap.innerHTML = `<label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:8px;">SILHOUETTE &amp; FIT</label><div id="rb-fit-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>`;
-              swatchContainer.parentNode.insertBefore(wrap, swatchContainer.nextSibling);
-            }
-            window.__rbRemovePill = function(i) {
-              window.__waSawFit.splice(i, 1);
-              if (window.__waSawItemDna && window.__waSawItemDna.structural_dna) {
-                window.__waSawItemDna.structural_dna.silhouette_fit = window.__waSawFit.slice();
-              }
-              _rbRenderEditPills();
-            };
-            function _rbRenderEditPills() {
-              const c = document.getElementById('rb-fit-pills');
-              if (!c) return;
-              c.innerHTML = window.__waSawFit.map(function(p, i) {
-                return `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C8B8A2;border-radius:20px;font-size:12px;color:#4A3F35;background:#FAF8F5;white-space:nowrap;">${p}<button onclick="window.__rbRemovePill(${i})" style="background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:13px;line-height:1;padding:0;margin-left:2px;">×</button></span>`;
-              }).join('');
-            }
-            _rbRenderEditPills();
-          }
-
-          // Show existing photo
-          if (it.image_url) {
-            const tileImg   = document.getElementById('wa-tile-img');
-            const tileEmpty = document.getElementById('wa-tile-empty');
-            const tileFill  = document.getElementById('wa-tile-fill');
-            if (tileImg)   tileImg.src = it.image_url;
-            if (tileEmpty) tileEmpty.style.display = 'none';
-            if (tileFill)  tileFill.style.display  = 'block';
-          }
-
-          // Progressive capture expander — prefilled from the saved row
-          document.getElementById('rb-wa-detail-host')?.remove();
-          if (window.__rbWaDetailInject) window.__rbWaDetailInject(it);
-
-          _waShowDeleteBtn(true);
-        }, 100);
       }
 
       // Patch WA.submit — keep all other WA methods untouched
@@ -1310,68 +1338,103 @@
           document.head.appendChild(st);
         }
 
-        // Swatch renderer — shared by add (step 3) and edit modal; the
-        // palette itself (_ALL_SWATCHES) lives at wardrobe-wiring scope so
-        // the Refine drawer's colour filter uses the same set.
-        const _printBg = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M-1,1 l2,-2 M0,8 l8,-8 M7,9 l2,-2' stroke='%23A89880' stroke-width='1.5'/%3E%3C/svg%3E\") #EDE8E0";
-        const _multiBg = "conic-gradient(#FF1493,#FF4500,#E1FD2E,#00A86B,#0047AB,#4B0082,#FF1493)";
-        function _swLum(hex) {
-          if (!hex) return 200;
-          const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-          return r*0.299 + g*0.587 + b*0.114;
+        // ── Shared pickers (add/edit redesign 2026-08-05) ────────────────
+        // One floating panel serves the Category / Subcategory / Item type
+        // fields (custom lists — never a native OS dropdown) and the colour
+        // Change popover. Desktop: anchored panel under the field; ≤767px:
+        // a bottom sheet. Closes on outside pointerdown.
+        function _waPopClose() {
+          document.getElementById('rb-wa-pop')?.remove();
+          document.removeEventListener('pointerdown', _waPopOutside, true);
         }
-        function _buildSwatchRows(selectedColor) {
-          function _swBtn(sw) {
-            const sel = sw.name === selectedColor;
-            const lum = _swLum(sw.hex);
-            const chkColor = lum < 130 ? '#fff' : '#2A2520';
-            const bg = sw.hex ? `background:${sw.hex}` : sw.name === 'Multi' ? `background:${_multiBg}` : `background:${_printBg}`;
-            const shadow = sw.hex === '#FFFFFF'
-              ? 'box-shadow:inset 0 0 0 1.5px #D0C8BC,0 1px 3px rgba(0,0,0,0.1)'
-              : 'box-shadow:inset 0 1px 3px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.07)';
-            const outline = sel ? 'outline:2.5px solid #2A2520;outline-offset:2.5px' : '';
-            const chk = sel ? `<svg style="position:absolute;inset:0;margin:auto;display:block;pointer-events:none" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="${chkColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` : '';
-            return `<button aria-label="${sw.name}" onclick="window.__rbPickSwatch(this,'${sw.name}')" onmouseenter="var l=document.getElementById('rb-sw-label');if(l)l.textContent='${sw.name}'" onmouseleave="var l=document.getElementById('rb-sw-label');if(l)l.textContent=window.__waSawColor||''" style="position:relative;width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0;${bg};${shadow};${outline}">${chk}</button>`;
+        window.__waPopClose = _waPopClose;
+        function _waPopOutside(e) {
+          const pop = document.getElementById('rb-wa-pop');
+          if (pop && !pop.contains(e.target)) _waPopClose();
+        }
+        function _waPopShell(anchor, html) {
+          _waPopClose();
+          const pop = document.createElement('div');
+          pop.id = 'rb-wa-pop';
+          pop.className = 'rb-wapop';
+          pop.innerHTML = html;
+          document.body.appendChild(pop);
+          const mobile = window.matchMedia('(max-width: 767px)').matches;
+          if (mobile || !anchor) {
+            pop.classList.add('sheet');
+          } else {
+            const r = anchor.getBoundingClientRect();
+            const w = Math.max(250, Math.min(330, Math.round(r.width)));
+            pop.style.width = w + 'px';
+            pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 12)) + 'px';
+            const top = r.bottom + 6;
+            pop.style.top = top + 'px';
+            pop.style.maxHeight = Math.max(200, Math.min(360, window.innerHeight - top - 14)) + 'px';
           }
-          return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">${_ALL_SWATCHES.slice(0,10).map(_swBtn).join('')}</div><div style="display:flex;flex-wrap:wrap;gap:8px;">${_ALL_SWATCHES.slice(10).map(_swBtn).join('')}</div>`;
+          setTimeout(function() { document.addEventListener('pointerdown', _waPopOutside, true); }, 0);
+          return pop;
+        }
+        function _waPopRows(title, rows) {
+          return '<div class="rb-wapop-hd"><span>' + _waEsc(title) + '</span><button type="button" class="rb-wapop-x" onclick="window.__waPopClose()">✕</button></div>' +
+            '<div class="rb-wapop-list">' + rows.map(function(r) {
+              return '<button type="button" class="rb-wapop-row' + (r.sel ? ' sel' : '') + (r.muted ? ' muted' : '') + '" data-v="' + _waEsc(r.value) + '">' +
+                '<span>' + _waEsc(r.label) + '</span>' + (r.sel ? '<span class="rb-wapop-chk">✓</span>' : '') + '</button>';
+            }).join('') + '</div>';
         }
 
-        // Inject custom swatches into any open modal form (used by edit mode)
-        window.__rbInjectSwatches = function(selectedColor) {
-          window.__waSawColor = selectedColor || '';
-          // #wa-sw-name is now only a data carrier for WA.submit — the colour
-          // name is shown in the injected #rb-sw-label header, so hide the span
-          // to stop the raw colour ("Black") leaking as stray text under the pills.
-          const swNameEl = document.getElementById('wa-sw-name');
-          if (swNameEl) { swNameEl.textContent = selectedColor || ''; swNameEl.style.display = 'none'; }
-          // Replace bundle swatch container with our custom rows
-          const swatchContainer = document.getElementById('wa-swatches');
-          if (swatchContainer) {
-            swatchContainer.innerHTML = `<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;"><span style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);">COLOUR</span><span id="rb-sw-label" style="font-size:12px;color:#6A5E54;font-style:italic;">${selectedColor||''}</span></div>${_buildSwatchRows(selectedColor)}`;
-            swatchContainer.style.cssText = 'display:block';
-            return;
+        // Category / Subcategory / Item type field pickers. Attributes are
+        // category-scoped: the L2 list only ever holds the selected sheet
+        // L1's subcategories, L3 only the selected L2's item types.
+        window.__waFieldPick = function(kind, el) {
+          const s = window.__waSawTaxSel;
+          const treeOn = !!_waTaxTree;
+          let title, rows, onPick;
+          if (kind === 'cat') {
+            title = 'Category';
+            const list = treeOn ? _WA_SHEET_CATS.concat(['Other']) : WA_CATS.slice(1);
+            const cur = treeOn ? (s && s.sheet) : window.__waSawCat;
+            rows = list.map(function(c) { return { label: c, value: c, sel: c === cur }; });
+            onPick = function(v) {
+              if (treeOn) window.__waTaxCatChange(v);
+              else { window.__waSawCat = v; if (window.__waFormRepaint) window.__waFormRepaint(); }
+            };
+          } else if (kind === 'l2') {
+            if (!treeOn || !s || !s.sheet) return;
+            title = 'Subcategory';
+            rows = [{ label: 'Not sure', value: '', sel: !s.l2, muted: true }]
+              .concat(_waTaxL2s(s.sheet).map(function(v) { return { label: v, value: v, sel: v === s.l2 }; }));
+            onPick = function(v) { window.__waTaxL2Change(v); };
+          } else {
+            if (!treeOn || !s || !s.l2) return;
+            title = 'Item type';
+            rows = [{ label: 'Not sure', value: '', sel: !s.l3, muted: true }]
+              .concat(_waTaxL3s(s.l2).map(function(v) { return { label: v, value: v, sel: v === s.l3 }; }));
+            onPick = function(v) { window.__waTaxL3Change(v); };
           }
+          const pop = _waPopShell(el, _waPopRows(title, rows));
+          pop.querySelector('.rb-wapop-list').addEventListener('click', function(e) {
+            const b = e.target.closest('.rb-wapop-row');
+            if (!b) return;
+            _waPopClose();
+            onPick(b.dataset.v);
+          });
         };
 
-        window.__rbPickSwatch = function(el, name) {
-          window.__waSawColor = name;
-          const swEl = document.getElementById('wa-sw-name');
-          if (swEl) swEl.textContent = name;
-          const lbl = document.getElementById('rb-sw-label');
-          if (lbl) lbl.textContent = name;
-          // Update outlines on all swatch buttons in both step-3 and edit modal
-          document.querySelectorAll('#wa-modal button[aria-label]').forEach(function(btn) {
-            const isThis = btn === el;
-            btn.style.outline = isThis ? '2.5px solid #2A2520' : '';
-            btn.style.outlineOffset = isThis ? '2.5px' : '';
-            const chkSvg = btn.querySelector('svg');
-            if (isThis && !chkSvg) {
-              const lum = _swLum(btn.style.background.includes('#') ? btn.style.background.trim() : null);
-              const chkColor = lum < 130 ? '#fff' : '#2A2520';
-              btn.insertAdjacentHTML('beforeend', `<svg style="position:absolute;inset:0;margin:auto;display:block;pointer-events:none" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="${chkColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
-            } else if (!isThis && chkSvg) {
-              chkSvg.remove();
-            }
+        // Colour is a single swatch with a quiet Change affordance — the
+        // palette is a popover, not a wall (design screen 07).
+        window.__waColourPop = function(el) {
+          const grid = _ALL_SWATCHES.map(function(sw) {
+            return '<button type="button" class="rb-wapop-sw' + (window.__waSawColor === sw.name ? ' sel' : '') + '" title="' + _waEsc(sw.name) + '" aria-label="' + _waEsc(sw.name) + '" data-v="' + _waEsc(sw.name) + '" style="' + _waSwatchBg(sw.name) + '"></button>';
+          }).join('');
+          const pop = _waPopShell(el,
+            '<div class="rb-wapop-hd"><span>Pick a colour</span><button type="button" class="rb-wapop-x" onclick="window.__waPopClose()">✕</button></div>' +
+            '<div class="rb-wapop-swgrid">' + grid + '</div>');
+          pop.querySelector('.rb-wapop-swgrid').addEventListener('click', function(e) {
+            const b = e.target.closest('.rb-wapop-sw');
+            if (!b) return;
+            window.__waSawColor = b.dataset.v;
+            _waPopClose();
+            if (window.__waFormRepaint) window.__waFormRepaint();
           });
         };
 
@@ -1403,19 +1466,34 @@
         }
 
         function _showStep1() {
+          _waFormCss();
+          _waForm = null;
           const step = document.querySelector('#wa-modal .fm-step');
           if (!step) return;
+          // Screens 02/10 — the core dropzone flow: snap/attach (both
+          // buttons hand off to the same OS picker — never a `capture`
+          // attribute, see gotchas), a From-a-link field (coming soon) and
+          // the Add-without-a-photo route.
           step.innerHTML = `
             <h2 class="fm-h">Add a piece.</h2>
             <p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">Snap it or attach it. Robes reads the colour, the cut and the label — and fills in the rest.</p>
-            <label id="wa-rb-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:240px;border:1.5px dashed #C8B8A2;border-radius:var(--rad);background:#FAF8F5;cursor:pointer;text-align:center;padding:20px;box-sizing:border-box;position:relative;">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              <span style="font-size:16px;color:#6A5E54;letter-spacing:0.01em;">Snap or attach the piece</span>
-              <span style="font-size:13px;color:var(--ink-faint);">Take a photo — or select several and Robes files them one after another</span>
+            <label id="wa-rb-zone" class="rb-wf-drop">
+              <span class="rb-wf-drop-h">Snap or attach the piece</span>
+              <span class="rb-wf-drop-s">Select several and Robes files them one after another</span>
+              <span class="rb-wf-drop-btns">
+                <span class="rb-wf-btn ink">Take a photo</span>
+                <span class="rb-wf-btn line">Choose from library</span>
+              </span>
+              <span class="rb-wf-drop-hint">or drop an image here</span>
               <input id="wa-rb-file" type="file" multiple
                 accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp"
                 style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
-            </label>`;
+            </label>
+            <div class="rb-wf-linkrow">
+              <span class="rb-wf-lbl" style="margin:0;white-space:nowrap;">From a link</span>
+              <input readonly placeholder="Paste a product page" onclick="window.__waLinkSoon&&__waLinkSoon()">
+            </div>
+            <button type="button" class="rb-wf-nophoto" onclick="window.__waManualStart&&__waManualStart()">Add without a photo</button>`;
           _setDot(1);
 
           // Bundle's validate() calls #wa-label-in.focus() via closure — keep a hidden one so it never throws
@@ -1531,357 +1609,581 @@
           });
         }
 
-        function _runStep3(dataUrl, tag) {
+        // ══ The one confirm screen (add/edit redesign 2026-08-05) ═════════
+        // Fast add: the analyse lands on a READ-ONLY summary — the photo
+        // with tag pops, a four-row ledger — over one "Add to wardrobe" CTA.
+        // Everything editable lives behind "Edit the details" (progressive
+        // disclosure), and the two tag axes (Season / Wear it for) + notes
+        // behind "Add tags and notes". ONE renderer serves the photo add,
+        // add-without-a-photo, batch pieces and the edit modal; field state
+        // bridges to WA.submit through the window.__waSaw* globals exactly
+        // as before. Silhouette & fit is CUT from the flow (locked product
+        // decision: wrong hand-entered tags → worse output) — the analyse
+        // still lands in item_dna untouched, it just isn't a form field.
+        var _waForm = null; // {mode:'add'|'manual'|'edit', view:'summary'|'details'|'tags', photo, readable, revealed}
+
+        function _sawEsc(s) {
+          return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        }
+
+        function _waFormCss() {
+          if (document.getElementById('rb-wa-form-style')) return;
+          const st = document.createElement('style');
+          st.id = 'rb-wa-form-style';
+          st.textContent = [
+            // step 1 — the image
+            '.rb-wf-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border:1.5px dashed #D8CFC0;border-radius:var(--rad);background:#FAF8F5;cursor:pointer;text-align:center;padding:36px 22px;box-sizing:border-box;position:relative}',
+            '.rb-wf-drop-h{font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:24px;color:#2A2520}',
+            '.rb-wf-drop-s{font-size:13px;color:var(--ink-faint);margin-top:-8px}',
+            '.rb-wf-drop-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}',
+            '.rb-wf-btn{display:inline-flex;align-items:center;justify-content:center;padding:13px 24px;border-radius:100px;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;cursor:pointer;box-sizing:border-box}',
+            '.rb-wf-btn.ink{background:var(--ink,#202021);color:#FAF8F5}',
+            '.rb-wf-btn.line{border:1px solid var(--ink,#202021);color:var(--ink,#202021)}',
+            '.rb-wf-drop-hint{font-size:12.5px;color:#C4B8A4}',
+            '.rb-wf-linkrow{display:flex;align-items:center;gap:14px;margin:18px 0 0}',
+            '.rb-wf-linkrow input{flex:1;min-width:0;border:1px solid #E7E0CF;background:#fff;padding:12px 14px;font-size:14px;font-family:inherit;color:#2A2520;border-radius:var(--rad-sm);cursor:pointer}',
+            '.rb-wf-nophoto{display:block;width:100%;margin-top:18px;padding:16px 0 2px;border:none;border-top:1px solid #EFE9DC;background:none;text-align:center;font-size:13px;color:var(--ink-faint);cursor:pointer;font-family:inherit}',
+            '.rb-wf-nophoto:hover{color:var(--ink)}',
+            '@media(max-width:520px){.rb-wf-drop-btns{flex-direction:column;align-self:stretch}.rb-wf-btn{width:100%}.rb-wf-drop-hint{display:none}}',
+            // the reveal — photo panel, tag pops, banner (contain, never
+            // cover: a portrait garment photo must not crop top/bottom)
+            '.rb-saw-panel{position:relative;height:300px;border-radius:var(--rad);overflow:hidden;background:#1A1410;margin-bottom:14px}',
+            '.rb-saw-panel>img{width:100%;height:100%;object-fit:contain;display:block}',
+            '.rb-saw-retake{position:absolute;top:10px;right:10px;z-index:5;background:rgba(250,248,245,0.92);border:1px solid #D8CEBC;border-radius:100px;padding:6px 13px;font-size:12px;color:#6A5E54;cursor:pointer;font-family:inherit}',
+            '.rb-saw-tag{position:absolute;display:inline-flex;align-items:center;gap:7px;background:rgba(250,248,245,0.94);border:1px solid #E3DCD0;border-radius:100px;padding:6px 10px;font-weight:500;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#2A2520;white-space:nowrap;max-width:84%;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 10px rgba(32,32,33,0.18);opacity:0;animation:rbSawPop .5s cubic-bezier(0.22,1,0.36,1) both;z-index:3}',
+            ".rb-saw-tag::before{content:'';width:5px;height:5px;border-radius:50%;background:#AE9290;flex:none}",
+            '.rb-saw-banner{position:absolute;left:10px;right:10px;bottom:10px;z-index:3;background:rgba(32,32,33,0.86);color:#FAF8F5;border-radius:2px;padding:11px 14px;font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:16px;letter-spacing:0.01em;text-align:center;opacity:0;animation:rbSawPop .55s cubic-bezier(0.22,1,0.36,1) both}',
+            '@keyframes rbSawPop{from{opacity:0;transform:translateY(6px) scale(0.7)}60%{opacity:1;transform:translateY(0) scale(1.04)}to{opacity:1;transform:none}}',
+            // the ledger — four read-only rows; tapping one opens the
+            // details editor on that field
+            '.rb-saw-read{list-style:none;margin:0 0 14px;padding:0}',
+            '.rb-saw-row{display:flex;align-items:baseline;gap:14px;padding:12px 2px;border-bottom:1px solid #EFE9DC;cursor:pointer}',
+            '.rb-saw-num{font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:15px;color:#C9BCA6;width:18px;flex:none}',
+            '.rb-saw-lbl{flex:1;font-weight:500;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#9A8070;align-self:center}',
+            '.rb-saw-val{font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:17px;color:#2A2520;text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+            '.rb-saw-val.is-on{color:#B9AC96;font-style:italic;animation:rbSawPulse 1.4s ease-in-out infinite}',
+            '.rb-saw-dot{display:inline-block;width:16px;height:16px;border-radius:50%;vertical-align:-2px;margin-right:8px}',
+            '@keyframes rbSawPulse{0%,100%{opacity:1}50%{opacity:.45}}',
+            // section toggle rows (Edit the details / Add tags and notes)
+            '.rb-saw-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:#FAF8F5;border:1px solid #E3DCD0;border-radius:var(--rad-sm);padding:13px 15px;font-size:13.5px;color:#2A2520;cursor:pointer;font-family:inherit;margin-bottom:14px;box-sizing:border-box;text-align:left}',
+            '.rb-saw-toggle .hint{font-family:var(--font-serif,Georgia,serif);font-style:italic;font-size:14px;color:var(--ink-faint);font-weight:300;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+            '.rb-saw-toggle .car{font-size:12px;color:var(--ink-faint);flex:none}',
+            // compact header (details / tags open — nothing shown twice)
+            '.rb-wf-head{display:flex;gap:16px;align-items:center;border-bottom:1px solid #E7E0CF;padding-bottom:16px;margin-bottom:14px}',
+            '.rb-wf-thumb{width:64px;height:64px;flex:none;background:#232120;border-radius:var(--rad-sm);overflow:hidden}',
+            '.rb-wf-thumb img{width:100%;height:100%;object-fit:cover;display:block}',
+            '.rb-wf-thumb.empty{background:#EFE9DC;border:1px dashed #D8CFC0;box-sizing:border-box}',
+            '.rb-wf-headtxt{flex:1;min-width:0}',
+            '.rb-wf-title{display:block;font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:22px;line-height:1.1;color:#2A2520;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+            '.rb-wf-meta{display:block;font-size:11.5px;color:var(--ink-faint);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+            '.rb-wf-headact{flex:none;background:none;border:none;padding:0 0 2px;font-size:12px;color:var(--ink-faint);border-bottom:1px solid #E7E0CF;cursor:pointer;font-family:inherit}',
+            // fields
+            '.rb-wf-lbl{display:block;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;font-weight:500;color:#9A8070;margin-bottom:6px}',
+            '.rb-wf-input{width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14.5px;font-family:inherit;background:#fff;color:#2A2520}',
+            '.rb-wf-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}',
+            '@media(max-width:520px){.rb-wf-grid2{grid-template-columns:1fr}}',
+            '.rb-wf-field{display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;width:100%;padding:12px 14px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14.5px;background:#fff;color:#2A2520;cursor:pointer;font-family:inherit;text-align:left}',
+            '.rb-wf-field span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+            '.rb-wf-field .car{color:var(--ink-faint);font-size:11px;flex:none}',
+            '.rb-wf-field.empty span:first-child{color:#C4B8A4}',
+            '.rb-wf-field.off{opacity:.45;cursor:default}',
+            // colour — a single swatch with a quiet Change affordance
+            '.rb-wf-colour{display:flex;align-items:center;gap:12px;padding:4px 2px}',
+            '.rb-wf-dot{width:26px;height:26px;border-radius:50%;flex:none}',
+            '.rb-wf-dot.empty{background:#F5F2E0;border:1px dashed #D8CFC0;box-sizing:border-box}',
+            '.rb-wf-colname{font-size:14.5px;color:#2A2520}',
+            '.rb-wf-colname.ph{color:#C4B8A4}',
+            '.rb-wf-change{margin-left:auto;background:none;border:none;padding:0 0 2px;font-size:12px;letter-spacing:.04em;color:var(--ink-faint);border-bottom:1px solid #E7E0CF;cursor:pointer;font-family:inherit}',
+            // tag axes — two visibly different selected tints (Season sage,
+            // Wear-it-for rose) so the axes never read as one control
+            '.rb-wf-chips{display:flex;flex-wrap:wrap;gap:8px}',
+            '.rb-wf-chip{padding:8px 15px;border-radius:100px;border:1px solid #E7E0CF;background:#fff;font-size:13px;color:#2A2520;cursor:pointer;font-family:inherit;transition:all .15s}',
+            '.rb-wf-chip.sea.on{background:#E3E1CC;border-color:#E3E1CC}',
+            '.rb-wf-chip.ctx.on{background:#D4C8C4;border-color:#D4C8C4}',
+            '.rb-wf-chip.add{border-style:dashed;color:var(--ink-faint)}',
+            '.rb-wf-taghd{margin-top:16px;padding-top:16px;border-top:1px solid #EFE9DC}',
+            '.rb-wf-taghd.first{margin-top:0;padding-top:0;border-top:none}',
+            // photo slot / attached photo (manual + unreadable paths)
+            '.rb-wf-slot{height:130px;border:1.5px dashed #D8CFC0;border-radius:var(--rad);background:#FAF8F5;display:flex;align-items:center;justify-content:center;margin-bottom:16px}',
+            '.rb-wf-slot .rb-wf-btn{padding:11px 20px}',
+            '.rb-wf-photo{position:relative;height:200px;border-radius:var(--rad);overflow:hidden;background:#1A1410;margin-bottom:16px}',
+            '.rb-wf-photo img{width:100%;height:100%;object-fit:contain;display:block}',
+            // CTA + edit-only delete
+            '.rb-wf-cta{width:100%;padding:16px;background:var(--ink,#202021);color:#FAF8F5;border:none;border-radius:100px;font-size:11.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;font-family:inherit;margin-top:14px}',
+            '.rb-wf-del{display:block;width:100%;margin-top:8px;padding:12px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--ink-faint);letter-spacing:.06em;font-family:inherit}',
+            '.rb-wf-del:hover{color:#b03030}',
+            // picker popover / mobile sheet (taxonomy fields + colour)
+            '.rb-wapop{position:fixed;z-index:990;background:#FDFCFA;border:1px solid #E7E0CF;border-radius:var(--rad-sm);box-shadow:0 18px 44px -10px rgba(32,32,33,.28);display:flex;flex-direction:column;overflow:hidden}',
+            '.rb-wapop.sheet{left:0;right:0;bottom:0;top:auto;width:auto;max-height:72vh;border-radius:18px 18px 0 0}',
+            '.rb-wapop-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px 9px;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;font-weight:500;color:#9A8070;flex:none}',
+            '.rb-wapop.sheet .rb-wapop-hd{font-family:var(--font-serif,Georgia,serif);font-size:21px;letter-spacing:0;text-transform:none;font-weight:300;color:#2A2520;padding:18px 20px 10px}',
+            '.rb-wapop-x{background:none;border:none;font-size:14px;color:var(--ink-faint);cursor:pointer;padding:2px 4px;font-family:inherit}',
+            '.rb-wapop-list{overflow-y:auto;padding:0 6px 8px}',
+            '.rb-wapop.sheet .rb-wapop-list{padding:0 14px 22px}',
+            '.rb-wapop-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid #EFE9DC;padding:12px 10px;font-size:14px;color:#2A2520;cursor:pointer;font-family:inherit}',
+            '.rb-wapop-row:last-child{border-bottom:none}',
+            '.rb-wapop-row:hover{background:#F6F2EA}',
+            '.rb-wapop-row.sel{font-weight:500}',
+            '.rb-wapop-row.muted span:first-child{color:var(--ink-faint);font-style:italic}',
+            '.rb-wapop-chk{flex:none}',
+            '.rb-wapop-swgrid{display:grid;grid-template-columns:repeat(7,30px);gap:12px;padding:6px 16px 16px}',
+            '.rb-wapop.sheet .rb-wapop-swgrid{grid-template-columns:repeat(auto-fill,minmax(34px,1fr));padding:10px 20px 26px}',
+            '.rb-wapop-sw{width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;padding:0;box-shadow:inset 0 1px 3px rgba(0,0,0,.12),0 0 0 1px rgba(0,0,0,.06)}',
+            '.rb-wapop.sheet .rb-wapop-sw{width:34px;height:34px}',
+            '.rb-wapop-sw.sel{outline:2px solid var(--ink,#202021);outline-offset:2.5px}',
+            '@media(prefers-reduced-motion:reduce){.rb-saw-tag,.rb-saw-banner{animation-duration:0s}.rb-saw-val.is-on{animation:none}}',
+          ].join('\n');
+          document.head.appendChild(st);
+        }
+
+        // Map Gemini's returned colour names → our palette names
+        const GEMINI_MAP = {
+          'White':'White','Cream':'Cream','Alabaster':'Cream',
+          'Navy':'Navy','Denim blue':'Navy','Royal blue':'Cobalt','Blue':'Cobalt',
+          'Light grey':'Charcoal','Charcoal':'Charcoal',
+          'Black':'Black','Chocolate':'Espresso',
+          'Tan':'Camel','Sand':'Camel','Camel':'Camel',
+          'Taupe':'Taupe','Mauve':'Taupe',
+          'Khaki':'Olive','Sage':'Olive','Olive':'Olive',
+          'Aubergine':'Aubergine',
+          'Dark green':'Forest','Forest':'Forest',
+          'Burgundy':'Bordeaux','Bordeaux':'Bordeaux',
+          'Blush':'Blush','Dusty rose':'Blush',
+          'Yellow':'Ochre','Ochre':'Ochre',
+          'Hot pink':'Magenta','Magenta':'Magenta',
+          'Cobalt':'Cobalt','Emerald':'Emerald','Green':'Emerald',
+          'Rust':'Vermillion','Orange':'Vermillion','Vermillion':'Vermillion',
+          'Acid':'Acid',
+          'Multi':'Print','Stripe':'Print','Print':'Print',
+        };
+
+        const LEDGER_LBLS = ['The piece', 'Brand', 'Category', 'Colour'];
+        // The DISPLAYED category is always the taxonomy sheet's L1 (or the
+        // legacy mapping for degrade/legacy state) — the stored `category`
+        // stays the legacy enum via the fold at save time.
+        function _waFormSheet() {
+          const s = window.__waSawTaxSel;
+          if (s && s.sheet) return s.sheet;
+          return _WA_LEGACY_TO_SHEET[window.__waSawCat] || window.__waSawCat || '';
+        }
+        function _waFormMeta() {
+          const s = window.__waSawTaxSel;
+          return [window.__waSawBrand, _waFormSheet(), s && s.l3, window.__waSawColor]
+            .filter(Boolean).join(' · ');
+        }
+        function _waLedgerVals() {
+          const colour = window.__waSawColor || '';
+          return [
+            _sawEsc(window.__waSawLabel || ''),
+            _sawEsc(window.__waSawBrand || 'Unlabelled'),
+            _sawEsc(_waFormSheet() || '—'),
+            colour ? '<span class="rb-saw-dot" style="' + _waSwatchBg(colour) + '"></span>' + _sawEsc(colour) : '—',
+          ];
+        }
+
+        function _waFormPaint(focusSel) {
+          _waFormCss();
           const step = document.querySelector('#wa-modal .fm-step');
-          if (!step) return;
-          _setDot(3);
-          const cats = ['Outerwear','Tops','Bottoms','Shoes','Accessories','Dresses','Bags','Swimwear'];
-          const _sawSelCss = 'width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;';
-
-          // Map Gemini's returned colour names → our fashion names
-          const GEMINI_MAP = {
-            'White':'White','Cream':'Cream','Alabaster':'Cream',
-            'Navy':'Navy','Denim blue':'Navy','Royal blue':'Cobalt','Blue':'Cobalt',
-            'Light grey':'Charcoal','Charcoal':'Charcoal',
-            'Black':'Black','Chocolate':'Espresso',
-            'Tan':'Camel','Sand':'Camel','Camel':'Camel',
-            'Taupe':'Taupe','Mauve':'Taupe',
-            'Khaki':'Olive','Sage':'Olive','Olive':'Olive',
-            'Aubergine':'Aubergine',
-            'Dark green':'Forest','Forest':'Forest',
-            'Burgundy':'Bordeaux','Bordeaux':'Bordeaux',
-            'Blush':'Blush','Dusty rose':'Blush',
-            'Yellow':'Ochre','Ochre':'Ochre',
-            'Hot pink':'Magenta','Magenta':'Magenta',
-            'Cobalt':'Cobalt','Emerald':'Emerald','Green':'Emerald',
-            'Rust':'Vermillion','Orange':'Vermillion','Vermillion':'Vermillion',
-            'Acid':'Acid',
-            'Multi':'Print','Stripe':'Print','Print':'Print',
-          };
-
-          const initColor = GEMINI_MAP[tag.color] || tag.color || '';
-          window.__waSawColor = initColor;
-          window.__waSawItemDna = tag.item_dna || {};
-
-          const rowsHTML = _buildSwatchRows(initColor);
-
-          // Silhouette & fit pills from structural_dna
-          const fitPills = (tag.item_dna && tag.item_dna.structural_dna && Array.isArray(tag.item_dna.structural_dna.silhouette_fit))
-            ? tag.item_dna.structural_dna.silhouette_fit
-            : [];
-          window.__waSawFit = fitPills.slice();
-
-          // `sync` is set on the pill-removal path only — the initial render
-          // must not pre-paint the Cut row ahead of the ledger reveal.
-          function _renderFitPills(sync) {
-            const container = document.getElementById('rb-fit-pills');
-            if (!container) return;
-            container.innerHTML = window.__waSawFit.map(function(p, i) {
-              return `<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C8B8A2;border-radius:20px;font-size:12px;color:#4A3F35;background:#FAF8F5;white-space:nowrap;">${p}<button onclick="window.__rbRemovePill(${i})" style="background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:13px;line-height:1;padding:0;margin-left:2px;">×</button></span>`;
-            }).join('');
-            if (sync && window.__rbSawSync) window.__rbSawSync(4, window.__waSawFit.slice(0, 2).join(' · ') || '—');
-          }
-          window.__rbRemovePill = function(i) {
-            window.__waSawFit.splice(i, 1);
-            if (window.__waSawItemDna && window.__waSawItemDna.structural_dna) {
-              window.__waSawItemDna.structural_dna.silhouette_fit = window.__waSawFit.slice();
-            }
-            _renderFitPills(true);
-          };
-
-          const aiNotes = (tag.item_dna && tag.item_dna.ai_generated_notes) || tag.notes || '';
-
-          // ── The reveal (wardrobe-logging rework 2026-07-29) ─────────────
-          // The onboarding filing "magic" — tag pops over the photo, the
-          // "What Robes files" ledger filling row by row — plays on EVERY
-          // add; the full correction form (label/category/brand/swatches/
-          // pills/notes + the progressive-capture expander) collapses behind
-          // one "Adjust the details" row. Info on demand, wow by default.
-          function _sawEsc(s) {
-            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-          }
-          if (!document.getElementById('rb-wa-saw-style')) {
-            const sawSt = document.createElement('style');
-            sawSt.id = 'rb-wa-saw-style';
-            sawSt.textContent =
-              // contain, never cover — a portrait garment photo in this wide
-              // frame would otherwise zoom until its width fills the box,
-              // cropping the piece top and bottom (beta report 2026-07-29).
-              // The dark panel letterboxes the spare space like a specimen
-              // plate; the tags sit on the panel, not the image, so their
-              // spots are unaffected.
-              '.rb-saw-panel{position:relative;height:300px;border-radius:var(--rad);overflow:hidden;background:#1A1410;margin-bottom:14px}' +
-              '.rb-saw-panel>img{width:100%;height:100%;object-fit:contain;display:block}' +
-              '.rb-saw-retake{position:absolute;top:10px;right:10px;z-index:5;background:rgba(250,248,245,0.92);border:1px solid #D8CEBC;border-radius:100px;padding:6px 13px;font-size:12px;color:#6A5E54;cursor:pointer;font-family:inherit}' +
-              '.rb-saw-tag{position:absolute;display:inline-flex;align-items:center;gap:7px;background:rgba(250,248,245,0.94);border:1px solid #E3DCD0;border-radius:100px;padding:6px 10px;font-weight:500;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#2A2520;white-space:nowrap;max-width:84%;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 10px rgba(32,32,33,0.18);opacity:0;animation:rbSawPop .5s cubic-bezier(0.22,1,0.36,1) both;z-index:3}' +
-              ".rb-saw-tag::before{content:'';width:5px;height:5px;border-radius:50%;background:#AE9290;flex:none}" +
-              '.rb-saw-banner{position:absolute;left:10px;right:10px;bottom:10px;z-index:3;background:rgba(32,32,33,0.86);color:#FAF8F5;border-radius:2px;padding:11px 14px;font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:16px;letter-spacing:0.01em;text-align:center;opacity:0;animation:rbSawPop .55s cubic-bezier(0.22,1,0.36,1) both}' +
-              '@keyframes rbSawPop{from{opacity:0;transform:translateY(6px) scale(0.7)}60%{opacity:1;transform:translateY(0) scale(1.04)}to{opacity:1;transform:none}}' +
-              '.rb-saw-read{list-style:none;margin:0 0 14px;padding:0}' +
-              '.rb-saw-row{display:flex;align-items:baseline;gap:14px;padding:9px 2px;border-bottom:1px solid #EFE9DF}' +
-              '.rb-saw-num{font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:15px;color:#C9BCA6;width:18px;flex:none}' +
-              '.rb-saw-lbl{flex:1;font-weight:500;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#9A8070;align-self:center}' +
-              '.rb-saw-val{font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:16px;color:#2A2520;text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
-              '.rb-saw-val.is-on{color:#B9AC96;font-style:italic;animation:rbSawPulse 1.4s ease-in-out infinite}' +
-              '@keyframes rbSawPulse{0%,100%{opacity:1}50%{opacity:.45}}' +
-              '.rb-saw-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;background:#FAF8F5;border:1px solid #E3DCD0;border-radius:var(--rad-sm);padding:12px 14px;font-size:13px;color:#6A5E54;cursor:pointer;font-family:inherit;margin-bottom:14px;box-sizing:border-box}' +
-              '.rb-saw-toggle svg{transition:transform .25s ease;flex:none}' +
-              '.rb-saw-toggle.open svg{transform:rotate(180deg)}' +
-              '@media(prefers-reduced-motion:reduce){.rb-saw-tag,.rb-saw-banner{animation-duration:0s}.rb-saw-val.is-on{animation:none}}';
-            document.head.appendChild(sawSt);
-          }
-
-          const dna = tag.item_dna || {};
-          const edColor = (dna.display && dna.display.editorial_color_name) || initColor;
-          // A readable piece gets the theatre; an unreadable one goes straight
-          // to the (expanded) form — there is nothing to celebrate yet.
-          const readable = !!tag.label;
-          // Display category = the taxonomy sheet's L1 (derived from the
-          // analysed L2, else the legacy mapping); the stored `category`
-          // stays legacy. The full cascade only mounts when the tree landed.
+          const f = _waForm;
+          if (!step || !f) return;
+          _waPopClose();
+          const d = window.__rbWaDetail || { seasons: [], wear: [], addingTag: false };
           const treeOn = !!_waTaxTree;
-          const dispSheet = (tag.category_l2 && _WA_L2_SHEET[tag.category_l2]) || _WA_LEGACY_TO_SHEET[tag.category] || '';
-          window.__waSawTaxSel = treeOn ? { sheet: dispSheet, l2: tag.category_l2 || '', l3: tag.category_l3 || '' } : null;
-          const dispCat = dispSheet || tag.category || '';
-          const ledgerVals = [
-            tag.label || '',
-            tag.category_l3 ? dispCat + ' · ' + tag.category_l3 : dispCat,
-            tag.brand || (dna.display && dna.display.brand_raw) || 'Unlabelled',
-            edColor || 'Read',
-            fitPills.slice(0, 2).join(' · ') || '—',
-          ];
-          const LEDGER_LBLS = ['The piece', 'Category', 'Brand', 'Colour', 'Cut'];
-          const SAW_SPOTS = [
-            { top: '10%', left: '8%' },
-            { top: '30%', right: '8%' },
-            { top: '52%', left: '10%' },
-            { top: '68%', right: '12%' },
-          ];
-          const chips = [];
-          if (dispCat) chips.push(dispCat);
-          if (edColor) chips.push(edColor);
-          if (tag.brand) chips.push(tag.brand);
-          fitPills.forEach(function(f) { if (chips.length < SAW_SPOTS.length) chips.push(f); });
+          const s = window.__waSawTaxSel;
+          const label = window.__waSawLabel || '';
+          const colour = window.__waSawColor || '';
+          const isEdit = f.mode === 'edit';
+          const batch = f.mode === 'add' ? _waBatchTag() : '';
 
-          const tagsHtml = readable
-            ? chips.map(function(c, idx) {
-                const s = SAW_SPOTS[idx];
-                const pos = 'top:' + s.top + ';' + (s.left ? 'left:' + s.left : 'right:' + s.right) + ';';
-                return `<span class="rb-saw-tag" style="${pos}animation-delay:${(0.15 + idx * 0.4).toFixed(2)}s">${_sawEsc(c)}</span>`;
+          function tog(view, text, car, hint) {
+            return '<button type="button" class="rb-saw-toggle" onclick="window.__waFormView(\'' + view + '\')">' +
+              '<span>' + text + '</span>' +
+              (hint ? '<span class="hint">' + hint + '</span>' : '') +
+              '<span class="car">' + car + '</span></button>';
+          }
+          const nTags = d.seasons.length + d.wear.length;
+          const tagsToggle = tog('tags',
+            '<span style="color:var(--ink-faint);margin-right:8px">+</span>Add tags and notes', '',
+            nTags ? nTags + ' set' : 'season, wear it for, notes');
+          const cta = '<button id="wa-saw-cta" class="rb-wf-cta" onclick="window.__waSawSubmit&&window.__waSawSubmit()">' +
+              (isEdit ? 'Update piece →' : 'Add to wardrobe →') + '</button>' +
+            (isEdit ? '<button type="button" class="rb-wf-del" onclick="window.__waFormDelete()">Remove from wardrobe</button>' : '');
+          const photoIn = f.mode !== 'add'
+            ? '<input id="rb-wf-photoin" type="file" accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">'
+            : '';
+
+          const compactHead = function(action) {
+            return '<div class="rb-wf-head">' +
+              '<span class="rb-wf-thumb' + (f.photo ? '' : ' empty') + '">' + (f.photo ? '<img id="rb-wf-thumbimg" alt="">' : '') + '</span>' +
+              '<span class="rb-wf-headtxt">' +
+                '<span class="rb-wf-title">' + _sawEsc(label || 'New piece') + '</span>' +
+                '<span class="rb-wf-meta">' + _sawEsc(_waFormMeta()) + '</span>' +
+              '</span>' + action + '</div>';
+          };
+          const photoAct = '<button type="button" class="rb-wf-headact" onclick="window.__waFormPhoto()">' +
+            (f.photo ? (f.mode === 'add' ? 'Retake' : 'Change photo') : 'Add a photo') + '</button>';
+          const editAct = '<button type="button" class="rb-wf-headact" onclick="window.__waFormView(\'details\')">Edit</button>';
+
+          let html = '';
+          if (f.view === 'summary') {
+            // Screen 03 — what Robes saw, read-only. Rows open the editor.
+            const chips = [];
+            const sheet = _waFormSheet();
+            if (sheet) chips.push(sheet);
+            if (s && s.l2) chips.push(s.l2);
+            if (window.__waSawBrand) chips.push(window.__waSawBrand);
+            if (colour) chips.push(colour);
+            if (s && s.l3) chips.push(s.l3);
+            const SAW_SPOTS = [
+              { top: '9%', left: '7%' },
+              { top: '25%', right: '7%' },
+              { top: '43%', left: '9%' },
+              { top: '58%', right: '10%' },
+              { top: '74%', left: '7%' },
+            ];
+            const tagsHtml = chips.slice(0, SAW_SPOTS.length).map(function(c, idx) {
+                const sp = SAW_SPOTS[idx];
+                const pos = 'top:' + sp.top + ';' + (sp.left ? 'left:' + sp.left : 'right:' + sp.right) + ';';
+                const anim = f.revealed ? 'animation:none;opacity:1;' : 'animation-delay:' + (0.15 + idx * 0.4).toFixed(2) + 's;';
+                return '<span class="rb-saw-tag" style="' + pos + anim + '">' + _sawEsc(c) + '</span>';
               }).join('') +
-              `<span class="rb-saw-banner" style="animation-delay:${(0.35 + chips.length * 0.4).toFixed(2)}s">${_sawEsc(tag.label)}</span>`
-            : '';
-
-          const ledgerHtml = readable
-            ? `<ul class="rb-saw-read" id="rb-saw-read">${LEDGER_LBLS.map(function(l, idx) {
-                return `<li class="rb-saw-row"><span class="rb-saw-num">${String(idx + 1).padStart(2, '0')}</span><span class="rb-saw-lbl">${l}</span><span class="rb-saw-val is-on">Reading</span></li>`;
-              }).join('')}</ul>`
-            : '';
-
-          step.innerHTML = `
-            ${_waBatchTag()}
-            <h2 class="fm-h" style="margin-bottom:4px;">Here's what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>
-            <p style="font-size:13px;color:var(--ink-faint);margin:0 0 16px;">${readable ? `Filed from your photo — adjust the details only if something isn't quite right.` : `Robes couldn't quite read this one — give it a name and it files all the same.`}</p>
-            <div class="rb-saw-panel" id="rb-saw-panel">
-              <img id="wa-saw-photo" alt="">
-              ${tagsHtml}
-              <button type="button" class="rb-saw-retake" onclick="window.__waRetake&&window.__waRetake()">↺ Retake</button>
-            </div>
-            ${ledgerHtml}
-            <button type="button" class="rb-saw-toggle" id="rb-saw-toggle" onclick="window.__rbSawExpand&&window.__rbSawExpand()">
-              <span>✎ Adjust the details</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9A8070" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </button>
-            <div id="rb-saw-edit" style="display:none;">
-              <div style="margin-bottom:12px;">
-                <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">THE PIECE</label>
-                <input id="wa-saw-label" value="${(tag.label||'').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:15px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawLabel=this.value;window.__rbSawSync&&window.__rbSawSync(0,this.value)">
-              </div>
-              <div style="display:flex;gap:10px;margin-bottom:12px;">
-                <div style="flex:1;">
-                  <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">CATEGORY</label>
-                  <select id="wa-saw-cat" style="${_sawSelCss}" onchange="${treeOn ? 'window.__waTaxCatChange(this.value)' : 'window.__waSawCat=this.value;window.__rbSawSync&&window.__rbSawSync(1,this.value)'}">
-                    ${treeOn
-                      ? `<option value=""${dispSheet ? '' : ' selected'} disabled>Choose…</option>` + _WA_SHEET_CATS.concat(['Other']).map(o => `<option${dispSheet===o?' selected':''}>${o}</option>`).join('')
-                      : cats.map(o => `<option${tag.category===o?' selected':''}>${o}</option>`).join('')}
-                  </select>
-                </div>
-                <div style="flex:1;">
-                  <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">BRAND</label>
-                  <input id="wa-saw-brand" value="${(tag.brand||'').replace(/"/g,'&quot;')}" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;" oninput="window.__waSawBrand=this.value;window.__rbSawSync&&window.__rbSawSync(2,this.value||'Unlabelled')">
-                </div>
-              </div>
-              ${treeOn ? `<div style="display:flex;gap:10px;margin-bottom:12px;" id="rb-saw-taxrow">
-                <div style="flex:1;">
-                  <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">SUBCATEGORY</label>
-                  <select id="wa-saw-l2" style="${_sawSelCss}" onchange="window.__waTaxL2Change(this.value)"></select>
-                </div>
-                <div style="flex:1;">
-                  <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">ITEM TYPE</label>
-                  <select id="wa-saw-l3" style="${_sawSelCss}" onchange="window.__waTaxL3Change(this.value)"></select>
-                </div>
-              </div>` : ''}
-              <div style="margin-bottom:12px;">
-                <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;">
-                  <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);">COLOUR</label>
-                  <span id="rb-sw-label" style="font-size:12px;color:#6A5E54;font-style:italic;">${initColor}</span>
-                </div>
-                ${rowsHTML}
-              </div>
-              ${fitPills.length ? `<div style="margin-bottom:12px;">
-                <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:8px;">SILHOUETTE &amp; FIT</label>
-                <div id="rb-fit-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
-              </div>` : ''}
-              <div style="margin-bottom:16px;">
-                <label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px;">NOTES <span style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-faint);">optional</span></label>
-                <textarea id="wa-saw-notes" placeholder="Fabric, fit, occasion…" style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;resize:none;height:72px;" oninput="window.__waSawNotes=this.value">${aiNotes.replace(/</g,'&lt;')}</textarea>
-              </div>
-              <div id="rb-wa-detail-host"></div>
-            </div>
-            <button id="wa-saw-cta" onclick="window.__waSawSubmit&&window.__waSawSubmit()" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:var(--rad-sm);font-size:14px;letter-spacing:0.08em;cursor:pointer;font-family:inherit;">ADD TO WARDROBE →</button>`;
-
-          // Set the photo src via DOM (not innerHTML) so large data URLs aren't truncated
-          const photoEl = document.getElementById('wa-saw-photo');
-          if (photoEl) photoEl.src = dataUrl;
-
-          // Fill the Subcategory / Item type selects from the taxonomy tree
-          if (treeOn) _waTaxPaintSelects();
-
-          // Live sync: an edit in the collapsed form updates the ledger row
-          // (and the photo banner for the name) so the reveal never lies.
-          window.__rbSawSync = function(idx, txt) {
-            ledgerVals[idx] = txt;
-            const spans = document.querySelectorAll('#rb-saw-read .rb-saw-val');
-            if (spans[idx]) { spans[idx].textContent = txt; spans[idx].className = 'rb-saw-val'; }
-            if (idx === 0) {
-              const b = document.querySelector('#rb-saw-panel .rb-saw-banner');
-              if (b) b.textContent = txt;
+              '<span class="rb-saw-banner" style="' + (f.revealed ? 'animation:none;opacity:1;' : 'animation-delay:' + (0.35 + Math.min(chips.length, SAW_SPOTS.length) * 0.4).toFixed(2) + 's;') + '">' + _sawEsc(label) + '</span>';
+            const vals = _waLedgerVals();
+            const ledger = '<ul class="rb-saw-read" id="rb-saw-read">' + LEDGER_LBLS.map(function(l, idx) {
+              return '<li class="rb-saw-row" onclick="window.__waFormView(\'details\',' + idx + ')">' +
+                '<span class="rb-saw-num">' + String(idx + 1).padStart(2, '0') + '</span>' +
+                '<span class="rb-saw-lbl">' + l + '</span>' +
+                '<span class="rb-saw-val' + (f.revealed ? '' : ' is-on') + '">' + (f.revealed ? vals[idx] : 'Reading') + '</span></li>';
+            }).join('') + '</ul>';
+            html = batch +
+              '<h2 class="fm-h" style="margin-bottom:4px;">Here’s what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>' +
+              '<p style="font-size:13px;color:var(--ink-faint);margin:0 0 16px;">Filed from your photo — adjust the details only if something isn’t quite right.</p>' +
+              '<div class="rb-saw-panel" id="rb-saw-panel"><img id="wa-saw-photo" alt="">' + tagsHtml +
+              '<button type="button" class="rb-saw-retake" onclick="window.__waRetake&&window.__waRetake()">↺ Retake</button></div>' +
+              ledger +
+              tog('details', 'Edit the details', '▾') +
+              cta;
+          } else if (f.view === 'details') {
+            // Screens 04/05/11 — the editable fields, core set only.
+            let head;
+            if (isEdit || (f.mode === 'add' && f.readable)) {
+              head = compactHead(photoAct) + (f.mode === 'add' && f.readable ? tog('summary', 'Hide the details', '▴') : '');
+            } else {
+              // Manual add / unreadable photo — full headline, empty slot.
+              const sub = f.mode === 'add' && !f.readable
+                ? '<p style="font-size:13px;color:var(--ink-faint);margin:0 0 14px;">Robes couldn’t quite read this one — give it a name and it files all the same.</p>'
+                : '';
+              head = '<h2 class="fm-h" style="margin-bottom:' + (sub ? '4px' : '14px') + ';">Add a piece.</h2>' + sub +
+                (f.photo
+                  ? '<div class="rb-wf-photo"><img id="rb-wf-photoimg" alt=""><button type="button" class="rb-saw-retake" onclick="window.__waFormPhoto()">↺ Retake</button></div>'
+                  : '<div class="rb-wf-slot"><span class="rb-wf-btn line" onclick="window.__waFormPhoto()">Add a photo</span></div>');
             }
-          };
+            const catVal = treeOn ? (s && s.sheet) || '' : window.__waSawCat || '';
+            const hasL2s = treeOn && s && s.sheet && _waTaxL2s(s.sheet).length > 0;
+            const fields =
+              '<div>' +
+                '<label class="rb-wf-lbl">The piece</label>' +
+                '<input id="wa-saw-label" class="rb-wf-input" placeholder="Name the piece" value="' + _sawEsc(label) + '" oninput="window.__waSawLabel=this.value">' +
+              '</div>' +
+              '<div class="rb-wf-grid2">' +
+                '<div><label class="rb-wf-lbl">Brand</label>' +
+                  '<input id="wa-saw-brand" class="rb-wf-input" placeholder="Start typing…" value="' + _sawEsc(window.__waSawBrand || '') + '" oninput="window.__waSawBrand=this.value"></div>' +
+                '<div><label class="rb-wf-lbl">Category</label>' +
+                  '<button type="button" id="wa-saw-cat" class="rb-wf-field' + (catVal ? '' : ' empty') + '" onclick="window.__waFieldPick(\'cat\',this)"><span>' + _sawEsc(catVal || 'Choose') + '</span><span class="car">▾</span></button></div>' +
+              '</div>' +
+              (hasL2s
+                ? '<div class="rb-wf-grid2">' +
+                  '<div><label class="rb-wf-lbl">Subcategory</label>' +
+                    '<button type="button" id="wa-saw-l2" class="rb-wf-field' + (s.l2 ? '' : ' empty') + '" onclick="window.__waFieldPick(\'l2\',this)"><span>' + _sawEsc(s.l2 || 'Choose') + '</span><span class="car">▾</span></button></div>' +
+                  '<div><label class="rb-wf-lbl">Item type</label>' +
+                    '<button type="button" id="wa-saw-l3" class="rb-wf-field' + (s.l3 ? '' : ' empty') + (s.l2 ? '' : ' off') + '" ' + (s.l2 ? '' : 'disabled ') + 'onclick="window.__waFieldPick(\'l3\',this)"><span>' + _sawEsc(s.l3 || 'Choose') + '</span><span class="car">▾</span></button></div>' +
+                '</div>'
+                : '') +
+              '<div style="margin-top:12px;margin-bottom:14px">' +
+                '<label class="rb-wf-lbl">Colour</label>' +
+                '<div class="rb-wf-colour">' +
+                  '<span class="rb-wf-dot' + (colour ? '' : ' empty') + '" style="' + (colour ? _waSwatchBg(colour) : '') + '"></span>' +
+                  '<span class="rb-wf-colname' + (colour ? '' : ' ph') + '">' + _sawEsc(colour || 'Pick a colour') + '</span>' +
+                  '<button type="button" class="rb-wf-change" onclick="window.__waColourPop(this)">Change</button>' +
+                '</div>' +
+              '</div>';
+            html = batch + head + fields + tagsToggle + cta + photoIn;
+          } else {
+            // f.view === 'tags' — screen 06: two axes held apart, notes last.
+            const seaChips = WA_SEASONS.map(function(w) {
+              const on = d.seasons.indexOf(w) !== -1;
+              return '<button type="button" class="rb-wf-chip sea' + (on ? ' on' : '') + '" onclick="window.__waTagTog(\'seasons\',\'' + _sawEsc(w).replace(/'/g, "\\'") + '\')">' + _sawEsc(w) + '</button>';
+            }).join('');
+            const ctxAll = WA_OCCASIONS.concat(d.wear.filter(function(w) { return WA_OCCASIONS.indexOf(w) === -1; }));
+            const ctxChips = ctxAll.map(function(w) {
+              const on = d.wear.indexOf(w) !== -1;
+              return '<button type="button" class="rb-wf-chip ctx' + (on ? ' on' : '') + '" onclick="window.__waTagTog(\'wear\',\'' + _sawEsc(w).replace(/'/g, "\\'") + '\')">' + _sawEsc(w) + '</button>';
+            }).join('') + (d.addingTag
+              ? '<input id="rb-wf-tagin" class="rb-wf-input" placeholder="Type &amp; press Enter" onkeydown="window.__waTagKey(event,this)" onblur="window.__waTagKey(event,this)" style="width:150px;border-radius:100px;padding:8px 15px;font-size:13px">'
+              : '<button type="button" class="rb-wf-chip ctx add" onclick="window.__waTagStart()">+ tag</button>');
+            html = batch + compactHead(editAct) +
+              tog('details', 'Hide tags and notes', '▴') +
+              '<div class="rb-wf-taghd first"><label class="rb-wf-lbl" style="margin-bottom:10px">Season</label><div class="rb-wf-chips">' + seaChips + '</div></div>' +
+              '<div class="rb-wf-taghd"><label class="rb-wf-lbl" style="margin-bottom:10px">Wear it for</label><div class="rb-wf-chips">' + ctxChips + '</div></div>' +
+              '<div class="rb-wf-taghd"><label class="rb-wf-lbl">Notes</label>' +
+                '<textarea id="wa-saw-notes" class="rb-wf-input" placeholder="Fit, fabric, how you like to wear it." style="resize:none;height:72px" oninput="window.__waSawNotes=this.value">' + String(window.__waSawNotes || '').replace(/</g, '&lt;') + '</textarea></div>' +
+              cta + photoIn;
+          }
 
-          // The collapsed details editor. force=true (empty-label guard) always opens.
-          window.__rbSawExpand = function(force) {
-            const box = document.getElementById('rb-saw-edit');
-            const tg = document.getElementById('rb-saw-toggle');
-            if (!box) return;
-            const open = force === true ? true : box.style.display === 'none';
-            box.style.display = open ? 'block' : 'none';
-            if (tg) {
-              tg.classList.toggle('open', open);
-              const lbl = tg.querySelector('span');
-              if (lbl) lbl.textContent = open ? 'Hide the details' : '✎ Adjust the details';
-            }
-          };
+          step.innerHTML = html;
 
-          // Swatch picks route through the shared __rbPickSwatch — sync the
-          // Colour ledger row off the committed value a tick later.
-          const editBox = document.getElementById('rb-saw-edit');
-          if (editBox) {
-            editBox.addEventListener('click', function(e) {
-              if (e.target && e.target.closest && e.target.closest('button[aria-label]')) {
-                setTimeout(function() { window.__rbSawSync && window.__rbSawSync(3, window.__waSawColor || ''); }, 0);
-              }
+          // Hidden dummy #wa-label-in — the bundle's open() focuses it on a
+          // 220ms timer (and validate() reads it); our form replaces the
+          // bundle fields at 150ms, so without this the edit path throws.
+          // At submit time it simply shadows the hidden-host copy for the
+          // label — __waSawSubmit writes and WA.submit reads the same node.
+          if (!document.getElementById('wa-label-in')) {
+            const dummy = document.createElement('input');
+            dummy.id = 'wa-label-in';
+            dummy.type = 'text';
+            dummy.style.display = 'none';
+            step.appendChild(dummy);
+          }
+
+          // Photo srcs set via DOM, never innerHTML — large data URLs truncate.
+          const p1 = document.getElementById('wa-saw-photo');
+          if (p1 && f.photo) p1.src = f.photo;
+          const p2 = document.getElementById('rb-wf-thumbimg');
+          if (p2 && f.photo) p2.src = f.photo;
+          const p3 = document.getElementById('rb-wf-photoimg');
+          if (p3 && f.photo) p3.src = f.photo;
+
+          // Manual/edit photo replace — attach only, no re-analyse (she is
+          // filing by hand; the scan runs only through step 1).
+          const pin = document.getElementById('rb-wf-photoin');
+          if (pin) {
+            pin.addEventListener('change', function() {
+              const file = this.files && this.files[0];
+              if (!file) return;
+              _waFileToDataUrl(file).then(function(url) {
+                _photoDataUrl = url;
+                if (_waForm) { _waForm.photo = url; _waFormPaint(); }
+              }).catch(function() { _waShowToast('Could not read that image'); });
             });
           }
 
-          // The filing reveal — ledger rows fill one at a time, mirroring
-          // onboarding's revealLedger. Bails silently if the step re-renders
-          // (retake, batch advance) mid-play.
-          if (readable) {
+          // The filing reveal — ledger rows fill one at a time. Bails
+          // silently if the step re-renders (retake, batch advance) mid-play.
+          if (f.view === 'summary' && f.readable && !f.revealed) {
+            const vals = _waLedgerVals();
             let rc = 0;
             const revealTick = function() {
               const spans = document.querySelectorAll('#rb-saw-read .rb-saw-val');
               if (!spans.length) return;
               spans.forEach(function(sp, idx) {
                 const done = idx < rc;
-                sp.textContent = done ? ledgerVals[idx] : 'Reading';
+                sp.innerHTML = done ? vals[idx] : 'Reading';
                 sp.className = 'rb-saw-val' + (done ? '' : ' is-on');
               });
-              if (rc < ledgerVals.length) { rc++; setTimeout(revealTick, 420); }
+              if (rc < vals.length) { rc++; setTimeout(revealTick, 420); }
+              else f.revealed = true;
             };
             setTimeout(revealTick, 250);
-          } else {
-            window.__rbSawExpand(true);
           }
 
-          // Render pills after innerHTML is set
-          _renderFitPills();
+          if (focusSel) {
+            const el = document.querySelector(focusSel);
+            if (el && el.focus) el.focus();
+          }
+        }
+        window.__waFormRepaint = function() { if (_waForm) _waFormPaint(); };
 
-          // Progressive capture — "Add more detail" (season, cost-per-wear,
-          // fit, sentiment, Hero Rack). Fresh state per piece, batch included.
-          if (window.__rbWaDetailInject) window.__rbWaDetailInject(null);
+        window.__waFormView = function(v, focusIdx) {
+          if (!_waForm) return;
+          _waForm.view = v;
+          _waFormPaint(focusIdx === 0 ? '#wa-saw-label' : focusIdx === 1 ? '#wa-saw-brand' : null);
+        };
 
+        // Two tag axes, held apart: 'seasons' files into wardrobe_items.
+        // seasons, 'wear' (the Context axis + free tags) into .occasions.
+        window.__waTagTog = function(axis, val) {
+          const d = window.__rbWaDetail;
+          if (!d) return;
+          const a = axis === 'seasons' ? d.seasons : d.wear;
+          const i = a.indexOf(val);
+          if (i === -1) a.push(val); else a.splice(i, 1);
+          _waFormPaint();
+        };
+        window.__waTagStart = function() {
+          const d = window.__rbWaDetail;
+          if (!d) return;
+          d.addingTag = true;
+          _waFormPaint('#rb-wf-tagin');
+        };
+        window.__waTagKey = function(e, el) {
+          const d = window.__rbWaDetail;
+          // Enter commits and repaints (removing the input) — the orphaned
+          // input then fires blur, which must not repaint again mid-remove.
+          if (!d || !d.addingTag) return;
+          if (e.type === 'blur' || e.key === 'Enter') {
+            if (e.key === 'Enter') e.preventDefault();
+            const v = (el.value || '').trim();
+            if (v && d.wear.indexOf(v) === -1) d.wear.push(v);
+            d.addingTag = false;
+            _waFormPaint();
+          } else if (e.key === 'Escape') {
+            d.addingTag = false;
+            _waFormPaint();
+          }
+        };
+
+        window.__waFormPhoto = function() {
+          // Add flow: Retake returns to the image step (batch queue kept).
+          // Manual/edit: poke the hidden input — a straight photo replace.
+          if (_waForm && _waForm.mode === 'add') { _showStep1(); return; }
+          const inp = document.getElementById('rb-wf-photoin');
+          if (inp) inp.click();
+        };
+        window.__waFormDelete = function() { _waDelete(); };
+        window.__waLinkSoon = function() {
+          _waSoon('Paste a link', 'Drop a product link and Robes files the piece — photo, brand and price included.');
+        };
+        window.__waRetake = function() { _showStep1(); };
+
+        function _waFormSeedEmpty() {
+          _photoDataUrl = '';
+          window.__waSawLabel = '';
+          window.__waSawBrand = '';
+          window.__waSawNotes = '';
+          window.__waSawColor = '';
+          window.__waSawItemDna = {};
+          window.__waSawCat = '';
+          window.__waSawL2 = '';
+          window.__waSawL3 = '';
+          window.__waSawTaxSel = _waTaxTree ? { sheet: '', l2: '', l3: '' } : null;
+          window.__rbWaDetail = { seasons: [], wear: [], addingTag: false };
+        }
+
+        // Add without a photo — same anatomy, empty photo slot, empty fields.
+        window.__waManualStart = function() {
+          _waFormSeedEmpty();
+          _waForm = { mode: 'manual', view: 'details', photo: '', readable: false, revealed: true };
+          _setDot(3);
+          _waFormPaint('#wa-saw-label');
+        };
+
+        // Edit — the SAME form, details open, prefilled from the row. The
+        // pass-through columns the form no longer captures (price, fit
+        // confidence, sentiment, hero) are simply omitted from the PATCH,
+        // so an edit never wipes them.
+        function _showEditForm(it) {
+          _photoDataUrl = '';
+          window.__waSawLabel = it.label || '';
+          window.__waSawBrand = it.brand || '';
+          window.__waSawNotes = it.notes || '';
+          window.__waSawColor = it.color || '';
+          window.__waSawItemDna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : {};
+          window.__waSawCat = it.category || '';
+          window.__waSawL2 = it.category_l2 || '';
+          window.__waSawL3 = it.category_l3 || '';
+          window.__waSawTaxSel = _waTaxTree
+            ? { sheet: (it.category_l2 && _WA_L2_SHEET[it.category_l2]) || _WA_LEGACY_TO_SHEET[it.category] || '', l2: it.category_l2 || '', l3: it.category_l3 || '' }
+            : null;
+          // 'Everyday' is retired from the context vocabulary (it's the
+          // default state, not a tag) — dropped at prefill.
+          window.__rbWaDetail = {
+            seasons: Array.isArray(it.seasons) ? it.seasons.slice() : [],
+            wear: (Array.isArray(it.occasions) ? it.occasions : []).filter(function(o) { return o !== 'Everyday'; }),
+            addingTag: false,
+          };
+          _waForm = { mode: 'edit', view: 'details', photo: it.image_url || '', readable: false, revealed: true };
+          _setDot(3);
+          _waFormPaint();
+        }
+
+        function _runStep3(dataUrl, tag) {
+          _setDot(3);
+          const dna = tag.item_dna || {};
+          const initColor = GEMINI_MAP[tag.color] || tag.color || '';
           window.__waSawLabel = tag.label || '';
-          window.__waSawCat   = tag.category || '';
-          window.__waSawL2    = tag.category_l2 || '';
-          window.__waSawL3    = tag.category_l3 || '';
           window.__waSawBrand = tag.brand || '';
-          window.__waSawNotes = aiNotes;
-          window.__waRetake   = function() { _showStep1(); };
-          window.__waSawSubmit = function() {
-            const step = document.querySelector('#wa-modal .fm-step');
-            if (!step) return;
-            // The bundle's WA.submit silently returns on an empty label, which
-            // would leave the CTA stuck on "Saving…" — catch it here instead.
-            // The name field lives in the collapsed details editor, so open it
-            // before pointing at it.
-            if (!(window.__waSawLabel || '').trim()) {
-              if (window.__rbSawExpand) window.__rbSawExpand(true);
-              const nameEl = document.getElementById('wa-saw-label');
-              if (nameEl) {
-                nameEl.style.borderColor = '#B0533B';
-                nameEl.focus();
-                let hint = document.getElementById('wa-saw-namehint');
-                if (!hint) {
-                  hint = document.createElement('div');
-                  hint.id = 'wa-saw-namehint';
-                  hint.style.cssText = 'font-size:12px;color:#B0533B;margin:6px 0 0;';
-                  nameEl.parentNode.appendChild(hint);
-                }
-                hint.textContent = 'Give the piece a name first — even “black blazer” will do.';
-                nameEl.addEventListener('input', function clr() {
-                  nameEl.style.borderColor = '#D8CEBC';
-                  if (hint) hint.textContent = '';
-                  nameEl.removeEventListener('input', clr);
-                });
+          window.__waSawNotes = dna.ai_generated_notes || tag.notes || '';
+          window.__waSawColor = initColor;
+          window.__waSawItemDna = dna;
+          window.__waSawCat = tag.category || '';
+          window.__waSawL2 = tag.category_l2 || '';
+          window.__waSawL3 = tag.category_l3 || '';
+          // Display category = the taxonomy sheet's L1 (derived from the
+          // analysed L2, else the legacy mapping); the stored `category`
+          // stays legacy. The cascade fields only mount when the tree landed.
+          const dispSheet = (tag.category_l2 && _WA_L2_SHEET[tag.category_l2]) || _WA_LEGACY_TO_SHEET[tag.category] || '';
+          window.__waSawTaxSel = _waTaxTree ? { sheet: dispSheet, l2: tag.category_l2 || '', l3: tag.category_l3 || '' } : null;
+          window.__rbWaDetail = { seasons: [], wear: [], addingTag: false };
+          // A readable piece gets the summary + reveal; an unreadable one
+          // goes straight to the open editor — nothing to celebrate yet.
+          const readable = !!tag.label;
+          _waForm = { mode: 'add', view: readable ? 'summary' : 'details', photo: dataUrl, readable: readable, revealed: false };
+          _waFormPaint(readable ? null : '#wa-saw-label');
+        }
+
+        window.__waSawSubmit = function() {
+          const step = document.querySelector('#wa-modal .fm-step');
+          if (!step) return;
+          // The bundle's WA.submit silently returns on an empty label, which
+          // would leave the CTA stuck on "Saving…" — catch it here instead.
+          // The name field lives in the details editor, so open it first.
+          if (!(window.__waSawLabel || '').trim()) {
+            if (_waForm && _waForm.view !== 'details') window.__waFormView('details');
+            const nameEl = document.getElementById('wa-saw-label');
+            if (nameEl) {
+              nameEl.style.borderColor = '#B0533B';
+              nameEl.focus();
+              let hint = document.getElementById('wa-saw-namehint');
+              if (!hint) {
+                hint = document.createElement('div');
+                hint.id = 'wa-saw-namehint';
+                hint.style.cssText = 'font-size:12px;color:#B0533B;margin:6px 0 0;';
+                nameEl.parentNode.appendChild(hint);
               }
-              return;
+              hint.textContent = 'Give the piece a name first — even “black blazer” will do.';
+              nameEl.addEventListener('input', function clr() {
+                nameEl.style.borderColor = '#D8CEBC';
+                if (hint) hint.textContent = '';
+                nameEl.removeEventListener('input', clr);
+              });
             }
-            // Keep the polished review visible and flip its own CTA to "Saving…"
-            // — do NOT swap the whole step back to the bundle's empty "Add a
-            // piece" form (that flash was the reported bug). The bundle form
-            // WA.submit reads from is injected into a hidden host instead.
-            const sawBtn = document.getElementById('wa-saw-cta');
-            if (sawBtn) { sawBtn.disabled = true; sawBtn.style.opacity = '0.65'; sawBtn.style.cursor = 'default'; sawBtn.textContent = 'Saving…'; }
-            let host = document.getElementById('wa-hidden-form');
-            if (!host) {
-              host = document.createElement('div');
-              host.id = 'wa-hidden-form';
-              host.style.display = 'none';
-              step.appendChild(host);
-            }
-            if (_origStepHTML) host.innerHTML = _origStepHTML;
-            const lEl  = document.getElementById('wa-label-in');
-            const cEl  = document.getElementById('wa-cat');
-            const bEl  = document.getElementById('wa-brand');
-            const nEl  = document.getElementById('wa-notes');
-            const swEl = document.getElementById('wa-sw-name');
-            const tileImg  = document.getElementById('wa-tile-img');
-            const tileEl   = document.getElementById('wa-tile');
-            const tileFill  = document.getElementById('wa-tile-fill');
-            const tileEmpty = document.getElementById('wa-tile-empty');
-            if (lEl)  lEl.value        = window.__waSawLabel || '';
-            if (cEl)  cEl.value        = window.__waSawCat   || '';
-            if (bEl)  bEl.value        = window.__waSawBrand || '';
-            if (nEl)  nEl.value        = window.__waSawNotes  || '';
-            if (swEl) swEl.textContent = window.__waSawColor  || '';
-            if (tileImg && _photoDataUrl) tileImg.src = _photoDataUrl;
+            return;
+          }
+          // Keep the polished review visible and flip its own CTA to "Saving…"
+          // — the bundle form WA.submit reads from is injected into a hidden
+          // host instead of swapping the visible step.
+          const sawBtn = document.getElementById('wa-saw-cta');
+          if (sawBtn) { sawBtn.disabled = true; sawBtn.style.opacity = '0.65'; sawBtn.style.cursor = 'default'; sawBtn.textContent = 'Saving…'; }
+          let host = document.getElementById('wa-hidden-form');
+          if (!host) {
+            host = document.createElement('div');
+            host.id = 'wa-hidden-form';
+            host.style.display = 'none';
+            step.appendChild(host);
+          }
+          if (_origStepHTML) host.innerHTML = _origStepHTML;
+          const lEl  = document.getElementById('wa-label-in');
+          const cEl  = document.getElementById('wa-cat');
+          const bEl  = document.getElementById('wa-brand');
+          const nEl  = document.getElementById('wa-notes');
+          const swEl = document.getElementById('wa-sw-name');
+          const tileImg  = document.getElementById('wa-tile-img');
+          const tileEl   = document.getElementById('wa-tile');
+          const tileFill  = document.getElementById('wa-tile-fill');
+          const tileEmpty = document.getElementById('wa-tile-empty');
+          if (lEl)  lEl.value        = window.__waSawLabel || '';
+          if (cEl)  cEl.value        = window.__waSawCat   || '';
+          if (bEl)  bEl.value        = window.__waSawBrand || '';
+          if (nEl)  nEl.value        = window.__waSawNotes  || '';
+          if (swEl) swEl.textContent = window.__waSawColor  || '';
+          if (tileImg && _photoDataUrl) tileImg.src = _photoDataUrl;
+          if (_photoDataUrl) {
             if (tileEl)   tileEl.classList.add('filled');
             if (tileFill)  tileFill.style.display  = 'block';
             if (tileEmpty) tileEmpty.style.display = 'none';
-            setTimeout(() => { window.WA && WA.submit && WA.submit(); }, 50);
-          };
-        }
+          }
+          setTimeout(() => { window.WA && WA.submit && WA.submit(); }, 50);
+        };
 
         function _patchWA() {
           if (!window.WA || !WA.open || WA.open._rbPatched) return false;
@@ -1951,6 +2253,16 @@
                 if (step && !_origStepHTML && step.querySelector('.wa-grid')) _origStepHTML = step.innerHTML;
                 _showStep1();
               }, 150);
+            } else {
+              // Edit mode: the SAME confirm form, details open, prefilled
+              // (add/edit redesign 2026-08-05 — the bundle form survives
+              // only as the hidden save bridge).
+              setTimeout(function() {
+                const step = document.querySelector('#wa-modal .fm-step');
+                if (step && !_origStepHTML && step.querySelector('.wa-grid')) _origStepHTML = step.innerHTML;
+                const it = _waItems.find(function(i) { return String(i.id) === String(_waEditId); });
+                if (it) _showEditForm(it);
+              }, 150);
             }
           };
           WA.open._rbPatched = true;
@@ -1959,10 +2271,11 @@
             WA.close = function() {
               _photoDataUrl = '';
               _waBatchQueue = []; _waBatchTotal = 0; _waBatchDone = 0;
-              // Progressive-capture + taxonomy state must not leak into the next open
+              // Form + tag-axis + taxonomy state must not leak into the next open
+              _waForm = null;
+              _waPopClose();
               window.__rbWaDetail = null;
               window.__waSawTaxSel = null;
-              document.getElementById('rb-wa-detail-host')?.remove();
               _origClose.apply(this, arguments);
             };
             WA.close._rbPatched = true;
@@ -2044,20 +2357,18 @@
               item_dna:  Object.keys(savedDna).length ? savedDna : undefined,
             };
 
-            // Progressive capture (wardrobe v2) — only when the expander was
-            // mounted for this piece (add step 3 / edit both mount it), and
-            // only while the v2 columns are known to exist.
-            const _V2_KEYS = ['seasons', 'occasions', 'price', 'fit_confidence', 'sentiment', 'hero_position'];
+            // The two tag axes (add/edit redesign 2026-08-05): Season →
+            // wardrobe_items.seasons, Wear it for (context + free tags) →
+            // .occasions. Price / fit_confidence / sentiment / hero_position
+            // are deliberately OMITTED — the form no longer captures them
+            // (cost-per-wear pulled from the UI, columns reserved; the star
+            // on the grid card is the one favouriting mechanic), and leaving
+            // them off the PATCH preserves whatever an old row carries.
+            const _V2_KEYS = ['seasons', 'occasions'];
             const det = window.__rbWaDetail;
             if (det && _waV2Cols) {
-              const seas = det.when.filter(w => WA_SEASONS.indexOf(w) !== -1);
-              const occ  = det.when.filter(w => WA_SEASONS.indexOf(w) === -1);
-              payload.seasons        = seas.length ? seas : null;
-              payload.occasions      = occ.length ? occ : null;
-              payload.price          = det.price && Number(det.price) > 0 ? Number(det.price) : null;
-              payload.fit_confidence = det.fitConf || null;
-              payload.sentiment      = det.sentiment || null;
-              payload.hero_position  = det.hero ? (det.heroPos != null ? det.heroPos : _waHeroNextPos()) : null;
+              payload.seasons   = det.seasons && det.seasons.length ? det.seasons : null;
+              payload.occasions = det.wear && det.wear.length ? det.wear : null;
             }
 
             // 3-level taxonomy (migration 15). When the cascade UI mounted
@@ -2164,7 +2475,7 @@
             if (cta) { cta.disabled = false; cta.textContent = editId ? 'Update piece' : 'Add to wardrobe'; }
             // Re-enable the visible step-3 CTA (add flow) so the user can retry.
             const sawBtn = document.getElementById('wa-saw-cta');
-            if (sawBtn) { sawBtn.disabled = false; sawBtn.style.opacity = '1'; sawBtn.style.cursor = 'pointer'; sawBtn.textContent = 'ADD TO WARDROBE →'; }
+            if (sawBtn) { sawBtn.disabled = false; sawBtn.style.opacity = '1'; sawBtn.style.cursor = 'pointer'; sawBtn.textContent = editId ? 'Update piece →' : 'Add to wardrobe →'; }
           }
         };
       }
@@ -2197,11 +2508,20 @@
       var _waV2Cols = true;                // v2 columns present? flipped off on PGRST204
       var _waTaxCols = true;               // migration 15 (category_l2/l3) present? flipped off on PGRST204
       var _wlItems = [], _wlLoaded = false, _wlTableMissing = false;
-      var _waRefine = { seasons: [], colors: [], types: [], itemTypes: [], fits: [], worn: 'all', brand: '' };
+      // Refine holds three things (redesign 2026-08-05): season, colour,
+      // brand. Category / subcategory / item type live in the tab cascade
+      // (_waDrill), silhouette & fit is cut, worn/never retired (the
+      // Never-worn badge on the card carries that signal).
+      var _waRefine = { seasons: [], colors: [], brand: '' };
       var _waRefineOpen = false;
+      // The browse drill — Subcategory › Item type picked through the
+      // category tabs' cascade, scoped to the active sheet-L1 tab.
+      var _waDrill = { l2: '', l3: '' };
 
       const WA_SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter', 'Year-round'];
-      const WA_OCCASIONS = ['Everyday', 'Work', 'Evening', 'Travel'];
+      // The Wear-it-for (Context) vocabulary — 'Everyday' retired (it's the
+      // default state, not a tag; locked decision 2026-08-05).
+      const WA_OCCASIONS = ['Work', 'Evening', 'Occasion', 'Travel', 'Active'];
       const _WA_HERO_CAP = 10;
 
       // 3-level taxonomy (migration 15): every L2 subcategory → the legacy
@@ -2253,29 +2573,22 @@
           // Year-round pieces are always in season, so they pass any pick
           if (s.indexOf('Year-round') === -1 && !r.seasons.some(x => s.indexOf(x) !== -1)) return false;
         }
-        if (r.worn === 'worn' && !(it.times_worn > 0)) return false;
-        if (r.worn === 'never' && it.times_worn > 0) return false;
         if (r.colors.length && r.colors.indexOf(it.color) === -1) return false;
-        // Subcategory = category_l2, Item type = category_l3 (3-level
-        // taxonomy). Pre-migration pieces carry null and only match while no
-        // chip is picked — same posture as a colour no piece wears, never a
-        // hidden-by-default state.
-        if (r.types.length && r.types.indexOf(it.category_l2) === -1) return false;
-        if (r.itemTypes.length && r.itemTypes.indexOf(it.category_l3) === -1) return false;
         if (r.brand && (it.brand || '') !== r.brand) return false;
-        if (r.fits.length) {
-          const f = (it.item_dna && it.item_dna.structural_dna && Array.isArray(it.item_dna.structural_dna.silhouette_fit))
-            ? it.item_dna.structural_dna.silhouette_fit : [];
-          if (!f.some(x => r.fits.indexOf(x) !== -1)) return false;
-        }
         return true;
       }
       function _waRefineCount() {
         const r = _waRefine;
-        return r.seasons.length + r.colors.length + r.types.length + r.itemTypes.length + r.fits.length + (r.brand ? 1 : 0) + (r.worn !== 'all' ? 1 : 0);
+        return r.seasons.length + r.colors.length + (r.brand ? 1 : 0);
       }
       function _waFilteredItems() {
-        return _waItems.filter(i => (_waCat === 'All' || _waSheetCatOf(i) === _waCat) && _waMatchRefine(i));
+        // Category tab, then the cascade drill (Subcategory › Item type —
+        // pre-migration pieces carry null L2/L3 and only match while no
+        // drill is active), then the Refine layer.
+        return _waItems.filter(i => (_waCat === 'All' || _waSheetCatOf(i) === _waCat)
+          && (!_waDrill.l2 || i.category_l2 === _waDrill.l2)
+          && (!_waDrill.l3 || i.category_l3 === _waDrill.l3)
+          && _waMatchRefine(i));
       }
 
       // "Coming soon" door — reuses the bundle's dialog like the affiliate CTA
@@ -2285,7 +2598,9 @@
       }
 
       function _waStarSvg(on) {
-        return '<svg viewBox="0 0 24 24" fill="' + (on ? '#fff' : 'none') + '" stroke="' + (on ? '#fff' : '#202021') + '" stroke-width="1.3"><path d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9 6.75 19.7l1-5.85L3.5 9.65l5.9-.85z"/></svg>';
+        // White glyph in both states — the circle behind it carries the
+        // on/off signal (translucent ink off, solid ink on; design 2026-08-05).
+        return '<svg viewBox="0 0 24 24" fill="' + (on ? '#fff' : 'none') + '" stroke="#fff" stroke-width="1.3"><path d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9 6.75 19.7l1-5.85L3.5 9.65l5.9-.85z"/></svg>';
       }
 
       // ── Hero Rack ─────────────────────────────────────────────────────
@@ -2366,7 +2681,10 @@
         if (count) count.textContent = _waHeroAll().length + ' of ' + _WA_HERO_CAP + ' featured';
       }
 
-      // ── Refine drawer ─────────────────────────────────────────────────
+      // ── Refine — season, colour, brand (redesign 2026-08-05) ─────────
+      // Category lives in the tab cascade above, so the panel holds three
+      // things. Desktop: inline panel under the trail row; ≤767px: a bottom
+      // sheet with its own header.
       window.__waRefTog = function(kind, val) {
         const a = _waRefine[kind];
         const i = a.indexOf(val);
@@ -2374,43 +2692,22 @@
         _waRender();
         _waRefineRender();
       };
-      window.__waRefWorn = function(v) { _waRefine.worn = v; _waRender(); _waRefineRender(); };
       window.__waRefBrand = function(el) { _waRefine.brand = el.value; _waRender(); _waRefineRender(); };
-      // One clear for both filter tiers — category tabs back to All, drawer wiped.
+      // One clear for every filter tier — category tab back to All, the
+      // cascade drill dropped, the Refine panel wiped.
       window.__waFiltersClear = function() {
         _waCat = 'All';
+        _waDrill = { l2: '', l3: '' };
         window.__waRefClear();
-        document.querySelectorAll('#wg-filters .wg-tab').forEach(p => p.classList.toggle('active', p.textContent === 'All'));
+        document.querySelectorAll('#wg-filters .wg-tab').forEach(p => p.classList.toggle('active', (p.dataset.cat || p.textContent) === 'All'));
       };
       window.__waRefClear = function() {
-        _waRefine = { seasons: [], colors: [], types: [], itemTypes: [], fits: [], worn: 'all', brand: '' };
+        _waRefine = { seasons: [], colors: [], brand: '' };
         _waRender();
         _waRefineRender();
       };
       window.__waRefToggle = function() {
         _waRefineOpen = !_waRefineOpen;
-        _waRefineRender();
-      };
-      // Colour wheel in the filter — a custom pick maps to the nearest
-      // palette colour (item.color values are always palette names)
-      function _waHexDist(a, b) {
-        const p = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
-        const x = p(a), y = p(b);
-        return (x[0] - y[0]) * (x[0] - y[0]) + (x[1] - y[1]) * (x[1] - y[1]) + (x[2] - y[2]) * (x[2] - y[2]);
-      }
-      window.__waRefWheel = function(el) {
-        const hex = (el.value || '').toLowerCase();
-        if (!/^#[0-9a-f]{6}$/.test(hex)) return;
-        let best = null, bd = Infinity;
-        _ALL_SWATCHES.forEach(function(sw) {
-          if (!sw.hex) return;
-          const d = _waHexDist(hex, sw.hex);
-          if (d < bd) { bd = d; best = sw; }
-        });
-        if (!best) return;
-        if (_waRefine.colors.indexOf(best.name) === -1) _waRefine.colors.push(best.name);
-        _waShowToast('Filtering by ' + best.name);
-        _waRender();
         _waRefineRender();
       };
 
@@ -2419,82 +2716,44 @@
         if (!pill) return;
         const n = _waRefineCount();
         pill.classList.toggle('active', _waRefineOpen || n > 0);
-        pill.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Refine' +
-          (n ? ' <span class="rb-refine-badge">' + n + '</span>' : '');
+        pill.innerHTML = 'Refine' + (n ? ' <span class="rb-refine-badge">' + n + '</span>' : '');
       }
 
       function _waRefineRender() {
         const drawer = document.getElementById('rb-refine');
         if (!drawer) return;
         _waRefinePillSync();
-        if (!_waRefineOpen || _waView === 'wishlist') { drawer.style.display = 'none'; return; }
+        if (!_waRefineOpen || _waView !== 'all') { drawer.style.display = 'none'; return; }
         drawer.style.display = '';
         const r = _waRefine;
         const chip = function(kind, label, on) {
           return '<button class="rb-ref-chip' + (on ? ' on' : '') + '" onclick="window.__waRefTog(\'' + kind + '\',\'' + _waEsc(label).replace(/'/g, '\\\'') + '\')">' + _waEsc(label) + '</button>';
         };
         const seasonChips = WA_SEASONS.map(s => chip('seasons', s, r.seasons.indexOf(s) !== -1)).join('');
-        // Subcategory (L2) + Item type (L3): the taxonomy nodes her pieces
-        // actually carry (migration 15), scoped to the active category tab so
-        // Shoes never offers "Jeans"; item types additionally narrow to any
-        // selected subcategories. Pre-migration wardrobes carry none — the
-        // sections simply don't render. A chip selected on another tab stays
-        // visible regardless of scope: it still filters, so it must stay
-        // deselectable.
-        const typeSet = [];
-        const l3Set = [];
-        _waItems.forEach(function(i) {
-          if (_waCat !== 'All' && _waSheetCatOf(i) !== _waCat) return;
-          if (i.category_l2 && typeSet.indexOf(i.category_l2) === -1) typeSet.push(i.category_l2);
-          if (i.category_l3 && (!r.types.length || r.types.indexOf(i.category_l2) !== -1) && l3Set.indexOf(i.category_l3) === -1) l3Set.push(i.category_l3);
-        });
-        r.types.forEach(function(t) { if (typeSet.indexOf(t) === -1) typeSet.push(t); });
-        r.itemTypes.forEach(function(t) { if (l3Set.indexOf(t) === -1) l3Set.push(t); });
-        typeSet.sort();
-        l3Set.sort();
-        const typeChips = typeSet.map(t => chip('types', t, r.types.indexOf(t) !== -1)).join('');
-        const l3Chips = l3Set.map(t => chip('itemTypes', t, r.itemTypes.indexOf(t) !== -1)).join('');
         // Colour: the FULL palette items are saved to (same set as the
-        // add/edit modal), closed by the colour wheel — a custom pick maps
-        // to the nearest palette colour. (Design handoff: don't limit the
-        // filter to owned colours.)
+        // add/edit form's popover) + any off-palette colours old rows carry.
         const ownColors = [];
         _waItems.forEach(i => { if (i.color && ownColors.indexOf(i.color) === -1) ownColors.push(i.color); });
         const extraColors = ownColors.filter(c => !_ALL_SWATCHES.some(sw => sw.name === c));
         const colorHtml = _ALL_SWATCHES.map(function(sw) {
           const on = r.colors.indexOf(sw.name) !== -1;
-          const bg = sw.hex ? 'background:' + sw.hex : (sw.name === 'Multi'
-            ? 'background:conic-gradient(#FF1493,#FF4500,#E1FD2E,#00A86B,#0047AB,#4B0082,#FF1493)'
-            : 'background:repeating-linear-gradient(45deg,#EDE8E0 0 3px,#A89880 3px 4px)');
-          return '<button class="rb-sw' + (on ? ' on' : '') + '" title="' + _waEsc(sw.name) + '" aria-label="' + _waEsc(sw.name) + '" style="' + bg + '" onclick="window.__waRefTog(\'colors\',\'' + _waEsc(sw.name) + '\')"></button>';
+          return '<button class="rb-sw' + (on ? ' on' : '') + '" title="' + _waEsc(sw.name) + '" aria-label="' + _waEsc(sw.name) + '" style="' + _waSwatchBg(sw.name) + '" onclick="window.__waRefTog(\'colors\',\'' + _waEsc(sw.name) + '\')"></button>';
         }).join('') +
-          '<label class="rb-sw rb-sw-wheel" title="Pick any colour"><input type="color" value="#a89880" onchange="window.__waRefWheel(this)"></label>' +
           extraColors.map(c => chip('colors', c, r.colors.indexOf(c) !== -1)).join('');
-        // Fits: union of silhouette_fit tags across her pieces
-        const fitSet = [];
-        _waItems.forEach(function(i) {
-          const f = (i.item_dna && i.item_dna.structural_dna && Array.isArray(i.item_dna.structural_dna.silhouette_fit))
-            ? i.item_dna.structural_dna.silhouette_fit : [];
-          f.forEach(x => { if (fitSet.indexOf(x) === -1) fitSet.push(x); });
-        });
-        const fitChips = fitSet.slice(0, 14).map(f => chip('fits', f, r.fits.indexOf(f) !== -1)).join('');
-        const wornOpts = [['all', 'All'], ['worn', 'Worn'], ['never', 'Never worn']].map(function(d) {
-          const on = r.worn === d[0];
-          return '<button class="rb-ref-seg' + (on ? ' on' : '') + '" onclick="window.__waRefWorn(\'' + d[0] + '\')">' + d[1] + '</button>';
-        }).join('');
+        const colNote = r.colors.length
+          ? '<span class="rb-ref-note">' + _waEsc(r.colors.join(', ')) + ' selected</span>'
+          : '';
         const brands = [];
         _waItems.forEach(i => { if (i.brand && brands.indexOf(i.brand) === -1) brands.push(i.brand); });
         brands.sort();
         const brandOpts = '<option value="">All brands</option>' + brands.map(b =>
           '<option value="' + _waEsc(b) + '"' + (r.brand === b ? ' selected' : '') + '>' + _waEsc(b) + '</option>').join('');
         const n = _waFilteredItems().length;
-        drawer.innerHTML = '<div class="rb-ref-grid">' +
+        drawer.innerHTML =
+          '<div class="rb-ref-mhead"><span>Refine</span><button onclick="window.__waRefToggle()" aria-label="Close">✕</button></div>' +
+          '<div class="rb-ref-grid">' +
           '<div><div class="rb-ref-lbl">Season</div><div class="rb-ref-chips">' + seasonChips + '</div></div>' +
-          (typeChips ? '<div><div class="rb-ref-lbl">Subcategory</div><div class="rb-ref-chips">' + typeChips + '</div></div>' : '') +
-          (l3Chips ? '<div><div class="rb-ref-lbl">Item type</div><div class="rb-ref-chips">' + l3Chips + '</div></div>' : '') +
-          '<div><div class="rb-ref-lbl">Colour</div><div class="rb-ref-chips" style="gap:9px;max-width:252px">' + colorHtml + '</div></div>' +
-          (fitChips ? '<div><div class="rb-ref-lbl">Silhouette &amp; fit</div><div class="rb-ref-chips">' + fitChips + '</div></div>' : '') +
-          '<div><div class="rb-ref-lbl">Wear</div><div class="rb-ref-segwrap">' + wornOpts + '</div></div>' +
+          '<div><div class="rb-ref-lbl">Colour' + colNote + '</div><div class="rb-ref-chips" style="gap:11px;max-width:300px">' + colorHtml + '</div></div>' +
           (brands.length ? '<div><div class="rb-ref-lbl">Brand</div><select class="rb-ref-select" onchange="window.__waRefBrand(this)">' + brandOpts + '</select></div>' : '') +
           '</div>' +
           '<div class="rb-ref-foot">' +
@@ -2781,190 +3040,25 @@
         stepPick();
       };
 
-      // ── Add chooser — Photograph live; Link + Receipt sold as roadmap ──
+      // ── Add entry — straight to the flow ──────────────────────────────
+      // The chooser modal retired (redesign 2026-08-05): step 1 of the add
+      // flow IS the chooser now — photograph / paste a link (coming soon) /
+      // add without a photo. The name survives because every entry point
+      // (add card, trail button, suggestion pill) calls it.
       window.__waAddChooser = function() {
         if (_waView === 'wishlist') { window.__wlOpenAdd(); return; }
-        document.getElementById('rb-add-chooser')?.remove();
-        const serif = "'Cormorant',Georgia,serif";
-        const modal = document.createElement('div');
-        modal.id = 'rb-add-chooser';
-        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
-        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-        function door(id, icon, label, hint, soon) {
-          return '<button id="' + id + '" style="display:flex;align-items:center;gap:13px;width:100%;padding:13px 14px;border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad);background:#fff;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s' + (soon ? ';opacity:.62' : '') + '">' +
-            '<span style="width:32px;height:32px;border-radius:9px;background:#F0EBE3;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#202021">' + icon + '</span>' +
-            '<span style="flex:1;min-width:0"><span style="display:block;font-size:13px;font-weight:500;color:#202021">' + label +
-            (soon ? ' <span class="rb-soon-tag">Coming soon</span>' : '') + '</span>' +
-            '<span style="display:block;font-size:11px;color:var(--ink-faint);margin-top:1px">' + hint + '</span></span></button>';
-        }
-        modal.innerHTML = '<div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:400px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px">' +
-          '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px">Add a piece</div>' +
-          '<div style="font-family:' + serif + ';font-size:25px;font-weight:300;color:#202021;line-height:1.15;margin-bottom:18px">How would you like to add it?</div>' +
-          '<div style="display:flex;flex-direction:column;gap:9px">' +
-            door('rb-add-photo', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>', 'Photograph', 'Snap it or attach it — Robes reads the rest', false) +
-            door('rb-add-link', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>', 'Paste a link', 'From any retailer page', true) +
-            door('rb-add-receipt', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>', 'Import a receipt', 'Robes reads the line items', true) +
-          '</div>' +
-          '<button id="rb-add-close" style="display:block;margin:14px auto 0;background:none;border:none;color:var(--ink-faint);font-size:11.5px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:4px">Cancel</button></div>';
-        document.body.appendChild(modal);
-        modal.querySelector('#rb-add-photo').onclick = function() {
-          modal.remove();
-          _waEditId = null; _waAfterAdd = null;
-          if (window.WA && WA.open) WA.open();
-        };
-        modal.querySelector('#rb-add-link').onclick = function() {
-          modal.remove();
-          _waSoon('Paste a link', 'Drop a product link and Robes files the piece — photo, brand and price included.');
-        };
-        modal.querySelector('#rb-add-receipt').onclick = function() {
-          modal.remove();
-          _waSoon('Receipt import', 'Forward or photograph a receipt and Robes files every piece on it.');
-        };
-        modal.querySelector('#rb-add-close').onclick = function() { modal.remove(); };
+        _waEditId = null;
+        _waAfterAdd = null;
+        if (window.WA && WA.open) WA.open();
       };
 
-      // ── Progressive capture — "Add more detail" expander ──────────────
-      // Shared by add step 3 and the edit modal. State lives on window so
-      // WA.submit (outside the autotag closure) can read it; WA.close wipes it.
+      // ── Tag-axis state (Season / Wear it for + notes) ─────────────────
+      // Seeded per piece by the add/edit form (see _waFormPaint's tags
+      // view); WA.submit reads it, WA.close wipes it. The old "Add more
+      // detail" expander (price, fit confidence, sentiment, hero toggle)
+      // retired 2026-08-05 — cost-per-wear pulled from the UI (column
+      // reserved), the grid-card star is the one favouriting mechanic.
       window.__rbWaDetail = null;
-
-      window.__rbWaDetailInject = function(it) {
-        // Reset per piece (also per batch photo)
-        window.__rbWaDetail = {
-          open: false,
-          when: (it ? [].concat(it.seasons || [], it.occasions || []) : []),
-          price: it && it.price != null ? String(it.price) : '',
-          fitConf: (it && it.fit_confidence) || '',
-          sentiment: (it && it.sentiment) || '',
-          hero: !!(it && it.hero_position != null),
-          heroPos: it && it.hero_position != null ? it.hero_position : null,
-          worn: (it && it.times_worn) || 0,
-          addingTag: false
-        };
-        let host = document.getElementById('rb-wa-detail-host');
-        if (!host) {
-          // Edit modal path: create the host just above the CTA
-          const cta = document.getElementById('wa-cta');
-          if (!cta || !cta.parentNode) return;
-          host = document.createElement('div');
-          host.id = 'rb-wa-detail-host';
-          cta.parentNode.insertBefore(host, cta);
-        }
-        _rbWaDetailPaint();
-      };
-
-      window.__rbWaDetTogWhen = function(val) {
-        const d = window.__rbWaDetail; if (!d) return;
-        const i = d.when.indexOf(val);
-        if (i === -1) d.when.push(val); else d.when.splice(i, 1);
-        _rbWaDetailPaint();
-      };
-      window.__rbWaDetFit = function(val) {
-        const d = window.__rbWaDetail; if (!d) return;
-        d.fitConf = d.fitConf === val ? '' : val;
-        _rbWaDetailPaint();
-      };
-      window.__rbWaDetSent = function(val) {
-        const d = window.__rbWaDetail; if (!d) return;
-        d.sentiment = d.sentiment === val ? '' : val;
-        _rbWaDetailPaint();
-      };
-      window.__rbWaDetHero = function() {
-        const d = window.__rbWaDetail; if (!d) return;
-        if (!d.hero && !(d.heroPos != null) && _waHeroAll().length >= _WA_HERO_CAP) {
-          _waShowToast('The Hero Rack holds ' + _WA_HERO_CAP + ' — remove one first');
-          return;
-        }
-        d.hero = !d.hero;
-        _rbWaDetailPaint();
-      };
-      window.__rbWaDetOpen = function() {
-        const d = window.__rbWaDetail; if (!d) return;
-        d.open = true;
-        _rbWaDetailPaint();
-      };
-      window.__rbWaDetPrice = function(el) {
-        const d = window.__rbWaDetail; if (!d) return;
-        d.price = (el.value || '').replace(/[^0-9.]/g, '');
-        const cpw = document.getElementById('rb-wa-cpw');
-        if (cpw) cpw.textContent = _rbWaCpwLabel(d);
-      };
-      window.__rbWaDetTagStart = function() {
-        const d = window.__rbWaDetail; if (!d) return;
-        d.addingTag = true;
-        _rbWaDetailPaint();
-        const inp = document.getElementById('rb-wa-tag-in');
-        if (inp) inp.focus();
-      };
-      window.__rbWaDetTagKey = function(e, el) {
-        const d = window.__rbWaDetail; if (!d) return;
-        // Enter commits and repaints (removing the input) — the orphaned
-        // input then fires blur, which must not repaint again mid-remove.
-        if (!d.addingTag) return;
-        if (e.type === 'blur' || e.key === 'Enter') {
-          if (e.key === 'Enter') e.preventDefault();
-          const v = (el.value || '').trim();
-          if (v && d.when.indexOf(v) === -1) d.when.push(v);
-          d.addingTag = false;
-          _rbWaDetailPaint();
-        } else if (e.key === 'Escape') {
-          d.addingTag = false;
-          _rbWaDetailPaint();
-        }
-      };
-
-      function _rbWaCpwLabel(d) {
-        const p = Number(d.price);
-        if (p > 0 && d.worn > 0) return '€' + Math.round(p / d.worn) + ' per wear';
-        if (p > 0) return 'worth tracking from first wear';
-        return 'add a price to see cost-per-wear';
-      }
-
-      function _rbWaDetailPaint() {
-        const host = document.getElementById('rb-wa-detail-host');
-        const d = window.__rbWaDetail;
-        if (!host || !d) return;
-        const lbl = 'font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:8px;';
-        if (!d.open) {
-          const has = d.when.length + (d.price ? 1 : 0) + (d.fitConf ? 1 : 0) + (d.sentiment ? 1 : 0) + (d.hero ? 1 : 0);
-          host.innerHTML = '<button onclick="window.__rbWaDetOpen()" style="width:100%;margin:2px 0 14px;border:1px solid #D8CEBC;border-radius:10px;background:#fff;padding:12px;font-size:12px;letter-spacing:0.03em;color:var(--ink-faint);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;transition:all .15s">' +
-            '<span style="font-size:14px;line-height:1">+</span> Add more detail' +
-            '<span style="font-size:10.5px;color:#C8B8A2">— season, cost-per-wear, fit' + (has ? ' \xb7 ' + has + ' set' : '') + '</span></button>';
-          return;
-        }
-        const whenAll = WA_SEASONS.concat(WA_OCCASIONS).concat(d.when.filter(w => WA_SEASONS.indexOf(w) === -1 && WA_OCCASIONS.indexOf(w) === -1));
-        const whenChips = whenAll.map(function(w) {
-          const on = d.when.indexOf(w) !== -1;
-          return '<button onclick="window.__rbWaDetTogWhen(\'' + _waEsc(w).replace(/'/g, '\\\'') + '\')" style="padding:6px 13px;border-radius:100px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;border:1px solid ' + (on ? '#2A2520;background:#2A2520;color:#F8F5F0' : '#D8CEBC;background:#fff;color:#6A5E54') + '">' + _waEsc(w) + '</button>';
-        }).join('');
-        const tagCtl = d.addingTag
-          ? '<input id="rb-wa-tag-in" placeholder="Type &amp; press Enter" onkeydown="window.__rbWaDetTagKey(event,this)" onblur="window.__rbWaDetTagKey(event,this)" style="border:1px solid #2A2520;border-radius:100px;padding:6px 13px;font-size:12px;background:#fff;color:#2A2520;width:140px;font-family:inherit">'
-          : '<button onclick="window.__rbWaDetTagStart()" style="padding:6px 13px;border:1px dashed #C8B8A2;background:none;border-radius:100px;font-size:12px;color:var(--ink-faint);cursor:pointer;font-family:inherit">+ tag</button>';
-        const fitOpts = ['True to size', 'Runs small', 'Runs large'].map(function(f) {
-          const on = d.fitConf === f;
-          return '<button onclick="window.__rbWaDetFit(\'' + f + '\')" style="border:none;cursor:pointer;border-radius:100px;padding:7px 13px;font-size:11.5px;font-family:inherit;transition:all .15s;background:' + (on ? '#2A2520;color:#F8F5F0' : 'transparent;color:var(--ink-faint)') + '">' + f + '</button>';
-        }).join('');
-        const sentOpts = [['Irreplaceable', 'Robes will never suggest letting it go'], ['Would repurchase', 'Fine to replace if it wears out']].map(function(s) {
-          const on = d.sentiment === s[0];
-          return '<button onclick="window.__rbWaDetSent(\'' + s[0] + '\')" style="flex:1;min-width:140px;border:1px solid ' + (on ? '#2A2520' : '#D8CEBC') + ';background:' + (on ? '#F0EBE3' : '#fff') + ';color:#2A2520;border-radius:10px;padding:11px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;text-align:left;line-height:1.3;transition:all .15s">' + s[0] +
-            '<span style="display:block;font-size:10.5px;color:var(--ink-faint);margin-top:2px">' + s[1] + '</span></button>';
-        }).join('');
-        host.innerHTML = '<div style="margin:2px 0 14px;border:1px solid #D8CEBC;border-radius:var(--rad);background:#fff;padding:16px;display:flex;flex-direction:column;gap:16px">' +
-          '<div><label style="' + lbl + '">WHEN DO YOU WEAR THIS</label><div style="display:flex;flex-wrap:wrap;gap:7px">' + whenChips + tagCtl + '</div></div>' +
-          '<div><label style="' + lbl + '">PURCHASE PRICE <span style="letter-spacing:0;text-transform:none;color:var(--ink-faint)">private — powers cost-per-wear</span></label>' +
-            '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
-            '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-size:13px">€</span>' +
-            '<input value="' + _waEsc(d.price) + '" inputmode="decimal" placeholder="0" oninput="window.__rbWaDetPrice(this)" style="width:110px;box-sizing:border-box;padding:9px 12px 9px 26px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520"></div>' +
-            '<span id="rb-wa-cpw" style="font-family:var(--font-serif);font-style:italic;font-size:15px;color:#7E7C5A">' + _rbWaCpwLabel(d) + '</span></div></div>' +
-          '<div><label style="' + lbl + '">FIT CONFIDENCE</label><div style="display:inline-flex;background:#F0EBE3;border:1px solid #E7E0CF;border-radius:100px;padding:3px;flex-wrap:wrap">' + fitOpts + '</div></div>' +
-          '<div><label style="' + lbl + '">IF IT WERE LOST TOMORROW</label><div style="display:flex;gap:9px;flex-wrap:wrap">' + sentOpts + '</div></div>' +
-          '<div onclick="window.__rbWaDetHero()" style="border:1px solid ' + (d.hero ? '#2A2520' : '#D8CEBC') + ';background:' + (d.hero ? '#F0EBE3' : '#fff') + ';border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s">' +
-            '<svg viewBox="0 0 24 24" width="17" height="17" fill="' + (d.hero ? '#2A2520' : 'none') + '" stroke="#2A2520" stroke-width="1.3"><path d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9 6.75 19.7l1-5.85L3.5 9.65l5.9-.85z"/></svg>' +
-            '<span style="flex:1"><span style="font-size:12.5px;font-weight:500;color:#2A2520">Feature in Hero Rack</span>' +
-            '<span style="display:block;font-size:10.5px;color:var(--ink-faint);margin-top:1px">Pin it to the shelf you reach for first</span></span>' +
-            '<span style="width:38px;height:22px;border-radius:100px;background:' + (d.hero ? '#2A2520' : '#D8CEBC') + ';position:relative;transition:all .2s;flex-shrink:0"><span style="position:absolute;top:2px;left:' + (d.hero ? '18px' : '2px') + ';width:18px;height:18px;border-radius:100px;background:#fff;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span></span></div>' +
-          '</div>';
-      }
 
       // ── View switching + panel augmentation ───────────────────────────
       window.__waSetView = function(v) {
@@ -3017,6 +3111,9 @@
         if (cta) cta.style.display = wish ? '' : 'none'; // wishlist-only add path
         const filters = document.getElementById('wg-filters');
         if (filters) filters.style.display = wish || looks ? 'none' : '';
+        const trail = document.getElementById('rb-wg-trail');
+        if (trail) trail.style.display = wish || looks ? 'none' : '';
+        if (wish || looks) _waCascadeClose();
         const grid = document.getElementById('wg-grid');
         if (grid) grid.style.display = wish || looks ? 'none' : '';
         const wlGrid = document.getElementById('rb-wl-grid');
@@ -3059,13 +3156,13 @@
             '.rb-wg-cta:hover{opacity:.85}',
             '.rb-wg-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}',
             // star button (grid cards — heroes lead the grid, no separate rail)
-            '.rb-star{position:absolute;top:8px;right:8px;width:29px;height:29px;border-radius:100px;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(255,255,255,.86);backdrop-filter:blur(4px);transition:all .15s;z-index:2;padding:0;opacity:0}',
+            '.rb-star{position:absolute;top:8px;right:8px;width:29px;height:29px;border-radius:100px;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(32,32,33,.35);backdrop-filter:blur(4px);transition:all .15s;z-index:2;padding:0}',
             '.rb-star svg{width:14px;height:14px;display:block}',
-            '.rb-star.on{background:var(--ink);opacity:1}',
-            '.wg-item:hover .rb-star{opacity:1}',
-            '@media(hover:none){.rb-star{opacity:1}}',
+            '.rb-star.on{background:var(--ink)}',
             // refine
-            '#rb-refine{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:18px 20px;margin:-12px 0 24px}',
+            '#rb-refine{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:18px 20px;margin:0 0 24px}',
+            '.rb-ref-mhead{display:none}',
+            '.rb-ref-note{font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint);text-transform:none;letter-spacing:0;font-weight:300;margin-left:8px}',
             '.rb-ref-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:20px 28px}',
             '.rb-ref-lbl{font-size:9.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px}',
             '.rb-ref-chips{display:flex;flex-wrap:wrap;gap:7px;align-items:center}',
@@ -3073,9 +3170,6 @@
             '.rb-ref-chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}',
             '.rb-sw{width:26px;height:26px;border-radius:100px;border:none;cursor:pointer;position:relative;box-shadow:inset 0 1px 3px rgba(0,0,0,.15),0 0 0 1px rgba(0,0,0,.07);padding:0;flex-shrink:0}',
             '.rb-sw.on{outline:2px solid var(--ink);outline-offset:2px}',
-            '.rb-ref-segwrap{display:inline-flex;background:var(--cream-100);border:0.5px solid var(--rule-mid);border-radius:100px;padding:3px}',
-            '.rb-ref-seg{border:none;cursor:pointer;border-radius:100px;padding:6px 13px;font-size:11px;font-family:inherit;background:transparent;color:var(--ink-faint);transition:all .15s}',
-            '.rb-ref-seg.on{background:var(--ink);color:#fff}',
             '.rb-ref-select{width:100%;max-width:210px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);padding:9px 12px;font-size:12.5px;background:#fff;color:var(--ink);font-family:inherit;cursor:pointer}',
             '.rb-ref-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:0.5px solid var(--rule);margin-top:16px;padding-top:14px}',
             '.rb-refine-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:100px;background:#fff;color:var(--ink);font-size:9.5px;padding:0 4px;margin-left:2px;vertical-align:1px}',
@@ -3085,11 +3179,35 @@
             '.wg-pill.rb-refine-pill{display:inline-flex;align-items:center;gap:7px}',
             '.wg-pill.rb-add-pill{display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:#fff;border-color:var(--ink)}',
             '.wg-pill.rb-add-pill:hover{opacity:.85}',
-            // Mobile FAB — shown only while the wardrobe panel is open (.on,
-            // toggled by a .visible observer) and only under 640px
-            '#rb-wa-fab{display:none;position:fixed;right:18px;bottom:96px;width:52px;height:52px;border-radius:100px;background:var(--ink);border:none;cursor:pointer;z-index:47;align-items:center;justify-content:center;box-shadow:0 10px 26px rgba(32,32,33,.28);padding:0}',
-            '.rb-sw-wheel{background:conic-gradient(from 90deg,#ff2d2d,#ff9e2d,#f4e02d,#38d64a,#2db7ff,#3a4dff,#b23aff,#ff2da8,#ff2d2d);display:inline-block;position:relative;overflow:hidden}',
-            '.rb-sw-wheel input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border:none;padding:0}',
+            // Trail row — breadcrumb + count left, Add piece + Refine right
+            '#rb-wg-trail{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border-top:0.5px solid var(--rule-mid);padding:14px 0;margin:-10px 0 18px}',
+            '.rb-wg-crumbs{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:13px;color:var(--ink-faint);min-width:0}',
+            '.rb-wg-crumb-mark{font-family:var(--font-serif);font-size:15px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink)}',
+            '.rb-wg-crumb-sep{color:var(--ink-faint)}',
+            '.rb-wg-crumb.cur{color:var(--ink)}',
+            '.rb-wg-trailx{border:0.5px solid var(--rule-mid);border-radius:100px;background:none;padding:2px 8px;font-size:10.5px;color:var(--ink-faint);cursor:pointer;font-family:inherit}',
+            '.rb-wg-trailx:hover{color:var(--ink);border-color:var(--ink-faint)}',
+            '.rb-wg-trailcount{font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-soft);margin-left:4px}',
+            '.rb-wg-trailbtns{display:flex;gap:9px;margin-left:auto}',
+            // Category cascade — desktop flyout / mobile drill sheet
+            '.rb-wg-cas{position:absolute;top:100%;margin-top:6px;z-index:60;background:#FDFCFA;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);box-shadow:0 18px 44px -10px rgba(32,32,33,.24);display:flex;overflow:hidden}',
+            '.rb-wg-cas .cas-col{width:230px;padding:12px 0;max-height:340px;overflow-y:auto}',
+            '.rb-wg-cas .cas-col.c1{border-right:0.5px solid var(--rule-mid)}',
+            '.rb-wg-cas .cas-ey{font-size:9px;letter-spacing:.24em;text-transform:uppercase;font-weight:500;color:var(--ink-faint);padding:0 18px 8px}',
+            '.rb-wg-cas .cas-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:none;padding:11px 18px;font-size:13.5px;color:var(--ink-soft);cursor:pointer;font-family:inherit}',
+            '.rb-wg-cas .cas-row:hover{background:#F6F2EA;color:var(--ink)}',
+            '.rb-wg-cas .cas-row.sel{background:#EFE9DC;color:var(--ink);font-weight:500}',
+            '.rb-wg-cas .cas-row .mk{color:var(--ink-faint);flex:none}',
+            '.rb-wg-cas .cas-row.all{color:var(--ink-faint);font-style:italic}',
+            '.rb-wg-cas.sheet{position:fixed;left:0;right:0;bottom:0;top:auto;margin:0;z-index:960;flex-direction:column;border-radius:18px 18px 0 0;max-height:78vh;padding:18px 20px 22px;overflow-y:auto}',
+            '.rb-wg-cas.sheet .cas-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}',
+            '.rb-wg-cas.sheet .cas-title{font-family:var(--font-serif);font-weight:300;font-size:24px;color:var(--ink)}',
+            '.rb-wg-cas.sheet .cas-back{background:none;border:none;font-size:14px;color:var(--ink-faint);cursor:pointer;font-family:inherit;padding:0}',
+            '.rb-wg-cas.sheet .cas-x{background:none;border:none;font-size:16px;color:var(--ink);cursor:pointer;font-family:inherit;padding:2px 4px}',
+            '.rb-wg-cas.sheet .cas-ey{padding:6px 0 8px}',
+            '.rb-wg-cas.sheet .cas-row{padding:14px 2px;border-bottom:1px solid #EFE9DC;font-size:15px}',
+            '.rb-wg-cas.sheet .cas-row:last-child{border-bottom:none}',
+            '.rb-wg-cas.sheet .cas-cta{margin-top:14px;width:100%;padding:16px;background:var(--ink);color:#FAF8F5;border:none;border-radius:100px;font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;font-family:inherit}',
             // Category text tabs (replaced the heavy pill row — design handoff)
             '.wg-filters{align-items:center}',
             '.wg-tab{background:none;border:none;border-bottom:1.5px solid transparent;padding:4px 2px 8px;margin-right:13px;font-size:13px;font-family:inherit;color:var(--ink-faint);cursor:pointer;letter-spacing:.01em;transition:color .15s;white-space:nowrap}',
@@ -3120,7 +3238,7 @@
             // decorative ghost tiles behind the add card at zero pieces
             '.rb-ghost-card{aspect-ratio:3/4;border-radius:var(--rad);border:1px dashed var(--rule);pointer-events:none}',
             // mobile
-            '@media(max-width:767px){#wg-packbar{bottom:96px !important}.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-add-pill{display:none}#rb-wa-fab.on{display:flex}}'
+            '@media(max-width:767px){.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-refine{position:fixed;left:0;right:0;bottom:0;z-index:960;margin:0;border-radius:18px 18px 0 0;max-height:80vh;overflow-y:auto;box-shadow:0 -14px 40px rgba(32,32,33,.22)}.rb-ref-mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-family:var(--font-serif);font-weight:300;font-size:24px;color:var(--ink)}.rb-ref-mhead button{background:none;border:none;font-size:16px;color:var(--ink);cursor:pointer;font-family:inherit;padding:2px 4px}}'
           ].join('\n');
           document.head.appendChild(st);
         }
@@ -3165,23 +3283,8 @@
         if (countEl) actions.appendChild(countEl); // move, keep id
         header.appendChild(actions);
 
-        // Mobile FAB — a thumb-reachable + riding above the dock, always
-        // one tap away regardless of scroll depth (view-aware: files into
-        // the wardrobe or the wishlist depending on the open sub-tab)
-        if (!document.getElementById('rb-wa-fab')) {
-          const fab = document.createElement('button');
-          fab.id = 'rb-wa-fab';
-          fab.title = 'Add a piece';
-          fab.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#FAF8F5" stroke-width="1.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
-          fab.addEventListener('click', function() {
-            if (_waView === 'wishlist') window.__wlOpenAdd();
-            else window.__waAddChooser();
-          });
-          document.body.appendChild(fab);
-          const _fabSync = function() { fab.classList.toggle('on', panel.classList.contains('visible')); };
-          new MutationObserver(_fabSync).observe(panel, { attributes: true, attributeFilter: ['class'] });
-          _fabSync();
-        }
+        // The mobile FAB retired 2026-08-05 — "+ Add piece" lives in the
+        // trail row at every width (design screens 01/09).
 
         // Refine drawer host (hidden until toggled)
         const refine = document.createElement('div');
@@ -3219,8 +3322,9 @@
         App.addPiece = function() {};
         App.filterWardrobe = function(f) {
           _waCat = f;
+          _waDrill = { l2: '', l3: '' };
           document.querySelectorAll('#wg-filters .wg-tab').forEach(p =>
-            p.classList.toggle('active', p.textContent === f));
+            p.classList.toggle('active', (p.dataset.cat || p.textContent) === f));
           _waRender();
         };
 
