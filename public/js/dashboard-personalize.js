@@ -1209,12 +1209,6 @@
         const l2s = _waTaxL2s(cat);
         const mobile = wrap.classList.contains('sheet');
         const esc = _waEsc;
-        function countFor(l2, l3) {
-          return _waItems.filter(i => _waSheetCatOf(i) === cat
-            && (!l2 || i.category_l2 === l2)
-            && (!l3 || i.category_l3 === l3)
-            && _waMatchRefine(i)).length;
-        }
         if (mobile) {
           if (!_casL2) {
             wrap.innerHTML = '<div class="cas-hd"><span class="cas-title">' + esc(cat) + '</span><button class="cas-x" data-act="close">✕</button></div>' +
@@ -1225,15 +1219,13 @@
               '</div>';
           } else {
             const l3s = _waTaxL3s(_casL2);
-            const n = countFor(_waDrill.l2 || _casL2, _waDrill.l3);
             wrap.innerHTML = '<div class="cas-hd"><button class="cas-back" data-act="back">‹ ' + esc(cat) + '</button><button class="cas-x" data-act="close">✕</button></div>' +
               '<div class="cas-title" style="margin:2px 0 8px">' + esc(_casL2) + '</div>' +
               '<div class="cas-ey">Item type</div>' +
               '<div class="cas-list">' +
                 '<button class="cas-row all' + (_waDrill.l2 === _casL2 && !_waDrill.l3 ? ' sel' : '') + '" data-act="all-l2">All ' + esc(_casL2.toLowerCase()) + '</button>' +
                 l3s.map(v => '<button class="cas-row' + (_waDrill.l3 === v ? ' sel' : '') + '" data-act="l3" data-v="' + esc(v) + '"><span>' + esc(v) + '</span>' + (_waDrill.l3 === v ? '<span class="mk">✓</span>' : '') + '</button>').join('') +
-              '</div>' +
-              '<button class="cas-cta" data-act="close">Show ' + n + ' piece' + (n === 1 ? '' : 's') + '</button>';
+              '</div>';
           }
         } else {
           const col1 = '<div class="cas-col c1"><div class="cas-ey">Subcategory</div>' +
@@ -1263,24 +1255,30 @@
               _waCascadeClose();
               return;
             }
+            // Every pick applies the filter immediately; the mobile sheet
+            // also CLOSES on pick (beta feedback 2026-08-05 — tap, filter,
+            // done; reopening the tab's cascade lands on the item types of
+            // the drilled subcategory, with ‹ back for the level above).
+            // Desktop keeps the flyout open on an L2 pick so the item-type
+            // column can follow.
             if (act === 'l2') {
               _casL2 = b.dataset.v;
               _waDrill = { l2: b.dataset.v, l3: '' };
               _waRender();
-              _waCascadePaint();
+              if (wrap.classList.contains('sheet')) _waCascadeClose();
+              else _waCascadePaint();
               return;
             }
             if (act === 'all-l2') {
               _waDrill = { l2: _casL2, l3: '' };
               _waRender();
-              _waCascadePaint();
+              _waCascadeClose();
               return;
             }
             if (act === 'l3') {
               _waDrill = { l2: _casL2, l3: b.dataset.v };
               _waRender();
-              if (wrap.classList.contains('sheet')) _waCascadePaint();
-              else _waCascadeClose();
+              _waCascadeClose();
             }
           });
         }
@@ -1477,21 +1475,23 @@
           step.innerHTML = `
             <h2 class="fm-h">Add a piece.</h2>
             <p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">Snap it or attach it. Robes reads the colour, the cut and the label — and fills in the rest.</p>
-            <label id="wa-rb-zone" class="rb-wf-drop">
+            <div id="wa-rb-zone" class="rb-wf-drop">
               <span class="rb-wf-drop-h rb-wf-dt">Drop an image here</span>
               <span class="rb-wf-drop-h rb-wf-mb">Snap or attach the piece</span>
               <span class="rb-wf-drop-s">Select several and Robes files them one after another</span>
               <span class="rb-wf-drop-btns rb-wf-dt">
-                <span class="rb-wf-btn ink">Choose files</span>
+                <button type="button" class="rb-wf-btn ink" data-pick="lib">Choose files</button>
               </span>
               <span class="rb-wf-drop-btns rb-wf-mb">
-                <span class="rb-wf-btn ink">Take a photo</span>
-                <span class="rb-wf-btn line">Choose from library</span>
+                <button type="button" class="rb-wf-btn ink" data-pick="cam">Take a photo</button>
+                <button type="button" class="rb-wf-btn line" data-pick="lib">Choose from library</button>
               </span>
               <input id="wa-rb-file" type="file" multiple
                 accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp"
                 style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
-            </label>
+              <input id="wa-rb-cam" type="file" accept="image/*" capture="environment"
+                style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
+            </div>
             <div class="rb-wf-linkrow">
               <span class="rb-wf-lbl" style="margin:0;white-space:nowrap;">From a link</span>
               <input readonly placeholder="Paste a product page" onclick="window.__waLinkSoon&&__waLinkSoon()">
@@ -1526,6 +1526,23 @@
           }
           if (fileInput) {
             fileInput.addEventListener('change', function() { _process(this.files); });
+          }
+          // Take a photo goes STRAIGHT to the camera via its own capture
+          // input; the library/files input stays capture-less (the app-wide
+          // never-capture rule is about the picker input — a dedicated
+          // camera button is the one legitimate consumer).
+          const camInput = document.getElementById('wa-rb-cam');
+          if (camInput) {
+            camInput.addEventListener('change', function() { _process(this.files); });
+          }
+          if (zone) {
+            zone.addEventListener('click', function(e) {
+              // Programmatic input.click() bubbles back here — never re-route it
+              if (e.target && e.target.tagName === 'INPUT') return;
+              const b = e.target.closest && e.target.closest('[data-pick]');
+              if (b && b.dataset.pick === 'cam') { if (camInput) camInput.click(); return; }
+              if (fileInput) fileInput.click();
+            });
           }
           if (zone) {
             ['dragenter', 'dragover'].forEach(function(ev) {
@@ -3247,7 +3264,7 @@
             '.rb-wg-cas .cas-row.sel{background:#EFE9DC;color:var(--ink);font-weight:500}',
             '.rb-wg-cas .cas-row .mk{color:var(--ink-faint);flex:none}',
             '.rb-wg-cas .cas-row.all{color:var(--ink-faint);font-style:italic}',
-            '.rb-wg-cas.sheet{position:fixed;left:0;right:0;bottom:0;top:auto;margin:0;z-index:960;flex-direction:column;border-radius:18px 18px 0 0;max-height:78vh;padding:18px 20px 22px;overflow-y:auto}',
+            '.rb-wg-cas.sheet{position:fixed;left:0;right:0;bottom:0;top:auto;margin:0;z-index:960;flex-direction:column;border-radius:18px 18px 0 0;max-height:72vh;max-height:72dvh;padding:18px 20px calc(26px + env(safe-area-inset-bottom, 0px));overflow-y:auto;-webkit-overflow-scrolling:touch}',
             '.rb-wg-cas.sheet .cas-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}',
             '.rb-wg-cas.sheet .cas-title{font-family:var(--font-serif);font-weight:300;font-size:24px;color:var(--ink)}',
             '.rb-wg-cas.sheet .cas-back{background:none;border:none;font-size:14px;color:var(--ink-faint);cursor:pointer;font-family:inherit;padding:0}',
@@ -3255,7 +3272,6 @@
             '.rb-wg-cas.sheet .cas-ey{padding:6px 0 8px}',
             '.rb-wg-cas.sheet .cas-row{padding:14px 2px;border-bottom:1px solid #EFE9DC;font-size:15px}',
             '.rb-wg-cas.sheet .cas-row:last-child{border-bottom:none}',
-            '.rb-wg-cas.sheet .cas-cta{margin-top:14px;width:100%;padding:16px;background:var(--ink);color:#FAF8F5;border:none;border-radius:100px;font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;font-family:inherit}',
             // Category text tabs (replaced the heavy pill row — design handoff)
             '.wg-filters{align-items:center}',
             '.wg-tab{background:none;border:none;border-bottom:1.5px solid transparent;padding:4px 2px 8px;margin-right:13px;font-size:13px;font-family:inherit;color:var(--ink-faint);cursor:pointer;letter-spacing:.01em;transition:color .15s;white-space:nowrap}',
@@ -3286,7 +3302,7 @@
             // decorative ghost tiles behind the add card at zero pieces
             '.rb-ghost-card{aspect-ratio:3/4;border-radius:var(--rad);border:1px dashed var(--rule);pointer-events:none}',
             // mobile
-            '@media(max-width:767px){.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-refine{position:fixed;left:0;right:0;bottom:0;z-index:960;margin:0;border-radius:18px 18px 0 0;max-height:80vh;overflow-y:auto;box-shadow:0 -14px 40px rgba(32,32,33,.22)}.rb-ref-mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-family:var(--font-serif);font-weight:300;font-size:24px;color:var(--ink)}.rb-ref-grid{display:flex;flex-direction:column;gap:18px}.rb-ref-sec{border-top:1px solid #EFE9DC;padding-top:16px}.rb-ref-sec.sea{border-top:none;padding-top:0}.rb-ref-sec.wear{border-top:1px solid #EFE9DC;padding-top:16px}.rb-ref-foot{flex-direction:column-reverse;align-items:stretch;gap:12px}.rb-ref-foot .rb-wg-cta{width:100%;padding:15px}.rb-ref-foot button:first-child{align-self:center}.rb-ref-mhead button{background:none;border:none;font-size:16px;color:var(--ink);cursor:pointer;font-family:inherit;padding:2px 4px}}'
+            '@media(max-width:767px){.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-refine{position:fixed;left:0;right:0;bottom:0;z-index:960;margin:0;border-radius:18px 18px 0 0;max-height:74vh;max-height:74dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px));box-shadow:0 -14px 40px rgba(32,32,33,.22)}.rb-ref-mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-family:var(--font-serif);font-weight:300;font-size:24px;color:var(--ink)}.rb-ref-grid{display:flex;flex-direction:column;gap:18px}.rb-ref-sec{border-top:1px solid #EFE9DC;padding-top:16px}.rb-ref-sec.sea{border-top:none;padding-top:0}.rb-ref-sec.wear{border-top:1px solid #EFE9DC;padding-top:16px}.rb-ref-foot{flex-direction:column-reverse;align-items:stretch;gap:12px}.rb-ref-foot .rb-wg-cta{width:100%;padding:15px}.rb-ref-foot button:first-child{align-self:center}.rb-ref-mhead button{background:none;border:none;font-size:16px;color:var(--ink);cursor:pointer;font-family:inherit;padding:2px 4px}}'
           ].join('\n');
           document.head.appendChild(st);
         }

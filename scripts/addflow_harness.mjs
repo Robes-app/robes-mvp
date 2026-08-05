@@ -152,7 +152,12 @@ const browser = await chromium.launch(
   check('step1 · desktop is drop-first with one Choose-files button', s1.dropH.join('|') === 'Drop an image here'
     && s1.btns.join('|') === 'Choose files', `${s1.dropH.join('|')} / ${s1.btns.join('|')}`);
   check('step1 · From-a-link field + Add-without-a-photo route', s1.link && s1.nophoto === 'Add without a photo', s1.nophoto);
-  check('step1 · multi file input, never capture', s1.file && s1.multiple === true && s1.capture === false, String(s1.capture));
+  check('step1 · multi file input, never capture on the picker', s1.file && s1.multiple === true && s1.capture === false, String(s1.capture));
+  const cam = await page.evaluate(() => ({
+    exists: !!document.getElementById('wa-rb-cam'),
+    capture: document.getElementById('wa-rb-cam')?.getAttribute('capture') || '',
+  }));
+  check('step1 · Take-a-photo rides its own capture input', cam.exists && cam.capture === 'environment', JSON.stringify(cam));
 
   // Paste-a-link opens the Coming Soon dialog ABOVE the add modal
   await page.click('.rb-wf-linkrow input');
@@ -653,16 +658,28 @@ const browser = await chromium.launch(
   await page.click('#rb-wg-cascade .cas-row:has-text("Jeans")');
   await page.waitForTimeout(250);
   const m2 = await page.evaluate(() => ({
+    closed: !document.getElementById('rb-wg-cascade'),
+    grid: document.querySelectorAll('#wg-grid .wg-item:not(.rb-add-card):not(.rb-ghost-card)').length,
+    crumbs: document.getElementById('rb-wg-crumbs')?.textContent.replace(/\s/g, '') || '',
+  }));
+  check('mobile · subcategory pick applies and closes the sheet', m2.closed && m2.grid === 2 && /Bottoms›Jeans/.test(m2.crumbs),
+    JSON.stringify(m2));
+  await page.click('#wg-filters .wg-tab[data-cat="Bottoms"]');
+  await page.waitForTimeout(250);
+  const m3 = await page.evaluate(() => ({
     back: document.querySelector('#rb-wg-cascade .cas-back')?.textContent || '',
     title: document.querySelector('#rb-wg-cascade .cas-title')?.textContent || '',
-    cta: document.querySelector('#rb-wg-cascade .cas-cta')?.textContent || '',
   }));
-  check('mobile · level 2 drills with back + Show-N CTA', /Bottoms/.test(m2.back) && m2.title === 'Jeans' && /Show 2 pieces/.test(m2.cta),
-    JSON.stringify(m2));
-  await page.click('#rb-wg-cascade .cas-cta');
+  check('mobile · reopening lands on the drilled item types with back', /Bottoms/.test(m3.back) && m3.title === 'Jeans', JSON.stringify(m3));
+  await page.click('#rb-wg-cascade .cas-row:has-text("Skinny jeans")');
+  await page.waitForTimeout(250);
+  const m4 = await page.evaluate(() => ({
+    closed: !document.getElementById('rb-wg-cascade'),
+    grid: document.querySelectorAll('#wg-grid .wg-item:not(.rb-add-card):not(.rb-ghost-card)').length,
+  }));
+  check('mobile · item-type pick applies and closes', m4.closed && m4.grid === 1, JSON.stringify(m4));
+  await page.evaluate(() => window.__waTrailClear());
   await page.waitForTimeout(200);
-  const m3 = await page.evaluate(() => !document.getElementById('rb-wg-cascade'));
-  check('mobile · CTA closes the sheet', m3);
   await page.click('#rb-refine-pill');
   await page.waitForTimeout(250);
   const mref = await page.evaluate(() => {
