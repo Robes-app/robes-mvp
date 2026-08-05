@@ -156,8 +156,14 @@ const browser = await chromium.launch(
   const cam = await page.evaluate(() => ({
     exists: !!document.getElementById('wa-rb-cam'),
     capture: document.getElementById('wa-rb-cam')?.getAttribute('capture') || '',
+    lib: !!document.getElementById('wa-rb-lib'),
+    libAccept: document.getElementById('wa-rb-lib')?.getAttribute('accept') || '',
+    libMulti: document.getElementById('wa-rb-lib')?.multiple,
+    libCapture: document.getElementById('wa-rb-lib')?.hasAttribute('capture'),
   }));
   check('step1 · Take-a-photo rides its own capture input', cam.exists && cam.capture === 'environment', JSON.stringify(cam));
+  check('step1 · library input is photos-only (image/* multiple, no capture) so iOS skips the source chooser',
+    cam.lib && cam.libAccept === 'image/*' && cam.libMulti === true && cam.libCapture === false, JSON.stringify(cam));
 
   // Paste-a-link opens the Coming Soon dialog ABOVE the add modal
   await page.click('.rb-wf-linkrow input');

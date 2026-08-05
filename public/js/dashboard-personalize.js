@@ -1484,10 +1484,12 @@
               </span>
               <span class="rb-wf-drop-btns rb-wf-mb">
                 <button type="button" class="rb-wf-btn ink" data-pick="cam">Take a photo</button>
-                <button type="button" class="rb-wf-btn line" data-pick="lib">Choose from library</button>
+                <button type="button" class="rb-wf-btn line" data-pick="lib-m">Choose from library</button>
               </span>
               <input id="wa-rb-file" type="file" multiple
                 accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp"
+                style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
+              <input id="wa-rb-lib" type="file" multiple accept="image/*"
                 style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
               <input id="wa-rb-cam" type="file" accept="image/*" capture="environment"
                 style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
@@ -1527,13 +1529,21 @@
           if (fileInput) {
             fileInput.addEventListener('change', function() { _process(this.files); });
           }
-          // Take a photo goes STRAIGHT to the camera via its own capture
-          // input; the library/files input stays capture-less (the app-wide
-          // never-capture rule is about the picker input — a dedicated
-          // camera button is the one legitimate consumer).
+          // Three inputs, one per source. Take-a-photo goes STRAIGHT to the
+          // camera via its capture input; Choose-from-library rides a pure
+          // accept="image/*" multiple input — a photos-only accept is what
+          // lets iOS open the photo picker DIRECTLY (the extension-carrying
+          // #wa-rb-file invites the Files/Drive providers, so iOS shows its
+          // source chooser; that input survives for desktop Choose-files +
+          // drop + every poke-the-input flow, where the extensions fix the
+          // macOS-Safari multi-select quirk).
           const camInput = document.getElementById('wa-rb-cam');
+          const libInput = document.getElementById('wa-rb-lib');
           if (camInput) {
             camInput.addEventListener('change', function() { _process(this.files); });
+          }
+          if (libInput) {
+            libInput.addEventListener('change', function() { _process(this.files); });
           }
           if (zone) {
             zone.addEventListener('click', function(e) {
@@ -1541,6 +1551,7 @@
               if (e.target && e.target.tagName === 'INPUT') return;
               const b = e.target.closest && e.target.closest('[data-pick]');
               if (b && b.dataset.pick === 'cam') { if (camInput) camInput.click(); return; }
+              if (b && b.dataset.pick === 'lib-m') { (libInput || fileInput).click(); return; }
               if (fileInput) fileInput.click();
             });
           }
