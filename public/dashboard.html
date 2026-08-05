@@ -1754,7 +1754,11 @@ body.modal-open{overflow:hidden}
 }
 
 /* ══ COMING SOON modal — reuses the cream dialog shell ══════════════ */
-.cs{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;padding:24px}
+/* Above every modal it can be opened FROM (wa-modal .fm 300, swap/hero
+   sheets 950, form pickers 990) — at 300 it sat in the same layer as the
+   add modal but earlier in the DOM, so "coming soon" doors opened from
+   inside the modal painted invisibly underneath (beta bug 2026-08-05). */
+.cs{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:24px}
 .cs.open{display:flex}
 .cs-bd{position:absolute;inset:0;background:rgba(32,32,33,.34);
   backdrop-filter:blur(7px) saturate(1.04);animation:fmFade .45s var(--ease)}
@@ -2563,11 +2567,19 @@ worn three ways</div>
       'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ'
     );
     // Use onAuthStateChange + getSession together to reliably catch both
-    // localStorage sessions and fresh OAuth redirects (URL hash tokens)
+    // localStorage sessions and fresh OAuth redirects (URL hash tokens).
+    // The listener stays subscribed for the tab's lifetime: supabase-js
+    // auto-refreshes the JWT (~hourly) and fires TOKEN_REFRESHED — without
+    // re-capturing here, window.__robes_session goes stale and every REST
+    // write starts failing 401 ("Something went wrong" on wardrobe saves
+    // after a long session — beta bug 2026-08-05).
     const _sess2 = await new Promise((resolve) => {
       let done = false;
       const finish = (s) => { if (!done) { done = true; resolve(s); } };
-      _sb.auth.onAuthStateChange((_, s) => finish(s));
+      _sb.auth.onAuthStateChange((_, s) => {
+        if (s) window.__robes_session = s;
+        finish(s);
+      });
       _sb.auth.getSession().then(({ data: { session: s } }) => finish(s));
       setTimeout(() => finish(null), 5000);
     });

@@ -1478,13 +1478,16 @@
             <h2 class="fm-h">Add a piece.</h2>
             <p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">Snap it or attach it. Robes reads the colour, the cut and the label — and fills in the rest.</p>
             <label id="wa-rb-zone" class="rb-wf-drop">
-              <span class="rb-wf-drop-h">Snap or attach the piece</span>
+              <span class="rb-wf-drop-h rb-wf-dt">Drop an image here</span>
+              <span class="rb-wf-drop-h rb-wf-mb">Snap or attach the piece</span>
               <span class="rb-wf-drop-s">Select several and Robes files them one after another</span>
-              <span class="rb-wf-drop-btns">
+              <span class="rb-wf-drop-btns rb-wf-dt">
+                <span class="rb-wf-btn ink">Choose files</span>
+              </span>
+              <span class="rb-wf-drop-btns rb-wf-mb">
                 <span class="rb-wf-btn ink">Take a photo</span>
                 <span class="rb-wf-btn line">Choose from library</span>
               </span>
-              <span class="rb-wf-drop-hint">or drop an image here</span>
               <input id="wa-rb-file" type="file" multiple
                 accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp"
                 style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
@@ -1639,12 +1642,14 @@
             '.rb-wf-btn{display:inline-flex;align-items:center;justify-content:center;padding:13px 24px;border-radius:100px;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;cursor:pointer;box-sizing:border-box}',
             '.rb-wf-btn.ink{background:var(--ink,#202021);color:#FAF8F5}',
             '.rb-wf-btn.line{border:1px solid var(--ink,#202021);color:var(--ink,#202021)}',
-            '.rb-wf-drop-hint{font-size:12.5px;color:#C4B8A4}',
+            // Desktop shows the drop-first variant (no camera on a desktop);
+            // ≤767px swaps in the snap/attach pair (screens 02 revised / 10)
+            '.rb-wf-mb{display:none}',
             '.rb-wf-linkrow{display:flex;align-items:center;gap:14px;margin:18px 0 0}',
             '.rb-wf-linkrow input{flex:1;min-width:0;border:1px solid #E7E0CF;background:#fff;padding:12px 14px;font-size:14px;font-family:inherit;color:#2A2520;border-radius:var(--rad-sm);cursor:pointer}',
             '.rb-wf-nophoto{display:block;width:100%;margin-top:18px;padding:16px 0 2px;border:none;border-top:1px solid #EFE9DC;background:none;text-align:center;font-size:13px;color:var(--ink-faint);cursor:pointer;font-family:inherit}',
             '.rb-wf-nophoto:hover{color:var(--ink)}',
-            '@media(max-width:520px){.rb-wf-drop-btns{flex-direction:column;align-self:stretch}.rb-wf-btn{width:100%}.rb-wf-drop-hint{display:none}}',
+            '@media(max-width:767px){.rb-wf-dt{display:none}.rb-wf-mb{display:block}.rb-wf-drop-btns.rb-wf-mb{display:flex;flex-direction:column;align-self:stretch}.rb-wf-drop-btns .rb-wf-btn{width:100%}}',
             // the reveal — photo panel, tag pops, banner (contain, never
             // cover: a portrait garment photo must not crop top/bottom)
             '.rb-saw-panel{position:relative;height:300px;border-radius:var(--rad);overflow:hidden;background:#1A1410;margin-bottom:14px}',
@@ -2471,7 +2476,12 @@
             }
           } catch(e) {
             console.error('WA submit:', e);
-            _waShowToast('Something went wrong — try again');
+            // Name the one recoverable case (stale/expired JWT) instead of
+            // the generic line — a refresh genuinely fixes it.
+            const failMsg = String(e && e.message || '');
+            _waShowToast(/401|JWT|expired|invalid token/i.test(failMsg)
+              ? 'Your session went quiet — refresh the page and try again'
+              : 'Something went wrong — try again');
             if (cta) { cta.disabled = false; cta.textContent = editId ? 'Update piece' : 'Add to wardrobe'; }
             // Re-enable the visible step-3 CTA (add flow) so the user can retry.
             const sawBtn = document.getElementById('wa-saw-cta');

@@ -134,21 +134,43 @@ const browser = await chromium.launch(
   await page.evaluate(() => window.WA && WA.open());
   await page.waitForTimeout(400);
 
-  const s1 = await page.evaluate(() => ({
-    heading: document.querySelector('#wa-modal .fm-h')?.textContent || '',
-    dropH: document.querySelector('.rb-wf-drop-h')?.textContent || '',
-    btns: Array.from(document.querySelectorAll('.rb-wf-drop-btns .rb-wf-btn')).map((b) => b.textContent),
-    link: !!document.querySelector('.rb-wf-linkrow input'),
-    nophoto: document.querySelector('.rb-wf-nophoto')?.textContent || '',
-    file: !!document.getElementById('wa-rb-file'),
-    multiple: document.getElementById('wa-rb-file')?.multiple,
-    capture: document.getElementById('wa-rb-file')?.hasAttribute('capture'),
-  }));
+  const s1 = await page.evaluate(() => {
+    const shown = (el) => el && getComputedStyle(el).display !== 'none';
+    return {
+      heading: document.querySelector('#wa-modal .fm-h')?.textContent || '',
+      dropH: Array.from(document.querySelectorAll('.rb-wf-drop-h')).filter(shown).map((h) => h.textContent),
+      btns: Array.from(document.querySelectorAll('.rb-wf-drop-btns')).filter(shown)
+        .flatMap((w) => Array.from(w.querySelectorAll('.rb-wf-btn')).map((b) => b.textContent)),
+      link: !!document.querySelector('.rb-wf-linkrow input'),
+      nophoto: document.querySelector('.rb-wf-nophoto')?.textContent || '',
+      file: !!document.getElementById('wa-rb-file'),
+      multiple: document.getElementById('wa-rb-file')?.multiple,
+      capture: document.getElementById('wa-rb-file')?.hasAttribute('capture'),
+    };
+  });
   check('step1 · Add a piece heading', /Add a piece/.test(s1.heading), s1.heading);
-  check('step1 · dropzone + both picker buttons', s1.dropH === 'Snap or attach the piece'
-    && s1.btns.join('|') === 'Take a photo|Choose from library', s1.btns.join('|'));
+  check('step1 · desktop is drop-first with one Choose-files button', s1.dropH.join('|') === 'Drop an image here'
+    && s1.btns.join('|') === 'Choose files', `${s1.dropH.join('|')} / ${s1.btns.join('|')}`);
   check('step1 · From-a-link field + Add-without-a-photo route', s1.link && s1.nophoto === 'Add without a photo', s1.nophoto);
   check('step1 · multi file input, never capture', s1.file && s1.multiple === true && s1.capture === false, String(s1.capture));
+
+  // Paste-a-link opens the Coming Soon dialog ABOVE the add modal
+  await page.click('.rb-wf-linkrow input');
+  await page.waitForTimeout(200);
+  const soon = await page.evaluate(() => {
+    const cs = document.getElementById('cs-modal');
+    const fm = document.getElementById('wa-modal');
+    return {
+      open: !!cs && cs.classList.contains('open'),
+      above: cs && fm ? parseInt(getComputedStyle(cs).zIndex, 10) > parseInt(getComputedStyle(fm).zIndex, 10) : false,
+    };
+  });
+  check('step1 · paste-a-link shows Coming Soon over the modal', soon.open && soon.above, JSON.stringify(soon));
+  await page.evaluate(() => {
+    document.getElementById('cs-modal')?.classList.remove('open');
+    document.body.classList.remove('modal-open');
+  });
+  await page.waitForTimeout(150);
 
   await page.setInputFiles('#wa-rb-file', { name: 'blazer.png', mimeType: 'image/png', buffer: PNG_OK });
   await page.waitForTimeout(300);
@@ -391,6 +413,22 @@ const browser = await chromium.launch(
   check('manual · saves without an image', supaPosts.length === 1 && p.label === 'Linen shirt' && p.image_url === null,
     JSON.stringify({ n: supaPosts.length, label: p.label, img: p.image_url }));
   check('manual · category filed from the picker', p.category === 'Tops', String(p.category));
+
+  // Manual + a photo attached through the slot: no re-analyse, image saved
+  await page.evaluate(() => { document.getElementById('rb-addfork')?.remove(); window.WA && WA.open(); });
+  await page.waitForTimeout(500);
+  await page.click('.rb-wf-nophoto');
+  await page.waitForTimeout(200);
+  await page.setInputFiles('#rb-wf-photoin', { name: 'slot.png', mimeType: 'image/png', buffer: PNG_OK });
+  await page.waitForTimeout(500);
+  const slotPhoto = await page.evaluate(() => !!document.querySelector('.rb-wf-photo img')?.src);
+  check('manual · Add-a-photo slot attaches without a re-scan', slotPhoto);
+  await page.fill('#wa-saw-label', 'Photographed shirt');
+  await page.click('#wa-saw-cta');
+  await page.waitForTimeout(1800);
+  const p2 = supaPosts[1] || {};
+  check('manual · attached photo uploads and saves', p2.label === 'Photographed shirt' && /cloudinary/.test(String(p2.image_url)),
+    JSON.stringify({ label: p2.label, img: p2.image_url }));
   check('no page errors (manual)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -639,6 +677,19 @@ const browser = await chromium.launch(
   check('mobile · refine opens as a bottom sheet with its header', mref.fixed === 'fixed' && mref.head, JSON.stringify(mref));
   check('mobile · Wear-it-for sits after Season in the sheet', /Season/.test(mref.labels[0] || '') && /Wear it for/i.test(mref.labels[1] || ''),
     mref.labels.join('|'));
+  await page.evaluate(() => window.__waRefToggle());
+  await page.evaluate(() => window.WA && WA.open());
+  await page.waitForTimeout(400);
+  const ms1 = await page.evaluate(() => {
+    const shown = (el) => el && getComputedStyle(el).display !== 'none';
+    return {
+      dropH: Array.from(document.querySelectorAll('.rb-wf-drop-h')).filter(shown).map((h) => h.textContent),
+      btns: Array.from(document.querySelectorAll('.rb-wf-drop-btns')).filter(shown)
+        .flatMap((w) => Array.from(w.querySelectorAll('.rb-wf-btn')).map((b) => b.textContent)),
+    };
+  });
+  check('mobile · step 1 keeps the snap/attach pair', ms1.dropH.join('|') === 'Snap or attach the piece'
+    && ms1.btns.join('|') === 'Take a photo|Choose from library', `${ms1.dropH.join('|')} / ${ms1.btns.join('|')}`);
   check('no page errors (mobile)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
