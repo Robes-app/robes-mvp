@@ -1834,7 +1834,8 @@
               (hint ? '<span class="hint">' + hint + '</span>' : '') +
               '<span class="car">' + car + '</span></button>';
           }
-          const nTags = d.seasons.length + d.wear.length;
+          const nTags = d.seasons.filter(function(s) { return s !== 'Year-round'; }).length +
+            d.wear.filter(function(w) { return w !== 'Everyday'; }).length;
           const tagsToggle = tog('tags',
             '<span style="color:var(--ink-faint);margin-right:8px">+</span>Add tags and notes', '',
             nTags ? nTags + ' set' : 'season, wear it for, notes');
@@ -1947,7 +1948,8 @@
               const on = d.seasons.indexOf(w) !== -1;
               return '<button type="button" class="rb-wf-chip sea' + (on ? ' on' : '') + '" onclick="window.__waTagTog(\'seasons\',\'' + _sawEsc(w).replace(/'/g, "\\'") + '\')">' + _sawEsc(w) + '</button>';
             }).join('');
-            const ctxAll = WA_OCCASIONS.concat(d.wear.filter(function(w) { return WA_OCCASIONS.indexOf(w) === -1; }));
+            const ctxAll = ['Everyday'].concat(WA_OCCASIONS)
+              .concat(d.wear.filter(function(w) { return w !== 'Everyday' && WA_OCCASIONS.indexOf(w) === -1; }));
             const ctxChips = ctxAll.map(function(w) {
               const on = d.wear.indexOf(w) !== -1;
               return '<button type="button" class="rb-wf-chip ctx' + (on ? ' on' : '') + '" onclick="window.__waTagTog(\'wear\',\'' + _sawEsc(w).replace(/'/g, "\\'") + '\')">' + _sawEsc(w) + '</button>';
@@ -2034,12 +2036,26 @@
 
         // Two tag axes, held apart: 'seasons' files into wardrobe_items.
         // seasons, 'wear' (the Context axis + free tags) into .occasions.
+        // Each axis carries a visible DEFAULT chip (Year-round / Everyday):
+        // exclusive with the specific tags, re-selected when the last one is
+        // removed, and stripped back to null at save — the default state is
+        // displayed, never stored.
         window.__waTagTog = function(axis, val) {
           const d = window.__rbWaDetail;
           if (!d) return;
           const a = axis === 'seasons' ? d.seasons : d.wear;
-          const i = a.indexOf(val);
-          if (i === -1) a.push(val); else a.splice(i, 1);
+          const dflt = axis === 'seasons' ? 'Year-round' : 'Everyday';
+          if (val === dflt) {
+            // Picking the default clears the axis back to it (no empty state)
+            a.length = 0;
+            a.push(dflt);
+          } else {
+            const i = a.indexOf(val);
+            if (i === -1) a.push(val); else a.splice(i, 1);
+            const di = a.indexOf(dflt);
+            if (di !== -1 && a.length > 1) a.splice(di, 1);
+            if (!a.length) a.push(dflt);
+          }
           _waFormPaint();
         };
         window.__waTagStart = function() {
@@ -2056,7 +2072,11 @@
           if (e.type === 'blur' || e.key === 'Enter') {
             if (e.key === 'Enter') e.preventDefault();
             const v = (el.value || '').trim();
-            if (v && d.wear.indexOf(v) === -1) d.wear.push(v);
+            if (v && d.wear.indexOf(v) === -1) {
+              d.wear.push(v);
+              const di = d.wear.indexOf('Everyday');
+              if (di !== -1) d.wear.splice(di, 1);
+            }
             d.addingTag = false;
             _waFormPaint();
           } else if (e.key === 'Escape') {
@@ -2089,7 +2109,7 @@
           window.__waSawL2 = '';
           window.__waSawL3 = '';
           window.__waSawTaxSel = _waTaxTree ? { sheet: '', l2: '', l3: '' } : null;
-          window.__rbWaDetail = { seasons: [], wear: [], addingTag: false };
+          window.__rbWaDetail = { seasons: ['Year-round'], wear: ['Everyday'], addingTag: false };
         }
 
         // Add without a photo — same anatomy, empty photo slot, empty fields.
@@ -2117,11 +2137,15 @@
           window.__waSawTaxSel = _waTaxTree
             ? { sheet: (it.category_l2 && _WA_L2_SHEET[it.category_l2]) || _WA_LEGACY_TO_SHEET[it.category] || '', l2: it.category_l2 || '', l3: it.category_l3 || '' }
             : null;
-          // 'Everyday' is retired from the context vocabulary (it's the
-          // default state, not a tag) — dropped at prefill.
+          // The default state is DISPLAYED, never stored: an untagged piece
+          // shows Year-round + Everyday selected (so the Refine behaviour
+          // reads back from the piece), and the defaults are stripped again
+          // at save. Legacy stored 'Everyday' folds into the same default.
+          const seas0 = Array.isArray(it.seasons) ? it.seasons.filter(Boolean) : [];
+          const wear0 = (Array.isArray(it.occasions) ? it.occasions : []).filter(function(o) { return o && o !== 'Everyday'; });
           window.__rbWaDetail = {
-            seasons: Array.isArray(it.seasons) ? it.seasons.slice() : [],
-            wear: (Array.isArray(it.occasions) ? it.occasions : []).filter(function(o) { return o !== 'Everyday'; }),
+            seasons: seas0.length ? seas0.slice() : ['Year-round'],
+            wear: wear0.length ? wear0 : ['Everyday'],
             addingTag: false,
           };
           _waForm = { mode: 'edit', view: 'details', photo: it.image_url || '', readable: false, revealed: true };
@@ -2146,7 +2170,7 @@
           // stays legacy. The cascade fields only mount when the tree landed.
           const dispSheet = (tag.category_l2 && _WA_L2_SHEET[tag.category_l2]) || _WA_LEGACY_TO_SHEET[tag.category] || '';
           window.__waSawTaxSel = _waTaxTree ? { sheet: dispSheet, l2: tag.category_l2 || '', l3: tag.category_l3 || '' } : null;
-          window.__rbWaDetail = { seasons: [], wear: [], addingTag: false };
+          window.__rbWaDetail = { seasons: ['Year-round'], wear: ['Everyday'], addingTag: false };
           // A readable piece gets the summary + reveal; an unreadable one
           // goes straight to the open editor — nothing to celebrate yet.
           const readable = !!tag.label;
@@ -2400,8 +2424,12 @@
             const _V2_KEYS = ['seasons', 'occasions'];
             const det = window.__rbWaDetail;
             if (det && _waV2Cols) {
-              payload.seasons   = det.seasons && det.seasons.length ? det.seasons : null;
-              payload.occasions = det.wear && det.wear.length ? det.wear : null;
+              // The default chips (Year-round / Everyday) are display of the
+              // null state — stripped here so the DB never stores them.
+              const seas = (det.seasons || []).filter(s => s !== 'Year-round' || (det.seasons.length > 1));
+              const wear = (det.wear || []).filter(w => w !== 'Everyday');
+              payload.seasons   = seas.length && !(seas.length === 1 && seas[0] === 'Year-round') ? seas : null;
+              payload.occasions = wear.length ? wear : null;
             }
 
             // 3-level taxonomy (migration 15). When the cascade UI mounted

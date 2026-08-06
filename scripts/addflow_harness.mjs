@@ -284,6 +284,9 @@ const browser = await chromium.launch(
   check('save · legacy category carried', supaPosts[0] && supaPosts[0].category === 'Outerwear', supaPosts[0] && supaPosts[0].category);
   check('save · retired columns left off the payload',
     supaPosts[0] && !('price' in supaPosts[0]) && !('fit_confidence' in supaPosts[0]) && !('sentiment' in supaPosts[0]) && !('hero_position' in supaPosts[0]));
+  check('save · untouched default chips store as null, never as tags',
+    supaPosts[0] && supaPosts[0].seasons === null && supaPosts[0].occasions === null,
+    JSON.stringify([supaPosts[0]?.seasons, supaPosts[0]?.occasions]));
   check('no page errors (happy path)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -360,14 +363,16 @@ const browser = await chromium.launch(
   const axes = await page.evaluate(() => ({
     sea: Array.from(document.querySelectorAll('.rb-wf-chip.sea')).map((c) => c.textContent),
     ctx: Array.from(document.querySelectorAll('.rb-wf-chip.ctx:not(.add)')).map((c) => c.textContent),
+    on: Array.from(document.querySelectorAll('.rb-wf-chip.on')).map((c) => c.textContent),
     add: !!document.querySelector('.rb-wf-chip.add'),
     notes: !!document.getElementById('wa-saw-notes'),
     hide: Array.from(document.querySelectorAll('button.rb-saw-toggle')).some((b) => /Hide tags and notes/.test(b.textContent)),
     editLink: !!document.querySelector('.rb-wf-headact'),
   }));
   check('tags · Season axis complete', axes.sea.join('|') === 'Spring|Summer|Autumn|Winter|Year-round', axes.sea.join('|'));
-  check('tags · Context axis is the new vocabulary (no Everyday)',
-    axes.ctx.join('|') === 'Work|Evening|Occasion|Travel|Active', axes.ctx.join('|'));
+  check('tags · Context axis leads with Everyday + the vocabulary',
+    axes.ctx.join('|') === 'Everyday|Work|Evening|Occasion|Travel|Active', axes.ctx.join('|'));
+  check('tags · defaults show selected on an untagged piece', axes.on.join('|') === 'Year-round|Everyday', axes.on.join('|'));
   check('tags · custom tag door + notes + hide row + header Edit link', axes.add && axes.notes && axes.hide && axes.editLink);
 
   await page.click('.rb-wf-chip.sea:has-text("Summer")');
@@ -380,6 +385,14 @@ const browser = await chromium.launch(
   }));
   check('tags · picks + custom tag land selected', tagged.on.includes('Summer') && tagged.on.includes('Travel') && tagged.on.includes('Skiing'),
     tagged.on.join('|'));
+  check('tags · specific picks displace the defaults', !tagged.on.includes('Year-round') && !tagged.on.includes('Everyday'),
+    tagged.on.join('|'));
+  // Deselecting the last specific tag brings its default back
+  await page.click('.rb-wf-chip.sea:has-text("Summer")');
+  const revert = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.rb-wf-chip.sea.on')).map((c) => c.textContent));
+  check('tags · emptying an axis re-selects its default', revert.join('|') === 'Year-round', revert.join('|'));
+  await page.click('.rb-wf-chip.sea:has-text("Summer")');
   await page.fill('#wa-saw-notes', 'Wear with the navy suit.');
   await page.click('#wa-saw-cta');
   await page.waitForTimeout(1800);
@@ -522,7 +535,9 @@ const browser = await chromium.launch(
     on: Array.from(document.querySelectorAll('.rb-wf-chip.on')).map((c) => c.textContent),
     everyday: Array.from(document.querySelectorAll('.rb-wf-chip')).some((c) => c.textContent === 'Everyday'),
   }));
-  check('edit · saved axes prefill, Everyday retired', edTags.on.includes('Summer') && edTags.on.includes('Travel') && !edTags.everyday,
+  check('edit · saved axes prefill; a tagged piece leaves the defaults off',
+    edTags.on.includes('Summer') && edTags.on.includes('Travel') && edTags.everyday
+    && !edTags.on.includes('Everyday') && !edTags.on.includes('Year-round'),
     edTags.on.join('|'));
   await page.click('#wa-saw-cta');
   await page.waitForTimeout(1500);
@@ -533,6 +548,16 @@ const browser = await chromium.launch(
     JSON.stringify(patch.body && [patch.body.seasons, patch.body.occasions]));
   check('edit · pass-through columns untouched by the PATCH',
     patch.body && !('price' in patch.body) && !('hero_position' in patch.body) && !('sentiment' in patch.body));
+
+  // An untagged piece shows both defaults selected — the Refine behaviour
+  // reads back from the piece level.
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.__wtrkEdit('row-2'));
+  await page.waitForTimeout(500);
+  await page.click('button.rb-saw-toggle:has-text("Add tags and notes")');
+  const unt = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.rb-wf-chip.on')).map((c) => c.textContent));
+  check('edit · untagged piece shows Year-round + Everyday selected', unt.join('|') === 'Year-round|Everyday', unt.join('|'));
   check('no page errors (edit)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
