@@ -712,7 +712,7 @@ const browser = await chromium.launch(
     };
   });
   check('mobile · step 1 keeps the snap/attach pair', ms1.dropH.join('|') === 'Snap or attach the piece'
-    && ms1.btns.join('|') === 'Take a photo|Choose from library', `${ms1.dropH.join('|')} / ${ms1.btns.join('|')}`);
+    && ms1.btns.join('|') === 'Take a photo|Attach photos', `${ms1.dropH.join('|')} / ${ms1.btns.join('|')}`);
   check('no page errors (mobile)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }

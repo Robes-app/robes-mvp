@@ -1484,7 +1484,7 @@
               </span>
               <span class="rb-wf-drop-btns rb-wf-mb">
                 <button type="button" class="rb-wf-btn ink" data-pick="cam">Take a photo</button>
-                <button type="button" class="rb-wf-btn line" data-pick="lib-m">Choose from library</button>
+                <button type="button" class="rb-wf-btn line" data-pick="lib-m">Attach photos</button>
               </span>
               <input id="wa-rb-file" type="file" multiple
                 accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp"
