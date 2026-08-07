@@ -696,6 +696,7 @@ const browser = await chromium.launch(
       lookv2: document.body.classList.contains('rb-lookv2'),
       cols: con ? getComputedStyle(con).gridTemplateColumns : '',
       emptyRows: empties.length,
+      ghostAdds: document.querySelectorAll('.rb-lk-con .rbc-rghost .rbc-act').length,
       panel: !!document.querySelector('.rb-lk-con .rbc-panel'),
       saveShown: !!document.querySelector('.rb-lk-save'),
       rackEyebrow: document.querySelector('.rbc-rackhead .ey')?.textContent,
@@ -724,10 +725,13 @@ const browser = await chromium.launch(
   check('composer · the standing console scale: 480px look column',
     /^480px/.test(c0.cols) && c0.lookv2, c0.cols + ' lookv2=' + c0.lookv2);
   check('composer · the look panel is the shared rbc-panel', c0.panel === true);
-  // A2 amendment (2026-08-07): NO slot-bound empty rows — a slot must
-  // never forecast a role. One generic "+ Add a piece" is the way in.
-  check('composer · no slot-bound empty rows, one generic + Add a piece',
-    c0.emptyRows === 0 && c0.addPiece === true, JSON.stringify([c0.emptyRows, c0.addPiece]));
+  // A2/B1 amendments (2026-08-07): NO slot-bound empty rows — a slot must
+  // never forecast a role. The rack IS the formula: each awaiting role is
+  // a dashed definition row with its own + Add; the trailing generic CTA
+  // waits until every role is inked.
+  check('composer · no slot-bound empty rows; four role rows carry the way in',
+    c0.emptyRows === 0 && c0.addPiece === false && c0.ghostAdds === 4,
+    JSON.stringify([c0.emptyRows, c0.addPiece, c0.ghostAdds]));
   check('composer · Save is withheld until there is a look', c0.saveShown === false);
   // B1 amendment (2026-08-07): the empty state teaches the formula — every
   // empty row sits under a GHOSTED strip forecast from its slot. Education
@@ -756,7 +760,15 @@ const browser = await chromium.launch(
     c0.titleValue === '' && c0.titlePlaceholder === 'Name your Look',
     JSON.stringify([c0.titleValue, c0.titlePlaceholder]));
   check('composer · no "Named by you" subtext', c0.namedByYou === false);
-  check('composer · the shared "+ Add a piece" is available', c0.addPiece === true);
+  // The empty look panel stretches to the rack's height — the whitespace
+  // reads intentional, never a tower past the rack (Annie, 2026-08-07).
+  const panelH = await page.evaluate(() => {
+    const kids = document.querySelectorAll('.rb-lk-con > div');
+    if (kids.length < 2) return null;
+    return { left: Math.round(kids[0].getBoundingClientRect().height), right: Math.round(kids[1].getBoundingClientRect().height) };
+  });
+  check('composer · the empty look panel matches the rack\'s height',
+    !!panelH && Math.abs(panelH.left - panelH.right) <= 2, JSON.stringify(panelH));
 
   // "+ Add a piece" opens the A2 chooser: What kind of piece? An EMPTY
   // look goes straight to all fifteen categories — no still-open gate.
@@ -892,12 +904,38 @@ const browser = await chromium.launch(
     window.__lkAddClose();
     return {
       empties: document.querySelectorAll('.rbc-row.rb-lk-rempty').length,
-      filled: document.querySelectorAll('.rbc-row:not(.rb-lk-rempty)').length,
+      filled: document.querySelectorAll('.rbc-row:not(.rb-lk-rempty):not(.rbc-rghost)').length,
       stillOpen,
     };
   });
   check('composer · ✕ removes the row; the slot returns to the chooser, never a bound placeholder',
     xed.empties === 0 && xed.filled === 0 && xed.stillOpen === false, JSON.stringify(xed));
+
+  // A role row's + Add pre-casts that role on the pick — a TOP added
+  // through The Anchor's row anchors (nothing dictates what goes where).
+  const armed = await page.evaluate(() => {
+    const row = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rghost'))
+      .find((r) => r.previousElementSibling?.textContent.trim() === 'The Anchor');
+    row.querySelector('.rbc-act').click();
+    const eyebrow = document.querySelector('#rb-lkadd-sheet p')?.textContent || '';
+    document.querySelector('[data-lkadd-cat="Tops"]').click();
+    Array.from(document.querySelectorAll('#rb-lkadd-sheet .rb-lk-opt'))
+      .find((b) => b.querySelector('span')?.textContent === 'Cream silk shirt').click();
+    const rack = document.querySelector('.rb-lk-con .rbc-rack');
+    const names = [];
+    let inGroup = false;
+    Array.from(rack.children).forEach((el) => {
+      if (el.classList.contains('rbc-rolestrip')) inGroup = el.textContent.trim() === 'The Anchor';
+      else if (inGroup && !el.classList.contains('rbc-rghost')) {
+        const n = el.querySelector('.rbc-name');
+        if (n) names.push(n.textContent);
+      }
+    });
+    window.__lkNew();   // reset roles + rows for the sections below
+    return { eyebrow, names };
+  });
+  check('composer · a role row\'s + Add pre-casts the role — a top can anchor',
+    /The Anchor/.test(armed.eyebrow) && armed.names.includes('Cream silk shirt'), JSON.stringify(armed));
 
   const two = await page.evaluate(() => {
     window.__lkRowPick('r1', 'w-top1');

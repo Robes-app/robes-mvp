@@ -5371,7 +5371,15 @@
           // piece back to a role nothing currently holds.
           if (!filled.length && !empty.length && _RB_ROLES.indexOf(role) < 0) return;
           html += stripHtml(role, !filled.length);
-          if (!filled.length && _RB_ROLE_NOTES[role]) html += `<div class="rbc-rolenote">${_waEsc(_RB_ROLE_NOTES[role])}</div>`;
+          // An awaiting role is a dashed definition row — the education
+          // line on the left, its own + Add on the right (cfg.onRoleAdd,
+          // called with the role so the pick arrives pre-cast). It gives
+          // way to the piece row the moment the role inks in.
+          if (!filled.length && _RB_ROLE_NOTES[role]) {
+            html += `<div class="rbc-row rbc-rghost"><div class="rbc-rolenote">${_waEsc(_RB_ROLE_NOTES[role])}</div>` +
+              (cfg.onRoleAdd ? `<button class="rbc-act" onclick="window.${cfg.onRoleAdd}('${_waEsc(role)}')">＋ Add a piece</button>` : '') +
+              `</div>`;
+          }
           filled.forEach(x => { html += rowHtml(x); });
           empty.forEach(e => { html += e.html; });
         });
@@ -5654,7 +5662,10 @@
 .rbc-rolestrip.dropover i{background:var(--ink);height:2px}
 .rbc-dragrow{cursor:grab}
 .rbc-dragrow.dragging{opacity:.45}
-.rbc-rolenote{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:13.5px;line-height:1.5;color:var(--ink-faint);margin:9px 2px 4px}
+.rbc-rolenote{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:14.5px;line-height:1.55;color:var(--ink-faint)}
+.rbc-row.rbc-rghost{display:flex;align-items:center;justify-content:space-between;gap:16px;border-style:dashed;background:transparent;padding:17px 18px}
+.rbc-rghost .rbc-rolenote{flex:1;min-width:0}
+.rbc-rghost .rbc-act{flex:none;white-space:nowrap}
 .rbc-lhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .rbc-lhead .lab{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
 .rbc-lhead .robes{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose)}
@@ -7543,9 +7554,13 @@
             (nPlaced ? '<div class="rbc-lfoot"><span class="rbc-palette"></span><span class="rbc-yours"><b>' + nPlaced + '</b>&thinsp;of&thinsp;' + nPlaced + ' from your wardrobe</span></div>' : '') +
             '</div>';
         } else if (!items.length) {
-          lookHtml = '<div class="rbc-panel"><div class="rbc-lhead">' +
+          // No 4:5 aspect on the zero-piece placeholder — the panel
+          // stretches to the rack's height instead (its grid child gets
+          // align-self:stretch below), so the whitespace reads intentional
+          // rather than towering past the rack.
+          lookHtml = '<div class="rbc-panel" style="flex:1"><div class="rbc-lhead">' +
             '<span class="lab">The look · 0 pieces</span><span class="robes">Robes</span></div>' +
-            '<div style="aspect-ratio:4/5;border:1.5px dashed var(--rule-mid);border-radius:var(--rad-sm);display:flex;align-items:center;justify-content:center;padding:24px;text-align:center">' +
+            '<div style="flex:1;min-height:280px;border:1.5px dashed var(--rule-mid);border-radius:var(--rad-sm);display:flex;align-items:center;justify-content:center;padding:24px;text-align:center">' +
               '<span style="font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:19px;color:var(--ink-faint)">The look, once you start.</span></div>' +
             '</div>';
         } else {
@@ -7581,17 +7596,23 @@
             ' placeholder="Name your Look" oninput="window.__lkNewTitleInput(this.value)" style="font-size:clamp(22px,2.4vw,28px)">' +
           '</div></div>' +
           '<div class="rbc-rack">';
-        const rowCfg = { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop', allStrips: true };
+        const rowCfg = { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop', onRoleAdd: '__lkAddOpen', allStrips: true };
         // No slot-bound empty rows (founder call 2026-08-07: her trousers
         // can anchor, her top can be the exclamation — a slot must never
-        // forecast a role). The four ghosted strips carry the education and
-        // stay as drop targets; the ONE dashed "+ Add a piece" below is the
-        // way in, opening the A2 chooser (What kind of piece?).
+        // forecast a role). The rack IS the formula: each awaiting role is
+        // a dashed definition row with its own + Add (pre-casting that
+        // role on the pick), through the A2 chooser. The trailing generic
+        // CTA appears only once every role is inked — until then the
+        // definition rows carry the way in (B1 mock, 2026-08-07).
         rackHtml += _rbRackRolesHtml(items, rowCfg);
+        const rolesFilled = {};
+        items.forEach(it => { rolesFilled[_rbRoleOf(it)] = true; });
+        const allRolesInked = _RB_ROLES.every(r => rolesFilled[r]);
         rackHtml += '</div>' +
-          '<button class="rbc-addpiece" onclick="window.__lkAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>';
+          (allRolesInked ? '<button class="rbc-addpiece" onclick="window.__lkAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>' : '');
 
-        return '<div class="rb-lk-con"><div>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div>';
+        const stretchLeft = !items.length && !(_lkPhoto && _lkPhoto.url);
+        return '<div class="rb-lk-con"><div' + (stretchLeft ? ' style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div>';
       }
       function _lkRowOptions(r) {
         const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
@@ -7989,9 +8010,17 @@
       // call 2026-08-07). Slots are category-only: no role is pre-assigned
       // to them; the role casts on the piece she picks, recastable by drag.
       var _lkAddSel = null; // null = closed · {step:1} · {step:2, kind:'slot'|'cat', …}
-      window.__lkAddOpen = function() { _lkAddSel = { step: 1 }; _lkAddPaint(); };
+      // Opening from a role's definition row arms that role — the picked
+      // piece arrives pre-cast (still recastable by drag; never a rule).
+      var _lkAddRole = null;
+      window.__lkAddOpen = function(role) {
+        _lkAddSel = { step: 1 };
+        _lkAddRole = _rbRoleNorm(role) || null;
+        _lkAddPaint();
+      };
       window.__lkAddClose = function() {
         _lkAddSel = null;
+        _lkAddRole = null;
         document.getElementById('rb-lkadd-sheet')?.remove();
       };
       window.__lkAddBack = function() { _lkAddSel = { step: 1 }; _lkAddPaint(); };
@@ -8008,21 +8037,29 @@
         _lkAddPaint();
       };
       window.__lkAddSlotPick = function(key, id) {
+        const role = _lkAddRole;
         window.__lkAddClose();
+        if (role) _lkNewRoles[String(id)] = role;
         window.__lkRowPick(key, id);
         const wi = _waItems.find(w => String(w.id) === String(id));
         if (wi) _waShowToast(wi.label + ' added to the look');
       };
       window.__lkAddCatPick = function(_cat, id) {
+        const role = _lkAddRole;
         window.__lkAddClose();
+        if (role) _lkNewRoles[String(id)] = role;
         window.__lkApplyNew(id);
       };
       window.__lkAddSnap = function() {
         const sel = _lkAddSel;
+        const role = _lkAddRole;
         window.__lkAddClose();
-        if (sel && sel.kind === 'slot') { window.__lkRowSnap(sel.key); return; }
+        if (sel && sel.kind === 'slot' && !role) { window.__lkRowSnap(sel.key); return; }
         _waEditId = null;
-        _waAfterAdd = (newId) => window.__lkApplyNew(newId);
+        _waAfterAdd = (newId) => {
+          if (role) _lkNewRoles[String(newId)] = role;
+          window.__lkApplyNew(newId);
+        };
         if (window.WA && WA.open) WA.open();
         let tries = 0;
         const poke = () => {
@@ -8086,7 +8123,8 @@
         modal.innerHTML = '<div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:85dvh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 22px 20px;display:flex;flex-direction:column;gap:16px">' +
           '<div style="display:flex;align-items:flex-start;justify-content:space-between">' +
             '<p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">' +
-              (sel.step === 1 ? 'Add a piece' : 'Add · ' + _waEsc(sel.label)) + ' · ' + _waEsc(ctxLabel) + '</p>' +
+              (sel.step === 1 ? 'Add a piece' : 'Add · ' + _waEsc(sel.label)) +
+              (_lkAddRole ? ' · ' + _waEsc(_lkAddRole) : '') + ' · ' + _waEsc(ctxLabel) + '</p>' +
             '<button onclick="window.__lkAddClose()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;font-size:16px;margin-top:-4px">×</button>' +
           '</div>' + body + '</div>';
       }
