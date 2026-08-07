@@ -695,8 +695,7 @@ const browser = await chromium.launch(
     return {
       lookv2: document.body.classList.contains('rb-lookv2'),
       cols: con ? getComputedStyle(con).gridTemplateColumns : '',
-      slots: empties.map((r) => r.querySelector('.vslot')?.textContent),
-      emptyNames: empties.map((r) => r.querySelector('.rbc-name')?.textContent),
+      emptyRows: empties.length,
       panel: !!document.querySelector('.rb-lk-con .rbc-panel'),
       saveShown: !!document.querySelector('.rb-lk-save'),
       rackEyebrow: document.querySelector('.rbc-rackhead .ey')?.textContent,
@@ -710,24 +709,25 @@ const browser = await chromium.launch(
   // A fresh session has rendered no console — the composer must inject the
   // shared stylesheet itself, and the styles must actually apply.
   const css = await page.evaluate(() => {
-    const row = document.querySelector('.rbc-row');
+    // The empty composer holds no rows any more — the strips are the
+    // styled markup to probe.
+    const strip = document.querySelector('.rbc-rolestrip');
     const ey = document.querySelector('.rbc-rackhead .ey');
     return {
       sheet: !!document.getElementById('rbc-style'),
-      rowIsGrid: row ? getComputedStyle(row).display === 'grid' : false,
+      stripIsFlex: strip ? getComputedStyle(strip).display === 'flex' : false,
       eyCaps: ey ? getComputedStyle(ey).textTransform === 'uppercase' : false,
     };
   });
   check('composer · shared console stylesheet is injected without a console render',
-    css.sheet && css.rowIsGrid && css.eyCaps, JSON.stringify(css));
+    css.sheet && css.stripIsFlex && css.eyCaps, JSON.stringify(css));
   check('composer · the standing console scale: 480px look column',
     /^480px/.test(c0.cols) && c0.lookv2, c0.cols + ' lookv2=' + c0.lookv2);
   check('composer · the look panel is the shared rbc-panel', c0.panel === true);
-  check('composer · four empty slot rows: Top, Bottom, Shoe, Bag',
-    c0.slots.join(',') === 'Top,Bottom,Shoe,Bag', JSON.stringify(c0.slots));
-  check('composer · empty rows invite ("Add a top" …)',
-    c0.emptyNames.join(' | ') === 'Add a top | Add a bottom | Add a shoe | Add a bag',
-    JSON.stringify(c0.emptyNames));
+  // A2 amendment (2026-08-07): NO slot-bound empty rows — a slot must
+  // never forecast a role. One generic "+ Add a piece" is the way in.
+  check('composer · no slot-bound empty rows, one generic + Add a piece',
+    c0.emptyRows === 0 && c0.addPiece === true, JSON.stringify([c0.emptyRows, c0.addPiece]));
   check('composer · Save is withheld until there is a look', c0.saveShown === false);
   // B1 amendment (2026-08-07): the empty state teaches the formula — every
   // empty row sits under a GHOSTED strip forecast from its slot. Education
@@ -749,24 +749,54 @@ const browser = await chromium.launch(
   check('composer · no "Named by you" subtext', c0.namedByYou === false);
   check('composer · the shared "+ Add a piece" is available', c0.addPiece === true);
 
-  // Picking happens inside the empty row
-  const pick = await page.evaluate(() => {
-    window.__lkRowOpen('r1');
-    const inRow = document.querySelector('.rb-lk-rempty .rb-lk-pick');
-    const opts = Array.from(document.querySelectorAll('.rb-lk-rempty .rb-lk-opt span')).map((s) => s.textContent);
-    return { insideTheRow: !!inRow, opts };
+  // "+ Add a piece" opens the A2 chooser: What kind of piece? An EMPTY
+  // look goes straight to all fifteen categories — no still-open gate.
+  const chooser = await page.evaluate(() => {
+    window.__lkAddOpen();
+    const sheet = document.getElementById('rb-lkadd-sheet');
+    return {
+      open: !!sheet,
+      head: /What kind of piece\?/.test(sheet?.textContent || ''),
+      stillOpen: /Still open in this look/i.test(sheet?.textContent || ''),
+      cats: sheet ? sheet.querySelectorAll('[data-lkadd-cat]').length : 0,
+    };
   });
-  check('composer · the picker opens inside the empty row', pick.insideTheRow === true);
-  check('composer · the Top row offers tops and dresses, not bottoms',
-    pick.opts.includes('Cream silk shirt') && pick.opts.includes('Bias slip dress') && !pick.opts.includes('Linen shorts'),
-    JSON.stringify(pick.opts));
-  check('composer · the picker always offers the normal add flow ("New piece")',
-    pick.opts.includes('New piece'), JSON.stringify(pick.opts));
+  check('composer · + Add a piece opens the A2 chooser', chooser.open && chooser.head, JSON.stringify(chooser));
+  check('composer · an empty look offers all fifteen categories, no still-open gate',
+    chooser.stillOpen === false && chooser.cats === 15, JSON.stringify(chooser));
 
+  // A category opens the wardrobe picker (sheet-level filter) + Snap
+  const pick = await page.evaluate(() => {
+    document.querySelector('[data-lkadd-cat="Tops"]').click();
+    const sheet = document.getElementById('rb-lkadd-sheet');
+    const opts = Array.from(sheet?.querySelectorAll('.rb-lk-opt span') || []).map((s) => s.textContent);
+    return {
+      step2: /From your wardrobe\./.test(sheet?.textContent || ''),
+      snap: /Snap a new piece/.test(sheet?.textContent || ''),
+      caption: /files it to your wardrobe, then into the look/.test(sheet?.textContent || ''),
+      opts,
+    };
+  });
+  check('composer · a category opens the wardrobe picker with Snap a new piece',
+    pick.step2 && pick.snap && pick.caption, JSON.stringify(pick));
+  check('composer · the picker is category-filtered (Tops shows tops only)',
+    pick.opts.includes('Cream silk shirt') && !pick.opts.includes('Bias slip dress') && !pick.opts.includes('Linen shorts'),
+    JSON.stringify(pick.opts));
 
   const one = await page.evaluate(() => {
-    window.__lkRowPick('r1', 'w-top1');
+    const opt = Array.from(document.querySelectorAll('#rb-lkadd-sheet .rb-lk-opt'))
+      .find((b) => b.querySelector('span')?.textContent === 'Cream silk shirt');
+    opt.click();
+    const sheetGone = !document.getElementById('rb-lkadd-sheet');
     const row = document.querySelector('.rbc-row:not(.rb-lk-rempty)');
+    // Once the look holds a piece, the chooser leads with Still open
+    window.__lkAddOpen();
+    const reopened = document.getElementById('rb-lkadd-sheet');
+    const stillOpen = /Still open in this look/i.test(reopened?.textContent || '');
+    const stillChips = Array.from(reopened?.querySelectorAll('button[onclick*="__lkAddPickSlot"]') || []).map((b) => b.textContent);
+    window.__lkAddClose();
+    window.__rbLkSheetGone = sheetGone;
+    window.__rbLkStill = { stillOpen, stillChips };
     return {
       name: row?.querySelector('.rbc-name')?.textContent,
       owned: /In your wardrobe/.test(row?.querySelector('.rbc-sub')?.textContent || ''),
@@ -784,6 +814,11 @@ const browser = await chromium.launch(
   check('composer · the card carries the corner ✕', one.x === true);
   check('composer · the look board populates as pieces land', one.boardTiles === 1, String(one.boardTiles));
   check('composer · one piece is not yet a look (no Save)', one.saveShown === false);
+  const still = await page.evaluate(() => ({ gone: window.__rbLkSheetGone, ...window.__rbLkStill }));
+  check('composer · picking a piece closes the sheet into the rack', still.gone === true);
+  check('composer · with a piece placed, Still-open leads the chooser',
+    still.stillOpen === true && JSON.stringify(still.stillChips) === JSON.stringify(['Bottom', 'Shoe', 'Bag']),
+    JSON.stringify(still));
   // The strip inks in as the role is cast (B1), and a drag re-casts freely
   const inked = await page.evaluate(() => {
     const stripOf = (label) => Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip'))
@@ -834,16 +869,23 @@ const browser = await chromium.launch(
   check('composer · the swap applies and closes the modal',
     swapped.modalGone && swapped.name === 'Ribbed white tank', JSON.stringify(swapped));
 
-  // ✕ returns a core slot to its placeholder
+  // ✕ removes the row; the slot returns to the chooser's Still-open list
+  // (no placeholder rows since the A2 amendment — slots never sit in the
+  // rack empty, and never forecast a role)
   const xed = await page.evaluate(() => {
     document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-rm').click();
+    window.__lkAddOpen();
+    const sheet = document.getElementById('rb-lkadd-sheet');
+    const stillOpen = /Still open in this look/i.test(sheet?.textContent || '');
+    window.__lkAddClose();
     return {
       empties: document.querySelectorAll('.rbc-row.rb-lk-rempty').length,
       filled: document.querySelectorAll('.rbc-row:not(.rb-lk-rempty)').length,
+      stillOpen,
     };
   });
-  check('composer · ✕ empties the slot back to a placeholder',
-    xed.empties === 4 && xed.filled === 0, JSON.stringify(xed));
+  check('composer · ✕ removes the row; the slot returns to the chooser, never a bound placeholder',
+    xed.empties === 0 && xed.filled === 0 && xed.stillOpen === false, JSON.stringify(xed));
 
   const two = await page.evaluate(() => {
     window.__lkRowPick('r1', 'w-top1');
@@ -944,28 +986,28 @@ const browser = await chromium.launch(
   await page.waitForTimeout(300);
 
   const shoe = await page.evaluate(() => {
-    window.__lkRowOpen('r3');
-    const row = Array.from(document.querySelectorAll('.rb-lk-rempty'))
-      .find((r) => r.querySelector('.vslot')?.textContent === 'Shoe');
+    window.__lkAddOpen();
+    document.querySelector('[data-lkadd-cat="Shoes"]').click();
+    const sheet = document.getElementById('rb-lkadd-sheet');
     return {
-      deadEnd: /Nothing else in that category yet/.test(row?.textContent || ''),
-      invite: /Nothing filed here yet/.test(row?.textContent || ''),
-      addBtn: !!Array.from(row?.querySelectorAll('button') || []).find((b) => /Add a piece/.test(b.textContent)),
+      deadEnd: /Nothing else in that category yet/.test(sheet?.textContent || ''),
+      invite: /Nothing filed under Shoes yet/.test(sheet?.textContent || ''),
+      snapBtn: !!Array.from(sheet?.querySelectorAll('button') || []).find((b) => /Snap a new piece/.test(b.textContent)),
     };
   });
   check('no-shoes · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('no-shoes · the empty category invites instead of dead-ending',
     !shoe.deadEnd && shoe.invite, JSON.stringify(shoe));
-  check('no-shoes · and offers the normal add flow', shoe.addBtn === true);
+  check('no-shoes · and offers the normal add flow', shoe.snapBtn === true);
 
   const wa = await page.evaluate(() => {
-    window.__lkRowSnap('r3');
+    window.__lkAddSnap();
     return new Promise((res) => setTimeout(() => {
       const m = document.getElementById('wa-modal');
       res({ open: !!m && m.classList.contains('open') });
     }, 600));
   });
-  check('no-shoes · the slot opens the standard wardrobe add modal', wa.open === true, JSON.stringify(wa));
+  check('no-shoes · Snap opens the standard wardrobe add modal', wa.open === true, JSON.stringify(wa));
   await ctx.close();
 }
 
@@ -1044,6 +1086,7 @@ const browser = await chromium.launch(
 
   const mc = await page.evaluate(() => {
     window.__lkNew();
+    window.__lkApplyNew('w-top1');   // the empty composer holds no rows now — measure a filled one
     const n = document.querySelector('.rb-lk-con');
     return {
       stacked: n ? getComputedStyle(n).gridTemplateColumns.split(' ').length === 1 : false,

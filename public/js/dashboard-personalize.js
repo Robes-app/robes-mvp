@@ -5328,9 +5328,10 @@
       // constraint: any piece may be dropped under any role, and the drop
       // simply re-casts it (founder call 2026-08-07). cfg.roleCtx rides
       // through to the handler for surfaces that need extra addressing.
-      // `empties` (composer only) are empty slot rows grouped under their
-      // FORECAST role — ghosted strips that ink in as pieces land (spec B1
-      // amendment 2026-08-07); the forecast never binds what she adds.
+      // cfg.allStrips (composer): every canonical strip renders, ghosted
+      // until a piece lands in its group — the education layer and the
+      // standing drop targets (spec B1 amendments 2026-08-07; slot rows
+      // are gone — no slot ever forecasts a role).
       function _rbRackRolesHtml(items, cfg, empties) {
         if (cfg.onRoleDrop) _rbcDndInit();
         const withRole = items.map((it, i) => ({ it, i, role: _rbRoleOf(it) }));
@@ -5342,7 +5343,7 @@
         const rowHtml = x => cfg.onRoleDrop
           ? `<div class="rbc-dragrow" draggable="true" data-roledrag="${x.i}" data-rolefn="${cfg.onRoleDrop}" data-rolehome="${_waEsc(x.role)}"${ctxAttr}>${_rbcRow(x.it, cfg)}</div>`
           : _rbcRow(x.it, cfg);
-        if (!empties || !empties.length) {
+        if ((!empties || !empties.length) && !cfg.allStrips) {
           let html = '', last = null;
           withRole.forEach(x => {
             if (x.role && x.role !== last) { html += stripHtml(x.role, false); last = x.role; }
@@ -5350,6 +5351,7 @@
           });
           return html;
         }
+        empties = empties || [];
         const roles = _RB_ROLES.slice();
         withRole.forEach(x => { if (x.role && roles.indexOf(x.role) < 0) roles.push(x.role); });
         let html = '';
@@ -7569,29 +7571,15 @@
             ' placeholder="Name your Look" oninput="window.__lkNewTitleInput(this.value)" style="font-size:clamp(22px,2.4vw,28px)">' +
           '</div></div>' +
           '<div class="rbc-rack">';
-        const rowCfg = { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop' };
-        // Ghosted formula strips over every empty row — the education layer
-        // (spec B1 amendment 2026-08-07): each empty slot sits under its
-        // FORECAST role, the strip inks in once a piece lands in the group.
-        // The forecast never binds her — she can fill any slot with any
-        // piece and drag any filled row under any strip.
-        const emptyRowHtml = r => {
-          const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
-          const open = _lkOpenRow === r.key;
-          return '<div class="rbc-row rb-lk-rempty">' +
-            '<div class="rbc-vp"><span class="vslot">' + _waEsc(r.slot) + '</span></div>' +
-            '<div class="rbc-body"><div><div class="rbc-name">' + _waEsc(def.add) + '</div></div>' +
-              '<div class="rbc-foot"><div></div><div class="rbc-acts">' +
-                '<button class="rbc-act' + (open ? '' : ' on') + '" onclick="window.__lkRowOpen(\'' + r.key + '\')">' + (open ? 'Close' : 'From your wardrobe') + '</button>' +
-              '</div></div>' +
-              (open ? _lkPickerHtml(_lkRowOptions(r), '__lkRowPick', r.key, '__lkRowSnap') : '') +
-            '</div></div>';
-        };
-        const empties = _lkVisibleRows().filter(r => !r.piece)
-          .map(r => ({ role: _rbRoleGuess(r.slot, ''), html: emptyRowHtml(r) }));
-        rackHtml += _rbRackRolesHtml(items, rowCfg, empties);
+        const rowCfg = { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop', allStrips: true };
+        // No slot-bound empty rows (founder call 2026-08-07: her trousers
+        // can anchor, her top can be the exclamation — a slot must never
+        // forecast a role). The four ghosted strips carry the education and
+        // stay as drop targets; the ONE dashed "+ Add a piece" below is the
+        // way in, opening the A2 chooser (What kind of piece?).
+        rackHtml += _rbRackRolesHtml(items, rowCfg);
         rackHtml += '</div>' +
-          '<button class="rbc-addpiece" onclick="window.__rbcAddMenu(\'__lkApplyNew\')"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>';
+          '<button class="rbc-addpiece" onclick="window.__lkAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>';
 
         return '<div class="rb-lk-con"><div>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div>';
       }
@@ -7984,6 +7972,115 @@
         }
         _waShowToast(wi.label + ' added to the look');
       };
+      // ── The A2 chooser — "+ Add a piece" flows through spec A2 step 1
+      // ("What kind of piece?") then step 2 (the wardrobe picker + Snap a
+      // new piece). Still-open slots lead only once the look already holds
+      // a piece — an empty look goes straight to every category (founder
+      // call 2026-08-07). Slots are category-only: no role is pre-assigned
+      // to them; the role casts on the piece she picks, recastable by drag.
+      var _lkAddSel = null; // null = closed · {step:1} · {step:2, kind:'slot'|'cat', …}
+      window.__lkAddOpen = function() { _lkAddSel = { step: 1 }; _lkAddPaint(); };
+      window.__lkAddClose = function() {
+        _lkAddSel = null;
+        document.getElementById('rb-lkadd-sheet')?.remove();
+      };
+      window.__lkAddBack = function() { _lkAddSel = { step: 1 }; _lkAddPaint(); };
+      window.__lkAddPickSlot = function(key) {
+        const r = _lkRows.find(x => x.key === key);
+        if (!r) return;
+        _lkAddSel = { step: 2, kind: 'slot', key, label: r.slot };
+        _lkAddPaint();
+      };
+      window.__lkAddPickCat = function(el) {
+        const cat = el && el.getAttribute('data-lkadd-cat');
+        if (!cat) return;
+        _lkAddSel = { step: 2, kind: 'cat', cat, label: cat };
+        _lkAddPaint();
+      };
+      window.__lkAddSlotPick = function(key, id) {
+        window.__lkAddClose();
+        window.__lkRowPick(key, id);
+        const wi = _waItems.find(w => String(w.id) === String(id));
+        if (wi) _waShowToast(wi.label + ' added to the look');
+      };
+      window.__lkAddCatPick = function(_cat, id) {
+        window.__lkAddClose();
+        window.__lkApplyNew(id);
+      };
+      window.__lkAddSnap = function() {
+        const sel = _lkAddSel;
+        window.__lkAddClose();
+        if (sel && sel.kind === 'slot') { window.__lkRowSnap(sel.key); return; }
+        _waEditId = null;
+        _waAfterAdd = (newId) => window.__lkApplyNew(newId);
+        if (window.WA && WA.open) WA.open();
+        let tries = 0;
+        const poke = () => {
+          const inp = document.getElementById('wa-rb-file');
+          if (inp) { inp.click(); return; }
+          if (++tries < 8) setTimeout(poke, 120);
+        };
+        setTimeout(poke, 220);
+      };
+      // Step-2 candidates: a slot pick keeps the slot's category filter
+      // (legacy L1s); a category pick filters the wardrobe at sheet level.
+      function _lkAddCands() {
+        const used = _lkUsed().map(String);
+        const sel = _lkAddSel;
+        if (sel.kind === 'slot') {
+          const r = _lkRows.find(x => x.key === sel.key);
+          return r ? _lkRowOptions(r) : [];
+        }
+        return _waItems.filter(it => _waSheetCatOf(it) === sel.cat && used.indexOf(String(it.id)) === -1);
+      }
+      function _lkAddPaint() {
+        const sel = _lkAddSel;
+        if (!sel) return;
+        const serif = "'Cormorant',Georgia,serif";
+        let modal = document.getElementById('rb-lkadd-sheet');
+        if (!modal) {
+          modal = document.createElement('div');
+          modal.id = 'rb-lkadd-sheet';
+          modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+          modal.onclick = function(e) { if (e.target === modal) window.__lkAddClose(); };
+          document.body.appendChild(modal);
+        }
+        const ctxLabel = String(_lkNewTitleDraft || '').trim() || 'New look';
+        const chipCss = 'border-radius:100px;padding:8px 15px;font-size:12px;cursor:pointer;font-family:inherit;background:#fff;border:1px solid rgba(32,32,33,0.16);color:var(--ink-soft);transition:all .15s';
+        const secCss = 'font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)';
+        let body;
+        if (sel.step === 1) {
+          const open = _lkVisibleRows().filter(r => !r.piece);
+          const still = _lkUsed().length && open.length
+            ? '<div style="display:flex;flex-direction:column;gap:9px"><div style="' + secCss + '">Still open in this look</div>' +
+              '<div style="display:flex;gap:7px;flex-wrap:wrap">' + open.map(r =>
+                '<button onclick="window.__lkAddPickSlot(\'' + r.key + '\')" style="' + chipCss + ';border-color:rgba(32,32,33,0.55);color:var(--ink)">' + _waEsc(r.slot) + '</button>').join('') + '</div></div>'
+            : '';
+          const cats = '<div style="display:flex;flex-direction:column;gap:9px;' + (still ? 'border-top:0.5px solid var(--rule);padding-top:16px' : '') + '">' +
+            '<div style="' + secCss + '">All categories</div>' +
+            '<div style="display:flex;gap:7px;flex-wrap:wrap">' + _WA_TAB_CATS.filter(c => c !== 'All').map(c =>
+              '<button data-lkadd-cat="' + _waEsc(c) + '" onclick="window.__lkAddPickCat(this)" style="' + chipCss + '">' + _waEsc(c) + '</button>').join('') + '</div></div>';
+          body = '<p style="font-family:' + serif + ';font-weight:300;font-size:26px;margin:2px 0 0;color:var(--ink)">What kind of piece?</p>' + still + cats;
+        } else {
+          const cands = _lkAddCands();
+          body = '<button onclick="window.__lkAddBack()" style="background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:11px;color:var(--ink-faint);text-align:left">‹ What kind of piece?</button>' +
+            '<p style="font-family:' + serif + ';font-weight:300;font-size:26px;margin:0;color:var(--ink)">From your wardrobe.</p>' +
+            (cands.length
+              ? _lkPickerHtml(cands, sel.kind === 'slot' ? '__lkAddSlotPick' : '__lkAddCatPick', sel.kind === 'slot' ? sel.key : sel.cat, null)
+              : '<div style="font-family:' + serif + ';font-style:italic;font-size:15px;color:var(--ink-faint)">Nothing filed under ' + _waEsc(sel.label) + ' yet — snap it and Robes keeps it.</div>') +
+            '<div style="border-top:0.5px solid var(--rule);padding-top:14px;display:flex;flex-direction:column;gap:8px">' +
+              '<button onclick="window.__lkAddSnap()" style="border:1px solid var(--ink);background:#fff;color:var(--ink);border-radius:100px;padding:12px;font-size:12px;cursor:pointer;font-family:inherit">Snap a new piece</button>' +
+              '<div style="font-family:' + serif + ';font-style:italic;font-size:13px;color:var(--ink-faint);text-align:center">Photograph it — Robes files it to your wardrobe, then into the look.</div>' +
+            '</div>';
+        }
+        modal.innerHTML = '<div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:85dvh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 22px 20px;display:flex;flex-direction:column;gap:16px">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between">' +
+            '<p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">' +
+              (sel.step === 1 ? 'Add a piece' : 'Add · ' + _waEsc(sel.label)) + ' · ' + _waEsc(ctxLabel) + '</p>' +
+            '<button onclick="window.__lkAddClose()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;font-size:16px;margin-top:-4px">×</button>' +
+          '</div>' + body + '</div>';
+      }
+
       window.__lkNewTitleInput = function(v) {
         _lkNewTitleDraft = v;
         _lkNewTitleTouched = String(v || '').trim().length > 0;
