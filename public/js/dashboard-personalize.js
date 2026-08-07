@@ -5769,9 +5769,44 @@
 @media(max-width:900px){
 .rbd-strip{grid-auto-columns:150px}
 }
+/* ══ E · Mobile parity (Look Template spec E, 2026-08-08) — same skeleton,
+   one column. Nothing is dropped from the system: the rack's own header
+   folds into the look head (one header serves both panels), rows compress
+   to a single line with slot · status sharing the eyebrow, and Share
+   compresses to a badge on the mosaic so the footer stays free for the
+   dock. Every action holds 44px touch height. ══ */
+.rbc-mslot{display:none}
+.rbc-board{position:relative}
+.rbc-share-m{display:none}
+@media(max-width:767px){
+/* 01 · one header — the look head carries eyebrow + name; the rack's
+   duplicate eyebrow/title hide, its action chips stay as a wrapping row */
+.rbc-rackhead .ey{display:none}
+.rbc-rackhead h2{display:none}
+.rbc-rackhead{margin-bottom:8px}
+.rbc-hbtn{min-height:44px}
+/* 02 · single-line rows — slot + status share the eyebrow above the name,
+   the row note yields, the thumb narrows; actions keep 44px */
+.rbc-row{grid-template-columns:56px 1fr;gap:12px;padding:10px 12px}
+.rbc-row.rbc-rghost{padding:15px 14px}
+.rbc-vp{aspect-ratio:1/1.2;border-radius:8px}
+.rbc-vp .vslot,.rbc-vp .vcount,.rbc-vp .vlooks{display:none}
+.rbc-body>div:first-child{display:flex;flex-direction:column}
+.rbc-sub{order:-1;margin-top:0;margin-bottom:3px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);gap:5px}
+.rbc-sub .brand{font-family:inherit;font-style:normal;font-size:9px}
+.rbc-mslot{display:inline;color:var(--ink-faint)}
+.rbc-name{font-size:17px}
+.rbc-hownote{display:none}
+.rbc-foot{margin-top:9px}
+.rbc-arrow{width:44px;height:44px}
+.rbc-act{min-height:44px}
+/* 03 · Share compresses to a badge on the mosaic; the full-width action
+   leaves the footer to the dock */
+.rbc-action{display:none}
+.rbc-share-m{display:grid;position:absolute;bottom:8px;right:8px;z-index:3;width:34px;height:34px;border-radius:50%;background:#fff;border:0.5px solid var(--rule-mid);place-items:center;color:var(--ink);box-shadow:0 1px 4px rgba(32,32,33,0.16);cursor:pointer;padding:0}
+}
 @media(max-width:520px){
-.rbc-row{grid-template-columns:88px 1fr;gap:12px}
-.rbc-name{font-size:18px}
+.rbc-name{font-size:17px}
 }
 
 /* ══ The Look, recomposed (design brief 2026-07-22) — the standing design.
@@ -5988,7 +6023,7 @@
                 <div class="rbc-name">${_waEsc(it.name)}</div>
                 ${it.anchored ? `<span class="rbc-anchpill">${_rbcLockSvg} Anchored</span>` : ''}
               </div>
-              <div class="rbc-sub">${it.subHtml}</div>
+              <div class="rbc-sub"><span class="rbc-mslot">${_waEsc(it.slot)} ·&nbsp;</span>${it.subHtml}</div>
               ${it.noteHtml || ''}
             </div>
             <div class="rbc-foot">
@@ -6028,7 +6063,7 @@
             </div>
             ${cfg.occHtml || ''}
             ${cfg.quoteHtml ? `<div class="rbc-quote">${cfg.quoteHtml}</div>` : ''}
-            <div class="rbc-board" data-n="${boardItems.length}">${boardItems.map((it, i) => _rbcTile(it, i === 0, cfg)).join('')}</div>
+            <div class="rbc-board" data-n="${boardItems.length}">${boardItems.map((it, i) => _rbcTile(it, i === 0, cfg)).join('')}${cfg.lookActionHtml ? `<button class="rbc-share-m" onclick="window.__rbShare&&window.__rbShare()" aria-label="Share this look"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></button>` : ''}</div>
             ${cfg.fabricsHtml ? `<div class="rbc-fabrics">${cfg.fabricsHtml}</div>` : ''}
             <div class="rbc-lfoot">
               <span class="rbc-palette">${cfg.paletteHtml || ''}</span>

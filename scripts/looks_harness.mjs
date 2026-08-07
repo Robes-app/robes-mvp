@@ -1124,15 +1124,52 @@ const browser = await chromium.launch(
   const md = await page.evaluate(() => {
     window.__lkOpen('lk-1');
     const det = document.querySelector('.rb-lk-con');
+    const ey = document.querySelector('.rbc-rackhead .ey');
+    const vslot = document.querySelector('.rbc-vp .vslot');
+    const mslot = document.querySelector('.rbc-mslot');
+    const badge = document.querySelector('.rbc-share-m');
+    const action = document.querySelector('.rbc-action');
+    const arrow = document.querySelector('.rbc-arrow');
+    const act = document.querySelector('.rbc-acts .rbc-act');
     return {
       stacked: det ? getComputedStyle(det).gridTemplateColumns.split(' ').length === 1 : false,
       overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
       actions: document.querySelectorAll('.rb-lk-acts .rb-lk-act').length,
+      rackEyHidden: ey ? getComputedStyle(ey).display === 'none' : true,
+      vslotHidden: vslot ? getComputedStyle(vslot).display === 'none' : true,
+      mslotShown: mslot ? getComputedStyle(mslot).display !== 'none' : false,
+      badgeShown: badge ? getComputedStyle(badge).display !== 'none' : false,
+      actionHidden: action ? getComputedStyle(action).display === 'none' : true,
+      arrowH: arrow ? Math.round(arrow.getBoundingClientRect().height) : 0,
+      actH: act ? Math.round(act.getBoundingClientRect().height) : 0,
     };
   });
   check('390px · detail stacks', md.stacked === true);
   check('390px · all three actions survive', md.actions === 3, String(md.actions));
   check('390px · no horizontal overflow on the detail', md.overflow === true);
+  // Spec E · mobile parity
+  check('390px E · one header — the rack\'s duplicate eyebrow folds away', md.rackEyHidden === true);
+  check('390px E · slot and status share the row eyebrow',
+    md.vslotHidden === true && md.mslotShown === true, JSON.stringify([md.vslotHidden, md.mslotShown]));
+  // The Look detail carries no Share (Wear/Pin/Pack are its actions), so
+  // the badge contract is probed on a synthetic console fragment — the
+  // three generated consoles emit the same markup via cfg.lookActionHtml.
+  const share = await page.evaluate(() => {
+    const host = document.createElement('div');
+    host.innerHTML = '<div class="rbc-board"><button class="rbc-share-m">s</button></div><div class="rbc-action"><button>Share</button></div>';
+    document.body.appendChild(host);
+    const out = {
+      badgeShown: getComputedStyle(host.querySelector('.rbc-share-m')).display !== 'none',
+      actionHidden: getComputedStyle(host.querySelector('.rbc-action')).display === 'none',
+      detailBadge: !!document.querySelector('.rb-lk-con .rbc-share-m'),
+    };
+    host.remove();
+    return out;
+  });
+  check('390px E · Share compresses to a badge on the mosaic, footer stays free',
+    share.badgeShown === true && share.actionHidden === true && share.detailBadge === false, JSON.stringify(share));
+  check('390px E · every action survives at 44px touch height',
+    md.arrowH >= 44 && md.actH >= 44, JSON.stringify([md.arrowH, md.actH]));
 
   const mc = await page.evaluate(() => {
     window.__lkNew();
