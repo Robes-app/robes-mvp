@@ -5296,6 +5296,14 @@
       // Exclamation. Daily's legacy step name "The Accents" folds into
       // "The Exclamation Point".
       const _RB_ROLES = ['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'];
+      // The empty state's education line under each ghosted strip (founder
+      // copy, 2026-08-07) — it gives way the moment a piece inks the role.
+      const _RB_ROLE_NOTES = {
+        'The Canvas': 'Elevated basics balancing proportion and tone.',
+        'The Anchor': 'The hero piece setting the look’s tone and structure.',
+        'The Texture': 'A tactile layer — like a rich knit or leather trench — adding visual depth.',
+        'The Exclamation Point': 'Shoes and hardware infusing your signature finish.',
+      };
       function _rbRoleNorm(r) {
         const s = String(r || '').trim();
         if (!s) return null;
@@ -5363,6 +5371,7 @@
           // piece back to a role nothing currently holds.
           if (!filled.length && !empty.length && _RB_ROLES.indexOf(role) < 0) return;
           html += stripHtml(role, !filled.length);
+          if (!filled.length && _RB_ROLE_NOTES[role]) html += `<div class="rbc-rolenote">${_waEsc(_RB_ROLE_NOTES[role])}</div>`;
           filled.forEach(x => { html += rowHtml(x); });
           empty.forEach(e => { html += e.html; });
         });
@@ -5645,6 +5654,7 @@
 .rbc-rolestrip.dropover i{background:var(--ink);height:2px}
 .rbc-dragrow{cursor:grab}
 .rbc-dragrow.dragging{opacity:.45}
+.rbc-rolenote{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:13.5px;line-height:1.5;color:var(--ink-faint);margin:9px 2px 4px}
 .rbc-lhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .rbc-lhead .lab{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
 .rbc-lhead .robes{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose)}

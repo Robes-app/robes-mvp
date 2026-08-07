@@ -734,14 +734,23 @@ const browser = await chromium.launch(
   // only: the forecast never binds what she adds where.
   const ghosts = await page.evaluate(() => {
     const strips = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip'));
+    const notes = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolenote')).map((n) => n.textContent);
     return {
       labels: strips.map((s) => s.textContent.trim()),
       allGhost: strips.length > 0 && strips.every((s) => s.classList.contains('ghost')),
+      notes,
     };
   });
   check('composer · empty rows sit under ghosted formula strips',
     JSON.stringify(ghosts.labels) === JSON.stringify(['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'])
-      && ghosts.allGhost, JSON.stringify(ghosts));
+      && ghosts.allGhost, JSON.stringify(ghosts.labels));
+  check('composer · each awaiting role carries its education line',
+    ghosts.notes.length === 4
+      && /Elevated basics balancing proportion and tone/.test(ghosts.notes[0])
+      && /hero piece setting the look/.test(ghosts.notes[1])
+      && /tactile layer/.test(ghosts.notes[2])
+      && /signature finish/.test(ghosts.notes[3]),
+    JSON.stringify(ghosts.notes));
   check('composer · the rack header reads The Rack', c0.rackEyebrow === 'The Rack', c0.rackEyebrow);
   check('composer · the name field is a placeholder, "Name your Look"',
     c0.titleValue === '' && c0.titlePlaceholder === 'Name your Look',
@@ -805,10 +814,13 @@ const browser = await chromium.launch(
       x: !!row?.querySelector('.rbc-rm'),
       boardTiles: document.querySelectorAll('.rb-lk-con .rbc-board .rbc-tile').length,
       saveShown: !!document.querySelector('.rb-lk-save'),
+      roleNotes: document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolenote').length,
     };
   });
   check('composer · a filled row is the shared rack card',
     one.name === 'Cream silk shirt' && one.owned === true, `${one.name}/${one.owned}`);
+  check('composer · the education line gives way once its role is cast',
+    one.roleNotes === 3, String(one.roleNotes));
   check('composer · the card carries the flick cluster', one.flick === 2, String(one.flick));
   check('composer · the card carries Swap', one.swap === true);
   check('composer · the card carries the corner ✕', one.x === true);
