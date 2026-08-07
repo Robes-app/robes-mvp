@@ -596,6 +596,43 @@ app.get('/api/images/:jobId', (req, res) => {
 // carries a wardrobe_match so the client's swap flow can trade any
 // piece for something owned.
 const DAILY_STEP_TITLES = ['The Anchor', 'The Canvas', 'The Texture', 'The Accents'];
+// The 4-step dressing formula's role names (Look Template spec A3) — the
+// canonical set every generator casts per piece. Daily's legacy step title
+// "The Accents" folds into "The Exclamation Point" client-side; Travel's
+// TRAVEL_ROLES aliases this list.
+const FORMULA_ROLES = ['The Anchor', 'The Canvas', 'The Texture', 'The Exclamation Point'];
+
+// ── Look tags — the intelligence layer (Look Template spec F, 2026-08-07) ──
+// Four axes filed on the LOOK, not the piece: thermal climate (never
+// calendar months), light, real-world agenda (max two), and an optional
+// silhouette/aesthetic vibe. Generated looks arrive tagged from the
+// prompt's intent; hand-built looks inherit from their pieces client-side.
+// The vocabularies are deliberately disjoint across axes so a flat text[]
+// (the looks table's existing `tags` column) recovers its structure.
+const LOOK_TAG_CLIMATES = ['High Summer', 'Transitional Warm', 'Transitional Cool', 'Deep Winter'];
+const LOOK_TAG_LIGHTS = ['Daylight', 'Twilight & Evening'];
+const LOOK_TAG_WEAR = ['Elevated Everyday', 'Smart Creative', 'Boardroom Power', 'Work-to-Dinner', 'Al Fresco & Travel', 'Cocktail & Cultural', 'Formal / Gala'];
+const LOOK_TAG_VIBES = ['Sharp Tailoring', 'Fluid Monochrome', 'Column Line', 'Soft Layering', 'Old Céline Minimal', '90s Off-Duty', 'Minimalist Glamour'];
+const LOOK_TAGS_SCHEMA = {
+  type: 'object',
+  properties: {
+    climate: { type: 'string', enum: LOOK_TAG_CLIMATES },
+    light: { type: 'string', enum: LOOK_TAG_LIGHTS },
+    wear_for: { type: 'array', items: { type: 'string', enum: LOOK_TAG_WEAR } },
+    vibe: { type: 'string', enum: LOOK_TAG_VIBES.concat(['']) },
+  },
+  required: ['climate', 'light', 'wear_for', 'vibe'],
+};
+const LOOK_TAGS_RULE = `- "look_tags" files the look for search — assign from the brief's intent and the pieces, never leave it generic. "climate" is thermal, not calendar (High Summer = lightweight single-layer; Transitional Warm = spring/early autumn; Transitional Cool = late autumn/early spring; Deep Winter = multi-layering, heavy knits and coats). "light" is when the look reads best — Daylight or Twilight & Evening. "wear_for" is 1–2 lifestyle scenarios, the sharpest matches only. "vibe" is the silhouette/aesthetic when one clearly fits, else "".`;
+function normLookTags(t) {
+  t = t && typeof t === 'object' ? t : {};
+  return {
+    climate: LOOK_TAG_CLIMATES.includes(t.climate) ? t.climate : '',
+    light: LOOK_TAG_LIGHTS.includes(t.light) ? t.light : '',
+    wear_for: (Array.isArray(t.wear_for) ? t.wear_for : []).filter(w => LOOK_TAG_WEAR.includes(w)).slice(0, 2),
+    vibe: LOOK_TAG_VIBES.includes(t.vibe) ? t.vibe : '',
+  };
+}
 
 // Build 3 copy rules (Tranche 2) — installed once and interpolated into
 // every stylist prompt so Daily/Weekly/Travel speak in one register. The
@@ -621,6 +658,7 @@ const DAILY_SCHEMA = {
     stylist_summary: { type: 'string' },
     transition_tip: { type: 'string' },
     palette: { type: 'array', items: { type: 'string' } },
+    look_tags: LOOK_TAGS_SCHEMA,
     steps: {
       type: 'array',
       items: {
@@ -662,7 +700,7 @@ const DAILY_SCHEMA = {
       },
     },
   },
-  required: ['fallback', 'occasion_label', 'headline', 'stylist_summary', 'transition_tip', 'palette', 'steps'],
+  required: ['fallback', 'occasion_label', 'headline', 'stylist_summary', 'transition_tip', 'palette', 'look_tags', 'steps'],
 };
 
 app.post('/api/daily', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
@@ -728,6 +766,7 @@ FIELD RULES:
 - "how" is this item's ROW NOTE. ${ROW_NOTE_RULE}
 - Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and a realistic EUR "price_point" (e.g. "€89").
 - "alternates": exactly 2 per item — similar-but-distinct options for the SAME slot (a different colour, fabrication or register that still honours the palette, the weather and the DNA below), each with its own real brand, retailer_hint and EUR price_point. These power the flick-through rail, so make them genuinely wearable alternatives, never filler.
+${LOOK_TAGS_RULE}
 - "fallback": true ONLY if the brief is gibberish or random characters — then dress her for a pleasant, unremarkable day in the given context instead. A plain occasion, agenda or mood is a valid daily brief.${dnaBlock ? '\n\n' + dnaBlock : ''}
 
 ${BANNED_CONSTRUCTIONS_RULE}
@@ -814,6 +853,7 @@ Dress her for this exact day, start to finish, through the four architectural st
       stylist_summary: parsed.stylist_summary || '',
       transition_tip: parsed.transition_tip || '',
       palette: Array.isArray(parsed.palette) ? parsed.palette.slice(0, 3) : [],
+      look_tags: normLookTags(parsed.look_tags),
       steps,
       jobId,
       itemCount: flat.length,
@@ -1064,6 +1104,7 @@ const WEEKLY_SCHEMA = {
           day_label: { type: 'string' },
           occasion: { type: 'string' },
           note: { type: 'string' },
+          look_tags: LOOK_TAGS_SCHEMA,
           items: {
             type: 'array',
             items: {
@@ -1074,15 +1115,16 @@ const WEEKLY_SCHEMA = {
                 brand: { type: 'string' },
                 description: { type: 'string' },
                 how: { type: 'string' },
+                role: { type: 'string', enum: FORMULA_ROLES },
                 wardrobe_index: { type: 'integer' },
                 retailer_hint: { type: 'string' },
                 price_point: { type: 'string' },
               },
-              required: ['name', 'category', 'brand', 'how', 'wardrobe_index', 'retailer_hint', 'price_point'],
+              required: ['name', 'category', 'brand', 'how', 'role', 'wardrobe_index', 'retailer_hint', 'price_point'],
             },
           },
         },
-        required: ['day_label', 'occasion', 'note', 'items'],
+        required: ['day_label', 'occasion', 'note', 'look_tags', 'items'],
       },
     },
   },
@@ -1136,6 +1178,10 @@ function weeklyNormaliseItem(it, closetItems) {
     wardrobe_index: wi ? it.wardrobe_index : -1,
     retailer_hint: wi ? '' : (it.retailer_hint || ''),
     price_point: wi ? '' : (it.price_point || ''),
+    // The piece's formula role (Look Template spec A3) — carried through so
+    // the console's role strips read the generator's own casting; an
+    // unexpected value drops to '' and the client heuristic takes over.
+    role: FORMULA_ROLES.includes(it.role) ? it.role : '',
     wardrobe_match: wi
       ? { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' }
       : null,
@@ -1190,6 +1236,7 @@ function weeklyCoverageGaps(days) {
 
 const WEEKLY_ITEM_RULES = `- Each item: "name" is the piece itself; "brand" is ONE real brand suited to the register (owned pieces: the owned brand or ""); "description" is one internal reference sentence — cut, fabric, colour — never shown to her.
 - "how" is this item's ROW NOTE. ${ROW_NOTE_RULE}
+- "role" is the item's job in the 4-step dressing formula: "The Anchor" (the context-driven hero — one per outfit), "The Canvas" (the grounding basics — one per outfit, two at most), "The Texture" (the tactile dimension layer), "The Exclamation Point" (the footwear/hardware finishing statement — the piece she gets asked about).
 - Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" and a realistic EUR "price_point" (e.g. "€89").`;
 
 app.post('/api/weekly', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
@@ -1255,6 +1302,7 @@ FIELD RULES:
 - "note" is this day's PANEL NOTE. ${PANEL_NOTE_RULE}
 - "occasion": 2–5 words, sentence case.
 - "palette": exactly 3 hex colours the week is built around, neutral to accent.
+${LOOK_TAGS_RULE.replace('"look_tags" files the look', 'Each day\'s "look_tags" files that day\'s look')}
 ${WEEKLY_ITEM_RULES}
 - "fallback": true ONLY if the brief is gibberish — then plan a pleasant, unremarkable working week instead. A plain agenda, job or mood is a valid weekly brief.${dnaBlock ? '\n\n' + dnaBlock : ''}
 
@@ -1287,7 +1335,7 @@ Dress every calendar day above, chronologically.`;
         responseMimeType: 'application/json',
         responseSchema: WEEKLY_SCHEMA,
         thinkingConfig: { thinkingBudget: 0 },
-        maxOutputTokens: 12000,
+        maxOutputTokens: 13000,
       },
     }));
     return JSON.parse(r.text);
@@ -1313,6 +1361,7 @@ Dress every calendar day above, chronologically.`;
         note: String(g.note || '').slice(0, 240),
         rest: false,
         user_activity: c.plan || null,
+        look_tags: normLookTags(g.look_tags),
         items: kept.map(it => weeklyNormaliseItem(it, closetItems)),
       };
     });
@@ -1485,9 +1534,10 @@ const WEEKLY_DAY_SCHEMA = {
     occasion: { type: 'string' },
     note: { type: 'string' },
     stylist_summary: { type: 'string' },
+    look_tags: LOOK_TAGS_SCHEMA,
     items: WEEKLY_SCHEMA.properties.days.items.properties.items,
   },
-  required: ['occasion', 'note', 'stylist_summary', 'items'],
+  required: ['occasion', 'note', 'stylist_summary', 'look_tags', 'items'],
 };
 
 app.post('/api/weekly/day', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
@@ -1524,6 +1574,7 @@ FIELD RULES:
 - "occasion": 2–5 words, sentence case, derived from the day's plan.
 - "note" is this day's PANEL NOTE. ${PANEL_NOTE_RULE}
 - "stylist_summary" refreshes the WEEK SUMMARY now this day has changed. ${WEEK_SUMMARY_RULE}
+${LOOK_TAGS_RULE}
 ${WEEKLY_ITEM_RULES}${dnaBlock ? '\n\n' + dnaBlock : ''}
 
 ${BANNED_CONSTRUCTIONS_RULE}
@@ -1544,7 +1595,7 @@ Dress her for exactly this day.`;
         responseMimeType: 'application/json',
         responseSchema: WEEKLY_DAY_SCHEMA,
         thinkingConfig: { thinkingBudget: 0 },
-        maxOutputTokens: 2600,
+        maxOutputTokens: 2800,
       },
     });
     const parsed = JSON.parse(textResponse.text);
@@ -1573,6 +1624,7 @@ Dress her for exactly this day.`;
       occasion: String(parsed.occasion || activity || '').slice(0, 60),
       note: String(parsed.note || '').slice(0, 240),
       stylist_summary: String(parsed.stylist_summary || '').slice(0, 400),
+      look_tags: normLookTags(parsed.look_tags),
       items,
     });
   } catch (err) {
@@ -1597,7 +1649,7 @@ Dress her for exactly this day.`;
 // destination + date window is fetched here (FR-101), not on the
 // client — the client's weather strip is the user's current city.
 const TRAVEL_TIERS = ['Foundations & Tailoring', 'Statement & Texture', 'Footwear & Hardware'];
-const TRAVEL_ROLES = ['The Anchor', 'The Canvas', 'The Texture', 'The Exclamation Point'];
+const TRAVEL_ROLES = FORMULA_ROLES;
 
 const TRAVEL_SCHEMA = {
   type: 'object',
@@ -1647,6 +1699,7 @@ const TRAVEL_SCHEMA = {
           occasion: { type: 'string' },
           title: { type: 'string' },
           how: { type: 'string' },
+          look_tags: LOOK_TAGS_SCHEMA,
           formula: {
             type: 'array',
             items: {
@@ -1660,7 +1713,7 @@ const TRAVEL_SCHEMA = {
             },
           },
         },
-        required: ['occasion', 'title', 'how', 'formula'],
+        required: ['occasion', 'title', 'how', 'look_tags', 'formula'],
       },
     },
   },
@@ -1886,7 +1939,7 @@ app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
 THE PILLARS — all four are hard constraints:
 1. THE 1:3 HIGH-YIELD RULE. Every capsule item must appear in AT LEAST THREE different outfits across the lookbook, in at least two distinct dress codes. No single-outfit passengers — if a piece can't earn three wears, it doesn't get packed.
 2. THE CAPSULE MATRIX. YOU decide the pack count — the smallest capsule that dresses every moment of the trip under the 1:3 rule. For this ${tripDays}-day trip that is typically around ${suggest} items (never more than ${capMax}); the maths must hold: pieces × 3 wears ≥ ~${totalLooks} looks × ~4 formula slots (her own packed looks below count). Split the capsule across the three tiers: "${TRAVEL_TIERS[0]}" (~${foundations} items — architectural basics, tailoring, versatile one-pieces), "${TRAVEL_TIERS[1]}" (~${statements} items — the tactile hero pieces: statement dresses, crochet, plissé, prints), "${TRAVEL_TIERS[2]}" (~${hardware} items — shoes, bags, belts, jewellery that seal silhouettes).${shortIdxs.length ? ' The tier targets are guidance for shaping what you KEEP — never pad the capsule to hit a number.' : ''}
-3. THE 4-STEP DRESSING FORMULA. Every outfit's "formula" is built ONLY from capsule items referenced by "item_index" (0-based index into the capsule array — never invent an item that isn't packed): "The Anchor" ×1 (the context-driven hero), "The Canvas" ×1–2 (the grounding basics), "The Texture" ×1 (the tactile dimension layer), "The Exclamation Point" ×1–2 (footwear/hardware that finish it). Swim or sleep-adjacent looks may drop to 3 entries, never fewer. Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE}
+3. THE 4-STEP DRESSING FORMULA. Every outfit's "formula" is built ONLY from capsule items referenced by "item_index" (0-based index into the capsule array — never invent an item that isn't packed): "The Anchor" ×1 (the context-driven hero), "The Canvas" ×1–2 (the grounding basics), "The Texture" ×1 (the tactile dimension layer), "The Exclamation Point" ×1–2 (footwear/hardware that finish it). Swim or sleep-adjacent looks may drop to 3 entries, never fewer. Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE} Each look's "look_tags" files it for search: thermal "climate" (High Summer / Transitional Warm / Transitional Cool / Deep Winter — thermal, never calendar), "light" (Daylight or Twilight & Evening), "wear_for" (1–2 lifestyle scenarios, sharpest matches only), "vibe" (the silhouette/aesthetic if one clearly fits, else "").
 4. CONTEXT ENGINEERING. Ingest three vectors at once: the Location Vibe (name it in "location_vibe", e.g. "Refined Mediterranean Minimalism"), the Micro-Climate provided, and the client's proportional architecture / style DNA below. Everything packed answers to all three.
 
 ${looksTarget === 0
@@ -1961,6 +2014,7 @@ ${shortIdxs.length ? `Pack every key piece, map the wears each one earns, add on
       .map(l => {
         l.occasion = String(l.occasion || '').slice(0, 60);
         l.how = String(l.how || '').slice(0, 240);
+        l.look_tags = normLookTags(l.look_tags);
         l.formula = l.formula
           .filter(f => f && TRAVEL_ROLES.includes(f.role) && Number.isInteger(f.item_index) && f.item_index >= 0 && f.item_index < capsule.length)
           .slice(0, 6);
@@ -2151,6 +2205,7 @@ const TRAVEL_MORE_SCHEMA = {
           occasion: { type: 'string' },
           title: { type: 'string' },
           how: { type: 'string' },
+          look_tags: LOOK_TAGS_SCHEMA,
           formula: {
             type: 'array',
             items: {
@@ -2164,7 +2219,7 @@ const TRAVEL_MORE_SCHEMA = {
             },
           },
         },
-        required: ['occasion', 'title', 'how', 'formula'],
+        required: ['occasion', 'title', 'how', 'look_tags', 'formula'],
       },
     },
     new_item_needed: { type: 'boolean' },
@@ -2215,7 +2270,7 @@ ${capList}
 
 RULES:
 1. Style ONE look per occasion she names, in order — flat and day-agnostic (she pins looks to days herself; never mention a specific day): ${occList.map(o => `"${o}"`).join(', ')}. Each look's "occasion" is her label verbatim; "title" is 3–6 words naming the scene; "how" is that look's PANEL NOTE. ${PANEL_NOTE_RULE}
-2. RE-MIX FIRST. Build every formula ONLY from the capsule via "item_index" and the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE}
+2. RE-MIX FIRST. Build every formula ONLY from the capsule via "item_index" and the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE} Each look's "look_tags" files it for search: thermal "climate" (High Summer / Transitional Warm / Transitional Cool / Deep Winter — thermal, never calendar), "light" (Daylight or Twilight & Evening), "wear_for" (1–2 lifestyle scenarios, sharpest matches only), "vibe" (the silhouette/aesthetic if one clearly fits, else "").
 3. Set "new_item_needed": true ONLY if an occasion genuinely cannot be dressed from the capsule (e.g. a formal wedding with nothing remotely formal packed). Then give "new_item" — one real gap piece with retailer_hint, a realistic EUR price_point and a "bridge" clause (what it connects + looks it unlocks) — and reference it in the formulas as item_index ${capIn.length}. Otherwise "new_item_needed": false.
 
 ${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}
@@ -2246,6 +2301,7 @@ ${wxLine}`;
       .map(l => {
         l.occasion = String(l.occasion || '').slice(0, 60);
         l.how = String(l.how || '').slice(0, 240);
+        l.look_tags = normLookTags(l.look_tags);
         l.formula = l.formula
           .filter(f => f && TRAVEL_ROLES.includes(f.role) && Number.isInteger(f.item_index) && f.item_index >= 0 && f.item_index <= maxIdx)
           .slice(0, 6);

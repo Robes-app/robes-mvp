@@ -401,6 +401,48 @@ const browser = await chromium.launch(
   check('detail · a wear whose snapshot differs is not labelled Confirmed',
     d.wearTags.join(',') === 'Confirmed,As worn', JSON.stringify(d.wearTags));
 
+  // Formula strips + look tags (Look Template spec A3 + F, 2026-08-07)
+  const specA3F = await page.evaluate(() => {
+    const strips = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip span')).map((s) => s.textContent);
+    const tagsRow = document.querySelector('.rb-lk-con .rbc-tags');
+    return {
+      strips,
+      stripsLeadRows: (() => {
+        const rack = document.querySelector('.rb-lk-con .rbc-rack');
+        return rack && rack.firstElementChild && rack.firstElementChild.classList.contains('rbc-rolestrip');
+      })(),
+      tagsRow: !!tagsRow,
+      tagsEmptyInvite: tagsRow ? /Untagged|Tags/.test(tagsRow.textContent) : false,
+    };
+  });
+  check('roles · the rack groups under hairline formula strips', specA3F.strips.length >= 2 && specA3F.stripsLeadRows, JSON.stringify(specA3F.strips));
+  check('roles · display order is Canvas before Anchor before finishers',
+    specA3F.strips.indexOf('The Canvas') === 0
+      && specA3F.strips.indexOf('The Anchor') === 1, JSON.stringify(specA3F.strips));
+  check('tags · The Look carries the quiet tag row', specA3F.tagsRow === true);
+  check('tags · untagged is an invitation, never a form', specA3F.tagsEmptyInvite === true);
+
+  // The tag sheet: open on the untagged look → the inherited seed shows →
+  // Done persists a flat text[] to the looks table (spec F2/F3)
+  const tagged = await page.evaluate(() => {
+    window.__lkTagsEdit();
+    const sheet = document.getElementById('rb-tag-sheet');
+    const groups = sheet ? Array.from(sheet.querySelectorAll('div > div[style*="uppercase"], div[style*="letter-spacing"]')).map((e) => e.textContent).join('|') : '';
+    // pick High Summer (climate 0) + Boardroom Power (wear 2)
+    window.__rbTagPick('climate', 0);
+    window.__rbTagPick('wear', 2);
+    window.__rbTagDone(true);
+    const row = document.querySelector('.rb-lk-con .rbc-tags');
+    return { hadSheet: !!sheet, groups, rowText: row ? row.textContent : '' };
+  });
+  check('tags · the sheet opens with all four axes', tagged.hadSheet && /Climate/.test(tagged.groups) && /Light/.test(tagged.groups) && /Wear it for/.test(tagged.groups) && /Vibe/.test(tagged.groups), tagged.groups.slice(0, 200));
+  check('tags · picks land back on the row', /High Summer/.test(tagged.rowText) && /Boardroom Power/.test(tagged.rowText), tagged.rowText);
+  await page.waitForTimeout(400);
+  const tagWrite = writes.find((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && Array.isArray(w.body?.tags));
+  check('tags · the edit PATCHes looks.tags as a flat text[]',
+    !!tagWrite && tagWrite.body.tags.includes('High Summer') && tagWrite.body.tags.includes('Boardroom Power'),
+    JSON.stringify(tagWrite && tagWrite.body.tags));
+
 
   // The tap IS the wear, with a quiet undo on the card (A4/C1)
   const worn = await page.evaluate(() => {
@@ -531,15 +573,19 @@ const browser = await chromium.launch(
       .find((el) => /has been worn/.test(el.textContent));
     window.__lkCancelPromote();
     window.__lkOpen('lk-2');
-    const before = document.querySelector('.rb-lk-con .rbc-rack .rbc-row:nth-child(3) .rbc-name')?.textContent;
+    // Rows regroup under the formula strips (Look Template spec A3), so
+    // positions aren't stable — assert on names, not nth-child.
+    const names = () => Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((n) => n.textContent);
+    const before = names();
     window.__lkDFlip(2, 1);   // no history → applies directly
-    const after = document.querySelector('.rb-lk-con .rbc-rack .rbc-row:nth-child(3) .rbc-name')?.textContent;
+    const after = names();
     window.__lkOpen('lk-1');
     return { asked, before, after };
   });
   check('flick · a look with history asks first', flickGate.asked === true, JSON.stringify(flickGate));
   check('flick · a look without history just takes it',
-    flickGate.before === 'Tan leather slides' && flickGate.after === 'Flat leather sandals', JSON.stringify(flickGate));
+    flickGate.before.includes('Tan leather slides') && !flickGate.after.includes('Tan leather slides')
+      && flickGate.after.includes('Flat leather sandals'), JSON.stringify(flickGate));
 
   // Pin to a day
   const pinned = await page.evaluate(() => {

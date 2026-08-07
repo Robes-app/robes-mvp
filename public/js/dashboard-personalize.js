@@ -5284,8 +5284,218 @@
         return `${extraHtml || ''}${brand ? `<span class="brand">${_waEsc(brand)}</span>` : ''}${retailPrice ? `<span class="price">${_waEsc(retailPrice)}</span>` : ''}`;
       }
 
+      // ═══ The dressing formula — four roles, cast by Robes (Look Template
+      // spec A3, 2026-08-07) ═════════════════════════════════════════════
+      // Roles attach to PIECES, not slots, and Robes casts them — she never
+      // files them herself. Sources, in order of authority: the generator
+      // (Daily's step titles, Travel's formula roles, Weekly's item role
+      // field) → a client heuristic for hand-built looks and legacy saves.
+      // Display: quiet hairline strips grouping the Rack rows — never a
+      // badge on the piece, never blended into the category pill.
+      // Display order per the spec's examples: Canvas → Anchor → Texture →
+      // Exclamation. Daily's legacy step name "The Accents" folds into
+      // "The Exclamation Point".
+      const _RB_ROLES = ['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'];
+      function _rbRoleNorm(r) {
+        const s = String(r || '').trim();
+        if (!s) return null;
+        if (/accent/i.test(s)) return 'The Exclamation Point';
+        return _RB_ROLES.find(x => x.toLowerCase() === s.toLowerCase()) || null;
+      }
+      // Heuristic for pieces the generator never cast (composer, Look
+      // detail, legacy saves): slot decides, the name refines accessories —
+      // a cap or scarf reads as Texture, jewellery as the Exclamation Point.
+      function _rbRoleGuess(slot, name) {
+        const s = String(slot || '').toLowerCase();
+        const n = String(name || '').toLowerCase();
+        if (/dress|piece|jump/.test(s)) return 'The Anchor';
+        if (/bottom|skirt|trouser/.test(s)) return 'The Anchor';
+        if (/top|shirt|knit/.test(s)) return 'The Canvas';
+        if (/layer|outer|jacket|blazer|coat/.test(s)) return 'The Texture';
+        if (/shoe/.test(s)) return 'The Texture';
+        if (/bag/.test(s)) return 'The Exclamation Point';
+        if (/cap|hat|scarf|belt|sock|glove|sunglass/.test(n)) return 'The Texture';
+        return 'The Exclamation Point';
+      }
+      function _rbRoleOf(it) {
+        return _rbRoleNorm(it.role) || _rbRoleGuess(it.slot, it.name);
+      }
+      // The Rack with its formula strips: rows regroup by role (stable
+      // within a group), one strip heads each group. Handlers ride it.idx,
+      // so regrouping never breaks a callback. Empty composer rows are
+      // painted by the caller after this, unlabelled — roles are cast as
+      // pieces land (spec B1).
+      function _rbRackRolesHtml(items, cfg) {
+        const withRole = items.map((it, i) => ({ it, i, role: _rbRoleOf(it) }));
+        const ord = r => { const k = _RB_ROLES.indexOf(r); return k < 0 ? 99 : k; };
+        withRole.sort((a, b) => ord(a.role) - ord(b.role) || a.i - b.i);
+        let html = '', last = null;
+        withRole.forEach(x => {
+          if (x.role && x.role !== last) {
+            html += `<div class="rbc-rolestrip"><span>${_waEsc(x.role)}</span><i></i></div>`;
+            last = x.role;
+          }
+          html += _rbcRow(x.it, cfg);
+        });
+        return html;
+      }
+
+      // ═══ Look tags — the intelligence layer (Look Template spec F) ═══
+      // Four axes on the LOOK, not the piece: thermal climate, light, real
+      // agenda (max two), optional vibe. She almost never types them —
+      // generated looks arrive tagged from the prompt (server look_tags),
+      // hand-built looks inherit from their pieces — and the sheet exists
+      // for the one time in ten she disagrees. Never a required step.
+      // The vocabularies are disjoint across axes, so a flat text[] (the
+      // looks table's existing `tags` column) recovers its structure.
+      const _RB_TAG_AXES = {
+        climate: { label: 'Climate', hint: 'pick one', opts: ['High Summer', 'Transitional Warm', 'Transitional Cool', 'Deep Winter'] },
+        light: { label: 'Light', hint: '', opts: ['Daylight', 'Twilight & Evening'] },
+        wear: { label: 'Wear it for', hint: 'up to two', opts: ['Elevated Everyday', 'Smart Creative', 'Boardroom Power', 'Work-to-Dinner', 'Al Fresco & Travel', 'Cocktail & Cultural', 'Formal / Gala'] },
+        vibe: { label: 'Vibe', hint: 'optional, Robes suggests', opts: ['Sharp Tailoring', 'Fluid Monochrome', 'Column Line', 'Soft Layering', 'Old Céline Minimal', '90s Off-Duty', 'Minimalist Glamour'] },
+      };
+      // Accepts the server object ({climate, light, wear_for, vibe}), the
+      // stored flat text[] (looks.tags), or a prior parse — always returns
+      // the canonical {climate, light, wear[], vibe} shape.
+      function _rbTagsParse(v) {
+        const T = _RB_TAG_AXES;
+        const out = { climate: '', light: '', wear: [], vibe: '' };
+        if (Array.isArray(v)) {
+          v.forEach(raw => {
+            const s = String(raw);
+            if (T.climate.opts.indexOf(s) > -1) out.climate = out.climate || s;
+            else if (T.light.opts.indexOf(s) > -1) out.light = out.light || s;
+            else if (T.wear.opts.indexOf(s) > -1) { if (out.wear.length < 2 && out.wear.indexOf(s) < 0) out.wear.push(s); }
+            else if (T.vibe.opts.indexOf(s) > -1) out.vibe = out.vibe || s;
+          });
+        } else if (v && typeof v === 'object') {
+          out.climate = T.climate.opts.indexOf(v.climate) > -1 ? v.climate : '';
+          out.light = T.light.opts.indexOf(v.light) > -1 ? v.light : '';
+          out.wear = (Array.isArray(v.wear_for) ? v.wear_for : Array.isArray(v.wear) ? v.wear : [])
+            .filter(s => T.wear.opts.indexOf(s) > -1).slice(0, 2);
+          out.vibe = T.vibe.opts.indexOf(v.vibe) > -1 ? v.vibe : '';
+        }
+        return out;
+      }
+      function _rbTagsFlat(t) {
+        t = _rbTagsParse(t);
+        return [t.climate, t.light].concat(t.wear, [t.vibe]).filter(Boolean);
+      }
+      function _rbTagsEmpty(t) { return !_rbTagsFlat(t).length; }
+      // The quiet row on The Look (spec marker 11) — climate · agenda ·
+      // vibe; Daylight stays silent (it is the default read), Twilight
+      // earns its chip. Empty state is an invitation, never a form.
+      function _rbTagsRowHtml(tags, editFn, editArg) {
+        const t = _rbTagsParse(tags);
+        const chips = [t.climate, t.light === 'Twilight & Evening' ? t.light : ''].concat(t.wear, [t.vibe]).filter(Boolean);
+        const inner = chips.length
+          ? chips.map(c => `<span class="tg">${_waEsc(c)}</span>`).join('')
+          : `<span class="tnone">Untagged — climate, agenda, vibe</span>`;
+        return `<div class="rbc-tags"><div class="tgs">${inner}</div><button class="tedit" onclick="window.${editFn}(${editArg == null ? '' : editArg})">${chips.length ? 'Edit' : '＋ Tags'}</button></div>`;
+      }
+      // Inherited tags for a hand-built look (spec F3): the overlap of the
+      // pieces' own coarse tags seeds the look's — dominant season maps to
+      // a thermal range, occasions map to the agenda vocabulary, vibe stays
+      // empty (only Robes suggests a vibe). One-tap refine via the sheet.
+      function _rbInheritLookTags(pieceIds) {
+        const pieces = (pieceIds || []).map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean);
+        const out = { climate: '', light: '', wear: [], vibe: '' };
+        if (!pieces.length) return out;
+        const seasonCount = {};
+        pieces.forEach(p => (Array.isArray(p.seasons) ? p.seasons : []).forEach(s => {
+          if (s !== 'Year-round') seasonCount[s] = (seasonCount[s] || 0) + 1;
+        }));
+        const topSeason = Object.keys(seasonCount).sort((a, b) => seasonCount[b] - seasonCount[a])[0];
+        out.climate = topSeason
+          ? ({ Summer: 'High Summer', Spring: 'Transitional Warm', Autumn: 'Transitional Cool', Winter: 'Deep Winter' })[topSeason] || ''
+          : '';
+        const occCount = {};
+        pieces.forEach(p => {
+          const occ = (Array.isArray(p.occasions) && p.occasions.length) ? p.occasions : ['Everyday'];
+          occ.forEach(o => { occCount[o] = (occCount[o] || 0) + 1; });
+        });
+        const occMap = { Everyday: 'Elevated Everyday', Work: 'Smart Creative', Evening: 'Cocktail & Cultural', Occasion: 'Cocktail & Cultural', Travel: 'Al Fresco & Travel' };
+        Object.keys(occCount).sort((a, b) => occCount[b] - occCount[a]).forEach(o => {
+          const m = occMap[o];
+          if (m && out.wear.indexOf(m) < 0 && out.wear.length < 2) out.wear.push(m);
+        });
+        out.light = (occCount.Evening || 0) > pieces.length / 2 ? 'Twilight & Evening' : 'Daylight';
+        return out;
+      }
+      // ── The tag sheet (spec F2) — one modal for every surface. Climate
+      // and Light pick one; Wear it for caps at two (a third pick retires
+      // the oldest); Vibe is the only group allowed to stay empty.
+      var _rbTagDraft = null, _rbTagApplyFn = null, _rbTagCtxLabel = '';
+      window.__rbTagSheet = function(tags, applyName, ctxLabel) {
+        _rbTagDraft = _rbTagsParse(tags);
+        _rbTagApplyFn = applyName;
+        _rbTagCtxLabel = ctxLabel || '';
+        _rbTagPaint();
+      };
+      window.__rbTagPick = function(axis, i) {
+        const d = _rbTagDraft;
+        if (!d) return;
+        const opt = _RB_TAG_AXES[axis].opts[i];
+        if (axis === 'wear') {
+          const k = d.wear.indexOf(opt);
+          if (k > -1) d.wear.splice(k, 1);
+          else { d.wear.push(opt); if (d.wear.length > 2) d.wear.shift(); }
+        } else {
+          d[axis] = d[axis] === opt ? '' : opt;
+        }
+        _rbTagPaint();
+      };
+      window.__rbTagDone = function(apply) {
+        const fn = _rbTagApplyFn, d = _rbTagDraft;
+        _rbTagDraft = null; _rbTagApplyFn = null;
+        document.getElementById('rb-tag-sheet')?.remove();
+        if (apply && typeof window[fn] === 'function') window[fn](d);
+      };
+      function _rbTagPaint() {
+        const serif = "'Cormorant',Georgia,serif";
+        const d = _rbTagDraft;
+        const chip = (axis, opt, i, on) =>
+          `<button onclick="window.__rbTagPick('${axis}',${i})" style="border-radius:100px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;${on
+            ? 'background:var(--secondary,#E3E1CC);border:1px solid transparent;color:#202021'
+            : 'background:#fff;border:1px solid rgba(32,32,33,0.16);color:var(--ink-soft)'}">${_waEsc(opt)}</button>`;
+        const group = (axis, extraStyle) => {
+          const ax = _RB_TAG_AXES[axis];
+          const sel = axis === 'wear' ? d.wear : [d[axis]];
+          return `<div style="display:flex;flex-direction:column;gap:9px;${extraStyle || ''}">
+            <div style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)">${ax.label}${ax.hint ? ` · <span style="font-weight:400;text-transform:none;letter-spacing:.02em">${ax.hint}</span>` : ''}</div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap">${ax.opts.map((o, i) => chip(axis, o, i, sel.indexOf(o) > -1)).join('')}</div>
+          </div>`;
+        };
+        let modal = document.getElementById('rb-tag-sheet');
+        if (!modal) {
+          modal = document.createElement('div');
+          modal.id = 'rb-tag-sheet';
+          modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+          modal.onclick = function(e) { if (e.target === modal) window.__rbTagDone(false); };
+          document.body.appendChild(modal);
+        }
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:85dvh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 22px 20px;display:flex;flex-direction:column;gap:18px">
+            <div>
+              <div style="display:flex;align-items:flex-start;justify-content:space-between">
+                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">Tags${_rbTagCtxLabel ? ' · ' + _waEsc(_rbTagCtxLabel) : ''}</p>
+                <button onclick="window.__rbTagDone(false)" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;font-size:16px;margin-top:-4px">×</button>
+              </div>
+              <p style="font-family:${serif};font-style:italic;font-size:15px;font-weight:300;color:var(--ink-faint);margin:6px 0 0">Robes filled these from the look — tap any to change.</p>
+            </div>
+            ${group('climate')}
+            ${group('light')}
+            ${group('wear')}
+            ${group('vibe', 'border-top:0.5px solid var(--rule);padding-top:16px')}
+            <button onclick="window.__rbTagDone(true)" style="margin-top:2px;background:#202021;color:#fff;border:none;border-radius:100px;padding:14px;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit">Done</button>
+          </div>`;
+      }
+
       const _RBC_CSS = `
 .rbc-panel{background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);padding:18px}
+.rbc-rolestrip{display:flex;align-items:center;gap:10px;margin:2px 2px -5px}
+.rbc-rolestrip span{font-size:8px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+.rbc-rolestrip i{flex:1;height:1px;background:var(--rule)}
 .rbc-lhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .rbc-lhead .lab{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
 .rbc-lhead .robes{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose)}
@@ -5312,6 +5522,12 @@
 .rbc-palette span{width:14px;height:14px;border-radius:50%;border:0.5px solid var(--rule-mid);display:block}
 .rbc-yours{font-size:10px;letter-spacing:.02em;color:var(--ink-faint)}
 .rbc-yours b{color:var(--ink);font-weight:500}
+.rbc-tags{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--rule)}
+.rbc-tags .tgs{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
+.rbc-tags .tg{background:var(--secondary,#E3E1CC);border-radius:100px;padding:4px 11px;font-size:10.5px;color:var(--ink);white-space:nowrap}
+.rbc-tags .tnone{font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint)}
+.rbc-tags .tedit{flex:none;background:none;border:none;cursor:pointer;font-family:inherit;font-size:10.5px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;padding:2px}
+.rbc-tags .tedit:hover{color:var(--ink)}
 .rbc-read{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:var(--cream-100);padding:15px 16px;margin-top:13px}
 .rbc-read .rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .rbc-read .lab{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
@@ -5406,6 +5622,7 @@
 .rb-lookv2 .rbc-palette{order:4}
 .rb-lookv2 .rbc-fabrics{order:5}
 .rb-lookv2 .rbc-yours{order:6}
+.rb-lookv2 .rbc-tags{order:7}
 .rb-lookv2 .rbc-action{order:8}
 /* The export region — 4:5, 6×7 grid, columns ≈68px, hero ≈296px */
 .rb-lookv2 .rbc-board{aspect-ratio:4/5;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(7,1fr);gap:8px;padding:0;margin:0}
@@ -5647,6 +5864,7 @@
               <span class="rbc-palette">${cfg.paletteHtml || ''}</span>
               <span class="rbc-yours">${yoursHtml}</span>
             </div>
+            ${cfg.tagsHtml || ''}
             ${actionHtml}
           </div>
           ${cfg.panelExtraHtml || ''}`;
@@ -5659,7 +5877,7 @@
             <div class="rbc-hbtns">${cfg.headButtonsHtml || ''}</div>
           </div>
           ${cfg.rackHintHtml || ''}
-          <div class="rbc-rack">${items.map(it => _rbcRow(it, cfg)).join('')}</div>
+          <div class="rbc-rack">${_rbRackRolesHtml(items, cfg)}</div>
           ${cfg.addPieceFn ? `<button class="rbc-addpiece" onclick="window.${cfg.addPieceFn}()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>` : ''}`;
         return { lookHtml, rackHtml };
       }
@@ -6310,6 +6528,9 @@
       var _lkOpenRow = null, _lkRowSeq = 4;
       var _lkPhoto = null;           // {url} once hosted, or {pending:true}
       var _lkNewTitleDraft = null, _lkNewTitleTouched = false;
+      // Composer tags (spec F3, "built by hand · inherited"): null means
+      // derived live from the pieces on every paint; set once she edits.
+      var _lkNewTags = null;
 
       function LK_KEY() { const u = _waUid(); return u ? 'rb_looks__' + u : null; }
       function _lkCacheRead() {
@@ -6454,7 +6675,7 @@
         if (_lkDown || !_waUid()) return;
         _waFetch('POST', 'looks', {
           id: l.id, user_id: _waUid(), name: l.name, name_provisional: !!l.name_provisional,
-          note: l.note || null, photo_url: l.photo_url || null,
+          note: l.note || null, photo_url: l.photo_url || null, tags: l.tags || null,
           source: l.source || 'wear', origin_look_id: l.origin_look_id || null,
         }).then(() => _lkPiecesCloud(l)).catch(e => _lkGuard(e, 'create'));
       }
@@ -6490,6 +6711,7 @@
           name_provisional: o.name_provisional !== false,
           note: o.note != null ? o.note : _lkStyleNote(ids),
           photo_url: o.photo_url || null,
+          tags: o.tags || null,
           source: o.source || 'wear',
           origin_look_id: o.origin_look_id || null,
           created_at: new Date().toISOString(),
@@ -6562,7 +6784,10 @@
         const ids = (pieceIds || []).map(String).filter(Boolean);
         if (ids.length < 2) return null;   // a single piece is not a look
         let l = _lkFindByPieces(ids);
-        if (!l) l = _lkCreate({ pieces: ids, hint: o.hint, source: 'wear' });
+        if (!l) {
+          const inh = _rbTagsFlat(_rbInheritLookTags(ids));
+          l = _lkCreate({ pieces: ids, hint: o.hint, source: 'wear', tags: inh.length ? inh : null });
+        }
         const w = _lkAddWear(l, { date: o.date, source: o.source, sourceId: o.sourceId });
         _lkPaint();
         return { look: l, wear: w };
@@ -6827,6 +7052,7 @@
         const items = _lkDetailItems(l);
 
         // The Look — the standing 4:5 composition, or the look's photograph
+        const lkTagsRow = _rbTagsRowHtml(l.tags, '__lkTagsEdit');
         let lookPanel;
         if (l.photo_url) {
           lookPanel = '<div class="rbc-panel"><div class="rbc-lhead">' +
@@ -6834,6 +7060,7 @@
             '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
               '<img src="' + _waEsc(l.photo_url) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="' + _waEsc(l.name) + '"></div>' +
             (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
+            lkTagsRow +
             '</div>';
         } else {
           lookPanel = _rbConsole({
@@ -6843,6 +7070,7 @@
               const tone = _ltToneOf(_waItems.find(w => String(w.id) === String(id)));
               return tone ? '<span style="background:' + _waEsc(tone) + '"></span>' : '';
             }).join(''),
+            tagsHtml: lkTagsRow,
             rackLabel: 'The Rack',
             onFlip: '__lkDFlip', onSwap: '__lkDSwap',
           }, items).lookHtml;
@@ -6925,7 +7153,7 @@
         // both route through the promotion gate when there is history.
         h += '<div class="rb-lk-sec" style="margin-top:0">The Rack</div>' +
           '<div class="rbc-rack">' +
-          items.map(it => _rbcRow(it, { onFlip: '__lkDFlip', onSwap: '__lkDSwap' })).join('') +
+          _rbRackRolesHtml(items, { onFlip: '__lkDFlip', onSwap: '__lkDSwap' }) +
           '</div>';
 
         // Stats read as the payoff of the rack, below it (streamline pass).
@@ -7080,10 +7308,15 @@
             onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove',
           }, items).lookHtml;
         }
+        // The pieces' overlap seeds the tags (spec F3) — shown live, hers
+        // to refine with a tap, stored only at save.
+        const tagsRow = nPlaced >= 2
+          ? '<div style="margin-top:2px">' + _rbTagsRowHtml(_lkNewTags || _rbInheritLookTags(used), '__lkNewTagsEdit') + '</div>'
+          : '';
         const photoRow = '<div style="display:flex;align-items:baseline;gap:14px;margin-top:12px">' +
           '<button type="button" class="rb-lk-quiet" onclick="window.__lkPhotoToggle()">' + (_lkPhoto ? 'Remove the photo' : 'Add a photo') + '</button>' +
           (_lkPhoto && _lkPhoto.pending ? '<span style="font-size:11px;color:var(--ink-faint)">Uploading…</span>' : '') +
-          '</div>' +
+          '</div>' + tagsRow +
           (canSave ? '<button type="button" class="rb-lk-save" onclick="window.__lkSave()">Save this look</button>' : '');
 
         // The Rack — the name leads it (placeholder until she types), then
@@ -7096,14 +7329,12 @@
           '</div></div>' +
           '<div class="rbc-rack">';
         const rowCfg = { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove' };
-        let fi = 0;
+        // Filled rows lead, grouped under their formula strips (spec B2);
+        // empty rows follow dashed and unlabelled — roles are cast as
+        // pieces land, never pre-assigned to an empty slot (spec B1/A3).
+        rackHtml += _rbRackRolesHtml(items, rowCfg);
         _lkVisibleRows().forEach(r => {
-          if (r.piece) {
-            // `items` above is the same enumeration, so idx and _lkConMap agree
-            if (items[fi]) rackHtml += _rbcRow(items[fi], rowCfg);
-            fi++;
-            return;
-          }
+          if (r.piece) return;
           const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
           const open = _lkOpenRow === r.key;
           rackHtml += '<div class="rbc-row rb-lk-rempty">' +
@@ -7223,6 +7454,24 @@
         _lkDone = w ? 'Recorded — worn ' + _lkFmt(iso) + '.' : 'Already recorded for ' + _lkFmt(iso) + '.';
         _lkPaint();
       };
+      // Look tags on a saved Look (spec F2) — stored in the looks table's
+      // flat tags text[]; the disjoint vocabularies recover the axes. An
+      // untagged look opens the sheet pre-seeded with the inherited read
+      // of its pieces (spec F3) — nothing is stored until she taps Done.
+      window.__lkTagsEdit = function() {
+        const l = _lkFind(_lkActive);
+        if (!l) return;
+        const seed = (Array.isArray(l.tags) && l.tags.length) ? l.tags : _rbInheritLookTags(_lkPieceIds(l));
+        window.__rbTagSheet(seed, '__lkTagsApply', l.name);
+      };
+      window.__lkTagsApply = function(t) {
+        const l = _lkFind(_lkActive);
+        if (!l) return;
+        const flat = _rbTagsFlat(t);
+        _lkPatch(l.id, { tags: flat.length ? flat : null });
+        _lkPaint();
+        _rbTrack('look_tags_edited', { surface: 'look' });
+      };
       // Titles are offered, not applied (A6): the suggestion IS the name
       // until she types over it, and typing makes it hers.
       window.__lkTitleInput = function(v) {
@@ -7341,6 +7590,9 @@
           name: l.name + (word ? ', in the ' + word.toLowerCase() : ' (variant)'),
           source: 'variant',
           origin_look_id: l.id,
+          // The variant carries the ancestor's tags — same day, same job,
+          // one piece different; she refines from the detail if not.
+          tags: (Array.isArray(l.tags) && l.tags.length) ? l.tags.slice() : null,
         });
         _lkPending = null;
         _lkActive = nl.id;
@@ -7361,6 +7613,7 @@
         _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
         _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null;
         _lkNewTitleDraft = null; _lkNewTitleTouched = false;
+        _lkNewTags = null;
         _lkPaint();
         _rbTrack('look_compose_opened', {});
       };
@@ -7469,6 +7722,14 @@
         _lkNewTitleDraft = v;
         _lkNewTitleTouched = String(v || '').trim().length > 0;
       };
+      window.__lkNewTagsEdit = function() {
+        window.__rbTagSheet(_lkNewTags || _rbInheritLookTags(_lkUsed()), '__lkNewTagsApply', 'New look');
+      };
+      window.__lkNewTagsApply = function(t) {
+        _lkNewTags = t;
+        _lkPaint();
+        _rbTrack('look_tags_edited', { surface: 'composer' });
+      };
       // The photo is the look's image and nothing more — no reading, no
       // extraction (Phase 3 is a later, smaller problem). Hosted before it is
       // stored: base64 never goes into a row.
@@ -7514,9 +7775,14 @@
         // The field is a placeholder until she types (A6 still holds at save:
         // an untouched field gets the offered name, marked provisional).
         const typed = String(_lkNewTitleDraft || '').trim();
+        // Tags travel with the save — her edit if she made one, else the
+        // pieces' inherited overlap (spec F3). Stored flat; axes recover
+        // from the disjoint vocabularies.
+        const tagsFlat = _rbTagsFlat(_lkNewTags || _rbInheritLookTags(used));
         const l = _lkCreate({
           pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed,
           source: 'manual', photo_url: _lkPhoto && _lkPhoto.url, slots,
+          tags: tagsFlat.length ? tagsFlat : null,
         });
         _lkBusy = false;
         // Save lands her back on the grid, new look visible — no interstitial
@@ -7707,10 +7973,24 @@
         if (!_dlActiveSaveId || !window.__lastDlData) return;
         const saved = snLoad().find(x => x.id === _dlActiveSaveId);
         if (saved) {
-          snUpdate(_dlActiveSaveId, { dlData: { ...(saved.dlData || {}), steps: window.__lastDlData.steps } });
+          snUpdate(_dlActiveSaveId, { dlData: { ...(saved.dlData || {}), steps: window.__lastDlData.steps, look_tags: window.__lastDlData.look_tags } });
           _pdSyncSaved(_dlActiveSaveId);
         }
       }
+      // Tag row on The Look (spec F2) — edits ride the shared sheet and
+      // persist into the saved lookbook entry with the steps.
+      window.__dlTagsEdit = function() {
+        const data = window.__lastDlData;
+        if (!data) return;
+        window.__rbTagSheet(data.look_tags, '__dlTagsApply', data.headline || 'This look');
+      };
+      window.__dlTagsApply = function(t) {
+        const data = window.__lastDlData;
+        if (!data) return;
+        data.look_tags = { climate: t.climate, light: t.light, wear_for: t.wear, vibe: t.vibe };
+        _dlRerender();
+        _rbTrack('look_tags_edited', { surface: 'daily' });
+      };
       function _dlRerender() {
         const data = window.__lastDlData;
         if (!data) return;
@@ -8009,7 +8289,11 @@
         const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
         const ctx = data.context || null;
         const flat = [];
-        data.steps.forEach(s => (s.items || []).forEach(it => flat.push(it)));
+        // The step title IS the piece's formula role (spec A3) — stamp it on
+        // the item so the Rack's role strips read it ("The Accents" folds
+        // into "The Exclamation Point" in _rbRoleNorm). Persisted saves
+        // re-stamp on every render, so legacy entries pick it up too.
+        data.steps.forEach(s => (s.items || []).forEach(it => { if (!it.role) it.role = s.title; flat.push(it); }));
         window.__dlCurrentItems = flat;
         // The rack reads in wardrobe order — top, bottom (or dress), shoes,
         // bag, accessories, layer — while fi stays the flat steps index so
@@ -8098,6 +8382,7 @@
             idx: fi,
             frame: frameBits(it),
             slot: slot.l,
+            role: it.role,
             shortName: _dlShort(it.name),
             name: it.name,
             owned: !!it.wardrobe_match,
@@ -8135,6 +8420,7 @@
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           addChipLabel: _rbTrackCfg('daily').console.addVerb,
+          tagsHtml: _rbTagsRowHtml(data.look_tags, '__dlTagsEdit'),
           rackLabel: `The rack · ${_waEsc(dlMomentLabel)}`,
           headButtonsHtml: (data && data.worn)
             ? `<span class="rbc-hbtn" style="opacity:.55;pointer-events:none">Worn ✓</span><button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`
@@ -8804,7 +9090,7 @@
           const fresh = await _wkDayFetch(di, (ev.activity || 'An evening out')
             + ' — the EVENING of this day only (the daytime plan, already dressed separately and NOT to be changed: '
             + (d.user_activity || d.occasion || 'the day') + '). One evening look.');
-          d.evening_look = { occasion: fresh.occasion || ev.activity || 'The evening', note: fresh.note || '', items: Array.isArray(fresh.items) ? fresh.items : [] };
+          d.evening_look = { occasion: fresh.occasion || ev.activity || 'The evening', note: fresh.note || '', look_tags: fresh.look_tags || null, items: Array.isArray(fresh.items) ? fresh.items : [] };
           _wkActiveSlot = 1;
           _wkPaintConsole();
           _wkPatchSaved();
@@ -8824,6 +9110,18 @@
       // helpers (_dlOptions/_dlOptIndex/_dlApplyOption): the option set is
       // the served original + owned same-category pieces (travel precedent —
       // weekly generates no AI alternates, so flicks stay instant + truthful).
+      var _wkTagHolder = null;
+      window.__wkTagsEdit = function() {
+        if (!_wkTagHolder) return;
+        window.__rbTagSheet(_wkTagHolder.look_tags, '__wkTagsApply', _wkTagHolder.occasion || 'This look');
+      };
+      window.__wkTagsApply = function(t) {
+        if (!_wkTagHolder) return;
+        _wkTagHolder.look_tags = { climate: t.climate, light: t.light, wear_for: t.wear, vibe: t.vibe };
+        _wkPaintConsole();
+        _wkPatchSaved();
+        _rbTrack('look_tags_edited', { surface: 'weekly' });
+      };
       function _wkPaintConsole() {
         const host = document.getElementById('wk-day');
         if (!host || !_wkState) return;
@@ -8905,6 +9203,7 @@
             idx: ii,
             frame: wkFrame(it),
             slot: _dlSlot(it).l,
+            role: it.role,
             shortName: _dlShort(it.name),
             name: it.name,
             owned: !!it.wardrobe_match,
@@ -8918,6 +9217,10 @@
               : `<button class="rbc-act save" onclick="window.__wkSaveWishlist(${ii})">Save</button>`),
           };
         });
+        // The tag sheet targets the active moment's holder — the day, or
+        // its evening look — by reference, so an apply mutates the blob
+        // _wkPatchSaved persists.
+        _wkTagHolder = slotEv ? d.evening_look : d;
         const con = _rbConsole({
           headLabel: `The look · ${_waEsc(dayLabel)} · ${items.length} pieces`,
           occHtml,
@@ -8925,6 +9228,7 @@
           fabricsHtml,
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           addChipLabel: _rbTrackCfg('weekly').console.addVerb,
+          tagsHtml: _rbTagsRowHtml(_wkTagHolder && _wkTagHolder.look_tags, '__wkTagsEdit'),
           rackLabel: `The rack · ${_waEsc(dayLabel)}`,
           rackTitleHtml: conOccasion ? `<h2>${_waEsc(conOccasion)}${!/[.!?]$/.test(conOccasion) ? '.' : ''}</h2>` : '',
           headButtonsHtml: slotEv
@@ -9128,6 +9432,8 @@
         d.occasion = fresh.occasion || activity || d.occasion;
         d.note = fresh.note || d.note;
         d.rest = false;
+        // A restyled day is a new look — its tags refresh with it (spec F3)
+        if (fresh.look_tags) d.look_tags = fresh.look_tags;
         if (activity) d.user_activity = activity;
         d.items = Array.isArray(fresh.items) ? fresh.items : [];
         d.items.forEach(it => {
@@ -10571,6 +10877,7 @@ body>*:not(#tv-result-page){display:none !important}
             idx: i,
             frame: _tvFrame(it),
             slot: _dlSlot(it).l,
+            role: x.f && x.f.role,
             shortName: _dlShort(it.name),
             name: it.name,
             owned: !!it.wardrobe_match,
@@ -10585,6 +10892,23 @@ body>*:not(#tv-result-page){display:none !important}
         });
       }
 
+      var _tvTagLi = null;
+      window.__tvTagsEdit = function(li) {
+        const data = window.__lastTvData;
+        const l = data && data.looks && data.looks[li];
+        if (!l) return;
+        _tvTagLi = li;
+        window.__rbTagSheet(l.look_tags, '__tvTagsApply', l.title || l.occasion || 'This look');
+      };
+      window.__tvTagsApply = function(t) {
+        const data = window.__lastTvData;
+        const l = data && data.looks && data.looks[_tvTagLi];
+        if (!l) return;
+        l.look_tags = { climate: t.climate, light: t.light, wear_for: t.wear, vibe: t.vibe };
+        _tvPatchSaved();
+        _tvPaintDetail();
+        _rbTrack('look_tags_edited', { surface: 'travel' });
+      };
       function _tvConsoleFor(li, di, opts) {
         const data = window.__lastTvData;
         const l = data.looks[li];
@@ -10602,6 +10926,7 @@ body>*:not(#tv-result-page){display:none !important}
           fabricsHtml: _rbcFabricsHtml(items, palette),
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           addChipLabel: _rbTrackCfg('travel').console.addVerb,
+          tagsHtml: _rbTagsRowHtml(l.look_tags, '__tvTagsEdit', li),
           rackLabel: `The rack · ${_waEsc(labelCtx)}`,
           rackTitleHtml: `<h2>${_waEsc(title)}${!/[.!?]$/.test(title) ? '.' : ''}</h2>`,
           headButtonsHtml: (di != null
