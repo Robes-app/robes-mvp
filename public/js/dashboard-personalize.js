@@ -5322,22 +5322,103 @@
       }
       // The Rack with its formula strips: rows regroup by role (stable
       // within a group), one strip heads each group. Handlers ride it.idx,
-      // so regrouping never breaks a callback. Empty composer rows are
-      // painted by the caller after this, unlabelled — roles are cast as
-      // pieces land (spec B1).
-      function _rbRackRolesHtml(items, cfg) {
+      // so regrouping never breaks a callback.
+      // cfg.onRoleDrop (a window fn name) makes every row draggable and
+      // every strip a drop target — the strips are education, never a
+      // constraint: any piece may be dropped under any role, and the drop
+      // simply re-casts it (founder call 2026-08-07). cfg.roleCtx rides
+      // through to the handler for surfaces that need extra addressing.
+      // `empties` (composer only) are empty slot rows grouped under their
+      // FORECAST role — ghosted strips that ink in as pieces land (spec B1
+      // amendment 2026-08-07); the forecast never binds what she adds.
+      function _rbRackRolesHtml(items, cfg, empties) {
+        if (cfg.onRoleDrop) _rbcDndInit();
         const withRole = items.map((it, i) => ({ it, i, role: _rbRoleOf(it) }));
         const ord = r => { const k = _RB_ROLES.indexOf(r); return k < 0 ? 99 : k; };
         withRole.sort((a, b) => ord(a.role) - ord(b.role) || a.i - b.i);
-        let html = '', last = null;
-        withRole.forEach(x => {
-          if (x.role && x.role !== last) {
-            html += `<div class="rbc-rolestrip"><span>${_waEsc(x.role)}</span><i></i></div>`;
-            last = x.role;
-          }
-          html += _rbcRow(x.it, cfg);
+        const ctxAttr = cfg.roleCtx != null ? ` data-rolectx="${_waEsc(String(cfg.roleCtx))}"` : '';
+        const stripHtml = (role, ghost) =>
+          `<div class="rbc-rolestrip${ghost ? ' ghost' : ''}"${cfg.onRoleDrop ? ` data-roledrop="${_waEsc(role)}" data-rolefn="${cfg.onRoleDrop}"${ctxAttr}` : ''}><span>${_waEsc(role)}</span><i></i></div>`;
+        const rowHtml = x => cfg.onRoleDrop
+          ? `<div class="rbc-dragrow" draggable="true" data-roledrag="${x.i}" data-rolefn="${cfg.onRoleDrop}" data-rolehome="${_waEsc(x.role)}"${ctxAttr}>${_rbcRow(x.it, cfg)}</div>`
+          : _rbcRow(x.it, cfg);
+        if (!empties || !empties.length) {
+          let html = '', last = null;
+          withRole.forEach(x => {
+            if (x.role && x.role !== last) { html += stripHtml(x.role, false); last = x.role; }
+            html += rowHtml(x);
+          });
+          return html;
+        }
+        const roles = _RB_ROLES.slice();
+        withRole.forEach(x => { if (x.role && roles.indexOf(x.role) < 0) roles.push(x.role); });
+        let html = '';
+        roles.forEach(role => {
+          const filled = withRole.filter(x => x.role === role);
+          const empty = empties.filter(e => e.role === role);
+          // Canonical strips always render — a bare ghosted strip is still
+          // the education layer AND the drop target that lets her cast a
+          // piece back to a role nothing currently holds.
+          if (!filled.length && !empty.length && _RB_ROLES.indexOf(role) < 0) return;
+          html += stripHtml(role, !filled.length);
+          filled.forEach(x => { html += rowHtml(x); });
+          empty.forEach(e => { html += e.html; });
         });
         return html;
+      }
+
+      // Drag & drop role casting — one delegated runtime for every rack.
+      // HTML5 DnD (pointer devices; touch keeps the strips read-only for
+      // now). A drop on a strip re-casts the dragged piece to that role;
+      // a drop on another row re-casts to that row's group. No rules, no
+      // validation — the formula is a lens, not a law.
+      function _rbcDndInit() {
+        if (window.__rbcDndOn) return;
+        window.__rbcDndOn = true;
+        let src = null;
+        const clear = () => {
+          document.querySelectorAll('.rbc-dragrow.dragging').forEach(x => x.classList.remove('dragging'));
+          document.querySelectorAll('.rbc-rolestrip.dropover').forEach(x => x.classList.remove('dropover'));
+        };
+        const stripFor = el => {
+          let n = el.previousElementSibling;
+          while (n) { if (n.classList && n.classList.contains('rbc-rolestrip')) return n; n = n.previousElementSibling; }
+          return null;
+        };
+        const targetOf = e => {
+          if (!src) return null;
+          const t = e.target && e.target.closest ? e.target.closest('[data-roledrop],[data-roledrag]') : null;
+          if (!t || t.getAttribute('data-rolefn') !== src.fn) return null;
+          if ((t.getAttribute('data-rolectx') || '') !== src.ctx) return null;
+          const role = t.getAttribute('data-roledrop') || t.getAttribute('data-rolehome');
+          return role ? { el: t, role } : null;
+        };
+        document.addEventListener('dragstart', e => {
+          const w = e.target && e.target.closest ? e.target.closest('[data-roledrag]') : null;
+          if (!w) return;
+          src = { idx: Number(w.getAttribute('data-roledrag')), fn: w.getAttribute('data-rolefn'), ctx: w.getAttribute('data-rolectx') || '' };
+          w.classList.add('dragging');
+          try { e.dataTransfer.setData('text/plain', String(src.idx)); e.dataTransfer.effectAllowed = 'move'; } catch (_) {}
+        });
+        document.addEventListener('dragend', () => { src = null; clear(); });
+        document.addEventListener('dragover', e => {
+          const tg = targetOf(e);
+          if (!tg) return;
+          e.preventDefault();
+          try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
+          document.querySelectorAll('.rbc-rolestrip.dropover').forEach(x => x.classList.remove('dropover'));
+          const strip = tg.el.hasAttribute('data-roledrop') ? tg.el : stripFor(tg.el);
+          if (strip) strip.classList.add('dropover');
+        });
+        document.addEventListener('drop', e => {
+          const tg = targetOf(e);
+          if (!tg || !src) return;
+          e.preventDefault();
+          const fn = src.fn, idx = src.idx, ctx = src.ctx;
+          src = null;
+          clear();
+          if (typeof window[fn] === 'function') window[fn](idx, tg.role, ctx);
+        });
       }
 
       // ═══ Look tags — the intelligence layer (Look Template spec F) ═══
@@ -5357,29 +5438,40 @@
       // Accepts the server object ({climate, light, wear_for, vibe}), the
       // stored flat text[] (looks.tags), or a prior parse — always returns
       // the canonical {climate, light, wear[], vibe} shape.
+      // Custom tags (the sheet's "+ tag" chips, 2026-08-07) live on the two
+      // open axes only: an unknown plain string reads as a custom Wear tag,
+      // a "vibe:" prefix marks a custom Vibe — that prefix is what keeps
+      // the flat text[] round-trip unambiguous now the vocabularies are no
+      // longer closed. Climate and Light stay vocabulary-only.
       function _rbTagsParse(v) {
         const T = _RB_TAG_AXES;
         const out = { climate: '', light: '', wear: [], vibe: '' };
+        const pushWear = s => { if (s && out.wear.length < 2 && out.wear.indexOf(s) < 0) out.wear.push(s); };
         if (Array.isArray(v)) {
           v.forEach(raw => {
-            const s = String(raw);
+            const s = String(raw).trim();
+            if (!s) return;
             if (T.climate.opts.indexOf(s) > -1) out.climate = out.climate || s;
             else if (T.light.opts.indexOf(s) > -1) out.light = out.light || s;
-            else if (T.wear.opts.indexOf(s) > -1) { if (out.wear.length < 2 && out.wear.indexOf(s) < 0) out.wear.push(s); }
+            else if (T.wear.opts.indexOf(s) > -1) pushWear(s);
             else if (T.vibe.opts.indexOf(s) > -1) out.vibe = out.vibe || s;
+            else if (/^vibe:/i.test(s)) { const c = s.replace(/^vibe:/i, '').trim(); if (c) out.vibe = out.vibe || c; }
+            else pushWear(s);
           });
         } else if (v && typeof v === 'object') {
           out.climate = T.climate.opts.indexOf(v.climate) > -1 ? v.climate : '';
           out.light = T.light.opts.indexOf(v.light) > -1 ? v.light : '';
-          out.wear = (Array.isArray(v.wear_for) ? v.wear_for : Array.isArray(v.wear) ? v.wear : [])
-            .filter(s => T.wear.opts.indexOf(s) > -1).slice(0, 2);
-          out.vibe = T.vibe.opts.indexOf(v.vibe) > -1 ? v.vibe : '';
+          (Array.isArray(v.wear_for) ? v.wear_for : Array.isArray(v.wear) ? v.wear : [])
+            .map(s => String(s || '').trim()).forEach(pushWear);
+          const vb = String(v.vibe || '').replace(/^vibe:/i, '').trim();
+          out.vibe = vb || '';
         }
         return out;
       }
       function _rbTagsFlat(t) {
         t = _rbTagsParse(t);
-        return [t.climate, t.light].concat(t.wear, [t.vibe]).filter(Boolean);
+        const vibe = t.vibe ? (_RB_TAG_AXES.vibe.opts.indexOf(t.vibe) > -1 ? t.vibe : 'vibe:' + t.vibe) : '';
+        return [t.climate, t.light].concat(t.wear, [vibe]).filter(Boolean);
       }
       function _rbTagsEmpty(t) { return !_rbTagsFlat(t).length; }
       // The quiet row on The Look (spec marker 11) — climate · agenda ·
@@ -5425,11 +5517,46 @@
       // ── The tag sheet (spec F2) — one modal for every surface. Climate
       // and Light pick one; Wear it for caps at two (a third pick retires
       // the oldest); Vibe is the only group allowed to stay empty.
-      var _rbTagDraft = null, _rbTagApplyFn = null, _rbTagCtxLabel = '';
+      var _rbTagDraft = null, _rbTagApplyFn = null, _rbTagCtxLabel = '', _rbTagAdding = null;
       window.__rbTagSheet = function(tags, applyName, ctxLabel) {
         _rbTagDraft = _rbTagsParse(tags);
         _rbTagApplyFn = applyName;
         _rbTagCtxLabel = ctxLabel || '';
+        _rbTagAdding = null;
+        _rbTagPaint();
+      };
+      // Custom tags (F2 "+ tag", Wear & Vibe only). A typed value that
+      // matches ANY axis's vocabulary selects that option instead — the
+      // vocabularies must stay disjoint for the flat round-trip, so a
+      // custom can never shadow one.
+      window.__rbTagAdd = function(axis) { _rbTagAdding = axis; _rbTagPaint(); };
+      window.__rbTagCommit = function(axis, value) {
+        const d = _rbTagDraft;
+        _rbTagAdding = null;
+        if (!d) return;
+        const v = String(value || '').replace(/^vibe:/i, '').trim().slice(0, 28);
+        if (!v) { _rbTagPaint(); return; }
+        let hit = null;
+        Object.keys(_RB_TAG_AXES).forEach(ax => {
+          const m = _RB_TAG_AXES[ax].opts.find(o => o.toLowerCase() === v.toLowerCase());
+          if (m && !hit) hit = { ax, opt: m };
+        });
+        if (hit) {
+          if (hit.ax === 'wear') { if (d.wear.indexOf(hit.opt) < 0) { d.wear.push(hit.opt); if (d.wear.length > 2) d.wear.shift(); } }
+          else d[hit.ax] = hit.opt;
+        } else if (axis === 'wear') {
+          if (d.wear.indexOf(v) < 0) { d.wear.push(v); if (d.wear.length > 2) d.wear.shift(); }
+        } else if (axis === 'vibe') {
+          d.vibe = v;
+        }
+        _rbTagPaint();
+      };
+      window.__rbTagPickCustom = function(axis, el) {
+        const d = _rbTagDraft;
+        if (!d || !el) return;
+        const v = el.getAttribute('data-val') || '';
+        if (axis === 'wear') { const k = d.wear.indexOf(v); if (k > -1) d.wear.splice(k, 1); }
+        else if (axis === 'vibe' && d.vibe === v) d.vibe = '';
         _rbTagPaint();
       };
       window.__rbTagPick = function(axis, i) {
@@ -5461,9 +5588,18 @@
         const group = (axis, extraStyle) => {
           const ax = _RB_TAG_AXES[axis];
           const sel = axis === 'wear' ? d.wear : [d[axis]];
+          // Custom values already on the draft render as selected chips of
+          // their own; Wear and Vibe close with the dashed "+ tag" door.
+          const customs = sel.filter(s => s && ax.opts.indexOf(s) < 0);
+          const customChips = customs.map(c =>
+            `<button data-val="${_waEsc(c)}" onclick="window.__rbTagPickCustom('${axis}',this)" style="border-radius:100px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;background:var(--secondary,#E3E1CC);border:1px solid transparent;color:#202021">${_waEsc(c)}</button>`).join('');
+          const openAxis = axis === 'wear' || axis === 'vibe';
+          const addChip = !openAxis ? '' : (_rbTagAdding === axis
+            ? `<input id="rb-tag-newin" maxlength="28" placeholder="Your own tag" onkeydown="if(event.key==='Enter'){event.preventDefault();window.__rbTagCommit('${axis}',this.value)}else if(event.key==='Escape'){window.__rbTagCommit('${axis}','')}" onblur="window.__rbTagCommit('${axis}',this.value)" style="border-radius:100px;padding:8px 14px;font-size:12px;font-family:inherit;background:#fff;border:1px dashed rgba(32,32,33,0.3);color:var(--ink);outline:none;width:130px">`
+            : `<button onclick="window.__rbTagAdd('${axis}')" style="border-radius:100px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;background:#fff;border:1px dashed rgba(32,32,33,0.28);color:var(--ink-faint)">+ tag</button>`);
           return `<div style="display:flex;flex-direction:column;gap:9px;${extraStyle || ''}">
             <div style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)">${ax.label}${ax.hint ? ` · <span style="font-weight:400;text-transform:none;letter-spacing:.02em">${ax.hint}</span>` : ''}</div>
-            <div style="display:flex;gap:7px;flex-wrap:wrap">${ax.opts.map((o, i) => chip(axis, o, i, sel.indexOf(o) > -1)).join('')}</div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap">${ax.opts.map((o, i) => chip(axis, o, i, sel.indexOf(o) > -1)).join('')}${customChips}${addChip}</div>
           </div>`;
         };
         let modal = document.getElementById('rb-tag-sheet');
@@ -5489,6 +5625,10 @@
             ${group('vibe', 'border-top:0.5px solid var(--rule);padding-top:16px')}
             <button onclick="window.__rbTagDone(true)" style="margin-top:2px;background:#202021;color:#fff;border:none;border-radius:100px;padding:14px;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit">Done</button>
           </div>`;
+        if (_rbTagAdding) {
+          const ni = modal.querySelector('#rb-tag-newin');
+          if (ni) ni.focus();
+        }
       }
 
       const _RBC_CSS = `
@@ -5496,6 +5636,13 @@
 .rbc-rolestrip{display:flex;align-items:center;gap:10px;margin:2px 2px -5px}
 .rbc-rolestrip span{font-size:8px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
 .rbc-rolestrip i{flex:1;height:1px;background:var(--rule)}
+.rbc-rolestrip.ghost span{color:var(--cream-400,#D8CFC0)}
+.rbc-rolestrip.ghost i{background:var(--cream-200,#EFE9DC)}
+.rbc-rolestrip[data-roledrop]{padding:4px 0;margin-top:-2px}
+.rbc-rolestrip.dropover span{color:var(--ink)}
+.rbc-rolestrip.dropover i{background:var(--ink);height:2px}
+.rbc-dragrow{cursor:grab}
+.rbc-dragrow.dragging{opacity:.45}
 .rbc-lhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .rbc-lhead .lab{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
 .rbc-lhead .robes{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose)}
@@ -6531,6 +6678,9 @@
       // Composer tags (spec F3, "built by hand · inherited"): null means
       // derived live from the pieces on every paint; set once she edits.
       var _lkNewTags = null;
+      // Roles she cast herself by dragging a row under a strip (piece id →
+      // role). The heuristic only ever fills the gaps — her cast wins.
+      var _lkNewRoles = {};
 
       function LK_KEY() { const u = _waUid(); return u ? 'rb_looks__' + u : null; }
       function _lkCacheRead() {
@@ -6585,7 +6735,7 @@
           });
           (pieces || []).forEach(p => {
             const l = byId[p.look_id];
-            if (l) l.pieces.push({ id: p.wardrobe_item_id, slot: p.slot || null, position: p.position || 0 });
+            if (l) l.pieces.push({ id: p.wardrobe_item_id, slot: p.slot || null, position: p.position || 0, role: p.role || null });
           });
           (wears || []).forEach(w => {
             const l = byId[w.look_id];
@@ -6679,14 +6829,31 @@
           source: l.source || 'wear', origin_look_id: l.origin_look_id || null,
         }).then(() => _lkPiecesCloud(l)).catch(e => _lkGuard(e, 'create'));
       }
+      // look_pieces.role arrives with migration 16 — until it runs, a
+      // PGRST204 naming the column strips it and retries, and her cast
+      // simply lives in the local cache (same degrade family as _waTaxCols).
+      var _lkRoleCol = true;
       function _lkPiecesCloud(l) {
         if (_lkDown || !_waUid()) return;
-        const rows = (l.pieces || []).map((p, i) => ({
-          look_id: l.id, wardrobe_item_id: p.id, slot: p.slot || null, position: p.position != null ? p.position : i,
-        }));
-        _waFetch('DELETE', 'look_pieces?look_id=eq.' + l.id)
-          .then(() => rows.length ? _waFetch('POST', 'look_pieces', rows) : null)
-          .catch(e => _lkGuard(e, 'pieces'));
+        const mk = withRole => (l.pieces || []).map((p, i) => {
+          const row = { look_id: l.id, wardrobe_item_id: p.id, slot: p.slot || null, position: p.position != null ? p.position : i };
+          if (withRole) row.role = p.role || null;
+          return row;
+        });
+        const post = withRole => {
+          const rows = mk(withRole);
+          return _waFetch('DELETE', 'look_pieces?look_id=eq.' + l.id)
+            .then(() => rows.length ? _waFetch('POST', 'look_pieces', rows) : null);
+        };
+        post(_lkRoleCol).catch(e => {
+          const t = String(e && e.message || e);
+          if (_lkRoleCol && /PGRST204/.test(t) && /'role'/.test(t)) {
+            _lkRoleCol = false;
+            post(false).catch(e2 => _lkGuard(e2, 'pieces'));
+            return;
+          }
+          _lkGuard(e, 'pieces');
+        });
       }
       function _lkPatchCloud(l, patch) {
         if (_lkDown || !_waUid()) return;
@@ -6715,7 +6882,7 @@
           source: o.source || 'wear',
           origin_look_id: o.origin_look_id || null,
           created_at: new Date().toISOString(),
-          pieces: ids.map((id, i) => ({ id, slot: (o.slots || {})[id] || null, position: i })),
+          pieces: ids.map((id, i) => ({ id, slot: (o.slots || {})[id] || null, position: i, role: (o.roles || {})[id] || null })),
           wears: [],
         };
         _lkLooks.unshift(l);
@@ -6842,10 +7009,17 @@
       // ── The tab ─────────────────────────────────────────────────────────
       var _LK_CSS = `
 #rb-lk-wrap{display:none}
-#rb-lk-bar{display:flex;align-items:center;gap:12px;margin:0 0 18px}
+#rb-lk-bar{display:flex;align-items:center;gap:12px;margin:0 0 18px;flex-wrap:wrap}
 .rb-lk-sort{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border:0.5px solid var(--rule-mid);background:#fff;border-radius:100px;cursor:pointer;font-family:inherit;font-size:11.5px;color:var(--ink);transition:border-color .15s}
 .rb-lk-sort:hover{border-color:var(--ink)}
 .rb-lk-sort b{font-weight:400;color:var(--ink-faint)}
+.rb-lk-sort.hot{background:var(--ink);border-color:var(--ink);color:#fff}
+.rb-lk-refwrap{width:100%;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:16px 18px 14px;display:flex;flex-direction:column;gap:14px}
+.rb-lkref-ax{font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:7px}
+.rb-lkref-chips{display:flex;gap:7px;flex-wrap:wrap}
+.rb-lkref-chip{border-radius:100px;padding:7px 13px;font-size:11.5px;cursor:pointer;font-family:inherit;background:#fff;border:1px solid rgba(32,32,33,0.16);color:var(--ink-soft);transition:all .15s}
+.rb-lkref-chip.on{background:var(--secondary,#E3E1CC);border-color:transparent;color:var(--ink)}
+.rb-lkref-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:0.5px solid var(--rule);padding-top:12px}
 #rb-lk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
 @media(max-width:1199px){#rb-lk-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:767px){#rb-lk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}}
@@ -6944,10 +7118,20 @@
         }
         body.innerHTML = _lkLooks.length ? '' : _lkEmptyHtml();
         if (!_lkLooks.length) return;
+        const refN = _lkRefineCount();
         bar.innerHTML = '<button type="button" class="rb-lk-sort" onclick="window.__lkSort()">' +
           '<span>' + (_lkSortDesc ? 'Last worn' : 'First worn') + '</span>' +
-          '<b>' + (_lkSortDesc ? '↓' : '↑') + '</b></button>';
-        grid.innerHTML = _lkSorted().map(l => {
+          '<b>' + (_lkSortDesc ? '↓' : '↑') + '</b></button>' +
+          '<button type="button" class="rb-lk-sort' + (refN || _lkRefineOpen ? ' hot' : '') + '" onclick="window.__lkRefineToggle()">' +
+            '<span>Refine' + (refN ? ' · ' + refN : '') + '</span></button>' +
+          '<span style="flex:1"></span>' +
+          '<button type="button" class="rb-lk-act primary" onclick="window.__lkNew()">+ New look</button>' +
+          (_lkRefineOpen ? _lkRefineHtml() : '');
+        const shown = _lkSorted().filter(_lkMatchRefine);
+        const noneHtml = refN && !shown.length
+          ? '<div style="grid-column:1/-1;padding:26px 0 6px;font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">No looks carry those tags. <button type="button" class="rb-lk-quiet" onclick="window.__lkRefineClear()" style="font-style:normal">Clear the filters</button></div>'
+          : '';
+        grid.innerHTML = noneHtml + shown.map(l => {
           const n = _lkWearCount(l);
           const last = _lkLastWorn(l);
           return '<div class="rb-lk-tilewrap">' + _ltTile({
@@ -6970,6 +7154,62 @@
           '<span class="rb-add-hint">Built from your pieces</span>' +
         '</div>';
       }
+
+      // ── Refine — filter the grid by the looks' tag axes (2026-08-07).
+      // A look's read is its stored tags, else the inherited overlap of its
+      // pieces (the same read the detail shows) — so legacy looks filter
+      // too. Within an axis picks OR; across axes they AND.
+      var _lkRefine = { climate: [], light: [], wear: [], vibe: [] };
+      var _lkRefineOpen = false;
+      function _lkRefineCount() {
+        return _lkRefine.climate.length + _lkRefine.light.length + _lkRefine.wear.length + _lkRefine.vibe.length;
+      }
+      function _lkTagsOf(l) {
+        return _rbTagsParse((Array.isArray(l.tags) && l.tags.length) ? l.tags : _rbInheritLookTags(_lkPieceIds(l)));
+      }
+      function _lkMatchRefine(l) {
+        if (!_lkRefineCount()) return true;
+        const t = _lkTagsOf(l);
+        const hit = (sel, vals) => !sel.length || vals.some(v => sel.indexOf(v) > -1);
+        return hit(_lkRefine.climate, [t.climate]) && hit(_lkRefine.light, [t.light])
+          && hit(_lkRefine.wear, t.wear) && hit(_lkRefine.vibe, [t.vibe]);
+      }
+      // The axis vocabularies plus any custom tags her looks carry.
+      function _lkRefineOpts(axis) {
+        const base = _RB_TAG_AXES[axis].opts.slice();
+        _lkLooks.forEach(l => {
+          const t = _lkTagsOf(l);
+          (axis === 'wear' ? t.wear : [t[axis]]).forEach(v => { if (v && base.indexOf(v) < 0) base.push(v); });
+        });
+        return base;
+      }
+      function _lkRefineHtml() {
+        const g = axis => {
+          const sel = _lkRefine[axis];
+          return '<div><div class="rb-lkref-ax">' + _RB_TAG_AXES[axis].label + '</div><div class="rb-lkref-chips">' +
+            _lkRefineOpts(axis).map(o =>
+              '<button type="button" class="rb-lkref-chip' + (sel.indexOf(o) > -1 ? ' on' : '') + '" data-ax="' + axis + '" data-val="' + _waEsc(o) + '" onclick="window.__lkRefinePick(this)">' + _waEsc(o) + '</button>').join('') +
+            '</div></div>';
+        };
+        const n = _lkLooks.filter(_lkMatchRefine).length;
+        return '<div class="rb-lk-refwrap">' + g('climate') + g('light') + g('wear') + g('vibe') +
+          '<div class="rb-lkref-foot"><button type="button" class="rb-lk-quiet" onclick="window.__lkRefineClear()">Clear all</button>' +
+          '<span style="font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint)">' + _lkN(n, 'look') + '</span></div></div>';
+      }
+      window.__lkRefineToggle = function() { _lkRefineOpen = !_lkRefineOpen; _lkPaint(); };
+      window.__lkRefinePick = function(el) {
+        const ax = el.getAttribute('data-ax'), v = el.getAttribute('data-val');
+        const sel = _lkRefine[ax];
+        if (!sel) return;
+        const k = sel.indexOf(v);
+        if (k > -1) sel.splice(k, 1); else sel.push(v);
+        _lkPaint();
+        _rbTrack('looks_refined', { axis: ax, active: _lkRefineCount() });
+      };
+      window.__lkRefineClear = function() {
+        _lkRefine = { climate: [], light: [], wear: [], vibe: [] };
+        _lkPaint();
+      };
 
       // Never-worn falls to the end descending, the front ascending.
       function _lkSorted() {
@@ -7011,7 +7251,7 @@
           const tone = _ltToneOf(wi);
           const opts = _lkDOpts(l, id);
           return {
-            idx, slot,
+            idx, slot, role: (((l.pieces || [])[idx]) || {}).role || null,
             name: wi.label,
             shortName: String(wi.label || 'piece').split(/\s+/).slice(-1)[0].toLowerCase(),
             owned: true, anchored: false, isNew: false,
@@ -7153,7 +7393,7 @@
         // both route through the promotion gate when there is history.
         h += '<div class="rb-lk-sec" style="margin-top:0">The Rack</div>' +
           '<div class="rbc-rack">' +
-          _rbRackRolesHtml(items, { onFlip: '__lkDFlip', onSwap: '__lkDSwap' }) +
+          _rbRackRolesHtml(items, { onFlip: '__lkDFlip', onSwap: '__lkDSwap', onRoleDrop: '__lkDRoleDrop' }) +
           '</div>';
 
         // Stats read as the payoff of the rack, below it (streamline pass).
@@ -7249,6 +7489,7 @@
           const cur = Math.max(0, opts.findIndex(o => String(o.id) === String(wi.id)));
           return {
             idx,
+            role: _lkNewRoles[String(wi.id)] || null,
             slot: r.slot,
             name: wi.label,
             shortName: String(wi.label || 'piece').split(/\s+/).slice(-1)[0].toLowerCase(),
@@ -7328,16 +7569,16 @@
             ' placeholder="Name your Look" oninput="window.__lkNewTitleInput(this.value)" style="font-size:clamp(22px,2.4vw,28px)">' +
           '</div></div>' +
           '<div class="rbc-rack">';
-        const rowCfg = { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove' };
-        // Filled rows lead, grouped under their formula strips (spec B2);
-        // empty rows follow dashed and unlabelled — roles are cast as
-        // pieces land, never pre-assigned to an empty slot (spec B1/A3).
-        rackHtml += _rbRackRolesHtml(items, rowCfg);
-        _lkVisibleRows().forEach(r => {
-          if (r.piece) return;
+        const rowCfg = { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop' };
+        // Ghosted formula strips over every empty row — the education layer
+        // (spec B1 amendment 2026-08-07): each empty slot sits under its
+        // FORECAST role, the strip inks in once a piece lands in the group.
+        // The forecast never binds her — she can fill any slot with any
+        // piece and drag any filled row under any strip.
+        const emptyRowHtml = r => {
           const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
           const open = _lkOpenRow === r.key;
-          rackHtml += '<div class="rbc-row rb-lk-rempty">' +
+          return '<div class="rbc-row rb-lk-rempty">' +
             '<div class="rbc-vp"><span class="vslot">' + _waEsc(r.slot) + '</span></div>' +
             '<div class="rbc-body"><div><div class="rbc-name">' + _waEsc(def.add) + '</div></div>' +
               '<div class="rbc-foot"><div></div><div class="rbc-acts">' +
@@ -7345,7 +7586,10 @@
               '</div></div>' +
               (open ? _lkPickerHtml(_lkRowOptions(r), '__lkRowPick', r.key, '__lkRowSnap') : '') +
             '</div></div>';
-        });
+        };
+        const empties = _lkVisibleRows().filter(r => !r.piece)
+          .map(r => ({ role: _rbRoleGuess(r.slot, ''), html: emptyRowHtml(r) }));
+        rackHtml += _rbRackRolesHtml(items, rowCfg, empties);
         rackHtml += '</div>' +
           '<button class="rbc-addpiece" onclick="window.__rbcAddMenu(\'__lkApplyNew\')"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>';
 
@@ -7371,6 +7615,18 @@
       window.__lkBack = function() {
         _lkView = 'grid'; _lkActive = null; _lkActNote = null; _lkDone = null;
         _lkPaint();
+      };
+      // Role re-cast on a saved look — presentational like a rename, so it
+      // applies silently (no promotion gate: composition is untouched).
+      window.__lkDRoleDrop = function(idx, role) {
+        const l = _lkFind(_lkActive);
+        const p = l && (l.pieces || [])[idx];
+        if (!l || !p || !_rbRoleNorm(role)) return;
+        p.role = _rbRoleNorm(role);
+        _lkCacheWrite();
+        _lkPiecesCloud(l);
+        _lkPaint();
+        _rbTrack('role_cast', { surface: 'look-detail' });
       };
       window.__lkAct = function(kind) {
         _lkActNote = kind;
@@ -7613,11 +7869,21 @@
         _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
         _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null;
         _lkNewTitleDraft = null; _lkNewTitleTouched = false;
-        _lkNewTags = null;
+        _lkNewTags = null; _lkNewRoles = {};
         _lkPaint();
         _rbTrack('look_compose_opened', {});
       };
       window.__lkRowOpen = function(key) { _lkOpenRow = _lkOpenRow === key ? null : key; _lkPaint(); };
+      // A drop under a strip casts the role — her cast, her call (A3
+      // amendment: the strips educate, they never constrain).
+      window.__lkCRoleDrop = function(idx, role) {
+        const key = _lkConMap[idx];
+        const r = key && _lkRows.find(x => x.key === key);
+        if (!r || !r.piece || !_rbRoleNorm(role)) return;
+        _lkNewRoles[String(r.piece)] = _rbRoleNorm(role);
+        _lkPaint();
+        _rbTrack('role_cast', { surface: 'composer' });
+      };
       // The normal add flow, aimed at a slot: the standard wardrobe add modal
       // (photograph → Robes files it), with the post-add hook landing the new
       // piece straight in the row — the same arming pattern as __rbcAddSnap.
@@ -7783,6 +8049,7 @@
           pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed,
           source: 'manual', photo_url: _lkPhoto && _lkPhoto.url, slots,
           tags: tagsFlat.length ? tagsFlat : null,
+          roles: _lkNewRoles,
         });
         _lkBusy = false;
         // Save lands her back on the grid, new look visible — no interstitial
@@ -7969,6 +8236,16 @@
           clearTimeout(abortTimer);
         }
       }
+      // Drag-cast: a row dropped under a strip takes that role. Roles ride
+      // the blob's items, so the existing patch path persists the cast.
+      window.__dlRoleDrop = function(fi, role) {
+        const it = (window.__dlCurrentItems || [])[fi];
+        if (!it || !_rbRoleNorm(role)) return;
+        it.role = _rbRoleNorm(role);
+        _dlPatchSaved();
+        _dlRerender();
+        _rbTrack('role_cast', { surface: 'daily' });
+      };
       function _dlPatchSaved() {
         if (!_dlActiveSaveId || !window.__lastDlData) return;
         const saved = snLoad().find(x => x.id === _dlActiveSaveId);
@@ -8426,6 +8703,7 @@
             ? `<span class="rbc-hbtn" style="opacity:.55;pointer-events:none">Worn ✓</span><button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`
             : `<button class="rbc-hbtn" id="dl-wear-btn" onclick="window.__dlWear()" title="Log these pieces as worn — wear counts feed cost-per-wear">✓ Wore it</button><button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
           onFlip: '__dlFlip', onSwap: '__dlSwap', onAnchor: '__dlAnchor', onRemove: '__dlRemove',
+          onRoleDrop: '__dlRoleDrop',
           addPieceFn: '__dlAddPiece',
           lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
         }, conItems);
@@ -9235,6 +9513,7 @@
             ? `<button class="rbc-hbtn" onclick="window.__wkDressEvening()" title="A fresh evening look">↻ Restyle the evening</button>`
             : `<button class="rbc-hbtn" id="wk-wear-btn" onclick="window.__wkWear()" title="Log today’s pieces as worn — wear counts feed cost-per-wear">✓ Wore it today</button><button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button>`,
           onFlip: '__wkFlip', onSwap: '__wkSwap', onAnchor: '__wkAnchor', onRemove: '__wkRemove',
+          onRoleDrop: '__wkRoleDrop',
           addPieceFn: '__wkAddPiece',
           lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
         }, conItems);
@@ -9250,6 +9529,16 @@
         _rbPrefetchAlternates(items, 'weekly', _wkPaintConsole);
       }
 
+      window.__wkRoleDrop = function(ii, role) {
+        if (!_wkState) return;
+        const arr = _wkConItems();
+        const it = arr && arr[ii];
+        if (!it || !_rbRoleNorm(role)) return;
+        it.role = _rbRoleNorm(role);
+        _wkPatchSaved();
+        _wkPaintConsole();
+        _rbTrack('role_cast', { surface: 'weekly' });
+      };
       window.__wkFlip = function(ii, dir) {
         if (!_wkState) return;
         const arr = _wkConItems();
@@ -10877,7 +11166,7 @@ body>*:not(#tv-result-page){display:none !important}
             idx: i,
             frame: _tvFrame(it),
             slot: _dlSlot(it).l,
-            role: x.f && x.f.role,
+            role: (x.f && x.f.role) || it.role,
             shortName: _dlShort(it.name),
             name: it.name,
             owned: !!it.wardrobe_match,
@@ -10891,6 +11180,26 @@ body>*:not(#tv-result-page){display:none !important}
           };
         });
       }
+
+      // Drag-cast on the travel racks. Roles live on the formula entry, so
+      // a cast carries the look everywhere it is pinned (roles attach to
+      // pieces, not days); a day-scoped ADD has no formula slot and takes
+      // the role on its capsule item instead.
+      window.__tvRoleDrop = function(row, role, ctx) {
+        const data = window.__lastTvData;
+        if (!data || !_rbRoleNorm(role)) return;
+        const parts = String(ctx || '').split(':');
+        const li = Number(parts[0]);
+        const di = parts[1] === '' || parts[1] == null ? null : Number(parts[1]);
+        if (!Number.isInteger(li) || !data.looks || !data.looks[li]) return;
+        const e = _tvLookEntries(li, di)[row];
+        if (!e) return;
+        if (e.f) e.f.role = _rbRoleNorm(role);
+        else if (e.it) e.it.role = _rbRoleNorm(role);
+        _tvPatchSaved();
+        _tvPaintDetail();
+        _rbTrack('role_cast', { surface: 'travel' });
+      };
 
       var _tvTagLi = null;
       window.__tvTagsEdit = function(li) {
@@ -10934,6 +11243,7 @@ body>*:not(#tv-result-page){display:none !important}
             : `<button class="rbc-hbtn" onclick="window.__tvPinOpen(${li})">📌 Pin to days</button>`)
             + `<button class="rbc-hbtn" onclick="window.__tvPackLook(${li},${di == null ? 'null' : di})">${_tvCheckSvg} Pack this look</button>`,
           onFlip: opts.onFlip, onSwap: opts.onSwap, onRemove: opts.onRemove,
+          onRoleDrop: '__tvRoleDrop', roleCtx: li + ':' + (di == null ? '' : di),
           addPieceFn: opts.addPieceFn,
           lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
         }, conItems);

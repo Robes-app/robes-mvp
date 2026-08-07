@@ -273,6 +273,31 @@ const browser = await chromium.launch(
   check('grid · metadata carries pieces + wears + last worn',
     !!meta && /4 pieces · 2 wears · last 23 Jul/.test(meta.txt), meta && meta.txt);
 
+  // The grid bar (2026-08-07): + New look beside Refine, which filters the
+  // grid on the looks' tag axes. "Formal / Gala" is a vocabulary pick no
+  // fixture look can carry (stored or inherited), so the nothing-matches
+  // state is deterministic.
+  const bar = await page.evaluate(() => {
+    const barEl = document.getElementById('rb-lk-bar');
+    const newBtn = barEl && Array.from(barEl.querySelectorAll('button')).find((b) => /New look/.test(b.textContent));
+    window.__lkRefineToggle();
+    const drawer = document.querySelector('.rb-lk-refwrap');
+    const axes = drawer ? Array.from(drawer.querySelectorAll('.rb-lkref-ax')).map((e) => e.textContent) : [];
+    const chip = drawer && drawer.querySelector('.rb-lkref-chip[data-val="Formal / Gala"]');
+    if (chip) chip.click();
+    const shown = document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length;
+    const none = /No looks carry those tags/.test(document.getElementById('rb-lk-grid').textContent);
+    window.__lkRefineClear();
+    const restored = document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length;
+    window.__lkRefineToggle();
+    return { newBtn: !!newBtn, axes, shown, none, restored };
+  });
+  check('bar · + New look sits in the grid bar', bar.newBtn === true);
+  check('bar · Refine opens all four tag axes',
+    JSON.stringify(bar.axes) === JSON.stringify(['Climate', 'Light', 'Wear it for', 'Vibe']), JSON.stringify(bar.axes));
+  check('bar · a pick filters; nothing-matches names itself; Clear restores',
+    bar.shown === 0 && bar.none === true && bar.restored === 2, JSON.stringify(bar));
+
   // Delete runs LAST — it consumes the fixture
   check('grid · tiles carry the lookbook hover-✕', s.rmx === 2, String(s.rmx));
   const deleted = await page.evaluate(() => {
@@ -442,6 +467,54 @@ const browser = await chromium.launch(
   check('tags · the edit PATCHes looks.tags as a flat text[]',
     !!tagWrite && tagWrite.body.tags.includes('High Summer') && tagWrite.body.tags.includes('Boardroom Power'),
     JSON.stringify(tagWrite && tagWrite.body.tags));
+
+  // Custom tags (F2 "+ tag" amendment, 2026-08-07): Wear and Vibe are open
+  // axes — a typed tag chips in, and a custom vibe stores with the vibe:
+  // prefix so the flat array stays unambiguous.
+  const custom = await page.evaluate(() => {
+    window.__lkTagsEdit();
+    const sheet = document.getElementById('rb-tag-sheet');
+    const dashed = sheet ? sheet.querySelectorAll('button[onclick*="__rbTagAdd"]').length : 0;
+    window.__rbTagAdd('vibe');
+    const hadInput = !!document.querySelector('#rb-tag-newin');
+    window.__rbTagCommit('vibe', 'Quiet Luxury');
+    window.__rbTagDone(true);
+    const row = document.querySelector('.rb-lk-con .rbc-tags');
+    return { dashed, hadInput, rowText: row ? row.textContent : '' };
+  });
+  check('tags · Wear and Vibe carry the dashed + tag door', custom.dashed === 2, String(custom.dashed));
+  check('tags · a typed tag becomes an inline input, then a chip on the row',
+    custom.hadInput === true && /Quiet Luxury/.test(custom.rowText), custom.rowText);
+  await page.waitForTimeout(400);
+  const customWrite = writes.filter((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && Array.isArray(w.body?.tags)).pop();
+  check('tags · a custom vibe stores prefixed, keeping the axes recoverable',
+    !!customWrite && customWrite.body.tags.includes('vibe:Quiet Luxury'),
+    JSON.stringify(customWrite && customWrite.body.tags));
+
+  // Drag & drop role casting (A3 amendment, 2026-08-07): every rack row is
+  // draggable, a drop under a strip re-casts freely — the strips educate,
+  // they never constrain — and the cast persists on look_pieces.role.
+  const cast = await page.evaluate(() => {
+    const wraps = document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-dragrow[draggable="true"]');
+    const name0 = document.querySelector('.rb-lk-con .rbc-rack .rbc-dragrow[data-roledrag="0"] .rbc-name')?.textContent;
+    window.__lkDRoleDrop(0, 'The Exclamation Point');
+    const rack = document.querySelector('.rb-lk-con .rbc-rack');
+    const names = [];
+    let inGroup = false;
+    Array.from(rack.children).forEach((el) => {
+      if (el.classList.contains('rbc-rolestrip')) inGroup = el.textContent.trim() === 'The Exclamation Point';
+      else if (inGroup) { const n = el.querySelector('.rbc-name'); if (n) names.push(n.textContent); }
+    });
+    return { draggable: wraps.length, name0, names };
+  });
+  check('roles · every rack row is draggable', cast.draggable === 4, String(cast.draggable));
+  check('roles · a drop re-casts the piece under the target strip',
+    !!cast.name0 && cast.names.includes(cast.name0), JSON.stringify(cast));
+  await page.waitForTimeout(400);
+  const roleWrite = writes.filter((w) => w.method === 'POST' && /^look_pieces/.test(w.url)).pop();
+  const roleRows = roleWrite && (Array.isArray(roleWrite.body) ? roleWrite.body : [roleWrite.body]);
+  check('roles · the cast persists on look_pieces.role',
+    !!roleRows && roleRows.some((r) => r.role === 'The Exclamation Point'), JSON.stringify(roleRows));
 
 
   // The tap IS the wear, with a quiet undo on the card (A4/C1)
@@ -656,6 +729,19 @@ const browser = await chromium.launch(
     c0.emptyNames.join(' | ') === 'Add a top | Add a bottom | Add a shoe | Add a bag',
     JSON.stringify(c0.emptyNames));
   check('composer · Save is withheld until there is a look', c0.saveShown === false);
+  // B1 amendment (2026-08-07): the empty state teaches the formula — every
+  // empty row sits under a GHOSTED strip forecast from its slot. Education
+  // only: the forecast never binds what she adds where.
+  const ghosts = await page.evaluate(() => {
+    const strips = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip'));
+    return {
+      labels: strips.map((s) => s.textContent.trim()),
+      allGhost: strips.length > 0 && strips.every((s) => s.classList.contains('ghost')),
+    };
+  });
+  check('composer · empty rows sit under ghosted formula strips',
+    JSON.stringify(ghosts.labels) === JSON.stringify(['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'])
+      && ghosts.allGhost, JSON.stringify(ghosts));
   check('composer · the rack header reads The Rack', c0.rackEyebrow === 'The Rack', c0.rackEyebrow);
   check('composer · the name field is a placeholder, "Name your Look"',
     c0.titleValue === '' && c0.titlePlaceholder === 'Name your Look',
@@ -698,6 +784,22 @@ const browser = await chromium.launch(
   check('composer · the card carries the corner ✕', one.x === true);
   check('composer · the look board populates as pieces land', one.boardTiles === 1, String(one.boardTiles));
   check('composer · one piece is not yet a look (no Save)', one.saveShown === false);
+  // The strip inks in as the role is cast (B1), and a drag re-casts freely
+  const inked = await page.evaluate(() => {
+    const stripOf = (label) => Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip'))
+      .find((s) => s.textContent.trim() === label);
+    const before = { canvas: stripOf('The Canvas')?.classList.contains('ghost') };
+    window.__lkCRoleDrop(0, 'The Anchor');
+    const after = {
+      canvasGhost: stripOf('The Canvas')?.classList.contains('ghost'),
+      anchorGhost: stripOf('The Anchor')?.classList.contains('ghost'),
+    };
+    window.__lkCRoleDrop(0, 'The Canvas');
+    return { beforeCanvasGhost: before.canvas, ...after };
+  });
+  check('composer · a landed piece inks its strip; a drag re-casts it freely',
+    inked.beforeCanvasGhost === false && inked.canvasGhost === true && inked.anchorGhost === false,
+    JSON.stringify(inked));
 
   // The flick cycles same-category pieces
   const flicked = await page.evaluate(() => {
