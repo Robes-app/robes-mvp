@@ -15095,6 +15095,18 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           return;
         }
         if (_ikScope.kind === 'day') { _ikTrack('typed', 'restyle_day'); _ikRestyleDay(prompt); _ikClearPrompt(); return; }
+        // Deterministic fast path: an unmistakable "dress me …" needs no
+        // model round-trip — the classifier's daily outcome is the exact
+        // same __dlSubmit(prompt) call, so skipping it only removes a
+        // network dependency and 1–4s of ceremony (Annie, 2026-08-08:
+        // "dress me for a sunny saturday" stalled in the reading state).
+        // No day chip means today, which is __dlSubmit's own default.
+        if (/\bdress me\b/i.test(prompt)) {
+          _ikTrack('typed', 'daily');
+          _ikClearPrompt();
+          try { window.__dlSubmit(prompt); } catch (e) { _waShowToast('Robes couldn’t start that look — please try again.'); }
+          return;
+        }
         // Model call — open the reading state immediately, resolve into
         // ready (or clarify); a failure is never a dead end and never
         // loses the prompt.
@@ -15104,7 +15116,15 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           _rbTrack('prompt_submitted', { intent: seed.intent, scope: _ikScope.kind, source: 'typed', latency_ms: ms, ok: true });
           const conf = seed.confidence >= 0.6 && seed.intent !== 'unclear';
           if (!conf) { _ikOpen('clarify', { prompt }); return; }
-          if (seed.intent === 'daily') { _ikClose(); _ikClearPrompt(); window.__dlSubmit(prompt); return; }
+          if (seed.intent === 'daily') {
+            _ikClose();
+            _ikClearPrompt();
+            // A throw here used to vanish inside the promise chain — the
+            // panel had already closed, so the flow read as "collapsed back
+            // to home" with no error. Never silent.
+            try { window.__dlSubmit(prompt); } catch (e) { _waShowToast('Robes couldn’t start that look — please try again.'); }
+            return;
+          }
           _ikOpen(seed.intent, { ...seed, prompt });
         }).catch(() => {
           _rbTrack('prompt_submitted', { intent: 'error', scope: _ikScope.kind, source: 'typed', latency_ms: Date.now() - t0, ok: false });
@@ -15178,8 +15198,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         _ikState = { kind: 'reading', reading: true, prompt, openedAt: Date.now() };
         _ikOpenedAt = Date.now();
         _ikAttach(true);
-        // COPY: needs sign-off
-        host.innerHTML = '<div class="ik-read">Reading your week<span>…</span></div>'
+        // COPY: needs sign-off (was "Reading your week" — stale since the
+        // weekly track retired; the classify covers day and trip prompts)
+        host.innerHTML = '<div class="ik-read">Reading your prompt<span>…</span></div>'
           + '<div class="ik-sk" style="width:60%"></div><div class="ik-sk" style="width:84%"></div><div class="ik-sk" style="width:72%"></div>';
       }
       function _ikRows(fromISO, days, dayIntents) {
