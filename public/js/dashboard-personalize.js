@@ -6631,7 +6631,7 @@
         // Look detail — the same verb travel's day console already has.
         const lookM = moments.find(m => m.source_type === 'look');
         const unpin = lookM ? `<button class="dpk-btn" onclick="window.__rbDayPeekUnpin()">Unpin the look</button>` : '';
-        const openLbl = dayM.source_type === 'look' ? 'Open the look →' : 'Open the day →';
+        const openLbl = 'Open the day →'; // a pinned look opens AS the day (__lkOpenAsDay)
         const el = document.createElement('div');
         el.id = 'rb-dpk';
         el.innerHTML = `<div class="dpk-veil" onclick="window.__rbDayPeekClose()"></div>` +
@@ -7100,6 +7100,52 @@
         if (typeof _lkPaint === 'function') _lkPaint(); // the detail's pins line reads _lkPins
         _rbTrack('look_unpinned', {});
       }
+      // Opening a pinned-look DAY stays a day (Annie, 2026-08-08: landing on
+      // the wardrobe's Look detail ripped her out of the calendar): the look
+      // renders through the Daily console — date masthead, weather pill,
+      // Day/Evening switcher, The Look + The Rack, Wore it / Restyle — as a
+      // synthesized dlData, no generation call. skipSave: nothing is minted;
+      // "Wore it" still lands on THIS look (__dlWear accrues by exact piece
+      // set), and Restyle generates a real daily look anchored to the date.
+      // Returns false (→ caller falls back to the Look detail) when the
+      // look's pieces can't be resolved from the wardrobe.
+      window.__lkOpenAsDay = function(m) {
+        const l = _lkFind(m && m.source_id);
+        if (!l) return false;
+        const items = (l.pieces || []).map(p => {
+          const wi = _waItems.find(w => String(w.id) === String(p.id));
+          if (!wi) return null;
+          return {
+            name: wi.label || 'A piece',
+            category: wi.category || 'Other',
+            brand: wi.brand || '',
+            how: '',
+            role: _rbRoleNorm(p.role) || '',
+            wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
+          };
+        }).filter(Boolean);
+        if (!items.length || typeof window.__dlRenderResult !== 'function') return false;
+        const date = m.day_date || _pdLocalISO();
+        const rc = window.__rbCtx || {};
+        const month = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { month: 'long' });
+        const dayName = (m.activity && m.activity !== l.name) ? m.activity : null;
+        const data = {
+          headline: dayName || l.name || 'Your look, planned.',
+          occasion_label: dayName || l.name || '',
+          stylist_summary: l.note || '',
+          steps: [{ title: '', items }],
+          anchor_date: date,
+          context: (rc.city || rc.tempRange)
+            ? { city: rc.city || '', month, tempRange: rc.tempRange || '', condition: rc.condition || '', hint: rc.hint || '' }
+            : null,
+          look_tags: _rbTagsParse(l.tags),
+          prompt: dayName || l.name || '',
+          look_id: String(l.id),
+        };
+        window.__dlRenderResult(data, data.prompt, { skipSave: true });
+        _rbTrack('look_day_opened', { look: String(l.id) });
+        return true;
+      };
 
       // ── The tab ─────────────────────────────────────────────────────────
       var _LK_CSS = `
@@ -8592,7 +8638,14 @@
           name: it.name, category: it.category || '', brand: it.brand || '',
           wardrobe_id: it.wardrobe_match ? it.wardrobe_match.id : null,
         }));
-        window.__dlSubmit(window.__lastDlPrompt || (window.__lastDlData && window.__lastDlData.prompt) || '', { locked, savedId: _dlActiveSaveId });
+        window.__dlSubmit(window.__lastDlPrompt || (window.__lastDlData && window.__lastDlData.prompt) || '', {
+          locked,
+          savedId: _dlActiveSaveId,
+          // No saved row (a pinned-look day rendered via __lkOpenAsDay):
+          // the fresh generation must still anchor to the day on screen,
+          // not to whenever the restyle runs.
+          anchorDate: !_dlActiveSaveId ? ((window.__lastDlData && window.__lastDlData.anchor_date) || undefined) : undefined,
+        });
       };
       // Add a piece to the rack (+ button) — opens the wardrobe add modal
       // over the page; the new piece joins The Rack (and the moodboard board)
@@ -14337,9 +14390,13 @@ body>*:not(#tv-result-page){display:none !important}
         // (§6.4: a day is one identity; three openers is how they drift).
         window._rbOpenPlannedDay = function(m) {
           if (!m) return;
-          // A pinned Look has no lookbook blob to open — its own detail IS the
-          // day's open view (source_id is a looks uuid, never a numeric id).
+          // A pinned Look opens AS THE DAY — the Daily console hosting the
+          // look with date + weather context (__lkOpenAsDay), never a bounce
+          // to the wardrobe's Look detail (source_id is a looks uuid, never
+          // a numeric id). The detail survives only as the fallback when the
+          // look's pieces can't be resolved.
           if (m.source_type === 'look') {
+            if (window.__lkOpenAsDay && window.__lkOpenAsDay(m)) return;
             if (window.__rbNavGo) window.__rbNavGo('wardrobe');
             setTimeout(() => { window.__lkOpen && window.__lkOpen(m.source_id); }, 260);
             return;
