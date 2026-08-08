@@ -7017,13 +7017,26 @@
           totalDays: dates.length,
         };
       }
-      function _lkPin(id, date) {
+      function _lkPin(id, date, label) {
         const l = _lkFind(id);
         if (!l || !date) return;
         const dates = _lkPins(id);
         if (dates.indexOf(date) === -1) dates.push(date);
         dates.sort();
+        // Day names survive the rebuild: a pin made from the prompt carries
+        // her words as the day's activity (A.2 — "the prompt text becomes
+        // the day's name"; _dcTitleOf prefers activity over headline), and
+        // names given to earlier pins are carried forward — _pdRowsLk alone
+        // would reset every date back to the look's name.
+        const named = {};
+        _pdCacheRead().forEach(r => {
+          if (r.source_type === 'look' && String(r.source_id) === String(id) && r.activity && r.activity !== (l.name || null)) named[r.day_date] = r.activity;
+        });
         const built = _pdRowsLk(l, dates);
+        built.rows.forEach(r => {
+          if (label && r.day_date === date) r.activity = String(label).slice(0, 120);
+          else if (named[r.day_date]) r.activity = named[r.day_date];
+        });
         // Optimistic cache write so the rail shows the pin before the round trip
         const rest = _pdCacheRead().filter(r => !(r.source_type === 'look' && String(r.source_id) === String(id)));
         _pdCacheWrite(rest.concat(built.rows));
@@ -12467,6 +12480,7 @@ body>*:not(#tv-result-page){display:none !important}
       // sole placeholder mechanism.
       let _cbIntent = null; // null | 'style' | 'dress-me' | 'travel'
       let _cbPhotoData = null;
+      let _cbLookId = null;   // a Lookbook look attached via the + menu (A.2 prompt-first) — Style me pins it to the scoped day
       let _cbSeedPrefix = null; // static prefix of a card-injected scaffold
 
       const _CHIP_DEFS = [
@@ -12580,11 +12594,64 @@ body>*:not(#tv-result-page){display:none !important}
         _waShowToast(wi.label + ' anchored to your prompt');
       };
 
+      // "Add a look" (+ menu, A.2 prompt-first): her Lookbook behind the
+      // same door as her photos and wardrobe pieces. Attaching a look arms
+      // _cbLookId; Style me then PINS it to the scoped day (planned_days,
+      // source_type 'look' — top precedence) instead of generating, and the
+      // prompt text becomes the day's name. Tiles compose window._rbLookTile
+      // (handoff rule: never a second look card).
+      window.__cbLookPick = function() {
+        document.getElementById('cb-lk-pick')?.remove();
+        const looks = (typeof _lkLooks !== 'undefined' && Array.isArray(_lkLooks)) ? _lkLooks : [];
+        if (!looks.length) { _waShowToast('No looks yet — build one under Wardrobe › Looks first'); return; }
+        const serif = "'Cormorant',Georgia,serif";
+        const lt = window._rbLookTile;
+        const modal = document.createElement('div');
+        modal.id = 'cb-lk-pick';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        const tiles = looks.slice(0, 60).map(l => `
+          <button onclick="window.__cbLookApply('${_waEsc(String(l.id))}')" style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:10px;padding:8px;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit">
+            ${lt.mosaic(lt.cells(_lkPieceIds(l)), { photo: l.photo_url || undefined, alt: l.name || 'Saved look' })}
+            <div style="padding:7px 2px 2px;font-size:11.5px;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(l.name || 'A look')}</div>
+          </button>`).join('');
+        modal.innerHTML = `
+          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">From your lookbook</p>
+              <button onclick="document.getElementById('cb-lk-pick').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);font-size:16px;line-height:1">×</button>
+            </div>
+            <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 16px;line-height:1.2">Which look are we scheduling?</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px">${tiles}</div>
+          </div>`;
+        document.body.appendChild(modal);
+      };
+      window.__cbLookApply = function(id) {
+        document.getElementById('cb-lk-pick')?.remove();
+        const l = (typeof _lkFind === 'function') ? _lkFind(id) : null;
+        if (!l) return;
+        _cbClearPhoto(); // one attachment at a time — the look replaces any photo/piece
+        _cbLookId = String(l.id);
+        const thumb = l.photo_url || (window._rbLookTile.cells(_lkPieceIds(l)).find(c => c && c.url) || {}).url || null;
+        const box = document.getElementById('cb-attached');
+        if (box) {
+          box.innerHTML =
+            `<div class="hp-chip">${thumb ? `<img src="${_waEsc(thumb)}" alt="">` : ''}` +
+            `<span class="hp-chip-label">${_waEsc(l.name || 'A look')}</span>` +
+            `<button class="hp-chip-x" onclick="window.__cbClearPhoto&&window.__cbClearPhoto()" aria-label="Remove look">` +
+            `<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>`;
+          box.hidden = false;
+        }
+        _rbTrack('look_attach', { look: String(l.id) });
+        _waShowToast('“' + (l.name || 'Your look') + '” attached — Style me pins it to the day');
+      };
+
       // Clear the attached photo/piece — state + the bundle's #cb-attached
       // chip. (P0: the old always-visible attach row is gone; attachment
       // lives in the + menu alongside Upload / Take a picture.)
       function _cbClearPhoto() {
         _cbPhotoData = null;
+        _cbLookId = null;
         const box = document.getElementById('cb-attached');
         if (box) { box.innerHTML = ''; box.hidden = true; }
         const inp = document.getElementById('cb-file');
@@ -12886,6 +12953,22 @@ body>*:not(#tv-result-page){display:none !important}
           prompt = prompt.replace(/\[([^\]]*)\]/g, '$1').replace(/\s{2,}/g, ' ').trim();
           if (ta) { ta.value = prompt; _cbAutoGrow(ta); }
         }
+        // A look attached via the + menu (A.2 prompt-first): Style me PINS
+        // it to the scoped day — no generation. The prompt text becomes the
+        // day's name; no day chip means today (the daily default).
+        if (_cbLookId) {
+          const lk = _lkFind(_cbLookId);
+          _cbLookId = null;
+          if (!lk) { _cbClearPhoto(); _waShowToast('That look is gone from your lookbook'); return; }
+          const scoped = (typeof _ikScope === 'object' && _ikScope && _ikScope.kind === 'day' && _ikScope.date) ? _ikScope.date : null;
+          const date = scoped || _pdLocalISO();
+          _lkPin(lk.id, date, prompt ? prompt.slice(0, 120) : null);
+          _rbTrack('prompt_submitted', { intent: 'pin-look', scope: scoped ? 'day' : 'none', source: 'typed', ok: true });
+          if (scoped && typeof _ikScopeBack === 'function') _ikScopeBack();
+          _cbReset();
+          _waShowToast('“' + (lk.name || 'Your look') + '” pinned to ' + (date === _pdLocalISO() ? 'today' : _lkFmt(date)));
+          return;
+        }
         // Diary prompt (flag diary_prompt_intake): the field becomes the
         // single entry point — scope-aware routing + the unfurl intake
         // replace chip detection entirely while the flag is on.
@@ -12934,7 +13017,23 @@ body>*:not(#tv-result-page){display:none !important}
           waOpt.onclick = function() { window.__cbWardrobePick && window.__cbWardrobePick(); };
           addMenu.appendChild(waOpt);
         }
+        // "Add a look" joins it too (A.2 prompt-first): the Lookbook behind
+        // the same door as her photos and wardrobe pieces. The count sub-line
+        // refreshes on every menu open (looks load async after boot).
+        if (addMenu && !document.getElementById('cb-addopt-lk')) {
+          const lkOpt = document.createElement('button');
+          lkOpt.id = 'cb-addopt-lk';
+          lkOpt.className = 'hp-addopt';
+          lkOpt.innerHTML = `<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.25"><span>Add a look</span><span id="cb-addopt-lk-n" style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:11px;color:var(--ink-faint)"></span></span>`;
+          lkOpt.onclick = function() { window.__cbLookPick && window.__cbLookPick(); };
+          addMenu.appendChild(lkOpt);
+        }
       }, 1000);
+      document.addEventListener('click', function(e) {
+        if (!e.target || !e.target.closest || !e.target.closest('#cb-add-btn')) return;
+        const s = document.getElementById('cb-addopt-lk-n');
+        if (s && typeof _lkLooks !== 'undefined') s.textContent = 'Lookbook · ' + _lkN(_lkLooks.length, 'look');
+      }, true);
 
       // The bundle's + menu photo path (#cb-file → Dash.onPhoto renders the
       // attached chip) must also feed _cbPhotoData. Capture phase on
@@ -12955,7 +13054,7 @@ body>*:not(#tv-result-page){display:none !important}
       // The bundle chip's × calls Dash.removePhoto (clears the chip only) —
       // clear our attachment state alongside it.
       document.addEventListener('click', function(e) {
-        if (e.target && e.target.closest && e.target.closest('#cb-attached .hp-chip-x')) _cbPhotoData = null;
+        if (e.target && e.target.closest && e.target.closest('#cb-attached .hp-chip-x')) { _cbPhotoData = null; _cbLookId = null; }
       }, true);
 
       // Intercept send button click and Enter key — routes via _cbSubmit
