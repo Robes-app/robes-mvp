@@ -4252,18 +4252,9 @@
         empty.style.display = 'none';
         _snClearWays();
         _rbcInitSwipe();
-        grid.innerHTML = visible.map(item => `
-          <div onclick="window.__snOpenItem(${item.id})" data-rmfn="__snRemove" data-rmidx="${item.id}" data-rmconfirm="1" style="position:relative;background:#fff;border-radius:var(--rad);overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08);cursor:pointer" onmouseenter="this.querySelector('.sn-rm').style.opacity='1'" onmouseleave="this.querySelector('.sn-rm').style.opacity='0'">
-            <button class="sn-rm" onclick="event.stopPropagation();window.__snRemove(${item.id})" style="position:absolute;top:10px;right:10px;opacity:0;transition:opacity .15s;background:rgba(32,32,33,0.55);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-            ${item.img ? `<img src="${_waEsc(item.img)}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block" alt="">` : `<div style="width:100%;aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`}
-            <div style="padding:14px 16px 16px">
-              <span style="display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px">${_snTypeLabel(item.type)}</span>
-              <div style="font-family:'Cormorant',Georgia,serif;font-size:17px;font-weight:300;color:#202021;line-height:1.3;margin-bottom:4px">${_waEsc(item.title)}</div>
-              <div style="font-size:11px;color:var(--ink-faint)">${_waEsc(item.subtitle || '')}</div>
-            </div>
-          </div>`).join('');
+        // The SAME card the All looks shelf composes (_lkItemCard) — all
+        // four shelves are one family (cohesion pass 2026-08-08).
+        grid.innerHTML = visible.map(item => _lkItemCard(item)).join('');
       }
 
       // ── Conditional dashboard row ────────────────────────────────────
@@ -6138,6 +6129,15 @@
 .lt-title{font-family:var(--font-serif);font-weight:400;font-size:19px;line-height:1.15;color:var(--ink)}
 .lt-title.prov{font-style:italic;color:var(--ink-soft)}
 .lt-meta{font-size:10.5px;color:var(--ink-faint);margin-top:3px}
+.lt-ey{display:block;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px}
+/* The card dress (cohesion pass 2026-08-08): the same white-card chrome
+   the lookbook's item shelves wear, so every object the Lookbook holds —
+   a Look, a key piece styled, a daily look, a travel edit — reads as one
+   family. The mosaic yields its own radius inside the card. */
+.lt-card{background:#fff;border-radius:var(--rad);overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08)}
+.lt-card .rb-lk-mos{border-radius:0}
+.lt-card .lt-info{padding:13px 16px 15px}
+.lt-card .lt-title{font-size:17px;font-weight:300;line-height:1.3}
 @media(max-width:767px){.lt-title{font-size:17px}}`;
       function _ltEnsureCss() {
         if (document.getElementById('rb-lt-style')) return;
@@ -6223,6 +6223,7 @@
         return `<div class="rb-lk-tile${opts.extraClass ? ' ' + opts.extraClass : ''}"${body}>` +
           _ltMosaicHtml(d.cells, { photo: d.photo, alt: d.title, hero: opts.hero }) +
           `<div class="lt-info">` +
+            (d.eyebrow ? `<span class="lt-ey">${_waEsc(d.eyebrow)}</span>` : '') +
             _ltTitleHtml(d.title, 'lt', d.provisional) +
             (d.meta ? `<div class="lt-meta">${_waEsc(d.meta)}</div>` : '') +
           `</div>` +
@@ -7183,9 +7184,9 @@
 .rb-lkref-chip{border-radius:100px;padding:7px 13px;font-size:11.5px;cursor:pointer;font-family:inherit;background:#fff;border:1px solid rgba(32,32,33,0.16);color:var(--ink-soft);transition:all .15s}
 .rb-lkref-chip.on{background:var(--secondary,#E3E1CC);border-color:transparent;color:var(--ink)}
 .rb-lkref-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:0.5px solid var(--rule);padding-top:12px}
-#rb-lk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
-@media(max-width:1199px){#rb-lk-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:767px){#rb-lk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}}
+#rb-lk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+@media(max-width:1023px){#rb-lk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767px){#rb-lk-grid{grid-template-columns:1fr}}
 .rb-lk-eyebrow{font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
 .rb-lk-title-in{width:100%;margin-top:7px;padding:2px 0 9px;border:none;border-bottom:0.5px solid var(--rule-mid);background:transparent;font-family:var(--font-serif);font-weight:300;font-size:clamp(26px,3vw,34px);line-height:1.1;color:var(--ink);outline:none}
 .rb-lk-title-in.prov{font-style:italic;color:var(--ink-soft)}
@@ -7294,7 +7295,7 @@
         // it") hides the wrap, so a direct paint (the composer opened from
         // that state, the first look landing) must re-show it. The bare
         // empty grid never claims: the ways state owns the truly-empty page.
-        if (_lkView !== 'grid' || _lkLooks.length) {
+        if (_lkView !== 'grid' || _lkLooks.length || _lkShelfItems().length) {
           const snEl = document.getElementById('sn-page');
           if (snEl && snEl.style.display !== 'none') {
             const wrapEl = document.getElementById('rb-lk-wrap');
@@ -7311,45 +7312,39 @@
         const body = document.getElementById('rb-lk-body');
         if (!bar || !grid || !body) return;
         const detail = _lkView !== 'grid';
+        const shelfItems = _lkShelfItems();
+        const any = _lkLooks.length || shelfItems.length;
         bar.style.display = detail || !_lkLooks.length ? 'none' : 'flex';
-        grid.style.display = detail || !_lkLooks.length ? 'none' : 'grid';
+        grid.style.display = detail || !any ? 'none' : 'grid';
         if (detail) {
           body.innerHTML = _lkView === 'new' ? _lkNewHtml() : _lkDetailHtml();
           return;
         }
-        body.innerHTML = _lkLooks.length ? '' : _lkEmptyHtml();
-        if (!_lkLooks.length) return;
+        body.innerHTML = any ? '' : _lkEmptyHtml();
+        if (!any) return;
         const refN = _lkRefineCount();
-        bar.innerHTML = '<button type="button" class="rb-lk-sort" onclick="window.__lkSort()">' +
-          '<span>' + (_lkSortDesc ? 'Last worn' : 'First worn') + '</span>' +
-          '<b>' + (_lkSortDesc ? '↓' : '↑') + '</b></button>' +
-          '<button type="button" class="rb-lk-sort' + (refN || _lkRefineOpen ? ' hot' : '') + '" onclick="window.__lkRefineToggle()">' +
-            '<span>Refine' + (refN ? ' · ' + refN : '') + '</span></button>' +
-          '<span style="flex:1"></span>' +
-          '<button type="button" class="rb-lk-act primary" onclick="window.__lkNew()">+ New look</button>' +
-          (_lkRefineOpen ? _lkRefineHtml() : '');
-        const shown = _lkSorted().filter(_lkMatchRefine);
-        const noneHtml = refN && !shown.length
+        if (_lkLooks.length) {
+          bar.innerHTML = '<button type="button" class="rb-lk-sort" onclick="window.__lkSort()">' +
+            '<span>' + (_lkSortDesc ? 'Last worn' : 'First worn') + '</span>' +
+            '<b>' + (_lkSortDesc ? '↓' : '↑') + '</b></button>' +
+            '<button type="button" class="rb-lk-sort' + (refN || _lkRefineOpen ? ' hot' : '') + '" onclick="window.__lkRefineToggle()">' +
+              '<span>Refine' + (refN ? ' · ' + refN : '') + '</span></button>' +
+            '<span style="flex:1"></span>' +
+            '<button type="button" class="rb-lk-act primary" onclick="window.__lkNew()">+ New look</button>' +
+            (_lkRefineOpen ? _lkRefineHtml() : '');
+        }
+        const looksShown = _lkSorted().filter(_lkMatchRefine);
+        const noneHtml = refN && !looksShown.length
           ? '<div style="grid-column:1/-1;padding:26px 0 6px;font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">No looks carry those tags. <button type="button" class="rb-lk-quiet" onclick="window.__lkRefineClear()" style="font-style:normal">Clear the filters</button></div>'
           : '';
-        grid.innerHTML = noneHtml + shown.map(l => {
-          const n = _lkWearCount(l);
-          const last = _lkLastWorn(l);
-          return '<div class="rb-lk-tilewrap">' + _ltTile({
-            title: l.name,
-            provisional: l.name_provisional,
-            cells: _ltCells(_lkPieceIds(l)),
-            photo: l.photo_url,
-            meta: _lkN(_lkPieceIds(l).length, 'piece') + ' · ' + (n ? _lkN(n, 'wear') + ' · last ' + _lkFmt(last) : 'not worn yet'),
-          }, { body: "window.__lkOpen('" + l.id + "')" }) +
-          '<button class="rb-lk-rmx" onclick="window.__lkDeleteAsk(\'' + l.id + '\', event)" title="Delete this look" aria-label="Delete this look">' +
-            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
-          '</button>' +
-          // "Wear" on every look card (IA rule 02: the one scheduling verb,
-          // today or a future day — the date is the only difference)
-          '<button class="rb-lk-wearx" onclick="window.__lkWearAsk(\'' + l.id + '\', event)" title="Wear it — today or on a day">Wear</button>' +
-          '</div>';
-        }).join('') +
+        // ONE stream (cohesion pass 2026-08-08): her Looks and every saved
+        // result — key pieces styled, daily looks, travel edits — interleave
+        // by recency in one card language. Refine speaks the look-tag axes,
+        // so live filters narrow to looks alone.
+        const entries = looksShown.map(l => ({ ts: _lkCardTs(l), html: _lkLookCard(l) }))
+          .concat(refN ? [] : shelfItems.map(i => ({ ts: Number(i.id) || 0, html: _lkItemCard(i) })));
+        entries.sort((a, b) => _lkSortDesc ? b.ts - a.ts : a.ts - b.ts);
+        grid.innerHTML = noneHtml + entries.map(e => e.html).join('') +
         // The way in stays on the grid — the same amplified add card the
         // pieces grid carries (Annie, 2026-07-30: the CTA vanished once a
         // look existed; only the empty state offered one).
@@ -7357,6 +7352,59 @@
           '<span class="rb-add-plus">+</span>' +
           '<span class="rb-add-serif">New look</span>' +
           '<span class="rb-add-hint">Built from your pieces</span>' +
+        '</div>';
+      }
+
+      // Everything the Lookbook holds, minus the P0-hidden moodboards —
+      // the All looks shelf shows the whole collection, one card each.
+      function _lkShelfItems() {
+        try {
+          return (typeof snLoad === 'function' ? snLoad() : []).filter(i => i && i.type !== 'moodboard');
+        } catch (_) { return []; }
+      }
+      // Recency for the unified stream: a look sorts by its last wear
+      // (never-worn falls to the end descending, the front ascending —
+      // the standing sort semantics); an item by the moment it was saved
+      // (its id is the save's epoch ms).
+      function _lkCardTs(l) {
+        const w = _lkLastWorn(l);
+        return w ? (Date.parse(String(w).slice(0, 10) + 'T12:00:00') || 0) : 0;
+      }
+      function _lkLookCard(l) {
+        const n = _lkWearCount(l);
+        const last = _lkLastWorn(l);
+        return '<div class="rb-lk-tilewrap">' + _ltTile({
+          eyebrow: 'Look',
+          title: l.name,
+          provisional: l.name_provisional,
+          cells: _ltCells(_lkPieceIds(l)),
+          photo: l.photo_url,
+          meta: _lkN(_lkPieceIds(l).length, 'piece') + ' · ' + (n ? _lkN(n, 'wear') + ' · last ' + _lkFmt(last) : 'not worn yet'),
+        }, { body: "window.__lkCardOpen('" + l.id + "')", extraClass: 'lt-card' }) +
+        '<button class="rb-lk-rmx" onclick="window.__lkDeleteAsk(\'' + l.id + '\', event)" title="Delete this look" aria-label="Delete this look">' +
+          '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+        '</button>' +
+        // "Wear" on every look card (IA rule 02: the one scheduling verb,
+        // today or a future day — the date is the only difference)
+        '<button class="rb-lk-wearx" onclick="window.__lkWearAsk(\'' + l.id + '\', event)" title="Wear it — today or on a day">Wear</button>' +
+        '</div>';
+      }
+      // A saved result in the same card — its generated image where a look
+      // shows its mosaic, its type as the eyebrow. Used by the All looks
+      // stream AND the type shelves (snRenderPage), so all four tabs are
+      // one family.
+      function _lkItemCard(i) {
+        const img = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : null;
+        return '<div class="rb-lk-tilewrap" data-rmfn="__snRemove" data-rmidx="' + Number(i.id) + '" data-rmconfirm="1">' + _ltTile({
+          eyebrow: _snTypeLabel(i.type),
+          title: i.title || 'Saved look',
+          meta: i.subtitle || '',
+          cells: [],
+          photo: img,
+        }, { body: 'window.__snOpenItem(' + Number(i.id) + ')', extraClass: 'lt-card' }) +
+        '<button class="rb-lk-rmx" onclick="event.stopPropagation();window.__snRemove(' + Number(i.id) + ')" title="Delete" aria-label="Delete">' +
+          '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+        '</button>' +
         '</div>';
       }
 
@@ -7807,6 +7855,32 @@
 
       // ── Handlers ────────────────────────────────────────────────────────
       window.__lkSort = function() { _lkSortDesc = !_lkSortDesc; _lkPaint(); _rbTrack('looks_sorted', { desc: _lkSortDesc }); };
+      // A look card opens as it is worn (cohesion pass 2026-08-08): assigned
+      // to a calendar day → that day's daily view (next upcoming pin, else
+      // the latest); a generic look → today's daily view. Both render
+      // through __lkOpenAsDay (nothing minted; "Wore it" accrues to THIS
+      // look); the Look detail stays one tap away behind the daily view's
+      // "Look details →" door, and remains the fallback when the look's
+      // pieces can't be resolved.
+      window.__lkCardOpen = function(id) {
+        const today = _pdLocalISO();
+        const pins = _lkPins(id);
+        const up = pins.filter(d => d >= today);
+        const date = up.length ? up[0] : (pins.length ? pins[pins.length - 1] : today);
+        let activity = null;
+        if (pins.length) {
+          const row = _pdCacheRead().find(r => r.source_type === 'look' && String(r.source_id) === String(id) && r.day_date === date);
+          activity = (row && row.activity) || null;
+        }
+        if (window.__lkOpenAsDay && window.__lkOpenAsDay({ source_id: id, day_date: date, activity })) return;
+        window.__lkOpen(id);
+      };
+      // The daily view's quiet door back to the Look entity — rename, wear
+      // history, Wear on a day, promotion all live on the detail.
+      window.__lkFromDaily = function(id) {
+        if (window.__rbCloseResultOverlays) window.__rbCloseResultOverlays();
+        window.__lkOpen(id);
+      };
       window.__lkOpen = function(id) {
         _lkShelfOpen();
         _lkActive = id; _lkView = 'detail';
@@ -8819,6 +8893,9 @@
 #dl-result-page .dlm-wrap{max-width:var(--shell,1440px);margin:0 auto;padding:34px var(--s6,36px) 28px;box-sizing:border-box}
 #dl-result-page .dlm-eyebrow{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose);margin-bottom:8px}
 #dl-result-page .dlm-title{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:clamp(30px,4vw,42px);line-height:1.05;color:var(--ink);margin:0}
+#dl-result-page .dlm-lksrc{font-size:11.5px;color:var(--ink-faint);margin:10px 0 0}
+#dl-result-page .dlm-lksrc button{background:none;border:none;padding:0 0 1px;font-family:inherit;font-size:11.5px;color:var(--ink-soft);border-bottom:0.5px solid var(--rule-mid);cursor:pointer}
+#dl-result-page .dlm-lksrc button:hover{color:var(--ink);border-bottom-color:var(--ink)}
 #dl-result-page .dlm-kws{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:12px}
 #dl-result-page .dlm-kws .kw{font-size:9.5px;font-weight:500;letter-spacing:.06em;color:var(--ink-faint)}
 #dl-result-page .dlm-kws .dot{color:var(--mauve)}
@@ -9069,6 +9146,7 @@
                 <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('dl')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
               </div>
               ${data.occasion_label ? `<div class="dlm-kws"><span class="kw">${_waEsc(cap1(data.occasion_label.toLowerCase()))}</span></div>` : ''}
+              ${data.look_id && typeof _lkFind === 'function' && _lkFind(data.look_id) ? `<div class="dlm-lksrc">From your look “${_waEsc(_lkFind(data.look_id).name || 'Saved look')}” — <button onclick="window.__lkFromDaily&&window.__lkFromDaily('${_waEsc(String(data.look_id))}')">Look details →</button></div>` : ''}
               <div class="dlm-meta-row">
                 ${ctx && (ctx.city || ctx.tempRange) ? `<div class="dlm-wx"><span>🌤</span><strong>${_waEsc([ctx.city, ctx.month].filter(Boolean).join(' · '))}</strong>${ctx.tempRange ? `<span class="div"></span><span>${_waEsc(ctx.tempRange)}</span>` : ''}${ctx.hint ? `<span class="div"></span><span>${_waEsc(ctx.hint)}</span>` : ''}</div>` : ''}
                 ${data.occasion_label ? `<div class="dlm-tag"><span class="lab">Occasion</span><span class="val">${_waEsc(cap1(data.occasion_label.toLowerCase()))}</span></div>` : ''}

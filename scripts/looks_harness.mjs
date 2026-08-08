@@ -229,6 +229,8 @@ const browser = await chromium.launch(
       mosaicCells: document.querySelectorAll('#rb-lk-grid .rb-lk-tilewrap:first-child .rb-lk-mos i').length,
       sortLabel: document.querySelector('.rb-lk-sort span')?.textContent,
       sortArrow: document.querySelector('.rb-lk-sort b')?.textContent,
+      eyebrows: Array.from(document.querySelectorAll('#rb-lk-grid .lt-ey')).map((e) => e.textContent),
+      cardDress: document.querySelectorAll('#rb-lk-grid .lt-card').length,
       path: location.pathname,
     };
   });
@@ -245,6 +247,9 @@ const browser = await chromium.launch(
     s.wrapVisible && s.itemGridHidden, JSON.stringify([s.wrapVisible, s.itemGridHidden]));
   check('tab · deep-linkable path', s.path === '/lookbook', s.path);
   check('grid · every look card carries the Wear verb', s.wearBtns === 2, String(s.wearBtns));
+  check('grid · cards carry the type eyebrow in the shared card dress',
+    s.eyebrows.every((e) => e === 'Look') && s.eyebrows.length === 2 && s.cardDress === 2,
+    JSON.stringify([s.eyebrows, s.cardDress]));
   check('grid · one tile per look', s.tiles === 2, String(s.tiles));
   check('grid · a New look add card mirrors the pieces grid',
     s.addCard === true && /New look/.test(s.addCardText || ''), JSON.stringify([s.addCard, s.addCardText]));
@@ -1077,25 +1082,27 @@ const browser = await chromium.launch(
   }));
   check('empty · a truly empty account keeps the ways-to-fill cold start',
     cold.waysShown === true && cold.wrapHidden === true, JSON.stringify(cold));
-  // Once anything is saved, the looks module's own empty state serves.
+  // Once anything is saved the shelf fills — the unified stream shows the
+  // saved result in the shared card, the add card keeps the way in, and
+  // sort/Refine stay withheld until an actual Look exists.
   await page.evaluate(() => {
     localStorage.setItem('robes_style_notes__u-test',
-      JSON.stringify([{ id: 1, type: 'key-piece', title: 'A look', subtitle: '', img: null }]));
+      JSON.stringify([{ id: 1754640000000, type: 'key-piece', title: 'A look', subtitle: 'Worn three ways', img: null }]));
     window.__lkGo();
   });
   await page.waitForTimeout(300);
   const e = await page.evaluate(() => ({
-    head: document.querySelector('.rb-lk-empty h3')?.textContent,
-    body: document.querySelector('.rb-lk-empty p')?.textContent,
-    acts: Array.from(document.querySelectorAll('.rb-lk-empty-acts button')).map((b) => b.textContent),
-    paras: document.querySelectorAll('.rb-lk-empty p').length,
+    itemCards: document.querySelectorAll('#rb-lk-grid .lt-card').length,
+    eyebrow: document.querySelector('#rb-lk-grid .lt-ey')?.textContent,
+    addCard: !!document.querySelector('#rb-lk-grid .rb-add-card'),
+    moduleEmpty: !!document.querySelector('.rb-lk-empty'),
     barHidden: document.getElementById('rb-lk-bar')?.style.display === 'none',
   }));
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
-  check('empty · says what lands here', /Nothing saved yet\./.test(e.head || '') && /Wear something and it lands here\./.test(e.head || ''), e.head);
-  check('empty · exactly one line of explanation, no instruction wall', e.paras === 1, String(e.paras));
-  check('empty · two ways forward', e.acts.join(' | ') === "See today's look | Add one now", JSON.stringify(e.acts));
-  check('empty · the sort control is withheld', e.barHidden === true);
+  check('empty · a saved result fills the shelf even with zero looks',
+    e.itemCards === 1 && e.eyebrow === 'Key piece' && e.addCard === true, JSON.stringify(e));
+  check('empty · no module empty state once anything exists', e.moduleEmpty === false);
+  check('empty · sort and Refine stay withheld until a Look exists', e.barHidden === true);
   await ctx.close();
 }
 
@@ -1132,7 +1139,7 @@ const browser = await chromium.launch(
     };
   });
   check('390px · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
-  check('390px · two-up grid', m.cols === 2, String(m.cols));
+  check('390px · one-up grid, matching the item shelves', m.cols === 1, String(m.cols));
   check('390px · metadata is printed where there is no hover', m.metaVisible === true);
   check('390px · no horizontal overflow on the grid', m.overflow === true);
 
@@ -1241,6 +1248,71 @@ const browser = await chromium.launch(
   });
   check('IA · a card\'s Wear opens the detail asking which day',
     cardWear.had && /Which day\?/.test(cardWear.panel || ''), JSON.stringify(cardWear));
+
+  // The unified stream (cohesion pass): a saved result joins the looks in
+  // one card language on the All looks shelf.
+  const uni = await page.evaluate(() => {
+    localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
+      { id: 1754640000000, type: 'daily-look', title: 'A Dublin day', subtitle: 'Daily look · Wednesday', img: null },
+    ]));
+    window.__lkGo();
+    return {
+      cards: document.querySelectorAll('#rb-lk-grid .lt-card').length,
+      eyebrows: Array.from(document.querySelectorAll('#rb-lk-grid .lt-ey')).map((e) => e.textContent).sort(),
+      itemCard: Array.from(document.querySelectorAll('#rb-lk-grid .lt-card')).some((c) => /A Dublin day/.test(c.textContent)),
+    };
+  });
+  check('IA · All looks holds everything in one card language',
+    uni.cards === 3 && uni.itemCard && JSON.stringify(uni.eyebrows) === JSON.stringify(['Daily look', 'Look', 'Look']),
+    JSON.stringify(uni));
+
+  // A generic look opens hosted as a daily look (today's view), with the
+  // quiet door back to the Look details.
+  const dayView = await page.evaluate(async () => {
+    window.__lkCardOpen('lk-1');
+    await new Promise((r) => setTimeout(r, 300));
+    const dl = document.getElementById('dl-result-page');
+    return {
+      open: !!dl && dl.style.display !== 'none',
+      headline: document.querySelector('#dl-result-page .dlm-title')?.textContent,
+      rows: document.querySelectorAll('#dl-result-page .rbc-row').length,
+      door: !!document.querySelector('#dl-result-page .dlm-lksrc button'),
+      doorCopy: document.querySelector('#dl-result-page .dlm-lksrc')?.textContent || '',
+      anchor: window.__lastDlData?.anchor_date,
+      todayIso: (() => { const p = (n) => String(n).padStart(2, '0'); const t = new Date(); return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()); })(),
+    };
+  });
+  check('IA · a generic look opens hosted as a daily look, anchored today',
+    dayView.open && dayView.headline === 'The Thursday one' && dayView.rows === 4 && dayView.anchor === dayView.todayIso,
+    JSON.stringify(dayView));
+  check('IA · the daily view keeps a quiet door to the Look details',
+    dayView.door && /From your look/.test(dayView.doorCopy), dayView.doorCopy);
+
+  const back = await page.evaluate(async () => {
+    document.querySelector('#dl-result-page .dlm-lksrc button').click();
+    await new Promise((r) => setTimeout(r, 300));
+    return {
+      dlClosed: document.getElementById('dl-result-page').style.display === 'none',
+      detailTitle: document.getElementById('rb-lk-title')?.textContent,
+    };
+  });
+  check('IA · the door lands on the Look detail',
+    back.dlClosed && back.detailTitle === 'The Thursday one', JSON.stringify(back));
+
+  // Worn on a calendar day → the card opens THAT day's daily view.
+  const pinnedOpen = await page.evaluate(async () => {
+    const p = (n) => String(n).padStart(2, '0');
+    const t = new Date(Date.now() + 86400000);
+    const iso = t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
+    window.__lkPinTo(iso);   // the detail is active on lk-1 from the door
+    await new Promise((r) => setTimeout(r, 200));
+    window.__lkCardOpen('lk-1');
+    await new Promise((r) => setTimeout(r, 300));
+    return { anchor: window.__lastDlData?.anchor_date, target: iso };
+  });
+  check('IA · a look worn on a day opens as that day',
+    pinnedOpen.anchor === pinnedOpen.target, JSON.stringify(pinnedOpen));
+  await page.evaluate(() => { const dl = document.getElementById('dl-result-page'); if (dl) dl.style.display = 'none'; });
 
   // Calendar — a top-level destination borrowing the page shell.
   await page.evaluate(() => window.__rbNavGo('calendar'));
