@@ -167,7 +167,7 @@
   }
   function envChip(e) { return '<span class="chip env-' + esc(e) + '">' + esc(e || '—') + '</span>'; }
   function ratingGlyph(r) { return r === 1 ? '👍' : r === 0 ? '👎' : '—'; }
-  const TYPE_LABEL = { 'key-piece': 'Key piece', 'daily-look': 'Daily look', 'weekly-plan': 'Weekly plan', 'travel-edit': 'Travel edit', 'moodboard': 'Moodboard', 'look': 'Look' };
+  const TYPE_LABEL = { 'key-piece': 'Key piece', 'daily-look': 'Daily look', 'weekly-plan': 'Weekly plan', 'weekly-plan-archived': 'Weekly plan (archived)', 'travel-edit': 'Travel edit', 'moodboard': 'Moodboard', 'look': 'Look' };
 
   /* ── gate: session + is_admin ─────────────────────────────── */
   async function gate() {

@@ -121,7 +121,6 @@ const Dash = (function () {
   const STATIC_PH = 'Tell Robes where you\u2019re going, or the look you\u2019re after\u2026';
   const PROMPT_EXAMPLES = [
     'What should I wear to dinner in the city tonight?',
-    'Plan my work week — smart, comfortable, no repeats',
     'Style my Balmain waistcoat for the office',
     'Help me pack for Ibiza',
   ];

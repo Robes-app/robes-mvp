@@ -7,13 +7,12 @@
 //   SUPABASE_SERVICE_ROLE_KEY=... node scripts/backfill_planned_days.mjs --dry-run
 //   SUPABASE_SERVICE_ROLE_KEY=... node scripts/backfill_planned_days.mjs
 //
-// Scope (decisions log, 23 Jul):
-//  - weekly-plan rows: one row per day, slot 'day'. New saves carry
-//    wkData.week_iso; older saves get their dates parsed from the
-//    day_label ("Monday · 14 Jul") with the year taken from created_at
-//    (nearest-year rule so a January plan saved in December lands right).
+// Scope (decisions log, 23 Jul; weekly retired per ADR-001, 8 Aug):
 //  - travel-edit rows: one row per MOMENT — travel blobs already carry
 //    Day and Evening slots; deferred trips band with 'planned' rows.
+//  - weekly-plan rows: NO LONGER EMITTED (the weekly track was removed
+//    2026-08-08 and its planned_days rows are swept — re-running this
+//    script must never resurrect them).
 //  - daily-look rows: SKIPPED ENTIRELY. No guessing at created_at::date.
 //  - unparseable rows are logged and skipped, never guessed.
 
@@ -29,31 +28,10 @@ const HEADERS = {
   'Content-Type': 'application/json',
 };
 
-const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11 };
-
 function isoAdd(iso, n) {
   const d = new Date(iso + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
-}
-
-// "Monday · 14 Jul" → ISO, year chosen nearest to created_at.
-function parseDayLabel(label, createdAt) {
-  const m = String(label || '').match(/(\d{1,2})\s+([A-Za-z]{3,5})/);
-  if (!m) return null;
-  const day = Number(m[1]);
-  const mon = MONTHS[m[2].toLowerCase().slice(0, 4)] ?? MONTHS[m[2].toLowerCase().slice(0, 3)];
-  if (mon == null || !day) return null;
-  const ref = new Date(createdAt);
-  if (isNaN(ref)) return null;
-  let best = null, bestDist = Infinity;
-  for (const y of [ref.getUTCFullYear() - 1, ref.getUTCFullYear(), ref.getUTCFullYear() + 1]) {
-    const cand = new Date(Date.UTC(y, mon, day));
-    if (cand.getUTCMonth() !== mon) continue; // e.g. 31 Feb
-    const dist = Math.abs(cand - ref);
-    if (dist < bestDist) { bestDist = dist; best = cand; }
-  }
-  return best ? best.toISOString().slice(0, 10) : null;
 }
 
 function http(u) { return (typeof u === 'string' && u.startsWith('http')) ? u : null; }
@@ -78,23 +56,6 @@ function base(row, sourceType, dayIndex, dayDate, slot) {
     user_id: row.user_id, day_date: dayDate,
     source_type: sourceType, source_id: String(row.id), day_index: dayIndex,
     slot, environment: ENV, updated_at: new Date().toISOString(),
-  };
-}
-
-function rowsWeekly(row) {
-  const w = row.data?.wkData;
-  if (!w || !Array.isArray(w.days) || !w.days.length) return { rows: [], skip: 'no wkData.days' };
-  const iso = Array.isArray(w.week_iso) ? w.week_iso : w.days.map(d => parseDayLabel(d.day_label, row.created_at));
-  if (iso.some(x => !x)) return { rows: [], skip: 'unparseable day dates' };
-  return {
-    rows: w.days.map((d, i) => ({
-      ...base(row, 'weekly', i, iso[i], 'day'),
-      status: d.rest ? 'free' : 'planned',
-      activity: d.rest ? null : (d.user_activity || d.occasion || null),
-      headline: d.rest ? null : (d.note || d.occasion || null),
-      thumb_urls: d.rest ? [] : thumbs(d.items, w.generatedImages),
-      item_ids: d.rest ? [] : ownedIds(d.items),
-    })),
   };
 }
 
@@ -143,14 +104,14 @@ function rowsTravel(row) {
 }
 
 async function main() {
-  const res = await fetch(`${SUPA_URL}/rest/v1/lookbook_items?type=in.(weekly-plan,travel-edit)&select=id,user_id,type,title,created_at,data&order=created_at.asc&limit=1000`, { headers: HEADERS });
+  const res = await fetch(`${SUPA_URL}/rest/v1/lookbook_items?type=eq.travel-edit&select=id,user_id,type,title,created_at,data&order=created_at.asc&limit=1000`, { headers: HEADERS });
   if (!res.ok) { console.error('fetch lookbook_items failed:', res.status, await res.text()); process.exit(1); }
   const items = await res.json();
-  console.log(`${items.length} weekly/travel lookbook rows (daily looks skipped by decision)`);
+  console.log(`${items.length} travel lookbook rows (daily looks skipped by decision; weekly retired)`);
 
   let all = [], skipped = 0;
   for (const row of items) {
-    const { rows, skip } = row.type === 'weekly-plan' ? rowsWeekly(row) : rowsTravel(row);
+    const { rows, skip } = rowsTravel(row);
     if (skip) { skipped++; console.log(`  skip ${row.type} ${row.id} (${row.title || 'untitled'}): ${skip}`); continue; }
     all = all.concat(rows);
   }

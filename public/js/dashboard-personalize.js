@@ -733,7 +733,6 @@
       // tick's % position on the endless track (see _msBarHtml).
       const _MS_UNLOCKS = [
         { at: 3,  key: 'daily',      label: 'Daily look',     cap: 'Dresses today',    pos: 15 },
-        { at: 5,  key: 'weekly',     label: 'Weekly planner', cap: 'Plans your week',  pos: 25 },
         { at: 10, key: 'travel',     label: 'Travel edit',    cap: 'Packs your trips', pos: 50 },
         { at: 15, key: 'styleNotes', label: 'Style notes',    cap: 'Knows your taste', pos: 78 },
       ];
@@ -802,7 +801,7 @@
             'transition:width 650ms cubic-bezier(0.4,0,0.2,1)}' +
           '.rb-ms-tick{position:absolute;top:-3px;width:1px;height:9px;background:var(--ms-locked)}' +
           '.rb-ms-tick.on{background:var(--ink-soft)}' +
-          '.rb-ms-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}' +
+          '.rb-ms-cols{display:grid;grid-template-columns:repeat(' + _MS_UNLOCKS.length + ',1fr);gap:8px}' +
           '.rb-ms-col{display:flex;align-items:baseline;gap:5px;min-width:0}' +
           '.rb-ms-at{font-family:var(--font-serif);font-size:13px;line-height:1;color:var(--ms-locked);flex:none}' +
           '.rb-ms-col.on .rb-ms-at{color:var(--ink)}' +
@@ -3501,7 +3500,13 @@
 
       function snLoad() {
         const k = SN_KEY(); if (!k) return [];
-        try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; }
+        // weekly-plan rows are retired (ADR-001 sweep) — filtered at the one
+        // read every surface shares so a cached row can never render or
+        // re-push; the cloud copy is archived in _lbCloudPull.
+        try {
+          return JSON.parse(localStorage.getItem(k) || '[]')
+            .filter(i => i && String(i.type || '').indexOf('weekly-plan') !== 0);
+        } catch { return []; }
       }
       function snSave(items) {
         const k = SN_KEY(); if (!k) return;
@@ -3555,8 +3560,21 @@
         try {
           const rows = await _waFetch('GET', 'lookbook_items?user_id=eq.' + _waUid() + '&order=created_at.desc&limit=100&select=*');
           if (!Array.isArray(rows)) return;
+          // Weekly sweep (ADR-001, option A): the weekly track is retired.
+          // Archive any weekly-plan artifact in place (type flips to
+          // 'weekly-plan-archived' — the blob stays recoverable in the DB,
+          // nothing renders it) and drop its planned_days rows so the
+          // calendar never paints a day no surface can open. Idempotent:
+          // archived rows are simply filtered on every later pull.
+          rows.forEach(r => {
+            if (r.type !== 'weekly-plan') return;
+            _waFetch('PATCH', 'lookbook_items?id=eq.' + r.id + '&user_id=eq.' + _waUid(), { type: 'weekly-plan-archived' })
+              .catch(() => {});
+            _pdDeleteSource(String(r.id));
+          });
+          const live = rows.filter(r => String(r.type || '').indexOf('weekly-plan') !== 0);
           const cloudSn = [], cloudMb = [];
-          rows.forEach(r => (r.type === 'moodboard' ? cloudMb : cloudSn).push(_lbRowToItem(r)));
+          live.forEach(r => (r.type === 'moodboard' ? cloudMb : cloudSn).push(_lbRowToItem(r)));
           // Local-only entries (saved offline / pre-migration) sync up
           snLoad().forEach(i => { if (!cloudSn.find(c => c.id === i.id)) { cloudSn.push(i); _lbCloudPush(i); } });
           _mbLoad().forEach(i => { if (!cloudMb.find(c => c.id === i.id)) { cloudMb.push(i); _lbCloudPush(i); } });
@@ -3644,45 +3662,6 @@
       // Row builders — one per track. Each returns {rows, totalDays} or
       // null when the blob can't emit dated rows (old saves without ISO
       // dates: skipped here, covered by the backfill script).
-      function _pdRowsWk(sourceId, w) {
-        const iso = w && Array.isArray(w.week_iso) ? w.week_iso : null;
-        if (!iso || !Array.isArray(w.days) || !w.days.length) return null;
-        const rows = [];
-        // Pinned = a fixed moment SHE placed (intake pin or a prompt-stated
-        // day) — a generation constraint, not decoration. Evenings are the
-        // intake's second moments: one 'evening' row each, her activity,
-        // no look content until Phase 3 parity gives weekly per-slot looks.
-        const pinnedSet = new Set(Array.isArray(w.pinned_days) ? w.pinned_days : []);
-        w.days.forEach((d, i) => {
-          if (!iso[i]) return;
-          const rest = !!d.rest;
-          rows.push({
-            ..._pdBase('weekly', sourceId, i, iso[i], 'day'),
-            pinned: pinnedSet.has(i),
-            status: rest ? 'free' : (d.worn ? 'worn' : 'planned'),
-            activity: rest ? null : (d.user_activity || d.occasion || null),
-            headline: rest ? null : (d.note || d.occasion || null),
-            thumb_urls: rest ? [] : _pdThumbs(d.items, w.generatedImages),
-            item_ids: rest ? [] : _pdOwnedIds(d.items),
-          });
-        });
-        (Array.isArray(w.evenings) ? w.evenings : []).forEach(ev => {
-          const i = ev && ev.day_index;
-          if (!Number.isInteger(i) || !iso[i] || !w.days[i] || w.days[i].rest) return;
-          // A dressed evening (lazy per-slot look, Stage 5) enriches its row
-          const el = w.days[i].evening_look;
-          rows.push({
-            ..._pdBase('weekly', sourceId, i, iso[i], 'evening'),
-            pinned: !!ev.pinned,
-            status: 'planned',
-            activity: ev.activity || null,
-            headline: el ? (el.note || el.occasion || null) : null,
-            thumb_urls: el ? _pdThumbs(el.items, w.generatedImages) : [],
-            item_ids: el ? _pdOwnedIds(el.items) : [],
-          });
-        });
-        return rows.length ? { rows, totalDays: w.days.length } : null;
-      }
       function _pdRowsTv(sourceId, t) {
         if (!t || !t.dateFrom) return null;
         const from = new Date(t.dateFrom + 'T00:00:00Z');
@@ -3814,8 +3793,7 @@
           clearTimeout(_pdTimers[sourceId]);
           _pdTimers[sourceId] = setTimeout(() => {
             try {
-              const built = sourceType === 'weekly' ? _pdRowsWk(sourceId, blob)
-                : sourceType === 'travel' ? _pdRowsTv(sourceId, blob)
+              const built = sourceType === 'travel' ? _pdRowsTv(sourceId, blob)
                 : sourceType === 'daily' ? _pdRowsDl(sourceId, blob) : null;
               if (built && built.rows.length) _pdWrite(built, sourceId);
             } catch (e) { console.warn('[robes] planned_days sync skipped:', String(e && e.message || e).slice(0, 120)); }
@@ -3828,8 +3806,7 @@
         if (!id) return;
         const it = snLoad().find(x => x.id === id);
         if (!it) return;
-        if (it.type === 'weekly-plan' && it.wkData) _pdSync('weekly', id, it.wkData);
-        else if (it.type === 'travel-edit' && it.tvData) _pdSync('travel', id, it.tvData);
+        if (it.type === 'travel-edit' && it.tvData) _pdSync('travel', id, it.tvData);
         else if (it.type === 'daily-look' && it.dlData) _pdSync('daily', id, it.dlData);
       }
       function _pdDeleteSource(sourceId) {
@@ -3851,7 +3828,7 @@
       // the most deliberate statement she can make about that day (brief A3).
       // It only ever wins on the index-fed surfaces (rail, calendar) — the
       // weekly and travel artifacts derive their strips from their own blob.
-      function _pdTier(t) { return t === 'look' ? 4 : t === 'daily' ? 3 : t === 'travel' ? 2 : t === 'weekly' ? 1 : 0; }
+      function _pdTier(t) { return t === 'look' ? 3 : t === 'daily' ? 2 : t === 'travel' ? 1 : 0; }
       function _pdWinner(rows) {
         return rows.slice().sort((a, b) =>
           (_pdTier(b.source_type) - _pdTier(a.source_type)) ||
@@ -4040,7 +4017,7 @@
       var _snFilter = 'all';
       const _SN_FILTERS = [
         ['all', 'All'], ['key-piece', 'Key pieces'], ['daily-look', 'Daily looks'],
-        ['weekly-plan', 'Weekly plans'], ['travel-edit', 'Travel edits']
+        ['travel-edit', 'Travel edits']
       ];
       if (!document.getElementById('rb-sn-style')) {
         const snSt = document.createElement('style');
@@ -4111,7 +4088,6 @@
       // (lookbook page, dashboard rows); extend here when a new type ships.
       function _snTypeLabel(type) {
         return type === 'daily-look' ? 'Daily look'
-          : type === 'weekly-plan' ? 'Weekly plan'
           : type === 'travel-edit' ? 'Travel edit'
           : type === 'look' ? 'Look'
           : 'Key piece';
@@ -4124,8 +4100,6 @@
         document.getElementById('sn-page').style.display = 'none';
         if (item.type === 'daily-look' && item.dlData) {
           window.__dlRenderResult(item.dlData, item.dlData.prompt || item.title, { skipSave: true, savedId: item.id });
-        } else if (item.type === 'weekly-plan' && item.wkData) {
-          window.__wkRenderResult(item.wkData, item.wkData.prompt || item.title, { skipSave: true, savedId: item.id });
         } else if (item.type === 'travel-edit' && item.tvData) {
           window.__tvRenderResult(item.tvData, { skipSave: true, savedId: item.id });
         } else if (item.type === 'key-piece' && item.kpData) {
@@ -4148,7 +4122,6 @@
         if (card.classList.contains('svc-daily')) return 'dress-me';
         const t = (card.querySelector('.svc-title') || {}).textContent || '';
         const l = t.toLowerCase();
-        if (l.indexOf('week') >= 0) return 'weekly';
         if (l.indexOf('travel') >= 0 || l.indexOf('pack') >= 0) return 'travel';
         return 'style';
       }
@@ -4422,7 +4395,9 @@
         }
 
         // Reorder + relabel concierge cards — bundle order: Weekly(01), Travel(02), Key Piece(03)
-        // Target order: Daily Outfit(01), Weekly Planner(02), Travel Edit(03)
+        // Target order: Daily Outfit(01), Travel Edit(02). The bundle's
+        // Weekly Planner card is REMOVED (weekly track retired 2026-08-08 —
+        // week planning moves to calendar day chips, separate brief).
         const grid = document.querySelector('.services-grid');
         if (grid) {
           const svcs = Array.from(grid.querySelectorAll('.svc'));
@@ -4437,22 +4412,10 @@
             const kpDesc = keyPiece.querySelector('.svc-desc');
             if (kpDesc) kpDesc.textContent = 'A fresh look styled from your wardrobe each morning, synced to the forecast.';
 
-            // Calendar illustration for Weekly Planner
-            const calSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" width="400" height="280"><rect width="400" height="280" fill="%23F5F1EB"/><g fill="none" stroke="%23D4C8B8" stroke-width="0.8"><line x1="57" y1="40" x2="57" y2="260"/><line x1="114" y1="40" x2="114" y2="260"/><line x1="171" y1="40" x2="171" y2="260"/><line x1="228" y1="40" x2="228" y2="260"/><line x1="285" y1="40" x2="285" y2="260"/><line x1="342" y1="40" x2="342" y2="260"/><line x1="28" y1="80" x2="372" y2="80"/><line x1="28" y1="140" x2="372" y2="140"/><line x1="28" y1="200" x2="372" y2="200"/><line x1="28" y1="40" x2="372" y2="40"/><line x1="28" y1="260" x2="372" y2="260"/><line x1="28" y1="40" x2="28" y2="260"/><line x1="372" y1="40" x2="372" y2="260"/></g><g font-family="Georgia,serif" font-size="11" fill="%23B0A090" text-anchor="middle"><text x="42" y="30">M</text><text x="85" y="30">T</text><text x="142" y="30">W</text><text x="199" y="30">T</text><text x="256" y="30">F</text><text x="313" y="30">S</text><text x="357" y="30">S</text></g><g font-family="Georgia,serif" font-size="10" fill="%23C8B8A8" text-anchor="middle"><text x="42" y="58">14</text><text x="99" y="58">15</text><text x="156" y="58">16</text><text x="213" y="58">17</text><text x="270" y="58">18</text><text x="327" y="58">19</text><text x="357" y="58">20</text></g><rect x="31" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.9"/><rect x="4" y="86" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="86" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="231" y="66" width="50" height="104" rx="4" fill="%23E8DEDD" opacity="0.85"/><rect x="227" y="66" width="3" height="104" rx="1.5" fill="%23789060"/><rect x="88" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="84" y="146" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="174" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="170" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="345" y="146" width="22" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="341" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="206" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="288" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="284" y="206" width="3" height="44" rx="1.5" fill="%23A89878"/></svg>`;
 
             // Premium suitcase illustration for Travel Edit
             const suitSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280"><rect width="400" height="280" fill="%23EEE8E4"/><rect x="62" y="62" width="276" height="178" rx="22" fill="%23E8E0D6" stroke="%23C8BAB0" stroke-width="1.4"/><rect x="74" y="74" width="252" height="154" rx="16" fill="%23E2D8CE" stroke="%23C0B4A8" stroke-width="0.7"/><path d="M168 62 C168 38 232 38 232 62" fill="none" stroke="%23C0B0A6" stroke-width="2" stroke-linecap="round"/><rect x="158" y="56" width="14" height="10" rx="4" fill="%23D0C4BA"/><rect x="228" y="56" width="14" height="10" rx="4" fill="%23D0C4BA"/><rect x="62" y="62" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="328" y="62" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="62" y="230" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="328" y="230" width="10" height="10" rx="3" fill="%23D4C8BC"/><line x1="74" y1="156" x2="326" y2="156" stroke="%23C0B4A8" stroke-width="0.8"/><rect x="186" y="150" width="28" height="12" rx="5" fill="%23D8CCBF" stroke="%23C0B0A4" stroke-width="1"/><rect x="192" y="154" width="16" height="5" rx="2" fill="%23C8BBB0"/><rect x="86" y="84" width="110" height="62" rx="10" fill="%23DDD4C8" stroke="%23C4B8AC" stroke-width="0.8"/><line x1="98" y1="99" x2="184" y2="99" stroke="%23C8BCAF" stroke-width="0.9"/><line x1="98" y1="112" x2="178" y2="112" stroke="%23C8BCAF" stroke-width="0.7"/><line x1="98" y1="124" x2="170" y2="124" stroke="%23C8BCAF" stroke-width="0.6" opacity="0.7"/><rect x="206" y="84" width="110" height="62" rx="10" fill="%23E4DAD0" stroke="%23C4B4A8" stroke-width="0.8"/><ellipse cx="237" cy="105" rx="18" ry="14" fill="%23D8CEBE" stroke="%23C0B2A4" stroke-width="0.9"/><ellipse cx="278" cy="105" rx="18" ry="14" fill="%23D4CAB8" stroke="%23BCAE9E" stroke-width="0.9"/><ellipse cx="257" cy="130" rx="18" ry="14" fill="%23DCD2C0" stroke="%23C0B2A4" stroke-width="0.9"/><ellipse cx="237" cy="105" rx="7" ry="5" fill="none" stroke="%23C8BAA8" stroke-width="0.7"/><ellipse cx="278" cy="105" rx="7" ry="5" fill="none" stroke="%23C0B2A0" stroke-width="0.7"/><rect x="86" y="164" width="52" height="58" rx="10" fill="%23DAD0C4" stroke="%23C4B8AC" stroke-width="0.8"/><path d="M96 202 Q108 192 126 196 Q130 197 130 202" fill="none" stroke="%23C0B4A8" stroke-width="1.1" stroke-linecap="round"/><rect x="148" y="164" width="58" height="58" rx="10" fill="%23D8CEC2" stroke="%23C0B4A8" stroke-width="0.8"/><line x1="160" y1="184" x2="194" y2="184" stroke="%23C4B8AC" stroke-width="0.9"/><line x1="160" y1="196" x2="188" y2="196" stroke="%23C4B8AC" stroke-width="0.7"/><rect x="216" y="164" width="100" height="58" rx="10" fill="%23E0D6CA" stroke="%23C8BCAE" stroke-width="0.8"/><rect x="228" y="177" width="36" height="32" rx="6" fill="%23D4CAB8" stroke="%23C0B4A4" stroke-width="0.8"/><rect x="272" y="177" width="32" height="32" rx="6" fill="%23D0C6B4" stroke="%23BCAE9E" stroke-width="0.8"/></svg>`;
 
-            const weeklyImg = weekly.querySelector('.svc-img img');
-            if (weeklyImg) weeklyImg.src = calSvg;
-            // Weekly Plan is live (P0): the CTA sets the weekly intent and
-            // injects the scaffolding phrase into the concierge prompt.
-            weekly.querySelector('.rb-soon-tag')?.remove();
-            weekly.onclick = function() { if (typeof _cbSetIntent === 'function') _cbSetIntent('weekly'); };
-            const wkDesc = weekly.querySelector('.svc-desc');
-            if (wkDesc) wkDesc.textContent = 'Your week mapped day by day — every outfit routed through your own wardrobe, no repeats.';
-            const wkCta = weekly.querySelector('.svc-cta');
-            if (wkCta) wkCta.innerHTML = `Plan my week<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
             const travelImg = travel.querySelector('.svc-img img');
             if (travelImg) travelImg.src = suitSvg;
 
@@ -4462,9 +4425,11 @@
             const tvDesc = travel.querySelector('.svc-desc');
             if (tvDesc) tvDesc.textContent = 'A tight capsule for your next trip — every piece worn three ways, weather-checked, mapped day by day.';
 
-            // Reorder: [Daily Outfit, Weekly Planner, Travel Edit]
+            // Reorder: [Daily Outfit, Travel Edit] — the weekly card leaves
+            // the DOM entirely, so the empty-Lookbook clones follow suit.
+            weekly.remove();
             grid.innerHTML = '';
-            [keyPiece, weekly, travel].forEach((el, i) => {
+            [keyPiece, travel].forEach((el, i) => {
               const num = el.querySelector('.svc-num');
               if (num) num.textContent = String(i + 1).padStart(2, '0');
               grid.appendChild(el);
@@ -4545,7 +4510,6 @@
       let kpResultPage = null;
       let dlResultPage = null; // Daily Look page (Context-to-Core render)
       let tvResultPage = null; // Travel Edit page (capsule + lookbook render)
-      let wkResultPage = null; // Weekly Plan page (P0 calendar-strip render)
 
       // Close every fixed result overlay (kp/dl/tv pages, moodboard result +
       // list, lookbook page) so an in-flow view like the wardrobe panel can
@@ -4555,7 +4519,6 @@
         if (kpResultPage) kpResultPage.style.display = 'none';
         if (dlResultPage) dlResultPage.style.display = 'none';
         if (tvResultPage) tvResultPage.style.display = 'none';
-        if (wkResultPage) wkResultPage.style.display = 'none';
         window.__mbCloseResult && window.__mbCloseResult();
         window.__mbCloseList && window.__mbCloseList();
         const snEl = document.getElementById('sn-page');
@@ -4564,7 +4527,7 @@
       };
       window.__lastKpData = null;
 
-      // All four result pages are fixed overlays at z-index:40 — DOM order,
+      // All three result pages are fixed overlays at z-index:40 — DOM order,
       // not open order, decides who paints on top, so every render must hide
       // its siblings or a stale later-appended page stays visible above it.
       function _rbHideResultPages(except) {
@@ -4572,7 +4535,6 @@
         if (except !== 'kp' && kpResultPage) kpResultPage.style.display = 'none';
         if (except !== 'dl' && dlResultPage) dlResultPage.style.display = 'none';
         if (except !== 'tv' && tvResultPage) tvResultPage.style.display = 'none';
-        if (except !== 'wk' && wkResultPage) wkResultPage.style.display = 'none';
       }
 
       window.__kpGoBack = function() {
@@ -5816,7 +5778,7 @@
    now dead (always overridden here) — kept out of this pass to keep the
    graduation diff safe; a later cleanup can drop them. ══ */
 /* Column — 480px fixed, all three surfaces (beats the #id rules → !important) */
-.rb-lookv2 .dlm-console,.rb-lookv2 .wk-con,.rb-lookv2 .tvm-console{grid-template-columns:480px minmax(0,1fr) !important;gap:34px !important}
+.rb-lookv2 .dlm-console,.rb-lookv2 .tvm-console{grid-template-columns:480px minmax(0,1fr) !important;gap:34px !important}
 /* Panel becomes a flex column so the below-composition blocks can be ordered */
 .rb-lookv2 .rbc-panel{display:flex;flex-direction:column}
 .rb-lookv2 .rbc-lhead{order:0}
@@ -5842,7 +5804,7 @@
    #tv-result-page rule without !important) */
 .rb-lookv2 #tv-result-page .tvm-occ{display:flex;width:220px;max-width:100%}
 .rb-lookv2 #tv-result-page .tvm-occ button{flex:1;padding-left:4px;padding-right:4px;text-align:center}
-/* Monogram fallback (Weekly) — sized from the tile, not fixed (§F) */
+/* Monogram fallback — sized from the tile, not fixed (§F) */
 /* Scoped to the Look tile specifically — .rbc-mono is shared with the Rack
    row viewport (.rbc-vp) and the Travel capsule card, neither of which sets
    container-type:size; unscoped cqmin there falls back to the viewport and
@@ -5880,14 +5842,14 @@
 .rb-lookv2 .rbc-fabrics .sw{width:9px;height:9px;border-radius:2px}
 .rb-lookv2 .rbc-fabrics .fl{font-family:inherit;font-style:normal;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
 .rb-lookv2 .rbc-yours{margin-top:16px}
-/* Daily/Weekly verdict line — bare copy beneath the ownership count, no box,
+/* Daily verdict line — bare copy beneath the ownership count, no box,
    no rule (the boxed "Read" is Travel-only now) */
 .rb-lookv2 .rbc-action{margin-top:12px;padding-top:14px;border-top:0.5px solid var(--rule)}
 .rb-lookv2 .rbc-action button{width:100%;border:none;background:var(--ink);color:var(--cream-100);border-radius:100px;padding:14px;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:opacity .15s}
 .rb-lookv2 .rbc-action button:hover{opacity:.88}
 /* Responsive — below 1080px stack Look above Rack; composition keeps 4:5 */
 @media(max-width:1080px){
-.rb-lookv2 .dlm-console,.rb-lookv2 .wk-con,.rb-lookv2 .tvm-console{grid-template-columns:1fr !important}
+.rb-lookv2 .dlm-console,.rb-lookv2 .tvm-console{grid-template-columns:1fr !important}
 .rb-lookv2 .rbc-panel{max-width:480px;margin-left:auto;margin-right:auto}
 }`;
 
@@ -6233,13 +6195,13 @@
       // engineering brief, 2026-07-24) ════════════════════════════════════
       // Composes LookTile (above) for the look itself — title and pieces —
       // and owns only the day context around it.
-      // Four surfaces render a day (home rail, weekly strip, travel strip,
-      // lookbook calendar) through ONE normalised shape (_dcMoments) and
-      // ONE renderer (_dcCard). Two densities, bound to the surface, never
-      // chosen: full (rail + strips) / compact (calendar). The strips
-      // derive their DayCardData LIVE from the plan blob through the SAME
-      // row builders the planned_days index uses (_pdRowsWk/_pdRowsTv,
-      // §6.4 decision) — one shape, no freshness gap, the index stays
+      // Three surfaces render a day (home rail, travel strip, lookbook
+      // calendar) through ONE normalised shape (_dcMoments) and ONE
+      // renderer (_dcCard). Two densities, bound to the surface, never
+      // chosen: full (rail + strip) / compact (calendar). The strip
+      // derives its DayCardData LIVE from the plan blob through the SAME
+      // row builder the planned_days index uses (_pdRowsTv, §6.4
+      // decision) — one shape, no freshness gap, the index stays
       // persistence-only. Action model (spec §6): the card BODY opens the
       // day (a peek overlay on rail + calendar, the console on the
       // strips); the top-right RING sets the day as focus (scopes the
@@ -6261,9 +6223,6 @@
       // Whose words win the title — ONE config point (audit D-02; Annie
       // 2026-07-24: the USER'S words win, the generated headline is the
       // fallback). 'robes' flips the preference with no render changes.
-      // _wkApplyDay's occasion overwrite is deliberately untouched — the
-      // row builders already prefer user_activity, so her words surface
-      // here regardless.
       var _DC_TITLE_MODE = 'user';
       // §10.1 — thumbnails are wardrobe-truth (spec v2.0 recommendation,
       // shipped). 'swatch' restores the palette-whisper treatment (hex
@@ -6383,10 +6342,6 @@
           const dest = it && it.tvData && it.tvData.destination;
           return dest ? dest + ' trip' : 'Trip';
         }
-        if (m.source_type === 'weekly') {
-          const iso = (it && it.wkData && Array.isArray(it.wkData.week_iso)) ? it.wkData.week_iso[0] : null;
-          return iso ? 'Week of ' + new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Weekly plan';
-        }
         return null;
       }
       // The +N denominator — the moment's full piece count, resolved from
@@ -6405,15 +6360,9 @@
           let blob = liveBlob;
           if (!blob) {
             const it = snLoad().find(x => String(x.id) === String(m.source_id));
-            blob = it && (it.wkData || it.tvData || it.dlData);
+            blob = it && (it.tvData || it.dlData);
           }
           if (!blob) return 0;
-          if (m.source_type === 'weekly') {
-            const d = (blob.days || [])[m.day_index];
-            if (!d) return 0;
-            if (m.slot === 'evening') return (d.evening_look && Array.isArray(d.evening_look.items)) ? d.evening_look.items.length : 0;
-            return Array.isArray(d.items) ? d.items.length : 0;
-          }
           if (m.source_type === 'travel') {
             const d = (blob.days || [])[m.day_index];
             const slots = (d && d.slots) || [];
@@ -6563,7 +6512,6 @@
       // do (re-point the console) and what the flagged rail tap did
       // (scope the prompt) — one function, surface-aware.
       window._rbSetFocus = function(surface, arg) {
-        if (surface === 'weekly') { if (window.__wkSelectDay) window.__wkSelectDay(arg); return; }
         if (surface === 'travel') { if (window.__tvSelectDay) window.__tvSelectDay(arg); return; }
         if (surface === 'home' && arg && arg.date) {
           if (typeof _rbDiaryOn === 'function' && _rbDiaryOn() && typeof window._ikScopeDay === 'function') {
@@ -6585,10 +6533,7 @@
         (moments || []).forEach(m => {
           const it = snLoad().find(x => String(x.id) === String(m.source_id));
           if (it) {
-            if (it.type === 'weekly-plan' && it.wkData && it.wkData.days && it.wkData.days[m.day_index]) {
-              it.wkData.days[m.day_index].worn = true;
-              snUpdate(it.id, { wkData: it.wkData });
-            } else if (it.type === 'travel-edit' && it.tvData && it.tvData.days && it.tvData.days[m.day_index]) {
+            if (it.type === 'travel-edit' && it.tvData && it.tvData.days && it.tvData.days[m.day_index]) {
               it.tvData.days[m.day_index].worn = true;
               snUpdate(it.id, { tvData: it.tvData });
             } else if (it.type === 'daily-look' && it.dlData) {
@@ -8387,8 +8332,8 @@
           looksOutput: p.looksOutput || '',
         }) }).catch(() => {});
         _rbFbCloud(
-          prefix === 'dl' ? 'daily' : prefix === 'wk' ? 'weekly' : 'travel',
-          prefix === 'dl' ? _dlActiveSaveId : prefix === 'wk' ? _wkActiveSaveId : _tvActiveSaveId,
+          prefix === 'dl' ? 'daily' : 'travel',
+          prefix === 'dl' ? _dlActiveSaveId : _tvActiveSaveId,
           st.rating, comment);
         const pr = document.getElementById(prefix + '-fb-prompt'), ex = document.getElementById(prefix + '-fb-expand'), dn = document.getElementById(prefix + '-fb-done');
         if (pr) pr.hidden = true;
@@ -9091,1030 +9036,6 @@
         _dlRerender();
         window.__rbcAnimateTile(idx);
         _waShowToast(wi.label + ' swapped in');
-      };
-
-      // ── Weekly Plan (P0 simplification — the Weekly Plan View) ─────────
-      // A chronological 5–7 day calendar strip routing wardrobe items
-      // across the user's agenda. Deliberately lean: no imagery jobs —
-      // owned pieces render their real wardrobe photos, new pieces a
-      // serif monogram. Saved to the lookbook as type 'weekly-plan'.
-      let _wkState = null; // { data, prompt, day }
-      let _wkActiveSaveId = null; // lookbook id of the live weekly plan
-      window.__lastWkData = null;
-
-      // ── Step 1: the week planner modal (mirrors the Travel Edit day
-      // planner) — she assigns activities to specific days ("Office",
-      // "Dinner", "Pilates"), leaves days blank for Robes to plan, or
-      // marks them "Leave free" (no outfit at all), BEFORE anything
-      // generates. Defaults to the upcoming Mon–Sun; "+ Plan next week
-      // too" extends the calendar to 14 days.
-      let _wkPlan = null; // { brief, days: [{label, date, activity, free}] }
-      let _wkPlanFocus = 0;
-
-      function _wkWeekDays(count, startOffset) {
-        const now = new Date();
-        const dow = (now.getDay() + 6) % 7; // 0 = Monday
-        const start = new Date(now);
-        start.setDate(now.getDate() + (dow === 0 ? 0 : 7 - dow) + (startOffset || 0));
-        const out = [];
-        for (let i = 0; i < count; i++) {
-          const d = new Date(start);
-          d.setDate(start.getDate() + i);
-          out.push({
-            label: d.toLocaleDateString('en-GB', { weekday: 'long' }),
-            date: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            // Real ISO date alongside the display strings — the display
-            // never round-trips back into a date (migration 12 needs the
-            // local calendar date, and "14 Jul" has no year).
-            iso: _pdLocalISO(d),
-          });
-        }
-        return out;
-      }
-
-      window.__wkOpen = function(opts) {
-        if (!_wkPlan) {
-          _wkPlan = { brief: '', days: _wkWeekDays(7).map(d => ({ ...d, activity: '', free: false })) };
-        }
-        if (opts && opts.brief) _wkPlan.brief = opts.brief;
-        _wkPlanFocus = 0;
-        _wkPlanPaint();
-      };
-
-      window.__wkPlanFree = function(i) {
-        _wkPlanSync();
-        _wkPlan.days[i].free = !_wkPlan.days[i].free;
-        _wkPlanPaint();
-      };
-      window.__wkPlanChip = function(txt) {
-        _wkPlanSync();
-        const day = _wkPlan.days[_wkPlanFocus];
-        if (day && !day.free) { day.activity = txt; }
-        _wkPlanPaint();
-        const el = document.getElementById('wk-plan-' + _wkPlanFocus);
-        if (el) el.focus();
-      };
-      window.__wkPlanFocusSet = function(i) { _wkPlanFocus = i; };
-      window.__wkPlanExtend = function() {
-        _wkPlanSync();
-        const more = _wkWeekDays(7, _wkPlan.days.length);
-        more.forEach(d => _wkPlan.days.push({ ...d, activity: '', free: false }));
-        _wkPlanPaint();
-      };
-      function _wkPlanSync() {
-        if (!_wkPlan) return;
-        const b = document.getElementById('wk-brief');
-        if (b) _wkPlan.brief = b.value;
-        _wkPlan.days.forEach((d, i) => {
-          const el = document.getElementById('wk-plan-' + i);
-          if (el && !d.free) d.activity = el.value;
-        });
-      }
-
-      function _wkPlanPaint() {
-        document.getElementById('wk-plan-modal')?.remove();
-        const serif = "'Cormorant',Georgia,serif";
-        const inputCss = 'width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:var(--rad-sm);padding:11px 12px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit';
-        const ph = ['Office day', 'Client dinner', 'WFH + errands', 'Pilates, then lunch out', 'School run + meetings', 'Date night', 'Slow morning, drinks later'];
-        const chips = ['Office', 'WFH', 'Big meeting', 'Dinner out', 'Date night', 'Pilates', 'School run', 'Drinks'];
-        const modal = document.createElement('div');
-        modal.id = 'wk-plan-modal';
-        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:center;justify-content:center;padding:20px';
-        modal.onclick = function(e) { if (e.target === modal) { _wkPlanSync(); modal.remove(); } };
-        const rows = _wkPlan.days.map((d, i) => `
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
-            <div style="flex-shrink:0;width:96px">
-              <div style="font-family:${serif};font-size:15px;color:#202021;line-height:1.1">${_waEsc(d.label)}</div>
-              <div style="font-size:10px;color:var(--ink-faint)">${_waEsc(d.date)}</div>
-            </div>
-            <input id="wk-plan-${i}" value="${_waEsc(d.free ? '' : d.activity)}"${d.free ? ' disabled' : ''} placeholder="${_waEsc(d.free ? 'Left free — no outfit this day' : ph[i % ph.length])}" onfocus="window.__wkPlanFocusSet(${i})" style="${inputCss}${d.free ? ';opacity:.5;background:#F0EDE8' : ''}">
-            <button onclick="window.__wkPlanFree(${i})" style="flex-shrink:0;background:none;border:0.5px solid rgba(32,32,33,0.18);border-radius:100px;padding:7px 12px;font-size:10px;letter-spacing:.06em;cursor:pointer;color:${d.free ? '#fff' : '#6E6A64'};background:${d.free ? '#202021' : '#fff'};font-family:inherit;white-space:nowrap">${d.free ? 'Freed' : 'Leave free'}</button>
-          </div>`).join('');
-        const chipsHtml = chips.map(c =>
-          `<button onclick="window.__wkPlanChip('${_waEsc(c)}')" style="flex-shrink:0;background:#FAF8F5;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;padding:7px 13px;font-size:11px;cursor:pointer;color:#202021;font-family:inherit;white-space:nowrap">${_waEsc(c)}</button>`).join('');
-        const nActive = _wkPlan.days.filter(d => !d.free).length;
-        modal.innerHTML = `
-          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:560px;max-height:86vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">The weekly plan</p>
-              <button onclick="(function(){document.getElementById('wk-plan-modal').remove()})()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);font-size:16px;line-height:1">×</button>
-            </div>
-            <p style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin:0 0 6px;line-height:1.15">What does the week hold?</p>
-            <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:0 0 16px">Tell Robes each day's plan, leave it blank and Robes reads the week, or leave the day free — free days get no outfit.</p>
-            <input id="wk-brief" value="${_waEsc(_wkPlan.brief)}" placeholder="The week's mood — smart, comfortable, no repeats…" style="${inputCss};margin-bottom:16px">
-            <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 14px">${chipsHtml}</div>
-            ${rows}
-            ${_wkPlan.days.length < 14 ? `<button onclick="window.__wkPlanExtend()" style="width:100%;margin-top:4px;background:none;border:1px dashed rgba(32,32,33,0.22);border-radius:var(--rad-sm);padding:10px;font-size:11.5px;color:#6E6A64;cursor:pointer;font-family:inherit">+ Plan next week too</button>` : ''}
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;flex-wrap:wrap">
-              <button onclick="window.__wkPlanGo(true)" style="background:none;border:none;cursor:pointer;font-size:11.5px;color:var(--ink-faint);text-decoration:underline;font-family:inherit;padding:4px 0">Skip — let Robes plan the days</button>
-              <button onclick="window.__wkPlanGo()" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:13px 24px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Create my week · ${nActive} days →</button>
-            </div>
-          </div>`;
-        document.body.appendChild(modal);
-      }
-
-      window.__wkPlanGo = function(skip) {
-        _wkPlanSync();
-        const days = _wkPlan.days;
-        const dayPlan = days.map(d => d.free ? null : (skip ? '' : (d.activity || '').trim()));
-        if (!dayPlan.some(p => p !== null)) { _waShowToast('Every day is left free — keep at least one dressed'); return; }
-        const weekDays = days.map(d => d.label + ' · ' + d.date);
-        const weekIso = days.map(d => d.iso || null);
-        document.getElementById('wk-plan-modal')?.remove();
-        _wkGenerate(_wkPlan.brief, dayPlan, weekDays, weekIso);
-      };
-
-      // Routing entry — the weekly track always goes through the planner
-      // (Trip-style plan-first flow: days are hers before anything renders)
-      window.__wkSubmit = function(prompt) {
-        window.__wkOpen({ brief: prompt || '' });
-      };
-
-      async function _wkGenerate(prompt, dayPlan, weekDays, weekIso, extra) {
-        let overlay = document.getElementById('kp-loading-overlay');
-        if (!overlay) {
-          overlay = document.createElement('div');
-          overlay.id = 'kp-loading-overlay';
-          overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
-          overlay.innerHTML = `
-            <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
-            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg"></div>
-            <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
-              <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
-            </div>`;
-          document.body.appendChild(overlay);
-        }
-        const loadTitle = document.getElementById('kp-load-title');
-        if (loadTitle) loadTitle.innerHTML = 'Planning your<br><em>week…</em>';
-        overlay.style.display = 'flex';
-        const msgs = ['Reading the week’s agenda', 'Routing your wardrobe across the days…', 'Balancing the repeats…', 'Almost ready…'];
-        let mi = 0;
-        const msgEl0 = document.getElementById('kp-load-msg');
-        if (msgEl0) msgEl0.textContent = msgs[0];
-        const msgInterval = setInterval(() => {
-          mi = Math.min(mi + 1, msgs.length - 1);
-          const el = document.getElementById('kp-load-msg');
-          if (el) el.textContent = msgs[mi];
-        }, 8000);
-        if (window.__rbWeatherAsk && !(window.__rbCtx && window.__rbCtx.city)) {
-          try { await Promise.race([window.__rbWeatherAsk(), new Promise(r => setTimeout(r, 6000))]); } catch (e) {}
-        }
-        // The weekly promise is "routed through your own wardrobe" — an
-        // immediate submit after boot must not race the async wardrobe load
-        // and read an empty closet (the server would go fully aspirational).
-        for (let w = 0; w < 16 && !_waLoaded && _waUid(); w++) await new Promise(r => setTimeout(r, 250));
-        const rc = window.__rbCtx || {};
-        const context = {
-          city: rc.city || '',
-          month: new Date().toLocaleDateString('en-GB', { month: 'long' }),
-          tempRange: rc.tempRange || (rc.tempC != null ? rc.tempC + '°C' : ''),
-          condition: rc.condition || '',
-          hint: rc.hint || '',
-        };
-        const guard = _rbOverlayGuard(overlay);
-        const genId = _rbGenId();
-        try {
-          const res = await fetch('/api/weekly', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: guard.signal,
-            body: JSON.stringify({
-              prompt,
-              name,
-              dayPlan,
-              weekDays,
-              anchorItemIds: (extra && Array.isArray(extra.anchorItemIds) && extra.anchorItemIds.length) ? extra.anchorItemIds : undefined,
-              userId: _waUid() || undefined,
-              genId,
-              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
-              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, seasons: (Array.isArray(i.seasons) && i.seasons.length) ? i.seasons : undefined })),
-              context,
-            }),
-          });
-          guard.done();
-          clearInterval(msgInterval);
-          overlay.style.display = 'none';
-          if (!res.ok) throw new Error(await res.text());
-          const data = await res.json();
-          // The server generates positionally against the calendar, so
-          // week_iso[i] is days[i]'s real date — carried in the render data
-          // (and therefore the save) for the planned_days index. The intake's
-          // pinned moments + evening moments ride the blob the same way
-          // (blob-first: the index rows re-derive from them on every sync).
-          window.__wkRenderResult({
-            ...data, context, genId,
-            week_iso: Array.isArray(weekIso) ? weekIso : undefined,
-            pinned_days: (extra && Array.isArray(extra.pinnedDays) && extra.pinnedDays.length) ? extra.pinnedDays : undefined,
-            evenings: (extra && Array.isArray(extra.evenings) && extra.evenings.length) ? extra.evenings : undefined,
-          }, prompt);
-        } catch (err) {
-          guard.done();
-          clearInterval(msgInterval);
-          overlay.style.display = 'none';
-          console.error('[Robes] /api/weekly error:', err.message);
-          if (guard.userCancelled) return;
-          _waShowToast(guard.timedOut
-            ? 'That took longer than it should — please try again.'
-            : 'Robes couldn’t finish that plan — please try again in a moment.');
-        }
-      };
-
-      function _wkDayName(d) { return String(d.day_label || '').split('·')[0].trim(); }
-      function _wkDayDate(d) { const p = String(d.day_label || '').split('·'); return p.length > 1 ? p[1].trim() : ''; }
-
-      function _wkPatchSaved() {
-        if (!_wkActiveSaveId || !_wkState) return;
-        const saved = snLoad().find(x => x.id === _wkActiveSaveId);
-        if (saved) {
-          snUpdate(_wkActiveSaveId, { wkData: { ...(saved.wkData || {}), days: _wkState.data.days, evenings: _wkState.data.evenings, stylist_summary: _wkState.data.stylist_summary } });
-          _pdSyncSaved(_wkActiveSaveId);
-        }
-      }
-
-      // ── Weekly imagery (2026-07-22) — the /api/weekly still-life job.
-      // Same contract as Daily/Travel: frames appear in two places (board
-      // tile + rack viewport), so wraps carry data-wkimg="i" and the poller
-      // patches every instance; hosted URLs persist into the saved entry so
-      // a reopened plan keeps its frames even if she navigates away mid-job.
-      let _wkPollTimer = null;
-      function _wkStopPolling() { if (_wkPollTimer) { clearTimeout(_wkPollTimer); _wkPollTimer = null; } }
-
-      function _wkPersistImages() {
-        if (!_wkActiveSaveId || !window.__lastWkData) return;
-        const urls = (window.__lastWkData.generatedImages || []).map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
-        if (!urls.some(Boolean)) return;
-        const it = snLoad().find(x => x.id === _wkActiveSaveId);
-        if (!it) return;
-        snUpdate(_wkActiveSaveId, {
-          img: it.img || urls.find(Boolean) || null,
-          wkData: { ...(it.wkData || {}), generatedImages: urls },
-        });
-        _pdSyncSaved(_wkActiveSaveId);
-      }
-
-      function _wkSetImage(i, src) {
-        document.querySelectorAll('[data-wkimg="' + i + '"]').forEach(wrap => {
-          if (wrap.querySelector('img')) return;
-          const img = document.createElement('img');
-          img.alt = '';
-          img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;opacity:0;transition:opacity .5s ease';
-          img.onload = () => {
-            const ph = wrap.querySelector('.wk-img-ph');
-            if (ph) ph.remove();
-            requestAnimationFrame(() => { img.style.opacity = '1'; });
-          };
-          img.onerror = () => { img.remove(); _wkSettlePlaceholder(i); };
-          img.src = src;
-          wrap.insertBefore(img, wrap.firstChild);
-        });
-      }
-
-      // A frame that never landed settles into the monogram treatment —
-      // "an empty card reads as broken; a monogram reads as pending".
-      function _wkSettlePlaceholder(i) {
-        const serif = "'Cormorant',Georgia,serif";
-        const days = (window.__lastWkData && Array.isArray(window.__lastWkData.days)) ? window.__lastWkData.days : [];
-        let name = '?';
-        for (const d of days) { const hit = (d.items || []).find(it => it.image_index === i); if (hit) { name = hit.name || '?'; break; } }
-        const letter = _waEsc(String(name).charAt(0).toUpperCase());
-        let settled = false;
-        document.querySelectorAll('[data-wkimg="' + i + '"]').forEach(wrap => {
-          if (wrap.querySelector('img')) return;
-          const ph = wrap.querySelector('.wk-img-ph');
-          if (ph) {
-            ph.style.animation = 'none';
-            ph.innerHTML = `<span style="font-family:${serif};font-size:28px;font-weight:300;color:var(--ink-faint)">${letter}</span>`;
-            settled = true;
-          }
-        });
-        return settled;
-      }
-
-      function _wkPollImages(jobId, count) {
-        _wkStopPolling();
-        const t0 = Date.now();
-        function settleAll() {
-          let failed = 0;
-          for (let i = 0; i < count; i++) { if (_wkSettlePlaceholder(i)) failed++; }
-          if (failed) _rbTrack('image_fallback', { surface: 'weekly-plan', failed, of: count });
-        }
-        function tick() {
-          fetch('/api/images/' + jobId)
-            .then(r => r.ok ? r.json() : null)
-            .then(job => {
-              if (job && Array.isArray(job.images)) {
-                let changed = false;
-                job.images.forEach((src, i) => {
-                  if (src) {
-                    _wkSetImage(i, src);
-                    if (window.__lastWkData) {
-                      if (!Array.isArray(window.__lastWkData.generatedImages)) window.__lastWkData.generatedImages = [];
-                      if (window.__lastWkData.generatedImages[i] !== src) { window.__lastWkData.generatedImages[i] = src; changed = true; }
-                    }
-                  }
-                });
-                if (changed) _wkPersistImages();
-                if (job.done) { settleAll(); return; }
-              } else if (!job) { settleAll(); return; }
-              if (Date.now() - t0 < 300000) _wkPollTimer = setTimeout(tick, 4000);
-              else settleAll();
-            })
-            .catch(() => {
-              if (Date.now() - t0 < 300000) _wkPollTimer = setTimeout(tick, 6000);
-              else settleAll();
-            });
-        }
-        _wkPollTimer = setTimeout(tick, 3000);
-      }
-
-      window.__wkSelectDay = function(di) {
-        if (!_wkState) return;
-        _wkState.day = di;
-        _wkActiveSlot = 0;
-        _wkPaintStrip();
-        _wkPaintConsole();
-      };
-
-      function _wkPaintStrip() {
-        const strip = document.getElementById('wk-strip');
-        if (!strip || !_wkState) return;
-        if (_rbDayCardOn() && _wkStripV2(strip)) return;
-        strip.innerHTML = _rbDayStrip(_wkState.data.days.map((d, di) => {
-          const owned = d.items.filter(it => it.wardrobe_match).length;
-          return {
-            dow: _wkDayName(d),
-            date: _wkDayDate(d),
-            dim: !!d.rest,
-            event: d.rest ? 'Left free' : (d.occasion || ''),
-            meta: d.rest
-              ? 'left free'
-              : `${d.items.length} pieces${owned ? ' · ' + owned + ' yours' : ''}${d.user_activity ? ' <span style="color:var(--rose)">· your plan</span>' : ''}`,
-            thumbs: d.rest ? [] : d.items.slice(0, 4).map(it =>
-              (it.wardrobe_match && it.wardrobe_match.image_url) ||
-              ((!_dlAltered(it) && Number.isInteger(it.image_index)) ? ((_wkState.data.generatedImages || [])[it.image_index] || null) : null)),
-            onclick: `window.__wkSelectDay(${di})`,
-          };
-        }), _wkState.day);
-      }
-
-      // DayCard path (spec v2.0): the LIVE blob through the SAME row
-      // builder the planned_days index uses (_pdRowsWk, §6.4) — one
-      // shape, no freshness gap. Old saves without week_iso can't emit
-      // dated rows → legacy strip (return false). The card gains the
-      // evening line and loses the "your plan" meta flag (provenance, not
-      // state — spec §9); membership chips stay off INSIDE the artifact
-      // (the masthead carries it at the right altitude).
-      function _wkStripV2(strip) {
-        const data = _wkState.data;
-        const built = _pdRowsWk(_wkActiveSaveId || 'live', data);
-        if (!built) return false;
-        const today = _pdLocalISO();
-        const byIdx = {};
-        built.rows.forEach(r => { (byIdx[r.day_index] = byIdx[r.day_index] || {})[r.slot === 'evening' ? 'eve' : 'day'] = r; });
-        strip.innerHTML = data.days.map((d, di) => {
-          const rows = byIdx[di] || {};
-          const date = (data.week_iso || [])[di] || null;
-          const ey = date
-            ? new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }).toUpperCase()
-            : _wkDayName(d).toUpperCase();
-          const dc = _dcMoments(rows.day || null, rows.eve || null, { date, today, eyebrow: ey, blob: data });
-          dc.chip = null;
-          // No ring on the strips (Annie, 2026-07-24 live pass): body-tap
-          // already lands the console on the day, so a second "Focus day"
-          // control read as a different action. The ring survives on the
-          // home rail, where it genuinely differs from the body (peek).
-          return _dcCard(dc, {
-            density: 'full',
-            body: `window.__wkOpenDay(${di})`,
-            focus: di === _wkState.day,
-          });
-        }).join('');
-        return true;
-      }
-      // Body = open (spec §6). Inside the artifact, the console below IS
-      // the day's open view — landing on it is the open, without a full
-      // artifact re-render.
-      window.__wkOpenDay = function(di) {
-        if (window.__wkSelectDay) window.__wkSelectDay(di);
-      };
-
-      // ── Weekly evening moments (Stage 5 / handoff §3.3): a day holding
-      // two moments gets a Day/Evening switcher; every console mutation
-      // applies to the SELECTED moment only. The evening's look generates
-      // lazily through the existing /api/weekly/day endpoint on first open
-      // — no schema change — and lands in d.evening_look (rides the blob,
-      // so it persists and enriches the evening's planned_days row).
-      var _wkActiveSlot = 0; // 0 = day, 1 = evening
-      function _wkEveningFor(di) {
-        const evs = _wkState && _wkState.data && Array.isArray(_wkState.data.evenings) ? _wkState.data.evenings : [];
-        return evs.find(e => e && e.day_index === di) || null;
-      }
-      // The active moment's item array — the ONE reference every console
-      // mutation targets (flick/anchor/swap/remove/add/save).
-      function _wkConItems() {
-        const d = _wkState && _wkState.data.days[_wkState.day];
-        if (!d) return null;
-        if (_wkActiveSlot === 1) {
-          return (d.evening_look && Array.isArray(d.evening_look.items)) ? d.evening_look.items : null;
-        }
-        return d.items;
-      }
-      window.__wkSetSlot = function(oi) {
-        _wkActiveSlot = oi ? 1 : 0;
-        _wkPaintConsole();
-      };
-      // Dress the evening — an ADDITION, never a restyle of the day
-      // (Annie, 2026-07-24: evening looks are consistent across all three
-      // tracks — left free by default, populated on request). An activity
-      // passed in (or typed in the invitation input) creates/updates the
-      // evening MOMENT in wkData.evenings, then generates its look.
-      window.__wkDressEvening = async function(activity) {
-        if (!_wkState) return;
-        const di = _wkState.day;
-        const d = _wkState.data.days[di];
-        if (!d || d.rest) return;
-        const typed = (typeof activity === 'string' && activity.trim())
-          || ((document.getElementById('wk-eve-act') || {}).value || '').trim();
-        let ev = _wkEveningFor(di);
-        if (!ev && !typed) { const el = document.getElementById('wk-eve-act'); if (el) el.focus(); return; }
-        if (!ev) {
-          if (!Array.isArray(_wkState.data.evenings)) _wkState.data.evenings = [];
-          ev = { day_index: di, activity: typed, pinned: false };
-          _wkState.data.evenings.push(ev);
-        } else if (typed) ev.activity = typed;
-        const host = document.getElementById('wk-day');
-        if (host) host.style.opacity = '0.5';
-        try {
-          const fresh = await _wkDayFetch(di, (ev.activity || 'An evening out')
-            + ' — the EVENING of this day only (the daytime plan, already dressed separately and NOT to be changed: '
-            + (d.user_activity || d.occasion || 'the day') + '). One evening look.');
-          d.evening_look = { occasion: fresh.occasion || ev.activity || 'The evening', note: fresh.note || '', look_tags: fresh.look_tags || null, items: Array.isArray(fresh.items) ? fresh.items : [] };
-          _wkActiveSlot = 1;
-          _wkPaintConsole();
-          _wkPatchSaved();
-          _rbTrack('day_planned', { source_type: 'weekly', day_index: di });
-        } catch (e) {
-          console.error('[Robes] /api/weekly/day (evening) error:', e.message);
-          _waShowToast('Robes couldn’t dress that evening — please try again.');
-        } finally {
-          const h = document.getElementById('wk-day');
-          if (h) h.style.opacity = '';
-        }
-      };
-
-      // ── The day console — Daily Match parity: LEFT "The Look" stylist
-      // moodboard (tiles with hover flick), RIGHT "The Rack" (per-card
-      // flick-through, Anchor, day restyle). Flicking reuses the Daily
-      // helpers (_dlOptions/_dlOptIndex/_dlApplyOption): the option set is
-      // the served original + owned same-category pieces (travel precedent —
-      // weekly generates no AI alternates, so flicks stay instant + truthful).
-      var _wkTagHolder = null;
-      window.__wkTagsEdit = function() {
-        if (!_wkTagHolder) return;
-        window.__rbTagSheet(_wkTagHolder.look_tags, '__wkTagsApply', _wkTagHolder.occasion || 'This look');
-      };
-      window.__wkTagsApply = function(t) {
-        if (!_wkTagHolder) return;
-        _wkTagHolder.look_tags = { climate: t.climate, light: t.light, wear_for: t.wear, vibe: t.vibe };
-        _wkPaintConsole();
-        _wkPatchSaved();
-        _rbTrack('look_tags_edited', { surface: 'weekly' });
-      };
-      function _wkPaintConsole() {
-        const host = document.getElementById('wk-day');
-        if (!host || !_wkState) return;
-        const serif = "'Cormorant',Georgia,serif";
-        const d = _wkState.data.days[_wkState.day];
-        if (!d) { host.innerHTML = ''; return; }
-        const ev = _wkEveningFor(_wkState.day);
-        if (d.rest) _wkActiveSlot = 0;
-        const slotEv = _wkActiveSlot === 1;
-        // Every dressed day carries the Day/Evening pair — the evening is
-        // simply "left free" until she asks for it. Compact segmented
-        // control matching the travel console's register.
-        // COPY: needs sign-off (switcher labels)
-        const segBtn = (label, oi, on) =>
-          `<button onclick="window.__wkSetSlot(${oi})" style="border:none;border-radius:100px;padding:5px 13px;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;background:${on ? '#202021' : 'transparent'};color:${on ? '#fff' : '#8A8078'};white-space:nowrap">${label}</button>`;
-        const occHtml = d.rest ? '' :
-          `<div style="display:inline-flex;width:max-content;gap:2px;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.1);border-radius:100px;padding:2px;margin:2px 0 4px;align-self:flex-start">`
-          + segBtn('Day', 0, !slotEv)
-          + segBtn('Evening' + (d.evening_look || ev ? '' : ' · free'), 1, slotEv)
-          + `</div>`;
-        // Evening selected but not yet dressed → the invitation (with her
-        // typed occasion when the moment exists), never a restyled day
-        if (slotEv && !(d.evening_look && Array.isArray(d.evening_look.items) && d.evening_look.items.length)) {
-          host.innerHTML = `
-            <div style="margin-top:18px">${occHtml}</div>
-            <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:40px 24px;margin-top:10px;text-align:center">
-              <div style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">${_waEsc(_wkDayName(d))} evening${ev && ev.activity ? ` — <em style="font-style:italic">${_waEsc(ev.activity)}.</em>` : ', <em style="font-style:italic">left free.</em>'}</div>
-              <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:16px">${ev ? 'Its own look, styled to follow the day.' : 'Add a plan and the evening gets its own look — the day stays exactly as it is.'}</div>
-              ${ev && ev.activity ? '' : `<input id="wk-eve-act" placeholder="Date night, drinks, a dinner out…" style="width:100%;max-width:320px;box-sizing:border-box;border:0.5px solid rgba(32,32,33,0.16);border-radius:100px;padding:11px 16px;font-size:13px;font-family:inherit;color:#202021;background:#FAF8F5;outline:none;margin:0 auto 14px;display:block" onkeydown="if(event.key==='Enter')window.__wkDressEvening()">`}
-              <button onclick="window.__wkDressEvening()" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✦ Dress the evening →</button>
-            </div>`;
-          return;
-        }
-
-        if (d.rest) {
-          host.innerHTML = `
-            <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:44px 24px;margin-top:18px;text-align:center">
-              <div style="font-family:${serif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">${_waEsc(_wkDayName(d))}, <em style="font-style:italic">left free.</em></div>
-              <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:18px">No outfit planned — a deliberately blank page in the week.</div>
-              <button onclick="window.__wkEditDay(${_wkState.day})" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✎ Dress this day</button>
-            </div>`;
-          return;
-        }
-
-        // Thin adapter over the shared console template (_rbConsole) —
-        // frame source mirrors Daily/Travel: wardrobe photo first, generated
-        // still (patched in by the poller via data-wkimg) second, monogram
-        // last. A flicked-in piece must never wear the original's still.
-        const items = slotEv ? d.evening_look.items : d.items;
-        const conOccasion = slotEv ? (d.evening_look.occasion || ev.activity || 'The evening') : d.occasion;
-        const conNote = slotEv ? d.evening_look.note : d.note;
-        const dayLabel = _wkDayName(d) + (slotEv ? ' evening' : '');
-        const owned = items.filter(it => it.wardrobe_match).length;
-        const wkImages = Array.isArray(_wkState.data.generatedImages) ? _wkState.data.generatedImages : [];
-        const wkPending = !!_wkState.data.jobId && !wkImages.some(Boolean);
-        const wkPhSvg = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
-        const wkFrame = (it) => {
-          const wmImg = it.wardrobe_match && it.wardrobe_match.image_url;
-          const genOk = !_dlAltered(it) && Number.isInteger(it.image_index);
-          const src = wmImg || (genOk ? wkImages[it.image_index] : null);
-          const pollAttr = (!wmImg && genOk) ? ' data-wkimg="' + it.image_index + '"' : '';
-          const pulse = !src && !wmImg && genOk && wkPending;
-          const mono = `<span class="rbc-mono" style="font-family:${serif};font-size:30px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`;
-          const phInner = pulse
-            ? `<span style="font-family:${serif};font-style:italic;font-size:12px;color:var(--ink-faint);text-align:center;padding:0 12px">Creating imagery…</span>`
-            : (genOk && _wkState.data.jobId) ? wkPhSvg : mono;
-          return {
-            pollAttr,
-            inner: src && typeof src === 'string'
-              ? `<img src="${_waEsc(src)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
-              : `<div class="wk-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${pulse ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${phInner}</div>`,
-          };
-        };
-        const palette = (Array.isArray(_wkState.data.palette) ? _wkState.data.palette : []).filter(h => /^#[0-9A-Fa-f]{6}$/.test(String(h || ''))).slice(0, 3);
-        const fabricsHtml = _rbcFabricsHtml(items, palette);
-        const conItems = items.map((it, ii) => {
-          const list = _dlOptions(it, { aiFirst: false });
-          return {
-            idx: ii,
-            frame: wkFrame(it),
-            slot: _dlSlot(it).l,
-            role: it.role,
-            shortName: _dlShort(it.name),
-            name: it.name,
-            owned: !!it.wardrobe_match,
-            anchored: !!it.anchored,
-            showAddTag: !it.wardrobe_match,
-            count: { cur: _dlOptIndex(it, list), len: list.length },
-            subHtml: _rbcProvenance(it, '<span class="addtag">Worth adding</span>'),
-            noteHtml: it.how ? `<div class="rbc-hownote">${_waEsc(it.how)}</div>` : '',
-            thirdHtml: it.wardrobe_match ? '' : (it.wishlisted
-              ? `<span class="rbc-act done">${_rbcCheckSvg} Saved</span>`
-              : `<button class="rbc-act save" onclick="window.__wkSaveWishlist(${ii})">Save</button>`),
-          };
-        });
-        // The tag sheet targets the active moment's holder — the day, or
-        // its evening look — by reference, so an apply mutates the blob
-        // _wkPatchSaved persists.
-        _wkTagHolder = slotEv ? d.evening_look : d;
-        const con = _rbConsole({
-          headLabel: `The look · ${_waEsc(dayLabel)} · ${items.length} pieces`,
-          occHtml,
-          quoteHtml: conNote ? _waEsc(conNote) : '',
-          fabricsHtml,
-          paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
-          addChipLabel: _rbTrackCfg('weekly').console.addVerb,
-          tagsHtml: _rbTagsRowHtml(_wkTagHolder && _wkTagHolder.look_tags, '__wkTagsEdit'),
-          rackLabel: `The rack · ${_waEsc(dayLabel)}`,
-          rackTitleHtml: conOccasion ? `<h2>${_waEsc(conOccasion)}${!/[.!?]$/.test(conOccasion) ? '.' : ''}</h2>` : '',
-          headButtonsHtml: slotEv
-            ? `<button class="rbc-hbtn" onclick="window.__wkDressEvening()" title="A fresh evening look">↻ Restyle the evening</button>`
-            : `<button class="rbc-hbtn" id="wk-wear-btn" onclick="window.__wkWear()" title="Log today’s pieces as worn — wear counts feed cost-per-wear">✓ Wore it today</button><button class="rbc-hbtn" onclick="window.__wkRestyleDay()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button><button class="rbc-hbtn" onclick="window.__wkEditDay(${_wkState.day})">✎ The real plan</button>`,
-          onFlip: '__wkFlip', onSwap: '__wkSwap', onAnchor: '__wkAnchor', onRemove: '__wkRemove',
-          onRoleDrop: '__wkRoleDrop',
-          addPieceFn: '__wkAddPiece',
-          lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
-        }, conItems);
-
-        host.innerHTML = `
-          <div class="wk-con">
-            <div>${con.lookHtml}</div>
-            <div>${con.rackHtml}</div>
-          </div>`;
-
-        // Build 2 — prefetch alternates for the visible moment only, in the
-        // background, so a later flick/swap is usually already warm.
-        _rbPrefetchAlternates(items, 'weekly', _wkPaintConsole);
-      }
-
-      window.__wkRoleDrop = function(ii, role) {
-        if (!_wkState) return;
-        const arr = _wkConItems();
-        const it = arr && arr[ii];
-        if (!it || !_rbRoleNorm(role)) return;
-        it.role = _rbRoleNorm(role);
-        _wkPatchSaved();
-        _wkPaintConsole();
-        _rbTrack('role_cast', { surface: 'weekly' });
-      };
-      window.__wkFlip = function(ii, dir) {
-        if (!_wkState) return;
-        const arr = _wkConItems();
-        const it = arr && arr[ii];
-        if (!it) return;
-        const list = _dlOptions(it, { aiFirst: false });
-        if (list.length < 2) { _waShowToast('Nothing else fits this slot yet — snap more pieces'); return; }
-        _dlApplyOption(it, list[(_dlOptIndex(it, list) + dir + list.length) % list.length]);
-        _wkPaintConsole();
-        _wkPaintStrip();
-        _wkPatchSaved();
-        window.__rbcAnimateTile(ii);
-      };
-
-      window.__wkAnchor = function(ii) {
-        if (!_wkState) return;
-        const arr = _wkConItems();
-        const it = arr && arr[ii];
-        if (!it) return;
-        it.anchored = !it.anchored;
-        _wkPaintConsole();
-        _wkPatchSaved();
-        _waShowToast(it.anchored ? 'Anchored — restyles build around it' : 'Anchor released');
-      };
-
-      // Remove a piece she doesn't need from the day's look.
-      window.__wkRemove = function(ii) {
-        const d = _wkState && _wkState.data.days[_wkState.day];
-        const arr = _wkConItems();
-        const it = arr && arr[ii];
-        if (!it || !d) return;
-        if (arr.length <= 2) { _waShowToast('A look needs at least two pieces'); _wkPaintConsole(); return; }
-        arr.splice(ii, 1);
-        _wkPaintConsole();
-        _wkPaintStrip();
-        _wkPatchSaved();
-        _waShowToast(it.name + ' removed from ' + _wkDayName(d));
-      };
-
-      // Swap — the same shared PRD 3.B modal as the Daily and Travel racks.
-      let _wkSwapIdx = null;
-      window.__wkSwap = function(ii) {
-        if (!_wkState) return;
-        const arr = _wkConItems();
-        const item = arr && arr[ii];
-        if (!item) return;
-        _wkSwapIdx = ii;
-        _rbSwapModal(item, { id: 'wk-swap-modal', applyName: '__wkSwapApply', snapName: '__wkSnapMine', idx: ii });
-        // Build 2 — Swap is the explicit trigger for on-demand alternates;
-        // a no-op if the visible-day prefetch already warmed this piece.
-        _rbFetchAlternates(item, 'weekly', arr.map(i => i.name).filter(n => n && n !== item.name));
-      };
-      window.__wkSwapApply = function(ii, wardrobeId) {
-        _rbTrack('piece_swapped', { surface: 'weekly', item: String(wardrobeId) });
-        const wi = _waItems.find(i => i.id === wardrobeId);
-        const arr = _wkConItems();
-        const item = arr && arr[ii];
-        if (!wi || !item) return;
-        item.wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
-        item.name = wi.label;
-        item.brand = wi.brand || '';
-        item.retailer_hint = '';
-        item.price_point = '';
-        document.getElementById('wk-swap-modal')?.remove();
-        _wkPaintConsole();
-        _wkPaintStrip();
-        _wkPatchSaved();
-        window.__rbcAnimateTile(ii);
-        _waShowToast(wi.label + ' swapped in');
-      };
-      window.__wkSnapMine = function() {
-        const ii = _wkSwapIdx;
-        _waAfterAdd = (newId) => window.__wkSwapApply(ii, newId);
-        _waEditId = null;
-        document.getElementById('wk-swap-modal')?.remove();
-        if (window.WA && WA.open) WA.open();
-      };
-
-      // Add a piece to the selected day's look — chooser offers her
-      // wardrobe, the camera or an upload; the piece joins the rack (and
-      // the board) on repaint.
-      window.__wkAddOwned = function(id) {
-        const wi = _waItems.find(i => String(i.id) === String(id));
-        const d = _wkState && _wkState.data.days[_wkState.day];
-        const arr = _wkConItems();
-        if (!wi || !d || d.rest || !arr) return;
-        arr.push({
-          name: wi.label, category: wi.category || 'Other', brand: wi.brand || '', description: '',
-          wardrobe_index: -1, retailer_hint: '', price_point: '',
-          wardrobe_match: { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' },
-        });
-        _wkPaintConsole();
-        _wkPaintStrip();
-        _wkPatchSaved();
-        _waShowToast(wi.label + ' added to ' + _wkDayName(d));
-      };
-      window.__wkAddPiece = function() {
-        if (!_wkState) return;
-        window.__rbcAddMenu('__wkAddOwned');
-      };
-
-      // Save — the account-scoped acquisition verb for an unowned Weekly
-      // piece (Build 1, amended). Writes wishlist_items via _wlSaveFromItem;
-      // never touches wardrobe_items.
-      window.__wkSaveWishlist = async function(ii) {
-        const arr = _wkConItems();
-        const it = arr && arr[ii];
-        if (!it || it.wardrobe_match) return;
-        await _wlSaveFromItem(it);
-        _wkPaintConsole();
-        _wkPaintStrip();
-        _wkPatchSaved();
-      };
-
-      // "Wear today" — logs times_worn on today's owned pieces (the weekly
-      // counterpart of the Daily payoff's wear logging).
-      let _wkWorn = false;
-      window.__wkWear = async function() {
-        if (!_wkState) return;
-        const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-        const d = _wkState.data.days.find(x => _wkDayDate(x) === today);
-        if (!d) { _waShowToast('Today isn’t in this plan yet — it starts ' + (_wkDayDate(_wkState.data.days[0]) || 'soon')); return; }
-        if (d.rest) { _waShowToast(_wkDayName(d) + ' is left free — nothing to log'); return; }
-        if (_wkWorn) { _waShowToast('Already logged for today'); return; }
-        const ownedIds = d.items.filter(it => it.wardrobe_match).map(it => it.wardrobe_match.id);
-        if (!ownedIds.length) { _waShowToast('Nothing owned in today’s look yet — snap your pieces to log wears'); return; }
-        _wkWorn = true;
-        try {
-          for (const id of ownedIds) {
-            const wi = _waItems.find(w => String(w.id) === String(id));
-            if (wi) await _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 });
-          }
-          _waLoad();
-          _waShowToast('On you today — Robes logged the wear ✓');
-          const wb = document.getElementById('wk-wear-btn');
-          if (wb) { wb.textContent = 'Worn ✓'; wb.style.opacity = '.55'; wb.style.pointerEvents = 'none'; }
-        } catch (e) {
-          _wkWorn = false;
-          console.warn('[robes] wear log failed:', e);
-          _waShowToast('Couldn’t log the wear — try again');
-        }
-      };
-
-      // Surgical day re-mix (POST /api/weekly/day): anchored pieces held
-      // fixed, the rest of the week untouched, same saved plan evolved.
-      async function _wkDayFetch(di, activity) {
-        const d = _wkState.data.days[di];
-        const anchors = d.items.filter(it => it.anchored).map(it => ({
-          name: it.name, category: it.category || '', brand: it.brand || '',
-          wardrobe_id: it.wardrobe_match ? it.wardrobe_match.id : null,
-        }));
-        const weekSummary = _wkState.data.days
-          .filter((x, k) => k !== di && !x.rest && x.items.length)
-          .map(x => `${_wkDayName(x)}: ${x.occasion || ''} — ${x.items.map(i => i.name).join(', ')}`)
-          .join('; ');
-        const rc = window.__rbCtx || {};
-        return _rbDayPost('/api/weekly/day', {
-          activity,
-          dayLabel: d.day_label,
-          brief: _wkState.prompt || '',
-          anchors,
-          weekSummary,
-          name,
-          styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
-          wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, seasons: (Array.isArray(i.seasons) && i.seasons.length) ? i.seasons : undefined })),
-          context: rc.city ? { city: rc.city, month: new Date().toLocaleDateString('en-GB', { month: 'long' }), tempRange: rc.tempRange || '', condition: rc.condition || '', hint: rc.hint || '' } : null,
-        });
-      }
-
-      function _wkApplyDay(di, activity, fresh) {
-        const d = _wkState.data.days[di];
-        const anchored = d.items.filter(it => it.anchored);
-        // The single-day call generates no imagery — collect the week's
-        // existing stills (by name, across all days incl. this one's
-        // outgoing items) so an unchanged piece keeps its frame.
-        const stillByName = new Map();
-        _wkState.data.days.forEach(dd => (dd.items || []).forEach(it => {
-          if (Number.isInteger(it.image_index) && !(it.wardrobe_match && it.wardrobe_match.image_url)) stillByName.set((it.name || '').toLowerCase(), it.image_index);
-        }));
-        d.occasion = fresh.occasion || activity || d.occasion;
-        d.note = fresh.note || d.note;
-        d.rest = false;
-        // A restyled day is a new look — its tags refresh with it (spec F3)
-        if (fresh.look_tags) d.look_tags = fresh.look_tags;
-        if (activity) d.user_activity = activity;
-        d.items = Array.isArray(fresh.items) ? fresh.items : [];
-        d.items.forEach(it => {
-          const key = (it.name || '').toLowerCase();
-          if (!(it.wardrobe_match && it.wardrobe_match.image_url) && stillByName.has(key)) it.image_index = stillByName.get(key);
-        });
-        // The masthead summary is refreshed by the server on every day
-        // restyle (audit D2) so it can never describe a look that's since
-        // changed — patch it in place rather than re-rendering the header.
-        if (fresh.stylist_summary) {
-          _wkState.data.stylist_summary = fresh.stylist_summary;
-          const sumEl = document.getElementById('wk-summary');
-          if (sumEl) sumEl.textContent = fresh.stylist_summary;
-        }
-        // Re-mark anchors on the fresh items (by wardrobe id, then name) and
-        // restore a wardrobe_match the model may have dropped.
-        anchored.forEach(a => {
-          const m = d.items.find(it => !it.anchored && (
-            (a.wardrobe_match && it.wardrobe_match && String(it.wardrobe_match.id) === String(a.wardrobe_match.id)) ||
-            (it.name || '').toLowerCase() === (a.name || '').toLowerCase()));
-          if (m) {
-            m.anchored = true;
-            if (!m.wardrobe_match && a.wardrobe_match) { m.wardrobe_match = a.wardrobe_match; m.retailer_hint = ''; m.price_point = ''; }
-          }
-        });
-        _wkPaintStrip();
-        _wkPaintConsole();
-        _wkPatchSaved();
-        if (activity) _rbTrack('day_planned', { source_type: 'weekly', day_index: di });
-      }
-
-      let _wkRestyling = false;
-      window.__wkRestyleDay = async function() {
-        if (!_wkState || _wkRestyling) return;
-        _wkRestyling = true;
-        const di = _wkState.day;
-        const d = _wkState.data.days[di];
-        const btnHost = document.getElementById('wk-day');
-        if (btnHost) btnHost.style.opacity = '0.5';
-        try {
-          const fresh = await _wkDayFetch(di, d.user_activity || d.occasion || '');
-          _wkApplyDay(di, d.user_activity || '', fresh);
-          _waShowToast(_wkDayName(d) + ' restyled' + (d.items.some(i => i.anchored) ? ' around your anchors' : ''));
-        } catch (e) {
-          console.error('[Robes] /api/weekly/day error:', e.message);
-          _waShowToast('Robes couldn’t restyle that day — please try again.');
-        } finally {
-          _wkRestyling = false;
-          const h = document.getElementById('wk-day');
-          if (h) h.style.opacity = '';
-        }
-      };
-
-      // "✎ The real plan" / "Dress this day" — re-plan one day after
-      // generation (same modal register as the Travel Edit day editor).
-      window.__wkEditDay = function(di) {
-        if (!_wkState) return;
-        document.getElementById('wk-day-modal')?.remove();
-        const serif = "'Cormorant',Georgia,serif";
-        const d = _wkState.data.days[di];
-        const chips = ['Office', 'WFH', 'Big meeting', 'Dinner out', 'Date night', 'Pilates', 'School run', 'Drinks'];
-        const chipsHtml = chips.map(c =>
-          `<button onclick="document.getElementById('wk-day-input').value='${_waEsc(c)}'" style="background:#FAF8F5;border:0.5px solid rgba(32,32,33,0.14);border-radius:100px;padding:7px 13px;font-size:11px;cursor:pointer;color:#202021;font-family:inherit">${_waEsc(c)}</button>`).join('');
-        const modal = document.createElement('div');
-        modal.id = 'wk-day-modal';
-        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:center;justify-content:center;padding:20px';
-        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-        modal.innerHTML = `
-          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:460px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">${_waEsc(d.day_label)}</p>
-              <button onclick="document.getElementById('wk-day-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);font-size:16px;line-height:1">×</button>
-            </div>
-            <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 14px;line-height:1.15">What are you actually doing?</p>
-            <input id="wk-day-input" value="${_waEsc(d.user_activity || '')}" placeholder="Client presentation, then drinks" style="width:100%;box-sizing:border-box;border:1px solid rgba(32,32,33,0.15);border-radius:var(--rad-sm);padding:12px 13px;font-size:13.5px;color:#202021;background:#fff;outline:none;font-family:inherit;margin-bottom:14px">
-            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:20px">${chipsHtml}</div>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-              ${d.rest ? '<span></span>' : `<button onclick="window.__wkFreeDay(${di})" style="background:none;border:none;cursor:pointer;font-size:11.5px;color:var(--ink-faint);text-decoration:underline;font-family:inherit;padding:4px 0">Leave this day free</button>`}
-              <button id="wk-day-go" onclick="window.__wkDayApply(${di})" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Dress this day →</button>
-            </div>
-          </div>`;
-        document.body.appendChild(modal);
-        setTimeout(() => { const i = document.getElementById('wk-day-input'); if (i) i.focus(); }, 60);
-      };
-
-      window.__wkFreeDay = function(di) {
-        document.getElementById('wk-day-modal')?.remove();
-        const d = _wkState && _wkState.data.days[di];
-        if (!d) return;
-        d.rest = true;
-        d.occasion = 'Left free';
-        d.note = '';
-        d.user_activity = null;
-        d.items = [];
-        _wkPaintStrip();
-        _wkPaintConsole();
-        _wkPatchSaved();
-        _waShowToast(_wkDayName(d) + ' left free');
-      };
-
-      window.__wkDayApply = async function(di) {
-        const input = document.getElementById('wk-day-input');
-        const activity = ((input && input.value) || '').trim();
-        if (!activity) { if (input) input.focus(); return; }
-        const go = document.getElementById('wk-day-go');
-        if (go) { go.disabled = true; go.textContent = 'Dressing…'; }
-        try {
-          const fresh = await _wkDayFetch(di, activity);
-          document.getElementById('wk-day-modal')?.remove();
-          _wkApplyDay(di, activity, fresh);
-        } catch (e) {
-          console.error('[Robes] /api/weekly/day error:', e.message);
-          if (go) { go.disabled = false; go.textContent = 'Dress this day →'; }
-          _waShowToast('Robes couldn’t dress that day — please try again.');
-        }
-      };
-
-      window.__wkGoBack = function() {
-        if (wkResultPage) wkResultPage.style.display = 'none';
-        window.rbClearCrumb && window.rbClearCrumb();
-        window._rbNav && window._rbNav('/dashboard');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      };
-
-      window.__wkRenderResult = function(data, promptText, opts) {
-        const serif = "'Cormorant',Georgia,serif";
-        if (!data || !Array.isArray(data.days) || !data.days.length) { _waShowToast('That plan didn’t load — try planning the week again.'); return; }
-        _rbHideResultPages('wk');
-        // A stale poller from an earlier plan must not patch its frames
-        // into this one — __lastWkData is about to point at new data.
-        _wkStopPolling();
-        window.__lastWkData = data;
-        _wkState = { data, prompt: promptText || '', day: 0 };
-        _wkActiveSlot = 0;
-        _wkWorn = false;
-
-        if (!wkResultPage) {
-          wkResultPage = document.createElement('div');
-          wkResultPage.id = 'wk-result-page';
-          wkResultPage.style.cssText = 'display:none;position:fixed;top:var(--nav-h,60px);left:0;right:0;bottom:0;z-index:40;background:#FAF8F5;overflow-y:auto';
-          document.body.appendChild(wkResultPage);
-        }
-        if (!document.getElementById('wk-style')) {
-          const ws = document.createElement('style');
-          ws.id = 'wk-style';
-          ws.textContent =
-            '#wk-day .wk-con{display:grid;grid-template-columns:360px minmax(0,1fr);gap:34px;margin-top:18px;align-items:start}' +
-            '@media(max-width:900px){#wk-day .wk-con{grid-template-columns:1fr}}';
-          document.head.appendChild(ws);
-        }
-
-        const owned = data.days.reduce((s, d) => s + d.items.filter(it => it.wardrobe_match).length, 0);
-        const total = data.days.reduce((s, d) => s + d.items.length, 0);
-        const ctx = data.context || {};
-        const pill = [ctx.city, ctx.month].filter(Boolean).join(' · ') + (ctx.tempRange ? ' | ' + ctx.tempRange : '') + (ctx.hint ? ' | ' + ctx.hint : '');
-
-        wkResultPage.innerHTML = `
-          <div style="max-width:var(--shell,1440px);margin:0 auto;padding:36px var(--s6,24px) 0;min-height:calc(100% - 72px);box-sizing:border-box">
-            <div style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#8E7077;margin-bottom:10px">${_waEsc(_rbTrackCfg('weekly').artifact.eyebrow)}</div>
-            <div style="display:flex;align-items:flex-start;gap:12px;margin:0 0 12px;max-width:780px">
-              <h1 id="wk-headline" style="font-family:${serif};font-size:clamp(28px,4.5vw,42px);font-weight:300;font-style:italic;color:#202021;line-height:1.12;margin:0;max-width:720px;min-width:0;flex:1">${_waEsc(data.headline || 'The week ahead.')}</h1>
-              <button class="rb-rename-tbtn" title="Rename" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('wk')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-              ${data.week_label ? `<span style="font-size:10px;font-weight:500;letter-spacing:.04em;color:#6A5E54;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">${_waEsc(data.week_label.charAt(0).toUpperCase() + data.week_label.slice(1).toLowerCase())}</span>` : ''}
-              ${pill ? `<span style="font-size:11px;color:var(--ink-soft);background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:100px;padding:6px 13px">🌤 ${_waEsc(pill)}</span>` : ''}
-            </div>
-            ${data.stylist_summary ? `<p id="wk-summary" style="font-family:${serif};font-style:italic;font-size:15.5px;color:#6E6A64;line-height:1.6;margin:0 0 24px;max-width:640px">${_waEsc(data.stylist_summary)}</p>` : ''}
-            <div id="wk-strip" class="rbd-strip"></div>
-            <div id="wk-day"></div>
-            ${_rbFeedbackBlock('wk', { title: 'How does this week feel?', up: '👍 I’d wear it', down: 'Not quite' })}
-            <div style="height:36px"></div>
-          </div>`;
-
-        wkResultPage.style.display = 'block';
-        wkResultPage.scrollTop = 0;
-        // Land on the first dressed day, not a free one
-        const firstDressed = data.days.findIndex(d => !d.rest);
-        if (firstDressed > 0) _wkState.day = firstDressed;
-        _wkPaintStrip();
-        _wkPaintConsole();
-        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Plan the week' }]);
-        if (data.jobId) _wkPollImages(data.jobId, data.imageCount || 0);
-
-        if (opts && opts.skipSave) {
-          _wkActiveSaveId = (opts && opts.savedId) || null;
-        } else {
-          const firstImg = (function() {
-            for (const d of data.days) for (const it of d.items) {
-              if (it.wardrobe_match && it.wardrobe_match.image_url && String(it.wardrobe_match.image_url).indexOf('http') === 0) return it.wardrobe_match.image_url;
-            }
-            return null;
-          })();
-          // jobId is stripped so a reopened entry never polls a dead job;
-          // hosted stills are patched in later by _wkPersistImages.
-          const persistable = (data.generatedImages || []).map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
-          const wkSave = { ...data, jobId: undefined, generatedImages: persistable, prompt: promptText || '' };
-          _wkActiveSaveId = snAdd({
-            type: 'weekly-plan',
-            title: data.headline || 'Your week, planned',
-            subtitle: data.days.filter(d => !d.rest).length + ' days · ' + (data.week_label || '').toLowerCase(),
-            img: firstImg,
-            wkData: wkSave,
-          });
-          _rbTrack('weekly_generated', { item: String(_wkActiveSaveId), days: data.days.filter(d => !d.rest).length });
-          _pdSync('weekly', _wkActiveSaveId, wkSave);
-        }
-
-        _rbFeedbackArm('wk', () => ({
-          prompt: promptText || '',
-          looksOutput: JSON.stringify({ surface: 'weekly-plan', week_label: data.week_label || '', headline: data.headline || '', days: data.days.length, owned, total, context: ctx, ts: new Date().toISOString() }),
-        }));
       };
 
       // ── Travel Edit — Capsule Packing & Lookbook (PRD: AI-Powered Capsule Packing) ──
@@ -12580,9 +11501,6 @@ body>*:not(#tv-result-page){display:none !important}
         if (kind === 'travel-edit') {
           return { type: 'travel-edit', title: data.destination || data.title || 'Travel edit', subtitle: '', img: null, tvData: data };
         }
-        if (kind === 'weekly-plan') {
-          return { type: 'weekly-plan', title: data.headline || 'Weekly plan', subtitle: '', img: null, wkData: data };
-        }
         if (kind === 'daily-look') {
           return { type: 'daily-look', title: data.occasion || 'Daily look', subtitle: '', img: null, dlData: data };
         }
@@ -12609,7 +11527,6 @@ body>*:not(#tv-result-page){display:none !important}
         else if (kind === 'key-piece') _kpActiveSaveId = newId;
         else if (kind === 'daily-look') _dlActiveSaveId = newId;
         else if (kind === 'travel-edit') _tvActiveSaveId = newId;
-        else if (kind === 'weekly-plan') _wkActiveSaveId = newId;
         return store.find(x => x.id === newId) || { ...entry, id: newId };
       }
 
@@ -12640,13 +11557,6 @@ body>*:not(#tv-result-page){display:none !important}
           applyLive = (v) => {
             const h = document.querySelector('#dl-result-page .dlm-title'); if (h) h.textContent = v;
             if (window.__lastDlData) window.__lastDlData.headline = v;
-          };
-        } else if (kind === 'wk') {
-          id = _wkActiveSaveId;
-          cur = (window.__lastWkData && window.__lastWkData.headline) || '';
-          applyLive = (v) => {
-            const h = document.getElementById('wk-headline'); if (h) h.textContent = v;
-            if (window.__lastWkData) window.__lastWkData.headline = v;
           };
         } else return;
         if (!id) { _waShowToast('Save it first, then you can rename it'); return; }
@@ -12682,7 +11592,6 @@ body>*:not(#tv-result-page){display:none !important}
             if (kind === 'kp' && saved.kpData) patch.kpData = { ...saved.kpData, headline: v };
             else if (kind === 'dl' && saved.dlData) patch.dlData = { ...saved.dlData, headline: v };
             else if (kind === 'tv' && saved.tvData) patch.tvData = { ...saved.tvData, headline: v };
-            else if (kind === 'wk' && saved.wkData) patch.wkData = { ...saved.wkData, headline: v };
           }
           snUpdate(id, patch);
           if (applyLive) applyLive(v);
@@ -12698,9 +11607,6 @@ body>*:not(#tv-result-page){display:none !important}
         }
         if (tvResultPage && tvResultPage.style.display !== 'none') {
           return _shareFindOrMake(_tvActiveSaveId, 'travel-edit', window.__lastTvData);
-        }
-        if (wkResultPage && wkResultPage.style.display !== 'none') {
-          return _shareFindOrMake(_wkActiveSaveId, 'weekly-plan', window.__lastWkData);
         }
         if (dlResultPage && dlResultPage.style.display !== 'none') {
           return _shareFindOrMake(_dlActiveSaveId, 'daily-look', window.__lastDlData);
@@ -13102,7 +12008,6 @@ body>*:not(#tv-result-page){display:none !important}
           if (kpResultPage) kpResultPage.style.display = 'none';
           if (dlResultPage) dlResultPage.style.display = 'none';
           if (tvResultPage) tvResultPage.style.display = 'none';
-          if (wkResultPage) wkResultPage.style.display = 'none';
           const wp = document.querySelector('.wardrobe-panel');
           if (wp && wp.classList.contains('visible')) {
             // Bundle's showWardrobe does a view-switch (hides main content).
@@ -13158,7 +12063,7 @@ body>*:not(#tv-result-page){display:none !important}
           return !!(wp && wp.classList.contains('visible'));
         }
         function _detailOpen() {
-          return [kpResultPage, dlResultPage, tvResultPage, wkResultPage]
+          return [kpResultPage, dlResultPage, tvResultPage]
             .some(function(p) { return p && p.style.display !== 'none'; });
         }
         function _closeOverlays() {
@@ -13167,7 +12072,6 @@ body>*:not(#tv-result-page){display:none !important}
           if (kpResultPage) kpResultPage.style.display = 'none';
           if (dlResultPage) dlResultPage.style.display = 'none';
           if (tvResultPage) tvResultPage.style.display = 'none';
-          if (wkResultPage) wkResultPage.style.display = 'none';
           const snEl = document.getElementById('sn-page');
           if (snEl) snEl.style.display = 'none';
         }
@@ -13225,7 +12129,7 @@ body>*:not(#tv-result-page){display:none !important}
             // share icon is redundant there — drop it and let the in-Look
             // action own sharing. Key-piece has no console Share, so it keeps
             // the nav icon.
-            const consoleShare = [dlResultPage, wkResultPage, tvResultPage].some(p => p && p.style.display !== 'none');
+            const consoleShare = [dlResultPage, tvResultPage].some(p => p && p.style.display !== 'none');
             shareBtn.style.display = (showPill && !consoleShare) ? 'inline-flex' : 'none';
           }
           const wm = document.getElementById('nav-wordmark');
@@ -13538,7 +12442,7 @@ body>*:not(#tv-result-page){display:none !important}
       // The rotating prompt examples live in the bundle's typewriter
       // (PROMPT_EXAMPLES in dashboard-assets/144529f6….js) — that is the
       // sole placeholder mechanism.
-      let _cbIntent = null; // null | 'style' | 'dress-me' | 'weekly'
+      let _cbIntent = null; // null | 'style' | 'dress-me' | 'travel'
       let _cbPhotoData = null;
       let _cbSeedPrefix = null; // static prefix of a card-injected scaffold
 
@@ -13553,11 +12457,6 @@ body>*:not(#tv-result-page){display:none !important}
           inject: 'An outfit for [Sunday brunch]',
           placeholder: 'Describe your occasion or mood…',
           intent: 'dress-me' },
-        { id: 'chip-week',   label: 'Plan my week',
-          cta: 'PLAN MY WEEK',
-          inject: 'A weekly plan for [my upcoming work week]',
-          placeholder: 'Describe your week — meetings, dinners, plans…',
-          intent: 'weekly' },
         // No chip renders this one — it exists so _cbSetIntent('travel') can
         // arm the prompt from a concierge card (the empty Lookbook routes
         // every card back here). _cbResolve already routes 'travel'.
@@ -13854,7 +12753,7 @@ body>*:not(#tv-result-page){display:none !important}
       function _cbDetectIntent(text, hasPhoto) {
         // A photo attachment always means the key-piece track (PRD rule) —
         // no other track consumes the photo, so it must never be outranked
-        // by a travel/weekly keyword and silently dropped.
+        // by a travel keyword and silently dropped.
         if (hasPhoto) return 'style';
         const t = ' ' + (text || '').toLowerCase().replace(/[^\w\s'’-]/g, ' ') + ' ';
         const piece =
@@ -13866,23 +12765,18 @@ body>*:not(#tv-result-page){display:none !important}
           /\b(today|tonight|tomorrow|this (morning|afternoon|evening|weekend))\b/.test(t) ||
           /\b(brunch|dinner|lunch|meeting|wedding|date night|office|workday|interview|party|drinks|gallery|school run)\b/.test(t);
         const travel = /\b(pack(ing)?|suitcase|luggage|trip|travel(ling|ing)?|holiday|vacation|getaway|city break|honeymoon|weekend away|nights? in)\b/.test(t);
-        // Multi-day agendas → the Weekly Plan track. "weekend" never
-        // matches \bweek\b, so daily "this weekend" prompts stay daily; a
-        // bare adjectival "weekly" ("my weekly team meeting") is deliberately
-        // NOT a trigger — it describes one recurring occasion, not a week.
-        const weekly = /\b(work ?week|week ahead|next week|whole week|full week|school week|monday (to|through|until) friday)\b/.test(t) ||
-          /\bweekly (plan(ner)?|wardrobe|outfits|schedule|agenda|edit)\b/.test(t) ||
-          /\bplan\b[\s\S]*\bweek\b/.test(t) || /\bweek\b[\s\S]*\b(plan|schedule|agenda|calendar|outfits)\b/.test(t) ||
-          /\b(for|of) the week\b/.test(t);
-        const hits = [piece && 'style', daily && 'dress-me', travel && 'travel', weekly && 'weekly'].filter(Boolean);
+        // Week-span prompts ("plan my work week") have no track since the
+        // weekly artifact was retired (2026-08-08) — they fall through to
+        // null → the clarifying loop, never a blind render. Day-chip
+        // planning (separate brief) will re-route them.
+        const hits = [piece && 'style', daily && 'dress-me', travel && 'travel'].filter(Boolean);
         if (hits.length === 1) return hits[0];
         // A named piece beats the day's occasion around it (PRD: "my Prada
         // shoes to the office today" is Key Piece, not Daily Look) — but a
-        // trip or a week span outranks the piece packed inside it.
-        if (piece && !travel && !weekly) return 'style';
+        // trip outranks the piece packed inside it.
+        if (piece && !travel) return 'style';
         // A trip beats the occasions (and weekdays) inside it
         if (travel) return 'travel';
-        if (weekly) return 'weekly';
         if (daily) return 'dress-me';
         return null;
       }
@@ -13900,10 +12794,9 @@ body>*:not(#tv-result-page){display:none !important}
         row.id = 'cb-clarify';
         row.style.cssText = 'margin:12px 0 0;padding:16px 18px;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad)';
         row.innerHTML = `
-          <div style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#6E6A64;margin-bottom:10px">Lovely — a look for your day, your week planned, a trip packed, or one piece three ways?</div>
+          <div style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#6E6A64;margin-bottom:10px">Lovely — a look for your day, a trip packed, or one piece three ways?</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button data-intent="dress-me" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">An outfit for my day</button>
-            <button data-intent="weekly" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Plan my week</button>
             <button data-intent="travel" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Pack for a trip</button>
             <button data-intent="style" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Style one piece 3 ways</button>
           </div>`;
@@ -13937,13 +12830,6 @@ body>*:not(#tv-result-page){display:none !important}
           const anchorDate = _cbAnchorDate;
           _cbReset();
           window.__dlSubmit(prompt, anchorDate ? { anchorDate } : undefined);
-          return;
-        }
-        if (intent === 'weekly') {
-          // The Weekly Plan View — a chronological calendar strip routing
-          // wardrobe pieces across the week's agenda
-          _cbReset();
-          window.__wkSubmit(prompt);
           return;
         }
         if (intent === 'style') {
@@ -13985,7 +12871,7 @@ body>*:not(#tv-result-page){display:none !important}
         // A card-armed intent is invisible (no chips) — only trust it while
         // the prompt still descends from the injected scaffold. A wholesale
         // rewrite re-runs detection so "Style my blazer three ways" typed
-        // over the weekly template doesn't post to /api/weekly.
+        // over a card's template doesn't post to the wrong track.
         if (intent && _cbSeedPrefix && prompt.toLowerCase().indexOf(_cbSeedPrefix) !== 0) {
           intent = _cbDetectIntent(prompt, !!_cbPhotoData) || intent;
         }
@@ -14840,7 +13726,6 @@ body>*:not(#tv-result-page){display:none !important}
           if (kpResultPage) kpResultPage.style.display = 'none';
           if (dlResultPage) dlResultPage.style.display = 'none';
           if (tvResultPage) tvResultPage.style.display = 'none';
-          if (wkResultPage) wkResultPage.style.display = 'none';
           const wp = document.querySelector('.wardrobe-panel');
           const wpOpen = wp && wp.classList.contains('visible');
           if (wpOpen && p !== '/wardrobe' && p !== '/wishlist') {
@@ -15064,14 +13949,10 @@ body>*:not(#tv-result-page){display:none !important}
             const dest = it && it.tvData && it.tvData.destination;
             return dest ? dest + ' trip' : 'Travel edit';
           }
-          if (m.source_type === 'weekly') {
-            const iso = (it && it.wkData && Array.isArray(it.wkData.week_iso)) ? it.wkData.week_iso[0] : null;
-            return iso ? 'Week of ' + new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Weekly plan';
-          }
           return 'Daily look';
         }
-        // Dot-coded source identity: cream = daily, sage = week, mauve = trip
-        function srcDot(type) { return type === 'travel' ? '#D4C8C4' : type === 'weekly' ? '#9BA17B' : '#E3D9C6'; }
+        // Dot-coded source identity: cream = daily, mauve = trip
+        function srcDot(type) { return type === 'travel' ? '#D4C8C4' : '#E3D9C6'; }
         function tagHtml(m) {
           return `<div class="rb-rc-tag"><i style="background:${srcDot(m.source_type)}"></i>${_waEsc(srcFact(m))}</div>`;
         }
@@ -15201,20 +14082,17 @@ body>*:not(#tv-result-page){display:none !important}
               const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
               const range = fmt(mine[0]) + (mine.length > 1 ? ' – ' + fmt(mine[mine.length - 1]) : '');
               // Counts are derived, never stored: capsule membership + look
-              // count for a trip, dressed-day count for a week.
+              // count for a trip.
               let counts = '';
               if (item && item.tvData) {
                 const pieces = (item.tvData.capsule || []).length;
                 const looks = (item.tvData.days || []).reduce((n, d) => n + ((d.slots || []).length), 0);
                 counts = (pieces ? ' · ' + pieces + ' pieces' : '') + (looks ? ' · ' + looks + ' looks' : '');
-              } else if (item && item.wkData) {
-                const nd = (item.wkData.days || []).filter(d => !d.rest).length;
-                counts = nd ? ' · ' + nd + ' days' : '';
               }
               // The trip's editorial hero (the lookbook card thumbnail) leads
               const thumb = (item && item.img && String(item.img).indexOf('http') === 0)
                 ? `<span class="th"><img src="${_waEsc(item.img)}" alt="" onerror="this.parentNode.style.display='none'"></span>` : '';
-              const cta = first.source_type === 'travel' ? 'Open the trip →' : first.source_type === 'weekly' ? 'Open the week →' : 'Open →';
+              const cta = first.source_type === 'travel' ? 'Open the trip →' : 'Open →';
               holder.innerHTML =
                 `<button class="rb-upnext" onclick="window.__snOpenItem(${Number(first.source_id)})">${thumb}` +
                 `<span class="k">Coming up</span><span class="t">${_waEsc(title)}</span>` +
@@ -15290,9 +14168,7 @@ body>*:not(#tv-result-page){display:none !important}
           }
           window.__snOpenItem(Number(m.source_id));
           // Land on the tapped day, not the plan's first day
-          if (m.source_type === 'weekly') {
-            setTimeout(() => { window.__wkSelectDay && window.__wkSelectDay(m.day_index); }, 300);
-          } else if (m.source_type === 'travel') {
+          if (m.source_type === 'travel') {
             setTimeout(() => {
               window.__tvSetTab && window.__tvSetTab('outfits');
               window.__tvSelectDay && window.__tvSelectDay(m.day_index);
@@ -15342,10 +14218,7 @@ body>*:not(#tv-result-page){display:none !important}
           slot.moments.forEach(m => {
             const it = snLoad().find(x => String(x.id) === String(m.source_id));
             if (it) {
-              if (it.type === 'weekly-plan' && it.wkData && it.wkData.days && it.wkData.days[m.day_index]) {
-                it.wkData.days[m.day_index].worn = true;
-                snUpdate(it.id, { wkData: it.wkData });
-              } else if (it.type === 'travel-edit' && it.tvData && it.tvData.days && it.tvData.days[m.day_index]) {
+              if (it.type === 'travel-edit' && it.tvData && it.tvData.days && it.tvData.days[m.day_index]) {
                 it.tvData.days[m.day_index].worn = true;
                 snUpdate(it.id, { tvData: it.tvData });
               } else if (it.type === 'daily-look' && it.dlData) {
@@ -15532,13 +14405,13 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           }).catch(() => {});
         }
 
-        // Bands: weekly + travel only (daily looks are cell content, never
-        // a band — decision 7). Extent = the source's row dates; segments
-        // computed per week row from real weekday offsets.
+        // Bands: travel only (daily looks are cell content, never a band —
+        // decision 7; weekly bands retired with the weekly track). Extent =
+        // the source's row dates; segments per week row from real offsets.
         function _mvBands(g, rows, sources) {
           const bySrc = {};
           rows.forEach(r => {
-            if (r.source_type !== 'weekly' && r.source_type !== 'travel') return;
+            if (r.source_type !== 'travel') return;
             (bySrc[r.source_id] = bySrc[r.source_id] || []).push(r.day_date);
           });
           const bands = [];
@@ -15548,7 +14421,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             if (e < g.gridStart || s > g.gridEnd) return;
             const type = rows.find(r => r.source_id === sid).source_type;
             const parent = sources[sid] || _pdParent(sid);
-            const title = (parent && parent.title) || (type === 'travel' ? 'Trip' : 'Weekly plan');
+            const title = (parent && parent.title) || 'Trip';
             const segs = [];
             for (let w = 0; w < g.weeks; w++) {
               const ws = _pdAddISO(g.gridStart, w * 7), we = _pdAddISO(ws, 6);
@@ -15761,20 +14634,6 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
       // deliberately match the pre-refactor artifacts verbatim — the
       // reference tests assert zero visual drift.
       var _RB_TRACKS = {
-        weekly: {
-          key: 'weekly',
-          engine: 'weekly',
-          intake: {
-            defaultDays: 7, maxDays: 21, requiresDates: false,
-            // COPY: needs sign-off
-            rackLabel: 'Build it around',
-            quickAdd: ['Office', 'WFH', 'Big meeting', 'Dinner out', 'Date night', 'Pilates', 'School run', 'Drinks'],
-            primaryLabel: st => 'Plan my week · ' + st.rows.filter(r => !r.free).length + ' days →',
-            maxDaysError: 'That’s more than three weeks — Robes plans up to 21 days at a time.',
-          },
-          artifact: { eyebrow: 'Your week, planned', hasCapsuleTab: false, hasPackProgress: false },
-          console: { rackScope: 'wardrobe', addVerb: 'Save', rackHint: '' },
-        },
         travel: {
           key: 'travel',
           engine: 'travel',
@@ -15806,11 +14665,12 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         },
       };
       window._RB_TRACKS = _RB_TRACKS;
-      function _rbTrackCfg(kind) { return _RB_TRACKS[kind] || _RB_TRACKS.weekly; }
+      // Unknown kinds fall back to daily (the weekly fallback retired with
+      // the weekly track — daily is the only dateless, wardrobe-scoped one).
+      function _rbTrackCfg(kind) { return _RB_TRACKS[kind] || _RB_TRACKS.daily; }
 
       var _IK_FLAG_KEY = 'rb_diary_prompt';
       var _ikScope = { kind: 'none', id: null, label: '', date: null };
-      var _ikPlanScope = null;   // unused while plan auto-scope is disabled — see _ikAutoScope
       var _ikState = null;       // intake-local state; null = closed
       var _ikOpenedAt = 0;
 
@@ -15926,33 +14786,10 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         const ta = document.getElementById('cb-ta');
         if (ta) { ta.focus(); ta.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       };
-      // Only a WEEKLY plan covering today auto-scopes — a week is ambient,
-      // a trip is an occasion: someone on holiday typing into the field is
-      // more likely starting something new than amending eight days of
-      // Ibiza, and silently aiming the field at a trip is an expensive way
-      // to be wrong. Trips scope on explicit selection only (decision 3).
-      function _ikComputePlanScope() {
-        const today = _pdLocalISO();
-        const rows = _pdCacheRead().filter(r => r.day_date === today && r.source_type === 'weekly');
-        if (!rows.length) return null;
-        const src = rows[0].source_id;
-        const p = _pdParent(src);
-        // The label is always the plan's REAL title; date-range fallback,
-        // never a "Your week" placeholder for a plan not called that.
-        const item = snLoad().find(x => String(x.id) === String(src));
-        const iso0 = item && item.wkData && Array.isArray(item.wkData.week_iso) ? item.wkData.week_iso[0] : null;
-        const label = p.title || (iso0 ? 'Week of ' + new Date(iso0 + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'This week');
-        return { kind: 'plan', id: src, label, date: null };
-      }
-      // Disabled (product call): a weekly plan covering today used to
-      // auto-scope the field, but its title chip rendered as a broken-looking
-      // black block (long stylist headlines have no clean truncation next to
-      // the × button) and appeared without her asking for it. The day chip
-      // (window._ikScopeDay, explicit tap only) is the only chip that should
-      // ever appear now. _ikComputePlanScope/_ikPlanScope stay in place —
-      // still read by the plan-restyle routing below — should an explicit
-      // "scope to this plan" entry point return.
-      function _ikAutoScope() {}
+      // Plan scope retired with the weekly track (2026-08-08): the day chip
+      // (window._ikScopeDay, explicit tap only) is the only scope that
+      // exists — trips never auto-scope (decision 3), and the weekly plan
+      // that used to feed the plan scope no longer has an artifact.
 
       // ── suggestion pills — the cold-start mechanism. Never a place or
       // date that isn't already in the user's data. ──────────────────
@@ -15966,20 +14803,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           // Tone modifiers — never dated, never placed
           ['A touch warmer', 'Softer and easier', 'Flats today'].forEach(t =>
             pills.push({ label: t, act: () => { _ikTrack('pill', 'restyle_day'); _ikRestyleDay(t); } }));
-        } else if (_ikScope.kind === 'plan') {
-          pills.push({ label: 'Lean the week smarter', act: () => { _ikTrack('pill', 'restyle_plan'); _ikRestylePlan('Lean the week smarter — sharper, simpler'); } });
-          pills.push({ label: 'More colour this week', act: () => { _ikTrack('pill', 'restyle_plan'); _ikRestylePlan('Bring more colour into the week'); } });
-          if (!cached.some(r => r.day_date === today && r.status !== 'free')) {
-            pills.push({ label: 'Dress today', act: () => { _ikTrack('pill', 'daily'); window.__dlSubmit('An outfit for today'); } });
-          }
         } else {
           if (_waItems.length < 15) {
             pills.push({ label: '+ Add pieces — a few photos at once', act: () => { _ikTrack('pill', 'wardrobe'); if (window.__waAddChooser) window.__waAddChooser(); else if (window.App && App.showWardrobe) App.showWardrobe(); } });
-          }
-          const weekCovered = cached.some(r => r.source_type === 'weekly' && r.day_date >= today && r.day_date <= _pdAddISO(today, 6));
-          if (!weekCovered) {
-            const city = (window.__rbCtx && window.__rbCtx.city) || '';
-            pills.push({ label: 'Plan my week' + (city ? ' in ' + city : ''), act: () => { _ikTrack('pill', 'weekly'); _ikOpen('weekly', { prompt: '' }); } });
           }
           const deferred = snLoad().find(t => t.type === 'travel-edit' && t.tvData && (!Array.isArray(t.tvData.days) || !t.tvData.days.length));
           if (deferred) {
@@ -16034,7 +14860,6 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           return;
         }
         if (_ikScope.kind === 'day') { _ikTrack('typed', 'restyle_day'); _ikRestyleDay(prompt); _ikClearPrompt(); return; }
-        if (_ikScope.kind === 'plan' && !_ikHasSignal(prompt)) { _ikTrack('typed', 'restyle_plan'); _ikRestylePlan(prompt); _ikClearPrompt(); return; }
         // Model call — open the reading state immediately, resolve into
         // ready (or clarify); a failure is never a dead end and never
         // loses the prompt.
@@ -16086,39 +14911,13 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           window.__dlSubmit(text, { anchorDate: date, slot: evening ? 'evening' : undefined });
           return;
         }
-        // The day belongs to a plan: open it AT that day, then either ADD
-        // the evening moment (evening ask) or run the single-day restyle
-        // with her words as the activity — the same surgical
-        // /api/weekly/day | /api/travel/day the artifacts use.
+        // The day belongs to a trip: open it AT that day — travel is
+        // looks-first, so her words become a fresh look styled from the
+        // case, pinned straight to that day.
         window.__snOpenItem(item.id);
-        if (m.source_type === 'weekly') {
-          setTimeout(() => {
-            if (window.__wkSelectDay) window.__wkSelectDay(m.day_index);
-            if (evening) { if (window.__wkDressEvening) window.__wkDressEvening(text); return; }
-            if (window.__wkEditDay) window.__wkEditDay(m.day_index);
-            setTimeout(() => {
-              const inp = document.getElementById('wk-day-input');
-              if (inp) { inp.value = text; if (window.__wkDayApply) window.__wkDayApply(m.day_index); }
-            }, 150);
-          }, 400);
-        } else {
-          // Travel is looks-first: her words become a fresh look styled
-          // from the case, pinned straight to that day.
-          setTimeout(() => {
-            if (window.__tvStyleLookForDay) window.__tvStyleLookForDay(m.day_index, text);
-          }, 400);
-        }
-      }
-      function _ikRestylePlan(text) {
-        const item = snLoad().find(x => String(x.id) === String(_ikScope.id));
-        const w = item && item.wkData;
-        if (!w || !Array.isArray(w.week_iso) || !Array.isArray(w.days)) { _ikOpen('weekly', { prompt: text }); return; }
-        // Re-plan over the same dates: a NEW lookbook row that coexists in
-        // planned_days and wins at read time (latest updated_at).
-        const dayPlan = w.days.map(d => d.rest ? null : (d.user_activity || ''));
-        const weekDays = w.days.map(d => d.day_label);
-        _ikClearPrompt();
-        _wkGenerate(text, dayPlan, weekDays, w.week_iso, {});
+        setTimeout(() => {
+          if (window.__tvStyleLookForDay) window.__tvStyleLookForDay(m.day_index, text);
+        }, 400);
       }
 
       // ── the unfurl (Phase 2) ───────────────────────────────────────
@@ -16182,12 +14981,11 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             days = Math.min(cfg.maxDays, Math.round((new Date(seed.date_end + 'T00:00:00Z') - new Date(seed.date_start + 'T00:00:00Z')) / 86400000) + 1);
             if (days < 1) { from = null; days = 0; }
           }
-          // Tracks that don't demand dates default to the upcoming week;
-          // date-demanding tracks (travel) leave the days empty until the
+          // Tracks that don't demand dates default from today; the
+          // date-demanding track (travel) leaves the days empty until the
           // when crumb is filled — never an invented range.
           if (!from && kind !== 'clarify' && !cfg.requiresDates) {
-            const wd = _wkWeekDays(cfg.defaultDays);
-            from = wd[0].iso; days = cfg.defaultDays;
+            from = _pdLocalISO(); days = cfg.defaultDays;
           }
           // Looks-first travel: classifier day_intents become plan chips
           // (pre-selected — her prompt named them), and a Look's "Pack it"
@@ -16257,7 +15055,6 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           host.innerHTML = `<p class="ik-said">${_ikSaid()}</p>
             <div class="ik-clar">
               <button onclick="window._ikClarify('daily')">One outfit, one day</button>
-              <button onclick="window._ikClarify('weekly')">Plan a week</button>
               <button onclick="window._ikClarify('travel')">Pack for a trip</button>
               <button class="ik-cancel" onclick="window._ikCancel()">Cancel</button>
             </div>`;
@@ -16521,25 +15318,10 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           _tvShowBuildPage();
           return;
         }
-        // Weekly: evenings fold into the day's authoritative plan line
-        // (one look reads the whole day until Phase 3 gives weekly
-        // per-slot looks); the evening MOMENT still gets its own index row
-        // via wkData.evenings.
-        const dayPlan = st.rows.map(r => {
-          if (r.free) return null;
-          const eve = r.evening && r.evening.activity ? (r.activity ? r.activity + ' — evening: ' + r.evening.activity : 'Evening: ' + r.evening.activity) : r.activity;
-          return eve || '';
-        });
-        if (!dayPlan.some(p => p !== null)) { st.err = 'Every day is left free — keep at least one dressed.'; _ikPaint(); return; }
-        const weekDays = st.rows.map(r => r.label + ' · ' + r.date);
-        const weekIso = st.rows.map(r => r.iso);
-        const pinnedDays = st.rows.map((r, i) => r.pinned ? i : -1).filter(i => i !== -1);
-        const evenings = st.rows.map((r, i) => r.evening && r.evening.activity ? { day_index: i, activity: r.evening.activity, pinned: !!r.evening.pinned } : null).filter(Boolean);
-        _rbTrack('intake_committed', { kind: 'weekly', days: st.rows.length, moments: st.rows.length + evenings.length, pinned_count: pinnedDays.length, evenings: evenings.length, anchors: st.anchors.length, free_days: st.rows.filter(r => r.free).length });
-        const anchors = st.anchors.slice();
-        const brief = st.prompt;
+        // No other engine commits through the intake (daily submits
+        // directly; the weekly engine was retired 2026-08-08) — an unknown
+        // kind lands here and quietly closes rather than dead-ending.
         _ikClose(); _ikClearPrompt();
-        _wkGenerate(brief, dayPlan, weekDays, weekIso, { anchorItemIds: anchors, pinnedDays, evenings });
       };
 
       // ── boot wiring ────────────────────────────────────────────────
@@ -16580,7 +15362,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         // Auto-scope + pills once the session and rail cache have landed
         let tries2 = 0;
         const t2 = setInterval(() => {
-          if (_waUid()) { _ikAutoScope(); _ikPillsPaint(); if (++tries2 > 3) clearInterval(t2); }
+          if (_waUid()) { _ikPillsPaint(); if (++tries2 > 3) clearInterval(t2); }
           else if (++tries2 > 60) clearInterval(t2);
         }, 1500);
         document.addEventListener('visibilitychange', () => { if (!document.hidden) _ikPillsPaint(); });

@@ -164,14 +164,16 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   // copy, a 20-piece track with the last milestone at 78%, a faded final
   // quarter, and NO denominator anywhere on the card.
   if (n <= 15) {
-    check(`n=${n} · four milestones`, state.cols.length === 4, JSON.stringify(state.cols));
+    // Weekly milestone retired 2026-08-08 (the weekly track is gone) —
+    // three capability columns: daily / travel / style notes.
+    check(`n=${n} · three milestones`, state.cols.length === 3, JSON.stringify(state.cols));
     check(`n=${n} · capability labels`,
       state.cols.map((c) => c.at + ' ' + c.label).join('|') ===
-      '03 Dresses today|05 Plans your week|10 Packs your trips|15 Knows your taste',
+      '03 Dresses today|10 Packs your trips|15 Knows your taste',
       state.cols.map((c) => c.at + ' ' + c.label).join('|'));
-    check(`n=${n} · ticks at 15/25/50/78%`,
-      state.tickLefts.join('|') === '15%|25%|50%|78%', state.tickLefts.join('|'));
-    const pts = [[0, 0], [3, 15], [5, 25], [10, 50], [15, 78], [20, 100]];
+    check(`n=${n} · ticks at 15/50/78%`,
+      state.tickLefts.join('|') === '15%|50%|78%', state.tickLefts.join('|'));
+    const pts = [[0, 0], [3, 15], [10, 50], [15, 78], [20, 100]];
     const want = (() => {
       for (let i = 1; i < pts.length; i++) {
         if (n <= pts[i][0]) {
@@ -206,7 +208,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   if (n <= 15) {
     check(`n=${n} · no status text`,
       !state.hasStatus && !/locked/i.test(state.msText), state.msText);
-    const ats = [3, 5, 10, 15];
+    const ats = [3, 10, 15];
     const nextIdx = ats.findIndex((a) => a > n);
     const litOk = state.cols.every((c, i) => c.on === (n >= ats[i] || i === nextIdx));
     check(`n=${n} · lit milestones`, litOk, state.cols.map((c) => c.at + ':' + c.on).join('|'));
@@ -273,12 +275,13 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check('lookbook empty · ways block', l.present);
   check('lookbook empty · title', l.title === 'Nothing saved yet.', l.title);
   check('lookbook empty · subtitle', /filed here/.test(l.sub), l.sub);
-  check('lookbook empty · uses the real concierge cards', l.count === 3, String(l.count));
+  // Two cards since the weekly removal (2026-08-08): Daily outfit + Travel edit
+  check('lookbook empty · uses the real concierge cards', l.count === 2, String(l.count));
   check('lookbook empty · same cards as home', l.matchesHome, JSON.stringify(l.titles));
-  check('lookbook empty · keeps card imagery', l.hasImagery === 3, String(l.hasImagery));
+  check('lookbook empty · keeps card imagery', l.hasImagery === 2, String(l.hasImagery));
   check('lookbook empty · no inline modal openers', l.inlineOnclick === 0, String(l.inlineOnclick));
   check('lookbook empty · no dashboard progress pill', l.lockPills === 0, String(l.lockPills));
-  check('lookbook empty · every card wired', l.wired === 3, String(l.wired));
+  check('lookbook empty · every card wired', l.wired === 2, String(l.wired));
 
   // Tapping a card must land on the dashboard prompt, not a modal
   const routed = await page.evaluate(async () => {
@@ -339,7 +342,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     const home = Array.from(document.querySelectorAll('.services .svc .svc-title')).map((t) => t.textContent.trim());
     return { titles, home, imgs: ways ? ways.querySelectorAll('.svc-img img').length : 0 };
   });
-  check('first load · fills in without a refresh', settled.titles.length === 3, JSON.stringify(settled.titles));
+  check('first load · fills in without a refresh', settled.titles.length === 2, JSON.stringify(settled.titles));
   check('first load · matches the transformed cards',
     JSON.stringify(settled.titles) === JSON.stringify(settled.home),
     `${JSON.stringify(settled.titles)} vs ${JSON.stringify(settled.home)}`);
@@ -377,7 +380,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       trkFirst: dash?.querySelector('.dash-mast')?.nextElementSibling?.id,
     };
   });
-  check('390px · four milestone columns hold', m.cols === 4, String(m.cols));
+  check('390px · three milestone columns hold', m.cols === 3, String(m.cols));
   check('390px · no horizontal overflow', m.overflow);
   await ctx.close();
 }
