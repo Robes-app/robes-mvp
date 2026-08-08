@@ -1838,8 +1838,15 @@
           const tagsToggle = tog('tags',
             '<span style="color:var(--ink-faint);margin-right:8px">+</span>Add tags and notes', '',
             nTags ? nTags + ' set' : 'season, wear it for, notes');
+          // Bridge, not a duplicate (IA 2026-08-08): the piece links into
+          // the Lookbook where its looks live — the cross-link that
+          // replaced the wardrobe's Looks tab.
+          const styledIn = isEdit && typeof _lkLooks !== 'undefined' && Array.isArray(_lkLooks)
+            ? _lkLooks.filter(function(l) { return _lkPieceIds(l).map(String).indexOf(String(_waEditId)) > -1; }).length
+            : 0;
           const cta = '<button id="wa-saw-cta" class="rb-wf-cta" onclick="window.__waSawSubmit&&window.__waSawSubmit()">' +
               (isEdit ? 'Update piece →' : 'Add to wardrobe →') + '</button>' +
+            (styledIn ? '<button type="button" class="rb-wf-del" style="color:var(--ink-soft)" onclick="window.__waFormLooks()">Styled in ' + styledIn + ' look' + (styledIn === 1 ? '' : 's') + ' →</button>' : '') +
             (isEdit ? '<button type="button" class="rb-wf-del" onclick="window.__waFormDelete()">Remove from wardrobe</button>' : '');
           const photoIn = f.mode !== 'add'
             ? '<input id="rb-wf-photoin" type="file" accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">'
@@ -2092,6 +2099,11 @@
           if (inp) inp.click();
         };
         window.__waFormDelete = function() { _waDelete(); };
+        // The piece's looks live in the Lookbook — close the form, go there
+        window.__waFormLooks = function() {
+          if (window.WA && WA.close) { try { WA.close(); } catch (e) {} }
+          setTimeout(function() { window.__lkGo && window.__lkGo(); }, 120);
+        };
         window.__waLinkSoon = function() {
           _waSoon('Paste a link', 'Drop a product link and Robes files the piece — photo, brand and price included.');
         };
@@ -3156,12 +3168,11 @@
 
       // ── View switching + panel augmentation ───────────────────────────
       window.__waSetView = function(v) {
-        _waView = v === 'wishlist' ? 'wishlist' : v === 'looks' ? 'looks' : 'all';
-        // Clicking Looks always lands the tab's landing grid (Annie,
-        // 2026-07-30: no sub-sub-nav — the tab is the way back from a
-        // detail or the composer). __lkOpen/__lkNew route through here
-        // FIRST, then set their own view.
-        if (_waView === 'looks') { _lkView = 'grid'; _lkActive = null; }
+        // Looks moved OUT of the wardrobe (IA 2026-08-08: one home per
+        // object — a wardrobe holds garments, not outfits). Legacy callers
+        // land on the Lookbook's All looks shelf.
+        if (v === 'looks') { window.__lkGo && window.__lkGo(); return; }
+        _waView = v === 'wishlist' ? 'wishlist' : 'all';
         _waV2Sync();
         if (window.rbSetCrumb) {
           if (_waView === 'all') {
@@ -3169,26 +3180,19 @@
           } else {
             rbSetCrumb([
               { label: 'Wardrobe', action: function() { window.__waSetView && window.__waSetView('all'); } },
-              { label: _waView === 'wishlist' ? 'Wishlist' : 'Looks' }
+              { label: 'Wishlist' }
             ]);
           }
         }
-        if (window._rbNav) _rbNav(_waView === 'wishlist' ? '/wishlist' : _waView === 'looks' ? '/looks' : '/wardrobe');
+        if (window._rbNav) _rbNav(_waView === 'wishlist' ? '/wishlist' : '/wardrobe');
       };
 
       function _waV2Sync() {
         const panel = document.querySelector('.wardrobe-panel');
         if (!panel || !document.getElementById('rb-wsub')) return;
         const wish = _waView === 'wishlist';
-        const looks = _waView === 'looks';
-        // Build the Looks surface BEFORE the visibility pass below reads it —
-        // on the first switch the wrap doesn't exist yet, and a display it
-        // never received leaves the tab blank behind its own CSS default.
-        if (looks) _lkEnsureDom();
         const title = panel.querySelector('.wg-title');
         const sub = panel.querySelector('.wg-sub');
-        // Looks is a tab INSIDE the wardrobe, not a destination (brief A1) —
-        // the header keeps saying Wardrobe.
         if (title) title.textContent = wish ? 'Your wishlist' : 'Your wardrobe';
         if (sub) sub.textContent = wish
           ? 'Pieces you don’t own yet — Robes weighs each against what’s already yours.'
@@ -3197,23 +3201,19 @@
         if (count) {
           count.textContent = wish
             ? _wlItems.length + ' saved'
-            : looks
-              ? _lkLooks.length + ' look' + (_lkLooks.length === 1 ? '' : 's')
-              : _waItems.length + ' piece' + (_waItems.length === 1 ? '' : 's');
+            : _waItems.length + ' piece' + (_waItems.length === 1 ? '' : 's');
         }
         const cta = document.getElementById('rb-wg-cta-head');
         if (cta) cta.style.display = wish ? '' : 'none'; // wishlist-only add path
         const filters = document.getElementById('wg-filters');
-        if (filters) filters.style.display = wish || looks ? 'none' : '';
+        if (filters) filters.style.display = wish ? 'none' : '';
         const trail = document.getElementById('rb-wg-trail');
-        if (trail) trail.style.display = wish || looks ? 'none' : '';
-        if (wish || looks) _waCascadeClose();
+        if (trail) trail.style.display = wish ? 'none' : '';
+        if (wish) _waCascadeClose();
         const grid = document.getElementById('wg-grid');
-        if (grid) grid.style.display = wish || looks ? 'none' : '';
+        if (grid) grid.style.display = wish ? 'none' : '';
         const wlGrid = document.getElementById('rb-wl-grid');
         if (wlGrid) wlGrid.style.display = wish ? 'grid' : 'none';
-        const lkWrap = document.getElementById('rb-lk-wrap');
-        if (lkWrap) lkWrap.style.display = looks ? 'block' : 'none';
         const tabs = document.getElementById('rb-wsub');
         if (tabs) {
           tabs.querySelectorAll('button').forEach(function(b) {
@@ -3221,12 +3221,9 @@
           });
           const wlTab = tabs.querySelector('[data-view="wishlist"]');
           if (wlTab) wlTab.textContent = 'Wishlist' + (_wlItems.length ? ' (' + _wlItems.length + ')' : '');
-          const lkTab = tabs.querySelector('[data-view="looks"]');
-          if (lkTab) lkTab.textContent = 'Looks' + (_lkLooks.length ? ' (' + _lkLooks.length + ')' : '');
         }
         _waRefineRender();
         if (wish) _wlRender();
-        if (looks) _lkPaint();
       }
 
       // One-time DOM augmentation of the static wardrobe panel
@@ -3356,11 +3353,10 @@
         const tabs = document.createElement('div');
         tabs.id = 'rb-wsub';
         tabs.className = 'rb-wsub';
-        // Pieces | Looks | Wishlist — the vocabulary is already in the product
-        // ("10 pieces · 7 looks" in the Travel Edit), so this needs no new
-        // language and no nav change (brief A1).
+        // All pieces | Wishlist — what you own, and future ownership. The
+        // Looks tab moved to the Lookbook (IA 2026-08-08: a wardrobe holds
+        // garments, not outfits — one home per object).
         tabs.innerHTML = '<button data-view="all" class="active">All pieces</button>' +
-          '<button data-view="looks">Looks</button>' +
           '<button data-view="wishlist">Wishlist</button>';
         tabs.addEventListener('click', function(e) {
           const b = e.target.closest('button[data-view]');
@@ -3450,13 +3446,12 @@
       if (window.location.pathname === '/wardrobe' && window.App && App.showWardrobe) {
         setTimeout(() => App.showWardrobe(), 100);
       }
-      if (window.location.pathname === '/looks' && window.App && App.showWardrobe) {
-        // Looks nests under the wardrobe panel — open it, then switch view
-        // (after the visibility observer has set the base Wardrobe crumb)
-        setTimeout(() => {
-          App.showWardrobe();
-          setTimeout(() => window.__waSetView && window.__waSetView('looks'), 150);
-        }, 100);
+      if (window.location.pathname === '/looks') {
+        // Legacy deep link — looks live in the Lookbook now (IA 2026-08-08)
+        setTimeout(() => window.__lkGo && window.__lkGo(), 400);
+      }
+      if (window.location.pathname === '/calendar') {
+        setTimeout(() => window.__rbCalOpen && window.__rbCalOpen(), 400);
       }
       if (window.location.pathname === '/wishlist' && window.App && App.showWardrobe) {
         // Wishlist nests under the wardrobe panel — open it, then switch view
@@ -4001,7 +3996,7 @@
       snPage.innerHTML = `
         <div style="padding:32px var(--s6,24px) 24px;max-width:var(--shell,1440px);margin:0 auto;box-sizing:border-box">
           <div id="sn-headrow" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 16px">
-            <p style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0">Lookbook</p>
+            <p id="sn-eyebrow" style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0">Lookbook</p>
           </div>
           <div id="sn-tabs" style="display:flex;gap:22px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-bottom:0.5px solid rgba(32,32,33,0.12);margin:0 0 24px"></div>
           <div id="sn-grid" style="display:grid;gap:20px"></div>
@@ -4012,12 +4007,14 @@
         </div>`;
       document.body.appendChild(snPage);
 
-      // ── Lookbook type filters — one All row for the four result types
-      // (same text-tab scan pattern as the wardrobe's category tabs)
-      var _snFilter = 'all';
+      // ── Lookbook shelves — All looks (the Look entities, the page's
+      // centre of gravity) then the three generated-result types (IA
+      // 2026-08-08: every look lives here, once; same text-tab scan
+      // pattern as the wardrobe's category tabs)
+      var _snFilter = 'looks';
       const _SN_FILTERS = [
-        ['all', 'All'], ['key-piece', 'Key pieces'], ['daily-look', 'Daily looks'],
-        ['travel-edit', 'Travel edits']
+        ['looks', 'All looks'], ['key-piece', 'Key pieces styled'],
+        ['daily-look', 'Daily looks'], ['travel-edit', 'Travel edits']
       ];
       if (!document.getElementById('rb-sn-style')) {
         const snSt = document.createElement('style');
@@ -4034,10 +4031,14 @@
       (function _snTabsInit() {
         const row = snPage.querySelector('#sn-tabs');
         row.innerHTML = _SN_FILTERS.map(([k, l]) =>
-          `<button class="sn-ftab${k === 'all' ? ' active' : ''}" data-snf="${k}">${l}</button>`).join('');
+          `<button class="sn-ftab${k === 'looks' ? ' active' : ''}" data-snf="${k}">${l}</button>`).join('');
         row.addEventListener('click', function(e) {
           const b = e.target.closest('button[data-snf]');
-          if (b) _snSetFilter(b.dataset.snf);
+          if (!b) return;
+          // Tapping All looks always lands the landing grid — the shelf tab
+          // is the way back out of a detail or the composer (no sub-sub-nav)
+          if (b.dataset.snf === 'looks') { _lkView = 'grid'; _lkActive = null; }
+          _snSetFilter(b.dataset.snf);
         });
       })();
       function _snSetFilter(f) {
@@ -4056,7 +4057,12 @@
         const av = document.getElementById('av-menu');
         if (av) av.classList.remove('open');
         document.getElementById('sn-page').style.display = 'block';
-        _snSetFilter('all'); // the page always reopens on All (wardrobe convention)
+        const ey = document.getElementById('sn-eyebrow');
+        if (ey) ey.textContent = 'Lookbook';
+        // The page always reopens on the All looks shelf's landing grid
+        // (wardrobe convention — no sub-sub-nav to climb back out of)
+        _lkView = 'grid'; _lkActive = null;
+        _snSetFilter('looks');
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Lookbook' }]);
         window._rbNav && window._rbNav('/lookbook');
       };
@@ -4205,6 +4211,22 @@
         const grid = document.getElementById('sn-grid');
         const empty = document.getElementById('sn-empty');
         if (!grid) return;
+        // The All looks shelf is the Look entities' home — its own module
+        // paints it (grid / detail / composer); the item grid stands down.
+        // A truly empty account (no looks, nothing saved) falls through to
+        // the page-level cold start below: "Ways to fill it" answers the
+        // page's one question better than a module-level empty state.
+        const lkWrap = document.getElementById('rb-lk-wrap');
+        if (_snFilter === 'looks' &&
+            ((typeof _lkLooks !== 'undefined' && _lkLooks.length) || items.length)) {
+          grid.style.display = 'none';
+          empty.style.display = 'none';
+          _snClearWays();
+          if (_lkEnsureDom()) document.getElementById('rb-lk-wrap').style.display = 'block';
+          _lkPaint();
+          return;
+        }
+        if (lkWrap) lkWrap.style.display = 'none';
         const visible = _snFilter === 'all' ? items : items.filter(i => i.type === _snFilter);
         const emptyT = document.getElementById('sn-empty-t');
         const emptyS = document.getElementById('sn-empty-s');
@@ -7207,7 +7229,9 @@
 .rb-lk-tilewrap{position:relative}
 .rb-lk-rmx{position:absolute;top:10px;right:10px;z-index:2;width:28px;height:28px;border-radius:50%;border:none;background:rgba(32,32,33,0.55);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;padding:0}
 .rb-lk-tilewrap:hover .rb-lk-rmx{opacity:1}
-@media(hover:none){.rb-lk-rmx{opacity:1}}
+.rb-lk-wearx{position:absolute;top:10px;right:44px;z-index:2;border:none;border-radius:100px;background:rgba(32,32,33,0.55);backdrop-filter:blur(4px);color:#fff;font-family:inherit;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;padding:7px 12px;cursor:pointer;opacity:0;transition:opacity .15s}
+.rb-lk-tilewrap:hover .rb-lk-wearx{opacity:1}
+@media(hover:none){.rb-lk-rmx{opacity:1}.rb-lk-wearx{opacity:1}}
 .rb-lk-con{display:grid;grid-template-columns:480px minmax(0,1fr);gap:34px;align-items:start}
 @media(max-width:1080px){.rb-lk-con{grid-template-columns:1fr;gap:24px}.rb-lk-con>div:first-child{max-width:480px}}
 .rbc-row.rb-lk-rempty{border-style:dashed;background:transparent}
@@ -7229,23 +7253,59 @@
         document.head.appendChild(st);
       }
 
-      // One-time DOM: the Looks surface rides INSIDE the wardrobe panel, so
-      // nav state, crumbs and the mobile FAB keep working untouched.
+      // One-time DOM: the Looks surface rides INSIDE the Lookbook page —
+      // its All looks shelf (IA 2026-08-08: a look lives once, in the
+      // Lookbook), so nav state and crumbs keep working untouched.
       function _lkEnsureDom() {
         if (document.getElementById('rb-lk-wrap')) return true;
-        const grid = document.getElementById('wg-grid');
+        const sn = document.getElementById('sn-page');
+        const grid = sn && sn.querySelector('#sn-grid');
         if (!grid) return false;
         _lkEnsureCss();
         const wrap = document.createElement('div');
         wrap.id = 'rb-lk-wrap';
         wrap.innerHTML = '<div id="rb-lk-bar"></div><div id="rb-lk-grid"></div><div id="rb-lk-body"></div>';
-        const wl = document.getElementById('rb-wl-grid');
-        (wl || grid).parentNode.insertBefore(wrap, (wl || grid).nextSibling);
+        const empty = sn.querySelector('#sn-empty');
+        (empty || grid).parentNode.insertBefore(wrap, (empty || grid).nextSibling);
         return true;
       }
 
+      // Land on the Lookbook's All looks shelf — the one home looks have.
+      // Closes the wardrobe panel when it's the surface on top (its patched
+      // open would re-hide sn-page otherwise); a no-op when already there.
+      function _lkShelfOn() {
+        const sn = document.getElementById('sn-page');
+        return !!(sn && sn.style.display !== 'none' && !sn.classList.contains('rb-cal-on') && _snFilter === 'looks');
+      }
+      function _lkShelfOpen() {
+        if (_lkShelfOn()) return;
+        const wp = document.querySelector('.wardrobe-panel');
+        if (wp && wp.classList.contains('visible')) {
+          if (window.App && App.goHome) { try { App.goHome(); } catch (e) {} }
+          if (wp.classList.contains('visible')) wp.classList.remove('visible');
+        }
+        window.__snOpen && window.__snOpen();
+      }
+
       function _lkPaint() {
-        if (_waView !== 'looks' || !_lkEnsureDom()) return;
+        if (_snFilter !== 'looks' || !_lkEnsureDom()) return;
+        // Claim the shelf when there is something beyond the bare empty
+        // grid — the cold-start fallthrough (snRenderPage's "Ways to fill
+        // it") hides the wrap, so a direct paint (the composer opened from
+        // that state, the first look landing) must re-show it. The bare
+        // empty grid never claims: the ways state owns the truly-empty page.
+        if (_lkView !== 'grid' || _lkLooks.length) {
+          const snEl = document.getElementById('sn-page');
+          if (snEl && snEl.style.display !== 'none') {
+            const wrapEl = document.getElementById('rb-lk-wrap');
+            if (wrapEl) wrapEl.style.display = 'block';
+            const gEl = document.getElementById('sn-grid');
+            if (gEl) gEl.style.display = 'none';
+            const emEl = document.getElementById('sn-empty');
+            if (emEl) emEl.style.display = 'none';
+            _snClearWays();
+          }
+        }
         const bar = document.getElementById('rb-lk-bar');
         const grid = document.getElementById('rb-lk-grid');
         const body = document.getElementById('rb-lk-body');
@@ -7284,7 +7344,11 @@
           }, { body: "window.__lkOpen('" + l.id + "')" }) +
           '<button class="rb-lk-rmx" onclick="window.__lkDeleteAsk(\'' + l.id + '\', event)" title="Delete this look" aria-label="Delete this look">' +
             '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
-          '</button></div>';
+          '</button>' +
+          // "Wear" on every look card (IA rule 02: the one scheduling verb,
+          // today or a future day — the date is the only difference)
+          '<button class="rb-lk-wearx" onclick="window.__lkWearAsk(\'' + l.id + '\', event)" title="Wear it — today or on a day">Wear</button>' +
+          '</div>';
         }).join('') +
         // The way in stays on the grid — the same amplified add card the
         // pieces grid carries (Annie, 2026-07-30: the CTA vanished once a
@@ -7477,13 +7541,15 @@
 
         // The actions are load-bearing (A3) — without them the tab is a
         // gallery; with them Looks is the tissue between Daily and Travel.
-        // (Swap-a-piece was dropped, streamline pass — every rack row
-        // already carries Swap.)
+        // Wear is the one scheduling verb (IA rule 02): today logs the
+        // wear, a future day places the look in the Calendar — same verb,
+        // the date is the only difference. (Swap-a-piece was dropped,
+        // streamline pass — every rack row already carries Swap.)
         h += '<div class="rb-lk-acts">' +
           (wornToday
             ? '<button type="button" class="rb-lk-act" disabled style="opacity:.5;cursor:default">Worn today ✓</button>'
             : '<button type="button" class="rb-lk-act primary" onclick="window.__lkWearToday()">Wear it today</button>') +
-          '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pin\')">Pin to a day</button>' +
+          '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pin\')">Wear on a day</button>' +
           '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pack\')">Pack it</button>' +
           '</div>';
 
@@ -7509,7 +7575,7 @@
 
         if (pins.length) {
           h += '<div class="rb-lk-panel" style="border-color:var(--rule-mid);background:var(--sage-bg)">' +
-            '<div class="pl">Pinned to ' + pins.map(_lkFmt).join(' and ') + '.</div>' +
+            '<div class="pl">Wearing it ' + pins.map(_lkFmt).join(' and ') + '.</div>' +
             '<div class="rb-lk-panel-acts"><button type="button" class="rb-lk-quiet" onclick="window.__lkSeeDay(\'' + pins[0] + '\')">See the day</button></div></div>';
         }
         if (_lkDone) h += '<div class="rb-lk-panel" style="border-color:var(--rule-mid);background:#fff"><div class="pl">' + _waEsc(_lkDone) + '</div></div>';
@@ -7742,7 +7808,7 @@
       // ── Handlers ────────────────────────────────────────────────────────
       window.__lkSort = function() { _lkSortDesc = !_lkSortDesc; _lkPaint(); _rbTrack('looks_sorted', { desc: _lkSortDesc }); };
       window.__lkOpen = function(id) {
-        if (_waView !== 'looks') window.__waSetView('looks');
+        _lkShelfOpen();
         _lkActive = id; _lkView = 'detail';
         _lkPending = null; _lkDone = null; _lkActNote = null;
         _lkTitleDraft = null; _lkTitleTouched = false; _lkTitleEditing = false; _lkRetro = false;
@@ -7820,7 +7886,15 @@
         if (!iso) return;
         _lkPin(_lkActive, iso);
         _lkActNote = null;
-        _lkDone = 'Pinned to ' + _lkFmt(iso) + '.';
+        _lkDone = 'Wearing it ' + _lkFmt(iso) + ' — it’s on your calendar.';
+        _lkPaint();
+      };
+      // The look card's Wear — opens the detail with the day question armed
+      // (Today pins today; the wear itself is confirmed on the day).
+      window.__lkWearAsk = function(id, ev) {
+        if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+        window.__lkOpen(id);
+        _lkActNote = 'pin';
         _lkPaint();
       };
       // A tap is intent, so the tap IS the wear — with a quiet undo on the
@@ -8001,7 +8075,7 @@
 
       // ── Composer handlers ───────────────────────────────────────────────
       window.__lkNew = function() {
-        if (_waView !== 'looks') window.__waSetView('looks');
+        _lkShelfOpen();
         _lkView = 'new';
         _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
         _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null;
@@ -8324,8 +8398,13 @@
         _waShowToast(l.name + ' saved to Looks ✓');
       };
 
-      // Grid + tab entry points used elsewhere in the app
-      window.__lkGo = function() { window.__waSetView('looks'); };
+      // Grid + shelf entry points used elsewhere in the app — always the
+      // landing grid, even from a stale detail or composer state.
+      window.__lkGo = function() {
+        _lkView = 'grid'; _lkActive = null;
+        _lkShelfOpen();
+        _lkPaint();
+      };
 
       // ── "+ Add a piece" chooser — the rack's add flow offers her three
       // doors: an already-catalogued piece, the camera, or an upload (the
@@ -12239,6 +12318,10 @@ body>*:not(#tv-result-page){display:none !important}
             _closeOverlays();
             _closeWardrobe(); // its patched open would re-hide sn-page, so close first
             window.__snOpen && window.__snOpen();
+          } else if (dest === 'calendar') {
+            _closeOverlays();
+            _closeWardrobe();
+            window.__rbCalOpen && window.__rbCalOpen();
           } else if (dest === 'wardrobe') {
             _closeOverlays();
             if (!_wardrobeOpen() && window.App && App.showWardrobe) App.showWardrobe();
@@ -12248,21 +12331,26 @@ body>*:not(#tv-result-page){display:none !important}
         };
         const tnW = document.getElementById('rb-tn-wardrobe');
         const tnL = document.getElementById('rb-tn-lookbook');
+        const tnC = document.getElementById('rb-tn-calendar');
         const dkH = document.getElementById('rb-dock-home');
         const dkW = document.getElementById('rb-dock-wardrobe');
         const dkL = document.getElementById('rb-dock-lookbook');
+        const dkC = document.getElementById('rb-dock-calendar');
         const backPill = document.getElementById('rb-backpill');
         function _rbNavSync() {
           const snEl = document.getElementById('sn-page');
           const snOpen = !!(snEl && snEl.style.display === 'block');
+          const calOn = snOpen && snEl.classList.contains('rb-cal-on');
           const wOpen = _wardrobeOpen();
           const detail = _detailOpen();
-          const active = wOpen ? 'wardrobe' : (snOpen || detail) ? 'lookbook' : 'home';
+          const active = wOpen ? 'wardrobe' : calOn ? 'calendar' : (snOpen || detail) ? 'lookbook' : 'home';
           if (tnW) tnW.classList.toggle('active', active === 'wardrobe');
           if (tnL) tnL.classList.toggle('active', active === 'lookbook');
+          if (tnC) tnC.classList.toggle('active', active === 'calendar');
           if (dkH) dkH.classList.toggle('active', active === 'home');
           if (dkW) dkW.classList.toggle('active', active === 'wardrobe');
           if (dkL) dkL.classList.toggle('active', active === 'lookbook');
+          if (dkC) dkC.classList.toggle('active', active === 'calendar');
           // Mobile detail screens: the back pill replaces the wordmark line,
           // and Share rises into the header (the footer copy hides ≤640px).
           const showPill = detail && window.matchMedia('(max-width:767px)').matches;
@@ -12712,7 +12800,7 @@ body>*:not(#tv-result-page){display:none !important}
       window.__cbLookPick = function() {
         document.getElementById('cb-lk-pick')?.remove();
         const looks = (typeof _lkLooks !== 'undefined' && Array.isArray(_lkLooks)) ? _lkLooks : [];
-        if (!looks.length) { _waShowToast('No looks yet — build one under Wardrobe › Looks first'); return; }
+        if (!looks.length) { _waShowToast('No looks yet — build one in the Lookbook first'); return; }
         const serif = "'Cormorant',Georgia,serif";
         const lt = window._rbLookTile;
         const modal = document.createElement('div');
@@ -13951,7 +14039,7 @@ body>*:not(#tv-result-page){display:none !important}
         try {
           const p = window.location.pathname;
           const snEl = document.getElementById('sn-page');
-          if (snEl && p !== '/lookbook') { snEl.style.display = 'none'; }
+          if (snEl && p !== '/lookbook' && p !== '/looks' && p !== '/calendar') { snEl.style.display = 'none'; }
           if (p !== '/moodboards') _mbListPage.style.display = 'none';
           window.__mbCloseResult && window.__mbCloseResult();
           if (kpResultPage) kpResultPage.style.display = 'none';
@@ -13964,7 +14052,8 @@ body>*:not(#tv-result-page){display:none !important}
             const wbtn = wbtnCount ? wbtnCount.closest('button') : null;
             if (wbtn) wbtn.click(); else wp.classList.remove('visible');
           }
-          if (p === '/lookbook') window.__snOpen && window.__snOpen();
+          if (p === '/lookbook' || p === '/looks') window.__snOpen && window.__snOpen();
+          else if (p === '/calendar') window.__rbCalOpen && window.__rbCalOpen();
           else if (p === '/moodboards' && !_RB_MB_HIDDEN) window._mbShowAllPage && window._mbShowAllPage();
           else if (p.indexOf('/moodboard/') === 0 && !_RB_MB_HIDDEN) {
             const item = window._mbFindBySlug && window._mbFindBySlug(p.slice('/moodboard/'.length));
@@ -14518,13 +14607,11 @@ body>*:not(#tv-result-page){display:none !important}
           const st = document.createElement('style');
           st.id = 'rb-mv-style';
           st.textContent = `
-#sn-viewseg{display:inline-flex;border:0.5px solid rgba(32,32,33,0.18);border-radius:100px;overflow:hidden}
-#sn-viewseg button{border:none;background:transparent;padding:7px 15px;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);cursor:pointer;font-family:inherit;white-space:nowrap}
-#sn-viewseg button.on{background:#202021;color:#fff}
 #sn-cal{display:none}
 #sn-page.rb-cal-on #sn-tabs{display:none!important}
 #sn-page.rb-cal-on #sn-grid{display:none!important}
 #sn-page.rb-cal-on #sn-empty{display:none!important}
+#sn-page.rb-cal-on #rb-lk-wrap{display:none!important}
 .rb-mv-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 18px}
 .rb-mv-title{font-family:'Cormorant',Georgia,serif;font-size:34px;font-weight:300;color:var(--ink,#202021);margin:0}
 .rb-mv-nav{display:flex;gap:6px}
@@ -14572,24 +14659,17 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           document.head.appendChild(st);
         }
 
-        // Mount: the toggle in the #sn-headrow, the calendar after #sn-tabs
+        // Mount: the calendar surface after #sn-tabs. The Grid | Calendar
+        // toggle is gone (IA 2026-08-08) — Calendar is a top-level tab that
+        // borrows the Lookbook's shell via the rb-cal-on class.
         const headRow = snPage.querySelector('#sn-headrow');
         if (!headRow) return;
-        const seg = document.createElement('div');
-        seg.id = 'sn-viewseg';
-        seg.innerHTML = `<button class="on" data-mv="grid">Grid</button><button data-mv="cal">Calendar</button>`;
-        headRow.appendChild(seg);
-        seg.addEventListener('click', e => {
-          const b = e.target.closest('button[data-mv]');
-          if (b) _mvSetView(b.dataset.mv);
-        });
         const cal = document.createElement('div');
         cal.id = 'sn-cal';
         snPage.querySelector('#sn-tabs').parentNode.insertBefore(cal, snPage.querySelector('#sn-grid'));
 
         function _mvSetView(v) {
           _mvView = v;
-          seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.mv === v));
           const calOn = v === 'cal';
           // Class, not inline styles — async repaints (snRenderPage after
           // _lbCloudPull) re-set the grid's inline display underneath us.
@@ -14607,6 +14687,19 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           if (_mvM < 1) { _mvM = 12; _mvY--; }
           if (_mvM > 12) { _mvM = 1; _mvY++; }
           _mvLoad();
+        };
+        // Calendar, the destination — when you wear it. Same page shell,
+        // its own eyebrow, crumb and path; never creates a look (rule:
+        // an empty day offers "wear a look", the Lookbook makes them).
+        window.__rbCalOpen = function() {
+          const av = document.getElementById('av-menu');
+          if (av) av.classList.remove('open');
+          snPage.style.display = 'block';
+          const ey = document.getElementById('sn-eyebrow');
+          if (ey) ey.textContent = 'Calendar';
+          _mvSetView('cal');
+          window.rbSetCrumb && window.rbSetCrumb([{ label: 'Calendar' }]);
+          window._rbNav && window._rbNav('/calendar');
         };
         // The lookbook always reopens on the grid (wardrobe convention)
         const _snOpenPrev = window.__snOpen;
@@ -14745,9 +14838,13 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
                 const dc = _dcMoments(dayW, eveW, { date, today, eyebrow: inMonth ? String(+date.slice(8, 10)) : '' });
                 if (!inMonth) dc.state = 'void';
                 const populated = dc.state === 'past' || dc.state === 'today' || dc.state === 'planned';
+                // An empty day (today or ahead) offers "wear a look" — the
+                // calendar schedules looks that already exist, it never
+                // creates one (IA 2026-08-08).
+                const wearable = inMonth && dc.state === 'empty';
                 html += _dcCard(dc, {
                   density: 'compact',
-                  body: populated ? `window.__mvCell('${date}')` : null,
+                  body: populated ? `window.__mvCell('${date}')` : (wearable ? `window.__mvWear('${date}')` : null),
                 });
                 continue;
               }
@@ -14801,6 +14898,47 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         window.__mvBand = function(sid, type) {
           _rbTrack('month_band_opened', { source_type: type });
           window.__snOpenItem(Number(sid));
+        };
+        // An empty day's offer: wear a look that already exists. Tiles
+        // compose window._rbLookTile (handoff rule: never a second look
+        // card); zero looks hands her to the Lookbook to make one.
+        window.__mvWear = function(date) {
+          document.getElementById('rb-mv-wear')?.remove();
+          const looks = (typeof _lkLooks !== 'undefined' && Array.isArray(_lkLooks)) ? _lkLooks : [];
+          const serif = "'Cormorant',Georgia,serif";
+          const lt = window._rbLookTile;
+          const modal = document.createElement('div');
+          modal.id = 'rb-mv-wear';
+          modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+          modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+          const body = looks.length
+            ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px">` +
+              looks.slice(0, 60).map(l => `
+                <button onclick="window.__mvWearPick('${date}','${_waEsc(String(l.id))}')" style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:10px;padding:8px;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit">
+                  ${lt.mosaic(lt.cells(_lkPieceIds(l)), { photo: l.photo_url || undefined, alt: l.name || 'Saved look' })}
+                  <div style="padding:7px 2px 2px;font-size:11.5px;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(l.name || 'A look')}</div>
+                </button>`).join('') + `</div>`
+            : `<p style="font-family:${serif};font-style:italic;font-size:16px;color:var(--ink-faint);margin:0 0 18px">Nothing in the Lookbook yet — looks are made there, then worn here.</p>
+               <button onclick="document.getElementById('rb-mv-wear').remove();window.__lkNew&&window.__lkNew()" style="padding:13px 22px;border:none;border-radius:100px;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Make one in the Lookbook →</button>`;
+          modal.innerHTML = `
+            <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">${_waEsc(_lkFmt(date))}</p>
+                <button onclick="document.getElementById('rb-mv-wear').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);font-size:16px;line-height:1">×</button>
+              </div>
+              <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 16px;line-height:1.2">Wear a look this day?</p>
+              ${body}
+            </div>`;
+          document.body.appendChild(modal);
+        };
+        window.__mvWearPick = function(date, id) {
+          document.getElementById('rb-mv-wear')?.remove();
+          const l = (typeof _lkFind === 'function') ? _lkFind(id) : null;
+          if (!l || typeof _lkPin !== 'function') return;
+          _lkPin(l.id, date);
+          _rbTrack('look_worn_from_calendar', { look: String(l.id) });
+          _waShowToast('“' + (l.name || 'Your look') + '” — wearing it ' + _lkFmt(date));
+          _mvLoad();
         };
         // The +N reveal (spec §11.1): a small popover listing the bands
         // the two lanes couldn't hold — each row opens its artifact.

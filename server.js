@@ -1885,8 +1885,14 @@ app.get('/wardrobe', (req, res) => {
 });
 
 // Wishlist nests under the wardrobe panel — same shell, client opens the view
-// Looks is a tab inside the wardrobe (brief A1), linkable like /wishlist
+// Looks live in the Lookbook (IA 2026-08-08) — /looks survives as a deep link
+// onto the Lookbook's All looks shelf
 app.get('/looks', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
+// Calendar is a top-level destination (IA 2026-08-08) — same shell
+app.get('/calendar', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
 

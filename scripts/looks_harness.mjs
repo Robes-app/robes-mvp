@@ -1,9 +1,10 @@
 // Looks harness — boots the real dashboard with Supabase + REST stubbed and
-// walks the Look-as-entity surfaces: the Wardrobe's Looks tab, the sort
-// toggle, Look detail with its four actions, wear confirmation + the quiet
-// undo, variant promotion, and the New look composer. Also pins the LookTile
-// extraction (brief B2): a DayCard must render byte-identically to its
-// pre-extraction markup.
+// walks the Look-as-entity surfaces: the Lookbook's All looks shelf (IA
+// 2026-08-08 — looks moved out of the wardrobe), the sort toggle, Look
+// detail with its actions, wear confirmation + the quiet undo, variant
+// promotion, the New look composer, the Calendar tab and the empty-day
+// wear-a-look door. Also pins the LookTile extraction (brief B2): a DayCard
+// must render byte-identically to its pre-extraction markup.
 // Run manually: npm i --no-save playwright && node scripts/looks_harness.mjs
 // Set CHROME_PATH when playwright's bundled browser build isn't installed.
 import { chromium } from 'playwright';
@@ -150,10 +151,9 @@ const results = [];
 const check = (name, pass, detail = '') => { results.push({ name, pass, detail }); };
 
 async function openLooks(page) {
-  await page.evaluate(() => window.App && window.App.showWardrobe && window.App.showWardrobe());
-  await page.waitForTimeout(700);
-  await page.evaluate(() => window.__waSetView('looks'));
-  await page.waitForTimeout(500);
+  // The All looks shelf of the Lookbook — where looks live (IA 2026-08-08)
+  await page.evaluate(() => window.__lkGo && window.__lkGo());
+  await page.waitForTimeout(600);
 }
 
 const browser = await chromium.launch(
@@ -210,37 +210,41 @@ const browser = await chromium.launch(
   check('tab · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
 
   const s = await page.evaluate(() => {
-    const tabs = Array.from(document.querySelectorAll('#rb-wsub button')).map((b) => ({ v: b.dataset.view, t: b.textContent, on: b.classList.contains('active') }));
+    const tabs = Array.from(document.querySelectorAll('#sn-tabs .sn-ftab')).map((b) => ({ v: b.dataset.snf, t: b.textContent, on: b.classList.contains('active') }));
     const vis = (id) => { const el = document.getElementById(id); return !!el && el.offsetParent !== null; };
     return {
       tabs,
+      wsub: Array.from(document.querySelectorAll('#rb-wsub button')).map((b) => b.dataset.view),
+      viewseg: !!document.getElementById('sn-viewseg'),
+      eyebrow: document.getElementById('sn-eyebrow')?.textContent,
       wrapVisible: vis('rb-lk-wrap'),
-      piecesGridHidden: !vis('wg-grid'),
-      filtersHidden: !vis('wg-filters'),
+      itemGridHidden: !vis('sn-grid'),
       tiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length,
       addCard: !!document.querySelector('#rb-lk-grid .rb-add-card'),
       addCardText: document.querySelector('#rb-lk-grid .rb-add-card')?.textContent,
       rmx: document.querySelectorAll('#rb-lk-grid .rb-lk-rmx').length,
+      wearBtns: document.querySelectorAll('#rb-lk-grid .rb-lk-wearx').length,
       titles: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).map((t) => t.textContent),
       provisional: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title.prov')).map((t) => t.textContent),
       mosaicCells: document.querySelectorAll('#rb-lk-grid .rb-lk-tilewrap:first-child .rb-lk-mos i').length,
       sortLabel: document.querySelector('.rb-lk-sort span')?.textContent,
       sortArrow: document.querySelector('.rb-lk-sort b')?.textContent,
-      headerTitle: document.querySelector('.wardrobe-panel .wg-title')?.textContent,
       path: location.pathname,
     };
   });
-  check('tab · Pieces | Looks | Wishlist in that order',
-    s.tabs.map((t) => t.v).join(',') === 'all,looks,wishlist', JSON.stringify(s.tabs.map((t) => t.v)));
-  check('tab · Looks tab is active and counts its looks',
-    s.tabs.find((t) => t.v === 'looks')?.on === true && /Looks \(2\)/.test(s.tabs.find((t) => t.v === 'looks')?.t || ''),
+  check('shelf · the Lookbook leads with All looks, then the styled types',
+    s.tabs.map((t) => t.v).join(',') === 'looks,key-piece,daily-look,travel-edit', JSON.stringify(s.tabs.map((t) => t.v)));
+  check('shelf · All looks is the active shelf',
+    s.tabs.find((t) => t.v === 'looks')?.on === true && s.tabs.find((t) => t.v === 'looks')?.t === 'All looks',
     JSON.stringify(s.tabs));
-  check('tab · header still says Wardrobe (a tab, not a destination)',
-    s.headerTitle === 'Your wardrobe', String(s.headerTitle));
-  check('tab · looks surface shown, pieces grid and filters hidden',
-    s.wrapVisible && s.piecesGridHidden && s.filtersHidden,
-    JSON.stringify([s.wrapVisible, s.piecesGridHidden, s.filtersHidden]));
-  check('tab · deep-linkable path', s.path === '/looks', s.path);
+  check('shelf · the wardrobe holds pieces and wishlist only (Looks moved out)',
+    s.wsub.join(',') === 'all,wishlist', JSON.stringify(s.wsub));
+  check('shelf · the grid/calendar toggle is gone (Calendar is a tab)', s.viewseg === false);
+  check('shelf · the page eyebrow reads Lookbook', s.eyebrow === 'Lookbook', String(s.eyebrow));
+  check('tab · looks surface shown, the item grid stands down',
+    s.wrapVisible && s.itemGridHidden, JSON.stringify([s.wrapVisible, s.itemGridHidden]));
+  check('tab · deep-linkable path', s.path === '/lookbook', s.path);
+  check('grid · every look card carries the Wear verb', s.wearBtns === 2, String(s.wearBtns));
   check('grid · one tile per look', s.tiles === 2, String(s.tiles));
   check('grid · a New look add card mirrors the pieces grid',
     s.addCard === true && /New look/.test(s.addCardText || ''), JSON.stringify([s.addCard, s.addCardText]));
@@ -308,11 +312,10 @@ const browser = await chromium.launch(
     return {
       msg: window.__lastConfirmMsg,
       tiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length,
-      tab: document.querySelector('#rb-wsub [data-view="looks"]')?.textContent,
     };
   });
   check('grid · ✕ deletes through the shared confirm',
-    /Delete The tank one\?/.test(deleted.msg || '') && deleted.tiles === 1 && deleted.tab === 'Looks (1)',
+    /Delete The tank one\?/.test(deleted.msg || '') && deleted.tiles === 1,
     JSON.stringify(deleted));
   await page.waitForTimeout(400);
   const delWrite = await page.evaluate(() => null);
@@ -357,20 +360,20 @@ const browser = await chromium.launch(
   check('detail · no sub-sub-nav back line', d.back === false);
   check('detail · grid yields to the detail', d.gridHidden === true);
   const tabBack = await page.evaluate(() => {
-    document.querySelector('#rb-wsub [data-view="looks"]').click();
+    document.querySelector('#sn-tabs [data-snf="looks"]').click();
     return {
       gridShown: document.getElementById('rb-lk-grid')?.style.display !== 'none',
       tiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length,
     };
   });
-  check('detail · clicking the Looks tab lands the landing grid',
+  check('detail · clicking the All looks shelf lands the landing grid',
     tabBack.gridShown && tabBack.tiles === 2, JSON.stringify(tabBack));
   await page.evaluate(() => window.__lkOpen('lk-1'));
   await page.waitForTimeout(200);
   check('detail · named title is not provisional', d.title === 'The Thursday one' && d.provisional === false, `${d.title}/${d.provisional}`);
   check('detail · eyebrow reads Look for a named look', d.eyebrow === 'Look', d.eyebrow);
-  check('detail · three load-bearing actions (Swap-a-piece dropped — every rack row swaps)',
-    d.actions.join(' | ') === 'Wear it today | Pin to a day | Pack it', JSON.stringify(d.actions));
+  check('detail · three load-bearing actions — Wear is the one scheduling verb',
+    d.actions.join(' | ') === 'Wear it today | Wear on a day | Pack it', JSON.stringify(d.actions));
   const layout = await page.evaluate(() => {
     const mast = document.querySelector('.rb-lk-mast');
     const con = document.querySelector('.rb-lk-con');
@@ -660,7 +663,7 @@ const browser = await chromium.launch(
     flickGate.before.includes('Tan leather slides') && !flickGate.after.includes('Tan leather slides')
       && flickGate.after.includes('Flat leather sandals'), JSON.stringify(flickGate));
 
-  // Pin to a day
+  // Wear on a day (the pin mechanics, in the wear vocabulary)
   const pinned = await page.evaluate(() => {
     window.__lkAct('pin');
     const btns = Array.from(document.querySelectorAll('.rb-lk-panel-acts .rb-lk-act')).map((b) => b.textContent);
@@ -668,7 +671,7 @@ const browser = await chromium.launch(
     return { btns, done: document.querySelector('.rb-lk-panel .pl')?.textContent };
   });
   check('pin · offers today, tomorrow and a date', pinned.btns.length >= 3, JSON.stringify(pinned.btns));
-  check('pin · confirms the day it pinned to', /^Pinned to /.test(pinned.done || ''), pinned.done);
+  check('pin · confirms the day in the wear vocabulary', /^Wearing it /.test(pinned.done || ''), pinned.done);
   await page.waitForTimeout(1200);   // the planned_days write is debounced
   const pinWrite = writes.find((w) => w.method === 'POST' && /^planned_days/.test(w.url));
   check('pin · writes a planned_days row of source_type look',
@@ -986,14 +989,13 @@ const browser = await chromium.launch(
       gridShown: document.getElementById('rb-lk-grid')?.style.display !== 'none',
       titles: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).map((t) => t.textContent),
       toast: (document.getElementById('toast-msg') || document.getElementById('toast'))?.textContent,
-      tab: document.querySelector('#rb-wsub [data-view="looks"]')?.textContent,
     };
   });
   check('composer · save lands back on the grid, no interstitial',
     saved.gridShown && saved.titles.includes('Terrace mornings'), JSON.stringify([saved.gridShown, saved.titles]));
   check('composer · the confirmation is a quiet toast',
     /Terrace mornings saved to Looks/.test(saved.toast || ''), saved.toast);
-  check('composer · the tab count grows', saved.tab === 'Looks (3)', String(saved.tab));
+  check('composer · the grid grows', saved.titles.length === 3, JSON.stringify(saved.titles));
   await page.waitForTimeout(600);
   const lookWrite = writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop();
   const pieceWrite = writes.filter((w) => w.method === 'POST' && /^look_pieces/.test(w.url)).pop();
@@ -1067,20 +1069,33 @@ const browser = await chromium.launch(
 {
   const { ctx, page, errs } = await boot(browser, { seed: false });
   await openLooks(page);
+  // A truly empty account (no looks, nothing saved) gets the page-level
+  // cold start — "Ways to fill it" — never a bare module empty state.
+  const cold = await page.evaluate(() => ({
+    waysShown: (() => { const el = document.getElementById('sn-empty'); return !!el && el.style.display !== 'none'; })(),
+    wrapHidden: (() => { const el = document.getElementById('rb-lk-wrap'); return !el || el.offsetParent === null; })(),
+  }));
+  check('empty · a truly empty account keeps the ways-to-fill cold start',
+    cold.waysShown === true && cold.wrapHidden === true, JSON.stringify(cold));
+  // Once anything is saved, the looks module's own empty state serves.
+  await page.evaluate(() => {
+    localStorage.setItem('robes_style_notes__u-test',
+      JSON.stringify([{ id: 1, type: 'key-piece', title: 'A look', subtitle: '', img: null }]));
+    window.__lkGo();
+  });
+  await page.waitForTimeout(300);
   const e = await page.evaluate(() => ({
     head: document.querySelector('.rb-lk-empty h3')?.textContent,
     body: document.querySelector('.rb-lk-empty p')?.textContent,
     acts: Array.from(document.querySelectorAll('.rb-lk-empty-acts button')).map((b) => b.textContent),
     paras: document.querySelectorAll('.rb-lk-empty p').length,
     barHidden: document.getElementById('rb-lk-bar')?.style.display === 'none',
-    tab: document.querySelector('#rb-wsub [data-view="looks"]')?.textContent,
   }));
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('empty · says what lands here', /Nothing saved yet\./.test(e.head || '') && /Wear something and it lands here\./.test(e.head || ''), e.head);
   check('empty · exactly one line of explanation, no instruction wall', e.paras === 1, String(e.paras));
   check('empty · two ways forward', e.acts.join(' | ') === "See today's look | Add one now", JSON.stringify(e.acts));
   check('empty · the sort control is withheld', e.barHidden === true);
-  check('empty · the tab carries no count at zero', e.tab === 'Looks', e.tab);
   await ctx.close();
 }
 
@@ -1188,6 +1203,149 @@ const browser = await chromium.launch(
   check('390px · composer stacks the card above the rack', mc.stacked === true);
   check('390px · rack rows run full width (no cramped shelf)', mc.rowsFullWidth === true);
   check('390px · no horizontal overflow on the composer', mc.overflow === true);
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 9 · IA — three tabs, three tenses (2026-08-08): the legacy Looks door,
+// Wear on a card, the Calendar tab, and the empty-day wear-a-look flow
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs, writes } = await boot(browser);
+
+  // The legacy door: __waSetView('looks') redirects out of the wardrobe
+  // onto the Lookbook's All looks shelf.
+  await page.evaluate(() => window.App && window.App.showWardrobe && window.App.showWardrobe());
+  await page.waitForTimeout(600);
+  await page.evaluate(() => window.__waSetView('looks'));
+  await page.waitForTimeout(600);
+  const legacy = await page.evaluate(() => ({
+    snOpen: document.getElementById('sn-page').style.display === 'block',
+    wrapShown: (() => { const el = document.getElementById('rb-lk-wrap'); return !!el && el.offsetParent !== null; })(),
+    wardrobeClosed: !document.querySelector('.wardrobe-panel')?.classList.contains('visible'),
+    path: location.pathname,
+  }));
+  check('IA · the legacy Looks door lands on the Lookbook shelf',
+    legacy.snOpen && legacy.wrapShown && legacy.wardrobeClosed && legacy.path === '/lookbook',
+    JSON.stringify(legacy));
+
+  // Wear on the card opens the detail with the day question armed.
+  const cardWear = await page.evaluate(() => {
+    const w = document.querySelector('.rb-lk-tilewrap .rb-lk-wearx');
+    if (w) w.click();
+    return {
+      had: !!w,
+      panel: document.querySelector('.rb-lk-panel .pl')?.textContent,
+      actions: Array.from(document.querySelectorAll('.rb-lk-acts .rb-lk-act')).map((b) => b.textContent),
+    };
+  });
+  check('IA · a card\'s Wear opens the detail asking which day',
+    cardWear.had && /Which day\?/.test(cardWear.panel || ''), JSON.stringify(cardWear));
+
+  // Calendar — a top-level destination borrowing the page shell.
+  await page.evaluate(() => window.__rbNavGo('calendar'));
+  await page.waitForTimeout(700);
+  const cal = await page.evaluate(() => ({
+    calShown: document.getElementById('sn-cal')?.style.display === 'block',
+    calClass: document.getElementById('sn-page').classList.contains('rb-cal-on'),
+    eyebrow: document.getElementById('sn-eyebrow')?.textContent,
+    path: location.pathname,
+    tnActive: document.getElementById('rb-tn-calendar')?.classList.contains('active'),
+    tnLookbook: document.getElementById('rb-tn-lookbook')?.classList.contains('active'),
+    dockTab: !!document.getElementById('rb-dock-calendar'),
+    wrapHidden: (() => { const el = document.getElementById('rb-lk-wrap'); return !el || el.offsetParent === null; })(),
+    monthTitle: document.querySelector('.rb-mv-title')?.textContent || '',
+  }));
+  check('IA · Calendar opens as its own destination with its own path',
+    cal.calShown && cal.calClass && cal.path === '/calendar' && /\d{4}/.test(cal.monthTitle), JSON.stringify(cal));
+  check('IA · the calendar names itself and lights its own tab',
+    cal.eyebrow === 'Calendar' && cal.tnActive === true && cal.tnLookbook === false && cal.dockTab === true,
+    JSON.stringify([cal.eyebrow, cal.tnActive, cal.tnLookbook, cal.dockTab]));
+  check('IA · the looks shelf yields under the calendar', cal.wrapHidden === true);
+
+  // An empty future day offers "wear a look" — picking one pins it there.
+  const wear = await page.evaluate(async () => {
+    const p = (n) => String(n).padStart(2, '0');
+    const t = new Date();
+    const iso = t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
+    const last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+    const isMonthTail = t.getDate() === last;
+    const cell = document.querySelector('#sn-cal .rb-dc[onclick*="__mvWear"]');
+    const nxt = new Date(t.getTime() + 86400000);
+    const niso = nxt.getFullYear() + '-' + p(nxt.getMonth() + 1) + '-' + p(nxt.getDate());
+    window.__mvWear(niso);
+    const modal = document.getElementById('rb-mv-wear');
+    const tiles = modal ? modal.querySelectorAll('button[onclick*="__mvWearPick"]').length : 0;
+    const head = modal ? modal.textContent : '';
+    window.__mvWearPick(niso, 'lk-1');
+    await new Promise((r) => setTimeout(r, 200));
+    return {
+      cellWired: !!cell || isMonthTail,
+      hadModal: !!modal, tiles,
+      asks: /Wear a look this day\?/.test(head),
+      modalGone: !document.getElementById('rb-mv-wear'),
+      today: iso, target: niso,
+    };
+  });
+  check('IA · empty future days are wired to the wear-a-look door', wear.cellWired === true);
+  check('IA · the door lists her looks and asks, never creates',
+    wear.hadModal && wear.tiles === 2 && wear.asks, JSON.stringify(wear));
+  await page.waitForTimeout(1200); // the planned_days write is debounced
+  const calPin = writes.find((w) => w.method === 'POST' && /^planned_days/.test(w.url) &&
+    Array.isArray(w.body) && w.body[0]?.source_type === 'look');
+  check('IA · picking a look pins it to the day (planned_days, source_type look)',
+    !!calPin && calPin.body[0]?.source_id === 'lk-1' && calPin.body[0]?.day_date === wear.target,
+    JSON.stringify(calPin?.body?.[0] || null));
+
+  // Bridges, not duplicates: a piece's edit form links into the Lookbook.
+  await page.evaluate(() => window.__wtrkEdit && window.__wtrkEdit('w-top1'));
+  await page.waitForTimeout(900);
+  const bridge = await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('#wa-modal button'))
+      .find((b) => /Styled in \d+ looks? →/.test(b.textContent));
+    return { label: btn ? btn.textContent : null, had: !!btn };
+  });
+  check('IA · a piece\'s form shows the Styled-in-N-looks bridge',
+    bridge.had && /Styled in 1 look →/.test(bridge.label || ''), JSON.stringify(bridge));
+  const bridged = await page.evaluate(async () => {
+    Array.from(document.querySelectorAll('#wa-modal button'))
+      .find((b) => /Styled in \d+ looks? →/.test(b.textContent)).click();
+    await new Promise((r) => setTimeout(r, 700));
+    return {
+      modalClosed: !document.getElementById('wa-modal')?.classList.contains('open'),
+      wrapShown: (() => { const el = document.getElementById('rb-lk-wrap'); return !!el && el.offsetParent !== null; })(),
+    };
+  });
+  check('IA · the bridge closes the form and lands on the looks shelf',
+    bridged.modalClosed && bridged.wrapShown, JSON.stringify(bridged));
+  check('IA · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+// Zero looks: the empty-day door hands her to the Lookbook to make one.
+{
+  const { ctx, page, errs } = await boot(browser, { seed: false });
+  await page.evaluate(() => window.__rbNavGo('calendar'));
+  await page.waitForTimeout(700);
+  const door = await page.evaluate(() => {
+    const p = (n) => String(n).padStart(2, '0');
+    const t = new Date(Date.now() + 86400000);
+    window.__mvWear(t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()));
+    const modal = document.getElementById('rb-mv-wear');
+    const btn = modal && Array.from(modal.querySelectorAll('button')).find((b) => /Make one in the Lookbook/.test(b.textContent));
+    const copy = modal ? /looks are made there, then worn here/.test(modal.textContent) : false;
+    if (btn) btn.click();
+    return { hadDoor: !!btn, copy };
+  });
+  await page.waitForTimeout(700);
+  const landed = await page.evaluate(() => ({
+    composer: !!document.getElementById('rb-lk-newtitle'),
+    calOff: !document.getElementById('sn-page').classList.contains('rb-cal-on'),
+  }));
+  check('IA zero-looks · the calendar creates nothing — it hands to the Lookbook',
+    door.hadDoor && door.copy, JSON.stringify(door));
+  check('IA zero-looks · the door lands in the composer', landed.composer && landed.calOff, JSON.stringify(landed));
+  check('IA zero-looks · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 
