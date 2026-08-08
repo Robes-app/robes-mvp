@@ -266,7 +266,9 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       hasImagery: cards.filter((c) => c.querySelector('.svc-img img')).length,
       lockPills: cards.filter((c) => c.querySelector('.rb-lock-wrap')).length,
       matchesHome: (() => {
-        const home = Array.from(document.querySelectorAll('.services .svc'))
+        // Promo cards (.svc-promo, coming-soon Weekly Planner) stay on home
+        // but are never cloned into the lookbook's ways block.
+        const home = Array.from(document.querySelectorAll('.services .svc:not(.svc-promo)'))
           .map((c) => c.querySelector('.svc-title')?.textContent || '');
         return JSON.stringify(home) === JSON.stringify(cards.map((c) => c.querySelector('.svc-title')?.textContent || ''));
       })(),
@@ -339,7 +341,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   const settled = await page.evaluate(() => {
     const ways = document.getElementById('sn-ways');
     const titles = ways ? Array.from(ways.querySelectorAll('.svc-title')).map((t) => t.textContent.trim()) : [];
-    const home = Array.from(document.querySelectorAll('.services .svc .svc-title')).map((t) => t.textContent.trim());
+    const home = Array.from(document.querySelectorAll('.services .svc:not(.svc-promo) .svc-title')).map((t) => t.textContent.trim());
     return { titles, home, imgs: ways ? ways.querySelectorAll('.svc-img img').length : 0 };
   });
   check('first load · fills in without a refresh', settled.titles.length === 2, JSON.stringify(settled.titles));

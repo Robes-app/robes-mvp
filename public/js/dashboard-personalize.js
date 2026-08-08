@@ -4178,6 +4178,9 @@
           '<div class="services-grid" id="sn-ways-grid"></div>';
         const grid = ways.querySelector('#sn-ways-grid');
         svcs.forEach(function (src) {
+          // Promo cards (the coming-soon Weekly Planner) are marketing, not
+          // a way to fill the lookbook — never clone them here.
+          if (src.classList.contains('svc-promo')) return;
           const card = src.cloneNode(true);
           // cloneNode carries the inline onclick ATTRIBUTE (the bundle's
           // modal openers) even where personalize overrode the property —
@@ -4395,9 +4398,11 @@
         }
 
         // Reorder + relabel concierge cards — bundle order: Weekly(01), Travel(02), Key Piece(03)
-        // Target order: Daily Outfit(01), Travel Edit(02). The bundle's
-        // Weekly Planner card is REMOVED (weekly track retired 2026-08-08 —
-        // week planning moves to calendar day chips, separate brief).
+        // Target order: Daily Outfit(01), Weekly Planner(02, PROMO), Travel
+        // Edit(03). The weekly TRACK is retired (2026-08-08, ADR-001) but
+        // the card survives as promotional content (founder call, same day:
+        // the marketing stays relevant while week planning moves to
+        // calendar day chips) — a coming-soon door, never a live CTA.
         const grid = document.querySelector('.services-grid');
         if (grid) {
           const svcs = Array.from(grid.querySelectorAll('.svc'));
@@ -4412,6 +4417,26 @@
             const kpDesc = keyPiece.querySelector('.svc-desc');
             if (kpDesc) kpDesc.textContent = 'A fresh look styled from your wardrobe each morning, synced to the forecast.';
 
+            // Calendar illustration for the Weekly Planner promo card
+            const calSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" width="400" height="280"><rect width="400" height="280" fill="%23F5F1EB"/><g fill="none" stroke="%23D4C8B8" stroke-width="0.8"><line x1="57" y1="40" x2="57" y2="260"/><line x1="114" y1="40" x2="114" y2="260"/><line x1="171" y1="40" x2="171" y2="260"/><line x1="228" y1="40" x2="228" y2="260"/><line x1="285" y1="40" x2="285" y2="260"/><line x1="342" y1="40" x2="342" y2="260"/><line x1="28" y1="80" x2="372" y2="80"/><line x1="28" y1="140" x2="372" y2="140"/><line x1="28" y1="200" x2="372" y2="200"/><line x1="28" y1="40" x2="372" y2="40"/><line x1="28" y1="260" x2="372" y2="260"/><line x1="28" y1="40" x2="28" y2="260"/><line x1="372" y1="40" x2="372" y2="260"/></g><g font-family="Georgia,serif" font-size="11" fill="%23B0A090" text-anchor="middle"><text x="42" y="30">M</text><text x="85" y="30">T</text><text x="142" y="30">W</text><text x="199" y="30">T</text><text x="256" y="30">F</text><text x="313" y="30">S</text><text x="357" y="30">S</text></g><g font-family="Georgia,serif" font-size="10" fill="%23C8B8A8" text-anchor="middle"><text x="42" y="58">14</text><text x="99" y="58">15</text><text x="156" y="58">16</text><text x="213" y="58">17</text><text x="270" y="58">18</text><text x="327" y="58">19</text><text x="357" y="58">20</text></g><rect x="31" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.9"/><rect x="4" y="86" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="86" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="231" y="66" width="50" height="104" rx="4" fill="%23E8DEDD" opacity="0.85"/><rect x="227" y="66" width="3" height="104" rx="1.5" fill="%23789060"/><rect x="88" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="84" y="146" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="174" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="170" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="345" y="146" width="22" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="341" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="206" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="288" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="284" y="206" width="3" height="44" rx="1.5" fill="%23A89878"/></svg>`;
+
+            // Weekly Planner is promotional only: illustration + copy stay,
+            // the CTA reads "Coming soon" and the tap opens the standard
+            // coming-soon dialog. No live track behind it — /api/weekly and
+            // _cbSetIntent('weekly') are gone. .svc-promo marks it so the
+            // empty-Lookbook clone loop can skip it (a coming-soon door is
+            // not a way to fill the lookbook).
+            weekly.classList.add('svc-promo');
+            weekly.removeAttribute('onclick'); // static __wkOpen opener is dead code
+            weekly.onclick = function() {
+              if (window.KP && KP.comingSoon) KP.comingSoon('Week planning,<br><em>coming soon.</em>', 'Planning your week is moving into the calendar — you’ll dress any day from its own chip, right on your dashboard.');
+            };
+            const weeklyImg = weekly.querySelector('.svc-img img');
+            if (weeklyImg) weeklyImg.src = calSvg;
+            const wkDesc = weekly.querySelector('.svc-desc');
+            if (wkDesc) wkDesc.textContent = 'Your week mapped day by day — every outfit routed through your own wardrobe, no repeats.';
+            const wkCta = weekly.querySelector('.svc-cta');
+            if (wkCta) wkCta.textContent = 'Coming soon';
 
             // Premium suitcase illustration for Travel Edit
             const suitSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280"><rect width="400" height="280" fill="%23EEE8E4"/><rect x="62" y="62" width="276" height="178" rx="22" fill="%23E8E0D6" stroke="%23C8BAB0" stroke-width="1.4"/><rect x="74" y="74" width="252" height="154" rx="16" fill="%23E2D8CE" stroke="%23C0B4A8" stroke-width="0.7"/><path d="M168 62 C168 38 232 38 232 62" fill="none" stroke="%23C0B0A6" stroke-width="2" stroke-linecap="round"/><rect x="158" y="56" width="14" height="10" rx="4" fill="%23D0C4BA"/><rect x="228" y="56" width="14" height="10" rx="4" fill="%23D0C4BA"/><rect x="62" y="62" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="328" y="62" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="62" y="230" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="328" y="230" width="10" height="10" rx="3" fill="%23D4C8BC"/><line x1="74" y1="156" x2="326" y2="156" stroke="%23C0B4A8" stroke-width="0.8"/><rect x="186" y="150" width="28" height="12" rx="5" fill="%23D8CCBF" stroke="%23C0B0A4" stroke-width="1"/><rect x="192" y="154" width="16" height="5" rx="2" fill="%23C8BBB0"/><rect x="86" y="84" width="110" height="62" rx="10" fill="%23DDD4C8" stroke="%23C4B8AC" stroke-width="0.8"/><line x1="98" y1="99" x2="184" y2="99" stroke="%23C8BCAF" stroke-width="0.9"/><line x1="98" y1="112" x2="178" y2="112" stroke="%23C8BCAF" stroke-width="0.7"/><line x1="98" y1="124" x2="170" y2="124" stroke="%23C8BCAF" stroke-width="0.6" opacity="0.7"/><rect x="206" y="84" width="110" height="62" rx="10" fill="%23E4DAD0" stroke="%23C4B4A8" stroke-width="0.8"/><ellipse cx="237" cy="105" rx="18" ry="14" fill="%23D8CEBE" stroke="%23C0B2A4" stroke-width="0.9"/><ellipse cx="278" cy="105" rx="18" ry="14" fill="%23D4CAB8" stroke="%23BCAE9E" stroke-width="0.9"/><ellipse cx="257" cy="130" rx="18" ry="14" fill="%23DCD2C0" stroke="%23C0B2A4" stroke-width="0.9"/><ellipse cx="237" cy="105" rx="7" ry="5" fill="none" stroke="%23C8BAA8" stroke-width="0.7"/><ellipse cx="278" cy="105" rx="7" ry="5" fill="none" stroke="%23C0B2A0" stroke-width="0.7"/><rect x="86" y="164" width="52" height="58" rx="10" fill="%23DAD0C4" stroke="%23C4B8AC" stroke-width="0.8"/><path d="M96 202 Q108 192 126 196 Q130 197 130 202" fill="none" stroke="%23C0B4A8" stroke-width="1.1" stroke-linecap="round"/><rect x="148" y="164" width="58" height="58" rx="10" fill="%23D8CEC2" stroke="%23C0B4A8" stroke-width="0.8"/><line x1="160" y1="184" x2="194" y2="184" stroke="%23C4B8AC" stroke-width="0.9"/><line x1="160" y1="196" x2="188" y2="196" stroke="%23C4B8AC" stroke-width="0.7"/><rect x="216" y="164" width="100" height="58" rx="10" fill="%23E0D6CA" stroke="%23C8BCAE" stroke-width="0.8"/><rect x="228" y="177" width="36" height="32" rx="6" fill="%23D4CAB8" stroke="%23C0B4A4" stroke-width="0.8"/><rect x="272" y="177" width="32" height="32" rx="6" fill="%23D0C6B4" stroke="%23BCAE9E" stroke-width="0.8"/></svg>`;
@@ -4425,11 +4450,9 @@
             const tvDesc = travel.querySelector('.svc-desc');
             if (tvDesc) tvDesc.textContent = 'A tight capsule for your next trip — every piece worn three ways, weather-checked, mapped day by day.';
 
-            // Reorder: [Daily Outfit, Travel Edit] — the weekly card leaves
-            // the DOM entirely, so the empty-Lookbook clones follow suit.
-            weekly.remove();
+            // Reorder: [Daily Outfit, Weekly Planner (promo), Travel Edit]
             grid.innerHTML = '';
-            [keyPiece, travel].forEach((el, i) => {
+            [keyPiece, weekly, travel].forEach((el, i) => {
               const num = el.querySelector('.svc-num');
               if (num) num.textContent = String(i + 1).padStart(2, '0');
               grid.appendChild(el);
