@@ -6586,6 +6586,13 @@
             if (wi) _waFetch('PATCH', 'wardrobe_items?id=eq.' + id, { times_worn: (Number(wi.times_worn) || 0) + 1 }).catch(() => {});
           });
         }
+        // A pinned Look has no lookbook blob to stamp — re-run the pin so
+        // its planned_days row persists status 'worn' (accrual above lands
+        // the wear on l.wears synchronously, which _pdRowsLk derives from);
+        // without this the card reverts to un-worn on the next repaint.
+        (moments || []).forEach(m => {
+          if (m.source_type === 'look' && typeof _lkPin === 'function') _lkPin(m.source_id, m.day_date);
+        });
         if (ids.length) setTimeout(_waLoad, 900);
         _waShowToast('Logged — Robes remembers what you wore ✓');
       }
@@ -6601,7 +6608,14 @@
         const isPast = date < today;
         const moBlock = m => {
           const t = _dcTitleOf(m) || (m.status === 'free' ? 'Left free' : 'Planned');
-          const chip = _dcChipOf(m);
+          let chip = _dcChipOf(m);
+          // A pinned Look belongs to this day card — when the day carries
+          // her own name for it (the prompt text), the look's name rides
+          // the slot line so both survive at a glance.
+          if (!chip && m.source_type === 'look') {
+            const l = typeof _lkFind === 'function' ? _lkFind(m.source_id) : null;
+            if (l && l.name && l.name !== t) chip = l.name;
+          }
           const th = (Array.isArray(m.thumb_urls) ? m.thumb_urls : [])
             .filter(u => typeof u === 'string' && u.indexOf('http') === 0).slice(0, 3);
           return `<div class="mo"><div class="sl">${m.slot === 'evening' ? 'Evening' : 'Day'}${chip ? ` <span class="ch">· ${_waEsc(chip)}</span>` : ''}</div>` +
@@ -6612,6 +6626,12 @@
         const wear = isPast && !worn
           ? `<button class="dpk-btn" onclick="window.__rbDayPeekWear()">Wore it ✓</button>`
           : (worn ? `<span class="dpk-worn">Worn ✓</span>` : '');
+        // A pinned Look belongs to the day card: the open verb names it,
+        // and the card can give it back (unpin) without a trip to the
+        // Look detail — the same verb travel's day console already has.
+        const lookM = moments.find(m => m.source_type === 'look');
+        const unpin = lookM ? `<button class="dpk-btn" onclick="window.__rbDayPeekUnpin()">Unpin the look</button>` : '';
+        const openLbl = dayM.source_type === 'look' ? 'Open the look →' : 'Open the day →';
         const el = document.createElement('div');
         el.id = 'rb-dpk';
         el.innerHTML = `<div class="dpk-veil" onclick="window.__rbDayPeekClose()"></div>` +
@@ -6619,7 +6639,7 @@
           `<button class="dpk-x" onclick="window.__rbDayPeekClose()" aria-label="Close">×</button>` +
           `<div class="dpk-date">${_waEsc(long)}</div>` +
           moments.map(moBlock).join('') +
-          `<div class="dpk-acts">${wear}<button class="dpk-btn primary" onclick="window.__rbDayPeekOpen()">Open the day →</button></div>` +
+          `<div class="dpk-acts">${wear}${unpin}<button class="dpk-btn primary" onclick="window.__rbDayPeekOpen()">${openLbl}</button></div>` +
           `</div>`;
         document.body.appendChild(el);
         _rbTrack('day_peek_opened', { source_type: dayM.source_type });
@@ -6643,6 +6663,16 @@
         window.__rbDayPeekClose();
         if (window._rbRailRepaint) window._rbRailRepaint();
         else if (window._rbRailPaint) window._rbRailPaint();
+      };
+      window.__rbDayPeekUnpin = function() {
+        const s = _dpkState;
+        window.__rbDayPeekClose();
+        if (!s) return;
+        const m = s.moments.find(x => x.source_type === 'look');
+        if (!m) return;
+        const l = typeof _lkFind === 'function' ? _lkFind(m.source_id) : null;
+        _lkUnpin(m.source_id, s.date);
+        _waShowToast('“' + ((l && l.name) || 'The look') + '” unpinned from ' + _lkFmt(s.date));
       };
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape' && document.getElementById('rb-dpk')) window.__rbDayPeekClose();
@@ -7043,6 +7073,32 @@
         if (!_pdDown && _waUid() && _waToken()) _pdWrite(built, id);
         if (window._rbRailPaint) setTimeout(window._rbRailPaint, 300);
         _rbTrack('look_pinned', { offset_from_today: Math.round((new Date(date + 'T00:00:00Z') - new Date(_pdLocalISO() + 'T00:00:00Z')) / 86400000) });
+      }
+      // The pin's undo — once a look belongs to a day card, the day card
+      // must be able to give it back. Rebuild-and-sweep, the same shape as
+      // _lkPin: _pdWrite's day_index sweep drops the tail row; zero pins
+      // left clears the source outright.
+      function _lkUnpin(id, date) {
+        const l = _lkFind(id);
+        if (!l || !date) return;
+        const dates = _lkPins(id).filter(d => d !== date);
+        const named = {};
+        _pdCacheRead().forEach(r => {
+          if (r.source_type === 'look' && String(r.source_id) === String(id) && r.activity && r.activity !== (l.name || null)) named[r.day_date] = r.activity;
+        });
+        const rest = _pdCacheRead().filter(r => !(r.source_type === 'look' && String(r.source_id) === String(id)));
+        if (!dates.length) {
+          _pdCacheWrite(rest);
+          _pdDeleteSource(String(id));
+        } else {
+          const built = _pdRowsLk(l, dates);
+          built.rows.forEach(r => { if (named[r.day_date]) r.activity = named[r.day_date]; });
+          _pdCacheWrite(rest.concat(built.rows));
+          if (!_pdDown && _waUid() && _waToken()) _pdWrite(built, id);
+        }
+        if (window._rbRailPaint) setTimeout(window._rbRailPaint, 300);
+        if (typeof _lkPaint === 'function') _lkPaint(); // the detail's pins line reads _lkPins
+        _rbTrack('look_unpinned', {});
       }
 
       // ── The tab ─────────────────────────────────────────────────────────
