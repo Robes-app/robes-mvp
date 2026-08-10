@@ -619,11 +619,15 @@ const LOOK_TAGS_SCHEMA = {
     climate: { type: 'string', enum: LOOK_TAG_CLIMATES },
     light: { type: 'string', enum: LOOK_TAG_LIGHTS },
     wear_for: { type: 'array', items: { type: 'string', enum: LOOK_TAG_WEAR } },
-    vibe: { type: 'string', enum: LOOK_TAG_VIBES.concat(['']) },
+    // vibe is OPTIONAL (not in required) — "no vibe" is expressed by
+    // omitting the field. Never add '' to the enum: Gemini rejects empty
+    // enum values with 400 INVALID_ARGUMENT, which killed EVERY /api/daily
+    // and travel generation (beta outage 2026-08-10).
+    vibe: { type: 'string', enum: LOOK_TAG_VIBES },
   },
-  required: ['climate', 'light', 'wear_for', 'vibe'],
+  required: ['climate', 'light', 'wear_for'],
 };
-const LOOK_TAGS_RULE = `- "look_tags" files the look for search — assign from the brief's intent and the pieces, never leave it generic. "climate" is thermal, not calendar (High Summer = lightweight single-layer; Transitional Warm = spring/early autumn; Transitional Cool = late autumn/early spring; Deep Winter = multi-layering, heavy knits and coats). "light" is when the look reads best — Daylight or Twilight & Evening. "wear_for" is 1–2 lifestyle scenarios, the sharpest matches only. "vibe" is the silhouette/aesthetic when one clearly fits, else "".`;
+const LOOK_TAGS_RULE = `- "look_tags" files the look for search — assign from the brief's intent and the pieces, never leave it generic. "climate" is thermal, not calendar (High Summer = lightweight single-layer; Transitional Warm = spring/early autumn; Transitional Cool = late autumn/early spring; Deep Winter = multi-layering, heavy knits and coats). "light" is when the look reads best — Daylight or Twilight & Evening. "wear_for" is 1–2 lifestyle scenarios, the sharpest matches only. "vibe" is the silhouette/aesthetic — include it only when one clearly fits, otherwise omit the field entirely.`;
 function normLookTags(t) {
   t = t && typeof t === 'object' ? t : {};
   return {
