@@ -1,10 +1,12 @@
-// Travel console smoke — the first tranche of the travel harness rewrite
-// (the Stage 3/5 assertions were superseded by the looks-first restructure).
-// Boots the real dashboard (Supabase stubbed), feeds __tvRenderResult a
-// looks-first fixture and walks: the Days | Looks | The Rack segment, the
-// shared-console day view (multi-look switcher, scoped flick + badge, free
-// day), the dayless look console, imported-look reader, The Travel Rack
-// pane and legacy-save migration.
+// Travel console smoke — rewritten for the one-scroll Travel Edit
+// (hifi "Holiday edit detail", 2026-08-10). Boots the real dashboard
+// (Supabase stubbed), feeds __tvRenderResult a looks-first fixture and
+// walks: the one-scroll sections (masthead + Edit details, THE WEEK,
+// LOOKS grid, THE CAPSULE drawer), day-plan title editing, the day
+// "+ Look" pin sheet, the shared-console day view (multi-look switcher,
+// scoped flick + badge, free day), the dayless look console,
+// imported-look capsule join, the pack stat on the capsule bar, the
+// empty canvas trip, Edit-details clamping and legacy-save migration.
 // Run manually: npm i --no-save playwright && node scripts/travel_console_smoke.mjs
 // Set CHROME_PATH when playwright's bundled browser build isn't installed.
 import { chromium } from 'playwright';
@@ -44,10 +46,12 @@ const WARDROBE = [
 ].map((p, i) => ({ ...p, user_id: 'u-test', brand: 'Studio', notes: '', image_url: null, times_worn: 0, item_dna: {}, hero_position: null, seasons: null, occasions: null, created_at: new Date(Date.now() - i * 1000).toISOString() }));
 
 const FIXTURE = {
-  trip_label: 'LAHINCH · JULY', headline: 'Lahinch, packed once.', location_vibe: 'Wild Atlantic ease',
+  trip_label: 'LAHINCH · JULY', headline: 'A long weekend in Lahinch', location_vibe: 'Wild Atlantic ease',
   stylist_summary: 'A tight case for the coast.', suitcase_note: '', palette: ['#8A8078', '#C9BCA6'],
   destination: 'Lahinch', dateFrom: '2026-07-31', dateTo: '2026-08-03', dateLine: '31 Jul – 3 Aug',
-  tripDays: 4, plans: ['Night out', 'Beach day'], weather: { city: 'Lahinch', tempRange: '14–19°C', condition: 'passing showers' },
+  tripDays: 4, plans: ['Night out', 'Beach day'], vibe: 'Chic, cool',
+  weather: { city: 'Lahinch', tempRange: '14–19°C', condition: 'passing showers' },
+  dayTitles: { 0: 'Arrive · coastal walk' },
   capsule: [
     { name: 'Cream silk shirt', tier: 'Foundations & Tailoring', category: 'Tops', brand: 'Studio', description: '', reason: '', wardrobe_index: 0, retailer_hint: '', price_point: '', wardrobe_match: { id: 'w1', label: 'Cream silk shirt', image_url: null, color: 'Cream' } },
     { name: 'Ribbed white tank', tier: 'Foundations & Tailoring', category: 'Tops', brand: 'Studio', description: '', reason: '', wardrobe_index: 1, retailer_hint: '', price_point: '', wardrobe_match: { id: 'w2', label: 'Ribbed white tank', image_url: null, color: 'White' } },
@@ -65,6 +69,12 @@ const FIXTURE = {
     { imported: true, lookId: 'lk-9', occasion: 'Dinner out', title: 'The Thursday one', how: '', img: null, pins: [1], overrides: {}, slotOverrides: {},
       pieces: [ { id: 'w1', name: 'Cream silk shirt', image: null, category: 'Tops' }, { id: 'w3', name: 'Barrel-leg jeans', image: null, category: 'Bottoms' }, { id: 'w9', name: 'Gold hoops', image: null, category: 'Accessories' } ], formula: [] },
   ],
+};
+
+const EMPTY_TRIP = {
+  headline: 'A trip to Ibiza.', destination: 'Ibiza', dateFrom: '2026-09-01', dateTo: '2026-09-05',
+  dateLine: '1 Sep – 5 Sep', tripDays: 5, vibe: 'Paula’s Ibiza', plans: [], dayTitles: {},
+  capsule: [], looks: [], palette: [],
 };
 
 const LEGACY = {
@@ -104,20 +114,51 @@ await page.goto(BASE + '/dashboard', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => typeof window.__tvRenderResult === 'function', null, { timeout: 15000 });
 await page.waitForTimeout(800);
 
-// ── 1. Render + default tab ──
+// ── 1. One-scroll render ──
 await page.evaluate((fx) => window.__tvRenderResult(fx), FIXTURE);
 await page.waitForTimeout(300);
-ok(await page.locator('#tv-result-page .tvm-seg button').count() === 3, 'seg control has 3 tabs');
-ok(await page.locator('#tv-tab-looks.on').count() === 1, 'opens on Looks');
-ok(await page.locator('#tv-pane-looks').isVisible(), 'looks pane visible');
-ok(!(await page.locator('#tv-pane-days').isVisible()), 'days pane hidden');
+ok(await page.locator('#tv-result-page .tvm-seg').count() === 0, 'no tab segment — the page is one scroll');
+ok(await page.locator('#tv-sec-week').isVisible() && await page.locator('#tv-sec-looks').isVisible() && await page.locator('#tv-sec-capsule').isVisible(), 'week, looks and capsule sections all on one page');
+ok((await page.locator('#tv-headline').innerText()).includes('A long weekend in Lahinch'), 'title renders');
+ok(await page.locator('#tv-result-page .tvm-editbtn', { hasText: 'Edit details' }).count() === 1, 'Edit details door on the masthead');
+ok((await page.locator('#tv-mastmeta').innerText()).includes('Chic, cool'), 'vibe pill renders');
+ok(await page.locator('#tv-weekstrip .tvw-card').count() === 4, 'week strip has one card per trip day');
+ok((await page.locator('#tv-weekstrip .tvw-card').first().innerText()).includes('Arrive · coastal walk'), 'day title renders on its card');
+ok(await page.locator('#tv-day-console .rbc-panel').count() === 0, 'no day console until a day is tapped');
+ok(await page.locator('#tv-look-console .rbc-panel').count() === 0, 'no look console until a look is tapped');
+ok(await page.locator('#tv-looksrow .tvm-lookcard').count() === 4, 'looks grid: 3 looks + the New look card');
+ok((await page.locator('#tv-looksrow').innerText()).includes('Fri 31 · Sat 1'), 'a pinned look card reads its days');
+ok((await page.locator('#tv-looksrow').innerText()).includes('unpinned') === false, 'every fixture look is pinned');
 
-// ── 2. Look console (dayless) ──
+// capsule bar: pack stat lives on the pieces. The imported look's
+// unowned piece (Gold hoops) joined the case at render, so 6 → 7.
+ok(/7 pieces/i.test(await page.locator('#tv-cap-lab').innerText()), 'capsule bar counts the pieces (import joined the case)');
+ok((await page.locator('#tv-mp-of').innerText()).includes('/ 6 packed'), 'packed denominator counts packable pieces');
+ok(await page.locator('#tv-capbody').isVisible(), 'capsule drawer open by default on desktop');
+ok((await page.locator('#tv-capbody').innerText()).includes('Keep'), 'Keep section renders in the drawer');
+ok((await page.locator('#tv-capbody').innerText()).includes('Worth adding'), 'Worth adding renders in the drawer');
+ok(await page.locator('#tv-capbody .tv-pack-box').count() === 6, 'a pack checkbox on every packable piece');
+await page.evaluate(() => window.__tvPackToggle(0));
+await page.waitForTimeout(150);
+ok((await page.locator('#tv-mp-n').innerText()) === '1', 'packing a piece moves the bar stat');
+await page.evaluate(() => window.__tvPackToggle(0));
+
+// drawer folds
+await page.evaluate(() => window.__tvCapToggle());
+await page.waitForTimeout(100);
+ok(!(await page.locator('#tv-capbody').isVisible()), 'capsule drawer folds');
+await page.evaluate(() => window.__tvCapToggle());
+
+// ── 2. Look console (tap a look card) ──
+await page.evaluate(() => window.__tvSelectLook(0));
+await page.waitForTimeout(200);
 ok(await page.locator('#tv-look-console .rbc-panel').count() === 1, 'look console draws The Look panel');
 ok(await page.locator('#tv-look-console .rbc-row').count() === 3, 'look rack has 3 rows');
 ok((await page.locator('#tv-look-console .rbc-rackhead').innerText()).toLowerCase().includes('night out'), 'rack label carries the occasion');
 ok(await page.locator('#tv-look-console .rbc-hbtn', { hasText: 'Pin to days' }).count() === 1, 'dayless head has Pin to days');
-ok((await page.locator('#tv-look-console').innerText()).includes('Pinned to Day 1 · Day 2'), 'pins line reads');
+await page.evaluate(() => window.__tvLookTap(0));
+await page.waitForTimeout(150);
+ok(await page.locator('#tv-look-console .rbc-panel').count() === 0, 'a second tap folds the look console');
 
 // select the imported look → the SAME interactive console, pieces resolved
 // into real capsule formula entries (unpacked pieces join the case)
@@ -125,7 +166,6 @@ await page.evaluate(() => window.__tvSelectLook(2));
 await page.waitForTimeout(150);
 ok(await page.locator('#tv-look-console .rbc-panel').count() === 1, 'imported look draws the same console');
 ok(await page.locator('#tv-look-console .rbc-row').count() === 3, 'imported rack has 3 rows');
-ok((await page.locator('#tv-look-console').innerText()).toLowerCase().includes('packed whole from your looks'), 'imported quote reads packed whole');
 const impState = await page.evaluate(() => ({
   cap: window.__lastTvData.capsule.length,
   formula: window.__lastTvData.looks[2].formula.map(f => f.item_index),
@@ -136,12 +176,10 @@ ok(impState.formula.length === 3 && impState.formula[0] === 0 && impState.formul
 ok(impState.hoops, 'joined piece keeps its wardrobe identity');
 ok(await page.locator('#tv-look-console .rbc-hbtn', { hasText: 'Pack this look' }).count() === 1, 'imported look can be packed');
 
-// ── 3. Days tab: day console + multi-look switcher ──
+// ── 3. Day console + multi-look switcher ──
 await page.evaluate(() => window.__tvSelectDay(0));
 await page.waitForTimeout(200);
-ok(await page.locator('#tv-tab-days.on').count() === 1, 'day select lands the Days tab');
-ok(await page.locator('#tv-pane-days').isVisible(), 'days pane visible');
-ok(await page.locator('#tv-weekstrip .rb-dc, #tv-weekstrip .rbd-day').first().isVisible(), 'day strip renders');
+ok(await page.locator('#tv-weekstrip .tvw-card.sel').count() === 1, 'selected day card carries the ink ring');
 ok(await page.locator('#tv-day-console .rbc-panel').count() === 1, 'day console draws The Look panel');
 const segTxt = await page.locator('#tv-day-console').innerText();
 ok(segTxt.includes('NIGHT OUT') && segTxt.includes('BEACH DAY'), 'two pinned looks tab like Day/Evening');
@@ -190,8 +228,8 @@ ok(await page.locator('#tv-day-console .rbc-row').count() === 2, 'Day 1 rack los
 await page.evaluate(() => window.__tvSelectDay(1));
 await page.waitForTimeout(150);
 ok(await page.locator('#tv-day-console .rbc-row').count() === 4, 'Day 2 still wears it');
-// Look scope: an add from the Looks tab reaches every pinned day; a remove
-// remaps the fi-keyed overrides down with the splice.
+// Look scope: an add from the look console reaches every pinned day; a
+// remove remaps the fi-keyed overrides down with the splice.
 await page.evaluate(() => window.__tvSelectLook(1));
 await page.waitForTimeout(150);
 await page.evaluate(() => window.__tvLookConAddApply('w1'));
@@ -212,14 +250,63 @@ const freeTxt = await page.locator('#tv-day-console').innerText();
 ok(/left free/.test(freeTxt), 'free day reads left free');
 ok(/style a look for this day/i.test(freeTxt), 'free day offers styling');
 
-// ── 6. Rack pane survives ──
-await page.evaluate(() => window.__tvSetTab('rack'));
+// ── 6. Day-plan titles: name the day, then pin a look ──
+ok((await page.locator('#tv-weekstrip .tvw-card').nth(3).innerText()).includes('name the day and add a look'), 'a bare day invites naming');
+await page.evaluate(() => window.__tvDayTitleEdit(3));
+await page.waitForTimeout(120);
+ok(await page.locator('#tv-daytitle-in').count() === 1, 'title edit opens the inline input');
+await page.evaluate(() => { document.getElementById('tv-daytitle-in').value = 'Drive · dinner out'; });
+await page.evaluate(() => window.__tvDayTitleCommit(3));
 await page.waitForTimeout(150);
-ok(await page.locator('#tv-pane-rack').isVisible(), 'rack pane opens');
-ok((await page.locator('#tv-pane-rack').innerText()).includes('Keep'), 'Keep section renders');
-ok((await page.locator('#tv-pane-rack').innerText()).includes('Worth adding'), 'Worth adding renders');
+ok(await page.evaluate(() => window.__lastTvData.dayTitles[3]) === 'Drive · dinner out', 'the title lands in dayTitles');
+const day3Card = page.locator('#tv-weekstrip .tvw-card').nth(3);
+ok((await day3Card.innerText()).includes('Drive · dinner out'), 'the day card shows her words');
+ok(await day3Card.locator('.tvw-pin').count() === 1, 'a named day earns the + Look door');
+await page.evaluate(() => window.__tvDayPick(3));
+await page.waitForTimeout(150);
+ok(await page.locator('#tv-daypick-modal').count() === 1, 'the + Look sheet opens');
+const pickTxt = await page.locator('#tv-daypick-modal').innerText();
+ok(pickTxt.includes('From your lookbook') && /Robes styles one/.test(pickTxt), 'sheet offers lookbook and Robes doors');
+await page.evaluate(() => window.__tvDayPickApply(1, 3));
+await page.waitForTimeout(200);
+ok(await page.evaluate(() => window.__lastTvData.looks[1].pins.indexOf(3) !== -1), 'picking a trip look pins it to the day');
+ok(await page.locator('#tv-day-console .rbc-panel').count() === 1, 'the day console opens on the freshly pinned day');
 
-// ── 7. Legacy save migrates ──
+// ── 7. Edit details: dates clamp everything day-indexed ──
+await page.evaluate(() => window.__tvEditDetails());
+await page.waitForTimeout(150);
+ok(await page.locator('#tv-edit-modal').count() === 1, 'Edit details modal opens');
+ok(await page.evaluate(() => document.getElementById('tv-ed-dest').value) === 'Lahinch', 'destination prefilled');
+await page.evaluate(() => {
+  document.getElementById('tv-ed-title').value = 'Lahinch, shorter';
+  document.getElementById('tv-ed-to').value = '2026-08-01';
+  document.getElementById('tv-ed-vibe').value = 'Salt air';
+});
+await page.evaluate(() => window.__tvEditDetailsSave());
+await page.waitForTimeout(250);
+const edited = await page.evaluate(() => ({
+  days: window.__lastTvData.tripDays,
+  headline: window.__lastTvData.headline,
+  vibe: window.__lastTvData.vibe,
+  pins1: window.__lastTvData.looks[1].pins.slice(),
+  titles: JSON.parse(JSON.stringify(window.__lastTvData.dayTitles)),
+}));
+ok(edited.days === 2, 'shorter dates shrink the trip');
+ok(edited.headline === 'Lahinch, shorter' && edited.vibe === 'Salt air', 'title and vibe save');
+ok(edited.pins1.indexOf(3) === -1, 'pins past the end are clamped');
+ok(!edited.titles['3'], 'day titles past the end are clamped');
+ok(await page.locator('#tv-weekstrip .tvw-card').count() === 2, 'week strip re-renders to the new length');
+
+// ── 8. Empty canvas trip ──
+await page.evaluate((fx) => window.__tvRenderResult(fx), EMPTY_TRIP);
+await page.waitForTimeout(250);
+ok(await page.locator('#tv-weekstrip .tvw-card').count() === 5, 'canvas trip renders its week from the dates alone');
+const emptyTxt = await page.locator('#tv-looks-empty').innerText();
+ok(/No looks yet/.test(emptyTxt) && /Robes styles the trip/.test(emptyTxt), 'empty looks state offers the Robes door');
+ok((await page.locator('#tv-capbody').innerText()).includes('Nothing in the case yet'), 'empty capsule reads as an invitation');
+ok((await page.locator('#tv-mastmeta').innerText()).includes('Paula’s Ibiza'), 'canvas vibe pill renders');
+
+// ── 9. Legacy save migrates ──
 await page.evaluate((fx) => window.__tvRenderResult(fx, { skipSave: true, savedId: null }), LEGACY);
 await page.waitForTimeout(250);
 const mig = await page.evaluate(() => ({ n: window.__lastTvData.looks.length, occ: window.__lastTvData.looks.map(l => l.occasion), pins: window.__lastTvData.looks.map(l => l.pins) }));
@@ -228,6 +315,36 @@ ok(mig.pins.every(p => p.length === 1 && p[0] === 0), 'both pinned to their old 
 await page.evaluate(() => window.__tvSelectDay(0));
 await page.waitForTimeout(150);
 ok(await page.locator('#tv-day-console .rbc-panel').count() === 1, 'migrated day renders the console');
+
+// ── 10. Mobile (390px): week strip scrolls sideways, nothing overflows ──
+const mCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+const mPage = await mCtx.newPage();
+mPage.on('pageerror', (e) => console.log('  [pageerror-m]', e.message));
+await mPage.route('**cdn.jsdelivr.net/**', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: SUPA_STUB }));
+await mPage.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => {
+  const u = r.request().url(); const m = r.request().method();
+  if (m !== 'GET') return r.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
+  return r.fulfill({ status: 200, contentType: 'application/json', body: u.includes('wardrobe_items') ? JSON.stringify(WARDROBE) : '[]' });
+});
+await mPage.route('**nominatim**', (r) => r.abort());
+await mPage.route('**open-meteo**', (r) => r.abort());
+await mPage.addInitScript(() => {
+  window.__TEST_PROFILE = { first_name: 'Annie', style_icons: [], style_dna: {}, wardrobe_items_count: 5, onboarded_at: '2026-07-01', gender_identity: 'woman' };
+  Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
+});
+await mPage.goto(BASE + '/dashboard', { waitUntil: 'networkidle' });
+await mPage.waitForFunction(() => typeof window.__tvRenderResult === 'function', null, { timeout: 15000 });
+await mPage.waitForTimeout(600);
+await mPage.evaluate((fx) => window.__tvRenderResult(fx), FIXTURE);
+await mPage.waitForTimeout(300);
+ok(await mPage.evaluate(() => getComputedStyle(document.getElementById('tv-weekstrip')).display) === 'flex', 'mobile week strip is a horizontal scroller');
+ok(await mPage.evaluate(() => {
+  const p = document.getElementById('tv-result-page');
+  return p.scrollWidth <= p.clientWidth + 1;
+}), 'mobile: no horizontal page overflow');
+ok(await mPage.evaluate(() => !document.getElementById('tv-capbody') || getComputedStyle(document.getElementById('tv-capbody')).display === 'none'), 'mobile capsule drawer starts folded');
+ok(await mPage.locator('#tv-looksrow .tvm-lookcard').count() === 4, 'mobile looks grid renders');
+await mCtx.close();
 
 console.log(`\n${pass} passed, ${fail} failed`);
 await browser.close();
