@@ -358,7 +358,9 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   const { ctx, page } = await boot(browser, 1);
   await page.evaluate(() => {
     const k = 'robes_style_notes__u-test';
-    localStorage.setItem(k, JSON.stringify([{ id: 1, type: 'key-piece', title: 'A look', subtitle: '', img: null }]));
+    // A daily look counts as Lookbook content; a key piece would not — it
+    // lives on the Inspiration tab (IA refinement 2026-08-10).
+    localStorage.setItem(k, JSON.stringify([{ id: 1, type: 'daily-look', title: 'A look', subtitle: '', img: null }]));
   });
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);

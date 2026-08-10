@@ -3450,8 +3450,11 @@
         // Legacy deep link — looks live in the Lookbook now (IA 2026-08-08)
         setTimeout(() => window.__lkGo && window.__lkGo(), 400);
       }
-      if (window.location.pathname === '/calendar') {
-        setTimeout(() => window.__rbCalOpen && window.__rbCalOpen(), 400);
+      if (window.location.pathname === '/diary' || window.location.pathname === '/calendar') {
+        setTimeout(() => window.__rbDiaryOpen && window.__rbDiaryOpen(), 400);
+      }
+      if (window.location.pathname === '/inspiration') {
+        setTimeout(() => window.__rbInspOpen && window.__rbInspOpen(), 400);
       }
       if (window.location.pathname === '/wishlist' && window.App && App.showWardrobe) {
         // Wishlist nests under the wardrobe panel — open it, then switch view
@@ -3998,8 +4001,7 @@
           <div id="sn-headrow" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 16px">
             <p id="sn-eyebrow" style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0">Lookbook</p>
           </div>
-          <div id="sn-tabs" style="display:flex;gap:22px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-bottom:0.5px solid rgba(32,32,33,0.12);margin:0 0 24px"></div>
-          <div id="sn-grid" style="display:grid;gap:20px"></div>
+          <div id="sn-grid" style="display:none;gap:20px"></div>
           <div id="sn-empty" style="display:none;padding:80px 0;text-align:center">
             <p id="sn-empty-t" style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">Nothing saved yet.</p>
             <p id="sn-empty-s" style="font-size:13px;color:var(--ink-faint);line-height:1.6">Style a key piece or save today's look<br>and it will appear here.</p>
@@ -4007,46 +4009,12 @@
         </div>`;
       document.body.appendChild(snPage);
 
-      // ── Lookbook shelves — All looks (the Look entities, the page's
-      // centre of gravity) then the three generated-result types (IA
-      // 2026-08-08: every look lives here, once; same text-tab scan
-      // pattern as the wardrobe's category tabs)
+      // ── The Lookbook IS the looks view (IA refinement 2026-08-10) — the
+      // type shelves are retired: key pieces moved to Inspiration, holiday
+      // (travel) edits ride a pinned row on the Looks view, daily looks
+      // interleave in the stream ("daily look" is not a type). _snFilter
+      // survives as a constant so the looks module's guards read unchanged.
       var _snFilter = 'looks';
-      const _SN_FILTERS = [
-        ['looks', 'All looks'], ['key-piece', 'Key pieces styled'],
-        ['daily-look', 'Daily looks'], ['travel-edit', 'Travel edits']
-      ];
-      if (!document.getElementById('rb-sn-style')) {
-        const snSt = document.createElement('style');
-        snSt.id = 'rb-sn-style';
-        snSt.textContent = '#sn-tabs::-webkit-scrollbar{display:none}' +
-          '#sn-grid{grid-template-columns:repeat(3,minmax(0,1fr))}' +
-          '@media(max-width:1023px){#sn-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
-          '@media(max-width:767px){#sn-grid{grid-template-columns:1fr}}' +
-          '.sn-ftab{background:none;border:none;border-bottom:1.5px solid transparent;padding:2px 1px 10px;margin-bottom:-1px;font-size:13px;font-family:inherit;color:var(--ink-faint);cursor:pointer;white-space:nowrap;letter-spacing:.01em;transition:color .15s;flex-shrink:0}' +
-          '.sn-ftab.active{color:#202021;font-weight:500;border-bottom-color:#202021}' +
-          '.sn-ftab:hover{color:#202021}';
-        document.head.appendChild(snSt);
-      }
-      (function _snTabsInit() {
-        const row = snPage.querySelector('#sn-tabs');
-        row.innerHTML = _SN_FILTERS.map(([k, l]) =>
-          `<button class="sn-ftab${k === 'looks' ? ' active' : ''}" data-snf="${k}">${l}</button>`).join('');
-        row.addEventListener('click', function(e) {
-          const b = e.target.closest('button[data-snf]');
-          if (!b) return;
-          // Tapping All looks always lands the landing grid — the shelf tab
-          // is the way back out of a detail or the composer (no sub-sub-nav)
-          if (b.dataset.snf === 'looks') { _lkView = 'grid'; _lkActive = null; }
-          _snSetFilter(b.dataset.snf);
-        });
-      })();
-      function _snSetFilter(f) {
-        _snFilter = f;
-        snPage.querySelectorAll('.sn-ftab').forEach(b =>
-          b.classList.toggle('active', b.dataset.snf === f));
-        snRenderPage();
-      }
 
       window.__snClose = function() {
         document.getElementById('sn-page').style.display = 'none';
@@ -4057,12 +4025,10 @@
         const av = document.getElementById('av-menu');
         if (av) av.classList.remove('open');
         document.getElementById('sn-page').style.display = 'block';
-        const ey = document.getElementById('sn-eyebrow');
-        if (ey) ey.textContent = 'Lookbook';
-        // The page always reopens on the All looks shelf's landing grid
+        // The page always reopens on the Looks view's landing grid
         // (wardrobe convention — no sub-sub-nav to climb back out of)
         _lkView = 'grid'; _lkActive = null;
-        _snSetFilter('looks');
+        snRenderPage();
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Lookbook' }]);
         window._rbNav && window._rbNav('/lookbook');
       };
@@ -4102,8 +4068,10 @@
       window.__snOpenItem = function(id) {
         const item = snLoad().find(i => i.id === id);
         if (!item) return;
-        // Close sn-page if open
+        // Close the pages an item can be opened from
         document.getElementById('sn-page').style.display = 'none';
+        const inEl = document.getElementById('rb-insp-page');
+        if (inEl) inEl.style.display = 'none';
         if (item.type === 'daily-look' && item.dlData) {
           window.__dlRenderResult(item.dlData, item.dlData.prompt || item.title, { skipSave: true, savedId: item.id });
         } else if (item.type === 'travel-edit' && item.tvData) {
@@ -4114,6 +4082,107 @@
           // Fallback: just open style notes page
           window.__snOpen();
         }
+      };
+
+      // ═══ Inspiration — the undated shelf (IA refinement 2026-08-10) ═════
+      // Key pieces styled live here, out of the Lookbook: nothing on this
+      // page carries a date. Opening an entry shows the full three-way
+      // styling; Restyle re-arms the home prompt with the original ask.
+      // (Save-as-look is deliberately deferred — Annie, 2026-08-10.)
+      const inPage = document.createElement('div');
+      inPage.id = 'rb-insp-page';
+      inPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:var(--nav-h,64px);z-index:45;background:#FAF8F5;overflow-y:auto';
+      inPage.innerHTML = `
+        <div style="padding:32px var(--s6,24px) 64px;max-width:var(--shell,1440px);margin:0 auto;box-sizing:border-box">
+          <p style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0 0 20px">Inspiration</p>
+          <div id="rb-in-sec" style="font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 14px">Key pieces, styled</div>
+          <div id="rb-in-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px"></div>
+          <div id="rb-in-empty" style="display:none;padding:70px 0;text-align:center">
+            <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">Nothing here yet.</p>
+            <p style="font-size:13px;color:var(--ink-faint);line-height:1.6;margin:0 0 20px">Style a key piece three ways and it lands here —<br>undated, ready whenever the mood strikes.</p>
+            <button onclick="window.__inStyleNew()" style="padding:13px 24px;border:none;border-radius:100px;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Style a piece →</button>
+          </div>
+        </div>`;
+      document.body.appendChild(inPage);
+      if (!document.getElementById('rb-in-style')) {
+        const inSt = document.createElement('style');
+        inSt.id = 'rb-in-style';
+        inSt.textContent =
+          '@media(max-width:1023px){#rb-in-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}' +
+          '@media(max-width:767px){#rb-in-grid{grid-template-columns:1fr!important}}' +
+          '.rb-in-card{background:#fff;border-radius:var(--rad);overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08);cursor:pointer;text-align:left;font-family:inherit}' +
+          '.rb-in-imgs{display:grid;grid-template-columns:2fr 1fr;gap:1px;background:var(--rule-mid);aspect-ratio:3/2}' +
+          '.rb-in-imgs .lead{grid-row:1/3}' +
+          '.rb-in-imgs span{display:block;background-size:cover;background-position:center;background-color:var(--cream-200)}' +
+          '.rb-in-pad{padding:13px 16px 15px}' +
+          '.rb-in-title{font-family:var(--font-serif);font-weight:300;font-size:17px;line-height:1.3;color:var(--ink)}' +
+          '.rb-in-sub{font-size:10.5px;color:var(--ink-faint);margin-top:3px}' +
+          '.rb-in-acts{display:flex;gap:8px;margin-top:12px}' +
+          '.rb-in-act{padding:8px 14px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;color:var(--ink-soft);font-family:inherit;font-size:11px;cursor:pointer;transition:all .15s}' +
+          '.rb-in-act:hover{border-color:var(--ink);color:var(--ink)}';
+        document.head.appendChild(inSt);
+      }
+      function _inItems() {
+        try { return snLoad().filter(i => i && i.type === 'key-piece'); } catch (_) { return []; }
+      }
+      function inRenderPage() {
+        const grid = document.getElementById('rb-in-grid');
+        const empty = document.getElementById('rb-in-empty');
+        const sec = document.getElementById('rb-in-sec');
+        if (!grid) return;
+        const items = _inItems();
+        grid.style.display = items.length ? 'grid' : 'none';
+        if (sec) sec.style.display = items.length ? '' : 'none';
+        if (empty) empty.style.display = items.length ? 'none' : 'block';
+        if (!items.length) return;
+        grid.innerHTML = items.map(i => {
+          const imgs = ((i.kpData && i.kpData.generatedImages) || [])
+            .filter(u => typeof u === 'string' && u.indexOf('http') === 0);
+          const lead = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : imgs[0] || null;
+          const rest = imgs.filter(u => u !== lead).slice(0, 2);
+          const cell = (u, cls) => '<span class="' + cls + '"' + (u ? ' style="background-image:url(\'' + _waEsc(u) + '\')"' : '') + '></span>';
+          return '<div class="rb-in-card" onclick="window.__snOpenItem(' + Number(i.id) + ')" role="button" tabindex="0">' +
+            '<div class="rb-in-imgs">' + cell(lead, 'lead') + cell(rest[0], '') + cell(rest[1], '') + '</div>' +
+            '<div class="rb-in-pad">' +
+              '<div class="rb-in-title">' + _waEsc(i.title || 'A piece, styled') + '</div>' +
+              '<div class="rb-in-sub">Styled three ways by Robes</div>' +
+              '<div class="rb-in-acts">' +
+                '<button type="button" class="rb-in-act" onclick="event.stopPropagation();window.__inRestyle(' + Number(i.id) + ')">Restyle</button>' +
+              '</div>' +
+            '</div></div>';
+        }).join('');
+      }
+      window.__rbInspOpen = function() {
+        const av = document.getElementById('av-menu');
+        if (av) av.classList.remove('open');
+        inRenderPage();
+        inPage.style.display = 'block';
+        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Inspiration' }]);
+        window._rbNav && window._rbNav('/inspiration');
+      };
+      window.__inClose = function() {
+        inPage.style.display = 'none';
+      };
+      // Restyle lands on the home prompt with the original ask re-armed —
+      // every route lands on the prompt box (the app's standing rule).
+      window.__inRestyle = function(id) {
+        const it = snLoad().find(i => i.id === id);
+        if (!it) return;
+        _rbTrack('inspiration_restyle', { item: String(id) });
+        if (window.__rbNavGo) window.__rbNavGo('home');
+        setTimeout(function() {
+          const ta = document.getElementById('cb-ta');
+          if (!ta) return;
+          const t = it.title || 'this piece';
+          ta.value = /style|three ways/i.test(t) ? t : 'Style my ' + t + ' three ways';
+          if (typeof _cbAutoGrow === 'function') _cbAutoGrow(ta);
+          ta.focus();
+        }, 240);
+      };
+      window.__inStyleNew = function() {
+        window.__inClose();
+        if (window.__rbNavGo) window.__rbNavGo('home');
+        setTimeout(function() { if (typeof _cbSetIntent === 'function') _cbSetIntent('style'); }, 240);
       };
 
       // ── Lookbook empty state · "Ways to fill it" ──────────────────────
@@ -4207,19 +4276,20 @@
 
       function snRenderPage() {
         _snWaysTries = 0;
-        const items = snLoad();
         const grid = document.getElementById('sn-grid');
         const empty = document.getElementById('sn-empty');
         if (!grid) return;
-        // The All looks shelf is the Look entities' home — its own module
-        // paints it (grid / detail / composer); the item grid stands down.
-        // A truly empty account (no looks, nothing saved) falls through to
-        // the page-level cold start below: "Ways to fill it" answers the
-        // page's one question better than a module-level empty state.
+        grid.style.display = 'none'; // legacy element — the looks module owns the page
+        // The looks module paints the whole view (holiday row + stream +
+        // detail/composer). A truly empty Lookbook — no looks, no daily
+        // looks, no holiday edits; key pieces live on Inspiration and
+        // don't count — keeps the page-level cold start: "Ways to fill
+        // it" answers the page's one question better than a module-level
+        // empty state.
         const lkWrap = document.getElementById('rb-lk-wrap');
-        if (_snFilter === 'looks' &&
-            ((typeof _lkLooks !== 'undefined' && _lkLooks.length) || items.length)) {
-          grid.style.display = 'none';
+        const hasContent = (typeof _lkLooks !== 'undefined' && _lkLooks.length)
+          || _lkShelfItems().length || _lkHolidayItems().length;
+        if (hasContent) {
           empty.style.display = 'none';
           _snClearWays();
           if (_lkEnsureDom()) document.getElementById('rb-lk-wrap').style.display = 'block';
@@ -4227,34 +4297,12 @@
           return;
         }
         if (lkWrap) lkWrap.style.display = 'none';
-        const visible = _snFilter === 'all' ? items : items.filter(i => i.type === _snFilter);
         const emptyT = document.getElementById('sn-empty-t');
         const emptyS = document.getElementById('sn-empty-s');
-        if (!items.length) {
-          grid.style.display = 'none';
-          empty.style.display = 'block';
-          if (emptyT) emptyT.textContent = 'Nothing saved yet.';
-          if (emptyS) emptyS.innerHTML = 'Every look Robes builds is filed here.';
-          _snPaintWays();
-          return;
-        }
-        if (!visible.length) {
-          // Filter matched nothing — items exist, just not of this type
-          const lbl = (_SN_FILTERS.find(f => f[0] === _snFilter) || [0, 'looks'])[1].toLowerCase();
-          grid.style.display = 'none';
-          empty.style.display = 'block';
-          if (emptyT) emptyT.textContent = 'No ' + lbl + ' yet.';
-          if (emptyS) emptyS.innerHTML = 'When you save one, it will appear here.';
-          _snClearWays();
-          return;
-        }
-        grid.style.display = 'grid';
-        empty.style.display = 'none';
-        _snClearWays();
-        _rbcInitSwipe();
-        // The SAME card the All looks shelf composes (_lkItemCard) — all
-        // four shelves are one family (cohesion pass 2026-08-08).
-        grid.innerHTML = visible.map(item => _lkItemCard(item)).join('');
+        empty.style.display = 'block';
+        if (emptyT) emptyT.textContent = 'Nothing saved yet.';
+        if (emptyS) emptyS.innerHTML = 'Every look Robes builds is filed here.';
+        _snPaintWays();
       }
 
       // ── Conditional dashboard row ────────────────────────────────────
@@ -4442,7 +4490,7 @@
             weekly.classList.add('svc-promo');
             weekly.removeAttribute('onclick'); // static __wkOpen opener is dead code
             weekly.onclick = function() {
-              if (window.KP && KP.comingSoon) KP.comingSoon('Week planning,<br><em>coming soon.</em>', 'Planning your week is moving into the calendar — you’ll dress any day from its own chip, right on your dashboard.');
+              if (window.KP && KP.comingSoon) KP.comingSoon('Week planning,<br><em>coming soon.</em>', 'Planning your week is moving into the diary — you’ll dress any day from its own chip, right on your dashboard.');
             };
             const weeklyImg = weekly.querySelector('.svc-img img');
             if (weeklyImg) weeklyImg.src = calSvg;
@@ -4559,6 +4607,8 @@
         window.__mbCloseList && window.__mbCloseList();
         const snEl = document.getElementById('sn-page');
         if (snEl) snEl.style.display = 'none';
+        const inEl = document.getElementById('rb-insp-page');
+        if (inEl) inEl.style.display = 'none';
         window.rbClearCrumb && window.rbClearCrumb();
       };
       window.__lastKpData = null;
@@ -7174,6 +7224,19 @@
       var _LK_CSS = `
 #rb-lk-wrap{display:none}
 #rb-lk-bar{display:flex;align-items:center;gap:12px;margin:0 0 18px;flex-wrap:wrap}
+#rb-lk-hol{display:none;margin:0 0 26px}
+.rb-lk-holrow{display:flex;gap:14px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
+.rb-lk-holrow::-webkit-scrollbar{width:0;height:0}
+.rb-lk-holcard{flex:none;width:236px;display:flex;flex-direction:column;background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad);overflow:hidden;cursor:pointer;font-family:inherit;text-align:left;padding:0;transition:border-color .15s}
+.rb-lk-holcard:hover{border-color:var(--ink)}
+.rb-lk-holcard .him{display:block;height:110px;background-size:cover;background-position:center;background-color:var(--cream-200)}
+.rb-lk-holcard .hpad{display:block;padding:11px 14px 13px}
+.rb-lk-holcard .ht{display:block;font-family:var(--font-serif);font-weight:300;font-size:16px;line-height:1.25;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-lk-holcard .hm{display:block;font-size:10.5px;color:var(--ink-faint);margin-top:3px}
+.rb-lk-holcard.new{border-style:dashed;background:var(--cream-100);align-items:center;justify-content:center;gap:8px;min-height:160px}
+.rb-lk-holcard.new:hover{background:var(--cream-200)}
+.rb-lk-holcard.new .hplus{width:32px;height:32px;border-radius:100px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:300;line-height:1}
+.rb-lk-holcard.new .hnew{font-family:var(--font-serif);font-weight:300;font-size:15px;color:var(--ink)}
 .rb-lk-sort{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border:0.5px solid var(--rule-mid);background:#fff;border-radius:100px;cursor:pointer;font-family:inherit;font-size:11.5px;color:var(--ink);transition:border-color .15s}
 .rb-lk-sort:hover{border-color:var(--ink)}
 .rb-lk-sort b{font-weight:400;color:var(--ink-faint)}
@@ -7265,7 +7328,7 @@
         _lkEnsureCss();
         const wrap = document.createElement('div');
         wrap.id = 'rb-lk-wrap';
-        wrap.innerHTML = '<div id="rb-lk-bar"></div><div id="rb-lk-grid"></div><div id="rb-lk-body"></div>';
+        wrap.innerHTML = '<div id="rb-lk-bar"></div><div id="rb-lk-hol"></div><div id="rb-lk-grid"></div><div id="rb-lk-body"></div>';
         const empty = sn.querySelector('#sn-empty');
         (empty || grid).parentNode.insertBefore(wrap, (empty || grid).nextSibling);
         return true;
@@ -7311,10 +7374,13 @@
         const grid = document.getElementById('rb-lk-grid');
         const body = document.getElementById('rb-lk-body');
         if (!bar || !grid || !body) return;
+        const hol = document.getElementById('rb-lk-hol');
         const detail = _lkView !== 'grid';
         const shelfItems = _lkShelfItems();
-        const any = _lkLooks.length || shelfItems.length;
+        const holidays = _lkHolidayItems();
+        const any = _lkLooks.length || shelfItems.length || holidays.length;
         bar.style.display = detail || !_lkLooks.length ? 'none' : 'flex';
+        if (hol) hol.style.display = detail || !holidays.length ? 'none' : 'block';
         grid.style.display = detail || !any ? 'none' : 'grid';
         if (detail) {
           body.innerHTML = _lkView === 'new' ? _lkNewHtml() : _lkDetailHtml();
@@ -7322,6 +7388,9 @@
         }
         body.innerHTML = any ? '' : _lkEmptyHtml();
         if (!any) return;
+        // Holiday edits ride a pinned row above the stream (IA refinement
+        // 2026-08-10) — they still band across the Diary as before.
+        if (hol && holidays.length) hol.innerHTML = _lkHolidayRowHtml(holidays);
         const refN = _lkRefineCount();
         if (_lkLooks.length) {
           bar.innerHTML = '<button type="button" class="rb-lk-sort" onclick="window.__lkSort()">' +
@@ -7330,7 +7399,7 @@
             '<button type="button" class="rb-lk-sort' + (refN || _lkRefineOpen ? ' hot' : '') + '" onclick="window.__lkRefineToggle()">' +
               '<span>Refine' + (refN ? ' · ' + refN : '') + '</span></button>' +
             '<span style="flex:1"></span>' +
-            '<button type="button" class="rb-lk-act primary" onclick="window.__lkNew()">+ New look</button>' +
+            '<button type="button" class="rb-lk-act primary" onclick="window.__lkNewMenu(event)">+ New ▾</button>' +
             (_lkRefineOpen ? _lkRefineHtml() : '');
         }
         const looksShown = _lkSorted().filter(_lkMatchRefine);
@@ -7355,11 +7424,19 @@
         '</div>';
       }
 
-      // Everything the Lookbook holds, minus the P0-hidden moodboards —
-      // the All looks shelf shows the whole collection, one card each.
+      // The Looks stream holds looks — the entities plus the day-anchored
+      // daily looks ("daily look" is not a type, the date never changes
+      // what it is; IA refinement 2026-08-10). Key pieces live on
+      // Inspiration; holiday (travel) edits ride their own pinned row.
       function _lkShelfItems() {
         try {
-          return (typeof snLoad === 'function' ? snLoad() : []).filter(i => i && i.type !== 'moodboard');
+          return (typeof snLoad === 'function' ? snLoad() : [])
+            .filter(i => i && (i.type === 'daily-look' || i.type === 'look'));
+        } catch (_) { return []; }
+      }
+      function _lkHolidayItems() {
+        try {
+          return (typeof snLoad === 'function' ? snLoad() : []).filter(i => i && i.type === 'travel-edit');
         } catch (_) { return []; }
       }
       // Recency for the unified stream: a look sorts by its last wear
@@ -7389,16 +7466,27 @@
         '<button class="rb-lk-wearx" onclick="window.__lkWearAsk(\'' + l.id + '\', event)" title="Wear it — today or on a day">Wear</button>' +
         '</div>';
       }
-      // A saved result in the same card — its generated image where a look
-      // shows its mosaic, its type as the eyebrow. Used by the All looks
-      // stream AND the type shelves (snRenderPage), so all four tabs are
-      // one family.
+      // A saved daily look in the same card — its generated image where a
+      // look shows its mosaic. The eyebrow reads Look ("daily look" is not
+      // a type); the meta carries the date as STATUS — worn, planned, or
+      // just the day it dressed.
+      function _lkItemMeta(i) {
+        const d = i.dlData || {};
+        const a = typeof d.anchor_date === 'string' ? d.anchor_date.slice(0, 10) : null;
+        if (a) {
+          if (d.worn) return 'Worn ' + _lkFmt(a);
+          const today = _pdLocalISO();
+          if (a >= today) return 'Planned · ' + new Date(a + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short' });
+          return _lkFmt(a);
+        }
+        return i.subtitle || '';
+      }
       function _lkItemCard(i) {
         const img = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : null;
         return '<div class="rb-lk-tilewrap" data-rmfn="__snRemove" data-rmidx="' + Number(i.id) + '" data-rmconfirm="1">' + _ltTile({
-          eyebrow: _snTypeLabel(i.type),
+          eyebrow: 'Look',
           title: i.title || 'Saved look',
-          meta: i.subtitle || '',
+          meta: _lkItemMeta(i),
           cells: [],
           photo: img,
         }, { body: 'window.__snOpenItem(' + Number(i.id) + ')', extraClass: 'lt-card' }) +
@@ -7406,6 +7494,41 @@
           '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
         '</button>' +
         '</div>';
+      }
+      // The Holiday edits row — a pinned shelf above the stream (wireframe
+      // 1a). Cards open the travel artifact; the dashed + New card starts a
+      // fresh holiday edit through the prompt.
+      function _lkHolDates(tv) {
+        if (!tv || !tv.dateFrom) return '';
+        const to = tv.dateTo || (tv.tripDays ? _pdAddISO(tv.dateFrom, Math.max(0, tv.tripDays - 1)) : tv.dateFrom);
+        const f = new Date(tv.dateFrom + 'T00:00:00'), t = new Date(to + 'T00:00:00');
+        const mF = f.toLocaleDateString('en-GB', { month: 'short' }), mT = t.toLocaleDateString('en-GB', { month: 'short' });
+        return mF === mT
+          ? f.getDate() + '–' + t.getDate() + ' ' + mT
+          : f.getDate() + ' ' + mF + ' – ' + t.getDate() + ' ' + mT;
+      }
+      function _lkHolMeta(i) {
+        const tv = i.tvData || {};
+        const parts = [];
+        if (Array.isArray(tv.capsule) && tv.capsule.length) parts.push(_lkN(tv.capsule.length, 'piece'));
+        if (Array.isArray(tv.looks) && tv.looks.length) parts.push(_lkN(tv.looks.length, 'look'));
+        const dr = _lkHolDates(tv);
+        if (dr) parts.push(dr);
+        return parts.join(' · ') || i.subtitle || '';
+      }
+      function _lkHolidayRowHtml(holidays) {
+        return '<div class="rb-lk-sec" style="margin:4px 0 12px">Holiday edits</div>' +
+          '<div class="rb-lk-holrow">' +
+          holidays.map(i => {
+            const img = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : null;
+            return '<button type="button" class="rb-lk-holcard" onclick="window.__snOpenItem(' + Number(i.id) + ')">' +
+              '<span class="him"' + (img ? ' style="background-image:url(\'' + _waEsc(img) + '\')"' : '') + '></span>' +
+              '<span class="hpad"><span class="ht">' + _waEsc(i.title || 'Holiday edit') + '</span>' +
+              '<span class="hm">' + _waEsc(_lkHolMeta(i)) + '</span></span></button>';
+          }).join('') +
+          '<button type="button" class="rb-lk-holcard new" onclick="window.__lkNewHoliday()">' +
+            '<span class="hplus">+</span><span class="hnew">New holiday edit</span></button>' +
+          '</div>';
       }
 
       // ── Refine — filter the grid by the looks' tag axes (2026-08-07).
@@ -7960,7 +8083,7 @@
         if (!iso) return;
         _lkPin(_lkActive, iso);
         _lkActNote = null;
-        _lkDone = 'Wearing it ' + _lkFmt(iso) + ' — it’s on your calendar.';
+        _lkDone = 'Wearing it ' + _lkFmt(iso) + ' — it’s in your diary.';
         _lkPaint();
       };
       // The look card's Wear — opens the detail with the day question armed
@@ -8145,6 +8268,42 @@
       window.__lkToday = function() {
         if (window.__rbNavGo) window.__rbNavGo('home');
         setTimeout(() => { if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me'); }, 240);
+      };
+
+      // ── "+ New ▾" — one button, split two ways (wireframe 2c): a Look
+      // built by hand, or a holiday edit through the prompt. The Diary
+      // still creates nothing.
+      window.__lkNewMenu = function(ev) {
+        if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+        document.getElementById('rb-lk-newmenu')?.remove();
+        const pop = document.createElement('div');
+        pop.id = 'rb-lk-newmenu';
+        pop.style.cssText = 'position:fixed;inset:0;z-index:930';
+        pop.innerHTML = '<div style="position:absolute;inset:0" onclick="document.getElementById(\'rb-lk-newmenu\').remove()"></div>' +
+          '<div class="card" style="position:absolute;min-width:200px;background:#FDFCFA;border:0.5px solid rgba(32,32,33,0.16);border-radius:10px;box-shadow:0 10px 34px rgba(32,32,33,0.16);padding:6px;display:flex;flex-direction:column">' +
+          '<button onclick="document.getElementById(\'rb-lk-newmenu\').remove();window.__lkNew()" style="border:none;background:transparent;padding:11px 13px;border-radius:7px;font-size:12.5px;color:var(--ink);cursor:pointer;font-family:inherit;text-align:left">New Look</button>' +
+          '<button onclick="document.getElementById(\'rb-lk-newmenu\').remove();window.__lkNewHoliday()" style="border:none;background:transparent;padding:11px 13px;border-radius:7px;font-size:12.5px;color:var(--ink);cursor:pointer;font-family:inherit;text-align:left">New holiday edit</button>' +
+          '</div>';
+        document.body.appendChild(pop);
+        const card = pop.querySelector('.card');
+        const btn = ev && ev.currentTarget;
+        if (btn && card) {
+          const r = btn.getBoundingClientRect();
+          card.style.top = Math.min(window.innerHeight - card.offsetHeight - 12, r.bottom + 6) + 'px';
+          card.style.left = Math.max(12, Math.min(window.innerWidth - card.offsetWidth - 12, r.right - card.offsetWidth)) + 'px';
+        }
+        try {
+          card.querySelectorAll('button').forEach(b => {
+            b.onmouseenter = function() { b.style.background = 'rgba(32,32,33,0.05)'; };
+            b.onmouseleave = function() { b.style.background = 'transparent'; };
+          });
+        } catch (_) {}
+      };
+      // A new holiday edit starts from the prompt (the app's standing
+      // rule: every route lands on the home prompt box).
+      window.__lkNewHoliday = function() {
+        if (window.__snClose) window.__snClose();
+        setTimeout(function() { if (typeof _cbSetIntent === 'function') _cbSetIntent('travel'); }, 120);
       };
 
       // ── Composer handlers ───────────────────────────────────────────────
@@ -12307,6 +12466,7 @@ body>*:not(#tv-result-page){display:none !important}
           window.__mbCloseResult && window.__mbCloseResult();
           window.__mbCloseList && window.__mbCloseList();
           window.__snClose && window.__snClose();
+          window.__inClose && window.__inClose();
           if (kpResultPage) kpResultPage.style.display = 'none';
           if (dlResultPage) dlResultPage.style.display = 'none';
           if (tvResultPage) tvResultPage.style.display = 'none';
@@ -12376,6 +12536,8 @@ body>*:not(#tv-result-page){display:none !important}
           if (tvResultPage) tvResultPage.style.display = 'none';
           const snEl = document.getElementById('sn-page');
           if (snEl) snEl.style.display = 'none';
+          const inEl = document.getElementById('rb-insp-page');
+          if (inEl) inEl.style.display = 'none';
         }
         function _closeWardrobe() {
           const wp = document.querySelector('.wardrobe-panel');
@@ -12396,10 +12558,16 @@ body>*:not(#tv-result-page){display:none !important}
             _closeOverlays();
             _closeWardrobe(); // its patched open would re-hide sn-page, so close first
             window.__snOpen && window.__snOpen();
-          } else if (dest === 'calendar') {
+          } else if (dest === 'diary' || dest === 'calendar') {
+            // 'calendar' survives as a legacy alias — the Diary lives
+            // inside the Lookbook now (IA refinement 2026-08-10)
             _closeOverlays();
             _closeWardrobe();
-            window.__rbCalOpen && window.__rbCalOpen();
+            window.__rbDiaryOpen && window.__rbDiaryOpen();
+          } else if (dest === 'inspiration') {
+            _closeOverlays();
+            _closeWardrobe();
+            window.__rbInspOpen && window.__rbInspOpen();
           } else if (dest === 'wardrobe') {
             _closeOverlays();
             if (!_wardrobeOpen() && window.App && App.showWardrobe) App.showWardrobe();
@@ -12409,26 +12577,28 @@ body>*:not(#tv-result-page){display:none !important}
         };
         const tnW = document.getElementById('rb-tn-wardrobe');
         const tnL = document.getElementById('rb-tn-lookbook');
-        const tnC = document.getElementById('rb-tn-calendar');
+        const tnI = document.getElementById('rb-tn-inspiration');
         const dkH = document.getElementById('rb-dock-home');
         const dkW = document.getElementById('rb-dock-wardrobe');
         const dkL = document.getElementById('rb-dock-lookbook');
-        const dkC = document.getElementById('rb-dock-calendar');
+        const dkI = document.getElementById('rb-dock-inspiration');
         const backPill = document.getElementById('rb-backpill');
         function _rbNavSync() {
           const snEl = document.getElementById('sn-page');
           const snOpen = !!(snEl && snEl.style.display === 'block');
-          const calOn = snOpen && snEl.classList.contains('rb-cal-on');
+          const inEl = document.getElementById('rb-insp-page');
+          const inOpen = !!(inEl && inEl.style.display === 'block');
           const wOpen = _wardrobeOpen();
           const detail = _detailOpen();
-          const active = wOpen ? 'wardrobe' : calOn ? 'calendar' : (snOpen || detail) ? 'lookbook' : 'home';
+          // The Diary is a view inside the Lookbook — the Lookbook stays lit
+          const active = wOpen ? 'wardrobe' : inOpen ? 'inspiration' : (snOpen || detail) ? 'lookbook' : 'home';
           if (tnW) tnW.classList.toggle('active', active === 'wardrobe');
           if (tnL) tnL.classList.toggle('active', active === 'lookbook');
-          if (tnC) tnC.classList.toggle('active', active === 'calendar');
+          if (tnI) tnI.classList.toggle('active', active === 'inspiration');
           if (dkH) dkH.classList.toggle('active', active === 'home');
           if (dkW) dkW.classList.toggle('active', active === 'wardrobe');
           if (dkL) dkL.classList.toggle('active', active === 'lookbook');
-          if (dkC) dkC.classList.toggle('active', active === 'calendar');
+          if (dkI) dkI.classList.toggle('active', active === 'inspiration');
           // Mobile detail screens: the back pill replaces the wordmark line,
           // and Share rises into the header (the footer copy hides ≤640px).
           const showPill = detail && window.matchMedia('(max-width:767px)').matches;
@@ -14117,7 +14287,9 @@ body>*:not(#tv-result-page){display:none !important}
         try {
           const p = window.location.pathname;
           const snEl = document.getElementById('sn-page');
-          if (snEl && p !== '/lookbook' && p !== '/looks' && p !== '/calendar') { snEl.style.display = 'none'; }
+          if (snEl && p !== '/lookbook' && p !== '/looks' && p !== '/diary' && p !== '/calendar') { snEl.style.display = 'none'; }
+          const inEl = document.getElementById('rb-insp-page');
+          if (inEl && p !== '/inspiration') { inEl.style.display = 'none'; }
           if (p !== '/moodboards') _mbListPage.style.display = 'none';
           window.__mbCloseResult && window.__mbCloseResult();
           if (kpResultPage) kpResultPage.style.display = 'none';
@@ -14131,7 +14303,8 @@ body>*:not(#tv-result-page){display:none !important}
             if (wbtn) wbtn.click(); else wp.classList.remove('visible');
           }
           if (p === '/lookbook' || p === '/looks') window.__snOpen && window.__snOpen();
-          else if (p === '/calendar') window.__rbCalOpen && window.__rbCalOpen();
+          else if (p === '/diary' || p === '/calendar') window.__rbDiaryOpen && window.__rbDiaryOpen();
+          else if (p === '/inspiration') window.__rbInspOpen && window.__rbInspOpen();
           else if (p === '/moodboards' && !_RB_MB_HIDDEN) window._mbShowAllPage && window._mbShowAllPage();
           else if (p.indexOf('/moodboard/') === 0 && !_RB_MB_HIDDEN) {
             const item = window._mbFindBySlug && window._mbFindBySlug(p.slice('/moodboard/'.length));
@@ -14685,8 +14858,10 @@ body>*:not(#tv-result-page){display:none !important}
           const st = document.createElement('style');
           st.id = 'rb-mv-style';
           st.textContent = `
+#sn-viewseg{display:inline-flex;border:0.5px solid rgba(32,32,33,0.18);border-radius:100px;overflow:hidden}
+#sn-viewseg button{border:none;background:transparent;padding:7px 15px;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);cursor:pointer;font-family:inherit;white-space:nowrap}
+#sn-viewseg button.on{background:#202021;color:#fff}
 #sn-cal{display:none}
-#sn-page.rb-cal-on #sn-tabs{display:none!important}
 #sn-page.rb-cal-on #sn-grid{display:none!important}
 #sn-page.rb-cal-on #sn-empty{display:none!important}
 #sn-page.rb-cal-on #rb-lk-wrap{display:none!important}
@@ -14737,17 +14912,35 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           document.head.appendChild(st);
         }
 
-        // Mount: the calendar surface after #sn-tabs. The Grid | Calendar
-        // toggle is gone (IA 2026-08-08) — Calendar is a top-level tab that
-        // borrows the Lookbook's shell via the rb-cal-on class.
+        // Mount: the Looks | Diary segment in the headrow, the diary
+        // surface before #sn-grid. The Diary lives INSIDE the Lookbook
+        // (IA refinement 2026-08-10 — Calendar renamed Diary, the
+        // top-level tab retired for Inspiration).
         const headRow = snPage.querySelector('#sn-headrow');
         if (!headRow) return;
+        const seg = document.createElement('div');
+        seg.id = 'sn-viewseg';
+        seg.innerHTML = `<button class="on" data-mv="grid">Looks</button><button data-mv="cal">Diary</button>`;
+        headRow.appendChild(seg);
+        seg.addEventListener('click', e => {
+          const b = e.target.closest('button[data-mv]');
+          if (!b) return;
+          if (b.dataset.mv === 'cal') { window.__rbDiaryOpen(); return; }
+          // Tapping Looks always lands the landing grid — the segment is
+          // the way back out of the Diary or a stale detail (no sub-sub-nav)
+          _lkView = 'grid'; _lkActive = null;
+          _mvSetView('grid');
+          window.rbSetCrumb && window.rbSetCrumb([{ label: 'Lookbook' }]);
+          window._rbNav && window._rbNav('/lookbook');
+        });
         const cal = document.createElement('div');
         cal.id = 'sn-cal';
-        snPage.querySelector('#sn-tabs').parentNode.insertBefore(cal, snPage.querySelector('#sn-grid'));
+        const gridEl = snPage.querySelector('#sn-grid');
+        gridEl.parentNode.insertBefore(cal, gridEl);
 
         function _mvSetView(v) {
           _mvView = v;
+          seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.mv === v));
           const calOn = v === 'cal';
           // Class, not inline styles — async repaints (snRenderPage after
           // _lbCloudPull) re-set the grid's inline display underneath us.
@@ -14766,20 +14959,22 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           if (_mvM > 12) { _mvM = 1; _mvY++; }
           _mvLoad();
         };
-        // Calendar, the destination — when you wear it. Same page shell,
-        // its own eyebrow, crumb and path; never creates a look (rule:
-        // an empty day offers "wear a look", the Lookbook makes them).
-        window.__rbCalOpen = function() {
+        // The Diary — when you wear it. Same page shell, its own crumb and
+        // path; it never creates a look (rule: an empty day offers "wear a
+        // look", the Lookbook makes them).
+        window.__rbDiaryOpen = function() {
           const av = document.getElementById('av-menu');
           if (av) av.classList.remove('open');
           snPage.style.display = 'block';
-          const ey = document.getElementById('sn-eyebrow');
-          if (ey) ey.textContent = 'Calendar';
           _mvSetView('cal');
-          window.rbSetCrumb && window.rbSetCrumb([{ label: 'Calendar' }]);
-          window._rbNav && window._rbNav('/calendar');
+          window.rbSetCrumb && window.rbSetCrumb([
+            { label: 'Lookbook', action: function() { window.__snOpen && window.__snOpen(); } },
+            { label: 'Diary' },
+          ]);
+          window._rbNav && window._rbNav('/diary');
         };
-        // The lookbook always reopens on the grid (wardrobe convention)
+        window.__rbCalOpen = window.__rbDiaryOpen; // legacy alias
+        // The lookbook always reopens on the Looks view (wardrobe convention)
         const _snOpenPrev = window.__snOpen;
         window.__snOpen = function() { _snOpenPrev(); _mvSetView('grid'); };
 

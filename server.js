@@ -1891,8 +1891,18 @@ app.get('/looks', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
 
-// Calendar is a top-level destination (IA 2026-08-08) — same shell
+// The Diary lives inside the Lookbook (IA refinement 2026-08-10 —
+// Calendar renamed to Diary); /calendar survives as a legacy alias
+app.get('/diary', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
 app.get('/calendar', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'dashboard.html'));
+});
+
+// Inspiration — undated, aspirational content (key pieces styled)
+app.get('/inspiration', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'dashboard.html'));
 });
 

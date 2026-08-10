@@ -210,12 +210,12 @@ const browser = await chromium.launch(
   check('tab · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
 
   const s = await page.evaluate(() => {
-    const tabs = Array.from(document.querySelectorAll('#sn-tabs .sn-ftab')).map((b) => ({ v: b.dataset.snf, t: b.textContent, on: b.classList.contains('active') }));
+    const seg = Array.from(document.querySelectorAll('#sn-viewseg button')).map((b) => ({ v: b.dataset.mv, t: b.textContent, on: b.classList.contains('on') }));
     const vis = (id) => { const el = document.getElementById(id); return !!el && el.offsetParent !== null; };
     return {
-      tabs,
+      seg,
+      shelves: !!document.getElementById('sn-tabs'),
       wsub: Array.from(document.querySelectorAll('#rb-wsub button')).map((b) => b.dataset.view),
-      viewseg: !!document.getElementById('sn-viewseg'),
       eyebrow: document.getElementById('sn-eyebrow')?.textContent,
       wrapVisible: vis('rb-lk-wrap'),
       itemGridHidden: !vis('sn-grid'),
@@ -234,14 +234,12 @@ const browser = await chromium.launch(
       path: location.pathname,
     };
   });
-  check('shelf · the Lookbook leads with All looks, then the styled types',
-    s.tabs.map((t) => t.v).join(',') === 'looks,key-piece,daily-look,travel-edit', JSON.stringify(s.tabs.map((t) => t.v)));
-  check('shelf · All looks is the active shelf',
-    s.tabs.find((t) => t.v === 'looks')?.on === true && s.tabs.find((t) => t.v === 'looks')?.t === 'All looks',
-    JSON.stringify(s.tabs));
+  check('shelf · the Lookbook is Looks | Diary, opening on Looks',
+    s.seg.map((t) => t.t).join(',') === 'Looks,Diary' && s.seg[0].on === true && s.seg[1].on === false,
+    JSON.stringify(s.seg));
+  check('shelf · the type shelves are retired (one looks view)', s.shelves === false);
   check('shelf · the wardrobe holds pieces and wishlist only (Looks moved out)',
     s.wsub.join(',') === 'all,wishlist', JSON.stringify(s.wsub));
-  check('shelf · the grid/calendar toggle is gone (Calendar is a tab)', s.viewseg === false);
   check('shelf · the page eyebrow reads Lookbook', s.eyebrow === 'Lookbook', String(s.eyebrow));
   check('tab · looks surface shown, the item grid stands down',
     s.wrapVisible && s.itemGridHidden, JSON.stringify([s.wrapVisible, s.itemGridHidden]));
@@ -288,7 +286,7 @@ const browser = await chromium.launch(
   // state is deterministic.
   const bar = await page.evaluate(() => {
     const barEl = document.getElementById('rb-lk-bar');
-    const newBtn = barEl && Array.from(barEl.querySelectorAll('button')).find((b) => /New look/.test(b.textContent));
+    const newBtn = barEl && Array.from(barEl.querySelectorAll('button')).find((b) => /\+ New/.test(b.textContent));
     window.__lkRefineToggle();
     const drawer = document.querySelector('.rb-lk-refwrap');
     const axes = drawer ? Array.from(drawer.querySelectorAll('.rb-lkref-ax')).map((e) => e.textContent) : [];
@@ -301,7 +299,7 @@ const browser = await chromium.launch(
     window.__lkRefineToggle();
     return { newBtn: !!newBtn, axes, shown, none, restored };
   });
-  check('bar · + New look sits in the grid bar', bar.newBtn === true);
+  check('bar · the + New split button sits in the grid bar', bar.newBtn === true);
   check('bar · Refine opens all four tag axes',
     JSON.stringify(bar.axes) === JSON.stringify(['Climate', 'Light', 'Wear it for', 'Vibe']), JSON.stringify(bar.axes));
   check('bar · a pick filters; nothing-matches names itself; Clear restores',
@@ -365,13 +363,13 @@ const browser = await chromium.launch(
   check('detail · no sub-sub-nav back line', d.back === false);
   check('detail · grid yields to the detail', d.gridHidden === true);
   const tabBack = await page.evaluate(() => {
-    document.querySelector('#sn-tabs [data-snf="looks"]').click();
+    document.querySelector('#sn-viewseg [data-mv="grid"]').click();
     return {
       gridShown: document.getElementById('rb-lk-grid')?.style.display !== 'none',
       tiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length,
     };
   });
-  check('detail · clicking the All looks shelf lands the landing grid',
+  check('detail · tapping Looks in the segment lands the landing grid',
     tabBack.gridShown && tabBack.tiles === 2, JSON.stringify(tabBack));
   await page.evaluate(() => window.__lkOpen('lk-1'));
   await page.waitForTimeout(200);
@@ -1082,25 +1080,42 @@ const browser = await chromium.launch(
   }));
   check('empty · a truly empty account keeps the ways-to-fill cold start',
     cold.waysShown === true && cold.wrapHidden === true, JSON.stringify(cold));
-  // Once anything is saved the shelf fills — the unified stream shows the
-  // saved result in the shared card, the add card keeps the way in, and
-  // sort/Refine stay withheld until an actual Look exists.
+  // A key piece alone does NOT fill the Lookbook — it lives on Inspiration
+  // (IA refinement 2026-08-10). The cold start holds.
   await page.evaluate(() => {
     localStorage.setItem('robes_style_notes__u-test',
-      JSON.stringify([{ id: 1754640000000, type: 'key-piece', title: 'A look', subtitle: 'Worn three ways', img: null }]));
+      JSON.stringify([{ id: 1754630000000, type: 'key-piece', title: 'A piece', subtitle: 'Worn three ways', img: null }]));
+    window.__lkGo();
+  });
+  await page.waitForTimeout(300);
+  const kpOnly = await page.evaluate(() => ({
+    waysShown: (() => { const el = document.getElementById('sn-empty'); return !!el && el.style.display !== 'none'; })(),
+  }));
+  check('empty · a key piece alone leaves the Lookbook on its cold start (it lives on Inspiration)',
+    kpOnly.waysShown === true, JSON.stringify(kpOnly));
+  // A daily look DOES fill the shelf — the unified stream shows it in the
+  // shared card (eyebrow Look, date as status), the add card keeps the way
+  // in, and sort/Refine stay withheld until an actual Look exists.
+  await page.evaluate(() => {
+    localStorage.setItem('robes_style_notes__u-test',
+      JSON.stringify([{ id: 1754640000000, type: 'daily-look', title: 'A look', subtitle: 'Daily look · Tuesday', img: null,
+        dlData: { anchor_date: '2026-08-05', worn: true } }]));
     window.__lkGo();
   });
   await page.waitForTimeout(300);
   const e = await page.evaluate(() => ({
     itemCards: document.querySelectorAll('#rb-lk-grid .lt-card').length,
     eyebrow: document.querySelector('#rb-lk-grid .lt-ey')?.textContent,
+    meta: document.querySelector('#rb-lk-grid .lt-meta')?.textContent,
     addCard: !!document.querySelector('#rb-lk-grid .rb-add-card'),
     moduleEmpty: !!document.querySelector('.rb-lk-empty'),
     barHidden: document.getElementById('rb-lk-bar')?.style.display === 'none',
   }));
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
-  check('empty · a saved result fills the shelf even with zero looks',
-    e.itemCards === 1 && e.eyebrow === 'Key piece' && e.addCard === true, JSON.stringify(e));
+  check('empty · a saved daily look fills the shelf even with zero looks',
+    e.itemCards === 1 && e.addCard === true, JSON.stringify(e));
+  check('empty · daily look is not a type — eyebrow Look, date as status',
+    e.eyebrow === 'Look' && e.meta === 'Worn 5 Aug', JSON.stringify([e.eyebrow, e.meta]));
   check('empty · no module empty state once anything exists', e.moduleEmpty === false);
   check('empty · sort and Refine stay withheld until a Look exists', e.barHidden === true);
   await ctx.close();
@@ -1249,22 +1264,48 @@ const browser = await chromium.launch(
   check('IA · a card\'s Wear opens the detail asking which day',
     cardWear.had && /Which day\?/.test(cardWear.panel || ''), JSON.stringify(cardWear));
 
-  // The unified stream (cohesion pass): a saved result joins the looks in
-  // one card language on the All looks shelf.
+  // The unified stream (cohesion pass): a saved daily look joins the looks
+  // in one card language; a holiday edit rides the pinned row above it,
+  // and a key piece stays off the page entirely (it lives on Inspiration).
   const uni = await page.evaluate(() => {
     localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
       { id: 1754640000000, type: 'daily-look', title: 'A Dublin day', subtitle: 'Daily look · Wednesday', img: null },
+      { id: 1754640000001, type: 'travel-edit', title: 'Ibiza holiday edit', subtitle: 'Travel edit · Ibiza', img: null,
+        tvData: { capsule: Array(12).fill({}), looks: Array(6).fill({}), dateFrom: '2026-08-07', tripDays: 8 } },
+      { id: 1754640000002, type: 'key-piece', title: 'Umbro shorts', subtitle: 'Worn three ways', img: null },
     ]));
     window.__lkGo();
+    const hol = document.getElementById('rb-lk-hol');
     return {
       cards: document.querySelectorAll('#rb-lk-grid .lt-card').length,
       eyebrows: Array.from(document.querySelectorAll('#rb-lk-grid .lt-ey')).map((e) => e.textContent).sort(),
       itemCard: Array.from(document.querySelectorAll('#rb-lk-grid .lt-card')).some((c) => /A Dublin day/.test(c.textContent)),
+      kpInStream: /Umbro shorts/.test(document.getElementById('rb-lk-grid')?.textContent || ''),
+      holShown: !!hol && hol.style.display !== 'none',
+      holCards: document.querySelectorAll('#rb-lk-hol .rb-lk-holcard:not(.new)').length,
+      holMeta: document.querySelector('#rb-lk-hol .rb-lk-holcard .hm')?.textContent,
+      holNew: !!document.querySelector('#rb-lk-hol .rb-lk-holcard.new'),
+      newSplit: /\+ New ▾/.test(document.getElementById('rb-lk-bar')?.textContent || ''),
     };
   });
-  check('IA · All looks holds everything in one card language',
-    uni.cards === 3 && uni.itemCard && JSON.stringify(uni.eyebrows) === JSON.stringify(['Daily look', 'Look', 'Look']),
+  check('IA · the stream holds looks and daily looks in one card language ("daily look" is not a type)',
+    uni.cards === 3 && uni.itemCard && JSON.stringify(uni.eyebrows) === JSON.stringify(['Look', 'Look', 'Look']),
     JSON.stringify(uni));
+  check('IA · a key piece never enters the Lookbook stream', uni.kpInStream === false);
+  check('IA · holiday edits ride the pinned row, with + New at its end',
+    uni.holShown && uni.holCards === 1 && uni.holNew === true && uni.holMeta === '12 pieces · 6 looks · 7–14 Aug',
+    JSON.stringify([uni.holShown, uni.holCards, uni.holNew, uni.holMeta]));
+  check('IA · one + New button, split two ways', uni.newSplit === true);
+  const split = await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('#rb-lk-bar button')).find((b) => /\+ New ▾/.test(b.textContent));
+    btn.click();
+    const menu = document.getElementById('rb-lk-newmenu');
+    const opts = menu ? Array.from(menu.querySelectorAll('.card button')).map((b) => b.textContent) : [];
+    menu?.remove();
+    return { opts };
+  });
+  check('IA · the split offers New Look and New holiday edit',
+    JSON.stringify(split.opts) === JSON.stringify(['New Look', 'New holiday edit']), JSON.stringify(split.opts));
 
   // A generic look opens hosted as a daily look (today's view), with the
   // quiet door back to the Look details.
@@ -1314,26 +1355,29 @@ const browser = await chromium.launch(
     pinnedOpen.anchor === pinnedOpen.target, JSON.stringify(pinnedOpen));
   await page.evaluate(() => { const dl = document.getElementById('dl-result-page'); if (dl) dl.style.display = 'none'; });
 
-  // Calendar — a top-level destination borrowing the page shell.
+  // The Diary — a view inside the Lookbook (Calendar renamed 2026-08-10);
+  // the legacy 'calendar' door still lands there.
   await page.evaluate(() => window.__rbNavGo('calendar'));
   await page.waitForTimeout(700);
   const cal = await page.evaluate(() => ({
     calShown: document.getElementById('sn-cal')?.style.display === 'block',
     calClass: document.getElementById('sn-page').classList.contains('rb-cal-on'),
-    eyebrow: document.getElementById('sn-eyebrow')?.textContent,
     path: location.pathname,
-    tnActive: document.getElementById('rb-tn-calendar')?.classList.contains('active'),
+    segDiaryOn: document.querySelector('#sn-viewseg [data-mv="cal"]')?.classList.contains('on'),
     tnLookbook: document.getElementById('rb-tn-lookbook')?.classList.contains('active'),
-    dockTab: !!document.getElementById('rb-dock-calendar'),
+    tnCalGone: !document.getElementById('rb-tn-calendar'),
+    tnInsp: !!document.getElementById('rb-tn-inspiration'),
+    dockInsp: !!document.getElementById('rb-dock-inspiration'),
     wrapHidden: (() => { const el = document.getElementById('rb-lk-wrap'); return !el || el.offsetParent === null; })(),
     monthTitle: document.querySelector('.rb-mv-title')?.textContent || '',
   }));
-  check('IA · Calendar opens as its own destination with its own path',
-    cal.calShown && cal.calClass && cal.path === '/calendar' && /\d{4}/.test(cal.monthTitle), JSON.stringify(cal));
-  check('IA · the calendar names itself and lights its own tab',
-    cal.eyebrow === 'Calendar' && cal.tnActive === true && cal.tnLookbook === false && cal.dockTab === true,
-    JSON.stringify([cal.eyebrow, cal.tnActive, cal.tnLookbook, cal.dockTab]));
-  check('IA · the looks shelf yields under the calendar', cal.wrapHidden === true);
+  check('IA · the Diary opens inside the Lookbook at /diary',
+    cal.calShown && cal.calClass && cal.path === '/diary' && /\d{4}/.test(cal.monthTitle) && cal.segDiaryOn === true,
+    JSON.stringify(cal));
+  check('IA · no Calendar tab — the Lookbook stays lit; Inspiration holds the third slot',
+    cal.tnLookbook === true && cal.tnCalGone === true && cal.tnInsp === true && cal.dockInsp === true,
+    JSON.stringify([cal.tnLookbook, cal.tnCalGone, cal.tnInsp, cal.dockInsp]));
+  check('IA · the looks view yields under the Diary', cal.wrapHidden === true);
 
   // An empty future day offers "wear a look" — picking one pins it there.
   const wear = await page.evaluate(async () => {
@@ -1390,6 +1434,36 @@ const browser = await chromium.launch(
   });
   check('IA · the bridge closes the form and lands on the looks shelf',
     bridged.modalClosed && bridged.wrapShown, JSON.stringify(bridged));
+
+  // Inspiration — the undated shelf. The key piece seeded above lives
+  // there; Restyle re-arms the home prompt with the original ask.
+  await page.evaluate(() => window.__rbNavGo('inspiration'));
+  await page.waitForTimeout(500);
+  const insp = await page.evaluate(() => ({
+    open: document.getElementById('rb-insp-page')?.style.display === 'block',
+    path: location.pathname,
+    tnActive: document.getElementById('rb-tn-inspiration')?.classList.contains('active'),
+    lookbookOff: !document.getElementById('rb-tn-lookbook')?.classList.contains('active'),
+    cards: document.querySelectorAll('#rb-in-grid .rb-in-card').length,
+    title: document.querySelector('#rb-in-grid .rb-in-title')?.textContent,
+    sub: document.querySelector('#rb-in-grid .rb-in-sub')?.textContent,
+    saveAsLook: /Save as look/i.test(document.getElementById('rb-in-grid')?.textContent || ''),
+  }));
+  check('IA · Inspiration is its own destination holding the key pieces',
+    insp.open && insp.path === '/inspiration' && insp.tnActive === true && insp.lookbookOff === true
+      && insp.cards === 1 && insp.title === 'Umbro shorts' && /Styled three ways by Robes/.test(insp.sub || ''),
+    JSON.stringify(insp));
+  check('IA · no Save-as-look yet (deferred — Annie 2026-08-10)', insp.saveAsLook === false);
+  const restyled = await page.evaluate(async () => {
+    document.querySelector('#rb-in-grid .rb-in-act').click();
+    await new Promise((r) => setTimeout(r, 600));
+    return {
+      inspClosed: document.getElementById('rb-insp-page').style.display === 'none',
+      prompt: document.getElementById('cb-ta')?.value || '',
+    };
+  });
+  check('IA · Restyle lands on the home prompt with the ask re-armed',
+    restyled.inspClosed && /Style my Umbro shorts three ways/.test(restyled.prompt), JSON.stringify(restyled));
   check('IA · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
