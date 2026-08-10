@@ -1328,8 +1328,14 @@ const browser = await chromium.launch(
     window.__lkCardOpen('lk-1');
     await new Promise((r) => setTimeout(r, 300));
     const dl = document.getElementById('dl-result-page');
+    const onTop = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
     return {
       open: !!dl && dl.style.display !== 'none',
+      // The Lookbook page (z-45) MUST close — it sits above the daily
+      // console (z-40), and leaving it open rendered the day invisibly
+      // beneath (beta bug 2026-08-10: "I can't open a Look").
+      snClosed: document.getElementById('sn-page').style.display === 'none',
+      topIsDl: !!(onTop && onTop.closest && onTop.closest('#dl-result-page')),
       headline: document.querySelector('#dl-result-page .dlm-title')?.textContent,
       rows: document.querySelectorAll('#dl-result-page .rbc-row').length,
       door: !!document.querySelector('#dl-result-page .dlm-lksrc button'),
@@ -1341,6 +1347,8 @@ const browser = await chromium.launch(
   check('IA · a generic look opens hosted as a daily look, anchored today',
     dayView.open && dayView.headline === 'The Thursday one' && dayView.rows === 4 && dayView.anchor === dayView.todayIso,
     JSON.stringify(dayView));
+  check('IA · the day view actually lands ON TOP (the Lookbook closes under it)',
+    dayView.snClosed === true && dayView.topIsDl === true, JSON.stringify([dayView.snClosed, dayView.topIsDl]));
   check('IA · the daily view keeps a quiet door to the Look details',
     dayView.door && /From your look/.test(dayView.doorCopy), dayView.doorCopy);
 

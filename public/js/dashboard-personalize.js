@@ -7198,6 +7198,15 @@
           };
         }).filter(Boolean);
         if (!items.length || typeof window.__dlRenderResult !== 'function') return false;
+        // The daily console is a z-40 overlay; the Lookbook and Inspiration
+        // pages sit at z-45 — close them or the day renders invisibly
+        // beneath (beta bug 2026-08-10: "I can't open a Look"). Done here,
+        // after the resolvability check, so a false return (→ Look detail
+        // fallback) never blanks the page she's on.
+        const snEl = document.getElementById('sn-page');
+        if (snEl) snEl.style.display = 'none';
+        const inEl = document.getElementById('rb-insp-page');
+        if (inEl) inEl.style.display = 'none';
         const date = m.day_date || _pdLocalISO();
         const rc = window.__rbCtx || {};
         const month = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { month: 'long' });
@@ -8629,22 +8638,26 @@
         if (used.length < 2 || _lkBusy) return;
         if (_lkPhoto && _lkPhoto.pending) { _waShowToast('One moment — the photo is still uploading'); return; }
         _lkBusy = true;
-        const slots = {};
-        _lkRows.forEach(r => { if (r.piece) slots[r.piece] = r.slot; });
-        // The field is a placeholder until she types (A6 still holds at save:
-        // an untouched field gets the offered name, marked provisional).
-        const typed = String(_lkNewTitleDraft || '').trim();
-        // Tags travel with the save — her edit if she made one, else the
-        // pieces' inherited overlap (spec F3). Stored flat; axes recover
-        // from the disjoint vocabularies.
-        const tagsFlat = _rbTagsFlat(_lkNewTags || _rbInheritLookTags(used));
-        const l = _lkCreate({
-          pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed,
-          source: 'manual', photo_url: _lkPhoto && _lkPhoto.url, slots,
-          tags: tagsFlat.length ? tagsFlat : null,
-          roles: _lkNewRoles,
-        });
-        _lkBusy = false;
+        // finally-guarded: a throw anywhere in here must never leave the
+        // busy latch stuck — that reads as "Save does nothing, forever".
+        let l;
+        try {
+          const slots = {};
+          _lkRows.forEach(r => { if (r.piece) slots[r.piece] = r.slot; });
+          // The field is a placeholder until she types (A6 still holds at save:
+          // an untouched field gets the offered name, marked provisional).
+          const typed = String(_lkNewTitleDraft || '').trim();
+          // Tags travel with the save — her edit if she made one, else the
+          // pieces' inherited overlap (spec F3). Stored flat; axes recover
+          // from the disjoint vocabularies.
+          const tagsFlat = _rbTagsFlat(_lkNewTags || _rbInheritLookTags(used));
+          l = _lkCreate({
+            pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed,
+            source: 'manual', photo_url: _lkPhoto && _lkPhoto.url, slots,
+            tags: tagsFlat.length ? tagsFlat : null,
+            roles: _lkNewRoles,
+          });
+        } finally { _lkBusy = false; }
         // Save lands her back on the grid, new look visible — no interstitial
         // (Annie, 2026-07-30: the confirmation page read as a broken landing).
         _lkView = 'grid';
