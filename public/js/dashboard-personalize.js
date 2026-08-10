@@ -10059,6 +10059,7 @@
       let _tvSelLookI = null;     // selected look — its console unfolds beneath the grid
       let _tvDayLookIdx = 0;      // which of a day's pinned looks the console shows
       let _tvCapOpen = null;      // capsule drawer; null = breakpoint default
+      let _tvLooksOpen = false;   // looks grid; collapsed to one row by default
       let _tvEditingDayI = null;  // day whose plan title is being typed
 
       function _tvCapIsOpen() {
@@ -10105,9 +10106,8 @@
 #tv-result-page .tvm-secact{margin-left:auto;display:flex;gap:8px;align-items:center;position:relative}
 #tv-result-page .tvm-addbtn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:100px;padding:9px 18px;font-size:12px;background:var(--ink);color:#fff;cursor:pointer;font-family:inherit;transition:opacity .15s}
 #tv-result-page .tvm-addbtn:hover{opacity:.85}
-#tv-result-page .tvw-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
-@media(max-width:1000px){#tv-result-page .tvw-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-#tv-result-page .tvw-card{position:relative;background:#fff;border:0.5px solid var(--rule-mid);border-radius:10px;padding:13px 14px;display:flex;flex-direction:column;gap:6px;min-height:128px;cursor:pointer;text-align:left;font-family:inherit;transition:border-color .15s;box-sizing:border-box}
+#tv-result-page .tvw-grid{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x proximity}
+#tv-result-page .tvw-card{position:relative;flex:1 0 200px;max-width:280px;scroll-snap-align:start;background:#fff;border:0.5px solid var(--rule-mid);border-radius:10px;padding:13px 14px;display:flex;flex-direction:column;gap:6px;min-height:128px;cursor:pointer;text-align:left;font-family:inherit;transition:border-color .15s;box-sizing:border-box}
 #tv-result-page .tvw-card.bare{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.2)}
 #tv-result-page .tvw-card.sel{border-color:var(--ink)}
 #tv-result-page .tvw-card .d{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--rose)}
@@ -10136,7 +10136,10 @@
 #tv-result-page .tvm-lookcard .rb-lk-mos{aspect-ratio:3/4}
 #tv-result-page .tvm-lookcard .lpins{font-size:11px;color:var(--rose);letter-spacing:.02em;margin-top:auto}
 #tv-result-page .tvm-lookcard .lpins.free{color:var(--ink-faint);font-style:italic}
-#tv-result-page .tvm-lookcard.tvm-lookadd{align-items:center;justify-content:center;border-style:dashed;background:transparent;color:var(--ink-soft);gap:6px;min-height:200px}
+#tv-result-page .tvm-lookmore{border:none;background:none;cursor:pointer;font-family:var(--font-serif);font-style:italic;font-size:14px;color:var(--ink-faint);padding:6px 14px}
+#tv-result-page .tvm-lookmore:hover{color:var(--ink)}
+#tv-result-page .tv-daybox{background:#fff;border:1px solid var(--ink);border-radius:14px;padding:6px 22px 20px;margin-top:16px}
+@media(max-width:767px){#tv-result-page .tv-daybox{padding:4px 14px 16px}}
 #tv-result-page .tvm-lbhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 10px}
 #tv-result-page .tvm-lbhead .who{min-width:0}
 #tv-result-page .tvm-lbhead .occ{font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--rose);display:block}
@@ -10171,8 +10174,7 @@
 #tv-result-page .tvm-mast{flex-direction:column;align-items:flex-start;gap:16px}
 }
 @media(max-width:767px){
-#tv-result-page .tvw-grid{display:flex;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x proximity}
-#tv-result-page .tvw-card{flex:none;width:140px;scroll-snap-align:start}
+#tv-result-page .tvw-card{flex:none;width:140px}
 #tv-result-page .tvm-lookgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 #tv-result-page .tvm-capbar .hint{display:none}
 }
@@ -10427,7 +10429,16 @@ body>*:not(#tv-result-page){display:none !important}
               <button class="tvm-hbtn" onclick="window.__tvAddSavedLook()">Add a saved look</button>
             </div>
           </div>`;
-        const cards = (data.looks || []).map((l, li) => {
+        // Collapsed by default to ONE ROW of the grid (beta feedback
+        // 2026-08-10); a selected look past the fold auto-expands so the
+        // active card is never invisible. Adding lives only in the
+        // section header's "+ Look" — no trailing tile.
+        const cols = (window.matchMedia && matchMedia('(max-width:767px)').matches) ? 2
+          : (window.matchMedia && matchMedia('(max-width:1199px)').matches) ? 3 : 4;
+        const looks = data.looks || [];
+        if (_tvSelLookI != null && _tvSelLookI >= cols) _tvLooksOpen = true;
+        const visible = _tvLooksOpen ? looks.length : Math.min(cols, looks.length);
+        const cards = looks.slice(0, visible).map((l, li) => {
           const sel = _tvSelLookI === li;
           const pins = (l.pins || []).slice().sort((a, b) => a - b);
           const pinsLine = pins.length
@@ -10442,12 +10453,17 @@ body>*:not(#tv-result-page){display:none !important}
             <span class="lpins${pins.length ? '' : ' free'}">${_waEsc(pinsLine)}</span>
           </div>`;
         }).join('');
-        el.innerHTML = cards + `
-          <button class="tvm-lookcard tvm-lookadd tv-noprint" onclick="window.__tvLookMenu()">
-            <span style="font-size:22px;line-height:1">+</span>
-            <span style="font-size:11px;letter-spacing:.04em">New look</span>
-          </button>`;
+        el.innerHTML = cards;
+        const moreEl = document.getElementById('tv-looks-more');
+        if (moreEl) moreEl.innerHTML = looks.length > cols
+          ? `<button class="tvm-lookmore tv-noprint" onclick="window.__tvLooksToggle()">${_tvLooksOpen ? 'Show fewer ▴' : 'Show all ' + looks.length + ' looks ▾'}</button>`
+          : '';
       }
+      window.__tvLooksToggle = function() {
+        _tvLooksOpen = !_tvLooksOpen;
+        if (!_tvLooksOpen && _tvSelLookI != null) { _tvSelLookI = null; _tvPaintLookConsole(); }
+        _tvPaintLooks();
+      };
 
       // THE WEEK — the hifi's own day cards (2026-08-10): date eyebrow,
       // an editable plan title (her words — they flow to the home rail
@@ -10870,16 +10886,27 @@ body>*:not(#tv-result-page){display:none !important}
             </div>`;
           return;
         }
+        // The Day / Evening switcher (hifi 2026-08-10): the first pinned
+        // look is the DAY, the second the EVENING; one pinned look shows
+        // "Evening · free" — tapping it opens the add-a-look sheet, so
+        // dressing the evening is always one tap from the day console.
         const segBtn = (label, k, on) =>
           `<button onclick="window.__tvDaySetLook(${k})" style="border:none;border-radius:100px;padding:5px 13px;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;background:${on ? '#202021' : 'transparent'};color:${on ? '#fff' : '#8A8078'};white-space:nowrap">${label}</button>`;
-        const seg = pinned.length > 1
-          ? `<div style="display:inline-flex;width:max-content;max-width:100%;overflow-x:auto;gap:2px;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.1);border-radius:100px;padding:2px;margin:2px 0 4px;align-self:flex-start">`
-            + pinned.map((x, k) => segBtn(_waEsc(String(x.l.occasion || 'Look ' + (k + 1)).slice(0, 22)), k, k === _tvDayLookIdx)).join('')
-            + `</div>`
-          : '';
+        const segLabel = (x, k) => k === 0 ? 'Day' : (k === 1 ? 'Evening' : String(x.l.occasion || 'Look ' + (k + 1)).slice(0, 22));
+        const seg = `<div style="display:inline-flex;width:max-content;max-width:100%;overflow-x:auto;gap:2px;background:#F5F0E8;border:0.5px solid rgba(32,32,33,0.1);border-radius:100px;padding:2px;margin:2px 0 4px;align-self:flex-start">`
+          + pinned.map((x, k) => segBtn(_waEsc(segLabel(x, k)), k, k === _tvDayLookIdx)).join('')
+          + (pinned.length === 1
+            ? `<button onclick="window.__tvDayEveAdd(${di})" style="border:none;border-radius:100px;padding:5px 13px;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;background:transparent;color:#A89880;white-space:nowrap">Evening · free</button>`
+            : '')
+          + `</div>`;
         const x = pinned[_tvDayLookIdx];
-        el.innerHTML = _tvConsoleFor(x.li, di, { occHtml: seg, onFlip: '__tvDayConFlip', onSwap: '__tvDayConSwap', onRemove: '__tvDayConRemove', addPieceFn: '__tvDayConAdd' });
+        el.innerHTML = `<div class="tv-daybox">` + _tvConsoleFor(x.li, di, { occHtml: seg, onFlip: '__tvDayConFlip', onSwap: '__tvDayConSwap', onRemove: '__tvDayConRemove', addPieceFn: '__tvDayConAdd' }) + `</div>`;
       }
+      // "Evening · free" — the day already has its DAY look; adding one
+      // more (pin / lookbook / Robes styles it) becomes the evening.
+      window.__tvDayEveAdd = function(di) {
+        window.__tvDayPick(di);
+      };
 
       // The look console — a look card unfolds the same view, dayless:
       // flicks and swaps carry across every pinned day.
@@ -10895,7 +10922,7 @@ body>*:not(#tv-result-page){display:none !important}
           ? 'Pinned to ' + pins.map(di => 'Day ' + (di + 1)).join(' · ') + ' — changes here reach every pinned day'
           : 'Not pinned yet — it stays in the row';
         const occ = `<div style="font-size:10.5px;color:var(--ink-faint);font-style:italic;margin:2px 0 6px">${_waEsc(pinsLine)}</div>`;
-        el.innerHTML = _tvConsoleFor(li, null, { occHtml: occ, onFlip: '__tvLookConFlip', onSwap: '__tvLookConSwap', onRemove: '__tvLookConRemove', addPieceFn: '__tvLookConAdd' });
+        el.innerHTML = `<div class="tv-daybox">` + _tvConsoleFor(li, null, { occHtml: occ, onFlip: '__tvLookConFlip', onSwap: '__tvLookConSwap', onRemove: '__tvLookConRemove', addPieceFn: '__tvLookConAdd' }) + `</div>`;
       }
 
       // Every existing repaint funnel (pin sync, pack toggle, render) calls
@@ -11194,7 +11221,7 @@ body>*:not(#tv-result-page){display:none !important}
         _tvSelected = null;
         _tvEditingDayI = null;
         window.__lastTvData = data;
-        if (!opts || !opts.skipSave) { _tvSelDayI = null; _tvSelLookI = null; _tvDayLookIdx = 0; _tvCapOpen = null; }
+        if (!opts || !opts.skipSave) { _tvSelDayI = null; _tvSelLookI = null; _tvDayLookIdx = 0; _tvCapOpen = null; _tvLooksOpen = false; }
         const nDays = data.tripDays || 7;
         if (_tvSelDayI != null && _tvSelDayI >= nDays) _tvSelDayI = null;
         if (_tvSelLookI != null && _tvSelLookI >= data.looks.length) _tvSelLookI = null;
@@ -11334,6 +11361,7 @@ body>*:not(#tv-result-page){display:none !important}
               </div>
               <div id="tv-looks-empty"></div>
               <div class="tvm-lookgrid" id="tv-looksrow"></div>
+              <div id="tv-looks-more" style="text-align:center;margin-top:10px"></div>
               <div id="tv-look-console"></div>
             </section>
 
@@ -15493,6 +15521,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-sugg .rb-schip:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
 #rb-intake{display:none;background:#fff;border:0.5px solid rgba(32,32,33,0.16);border-top:none;border-radius:0 0 18px 18px;padding:20px 22px 22px;margin-top:-14px;box-sizing:border-box}
 .concierge-box.rb-attached{border-bottom-left-radius:0!important;border-bottom-right-radius:0!important}
+.concierge-box.rb-attached .cb-send{display:none!important}
 #rb-intake .ik-read{display:flex;align-items:center;gap:10px;font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:17px;color:var(--ink-faint);padding:2px 0 14px}
 #rb-intake .ik-sk{height:18px;border-radius:4px;background:linear-gradient(90deg,#EFE9DC 25%,#F5F0E8 50%,#EFE9DC 75%);background-size:200% 100%;animation:rbIkSh 1.3s infinite;margin-bottom:10px}
 @keyframes rbIkSh{0%{background-position:200% 0}100%{background-position:-200% 0}}
@@ -15896,9 +15925,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         const ikTravel = _rbTrackCfg(st.kind).engine === 'travel';
         const whenCrumb = st.editingDates
           ? `<span class="ik-crumb ik-dates"><em>When</em>
-               <input type="date" id="ik-from" value="${st.from || ''}">
+               <input type="date" id="ik-from" value="${st.from || ''}" onchange="window._ikDatesSync()">
                <span style="color:var(--ink-faint)">–</span>
-               <input type="date" id="ik-to" value="${st.from ? _pdAddISO(st.from, st.days - 1) : ''}">
+               <input type="date" id="ik-to" value="${st.from ? _pdAddISO(st.from, st.days - 1) : ''}" onchange="window._ikDatesSync()">
                <button class="done" onclick="window._ikDatesDone()">Done</button></span>`
           : `<button class="ik-crumb" onclick="window._ikDatesEdit()"><em>When</em> ${fmtRange()} ✎</button>`;
         // Travel carries the vibe as a first-class crumb (looks-first UX
@@ -16002,6 +16031,28 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         _ikPaint();
       };
       window._ikDatesEdit = function() { if (_ikState) { _ikState.editingDates = true; _ikPaint(); } };
+      // The date inputs AUTO-SAVE on change — no Done press needed (beta
+      // feedback 2026-08-10: the CTA used to reset a half-entered range).
+      // A start date alone lands with a suggested end (the track's
+      // default span, shown back in the To input); both dates run the
+      // full re-derive and close the editor. Done survives as a plain
+      // collapse.
+      window._ikDatesSync = function() {
+        const st = _ikState; if (!st || !st.editingDates) return;
+        const f = (document.getElementById('ik-from') || {}).value || '';
+        const t = (document.getElementById('ik-to') || {}).value || '';
+        if (f && t) { window._ikDatesDone(); return; }
+        if (!f) return;
+        const cfg = _rbTrackCfg(st.kind).intake;
+        const days = st.days || cfg.defaultDays;
+        const old = st.rows;
+        st.from = f; st.days = days; st.datesEdited = true; st.err = '';
+        st.rows = _ikRows(f, days, null).map(r => {
+          const prev = old.find(o => o.iso === r.iso);
+          return prev ? { ...prev, expanded: false } : r;
+        });
+        _ikPaint(); // stays in the editor — the To input shows the suggested end
+      };
       window._ikDatesDone = function() {
         const st = _ikState; if (!st) return;
         let f = (document.getElementById('ik-from') || {}).value || '';
@@ -16115,6 +16166,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 
       window._ikCommit = function() {
         const st = _ikState; if (!st) return;
+        // A range still sitting in the open date editor commits with the
+        // CTA — hitting Go must never reset what she typed.
+        if (st.editingDates) window._ikDatesSync();
         st.rows.forEach((r, i) => _ikRowSync(i));
         // Commit routes by the track's ENGINE, not its name — a fourth
         // track is a config entry riding an existing generator.

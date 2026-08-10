@@ -123,10 +123,13 @@ ok((await page.locator('#tv-headline').innerText()).includes('A long weekend in 
 ok(await page.locator('#tv-result-page .tvm-editbtn', { hasText: 'Edit details' }).count() === 1, 'Edit details door on the masthead');
 ok((await page.locator('#tv-mastmeta').innerText()).includes('Chic, cool'), 'vibe pill renders');
 ok(await page.locator('#tv-weekstrip .tvw-card').count() === 4, 'week strip has one card per trip day');
+ok(await page.evaluate(() => getComputedStyle(document.getElementById('tv-weekstrip')).flexWrap) !== 'wrap', 'week strip stays on one line (scrolls, never wraps)');
 ok((await page.locator('#tv-weekstrip .tvw-card').first().innerText()).includes('Arrive · coastal walk'), 'day title renders on its card');
 ok(await page.locator('#tv-day-console .rbc-panel').count() === 0, 'no day console until a day is tapped');
 ok(await page.locator('#tv-look-console .rbc-panel').count() === 0, 'no look console until a look is tapped');
-ok(await page.locator('#tv-looksrow .tvm-lookcard').count() === 4, 'looks grid: 3 looks + the New look card');
+ok(await page.locator('#tv-looksrow .tvm-lookcard').count() === 3, 'looks grid: 3 looks, all within the first row');
+ok(await page.locator('#tv-looksrow .tvm-lookadd').count() === 0, 'no + New Look tile — adding lives on the header button');
+ok(await page.locator('#tv-looks-more button').count() === 0, 'no expand toggle when one row holds everything');
 ok((await page.locator('#tv-looksrow').innerText()).includes('Fri 31 · Sat 1'), 'a pinned look card reads its days');
 ok((await page.locator('#tv-looksrow').innerText()).includes('unpinned') === false, 'every fixture look is pinned');
 
@@ -181,8 +184,9 @@ await page.evaluate(() => window.__tvSelectDay(0));
 await page.waitForTimeout(200);
 ok(await page.locator('#tv-weekstrip .tvw-card.sel').count() === 1, 'selected day card carries the ink ring');
 ok(await page.locator('#tv-day-console .rbc-panel').count() === 1, 'day console draws The Look panel');
+ok(await page.locator('#tv-day-console .tv-daybox').count() === 1, 'day console sits in its container');
 const segTxt = await page.locator('#tv-day-console').innerText();
-ok(segTxt.includes('NIGHT OUT') && segTxt.includes('BEACH DAY'), 'two pinned looks tab like Day/Evening');
+ok(segTxt.includes('EVENING') && !segTxt.includes('EVENING · FREE'), 'two pinned looks read as the Day / Evening pair');
 ok(await page.locator('#tv-day-console .rbc-hbtn', { hasText: 'Unpin from this day' }).count() === 1, 'day head has Unpin');
 await page.evaluate(() => window.__tvDaySetLook(1));
 await page.waitForTimeout(150);
@@ -271,6 +275,7 @@ await page.evaluate(() => window.__tvDayPickApply(1, 3));
 await page.waitForTimeout(200);
 ok(await page.evaluate(() => window.__lastTvData.looks[1].pins.indexOf(3) !== -1), 'picking a trip look pins it to the day');
 ok(await page.locator('#tv-day-console .rbc-panel').count() === 1, 'the day console opens on the freshly pinned day');
+ok((await page.locator('#tv-day-console').innerText()).includes('EVENING · FREE'), 'one pinned look leaves the evening free — the tab invites dressing it');
 
 // ── 7. Edit details: dates clamp everything day-indexed ──
 await page.evaluate(() => window.__tvEditDetails());
@@ -296,6 +301,20 @@ ok(edited.headline === 'Lahinch, shorter' && edited.vibe === 'Salt air', 'title 
 ok(edited.pins1.indexOf(3) === -1, 'pins past the end are clamped');
 ok(!edited.titles['3'], 'day titles past the end are clamped');
 ok(await page.locator('#tv-weekstrip .tvw-card').count() === 2, 'week strip re-renders to the new length');
+
+// ── 7b. Looks collapse: one row by default, expand on demand ──
+await page.evaluate(() => {
+  const l = window.__lastTvData.looks[1];
+  for (let i = 0; i < 3; i++) window.__lastTvData.looks.push({ occasion: 'Extra ' + (i + 1), title: 'Extra look ' + (i + 1), how: '', pins: [], overrides: {}, slotOverrides: {}, formula: l.formula.slice(0, 2).map(f => ({ ...f })) });
+  window.__tvRenderResult(window.__lastTvData, { skipSave: true, savedId: null });
+});
+await page.waitForTimeout(250);
+ok(await page.locator('#tv-looksrow .tvm-lookcard').count() === 4, 'six looks collapse to one desktop row');
+ok(/Show all 6 looks/.test(await page.locator('#tv-looks-more').innerText()), 'the fold names what it hides');
+await page.evaluate(() => window.__tvLooksToggle());
+await page.waitForTimeout(150);
+ok(await page.locator('#tv-looksrow .tvm-lookcard').count() === 6, 'expanding shows every look');
+ok(/Show fewer/.test(await page.locator('#tv-looks-more').innerText()), 'the toggle offers the way back');
 
 // ── 8. Empty canvas trip ──
 await page.evaluate((fx) => window.__tvRenderResult(fx), EMPTY_TRIP);
@@ -343,7 +362,8 @@ ok(await mPage.evaluate(() => {
   return p.scrollWidth <= p.clientWidth + 1;
 }), 'mobile: no horizontal page overflow');
 ok(await mPage.evaluate(() => !document.getElementById('tv-capbody') || getComputedStyle(document.getElementById('tv-capbody')).display === 'none'), 'mobile capsule drawer starts folded');
-ok(await mPage.locator('#tv-looksrow .tvm-lookcard').count() === 4, 'mobile looks grid renders');
+ok(await mPage.locator('#tv-looksrow .tvm-lookcard').count() === 2, 'mobile looks collapse to a 2-card row');
+ok(/Show all 3 looks/.test(await mPage.locator('#tv-looks-more').innerText()), 'mobile fold names what it hides');
 await mCtx.close();
 
 console.log(`\n${pass} passed, ${fail} failed`);
