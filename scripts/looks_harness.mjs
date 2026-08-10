@@ -1109,7 +1109,8 @@ const browser = await chromium.launch(
     meta: document.querySelector('#rb-lk-grid .lt-meta')?.textContent,
     addCard: !!document.querySelector('#rb-lk-grid .rb-add-card'),
     moduleEmpty: !!document.querySelector('.rb-lk-empty'),
-    barHidden: document.getElementById('rb-lk-bar')?.style.display === 'none',
+    sortAbsent: !document.querySelector('.rb-lk-sort'),
+    stat: document.querySelector('.rb-lk-statline')?.textContent,
   }));
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('empty · a saved daily look fills the shelf even with zero looks',
@@ -1117,7 +1118,8 @@ const browser = await chromium.launch(
   check('empty · daily look is not a type — eyebrow Look, date as status',
     e.eyebrow === 'Look' && e.meta === 'Worn 5 Aug', JSON.stringify([e.eyebrow, e.meta]));
   check('empty · no module empty state once anything exists', e.moduleEmpty === false);
-  check('empty · sort and Refine stay withheld until a Look exists', e.barHidden === true);
+  check('empty · sort and Refine stay withheld until a Look exists; the stat still counts',
+    e.sortAbsent === true && e.stat === '1 look', JSON.stringify([e.sortAbsent, e.stat]));
   await ctx.close();
 }
 
@@ -1286,6 +1288,15 @@ const browser = await chromium.launch(
       holMeta: document.querySelector('#rb-lk-hol .rb-lk-holcard .hm')?.textContent,
       holNew: !!document.querySelector('#rb-lk-hol .rb-lk-holcard.new'),
       newSplit: /\+ New ▾/.test(document.getElementById('rb-lk-bar')?.textContent || ''),
+      stat: document.querySelector('#rb-lk-bar .rb-lk-statline')?.textContent,
+      allRow: (() => {
+        const row = document.querySelector('#rb-lk-allhead .rb-lk-allrow');
+        return {
+          label: row?.querySelector('.rb-lk-sec')?.textContent,
+          sortHere: !!row?.querySelector('.rb-lk-sort'),
+          sortInBar: !!document.querySelector('#rb-lk-bar .rb-lk-sort'),
+        };
+      })(),
     };
   });
   check('IA · the stream holds looks and daily looks in one card language ("daily look" is not a type)',
@@ -1296,6 +1307,10 @@ const browser = await chromium.launch(
     uni.holShown && uni.holCards === 1 && uni.holNew === true && uni.holMeta === '12 pieces · 6 looks · 7–14 Aug',
     JSON.stringify([uni.holShown, uni.holCards, uni.holNew, uni.holMeta]));
   check('IA · one + New button, split two ways', uni.newSplit === true);
+  check('IA · the top row carries the collection stat; sort/Refine align with All looks',
+    uni.stat === '3 looks · 1 holiday edit' && uni.allRow.label === 'All looks'
+      && uni.allRow.sortHere === true && uni.allRow.sortInBar === false,
+    JSON.stringify([uni.stat, uni.allRow]));
   const split = await page.evaluate(() => {
     const btn = Array.from(document.querySelectorAll('#rb-lk-bar button')).find((b) => /\+ New ▾/.test(b.textContent));
     btn.click();

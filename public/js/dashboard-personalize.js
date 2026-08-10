@@ -7225,6 +7225,10 @@
 #rb-lk-wrap{display:none}
 #rb-lk-bar{display:flex;align-items:center;gap:12px;margin:0 0 18px;flex-wrap:wrap}
 #rb-lk-hol{display:none;margin:0 0 26px}
+#rb-lk-allhead{display:none}
+.rb-lk-statline{font-family:var(--font-serif);font-style:italic;font-size:14px;color:var(--ink-faint)}
+.rb-lk-allrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+#rb-lk-allhead .rb-lk-refwrap{margin:0 0 16px}
 .rb-lk-holrow{display:flex;gap:14px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
 .rb-lk-holrow::-webkit-scrollbar{width:0;height:0}
 .rb-lk-holcard{flex:none;width:236px;display:flex;flex-direction:column;background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad);overflow:hidden;cursor:pointer;font-family:inherit;text-align:left;padding:0;transition:border-color .15s}
@@ -7328,7 +7332,7 @@
         _lkEnsureCss();
         const wrap = document.createElement('div');
         wrap.id = 'rb-lk-wrap';
-        wrap.innerHTML = '<div id="rb-lk-bar"></div><div id="rb-lk-hol"></div><div id="rb-lk-grid"></div><div id="rb-lk-body"></div>';
+        wrap.innerHTML = '<div id="rb-lk-bar"></div><div id="rb-lk-hol"></div><div id="rb-lk-allhead"></div><div id="rb-lk-grid"></div><div id="rb-lk-body"></div>';
         const empty = sn.querySelector('#sn-empty');
         (empty || grid).parentNode.insertBefore(wrap, (empty || grid).nextSibling);
         return true;
@@ -7375,12 +7379,15 @@
         const body = document.getElementById('rb-lk-body');
         if (!bar || !grid || !body) return;
         const hol = document.getElementById('rb-lk-hol');
+        const allHead = document.getElementById('rb-lk-allhead');
         const detail = _lkView !== 'grid';
         const shelfItems = _lkShelfItems();
         const holidays = _lkHolidayItems();
-        const any = _lkLooks.length || shelfItems.length || holidays.length;
-        bar.style.display = detail || !_lkLooks.length ? 'none' : 'flex';
+        const streamN = _lkLooks.length + shelfItems.length;
+        const any = streamN || holidays.length;
+        bar.style.display = detail || !any ? 'none' : 'flex';
         if (hol) hol.style.display = detail || !holidays.length ? 'none' : 'block';
+        if (allHead) allHead.style.display = detail || !any ? 'none' : 'block';
         grid.style.display = detail || !any ? 'none' : 'grid';
         if (detail) {
           body.innerHTML = _lkView === 'new' ? _lkNewHtml() : _lkDetailHtml();
@@ -7392,15 +7399,31 @@
         // 2026-08-10) — they still band across the Diary as before.
         if (hol && holidays.length) hol.innerHTML = _lkHolidayRowHtml(holidays);
         const refN = _lkRefineCount();
-        if (_lkLooks.length) {
-          bar.innerHTML = '<button type="button" class="rb-lk-sort" onclick="window.__lkSort()">' +
-            '<span>' + (_lkSortDesc ? 'Last worn' : 'First worn') + '</span>' +
-            '<b>' + (_lkSortDesc ? '↓' : '↑') + '</b></button>' +
-            '<button type="button" class="rb-lk-sort' + (refN || _lkRefineOpen ? ' hot' : '') + '" onclick="window.__lkRefineToggle()">' +
-              '<span>Refine' + (refN ? ' · ' + refN : '') + '</span></button>' +
+        // Top row: the collection stat where sort/Refine used to sit —
+        // those moved down to align with the All looks section (Annie,
+        // 2026-08-10) — beside the + New split.
+        const statBits = [];
+        if (streamN) statBits.push(_lkN(streamN, 'look'));
+        if (holidays.length) statBits.push(_lkN(holidays.length, 'holiday edit'));
+        bar.innerHTML = '<span class="rb-lk-statline">' + _waEsc(statBits.join(' · ')) + '</span>' +
+          '<span style="flex:1"></span>' +
+          '<button type="button" class="rb-lk-act primary" onclick="window.__lkNewMenu(event)">+ New ▾</button>';
+        // The All looks section header carries its own controls; sort and
+        // Refine stay withheld until an actual Look exists (they speak the
+        // look axes).
+        if (allHead) {
+          allHead.innerHTML = '<div class="rb-lk-allrow">' +
+            '<span class="rb-lk-sec" style="margin:0">All looks</span>' +
             '<span style="flex:1"></span>' +
-            '<button type="button" class="rb-lk-act primary" onclick="window.__lkNewMenu(event)">+ New ▾</button>' +
-            (_lkRefineOpen ? _lkRefineHtml() : '');
+            (_lkLooks.length
+              ? '<button type="button" class="rb-lk-sort" onclick="window.__lkSort()">' +
+                '<span>' + (_lkSortDesc ? 'Last worn' : 'First worn') + '</span>' +
+                '<b>' + (_lkSortDesc ? '↓' : '↑') + '</b></button>' +
+                '<button type="button" class="rb-lk-sort' + (refN || _lkRefineOpen ? ' hot' : '') + '" onclick="window.__lkRefineToggle()">' +
+                '<span>Refine' + (refN ? ' · ' + refN : '') + '</span></button>'
+              : '') +
+            '</div>' +
+            (_lkLooks.length && _lkRefineOpen ? _lkRefineHtml() : '');
         }
         const looksShown = _lkSorted().filter(_lkMatchRefine);
         const noneHtml = refN && !looksShown.length
