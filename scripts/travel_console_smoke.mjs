@@ -1,12 +1,13 @@
-// Travel console smoke — rewritten for the one-scroll Travel Edit
-// (hifi "Holiday edit detail", 2026-08-10). Boots the real dashboard
-// (Supabase stubbed), feeds __tvRenderResult a looks-first fixture and
-// walks: the one-scroll sections (masthead + Edit details, THE WEEK,
-// LOOKS grid, THE CAPSULE drawer), day-plan title editing, the day
-// "+ Look" pin sheet, the shared-console day view (multi-look switcher,
-// scoped flick + badge, free day), the dayless look console,
-// imported-look capsule join, the pack stat on the capsule bar, the
-// empty canvas trip, Edit-details clamping and legacy-save migration.
+// Travel console smoke — the one-scroll Travel Edit with the ONE-STAGE
+// detail surface (mocks 2026-08-10). Boots the real dashboard (Supabase
+// stubbed), feeds __tvRenderResult a looks-first fixture and walks: the
+// one-scroll sections (masthead + Edit details, THE WEEK, LOOKS grid,
+// THE CAPSULE drawer), the single stage (pinned looks open as their
+// day, unpinned lead with the Pin-to-a-day bar), day-plan title
+// editing, the day "+ Look" pin sheet, the Day/Evening switcher, the
+// scoped flick + badge, imported-look capsule join, looks collapse,
+// the pack stat on the capsule bar, the empty canvas trip,
+// Edit-details clamping, legacy-save migration and the mobile sheet.
 // Run manually: npm i --no-save playwright && node scripts/travel_console_smoke.mjs
 // Set CHROME_PATH when playwright's bundled browser build isn't installed.
 import { chromium } from 'playwright';
@@ -125,8 +126,8 @@ ok((await page.locator('#tv-mastmeta').innerText()).includes('Chic, cool'), 'vib
 ok(await page.locator('#tv-weekstrip .tvw-card').count() === 4, 'week strip has one card per trip day');
 ok(await page.evaluate(() => getComputedStyle(document.getElementById('tv-weekstrip')).flexWrap) !== 'wrap', 'week strip stays on one line (scrolls, never wraps)');
 ok((await page.locator('#tv-weekstrip .tvw-card').first().innerText()).includes('Arrive · coastal walk'), 'day title renders on its card');
-ok(await page.locator('#tv-day-console .rbc-panel').count() === 0, 'no day console until a day is tapped');
-ok(await page.locator('#tv-look-console .rbc-panel').count() === 0, 'no look console until a look is tapped');
+ok(await page.locator('#tv-stage .rbc-panel').count() === 0, 'nothing on the stage until something is tapped');
+ok(/Nothing on the stage/.test(await page.locator('#tv-stage').innerText()), 'the empty stage says so');
 ok(await page.locator('#tv-looksrow .tvm-lookcard').count() === 3, 'looks grid: 3 looks, all within the first row');
 ok(await page.locator('#tv-looksrow .tvm-lookadd').count() === 0, 'no + New Look tile — adding lives on the header button');
 ok(await page.locator('#tv-looks-more button').count() === 0, 'no expand toggle when one row holds everything');
@@ -152,23 +153,26 @@ await page.waitForTimeout(100);
 ok(!(await page.locator('#tv-capbody').isVisible()), 'capsule drawer folds');
 await page.evaluate(() => window.__tvCapToggle());
 
-// ── 2. Look console (tap a look card) ──
+// ── 2. One stage: a pinned look card opens AS ITS DAY ──
 await page.evaluate(() => window.__tvSelectLook(0));
 await page.waitForTimeout(200);
-ok(await page.locator('#tv-look-console .rbc-panel').count() === 1, 'look console draws The Look panel');
-ok(await page.locator('#tv-look-console .rbc-row').count() === 3, 'look rack has 3 rows');
-ok((await page.locator('#tv-look-console .rbc-rackhead').innerText()).toLowerCase().includes('night out'), 'rack label carries the occasion');
-ok(await page.locator('#tv-look-console .rbc-hbtn', { hasText: 'Pin to days' }).count() === 1, 'dayless head has Pin to days');
-await page.evaluate(() => window.__tvLookTap(0));
+ok(await page.locator('#tv-stage .rbc-panel').count() === 1, 'the stage draws The Look panel');
+ok(await page.locator('#tv-stage .tv-daybox').count() === 1, 'the stage panel sits in its container');
+ok(await page.locator('#tv-stage .rbc-row').count() === 3, 'stage rack has 3 rows');
+ok((await page.locator('#tv-stage .rbc-rackhead').innerText()).toLowerCase().includes('day 1'), 'a pinned look opens day-scoped — the rack carries its day');
+ok(await page.locator('#tv-stage .rbc-hbtn', { hasText: 'Unpin from this day' }).count() === 1, 'pinned: the rack header carries Unpin');
+ok(await page.locator('#tv-weekstrip .tvw-card.sel').count() === 1, 'the rail outlines the day on stage');
+ok(/on the stage/i.test(await page.locator('#tv-looksrow .tvm-lookcard').first().innerText()), 'the staged card carries the ↑ on the stage marker');
+await page.evaluate(() => window.__tvStageClose());
 await page.waitForTimeout(150);
-ok(await page.locator('#tv-look-console .rbc-panel').count() === 0, 'a second tap folds the look console');
+ok(/Nothing on the stage/.test(await page.locator('#tv-stage').innerText()), 'Clear the stage empties it');
 
 // select the imported look → the SAME interactive console, pieces resolved
 // into real capsule formula entries (unpacked pieces join the case)
 await page.evaluate(() => window.__tvSelectLook(2));
 await page.waitForTimeout(150);
-ok(await page.locator('#tv-look-console .rbc-panel').count() === 1, 'imported look draws the same console');
-ok(await page.locator('#tv-look-console .rbc-row').count() === 3, 'imported rack has 3 rows');
+ok(await page.locator('#tv-stage .rbc-panel').count() === 1, 'imported look draws the same console');
+ok(await page.locator('#tv-stage .rbc-row').count() === 3, 'imported rack has 3 rows');
 const impState = await page.evaluate(() => ({
   cap: window.__lastTvData.capsule.length,
   formula: window.__lastTvData.looks[2].formula.map(f => f.item_index),
@@ -177,35 +181,35 @@ const impState = await page.evaluate(() => ({
 ok(impState.cap === 7, 'unpacked piece joined the case');
 ok(impState.formula.length === 3 && impState.formula[0] === 0 && impState.formula[1] === 2, 'pieces resolved to capsule indexes');
 ok(impState.hoops, 'joined piece keeps its wardrobe identity');
-ok(await page.locator('#tv-look-console .rbc-hbtn', { hasText: 'Pack this look' }).count() === 1, 'imported look can be packed');
+ok(await page.locator('#tv-stage .rbc-hbtn', { hasText: 'Pack this look' }).count() === 1, 'imported look can be packed');
 
 // ── 3. Day console + multi-look switcher ──
 await page.evaluate(() => window.__tvSelectDay(0));
 await page.waitForTimeout(200);
 ok(await page.locator('#tv-weekstrip .tvw-card.sel').count() === 1, 'selected day card carries the ink ring');
-ok(await page.locator('#tv-day-console .rbc-panel').count() === 1, 'day console draws The Look panel');
-ok(await page.locator('#tv-day-console .tv-daybox').count() === 1, 'day console sits in its container');
-const segTxt = await page.locator('#tv-day-console').innerText();
+ok(await page.locator('#tv-stage .rbc-panel').count() === 1, 'day console draws The Look panel');
+ok(await page.locator('#tv-stage .tv-daybox').count() === 1, 'day console sits in its container');
+const segTxt = await page.locator('#tv-stage').innerText();
 ok(segTxt.includes('EVENING') && !segTxt.includes('EVENING · FREE'), 'two pinned looks read as the Day / Evening pair');
-ok(await page.locator('#tv-day-console .rbc-hbtn', { hasText: 'Unpin from this day' }).count() === 1, 'day head has Unpin');
+ok(await page.locator('#tv-stage .rbc-hbtn', { hasText: 'Unpin from this day' }).count() === 1, 'day head has Unpin');
 await page.evaluate(() => window.__tvDaySetLook(1));
 await page.waitForTimeout(150);
-ok((await page.locator('#tv-day-console .rbc-rackhead').innerText()).includes('Tide-line morning'), 'switcher swaps to the second look');
+ok((await page.locator('#tv-stage .rbc-rackhead').innerText()).includes('Tide-line morning'), 'switcher swaps to the second look');
 
 // ── 4. Scoped flick from the day console ──
 await page.evaluate(() => window.__tvDaySetLook(0));
 await page.waitForTimeout(120);
-await page.locator('#tv-day-console .rbc-row').nth(2).locator('.rbc-arrow').nth(1).click();
+await page.locator('#tv-stage .rbc-row').nth(2).locator('.rbc-arrow').nth(1).click();
 await page.waitForTimeout(200);
 const ovr = await page.evaluate(() => JSON.parse(JSON.stringify(window.__lastTvData.looks[0].overrides || {})));
 ok(ovr['0'] && Number.isInteger(ovr['0']['2']), 'day flick writes a Day-1-only override');
-ok((await page.locator('#tv-day-console').innerText()).toLowerCase().includes('swapped for day 1 only'), 'scope badge renders');
+ok((await page.locator('#tv-stage').innerText()).toLowerCase().includes('swapped for day 1 only'), 'scope badge renders');
 const day2Clean = await page.evaluate(() => !window.__lastTvData.looks[0].overrides[1]);
 ok(day2Clean, 'the other pinned day is untouched');
-// the look console shows the look-level piece, badge-free
+// a pinned look card re-opens as its day — the badge shows there
 await page.evaluate(() => window.__tvSelectLook(0));
 await page.waitForTimeout(150);
-ok(!(await page.locator('#tv-look-console').innerText()).toLowerCase().includes('swapped for day'), 'look console carries no day badge');
+ok((await page.locator('#tv-stage').innerText()).toLowerCase().includes('swapped for day 1 only'), 'reopening the pinned look lands on its day, badge intact');
 
 // ── 4b. The worked example: Look 01 pinned to Day 1 + Day 2. Day 2 adds
 // a piece and Day 1 drops one — each day's wear is its own, the look stays
@@ -216,26 +220,29 @@ await page.evaluate(() => window.__tvDayConAddApply('w2'));
 await page.waitForTimeout(200);
 const wex = await page.evaluate(() => ({
   adds: JSON.parse(JSON.stringify(window.__lastTvData.looks[0].dayAdds || {})),
-  rows: document.querySelectorAll('#tv-day-console .rbc-row').length,
+  rows: document.querySelectorAll('#tv-stage .rbc-row').length,
 }));
 ok(Array.isArray(wex.adds['1']) && wex.adds['1'].length === 1, 'day add lands in dayAdds for Day 2 only');
 ok(wex.rows === 4, 'Day 2 rack shows the added piece');
-ok((await page.locator('#tv-day-console').innerText()).toLowerCase().includes('added for day 2 only'), 'added piece carries its day badge');
+ok((await page.locator('#tv-stage').innerText()).toLowerCase().includes('added for day 2 only'), 'added piece carries its day badge');
 await page.evaluate(() => window.__tvSelectDay(0));
 await page.waitForTimeout(150);
-ok(await page.locator('#tv-day-console .rbc-row').count() === 3, 'Day 1 keeps 3 pieces — one look, two wears');
+ok(await page.locator('#tv-stage .rbc-row').count() === 3, 'Day 1 keeps 3 pieces — one look, two wears');
 await page.evaluate(() => window.__tvDayConRemove(0));
 await page.waitForTimeout(200);
 const drops = await page.evaluate(() => JSON.parse(JSON.stringify(window.__lastTvData.looks[0].dayDrops || {})));
 ok(Array.isArray(drops['0']) && drops['0'][0] === 0, 'day remove registers a Day-1-only drop');
-ok(await page.locator('#tv-day-console .rbc-row').count() === 2, 'Day 1 rack loses the piece');
+ok(await page.locator('#tv-stage .rbc-row').count() === 2, 'Day 1 rack loses the piece');
 await page.evaluate(() => window.__tvSelectDay(1));
 await page.waitForTimeout(150);
-ok(await page.locator('#tv-day-console .rbc-row').count() === 4, 'Day 2 still wears it');
-// Look scope: an add from the look console reaches every pinned day; a
-// remove remaps the fi-keyed overrides down with the splice.
+ok(await page.locator('#tv-stage .rbc-row').count() === 4, 'Day 2 still wears it');
+// Look scope: an UNPINNED look opens look-scoped — an add reaches every
+// future pinned day; a remove remaps the fi-keyed overrides down.
+await page.evaluate(() => window.__tvUnpin(1, 0));
 await page.evaluate(() => window.__tvSelectLook(1));
 await page.waitForTimeout(150);
+ok(await page.locator('#tv-stage .tvm-pinbar').count() === 1, 'an unpinned look leads with the Pin-to-a-day bar');
+ok((await page.locator('#tv-stage .tvm-pinbar').innerText()).toLowerCase().includes('free'), 'the bar names the free days');
 await page.evaluate(() => window.__tvLookConAddApply('w1'));
 await page.waitForTimeout(200);
 ok(await page.evaluate(() => window.__lastTvData.looks[1].formula.length) === 4, 'look-scope add grows the formula everywhere');
@@ -250,7 +257,7 @@ ok(Object.keys(remap).length === 1 && remap['1'] === 4, 'look-scope remove remap
 // ── 5. Free day invitation ──
 await page.evaluate(() => window.__tvSelectDay(3));
 await page.waitForTimeout(150);
-const freeTxt = await page.locator('#tv-day-console').innerText();
+const freeTxt = await page.locator('#tv-stage').innerText();
 ok(/left free/.test(freeTxt), 'free day reads left free');
 ok(/style a look for this day/i.test(freeTxt), 'free day offers styling');
 
@@ -274,8 +281,8 @@ ok(pickTxt.includes('From your lookbook') && /Robes styles one/.test(pickTxt), '
 await page.evaluate(() => window.__tvDayPickApply(1, 3));
 await page.waitForTimeout(200);
 ok(await page.evaluate(() => window.__lastTvData.looks[1].pins.indexOf(3) !== -1), 'picking a trip look pins it to the day');
-ok(await page.locator('#tv-day-console .rbc-panel').count() === 1, 'the day console opens on the freshly pinned day');
-ok((await page.locator('#tv-day-console').innerText()).includes('EVENING · FREE'), 'one pinned look leaves the evening free — the tab invites dressing it');
+ok(await page.locator('#tv-stage .rbc-panel').count() === 1, 'the day console opens on the freshly pinned day');
+ok((await page.locator('#tv-stage').innerText()).includes('EVENING · FREE'), 'one pinned look leaves the evening free — the tab invites dressing it');
 
 // ── 7. Edit details: dates clamp everything day-indexed ──
 await page.evaluate(() => window.__tvEditDetails());
@@ -316,6 +323,15 @@ await page.waitForTimeout(150);
 ok(await page.locator('#tv-looksrow .tvm-lookcard').count() === 6, 'expanding shows every look');
 ok(/Show fewer/.test(await page.locator('#tv-looks-more').innerText()), 'the toggle offers the way back');
 
+// pin from the bar: the stage flips to the day it just dressed
+await page.evaluate(() => window.__tvSelectLook(3));
+await page.waitForTimeout(200);
+ok(await page.locator('#tv-stage .tvm-pinbar .chip').count() === 2, 'the pin bar offers every trip day');
+await page.evaluate(() => window.__tvStagePin(1));
+await page.waitForTimeout(200);
+ok(await page.evaluate(() => window.__lastTvData.looks[3].pins.indexOf(1) !== -1), 'the bar pins the stage look to the day');
+ok(await page.locator('#tv-stage .rbc-hbtn', { hasText: 'Unpin from this day' }).count() === 1, 'the stage flips to the day view');
+
 // ── 8. Empty canvas trip ──
 await page.evaluate((fx) => window.__tvRenderResult(fx), EMPTY_TRIP);
 await page.waitForTimeout(250);
@@ -333,7 +349,7 @@ ok(mig.n === 2, 'legacy day slots become 2 looks');
 ok(mig.pins.every(p => p.length === 1 && p[0] === 0), 'both pinned to their old day');
 await page.evaluate(() => window.__tvSelectDay(0));
 await page.waitForTimeout(150);
-ok(await page.locator('#tv-day-console .rbc-panel').count() === 1, 'migrated day renders the console');
+ok(await page.locator('#tv-stage .rbc-panel').count() === 1, 'migrated day renders the console');
 
 // ── 10. Mobile (390px): week strip scrolls sideways, nothing overflows ──
 const mCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
@@ -364,6 +380,15 @@ ok(await mPage.evaluate(() => {
 ok(await mPage.evaluate(() => !document.getElementById('tv-capbody') || getComputedStyle(document.getElementById('tv-capbody')).display === 'none'), 'mobile capsule drawer starts folded');
 ok(await mPage.locator('#tv-looksrow .tvm-lookcard').count() === 2, 'mobile looks collapse to a 2-card row');
 ok(/Show all 3 looks/.test(await mPage.locator('#tv-looks-more').innerText()), 'mobile fold names what it hides');
+ok(!(await mPage.locator('#tv-sec-stage').isVisible()), 'mobile: no inline stage section while nothing is open');
+await mPage.evaluate(() => window.__tvSelectDay(0));
+await mPage.waitForTimeout(250);
+ok(await mPage.evaluate(() => getComputedStyle(document.getElementById('tv-stage')).position) === 'fixed', 'mobile stage rises as a sheet over the page');
+ok(await mPage.locator('#tv-stage-scrim').isVisible(), 'the scrim sits behind the sheet');
+ok(await mPage.locator('#tv-stage .tv-sheethead .x').isVisible(), 'the sheet carries its close button');
+await mPage.evaluate(() => window.__tvStageClose());
+await mPage.waitForTimeout(200);
+ok(!(await mPage.locator('#tv-sec-stage').isVisible()), 'closing the sheet returns her to the list');
 await mCtx.close();
 
 console.log(`\n${pass} passed, ${fail} failed`);

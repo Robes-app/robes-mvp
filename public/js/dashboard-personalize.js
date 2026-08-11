@@ -10138,8 +10138,42 @@
 #tv-result-page .tvm-lookcard .lpins.free{color:var(--ink-faint);font-style:italic}
 #tv-result-page .tvm-lookmore{border:none;background:none;cursor:pointer;font-family:var(--font-serif);font-style:italic;font-size:14px;color:var(--ink-faint);padding:6px 14px}
 #tv-result-page .tvm-lookmore:hover{color:var(--ink)}
-#tv-result-page .tv-daybox{background:#fff;border:1px solid var(--ink);border-radius:14px;padding:6px 22px 20px;margin-top:16px}
+#tv-result-page .tv-daybox{background:#fff;border:1px solid var(--ink);border-radius:14px;padding:6px 22px 20px;margin-top:2px}
 @media(max-width:767px){#tv-result-page .tv-daybox{padding:4px 14px 16px}}
+#tv-result-page .tv-stageclear{border:none;background:none;padding:4px 2px;cursor:pointer;font-size:11.5px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:inherit}
+#tv-result-page .tv-stageclear:hover{color:var(--ink)}
+#tv-result-page .tv-stageempty{border:1px dashed rgba(32,32,33,0.2);border-radius:14px;padding:38px 24px;text-align:center;display:flex;flex-direction:column;gap:5px}
+#tv-result-page .tv-stageempty .a{font-family:var(--font-serif);font-style:italic;font-size:17px;color:var(--ink-faint)}
+#tv-result-page .tv-stageempty .b{font-size:11.5px;color:var(--ink-faint);opacity:.75}
+#tv-result-page .tvm-pinbar{background:#FBF7F1;border:0.5px solid #E8DED0;border-radius:10px;padding:13px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:14px 0 4px}
+#tv-result-page .tvm-pinbar .who{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+#tv-result-page .tvm-pinbar .lab{font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft)}
+#tv-result-page .tvm-pinbar .sub{font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint)}
+#tv-result-page .tvm-pinbar .chips{margin-left:auto;display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;max-width:100%}
+#tv-result-page .tvm-pinbar .chip{flex:none;display:flex;flex-direction:column;gap:3px;align-items:center;background:#fff;border:1px solid #E8DED0;border-radius:8px;padding:8px 12px;min-width:72px;cursor:pointer;font-family:inherit;transition:border-color .15s}
+#tv-result-page .tvm-pinbar .chip.free{border-style:dashed;border-color:rgba(196,184,164,0.9)}
+#tv-result-page .tvm-pinbar .chip:hover{border-color:rgba(32,32,33,0.4)}
+#tv-result-page .tvm-pinbar .chip .d{font-size:9.5px;letter-spacing:.16em;color:var(--ink-soft)}
+#tv-result-page .tvm-pinbar .chip .s{font-size:10px;color:var(--rose);white-space:nowrap;max-width:96px;overflow:hidden;text-overflow:ellipsis}
+#tv-result-page .tvm-pinbar .chip.free .s{color:var(--ink-faint);font-style:italic}
+#tv-result-page .tvw-pinstage{margin-top:auto;align-self:flex-start;border:none;background:none;padding:0;text-align:left;font-family:var(--font-serif);font-style:italic;font-size:12.5px;color:var(--rose);cursor:pointer}
+#tv-result-page .tvw-pinstage:hover{text-decoration:underline;text-underline-offset:3px}
+#tv-result-page .tvm-lookcard .lstage{display:block;margin-top:2px;font-size:8.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
+#tv-result-page .tv-sheethead{display:none}
+#tv-result-page #tv-stage-scrim{display:none}
+@media(max-width:767px){
+#tv-result-page #tv-sec-stage .tvm-sechead{display:none}
+#tv-result-page #tv-sec-stage:not(.on){display:none !important}
+#tv-result-page #tv-sec-stage.on #tv-stage-scrim{display:block;position:fixed;inset:0;z-index:59;background:rgba(32,32,33,0.25)}
+#tv-result-page #tv-sec-stage.on #tv-stage{position:fixed;left:0;right:0;bottom:0;top:44px;z-index:60;background:#FAF8F5;border:1px solid #D8D2C6;border-bottom:none;border-radius:20px 20px 0 0;overflow-y:auto;padding:0 14px 20px;box-sizing:border-box}
+#tv-result-page #tv-sec-stage.on .tv-sheethead{display:block;position:sticky;top:0;z-index:2;background:#FAF8F5;padding:8px 0 0;margin:0 0 4px}
+#tv-result-page .tv-sheethead .grab{display:block;width:40px;height:4px;border-radius:2px;background:#E1DAD0;margin:0 auto 8px}
+#tv-result-page .tv-sheethead .row{display:flex;align-items:center;gap:12px;border-bottom:0.5px solid var(--rule-mid);padding:0 4px 10px}
+#tv-result-page .tv-sheethead .ttl{font-family:var(--font-serif);font-weight:300;font-size:22px;line-height:1.1;color:var(--ink);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tv-result-page .tv-sheethead .x{margin-left:auto;flex:none;width:30px;height:30px;border:1px solid var(--rule-mid);border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ink-soft);cursor:pointer}
+#tv-result-page #tv-sec-stage.on .tv-daybox{border:none;padding:0;margin-top:6px}
+#tv-result-page .tvm-pinbar .chips{margin-left:0}
+}
 #tv-result-page .tvm-lbhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 10px}
 #tv-result-page .tvm-lbhead .who{min-width:0}
 #tv-result-page .tvm-lbhead .occ{font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--rose);display:block}
@@ -10346,32 +10380,93 @@ body>*:not(#tv-result-page){display:none !important}
           .map(x => x.k);
       }
 
-      // A tap on a look card or a day card unfolds the console beneath
-      // its section; a second tap folds it away (hifi day-card toggle).
-      window.__tvSelectLook = function(li) {
-        _tvSelLookI = li;
+      // ── ONE STAGE (one-stage mock 2026-08-10): every look — pinned or
+      // not — opens in the same panel between the week rail and the
+      // grid. Nothing unfurls in two places, the grid never moves. A
+      // pinned look opens AS ITS DAY (day-scoped edits); an unpinned
+      // look opens look-scoped, led by the Pin-to-a-day bar. ──
+
+      // The look currently on the stage, whichever mode it arrived by.
+      function _tvStagedLookLi() {
+        if (_tvSelLookI != null) return _tvSelLookI;
+        if (_tvSelDayI != null) {
+          const x = _tvDayPinned()[_tvDayLookIdx];
+          return x ? x.li : null;
+        }
+        return null;
+      }
+      function _tvStageRepaint() {
+        _tvPaintWeek();
         _tvPaintLooks();
-        _tvPaintLookConsole();
+        _tvPaintStage();
+      }
+      window.__tvSelectLook = function(li) {
+        const data = window.__lastTvData || {};
+        const l = (data.looks || [])[li];
+        const pins = (l && l.pins) || [];
+        if (pins.length) {
+          // A pinned look opens as its (first) day — the rail outlines it
+          const di = pins.slice().sort((a, b) => a - b)[0];
+          _tvSelDayI = di;
+          _tvSelLookI = null;
+          _tvDayLookIdx = Math.max(0, (data.looks || []).map((o, oi) => ({ o, oi }))
+            .filter(x => (x.o.pins || []).indexOf(di) !== -1)
+            .findIndex(x => x.oi === li));
+        } else {
+          _tvSelLookI = li;
+          _tvSelDayI = null;
+          _tvDayLookIdx = 0;
+        }
+        _tvStageRepaint();
       };
       window.__tvLookTap = function(li) {
-        if (_tvSelLookI === li) { _tvSelLookI = null; _tvPaintLooks(); _tvPaintLookConsole(); return; }
         window.__tvSelectLook(li);
+        // The grid sits BELOW the stage — bring the stage into view so
+        // the tap visibly lands somewhere (desktop; mobile is a sheet).
+        if (!(window.matchMedia && matchMedia('(max-width:767px)').matches)) {
+          const sec = document.getElementById('tv-sec-stage');
+          if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       };
       window.__tvSelectDay = function(di) {
         if (_tvSelDayI !== di) _tvDayLookIdx = 0;
         _tvSelDayI = di;
-        _tvPaintWeek();
-        _tvPaintDayConsole();
+        _tvSelLookI = null;
+        _tvStageRepaint();
       };
-      // The day card's own tap: a dressed day toggles its console; a bare
-      // day opens its plan-title editor — "name the day, then pin a look".
+      // The day card's own tap: a dressed day lands on the stage; a bare
+      // day pins the stage's unpinned look if one is waiting, else opens
+      // its plan-title editor — "name the day, then pin a look".
       window.__tvDayTap = function(di) {
         if (_tvEditingDayI === di) return;
         const data = window.__lastTvData || {};
         const pinned = (data.looks || []).some(l => (l.pins || []).indexOf(di) !== -1);
-        if (!pinned) { window.__tvDayTitleEdit(di); return; }
-        if (_tvSelDayI === di) { _tvSelDayI = null; _tvPaintWeek(); _tvPaintDayConsole(); return; }
-        window.__tvSelectDay(di);
+        if (pinned) { window.__tvSelectDay(di); return; }
+        if (_tvSelLookI != null) { window.__tvStagePin(di); return; }
+        window.__tvDayTitleEdit(di);
+      };
+      // Pin the stage's look to a day — from the Pin-to-a-day bar or a
+      // day card's invite; the stage flips to that day's view.
+      window.__tvStagePin = function(di) {
+        const data = window.__lastTvData;
+        const li = _tvSelLookI;
+        const l = data && data.looks[li];
+        if (!l) return;
+        if ((l.pins || []).indexOf(di) === -1) window.__tvPinToggle(li, di);
+        _tvSelDayI = di;
+        _tvSelLookI = null;
+        _tvDayLookIdx = Math.max(0, data.looks.map((o, oi) => ({ o, oi }))
+          .filter(x => (x.o.pins || []).indexOf(di) !== -1)
+          .findIndex(x => x.oi === li));
+        window.__tvPinSync();
+        _tvPaintPackProgress();
+        _waShowToast('“' + (l.title || l.occasion || 'The look') + '” pinned to ' + (_tvDayInfo(di).date || _tvDayInfo(di).dow));
+      };
+      window.__tvStageClose = function() {
+        _tvSelDayI = null;
+        _tvSelLookI = null;
+        _tvDayLookIdx = 0;
+        _tvStageRepaint();
       };
       // Rail / planned-day openers land on a specific day
       window.__tvOpenDay = function(di) {
@@ -10436,10 +10531,11 @@ body>*:not(#tv-result-page){display:none !important}
         const cols = (window.matchMedia && matchMedia('(max-width:767px)').matches) ? 2
           : (window.matchMedia && matchMedia('(max-width:1199px)').matches) ? 3 : 4;
         const looks = data.looks || [];
+        const staged = _tvStagedLookLi();
         if (_tvSelLookI != null && _tvSelLookI >= cols) _tvLooksOpen = true;
         const visible = _tvLooksOpen ? looks.length : Math.min(cols, looks.length);
         const cards = looks.slice(0, visible).map((l, li) => {
-          const sel = _tvSelLookI === li;
+          const sel = staged === li;
           const pins = (l.pins || []).slice().sort((a, b) => a - b);
           const pinsLine = pins.length
             ? pins.slice(0, 3).map(di => _tvDayShort(di)).join(' · ') + (pins.length > 3 ? ' +' + (pins.length - 3) : '')
@@ -10450,7 +10546,7 @@ body>*:not(#tv-result-page){display:none !important}
             ${eyebrow || pieceN ? `<span class="locc">${_waEsc(eyebrow)}${eyebrow && pieceN ? ' · ' : ''}${pieceN ? pieceN + ' pieces' : ''}</span>` : ''}
             ${mos(_tvLookCells(li), { photo: l.img || undefined, alt: l.title || l.occasion || 'Look' })}
             ${(window._rbLookTile && window._rbLookTile.title) ? window._rbLookTile.title(l.title || 'The look', 'lt') : `<div class="lt-title">${_waEsc(l.title || 'The look')}</div>`}
-            <span class="lpins${pins.length ? '' : ' free'}">${_waEsc(pinsLine)}</span>
+            <span class="lpins${pins.length ? '' : ' free'}">${_waEsc(pinsLine)}${sel ? '<span class="lstage tv-noprint">↑ on the stage</span>' : ''}</span>
           </div>`;
         }).join('');
         el.innerHTML = cards;
@@ -10477,6 +10573,10 @@ body>*:not(#tv-result-page){display:none !important}
         if (!el || !data) return;
         const nDays = data.tripDays || 7;
         const titles = data.dayTitles || {};
+        // An unpinned look on the stage turns every free day into a pin
+        // invitation (one-stage mock) — pin from the rail or the bar.
+        const stageLk = _tvSelLookI != null ? (data.looks || [])[_tvSelLookI] : null;
+        const stageUnpinned = !!(stageLk && !(stageLk.pins || []).length);
         el.innerHTML = Array.from({ length: nDays }, (_, di) => {
           const title = typeof titles[di] === 'string' ? titles[di] : '';
           const editing = _tvEditingDayI === di;
@@ -10510,9 +10610,11 @@ body>*:not(#tv-result-page){display:none !important}
                 <span class="nm">${_waEsc(first.l.title || first.l.occasion || 'The look')}${pinned.length > 1 ? ' +' + (pinned.length - 1) : ''}</span>
                 ${sw.length ? `<span class="sw">${sw.map(h => `<span style="background:${_waEsc(h)}"></span>`).join('')}</span>` : ''}
               </span>`
-            : (title
-              ? `<button class="tvw-pin tv-noprint" onclick="event.stopPropagation();window.__tvDayPick(${di})">+ Look</button>`
-              : `<span class="tvw-hint">name the day and add a look</span>`);
+            : (stageUnpinned
+              ? `<button class="tvw-pinstage tv-noprint" onclick="event.stopPropagation();window.__tvStagePin(${di})">pin ${_waEsc(String(stageLk.title || stageLk.occasion || 'it').toLowerCase())} here</button>`
+              : title
+                ? `<button class="tvw-pin tv-noprint" onclick="event.stopPropagation();window.__tvDayPick(${di})">+ Look</button>`
+                : `<span class="tvw-hint">name the day and add a look</span>`);
           return `<div class="tvw-card${(title || pinned.length) ? '' : ' bare'}${sel ? ' sel' : ''}" onclick="window.__tvDayTap(${di})" role="button" tabindex="0">
             <span class="d">${_waEsc(_tvDayShort(di, true))}</span>
             ${titleHtml}
@@ -10597,9 +10699,14 @@ body>*:not(#tv-result-page){display:none !important}
       window.__tvDayPickApply = function(li, di) {
         document.getElementById('tv-daypick-modal')?.remove();
         window.__tvPinToggle(li, di);
-        window.__tvPinSync();
         window.__tvSelectDay(di);
-        const l = ((window.__lastTvData || {}).looks || [])[li];
+        // land the stage on the look she just pinned, not the day's first
+        const data = window.__lastTvData || {};
+        _tvDayLookIdx = Math.max(0, (data.looks || []).map((o, oi) => ({ o, oi }))
+          .filter(x => (x.o.pins || []).indexOf(di) !== -1)
+          .findIndex(x => x.oi === li));
+        window.__tvPinSync();
+        const l = (data.looks || [])[li];
         _waShowToast('“' + ((l && (l.title || l.occasion)) || 'The look') + '” pinned to ' + (_tvDayInfo(di).date || _tvDayInfo(di).dow));
       };
 
@@ -10684,8 +10791,14 @@ body>*:not(#tv-result-page){display:none !important}
           _waShowToast('“' + (lk.name || 'That look') + '” is already in this trip');
           return;
         }
-        _tvSelLookI = data.looks.length - 1;
-        if (Number.isInteger(pinTo)) _tvSelDayI = pinTo;
+        if (Number.isInteger(pinTo)) {
+          _tvSelDayI = pinTo;
+          _tvSelLookI = null;
+          _tvDayLookIdx = Math.max(0, data.looks.filter(o => (o.pins || []).indexOf(pinTo) !== -1).length - 1);
+        } else {
+          _tvSelLookI = data.looks.length - 1;
+          _tvSelDayI = null;
+        }
         const savedId = _tvActiveSaveId;
         const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
         window.__tvRenderResult(data, { skipSave: true, savedId });
@@ -10864,32 +10977,28 @@ body>*:not(#tv-result-page){display:none !important}
         return (data.looks || []).map((l, li) => ({ l, li })).filter(x => (x.l.pins || []).indexOf(_tvSelDayI) !== -1);
       }
 
-      // The day console — tapping a day card unfolds The Look / The Rack
-      // for that day, exactly the weekly pattern. Several pinned looks tab
-      // inside the panel the way Day/Evening does.
-      function _tvPaintDayConsole() {
-        const el = document.getElementById('tv-day-console');
+      // Day-scoped stage content — The Look / The Rack for the selected
+      // day, with the Day / Evening switcher (first pinned look = Day,
+      // second = Evening, exactly one = an "Evening · free" invitation).
+      function _tvDayStageHtml() {
         const data = window.__lastTvData;
-        if (!el || !data) return;
         const di = _tvSelDayI;
-        if (di == null) { el.innerHTML = ''; return; }
         const info = _tvDayInfo(di);
         const pinned = _tvDayPinned();
         if (_tvDayLookIdx >= pinned.length) _tvDayLookIdx = 0;
         if (!pinned.length) {
-          el.innerHTML = `
-            <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:44px 24px;margin-top:18px;text-align:center">
+          return `
+            <div style="background:#fff;border:0.5px dashed rgba(32,32,33,0.2);border-radius:16px;padding:44px 24px;text-align:center">
               <div style="font-family:${_tvSerif};font-size:26px;font-weight:300;color:#202021;margin-bottom:6px">${_waEsc(info.dow)}${info.date ? ` · ${_waEsc(info.date)}` : ''}, <em style="font-style:italic">left free.</em></div>
-              <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:18px">Nothing pinned — pin a look from the row, or style one for this day.</div>
+              <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:18px">Nothing pinned — pin a look from the grid, or style one for this day.</div>
               <button onclick="window.__tvStyleLooks({pinTo:${di}})" style="background:#202021;color:#fff;border:none;border-radius:100px;padding:12px 22px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">✦ Style a look for this day →</button>
               <button onclick="window.__tvSetTab('looks')" style="display:block;margin:12px auto 0;background:none;border:none;padding:0;cursor:pointer;font-size:11px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;font-family:inherit">See the looks</button>
             </div>`;
-          return;
         }
         // The Day / Evening switcher (hifi 2026-08-10): the first pinned
         // look is the DAY, the second the EVENING; one pinned look shows
         // "Evening · free" — tapping it opens the add-a-look sheet, so
-        // dressing the evening is always one tap from the day console.
+        // dressing the evening is always one tap from the stage.
         const segBtn = (label, k, on) =>
           `<button onclick="window.__tvDaySetLook(${k})" style="border:none;border-radius:100px;padding:5px 13px;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit;background:${on ? '#202021' : 'transparent'};color:${on ? '#fff' : '#8A8078'};white-space:nowrap">${label}</button>`;
         const segLabel = (x, k) => k === 0 ? 'Day' : (k === 1 ? 'Evening' : String(x.l.occasion || 'Look ' + (k + 1)).slice(0, 22));
@@ -10900,7 +11009,7 @@ body>*:not(#tv-result-page){display:none !important}
             : '')
           + `</div>`;
         const x = pinned[_tvDayLookIdx];
-        el.innerHTML = `<div class="tv-daybox">` + _tvConsoleFor(x.li, di, { occHtml: seg, onFlip: '__tvDayConFlip', onSwap: '__tvDayConSwap', onRemove: '__tvDayConRemove', addPieceFn: '__tvDayConAdd' }) + `</div>`;
+        return `<div class="tv-daybox">` + _tvConsoleFor(x.li, di, { occHtml: seg, onFlip: '__tvDayConFlip', onSwap: '__tvDayConSwap', onRemove: '__tvDayConRemove', addPieceFn: '__tvDayConAdd' }) + `</div>`;
       }
       // "Evening · free" — the day already has its DAY look; adding one
       // more (pin / lookbook / Robes styles it) becomes the evening.
@@ -10908,29 +11017,92 @@ body>*:not(#tv-result-page){display:none !important}
         window.__tvDayPick(di);
       };
 
-      // The look console — a look card unfolds the same view, dayless:
-      // flicks and swaps carry across every pinned day.
-      function _tvPaintLookConsole() {
-        const el = document.getElementById('tv-look-console');
+      // Look-scoped stage content — an UNPINNED look leads with the
+      // Pin-to-a-day bar (each day shows free, or what already wears it);
+      // edits at this scope are the look itself.
+      function _tvLookStageHtml() {
         const data = window.__lastTvData;
-        if (!el || !data) return;
-        if (_tvSelLookI == null || !data.looks.length) { el.innerHTML = ''; return; }
         if (_tvSelLookI >= data.looks.length) _tvSelLookI = data.looks.length - 1;
         const li = _tvSelLookI;
-        const pins = ((data.looks[li] || {}).pins || []).slice().sort((a, b) => a - b);
-        const pinsLine = pins.length
-          ? 'Pinned to ' + pins.map(di => 'Day ' + (di + 1)).join(' · ') + ' — changes here reach every pinned day'
-          : 'Not pinned yet — it stays in the row';
-        const occ = `<div style="font-size:10.5px;color:var(--ink-faint);font-style:italic;margin:2px 0 6px">${_waEsc(pinsLine)}</div>`;
-        el.innerHTML = `<div class="tv-daybox">` + _tvConsoleFor(li, null, { occHtml: occ, onFlip: '__tvLookConFlip', onSwap: '__tvLookConSwap', onRemove: '__tvLookConRemove', addPieceFn: '__tvLookConAdd' }) + `</div>`;
+        const l = data.looks[li];
+        if (!l) return '';
+        const nDays = data.tripDays || 7;
+        const pins = (l.pins || []).slice().sort((a, b) => a - b);
+        const pinBar = pins.length ? '' : `
+          <div class="tvm-pinbar tv-noprint">
+            <div class="who"><span class="lab">Pin to a day</span><span class="sub">not worn yet — choose the day</span></div>
+            <div class="chips">${Array.from({ length: nDays }, (_, di) => {
+              const first = (data.looks || []).find(o => (o.pins || []).indexOf(di) !== -1);
+              const taken = first ? (first.title || first.occasion || 'Look') : null;
+              return `<button onclick="window.__tvStagePin(${di})" class="chip${taken ? '' : ' free'}">
+                <span class="d">${_waEsc(_tvDayShort(di, true))}</span>
+                <span class="s">${_waEsc(taken || 'free')}</span>
+              </button>`;
+            }).join('')}</div>
+          </div>`;
+        const occ = `<div style="font-size:10.5px;color:var(--ink-faint);font-style:italic;margin:2px 0 6px">${_waEsc(pins.length
+          ? 'Pinned to ' + pins.map(di => _tvDayShort(di)).join(' · ') + ' — changes here reach every pinned day'
+          : 'Not pinned yet — it stays in the row')}</div>`;
+        return `<div class="tv-daybox">` + pinBar + _tvConsoleFor(li, null, { occHtml: occ, onFlip: '__tvLookConFlip', onSwap: '__tvLookConSwap', onRemove: '__tvLookConRemove', addPieceFn: '__tvLookConAdd' }) + `</div>`;
       }
 
-      // Every existing repaint funnel (pin sync, pack toggle, render) calls
-      // _tvPaintDetail — it now repaints both consoles.
-      function _tvPaintDetail() {
-        _tvPaintDayConsole();
-        _tvPaintLookConsole();
+      // THE STAGE — the one detail surface. Day mode when a day is
+      // selected, look mode for an unpinned look, a quiet placeholder
+      // otherwise. On mobile the open stage renders as a SHEET over the
+      // page (scrim + ✕) — it covers, it never pushes the grid.
+      function _tvPaintStage() {
+        const el = document.getElementById('tv-stage');
+        const sec = document.getElementById('tv-sec-stage');
+        const data = window.__lastTvData;
+        if (!el || !data) return;
+        const open = _tvSelDayI != null || _tvSelLookI != null;
+        if (sec) {
+          sec.style.display = (open || (data.looks || []).length) ? 'block' : 'none';
+          sec.classList.toggle('on', open);
+        }
+        const clearBtn = document.getElementById('tv-stage-clear');
+        if (clearBtn) clearBtn.style.display = open ? 'inline-block' : 'none';
+        const weekHint = document.getElementById('tv-week-hint');
+        if (weekHint) {
+          const lk = _tvSelLookI != null ? data.looks[_tvSelLookI] : null;
+          weekHint.textContent = lk && !(lk.pins || []).length
+            ? 'tap a day to pin “' + (lk.title || lk.occasion || 'the look') + '” there'
+            : 'name the day, then pin a look';
+        }
+        if (!open) {
+          el.innerHTML = `
+            <div class="tv-stageempty">
+              <span class="a">Nothing on the stage.</span>
+              <span class="b">Tap a day above or a look below.</span>
+            </div>`;
+          return;
+        }
+        // Mobile sheet header — hidden on desktop; ✕ / scrim return her
+        // to exactly where she was in the list.
+        let sheetTitle = '';
+        if (_tvSelDayI != null) {
+          const info = _tvDayInfo(_tvSelDayI);
+          const x = _tvDayPinned()[_tvDayLookIdx];
+          sheetTitle = (x && (x.l.title || x.l.occasion)) || info.date || info.dow;
+        } else {
+          const l = data.looks[_tvSelLookI];
+          sheetTitle = (l && (l.title || l.occasion)) || 'The look';
+        }
+        const sheetHead = `
+          <div class="tv-sheethead tv-noprint">
+            <span class="grab"></span>
+            <div class="row">
+              <span class="ttl">${_waEsc(sheetTitle)}</span>
+              <button class="x" onclick="window.__tvStageClose()" aria-label="Close">✕</button>
+            </div>
+          </div>`;
+        el.innerHTML = sheetHead + (_tvSelDayI != null ? _tvDayStageHtml() : _tvLookStageHtml());
       }
+      // Legacy names — every existing repaint funnel (pin sync, pack
+      // toggle, day handlers) lands on the one stage.
+      function _tvPaintDayConsole() { _tvPaintStage(); }
+      function _tvPaintLookConsole() { _tvPaintStage(); }
+      function _tvPaintDetail() { _tvPaintStage(); }
 
       // A look is always adjustable, and the adjustment knows its scope
       // (worked example 2026-07-30): from a day, add/remove/flick/swap
@@ -11346,15 +11518,25 @@ body>*:not(#tv-result-page){display:none !important}
             <section class="tvm-sec" id="tv-sec-week">
               <div class="tvm-sechead">
                 <span class="tvm-seclab">The ${nDays > 7 ? 'trip' : 'week'}</span>
-                <span class="tvm-sechint">name the day, then pin a look</span>
+                <span class="tvm-sechint" id="tv-week-hint">name the day, then pin a look</span>
               </div>
               <div class="tvw-grid" id="tv-weekstrip"></div>
-              <div id="tv-day-console"></div>
+            </section>
+
+            <section class="tvm-sec" id="tv-sec-stage">
+              <div class="tvm-sechead">
+                <span class="tvm-seclab">The stage</span>
+                <span class="tvm-sechint">one panel — whichever look you tap lands here</span>
+                <span class="tvm-secact tv-noprint"><button class="tv-stageclear" id="tv-stage-clear" onclick="window.__tvStageClose()">Clear the stage</button></span>
+              </div>
+              <div id="tv-stage-scrim" class="tv-noprint" onclick="window.__tvStageClose()"></div>
+              <div id="tv-stage"></div>
             </section>
 
             <section class="tvm-sec" id="tv-sec-looks">
               <div class="tvm-sechead">
                 <span class="tvm-seclab" id="tv-looks-n">Looks${lookCount ? ' · ' + lookCount : ''}</span>
+                <span class="tvm-sechint">tap any look to bring it onto the stage</span>
                 <span class="tvm-secact tv-noprint">
                   <button class="tvm-addbtn" onclick="window.__tvLookMenu()">+ Look</button>
                 </span>
@@ -11362,7 +11544,6 @@ body>*:not(#tv-result-page){display:none !important}
               <div id="tv-looks-empty"></div>
               <div class="tvm-lookgrid" id="tv-looksrow"></div>
               <div id="tv-looks-more" style="text-align:center;margin-top:10px"></div>
-              <div id="tv-look-console"></div>
             </section>
 
             <section class="tvm-sec" id="tv-sec-capsule">
@@ -11383,9 +11564,8 @@ body>*:not(#tv-result-page){display:none !important}
         }
 
         _tvPaintWeek();
-        _tvPaintDayConsole();
         _tvPaintLooks();
-        _tvPaintLookConsole();
+        _tvPaintStage();
         tvResultPage.style.display = 'block';
         if (!opts || !opts.skipSave) tvResultPage.scrollTo({ top: 0 });
         _tvPaintPackProgress();
@@ -11702,8 +11882,11 @@ body>*:not(#tv-result-page){display:none !important}
           document.getElementById('tv-more-modal')?.remove();
           _tvMorePinTo = null;
           const savedId = _tvActiveSaveId;
-          if (Number.isInteger(pinTo)) { _tvSelDayI = pinTo; _tvDayLookIdx = 0; _tvSelLookI = null; }
-          else { _tvSelLookI = data.looks.length - fresh.length; _tvSelDayI = null; }
+          if (Number.isInteger(pinTo)) {
+            _tvSelDayI = pinTo;
+            _tvSelLookI = null;
+            _tvDayLookIdx = Math.max(0, data.looks.filter(o => (o.pins || []).indexOf(pinTo) !== -1).length - 1);
+          } else { _tvSelLookI = data.looks.length - fresh.length; _tvSelDayI = null; }
           window.__tvRenderResult(data, { skipSave: true, savedId });
           window.__tvSetTab(Number.isInteger(pinTo) ? 'days' : 'looks');
           _tvPatchSaved();
