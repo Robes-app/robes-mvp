@@ -6479,11 +6479,17 @@
         // Ownership-count copy is canonical across all three surfaces
         // (audit F1) — computed here, once, from the items every surface
         // already hands in, rather than three call sites agreeing on a string.
-        const ownedCount = items.filter(it => it.owned).length;
-        const yoursHtml = `<b>${ownedCount}</b>&thinsp;of&thinsp;${items.length} from your wardrobe`;
+        // The whole look, not just the half the rack draws — a build's
+        // proposed pieces count toward the denominator or the line reads
+        // "1 of 1" on a four-piece look.
+        const yoursOf = cfg.boardOnlyItems || items;
+        const ownedCount = yoursOf.filter(it => it.owned).length;
+        const yoursHtml = `<b>${ownedCount}</b>&thinsp;of&thinsp;${yoursOf.length} from your wardrobe`;
         // The composition is a fixed 4:5 export region taking the first six
         // pieces in slot order (the Rack still lists everything).
-        const boardItems = items.slice(0, 6);
+        // cfg.boardOnlyItems lets a surface put pieces on the board that its
+        // rack draws differently (the look builder's shop proposals).
+        const boardItems = (cfg.boardOnlyItems || items).slice(0, 6);
         const actionHtml = cfg.lookActionHtml
           ? `<div class="rbc-action">${cfg.lookActionHtml}</div>` : '';
         const lookHtml = `
@@ -7193,6 +7199,7 @@
       // until she saves. Session state only.
       var _lkBuilt = false, _lkBuilding = false, _lkAspirational = false;
       var _lkShop = [], _lkBuildGaps = [], _lkBuildMine = false;
+      var _lkShopImgs = [], _lkShopTimer = null;
       // Composer tags (spec F3, "built by hand · inherited"): null means
       // derived live from the pieces on every paint; set once she edits.
       var _lkNewTags = null;
@@ -7762,7 +7769,12 @@
    retailer, price — and TWO actions only, Swap and Save. */
 .rb-lk-shop{display:flex;align-items:flex-start;gap:14px;padding:15px 16px}
 .rb-lk-shop.busy{opacity:.55;pointer-events:none}
-.rb-lk-shopchip{flex:none;width:74px;height:88px;border-radius:var(--rad-sm);background:var(--cream-100);border:0.5px solid var(--rule);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;font-size:8px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.rb-lk-shopchip{flex:none;width:74px;height:88px;border-radius:var(--rad-sm);background:var(--cream-100);border:0.5px solid var(--rule);overflow:hidden;position:relative}
+.rb-lk-shopchip img{width:100%;height:100%;object-fit:cover;display:block}
+/* Until the still-life lands, the slot says what it is waiting for */
+.rb-lk-shopph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;background:var(--cream-100);animation:rbLkFill 1.5s ease-in-out infinite}
+.rb-lk-shopph span{font-size:8px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+@media(prefers-reduced-motion:reduce){.rb-lk-shopph{animation:none}}
 .rb-lk-shopbody{flex:1;min-width:0}
 .rb-lk-shopname{font-family:var(--font-serif);font-weight:300;font-size:19px;line-height:1.2;color:var(--ink)}
 .rb-lk-shopmeta{margin-top:4px;font-size:11.5px;color:var(--ink-soft)}
@@ -8508,13 +8520,58 @@
       // slot her wardrobe can't fill, or the plain truth when there is
       // nothing to propose. Both ride _rbRackRolesHtml's `empties` hook, so
       // they sit under their own formula strip like any other row.
+      // A proposal's frame: its generated still once it lands, else a quiet
+      // category block. data-lkimg is the poller's hook (same contract as
+      // data-dlimg / data-tvimg).
+      function _lkShopFrame(i, chip) {
+        const url = _lkShopImgs[i];
+        if (url) return '<img src="' + _waEsc(url) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="' + _waEsc(chip) + '">';
+        return '<div class="rb-lk-shopph" data-lkimg="' + i + '"><span>' + _waEsc(chip) + '</span></div>';
+      }
+      // The proposals as board tiles, so the LOOK reads as a whole look and
+      // not just the part of it she happens to own.
+      function _lkShopBoardItems(offset) {
+        return _lkShop.map((row, i) => {
+          const a = row.opts[row.oi] || {};
+          return {
+            idx: offset + i,
+            role: row.role,
+            slot: row.chip,
+            name: a.name || row.chip,
+            shortName: String(a.name || row.chip).split(/\s+/).slice(-1)[0].toLowerCase(),
+            owned: false,
+            anchored: false,
+            isNew: true,
+            frame: { pollAttr: '', inner: _lkShopFrame(i, row.chip) },
+            subHtml: '', noteHtml: '',
+            count: { cur: 0, len: 1 },
+          };
+        });
+      }
+      // Poll the still-life job and patch every frame in place.
+      function _lkShopPoll(jobId, total) {
+        if (_lkShopTimer) clearInterval(_lkShopTimer);
+        const started = Date.now();
+        _lkShopTimer = setInterval(() => {
+          if (Date.now() - started > 300000 || !_lkBuilt) { clearInterval(_lkShopTimer); _lkShopTimer = null; return; }
+          fetch('/api/images/' + jobId).then(r => r.json()).then(j => {
+            const imgs = (j && j.images) || [];
+            let landed = false;
+            imgs.forEach((u, i) => {
+              if (u && !_lkShopImgs[i]) { _lkShopImgs[i] = u; landed = true; }
+            });
+            if (landed) _lkPaint();
+            if (j && j.done) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
+          }).catch(() => {});
+        }, 4000);
+      }
       function _lkBuildEmpties() {
         const out = [];
         _lkShop.forEach((row, i) => {
           const a = row.opts[row.oi] || {};
           out.push({ role: row.role, html:
             '<div class="rbc-row rb-lk-shop' + (row.busy ? ' busy' : '') + '">' +
-              '<div class="rb-lk-shopchip">' + _waEsc(row.chip) + '</div>' +
+              '<div class="rb-lk-shopchip">' + _lkShopFrame(i, row.chip) + '</div>' +
               '<div class="rb-lk-shopbody">' +
                 '<div class="rb-lk-shopname">' + _waEsc(a.name || '') + '</div>' +
                 '<div class="rb-lk-shopmeta">' +
@@ -8592,6 +8649,7 @@
         } else {
           const note = _lkStyleNote(used);
           lookHtml = _rbConsole({
+            boardOnlyItems: items.concat(_lkShopBoardItems(items.length)),
             headLabel: headLabel,
             robesLabel: robesLabel,
             quoteHtml: note ? _waEsc(note) : '',
@@ -9063,6 +9121,7 @@
         _lkView = 'new';
         _lkBuilt = false; _lkBuilding = false; _lkAspirational = false;
         _lkShop = []; _lkBuildGaps = []; _lkBuildMine = false;
+        _lkShopImgs = []; if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
         _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
         _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null;
         _lkNewTitleDraft = null; _lkNewTitleTouched = false;
@@ -9162,7 +9221,7 @@
         };
         if (!wantShop.length) { settle(); return; }
         Promise.all(wantShop.map(def => _lkShopFetch(def, names)))
-          .then(rows => { _lkShop = rows.filter(Boolean); settle(); })
+          .then(rows => { _lkShop = rows.filter(Boolean); _lkShopImages(); settle(); })
           .catch(() => { _lkShop = []; settle(); });
       };
       // A shoppable proposal for a slot her wardrobe can't fill. /api/alternates
@@ -9186,13 +9245,13 @@
       window.__lkShopSwap = function(i) {
         const row = _lkShop[i];
         if (!row) return;
-        if (row.oi + 1 < row.opts.length) { row.oi++; row.saved = false; _lkPaint(); return; }
+        if (row.oi + 1 < row.opts.length) { row.oi++; row.saved = false; _lkShopImages(); _lkPaint(); return; }
         row.busy = true; _lkPaint();
         _lkShopFetch({ role: row.role, chip: row.chip, ask: row.ask, cats: row.cats }, _lkUsed()
           .map(id => (_waItems.find(w => String(w.id) === String(id)) || {}).label).filter(Boolean))
           .then(fresh => {
             row.busy = false;
-            if (fresh && fresh.opts.length) { row.opts = row.opts.concat(fresh.opts); row.oi++; row.saved = false; }
+            if (fresh && fresh.opts.length) { row.opts = row.opts.concat(fresh.opts); row.oi++; row.saved = false; _lkShopImages(); }
             _lkPaint();
           });
       };
@@ -9208,6 +9267,23 @@
             retailer_hint: a.retailer_hint, category: row.cats[0] });
         }
       };
+      // A proposed piece has no wardrobe photograph, so Robes shoots one —
+      // the same still-life job the travel capsule uses.
+      function _lkShopImages() {
+        if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
+        _lkShopImgs = [];
+        const pieces = _lkShop.map(row => {
+          const a = row.opts[row.oi] || {};
+          return { name: a.name, brand: a.brand, category: row.cats[0] };
+        }).filter(p => p.name);
+        if (!pieces.length) return;
+        fetch('/api/lookbuild/images', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pieces }),
+        }).then(r => r.json()).then(j => {
+          if (j && j.jobId) _lkShopPoll(j.jobId, pieces.length);
+        }).catch(() => {});
+      }
       window.__lkTryAnother = function() { window.__lkRobesBuild({ mineOnly: !!_lkBuildMine }); };
       // Nothing is saved until she saves — and then everything is: the look,
       // plus any proposed piece she hasn't already kept, into the wishlist.
@@ -9629,6 +9705,7 @@
         }
         _lkBuilt = false; _lkBuilding = false; _lkAspirational = false;
         _lkShop = []; _lkBuildGaps = []; _lkBuildMine = false;
+        _lkShopImgs = []; if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
         // Save lands her back on the grid, new look visible — no interstitial
         // (Annie, 2026-07-30: the confirmation page read as a broken landing).
         _lkView = 'grid';

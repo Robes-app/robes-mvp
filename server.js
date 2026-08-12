@@ -975,6 +975,64 @@ const ALTERNATES_SCHEMA = {
   required: ['alternates'],
 };
 
+// Still-life frames for pieces Robes PROPOSED but she doesn't own — the
+// look builder's shop suggestions have no wardrobe photograph, so without
+// these the rack thumbs and the look board sit empty. Same background job +
+// polling contract as /api/travel: respond immediately with a jobId, upload
+// each frame to Cloudinary, client polls GET /api/images/:jobId.
+app.post('/api/lookbuild/images', rateLimit({ windowMs: 60_000, max: 20 }), async (req, res) => {
+  const pieces = (Array.isArray(req.body && req.body.pieces) ? req.body.pieces : [])
+    .filter(p => p && typeof p.name === 'string' && p.name.trim())
+    .slice(0, 4)
+    .map(p => ({
+      name: String(p.name).trim().slice(0, 120),
+      brand: String(p.brand || '').trim().slice(0, 60),
+      category: String(p.category || '').trim().slice(0, 40),
+    }));
+  if (!pieces.length) return res.status(400).json({ error: 'No pieces.' });
+
+  const jobId = randomBytes(6).toString('hex');
+  imageJobs.set(jobId, { images: pieces.map(() => null), done: false, created: Date.now() });
+  res.json({ jobId, imageCount: pieces.length });
+
+  const t0 = Date.now();
+  (async () => {
+    for (let f = 0; f < pieces.length; f++) {
+      if (f > 0) await new Promise(r => setTimeout(r, 3000));
+      const it = pieces[f];
+      const imgPrompt = `Editorial still-life photograph of a single ${it.name}${it.brand ? ' by ' + it.brand : ''}${it.category ? ' (' + it.category + ')' : ''}. The piece styled alone on a neutral cream-linen surface, soft daylight, quiet luxury catalogue aesthetic. No model, no text, no collage, one item only.`;
+      try {
+        const r = await Promise.race([
+          ai.models.generateContent({
+            model: 'gemini-3.1-flash-image',
+            contents: [{ role: 'user', parts: [{ text: imgPrompt }] }],
+            config: { responseModalities: ['TEXT', 'IMAGE'] },
+          }),
+          new Promise(resolve => setTimeout(() => resolve(null), 50000)),
+        ]);
+        const part = r?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        if (!part?.inlineData) {
+          logAI({ feature: 'lookbuild', stage: 'image', index: f, success: false, reason: r ? 'no_inline_data' : 'timeout_50s' });
+          continue;
+        }
+        const url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+        if (!url) {
+          logAI({ feature: 'lookbuild', stage: 'image', index: f, success: false, reason: 'cloudinary_failed' });
+          continue;
+        }
+        logAI({ feature: 'lookbuild', stage: 'image', index: f, success: true, ms: Date.now() - t0 });
+        const job = imageJobs.get(jobId);
+        if (job) job.images[f] = url;
+      } catch (err) {
+        logAI({ feature: 'lookbuild', stage: 'image', index: f, success: false, reason: err.message });
+      }
+    }
+    const job = imageJobs.get(jobId);
+    if (job) job.done = true;
+    logAI({ feature: 'lookbuild', stage: 'images_complete', jobId, totalMs: Date.now() - t0 });
+  })();
+});
+
 app.post('/api/alternates', rateLimit({ windowMs: 60_000, max: 30 }), async (req, res) => {
   const { item, context, styleDna, styleIcons, gender } = req.body;
   const g = normGender(gender);

@@ -1296,17 +1296,61 @@ const ALTS = {
   await ctx.close();
 }
 
+
 {
-  // pics:1 — one piece photographed, three roles to find: the aspirational
-  // build, where the title comes from her icons and Wear it today is withheld.
+  // A proposed piece has no wardrobe photograph, so Robes shoots a
+  // still-life for it — without one the rack thumbs and the look board sit
+  // empty, which is what a photograph-less wardrobe hits every time.
   const { ctx, page, errs } = await boot(browser, { seed: false, pics: 1 });
   await page.route('**/api/alternates', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));
   await page.route('**res.cloudinary.com/**', (r) => r.abort());
-  await page.evaluate(() => {
-    window.__robes_profile = Object.assign({}, window.__robes_profile || {},
-      { style_icons: ['Margot Robbie', 'Chanel'] });
+  let jobBody = null;
+  await page.route('**/api/lookbuild/images', (r) => {
+    try { jobBody = r.request().postDataJSON(); } catch (_) {}
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'j1', imageCount: 3 }) });
   });
+  await page.route('**/api/images/j1', (r) => r.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ images: ['https://img.test/a.jpg', 'https://img.test/b.jpg', 'https://img.test/c.jpg'], done: true }),
+  }));
+  await page.route('**img.test/**', (r) => r.abort());
+  await openLooks(page);
+  await page.evaluate(() => window.__lkRobesBuild());
+  await page.waitForTimeout(2800);
+  const pending = await page.evaluate(() => ({
+    placeholders: document.querySelectorAll('.rb-lk-shop .rb-lk-shopph').length,
+    boardTiles: document.querySelectorAll('.rbc-board .rbc-tile').length,
+  }));
+  check('imagery · the look board carries the proposals, not just what she owns',
+    pending.boardTiles === 4, JSON.stringify(pending));
+  check('imagery · a proposal waits behind a labelled block, never a blank',
+    pending.placeholders > 0, JSON.stringify(pending));
+  check('imagery · Robes is asked for a still-life of every proposal',
+    !!jobBody && jobBody.pieces.length === 3 && jobBody.pieces.every((p) => !!p.name),
+    JSON.stringify(jobBody));
+  await page.waitForTimeout(5000);
+  const landed = await page.evaluate(() => ({
+    thumbs: document.querySelectorAll('.rb-lk-shopchip img').length,
+    boardImgs: document.querySelectorAll('.rbc-board .rbc-tile img').length,
+    placeholders: document.querySelectorAll('.rb-lk-shopph').length,
+  }));
+  check('imagery · the frames land in the rack thumbs and on the board',
+    landed.thumbs === 3 && landed.boardImgs >= 3 && landed.placeholders === 0,
+    JSON.stringify(landed));
+  check('imagery · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+{
+  const { ctx, page, errs } = await boot(browser, { seed: false, pics: 1 });
+  await page.route('**/api/alternates', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));
+  await page.route('**/api/lookbuild/images', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'j2', imageCount: 3 }) }));
+  await page.route('**/api/images/j2', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [null, null, null], done: false }) }));
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
   await openLooks(page);
   await page.evaluate(() => {
     window.__robes_profile = Object.assign({}, window.__robes_profile || {},
@@ -1314,16 +1358,16 @@ const ALTS = {
     window.__lkRobesBuild();
   });
   await page.waitForTimeout(2800);
+  check('aspirational · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   const a = await page.evaluate(() => ({
     head: document.querySelector('.rbc-lhead .lab')?.textContent,
     rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-name')).map((n) => n.textContent),
     shop: document.querySelectorAll('.rb-lk-shop').length,
-    chips: Array.from(document.querySelectorAll('.rb-lk-shopchip')).map((c) => c.textContent),
+    chips: Array.from(document.querySelectorAll('.rb-lk-shop .rb-lk-shopph span')).map((c) => c.textContent),
     owned: document.querySelector('.rb-lk-shopown')?.textContent,
     title: document.getElementById('rb-lk-newtitle')?.value,
     foot: Array.from(document.querySelectorAll('.rb-lk-buildfoot button')).map((x) => x.textContent),
   }));
-  check('aspirational · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('aspirational · one of hers, three to find, and the head says so',
     a.rows.length === 1 && a.shop === 3 && a.head === 'The look · 1 yours, 3 to find',
     JSON.stringify([a.rows, a.shop, a.head]));
@@ -1335,8 +1379,6 @@ const ALTS = {
   check('aspirational · Wear it today is withheld; the exit is Build from mine only',
     JSON.stringify(a.foot) === JSON.stringify(['Try another', 'Build from mine only']),
     JSON.stringify(a.foot));
-
-  // …and that exit returns to 04b's behaviour: her wardrobe alone
   const mine = await page.evaluate(async () => {
     window.__lkBuildMineOnly();
     await new Promise((r) => setTimeout(r, 2000));
