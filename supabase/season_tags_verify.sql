@@ -14,23 +14,50 @@
 -- OK. A FAIL means the backfill and its source disagree — investigate before
 -- Session B, and do not drop the source columns.
 
+-- Preflight. Postgres resolves function references at PARSE time, so the
+-- pre-fill checks below cannot be guarded with a CASE — the whole query
+-- would fail to parse on a database without migration 18. This turns that
+-- into a sentence. (Two statements; the editor shows the last one, which is
+-- the report.)
+do $$
+begin
+  if to_regclass('public.wardrobe_tag_defaults') is null then
+    raise exception 'ADR-002: migration 18 has not run — apply supabase/tag_prefill_migration.sql first, or use the git history version of this file to verify a 17-only database.';
+  end if;
+end $$;
+
 with
 banded as (
-  select id, user_id, season_band, season_source, coalesce(seasons, '{}'::text[]) as s
+  select id, user_id, category, category_l2, season_band, season_source, coalesce(seasons, '{}'::text[]) as s
   from public.wardrobe_items
 ),
+-- Reconciliation has to know WHICH rule wrote the row. After migration 17
+-- alone, every band came from the legacy seasons[] array. After migration
+-- 18, an INFERRED band comes from the category pre-fill instead, and only a
+-- USER band still traces back to seasons[]. Checking every row against the
+-- array would report the whole pre-filled wardrobe as broken.
 expected_band as (
-  select id, season_band,
+  select
+    b.id, b.season_band, b.season_source,
     case
-      when ('Spring' = any(s) or 'Summer' = any(s))
-       and ('Autumn' = any(s) or 'Winter' = any(s)) then 'year_round'
-      when ('Spring' = any(s) or 'Summer' = any(s))  then 'spring_summer'
-      when ('Autumn' = any(s) or 'Winter' = any(s))  then 'autumn_winter'
+      when ('Spring' = any(b.s) or 'Summer' = any(b.s))
+       and ('Autumn' = any(b.s) or 'Winter' = any(b.s)) then 'year_round'
+      when ('Spring' = any(b.s) or 'Summer' = any(b.s))  then 'spring_summer'
+      when ('Autumn' = any(b.s) or 'Winter' = any(b.s))  then 'autumn_winter'
       else 'year_round'
-    end as want_band,
-    season_source,
-    case when cardinality(s) > 0 then 'user' else 'inferred' end as want_source
-  from banded
+    end as want_from_seasons,
+    coalesce(d.season_band,
+      case
+        when ('Spring' = any(b.s) or 'Summer' = any(b.s))
+         and ('Autumn' = any(b.s) or 'Winter' = any(b.s)) then 'year_round'
+        when ('Spring' = any(b.s) or 'Summer' = any(b.s))  then 'spring_summer'
+        when ('Autumn' = any(b.s) or 'Winter' = any(b.s))  then 'autumn_winter'
+        else 'year_round'
+      end) as want_inferred,
+    case when cardinality(b.s) > 0 then 'user' else 'inferred' end as want_source
+  from banded b
+  left join public.wardrobe_items w on w.id = b.id
+  left join lateral public.rb_piece_defaults(w.category, w.category_l2) d on true
 ),
 -- custom labels present in the SOURCE arrays
 src_piece_custom as (
@@ -107,14 +134,34 @@ rows_out as (
 
   -- 6 · RECONCILIATION — every row must read OK ───────────────────────────
   union all
-  select 6, 0, '6 · CHECK', 'season_band matches seasons', count(*) filter (where season_band <> want_band),
-         case when count(*) filter (where season_band <> want_band) = 0
-              then 'OK' else 'FAIL — banding disagrees with the source array' end
+  -- NOT "matches seasons[]". Once the client ships, editing a band in the
+  -- piece sheet sets 'user' without touching the legacy array, so divergence
+  -- there is correct behaviour, not corruption. What must hold is that the
+  -- value is a real band; the agreement count below is informational.
+  select 6, 0, '6 · CHECK', 'user-set bands are valid values',
+         count(*) filter (where season_source = 'user'
+           and season_band not in ('spring_summer','autumn_winter','year_round')),
+         case when count(*) filter (where season_source = 'user'
+           and season_band not in ('spring_summer','autumn_winter','year_round')) = 0
+              then 'OK' else 'FAIL — a band she set is not a valid value' end
   from expected_band
   union all
-  select 6, 1, '6 · CHECK', 'season_source matches seasons', count(*) filter (where season_source <> want_source),
-         case when count(*) filter (where season_source <> want_source) = 0
-              then 'OK' else 'FAIL — provenance disagrees with the source array' end
+  select 6, 8, '6 · INFO', 'user-set bands that still match seasons[]',
+         count(*) filter (where season_source = 'user' and season_band = want_from_seasons),
+         'of ' || count(*) filter (where season_source = 'user')
+           || ' — divergence is expected once she edits one in the app'
+  from expected_band
+  union all
+  -- Before migration 18 this is the migration-17 rule; after it, an inferred
+  -- band is expected to have MOVED off the array onto the category default,
+  -- so the check inverts rather than disappearing.
+  -- An inferred band is expected to have MOVED off the legacy array onto the
+  -- category default. Where the category maps to nothing ('Other'), it stays
+  -- wherever migration 17 left it.
+  select 6, 1, '6 · CHECK', 'inferred bands match the category pre-fill',
+         count(*) filter (where season_source = 'inferred' and season_band <> want_inferred),
+         case when count(*) filter (where season_source = 'inferred' and season_band <> want_inferred) = 0
+              then 'OK' else 'FAIL — a pre-filled band disagrees with its category' end
   from expected_band
   union all
   select 6, 2, '6 · CHECK', 'custom piece tags preserved', count(*),
@@ -128,6 +175,20 @@ rows_out as (
               else 'FAIL — custom look tags missing from tags' end
   from (select slug from src_look_custom
         except select slug from public.tags) m
+  union all
+  -- Everything the pre-fill can reach should have at least one wear tag.
+  -- The exception is a piece filed under 'Other', which maps to nothing on
+  -- purpose: unfiled is not a use.
+  select 6, 7, '6 · CHECK', 'every filable piece carries a wear tag', count(*),
+         case when count(*) = 0 then 'OK'
+              else 'FAIL — filable pieces still untagged' end
+  from public.wardrobe_items w
+  -- A user-touched row is skipped by the backfill on purpose (adding
+  -- 'everyday' on top of a piece she deliberately tagged 'work' alone would
+  -- be editing her work), so it is not a gap.
+  where w.season_source <> 'user'
+    and exists (select 1 from public.rb_piece_defaults(w.category, w.category_l2))
+    and not exists (select 1 from public.tag_pieces tp where tp.wardrobe_item_id = w.id)
   union all
   select 6, 4, '6 · CHECK', 'no orphaned links', count(*),
          case when count(*) = 0 then 'OK' else 'FAIL — links point at missing tags' end
