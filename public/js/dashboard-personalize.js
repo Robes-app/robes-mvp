@@ -10158,7 +10158,6 @@
 #tv-result-page .tvm-pinbar .chip.free .s{color:var(--ink-faint);font-style:italic}
 #tv-result-page .tvw-pinstage{margin-top:auto;align-self:flex-start;border:none;background:none;padding:0;text-align:left;font-family:var(--font-serif);font-style:italic;font-size:12.5px;color:var(--rose);cursor:pointer}
 #tv-result-page .tvw-pinstage:hover{text-decoration:underline;text-underline-offset:3px}
-#tv-result-page .tvm-lookcard .lstage{display:block;margin-top:2px;font-size:8.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
 #tv-result-page .tv-sheethead{display:none}
 #tv-result-page #tv-stage-scrim{display:none}
 @media(max-width:767px){
@@ -10546,7 +10545,7 @@ body>*:not(#tv-result-page){display:none !important}
             ${eyebrow || pieceN ? `<span class="locc">${_waEsc(eyebrow)}${eyebrow && pieceN ? ' · ' : ''}${pieceN ? pieceN + ' pieces' : ''}</span>` : ''}
             ${mos(_tvLookCells(li), { photo: l.img || undefined, alt: l.title || l.occasion || 'Look' })}
             ${(window._rbLookTile && window._rbLookTile.title) ? window._rbLookTile.title(l.title || 'The look', 'lt') : `<div class="lt-title">${_waEsc(l.title || 'The look')}</div>`}
-            <span class="lpins${pins.length ? '' : ' free'}">${_waEsc(pinsLine)}${sel ? '<span class="lstage tv-noprint">↑ on the stage</span>' : ''}</span>
+            <span class="lpins${pins.length ? '' : ' free'}">${_waEsc(pinsLine)}</span>
           </div>`;
         }).join('');
         el.innerHTML = cards;
@@ -10823,7 +10822,7 @@ body>*:not(#tv-result-page){display:none !important}
           <div class="acts tv-noprint">
             ${di != null
               ? `<button class="tvm-hbtn" onclick="window.__tvUnpin(${li},${di})">Unpin from this day</button>`
-              : `<button class="tvm-hbtn" onclick="window.__tvPinOpen(${li})">📌 Pin to days</button>`}
+              : ''}
           </div>
         </div>`;
         const rows = (l.pieces || []).map(p => `<div class="tvm-row">
@@ -10962,7 +10961,7 @@ body>*:not(#tv-result-page){display:none !important}
           rackTitleHtml: `<h2>${_waEsc(title)}${!/[.!?]$/.test(title) ? '.' : ''}</h2>`,
           headButtonsHtml: (di != null
             ? `<button class="rbc-hbtn" onclick="window.__tvUnpin(${li},${di})">Unpin from this day</button>`
-            : `<button class="rbc-hbtn" onclick="window.__tvPinOpen(${li})">📌 Pin to days</button>`)
+            : '')
             + `<button class="rbc-hbtn" onclick="window.__tvPackLook(${li},${di == null ? 'null' : di})">${_tvCheckSvg} Pack this look</button>`,
           onFlip: opts.onFlip, onSwap: opts.onSwap, onRemove: opts.onRemove,
           onRoleDrop: '__tvRoleDrop', roleCtx: li + ':' + (di == null ? '' : di),
@@ -11234,50 +11233,9 @@ body>*:not(#tv-result-page){display:none !important}
         _tvLookRepaint();
       };
 
-      // ── Pin to days — one look, many days ──
-      window.__tvPinOpen = function(li) {
-        const data = window.__lastTvData;
-        const l = data && data.looks[li];
-        if (!l) return;
-        document.getElementById('tv-pin-modal')?.remove();
-        const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-        const modal = document.createElement('div');
-        modal.id = 'tv-pin-modal';
-        modal.className = 'tv-sheet-wrap';
-        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
-        modal.onclick = function(e) { if (e.target === modal) { modal.remove(); window.__tvPinSync(); } };
-        modal.innerHTML = `
-          <div class="tv-sheet" style="background:#FAF8F5;border-radius:20px;width:100%;max-width:440px;max-height:86vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 24px 28px">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">Pin to days</p>
-              <button onclick="document.getElementById('tv-pin-modal').remove();window.__tvPinSync()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
-            </div>
-            <p style="font-family:${_tvSerif};font-size:25px;font-weight:300;color:#202021;margin:0 0 6px;line-height:1.15">${_waEsc(l.title || l.occasion || 'The look')}</p>
-            <p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:0 0 16px">One look, many days — tap every day this look should dress.</p>
-            <div id="tv-pin-days" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;margin-bottom:20px"></div>
-            <button onclick="document.getElementById('tv-pin-modal').remove();window.__tvPinSync()" style="width:100%;padding:14px 24px;border:none;border-radius:40px;background:#202021;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Done</button>
-          </div>`;
-        document.body.appendChild(modal);
-        _tvPinPaint(li);
-      };
-
-      function _tvPinPaint(li) {
-        const wrap = document.getElementById('tv-pin-days');
-        const data = window.__lastTvData;
-        if (!wrap || !data) return;
-        const l = data.looks[li];
-        wrap.innerHTML = Array.from({ length: data.tripDays || 7 }, (_, di) => {
-          const on = (l.pins || []).indexOf(di) !== -1;
-          const info = _tvDayInfo(di);
-          const others = (data.looks || []).filter((o, oi) => oi !== li && (o.pins || []).indexOf(di) !== -1).length;
-          const sub = info.date || (others ? others + ' look' + (others > 1 ? 's' : '') : 'free');
-          return `<button onclick="window.__tvPinToggle(${li},${di});window.__tvPinRepaint(${li})" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:10px 12px;border:0.5px solid ${on ? '#202021' : 'rgba(32,32,33,0.16)'};border-radius:12px;background:${on ? '#202021' : '#fff'};color:${on ? '#fff' : '#202021'};cursor:pointer;font-family:inherit;text-align:left">
-            <span style="font-size:11px;font-weight:600;letter-spacing:.06em">${on ? '✓ ' : ''}${_waEsc(info.dow)}</span>
-            <span style="font-size:9.5px;opacity:.65">${_waEsc(sub)}</span>
-          </button>`;
-        }).join('');
-      }
-      window.__tvPinRepaint = _tvPinPaint;
+      // ── Pinning — one look, many days. The multi-day pin sheet is
+      // retired (one-stage pass: the Pin-to-a-day bar and the day cards
+      // are the pin doors); __tvPinToggle stays the one write path. ──
 
       window.__tvPinToggle = function(li, di) {
         const data = window.__lastTvData;
@@ -11525,9 +11483,9 @@ body>*:not(#tv-result-page){display:none !important}
 
             <section class="tvm-sec" id="tv-sec-stage">
               <div class="tvm-sechead">
-                <span class="tvm-seclab">The stage</span>
+                <span class="tvm-seclab">The look</span>
                 <span class="tvm-sechint">one panel — whichever look you tap lands here</span>
-                <span class="tvm-secact tv-noprint"><button class="tv-stageclear" id="tv-stage-clear" onclick="window.__tvStageClose()">Clear the stage</button></span>
+                <span class="tvm-secact tv-noprint"><button class="tv-stageclear" id="tv-stage-clear" onclick="window.__tvStageClose()">Clear</button></span>
               </div>
               <div id="tv-stage-scrim" class="tv-noprint" onclick="window.__tvStageClose()"></div>
               <div id="tv-stage"></div>
