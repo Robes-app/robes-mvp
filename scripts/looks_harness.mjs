@@ -310,10 +310,47 @@ const browser = await chromium.launch(
   check('bar · the + New split button sits in the grid bar', bar.newBtn === true);
   // ADR-002 §7: Light is deleted, and Vibe only renders once she has one —
   // the axis is her vocabulary, so an empty one is nothing to show.
+  // The axis reads "Season", matching the wardrobe's own filter — one
+  // vocabulary means one word for it. The column stays climate_band.
   check('bar · Refine opens the surviving tag axes',
-    JSON.stringify(bar.axes) === JSON.stringify(['Climate', 'Wear it for']), JSON.stringify(bar.axes));
+    JSON.stringify(bar.axes) === JSON.stringify(['Season', 'Wear it for']), JSON.stringify(bar.axes));
   check('bar · a pick filters; nothing-matches names itself; Clear restores',
     bar.shown === 0 && bar.none === true && bar.restored === 2, JSON.stringify(bar));
+
+  // A vibe that exists only inside a generated artifact's blob must be
+  // OFFERED as a filter chip, not merely matchable. Reported from beta
+  // 2026-08-12: the Vibe axis never appeared, because the option list only
+  // scanned Look entities while the grid filtered artifacts too.
+  const vibeFilter = await page.evaluate(() => {
+    // The delete test further down consumes this fixture, so put it back.
+    const prior = localStorage.getItem('robes_style_notes__u-test');
+    localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
+      { id: 1754650000000, type: 'daily-look', title: 'Soft Tuesday', subtitle: 'Daily look', img: null,
+        dlData: { anchor_date: '2026-08-05', look_tags: { climate: 'spring_summer', wear_for: ['everyday'], vibe: ['Sharp Tailoring'] } } },
+      { id: 1754650000001, type: 'daily-look', title: 'Other', subtitle: 'Daily look', img: null,
+        dlData: { anchor_date: '2026-08-06', look_tags: { climate: 'year_round', wear_for: ['work'], vibe: [] } } },
+    ]));
+    window.__lkGo();
+    window.__lkRefineToggle();
+    const drawer = document.querySelector('.rb-lk-refwrap');
+    const axes = drawer ? Array.from(drawer.querySelectorAll('.rb-lkref-ax')).map((e) => e.textContent) : [];
+    const chip = drawer && drawer.querySelector('.rb-lkref-chip[data-val="sharp-tailoring"]');
+    const label = chip ? chip.textContent : '';
+    if (chip) chip.click();
+    const shown = document.querySelectorAll('#rb-lk-grid .lt-card').length;
+    window.__lkRefineClear();
+    window.__lkRefineToggle();
+    if (prior === null) localStorage.removeItem('robes_style_notes__u-test');
+    else localStorage.setItem('robes_style_notes__u-test', prior);
+    window.__lkGo();
+    return { axes, label, shown };
+  });
+  check('refine · a vibe carried only in an artifact blob is offered as a chip',
+    vibeFilter.axes.indexOf('Vibe') > -1, JSON.stringify(vibeFilter.axes));
+  check('refine · and it keeps its label rather than rendering as a slug',
+    vibeFilter.label === 'Sharp Tailoring', vibeFilter.label);
+  check('refine · picking it filters the artifacts down',
+    vibeFilter.shown === 1, String(vibeFilter.shown));
 
   // Delete runs LAST — it consumes the fixture
   check('grid · tiles carry the lookbook hover-✕', s.rmx === 2, String(s.rmx));
@@ -477,8 +514,9 @@ const browser = await chromium.launch(
     return { hadSheet: !!sheet, groups, rowText: row ? row.textContent : '' };
   });
   check('tags · the sheet opens on the three surviving axes, Light gone',
-    tagged.hadSheet && /Climate/.test(tagged.groups) && /Wear it for/.test(tagged.groups)
-      && /Vibe/.test(tagged.groups) && !/Light/.test(tagged.groups), tagged.groups.slice(0, 200));
+    tagged.hadSheet && /Season/.test(tagged.groups) && /Wear it for/.test(tagged.groups)
+      && /Vibe/.test(tagged.groups) && !/Light/.test(tagged.groups)
+      && !/Climate/.test(tagged.groups), tagged.groups.slice(0, 200));
   check('tags · picks land back on the row', /Spring\/Summer/.test(tagged.rowText) && /Occasion/.test(tagged.rowText), tagged.rowText);
   await page.waitForTimeout(400);
   // Climate is a COLUMN now, and her edit is permanent: climate_source flips

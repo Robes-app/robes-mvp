@@ -288,8 +288,11 @@ const browser = await chromium.launch(
   // when she never touched the chip — a save is not a correction, and
   // stamping 'user' on every save would erase the signal the pre-fill's
   // quality is measured with. The legacy arrays are no longer written.
-  check('save · untouched band stores without claiming she set it',
-    supaPosts[0] && supaPosts[0].season_band === 'year_round'
+  // The band sent is the PREVIEW of what the migration-18 trigger will file
+  // for this category (Outerwear -> autumn_winter), and season_source is
+  // omitted because she never touched the chip — a save is not a correction.
+  check('save · the previewed band is sent, provenance not overclaimed',
+    supaPosts[0] && supaPosts[0].season_band === 'autumn_winter'
       && !('season_source' in supaPosts[0])
       && !('seasons' in supaPosts[0]) && !('occasions' in supaPosts[0]),
     JSON.stringify([supaPosts[0]?.season_band, supaPosts[0]?.season_source]));
@@ -381,9 +384,11 @@ const browser = await chromium.launch(
   // The seven shared seeds, in vocabulary order, from the namespace.
   check('tags · Wear it for renders the seven shared seeds',
     axes.ctx.join('|') === 'Everyday|Work|Evening|Occasion|Travel|Active|Lounge', axes.ctx.join('|'));
-  // With no taxonomy defaults served in the harness the seed falls back to
-  // the honest "any weather, no use recorded".
-  check('tags · a fresh piece starts on a band, never empty', axes.on.join('|') === 'Year-round', axes.on.join('|'));
+  // The form PREVIEWS the pre-fill rather than opening blank: an Outerwear
+  // piece shows Autumn/Winter + Everyday already filed, hers to correct.
+  // Computed at paint, so it cannot race the taxonomy fetch.
+  check('tags · the form previews what Robes will file',
+    axes.on.join('|') === 'Autumn/Winter|Everyday', axes.on.join('|'));
   check('tags · custom tag door + notes + hide row + header Edit link', axes.add && axes.notes && axes.hide && axes.editLink);
 
   await page.click('.rb-wf-chip.sea:has-text("Spring/Summer")');
@@ -404,6 +409,7 @@ const browser = await chromium.launch(
   // now, not a floor the axis snaps back to.
   await page.click('.rb-wf-chip.ctx:has-text("Travel")');
   await page.click('.rb-wf-chip.ctx:has-text("Skiing")');
+  await page.click('.rb-wf-chip.ctx:has-text("Everyday")');
   const emptied = await page.evaluate(() =>
     Array.from(document.querySelectorAll('.rb-wf-chip.ctx.on')).map((c) => c.textContent));
   check('tags · Wear it for can be emptied, nothing snaps back', emptied.length === 0, emptied.join('|'));
