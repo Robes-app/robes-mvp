@@ -68,10 +68,22 @@ in the same call (recorded in "Answers" below). Supersedes the five-value
 season axis on `wardrobe_items` and the four-value climate vocabulary on
 looks.
 
-**State.** Migrations 15 and 16 were run on Robes_p0 on 2026-08-12, and the
-audit gate has been run — result and reading under [Q4]. Migration 17
-(`supabase/season_tags_migration.sql`) is cleared to run but had not been at
-the time of writing; `scripts/season_tags_migration_test.sh` is its harness.
+**State: Session A is complete and verified on Robes_p0 (2026-08-12).**
+Migrations 15, 16 and 17 have all been run; the audit gate result is under
+[Q4]. `supabase/season_tags_verify.sql` reconciles the backfill against the
+untouched source columns and returned **7/7 OK**:
+
+| | |
+| :---- | :---- |
+| Pieces | 163 `year_round` · 2 `spring_summer` · 1 `autumn_winter` |
+| `season_source` | 3 `user` · 163 `inferred` |
+| Looks | 12 `year_round` · 1 `spring_summer`, all `climate_source = 'derived'` |
+| Tags | 5 seeds (Active, Evening, Everyday, Travel, Work) + 1 custom (`Annie Test`) |
+| Links | 3 `tag_pieces` · 9 `tag_looks` |
+| Source columns | intact — 3 / 3 / 7 rows still carrying `seasons` / `occasions` / `looks.tags` |
+
+`scripts/season_tags_migration_test.sh` is the harness (three phases, the
+third replaying every statement in its own session).
 Nothing reads the new schema yet; Session B is not started.
 
 **The audit changed one decision in this ADR** — the [C7] derivation floor now
@@ -671,6 +683,16 @@ should be sequenced accordingly rather than treated as the tail.
 It also produced the [C7] amendment above — a bug that only this data
 exposes, and that would otherwise have shipped in Session B.
 
+**Consequence to carry into Session B.** After migration 17, 12 of 13 looks
+sit at `climate_band = 'year_round'` and all 13 are `climate_source =
+'derived'`, so every one of them is eligible to re-derive on its next save.
+With [C7]'s amended floor they will not: no look holds two pieces with
+`season_source = 'user'`, so the derivation declines and the one look that
+carries a real `spring_summer` keeps it. That is the amendment working as
+intended — but it means **the look climate axis is uniformly `year_round`
+until the pre-fill runs**, and it must not be surfaced as a lookbook filter
+before then. It would match everything and look broken.
+
 The draft's own instruction, kept:
 before writing anything, count pieces carrying a single-season tag that
 lands cleanly in a band versus cross-band pairings. If cross-band pairings
@@ -688,6 +710,12 @@ Query 6 of the audit script reports whether it has run.
 ---
 
 ### Migration (17)
+
+*Run on Robes_p0 2026-08-12; see the verified result under "State" above. Two
+Supabase-editor traps were found the hard way while landing it, both now
+recorded in CLAUDE.md's gotchas: the editor pools connections (so no
+session-local state can cross a statement) and renders only the last
+statement's result (so diagnostics must be a single union'd query).*
 
 `wardrobe_items.season_band` — from `seasons text[]`:
 
