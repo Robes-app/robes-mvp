@@ -301,19 +301,22 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     l.bar === false && l.hol === false && l.allHead === false && l.sort === false,
     JSON.stringify([l.bar, l.hol, l.allHead, l.sort]));
 
-  // The Robes door lands on the home prompt, never a modal
+  // The Robes door fills THIS rack, in place — no new screen, no modal, no
+  // navigation (2026-08-12; it used to hand off to the home prompt).
   const routed = await page.evaluate(async () => {
+    const before = location.pathname;
     document.querySelector('.rb-lk-robesdoor').click();
-    await new Promise((r) => setTimeout(r, 700));
-    const ta = document.getElementById('cb-ta');
+    await new Promise((r) => setTimeout(r, 250));
     return {
-      lookbookClosed: document.getElementById('sn-page').style.display === 'none',
-      prompt: ta ? ta.value : '',
+      lookbookStillOpen: document.getElementById('sn-page').style.display !== 'none',
+      moved: location.pathname !== before,
+      fill: !!document.querySelector('.rb-lk-fill'),
       modalOpen: !!document.querySelector('#tv-brief-modal[style*="flex"], #wk-plan-modal[style*="flex"]'),
     };
   });
-  check('lookbook empty · the Robes door closes the lookbook', routed.lookbookClosed);
-  check('lookbook empty · and fills the prompt', routed.prompt.length > 0, routed.prompt);
+  check('lookbook empty · the Robes door fills this rack in place',
+    routed.lookbookStillOpen === true && routed.moved === false && routed.fill === true,
+    JSON.stringify(routed));
   check('lookbook empty · opening no modal', !routed.modalOpen);
 
   await ctx.close();

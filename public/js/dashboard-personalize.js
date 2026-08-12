@@ -5732,7 +5732,7 @@
           // pill is the affordance, the 52px row is the target. The pill
           // carries no handler of its own so its click simply bubbles to
           // the row; two handlers would fire the chooser twice.
-          if (!filled.length && _RB_ROLE_NOTES[role]) {
+          if (!filled.length && !empty.length && _RB_ROLE_NOTES[role]) {
             const addCall = cfg.onRoleAdd ? `window.${cfg.onRoleAdd}('${_waEsc(role)}')` : '';
             html += `<div class="rbc-row rbc-rghost${addCall ? ' tap' : ''}"` +
               (addCall ? ` role="button" tabindex="0" onclick="${addCall}"` : '') +
@@ -6458,11 +6458,11 @@
               ${it.noteHtml || ''}
             </div>
             <div class="rbc-foot">
-              <div class="rbc-flip">
+              ${cfg.onFlip ? `<div class="rbc-flip">
                 <button class="rbc-arrow" onclick="window.${cfg.onFlip}(${it.idx},-1)" aria-label="Previous option">${_rbcChevL}</button>
                 ${dots}
                 <button class="rbc-arrow" onclick="window.${cfg.onFlip}(${it.idx},1)" aria-label="Next option">${_rbcChevR}</button>
-              </div>
+              </div>` : '<span></span>'}
               <div class="rbc-acts">
                 ${cfg.onAnchor ? `<button class="rbc-act${it.anchored ? ' on' : ''}" onclick="window.${cfg.onAnchor}(${it.idx})" title="Lock this piece through restyles">${_rbcLockSvg} ${it.anchored ? 'Anchored' : 'Anchor'}</button>` : ''}
                 <button class="rbc-act" onclick="window.${cfg.onSwap}(${it.idx})">${_rbcSwapSvg} Swap</button>
@@ -6490,7 +6490,7 @@
           <div class="rbc-panel">
             <div class="rbc-lhead">
               <span class="lab">${cfg.headLabel}</span>
-              <span class="robes">Robes</span>
+              <span class="robes">${cfg.robesLabel || 'Robes'}</span>
             </div>
             ${cfg.occHtml || ''}
             ${cfg.quoteHtml ? `<div class="rbc-quote">${cfg.quoteHtml}</div>` : ''}
@@ -7189,6 +7189,10 @@
       var _lkNewTitleDraft = null, _lkNewTitleTouched = false;
       // Home's texture/finish expansion — session only, never persisted
       var _lkHomeMoreOn = false;
+      // "Let Robes build the first one": the rack, filled — nothing saved
+      // until she saves. Session state only.
+      var _lkBuilt = false, _lkBuilding = false, _lkAspirational = false;
+      var _lkShop = [], _lkBuildGaps = [], _lkBuildMine = false;
       // Composer tags (spec F3, "built by hand · inherited"): null means
       // derived live from the pieces on every paint; set once she edits.
       var _lkNewTags = null;
@@ -7748,6 +7752,32 @@
 .rb-lk-save[disabled]{background:var(--cream-400);color:#fff;cursor:default}
 .rb-lk-save[disabled]:hover{opacity:1}
 .rb-lk-robesdoor{font-size:12px}
+/* "Let Robes build the first one" — the rack, filled in place (2026-08-12).
+   Flat cream blocks while she waits: no spinner, no loader, no navigation. */
+.rb-lk-fill{background:var(--cream-200);animation:rbLkFill 1.5s ease-in-out infinite}
+@keyframes rbLkFill{0%,100%{opacity:1}50%{opacity:.62}}
+@media(prefers-reduced-motion:reduce){.rb-lk-fill{animation:none}}
+.rb-lk-namenote{margin-top:9px;font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:14px;color:var(--ink-faint)}
+/* A piece she doesn't own yet: the full card — category chip, brand,
+   retailer, price — and TWO actions only, Swap and Save. */
+.rb-lk-shop{display:flex;align-items:flex-start;gap:14px;padding:15px 16px}
+.rb-lk-shop.busy{opacity:.55;pointer-events:none}
+.rb-lk-shopchip{flex:none;width:74px;height:88px;border-radius:var(--rad-sm);background:var(--cream-100);border:0.5px solid var(--rule);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;font-size:8px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.rb-lk-shopbody{flex:1;min-width:0}
+.rb-lk-shopname{font-family:var(--font-serif);font-weight:300;font-size:19px;line-height:1.2;color:var(--ink)}
+.rb-lk-shopmeta{margin-top:4px;font-size:11.5px;color:var(--ink-soft)}
+.rb-lk-shopmeta i{font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink)}
+.rb-lk-shopown{margin-top:5px;font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--cream-400)}
+.rb-lk-shopacts{display:flex;gap:9px;margin-top:11px;flex-wrap:wrap}
+.rb-lk-shopacts .rbc-act.done{color:var(--ink);border-color:rgba(32,32,33,0.22)}
+/* After a build the footer is Try another | (Wear it today · hers only) */
+.rb-lk-buildfoot{display:flex;align-items:center;gap:16px}
+.rb-lk-buildfoot .sep{width:1px;height:13px;background:var(--rule-mid)}
+@media(max-width:767px){
+.rb-lk-saverow.built .rb-lk-buildfoot{justify-content:center}
+.rb-lk-shopchip{width:60px;height:74px}
+.rb-lk-shopname{font-size:17px}
+}
 /* The look, inline on home (FTUE step 3, 2026-08-12) */
 #rb-lkhome{margin:32px 0}
 .rb-lkh-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin:0 0 12px}
@@ -8468,9 +8498,48 @@
             },
             subHtml: _rbcProvenance({ wardrobe_match: true }),
             noteHtml: '',
-            count: { cur, len: Math.max(1, opts.length) },
+            // No image carousel on an unsaved Robes build — it belongs to
+            // the saved card, so the row offers one option: this piece.
+            count: _lkBuilt ? { cur: 0, len: 1 } : { cur, len: Math.max(1, opts.length) },
           };
         }).filter(Boolean);
+      }
+      // The rows a Robes build adds to the rack: a shoppable proposal for a
+      // slot her wardrobe can't fill, or the plain truth when there is
+      // nothing to propose. Both ride _rbRackRolesHtml's `empties` hook, so
+      // they sit under their own formula strip like any other row.
+      function _lkBuildEmpties() {
+        const out = [];
+        _lkShop.forEach((row, i) => {
+          const a = row.opts[row.oi] || {};
+          out.push({ role: row.role, html:
+            '<div class="rbc-row rb-lk-shop' + (row.busy ? ' busy' : '') + '">' +
+              '<div class="rb-lk-shopchip">' + _waEsc(row.chip) + '</div>' +
+              '<div class="rb-lk-shopbody">' +
+                '<div class="rb-lk-shopname">' + _waEsc(a.name || '') + '</div>' +
+                '<div class="rb-lk-shopmeta">' +
+                  (a.brand ? '<i>' + _waEsc(a.brand) + '</i> ' : '') +
+                  _waEsc([a.retailer_hint, a.price_point].filter(Boolean).join(' · ')) +
+                '</div>' +
+                '<div class="rb-lk-shopown">Not yours yet</div>' +
+                '<div class="rb-lk-shopacts">' +
+                  '<button type="button" class="rbc-act" onclick="window.__lkShopSwap(' + i + ')">Swap</button>' +
+                  (row.saved
+                    ? '<span class="rbc-act done">\u2713 Saved</span>'
+                    : '<button type="button" class="rbc-act" onclick="window.__lkShopSave(' + i + ')">Save</button>') +
+                '</div>' +
+              '</div>' +
+            '</div>' });
+        });
+        // A slot Robes could fill from nothing — say so, and offer the way in.
+        _lkBuildGaps.forEach(role => {
+          out.push({ role, html:
+            '<div class="rbc-row rbc-rghost tap" role="button" tabindex="0" onclick="window.__lkAddOpen(\'' + _waEsc(role) + '\')">' +
+              '<div class="rbc-rolenote">Nothing in your wardrobe fits here yet.</div>' +
+              '<button type="button" class="rbc-act" tabindex="-1">\uFF0B Add a piece</button>' +
+            '</div>' });
+        });
+        return out;
       }
       function _lkNewHtml(opts) {
         const home = !!(opts && opts.home);
@@ -8482,18 +8551,33 @@
         try { document.body.classList.add('rb-lookv2'); } catch (_) {}
         const used = _lkUsed();
         const nPlaced = used.length;
-        const canSave = nPlaced >= 2;
+        // A Robes build with proposed pieces is savable at one owned piece —
+        // the look is four pieces, three of which she does not own yet.
+        const canSave = nPlaced >= 2 || (_lkBuilt && _lkShop.length && nPlaced >= 1);
         const items = _lkConItems();
+        const robesLabel = _lkBuilt ? "Robes' build" : 'Robes';
+        // "N pieces" while they are all hers; "1 yours, 3 to find" once Robes
+        // has proposed pieces she doesn't own yet.
+        const headLabel = _lkBuilt && _lkShop.length
+          ? 'The look · ' + nPlaced + ' yours, ' + _lkShop.length + ' to find'
+          : 'The look · ' + _lkN(nPlaced, 'piece');
 
         // The Look — the console panel. Zero pieces and the photo case get a
         // quiet stand-in with the same chrome (states no generated console has).
         let lookHtml;
         if (_lkPhoto && _lkPhoto.url) {
           lookHtml = '<div class="rbc-panel"><div class="rbc-lhead">' +
-            '<span class="lab">The look · ' + _lkN(nPlaced, 'piece') + '</span><span class="robes">Robes</span></div>' +
+            '<span class="lab">' + headLabel + '</span><span class="robes">' + robesLabel + '</span></div>' +
             '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
               '<img src="' + _waEsc(_lkPhoto.url) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="This look"></div>' +
             (nPlaced ? '<div class="rbc-lfoot"><span class="rbc-palette"></span><span class="rbc-yours"><b>' + nPlaced + '</b>&thinsp;of&thinsp;' + nPlaced + ' from your wardrobe</span></div>' : '') +
+            '</div>';
+        } else if (_lkBuilding) {
+          // In place, no new screen: the slots are flat cream blocks for a
+          // beat. No spinner, no full-screen loader, no navigation.
+          lookHtml = '<div class="rbc-panel" style="flex:1"><div class="rbc-lhead">' +
+            '<span class="lab">The look</span><span class="robes">' + robesLabel + '</span></div>' +
+            '<div class="rb-lk-fill" style="flex:1;min-height:280px;border-radius:var(--rad-sm)"></div>' +
             '</div>';
         } else if (!items.length) {
           // No 4:5 aspect on the zero-piece placeholder — the panel
@@ -8501,14 +8585,15 @@
           // align-self:stretch below), so the whitespace reads intentional
           // rather than towering past the rack.
           lookHtml = '<div class="rbc-panel" style="flex:1"><div class="rbc-lhead">' +
-            '<span class="lab">The look · 0 pieces</span><span class="robes">Robes</span></div>' +
+            '<span class="lab">' + headLabel + '</span><span class="robes">' + robesLabel + '</span></div>' +
             '<div style="flex:1;min-height:280px;border:1.5px dashed var(--rule-mid);border-radius:var(--rad-sm);display:flex;align-items:center;justify-content:center;padding:24px;text-align:center">' +
               '<span style="font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:19px;color:var(--ink-faint)">The look, once you start.</span></div>' +
             '</div>';
         } else {
           const note = _lkStyleNote(used);
           lookHtml = _rbConsole({
-            headLabel: 'The look · ' + _lkN(nPlaced, 'piece'),
+            headLabel: headLabel,
+            robesLabel: robesLabel,
             quoteHtml: note ? _waEsc(note) : '',
             paletteHtml: used.map(id => {
               const tone = _ltToneOf(_waItems.find(w => String(w.id) === String(id)));
@@ -8524,7 +8609,8 @@
           ? '<div style="margin-top:2px">' + _rbTagsRowHtml(_lkNewTags || _rbInheritLookTags(used), '__lkNewTagsEdit') + '</div>'
           : '';
         const photoRow = '<div style="display:flex;align-items:baseline;gap:14px;margin-top:12px">' +
-          '<button type="button" class="rb-lk-quiet" onclick="window.__lkPhotoToggle()">' + (_lkPhoto ? 'Remove the photo' : 'Add a photo') + '</button>' +
+          '<button type="button" class="rb-lk-quiet" onclick="window.__lkPhotoToggle()">' +
+            (_lkPhoto ? 'Remove the photo' : (_lkBuilt ? 'Replace the photo' : 'Add a photo')) + '</button>' +
           (_lkPhoto && _lkPhoto.pending ? '<span style="font-size:11px;color:var(--ink-faint)">Uploading…</span>' : '') +
           '</div>' + tagsRow;
 
@@ -8540,7 +8626,10 @@
         const titleHtml = '<input id="' + (home ? 'rb-lk-hometitle' : 'rb-lk-newtitle') + '" class="rb-lk-title-in"' +
           ' value="' + _waEsc(_lkNewTitleDraft != null ? _lkNewTitleDraft : '') + '"' +
           ' placeholder="' + namePh + '" oninput="window.__lkNewTitleInput(this.value)">';
-        const mastHtml = home ? '' : '<div class="rb-lk-mast rb-lk-newmast">' + titleHtml + '</div>';
+        // Robes' name is an offer, and says so.
+        const nameNote = _lkBuilt && !_lkBuilding && !_lkNewTitleTouched && _lkNewTitleDraft
+          ? '<div class="rb-lk-namenote">Robes\u2019 name for it. Yours to change.</div>' : '';
+        const mastHtml = home ? '' : '<div class="rb-lk-mast rb-lk-newmast">' + titleHtml + nameNote + '</div>';
 
         // The Rack — the formula strips name themselves, so no second
         // header sits above them (the masthead already names the look).
@@ -8550,28 +8639,33 @@
         // force-expands, or it would hide on the small screen.
         const lastTwo = _RB_ROLES.slice(2);
         const homeOpen = !home || _lkHomeMoreOn || items.some(it => lastTwo.indexOf(_rbRoleOf(it)) > -1);
-        let rackHtml = (home ? '<div class="rb-lkh-name">' + titleHtml + '</div>' : '') +
+        let rackHtml = (home ? '<div class="rb-lkh-name">' + titleHtml + nameNote + '</div>' : '') +
           '<div class="rbc-rack' + (home && !homeOpen ? ' rb-lkh-collapsed' : '') + '">';
         // Every empty slot on home opens the camera and comes back with the
         // piece hung in the slot it was opened from — cataloguing is a
         // by-product of building, never a separate chore.
-        const rowCfg = { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop',
-          onRoleAdd: home ? '__lkHomeSnap' : '__lkAddOpen', allStrips: true };
+        // No image carousel on an unsaved build — it belongs to the SAVED
+        // card, not here; Swap is the one action on a hung piece.
+        const rowCfg = _lkBuilt
+          ? { onSwap: '__lkCSwap', onRoleDrop: '__lkCRoleDrop', onRoleAdd: home ? '__lkHomeSnap' : '__lkAddOpen', allStrips: true }
+          : { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop',
+              onRoleAdd: home ? '__lkHomeSnap' : '__lkAddOpen', allStrips: true };
+        const empties = _lkBuilt ? _lkBuildEmpties() : [];
         // No slot-bound empty rows (founder call 2026-08-07: her trousers
         // can anchor, her top can be the exclamation — a slot must never
         // forecast a role). The rack IS the formula: each awaiting role is
         // a dashed definition row with its own + Add (pre-casting that
         // role on the pick), through the A2 chooser.
         if (home) {
-          rackHtml += _rbRackRolesHtml(items, Object.assign({ roles: _RB_ROLES.slice(0, 2) }, rowCfg)) +
+          rackHtml += _rbRackRolesHtml(items, Object.assign({ roles: _RB_ROLES.slice(0, 2) }, rowCfg), empties) +
             '<button type="button" class="rb-lkh-showmore" onclick="window.__lkHomeMore()">' +
               '<span class="l"><b>Texture · finish</b><i>Two more slots, optional.</i></span>' +
               '<span class="s">Show</span></button>' +
             '<div class="rb-lkh-more">' +
-              _rbRackRolesHtml(items, Object.assign({ roles: lastTwo }, rowCfg)) +
+              _rbRackRolesHtml(items, Object.assign({ roles: lastTwo }, rowCfg), empties) +
             '</div>';
         } else {
-          rackHtml += _rbRackRolesHtml(items, rowCfg);
+          rackHtml += _rbRackRolesHtml(items, rowCfg, empties);
         }
         // The generic way in ALWAYS closes the rack (regression fixed
         // 2026-08-12 — gating it on every role being inked took the door
@@ -8586,10 +8680,25 @@
         // alternative door — Robes builds it instead. The label reads
         // first-time on an empty Lookbook, repeat once she has looks.
         const robesDoor = _lkLooks.length ? 'Or let Robes create your look' : 'Or let Robes build the first one';
-        rackHtml += '<div class="rb-lk-saverow">' +
+        // After a build the footer changes hands: Save still leads, and the
+        // two quiet doors are Try another and — only when everything in the
+        // look is hers — Wear it today. She cannot wear what she does not
+        // own yet, so the aspirational build offers the exit instead.
+        const foot = _lkBuilt && !_lkBuilding
+          ? '<div class="rb-lk-buildfoot">' +
+              '<button type="button" class="rb-lk-quiet" onclick="window.__lkTryAnother()">Try another</button>' +
+              '<span class="sep"></span>' +
+              (_lkAspirational
+                ? '<button type="button" class="rb-lk-quiet" onclick="window.__lkBuildMineOnly()">Build from mine only</button>'
+                : '<button type="button" class="rb-lk-quiet" onclick="window.__lkSaveAndWear()">Wear it today</button>') +
+            '</div>'
+          : '<button type="button" class="rb-lk-quiet rb-lk-robesdoor" onclick="window.__lkRobesBuild()">' + _waEsc(robesDoor) + '</button>';
+        rackHtml += '<div class="rb-lk-saverow' + (_lkBuilt && !_lkBuilding ? ' built' : '') + '">' +
           '<button type="button" class="rb-lk-save" onclick="window.__lkSave()"' +
-            (canSave ? '' : ' disabled title="Add two pieces and this look is yours to keep"') + '>Save this look</button>' +
-          '<button type="button" class="rb-lk-quiet rb-lk-robesdoor" onclick="window.__lkRobesBuild()">' + _waEsc(robesDoor) + '</button>' +
+            (canSave ? '' : ' disabled title="' + (_lkBuilt
+              ? 'Add a piece of your own and this look is yours to keep'
+              : 'Add two pieces and this look is yours to keep') + '"') + '>Save this look</button>' +
+          foot +
           '</div>';
 
         const stretchLeft = !items.length && !(_lkPhoto && _lkPhoto.url);
@@ -8952,6 +9061,8 @@
       // page, which renders the page, which would arm it again).
       function _lkResetComposer() {
         _lkView = 'new';
+        _lkBuilt = false; _lkBuilding = false; _lkAspirational = false;
+        _lkShop = []; _lkBuildGaps = []; _lkBuildMine = false;
         _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
         _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null;
         _lkNewTitleDraft = null; _lkNewTitleTouched = false;
@@ -8963,13 +9074,157 @@
         _lkPaint();
         _rbTrack('look_compose_opened', {});
       };
-      // The composer's one alternative door: she doesn't have to build it
-      // herself. Lands on the home prompt with the look intent armed —
-      // the standing rule that every route lands on the prompt box.
-      window.__lkRobesBuild = function() {
-        _rbTrack('look_robes_door', { first: !_lkLooks.length });
-        if (window.__snWay) window.__snWay('dress-me');
+      // ── "Let Robes build the first one" (2026-08-12) ────────────────────
+      // ONE RULE: it returns to the SAME rack, filled, and saves nothing
+      // until she does. A head start, never a separate feature and never a
+      // black box — no new screen, no full-screen loader, no navigation.
+      // The slots fill where they stand (flat cream blocks while she waits)
+      // and the name lands LAST, so the look assembles then earns its title.
+      // The role each slot answers to, and what to ask the shop for when
+      // her wardrobe can't fill it.
+      const _LK_BUILD_ROLES = [
+        { role: 'The Canvas', cats: ['Tops'], chip: 'Top', ask: 'a crisp shirt' },
+        { role: 'The Anchor', cats: ['Bottoms', 'Dresses'], chip: 'Trousers', ask: 'a tailored trouser' },
+        { role: 'The Texture', cats: ['Outerwear'], chip: 'Jacket', ask: 'a textured jacket' },
+        { role: 'The Exclamation Point', cats: ['Shoes', 'Bags', 'Accessories'], chip: 'Shoes', ask: 'a leather shoe' },
+      ];
+      // Robes never hangs a piece she hasn't seen a photograph of.
+      function _lkBuildCandidates(cats, taken) {
+        return _waItems.filter(w => cats.indexOf(w.category) > -1
+          && _pdHttp(w.image_url)
+          && taken.indexOf(String(w.id)) < 0);
+      }
+      // Her signature names it, not the pieces: two icons, one phrase. With
+      // fewer than two saved icons the offered (occasion-shaped) name stands.
+      function _lkBuildTitle(ids) {
+        const icons = (typeof _rbStyleIcons === 'function' ? _rbStyleIcons() : []) || [];
+        const two = icons.filter(x => typeof x === 'string' && x.trim()).slice(0, 2);
+        if (two.length === 2) return two[0].trim() + ' meets ' + two[1].trim() + '.';
+        const offered = _lkOfferName(ids, null);
+        if (offered && offered !== 'Untitled look') return offered;
+        // Nothing of hers to name it after — take the lead proposal's word.
+        const lead = (_lkShop[0] && _lkShop[0].opts[_lkShop[0].oi] || {}).name;
+        const word = String(lead || '').trim().split(/\s+/).slice(-1)[0].toLowerCase();
+        return word ? 'The ' + word + ' one' : offered;
+      }
+      window.__lkRobesBuild = function(opts) {
+        if (_lkBuilding) return;
+        const mineOnly = !!(opts && opts.mineOnly);
+        _rbTrack('look_robes_door', { first: !_lkLooks.length, mineOnly });
+        _lkBuilding = true;
+        _lkBuilt = true;
+        _lkShop = [];
+        _lkNewTitleDraft = null; _lkNewTitleTouched = false;
+        _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
+        _lkNewRoles = {};
+        _lkPaint();               // paints the pending state: flat cream slots
+        const taken = [];
+        const picked = [];
+        const gaps = [];
+        _LK_BUILD_ROLES.forEach(def => {
+          // Prefer a hero, then the least-worn piece — variety over habit.
+          const cands = _lkBuildCandidates(def.cats, taken).sort((a, b) =>
+            (a.hero_position == null) - (b.hero_position == null)
+            || (a.times_worn || 0) - (b.times_worn || 0));
+          if (cands.length) { taken.push(String(cands[0].id)); picked.push({ def, piece: cands[0] }); }
+          else gaps.push(def);
+        });
+        // Two or more gaps and the build turns aspirational: Robes hangs what
+        // she owns and PROPOSES the rest as real, shoppable pieces. One gap
+        // (or none) stays her own wardrobe, with at most one shop suggestion.
+        const wantShop = mineOnly ? [] : (gaps.length >= 2 ? gaps : gaps.slice(0, 1));
+        _lkAspirational = !mineOnly && gaps.length >= 2;
+        _lkBuildGaps = gaps.filter(g => wantShop.indexOf(g) < 0).map(g => g.role);
+        // Hang the owned pieces into the rack, role pre-cast
+        picked.forEach((p, i) => {
+          const row = _lkRows[i] || { key: 'rb' + i, slot: 'Accessory' };
+          if (!_lkRows[i]) _lkRows.push(row);
+          row.piece = p.piece.id;
+          _lkNewRoles[String(p.piece.id)] = p.def.role;
+        });
+        const names = picked.map(p => p.piece.label);
+        const started = Date.now();
+        const settle = () => {
+          // The slots have been cream blocks for a beat — long enough that the
+          // fill reads as a build, never a flash.
+          const wait = Math.max(0, 900 - (Date.now() - started));
+          setTimeout(() => {
+            _lkBuilding = false;
+            _lkPaint();
+            // …and the name lands last, once the look is assembled.
+            setTimeout(() => {
+              if (!_lkNewTitleTouched) {
+                _lkNewTitleDraft = _lkBuildTitle(_lkUsed());
+                _lkPaint();
+              }
+            }, 420);
+          }, wait);
+        };
+        if (!wantShop.length) { settle(); return; }
+        Promise.all(wantShop.map(def => _lkShopFetch(def, names)))
+          .then(rows => { _lkShop = rows.filter(Boolean); settle(); })
+          .catch(() => { _lkShop = []; settle(); });
       };
+      // A shoppable proposal for a slot her wardrobe can't fill. /api/alternates
+      // is the app's light, fast suggestion endpoint (flash, thinking off) —
+      // it answers in the 1–3s this state budgets for, and returns two, so
+      // Swap is instant and only re-fetches once both are spent.
+      function _lkShopFetch(def, names) {
+        return fetch('/api/alternates', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            item: { name: def.ask, category: def.cats[0] },
+            context: names, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
+          }),
+        }).then(r => r.json()).then(j => {
+          const alts = (j && Array.isArray(j.alternates) ? j.alternates : []).filter(a => a && a.name);
+          if (!alts.length) return null;
+          return { role: def.role, chip: def.chip, ask: def.ask, cats: def.cats, opts: alts, oi: 0, saved: false };
+        }).catch(() => null);
+      }
+      // Swap cycles the suggestions; running out fetches two more.
+      window.__lkShopSwap = function(i) {
+        const row = _lkShop[i];
+        if (!row) return;
+        if (row.oi + 1 < row.opts.length) { row.oi++; row.saved = false; _lkPaint(); return; }
+        row.busy = true; _lkPaint();
+        _lkShopFetch({ role: row.role, chip: row.chip, ask: row.ask, cats: row.cats }, _lkUsed()
+          .map(id => (_waItems.find(w => String(w.id) === String(id)) || {}).label).filter(Boolean))
+          .then(fresh => {
+            row.busy = false;
+            if (fresh && fresh.opts.length) { row.opts = row.opts.concat(fresh.opts); row.oi++; row.saved = false; }
+            _lkPaint();
+          });
+      };
+      // Save keeps it — the wishlist is where a piece she doesn't own lives.
+      window.__lkShopSave = function(i) {
+        const row = _lkShop[i];
+        if (!row || row.saved) return;
+        const a = row.opts[row.oi] || {};
+        row.saved = true;
+        _lkPaint();
+        if (typeof _wlSaveFromItem === 'function') {
+          _wlSaveFromItem({ name: a.name, brand: a.brand, price_point: a.price_point,
+            retailer_hint: a.retailer_hint, category: row.cats[0] });
+        }
+      };
+      window.__lkTryAnother = function() { window.__lkRobesBuild({ mineOnly: !!_lkBuildMine }); };
+      // Nothing is saved until she saves — and then everything is: the look,
+      // plus any proposed piece she hasn't already kept, into the wishlist.
+      // (A Look can only HOLD pieces she owns — look_pieces references
+      // wardrobe_items — so an aspirational build's proposals live in the
+      // wishlist until she has them. Holding them on the look itself needs a
+      // migration; flagged, not guessed.)
+      window.__lkSaveAndWear = function() {
+        const before = _lkActive;
+        window.__lkSave();
+        const l = _lkLooks[0];
+        if (l && l.id !== before && typeof _lkPin === 'function') {
+          try { _lkPin(l.id, _pdLocalISO(), l.name); } catch (_) {}
+        }
+      };
+      // The exit back to a wardrobe-only build — she can only wear what she owns.
+      window.__lkBuildMineOnly = function() { _lkBuildMine = true; window.__lkRobesBuild({ mineOnly: true }); };
       // ── The look, inline on home (FTUE step 3, 2026-08-12) ──────────────
       // At zero looks the builder itself sits on home: the rack replaces
       // both the learning card and the Lookbook row, so home never shows a
@@ -9336,7 +9591,10 @@
       };
       window.__lkSave = function() {
         const used = _lkUsed();
-        if (used.length < 2 || _lkBusy) return;
+        // A Robes build with proposed pieces is a four-piece look, one of
+        // which is hers — the two-piece floor holds everywhere else.
+        const floor = (_lkBuilt && _lkShop.length) ? 1 : 2;
+        if (used.length < floor || _lkBusy) return;
         if (_lkPhoto && _lkPhoto.pending) { _waShowToast('One moment — the photo is still uploading'); return; }
         _lkBusy = true;
         // finally-guarded: a throw anywhere in here must never leave the
@@ -9359,6 +9617,18 @@
             roles: _lkNewRoles,
           });
         } finally { _lkBusy = false; }
+        // Proposals travel to the wishlist on save — nothing Robes offered
+        // is lost, and the look grows as she acquires them.
+        if (_lkShop.length && typeof _wlSaveFromItem === 'function') {
+          _lkShop.forEach(row => {
+            if (row.saved) return;
+            const a = row.opts[row.oi] || {};
+            if (a.name) _wlSaveFromItem({ name: a.name, brand: a.brand, price_point: a.price_point,
+              retailer_hint: a.retailer_hint, category: row.cats[0] }, { silent: true });
+          });
+        }
+        _lkBuilt = false; _lkBuilding = false; _lkAspirational = false;
+        _lkShop = []; _lkBuildGaps = []; _lkBuildMine = false;
         // Save lands her back on the grid, new look visible — no interstitial
         // (Annie, 2026-07-30: the confirmation page read as a broken landing).
         _lkView = 'grid';

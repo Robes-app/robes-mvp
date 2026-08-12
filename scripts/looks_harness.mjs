@@ -58,9 +58,13 @@ const PIECES = [
   { id: 'w-acc1', label: 'Gold hoops',         category: 'Accessories', color: 'Ochre',  price: 60 },
   { id: 'w-dre1', label: 'Bias slip dress',    category: 'Dresses',     color: 'Blush',  price: 240 },
 ];
+// pics: how many pieces Robes has seen a photograph of. Robes never hangs a
+// piece without one, so a build's behaviour turns on this.
+let WARDROBE_PICS = 0;
 function wardrobe() {
   return PIECES.map((p, i) => ({
-    ...p, user_id: 'u-test', brand: 'Studio', notes: '', image_url: null,
+    ...p, user_id: 'u-test', brand: 'Studio', notes: '',
+    image_url: i < WARDROBE_PICS ? 'https://res.cloudinary.com/demo/image/upload/' + p.id + '.jpg' : null,
     times_worn: 0, item_dna: {}, hero_position: null, seasons: null, occasions: null,
     created_at: new Date(Date.now() - i * 1000).toISOString(),
   }));
@@ -98,7 +102,8 @@ const SEED_WEARS = [
 // Every write the module makes is captured so the harness can assert on the
 // payloads — that a wear is INSERTed and undone by DELETE (never updated), and
 // that a promotion writes a new look rather than mutating the old one.
-async function boot(browser, { width = 1280, looksTable = true, seed = true, dropCat = null } = {}) {
+async function boot(browser, { width = 1280, looksTable = true, seed = true, dropCat = null, pics = 0 } = {}) {
+  WARDROBE_PICS = pics;
   const ctx = await browser.newContext({ viewport: { width, height: 1200 } });
   const page = await ctx.newPage();
   const writes = [];
@@ -1188,6 +1193,165 @@ const browser = await chromium.launch(
     }, 600));
   });
   check('no-shoes · Snap opens the standard wardrobe add modal', wa.open === true, JSON.stringify(wa));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 5b · "Let Robes build the first one" — the SAME rack, filled, saving
+// nothing until she does. One shop suggestion when her wardrobe nearly
+// covers it (04b); real shoppable proposals when it doesn't (04c).
+// ─────────────────────────────────────────────────────────────────────────
+const ALTS = {
+  alternates: [
+    { name: 'Cropped Bouclé Jacket', brand: 'Sézane', retailer_hint: 'Sezane.com', price_point: '€250' },
+    { name: 'Wide Wool Trouser', brand: 'Toteme', retailer_hint: 'Net-a-Porter', price_point: '€390' },
+  ],
+};
+{
+  // pics:6 covers Canvas / Anchor / Exclamation; the fixture has no
+  // Outerwear, so Texture is the one gap → the owned build.
+  const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 6 });
+  await page.route('**/api/alternates', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  await openLooks(page);
+  await page.waitForTimeout(300);
+
+  // In place, no new screen: flat cream blocks, no spinner, no navigation
+  const during = await page.evaluate(async () => {
+    const before = location.pathname;
+    window.__lkRobesBuild();
+    await new Promise((r) => setTimeout(r, 250));
+    return {
+      fill: !!document.querySelector('.rb-lk-fill'),
+      spinner: !!document.querySelector('.rb-spin, #kp-loading-overlay[style*="flex"]'),
+      moved: location.pathname !== before,
+      composerStill: !!document.querySelector('.rb-lk-composer'),
+      titleEmpty: document.getElementById('rb-lk-newtitle')?.value === '',
+    };
+  });
+  check('build · fills in place — cream blocks, no spinner, no navigation',
+    during.fill === true && during.spinner === false && during.moved === false
+      && during.composerStill === true, JSON.stringify(during));
+  check('build · the name has not landed yet', during.titleEmpty === true, JSON.stringify(during));
+
+  await page.waitForTimeout(2600);
+  const b = await page.evaluate(() => ({
+    head: document.querySelector('.rbc-lhead .lab')?.textContent,
+    robes: document.querySelector('.rbc-lhead .robes')?.textContent,
+    rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-name')).map((n) => n.textContent),
+    shop: Array.from(document.querySelectorAll('.rb-lk-shopname')).map((n) => n.textContent),
+    shopActs: Array.from(document.querySelectorAll('.rb-lk-shop .rbc-act')).map((b2) => b2.textContent.trim()),
+    flicks: document.querySelectorAll('.rbc-rack .rbc-arrow').length,
+    removes: document.querySelectorAll('.rbc-rack .rbc-rm').length,
+    title: document.getElementById('rb-lk-newtitle')?.value,
+    note: document.querySelector('.rb-lk-namenote')?.textContent,
+    foot: Array.from(document.querySelectorAll('.rb-lk-buildfoot button')).map((x) => x.textContent),
+    saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
+    photo: Array.from(document.querySelectorAll('.rb-lk-quiet')).map((x) => x.textContent)[0],
+  }));
+  check('build · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  check('build · her own pieces hang in the rack, attributed to Robes',
+    b.rows.length === 3 && b.robes === "Robes' build", JSON.stringify([b.rows, b.robes]));
+  check('build · one shop suggestion covers the slot her wardrobe cannot',
+    b.shop.length === 1 && b.shop[0] === 'Cropped Bouclé Jacket', JSON.stringify(b.shop));
+  check('build · a proposal carries only Swap and Save',
+    JSON.stringify(b.shopActs) === JSON.stringify(['Swap', 'Save']), JSON.stringify(b.shopActs));
+  // No image carousel until the look is saved — it belongs to the saved card
+  check('build · no carousel and no remove on an unsaved build',
+    b.flicks === 0 && b.removes === 0, JSON.stringify([b.flicks, b.removes]));
+  check('build · the name lands last, offered not applied',
+    !!b.title && /Yours to change/.test(b.note || ''), JSON.stringify([b.title, b.note]));
+  check('build · the photo door reads Replace the photo', b.photo === 'Replace the photo', b.photo);
+  check('build · Save leads; Try another and Wear it today follow',
+    b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today']),
+    JSON.stringify([b.saveDisabled, b.foot]));
+  check('build · nothing is written until she saves',
+    !writes.some((w) => w.method === 'POST' && /^looks/.test(w.url)),
+    JSON.stringify(writes.map((w) => w.method + ' ' + w.url)));
+
+  // Swap cycles the suggestion without touching the rest of the look
+  const swapped = await page.evaluate(async () => {
+    window.__lkShopSwap(0);
+    await new Promise((r) => setTimeout(r, 200));
+    return {
+      shop: document.querySelector('.rb-lk-shopname')?.textContent,
+      rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-name')).map((n) => n.textContent),
+    };
+  });
+  check('build · Swap moves to the next suggestion, the look intact',
+    swapped.shop === 'Wide Wool Trouser' && swapped.rows.length === 3, JSON.stringify(swapped));
+
+  // Save keeps the piece — the wishlist is where an unowned piece lives
+  const kept = await page.evaluate(async () => {
+    window.__lkShopSave(0);
+    await new Promise((r) => setTimeout(r, 400));
+    return { label: document.querySelector('.rb-lk-shopacts .done')?.textContent };
+  });
+  check('build · Save keeps the proposal, and says so', /Saved/.test(kept.label || ''), kept.label);
+  await page.waitForTimeout(400);
+  check('build · a kept proposal lands in the wishlist',
+    writes.some((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)),
+    JSON.stringify(writes.map((w) => w.url).slice(-4)));
+  await ctx.close();
+}
+
+{
+  // pics:1 — one piece photographed, three roles to find: the aspirational
+  // build, where the title comes from her icons and Wear it today is withheld.
+  const { ctx, page, errs } = await boot(browser, { seed: false, pics: 1 });
+  await page.route('**/api/alternates', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  await page.evaluate(() => {
+    window.__robes_profile = Object.assign({}, window.__robes_profile || {},
+      { style_icons: ['Margot Robbie', 'Chanel'] });
+  });
+  await openLooks(page);
+  await page.evaluate(() => {
+    window.__robes_profile = Object.assign({}, window.__robes_profile || {},
+      { style_icons: ['Margot Robbie', 'Chanel'] });
+    window.__lkRobesBuild();
+  });
+  await page.waitForTimeout(2800);
+  const a = await page.evaluate(() => ({
+    head: document.querySelector('.rbc-lhead .lab')?.textContent,
+    rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-name')).map((n) => n.textContent),
+    shop: document.querySelectorAll('.rb-lk-shop').length,
+    chips: Array.from(document.querySelectorAll('.rb-lk-shopchip')).map((c) => c.textContent),
+    owned: document.querySelector('.rb-lk-shopown')?.textContent,
+    title: document.getElementById('rb-lk-newtitle')?.value,
+    foot: Array.from(document.querySelectorAll('.rb-lk-buildfoot button')).map((x) => x.textContent),
+  }));
+  check('aspirational · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  check('aspirational · one of hers, three to find, and the head says so',
+    a.rows.length === 1 && a.shop === 3 && a.head === 'The look · 1 yours, 3 to find',
+    JSON.stringify([a.rows, a.shop, a.head]));
+  check('aspirational · each proposal is a full piece card with its category chip',
+    JSON.stringify(a.chips) === JSON.stringify(['Trousers', 'Jacket', 'Shoes'])
+      && /Not yours yet/i.test(a.owned || ''), JSON.stringify([a.chips, a.owned]));
+  check('aspirational · the title comes from her icons, not the pieces',
+    a.title === 'Margot Robbie meets Chanel.', a.title);
+  check('aspirational · Wear it today is withheld; the exit is Build from mine only',
+    JSON.stringify(a.foot) === JSON.stringify(['Try another', 'Build from mine only']),
+    JSON.stringify(a.foot));
+
+  // …and that exit returns to 04b's behaviour: her wardrobe alone
+  const mine = await page.evaluate(async () => {
+    window.__lkBuildMineOnly();
+    await new Promise((r) => setTimeout(r, 2000));
+    return {
+      shop: document.querySelectorAll('.rb-lk-shop').length,
+      gaps: Array.from(document.querySelectorAll('.rbc-rghost .rbc-rolenote')).map((n) => n.textContent),
+      foot: Array.from(document.querySelectorAll('.rb-lk-buildfoot button')).map((x) => x.textContent),
+    };
+  });
+  check('aspirational · Build from mine only drops every proposal',
+    mine.shop === 0 && mine.gaps.length === 3
+      && mine.gaps.every((g) => /Nothing in your wardrobe fits here yet/.test(g)),
+    JSON.stringify(mine));
+  check('aspirational · …and Wear it today returns with it',
+    JSON.stringify(mine.foot) === JSON.stringify(['Try another', 'Wear it today']), JSON.stringify(mine.foot));
   await ctx.close();
 }
 
