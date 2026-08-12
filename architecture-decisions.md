@@ -68,10 +68,16 @@ in the same call (recorded in "Answers" below). Supersedes the five-value
 season axis on `wardrobe_items` and the four-value climate vocabulary on
 looks.
 
-**Session A has shipped as SQL, not yet run**: `supabase/season_tags_audit.sql`
-(the gate) and `supabase/season_tags_migration.sql` (migration 17), with
-`scripts/season_tags_migration_test.sh` as the harness. Nothing reads the new
-schema yet; Session B is not started.
+**State.** Migrations 15 and 16 were run on Robes_p0 on 2026-08-12, and the
+audit gate has been run — result and reading under [Q4]. Migration 17
+(`supabase/season_tags_migration.sql`) is cleared to run but had not been at
+the time of writing; `scripts/season_tags_migration_test.sh` is its harness.
+Nothing reads the new schema yet; Session B is not started.
+
+**The audit changed one decision in this ADR** — the [C7] derivation floor now
+tests `season_source = 'user'` rather than "resolves to a wardrobe row",
+because 98% of pieces are untagged and the weaker test would have let the
+derivation flatten every look to `year_round`.
 
 **Provenance.** Written in Claude Chat as "ADR-00X · v2.4", reviewed here
 against `beta`. The intent of the draft is preserved wholesale — one
@@ -253,10 +259,21 @@ season. On the generated tracks that is routinely false — items resolve to
 `wardrobe_match` only when the engine matched one, and below fifteen
 catalogued pieces most items are aspirational with no wardrobe row at all.
 Running the derivation over a half-unowned look collapses to `year_round`
-almost every time, which is worse than the model's own read. Rule: derive
-from the pieces that resolve to a wardrobe row; if **fewer than two**
-resolve, keep the generator's `look_tags.climate` and still mark
-`climate_source = 'derived'`.
+almost every time, which is worse than the model's own read.
+
+**Rule, amended after the audit (2026-08-12): derive only from pieces whose
+band she actually set — `season_source = 'user'`. If fewer than two such
+pieces are in the look, do not derive: keep the existing climate and leave
+`climate_source = 'derived'` so it re-derives later once the pieces are
+banded.** The first draft of this rule counted pieces that merely *resolve to
+a wardrobe row*, which the audit showed is not the same test at all: 163 of
+166 pieces are untagged, so after migration 17 nearly every owned piece sits
+at the `year_round` default. Those pieces resolve perfectly well and carry no
+information, so the weaker floor would let the derivation overwrite a real
+generator climate with `year_round` on essentially every look in the
+database — a regression shipped by a rule written to prevent one. The
+`season_source` test is what makes "derived from her pieces" mean what it
+says.
 
 **Where it runs [Q3].** The draft says "on look save". There is no
 server-side look save — looks are written client-side (`_lkCreate` /
@@ -625,7 +642,36 @@ to render a number under n=40 as anything but indicative. The honest position:
 the collapse is justified by the product argument largely independent of the
 count, and the count's job is to catch a surprise — which is exactly why the
 threshold is written into the file rather than decided after reading the
-result. The draft's own instruction, kept:
+result.
+
+**RESULT (Robes_p0, 2026-08-12, migrations 15 and 16 applied first):**
+
+| | |
+| :---- | :---- |
+| Pieces | 166 |
+| Season-tagged | **3 (1.8%)** — 163 untagged |
+| Cross-band pairings | **0** |
+| Looks | 13; 7 carry any tag; **1** carries a climate |
+| Custom tags at risk | 1 (`Annie Test`) |
+
+**Verdict: proceed — but not for the reason the gate was built to test.**
+Zero cross-band pairings cannot fail a 25% threshold, and with n=3 it is not
+evidence of anything; the script says so itself. The collapse proceeds on the
+product argument, exactly as pre-committed.
+
+**What the audit actually found is more useful than the gate.** At 1.8%
+adoption the five-value season multi-select is not a heavy decision she
+sometimes gets wrong — it is a decision she does not make. That reframes this
+ADR's centre of gravity: force 1 (chip-reduction) is real but nearly moot,
+and **§6's pre-fill is the load-bearing part**. Season data will not exist
+because the picker got easier; it will exist because Robes fills it in and
+she corrects it. Session B is the session that makes this ADR pay, and it
+should be sequenced accordingly rather than treated as the tail.
+
+It also produced the [C7] amendment above — a bug that only this data
+exposes, and that would otherwise have shipped in Session B.
+
+The draft's own instruction, kept:
 before writing anything, count pieces carrying a single-season tag that
 lands cleanly in a band versus cross-band pairings. If cross-band pairings
 are rare (expected), the collapse is near-lossless. If common, the
