@@ -1,3 +1,11 @@
+-- REV 2026-08-12c — runs correctly in the Supabase SQL editor.
+-- VERSION CHECK: the first line of the text you paste must read REV
+-- 2026-08-12c, and a successful run ends by printing that rev in its
+-- completion notice. The superseded revision staged each backfill through a
+-- session-scoped staging table and fails in the editor with 42P01, because
+-- the editor pools connections and consecutive statements can execute on
+-- different backends. If your pasted copy lacks this header, replace it
+-- wholesale rather than editing it.
 -- Migration 17 — season bands, shared tag namespace, look climate (ADR-002)
 -- Run once in the Supabase SQL editor (Robes_p0), AFTER the audit gate
 -- (supabase/season_tags_audit.sql) returns "GATE PASSES".
@@ -316,8 +324,9 @@ create index if not exists idx_tag_looks_tag  on public.tag_looks (tag_id);
 --      every tag.
 --   2. A temp table does not survive between statements in the Supabase SQL
 --      editor — it pools connections, so statement 2 can land on a different
---      backend. Hit for real on 2026-08-12: `relation "_adr002_wear" does
---      not exist`.
+--      backend. Hit for real on Robes_p0, 2026-08-12: the editor raised
+--      42P01 for the staging table the previous revision created one
+--      statement earlier.
 -- Repeating the CTE costs a few duplicated lines and depends on nothing:
 -- statement 1 commits the tags, statement 2 reads them back. Do not
 -- "de-duplicate" this into a temp table or a CTE chain.
@@ -481,7 +490,7 @@ begin
   select count(*) into n_tp      from public.tag_pieces;
   select count(*) into n_tl      from public.tag_looks;
   select count(*) into n_custom  from public.tags where not is_seed;
-  raise notice 'ADR-002 migration 17 complete.';
+  raise notice 'ADR-002 migration 17 complete (rev 2026-08-12c).';
   raise notice '  pieces banded off year_round : %', n_band;
   raise notice '  looks banded off year_round  : %', n_climate;
   raise notice '  tags created                 : % (% custom)', n_tags, n_custom;
