@@ -7689,8 +7689,11 @@
 .rb-lk-acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}
 .rb-lk-act{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:100px;border:0.5px solid var(--rule-mid);background:#fff;color:var(--ink-soft);font-family:inherit;font-size:11.5px;cursor:pointer;transition:all .15s;white-space:nowrap}
 .rb-lk-act:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
-.rb-lk-act.primary{background:var(--ink);border-color:var(--ink);color:#fff}
-.rb-lk-act.primary:hover{opacity:.85}
+/* Emphasis without a fill (softening pass 2026-08-12): black is reserved
+   for the one real commitment on a screen — Save this look, Start packing.
+   The Look detail's verbs lead with ink type and a firmer hairline. */
+.rb-lk-act.primary{background:#fff;border-color:rgba(32,32,33,0.28);color:var(--ink);font-weight:500}
+.rb-lk-act.primary:hover{border-color:var(--ink);background:var(--cream-100)}
 .rb-lk-panel{margin-top:14px;padding:14px 16px;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:var(--cream-100)}
 .rb-lk-panel .pl{font-family:var(--font-serif);font-size:19px;line-height:1.25;color:var(--ink)}
 .rb-lk-panel .pb{font-size:12.5px;line-height:1.6;color:var(--ink-soft);margin-top:6px}
@@ -7883,7 +7886,7 @@
         if (streamN) statBits.push(_lkN(streamN, 'look'));
         // The edits half of the line always speaks — "no edits yet" is the
         // invitation's caption, not an omission (FTUE pass 2026-08-12).
-        statBits.push(holidays.length ? _lkN(holidays.length, 'holiday edit') : 'no edits yet');
+        statBits.push(holidays.length ? _lkN(holidays.length, 'travel edit') : 'no edits yet');
         bar.innerHTML = '<span class="rb-lk-statline">' + _waEsc(statBits.join(' · ')) + '</span>' +
           '<span style="flex:1"></span>' +
           '<button type="button" class="rb-lk-act" onclick="window.__lkNewMenu(event)">+ New ▾</button>';
@@ -8045,11 +8048,11 @@
               const img = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : null;
               return '<button type="button" class="rb-lk-holcard" onclick="window.__snOpenItem(' + Number(i.id) + ')">' +
                 '<span class="him"' + (img ? ' style="background-image:url(\'' + _waEsc(img) + '\')"' : '') + '></span>' +
-                '<span class="hpad"><span class="ht">' + _waEsc(i.title || 'Holiday edit') + '</span>' +
+                '<span class="hpad"><span class="ht">' + _waEsc(i.title || 'Travel edit') + '</span>' +
                 '<span class="hm">' + _waEsc(_lkHolMeta(i)) + '</span></span></button>';
             }).join('') +
             '<button type="button" class="rb-lk-holcard new" onclick="window.__lkNewHoliday()">' +
-              '<span class="hplus">+</span><span class="hnew">New holiday edit</span></button>'
+              '<span class="hplus">+</span><span class="hnew">New travel edit</span></button>'
           : '<button type="button" class="rb-lk-holcard invite" onclick="window.__lkNewHoliday()">' +
               '<span class="hpad"><span class="ht">Plan a trip.</span>' +
               '<span class="hb">Name the date and location. Robes will pack your trip.</span>' +
@@ -8916,7 +8919,7 @@
         pop.innerHTML = '<div style="position:absolute;inset:0" onclick="document.getElementById(\'rb-lk-newmenu\').remove()"></div>' +
           '<div class="card" style="position:absolute;min-width:200px;background:#FDFCFA;border:0.5px solid rgba(32,32,33,0.16);border-radius:10px;box-shadow:0 10px 34px rgba(32,32,33,0.16);padding:6px;display:flex;flex-direction:column">' +
           '<button onclick="document.getElementById(\'rb-lk-newmenu\').remove();window.__lkNew()" style="border:none;background:transparent;padding:11px 13px;border-radius:7px;font-size:12.5px;color:var(--ink);cursor:pointer;font-family:inherit;text-align:left">New Look</button>' +
-          '<button onclick="document.getElementById(\'rb-lk-newmenu\').remove();window.__lkNewHoliday()" style="border:none;background:transparent;padding:11px 13px;border-radius:7px;font-size:12.5px;color:var(--ink);cursor:pointer;font-family:inherit;text-align:left">New holiday edit</button>' +
+          '<button onclick="document.getElementById(\'rb-lk-newmenu\').remove();window.__lkNewHoliday()" style="border:none;background:transparent;padding:11px 13px;border-radius:7px;font-size:12.5px;color:var(--ink);cursor:pointer;font-family:inherit;text-align:left">New travel edit</button>' +
           '</div>';
         document.body.appendChild(pop);
         const card = pop.querySelector('.card');
@@ -9025,6 +9028,7 @@
         const trk = document.getElementById('wtrk');
         if (trk) trk.style.display = (zero || _waItems.length > _WA_TARGET) ? 'none' : '';
         if (typeof _rbRenderStyleNotes === 'function') _rbRenderStyleNotes();
+        if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow();
         const want = zero && !pageOpen;
         let el = document.getElementById('rb-lkhome');
         if (!want) {
@@ -13600,8 +13604,13 @@ body>*:not(#tv-result-page){display:none !important}
           const inOpen = !!(inEl && inEl.style.display === 'block');
           const wOpen = _wardrobeOpen();
           const detail = _detailOpen();
-          // The Diary is a view inside the Lookbook — the Lookbook stays lit
-          const active = wOpen ? 'wardrobe' : inOpen ? 'inspiration' : (snOpen || detail) ? 'lookbook' : 'home';
+          // The Diary is a view inside the Lookbook — the Lookbook stays lit.
+          // A key-piece result is Inspiration's (key pieces moved off the
+          // Lookbook, 2026-08-10), so it lights Inspiration, not Lookbook.
+          const kpOpen = !!(kpResultPage && kpResultPage.style.display !== 'none');
+          const active = wOpen ? 'wardrobe'
+            : (inOpen || kpOpen) ? 'inspiration'
+            : (snOpen || detail) ? 'lookbook' : 'home';
           if (tnW) tnW.classList.toggle('active', active === 'wardrobe');
           if (tnL) tnL.classList.toggle('active', active === 'lookbook');
           if (tnI) tnI.classList.toggle('active', active === 'inspiration');
@@ -13861,6 +13870,36 @@ body>*:not(#tv-result-page){display:none !important}
                   <div class="rb-sn-type">${_snTypeLabel(item.type)}</div>
                   <div class="rb-sn-title">${_waEsc(item.title)}</div>
                   <div class="rb-sn-meta">${_waEsc(item.subtitle || '')}</div>
+                </div>
+              </div>`).join('')}
+          </div>`;
+      }
+
+      // Key pieces are Inspiration's, so on home they ride their OWN row
+      // under an Inspiration header linking to the tab — never the Lookbook
+      // row (Annie, 2026-08-12). #rb-styled keeps its own separate job.
+      function _rbRenderInspRow() {
+        const el = document.getElementById('rb-insp-row');
+        if (!el) return;
+        let items = [];
+        try { items = _inItems().slice(0, 4); } catch (_) { items = []; }
+        if (!items.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
+        el.style.display = '';
+        el.innerHTML = `
+          <div class="rb-sec-head">
+            <span class="rb-sec-ey">Inspiration</span>
+            <button class="rb-sec-link" onclick="window.__rbInspOpen()">View all</button>
+          </div>
+          <div class="rb-sn-grid">
+            ${items.map(item => `
+              <div class="rb-sn-card" onclick="window.__snOpenItem(${Number(item.id)})">
+                ${item.img
+                  ? `<img src="${_waEsc(item.img)}" class="rb-sn-img" alt="">`
+                  : '<div class="rb-sn-img-ph"></div>'}
+                <div class="rb-sn-body">
+                  <div class="rb-sn-type">Key piece</div>
+                  <div class="rb-sn-title">${_waEsc(item.title || 'A piece, styled')}</div>
+                  <div class="rb-sn-meta">Styled three ways by Robes</div>
                 </div>
               </div>`).join('')}
           </div>`;
@@ -15215,6 +15254,7 @@ body>*:not(#tv-result-page){display:none !important}
         _origSnRefreshRow();
         _rbRenderMoodboards();
         _rbRenderStyleNotes();
+        _rbRenderInspRow();
       };
 
       // Persona-aware masthead (Phase 3 — the returning-user home). The static
@@ -15263,6 +15303,15 @@ body>*:not(#tv-result-page){display:none !important}
           if (anchor) dash.insertBefore(snEl, anchor);
           else dash.appendChild(snEl);
         }
+        if (!document.getElementById('rb-insp-row')) {
+          const irEl = document.createElement('section');
+          irEl.id = 'rb-insp-row';
+          irEl.className = 'rb-section';
+          const snEl0 = document.getElementById('rb-sn');
+          if (snEl0 && snEl0.nextSibling) dash.insertBefore(irEl, snEl0.nextSibling);
+          else if (anchor) dash.insertBefore(irEl, anchor);
+          else dash.appendChild(irEl);
+        }
         if (!_RB_MB_HIDDEN && !document.getElementById('rb-mb')) {
           const mbEl = document.createElement('section');
           mbEl.id = 'rb-mb';
@@ -15285,6 +15334,7 @@ body>*:not(#tv-result-page){display:none !important}
 
         _rbRenderMoodboards();
         _rbRenderStyleNotes();
+        _rbRenderInspRow();
         _rbUpdateDailyOutfitLock();
         _rbFtueOrder(_waItems.length);
         _rbGateConcierge(_waItems.length);

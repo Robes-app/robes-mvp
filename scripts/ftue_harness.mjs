@@ -507,6 +507,60 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 
+// A styled key piece rides its OWN Inspiration row on home, linked to the
+// Inspiration tab — never the Lookbook row (Annie, 2026-08-12).
+{
+  // looks:false so boot's own seed can't overwrite this fixture on reload
+  const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
+  await page.evaluate(() => {
+    localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
+      { id: 1754700000000, type: 'key-piece', title: 'Pink barrel-leg jeans', subtitle: 'Worn three ways', img: null, kpData: { piece_name: 'Pink barrel-leg jeans', the_looks: [], ways: [
+        { title: 'The Art Gallery Opening', occasion: 'Effortless chic', outfit: 'A shirt.', why: 'Because.' },
+        { title: 'Brunch in the City', occasion: 'Easy', outfit: 'A blazer.', why: 'Because.' },
+        { title: 'Evening Cocktails', occasion: 'Sharp', outfit: 'A heel.', why: 'Because.' },
+      ] } },
+      { id: 1754690000000, type: 'daily-look', title: 'A Dublin day', subtitle: 'Daily look', img: null, dlData: { anchor_date: '2026-08-05' } },
+    ]));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const k = await page.evaluate(() => {
+    const ir = document.getElementById('rb-insp-row');
+    const sn = document.getElementById('rb-sn');
+    return {
+      shown: !!ir && ir.style.display !== 'none',
+      ey: ir?.querySelector('.rb-sec-ey')?.textContent,
+      link: ir?.querySelector('.rb-sec-link')?.getAttribute('onclick'),
+      title: ir?.querySelector('.rb-sn-title')?.textContent,
+      type: ir?.querySelector('.rb-sn-type')?.textContent,
+      kpInLookbookRow: /Pink barrel-leg/.test(sn?.textContent || ''),
+      lookbookRowHasLook: /A Dublin day/.test(sn?.textContent || ''),
+    };
+  });
+  check('inspiration row · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('inspiration row · a key piece rides its own row under an Inspiration header',
+    k.shown === true && k.ey === 'Inspiration' && k.title === 'Pink barrel-leg jeans' && k.type === 'Key piece',
+    JSON.stringify(k));
+  check('inspiration row · View all lands on the Inspiration tab',
+    /__rbInspOpen/.test(k.link || ''), k.link);
+  check('inspiration row · key pieces never enter the Lookbook row, which keeps its looks',
+    k.kpInLookbookRow === false && k.lookbookRowHasLook === true, JSON.stringify(k));
+  // …and the key-piece result lights Inspiration in the nav, not Lookbook
+  const nav = await page.evaluate(async () => {
+    window.__snOpenItem(1754700000000);
+    await new Promise((r) => setTimeout(r, 1200));
+    const kp = document.getElementById('kp-result-page');
+    return {
+      opened: !!kp && kp.style.display !== 'none',
+      insp: document.getElementById('rb-tn-inspiration')?.classList.contains('active'),
+      look: document.getElementById('rb-tn-lookbook')?.classList.contains('active'),
+    };
+  });
+  check('inspiration row · a key-piece result lights Inspiration, not Lookbook',
+    nav.opened === true && nav.insp === true && nav.look === false, JSON.stringify(nav));
+  await ctx.close();
+}
+
 // Mobile
 {
   const { ctx, page, errs } = await boot(browser, 1, 390);

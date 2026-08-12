@@ -440,6 +440,18 @@ const browser = await chromium.launch(
   await page.waitForTimeout(200);
   check('detail · named title is not provisional', d.title === 'The Thursday one' && d.provisional === false, `${d.title}/${d.provisional}`);
   check('detail · eyebrow reads Look for a named look', d.eyebrow === 'Look', d.eyebrow);
+  // Black is reserved for the one real commitment on a screen (Save this
+  // look, Start packing) — the Look detail's verbs lead with ink type on a
+  // firmer hairline, never a fill (Annie, 2026-08-12).
+  const inkless = await page.evaluate(() => {
+    const b = document.querySelector('.rb-lk-act.primary');
+    if (!b) return null;
+    const cs = getComputedStyle(b);
+    return { bg: cs.backgroundColor, color: cs.color };
+  });
+  check('detail · no black fill on the action row',
+    !!inkless && !/\b32, 32, 33\b/.test(inkless.bg) && /\b32, 32, 33\b/.test(inkless.color),
+    JSON.stringify(inkless));
   check('detail · three load-bearing actions — Wear is the one scheduling verb',
     d.actions.join(' | ') === 'Wear it today | Wear on a day | Pack it', JSON.stringify(d.actions));
   const layout = await page.evaluate(() => {
@@ -1514,12 +1526,30 @@ const browser = await chromium.launch(
     uni.cards === 3 && uni.itemCard && JSON.stringify(uni.eyebrows) === JSON.stringify(['Look', 'Look', 'Look']),
     JSON.stringify(uni));
   check('IA · a key piece never enters the Lookbook stream', uni.kpInStream === false);
+  // "Travel edit" is the noun everywhere now (Annie, 2026-08-12) — the
+  // strip, the stat line and the + New split all say it; "holiday" survives
+  // only in function names and class hooks.
+  const naming = await page.evaluate(() => {
+    // Chrome only — a trip SHE named "Ibiza holiday edit" is her words
+    window.__lkNewMenu(new MouseEvent('click'));
+    const menu = document.getElementById('rb-lk-newmenu')?.textContent || '';
+    document.getElementById('rb-lk-newmenu')?.remove();
+    return {
+      sec: document.querySelector('#rb-lk-hol .rb-lk-sec')?.textContent || '',
+      stat: document.querySelector('#rb-lk-bar .rb-lk-statline')?.textContent || '',
+      menu,
+    };
+  });
+  check('IA · "Travel edit" is the noun in every piece of chrome',
+    naming.sec === 'Travel edit' && /travel edit/.test(naming.stat) && /New travel edit/.test(naming.menu)
+      && !/holiday/i.test(naming.sec + naming.stat + naming.menu),
+    JSON.stringify(naming));
   check('IA · holiday edits ride the pinned row, with + New at its end',
     uni.holShown && uni.holCards === 1 && uni.holNew === true && uni.holMeta === '12 pieces · 6 looks · 7–14 Aug',
     JSON.stringify([uni.holShown, uni.holCards, uni.holNew, uni.holMeta]));
   check('IA · one + New button, split two ways', uni.newSplit === true);
   check('IA · the top row carries the collection stat; sort/Refine align with All looks',
-    uni.stat === '3 looks · 1 holiday edit' && uni.allRow.label === 'All looks'
+    uni.stat === '3 looks · 1 travel edit' && uni.allRow.label === 'All looks'
       && uni.allRow.sortHere === true && uni.allRow.sortInBar === false,
     JSON.stringify([uni.stat, uni.allRow]));
   const split = await page.evaluate(() => {
@@ -1530,8 +1560,8 @@ const browser = await chromium.launch(
     menu?.remove();
     return { opts };
   });
-  check('IA · the split offers New Look and New holiday edit',
-    JSON.stringify(split.opts) === JSON.stringify(['New Look', 'New holiday edit']), JSON.stringify(split.opts));
+  check('IA · the split offers New Look and New travel edit',
+    JSON.stringify(split.opts) === JSON.stringify(['New Look', 'New travel edit']), JSON.stringify(split.opts));
 
   // A generic look opens hosted as a daily look (today's view), with the
   // quiet door back to the Look details.
