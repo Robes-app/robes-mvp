@@ -62,18 +62,24 @@ re-emit the index rows.
 
 ## ADR-002 — Season bands, shared tag namespace, derived-with-override look climate (2026-08-12)
 
-**Status**: **proposed** — corrected from the v2.4 draft against the live
-codebase. Four decisions changed and five open questions surfaced (below);
-those need a founder call before this moves to accepted. Supersedes the
-five-value season axis on `wardrobe_items` and the four-value climate
-vocabulary on looks.
+**Status**: **accepted** (founder decision, 2026-08-12) — corrected from the
+v2.4 draft against the live codebase, with all five open questions answered
+in the same call (recorded in "Answers" below). Supersedes the five-value
+season axis on `wardrobe_items` and the four-value climate vocabulary on
+looks.
+
+**Session A has shipped as SQL, not yet run**: `supabase/season_tags_audit.sql`
+(the gate) and `supabase/season_tags_migration.sql` (migration 17), with
+`scripts/season_tags_migration_test.sh` as the harness. Nothing reads the new
+schema yet; Session B is not started.
 
 **Provenance.** Written in Claude Chat as "ADR-00X · v2.4", reviewed here
 against `beta`. The intent of the draft is preserved wholesale — one
 vocabulary, shared namespace, derived-with-override climate, inferred
 formality. What changed is that three of its schema premises were wrong
 about this codebase, and two of its own sections contradicted each other.
-Corrections are marked **[C1]**–**[C6]**; open questions **[Q1]**–**[Q5]**.
+Corrections are marked **[C1]**–**[C11]**; open questions **[Q1]**–**[Q5]**,
+all answered below.
 
 ### Context
 
@@ -134,8 +140,18 @@ in the product. A join-table-only design silently excludes them. See [Q1].
 singular is already taken.** `profiles.season` is the muse's *colour*
 season from Style Notes — a twelve-value analysis output (*Soft Autumn*,
 *True Winter*). Naming a wardrobe column `season` puts two unrelated
-concepts one join apart under one word. The enum stays `season_band`; the
-column is **`wardrobe_items.season_band`**.
+concepts one join apart under one word. The vocabulary keeps the name
+`season_band`; the column is **`wardrobe_items.season_band`**.
+
+**[C11] Text + check, not a Postgres enum.** The draft specified
+`create type season_band as enum (...)`. There are **zero Postgres enums in
+this schema** — every constrained value is `text` with a guarded `check`
+(migration 13's pattern), and `style_dna_migration.sql` records avoiding them
+on live RLS tables as a deliberate deviation. Decisive here: this ADR
+explicitly anticipates adding a fourth band (`transitional`) on evidence, and
+`ALTER TYPE ... ADD VALUE` is precisely the operation an enum makes awkward.
+Widening a check constraint is a one-line `ALTER`. Same for `season_source`,
+`climate_source` and `tags.kind`.
 
 **[C4] `look_tags` is already an identifier in this codebase** — the
 generation-schema field, `normLookTags`, `data.look_tags`, the
@@ -177,9 +193,16 @@ Postgres enum `season_band`:
 year-round, so the multi-select collapses into a three-way pick: one tap
 per piece.
 
-**Nullable, not `not null default year_round` [Q2].** The draft specified
-not-null. That reverses an explicit founder call (2026-08-06): the default
-state is **displayed, never stored** — `WA.submit` strips a lone default
+**Not-null `default 'year_round'`, with a companion
+`wardrobe_items.season_source ('inferred' | 'user')` [Q2 — answered].** The
+pre-fill writes a season at import and season is a column, not a tag row, so
+without `season_source` a Robes inference and her choice are indistinguishable
+and §6's measurement cannot run. See the [Q2] answer for why this reverses
+both the draft AND the first recommendation written here.
+
+*The reasoning that was weighed and set aside:* the draft specified not-null;
+this section originally argued nullable, because that reverses an explicit
+founder call (2026-08-06): the default state is **displayed, never stored** — `WA.submit` strips a lone default
 back to null so the DB never holds it, and `_waItemSeasons` reads null as
 `['Year-round']` at every consumer. Recommendation: keep nullable and keep
 reading null as `year_round`. It costs nothing (the read is already
@@ -187,7 +210,8 @@ centralised in one helper), it preserves the null-state convention
 `occasions` also follows, and — decisively — it is what makes [C6]'s
 correction signal work on season too: null means *she has not told us*,
 `year_round` means *she said year-round*. Not-null erases that distinction
-on day one of the backfill.
+on day one of the backfill. — This is right about the problem and wrong about
+the fix; `season_source` solves it without overloading null.
 
 **Look climate** — same enum, **stored** on a new
 **`looks.climate_band season_band`** column (not computed on read) so the
@@ -522,10 +546,13 @@ branch that reads the artifact's blob tags instead of dropping the item.
 
 ---
 
-### Open questions — founder call needed before this is accepted
+### Answers (founder call, 2026-08-12)
+
+All five resolved. The questions are kept with their answers because the
+reasoning is what a later session needs, not the verdict alone.
 
 **[Q1] How do generated looks join the namespace?** ([C2] — the blocker.)
-Three options:
+**ANSWERED: option (a).** Three options were considered:
 
 - **(a) Blob keeps the tags, namespace supplies the vocabulary.**
   `data.look_tags` stays where it is; climate becomes a `season_band` value
@@ -544,17 +571,61 @@ Three options:
   correct if cross-artifact tag querying ever needs to run server-side.
   Premature now.
 
+**The rule (a) needs, which the draft did not state:** typing a custom tag on
+a generated artifact **creates the `tags` row immediately**, even though the
+link stays a slug in the blob rather than a `tag_looks` row. Without it,
+"Lisbon" typed on a daily look never reaches the namespace, and the capsule —
+the entire point of sharing the namespace — never forms. The `tags` row is the
+vocabulary; the join row is only the attachment.
+
+The deciding argument against (b) is what it does to what a Look *means*. A
+Look today is something she wore or built — accrual on a confirmed wear, the
+composer, or an explicit promotion. A generated daily look is a proposal.
+Minting a row for each would put un-worn suggestions into the Looks count, the
+cost-per-wear maths, and `_pdTier`, where `look` outranks `daily` — so every
+generated look would silently jump the precedence order on the home rail.
+
 **[Q2] Nullable `season_band`, or not-null default `year_round`?**
-Recommendation above: **nullable**, preserving the 2026-08-06
+**ANSWERED: not-null `default 'year_round'`, PLUS a new
+`wardrobe_items.season_source ('inferred' | 'user')`** — which reverses the
+recommendation first written here, for a reason that only appears once §6 is
+taken seriously.
+
+The pre-fill writes a season at import, but season is a column, not a tag row,
+so it has nowhere to record whether a value is Robes' inference or her choice.
+Using null to carry that breaks immediately: three of the pre-fills are
+non-null (Knitwear and Outerwear coats → `autumn_winter`, Swim & beach →
+`spring_summer`). `season_source` carries it properly, mirrors `climate_source`
+on looks, and makes the correction signal work identically on both axes. With
+it present, not-null is simply the simpler column.
+
+This does reverse the 2026-08-06 displayed-never-stored call, defensibly: that
+call was about a five-value axis where storing "Year-round" was noise. In a
+three-value vocabulary `year_round` is the honest answer for most of the
+wardrobe, and `season_source` preserves the information the original call was
+protecting. The same answer settles the wear axis: `everyday` becomes a real
+stored seed rather than a displayed default.
+
+*Superseded reasoning, kept for the record:* **nullable**, preserving the 2026-08-06
 displayed-not-stored call and keeping "untagged" distinguishable from
 "she said year-round". Note this also decides whether `everyday` is a real
 stored seed or stays a displayed default on the wear axis — the two should
 answer the same way.
 
-**[Q3] Where does `deriveLookClimate` run?** Two client call sites named in
-§2; confirm there is no appetite for a server-side hook.
+**[Q3] Where does `deriveLookClimate` run?** **ANSWERED: client-side, both
+call sites, no server hook.** There is no server-side look save to hang it on,
+the derivation is about ten lines of set logic, and the client already holds
+`_waItems` in memory — a server version would have to re-fetch the pieces to
+do less.
 
-**[Q4] Does the audit gate pass?** The draft's own instruction, kept:
+**[Q4] Does the audit gate pass?** **ANSWERED: run it, with the threshold
+pre-committed at >25% cross-band pairings, before migration 17.** Shipped as
+`supabase/season_tags_audit.sql`, which prints the verdict itself and refuses
+to render a number under n=40 as anything but indicative. The honest position:
+the collapse is justified by the product argument largely independent of the
+count, and the count's job is to catch a surprise — which is exactly why the
+threshold is written into the file rather than decided after reading the
+result. The draft's own instruction, kept:
 before writing anything, count pieces carrying a single-season tag that
 lands cleanly in a band versus cross-band pairings. If cross-band pairings
 are rare (expected), the collapse is near-lossless. If common, the
@@ -563,8 +634,10 @@ revisiting before merge. On current beta volumes this may be a handful of
 rows — if the sample is too small to be evidence, say so and decide on
 judgement rather than dressing it up as data.
 
-**[Q5] Migration 15 first.** [C5]. Session B cannot land its pre-fill until
-`wardrobe_taxonomy` exists on Robes_p0.
+**[Q5] Migration 15 first.** **ANSWERED: run 15 and 16 now, ahead of
+everything.** Both are written, both have been shipping behind degrade paths
+for weeks, and 17's pre-fill cannot key on L2 until 15 exists on Robes_p0.
+Query 6 of the audit script reports whether it has run.
 
 ---
 
@@ -674,7 +747,8 @@ stay in place read-only for one release before a follow-up drop ([C8]).
 
 ### Scope guardrail for the Claude Code brief
 
-Covers: the `season_band` enum, `wardrobe_items.season_band`,
+Covers: the `season_band` vocabulary (text + check, [C11]),
+`wardrobe_items.season_band` + `season_source`,
 `looks.climate_band` + `climate_source`, the `tags` / `tag_pieces` /
 `tag_looks` schema including per-row `source`, all backfills (including the
 flat-`looks.tags` parse), `deriveLookClimate` with the owned-pieces floor,
@@ -690,6 +764,34 @@ revertible on their own. Session B: pre-fill mapping, formality inference,
 prompt-to-vibe extraction. Session B depends on A, and on migration 15
 ([Q5]); A must be independently revertible — if the season collapse proves
 wrong at the audit gate ([Q4]), nothing else should have to unwind with it.
+
+### What writing Session A actually found
+
+The migration was tested against a throwaway Postgres 16 with a fixture
+covering every backfill branch (`scripts/season_tags_migration_test.sh`,
+48 assertions). Two bugs existed in the first draft of the SQL and neither
+was visible by reading it:
+
+1. **A data-modifying CTE cannot see its own inserts.** The natural shape —
+   `with ins_tags as (insert into tags ... returning ...) insert into
+   tag_pieces select ... join tags` — runs both against the same snapshot, so
+   the join matched only pre-existing rows. It produced **0 tag_pieces links**
+   and silently lost every piece tag, while `tag_looks` half-worked by
+   accident from slugs an earlier statement had already committed. The
+   backfills are deliberately split into separate statements over a temp
+   table; the file says so, because it reads like something to tidy up.
+2. **`to_regproc('public.is_admin()')` always returns NULL.** `to_regproc`
+   takes a bare name and rejects an argument list, so the guard around the
+   admin-read policies reported the function missing on a database that had
+   it, and skipped all three policies. `to_regprocedure` is the correct
+   function.
+
+A third issue was design, not a crash: `rb_tag_slug` originally left
+diacritics to the non-alphanumeric rule, so `Old Céline Minimal` — a shipped
+vibe seed — slugged to `old-c-line-minimal`, while any ordinary JS slugify
+produces `old-celine-minimal`. The two would never dedupe. The function now
+transliterates, and the JS contract is written into the migration header.
+**Session B must implement the client slugify to match it exactly.**
 
 **Harnesses to re-run on both sessions**, since all four touch the surfaces
 this changes: `addflow_harness` (102), `looks_harness` (201),
