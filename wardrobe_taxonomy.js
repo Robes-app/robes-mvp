@@ -150,3 +150,102 @@ export function taxonomyPromptBlock() {
     .map(g => `${g.l1} \u203a ${g.l2}: ${g.l3.join(' | ')}`)
     .join('\n');
 }
+
+// \u2500\u2500 ADR-002 section 6 \u00b7 the pre-fill \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Season and "Wear it for" defaults, mapped from the category she is already
+// filing the piece under. The audit that gated ADR-002 found 3 of 166 pieces
+// carrying any season tag \u2014 at 1.8% adoption the axis is not a decision she
+// gets wrong, it is one she does not make. So the app fills it in and she
+// corrects; every value written from here carries source 'inferred', and a
+// correction flips that row to 'user'. Correction rates per category are the
+// quality signal on this table.
+//
+// CONSUMED BY SQL, NOT BY THE CLIENT. scripts/gen_taxonomy_migration.mjs
+// emits these into the `wardrobe_tag_defaults` table that migration 18's
+// trigger reads, so the pre-fill has ONE implementation covering both the
+// backfill and every future insert. Edit here, regenerate, never hand-edit
+// the SQL \u2014 the same rule the taxonomy itself follows.
+
+export const SEASON_BANDS = ['spring_summer', 'autumn_winter', 'year_round'];
+
+// The seven seeds (ADR-002 section 4). Seed rows are not pre-created per
+// account: the client renders this list and a `tags` row is minted on first
+// use, so a fresh account carries no unused rows.
+export const WEAR_SEEDS = [
+  { slug: 'everyday', label: 'Everyday' },
+  { slug: 'work',     label: 'Work' },
+  { slug: 'evening',  label: 'Evening' },
+  { slug: 'occasion', label: 'Occasion' },
+  { slug: 'travel',   label: 'Travel' },
+  { slug: 'active',   label: 'Active' },
+  { slug: 'lounge',   label: 'Lounge' },
+];
+
+// Keyed by the SHEET l1 (the fourteen she actually reads), with per-l2
+// overrides only where one sheet category spans genuinely different uses.
+// Just three entries are anything other than year_round \u2014 everything else
+// takes the honest "wears in any weather" answer rather than guessing.
+const CATEGORY_DEFAULTS = {
+  'Tops':                   { wear: ['everyday'], band: 'year_round' },
+  'Knitwear':               { wear: ['everyday'], band: 'autumn_winter' },
+  'Bottoms':                { wear: ['everyday'], band: 'year_round' },
+  'Dresses & jumpsuits':    { wear: ['everyday'], band: 'year_round', l2: {
+    // The one split that matters here: a gown and a sundress are not one use.
+    'Occasion & evening':   { wear: ['evening', 'occasion'], band: 'year_round' },
+  } },
+  'Outerwear':              { wear: ['everyday'], band: 'autumn_winter', l2: {
+    // A blazer is workwear that happens to be filed as outerwear, and it is
+    // the only member of the group that is not seasonal.
+    'Blazers':              { wear: ['work', 'everyday'], band: 'year_round' },
+  } },
+  'Tailoring & suiting':    { wear: ['work'], band: 'year_round' },
+  'Shoes':                  { wear: ['everyday'], band: 'year_round' },
+  'Bags':                   { wear: ['everyday'], band: 'year_round' },
+  'Accessories':            { wear: ['everyday'], band: 'year_round' },
+  'Jewellery':              { wear: ['everyday'], band: 'year_round' },
+  'Activewear':             { wear: ['active'], band: 'year_round' },
+  'Loungewear & sleepwear': { wear: ['lounge'], band: 'year_round' },
+  'Underwear & intimates':  { wear: ['everyday'], band: 'year_round' },
+  'Swim & beach':           { wear: ['travel'], band: 'spring_summer' },
+};
+
+// Pre-migration-15 pieces carry no L2 at all, so the pre-fill must also key
+// on the legacy nine. 'Other' is deliberately absent: it means "unfiled", and
+// inferring a use from it would be a guess rather than a default.
+const LEGACY_DEFAULTS = {
+  'Tops': 'Tops', 'Bottoms': 'Bottoms', 'Dresses': 'Dresses & jumpsuits',
+  'Outerwear': 'Outerwear', 'Shoes': 'Shoes', 'Bags': 'Bags',
+  'Accessories': 'Accessories', 'Swimwear': 'Swim & beach',
+};
+
+// { wear: [slug], band } for a filed piece, or null when nothing is known.
+// Null means leave the piece at the year_round default with no tags.
+export function defaultTagsFor(sheetL1, l2) {
+  const norm = v => String(v || '').trim();
+  let key = norm(sheetL1);
+  if (!CATEGORY_DEFAULTS[key]) key = LEGACY_DEFAULTS[key] || '';
+  const base = CATEGORY_DEFAULTS[key];
+  if (!base) return null;
+  const over = base.l2 && base.l2[norm(l2)];
+  const out = over || base;
+  return { wear: out.wear.slice(), band: out.band };
+}
+
+// Flat rows for the migration seed: one per (sheet_l1, l2) node the tree
+// contains, plus a null-l2 row per sheet category and per legacy category so
+// the trigger can resolve a piece filed before migration 15.
+export function tagDefaultRows() {
+  const rows = [];
+  const seen = new Set();
+  const push = (sheet_l1, l2) => {
+    const k = sheet_l1 + ' ' + (l2 || '');
+    if (seen.has(k)) return;
+    const d = defaultTagsFor(sheet_l1, l2);
+    if (!d) return;
+    seen.add(k);
+    rows.push({ sheet_l1, l2: l2 || null, season_band: d.band, wear_slugs: d.wear });
+  };
+  for (const g of TAXONOMY_GROUPS) { push(g.sheet_l1, null); push(g.sheet_l1, g.l2); }
+  for (const legacy of Object.keys(LEGACY_DEFAULTS)) push(legacy, null);
+  return rows;
+}
