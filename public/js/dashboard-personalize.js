@@ -7690,10 +7690,28 @@
 /* One piece placed: the standing scale sheet starts at data-n=2 — give the
    lone hero the whole composition rather than an unplaced 68px cell. */
 .rb-lookv2 .rbc-board[data-n="1"] .rbc-tile:nth-child(1){grid-column:1/7;grid-row:1/8}
-.rb-lk-save{width:100%;margin-top:16px;padding:14px;border:none;border-radius:100px;background:var(--ink);color:#fff;font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:opacity .15s}
+/* The composer is ONE held container (Annie's FTUE mocks, 2026-08-12):
+   the look, the formula and the save all live inside a single card, with
+   the name leading it from outside. No frame inside a frame — the Look
+   panel drops its own border/background and merges into the card. */
+.rb-lk-composer{background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);padding:26px 26px 24px;box-shadow:0 1px 2px rgba(32,32,33,0.025)}
+.rb-lk-composer .rbc-panel{background:transparent;border:none;border-radius:0;padding:0}
+.rb-lk-composer .rbc-rghost{background:var(--cream-100)}
+.rb-lk-newmast{max-width:560px}
+.rb-lk-saverow{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:22px;padding-top:18px;border-top:0.5px solid var(--rule)}
+.rb-lk-save{margin:0;padding:15px 34px;border:none;border-radius:100px;background:var(--ink);color:#fff;font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:opacity .15s}
 .rb-lk-save:hover{opacity:.85}
+/* Withheld, not hidden — the door stays on screen so the two-piece floor
+   is legible from the empty state (it never reads as a missing button). */
+.rb-lk-save[disabled]{background:var(--cream-400);color:#fff;cursor:default}
+.rb-lk-save[disabled]:hover{opacity:1}
+.rb-lk-robesdoor{font-size:12px}
 @media(max-width:767px){
 .rb-lk-stats{gap:20px}
+.rb-lk-composer{padding:18px 16px 20px;border-radius:var(--rad-card)}
+.rb-lk-saverow{flex-direction:column;align-items:stretch;gap:15px;margin-top:20px}
+.rb-lk-save{width:100%;min-height:52px}
+.rb-lk-robesdoor{align-self:center}
 }`;
       function _lkEnsureCss() {
         if (document.getElementById('rb-lk-style')) return;
@@ -8397,18 +8415,21 @@
         const photoRow = '<div style="display:flex;align-items:baseline;gap:14px;margin-top:12px">' +
           '<button type="button" class="rb-lk-quiet" onclick="window.__lkPhotoToggle()">' + (_lkPhoto ? 'Remove the photo' : 'Add a photo') + '</button>' +
           (_lkPhoto && _lkPhoto.pending ? '<span style="font-size:11px;color:var(--ink-faint)">Uploading…</span>' : '') +
-          '</div>' + tagsRow +
-          (canSave ? '<button type="button" class="rb-lk-save" onclick="window.__lkSave()">Save this look</button>' : '');
+          '</div>' + tagsRow;
 
-        // The Rack — the name leads it (placeholder until she types), then
-        // the same rack rows the consoles use; empty slots keep the dashed
-        // placeholder with the picker inside the row.
-        let rackHtml = '<div class="rbc-rackhead"><div style="min-width:0;flex:1">' +
-          '<span class="ey">The Rack</span>' +
+        // The name leads the whole composer from OUTSIDE the card (the
+        // masthead pattern the Look detail already uses) — the card holds
+        // the making of the look, the title names it.
+        // (No eyebrow — the page already reads Lookbook; the name is the
+        // only line above the card.)
+        const mastHtml = '<div class="rb-lk-mast rb-lk-newmast">' +
           '<input id="rb-lk-newtitle" class="rb-lk-title-in" value="' + _waEsc(_lkNewTitleDraft != null ? _lkNewTitleDraft : '') + '"' +
-            ' placeholder="Name your Look" oninput="window.__lkNewTitleInput(this.value)" style="font-size:clamp(22px,2.4vw,28px)">' +
-          '</div></div>' +
-          '<div class="rbc-rack">';
+            ' placeholder="Name your Look" oninput="window.__lkNewTitleInput(this.value)">' +
+          '</div>';
+
+        // The Rack — the formula strips name themselves, so no second
+        // header sits above them (the masthead already names the look).
+        let rackHtml = '<div class="rbc-rack">';
         const rowCfg = { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop', onRoleAdd: '__lkAddOpen', allStrips: true };
         // No slot-bound empty rows (founder call 2026-08-07: her trousers
         // can anchor, her top can be the exclamation — a slot must never
@@ -8424,8 +8445,18 @@
         rackHtml += '</div>' +
           (allRolesInked ? '<button class="rbc-addpiece" onclick="window.__lkAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>' : '');
 
+        // Save closes the look out into the Lookbook; beside it the one
+        // alternative door — Robes builds it instead. The label reads
+        // first-time on an empty Lookbook, repeat once she has looks.
+        const robesDoor = _lkLooks.length ? 'Or let Robes create your look' : 'Or let Robes build the first one';
+        rackHtml += '<div class="rb-lk-saverow">' +
+          '<button type="button" class="rb-lk-save" onclick="window.__lkSave()"' +
+            (canSave ? '' : ' disabled title="Add two pieces and this look is yours to keep"') + '>Save this look</button>' +
+          '<button type="button" class="rb-lk-quiet rb-lk-robesdoor" onclick="window.__lkRobesBuild()">' + _waEsc(robesDoor) + '</button>' +
+          '</div>';
+
         const stretchLeft = !items.length && !(_lkPhoto && _lkPhoto.url);
-        return '<div class="rb-lk-con"><div' + (stretchLeft ? ' style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div>';
+        return mastHtml + '<div class="rb-lk-composer"><div class="rb-lk-con"><div' + (stretchLeft ? ' style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div></div>';
       }
       function _lkRowOptions(r) {
         const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
@@ -8788,6 +8819,13 @@
         _lkNewTags = null; _lkNewRoles = {};
         _lkPaint();
         _rbTrack('look_compose_opened', {});
+      };
+      // The composer's one alternative door: she doesn't have to build it
+      // herself. Lands on the home prompt with the look intent armed —
+      // the standing rule that every route lands on the prompt box.
+      window.__lkRobesBuild = function() {
+        _rbTrack('look_robes_door', { first: !_lkLooks.length });
+        if (window.__snWay) window.__snWay('dress-me');
       };
       window.__lkRowOpen = function(key) { _lkOpenRow = _lkOpenRow === key ? null : key; _lkPaint(); };
       // A drop under a strip casts the role — her cast, her call (A3

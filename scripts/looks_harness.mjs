@@ -766,7 +766,14 @@ const browser = await chromium.launch(
       ghostAdds: document.querySelectorAll('.rb-lk-con .rbc-rghost .rbc-act').length,
       panel: !!document.querySelector('.rb-lk-con .rbc-panel'),
       saveShown: !!document.querySelector('.rb-lk-save'),
+      saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
+      // The composer is one held card, with the name leading it from
+      // outside (FTUE pass 2026-08-12)
+      card: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
+      titleOutside: !!document.querySelector('.rb-lk-newmast #rb-lk-newtitle')
+        && !document.querySelector('.rb-lk-composer #rb-lk-newtitle'),
       rackEyebrow: document.querySelector('.rbc-rackhead .ey')?.textContent,
+      robesDoor: document.querySelector('.rb-lk-robesdoor')?.textContent,
       titleValue: document.getElementById('rb-lk-newtitle')?.value,
       titlePlaceholder: document.getElementById('rb-lk-newtitle')?.placeholder,
       namedByYou: /Named by you/.test(document.body.textContent || ''),
@@ -780,7 +787,7 @@ const browser = await chromium.launch(
     // The empty composer holds no rows any more — the strips are the
     // styled markup to probe.
     const strip = document.querySelector('.rbc-rolestrip');
-    const ey = document.querySelector('.rbc-rackhead .ey');
+    const ey = strip?.querySelector('span');
     return {
       sheet: !!document.getElementById('rbc-style'),
       stripIsFlex: strip ? getComputedStyle(strip).display === 'flex' : false,
@@ -799,7 +806,16 @@ const browser = await chromium.launch(
   check('composer · no slot-bound empty rows; four role rows carry the way in',
     c0.emptyRows === 0 && c0.addPiece === false && c0.ghostAdds === 4,
     JSON.stringify([c0.emptyRows, c0.addPiece, c0.ghostAdds]));
-  check('composer · Save is withheld until there is a look', c0.saveShown === false);
+  // Save stays on screen and inert until the look is a look — a missing
+  // button reads as a broken container (FTUE pass 2026-08-12).
+  check('composer · Save stands on screen, withheld until there is a look',
+    c0.saveShown === true && c0.saveDisabled === true, JSON.stringify([c0.saveShown, c0.saveDisabled]));
+  check('composer · the whole composer sits in ONE card, the name leading it from outside',
+    c0.card === true && c0.titleOutside === true, JSON.stringify([c0.card, c0.titleOutside]));
+  // The one alternative door beside Save. Wording follows the account:
+  // repeat here (this Lookbook already holds looks), first-time in §6.
+  check('composer · a populated Lookbook offers "Or let Robes create your look"',
+    c0.robesDoor === 'Or let Robes create your look', c0.robesDoor);
   // B1 amendment (2026-08-07): the empty state teaches the formula — every
   // empty row sits under a GHOSTED strip forecast from its slot. Education
   // only: the forecast never binds what she adds where.
@@ -822,7 +838,9 @@ const browser = await chromium.launch(
       && /tactile layer/.test(ghosts.notes[2])
       && /signature finish/.test(ghosts.notes[3]),
     JSON.stringify(ghosts.notes));
-  check('composer · the rack header reads The Rack', c0.rackEyebrow === 'The Rack', c0.rackEyebrow);
+  // No second header above the strips — the formula strips name themselves
+  // and the masthead names the look (FTUE pass 2026-08-12).
+  check('composer · no rack header above the formula strips', c0.rackEyebrow === undefined, c0.rackEyebrow);
   check('composer · the name field is a placeholder, "Name your Look"',
     c0.titleValue === '' && c0.titlePlaceholder === 'Name your Look',
     JSON.stringify([c0.titleValue, c0.titlePlaceholder]));
@@ -892,7 +910,7 @@ const browser = await chromium.launch(
       swap: !!Array.from(row?.querySelectorAll('.rbc-act') || []).find((b) => /Swap/.test(b.textContent)),
       x: !!row?.querySelector('.rbc-rm'),
       boardTiles: document.querySelectorAll('.rb-lk-con .rbc-board .rbc-tile').length,
-      saveShown: !!document.querySelector('.rb-lk-save'),
+      saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
       roleNotes: document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolenote').length,
     };
   });
@@ -904,7 +922,7 @@ const browser = await chromium.launch(
   check('composer · the card carries Swap', one.swap === true);
   check('composer · the card carries the corner ✕', one.x === true);
   check('composer · the look board populates as pieces land', one.boardTiles === 1, String(one.boardTiles));
-  check('composer · one piece is not yet a look (no Save)', one.saveShown === false);
+  check('composer · one piece is not yet a look (Save still inert)', one.saveDisabled === true);
   const still = await page.evaluate(() => ({ gone: window.__rbLkSheetGone, ...window.__rbLkStill }));
   check('composer · picking a piece closes the sheet into the rack', still.gone === true);
   check('composer · with a piece placed, Still-open leads the chooser',
@@ -1009,12 +1027,14 @@ const browser = await chromium.launch(
     window.__lkRowPick('r2', 'w-bot1');
     return {
       saveShown: !!document.querySelector('.rb-lk-save'),
+      saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
       note: document.querySelector('.rb-lk-con .rbc-quote')?.textContent,
       boardTiles: document.querySelectorAll('.rb-lk-con .rbc-board .rbc-tile').length,
       yours: document.querySelector('.rb-lk-con .rbc-yours')?.textContent,
     };
   });
-  check('composer · Save appears at two pieces', two.saveShown === true);
+  check('composer · Save comes live at two pieces',
+    two.saveShown === true && two.saveDisabled === false, JSON.stringify([two.saveShown, two.saveDisabled]));
   check('composer · Robes describes the look once it can',
     two.note === 'Cream silk shirt with the barrel-leg jeans.', two.note);
   check('composer · both pieces are on the board', two.boardTiles === 2, String(two.boardTiles));
@@ -1181,6 +1201,19 @@ const browser = await chromium.launch(
   check('empty · no module empty state once anything exists', e.moduleEmpty === false);
   check('empty · sort and Refine stay withheld until a Look exists; the stat still counts',
     e.sortAbsent === true && e.stat === '1 look', JSON.stringify([e.sortAbsent, e.stat]));
+  // FTUE wording on the composer's one alternative door — she has no looks
+  // yet, so Robes offers to build the FIRST one (2026-08-12).
+  const ftue = await page.evaluate(() => {
+    window.__lkNew();
+    return {
+      door: document.querySelector('.rb-lk-robesdoor')?.textContent,
+      card: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
+      saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
+    };
+  });
+  check('empty · the first-time composer offers "Or let Robes build the first one"',
+    ftue.door === 'Or let Robes build the first one' && ftue.card === true && ftue.saveDisabled === true,
+    JSON.stringify(ftue));
   await ctx.close();
 }
 
@@ -1275,6 +1308,10 @@ const browser = await chromium.launch(
     window.__lkNew();
     window.__lkApplyNew('w-top1');   // the empty composer holds no rows now — measure a filled one
     const n = document.querySelector('.rb-lk-con');
+    window.__lkApplyNew('w-bot1');   // two pieces: Save comes live
+    const save = document.querySelector('.rb-lk-save');
+    const row = document.querySelector('.rb-lk-saverow');
+    const card = document.querySelector('.rb-lk-composer');
     return {
       stacked: n ? getComputedStyle(n).gridTemplateColumns.split(' ').length === 1 : false,
       rowsFullWidth: (() => {
@@ -1283,11 +1320,26 @@ const browser = await chromium.launch(
         return !!r && !!rack && Math.abs(r.getBoundingClientRect().width - rack.getBoundingClientRect().width) < 2;
       })(),
       overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
+      // One card holding the whole composer, the name leading it outside
+      inCard: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
+      titleOutside: !document.querySelector('.rb-lk-composer #rb-lk-newtitle')
+        && !!document.querySelector('.rb-lk-newmast #rb-lk-newtitle'),
+      // Save stacks full width over the Robes door, and clears 44px
+      saveStacks: !!row && getComputedStyle(row).flexDirection === 'column',
+      saveFull: !!save && !!card
+        && Math.abs(save.getBoundingClientRect().width - (card.getBoundingClientRect().width - 32)) < 3,
+      saveH: save ? Math.round(save.getBoundingClientRect().height) : 0,
+      door: document.querySelector('.rb-lk-robesdoor')?.textContent,
     };
   });
   check('390px · composer stacks the card above the rack', mc.stacked === true);
   check('390px · rack rows run full width (no cramped shelf)', mc.rowsFullWidth === true);
   check('390px · no horizontal overflow on the composer', mc.overflow === true);
+  check('390px · the composer is one card, the name leading it from outside',
+    mc.inCard === true && mc.titleOutside === true, JSON.stringify([mc.inCard, mc.titleOutside]));
+  check('390px · Save runs full width at 44px+, the Robes door beneath it',
+    mc.saveStacks === true && mc.saveFull === true && mc.saveH >= 44 && !!mc.door,
+    JSON.stringify([mc.saveStacks, mc.saveFull, mc.saveH, mc.door]));
   await ctx.close();
 }
 
