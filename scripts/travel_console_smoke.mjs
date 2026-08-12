@@ -162,10 +162,11 @@ ok(await page.locator('#tv-stage .rbc-row').count() === 3, 'stage rack has 3 row
 ok((await page.locator('#tv-stage .rbc-rackhead').innerText()).toLowerCase().includes('day 1'), 'a pinned look opens day-scoped — the rack carries its day');
 ok(await page.locator('#tv-stage .rbc-hbtn', { hasText: 'Unpin from this day' }).count() === 1, 'pinned: the rack header carries Unpin');
 ok(await page.locator('#tv-weekstrip .tvw-card.sel').count() === 1, 'the rail outlines the day on stage');
-ok(/on the stage/i.test(await page.locator('#tv-looksrow .tvm-lookcard').first().innerText()), 'the staged card carries the ↑ on the stage marker');
+ok(await page.locator('#tv-looksrow .tvm-lookcard.active').count() === 1, 'the staged card carries the highlight');
 await page.evaluate(() => window.__tvStageClose());
 await page.waitForTimeout(150);
-ok(/Nothing on the stage/.test(await page.locator('#tv-stage').innerText()), 'Clear the stage empties it');
+ok(/Nothing on the stage/.test(await page.locator('#tv-stage').innerText()), 'Clear empties the stage');
+ok(await page.locator('#tv-stage .rbc-hbtn', { hasText: 'Pin to days' }).count() === 0, 'no duplicated Pin-to-days CTA anywhere');
 
 // select the imported look → the SAME interactive console, pieces resolved
 // into real capsule formula entries (unpacked pieces join the case)
