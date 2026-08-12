@@ -50,7 +50,11 @@ function wardrobe(n) {
   }));
 }
 
-async function boot(browser, n, width = 1280) {
+// The learning card and the home Lookbook row only render once the Lookbook
+// holds something — at zero looks the inline rack replaces both (FTUE step 3,
+// 2026-08-12). Seed one saved look by default so the milestone rules below
+// still have a card to assert against; pass looks:false for the zero state.
+async function boot(browser, n, width = 1280, { looks = true } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height: 1100 } });
   const page = await ctx.newPage();
 
@@ -72,6 +76,14 @@ async function boot(browser, n, width = 1280) {
     };
     Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
   }, n);
+  if (looks) {
+    await page.addInitScript(() => {
+      localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
+        { id: 1754600000000, type: 'daily-look', title: 'A look', subtitle: 'Daily look', img: null,
+          dlData: { anchor_date: '2026-08-05' } },
+      ]));
+    });
+  }
 
   const errs = [];
   page.on('pageerror', (e) => errs.push(String(e)));
@@ -80,6 +92,7 @@ async function boot(browser, n, width = 1280) {
   return { ctx, page, errs };
 }
 
+const _RB_ROLE_NAMES = ['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'];
 const results = [];
 const check = (name, pass, detail = '') =>
   results.push({ name, pass, detail }) && void 0;
@@ -226,9 +239,9 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 
-// Wardrobe + lookbook empty states at 0 pieces
+// Wardrobe + lookbook empty states at 0 pieces (and zero looks)
 {
-  const { ctx, page } = await boot(browser, 0);
+  const { ctx, page } = await boot(browser, 0, 1280, { looks: false });
   await page.evaluate(() => window.App && App.showWardrobe && App.showWardrobe());
   await page.waitForTimeout(900);
   const w = await page.evaluate(() => ({
@@ -368,6 +381,129 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await page.waitForTimeout(500);
   const gone = await page.evaluate(() => !document.getElementById('sn-ways'));
   check('lookbook · ways removed once content exists', gone);
+  await ctx.close();
+}
+
+// The look, inline on home (FTUE step 3, 2026-08-12) — at zero looks the
+// builder replaces both the learning card and the Lookbook row.
+{
+  const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
+  const h = await page.evaluate(() => {
+    const dash = document.getElementById('dash');
+    const el = document.getElementById('rb-lkhome');
+    return {
+      mounted: !!el,
+      // it leads the prompt, and the learning card + Lookbook row stand down
+      abovePrompt: el?.nextElementSibling?.classList.contains('concierge'),
+      trkHidden: document.getElementById('wtrk')?.style.display === 'none',
+      snRowHidden: (document.getElementById('rb-sn')?.style.display === 'none')
+        || !document.getElementById('rb-sn')?.textContent.trim(),
+      // no "catalogue your wardrobe" door anywhere on home
+      wtrkCta: document.getElementById('wtrk-cta')?.offsetParent !== null,
+      eyebrow: el?.querySelector('.rb-lk-eyebrow')?.textContent,
+      count: el?.querySelector('.rb-lkh-count')?.textContent,
+      ghostRows: el?.querySelectorAll('.rbc-rghost').length,
+      // every empty slot is the camera path, not the chooser sheet
+      snapWired: Array.from(el?.querySelectorAll('.rbc-rghost') || [])
+        .every((r) => /__lkHomeSnap/.test(r.getAttribute('onclick') || '')),
+      save: !!el?.querySelector('.rb-lk-save'),
+      door: el?.querySelector('.rb-lk-robesdoor')?.textContent,
+      // ONE composer in the DOM — the Lookbook page is closed
+      composers: document.querySelectorAll('.rb-lk-composer').length,
+      showMoreHidden: getComputedStyle(el.querySelector('.rb-lkh-showmore')).display === 'none',
+    };
+  });
+  check('home rack · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('home rack · the builder sits on home at zero looks, leading the prompt',
+    h.mounted === true && h.abovePrompt === true, JSON.stringify([h.mounted, h.abovePrompt]));
+  check('home rack · it replaces the learning card and the Lookbook row',
+    h.trkHidden === true && h.snRowHidden === true && h.wtrkCta === false,
+    JSON.stringify([h.trkHidden, h.snRowHidden, h.wtrkCta]));
+  check('home rack · titled "Build your first look", counting the rack',
+    h.eyebrow === 'Build your first look' && h.count === '0 of 4 on the rack',
+    JSON.stringify([h.eyebrow, h.count]));
+  check('home rack · four slots, every one of them the camera path',
+    h.ghostRows === 4 && h.snapWired === true, JSON.stringify([h.ghostRows, h.snapWired]));
+  check('home rack · carries Save and the Robes door',
+    h.save === true && h.door === 'Or let Robes build the first one', JSON.stringify([h.save, h.door]));
+  check('home rack · exactly one composer in the DOM', h.composers === 1, String(h.composers));
+  check('home rack · all four slots render on web (no collapse)', h.showMoreHidden === true);
+
+  // The draft is SHARED with the Lookbook composer — never a second copy
+  const shared = await page.evaluate(async () => {
+    window.__lkApplyNew('w0');
+    await new Promise((r) => setTimeout(r, 200));
+    const onHome = document.querySelector('#rb-lkhome .rbc-rack .rbc-name')?.textContent;
+    const count = document.querySelector('#rb-lkhome .rb-lkh-count')?.textContent;
+    window.__snOpen();
+    await new Promise((r) => setTimeout(r, 400));
+    return {
+      onHome, count,
+      homeGone: !document.getElementById('rb-lkhome'),
+      composers: document.querySelectorAll('.rb-lk-composer').length,
+      inLookbook: document.querySelector('#rb-lk-body .rbc-rack .rbc-name')?.textContent,
+    };
+  });
+  check('home rack · a piece added on home hangs in the rack and counts',
+    shared.onHome === 'Piece 1' && shared.count === '1 of 4 on the rack', JSON.stringify(shared));
+  check('home rack · the SAME draft continues in the Lookbook, never a second copy',
+    shared.inLookbook === 'Piece 1' && shared.homeGone === true && shared.composers === 1,
+    JSON.stringify(shared));
+
+  // Saving retires the module and hands the page back to the Lookbook row
+  const saved = await page.evaluate(async () => {
+    window.__lkApplyNew('w1');
+    window.__lkSave();
+    await new Promise((r) => setTimeout(r, 300));
+    window.__snClose();
+    await new Promise((r) => setTimeout(r, 500));
+    return {
+      homeGone: !document.getElementById('rb-lkhome'),
+      snRow: (document.getElementById('rb-sn')?.textContent || '').trim().length > 0,
+      trkBack: document.getElementById('wtrk')?.style.display !== 'none',
+    };
+  });
+  check('home rack · saving retires the module and moves everything to the Lookbook row',
+    saved.homeGone === true && saved.snRow === true, JSON.stringify(saved));
+  check('home rack · the learning card comes back once the Lookbook holds something',
+    saved.trkBack === true, JSON.stringify(saved));
+  await ctx.close();
+}
+
+// The home rack on a phone: texture + finish collapse, preview stands down
+{
+  const { ctx, page, errs } = await boot(browser, 4, 390, { looks: false });
+  const m = await page.evaluate(() => {
+    const el = document.getElementById('rb-lkhome');
+    const more = el?.querySelector('.rb-lkh-more');
+    const showmore = el?.querySelector('.rb-lkh-showmore');
+    return {
+      shown: Array.from(el?.querySelectorAll('.rbc-rolestrip span') || [])
+        .filter((s) => s.offsetParent !== null).map((s) => s.textContent.trim()),
+      moreHidden: more ? getComputedStyle(more).display === 'none' : null,
+      showmoreShown: showmore ? getComputedStyle(showmore).display !== 'none' : null,
+      previewHidden: el?.querySelector('.rb-lk-con > div:first-child')?.offsetParent === null,
+      h: Math.round(el?.getBoundingClientRect().height || 0),
+      overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
+    };
+  });
+  check('390px home rack · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('390px home rack · canvas and anchor are the ask; texture + finish collapse',
+    JSON.stringify(m.shown) === JSON.stringify(['The Canvas', 'The Anchor'])
+      && m.moreHidden === true && m.showmoreShown === true, JSON.stringify(m));
+  check('390px home rack · the preview is web-only here', m.previewHidden === true);
+  check('390px home rack · no horizontal overflow', m.overflow === true);
+
+  // Show expands for the session; a piece cast into a late role force-expands
+  const opened = await page.evaluate(async () => {
+    document.querySelector('.rb-lkh-showmore').click();
+    await new Promise((r) => setTimeout(r, 200));
+    const el = document.getElementById('rb-lkhome');
+    return Array.from(el.querySelectorAll('.rbc-rolestrip span'))
+      .filter((s) => s.offsetParent !== null).map((s) => s.textContent.trim());
+  });
+  check('390px home rack · Show reveals the other two slots',
+    JSON.stringify(opened) === JSON.stringify(_RB_ROLE_NAMES), JSON.stringify(opened));
   await ctx.close();
 }
 

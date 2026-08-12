@@ -1281,7 +1281,7 @@ const browser = await chromium.launch(
   // The meta line now reads like a real trip, so the example marker must
   // survive somewhere on the card — dimming alone is not a label.
   check('empty · the example is still unmistakably an example',
-    /Robes’ example/.test(e.example || ''), e.example);
+    /Robes example/.test(e.example || ''), e.example);
   // FTUE wording on the composer's one alternative door — she has no looks
   // yet, so Robes offers to build the FIRST one (2026-08-12).
   const ftue = await page.evaluate(() => {

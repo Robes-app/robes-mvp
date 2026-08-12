@@ -880,9 +880,15 @@
         if (!dash || !mast || !conc || !trk) return;
         const rail = document.getElementById('rb-rail');
         const styled = document.getElementById('rb-styled');
-        const seq = (n < _MS_UNLOCKS[0].at
-          ? [styled, trk, conc, rail]
-          : [conc, rail, styled, trk]).filter(Boolean);
+        // FTUE step 3 (2026-08-12): while the inline rack is on home it
+        // leads the prompt, directly under "Your piece, styled" — it IS the
+        // first thing to do, and the learning card it replaces is hidden.
+        const lkhome = document.getElementById('rb-lkhome');
+        const seq = (lkhome
+          ? [styled, lkhome, conc, rail]
+          : (n < _MS_UNLOCKS[0].at
+            ? [styled, trk, conc, rail]
+            : [conc, rail, styled, trk])).filter(Boolean);
         seq.forEach((el, i) => {
           const prev = i === 0 ? mast : seq[i - 1];
           if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
@@ -945,7 +951,10 @@
         const complete = n > _WA_TARGET;
         const trkSection = document.getElementById('wtrk');
         if (trkSection) {
-          trkSection.style.display = complete ? 'none' : '';
+          // …and it does not render at all while the inline rack is on home
+          // (FTUE step 3, 2026-08-12): the rack replaces it, so home never
+          // shows a progress bar at zero looks.
+          trkSection.style.display = complete || (typeof _lkHomeZero === 'function' && _lkHomeZero()) ? 'none' : '';
         }
         // Bare count, no denominator — "n / 15" read as the wardrobe's item
         // limit (Clodagh test 2026-07-29). Never reintroduce a fraction here.
@@ -995,6 +1004,9 @@
         if (typeof _rbUpdateMasthead === 'function') _rbUpdateMasthead();
         _rbFtueOrder(n);
         _rbGateConcierge(n);
+        // FTUE step 3 (2026-08-12): at zero looks the inline rack replaces
+        // the learning card outright — home shows no bar at zero.
+        if (typeof _lkHomeSync === 'function') _lkHomeSync();
         if (typeof _rbSilPrompt === 'function') _rbSilPrompt();
       }
 
@@ -4313,6 +4325,8 @@
         document.getElementById('sn-page').style.display = 'none';
         window.rbClearCrumb && window.rbClearCrumb();
         window._rbNav && window._rbNav('/dashboard');
+        // The same draft goes back to the home module (one composer, one state)
+        if (typeof _lkHomeSync === 'function') _lkHomeSync();
       };
       window.__snOpen = function() {
         const av = document.getElementById('av-menu');
@@ -4390,11 +4404,7 @@
           <p style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0 0 20px">Inspiration</p>
           <div id="rb-in-sec" style="font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 14px">Key pieces, styled</div>
           <div id="rb-in-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px"></div>
-          <div id="rb-in-empty" style="display:none;padding:70px 0;text-align:center">
-            <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">Nothing here yet.</p>
-            <p style="font-size:13px;color:var(--ink-faint);line-height:1.6;margin:0 0 20px">Style a key piece three ways and it lands here —<br>undated, ready whenever the mood strikes.</p>
-            <button onclick="window.__inStyleNew()" style="padding:13px 24px;border:none;border-radius:100px;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Style a piece →</button>
-          </div>
+          <div id="rb-in-empty" style="display:none;padding:8px 0 40px"></div>
         </div>`;
       document.body.appendChild(inPage);
       if (!document.getElementById('rb-in-style')) {
@@ -4427,7 +4437,13 @@
         grid.style.display = items.length ? 'grid' : 'none';
         if (sec) sec.style.display = items.length ? '' : 'none';
         if (empty) empty.style.display = items.length ? 'none' : 'block';
-        if (!items.length) return;
+        // The "Style a piece" card moved here off home (FTUE step 3) — a
+        // piece styled three ways lives on Inspiration, so the invitation
+        // to make one belongs on Inspiration's empty state.
+        if (!items.length) {
+          if (empty) empty.innerHTML = _rbStylePieceCardHtml();
+          return;
+        }
         grid.innerHTML = items.map(i => {
           const imgs = ((i.kpData && i.kpData.generatedImages) || [])
             .filter(u => typeof u === 'string' && u.indexOf('http') === 0);
@@ -5694,8 +5710,11 @@
           return html;
         }
         empties = empties || [];
-        const roles = _RB_ROLES.slice();
-        withRole.forEach(x => { if (x.role && roles.indexOf(x.role) < 0) roles.push(x.role); });
+        // cfg.roles renders a SUBSET of the formula (the home module splits
+        // the rack in two so texture + finish can collapse); items cast to a
+        // role outside the subset belong to the other call.
+        const roles = (cfg.roles || _RB_ROLES).slice();
+        if (!cfg.roles) withRole.forEach(x => { if (x.role && roles.indexOf(x.role) < 0) roles.push(x.role); });
         let html = '';
         roles.forEach(role => {
           const filled = withRole.filter(x => x.role === role);
@@ -7168,6 +7187,8 @@
       var _lkOpenRow = null, _lkRowSeq = 4;
       var _lkPhoto = null;           // {url} once hosted, or {pending:true}
       var _lkNewTitleDraft = null, _lkNewTitleTouched = false;
+      // Home's texture/finish expansion — session only, never persisted
+      var _lkHomeMoreOn = false;
       // Composer tags (spec F3, "built by hand · inherited"): null means
       // derived live from the pieces on every paint; set once she edits.
       var _lkNewTags = null;
@@ -7724,6 +7745,27 @@
 .rb-lk-save[disabled]{background:var(--cream-400);color:#fff;cursor:default}
 .rb-lk-save[disabled]:hover{opacity:1}
 .rb-lk-robesdoor{font-size:12px}
+/* The look, inline on home (FTUE step 3, 2026-08-12) */
+#rb-lkhome{margin:32px 0}
+.rb-lkh-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin:0 0 12px}
+.rb-lkh-count{font-size:10.5px;color:var(--ink-faint);white-space:nowrap}
+.rb-lkh-name{margin:0 0 16px}
+.rb-lkh-name .rb-lk-title-in{margin-top:0;font-size:clamp(22px,2.2vw,26px)}
+.rb-lkh-showmore{display:none;align-items:center;justify-content:space-between;gap:14px;width:100%;margin-top:12px;padding:13px 16px;border:1px dashed var(--rule-mid);border-radius:var(--rad);background:transparent;font-family:inherit;cursor:pointer;text-align:left}
+.rb-lkh-showmore .l{display:flex;flex-direction:column;gap:3px;min-width:0}
+.rb-lkh-showmore b{font-size:8px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
+.rb-lkh-showmore i{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:13.5px;color:var(--ink-faint)}
+.rb-lkh-showmore .s{font-size:11.5px;color:var(--ink-soft);border-bottom:0.5px solid var(--rule-mid);padding-bottom:1px}
+/* Two columns on web mean all four slots fit — the collapse is the small
+   screen's affordance only (both mocks, 2026-08-12) */
+@media(max-width:767px){
+.rb-lkh-collapsed .rb-lkh-more{display:none}
+.rb-lkh-collapsed .rb-lkh-showmore{display:flex}
+/* …and the preview column is web-only here: the mobile module is the rack
+   alone, which is what keeps it to ~380px of home. The Lookbook composer
+   still carries the preview and the photo door at every width. */
+.rb-lkh-composer .rb-lk-con > div:first-child{display:none!important}
+}
 @media(max-width:767px){
 .rb-lk-stats{gap:20px}
 .rb-lk-composer{padding:18px 16px 20px;border-radius:var(--rad-card)}
@@ -7784,7 +7826,10 @@
         // bridge, a delete that emptied it. Guarding here rather than at
         // each caller is what makes it a rule instead of a path.
         if (!any && _lkView !== 'new') {
-          _lkResetComposer();
+          // Arm it — but a draft in progress is HERS: the home module and
+          // this page render one shared draft, so landing here (e.g. via
+          // __snOpen, which resets the view to 'grid') must never wipe it.
+          if (!_lkUsed().length) _lkResetComposer(); else _lkView = 'new';
           _rbTrack('look_compose_opened', { door: 'empty-lookbook' });
         }
         // Claim the shelf — the page-level empty state must never sit over
@@ -7814,11 +7859,19 @@
         if (allHead) allHead.style.display = detail || !any ? 'none' : 'block';
         grid.style.display = detail || !any ? 'none' : 'grid';
         if (detail) {
-          body.innerHTML = _lkView === 'new' ? _lkNewHtml() : _lkDetailHtml();
+          // ONE composer in the DOM: while the home module owns the draft
+          // (page closed, Lookbook empty) this body stays empty, or the two
+          // surfaces would both answer a bare `.rb-lk-composer` query — and
+          // duplicate the ids inside it.
+          const pgOpen = !!snEl && snEl.style.display !== 'none';
+          body.innerHTML = (!pgOpen && _lkView === 'new' && _lkHomeZero())
+            ? ''
+            : (_lkView === 'new' ? _lkNewHtml() : _lkDetailHtml());
+          _lkHomeSync();
           return;
         }
         body.innerHTML = any ? '' : _lkEmptyHtml();
-        if (!any) return;
+        if (!any) { _lkHomeSync(); return; }
         // Holiday edits ride a pinned row above the stream (IA refinement
         // 2026-08-10) — they still band across the Diary as before.
         if (hol) hol.innerHTML = _lkHolidayRowHtml(holidays);
@@ -7879,6 +7932,7 @@
           .concat((refActive ? shelfItems.filter(_lkMatchRefineItem) : shelfItems)
             .map(i => ({ ts: Number(i.id) || 0, html: _lkItemCard(i) })));
         entries.sort((a, b) => _lkSortDesc ? b.ts - a.ts : a.ts - b.ts);
+        _lkHomeSync();
         grid.innerHTML = noneHtml + entries.map(e => e.html).join('') +
         // The way in stays on the grid — the same amplified add card the
         // pieces grid carries (Annie, 2026-07-30: the CTA vanished once a
@@ -8005,7 +8059,7 @@
             // convincing trip she never planned (the standing rule: it
             // must never be mistaken for her own).
             '<div class="rb-lk-holcard example" aria-hidden="true">' +
-              '<span class="him"><span class="hex">Robes’ example</span></span>' +
+              '<span class="him"><span class="hex">Robes example</span></span>' +
               '<span class="hpad"><span class="ht">A chic Ibiza escape</span>' +
               '<span class="hm">5 looks · 7–14 Aug</span></span></div>';
         return '<div class="rb-lk-sec" style="margin:4px 0 12px">Travel edit</div>' +
@@ -8415,7 +8469,8 @@
           };
         }).filter(Boolean);
       }
-      function _lkNewHtml() {
+      function _lkNewHtml(opts) {
+        const home = !!(opts && opts.home);
         // The composer is rbc-markup throughout, and on the zero-piece and
         // photo paths _rbConsole (which injects the stylesheet) never runs —
         // ensure it here or a session that hasn't rendered a console yet
@@ -8477,29 +8532,52 @@
         // only line above the card.) The placeholder follows the account
         // on the same switch as the Robes door below.
         const namePh = _lkLooks.length ? 'Name your Look' : 'Name your first look';
-        const mastHtml = '<div class="rb-lk-mast rb-lk-newmast">' +
-          '<input id="rb-lk-newtitle" class="rb-lk-title-in" value="' + _waEsc(_lkNewTitleDraft != null ? _lkNewTitleDraft : '') + '"' +
-            ' placeholder="' + namePh + '" oninput="window.__lkNewTitleInput(this.value)">' +
-          '</div>';
+        // On HOME the section eyebrow ("Build your first look") is the
+        // masthead, so the name sits INSIDE the card, leading the rack.
+        const titleHtml = '<input id="' + (home ? 'rb-lk-hometitle' : 'rb-lk-newtitle') + '" class="rb-lk-title-in"' +
+          ' value="' + _waEsc(_lkNewTitleDraft != null ? _lkNewTitleDraft : '') + '"' +
+          ' placeholder="' + namePh + '" oninput="window.__lkNewTitleInput(this.value)">';
+        const mastHtml = home ? '' : '<div class="rb-lk-mast rb-lk-newmast">' + titleHtml + '</div>';
 
         // The Rack — the formula strips name themselves, so no second
         // header sits above them (the masthead already names the look).
-        let rackHtml = '<div class="rbc-rack">';
-        const rowCfg = { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop', onRoleAdd: '__lkAddOpen', allStrips: true };
+        // Canvas and Anchor are the ask on home; texture and finish collapse
+        // behind "Show" (≤767px only — the web mock's two columns have the
+        // room for all four). A piece cast into either of the last two roles
+        // force-expands, or it would hide on the small screen.
+        const lastTwo = _RB_ROLES.slice(2);
+        const homeOpen = !home || _lkHomeMoreOn || items.some(it => lastTwo.indexOf(_rbRoleOf(it)) > -1);
+        let rackHtml = (home ? '<div class="rb-lkh-name">' + titleHtml + '</div>' : '') +
+          '<div class="rbc-rack' + (home && !homeOpen ? ' rb-lkh-collapsed' : '') + '">';
+        // Every empty slot on home opens the camera and comes back with the
+        // piece hung in the slot it was opened from — cataloguing is a
+        // by-product of building, never a separate chore.
+        const rowCfg = { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop',
+          onRoleAdd: home ? '__lkHomeSnap' : '__lkAddOpen', allStrips: true };
         // No slot-bound empty rows (founder call 2026-08-07: her trousers
         // can anchor, her top can be the exclamation — a slot must never
         // forecast a role). The rack IS the formula: each awaiting role is
         // a dashed definition row with its own + Add (pre-casting that
-        // role on the pick), through the A2 chooser. The trailing generic
-        // CTA appears only once every role is inked — until then the
-        // definition rows carry the way in (B1 mock, 2026-08-07).
-        rackHtml += _rbRackRolesHtml(items, rowCfg);
+        // role on the pick), through the A2 chooser.
+        if (home) {
+          rackHtml += _rbRackRolesHtml(items, Object.assign({ roles: _RB_ROLES.slice(0, 2) }, rowCfg)) +
+            '<button type="button" class="rb-lkh-showmore" onclick="window.__lkHomeMore()">' +
+              '<span class="l"><b>Texture · finish</b><i>Two more slots, optional.</i></span>' +
+              '<span class="s">Show</span></button>' +
+            '<div class="rb-lkh-more">' +
+              _rbRackRolesHtml(items, Object.assign({ roles: lastTwo }, rowCfg)) +
+            '</div>';
+        } else {
+          rackHtml += _rbRackRolesHtml(items, rowCfg);
+        }
         // The generic way in ALWAYS closes the rack (regression fixed
         // 2026-08-12 — gating it on every role being inked took the door
         // away from the state that most needs it: the empty look). A look
         // is never capped at four pieces.
         rackHtml += '</div>' +
-          '<button class="rbc-addpiece" onclick="window.__lkAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>';
+          (home
+            ? ''
+            : '<button class="rbc-addpiece" onclick="window.__lkAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>');
 
         // Save closes the look out into the Lookbook; beside it the one
         // alternative door — Robes builds it instead. The label reads
@@ -8512,7 +8590,7 @@
           '</div>';
 
         const stretchLeft = !items.length && !(_lkPhoto && _lkPhoto.url);
-        return mastHtml + '<div class="rb-lk-composer"><div class="rb-lk-con"><div' + (stretchLeft ? ' style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div></div>';
+        return mastHtml + '<div class="rb-lk-composer' + (home ? ' rb-lkh-composer' : '') + '"><div class="rb-lk-con"><div' + (stretchLeft ? ' style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div></div>';
       }
       function _lkRowOptions(r) {
         const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
@@ -8889,6 +8967,85 @@
         _rbTrack('look_robes_door', { first: !_lkLooks.length });
         if (window.__snWay) window.__snWay('dress-me');
       };
+      // ── The look, inline on home (FTUE step 3, 2026-08-12) ──────────────
+      // At zero looks the builder itself sits on home: the rack replaces
+      // both the learning card and the Lookbook row, so home never shows a
+      // bar at zero or an empty grid. It is the SAME draft as the Lookbook
+      // composer — one state, rendered wherever she happens to be — so only
+      // ever ONE of the two is in the DOM at a time.
+      window.__lkHomeMore = function() { _lkHomeMoreOn = true; _lkHomePaint(); };
+      // Every empty slot on home opens the camera and returns with the piece
+      // hung in the slot it was opened from — the piece-logging path, so
+      // home needs no "catalogue your wardrobe" CTA of its own.
+      window.__lkHomeSnap = function(role) {
+        _waEditId = null;
+        _waAfterAdd = (newId) => {
+          const r = _rbRoleNorm(role);
+          if (r) _lkNewRoles[String(newId)] = r;
+          window.__lkApplyNew(newId);
+        };
+        if (window.WA && WA.open) WA.open();
+        let tries = 0;
+        const poke = () => {
+          // The dedicated camera input when there is one (mobile), else the
+          // ordinary picker — never `capture` on the picker itself.
+          const inp = document.getElementById('wa-rb-cam') || document.getElementById('wa-rb-file');
+          if (inp) { inp.click(); return; }
+          if (++tries < 8) setTimeout(poke, 120);
+        };
+        setTimeout(poke, 220);
+        _rbTrack('look_slot_snap', { surface: 'home', role: role || null });
+      };
+      function _lkHomeZero() {
+        try {
+          return !_lkLooks.length && !_lkShelfItems().length && !_lkHolidayItems().length;
+        } catch (_) { return false; }
+      }
+      function _lkHomePaint() {
+        const el = document.getElementById('rb-lkhome');
+        if (!el) return;
+        const n = _lkUsed().length;
+        el.innerHTML = '<div class="rb-lkh-head">' +
+          '<span class="rb-lk-eyebrow">Build your first look</span>' +
+          '<span class="rb-lkh-count">' + n + ' of 4 on the rack</span>' +
+          '</div>' + _lkNewHtml({ home: true });
+      }
+      // One composer in the DOM: the module retires the moment the Lookbook
+      // holds anything, and stands down while the Lookbook page is open (it
+      // renders the same draft there).
+      function _lkHomeSync() {
+        const dash = document.getElementById('dash');
+        if (!dash) return;
+        const page = document.getElementById('sn-page');
+        const pageOpen = !!page && page.style.display !== 'none';
+        const zero = _lkHomeZero();
+        // The rack replaces the learning card and the Lookbook row while it
+        // is on home, and hands both back the moment a look is saved — this
+        // is the one place that decides, so they can't drift.
+        const trk = document.getElementById('wtrk');
+        if (trk) trk.style.display = (zero || _waItems.length > _WA_TARGET) ? 'none' : '';
+        if (typeof _rbRenderStyleNotes === 'function') _rbRenderStyleNotes();
+        const want = zero && !pageOpen;
+        let el = document.getElementById('rb-lkhome');
+        if (!want) {
+          if (el) { el.remove(); if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length); }
+          return;
+        }
+        if (!el) {
+          el = document.createElement('section');
+          el.id = 'rb-lkhome';
+          el.className = 'rb-section';
+        }
+        // Directly under "Your piece, styled" and above the prompt.
+        const styled = document.getElementById('rb-styled');
+        const conc = dash.querySelector('.concierge');
+        const anchor = (styled && styled.nextSibling) || conc || null;
+        if (el.parentNode !== dash || el.nextSibling !== anchor) {
+          if (anchor) dash.insertBefore(el, anchor); else dash.appendChild(el);
+        }
+        _lkHomePaint();
+      }
+      window._lkHomeSync = _lkHomeSync;
       window.__lkRowOpen = function(key) { _lkOpenRow = _lkOpenRow === key ? null : key; _lkPaint(); };
       // A drop under a strip casts the role — her cast, her call (A3
       // amendment: the strips educate, they never constrain).
@@ -13639,32 +13796,54 @@ body>*:not(#tv-result-page){display:none !important}
           </div>`;
       }
 
+      // The card the home Lookbook row used to show when empty. It moved to
+      // the INSPIRATION empty state (FTUE step 3, 2026-08-12) — a piece
+      // styled three ways lives there now, so that is where the invitation
+      // belongs. Home shows no Lookbook row at all until the Lookbook holds
+      // something (it must never show an empty grid).
+      function _rbStylePieceCardHtml() {
+        const arrowSvg = `<svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+        return `
+          <button class="rb-es-card" onclick="window.__inStyleNew()">
+            <div class="rb-es-art rb-es-art-ways" aria-hidden="true">
+              <div class="rb-es-frame f1"><span class="rb-es-frame-num">01</span></div>
+              <div class="rb-es-frame f2"><span class="rb-es-frame-num">02</span></div>
+              <div class="rb-es-frame f3"><span class="rb-es-frame-num">03</span></div>
+            </div>
+            <div class="rb-es-body">
+              <span class="rb-es-eyebrow sage">Style a piece</span>
+              <h3 class="rb-es-h">Your piece,<br><em>worn three ways.</em></h3>
+              <p class="rb-es-sub">Show Robes one piece you love. You'll get three ways to wear it — none of them the obvious one, each styled around your wardrobe.</p>
+              <span class="rb-es-cta">Style a key piece${arrowSvg}</span>
+            </div>
+          </button>`;
+      }
       function _rbRenderStyleNotes() {
         const el = document.getElementById('rb-sn');
         if (!el) return;
-        const items = snLoad().slice(0, 4);
-        const arrowSvg = `<svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+        // The row mirrors what the LOOKBOOK holds — her Looks, daily looks
+        // and travel edits, newest first. Key pieces are Inspiration's, and
+        // never appear here. (Her saved Looks are entities, not lookbook
+        // rows, so they are composed in alongside — without them the row
+        // stayed empty after her very first save.)
+        let items = [];
+        try {
+          items = (_lkLooks || []).map(l => ({
+              id: l.id, look: true, title: l.name || 'A look', type: 'look',
+              subtitle: _lkN((l.pieces || []).length, 'piece'),
+              img: (typeof l.photo_url === 'string' && l.photo_url.indexOf('http') === 0) ? l.photo_url : null,
+              ts: Date.parse(l.created_at || '') || 0,
+            }))
+            .concat(_lkShelfItems().concat(_lkHolidayItems())
+              .map(i => Object.assign({ ts: Number(i.id) || 0 }, i)))
+            .sort((a, b) => b.ts - a.ts).slice(0, 4);
+        } catch (_) { items = []; }
         if (!items.length) {
-          el.innerHTML = `
-            <div class="rb-sec-head">
-              <span class="rb-sec-ey">Lookbook</span>
-              <span class="rb-sec-meta">A little gift to begin</span>
-            </div>
-            <button class="rb-es-card" onclick="window.KP && KP.openKeyPiece ? KP.openKeyPiece() : void 0">
-              <div class="rb-es-art rb-es-art-ways" aria-hidden="true">
-                <div class="rb-es-frame f1"><span class="rb-es-frame-num">01</span></div>
-                <div class="rb-es-frame f2"><span class="rb-es-frame-num">02</span></div>
-                <div class="rb-es-frame f3"><span class="rb-es-frame-num">03</span></div>
-              </div>
-              <div class="rb-es-body">
-                <span class="rb-es-eyebrow sage">Style a piece</span>
-                <h3 class="rb-es-h">Your piece,<br><em>worn three ways.</em></h3>
-                <p class="rb-es-sub">Show Robes one piece you love. You'll get three ways to wear it — none of them the obvious one, each styled around your wardrobe.</p>
-                <span class="rb-es-cta">Style a key piece${arrowSvg}</span>
-              </div>
-            </button>`;
+          el.innerHTML = '';
+          el.style.display = 'none';
           return;
         }
+        el.style.display = '';
         el.innerHTML = `
           <div class="rb-sec-head">
             <span class="rb-sec-ey">Lookbook</span>
@@ -13672,7 +13851,9 @@ body>*:not(#tv-result-page){display:none !important}
           </div>
           <div class="rb-sn-grid">
             ${items.map(item => `
-              <div class="rb-sn-card" onclick="window.__snOpenItem(${item.id})">
+              <div class="rb-sn-card" onclick="${item.look
+                ? `window.__lkCardOpen('${_waEsc(String(item.id))}')`
+                : `window.__snOpenItem(${Number(item.id)})`}">
                 ${item.img
                   ? `<img src="${_waEsc(item.img)}" class="rb-sn-img" alt="">`
                   : '<div class="rb-sn-img-ph"></div>'}
