@@ -1201,7 +1201,7 @@ const browser = await chromium.launch(
     diaryInert: document.querySelector('#sn-viewseg button[data-mv="cal"]')?.classList.contains('inert'),
   }));
   check('empty · ONE DOOR — the empty Lookbook IS the composer, no ways-to-fill shelf',
-    cold.composer === true && cold.title === 'Name your Look'
+    cold.composer === true && cold.title === 'Name your first look'
       && cold.waysShown === false && cold.waysCards === 0, JSON.stringify(cold));
   check('empty · nothing competes with it — no travel strip, All-looks header, sort or refine',
     cold.barHidden && cold.holHidden && cold.allHeadHidden && cold.sort === false,
@@ -1274,10 +1274,14 @@ const browser = await chromium.launch(
     JSON.stringify([e.sorts, e.stat]));
   check('empty · the first look brings the travel strip: invitation + one dimmed Robes example',
     e.holShown === true && e.holSec === 'Travel edit'
-      && /Plan a trip\./.test(e.invite || '') && /Start packing/.test(e.invite || '')
-      && /A trip to Ibiza/.test(e.example || '') && /Robes’ example/.test(e.example || '')
+      && /Plan a trip\./.test(e.invite || '') && /Start planning/.test(e.invite || '')
+      && /A chic Ibiza escape/.test(e.example || '') && /5 looks · 7–14 Aug/.test(e.example || '')
       && e.exampleInert === true && e.holNew === false,
     JSON.stringify([e.holShown, e.holSec, e.invite, e.example, e.exampleInert, e.holNew]));
+  // The meta line now reads like a real trip, so the example marker must
+  // survive somewhere on the card — dimming alone is not a label.
+  check('empty · the example is still unmistakably an example',
+    /Robes’ example/.test(e.example || ''), e.example);
   // FTUE wording on the composer's one alternative door — she has no looks
   // yet, so Robes offers to build the FIRST one (2026-08-12).
   const ftue = await page.evaluate(() => {

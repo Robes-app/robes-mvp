@@ -7635,7 +7635,8 @@
 .rb-lk-holcard.invite .hb{display:block;font-size:11.5px;line-height:1.55;color:var(--ink-soft);margin-top:7px}
 .rb-lk-holcard.invite .hcta{display:inline-flex;align-items:center;margin-top:16px;padding:11px 20px;border-radius:100px;background:var(--ink);color:#fff;font-size:10px;font-weight:500;letter-spacing:.09em;text-transform:uppercase}
 .rb-lk-holcard.example{width:200px;opacity:.6;cursor:default;pointer-events:none}
-.rb-lk-holcard.example .hm{font-style:italic}
+.rb-lk-holcard.example .him{position:relative}
+.rb-lk-holcard.example .hex{position:absolute;left:10px;top:10px;padding:3px 8px;border-radius:100px;background:rgba(255,255,255,0.82);font-size:8.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
 .rb-lk-sort{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border:0.5px solid var(--rule-mid);background:#fff;border-radius:100px;cursor:pointer;font-family:inherit;font-size:11.5px;color:var(--ink);transition:border-color .15s}
 .rb-lk-sort:hover{border-color:var(--ink)}
 .rb-lk-sort b{font-weight:400;color:var(--ink-faint)}
@@ -7998,11 +7999,15 @@
           : '<button type="button" class="rb-lk-holcard invite" onclick="window.__lkNewHoliday()">' +
               '<span class="hpad"><span class="ht">Plan a trip.</span>' +
               '<span class="hb">Name the date and location. Robes will pack your trip.</span>' +
-              '<span class="hcta">Start packing →</span></span></button>' +
+              '<span class="hcta">Start planning →</span></span></button>' +
+            // The meta line now carries real trip data, so the example
+            // marker moves onto the image — dimming alone would leave a
+            // convincing trip she never planned (the standing rule: it
+            // must never be mistaken for her own).
             '<div class="rb-lk-holcard example" aria-hidden="true">' +
-              '<span class="him"></span>' +
-              '<span class="hpad"><span class="ht">A trip to Ibiza</span>' +
-              '<span class="hm">Robes’ example</span></span></div>';
+              '<span class="him"><span class="hex">Robes’ example</span></span>' +
+              '<span class="hpad"><span class="ht">A chic Ibiza escape</span>' +
+              '<span class="hm">5 looks · 7–14 Aug</span></span></div>';
         return '<div class="rb-lk-sec" style="margin:4px 0 12px">Travel edit</div>' +
           '<div class="rb-lk-holrow">' + cards + '</div>';
       }
@@ -8469,10 +8474,12 @@
         // masthead pattern the Look detail already uses) — the card holds
         // the making of the look, the title names it.
         // (No eyebrow — the page already reads Lookbook; the name is the
-        // only line above the card.)
+        // only line above the card.) The placeholder follows the account
+        // on the same switch as the Robes door below.
+        const namePh = _lkLooks.length ? 'Name your Look' : 'Name your first look';
         const mastHtml = '<div class="rb-lk-mast rb-lk-newmast">' +
           '<input id="rb-lk-newtitle" class="rb-lk-title-in" value="' + _waEsc(_lkNewTitleDraft != null ? _lkNewTitleDraft : '') + '"' +
-            ' placeholder="Name your Look" oninput="window.__lkNewTitleInput(this.value)">' +
+            ' placeholder="' + namePh + '" oninput="window.__lkNewTitleInput(this.value)">' +
           '</div>';
 
         // The Rack — the formula strips name themselves, so no second

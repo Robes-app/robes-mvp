@@ -275,7 +275,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   }));
   check('lookbook empty · ONE DOOR — the composer, no ways-to-fill shelf',
     l.composer === true && l.ways === false && l.emptyShown === false, JSON.stringify(l));
-  check('lookbook empty · the name leads it', l.titlePlaceholder === 'Name your Look', l.titlePlaceholder);
+  check('lookbook empty · the name leads it', l.titlePlaceholder === 'Name your first look', l.titlePlaceholder);
   check('lookbook empty · the four formula strips are the rack',
     JSON.stringify(l.strips) === JSON.stringify(['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'])
       && l.ghostRows === 4, JSON.stringify([l.strips, l.ghostRows]));
