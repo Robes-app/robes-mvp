@@ -307,41 +307,46 @@ create index if not exists idx_tag_looks_tag  on public.tag_looks (tag_id);
 -- folds to the everyday seed; ANYTHING ELSE is a chip she typed and becomes
 -- a custom tag. Dropping the unknowns is the failure mode this guards.
 --
--- TWO STATEMENTS, NOT ONE CTE CHAIN. A data-modifying CTE and the main
--- query run against the SAME SNAPSHOT, so an `insert ... returning` into
--- `tags` inside a WITH is invisible to a join against `tags` in the same
--- statement — the links all resolve to nothing and every tag is silently
--- lost. Verified against Postgres 16 while writing this: the single-statement
--- form produced 0 tag_pieces rows. Do not "tidy" these back into one.
--- (No ON COMMIT DROP: psql and the Supabase SQL editor autocommit per
--- statement, so the table would vanish before the next one runs. Dropped
--- explicitly at the end, and defensively here in case a prior run failed.)
-drop table if exists _adr002_wear;
-create temporary table _adr002_wear as
-select
-  w.user_id,
-  w.id as item_id,
-  trim(o.tag) as raw_label,
-  trim(o.tag) in ('Everyday', 'Work', 'Evening', 'Occasion', 'Travel', 'Active') as is_seed
-from public.wardrobe_items w, unnest(coalesce(w.occasions, '{}'::text[])) as o(tag)
-where public.rb_tag_slug(o.tag) is not null;
-
+-- TWO STATEMENTS, AND THE CTE IS REPEATED IN BOTH. Two hazards, one shape
+-- that dodges both:
+--   1. A data-modifying CTE and its main query share ONE SNAPSHOT, so an
+--      `insert ... returning` into `tags` inside a WITH is invisible to a
+--      join against `tags` in the same statement. Verified on PG16: the
+--      single-statement form produced 0 tag_pieces rows and silently lost
+--      every tag.
+--   2. A temp table does not survive between statements in the Supabase SQL
+--      editor — it pools connections, so statement 2 can land on a different
+--      backend. Hit for real on 2026-08-12: `relation "_adr002_wear" does
+--      not exist`.
+-- Repeating the CTE costs a few duplicated lines and depends on nothing:
+-- statement 1 commits the tags, statement 2 reads them back. Do not
+-- "de-duplicate" this into a temp table or a CTE chain.
 insert into public.tags (user_id, kind, label, slug, is_seed)
 select distinct on (user_id, public.rb_tag_slug(raw_label))
        user_id, 'wear_for', raw_label, public.rb_tag_slug(raw_label), is_seed
-from _adr002_wear
+from (
+  select
+    w.user_id,
+    trim(o.tag) as raw_label,
+    trim(o.tag) in ('Everyday', 'Work', 'Evening', 'Occasion', 'Travel', 'Active') as is_seed
+  from public.wardrobe_items w, unnest(coalesce(w.occasions, '{}'::text[])) as o(tag)
+  where public.rb_tag_slug(o.tag) is not null
+) src
 order by user_id, public.rb_tag_slug(raw_label), is_seed desc
 on conflict (user_id, kind, slug) do nothing;
 
 insert into public.tag_pieces (wardrobe_item_id, tag_id, source)
 select distinct r.item_id, t.id, 'user'
-from _adr002_wear r
+from (
+  select w.user_id, w.id as item_id, trim(o.tag) as raw_label
+  from public.wardrobe_items w, unnest(coalesce(w.occasions, '{}'::text[])) as o(tag)
+  where public.rb_tag_slug(o.tag) is not null
+) r
 join public.tags t
   on t.user_id = r.user_id and t.kind = 'wear_for'
  and t.slug = public.rb_tag_slug(r.raw_label)
 on conflict do nothing;
 
-drop table if exists _adr002_wear;
 -- source 'user' is correct here and NOT a guess: the displayed defaults
 -- (Year-round / Everyday) are stripped by WA.submit, so a persisted
 -- occasions value only ever exists because she picked it.
@@ -353,28 +358,22 @@ drop table if exists _adr002_wear;
 -- -> seed vibe; 'vibe:' prefix -> custom vibe with the prefix stripped;
 -- ANYTHING ELSE -> a custom wear_for tag. That last rule is the one a naive
 -- migration misses, and it is where her typed capsule tags live.
--- Same two-statement shape as step 4, for the same snapshot reason.
-drop table if exists _adr002_look;
-create temporary table _adr002_look as
-with raw as (
-  select l.user_id, l.id as look_id, trim(t.tag) as raw_label
-  from public.looks l, unnest(coalesce(l.tags, '{}'::text[])) as t(tag)
-  where trim(coalesce(t.tag, '')) <> ''
-),
-classified as (
+-- Same two-statement, repeated-CTE shape as step 4, for the same two reasons.
+with classified as (
   select
-    user_id, look_id, raw_label,
+    l.user_id, l.id as look_id, trim(t.tag) as raw_label,
     case
-      when raw_label in ('High Summer','Transitional Warm','Transitional Cool','Deep Winter') then 'climate'
-      when raw_label in ('Daylight','Twilight & Evening') then 'light'
-      when raw_label in ('Elevated Everyday','Smart Creative','Boardroom Power','Work-to-Dinner',
-                         'Al Fresco & Travel','Cocktail & Cultural','Formal / Gala') then 'legacy_wear'
-      when raw_label in ('Sharp Tailoring','Fluid Monochrome','Column Line','Soft Layering',
-                         'Old Céline Minimal','90s Off-Duty','Minimalist Glamour') then 'seed_vibe'
-      when raw_label ilike 'vibe:%' then 'custom_vibe'
+      when trim(t.tag) in ('High Summer','Transitional Warm','Transitional Cool','Deep Winter') then 'climate'
+      when trim(t.tag) in ('Daylight','Twilight & Evening') then 'light'
+      when trim(t.tag) in ('Elevated Everyday','Smart Creative','Boardroom Power','Work-to-Dinner',
+                           'Al Fresco & Travel','Cocktail & Cultural','Formal / Gala') then 'legacy_wear'
+      when trim(t.tag) in ('Sharp Tailoring','Fluid Monochrome','Column Line','Soft Layering',
+                           'Old Céline Minimal','90s Off-Duty','Minimalist Glamour') then 'seed_vibe'
+      when trim(t.tag) ilike 'vibe:%' then 'custom_vibe'
       else 'custom_wear'
     end as axis
-  from raw
+  from public.looks l, unnest(coalesce(l.tags, '{}'::text[])) as t(tag)
+  where trim(coalesce(t.tag, '')) <> ''
 ),
 -- Work-to-Dinner is the one legacy value that fans out to two seeds.
 expanded as (
@@ -393,39 +392,78 @@ expanded as (
       end) as label
   ) m on true
   where c.axis = 'legacy_wear'
-
   union all
   select user_id, look_id, 'vibe', raw_label, true
   from classified where axis = 'seed_vibe'
-
   union all
   select user_id, look_id, 'vibe', trim(substring(raw_label from 6)), false
-  from classified where axis = 'custom_vibe'
-    and trim(substring(raw_label from 6)) <> ''
-
+  from classified where axis = 'custom_vibe' and trim(substring(raw_label from 6)) <> ''
   union all
   select user_id, look_id, 'wear_for', raw_label, false
   from classified where axis = 'custom_wear'
   -- 'climate' consumed in step 2; 'light' intentionally dropped (ADR-002 §7).
 )
-select * from expanded where public.rb_tag_slug(label) is not null;
-
 insert into public.tags (user_id, kind, label, slug, is_seed)
 select distinct on (user_id, kind, public.rb_tag_slug(label))
        user_id, kind, label, public.rb_tag_slug(label), is_seed
-from _adr002_look
+from expanded
+where public.rb_tag_slug(label) is not null
 order by user_id, kind, public.rb_tag_slug(label), is_seed desc
 on conflict (user_id, kind, slug) do nothing;
 
+with classified as (
+  select
+    l.user_id, l.id as look_id, trim(t.tag) as raw_label,
+    case
+      when trim(t.tag) in ('High Summer','Transitional Warm','Transitional Cool','Deep Winter') then 'climate'
+      when trim(t.tag) in ('Daylight','Twilight & Evening') then 'light'
+      when trim(t.tag) in ('Elevated Everyday','Smart Creative','Boardroom Power','Work-to-Dinner',
+                           'Al Fresco & Travel','Cocktail & Cultural','Formal / Gala') then 'legacy_wear'
+      when trim(t.tag) in ('Sharp Tailoring','Fluid Monochrome','Column Line','Soft Layering',
+                           'Old Céline Minimal','90s Off-Duty','Minimalist Glamour') then 'seed_vibe'
+      when trim(t.tag) ilike 'vibe:%' then 'custom_vibe'
+      else 'custom_wear'
+    end as axis
+  from public.looks l, unnest(coalesce(l.tags, '{}'::text[])) as t(tag)
+  where trim(coalesce(t.tag, '')) <> ''
+),
+-- Work-to-Dinner is the one legacy value that fans out to two seeds.
+expanded as (
+  select user_id, look_id, 'wear_for' as kind, m.label, true as is_seed
+  from classified c
+  join lateral (
+    select unnest(
+      case c.raw_label
+        when 'Elevated Everyday'   then array['Everyday']
+        when 'Smart Creative'      then array['Work']
+        when 'Boardroom Power'     then array['Work']
+        when 'Work-to-Dinner'      then array['Work','Evening']
+        when 'Al Fresco & Travel'  then array['Travel']
+        when 'Cocktail & Cultural' then array['Evening']
+        when 'Formal / Gala'       then array['Occasion']
+      end) as label
+  ) m on true
+  where c.axis = 'legacy_wear'
+  union all
+  select user_id, look_id, 'vibe', raw_label, true
+  from classified where axis = 'seed_vibe'
+  union all
+  select user_id, look_id, 'vibe', trim(substring(raw_label from 6)), false
+  from classified where axis = 'custom_vibe' and trim(substring(raw_label from 6)) <> ''
+  union all
+  select user_id, look_id, 'wear_for', raw_label, false
+  from classified where axis = 'custom_wear'
+  -- 'climate' consumed in step 2; 'light' intentionally dropped (ADR-002 §7).
+)
 insert into public.tag_looks (look_id, tag_id, source)
 select distinct e.look_id, t.id, 'inferred'
-from _adr002_look e
+from expanded e
 join public.tags t
   on t.user_id = e.user_id and t.kind = e.kind
  and t.slug = public.rb_tag_slug(e.label)
+where public.rb_tag_slug(e.label) is not null
 on conflict do nothing;
 
-drop table if exists _adr002_look;
 -- source 'inferred' here, unlike step 4: a look's stored tags may have been
 -- INHERITED from its pieces (_rbInheritLookTags) rather than chosen, and the
 -- two are indistinguishable after the fact. 'inferred' is the recoverable
