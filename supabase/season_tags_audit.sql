@@ -1,168 +1,170 @@
 -- ADR-002 audit gate — run BEFORE migration 17, in the Supabase SQL editor.
--- Read-only. Writes nothing, changes nothing.
+-- Read-only. Writes nothing, changes nothing. Safe to run repeatedly.
 --
--- The question this answers: does collapsing the five-value `seasons` axis
--- into three bands (Spring/Summer · Autumn/Winter · Year-round) lose real
--- information? A piece tagged {Spring} or {Spring, Summer} lands cleanly in
--- a band. A piece tagged {Spring, Winter} does not — it collapses to
--- year_round, and the distinction it was carrying is gone.
+-- ONE STATEMENT, ON PURPOSE. The Supabase SQL editor renders only the LAST
+-- statement's result, so a file of six separate queries silently throws away
+-- five of them (hit for real on 2026-08-12: the gate verdict ran and was
+-- never seen). Everything below is a single union'd result set — one run,
+-- one table, every section. Read it top to bottom.
 --
--- THE GATE, pre-committed (ADR-002 [Q4]): if cross-band pairings exceed
--- 25% of season-tagged pieces, the four-season axis was carrying real
--- information and the ADR needs revisiting before migration 17 is run.
--- Below that, the collapse is near-lossless and Session A proceeds.
+-- The question it answers: does collapsing the five-value `seasons` axis into
+-- three bands (Spring/Summer · Autumn/Winter · Year-round) lose real
+-- information? A piece tagged {Spring} or {Spring, Summer} lands cleanly in a
+-- band. A piece tagged {Spring, Winter} does not — it collapses to year_round
+-- and the distinction it was carrying is gone.
 --
--- Pre-commit the threshold before reading the number. On current beta
--- volumes this may be a handful of rows — if the sample is too small to be
--- evidence, say so and decide on the product argument (Dublin/London
--- wardrobes are year-round with outliers; SS/AW is native ICP vocabulary)
--- rather than dressing a small n up as data.
+-- THE GATE, pre-committed (ADR-002 [Q4]): if cross-band pairings exceed 25%
+-- of season-tagged pieces, the four-season axis was carrying real information
+-- and the ADR needs revisiting before migration 17 runs. Below that, the
+-- collapse is near-lossless and Session A proceeds. Pre-commit the threshold
+-- before reading the number — on current beta volumes this may be a handful
+-- of rows, and a small n should be called indicative rather than dressed up
+-- as data.
 
--- ── 1. The gate ─────────────────────────────────────────────────────────
-with banded as (
-  select
-    id,
-    coalesce(seasons, '{}'::text[]) as s
-  from public.wardrobe_items
+with
+-- ── season banding ──
+banded as (
+  select coalesce(seasons, '{}'::text[]) as s from public.wardrobe_items
 ),
 classed as (
   select
-    id,
     ('Spring' = any(s) or 'Summer' = any(s)) as has_ss,
     ('Autumn' = any(s) or 'Winter' = any(s)) as has_aw,
     ('Year-round' = any(s))                  as has_yr,
     cardinality(s) as n
   from banded
 ),
-bucketed as (
+gate as (
   select
-    case
-      when n = 0                       then 'untagged'
-      when has_yr and not (has_ss or has_aw) then 'year_round_only'
-      when has_ss and has_aw           then 'cross_band'
-      when has_ss                      then 'spring_summer_only'
-      when has_aw                      then 'autumn_winter_only'
-      else 'other'
-    end as bucket
+    count(*) filter (where has_ss or has_aw)  as tagged,
+    count(*) filter (where has_ss and has_aw) as cross_band
   from classed
-)
-select
-  bucket,
-  count(*) as pieces,
-  round(100.0 * count(*) / nullif(sum(count(*)) over (), 0), 1) as pct_of_all
-from bucketed
-group by bucket
-order by pieces desc;
-
--- ── 2. The single number the gate turns on ──────────────────────────────
--- Cross-band pairings as a share of pieces that carry ANY specific season
--- (untagged and Year-round-only pieces are excluded — they lose nothing).
-with banded as (
-  select coalesce(seasons, '{}'::text[]) as s from public.wardrobe_items
 ),
-classed as (
-  select
-    ('Spring' = any(s) or 'Summer' = any(s)) as has_ss,
-    ('Autumn' = any(s) or 'Winter' = any(s)) as has_aw
-  from banded
+-- ── the look-tag flat array (ADR-002 [C1]) ──
+looktags as (
+  select trim(t.tag) as tag
+  from public.looks l, unnest(coalesce(l.tags, '{}'::text[])) as t(tag)
+  where trim(coalesce(t.tag, '')) <> ''
+),
+-- ── the piece occasions array ──
+occ as (
+  select trim(o.tag) as tag
+  from public.wardrobe_items w, unnest(coalesce(w.occasions, '{}'::text[])) as o(tag)
+  where trim(coalesce(o.tag, '')) <> ''
+),
+rows_out as (
+
+  -- 1 · THE GATE ─────────────────────────────────────────────────────────
+  select 1 as sect, 0 as ord, '1 · GATE' as section, 'VERDICT' as item, null::bigint as n,
+    case
+      when tagged = 0        then 'NO DATA — decide on the product argument'
+      when tagged < 40       then 'SMALL n — indicative only, decide on the product argument'
+      when 100.0 * cross_band / tagged > 25 then 'GATE FAILS — revisit ADR-002 before migration 17'
+      else 'GATE PASSES — proceed to migration 17'
+    end as detail
+  from gate
+  union all
+  select 1, 1, '1 · GATE', 'cross-band %', null,
+         coalesce(round(100.0 * cross_band / nullif(tagged, 0), 1)::text, 'n/a') || '  (threshold 25%)'
+  from gate
+  union all
+  select 1, 2, '1 · GATE', 'season-tagged pieces', tagged, null from gate
+  union all
+  select 1, 3, '1 · GATE', 'of which cross-band', cross_band, null from gate
+
+  -- 2 · HOW THE WARDROBE SPLITS ──────────────────────────────────────────
+  union all
+  select 2, 0, '2 · PIECES', bucket, cnt,
+         round(100.0 * cnt / nullif(sum(cnt) over (), 0), 1)::text || '% of all pieces'
+  from (
+    select
+      case
+        when n = 0                             then 'untagged (-> year_round)'
+        when has_yr and not (has_ss or has_aw) then 'year-round only'
+        when has_ss and has_aw                 then 'CROSS-BAND (-> year_round, the loss)'
+        when has_ss                            then 'spring/summer only'
+        else 'autumn/winter only'
+      end as bucket,
+      count(*) as cnt
+    from classed group by 1
+  ) b
+
+  -- 3 · WHICH PAIRINGS, IF THE GATE FAILS ────────────────────────────────
+  -- Says WHAT was being expressed, so a fourth band ('transitional') could be
+  -- argued from data rather than from anticipation.
+  union all
+  select 3, 0, '3 · PAIRINGS', array_to_string(array(select unnest(seasons) order by 1), ' + '),
+         count(*), null
+  from public.wardrobe_items
+  where seasons is not null and cardinality(seasons) > 0
+  -- group by the EXPRESSION, never `group by 1`: inside a union branch the
+  -- first output column is the constant section number, so an ordinal
+  -- silently groups the wrong thing (or errors, as this one did).
+  group by array_to_string(array(select unnest(seasons) order by 1), ' + ')
+
+  -- 4 · LEGACY LOOK CLIMATE -> BAND ──────────────────────────────────────
+  union all
+  select 4, 0, '4 · LOOK CLIMATE', tag, count(*),
+    '-> ' || case tag
+      when 'High Summer' then 'spring_summer' when 'Transitional Warm' then 'spring_summer'
+      when 'Transitional Cool' then 'autumn_winter' else 'autumn_winter' end
+  from looktags
+  where tag in ('High Summer','Transitional Warm','Transitional Cool','Deep Winter')
+  group by tag
+
+  -- 5 · CUSTOM TAGS AT RISK ──────────────────────────────────────────────
+  -- The count migration 17 must preserve. An unknown plain string is a CUSTOM
+  -- WEAR TAG and a 'vibe:' prefix is a custom vibe — both invisible to a
+  -- migration that only maps the known vocabularies.
+  union all
+  select 5, 0, '5 · AT RISK',
+         case when tag ilike 'vibe:%' then 'look · custom vibe' else 'look · custom wear_for' end,
+         count(*), string_agg(distinct tag, ', ')
+  from looktags
+  where tag not in (
+    'High Summer','Transitional Warm','Transitional Cool','Deep Winter',
+    'Daylight','Twilight & Evening',
+    'Elevated Everyday','Smart Creative','Boardroom Power','Work-to-Dinner',
+    'Al Fresco & Travel','Cocktail & Cultural','Formal / Gala',
+    'Sharp Tailoring','Fluid Monochrome','Column Line','Soft Layering',
+    'Old Céline Minimal','90s Off-Duty','Minimalist Glamour')
+  group by (case when tag ilike 'vibe:%' then 'look · custom vibe' else 'look · custom wear_for' end)
+  union all
+  select 5, 1, '5 · AT RISK', 'piece · custom wear_for', count(*), string_agg(distinct tag, ', ')
+  from occ
+  where tag not in ('Everyday','Work','Evening','Occasion','Travel','Active')
+  having count(*) > 0
+
+  -- 6 · WHAT MIGRATION 17 WILL TOUCH ─────────────────────────────────────
+  union all
+  select 6, 0, '6 · SCALE', 'pieces', count(*), null from public.wardrobe_items
+  union all
+  select 6, 1, '6 · SCALE', 'looks',  count(*), null from public.looks
+  union all
+  select 6, 2, '6 · SCALE', 'looks carrying any tag', count(*), null
+  from public.looks where tags is not null and cardinality(tags) > 0
+
+  -- 7 · DEPENDENCIES ─────────────────────────────────────────────────────
+  -- Session B's category -> tag pre-fill keys on L2. category_l2 is checked
+  -- via the catalog rather than referenced, so this file still runs on a
+  -- project where migration 15 has not been applied.
+  union all
+  select 7, 0, '7 · DEPS', 'migration 15 (wardrobe_taxonomy)', null,
+    case when to_regclass('public.wardrobe_taxonomy') is not null
+      and exists (select 1 from information_schema.columns
+                  where table_schema='public' and table_name='wardrobe_items' and column_name='category_l2')
+      then 'present' else 'MISSING — run wardrobe_taxonomy_migration.sql first' end
+  union all
+  select 7, 1, '7 · DEPS', 'migration 16 (look_pieces.role)', null,
+    case when exists (select 1 from information_schema.columns
+                      where table_schema='public' and table_name='look_pieces' and column_name='role')
+      then 'present' else 'MISSING — run look_roles_migration.sql' end
+  union all
+  select 7, 2, '7 · DEPS', 'migration 17 (this ADR)', null,
+    case when exists (select 1 from information_schema.columns
+                      where table_schema='public' and table_name='wardrobe_items' and column_name='season_band')
+      then 'ALREADY APPLIED' else 'not yet applied' end
 )
-select
-  count(*) filter (where has_ss or has_aw)               as season_tagged_pieces,
-  count(*) filter (where has_ss and has_aw)              as cross_band_pieces,
-  round(100.0 * count(*) filter (where has_ss and has_aw)
-        / nullif(count(*) filter (where has_ss or has_aw), 0), 1) as cross_band_pct,
-  case
-    when count(*) filter (where has_ss or has_aw) = 0 then 'NO DATA — decide on the product argument'
-    when count(*) filter (where has_ss or has_aw) < 40 then 'SMALL n — treat as indicative only'
-    when 100.0 * count(*) filter (where has_ss and has_aw)
-         / nullif(count(*) filter (where has_ss or has_aw), 0) > 25 then 'GATE FAILS — revisit ADR-002'
-    else 'GATE PASSES — proceed to migration 17'
-  end as verdict
-from classed;
-
--- ── 3. Which exact pairings, if the gate fails ──────────────────────────
--- Tells you WHAT was being expressed, so a fourth band (`transitional`)
--- can be argued from the actual data rather than from anticipation.
-select
-  array_to_string(array(select unnest(seasons) order by 1), ' + ') as pairing,
-  count(*) as pieces
-from public.wardrobe_items
-where seasons is not null and cardinality(seasons) > 0
-group by 1
-order by pieces desc;
-
--- ── 4. Legacy look climate values, for the migration-17 backfill ────────
--- All four look-tag axes ride ONE flat looks.tags text[] recovered by
--- disjointness (ADR-002 [C1]) — this is the climate slice of that array.
-select
-  t.tag as legacy_climate,
-  case t.tag
-    when 'High Summer'        then 'spring_summer'
-    when 'Transitional Warm'  then 'spring_summer'
-    when 'Transitional Cool'  then 'autumn_winter'
-    when 'Deep Winter'        then 'autumn_winter'
-  end as maps_to,
-  count(*) as looks
-from public.looks l, unnest(coalesce(l.tags, '{}'::text[])) as t(tag)
-where t.tag in ('High Summer', 'Transitional Warm', 'Transitional Cool', 'Deep Winter')
-group by 1, 2
-order by looks desc;
-
--- ── 5. Custom tags at risk — the ones a naive migration would destroy ───
--- An unknown plain string in looks.tags is a CUSTOM WEAR TAG; a 'vibe:'
--- prefix marks a custom vibe. Both are invisible to a migration that only
--- maps the known vocabularies. This is the count that has to survive.
-select
-  case when t.tag ilike 'vibe:%' then 'custom vibe' else 'custom wear_for' end as kind,
-  count(*)                    as occurrences,
-  count(distinct t.tag)       as distinct_labels,
-  array_agg(distinct t.tag)   as labels
-from public.looks l, unnest(coalesce(l.tags, '{}'::text[])) as t(tag)
-where trim(coalesce(t.tag, '')) <> ''
-  and t.tag not in (
-  'High Summer', 'Transitional Warm', 'Transitional Cool', 'Deep Winter',
-  'Daylight', 'Twilight & Evening',
-  'Elevated Everyday', 'Smart Creative', 'Boardroom Power', 'Work-to-Dinner',
-  'Al Fresco & Travel', 'Cocktail & Cultural', 'Formal / Gala',
-  'Sharp Tailoring', 'Fluid Monochrome', 'Column Line', 'Soft Layering',
-  'Old Céline Minimal', '90s Off-Duty', 'Minimalist Glamour'
-)
-group by 1;
-
--- Same question on the piece side: anything in occasions beyond the five
--- known values plus the legacy 'Everyday' is a chip she typed herself.
-select
-  o.tag as custom_wear_tag,
-  count(*) as pieces
-from public.wardrobe_items w, unnest(coalesce(w.occasions, '{}'::text[])) as o(tag)
--- Whitespace-only chips are dropped by migration 17 rather than migrated, so
--- they must not inflate the at-risk count here either.
-where trim(coalesce(o.tag, '')) <> ''
-  and o.tag not in ('Everyday', 'Work', 'Evening', 'Occasion', 'Travel', 'Active')
-group by 1
-order by pieces desc;
-
--- ── 6. Migration 15 dependency check (ADR-002 [Q5]) ─────────────────────
--- Session B's category → tag pre-fill keys on L2. If this returns false,
--- run supabase/wardrobe_taxonomy_migration.sql first.
--- (The L2 count is fetched dynamically — the column does not exist until 15
--- has run, so a plain reference to it would make this whole file error out
--- on exactly the projects it is meant to diagnose.)
-do $$
-declare has15 boolean; withl2 bigint; total bigint;
-begin
-  has15 := to_regclass('public.wardrobe_taxonomy') is not null
-       and exists (select 1 from information_schema.columns
-                   where table_schema = 'public' and table_name = 'wardrobe_items'
-                     and column_name = 'category_l2');
-  execute 'select count(*) from public.wardrobe_items' into total;
-  if has15 then
-    execute 'select count(*) from public.wardrobe_items where category_l2 is not null' into withl2;
-  else
-    withl2 := 0;
-  end if;
-  raise notice 'migration_15_has_run=% pieces_with_l2=% pieces_total=%', has15, withl2, total;
-  if not has15 then
-    raise notice 'ADR-002 [Q5]: run supabase/wardrobe_taxonomy_migration.sql before Session B.';
-  end if;
-end $$;
+select section, item, n, detail
+from rows_out
+order by sect, ord, n desc nulls last, item;
