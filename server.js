@@ -7,7 +7,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { readFileSync } from 'fs';
 import { GoogleGenAI } from '@google/genai';
 import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock } from './style_dna.js';
-import { taxonomyPromptBlock, resolveTaxonomy, TAXONOMY_GROUPS } from './wardrobe_taxonomy.js';
+import { TAXONOMY_GROUPS, resolveTaxonomy, taxonomyPromptBlock, tagDefaultRows, WEAR_SEEDS } from './wardrobe_taxonomy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -2136,7 +2136,11 @@ const ANALYSE_SCHEMA = {
 // stays the single source of truth.
 app.get('/api/wardrobe/taxonomy', (req, res) => {
   res.set('Cache-Control', 'public, max-age=3600');
-  res.json({ groups: TAXONOMY_GROUPS });
+  // tagDefaults ships with the tree so the add form can PREVIEW what the
+  // migration-18 trigger is about to file — same mapping, served rather than
+  // duplicated in the client. The preview is display only: an untouched add
+  // sends no season_source, and the trigger does the actual write.
+  res.json({ groups: TAXONOMY_GROUPS, tagDefaults: tagDefaultRows(), wearSeeds: WEAR_SEEDS });
 });
 
 app.post('/api/wardrobe/analyse', async (req, res) => {

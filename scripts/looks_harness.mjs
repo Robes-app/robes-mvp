@@ -110,17 +110,25 @@ async function boot(browser, { width = 1280, looksTable = true, seed = true, dro
     const req = r.request();
     const u = req.url();
     const m = req.method();
+    let postBody = null;
     if (m !== 'GET') {
-      let body = null;
-      try { body = req.postDataJSON(); } catch (_) { body = req.postData(); }
-      writes.push({ method: m, url: u.split('/rest/v1/')[1] || u, body });
+      try { postBody = req.postDataJSON(); } catch (_) { postBody = req.postData(); }
+      writes.push({ method: m, url: u.split('/rest/v1/')[1] || u, body: postBody });
     }
     const missing = () => r.fulfill({
       status: 404, contentType: 'application/json',
       body: JSON.stringify({ code: 'PGRST205', message: 'Could not find the table \'public.looks\' in the schema cache' }),
     });
     if (/\/(looks|look_pieces|wears)\b/.test(u) && !looksTable) return missing();
-    if (m !== 'GET') return r.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
+    // PostgREST with Prefer: return=representation echoes the inserted row.
+    // Returning [] made every _tgEnsure fall through to a re-read that also
+    // returned [], so no tag ever got an id and its link was dropped.
+    if (m !== 'GET') {
+      const echo = /^tags\b/.test(u.split('/rest/v1/')[1] || '') && postBody
+        ? JSON.stringify([Object.assign({ id: 'tag-' + (postBody.slug || 'x') }, postBody)])
+        : '[]';
+      return r.fulfill({ status: 201, contentType: 'application/json', body: echo });
+    }
     let body = '[]';
     if (u.includes('wardrobe_items')) body = JSON.stringify(wardrobe().filter((w) => !dropCat || w.category !== dropCat));
     else if (u.includes('/looks')) body = JSON.stringify(seed ? SEED_LOOKS : []);
@@ -290,7 +298,7 @@ const browser = await chromium.launch(
     window.__lkRefineToggle();
     const drawer = document.querySelector('.rb-lk-refwrap');
     const axes = drawer ? Array.from(drawer.querySelectorAll('.rb-lkref-ax')).map((e) => e.textContent) : [];
-    const chip = drawer && drawer.querySelector('.rb-lkref-chip[data-val="Formal / Gala"]');
+    const chip = drawer && drawer.querySelector('.rb-lkref-chip[data-val="occasion"]');
     if (chip) chip.click();
     const shown = document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length;
     const none = /No looks carry those tags/.test(document.getElementById('rb-lk-grid').textContent);
@@ -300,8 +308,10 @@ const browser = await chromium.launch(
     return { newBtn: !!newBtn, axes, shown, none, restored };
   });
   check('bar · the + New split button sits in the grid bar', bar.newBtn === true);
-  check('bar · Refine opens all four tag axes',
-    JSON.stringify(bar.axes) === JSON.stringify(['Climate', 'Light', 'Wear it for', 'Vibe']), JSON.stringify(bar.axes));
+  // ADR-002 §7: Light is deleted, and Vibe only renders once she has one —
+  // the axis is her vocabulary, so an empty one is nothing to show.
+  check('bar · Refine opens the surviving tag axes',
+    JSON.stringify(bar.axes) === JSON.stringify(['Climate', 'Wear it for']), JSON.stringify(bar.axes));
   check('bar · a pick filters; nothing-matches names itself; Clear restores',
     bar.shown === 0 && bar.none === true && bar.restored === 2, JSON.stringify(bar));
 
@@ -459,20 +469,28 @@ const browser = await chromium.launch(
     window.__lkTagsEdit();
     const sheet = document.getElementById('rb-tag-sheet');
     const groups = sheet ? Array.from(sheet.querySelectorAll('div > div[style*="uppercase"], div[style*="letter-spacing"]')).map((e) => e.textContent).join('|') : '';
-    // pick High Summer (climate 0) + Boardroom Power (wear 2)
-    window.__rbTagPick('climate', 0);
-    window.__rbTagPick('wear', 2);
+    // ADR-002: picks are by SLUG now, not by index into a fixed list
+    window.__rbTagPick('climate', 'spring_summer');
+    window.__rbTagPick('wear', 'occasion');
     window.__rbTagDone(true);
     const row = document.querySelector('.rb-lk-con .rbc-tags');
     return { hadSheet: !!sheet, groups, rowText: row ? row.textContent : '' };
   });
-  check('tags · the sheet opens with all four axes', tagged.hadSheet && /Climate/.test(tagged.groups) && /Light/.test(tagged.groups) && /Wear it for/.test(tagged.groups) && /Vibe/.test(tagged.groups), tagged.groups.slice(0, 200));
-  check('tags · picks land back on the row', /High Summer/.test(tagged.rowText) && /Boardroom Power/.test(tagged.rowText), tagged.rowText);
+  check('tags · the sheet opens on the three surviving axes, Light gone',
+    tagged.hadSheet && /Climate/.test(tagged.groups) && /Wear it for/.test(tagged.groups)
+      && /Vibe/.test(tagged.groups) && !/Light/.test(tagged.groups), tagged.groups.slice(0, 200));
+  check('tags · picks land back on the row', /Spring\/Summer/.test(tagged.rowText) && /Occasion/.test(tagged.rowText), tagged.rowText);
   await page.waitForTimeout(400);
-  const tagWrite = writes.find((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && Array.isArray(w.body?.tags));
-  check('tags · the edit PATCHes looks.tags as a flat text[]',
-    !!tagWrite && tagWrite.body.tags.includes('High Summer') && tagWrite.body.tags.includes('Boardroom Power'),
-    JSON.stringify(tagWrite && tagWrite.body.tags));
+  // Climate is a COLUMN now, and her edit is permanent: climate_source flips
+  // to 'user' and the look is never re-derived again. Wear and Vibe go to the
+  // shared namespace (tag_looks), not onto the looks row.
+  const tagWrite = writes.find((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && w.body && w.body.climate_band);
+  check('tags · the edit PATCHes climate_band and marks the override hers',
+    !!tagWrite && tagWrite.body.climate_band === 'spring_summer' && tagWrite.body.climate_source === 'user',
+    JSON.stringify(tagWrite && tagWrite.body));
+  const linkWrite = writes.find((w) => w.method === 'POST' && /^tag_looks/.test(w.url));
+  check('tags · wear/vibe land in the shared namespace, not on the look row',
+    !!linkWrite, JSON.stringify(writes.filter(w => w.method === 'POST').map(w => w.url)));
 
   // Custom tags (F2 "+ tag" amendment, 2026-08-07): Wear and Vibe are open
   // axes — a typed tag chips in, and a custom vibe stores with the vibe:
@@ -492,10 +510,15 @@ const browser = await chromium.launch(
   check('tags · a typed tag becomes an inline input, then a chip on the row',
     custom.hadInput === true && /Quiet Luxury/.test(custom.rowText), custom.rowText);
   await page.waitForTimeout(400);
-  const customWrite = writes.filter((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && Array.isArray(w.body?.tags)).pop();
-  check('tags · a custom vibe stores prefixed, keeping the axes recoverable',
-    !!customWrite && customWrite.body.tags.includes('vibe:Quiet Luxury'),
-    JSON.stringify(customWrite && customWrite.body.tags));
+  // The 'vibe:' prefix was a workaround for packing four axes into one flat
+  // text[]. With a real namespace the axis is carried by tags.kind, so the
+  // custom vibe is minted as its own row and slugged.
+  const vibeTag = writes.find((w) => w.method === 'POST' && /^tags/.test(w.url)
+    && w.body && w.body.kind === 'vibe');
+  check('tags · a custom vibe mints a namespace row, slugged, no prefix',
+    !!vibeTag && vibeTag.body.slug === 'quiet-luxury' && vibeTag.body.label === 'Quiet Luxury'
+      && vibeTag.body.is_seed === false,
+    JSON.stringify(vibeTag && vibeTag.body));
 
   // Drag & drop role casting (A3 amendment, 2026-08-07): every rack row is
   // draggable, a drop under a strip re-casts freely — the strips educate,

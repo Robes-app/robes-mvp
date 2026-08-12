@@ -132,15 +132,20 @@ declare
 begin
   select id, user_id, category, category_l2, season_source
     into it from public.wardrobe_items where id = p_item_id;
-  if not found or it.season_source = 'user' then return; end if;
+  if not found then return; end if;
 
   select * into def from public.rb_piece_defaults(it.category, it.category_l2);
   if not found then return; end if;
 
-  -- Season: inferred only. A user-set band was excluded above.
-  update public.wardrobe_items
-     set season_band = def.season_band, season_source = 'inferred'
-   where id = it.id;
+  -- The two axes are guarded SEPARATELY. Guarding the whole function on
+  -- season_source would mean that picking a season while adding a piece
+  -- silently suppressed its wear pre-fill too — two unrelated decisions
+  -- coupled by an early return.
+  if it.season_source <> 'user' then
+    update public.wardrobe_items
+       set season_band = def.season_band, season_source = 'inferred'
+     where id = it.id;
+  end if;
 
   foreach v_slug in array def.wear_slugs loop
     insert into public.tags (user_id, kind, label, slug, is_seed)
@@ -184,6 +189,14 @@ create trigger trg_wardrobe_tag_defaults
 -- ── one-shot backfill of the existing wardrobe ──────────────────────────
 -- Only rows still at source 'inferred'; anything she has corrected is left
 -- exactly as it is.
+--
+-- NOTE the deliberate asymmetry with the trigger. rb_apply_tag_defaults
+-- guards the two axes separately, so an INSERT that arrives with a chosen
+-- season still gets its wear pre-fill — at insert time there is no prior tag
+-- set to respect. The backfill skips a user-touched row ENTIRELY, because
+-- there may well be one: adding 'everyday' on top of a piece she has
+-- deliberately tagged 'work' alone would be editing her work, not filling a
+-- blank. Same function, different caller, different risk.
 do $$
 declare r record; n bigint := 0;
 begin

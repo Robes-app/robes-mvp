@@ -70,9 +70,9 @@ const TAG_TAX = {
 };
 
 const ROWS = [
-  { id: 'row-1', user_id: 'u-test', label: 'Blue skinny jeans', category: 'Bottoms', category_l2: 'Jeans', category_l3: 'Skinny jeans', color: 'Navy', brand: 'Levi’s', notes: '', image_url: null, times_worn: 2, item_dna: {}, seasons: ['Summer'], occasions: ['Everyday', 'Travel'], hero_position: 1, created_at: '2026-08-01' },
-  { id: 'row-2', user_id: 'u-test', label: 'Wide-leg jeans', category: 'Bottoms', category_l2: 'Jeans', category_l3: 'Wide-leg jeans', color: 'Black', brand: 'Arket', notes: '', image_url: null, times_worn: 0, item_dna: {}, seasons: [], occasions: [], hero_position: null, created_at: '2026-08-02' },
-  { id: 'row-3', user_id: 'u-test', label: 'White tee', category: 'Tops', category_l2: 'T-shirts & tees', category_l3: 'Classic crewneck tee', color: 'White', brand: 'Cos', notes: '', image_url: null, times_worn: 5, item_dna: {}, seasons: [], occasions: ['Work', 'Skiing'], hero_position: null, created_at: '2026-08-03' },
+  { id: 'row-1', user_id: 'u-test', label: 'Blue skinny jeans', category: 'Bottoms', category_l2: 'Jeans', category_l3: 'Skinny jeans', color: 'Navy', brand: 'Levi’s', notes: '', image_url: null, times_worn: 2, item_dna: {}, seasons: ['Summer'], occasions: ['Everyday', 'Travel'], season_band: 'spring_summer', season_source: 'user', hero_position: 1, created_at: '2026-08-01' },
+  { id: 'row-2', user_id: 'u-test', label: 'Wide-leg jeans', category: 'Bottoms', category_l2: 'Jeans', category_l3: 'Wide-leg jeans', color: 'Black', brand: 'Arket', notes: '', image_url: null, times_worn: 0, item_dna: {}, seasons: [], occasions: [], season_band: 'year_round', season_source: 'inferred', hero_position: null, created_at: '2026-08-02' },
+  { id: 'row-3', user_id: 'u-test', label: 'White tee', category: 'Tops', category_l2: 'T-shirts & tees', category_l3: 'Classic crewneck tee', color: 'White', brand: 'Cos', notes: '', image_url: null, times_worn: 5, item_dna: {}, seasons: [], occasions: ['Work', 'Skiing'], season_band: 'year_round', season_source: 'inferred', hero_position: null, created_at: '2026-08-03' },
 ];
 
 const results = [];
@@ -284,9 +284,15 @@ const browser = await chromium.launch(
   check('save · legacy category carried', supaPosts[0] && supaPosts[0].category === 'Outerwear', supaPosts[0] && supaPosts[0].category);
   check('save · retired columns left off the payload',
     supaPosts[0] && !('price' in supaPosts[0]) && !('fit_confidence' in supaPosts[0]) && !('sentiment' in supaPosts[0]) && !('hero_position' in supaPosts[0]));
-  check('save · untouched default chips store as null, never as tags',
-    supaPosts[0] && supaPosts[0].seasons === null && supaPosts[0].occasions === null,
-    JSON.stringify([supaPosts[0]?.seasons, supaPosts[0]?.occasions]));
+  // ADR-002: the band is STORED (not-null), and season_source is omitted
+  // when she never touched the chip — a save is not a correction, and
+  // stamping 'user' on every save would erase the signal the pre-fill's
+  // quality is measured with. The legacy arrays are no longer written.
+  check('save · untouched band stores without claiming she set it',
+    supaPosts[0] && supaPosts[0].season_band === 'year_round'
+      && !('season_source' in supaPosts[0])
+      && !('seasons' in supaPosts[0]) && !('occasions' in supaPosts[0]),
+    JSON.stringify([supaPosts[0]?.season_band, supaPosts[0]?.season_source]));
   check('no page errors (happy path)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -350,7 +356,7 @@ const browser = await chromium.launch(
   await ctx.close();
 }
 
-// ── Tag axes: Season + Wear-it-for + custom tag → seasons/occasions ────
+// ── Tag axes: season band + the shared wear namespace + a custom tag ───
 {
   const { ctx, page, errs, supaPosts } = await boot(browser, TAG);
   await page.evaluate(() => window.WA && WA.open());
@@ -369,13 +375,18 @@ const browser = await chromium.launch(
     hide: Array.from(document.querySelectorAll('button.rb-saw-toggle')).some((b) => /Hide tags and notes/.test(b.textContent)),
     editLink: !!document.querySelector('.rb-wf-headact'),
   }));
-  check('tags · Season axis complete', axes.sea.join('|') === 'Spring|Summer|Autumn|Winter|Year-round', axes.sea.join('|'));
-  check('tags · Context axis leads with Everyday + the vocabulary',
-    axes.ctx.join('|') === 'Everyday|Work|Evening|Occasion|Travel|Active', axes.ctx.join('|'));
-  check('tags · defaults show selected on an untagged piece', axes.on.join('|') === 'Year-round|Everyday', axes.on.join('|'));
+  // Three bands, one tap (ADR-002 §1) — picking both bands IS year-round.
+  check('tags · Season is the three-band axis',
+    axes.sea.join('|') === 'Spring/Summer|Autumn/Winter|Year-round', axes.sea.join('|'));
+  // The seven shared seeds, in vocabulary order, from the namespace.
+  check('tags · Wear it for renders the seven shared seeds',
+    axes.ctx.join('|') === 'Everyday|Work|Evening|Occasion|Travel|Active|Lounge', axes.ctx.join('|'));
+  // With no taxonomy defaults served in the harness the seed falls back to
+  // the honest "any weather, no use recorded".
+  check('tags · a fresh piece starts on a band, never empty', axes.on.join('|') === 'Year-round', axes.on.join('|'));
   check('tags · custom tag door + notes + hide row + header Edit link', axes.add && axes.notes && axes.hide && axes.editLink);
 
-  await page.click('.rb-wf-chip.sea:has-text("Summer")');
+  await page.click('.rb-wf-chip.sea:has-text("Spring/Summer")');
   await page.click('.rb-wf-chip.ctx:has-text("Travel")');
   await page.click('.rb-wf-chip.add');
   await page.fill('#rb-wf-tagin', 'Skiing');
@@ -383,23 +394,31 @@ const browser = await chromium.launch(
   const tagged = await page.evaluate(() => ({
     on: Array.from(document.querySelectorAll('.rb-wf-chip.on')).map((c) => c.textContent),
   }));
-  check('tags · picks + custom tag land selected', tagged.on.includes('Summer') && tagged.on.includes('Travel') && tagged.on.includes('Skiing'),
+  check('tags · picks + custom tag land selected',
+    tagged.on.includes('Spring/Summer') && tagged.on.includes('Travel') && tagged.on.includes('Skiing'),
     tagged.on.join('|'));
-  check('tags · specific picks displace the defaults', !tagged.on.includes('Year-round') && !tagged.on.includes('Everyday'),
-    tagged.on.join('|'));
-  // Deselecting the last specific tag brings its default back
-  await page.click('.rb-wf-chip.sea:has-text("Summer")');
-  const revert = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.rb-wf-chip.sea.on')).map((c) => c.textContent));
-  check('tags · emptying an axis re-selects its default', revert.join('|') === 'Year-round', revert.join('|'));
-  await page.click('.rb-wf-chip.sea:has-text("Summer")');
+  // Single-select: picking a band replaces the previous one rather than
+  // adding to it, so Year-round drops off.
+  check('tags · the band is single-select', !tagged.on.includes('Year-round'), tagged.on.join('|'));
+  // Wear it for is UNCAPPED and may be emptied — 'everyday' is a real tag
+  // now, not a floor the axis snaps back to.
+  await page.click('.rb-wf-chip.ctx:has-text("Travel")');
+  await page.click('.rb-wf-chip.ctx:has-text("Skiing")');
+  const emptied = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.rb-wf-chip.ctx.on')).map((c) => c.textContent));
+  check('tags · Wear it for can be emptied, nothing snaps back', emptied.length === 0, emptied.join('|'));
+  await page.click('.rb-wf-chip.ctx:has-text("Travel")');
+  await page.click('.rb-wf-chip.ctx:has-text("Skiing")');
   await page.fill('#wa-saw-notes', 'Wear with the navy suit.');
   await page.click('#wa-saw-cta');
   await page.waitForTimeout(1800);
   const p = supaPosts[0] || {};
-  check('tags · seasons/occasions filed on their own axes',
-    JSON.stringify(p.seasons) === JSON.stringify(['Summer']) && JSON.stringify(p.occasions) === JSON.stringify(['Travel', 'Skiing']),
-    JSON.stringify([p.seasons, p.occasions]));
+  // A touched band files as hers; wear goes to the shared namespace after
+  // the row exists, not into the piece payload.
+  check('tags · a touched band files as hers',
+    p.season_band === 'spring_summer' && p.season_source === 'user'
+      && !('occasions' in p),
+    JSON.stringify([p.season_band, p.season_source]));
   check('tags · notes persisted', p.notes === 'Wear with the navy suit.', String(p.notes));
   check('no page errors (tag axes)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
@@ -535,17 +554,25 @@ const browser = await chromium.launch(
     on: Array.from(document.querySelectorAll('.rb-wf-chip.on')).map((c) => c.textContent),
     everyday: Array.from(document.querySelectorAll('.rb-wf-chip')).some((c) => c.textContent === 'Everyday'),
   }));
-  check('edit · saved axes prefill; a tagged piece leaves the defaults off',
-    edTags.on.includes('Summer') && edTags.on.includes('Travel') && edTags.everyday
-    && !edTags.on.includes('Everyday') && !edTags.on.includes('Year-round'),
+  // ADR-002: 'Everyday' is a real seed now, not a displayed-only default,
+  // so a piece tagged Everyday + Travel shows BOTH selected. The band comes
+  // from season_band rather than being derived from the seasons array.
+  check('edit · band and every wear tag prefill from the row',
+    edTags.on.includes('Spring/Summer') && edTags.on.includes('Travel')
+    && edTags.on.includes('Everyday') && !edTags.on.includes('Year-round'),
     edTags.on.join('|'));
   await page.click('#wa-saw-cta');
   await page.waitForTimeout(1500);
   const patch = supaPatches[0] || {};
   check('edit · PATCH targets the row', /row-1/.test(patch.url || ''), patch.url);
-  check('edit · axes re-filed without Everyday',
-    patch.body && JSON.stringify(patch.body.seasons) === JSON.stringify(['Summer']) && JSON.stringify(patch.body.occasions) === JSON.stringify(['Travel']),
-    JSON.stringify(patch.body && [patch.body.seasons, patch.body.occasions]));
+  // An untouched edit re-files the band it already had, and still does not
+  // claim she set it — season_source only appears when she taps the chip.
+  // Wear tags never ride the piece payload; they go to the shared namespace.
+  check('edit · band re-filed, provenance not overclaimed, no legacy arrays',
+    patch.body && patch.body.season_band === 'spring_summer'
+      && !('season_source' in patch.body)
+      && !('seasons' in patch.body) && !('occasions' in patch.body),
+    JSON.stringify(patch.body && [patch.body.season_band, patch.body.season_source]));
   check('edit · pass-through columns untouched by the PATCH',
     patch.body && !('price' in patch.body) && !('hero_position' in patch.body) && !('sentiment' in patch.body));
 
@@ -636,8 +663,8 @@ const browser = await chromium.launch(
   check('refine · four groups in order — Season / Wear it for / Colour / Brand',
     ref.labels.length === 4 && /Season/.test(ref.labels[0]) && /Wear it for/i.test(ref.labels[1]) && /Colour/.test(ref.labels[2]) && /Brand/.test(ref.labels[3]),
     ref.labels.join('|'));
-  check('refine · wear chips = Everyday + vocabulary + owned free tags',
-    ref.wear.join('|') === 'Everyday|Work|Evening|Occasion|Travel|Active|Skiing', ref.wear.join('|'));
+  check('refine · wear chips = the seven seeds + her own tags',
+    ref.wear.join('|') === 'Everyday|Work|Evening|Occasion|Travel|Active|Lounge|Skiing', ref.wear.join('|'));
   check('refine · full palette, no wheel', ref.sw === 21 && !ref.wheel, String(ref.sw));
   check('refine · worn / fits sections gone', !ref.worn && !ref.fits);
   check('refine · Show-N footer', ref.foot);
