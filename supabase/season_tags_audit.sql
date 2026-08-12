@@ -118,7 +118,8 @@ select
   count(distinct t.tag)       as distinct_labels,
   array_agg(distinct t.tag)   as labels
 from public.looks l, unnest(coalesce(l.tags, '{}'::text[])) as t(tag)
-where t.tag not in (
+where trim(coalesce(t.tag, '')) <> ''
+  and t.tag not in (
   'High Summer', 'Transitional Warm', 'Transitional Cool', 'Deep Winter',
   'Daylight', 'Twilight & Evening',
   'Elevated Everyday', 'Smart Creative', 'Boardroom Power', 'Work-to-Dinner',
@@ -134,7 +135,10 @@ select
   o.tag as custom_wear_tag,
   count(*) as pieces
 from public.wardrobe_items w, unnest(coalesce(w.occasions, '{}'::text[])) as o(tag)
-where o.tag not in ('Everyday', 'Work', 'Evening', 'Occasion', 'Travel', 'Active')
+-- Whitespace-only chips are dropped by migration 17 rather than migrated, so
+-- they must not inflate the at-risk count here either.
+where trim(coalesce(o.tag, '')) <> ''
+  and o.tag not in ('Everyday', 'Work', 'Evening', 'Occasion', 'Travel', 'Active')
 group by 1
 order by pieces desc;
 
