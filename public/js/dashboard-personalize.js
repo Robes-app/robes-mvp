@@ -5909,6 +5909,10 @@
         return out;
       }
 
+      // Declared, not implicit: without this they become properties of
+      // window in sloppy mode — invisible in testing, and exactly the kind
+      // of leak that collides with the bundle's own globals.
+      var _rbTagDraft = null, _rbTagApplyFn = null, _rbTagCtxLabel = '', _rbTagAdding = null;
       window.__rbTagSheet = function(tags, applyName, ctxLabel) {
         _rbTagDraft = _rbTagsParse(tags);
         _rbTagApplyFn = applyName;
