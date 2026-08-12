@@ -379,10 +379,14 @@
       // Until it lands (or if the fetch fails) the add/edit UI degrades to
       // the legacy single-level category select.
       var _waTaxTree = null;
+      var _waTagDefaults = [];
       (function _waTaxFetch() {
         try {
           fetch('/api/wardrobe/taxonomy').then(r => r.ok ? r.json() : null).then(j => {
             if (j && Array.isArray(j.groups) && j.groups.length) _waTaxTree = j.groups;
+            // ADR-002: the pre-fill mapping rides with the tree, so the add
+            // form can show what Robes filed without a second copy of it.
+            if (j && Array.isArray(j.tagDefaults)) _waTagDefaults = j.tagDefaults;
           }).catch(() => {});
         } catch (e) {}
       })();
@@ -611,6 +615,11 @@
           _waItems = data || [];
           _waLoaded = true;
           _waLoadRetries = 0;
+          // The shared tag namespace rides along (ADR-002). Awaited, because
+          // the Refine drawer and the add form both read _tgTags on their
+          // first paint — and a paint that beat the fetch would render the
+          // seven seeds only and silently hide her own tags.
+          await _tgLoad();
         } catch(e) {
           console.error('wardrobe load:', e);
           // Transient failure (token refresh, network) — retry so the UI
@@ -1833,8 +1842,8 @@
               (hint ? '<span class="hint">' + hint + '</span>' : '') +
               '<span class="car">' + car + '</span></button>';
           }
-          const nTags = d.seasons.filter(function(s) { return s !== 'Year-round'; }).length +
-            d.wear.filter(function(w) { return w !== 'Everyday'; }).length;
+          const nTags = (d.band && d.band !== 'year_round' ? 1 : 0) +
+            d.wear.filter(function(w) { return w !== 'everyday'; }).length;
           const tagsToggle = tog('tags',
             '<span style="color:var(--ink-faint);margin-right:8px">+</span>Add tags and notes', '',
             nTags ? nTags + ' set' : 'season, wear it for, notes');
@@ -1950,15 +1959,21 @@
             html = batch + head + fields + tagsToggle + cta + photoIn;
           } else {
             // f.view === 'tags' — screen 06: two axes held apart, notes last.
-            const seaChips = WA_SEASONS.map(function(w) {
-              const on = d.seasons.indexOf(w) !== -1;
-              return '<button type="button" class="rb-wf-chip sea' + (on ? ' on' : '') + '" onclick="window.__waTagTog(\'seasons\',\'' + _sawEsc(w).replace(/'/g, "\\'") + '\')">' + _sawEsc(w) + '</button>';
+            // Season is ONE tap of three now (ADR-002 §1): picking both
+            // bands IS year-round, so the multi-select collapses.
+            const seaChips = WA_BANDS.map(function(b) {
+              const on = d.band === b;
+              return '<button type="button" class="rb-wf-chip sea' + (on ? ' on' : '') + '" onclick="window.__waTagTog(\'band\',\'' + b + '\')">' + _sawEsc(WA_BAND_LABELS[b]) + '</button>';
             }).join('');
-            const ctxAll = ['Everyday'].concat(WA_OCCASIONS)
-              .concat(d.wear.filter(function(w) { return w !== 'Everyday' && WA_OCCASIONS.indexOf(w) === -1; }));
+            // Wear it for draws on the SHARED namespace — the seven seeds
+            // plus every tag she has made anywhere, on a piece or a look.
+            // Uncapped: a cap forces a choice between a functional tag and a
+            // capsule tag, which is the choice that stops capsules forming.
+            const ctxAll = _tgWearOptions()
+              .concat(d.wear.filter(function(w) { return _tgWearOptions().indexOf(w) === -1; }));
             const ctxChips = ctxAll.map(function(w) {
               const on = d.wear.indexOf(w) !== -1;
-              return '<button type="button" class="rb-wf-chip ctx' + (on ? ' on' : '') + '" onclick="window.__waTagTog(\'wear\',\'' + _sawEsc(w).replace(/'/g, "\\'") + '\')">' + _sawEsc(w) + '</button>';
+              return '<button type="button" class="rb-wf-chip ctx' + (on ? ' on' : '') + '" onclick="window.__waTagTog(\'wear\',\'' + _sawEsc(w).replace(/'/g, "\\'") + '\')">' + _sawEsc(_tgLabel('wear_for', w)) + '</button>';
             }).join('') + (d.addingTag
               ? '<input id="rb-wf-tagin" class="rb-wf-input" placeholder="Type &amp; press Enter" onkeydown="window.__waTagKey(event,this)" onblur="window.__waTagKey(event,this)" style="width:150px;border-radius:100px;padding:8px 15px;font-size:13px">'
               : '<button type="button" class="rb-wf-chip ctx add" onclick="window.__waTagStart()">+ tag</button>');
@@ -2041,7 +2056,7 @@
         };
 
         // Two tag axes, held apart: 'seasons' files into wardrobe_items.
-        // seasons, 'wear' (the Context axis + free tags) into .occasions.
+        // band (single-select), 'wear' into the shared tag namespace.
         // Each axis carries a visible DEFAULT chip (Year-round / Everyday):
         // exclusive with the specific tags, re-selected when the last one is
         // removed, and stripped back to null at save — the default state is
@@ -2049,18 +2064,16 @@
         window.__waTagTog = function(axis, val) {
           const d = window.__rbWaDetail;
           if (!d) return;
-          const a = axis === 'seasons' ? d.seasons : d.wear;
-          const dflt = axis === 'seasons' ? 'Year-round' : 'Everyday';
-          if (val === dflt) {
-            // Picking the default clears the axis back to it (no empty state)
-            a.length = 0;
-            a.push(dflt);
+          if (axis === 'band') {
+            // Single-select, and never empty: tapping the live band is a
+            // no-op rather than clearing it. An unset season is expressed by
+            // year_round, not by absence.
+            d.band = val;
+            d.bandTouched = true;
           } else {
-            const i = a.indexOf(val);
-            if (i === -1) a.push(val); else a.splice(i, 1);
-            const di = a.indexOf(dflt);
-            if (di !== -1 && a.length > 1) a.splice(di, 1);
-            if (!a.length) a.push(dflt);
+            const i = d.wear.indexOf(val);
+            if (i === -1) d.wear.push(val); else d.wear.splice(i, 1);
+            d.wearTouched = true;
           }
           _waFormPaint();
         };
@@ -2077,11 +2090,17 @@
           if (!d || !d.addingTag) return;
           if (e.type === 'blur' || e.key === 'Enter') {
             if (e.key === 'Enter') e.preventDefault();
-            const v = (el.value || '').trim();
-            if (v && d.wear.indexOf(v) === -1) {
-              d.wear.push(v);
-              const di = d.wear.indexOf('Everyday');
-              if (di !== -1) d.wear.splice(di, 1);
+            const v = (el.value || '').trim().slice(0, 28);
+            const slug = _rbTagSlug(v);
+            // Store the slug; remember her label so the chip reads as she
+            // typed it before the tags row exists. A typed value matching an
+            // existing tag selects it rather than minting a near-duplicate.
+            if (slug && d.wear.indexOf(slug) === -1) {
+              d.wear.push(slug);
+              d.wearTouched = true;
+              if (!_tgFind('wear_for', slug)) {
+                _tgTags.push({ id: null, kind: 'wear_for', label: v, slug, is_seed: false });
+              }
             }
             d.addingTag = false;
             _waFormPaint();
@@ -2120,7 +2139,7 @@
           window.__waSawL2 = '';
           window.__waSawL3 = '';
           window.__waSawTaxSel = _waTaxTree ? { sheet: '', l2: '', l3: '' } : null;
-          window.__rbWaDetail = { seasons: ['Year-round'], wear: ['Everyday'], addingTag: false };
+          window.__rbWaDetail = _waDetailSeed('', '');
         }
 
         // Add without a photo — same anatomy, empty photo slot, empty fields.
@@ -2148,15 +2167,14 @@
           window.__waSawTaxSel = _waTaxTree
             ? { sheet: (it.category_l2 && _WA_L2_SHEET[it.category_l2]) || _WA_LEGACY_TO_SHEET[it.category] || '', l2: it.category_l2 || '', l3: it.category_l3 || '' }
             : null;
-          // The default state is DISPLAYED, never stored: an untagged piece
-          // shows Year-round + Everyday selected (so the Refine behaviour
-          // reads back from the piece), and the defaults are stripped again
-          // at save. Legacy stored 'Everyday' folds into the same default.
-          const seas0 = Array.isArray(it.seasons) ? it.seasons.filter(Boolean) : [];
-          const wear0 = (Array.isArray(it.occasions) ? it.occasions : []).filter(function(o) { return o && o !== 'Everyday'; });
+          // ADR-002: the values are STORED now, not displayed defaults —
+          // the pre-fill put them there and season_source records whether
+          // they are Robes' inference or hers. She taps to correct, and
+          // *Touched is what promotes this piece's provenance to 'user'.
           window.__rbWaDetail = {
-            seasons: seas0.length ? seas0.slice() : ['Year-round'],
-            wear: wear0.length ? wear0 : ['Everyday'],
+            band: _waItemBand(it),
+            wear: _waItemWear(it).slice(),
+            bandTouched: false, wearTouched: false,
             addingTag: false,
           };
           _waForm = { mode: 'edit', view: 'details', photo: it.image_url || '', readable: false, revealed: true };
@@ -2181,7 +2199,7 @@
           // stays legacy. The cascade fields only mount when the tree landed.
           const dispSheet = (tag.category_l2 && _WA_L2_SHEET[tag.category_l2]) || _WA_LEGACY_TO_SHEET[tag.category] || '';
           window.__waSawTaxSel = _waTaxTree ? { sheet: dispSheet, l2: tag.category_l2 || '', l3: tag.category_l3 || '' } : null;
-          window.__rbWaDetail = { seasons: ['Year-round'], wear: ['Everyday'], addingTag: false };
+          window.__rbWaDetail = _waDetailSeed(tag.category, tag.category_l2);
           // A readable piece gets the summary + reveal; an unreadable one
           // goes straight to the open editor — nothing to celebrate yet.
           const readable = !!tag.label;
@@ -2425,22 +2443,21 @@
               item_dna:  Object.keys(savedDna).length ? savedDna : undefined,
             };
 
-            // The two tag axes (add/edit redesign 2026-08-05): Season →
-            // wardrobe_items.seasons, Wear it for (context + free tags) →
-            // .occasions. Price / fit_confidence / sentiment / hero_position
-            // are deliberately OMITTED — the form no longer captures them
-            // (cost-per-wear pulled from the UI, columns reserved; the star
-            // on the grid card is the one favouriting mechanic), and leaving
-            // them off the PATCH preserves whatever an old row carries.
-            const _V2_KEYS = ['seasons', 'occasions'];
+            // ADR-002: Season -> wardrobe_items.season_band (+ season_source),
+            // Wear it for -> the shared tag namespace, written after the row
+            // exists. Price / fit_confidence / sentiment / hero_position stay
+            // OMITTED — the form doesn't capture them and leaving them off
+            // the PATCH preserves whatever an old row carries.
+            //
+            // season_source flips to 'user' ONLY if she actually touched the
+            // chip. Stamping it on every save would erase the inferred/user
+            // split the correction-rate signal is made of — a save is not a
+            // correction (ADR-002 [C6]).
+            const _V2_KEYS = ['season_band', 'season_source'];
             const det = window.__rbWaDetail;
-            if (det && _waV2Cols) {
-              // The default chips (Year-round / Everyday) are display of the
-              // null state — stripped here so the DB never stores them.
-              const seas = (det.seasons || []).filter(s => s !== 'Year-round' || (det.seasons.length > 1));
-              const wear = (det.wear || []).filter(w => w !== 'Everyday');
-              payload.seasons   = seas.length && !(seas.length === 1 && seas[0] === 'Year-round') ? seas : null;
-              payload.occasions = wear.length ? wear : null;
+            if (det && _waV2Cols && det.band) {
+              payload.season_band = det.band;
+              if (det.bandTouched) payload.season_source = 'user';
             }
 
             // 3-level taxonomy (migration 15). When the cascade UI mounted
@@ -2503,6 +2520,17 @@
                 throw err;
               }
             }
+
+            // Tag links, once the row exists. Only when she touched the
+            // axis: an untouched add leaves the DB trigger's pre-fill alone
+            // (source 'inferred'), which is what keeps the correction rate
+            // readable per category.
+            try {
+              const savedId = editId || (Array.isArray(created) && created[0] && created[0].id) || null;
+              if (savedId && det && det.wearTouched) {
+                _tgSetLinks('piece', savedId, 'wear_for', det.wear || [], 'user');
+              }
+            } catch (e) { console.warn('[tags] link write:', e && e.message); }
 
             if (!editId) _rbTrack('wardrobe_added', { label: payload.label || '', category: payload.category || '' });
             _waEditId = null;
@@ -2596,10 +2624,238 @@
       // category tabs' cascade, scoped to the active sheet-L1 tab.
       var _waDrill = { l2: '', l3: '' };
 
-      const WA_SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter', 'Year-round'];
-      // The Wear-it-for (Context) vocabulary — 'Everyday' retired (it's the
-      // default state, not a tag; locked decision 2026-08-05).
-      const WA_OCCASIONS = ['Work', 'Evening', 'Occasion', 'Travel', 'Active'];
+      // ── ADR-002 · the shared tag namespace (migrations 17 + 18) ───────
+      // One vocabulary across pieces and looks. A custom "Wear it for" tag
+      // created on a look is immediately available on a piece and vice
+      // versa — which is what makes a capsule a QUERY over a shared tag
+      // rather than a new entity. Two join tables, one `tags` table.
+      //
+      // Degrades like every other migration-gated surface: if the tables
+      // aren't there, warn once, fall back to the legacy `occasions` array,
+      // and never call again this session.
+      var _tgTags = [];        // {id, kind, label, slug, is_seed}
+      var _tgPiece = {};       // wardrobe_item_id -> [{tag_id, source}]
+      var _tgLook = {};        // look_id -> [{tag_id, source}]
+      var _tgLoaded = false, _tgDown = false;
+
+      // MUST match public.rb_tag_slug() exactly or the dedupe-by-slug
+      // guarantee breaks and she ends up with two "Lisbon" tags that never
+      // merge. Contract, from the migration header:
+      //   lower -> strip diacritics -> non-alphanumeric runs to '-' -> trim
+      // The diacritic strip is not cosmetic: without it the shipped vibe
+      // seed "Old Céline Minimal" slugs differently here than in Postgres.
+      function _rbTagSlug(label) {
+        const s = String(label == null ? '' : label)
+          .toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/\u00e6/g, 'ae').replace(/\u0153/g, 'oe').replace(/\u00df/g, 'ss')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+        return s || null;
+      }
+      const _TG_WEAR_SEEDS = [
+        { slug: 'everyday', label: 'Everyday' }, { slug: 'work', label: 'Work' },
+        { slug: 'evening', label: 'Evening' }, { slug: 'occasion', label: 'Occasion' },
+        { slug: 'travel', label: 'Travel' }, { slug: 'active', label: 'Active' },
+        { slug: 'lounge', label: 'Lounge' },
+      ];
+      function _tgGuard(e, what) {
+        const m = String((e && e.message) || e || '');
+        if (/PGRST205|42P01|does not exist/i.test(m)) {
+          if (!_tgDown) console.warn('[tags] namespace unavailable (migration 17?) — ' + what);
+          _tgDown = true;
+          return;
+        }
+        console.warn('[tags] ' + what + ':', m);
+      }
+      // Replace the optimistic placeholder with the persisted row, so the
+      // namespace never carries two entries for one slug.
+      function _tgAdopt(row) {
+        const i = _tgTags.findIndex(t => t.kind === row.kind && t.slug === row.slug);
+        if (i > -1) _tgTags[i] = row; else _tgTags.push(row);
+      }
+      function _tgFind(kind, slug) {
+        return _tgTags.find(t => t.kind === kind && t.slug === slug) || null;
+      }
+      function _tgLabel(kind, slug) {
+        const t = _tgFind(kind, slug);
+        if (t) return t.label;
+        const seed = _TG_WEAR_SEEDS.find(x => x.slug === slug);
+        return seed ? seed.label : String(slug || '').replace(/-/g, ' ');
+      }
+      // Every wear_for slug she can pick: the seven seeds first (stable
+      // order — they are the vocabulary), then her own, alphabetically.
+      function _tgWearOptions() {
+        const out = _TG_WEAR_SEEDS.map(s => s.slug);
+        _tgTags.filter(t => t.kind === 'wear_for' && out.indexOf(t.slug) < 0)
+          .sort((a, b) => a.label.localeCompare(b.label))
+          .forEach(t => out.push(t.slug));
+        return out;
+      }
+      function _tgVibeOptions() {
+        return _tgTags.filter(t => t.kind === 'vibe')
+          .sort((a, b) => a.label.localeCompare(b.label)).map(t => t.slug);
+      }
+      function _tgSlugsOf(map, ownerId) {
+        return (map[String(ownerId)] || []).map(l => {
+          const t = _tgTags.find(x => x.id === l.tag_id);
+          return t ? t.slug : null;
+        }).filter(Boolean);
+      }
+      function _tgPieceSlugs(itemId) { return _tgSlugsOf(_tgPiece, itemId); }
+      function _tgLookSlugs(lookId) { return _tgSlugsOf(_tgLook, lookId); }
+
+      function _tgLoad() {
+        if (_tgDown || !_waUid()) return Promise.resolve();
+        return _waFetch('GET', 'tags?select=id,kind,label,slug,is_seed&user_id=eq.' + _waUid())
+          .then(rows => {
+            _tgTags = rows || [];
+            return Promise.all([
+              _waFetch('GET', 'tag_pieces?select=wardrobe_item_id,tag_id,source'),
+              _waFetch('GET', 'tag_looks?select=look_id,tag_id,source'),
+            ]);
+          })
+          .then(([pieces, looks]) => {
+            _tgPiece = {}; _tgLook = {};
+            (pieces || []).forEach(r => {
+              (_tgPiece[r.wardrobe_item_id] = _tgPiece[r.wardrobe_item_id] || []).push(r);
+            });
+            (looks || []).forEach(r => {
+              (_tgLook[r.look_id] = _tgLook[r.look_id] || []).push(r);
+            });
+            _tgLoaded = true;
+          })
+          .catch(e => _tgGuard(e, 'load'));
+      }
+      // Create-on-first-use: seed rows are NOT pre-created per account, so a
+      // fresh wardrobe carries no unused rows. Returns the tag id.
+      function _tgEnsure(kind, label) {
+        const slug = _rbTagSlug(label);
+        if (!slug || _tgDown || !_waUid()) return Promise.resolve(null);
+        // A hit with a NULL id is the optimistic entry the sheet pushes so
+        // her chip reads back immediately — it is not a persisted tag.
+        // Treating it as one silently dropped both the tag and its link.
+        const hit = _tgFind(kind, slug);
+        if (hit && hit.id) return Promise.resolve(hit.id);
+        const seed = kind === 'wear_for' && _TG_WEAR_SEEDS.some(x => x.slug === slug);
+        return _waFetch('POST', 'tags?on_conflict=user_id,kind,slug', {
+          user_id: _waUid(), kind, slug, is_seed: seed,
+          label: seed ? _tgLabel(kind, slug) : String(label).trim().slice(0, 28),
+        }).then(rows => {
+          const row = (rows && rows[0]) || null;
+          if (row) { _tgAdopt(row); return row.id; }
+          // A concurrent create won the conflict — re-read it.
+          return _waFetch('GET', 'tags?select=id,kind,label,slug,is_seed&user_id=eq.' + _waUid()
+            + '&kind=eq.' + kind + '&slug=eq.' + encodeURIComponent(slug))
+            .then(r2 => { const t = (r2 || [])[0]; if (t) _tgAdopt(t); return t ? t.id : null; });
+        }).catch(e => { _tgGuard(e, 'ensure'); return null; });
+      }
+      // Diff-and-write. source is written ONCE per link at insert and never
+      // rewritten (ADR-002 [C6]) — bulk-flipping on any edit would erase the
+      // accepted-vs-corrected distinction the correction signal is made of.
+      // Removing an inferred link IS the correction event.
+      // OWNER and KIND are two different things and must stay separate: a
+      // look's wear_for tags belong in tag_looks, not tag_pieces. Conflating
+      // them wrote every look tag onto the piece table.
+      //
+      // The diff is scoped to ONE kind, so setting a look's wear tags cannot
+      // delete its vibes — both live in the same join table.
+      //
+      // source is written ONCE per link at insert and never rewritten
+      // (ADR-002 [C6]): bulk-flipping on any edit would erase the
+      // accepted-vs-corrected distinction the correction signal is made of.
+      // Removing an inferred link IS the correction event.
+      function _tgSetLinks(owner, ownerId, kind, slugs, source) {
+        if (_tgDown || !_waUid() || !ownerId) return Promise.resolve();
+        const table = owner === 'look' ? 'tag_looks' : 'tag_pieces';
+        const col = owner === 'look' ? 'look_id' : 'wardrobe_item_id';
+        const map = owner === 'look' ? _tgLook : _tgPiece;
+        const key = String(ownerId);
+        const want = (slugs || []).map(x => String(x)).filter(Boolean);
+        return Promise.all(want.map(sl => _tgEnsure(kind, _tgLabel(kind, sl))))
+          .then(ids => {
+            const wantIds = ids.filter(Boolean);
+            const links = map[key] || [];
+            const ofKind = id => {
+              const t = _tgTags.find(x => x.id === id);
+              return t && t.kind === kind;
+            };
+            const have = links.map(l => l.tag_id).filter(ofKind);
+            const add = wantIds.filter(id => have.indexOf(id) < 0);
+            const del = have.filter(id => wantIds.indexOf(id) < 0);
+            const jobs = [];
+            if (add.length) {
+              jobs.push(_waFetch('POST', table + '?on_conflict=' + col + ',tag_id',
+                add.map(id => ({ [col]: ownerId, tag_id: id, source: source || 'user' }))));
+            }
+            if (del.length) {
+              jobs.push(_waFetch('DELETE', table + '?' + col + '=eq.' + ownerId
+                + '&tag_id=in.(' + del.join(',') + ')'));
+            }
+            // Local mirror: keep every link of another kind, replace this one's.
+            map[key] = links.filter(l => !ofKind(l.tag_id))
+              .concat(wantIds.map(id => links.find(l => l.tag_id === id)
+                || { [col]: ownerId, tag_id: id, source: source || 'user' }));
+            return Promise.all(jobs);
+          })
+          .catch(e => _tgGuard(e, 'links'));
+      }
+
+      // A piece's wear slugs, with the pre-ADR-002 fallback: a row whose
+      // links haven't been backfilled still reads its legacy occasions[].
+      function _tgWearOf(it) {
+        // A row WITH an entry is authoritative even when that entry is empty
+        // — she may have deliberately cleared every tag, and re-adding
+        // 'everyday' underneath her would be editing her work.
+        if (_tgLoaded && _tgPiece[String(it.id)]) return _tgPieceSlugs(it.id);
+        const legacy = Array.isArray(it.occasions) ? it.occasions : [];
+        // No links and no legacy chips: read as 'everyday'. The pre-fill
+        // means this is now rare (only a piece filed under 'Other', or a row
+        // that predates the backfill) — but a filter that hid those reads as
+        // broken, not strict, which is why the posture predates ADR-002.
+        if (!legacy.length) return ['everyday'];
+        return legacy.map(o => {
+          const sl = _rbTagSlug(o);
+          // Remember the label the legacy row carried, or "Skiing" renders
+          // as "skiing" until the namespace has a row for it.
+          if (sl && !_tgFind('wear_for', sl)) {
+            _tgTags.push({ id: null, kind: 'wear_for', label: String(o).trim(), slug: sl, is_seed: false });
+          }
+          return sl;
+        }).filter(Boolean);
+      }
+
+      // ADR-002: one three-value band replaces the five-chip multi-select.
+      // Selecting both bands IS year-round, so the whole axis collapses to
+      // one tap. 'Everyday' is now a real seed in the shared namespace
+      // rather than a displayed-only default (ADR-002 [Q2]).
+      // Served with the taxonomy tree so the mapping has ONE home
+      // (wardrobe_taxonomy.js) — this is a display preview of what the
+      // migration-18 trigger will file, never a second implementation.
+      function _waPrefillFor(sheetL1, l2) {
+        if (!_waTagDefaults.length) return null;
+        const norm = v => String(v || '').trim();
+        const exact = _waTagDefaults.find(d => d.sheet_l1 === norm(sheetL1) && norm(d.l2) === norm(l2));
+        const fallback = _waTagDefaults.find(d => d.sheet_l1 === norm(sheetL1) && !d.l2);
+        const hit = exact || fallback;
+        return hit ? { band: hit.season_band, wear: (hit.wear_slugs || []).slice() } : null;
+      }
+      // The detail state a freshly analysed piece starts in: Robes' reading,
+      // shown as already filed, hers to correct. Falls back to the honest
+      // "any weather, no use recorded" when the category says nothing.
+      function _waDetailSeed(category, l2) {
+        const sheet = (l2 && _WA_L2_SHEET[l2]) || _WA_LEGACY_TO_SHEET[category] || category || '';
+        const pre = _waPrefillFor(sheet, l2) || _waPrefillFor(category, l2);
+        return {
+          band: (pre && pre.band) || 'year_round',
+          wear: (pre && pre.wear) || [],
+          bandTouched: false, wearTouched: false, addingTag: false,
+        };
+      }
+      const WA_BANDS = ['spring_summer', 'autumn_winter', 'year_round'];
+      const WA_BAND_LABELS = {
+        spring_summer: 'Spring/Summer', autumn_winter: 'Autumn/Winter', year_round: 'Year-round',
+      };
       const _WA_HERO_CAP = 10;
 
       // 3-level taxonomy (migration 15): every L2 subcategory → the legacy
@@ -2629,41 +2885,43 @@
         "Cover-ups": ["Swimwear"],
       };
 
+      // Month -> band. The Hero Rack rests an out-of-band hero until its
+      // season returns; year_round always shows.
       function _waSeasonNow() {
         const m = new Date().getMonth();
-        return m >= 2 && m <= 4 ? 'Spring' : m >= 5 && m <= 7 ? 'Summer' : m >= 8 && m <= 10 ? 'Autumn' : 'Winter';
+        return (m >= 3 && m <= 8) ? 'spring_summer' : 'autumn_winter';
       }
-      // Untagged pieces are treated as Year-round everywhere — most of the
-      // catalogue starts untagged, and a season filter that hid them all
-      // would read as broken, not strict.
-      function _waItemSeasons(it) {
-        return (Array.isArray(it.seasons) && it.seasons.length) ? it.seasons : ['Year-round'];
+      // Null reads as year_round at every consumer (ADR-002 [Q2]) — the
+      // column is not-null with that default, but a legacy cached row may
+      // still arrive without it.
+      function _waItemBand(it) {
+        return WA_BANDS.indexOf(it && it.season_band) > -1 ? it.season_band : 'year_round';
       }
       function _waInSeasonNow(it) {
-        const s = _waItemSeasons(it);
-        return s.indexOf('Year-round') !== -1 || s.indexOf(_waSeasonNow()) !== -1;
+        const b = _waItemBand(it);
+        return b === 'year_round' || b === _waSeasonNow();
       }
-      // Untagged pieces are Everyday — the same posture as Year-round on
-      // the season axis. Most of the catalogue starts untagged, and a wear
-      // filter that hid it all would read as broken, not strict.
-      function _waItemWear(it) {
-        return (Array.isArray(it.occasions) && it.occasions.length) ? it.occasions : ['Everyday'];
-      }
+      // Wear slugs from the shared namespace, falling back to the legacy
+      // occasions[] for a row whose links have not been backfilled.
+      function _waItemWear(it) { return _tgWearOf(it); }
 
       function _waMatchRefine(it) {
         const r = _waRefine;
         if (r.seasons.length) {
-          const s = _waItemSeasons(it);
-          // Year-round pieces are always in season, so they pass any pick
-          if (s.indexOf('Year-round') === -1 && !r.seasons.some(x => s.indexOf(x) !== -1)) return false;
+          // A year_round piece passes any band pick — she wears it whatever
+          // the weather (the same posture the five-value axis had).
+          const b = _waItemBand(it);
+          if (b !== 'year_round' && r.seasons.indexOf(b) === -1) return false;
         }
         if (r.colors.length && r.colors.indexOf(it.color) === -1) return false;
         // Wear it for filters on the occasions axis with the Year-round
         // posture (founder call 2026-08-05): untagged = Everyday, and an
         // Everyday piece passes any pick — she wears it for anything.
         if (r.wear.length) {
+          // 'everyday' keeps the pass-anything posture it had as the null
+          // state — it is now a real tag, but it still means "for anything".
           const o = _waItemWear(it);
-          if (o.indexOf('Everyday') === -1 && !r.wear.some(x => o.indexOf(x) !== -1)) return false;
+          if (o.indexOf('everyday') === -1 && !r.wear.some(x => o.indexOf(x) !== -1)) return false;
         }
         if (r.brand && (it.brand || '') !== r.brand) return false;
         return true;
@@ -2817,20 +3075,22 @@
         if (!_waRefineOpen || _waView !== 'all') { drawer.style.display = 'none'; return; }
         drawer.style.display = '';
         const r = _waRefine;
-        const chip = function(kind, label, on, axis) {
-          return '<button class="rb-ref-chip' + (axis ? ' ' + axis : '') + (on ? ' on' : '') + '" onclick="window.__waRefTog(\'' + kind + '\',\'' + _waEsc(label).replace(/'/g, '\\\'') + '\')">' + _waEsc(label) + '</button>';
+        // `value` is what gets stored (a slug on the two tag axes); `text`
+        // is what she reads. They diverge now that the axes are slugged.
+        const chip = function(kind, value, on, axis, text) {
+          return '<button class="rb-ref-chip' + (axis ? ' ' + axis : '') + (on ? ' on' : '') + '" onclick="window.__waRefTog(\'' + kind + '\',\'' + _waEsc(value).replace(/'/g, '\\\'') + '\')">' + _waEsc(text || value) + '</button>';
         };
-        const seasonChips = WA_SEASONS.map(s => chip('seasons', s, r.seasons.indexOf(s) !== -1, 'sea')).join('');
+        const seasonChips = WA_BANDS.map(b => chip('seasons', b, r.seasons.indexOf(b) !== -1, 'sea', WA_BAND_LABELS[b])).join('');
         // Wear it for — Everyday leads (the untagged default, filterable
         // like Year-round), then the context vocabulary + any free tags her
         // pieces actually carry (a custom "Skiing" must stay filterable),
         // + any selected-elsewhere value so a pick is always deselectable.
-        const wearSet = ['Everyday'].concat(WA_OCCASIONS);
-        _waItems.forEach(i => (Array.isArray(i.occasions) ? i.occasions : []).forEach(o => {
+        const wearSet = _tgWearOptions();
+        _waItems.forEach(i => _waItemWear(i).forEach(o => {
           if (wearSet.indexOf(o) === -1) wearSet.push(o);
         }));
         r.wear.forEach(w => { if (wearSet.indexOf(w) === -1) wearSet.push(w); });
-        const wearChips = wearSet.map(w => chip('wear', w, r.wear.indexOf(w) !== -1, 'ctx')).join('');
+        const wearChips = wearSet.map(w => chip('wear', w, r.wear.indexOf(w) !== -1, 'ctx', _tgLabel('wear_for', w))).join('');
         // Colour: the FULL palette items are saved to (same set as the
         // add/edit form's popover) + any off-palette colours old rows carry.
         const ownColors = [];
@@ -5067,7 +5327,7 @@
               prompt,
               name,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
-              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, seasons: (Array.isArray(i.seasons) && i.seasons.length) ? i.seasons : undefined })),
+              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, season_band: _waItemBand(i) })),
               context,
               locked: locked || undefined,
               userId: _waUid() || undefined,
@@ -5504,94 +5764,154 @@
       // for the one time in ten she disagrees. Never a required step.
       // The vocabularies are disjoint across axes, so a flat text[] (the
       // looks table's existing `tags` column) recovers its structure.
+      // ADR-002: three axes, not four. Climate speaks the same three bands
+      // as wardrobe_items.season_band, so a filtered lookbook and a filtered
+      // wardrobe return coherent sets. Wear it for and Vibe are OPEN — their
+      // options come from the shared namespace (_tgWearOptions /
+      // _tgVibeOptions), not from a fixed list. Light is gone.
       const _RB_TAG_AXES = {
-        climate: { label: 'Climate', hint: 'pick one', opts: ['High Summer', 'Transitional Warm', 'Transitional Cool', 'Deep Winter'] },
-        light: { label: 'Light', hint: '', opts: ['Daylight', 'Twilight & Evening'] },
-        wear: { label: 'Wear it for', hint: 'up to two', opts: ['Elevated Everyday', 'Smart Creative', 'Boardroom Power', 'Work-to-Dinner', 'Al Fresco & Travel', 'Cocktail & Cultural', 'Formal / Gala'] },
-        vibe: { label: 'Vibe', hint: 'optional, Robes suggests', opts: ['Sharp Tailoring', 'Fluid Monochrome', 'Column Line', 'Soft Layering', 'Old Céline Minimal', '90s Off-Duty', 'Minimalist Glamour'] },
+        climate: {
+          label: 'Climate', hint: 'pick one', open: false,
+          opts: ['spring_summer', 'autumn_winter', 'year_round'],
+          labels: { spring_summer: 'Spring/Summer', autumn_winter: 'Autumn/Winter', year_round: 'Year-round' },
+        },
+        wear: { label: 'Wear it for', hint: '', open: true, kind: 'wear_for' },
+        vibe: { label: 'Vibe', hint: 'optional, in your words', open: true, kind: 'vibe' },
       };
-      // Accepts the server object ({climate, light, wear_for, vibe}), the
-      // stored flat text[] (looks.tags), or a prior parse — always returns
-      // the canonical {climate, light, wear[], vibe} shape.
-      // Custom tags (the sheet's "+ tag" chips, 2026-08-07) live on the two
-      // open axes only: an unknown plain string reads as a custom Wear tag,
-      // a "vibe:" prefix marks a custom Vibe — that prefix is what keeps
-      // the flat text[] round-trip unambiguous now the vocabularies are no
-      // longer closed. Climate and Light stay vocabulary-only.
+      // Pre-ADR-002 vocabularies, kept for READING only. Every lookbook blob
+      // and every looks.tags array written before 2026-08-12 carries these;
+      // dropping them on read would silently un-tag her whole history.
+      const _RB_TAG_LEGACY_CLIMATE = {
+        'High Summer': 'spring_summer', 'Transitional Warm': 'spring_summer',
+        'Transitional Cool': 'autumn_winter', 'Deep Winter': 'autumn_winter',
+      };
+      const _RB_TAG_LEGACY_WEAR = {
+        'Elevated Everyday': ['everyday'], 'Smart Creative': ['work'], 'Boardroom Power': ['work'],
+        'Work-to-Dinner': ['work', 'evening'], 'Al Fresco & Travel': ['travel'],
+        'Cocktail & Cultural': ['evening'], 'Formal / Gala': ['occasion'],
+      };
+      const _RB_TAG_LEGACY_LIGHT = ['Daylight', 'Twilight & Evening'];
+      const _RB_TAG_LEGACY_VIBES = ['Sharp Tailoring', 'Fluid Monochrome', 'Column Line',
+        'Soft Layering', 'Old Céline Minimal', '90s Off-Duty', 'Minimalist Glamour'];
+      function _rbTagLabel(axis, slug) {
+        if (axis === 'climate') return _RB_TAG_AXES.climate.labels[slug] || slug;
+        return _tgLabel(_RB_TAG_AXES[axis].kind, slug);
+      }
+      // Canonical shape: { climate: slug|'', wear: [slug], vibe: [slug] }.
+      // Accepts the server object, a prior parse, and — for legacy rows —
+      // the flat looks.tags text[] recovered by disjointness, including the
+      // 'vibe:' prefix convention and the unknown-string-is-a-custom-wear
+      // rule. Uncapped on both open axes (ADR-002 §4).
       function _rbTagsParse(v) {
-        const T = _RB_TAG_AXES;
-        const out = { climate: '', light: '', wear: [], vibe: '' };
-        const pushWear = s => { if (s && out.wear.length < 2 && out.wear.indexOf(s) < 0) out.wear.push(s); };
+        const out = { climate: '', wear: [], vibe: [] };
+        const pushW = sl => { if (sl && out.wear.indexOf(sl) < 0) out.wear.push(sl); };
+        const pushV = sl => { if (sl && out.vibe.indexOf(sl) < 0) out.vibe.push(sl); };
+        const asWear = raw => {
+          const legacy = _RB_TAG_LEGACY_WEAR[raw];
+          if (legacy) return legacy.forEach(pushW);
+          pushW(_RB_TAG_AXES.climate.opts.indexOf(raw) > -1 ? null : _rbTagSlug(raw));
+        };
         if (Array.isArray(v)) {
           v.forEach(raw => {
-            const s = String(raw).trim();
-            if (!s) return;
-            if (T.climate.opts.indexOf(s) > -1) out.climate = out.climate || s;
-            else if (T.light.opts.indexOf(s) > -1) out.light = out.light || s;
-            else if (T.wear.opts.indexOf(s) > -1) pushWear(s);
-            else if (T.vibe.opts.indexOf(s) > -1) out.vibe = out.vibe || s;
-            else if (/^vibe:/i.test(s)) { const c = s.replace(/^vibe:/i, '').trim(); if (c) out.vibe = out.vibe || c; }
-            else pushWear(s);
+            const str = String(raw == null ? '' : raw).trim();
+            if (!str) return;
+            if (_RB_TAG_AXES.climate.opts.indexOf(str) > -1) { out.climate = out.climate || str; return; }
+            if (_RB_TAG_LEGACY_CLIMATE[str]) { out.climate = out.climate || _RB_TAG_LEGACY_CLIMATE[str]; return; }
+            if (_RB_TAG_LEGACY_LIGHT.indexOf(str) > -1) return;   // §7: Light is discarded
+            if (_RB_TAG_LEGACY_VIBES.indexOf(str) > -1) { pushV(_rbTagSlug(str)); return; }
+            if (/^vibe:/i.test(str)) { pushV(_rbTagSlug(str.replace(/^vibe:/i, ''))); return; }
+            asWear(str);
           });
         } else if (v && typeof v === 'object') {
-          out.climate = T.climate.opts.indexOf(v.climate) > -1 ? v.climate : '';
-          out.light = T.light.opts.indexOf(v.light) > -1 ? v.light : '';
-          (Array.isArray(v.wear_for) ? v.wear_for : Array.isArray(v.wear) ? v.wear : [])
-            .map(s => String(s || '').trim()).forEach(pushWear);
-          const vb = String(v.vibe || '').replace(/^vibe:/i, '').trim();
-          out.vibe = vb || '';
+          const c = String(v.climate || '').trim();
+          out.climate = _RB_TAG_AXES.climate.opts.indexOf(c) > -1 ? c : (_RB_TAG_LEGACY_CLIMATE[c] || '');
+          const w = Array.isArray(v.wear_for) ? v.wear_for : Array.isArray(v.wear) ? v.wear : [];
+          w.forEach(x => asWear(String(x == null ? '' : x).trim()));
+          const vb = Array.isArray(v.vibe) ? v.vibe : (v.vibe ? [v.vibe] : []);
+          vb.forEach(x => pushV(_rbTagSlug(String(x).replace(/^vibe:/i, ''))));
         }
         return out;
       }
-      function _rbTagsFlat(t) {
+      // The blob shape generated looks carry in lookbook_items.data
+      // (ADR-002 [Q1] option a): the namespace supplies the vocabulary, the
+      // blob stays the storage. Slugs, so it resolves into tag_looks the
+      // moment the artifact is promoted to a Look.
+      function _rbTagsBlob(t) {
         t = _rbTagsParse(t);
-        const vibe = t.vibe ? (_RB_TAG_AXES.vibe.opts.indexOf(t.vibe) > -1 ? t.vibe : 'vibe:' + t.vibe) : '';
-        return [t.climate, t.light].concat(t.wear, [vibe]).filter(Boolean);
+        return { climate: t.climate, wear_for: t.wear.slice(), vibe: t.vibe.slice() };
       }
-      function _rbTagsEmpty(t) { return !_rbTagsFlat(t).length; }
-      // The quiet row on The Look (spec marker 11) — climate · agenda ·
-      // vibe; Daylight stays silent (it is the default read), Twilight
-      // earns its chip. Empty state is an invitation, never a form.
+      function _rbTagsEmpty(t) {
+        t = _rbTagsParse(t);
+        return !t.climate && !t.wear.length && !t.vibe.length;
+      }
+      // The quiet row on The Look — climate · agenda · vibe. year_round stays
+      // silent (it is the default read, like Daylight was); a real band earns
+      // its chip. Empty is an invitation, never a form.
       function _rbTagsRowHtml(tags, editFn, editArg) {
         const t = _rbTagsParse(tags);
-        const chips = [t.climate, t.light === 'Twilight & Evening' ? t.light : ''].concat(t.wear, [t.vibe]).filter(Boolean);
+        const chips = [t.climate && t.climate !== 'year_round' ? _rbTagLabel('climate', t.climate) : '']
+          .concat(t.wear.map(w => _rbTagLabel('wear', w)))
+          .concat(t.vibe.map(v => _rbTagLabel('vibe', v)))
+          .filter(Boolean);
         const inner = chips.length
           ? chips.map(c => `<span class="tg">${_waEsc(c)}</span>`).join('')
           : `<span class="tnone">Untagged — climate, agenda, vibe</span>`;
         return `<div class="rbc-tags"><div class="tgs">${inner}</div><button class="tedit" onclick="window.${editFn}(${editArg == null ? '' : editArg})">${chips.length ? 'Edit' : '＋ Tags'}</button></div>`;
       }
-      // Inherited tags for a hand-built look (spec F3): the overlap of the
-      // pieces' own coarse tags seeds the look's — dominant season maps to
-      // a thermal range, occasions map to the agenda vocabulary, vibe stays
-      // empty (only Robes suggests a vibe). One-tap refine via the sheet.
+      // ADR-002 §2 · deriveLookClimate, with the [C7] floor.
+      //
+      // Derives ONLY from pieces whose band she actually set. The weaker test
+      // — "resolves to a wardrobe row" — looks equivalent and is not: after
+      // migration 17, 163 of 166 pieces sit at the year_round default, so
+      // those rows resolve perfectly well and carry no information. Deriving
+      // from them would flatten every look to year_round and overwrite real
+      // generator climates. Fewer than two user-set pieces: decline, and let
+      // whatever climate the look already has stand.
+      const _DERIVE_FLOOR = 2;
+      function _rbDeriveClimate(pieceIds, current) {
+        const pieces = (pieceIds || [])
+          .map(id => _waItems.find(w => String(w.id) === String(id)))
+          .filter(p => p && p.season_source === 'user');
+        if (pieces.length < _DERIVE_FLOOR) return current || '';
+        const bands = {};
+        pieces.forEach(p => { if (p.season_band && p.season_band !== 'year_round') bands[p.season_band] = 1; });
+        const set = Object.keys(bands);
+        if (set.length === 1) return set[0];
+        return 'year_round';   // none, or both — she wears it in any weather
+      }
+      // Hand-built looks inherit their agenda from the pieces (spec F3), now
+      // through the shared namespace: the tags are the same objects, so the
+      // inheritance is an intersection of slugs rather than a translation
+      // between two vocabularies. Vibe is never inherited — only Robes
+      // suggests a vibe, and only from her own words.
+      //
+      // INTERSECTION, not union (ADR-002 §4): on a piece a tag is a
+      // capability and tagging is generous, so a union hands every look four
+      // or five tags and the axis stops discriminating.
       function _rbInheritLookTags(pieceIds) {
-        const pieces = (pieceIds || []).map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean);
-        const out = { climate: '', light: '', wear: [], vibe: '' };
+        const ids = (pieceIds || []).filter(Boolean);
+        const pieces = ids.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean);
+        const out = { climate: _rbDeriveClimate(ids, ''), wear: [], vibe: [] };
         if (!pieces.length) return out;
-        const seasonCount = {};
-        pieces.forEach(p => (Array.isArray(p.seasons) ? p.seasons : []).forEach(s => {
-          if (s !== 'Year-round') seasonCount[s] = (seasonCount[s] || 0) + 1;
-        }));
-        const topSeason = Object.keys(seasonCount).sort((a, b) => seasonCount[b] - seasonCount[a])[0];
-        out.climate = topSeason
-          ? ({ Summer: 'High Summer', Spring: 'Transitional Warm', Autumn: 'Transitional Cool', Winter: 'Deep Winter' })[topSeason] || ''
-          : '';
-        const occCount = {};
-        pieces.forEach(p => {
-          const occ = (Array.isArray(p.occasions) && p.occasions.length) ? p.occasions : ['Everyday'];
-          occ.forEach(o => { occCount[o] = (occCount[o] || 0) + 1; });
-        });
-        const occMap = { Everyday: 'Elevated Everyday', Work: 'Smart Creative', Evening: 'Cocktail & Cultural', Occasion: 'Cocktail & Cultural', Travel: 'Al Fresco & Travel' };
-        Object.keys(occCount).sort((a, b) => occCount[b] - occCount[a]).forEach(o => {
-          const m = occMap[o];
-          if (m && out.wear.indexOf(m) < 0 && out.wear.length < 2) out.wear.push(m);
-        });
-        out.light = (occCount.Evening || 0) > pieces.length / 2 ? 'Twilight & Evening' : 'Daylight';
+        const counts = {};
+        pieces.forEach(p => _tgWearOf(p).forEach(sl => { counts[sl] = (counts[sl] || 0) + 1; }));
+        Object.keys(counts)
+          // 'everyday' is excluded from INHERITANCE the way year_round is
+          // excluded from the climate row: after the pre-fill nearly every
+          // piece carries it, so inheriting it would stamp "Everyday" on
+          // every untagged look and say nothing. Picked deliberately it
+          // still means something, and is kept.
+          .filter(sl => sl !== 'everyday')
+          .filter(sl => counts[sl] === pieces.length)
+          .sort((a, b) => a.localeCompare(b))
+          .slice(0, 2)
+          .forEach(sl => out.wear.push(sl));
         return out;
       }
-      // ── The tag sheet (spec F2) — one modal for every surface. Climate
-      // and Light pick one; Wear it for caps at two (a third pick retires
-      // the oldest); Vibe is the only group allowed to stay empty.
+
+      // Declared, not implicit: without this they become properties of
+      // window in sloppy mode — invisible in testing, and exactly the kind
+      // of leak that collides with the bundle's own globals.
       var _rbTagDraft = null, _rbTagApplyFn = null, _rbTagCtxLabel = '', _rbTagAdding = null;
       window.__rbTagSheet = function(tags, applyName, ctxLabel) {
         _rbTagDraft = _rbTagsParse(tags);
@@ -5610,19 +5930,21 @@
         _rbTagAdding = null;
         if (!d) return;
         const v = String(value || '').replace(/^vibe:/i, '').trim().slice(0, 28);
-        if (!v) { _rbTagPaint(); return; }
-        let hit = null;
-        Object.keys(_RB_TAG_AXES).forEach(ax => {
-          const m = _RB_TAG_AXES[ax].opts.find(o => o.toLowerCase() === v.toLowerCase());
-          if (m && !hit) hit = { ax, opt: m };
-        });
-        if (hit) {
-          if (hit.ax === 'wear') { if (d.wear.indexOf(hit.opt) < 0) { d.wear.push(hit.opt); if (d.wear.length > 2) d.wear.shift(); } }
-          else d[hit.ax] = hit.opt;
-        } else if (axis === 'wear') {
-          if (d.wear.indexOf(v) < 0) { d.wear.push(v); if (d.wear.length > 2) d.wear.shift(); }
-        } else if (axis === 'vibe') {
-          d.vibe = v;
+        const slug = _rbTagSlug(v);
+        if (!slug) { _rbTagPaint(); return; }
+        // A typed value that already exists — on EITHER open axis, or as a
+        // climate label — selects the existing tag instead of minting a
+        // near-duplicate. The namespace is shared, so "Lisbon" typed on a
+        // look is the same tag as "Lisbon" on a piece.
+        const climateHit = _RB_TAG_AXES.climate.opts
+          .find(o => o === slug || _rbTagSlug(_rbTagLabel('climate', o)) === slug);
+        if (climateHit) { d.climate = climateHit; _rbTagPaint(); return; }
+        const arr = axis === 'vibe' ? d.vibe : d.wear;
+        if (arr.indexOf(slug) < 0) arr.push(slug);   // uncapped (ADR-002 §4)
+        // Remember the label she typed so the chip reads as she wrote it,
+        // even before the tags row exists in the database.
+        if (!_tgFind(_RB_TAG_AXES[axis === 'vibe' ? 'vibe' : 'wear'].kind, slug)) {
+          _tgTags.push({ id: null, kind: axis === 'vibe' ? 'vibe' : 'wear_for', label: v, slug, is_seed: false });
         }
         _rbTagPaint();
       };
@@ -5630,20 +5952,20 @@
         const d = _rbTagDraft;
         if (!d || !el) return;
         const v = el.getAttribute('data-val') || '';
-        if (axis === 'wear') { const k = d.wear.indexOf(v); if (k > -1) d.wear.splice(k, 1); }
-        else if (axis === 'vibe' && d.vibe === v) d.vibe = '';
+        const arr = axis === 'vibe' ? d.vibe : d.wear;
+        const k = arr.indexOf(v);
+        if (k > -1) arr.splice(k, 1);
         _rbTagPaint();
       };
-      window.__rbTagPick = function(axis, i) {
+      window.__rbTagPick = function(axis, slug) {
         const d = _rbTagDraft;
         if (!d) return;
-        const opt = _RB_TAG_AXES[axis].opts[i];
-        if (axis === 'wear') {
-          const k = d.wear.indexOf(opt);
-          if (k > -1) d.wear.splice(k, 1);
-          else { d.wear.push(opt); if (d.wear.length > 2) d.wear.shift(); }
+        if (axis === 'climate') {
+          d.climate = d.climate === slug ? '' : slug;
         } else {
-          d[axis] = d[axis] === opt ? '' : opt;
+          const arr = axis === 'vibe' ? d.vibe : d.wear;
+          const k = arr.indexOf(slug);
+          if (k > -1) arr.splice(k, 1); else arr.push(slug);   // uncapped
         }
         _rbTagPaint();
       };
@@ -5656,25 +5978,31 @@
       function _rbTagPaint() {
         const serif = "'Cormorant',Georgia,serif";
         const d = _rbTagDraft;
-        const chip = (axis, opt, i, on) =>
-          `<button onclick="window.__rbTagPick('${axis}',${i})" style="border-radius:100px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;${on
+        const chip = (axis, slug, on) =>
+          `<button onclick="window.__rbTagPick('${axis}','${_waEsc(slug)}')" style="border-radius:100px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;${on
             ? 'background:var(--secondary,#E3E1CC);border:1px solid transparent;color:#202021'
-            : 'background:#fff;border:1px solid rgba(32,32,33,0.16);color:var(--ink-soft)'}">${_waEsc(opt)}</button>`;
+            : 'background:#fff;border:1px solid rgba(32,32,33,0.16);color:var(--ink-soft)'}">${_waEsc(_rbTagLabel(axis, slug))}</button>`;
         const group = (axis, extraStyle) => {
           const ax = _RB_TAG_AXES[axis];
-          const sel = axis === 'wear' ? d.wear : [d[axis]];
-          // Custom values already on the draft render as selected chips of
-          // their own; Wear and Vibe close with the dashed "+ tag" door.
-          const customs = sel.filter(s => s && ax.opts.indexOf(s) < 0);
-          const customChips = customs.map(c =>
-            `<button data-val="${_waEsc(c)}" onclick="window.__rbTagPickCustom('${axis}',this)" style="border-radius:100px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;background:var(--secondary,#E3E1CC);border:1px solid transparent;color:#202021">${_waEsc(c)}</button>`).join('');
-          const openAxis = axis === 'wear' || axis === 'vibe';
-          const addChip = !openAxis ? '' : (_rbTagAdding === axis
+          const sel = axis === 'climate' ? (d.climate ? [d.climate] : []) : (axis === 'vibe' ? d.vibe : d.wear);
+          // The open axes draw their options from the shared namespace: the
+          // seven seeds plus every tag she has ever created, on a piece or a
+          // look. Anything selected but not yet in the namespace (typed a
+          // moment ago) is appended so it renders as picked.
+          let opts;
+          if (axis === 'climate') opts = ax.opts.slice();
+          else if (axis === 'vibe') opts = _tgVibeOptions();
+          else opts = _tgWearOptions();
+          sel.forEach(sl => { if (opts.indexOf(sl) < 0) opts.push(sl); });
+          const addChip = !ax.open ? '' : (_rbTagAdding === axis
             ? `<input id="rb-tag-newin" maxlength="28" placeholder="Your own tag" onkeydown="if(event.key==='Enter'){event.preventDefault();window.__rbTagCommit('${axis}',this.value)}else if(event.key==='Escape'){window.__rbTagCommit('${axis}','')}" onblur="window.__rbTagCommit('${axis}',this.value)" style="border-radius:100px;padding:8px 14px;font-size:12px;font-family:inherit;background:#fff;border:1px dashed rgba(32,32,33,0.3);color:var(--ink);outline:none;width:130px">`
             : `<button onclick="window.__rbTagAdd('${axis}')" style="border-radius:100px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;background:#fff;border:1px dashed rgba(32,32,33,0.28);color:var(--ink-faint)">+ tag</button>`);
+          const empty = !opts.length && axis === 'vibe'
+            ? `<span style="font-family:${serif};font-style:italic;font-size:14px;color:var(--ink-faint)">Yours to name.</span>`
+            : '';
           return `<div style="display:flex;flex-direction:column;gap:9px;${extraStyle || ''}">
             <div style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)">${ax.label}${ax.hint ? ` · <span style="font-weight:400;text-transform:none;letter-spacing:.02em">${ax.hint}</span>` : ''}</div>
-            <div style="display:flex;gap:7px;flex-wrap:wrap">${ax.opts.map((o, i) => chip(axis, o, i, sel.indexOf(o) > -1)).join('')}${customChips}${addChip}</div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap">${empty}${opts.map(o => chip(axis, o, sel.indexOf(o) > -1)).join('')}${addChip}</div>
           </div>`;
         };
         let modal = document.getElementById('rb-tag-sheet');
@@ -5692,10 +6020,9 @@
                 <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">Tags${_rbTagCtxLabel ? ' · ' + _waEsc(_rbTagCtxLabel) : ''}</p>
                 <button onclick="window.__rbTagDone(false)" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;font-size:16px;margin-top:-4px">×</button>
               </div>
-              <p style="font-family:${serif};font-style:italic;font-size:15px;font-weight:300;color:var(--ink-faint);margin:6px 0 0">Robes filled these from the look — tap any to change.</p>
+
             </div>
             ${group('climate')}
-            ${group('light')}
             ${group('wear')}
             ${group('vibe', 'border-top:0.5px solid var(--rule);padding-top:16px')}
             <button onclick="window.__rbTagDone(true)" style="margin-top:2px;background:#202021;color:#fff;border:none;border-radius:100px;padding:14px;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit">Done</button>
@@ -6963,8 +7290,15 @@
         _waFetch('POST', 'looks', {
           id: l.id, user_id: _waUid(), name: l.name, name_provisional: !!l.name_provisional,
           note: l.note || null, photo_url: l.photo_url || null, tags: l.tags || null,
+          climate_band: l.climate_band || 'year_round', climate_source: l.climate_source || 'derived',
           source: l.source || 'wear', origin_look_id: l.origin_look_id || null,
-        }).then(() => _lkPiecesCloud(l)).catch(e => _lkGuard(e, 'create'));
+        }).then(() => {
+          _lkPiecesCloud(l);
+          if (l._lookTags) {
+            _tgSetLinks('look', l.id, 'wear_for', l._lookTags.wear || [], 'inferred');
+            _tgSetLinks('look', l.id, 'vibe', l._lookTags.vibe || [], 'inferred');
+          }
+        }).catch(e => _lkGuard(e, 'create'));
       }
       // look_pieces.role arrives with migration 16 — until it runs, a
       // PGRST204 naming the column strips it and retries, and her cast
@@ -7016,6 +7350,13 @@
           note: o.note != null ? o.note : _lkStyleNote(ids),
           photo_url: o.photo_url || null,
           tags: o.tags || null,
+          // ADR-002: climate is a column, derived-with-override. A new look
+          // starts 'derived' so it re-derives as her pieces get banded.
+          climate_band: (o.lookTags && o.lookTags.climate) || 'year_round',
+          climate_source: 'derived',
+          // Carried for the cloud push only — the wear/vibe slugs go to
+          // tag_looks once the row exists, not onto the looks row itself.
+          _lookTags: o.lookTags || null,
           source: o.source || 'wear',
           origin_look_id: o.origin_look_id || null,
           created_at: new Date().toISOString(),
@@ -7089,8 +7430,8 @@
         if (ids.length < 2) return null;   // a single piece is not a look
         let l = _lkFindByPieces(ids);
         if (!l) {
-          const inh = _rbTagsFlat(_rbInheritLookTags(ids));
-          l = _lkCreate({ pieces: ids, hint: o.hint, source: 'wear', tags: inh.length ? inh : null });
+          const inh = _rbInheritLookTags(ids);
+          l = _lkCreate({ pieces: ids, hint: o.hint, source: 'wear', lookTags: inh });
         }
         const w = _lkAddWear(l, { date: o.date, source: o.source, sourceId: o.sourceId });
         _lkPaint();
@@ -7450,8 +7791,13 @@
         // result — key pieces styled, daily looks, travel edits — interleave
         // by recency in one card language. Refine speaks the look-tag axes,
         // so live filters narrow to looks alone.
+        // ADR-002 [C10]: Refine used to drop EVERY generated artifact the
+        // moment a filter went live (`refN ? [] : shelfItems`), so filtering
+        // silently emptied most of the Lookbook. Artifacts carry their tags
+        // in the blob (Q1 option a) and the client already holds every row,
+        // so they filter in memory on the same axes as a Look.
         const entries = looksShown.map(l => ({ ts: _lkCardTs(l), html: _lkLookCard(l) }))
-          .concat(refN ? [] : shelfItems.map(i => ({ ts: Number(i.id) || 0, html: _lkItemCard(i) })));
+          .concat(shelfItems.filter(_lkMatchRefineItem).map(i => ({ ts: Number(i.id) || 0, html: _lkItemCard(i) })));
         entries.sort((a, b) => _lkSortDesc ? b.ts - a.ts : a.ts - b.ts);
         grid.innerHTML = noneHtml + entries.map(e => e.html).join('') +
         // The way in stays on the grid — the same amplified add card the
@@ -7575,40 +7921,84 @@
       // A look's read is its stored tags, else the inherited overlap of its
       // pieces (the same read the detail shows) — so legacy looks filter
       // too. Within an axis picks OR; across axes they AND.
-      var _lkRefine = { climate: [], light: [], wear: [], vibe: [] };
+      var _lkRefine = { climate: [], wear: [], vibe: [] };   // ADR-002 §7: Light removed
       var _lkRefineOpen = false;
       function _lkRefineCount() {
-        return _lkRefine.climate.length + _lkRefine.light.length + _lkRefine.wear.length + _lkRefine.vibe.length;
+        return _lkRefine.climate.length + _lkRefine.wear.length + _lkRefine.vibe.length;
       }
+      // A Look's tags now live in looks.climate_band + tag_looks. The flat
+      // looks.tags array survives read-only for one release (ADR-002 [C8]),
+      // so a row the backfill hasn't reached still reads correctly; a look
+      // with neither falls back to what its pieces imply.
       function _lkTagsOf(l) {
-        return _rbTagsParse((Array.isArray(l.tags) && l.tags.length) ? l.tags : _rbInheritLookTags(_lkPieceIds(l)));
+        // The local mirror wins: it is written synchronously on her edit,
+        // while the namespace round-trips (and may be unavailable entirely).
+        if (l._tags) return { climate: l.climate_band || '', wear: (l._tags.wear || []).slice(), vibe: (l._tags.vibe || []).slice() };
+        const linked = _tgLoaded ? _tgLookSlugs(l.id) : [];
+        if (l.climate_band || linked.length) {
+          const wear = [], vibe = [];
+          linked.forEach(sl => {
+            const t = _tgTags.find(x => x.slug === sl && x.kind === 'vibe');
+            (t ? vibe : wear).push(sl);
+          });
+          return { climate: l.climate_band || '', wear, vibe };
+        }
+        if (Array.isArray(l.tags) && l.tags.length) return _rbTagsParse(l.tags);
+        return _rbInheritLookTags(_lkPieceIds(l));
+      }
+      // The blob's look_tags for a generated artifact, wherever its track
+      // keeps them. A daily look holds one set; a travel edit holds one per
+      // look, so the artifact matches if ANY of its looks does.
+      function _lkItemTagSets(i) {
+        const d = i && i.data ? i.data : i;
+        const out = [];
+        const dl = d && (d.dlData || d.kpData);
+        if (dl && dl.look_tags) out.push(_rbTagsParse(dl.look_tags));
+        const tv = d && d.tvData;
+        if (tv && Array.isArray(tv.looks)) tv.looks.forEach(l => { if (l && l.look_tags) out.push(_rbTagsParse(l.look_tags)); });
+        if (d && d.look_tags) out.push(_rbTagsParse(d.look_tags));
+        return out;
+      }
+      function _lkMatchRefineItem(i) {
+        if (!_lkRefineCount()) return true;
+        const sets = _lkItemTagSets(i);
+        if (!sets.length) return false;   // untagged can't answer a tag query
+        const hit = (sel, vals) => !sel.length || vals.some(v => sel.indexOf(v) > -1);
+        return sets.some(t => hit(_lkRefine.climate, [t.climate])
+          && hit(_lkRefine.wear, t.wear) && hit(_lkRefine.vibe, t.vibe));
       }
       function _lkMatchRefine(l) {
         if (!_lkRefineCount()) return true;
         const t = _lkTagsOf(l);
         const hit = (sel, vals) => !sel.length || vals.some(v => sel.indexOf(v) > -1);
-        return hit(_lkRefine.climate, [t.climate]) && hit(_lkRefine.light, [t.light])
-          && hit(_lkRefine.wear, t.wear) && hit(_lkRefine.vibe, [t.vibe]);
+        return hit(_lkRefine.climate, [t.climate])
+          && hit(_lkRefine.wear, t.wear) && hit(_lkRefine.vibe, t.vibe);
       }
-      // The axis vocabularies plus any custom tags her looks carry.
+      // The axis vocabulary plus every value her looks actually carry, so a
+      // custom tag stays filterable and a pick is always deselectable.
       function _lkRefineOpts(axis) {
-        const base = _RB_TAG_AXES[axis].opts.slice();
+        const base = axis === 'climate' ? _RB_TAG_AXES.climate.opts.slice()
+          : axis === 'vibe' ? _tgVibeOptions() : _tgWearOptions();
         _lkLooks.forEach(l => {
           const t = _lkTagsOf(l);
-          (axis === 'wear' ? t.wear : [t[axis]]).forEach(v => { if (v && base.indexOf(v) < 0) base.push(v); });
+          (axis === 'climate' ? [t.climate] : t[axis]).forEach(v => {
+            if (v && base.indexOf(v) < 0) base.push(v);
+          });
         });
         return base;
       }
       function _lkRefineHtml() {
         const g = axis => {
           const sel = _lkRefine[axis];
+          const opts = _lkRefineOpts(axis);
+          if (!opts.length) return '';
           return '<div><div class="rb-lkref-ax">' + _RB_TAG_AXES[axis].label + '</div><div class="rb-lkref-chips">' +
-            _lkRefineOpts(axis).map(o =>
-              '<button type="button" class="rb-lkref-chip' + (sel.indexOf(o) > -1 ? ' on' : '') + '" data-ax="' + axis + '" data-val="' + _waEsc(o) + '" onclick="window.__lkRefinePick(this)">' + _waEsc(o) + '</button>').join('') +
+            opts.map(o =>
+              '<button type="button" class="rb-lkref-chip' + (sel.indexOf(o) > -1 ? ' on' : '') + '" data-ax="' + axis + '" data-val="' + _waEsc(o) + '" onclick="window.__lkRefinePick(this)">' + _waEsc(_rbTagLabel(axis, o)) + '</button>').join('') +
             '</div></div>';
         };
         const n = _lkLooks.filter(_lkMatchRefine).length;
-        return '<div class="rb-lk-refwrap">' + g('climate') + g('light') + g('wear') + g('vibe') +
+        return '<div class="rb-lk-refwrap">' + g('climate') + g('wear') + g('vibe') +
           '<div class="rb-lkref-foot"><button type="button" class="rb-lk-quiet" onclick="window.__lkRefineClear()">Clear all</button>' +
           '<span style="font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint)">' + _lkN(n, 'look') + '</span></div></div>';
       }
@@ -7623,7 +8013,7 @@
         _rbTrack('looks_refined', { axis: ax, active: _lkRefineCount() });
       };
       window.__lkRefineClear = function() {
-        _lkRefine = { climate: [], light: [], wear: [], vibe: [] };
+        _lkRefine = { climate: [], wear: [], vibe: [] };
         _lkPaint();
       };
 
@@ -7708,7 +8098,7 @@
         const items = _lkDetailItems(l);
 
         // The Look — the standing 4:5 composition, or the look's photograph
-        const lkTagsRow = _rbTagsRowHtml(l.tags, '__lkTagsEdit');
+        const lkTagsRow = _rbTagsRowHtml(_lkTagsOf(l), '__lkTagsEdit');
         let lookPanel;
         if (l.photo_url) {
           lookPanel = '<div class="rbc-panel"><div class="rbc-lhead">' +
@@ -8171,8 +8561,19 @@
       window.__lkTagsApply = function(t) {
         const l = _lkFind(_lkActive);
         if (!l) return;
-        const flat = _rbTagsFlat(t);
-        _lkPatch(l.id, { tags: flat.length ? flat : null });
+        t = _rbTagsParse(t);
+        // Editing climate in the Tags sheet is HER judgement, and it is
+        // permanent: climate_source flips to 'user' and the look is never
+        // re-derived again, including when a constituent piece is re-tagged.
+        // That is the only behaviour that makes the override trustworthy.
+        _lkPatch(l.id, { climate_band: t.climate || 'year_round', climate_source: 'user' });
+        // _tags is the local mirror of the namespace links. It is what keeps
+        // the row truthful when tag_looks is unavailable (migration 17 not
+        // run, or offline) — the same degrade posture look_pieces.role takes.
+        l._tags = { wear: t.wear.slice(), vibe: t.vibe.slice() };
+        _lkCacheWrite();
+        _tgSetLinks('look', l.id, 'wear_for', t.wear, 'user');
+        _tgSetLinks('look', l.id, 'vibe', t.vibe, 'user');
         _lkPaint();
         _rbTrack('look_tags_edited', { surface: 'look' });
       };
@@ -8659,13 +9060,13 @@
           // an untouched field gets the offered name, marked provisional).
           const typed = String(_lkNewTitleDraft || '').trim();
           // Tags travel with the save — her edit if she made one, else the
-          // pieces' inherited overlap (spec F3). Stored flat; axes recover
-          // from the disjoint vocabularies.
-          const tagsFlat = _rbTagsFlat(_lkNewTags || _rbInheritLookTags(used));
+          // pieces' inherited overlap (spec F3). Climate lands on the column,
+          // wear and vibe in the shared namespace (ADR-002 §4).
+          const lookTags = _rbTagsParse(_lkNewTags || _rbInheritLookTags(used));
           l = _lkCreate({
             pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed,
             source: 'manual', photo_url: _lkPhoto && _lkPhoto.url, slots,
-            tags: tagsFlat.length ? tagsFlat : null,
+            lookTags: lookTags,
             roles: _lkNewRoles,
           });
         } finally { _lkBusy = false; }
@@ -8886,7 +9287,7 @@
       window.__dlTagsApply = function(t) {
         const data = window.__lastDlData;
         if (!data) return;
-        data.look_tags = { climate: t.climate, light: t.light, wear_for: t.wear, vibe: t.vibe };
+        data.look_tags = _rbTagsBlob(t);
         _dlRerender();
         _rbTrack('look_tags_edited', { surface: 'daily' });
       };
@@ -10004,7 +10405,7 @@
               genId,
               name,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
-              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, seasons: (Array.isArray(i.seasons) && i.seasons.length) ? i.seasons : undefined })),
+              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, season_band: _waItemBand(i) })),
             }),
           });
           clearInterval(msgInterval);
@@ -10935,7 +11336,7 @@ body>*:not(#tv-result-page){display:none !important}
         const data = window.__lastTvData;
         const l = data && data.looks && data.looks[_tvTagLi];
         if (!l) return;
-        l.look_tags = { climate: t.climate, light: t.light, wear_for: t.wear, vibe: t.vibe };
+        l.look_tags = _rbTagsBlob(t);
         _tvPatchSaved();
         _tvPaintDetail();
         _rbTrack('look_tags_edited', { surface: 'travel' });
