@@ -4573,29 +4573,24 @@
         const empty = document.getElementById('sn-empty');
         if (!grid) return;
         grid.style.display = 'none'; // legacy element — the looks module owns the page
-        // The looks module paints the whole view (holiday row + stream +
-        // detail/composer). A truly empty Lookbook — no looks, no daily
-        // looks, no holiday edits; key pieces live on Inspiration and
-        // don't count — keeps the page-level cold start: "Ways to fill
-        // it" answers the page's one question better than a module-level
-        // empty state.
-        const lkWrap = document.getElementById('rb-lk-wrap');
+        // The looks module paints the whole view (travel row + stream +
+        // detail/composer).
         const hasContent = (typeof _lkLooks !== 'undefined' && _lkLooks.length)
           || _lkShelfItems().length || _lkHolidayItems().length;
-        if (hasContent) {
-          empty.style.display = 'none';
-          _snClearWays();
-          if (_lkEnsureDom()) document.getElementById('rb-lk-wrap').style.display = 'block';
-          _lkPaint();
-          return;
-        }
-        if (lkWrap) lkWrap.style.display = 'none';
-        const emptyT = document.getElementById('sn-empty-t');
-        const emptyS = document.getElementById('sn-empty-s');
-        empty.style.display = 'block';
-        if (emptyT) emptyT.textContent = 'Nothing saved yet.';
-        if (emptyS) emptyS.innerHTML = 'Every look Robes builds is filed here.';
-        _snPaintWays();
+        empty.style.display = 'none';
+        _snClearWays();
+        if (_lkEnsureDom()) document.getElementById('rb-lk-wrap').style.display = 'block';
+        // ONE DOOR (FTUE pass 2026-08-12): an empty Lookbook IS the
+        // composer — _lkPaint arms it. The old cold start offered three
+        // doors and no primary action (the "Ways to fill it" clone shelf,
+        // a holiday-edit CTA and the concierge menu); naming the first
+        // look is the one act that fills a Lookbook, so it is the only one
+        // on offer. (_snPaintWays survives for the record and for the
+        // dashboard hook, but is no longer reached from here.)
+        // The Diary is visible but inert until something exists to diarise.
+        const dbtn = document.querySelector('#sn-viewseg button[data-mv="cal"]');
+        if (dbtn) dbtn.classList.toggle('inert', !hasContent);
+        _lkPaint();
       }
 
       // ── Conditional dashboard row ────────────────────────────────────
@@ -5714,9 +5709,16 @@
           // line on the left, its own + Add on the right (cfg.onRoleAdd,
           // called with the role so the pick arrives pre-cast). It gives
           // way to the piece row the moment the role inks in.
+          // The WHOLE row is the hit area (FTUE pass 2026-08-12) — the
+          // pill is the affordance, the 52px row is the target. The pill
+          // carries no handler of its own so its click simply bubbles to
+          // the row; two handlers would fire the chooser twice.
           if (!filled.length && _RB_ROLE_NOTES[role]) {
-            html += `<div class="rbc-row rbc-rghost"><div class="rbc-rolenote">${_waEsc(_RB_ROLE_NOTES[role])}</div>` +
-              (cfg.onRoleAdd ? `<button class="rbc-act" onclick="window.${cfg.onRoleAdd}('${_waEsc(role)}')">＋ Add a piece</button>` : '') +
+            const addCall = cfg.onRoleAdd ? `window.${cfg.onRoleAdd}('${_waEsc(role)}')` : '';
+            html += `<div class="rbc-row rbc-rghost${addCall ? ' tap' : ''}"` +
+              (addCall ? ` role="button" tabindex="0" onclick="${addCall}"` : '') +
+              `><div class="rbc-rolenote">${_waEsc(_RB_ROLE_NOTES[role])}</div>` +
+              (addCall ? `<button type="button" class="rbc-act" tabindex="-1">＋ Add a piece</button>` : '') +
               `</div>`;
           }
           filled.forEach(x => { html += rowHtml(x); });
@@ -6071,6 +6073,9 @@
 .rbc-dragrow.dragging{opacity:.45}
 .rbc-rolenote{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:14.5px;line-height:1.55;color:var(--ink-faint)}
 .rbc-row.rbc-rghost{display:flex;align-items:center;justify-content:space-between;gap:16px;border-style:dashed;background:transparent;padding:17px 18px}
+.rbc-row.rbc-rghost.tap{min-height:52px;cursor:pointer;transition:border-color .15s,background .15s}
+.rbc-row.rbc-rghost.tap:hover{border-color:var(--ink-faint)}
+.rbc-row.rbc-rghost.tap:hover .rbc-act{border-color:rgba(32,32,33,0.22);color:var(--ink)}
 .rbc-rghost .rbc-rolenote{flex:1;min-width:0}
 .rbc-rghost .rbc-act{flex:none;white-space:nowrap}
 .rbc-lhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
@@ -7623,10 +7628,22 @@
 .rb-lk-holcard.new:hover{background:var(--cream-200)}
 .rb-lk-holcard.new .hplus{width:32px;height:32px;border-radius:100px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:300;line-height:1}
 .rb-lk-holcard.new .hnew{font-family:var(--font-serif);font-weight:300;font-size:15px;color:var(--ink)}
+/* Zero edits: the invitation leads, one dimmed Robes example follows */
+.rb-lk-holcard.invite{width:268px;justify-content:center;min-height:160px}
+.rb-lk-holcard.invite .hpad{padding:20px 20px 22px}
+.rb-lk-holcard.invite .ht{font-size:21px;white-space:normal}
+.rb-lk-holcard.invite .hb{display:block;font-size:11.5px;line-height:1.55;color:var(--ink-soft);margin-top:7px}
+.rb-lk-holcard.invite .hcta{display:inline-flex;align-items:center;margin-top:16px;padding:11px 20px;border-radius:100px;background:var(--ink);color:#fff;font-size:10px;font-weight:500;letter-spacing:.09em;text-transform:uppercase}
+.rb-lk-holcard.example{width:200px;opacity:.6;cursor:default;pointer-events:none}
+.rb-lk-holcard.example .hm{font-style:italic}
 .rb-lk-sort{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border:0.5px solid var(--rule-mid);background:#fff;border-radius:100px;cursor:pointer;font-family:inherit;font-size:11.5px;color:var(--ink);transition:border-color .15s}
 .rb-lk-sort:hover{border-color:var(--ink)}
 .rb-lk-sort b{font-weight:400;color:var(--ink-faint)}
 .rb-lk-sort.hot{background:var(--ink);border-color:var(--ink);color:#fff}
+/* Inert below four looks — visibly not yet needed, never a dead tap */
+.rb-lk-sort[disabled]{background:transparent;border-color:var(--rule);color:var(--cream-400);cursor:default}
+.rb-lk-sort[disabled]:hover{border-color:var(--rule)}
+.rb-lk-sort[disabled] b{color:var(--cream-400)}
 .rb-lk-refwrap{width:100%;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:16px 18px 14px;display:flex;flex-direction:column;gap:14px}
 .rb-lkref-ax{font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:7px}
 .rb-lkref-chips{display:flex;gap:7px;flex-wrap:wrap}
@@ -7757,22 +7774,30 @@
 
       function _lkPaint() {
         if (_snFilter !== 'looks' || !_lkEnsureDom()) return;
-        // Claim the shelf when there is something beyond the bare empty
-        // grid — the cold-start fallthrough (snRenderPage's "Ways to fill
-        // it") hides the wrap, so a direct paint (the composer opened from
-        // that state, the first look landing) must re-show it. The bare
-        // empty grid never claims: the ways state owns the truly-empty page.
-        if (_lkView !== 'grid' || _lkLooks.length || _lkShelfItems().length) {
-          const snEl = document.getElementById('sn-page');
-          if (snEl && snEl.style.display !== 'none') {
-            const wrapEl = document.getElementById('rb-lk-wrap');
-            if (wrapEl) wrapEl.style.display = 'block';
-            const gEl = document.getElementById('sn-grid');
-            if (gEl) gEl.style.display = 'none';
-            const emEl = document.getElementById('sn-empty');
-            if (emEl) emEl.style.display = 'none';
-            _snClearWays();
-          }
+        const shelfItems = _lkShelfItems();
+        const holidays = _lkHolidayItems();
+        const streamN = _lkLooks.length + shelfItems.length;
+        const any = streamN || holidays.length;
+        // ONE DOOR (FTUE pass 2026-08-12): an empty Lookbook IS the
+        // composer, whatever route landed here — the seg's Looks tab, a
+        // bridge, a delete that emptied it. Guarding here rather than at
+        // each caller is what makes it a rule instead of a path.
+        if (!any && _lkView !== 'new') {
+          _lkResetComposer();
+          _rbTrack('look_compose_opened', { door: 'empty-lookbook' });
+        }
+        // Claim the shelf — the page-level empty state must never sit over
+        // the module (the "Ways to fill it" cold start used to own the
+        // truly-empty page; the composer owns it now).
+        const snEl = document.getElementById('sn-page');
+        if (snEl && snEl.style.display !== 'none') {
+          const wrapEl = document.getElementById('rb-lk-wrap');
+          if (wrapEl) wrapEl.style.display = 'block';
+          const gEl = document.getElementById('sn-grid');
+          if (gEl) gEl.style.display = 'none';
+          const emEl = document.getElementById('sn-empty');
+          if (emEl) emEl.style.display = 'none';
+          _snClearWays();
         }
         const bar = document.getElementById('rb-lk-bar');
         const grid = document.getElementById('rb-lk-grid');
@@ -7781,12 +7806,10 @@
         const hol = document.getElementById('rb-lk-hol');
         const allHead = document.getElementById('rb-lk-allhead');
         const detail = _lkView !== 'grid';
-        const shelfItems = _lkShelfItems();
-        const holidays = _lkHolidayItems();
-        const streamN = _lkLooks.length + shelfItems.length;
-        const any = streamN || holidays.length;
         bar.style.display = detail || !any ? 'none' : 'flex';
-        if (hol) hol.style.display = detail || !holidays.length ? 'none' : 'block';
+        // The travel strip appears with the first look, edits or not — its
+        // zero state is the invitation (FTUE pass 2026-08-12).
+        if (hol) hol.style.display = detail || !any ? 'none' : 'block';
         if (allHead) allHead.style.display = detail || !any ? 'none' : 'block';
         grid.style.display = detail || !any ? 'none' : 'grid';
         if (detail) {
@@ -7797,36 +7820,49 @@
         if (!any) return;
         // Holiday edits ride a pinned row above the stream (IA refinement
         // 2026-08-10) — they still band across the Diary as before.
-        if (hol && holidays.length) hol.innerHTML = _lkHolidayRowHtml(holidays);
+        if (hol) hol.innerHTML = _lkHolidayRowHtml(holidays);
         const refN = _lkRefineCount();
         // Top row: the collection stat where sort/Refine used to sit —
         // those moved down to align with the All looks section (Annie,
         // 2026-08-10) — beside the + New split.
         const statBits = [];
         if (streamN) statBits.push(_lkN(streamN, 'look'));
-        if (holidays.length) statBits.push(_lkN(holidays.length, 'holiday edit'));
+        // The edits half of the line always speaks — "no edits yet" is the
+        // invitation's caption, not an omission (FTUE pass 2026-08-12).
+        statBits.push(holidays.length ? _lkN(holidays.length, 'holiday edit') : 'no edits yet');
         bar.innerHTML = '<span class="rb-lk-statline">' + _waEsc(statBits.join(' · ')) + '</span>' +
           '<span style="flex:1"></span>' +
-          '<button type="button" class="rb-lk-act primary" onclick="window.__lkNewMenu(event)">+ New ▾</button>';
-        // The All looks section header carries its own controls; sort and
-        // Refine stay withheld until an actual Look exists (they speak the
-        // look axes).
+          '<button type="button" class="rb-lk-act" onclick="window.__lkNewMenu(event)">+ New ▾</button>';
+        // The All looks section header carries its own controls. They now
+        // RENDER at every count and sit inert below four looks (FTUE pass
+        // 2026-08-12, superseding "withheld until a Look exists") — a
+        // control that appears from nowhere is harder to learn than one
+        // that is visibly not yet needed.
+        // Four LOOKS as the stat line counts them — the whole stream, since
+        // artifacts sort and filter on the same axes (ADR-002 [C10]). A
+        // control must be gated on the thing it actually controls.
+        const sortLive = streamN >= 4;
         if (allHead) {
+          const inert = sortLive ? '' : ' disabled';
           allHead.innerHTML = '<div class="rb-lk-allrow">' +
             '<span class="rb-lk-sec" style="margin:0">All looks</span>' +
             '<span style="flex:1"></span>' +
-            (_lkLooks.length
-              ? '<button type="button" class="rb-lk-sort" onclick="window.__lkSort()">' +
-                '<span>' + (_lkSortDesc ? 'Last worn' : 'First worn') + '</span>' +
-                '<b>' + (_lkSortDesc ? '↓' : '↑') + '</b></button>' +
-                '<button type="button" class="rb-lk-sort' + (refN || _lkRefineOpen ? ' hot' : '') + '" onclick="window.__lkRefineToggle()">' +
-                '<span>Refine' + (refN ? ' · ' + refN : '') + '</span></button>'
-              : '') +
+            '<button type="button" class="rb-lk-sort"' + inert +
+              (sortLive ? ' onclick="window.__lkSort()"' : '') + '>' +
+              '<span>' + (_lkSortDesc ? 'Last worn' : 'First worn') + '</span>' +
+              '<b>' + (_lkSortDesc ? '↓' : '↑') + '</b></button>' +
+            '<button type="button" class="rb-lk-sort' + (sortLive && (refN || _lkRefineOpen) ? ' hot' : '') + '"' + inert +
+              (sortLive ? ' onclick="window.__lkRefineToggle()"' : '') + '>' +
+              '<span>Refine' + (sortLive && refN ? ' · ' + refN : '') + '</span></button>' +
             '</div>' +
-            (_lkLooks.length && _lkRefineOpen ? _lkRefineHtml() : '');
+            (sortLive && _lkRefineOpen ? _lkRefineHtml() : '');
         }
-        const looksShown = _lkSorted().filter(_lkMatchRefine);
-        const noneHtml = refN && !looksShown.length
+        // Filters can only be SET while Refine is live, but a delete can
+        // drop the count back under four — never leave a live filter
+        // hiding looks behind an inert control.
+        const refActive = sortLive && refN;
+        const looksShown = refActive ? _lkSorted().filter(_lkMatchRefine) : _lkSorted();
+        const noneHtml = refActive && !looksShown.length
           ? '<div style="grid-column:1/-1;padding:26px 0 6px;font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">No looks carry those tags. <button type="button" class="rb-lk-quiet" onclick="window.__lkRefineClear()" style="font-style:normal">Clear the filters</button></div>'
           : '';
         // ONE stream (cohesion pass 2026-08-08): her Looks and every saved
@@ -7839,7 +7875,8 @@
         // in the blob (Q1 option a) and the client already holds every row,
         // so they filter in memory on the same axes as a Look.
         const entries = looksShown.map(l => ({ ts: _lkCardTs(l), html: _lkLookCard(l) }))
-          .concat(shelfItems.filter(_lkMatchRefineItem).map(i => ({ ts: Number(i.id) || 0, html: _lkItemCard(i) })));
+          .concat((refActive ? shelfItems.filter(_lkMatchRefineItem) : shelfItems)
+            .map(i => ({ ts: Number(i.id) || 0, html: _lkItemCard(i) })));
         entries.sort((a, b) => _lkSortDesc ? b.ts - a.ts : a.ts - b.ts);
         grid.innerHTML = noneHtml + entries.map(e => e.html).join('') +
         // The way in stays on the grid — the same amplified add card the
@@ -7848,7 +7885,7 @@
         '<div class="rb-add-card" onclick="window.__lkNew()" role="button" tabindex="0">' +
           '<span class="rb-add-plus">+</span>' +
           '<span class="rb-add-serif">New look</span>' +
-          '<span class="rb-add-hint">Built from your pieces</span>' +
+          '<span class="rb-add-hint">Built on the rack</span>' +
         '</div>';
       }
 
@@ -7945,18 +7982,29 @@
         return parts.join(' · ') || i.subtitle || '';
       }
       function _lkHolidayRowHtml(holidays) {
-        return '<div class="rb-lk-sec" style="margin:4px 0 12px">Holiday edits</div>' +
-          '<div class="rb-lk-holrow">' +
-          holidays.map(i => {
-            const img = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : null;
-            return '<button type="button" class="rb-lk-holcard" onclick="window.__snOpenItem(' + Number(i.id) + ')">' +
-              '<span class="him"' + (img ? ' style="background-image:url(\'' + _waEsc(img) + '\')"' : '') + '></span>' +
-              '<span class="hpad"><span class="ht">' + _waEsc(i.title || 'Holiday edit') + '</span>' +
-              '<span class="hm">' + _waEsc(_lkHolMeta(i)) + '</span></span></button>';
-          }).join('') +
-          '<button type="button" class="rb-lk-holcard new" onclick="window.__lkNewHoliday()">' +
-            '<span class="hplus">+</span><span class="hnew">New holiday edit</span></button>' +
-          '</div>';
+        // With no edits yet the strip is an invitation plus ONE
+        // Robes-authored example, dimmed and labelled as an example so it
+        // can never be mistaken for her own trip (FTUE pass 2026-08-12).
+        const cards = holidays.length
+          ? holidays.map(i => {
+              const img = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : null;
+              return '<button type="button" class="rb-lk-holcard" onclick="window.__snOpenItem(' + Number(i.id) + ')">' +
+                '<span class="him"' + (img ? ' style="background-image:url(\'' + _waEsc(img) + '\')"' : '') + '></span>' +
+                '<span class="hpad"><span class="ht">' + _waEsc(i.title || 'Holiday edit') + '</span>' +
+                '<span class="hm">' + _waEsc(_lkHolMeta(i)) + '</span></span></button>';
+            }).join('') +
+            '<button type="button" class="rb-lk-holcard new" onclick="window.__lkNewHoliday()">' +
+              '<span class="hplus">+</span><span class="hnew">New holiday edit</span></button>'
+          : '<button type="button" class="rb-lk-holcard invite" onclick="window.__lkNewHoliday()">' +
+              '<span class="hpad"><span class="ht">Plan a trip.</span>' +
+              '<span class="hb">Name the date and location. Robes will pack your trip.</span>' +
+              '<span class="hcta">Start packing →</span></span></button>' +
+            '<div class="rb-lk-holcard example" aria-hidden="true">' +
+              '<span class="him"></span>' +
+              '<span class="hpad"><span class="ht">A trip to Ibiza</span>' +
+              '<span class="hm">Robes’ example</span></span></div>';
+        return '<div class="rb-lk-sec" style="margin:4px 0 12px">Travel edit</div>' +
+          '<div class="rb-lk-holrow">' + cards + '</div>';
       }
 
       // ── Refine — filter the grid by the looks' tag axes (2026-08-07).
@@ -8439,11 +8487,12 @@
         // CTA appears only once every role is inked — until then the
         // definition rows carry the way in (B1 mock, 2026-08-07).
         rackHtml += _rbRackRolesHtml(items, rowCfg);
-        const rolesFilled = {};
-        items.forEach(it => { rolesFilled[_rbRoleOf(it)] = true; });
-        const allRolesInked = _RB_ROLES.every(r => rolesFilled[r]);
+        // The generic way in ALWAYS closes the rack (regression fixed
+        // 2026-08-12 — gating it on every role being inked took the door
+        // away from the state that most needs it: the empty look). A look
+        // is never capped at four pieces.
         rackHtml += '</div>' +
-          (allRolesInked ? '<button class="rbc-addpiece" onclick="window.__lkAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>' : '');
+          '<button class="rbc-addpiece" onclick="window.__lkAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>';
 
         // Save closes the look out into the Lookbook; beside it the one
         // alternative door — Robes builds it instead. The label reads
@@ -8810,13 +8859,19 @@
       };
 
       // ── Composer handlers ───────────────────────────────────────────────
-      window.__lkNew = function() {
-        _lkShelfOpen();
+      // State only — snRenderPage arms the composer straight from the
+      // empty Lookbook and must not re-enter _lkShelfOpen (which opens the
+      // page, which renders the page, which would arm it again).
+      function _lkResetComposer() {
         _lkView = 'new';
         _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
         _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null;
         _lkNewTitleDraft = null; _lkNewTitleTouched = false;
         _lkNewTags = null; _lkNewRoles = {};
+      }
+      window.__lkNew = function() {
+        _lkShelfOpen();
+        _lkResetComposer();
         _lkPaint();
         _rbTrack('look_compose_opened', {});
       };
@@ -15649,9 +15704,14 @@ body>*:not(#tv-result-page){display:none !important}
           const st = document.createElement('style');
           st.id = 'rb-mv-style';
           st.textContent = `
-#sn-viewseg{display:inline-flex;border:0.5px solid rgba(32,32,33,0.18);border-radius:100px;overflow:hidden}
-#sn-viewseg button{border:none;background:transparent;padding:7px 15px;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);cursor:pointer;font-family:inherit;white-space:nowrap}
-#sn-viewseg button.on{background:#202021;color:#fff}
+/* A cream well, the active segment lifting to white (softening pass
+   2026-08-12) — elevation comes from surface change, not a black fill.
+   Black is reserved for the one real commitment on each screen. */
+#sn-viewseg{display:inline-flex;gap:2px;padding:3px;border:none;border-radius:100px;background:var(--cream-100)}
+#sn-viewseg button{border:none;background:transparent;padding:6px 16px;border-radius:100px;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);cursor:pointer;font-family:inherit;white-space:nowrap;transition:background .15s,color .15s}
+#sn-viewseg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(32,32,33,0.06)}
+/* Visible but inert until there is something to diarise */
+#sn-viewseg button.inert{color:var(--cream-400);cursor:default}
 #sn-cal{display:none}
 #sn-page.rb-cal-on #sn-grid{display:none!important}
 #sn-page.rb-cal-on #sn-empty{display:none!important}
@@ -15716,7 +15776,11 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         seg.addEventListener('click', e => {
           const b = e.target.closest('button[data-mv]');
           if (!b) return;
-          if (b.dataset.mv === 'cal') { window.__rbDiaryOpen(); return; }
+          // Inert at zero looks — the tap simply leaves her on Looks.
+          if (b.dataset.mv === 'cal') {
+            if (!b.classList.contains('inert')) window.__rbDiaryOpen();
+            return;
+          }
           // Tapping Looks always lands the landing grid — the segment is
           // the way back out of the Diary or a stale detail (no sub-sub-nav)
           _lkView = 'grid'; _lkActive = null;

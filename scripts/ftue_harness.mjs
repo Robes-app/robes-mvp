@@ -251,43 +251,46 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
 
   await page.evaluate(() => window.__snOpen && window.__snOpen());
   await page.waitForTimeout(600);
-  const l = await page.evaluate(() => {
-    const ways = document.getElementById('sn-ways');
-    const cards = ways ? Array.from(ways.querySelectorAll('.svc')) : [];
-    return {
-      present: !!ways,
-      title: document.getElementById('sn-empty-t')?.textContent || '',
-      sub: document.getElementById('sn-empty-s')?.textContent || '',
-      count: cards.length,
-      titles: cards.map((c) => c.querySelector('.svc-title')?.textContent || ''),
-      // the bundle's modal openers must not survive the clone
-      inlineOnclick: cards.filter((c) => c.hasAttribute('onclick')).length,
-      wired: cards.filter((c) => typeof c.onclick === 'function').length,
-      hasImagery: cards.filter((c) => c.querySelector('.svc-img img')).length,
-      lockPills: cards.filter((c) => c.querySelector('.rb-lock-wrap')).length,
-      matchesHome: (() => {
-        // Promo cards (.svc-promo, coming-soon Weekly Planner) stay on home
-        // but are never cloned into the lookbook's ways block.
-        const home = Array.from(document.querySelectorAll('.services .svc:not(.svc-promo)'))
-          .map((c) => c.querySelector('.svc-title')?.textContent || '');
-        return JSON.stringify(home) === JSON.stringify(cards.map((c) => c.querySelector('.svc-title')?.textContent || ''));
-      })(),
-    };
-  });
-  check('lookbook empty · ways block', l.present);
-  check('lookbook empty · title', l.title === 'Nothing saved yet.', l.title);
-  check('lookbook empty · subtitle', /filed here/.test(l.sub), l.sub);
-  // Two cards since the weekly removal (2026-08-08): Daily outfit + Travel edit
-  check('lookbook empty · uses the real concierge cards', l.count === 2, String(l.count));
-  check('lookbook empty · same cards as home', l.matchesHome, JSON.stringify(l.titles));
-  check('lookbook empty · keeps card imagery', l.hasImagery === 2, String(l.hasImagery));
-  check('lookbook empty · no inline modal openers', l.inlineOnclick === 0, String(l.inlineOnclick));
-  check('lookbook empty · no dashboard progress pill', l.lockPills === 0, String(l.lockPills));
-  check('lookbook empty · every card wired', l.wired === 2, String(l.wired));
+  // ONE DOOR (FTUE pass 2026-08-12) — supersedes the "Ways to fill it"
+  // clone shelf this section used to pin. An empty Lookbook IS the
+  // composer: naming the first look is the one act that fills a Lookbook,
+  // so it is the only thing on the page.
+  const l = await page.evaluate(() => ({
+    ways: !!document.getElementById('sn-ways'),
+    emptyShown: document.getElementById('sn-empty')?.style.display !== 'none',
+    composer: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
+    titlePlaceholder: document.getElementById('rb-lk-newtitle')?.placeholder || '',
+    // The four formula strips are the whole of the rack at zero
+    strips: Array.from(document.querySelectorAll('.rb-lk-con .rbc-rolestrip span')).map((s) => s.textContent.trim()),
+    ghostRows: document.querySelectorAll('.rb-lk-con .rbc-rghost').length,
+    trailingAdd: !!document.querySelector('.rb-lk-con .rbc-addpiece'),
+    save: !!document.querySelector('.rb-lk-save'),
+    saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
+    door: document.querySelector('.rb-lk-robesdoor')?.textContent || '',
+    // nothing competes with it
+    bar: document.getElementById('rb-lk-bar')?.style.display !== 'none',
+    hol: document.getElementById('rb-lk-hol')?.style.display !== 'none',
+    allHead: document.getElementById('rb-lk-allhead')?.style.display !== 'none',
+    sort: !!document.querySelector('.rb-lk-sort'),
+  }));
+  check('lookbook empty · ONE DOOR — the composer, no ways-to-fill shelf',
+    l.composer === true && l.ways === false && l.emptyShown === false, JSON.stringify(l));
+  check('lookbook empty · the name leads it', l.titlePlaceholder === 'Name your Look', l.titlePlaceholder);
+  check('lookbook empty · the four formula strips are the rack',
+    JSON.stringify(l.strips) === JSON.stringify(['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'])
+      && l.ghostRows === 4, JSON.stringify([l.strips, l.ghostRows]));
+  check('lookbook empty · the generic + Add a piece closes the rack', l.trailingAdd === true);
+  check('lookbook empty · Save stands there, withheld until two pieces',
+    l.save === true && l.saveDisabled === true, JSON.stringify([l.save, l.saveDisabled]));
+  check('lookbook empty · the alternative door is worded first-time',
+    l.door === 'Or let Robes build the first one', l.door);
+  check('lookbook empty · nothing competes: no travel strip, All-looks header, sort or refine',
+    l.bar === false && l.hol === false && l.allHead === false && l.sort === false,
+    JSON.stringify([l.bar, l.hol, l.allHead, l.sort]));
 
-  // Tapping a card must land on the dashboard prompt, not a modal
+  // The Robes door lands on the home prompt, never a modal
   const routed = await page.evaluate(async () => {
-    document.querySelector('#sn-ways .svc').click();
+    document.querySelector('.rb-lk-robesdoor').click();
     await new Promise((r) => setTimeout(r, 700));
     const ta = document.getElementById('cb-ta');
     return {
@@ -296,16 +299,18 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       modalOpen: !!document.querySelector('#tv-brief-modal[style*="flex"], #wk-plan-modal[style*="flex"]'),
     };
   });
-  check('lookbook empty · card closes the lookbook', routed.lookbookClosed);
-  check('lookbook empty · card fills the prompt', routed.prompt.length > 0, routed.prompt);
-  check('lookbook empty · card opens no modal', !routed.modalOpen);
+  check('lookbook empty · the Robes door closes the lookbook', routed.lookbookClosed);
+  check('lookbook empty · and fills the prompt', routed.prompt.length > 0, routed.prompt);
+  check('lookbook empty · opening no modal', !routed.modalOpen);
 
   await ctx.close();
 }
 
-// First load: opening the Lookbook BEFORE the 600ms card transform must never
-// paint the legacy bundle trio ("Key piece, three ways", photo imagery, wrong
-// order) — the bug was that it corrected itself only on refresh.
+// First load: opening the Lookbook before the 600ms concierge transform used
+// to paint the legacy bundle trio into the ways block, correcting itself only
+// on refresh. The ways block is gone from this page entirely (one door,
+// 2026-08-12) — so the race is closed by construction, and what must hold is
+// that the early open still lands the composer and never a legacy shelf.
 {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 1100 } });
   const page = await ctx.newPage();
@@ -326,30 +331,25 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   });
   await page.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
 
-  // Immediately after opening, the block must be ABSENT rather than legacy.
-  await page.waitForFunction(() => !!document.getElementById('sn-empty') &&
-    document.getElementById('sn-empty').style.display !== 'none', null, { timeout: 8000 });
+  await page.waitForFunction(() => !!document.querySelector('.rb-lk-composer'), null, { timeout: 8000 });
   const early = await page.evaluate(() => {
     const ways = document.getElementById('sn-ways');
     const titles = ways ? Array.from(ways.querySelectorAll('.svc-title')).map((t) => t.textContent) : [];
-    return { legacy: titles.some((t) => /key piece, three ways/i.test(t)), titles };
+    return { ways: !!ways, legacy: titles.some((t) => /key piece, three ways/i.test(t)), titles };
   });
-  check('first load · never paints the legacy trio', !early.legacy, JSON.stringify(early.titles));
+  check('first load · an early open lands the composer, never a legacy shelf',
+    early.ways === false && early.legacy === false, JSON.stringify(early.titles));
 
-  // …and once the transform lands it must fill in, without a refresh.
+  // …and it must still be the composer once the transform lands, unchanged.
   await page.waitForTimeout(2200);
-  const settled = await page.evaluate(() => {
-    const ways = document.getElementById('sn-ways');
-    const titles = ways ? Array.from(ways.querySelectorAll('.svc-title')).map((t) => t.textContent.trim()) : [];
-    const home = Array.from(document.querySelectorAll('.services .svc:not(.svc-promo) .svc-title')).map((t) => t.textContent.trim());
-    return { titles, home, imgs: ways ? ways.querySelectorAll('.svc-img img').length : 0 };
-  });
-  check('first load · fills in without a refresh', settled.titles.length === 2, JSON.stringify(settled.titles));
-  check('first load · matches the transformed cards',
-    JSON.stringify(settled.titles) === JSON.stringify(settled.home),
-    `${JSON.stringify(settled.titles)} vs ${JSON.stringify(settled.home)}`);
-  check('first load · no "Key piece, three ways"',
-    !settled.titles.some((t) => /key piece, three ways/i.test(t)), JSON.stringify(settled.titles));
+  const settled = await page.evaluate(() => ({
+    ways: !!document.getElementById('sn-ways'),
+    composer: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
+    emptyShown: document.getElementById('sn-empty')?.style.display !== 'none',
+  }));
+  check('first load · the transform never displaces it',
+    settled.composer === true && settled.ways === false && settled.emptyShown === false,
+    JSON.stringify(settled));
   await ctx.close();
 }
 

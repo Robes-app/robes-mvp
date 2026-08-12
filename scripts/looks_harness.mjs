@@ -295,6 +295,17 @@ const browser = await chromium.launch(
   const bar = await page.evaluate(() => {
     const barEl = document.getElementById('rb-lk-bar');
     const newBtn = barEl && Array.from(barEl.querySelectorAll('button')).find((b) => /\+ New/.test(b.textContent));
+    // Sort and Refine are inert below four looks (2026-08-12), and this
+    // fixture holds two — pad the stream with two untagged artifacts so
+    // the controls are live, then put the shelf back.
+    const prior = localStorage.getItem('robes_style_notes__u-test');
+    const inertBefore = document.querySelector('.rb-lk-sort')?.disabled;
+    localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
+      { id: 1754660000000, type: 'daily-look', title: 'Pad one', subtitle: 'Daily look', img: null, dlData: {} },
+      { id: 1754660000001, type: 'daily-look', title: 'Pad two', subtitle: 'Daily look', img: null, dlData: {} },
+    ]));
+    window.__lkGo();
+    const liveAfter = document.querySelector('.rb-lk-sort')?.disabled === false;
     window.__lkRefineToggle();
     const drawer = document.querySelector('.rb-lk-refwrap');
     const axes = drawer ? Array.from(drawer.querySelectorAll('.rb-lkref-ax')).map((e) => e.textContent) : [];
@@ -305,17 +316,24 @@ const browser = await chromium.launch(
     window.__lkRefineClear();
     const restored = document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length;
     window.__lkRefineToggle();
-    return { newBtn: !!newBtn, axes, shown, none, restored };
+    if (prior === null) localStorage.removeItem('robes_style_notes__u-test');
+    else localStorage.setItem('robes_style_notes__u-test', prior);
+    window.__lkGo();
+    return { newBtn: !!newBtn, axes, shown, none, restored, inertBefore, liveAfter };
   });
   check('bar · the + New split button sits in the grid bar', bar.newBtn === true);
+  check('bar · sort and Refine are inert below four looks and come live at four',
+    bar.inertBefore === true && bar.liveAfter === true, JSON.stringify([bar.inertBefore, bar.liveAfter]));
   // ADR-002 §7: Light is deleted, and Vibe only renders once she has one —
   // the axis is her vocabulary, so an empty one is nothing to show.
   // The axis reads "Season", matching the wardrobe's own filter — one
   // vocabulary means one word for it. The column stays climate_band.
   check('bar · Refine opens the surviving tag axes',
     JSON.stringify(bar.axes) === JSON.stringify(['Season', 'Wear it for']), JSON.stringify(bar.axes));
+  // restored === 4: the two fixture looks plus the two padding artifacts,
+  // which share the stream's card class
   check('bar · a pick filters; nothing-matches names itself; Clear restores',
-    bar.shown === 0 && bar.none === true && bar.restored === 2, JSON.stringify(bar));
+    bar.shown === 0 && bar.none === true && bar.restored === 4, JSON.stringify(bar));
 
   // A vibe that exists only inside a generated artifact's blob must be
   // OFFERED as a filter chip, not merely matchable. Reported from beta
@@ -801,11 +819,25 @@ const browser = await chromium.launch(
   check('composer · the look panel is the shared rbc-panel', c0.panel === true);
   // A2/B1 amendments (2026-08-07): NO slot-bound empty rows — a slot must
   // never forecast a role. The rack IS the formula: each awaiting role is
-  // a dashed definition row with its own + Add; the trailing generic CTA
-  // waits until every role is inked.
+  // a dashed definition row with its own + Add. The trailing generic CTA
+  // ALWAYS closes the rack (regression fixed 2026-08-12 — it used to wait
+  // until all four roles were inked, taking the door away from the empty
+  // look that most needs it).
   check('composer · no slot-bound empty rows; four role rows carry the way in',
-    c0.emptyRows === 0 && c0.addPiece === false && c0.ghostAdds === 4,
-    JSON.stringify([c0.emptyRows, c0.addPiece, c0.ghostAdds]));
+    c0.emptyRows === 0 && c0.ghostAdds === 4, JSON.stringify([c0.emptyRows, c0.ghostAdds]));
+  check('composer · the generic + Add a piece always closes the rack', c0.addPiece === true);
+  // The whole dashed row is the hit area, not just the pill (~52px)
+  const hit = await page.evaluate(() => {
+    const row = document.querySelector('.rb-lk-con .rbc-rghost');
+    const r = row?.getBoundingClientRect();
+    // Tap the ROW's own padding, well clear of the pill
+    row?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const opened = !!document.getElementById('rb-lkadd-sheet');
+    window.__lkAddClose && window.__lkAddClose();
+    return { h: r ? Math.round(r.height) : 0, tap: row?.classList.contains('tap'), opened };
+  });
+  check('composer · the whole slot row is the tap target, 52px+',
+    hit.tap === true && hit.h >= 52 && hit.opened === true, JSON.stringify(hit));
   // Save stays on screen and inert until the look is a look — a missing
   // button reads as a broken container (FTUE pass 2026-08-12).
   check('composer · Save stands on screen, withheld until there is a look',
@@ -1153,16 +1185,40 @@ const browser = await chromium.launch(
 {
   const { ctx, page, errs } = await boot(browser, { seed: false });
   await openLooks(page);
-  // A truly empty account (no looks, nothing saved) gets the page-level
-  // cold start — "Ways to fill it" — never a bare module empty state.
+  // ONE DOOR (2026-08-12): a truly empty account IS the composer — no
+  // "Ways to fill it" clone shelf, no holiday CTA, no concierge menu, and
+  // nothing else on the page to compete with naming the first look.
   const cold = await page.evaluate(() => ({
     waysShown: (() => { const el = document.getElementById('sn-empty'); return !!el && el.style.display !== 'none'; })(),
-    wrapHidden: (() => { const el = document.getElementById('rb-lk-wrap'); return !el || el.offsetParent === null; })(),
+    waysCards: document.querySelectorAll('#sn-ways .svc').length,
+    composer: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
+    title: document.getElementById('rb-lk-newtitle')?.placeholder,
+    barHidden: document.getElementById('rb-lk-bar')?.style.display === 'none',
+    holHidden: document.getElementById('rb-lk-hol')?.style.display === 'none',
+    allHeadHidden: document.getElementById('rb-lk-allhead')?.style.display === 'none',
+    sort: !!document.querySelector('.rb-lk-sort'),
+    seg: !!document.getElementById('sn-viewseg'),
+    diaryInert: document.querySelector('#sn-viewseg button[data-mv="cal"]')?.classList.contains('inert'),
   }));
-  check('empty · a truly empty account keeps the ways-to-fill cold start',
-    cold.waysShown === true && cold.wrapHidden === true, JSON.stringify(cold));
+  check('empty · ONE DOOR — the empty Lookbook IS the composer, no ways-to-fill shelf',
+    cold.composer === true && cold.title === 'Name your Look'
+      && cold.waysShown === false && cold.waysCards === 0, JSON.stringify(cold));
+  check('empty · nothing competes with it — no travel strip, All-looks header, sort or refine',
+    cold.barHidden && cold.holHidden && cold.allHeadHidden && cold.sort === false,
+    JSON.stringify([cold.barHidden, cold.holHidden, cold.allHeadHidden, cold.sort]));
+  // The Diary is visible but inert at zero — tapping it leaves her on Looks
+  const diary = await page.evaluate(() => {
+    document.querySelector('#sn-viewseg button[data-mv="cal"]').click();
+    return {
+      calOn: document.getElementById('sn-page')?.classList.contains('rb-cal-on'),
+      stillComposer: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
+    };
+  });
+  check('empty · the Diary is visible but inert; tapping it returns to Looks',
+    cold.seg === true && cold.diaryInert === true
+      && diary.calOn === false && diary.stillComposer === true, JSON.stringify([cold.diaryInert, diary]));
   // A key piece alone does NOT fill the Lookbook — it lives on Inspiration
-  // (IA refinement 2026-08-10). The cold start holds.
+  // (IA refinement 2026-08-10). The one door holds.
   await page.evaluate(() => {
     localStorage.setItem('robes_style_notes__u-test',
       JSON.stringify([{ id: 1754630000000, type: 'key-piece', title: 'A piece', subtitle: 'Worn three ways', img: null }]));
@@ -1170,10 +1226,11 @@ const browser = await chromium.launch(
   });
   await page.waitForTimeout(300);
   const kpOnly = await page.evaluate(() => ({
+    composer: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
     waysShown: (() => { const el = document.getElementById('sn-empty'); return !!el && el.style.display !== 'none'; })(),
   }));
-  check('empty · a key piece alone leaves the Lookbook on its cold start (it lives on Inspiration)',
-    kpOnly.waysShown === true, JSON.stringify(kpOnly));
+  check('empty · a key piece alone leaves the Lookbook on its one door (it lives on Inspiration)',
+    kpOnly.composer === true && kpOnly.waysShown === false, JSON.stringify(kpOnly));
   // A daily look DOES fill the shelf — the unified stream shows it in the
   // shared card (eyebrow Look, date as status), the add card keeps the way
   // in, and sort/Refine stay withheld until an actual Look exists.
@@ -1190,8 +1247,19 @@ const browser = await chromium.launch(
     meta: document.querySelector('#rb-lk-grid .lt-meta')?.textContent,
     addCard: !!document.querySelector('#rb-lk-grid .rb-add-card'),
     moduleEmpty: !!document.querySelector('.rb-lk-empty'),
-    sortAbsent: !document.querySelector('.rb-lk-sort'),
+    sorts: Array.from(document.querySelectorAll('.rb-lk-sort')).map((b) => b.disabled),
     stat: document.querySelector('.rb-lk-statline')?.textContent,
+    // The travel strip arrives with the first look: invitation + ONE
+    // dimmed, labelled Robes example (2026-08-12)
+    holShown: document.getElementById('rb-lk-hol')?.style.display === 'block',
+    holSec: document.querySelector('#rb-lk-hol .rb-lk-sec')?.textContent,
+    invite: document.querySelector('#rb-lk-hol .rb-lk-holcard.invite')?.textContent,
+    example: document.querySelector('#rb-lk-hol .rb-lk-holcard.example')?.textContent,
+    exampleInert: (() => {
+      const el = document.querySelector('#rb-lk-hol .rb-lk-holcard.example');
+      return !!el && el.tagName !== 'BUTTON' && getComputedStyle(el).pointerEvents === 'none';
+    })(),
+    holNew: !!document.querySelector('#rb-lk-hol .rb-lk-holcard.new'),
   }));
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('empty · a saved daily look fills the shelf even with zero looks',
@@ -1199,8 +1267,17 @@ const browser = await chromium.launch(
   check('empty · daily look is not a type — eyebrow Look, date as status',
     e.eyebrow === 'Look' && e.meta === 'Worn 5 Aug', JSON.stringify([e.eyebrow, e.meta]));
   check('empty · no module empty state once anything exists', e.moduleEmpty === false);
-  check('empty · sort and Refine stay withheld until a Look exists; the stat still counts',
-    e.sortAbsent === true && e.stat === '1 look', JSON.stringify([e.sortAbsent, e.stat]));
+  // Superseded 2026-08-12: sort and Refine RENDER at every count and sit
+  // inert below four looks, rather than appearing from nowhere.
+  check('empty · sort and Refine render inert below four looks; the stat names the gap',
+    JSON.stringify(e.sorts) === JSON.stringify([true, true]) && e.stat === '1 look · no edits yet',
+    JSON.stringify([e.sorts, e.stat]));
+  check('empty · the first look brings the travel strip: invitation + one dimmed Robes example',
+    e.holShown === true && e.holSec === 'Travel edit'
+      && /Plan a trip\./.test(e.invite || '') && /Start packing/.test(e.invite || '')
+      && /A trip to Ibiza/.test(e.example || '') && /Robes’ example/.test(e.example || '')
+      && e.exampleInert === true && e.holNew === false,
+    JSON.stringify([e.holShown, e.holSec, e.invite, e.example, e.exampleInert, e.holNew]));
   // FTUE wording on the composer's one alternative door — she has no looks
   // yet, so Robes offers to build the FIRST one (2026-08-12).
   const ftue = await page.evaluate(() => {
@@ -1340,6 +1417,23 @@ const browser = await chromium.launch(
   check('390px · Save runs full width at 44px+, the Robes door beneath it',
     mc.saveStacks === true && mc.saveFull === true && mc.saveH >= 44 && !!mc.door,
     JSON.stringify([mc.saveStacks, mc.saveFull, mc.saveH, mc.door]));
+  // Save is the last thing on the page and the dock is fixed over it —
+  // scrolled to the foot, the commitment must clear the dock.
+  const clear = await page.evaluate(async () => {
+    // #sn-page is a fixed overlay with its own scroller — scrolling the
+    // window would leave the composer exactly where it was.
+    const sc = document.getElementById('sn-page');
+    if (sc) sc.scrollTop = sc.scrollHeight;
+    window.scrollTo(0, document.body.scrollHeight);
+    await new Promise((r) => setTimeout(r, 200));
+    const save = document.querySelector('.rb-lk-save')?.getBoundingClientRect();
+    const dock = document.getElementById('rb-dock');
+    const d = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
+    return { saveBottom: save ? Math.round(save.bottom) : null, dockTop: d ? Math.round(d.top) : null };
+  });
+  check('390px · Save clears the fixed dock at the foot of the page',
+    clear.saveBottom != null && (clear.dockTop == null || clear.saveBottom <= clear.dockTop),
+    JSON.stringify(clear));
   await ctx.close();
 }
 
