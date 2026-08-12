@@ -609,33 +609,61 @@ const FORMULA_ROLES = ['The Anchor', 'The Canvas', 'The Texture', 'The Exclamati
 // prompt's intent; hand-built looks inherit from their pieces client-side.
 // The vocabularies are deliberately disjoint across axes so a flat text[]
 // (the looks table's existing `tags` column) recovers its structure.
-const LOOK_TAG_CLIMATES = ['High Summer', 'Transitional Warm', 'Transitional Cool', 'Deep Winter'];
-const LOOK_TAG_LIGHTS = ['Daylight', 'Twilight & Evening'];
-const LOOK_TAG_WEAR = ['Elevated Everyday', 'Smart Creative', 'Boardroom Power', 'Work-to-Dinner', 'Al Fresco & Travel', 'Cocktail & Cultural', 'Formal / Gala'];
-const LOOK_TAG_VIBES = ['Sharp Tailoring', 'Fluid Monochrome', 'Column Line', 'Soft Layering', 'Old Céline Minimal', '90s Off-Duty', 'Minimalist Glamour'];
+// ADR-002 rewrote all four axes. Climate speaks the same three bands as
+// `wardrobe_items.season_band` so a filtered lookbook and a filtered wardrobe
+// return coherent sets; wear_for is the shared seven-seed namespace, uncapped;
+// vibe is an OPEN vocabulary lifted from her own words; Light is gone.
+const LOOK_TAG_CLIMATES = ['spring_summer', 'autumn_winter', 'year_round'];
+// The legacy four, kept ONLY to read blobs saved before ADR-002 — every
+// lookbook artifact written before 2026-08-12 carries one of these in
+// data.look_tags.climate. Never emitted.
+const LOOK_TAG_CLIMATE_LEGACY = {
+  'High Summer': 'spring_summer', 'Transitional Warm': 'spring_summer',
+  'Transitional Cool': 'autumn_winter', 'Deep Winter': 'autumn_winter',
+};
+const LOOK_TAG_WEAR = ['everyday', 'work', 'evening', 'occasion', 'travel', 'active', 'lounge'];
+// Legacy look-level vocabulary -> the shared seeds (ADR-002 migration table).
+const LOOK_TAG_WEAR_LEGACY = {
+  'Elevated Everyday': ['everyday'], 'Smart Creative': ['work'], 'Boardroom Power': ['work'],
+  'Work-to-Dinner': ['work', 'evening'], 'Al Fresco & Travel': ['travel'],
+  'Cocktail & Cultural': ['evening'], 'Formal / Gala': ['occasion'],
+};
 const LOOK_TAGS_SCHEMA = {
   type: 'object',
   properties: {
     climate: { type: 'string', enum: LOOK_TAG_CLIMATES },
-    light: { type: 'string', enum: LOOK_TAG_LIGHTS },
     wear_for: { type: 'array', items: { type: 'string', enum: LOOK_TAG_WEAR } },
-    // vibe is OPTIONAL (not in required) — "no vibe" is expressed by
-    // omitting the field. Never add '' to the enum: Gemini rejects empty
-    // enum values with 400 INVALID_ARGUMENT, which killed EVERY /api/daily
-    // and travel generation (beta outage 2026-08-10).
-    vibe: { type: 'string', enum: LOOK_TAG_VIBES },
+    // vibe is now free text, not an enum — it is her voice, and a fixed list
+    // was a taxonomy standing in for something open-ended (ADR-002 §3).
+    // Still OPTIONAL: "no vibe" is expressed by omitting the field. NEVER put
+    // '' in any enum here — Gemini rejects empty enum values with 400
+    // INVALID_ARGUMENT, which killed EVERY /api/daily and travel generation
+    // (beta outage 2026-08-10). That is why `light` was removed from
+    // `required` rather than given an empty option.
+    vibe: { type: 'array', items: { type: 'string' } },
   },
-  required: ['climate', 'light', 'wear_for'],
+  required: ['climate', 'wear_for'],
 };
-const LOOK_TAGS_RULE = `- "look_tags" files the look for search — assign from the brief's intent and the pieces, never leave it generic. "climate" is thermal, not calendar (High Summer = lightweight single-layer; Transitional Warm = spring/early autumn; Transitional Cool = late autumn/early spring; Deep Winter = multi-layering, heavy knits and coats). "light" is when the look reads best — Daylight or Twilight & Evening. "wear_for" is 1–2 lifestyle scenarios, the sharpest matches only. "vibe" is the silhouette/aesthetic — include it only when one clearly fits, otherwise omit the field entirely.`;
+const LOOK_TAGS_RULE = `- "look_tags" files the look for search — assign from the brief's intent and the pieces, never leave it generic. "climate" is thermal, not calendar, and is one of exactly three: "spring_summer" (lightweight, single-layer, warm weather), "autumn_winter" (layered, knits and coats, cold weather), "year_round" (reads correctly in any weather). "wear_for" is the lifestyle occasions the look is FOR — one or two of everyday, work, evening, occasion, travel, active, lounge; the sharpest matches only, never all of them. "vibe" is 1–3 short lowercase words for the silhouette or mood, lifted from HER OWN WORDS in the brief wherever she gave any (e.g. "soft and undone for a long lunch" -> ["soft","undone"]); invent one only when the brief carries no mood language at all, and omit the field entirely rather than reaching.`;
 function normLookTags(t) {
   t = t && typeof t === 'object' ? t : {};
-  return {
-    climate: LOOK_TAG_CLIMATES.includes(t.climate) ? t.climate : '',
-    light: LOOK_TAG_LIGHTS.includes(t.light) ? t.light : '',
-    wear_for: (Array.isArray(t.wear_for) ? t.wear_for : []).filter(w => LOOK_TAG_WEAR.includes(w)).slice(0, 2),
-    vibe: LOOK_TAG_VIBES.includes(t.vibe) ? t.vibe : '',
-  };
+  const climate = LOOK_TAG_CLIMATES.includes(t.climate) ? t.climate
+    : (LOOK_TAG_CLIMATE_LEGACY[t.climate] || '');
+  // Accept the legacy look vocabulary on read so a re-normalised old blob
+  // folds onto the shared seeds instead of losing its tags.
+  const wear = [];
+  (Array.isArray(t.wear_for) ? t.wear_for : []).forEach(w => {
+    const mapped = LOOK_TAG_WEAR.includes(w) ? [w] : (LOOK_TAG_WEAR_LEGACY[w] || []);
+    mapped.forEach(m => { if (!wear.includes(m)) wear.push(m); });
+  });
+  // Uncapped (ADR-002 §4): a cap forces a choice between a functional tag and
+  // a capsule tag, which is the choice that stops capsules forming. 8 is a
+  // runaway guard, not a product limit.
+  const vibeRaw = Array.isArray(t.vibe) ? t.vibe : (t.vibe ? [t.vibe] : []);
+  const vibe = vibeRaw
+    .map(v => String(v || '').replace(/^vibe:/i, '').trim().slice(0, 28))
+    .filter(Boolean).slice(0, 3);
+  return { climate, wear_for: wear.slice(0, 8), vibe };
 }
 
 // Build 3 copy rules (Tranche 2) — installed once and interpolated into
@@ -1084,19 +1112,27 @@ Leave any unknown string field as an empty string.`;
   }
 });
 
-// Hero Rack: the client marks starred pieces with hero: true (+ their
-// seasons[] tags). The closet lines carry a ★ HERO mark and this directive
-// makes them the first-choice owned pieces wherever occasion + season fit.
+// Hero Rack: the client marks starred pieces with hero: true and the piece's
+// season band. The closet lines carry a ★ HERO mark and this directive makes
+// them the first-choice owned pieces wherever occasion + season fit.
+//
+// ADR-002: reads `season_band` (one of three), falling back to the legacy
+// `seasons[]` array so a client that has not yet been updated — or a cached
+// payload from one — still marks its heroes correctly.
+const SEASON_BAND_LABELS = {
+  spring_summer: 'Spring/Summer', autumn_winter: 'Autumn/Winter', year_round: 'Year-round',
+};
 function heroMark(i) {
   if (!i || i.hero !== true) return '';
-  const seasons = Array.isArray(i.seasons) && i.seasons.length
-    ? i.seasons.filter(s => typeof s === 'string' && s).slice(0, 5).join('/')
-    : 'Year-round';
-  return `, ★ HERO (${seasons})`;
+  const band = SEASON_BAND_LABELS[i.season_band]
+    || (Array.isArray(i.seasons) && i.seasons.length
+      ? i.seasons.filter(s => typeof s === 'string' && s).slice(0, 5).join('/')
+      : 'Year-round');
+  return `, ★ HERO (${band})`;
 }
 function heroDirective(closetItems) {
   if (!closetItems.some(i => i && i.hero === true)) return '';
-  return `HERO PIECES: the wardrobe items marked ★ HERO are her Hero Rack — the pieces she reaches for first, the spine of her wardrobe. Whenever a hero piece genuinely suits the occasion AND the season/climate in play, PRIORITISE it over any other comparable owned piece and let it lead the look. The bracketed tags are the seasons each hero belongs to — its priority only applies when the look's season/climate matches a tag (Year-round always matches); never force an off-season hero into a look.`;
+  return `HERO PIECES: the wardrobe items marked ★ HERO are her Hero Rack — the pieces she reaches for first, the spine of her wardrobe. Whenever a hero piece genuinely suits the occasion AND the season/climate in play, PRIORITISE it over any other comparable owned piece and let it lead the look. The bracket names the season band each hero belongs to — Spring/Summer, Autumn/Winter, or Year-round. Its priority only applies when the look's season or climate matches that band (Year-round always matches); never force an off-season hero into a look.`;
 }
 
 /* ── travel edit (PRD: AI-Powered Capsule Packing & Lookbook,
@@ -1404,7 +1440,7 @@ app.post('/api/travel', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res
 THE PILLARS — all four are hard constraints:
 1. THE 1:3 HIGH-YIELD RULE. Every capsule item must appear in AT LEAST THREE different outfits across the lookbook, in at least two distinct dress codes. No single-outfit passengers — if a piece can't earn three wears, it doesn't get packed.
 2. THE CAPSULE MATRIX. YOU decide the pack count — the smallest capsule that dresses every moment of the trip under the 1:3 rule. For this ${tripDays}-day trip that is typically around ${suggest} items (never more than ${capMax}); the maths must hold: pieces × 3 wears ≥ ~${totalLooks} looks × ~4 formula slots (her own packed looks below count). Split the capsule across the three tiers: "${TRAVEL_TIERS[0]}" (~${foundations} items — architectural basics, tailoring, versatile one-pieces), "${TRAVEL_TIERS[1]}" (~${statements} items — the tactile hero pieces: statement dresses, crochet, plissé, prints), "${TRAVEL_TIERS[2]}" (~${hardware} items — shoes, bags, belts, jewellery that seal silhouettes).${shortIdxs.length ? ' The tier targets are guidance for shaping what you KEEP — never pad the capsule to hit a number.' : ''}
-3. THE 4-STEP DRESSING FORMULA. Every outfit's "formula" is built ONLY from capsule items referenced by "item_index" (0-based index into the capsule array — never invent an item that isn't packed): "The Anchor" ×1 (the context-driven hero), "The Canvas" ×1–2 (the grounding basics), "The Texture" ×1 (the tactile dimension layer), "The Exclamation Point" ×1–2 (footwear/hardware that finish it). Swim or sleep-adjacent looks may drop to 3 entries, never fewer. Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE} Each look's "look_tags" files it for search: thermal "climate" (High Summer / Transitional Warm / Transitional Cool / Deep Winter — thermal, never calendar), "light" (Daylight or Twilight & Evening), "wear_for" (1–2 lifestyle scenarios, sharpest matches only), "vibe" (the silhouette/aesthetic if one clearly fits, else "").
+3. THE 4-STEP DRESSING FORMULA. Every outfit's "formula" is built ONLY from capsule items referenced by "item_index" (0-based index into the capsule array — never invent an item that isn't packed): "The Anchor" ×1 (the context-driven hero), "The Canvas" ×1–2 (the grounding basics), "The Texture" ×1 (the tactile dimension layer), "The Exclamation Point" ×1–2 (footwear/hardware that finish it). Swim or sleep-adjacent looks may drop to 3 entries, never fewer. Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE} ${LOOK_TAGS_RULE.replace(/^- /, 'Each look\'s ')}
 4. CONTEXT ENGINEERING. Ingest three vectors at once: the Location Vibe (name it in "location_vibe", e.g. "Refined Mediterranean Minimalism"), the Micro-Climate provided, and the client's proportional architecture / style DNA below. Everything packed answers to all three.
 
 ${looksTarget === 0
@@ -1735,7 +1771,7 @@ ${capList}
 
 RULES:
 1. Style ONE look per occasion she names, in order — flat and day-agnostic (she pins looks to days herself; never mention a specific day): ${occList.map(o => `"${o}"`).join(', ')}. Each look's "occasion" is her label verbatim; "title" is 3–6 words naming the scene; "how" is that look's PANEL NOTE. ${PANEL_NOTE_RULE}
-2. RE-MIX FIRST. Build every formula ONLY from the capsule via "item_index" and the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE} Each look's "look_tags" files it for search: thermal "climate" (High Summer / Transitional Warm / Transitional Cool / Deep Winter — thermal, never calendar), "light" (Daylight or Twilight & Evening), "wear_for" (1–2 lifestyle scenarios, sharpest matches only), "vibe" (the silhouette/aesthetic if one clearly fits, else "").
+2. RE-MIX FIRST. Build every formula ONLY from the capsule via "item_index" and the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE} ${LOOK_TAGS_RULE.replace(/^- /, 'Each look\'s ')}
 3. Set "new_item_needed": true ONLY if an occasion genuinely cannot be dressed from the capsule (e.g. a formal wedding with nothing remotely formal packed). Then give "new_item" — one real gap piece with retailer_hint, a realistic EUR price_point and a "bridge" clause (what it connects + looks it unlocks) — and reference it in the formulas as item_index ${capIn.length}. Otherwise "new_item_needed": false.
 
 ${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}
@@ -2085,9 +2121,14 @@ const ANALYSE_SCHEMA = {
     editorial_color_name: { type: 'string' },
     brand:                { type: 'string' },
     silhouette_fit:       { type: 'array', items: { type: 'string' } },
+    // ADR-002 §5 — ordinal, inferred, never a chip. Formality is among the
+    // most visually legible attributes there is, so this costs nothing and
+    // adds no tapping; it goes to the styling model only. If beta shows she
+    // wants to filter on it, promote it out of item_dna to a column then.
+    formality:            { type: 'string', enum: ['casual', 'smart', 'formal', 'black_tie'] },
     ai_generated_notes:   { type: 'string' },
   },
-  required: ['no_item_detected', 'label', 'category', 'category_l2', 'category_l3', 'color', 'primary_color_hex', 'editorial_color_name', 'brand', 'silhouette_fit', 'ai_generated_notes'],
+  required: ['no_item_detected', 'label', 'category', 'category_l2', 'category_l3', 'color', 'primary_color_hex', 'editorial_color_name', 'brand', 'silhouette_fit', 'formality', 'ai_generated_notes'],
 };
 
 // The full taxonomy tree for the client's Category / Subcategory / Item type
@@ -2116,6 +2157,7 @@ IMPORTANT: If no clothing item, garment, or accessory is clearly visible (e.g. t
 If a clothing item IS present, set "no_item_detected": false and fill every field:
 "label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans")
 "category": one of — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other
+"formality": how dressed up the piece is — casual (jeans, tees, trainers), smart (tailoring, a silk shirt, a loafer), formal (cocktail dress, a tuxedo blazer, an evening shoe), black_tie (a gown, a dinner suit). Judge the GARMENT, not how it happens to be styled in the photo.
 "category_l2" and "category_l3": file the piece in the Robes taxonomy below. Each line reads Category › Subcategory: item types. Pick the ONE line whose subcategory fits best, copy the subcategory name EXACTLY into category_l2, then copy the best-fitting item type from that line EXACTLY into category_l3. If no item type on the line fits, set category_l3 to "". If no subcategory fits at all, set both to "".
 TAXONOMY:
 ${taxonomyPromptBlock()}
@@ -2131,7 +2173,7 @@ ${taxonomyPromptBlock()}
 "ai_generated_notes": one editorial sentence under 15 words` }
         ]
       }],
-      config: { responseMimeType: 'application/json', responseSchema: ANALYSE_SCHEMA, maxOutputTokens: 700, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
+      config: { responseMimeType: 'application/json', responseSchema: ANALYSE_SCHEMA, maxOutputTokens: 760, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
     });
 
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
@@ -2139,7 +2181,7 @@ ${taxonomyPromptBlock()}
     logAI({ feature: 'wardrobe_analyse', ms: Date.now() - t0, no_item_detected: parsed.no_item_detected, success: true });
 
     if (parsed.no_item_detected) {
-      return res.json({ noItemDetected: true, label: '', category: 'Other', category_l2: null, category_l3: null, color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, llm_styling_context: {}, ai_generated_notes: '' } });
+      return res.json({ noItemDetected: true, label: '', category: 'Other', category_l2: null, category_l3: null, color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } });
     }
 
     // 3-level taxonomy: validate the emitted (l2, l3) pair against the tree.
@@ -2159,6 +2201,10 @@ ${taxonomyPromptBlock()}
       structural_dna: {
         silhouette_fit: Array.isArray(parsed.silhouette_fit) ? parsed.silhouette_fit : [],
       },
+      // Top-level sibling, not inside structural_dna: formality is a property
+      // of the garment's register, not its cut, and the styling prompts read
+      // it on its own. '' when the model gave nothing usable.
+      formality: ['casual', 'smart', 'formal', 'black_tie'].includes(parsed.formality) ? parsed.formality : '',
       llm_styling_context: {},
       ai_generated_notes: parsed.ai_generated_notes || '',
     };
@@ -2176,7 +2222,7 @@ ${taxonomyPromptBlock()}
   } catch (err) {
     logAI({ feature: 'wardrobe_analyse', ms: Date.now() - t0, success: false, reason: err.message });
     console.error('[analyse] Gemini error:', err.message);
-    res.json({ analysisFailed: true, label: '', category: 'Other', category_l2: null, category_l3: null, color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, llm_styling_context: {}, ai_generated_notes: '' } });
+    res.json({ analysisFailed: true, label: '', category: 'Other', category_l2: null, category_l3: null, color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } });
   }
 });
 
