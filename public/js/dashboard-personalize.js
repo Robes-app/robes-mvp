@@ -1959,6 +1959,19 @@
             html = batch + head + fields + tagsToggle + cta + photoIn;
           } else {
             // f.view === 'tags' — screen 06: two axes held apart, notes last.
+            // The pre-fill preview is computed AT PAINT, not once at init.
+            // Two reasons: the taxonomy fetch is a boot-time round trip, so
+            // seeding at init raced it and the same piece could show either
+            // the real pre-fill or the year_round fallback; and re-deriving
+            // means the preview FOLLOWS a category correction, which is what
+            // the trigger will actually do at save. Stops the moment she
+            // touches either axis — from then on the form is hers. Never on
+            // edit: there the stored row is the truth.
+            if (_waForm.mode !== 'edit' && !d.bandTouched && !d.wearTouched) {
+              const _sel = window.__waSawTaxSel;
+              const _seed = _waDetailSeed(window.__waSawCat || '', (_sel && _sel.l2) || '');
+              d.band = _seed.band; d.wear = _seed.wear;
+            }
             // Season is ONE tap of three now (ADR-002 §1): picking both
             // bands IS year-round, so the multi-select collapses.
             const seaChips = WA_BANDS.map(function(b) {
@@ -2681,7 +2694,21 @@
         const t = _tgFind(kind, slug);
         if (t) return t.label;
         const seed = _TG_WEAR_SEEDS.find(x => x.slug === slug);
-        return seed ? seed.label : String(slug || '').replace(/-/g, ' ');
+        if (seed) return seed.label;
+        // Last resort: a slug with no label anywhere. Sentence-case it so it
+        // reads as a tag rather than as an identifier that leaked out.
+        const words = String(slug || '').replace(/-/g, ' ');
+        return words.charAt(0).toUpperCase() + words.slice(1);
+      }
+      // Keep the display label a legacy value carried, so "Sharp Tailoring"
+      // does not render as "Sharp tailoring" once it has been slugged. The
+      // entry is local (id: null) until something persists it.
+      function _tgRemember(kind, label) {
+        const slug = _rbTagSlug(label);
+        if (slug && !_tgFind(kind, slug)) {
+          _tgTags.push({ id: null, kind, label: String(label).trim(), slug, is_seed: false });
+        }
+        return slug;
       }
       // Every wear_for slug she can pick: the seven seeds first (stable
       // order — they are the vocabulary), then her own, alphabetically.
@@ -2815,13 +2842,9 @@
         // broken, not strict, which is why the posture predates ADR-002.
         if (!legacy.length) return ['everyday'];
         return legacy.map(o => {
-          const sl = _rbTagSlug(o);
           // Remember the label the legacy row carried, or "Skiing" renders
           // as "skiing" until the namespace has a row for it.
-          if (sl && !_tgFind('wear_for', sl)) {
-            _tgTags.push({ id: null, kind: 'wear_for', label: String(o).trim(), slug: sl, is_seed: false });
-          }
-          return sl;
+          return _tgRemember('wear_for', o);
         }).filter(Boolean);
       }
 
@@ -5771,7 +5794,7 @@
       // _tgVibeOptions), not from a fixed list. Light is gone.
       const _RB_TAG_AXES = {
         climate: {
-          label: 'Climate', hint: 'pick one', open: false,
+          label: 'Season', hint: 'pick one', open: false,
           opts: ['spring_summer', 'autumn_winter', 'year_round'],
           labels: { spring_summer: 'Spring/Summer', autumn_winter: 'Autumn/Winter', year_round: 'Year-round' },
         },
@@ -5809,7 +5832,8 @@
         const asWear = raw => {
           const legacy = _RB_TAG_LEGACY_WEAR[raw];
           if (legacy) return legacy.forEach(pushW);
-          pushW(_RB_TAG_AXES.climate.opts.indexOf(raw) > -1 ? null : _rbTagSlug(raw));
+          if (_RB_TAG_AXES.climate.opts.indexOf(raw) > -1) return;
+          pushW(_TG_WEAR_SEEDS.some(x => x.slug === raw) ? raw : _tgRemember('wear_for', raw));
         };
         if (Array.isArray(v)) {
           v.forEach(raw => {
@@ -5818,8 +5842,8 @@
             if (_RB_TAG_AXES.climate.opts.indexOf(str) > -1) { out.climate = out.climate || str; return; }
             if (_RB_TAG_LEGACY_CLIMATE[str]) { out.climate = out.climate || _RB_TAG_LEGACY_CLIMATE[str]; return; }
             if (_RB_TAG_LEGACY_LIGHT.indexOf(str) > -1) return;   // §7: Light is discarded
-            if (_RB_TAG_LEGACY_VIBES.indexOf(str) > -1) { pushV(_rbTagSlug(str)); return; }
-            if (/^vibe:/i.test(str)) { pushV(_rbTagSlug(str.replace(/^vibe:/i, ''))); return; }
+            if (_RB_TAG_LEGACY_VIBES.indexOf(str) > -1) { pushV(_tgRemember('vibe', str)); return; }
+            if (/^vibe:/i.test(str)) { pushV(_tgRemember('vibe', str.replace(/^vibe:/i, ''))); return; }
             asWear(str);
           });
         } else if (v && typeof v === 'object') {
@@ -5828,7 +5852,7 @@
           const w = Array.isArray(v.wear_for) ? v.wear_for : Array.isArray(v.wear) ? v.wear : [];
           w.forEach(x => asWear(String(x == null ? '' : x).trim()));
           const vb = Array.isArray(v.vibe) ? v.vibe : (v.vibe ? [v.vibe] : []);
-          vb.forEach(x => pushV(_rbTagSlug(String(x).replace(/^vibe:/i, ''))));
+          vb.forEach(x => pushV(_tgRemember('vibe', String(x).replace(/^vibe:/i, ''))));
         }
         return out;
       }
@@ -5855,7 +5879,7 @@
           .filter(Boolean);
         const inner = chips.length
           ? chips.map(c => `<span class="tg">${_waEsc(c)}</span>`).join('')
-          : `<span class="tnone">Untagged — climate, agenda, vibe</span>`;
+          : `<span class="tnone">Untagged — season, agenda, vibe</span>`;
         return `<div class="rbc-tags"><div class="tgs">${inner}</div><button class="tedit" onclick="window.${editFn}(${editArg == null ? '' : editArg})">${chips.length ? 'Edit' : '＋ Tags'}</button></div>`;
       }
       // ADR-002 §2 · deriveLookClimate, with the [C7] floor.
@@ -7979,12 +8003,14 @@
       function _lkRefineOpts(axis) {
         const base = axis === 'climate' ? _RB_TAG_AXES.climate.opts.slice()
           : axis === 'vibe' ? _tgVibeOptions() : _tgWearOptions();
-        _lkLooks.forEach(l => {
-          const t = _lkTagsOf(l);
-          (axis === 'climate' ? [t.climate] : t[axis]).forEach(v => {
-            if (v && base.indexOf(v) < 0) base.push(v);
-          });
+        const take = t => (axis === 'climate' ? [t.climate] : t[axis] || []).forEach(v => {
+          if (v && base.indexOf(v) < 0) base.push(v);
         });
+        _lkLooks.forEach(l => take(_lkTagsOf(l)));
+        // Generated artifacts carry their tags in the blob, and the grid
+        // filters them alongside Looks — so their values have to be offered
+        // or the axis is filterable in principle and empty in practice.
+        _lkShelfItems().forEach(i => _lkItemTagSets(i).forEach(take));
         return base;
       }
       function _lkRefineHtml() {
@@ -7997,7 +8023,9 @@
               '<button type="button" class="rb-lkref-chip' + (sel.indexOf(o) > -1 ? ' on' : '') + '" data-ax="' + axis + '" data-val="' + _waEsc(o) + '" onclick="window.__lkRefinePick(this)">' + _waEsc(_rbTagLabel(axis, o)) + '</button>').join('') +
             '</div></div>';
         };
-        const n = _lkLooks.filter(_lkMatchRefine).length;
+        // Count what the grid will actually show — Looks AND artifacts.
+        const n = _lkLooks.filter(_lkMatchRefine).length
+          + _lkShelfItems().filter(_lkMatchRefineItem).length;
         return '<div class="rb-lk-refwrap">' + g('climate') + g('wear') + g('vibe') +
           '<div class="rb-lkref-foot"><button type="button" class="rb-lk-quiet" onclick="window.__lkRefineClear()">Clear all</button>' +
           '<span style="font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint)">' + _lkN(n, 'look') + '</span></div></div>';
