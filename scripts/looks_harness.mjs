@@ -1343,6 +1343,67 @@ const ALTS = {
 }
 
 {
+  // Nothing photographed at all: the look is entirely proposed. The panel
+  // must still draw it (it used to fall through to "The look, once you
+  // start"), and Save is open — with the wishlist said out loud first.
+  const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 0 });
+  await page.route('**/api/alternates', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));
+  await page.route('**/api/lookbuild/images', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'j3', imageCount: 4 }) }));
+  await page.route('**/api/images/j3', (r) => r.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ images: ['https://img.test/1.jpg', 'https://img.test/2.jpg', 'https://img.test/3.jpg', 'https://img.test/4.jpg'], done: true }),
+  }));
+  await page.route('**img.test/**', (r) => r.abort());
+  await openLooks(page);
+  await page.evaluate(() => window.__lkRobesBuild());
+  await page.waitForTimeout(7000);
+  const z = await page.evaluate(() => ({
+    placeholder: /once you start/.test(document.getElementById('rb-lk-body')?.textContent || ''),
+    board: document.querySelectorAll('.rbc-board .rbc-tile').length,
+    boardImgs: document.querySelectorAll('.rbc-board .rbc-tile img').length,
+    head: document.querySelector('.rbc-lhead .lab')?.textContent,
+    yours: document.querySelector('.rbc-yours')?.textContent,
+    saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
+  }));
+  check('nothing owned · the look still draws — never the "once you start" state',
+    z.placeholder === false && z.board === 4 && z.boardImgs === 4, JSON.stringify(z));
+  check('nothing owned · the head and the ownership line count the whole look',
+    z.head === 'The look · 0 yours, 4 to find' && /0.of.4 from your wardrobe/.test(z.yours || ''),
+    JSON.stringify([z.head, z.yours]));
+  check('nothing owned · Save is open', z.saveDisabled === false);
+
+  const ask = await page.evaluate(async () => {
+    document.querySelector('.rb-lk-save').click();
+    await new Promise((r) => setTimeout(r, 250));
+    const m = document.getElementById('rb-del-modal');
+    return { open: !!m, text: (m?.textContent || '').replace(/\s+/g, ' ') };
+  });
+  check('nothing owned · Save says where the unowned pieces go, before it happens',
+    ask.open === true && /aren.t yours yet/.test(ask.text) && /Wishlist/.test(ask.text), ask.text.slice(0, 120));
+
+  const done = await page.evaluate(async () => {
+    document.getElementById('rb-lksave-yes').click();
+    await new Promise((r) => setTimeout(r, 800));
+    return {
+      grid: document.querySelectorAll('#rb-lk-grid .lt-card').length,
+      gone: !document.getElementById('rb-del-modal'),
+    };
+  });
+  check('nothing owned · the look saves', done.grid === 1 && done.gone === true, JSON.stringify(done));
+  await page.waitForTimeout(500);
+  const lookWrite = writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop();
+  check('nothing owned · it carries its own imagery, never a blank card',
+    !!lookWrite && /^https?:/.test(lookWrite.body?.photo_url || ''), JSON.stringify(lookWrite?.body?.photo_url));
+  check('nothing owned · and every proposal lands in the wishlist',
+    writes.filter((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)).length >= 1,
+    JSON.stringify(writes.map((w) => w.url).slice(-6)));
+  check('nothing owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+{
   const { ctx, page, errs } = await boot(browser, { seed: false, pics: 1 });
   await page.route('**/api/alternates', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));

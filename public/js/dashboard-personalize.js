@@ -8610,7 +8610,7 @@
         const nPlaced = used.length;
         // A Robes build with proposed pieces is savable at one owned piece —
         // the look is four pieces, three of which she does not own yet.
-        const canSave = nPlaced >= 2 || (_lkBuilt && _lkShop.length && nPlaced >= 1);
+        const canSave = nPlaced >= 2 || (_lkBuilt && _lkShop.length > 0);
         const items = _lkConItems();
         const robesLabel = _lkBuilt ? "Robes' build" : 'Robes';
         // "N pieces" while they are all hers; "1 yours, 3 to find" once Robes
@@ -8636,7 +8636,7 @@
             '<span class="lab">The look</span><span class="robes">' + robesLabel + '</span></div>' +
             '<div class="rb-lk-fill" style="flex:1;min-height:280px;border-radius:var(--rad-sm)"></div>' +
             '</div>';
-        } else if (!items.length) {
+        } else if (!items.length && !_lkShop.length) {
           // No 4:5 aspect on the zero-piece placeholder — the panel
           // stretches to the rack's height instead (its grid child gets
           // align-self:stretch below), so the whitespace reads intentional
@@ -8648,8 +8648,9 @@
             '</div>';
         } else {
           const note = _lkStyleNote(used);
+          const board = items.concat(_lkShopBoardItems(items.length));
           lookHtml = _rbConsole({
-            boardOnlyItems: items.concat(_lkShopBoardItems(items.length)),
+            boardOnlyItems: board,
             headLabel: headLabel,
             robesLabel: robesLabel,
             quoteHtml: note ? _waEsc(note) : '',
@@ -8752,7 +8753,7 @@
             '</div>'
           : '<button type="button" class="rb-lk-quiet rb-lk-robesdoor" onclick="window.__lkRobesBuild()">' + _waEsc(robesDoor) + '</button>';
         rackHtml += '<div class="rb-lk-saverow' + (_lkBuilt && !_lkBuilding ? ' built' : '') + '">' +
-          '<button type="button" class="rb-lk-save" onclick="window.__lkSave()"' +
+          '<button type="button" class="rb-lk-save" onclick="window.__lkSaveAsk()"' +
             (canSave ? '' : ' disabled title="' + (_lkBuilt
               ? 'Add a piece of your own and this look is yours to keep'
               : 'Add two pieces and this look is yours to keep') + '"') + '>Save this look</button>' +
@@ -9665,12 +9666,41 @@
         });
         inp.click();
       };
+      // Saving a look that holds pieces she doesn't own tells her where they
+      // go BEFORE it happens — the wishlist is the only place a piece she
+      // doesn't own can live (look_pieces references wardrobe_items).
+      window.__lkSaveAsk = function() {
+        if (!_lkShop.length) { window.__lkSave(); return; }
+        const n = _lkShop.length;
+        document.getElementById('rb-del-modal')?.remove();
+        const modal = document.createElement('div');
+        modal.id = 'rb-del-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML =
+          '<div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:390px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:28px 26px;text-align:center">' +
+            '<p style="font-family:\'Cormorant\',Georgia,serif;font-size:24px;font-weight:300;color:#202021;margin:0 0 8px;line-height:1.25">' +
+              (n === 1 ? 'One piece isn\u2019t yours yet.' : n + ' pieces aren\u2019t yours yet.') + '</p>' +
+            '<p style="font-size:12.5px;color:#6E6A64;line-height:1.6;margin:0 0 20px">' +
+              'The look is saved to your Lookbook, and ' + (n === 1 ? 'that piece goes' : 'those pieces go') +
+              ' to your Wishlist so you can find ' + (n === 1 ? 'it' : 'them') + ' again.</p>' +
+            '<div style="display:flex;gap:9px">' +
+              '<button id="rb-lksave-cancel" style="flex:1;padding:13px 20px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">Cancel</button>' +
+              '<button id="rb-lksave-yes" style="flex:1;padding:13px 20px;border:none;border-radius:100px;background:#202021;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Save the look</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(modal);
+        modal.querySelector('#rb-lksave-cancel').onclick = function() { modal.remove(); };
+        modal.querySelector('#rb-lksave-yes').onclick = function() { modal.remove(); window.__lkSave(); };
+      };
       window.__lkSave = function() {
         const used = _lkUsed();
         // A Robes build with proposed pieces is a four-piece look, one of
         // which is hers — the two-piece floor holds everywhere else.
-        const floor = (_lkBuilt && _lkShop.length) ? 1 : 2;
-        if (used.length < floor || _lkBusy) return;
+        // A Robes build is savable whatever she owns of it — the pieces she
+        // doesn't own travel to the wishlist (she is told so first).
+        const floor = (_lkBuilt && _lkShop.length) ? 0 : 2;
+        if (used.length < floor || (!used.length && !(_lkBuilt && _lkShop.length)) || _lkBusy) return;
         if (_lkPhoto && _lkPhoto.pending) { _waShowToast('One moment — the photo is still uploading'); return; }
         _lkBusy = true;
         // finally-guarded: a throw anywhere in here must never leave the
@@ -9688,7 +9718,13 @@
           const lookTags = _rbTagsParse(_lkNewTags || _rbInheritLookTags(used));
           l = _lkCreate({
             pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed,
-            source: 'manual', photo_url: _lkPhoto && _lkPhoto.url, slots,
+            source: 'manual',
+            // A look she owns nothing of yet would save with no imagery at
+            // all — its own generated still stands in until she has a piece
+            // (or a photo) of her own.
+            photo_url: (_lkPhoto && _lkPhoto.url)
+              || (!used.length && _pdHttp(_lkShopImgs[0])) || null,
+            slots,
             lookTags: lookTags,
             roles: _lkNewRoles,
           });
