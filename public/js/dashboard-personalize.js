@@ -5270,6 +5270,10 @@
       }
 
       window.__dlGoBack = function() {
+        // Leaving an unkept look asks first — save it, or let it go
+        // (Annie, 2026-08-13). After either answer the guard stands down
+        // and this re-entry falls through.
+        if (window._dlExitGuard && window._dlExitGuard(window.__dlGoBack)) return;
         if (dlResultPage) dlResultPage.style.display = 'none';
         _waAfterAdd = null; // leaving the look cancels any armed snap-mine swap
         window.rbClearCrumb && window.rbClearCrumb();
@@ -7268,6 +7272,7 @@
             byId[l.id] = {
               id: l.id, name: l.name || '', name_provisional: !!l.name_provisional,
               note: l.note || '', photo_url: l.photo_url || null,
+              proposals: Array.isArray(l.proposals) ? l.proposals : null,
               source: l.source || 'wear', origin_look_id: l.origin_look_id || null,
               created_at: l.created_at, pieces: [], wears: [],
             };
@@ -7283,7 +7288,11 @@
           const cloud = Object.keys(byId).map(k => byId[k]);
           // Local-only looks (saved before the migration ran, or offline) sync up
           _lkCacheRead().forEach(l => {
-            if (!cloud.find(c => String(c.id) === String(l.id))) { cloud.push(l); _lkPushCloud(l); }
+            const c = cloud.find(x => String(x.id) === String(l.id));
+            if (!c) { cloud.push(l); _lkPushCloud(l); return; }
+            // Pre-migration-19: the cloud row can't hold proposals — the
+            // local cache carries them so a saved build keeps its pieces.
+            if (!c.proposals && Array.isArray(l.proposals) && l.proposals.length) c.proposals = l.proposals;
           });
           _lkLooks = cloud.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
           _lkCacheWrite();
@@ -7360,20 +7369,39 @@
       }
 
       // ── Writes ──────────────────────────────────────────────────────────
+      // looks.proposals arrives with migration 19 — until it runs, a
+      // PGRST204 naming the column strips it and retries, and the saved
+      // build's proposals live in the local cache only (the _lkRoleCol
+      // degrade family).
+      var _lkPropCol = true;
       function _lkPushCloud(l) {
         if (_lkDown || !_waUid()) return;
-        _waFetch('POST', 'looks', {
-          id: l.id, user_id: _waUid(), name: l.name, name_provisional: !!l.name_provisional,
-          note: l.note || null, photo_url: l.photo_url || null, tags: l.tags || null,
-          climate_band: l.climate_band || 'year_round', climate_source: l.climate_source || 'derived',
-          source: l.source || 'wear', origin_look_id: l.origin_look_id || null,
-        }).then(() => {
+        const mk = withProps => {
+          const row = {
+            id: l.id, user_id: _waUid(), name: l.name, name_provisional: !!l.name_provisional,
+            note: l.note || null, photo_url: l.photo_url || null, tags: l.tags || null,
+            climate_band: l.climate_band || 'year_round', climate_source: l.climate_source || 'derived',
+            source: l.source || 'wear', origin_look_id: l.origin_look_id || null,
+          };
+          if (withProps && l.proposals) row.proposals = l.proposals;
+          return row;
+        };
+        const after = () => {
           _lkPiecesCloud(l);
           if (l._lookTags) {
             _tgSetLinks('look', l.id, 'wear_for', l._lookTags.wear || [], 'inferred');
             _tgSetLinks('look', l.id, 'vibe', l._lookTags.vibe || [], 'inferred');
           }
-        }).catch(e => _lkGuard(e, 'create'));
+        };
+        _waFetch('POST', 'looks', mk(_lkPropCol)).then(after).catch(e => {
+          const t = String(e && e.message || e);
+          if (/PGRST204/.test(t) && /proposals/.test(t)) {
+            _lkPropCol = false;
+            _waFetch('POST', 'looks', mk(false)).then(after).catch(e2 => _lkGuard(e2, 'create'));
+            return;
+          }
+          _lkGuard(e, 'create');
+        });
       }
       // look_pieces.role arrives with migration 16 — until it runs, a
       // PGRST204 naming the column strips it and retries, and her cast
@@ -7403,9 +7431,21 @@
       }
       function _lkPatchCloud(l, patch) {
         if (_lkDown || !_waUid()) return;
-        _waFetch('PATCH', 'looks?id=eq.' + l.id + '&user_id=eq.' + _waUid(),
-          Object.assign({ updated_at: new Date().toISOString() }, patch))
-          .catch(e => _lkGuard(e, 'patch'));
+        const body = Object.assign({ updated_at: new Date().toISOString() }, patch);
+        if (!_lkPropCol) delete body.proposals;
+        _waFetch('PATCH', 'looks?id=eq.' + l.id + '&user_id=eq.' + _waUid(), body)
+          .catch(e => {
+            const t = String(e && e.message || e);
+            if (/PGRST204/.test(t) && /proposals/.test(t)) {
+              _lkPropCol = false;
+              const retry = Object.assign({}, body);
+              delete retry.proposals;
+              _waFetch('PATCH', 'looks?id=eq.' + l.id + '&user_id=eq.' + _waUid(), retry)
+                .catch(e2 => _lkGuard(e2, 'patch'));
+              return;
+            }
+            _lkGuard(e, 'patch');
+          });
       }
       function _lkPatch(id, patch, pieces) {
         const l = _lkFind(id);
@@ -7424,6 +7464,7 @@
           name_provisional: o.name_provisional !== false,
           note: o.note != null ? o.note : _lkStyleNote(ids),
           photo_url: o.photo_url || null,
+          proposals: o.proposals || null,
           tags: o.tags || null,
           // ADR-002: climate is a column, derived-with-override. A new look
           // starts 'derived' so it re-derives as her pieces get banded.
@@ -7781,33 +7822,19 @@
 .rb-lk-namenote{margin-top:9px;font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:14px;color:var(--ink-faint)}
 /* A piece she doesn't own yet: the full card — category chip, brand,
    retailer, price — and TWO actions only, Swap and Save. */
-.rb-lk-shop{display:flex;align-items:flex-start;gap:14px;padding:15px 16px}
-.rb-lk-shop.busy{opacity:.55;pointer-events:none}
-.rb-lk-shopchip{flex:none;width:74px;height:88px;border-radius:var(--rad-sm);background:var(--cream-100);border:0.5px solid var(--rule);overflow:hidden;position:relative}
-.rb-lk-shopchip img{width:100%;height:100%;object-fit:cover;display:block}
-/* Until the still-life lands, the slot says what it is waiting for */
+/* Proposal rows are the shared _rbcRow — only two build-specific states
+   survive: the labelled breathing block while a still-life is coming, and
+   the dim while a fresh suggestion is being fetched (2026-08-13 second
+   pass retired the bespoke shop-card anatomy). */
 .rb-lk-shopph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;background:var(--cream-100);animation:rbLkFill 1.5s ease-in-out infinite}
 .rb-lk-shopph span{font-size:8px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
 @media(prefers-reduced-motion:reduce){.rb-lk-shopph{animation:none}}
-.rb-lk-shopbody{flex:1;min-width:0}
-.rb-lk-shopname{font-family:var(--font-serif);font-weight:300;font-size:19px;line-height:1.2;color:var(--ink)}
-.rb-lk-shopmeta{margin-top:4px;font-size:11.5px;color:var(--ink-soft)}
-.rb-lk-shopmeta i{font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink)}
-.rb-lk-shopown{margin-top:5px;font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--cream-400)}
-/* The type eyebrow leads the card — slot · provenance, the rack rows' own
-   "slot · status" register (Annie, 2026-08-13: the card was missing its
-   type label) */
-.rb-lk-shopslot{margin-bottom:3px;font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
-/* Actions sit right, as they do on every other rack card */
-.rb-lk-shopacts{display:flex;gap:9px;margin-top:11px;flex-wrap:wrap;justify-content:flex-end}
-.rb-lk-shopacts .rbc-act.done{color:var(--ink);border-color:rgba(32,32,33,0.22)}
+.rbc-row.rb-lk-busy{opacity:.55;pointer-events:none}
 /* After a build the footer is Try another | (Wear it today · hers only) */
 .rb-lk-buildfoot{display:flex;align-items:center;gap:16px}
 .rb-lk-buildfoot .sep{width:1px;height:13px;background:var(--rule-mid)}
 @media(max-width:767px){
 .rb-lk-saverow.built .rb-lk-buildfoot{justify-content:center}
-.rb-lk-shopchip{width:60px;height:74px}
-.rb-lk-shopname{font-size:17px}
 }
 /* The look, inline on home (FTUE step 3, 2026-08-12) */
 #rb-lkhome{margin:32px 0}
@@ -8314,10 +8341,40 @@
         const pins = _lkPins(l.id).filter(d => d >= today);
         const items = _lkDetailItems(l);
 
-        // The Look — the standing 4:5 composition, or the look's photograph
+        // The Look — the standing 4:5 composition, or the look's photograph.
+        // A saved Robes build (proposals riding the row) draws the SAME
+        // mosaic it was built with — owned photos + proposal stills — so the
+        // saved look reads exactly like the composer and the daily console
+        // (Annie, 2026-08-13 second pass: "both looks should appear exactly
+        // the same after being saved").
+        const props = Array.isArray(l.proposals) ? l.proposals : [];
         const lkTagsRow = _rbTagsRowHtml(_lkTagsOf(l), '__lkTagsEdit');
         let lookPanel;
-        if (l.photo_url) {
+        if (props.length) {
+          const propBoard = props.map((row, i) => {
+            const a = row.opts[row.oi] || {};
+            return {
+              idx: ids.length + i, role: row.role, slot: row.chip,
+              name: a.name || row.chip,
+              shortName: String(a.name || row.chip || 'piece').split(/\s+/).slice(-1)[0].toLowerCase(),
+              owned: false, anchored: false, isNew: true,
+              frame: { pollAttr: '', inner: _lkPropDetailFrame(row) },
+              subHtml: '', noteHtml: '', count: { cur: 0, len: 1 },
+            };
+          });
+          lookPanel = _rbConsole({
+            boardOnlyItems: items.concat(propBoard),
+            headLabel: 'The look · ' + ids.length + ' yours, ' + props.length + ' to find',
+            quoteHtml: l.note ? _waEsc(l.note) : '',
+            paletteHtml: ids.map(id => {
+              const tone = _ltToneOf(_waItems.find(w => String(w.id) === String(id)));
+              return tone ? '<span style="background:' + _waEsc(tone) + '"></span>' : '';
+            }).join(''),
+            tagsHtml: lkTagsRow,
+            rackLabel: 'The Rack',
+            onFlip: '__lkDFlip', onSwap: '__lkDSwap',
+          }, items).lookHtml;
+        } else if (l.photo_url) {
           lookPanel = '<div class="rbc-panel"><div class="rbc-lhead">' +
             '<span class="lab">The look · ' + _lkN(ids.length, 'piece') + '</span><span class="robes">Robes</span></div>' +
             '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
@@ -8430,13 +8487,20 @@
 
         // The Rack — the same rack rows every console uses. Flick and Swap
         // both route through the promotion gate when there is history.
-        // With nothing owned there are no rows to hang: say so honestly
-        // instead of drawing an empty rack over zeroed stats.
+        // A saved build's proposals hang as full rack cards (the shared
+        // _rbcRow, exactly as they hung in the composer — Swap cycles
+        // suggestions, Save re-offers the wishlist for a swapped-in piece).
+        // Only with nothing owned AND nothing proposed does the rack say so
+        // honestly instead of drawing empty.
+        const propEmpties = props.map((row, i) => ({
+          role: row.role,
+          html: _lkPropRowHtml(row, i, _lkPropDetailFrame(row), { swap: '__lkPropSwap', save: '__lkPropSave' }),
+        }));
         h += '<div class="rb-lk-sec" style="margin-top:0">The Rack</div>' +
           '<div class="rbc-rack">' +
-          (ownedNone
+          (ownedNone && !props.length
             ? '<div class="rb-lk-wear"><div class="pc" style="font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">Nothing of yours hangs here yet — the pieces are on your wishlist.</div></div>'
-            : _rbRackRolesHtml(items, { onFlip: '__lkDFlip', onSwap: '__lkDSwap', onRoleDrop: '__lkDRoleDrop' })) +
+            : _rbRackRolesHtml(items, { onFlip: '__lkDFlip', onSwap: '__lkDSwap', onRoleDrop: '__lkDRoleDrop' }, propEmpties)) +
           '</div>';
 
         // Stats read as the payoff of the rack, below it (streamline pass).
@@ -8604,29 +8668,43 @@
           }).catch(() => {});
         }, 4000);
       }
+      // A proposed piece renders through the SAME rack row component every
+      // generated console uses (_rbcRow) — same height rules, same Swap
+      // (icon included) and Save cluster, provenance in the same register
+      // (Annie, 2026-08-13 second pass: "a template following the exact
+      // same rules as the prompt generated"). Never a bespoke shop card.
+      function _lkPropRowHtml(row, i, frameInner, fns) {
+        const a = row.opts[row.oi] || {};
+        return _rbcRow({
+          idx: i,
+          slot: row.chip || 'Piece',
+          name: a.name || '',
+          shortName: String(a.name || row.chip || 'piece').split(/\s+/).slice(-1)[0].toLowerCase(),
+          owned: false, anchored: false, isNew: true,
+          frame: { pollAttr: '', inner: frameInner },
+          count: { cur: 0, len: 1 },
+          subHtml: _rbcProvenance(a),
+          noteHtml: a.how ? '<div class="rbc-hownote">' + _waEsc(a.how) + '</div>' : '',
+          thirdHtml: row.saved
+            ? '<span class="rbc-act done">' + _rbcCheckSvg + ' Saved</span>'
+            : '<button class="rbc-act save" onclick="window.' + fns.save + '(' + i + ')">Save</button>',
+          rowClass: ' rb-lk-prop' + (row.busy ? ' rb-lk-busy' : ''),
+        }, { onSwap: fns.swap });
+      }
+      // A saved proposal's frame: its stored still, else a quiet serif
+      // initial (the same fallback a flicked-in daily alternate wears).
+      function _lkPropDetailFrame(row) {
+        const a = row.opts[row.oi] || {};
+        const url = _pdHttp(row.image_url);
+        if (url) return '<img src="' + _waEsc(url) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="' + _waEsc(a.name || row.chip || '') + '">';
+        return '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--cream-100)">' +
+          '<span style="font-family:var(--font-serif);font-size:26px;font-weight:300;color:var(--ink-faint)">' +
+          _waEsc((a.name || row.chip || '?').charAt(0).toUpperCase()) + '</span></div>';
+      }
       function _lkBuildEmpties() {
         const out = [];
         _lkShop.forEach((row, i) => {
-          const a = row.opts[row.oi] || {};
-          out.push({ role: row.role, html:
-            '<div class="rbc-row rb-lk-shop' + (row.busy ? ' busy' : '') + '">' +
-              '<div class="rb-lk-shopchip">' + _lkShopFrame(i, row.chip) + '</div>' +
-              '<div class="rb-lk-shopbody">' +
-                '<div class="rb-lk-shopslot">' + _waEsc(row.chip) + ' · Not yours yet</div>' +
-                '<div class="rb-lk-shopname">' + _waEsc(a.name || '') + '</div>' +
-                '<div class="rb-lk-shopmeta">' +
-                  (a.brand ? '<i>' + _waEsc(a.brand) + '</i> ' : '') +
-                  _waEsc([a.retailer_hint, a.price_point].filter(Boolean).join(' · ')) +
-                '</div>' +
-                (a.how ? '<div class="rbc-hownote">' + _waEsc(a.how) + '</div>' : '') +
-                '<div class="rb-lk-shopacts">' +
-                  '<button type="button" class="rbc-act" onclick="window.__lkShopSwap(' + i + ')">Swap</button>' +
-                  (row.saved
-                    ? '<span class="rbc-act done">\u2713 Saved</span>'
-                    : '<button type="button" class="rbc-act" onclick="window.__lkShopSave(' + i + ')">Save</button>') +
-                '</div>' +
-              '</div>' +
-            '</div>' });
+          out.push({ role: row.role, html: _lkPropRowHtml(row, i, _lkShopFrame(i, row.chip), { swap: '__lkShopSwap', save: '__lkShopSave' }) });
         });
         // A slot Robes could fill from nothing — say so, and offer the way in.
         _lkBuildGaps.forEach(role => {
@@ -8652,7 +8730,9 @@
         // the look is four pieces, three of which she does not own yet.
         const canSave = nPlaced >= 2 || (_lkBuilt && _lkShop.length > 0);
         const items = _lkConItems();
-        const robesLabel = _lkBuilt ? "Robes' build" : 'Robes';
+        // The masthead credit reads plain Robes on every surface (Annie,
+        // 2026-08-13 second pass — "Robes' build" was a second label).
+        const robesLabel = 'Robes';
         // "N pieces" while they are all hers; "1 yours, 3 to find" once Robes
         // has proposed pieces she doesn't own yet.
         const headLabel = _lkBuilt && _lkShop.length
@@ -9352,6 +9432,49 @@
             _lkPaint();
           });
       };
+      // The saved build's proposals keep their verbs (2026-08-13 second
+      // pass): Swap cycles the stored suggestions — refetching when both
+      // are spent — and persists onto the look row; Save re-offers the
+      // wishlist for a swapped-in piece. A swapped-in suggestion has no
+      // still, so it wears the serif-initial tile until she owns it.
+      window.__lkPropSwap = function(i) {
+        const l = _lkFind(_lkActive);
+        const row = l && Array.isArray(l.proposals) ? l.proposals[i] : null;
+        if (!row || row.busy) return;
+        const persist = () => _lkPatch(l.id, { proposals: l.proposals });
+        if (row.oi + 1 < row.opts.length) {
+          row.oi++; row.saved = false; row.image_url = null;
+          persist(); _lkPaint(); return;
+        }
+        row.busy = true; _lkPaint();
+        const names = _lkPieceIds(l)
+          .map(id => (_waItems.find(w => String(w.id) === String(id)) || {}).label)
+          .filter(Boolean)
+          .concat(l.proposals.filter((r, k) => k !== i).map(r => (r.opts[r.oi] || {}).name).filter(Boolean));
+        _lkShopFetch({ role: row.role, chip: row.chip, ask: (row.opts[0] || {}).name || row.chip, cats: row.cats || [] }, names)
+          .then(fresh => {
+            row.busy = false;
+            if (fresh && fresh.opts.length) {
+              row.opts = row.opts.concat(fresh.opts);
+              row.oi++; row.saved = false; row.image_url = null;
+              persist();
+            }
+            _lkPaint();
+          });
+      };
+      window.__lkPropSave = function(i) {
+        const l = _lkFind(_lkActive);
+        const row = l && Array.isArray(l.proposals) ? l.proposals[i] : null;
+        if (!row || row.saved) return;
+        const a = row.opts[row.oi] || {};
+        row.saved = true;
+        _lkPatch(l.id, { proposals: l.proposals });
+        _lkPaint();
+        if (a.name && typeof _wlSaveFromItem === 'function') {
+          _wlSaveFromItem({ name: a.name, brand: a.brand, price_point: a.price_point,
+            retailer_hint: a.retailer_hint, category: (row.cats || [])[0] });
+        }
+      };
       // Save keeps it — the wishlist is where a piece she doesn't own lives.
       window.__lkShopSave = function(i) {
         const row = _lkShop[i];
@@ -9812,9 +9935,19 @@
           // pieces' inherited overlap (spec F3). Climate lands on the column,
           // wear and vibe in the shared namespace (ADR-002 §4).
           const lookTags = _rbTagsParse(_lkNewTags || _rbInheritLookTags(used));
+          // The proposals ride the saved look whole (looks.proposals,
+          // migration 19) — a saved build reopens exactly as it was built:
+          // mosaic, rack cards, stills. `saved: true` because save pushes
+          // every proposal to the wishlist below.
+          const proposals = (_lkBuilt && _lkShop.length) ? _lkShop.map((row, i) => ({
+            role: row.role, chip: row.chip, cats: row.cats,
+            opts: row.opts, oi: row.oi, saved: true,
+            image_url: _pdHttp(_lkShopImgs[i]) || null,
+          })) : null;
           l = _lkCreate({
             pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed,
             source: 'manual',
+            proposals: proposals,
             // A Robes build carries its stylist note onto the saved look —
             // the Look detail's quote slot reads it back (looks.note).
             note: (_lkBuilt && _lkBuildNote) || undefined,
@@ -10273,6 +10406,67 @@
           setTimeout(() => { if (window.__dlWear) window.__dlWear(); }, 60);
         }
       };
+
+      // ── The exit ask (Annie, 2026-08-13): leaving an unkept look alerts —
+      // save it, or let it go. One modal covers both jobs: when the look
+      // holds unowned pieces the wishlist line rides in the same sentence,
+      // so Save here IS the informed keep (no second confirm stacks on top).
+      // Guards the page's own back, the nav taps and the wordmark; a
+      // beforeunload handler covers the tab itself.
+      function _dlUnkeptOnScreen() {
+        return !!(window.__lastDlData && window.__lastDlData._dlDeferred && !_dlActiveSaveId
+          && dlResultPage && dlResultPage.style.display !== 'none');
+      }
+      window._dlExitGuard = function(proceed) {
+        if (!_dlUnkeptOnScreen()) return false;
+        const flat = window.__dlCurrentItems || [];
+        const n = flat.filter(it => !it.wardrobe_match).length;
+        document.getElementById('rb-del-modal')?.remove();
+        const modal = document.createElement('div');
+        modal.id = 'rb-del-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML =
+          '<div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:390px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:28px 26px;text-align:center">' +
+            '<p style="font-family:\'Cormorant\',Georgia,serif;font-size:24px;font-weight:300;color:#202021;margin:0 0 8px;line-height:1.25">This look isn’t saved.</p>' +
+            '<p style="font-size:12.5px;color:#6E6A64;line-height:1.6;margin:0 0 20px">' +
+              (n
+                ? 'Save it and it goes to your Lookbook — the ' + (n === 1 ? 'piece that isn’t' : n + ' pieces that aren’t') + ' yours yet go' + (n === 1 ? 'es' : '') + ' to your Wishlist. Or let it go.'
+                : 'Save it and it goes to your Lookbook. Or let it go.') + '</p>' +
+            '<div style="display:flex;gap:9px">' +
+              '<button id="rb-dlexit-go" style="flex:1;padding:13px 20px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">Let it go</button>' +
+              '<button id="rb-dlexit-save" style="flex:1;padding:13px 20px;border:none;border-radius:100px;background:#202021;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Save the look</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(modal);
+        modal.querySelector('#rb-dlexit-go').onclick = function() {
+          if (window.__lastDlData) delete window.__lastDlData._dlDeferred;
+          modal.remove();
+          proceed();
+        };
+        modal.querySelector('#rb-dlexit-save').onclick = function() {
+          modal.remove();
+          window.__dlSaveKeep();
+          proceed();
+        };
+        return true;
+      };
+      window.addEventListener('beforeunload', function(e) {
+        if (_dlUnkeptOnScreen()) { e.preventDefault(); e.returnValue = ''; }
+      });
+      // The nav taps and the wordmark route around __dlGoBack — wrap them
+      // once the nav architecture has booted (it is defined later in this
+      // file; the app's own late-wiring pattern).
+      setTimeout(function() {
+        const wrap = fn => function() {
+          const args = arguments, self = this;
+          if (window._dlExitGuard(function() { fn.apply(self, args); })) return;
+          return fn.apply(self, args);
+        };
+        if (typeof window.__rbNavGo === 'function') window.__rbNavGo = wrap(window.__rbNavGo);
+        const wm = document.getElementById('nav-wordmark');
+        if (wm && typeof wm.onclick === 'function') wm.onclick = wrap(wm.onclick);
+      }, 1600);
 
       let _dlWorn = false;
       window.__dlWear = async function() {

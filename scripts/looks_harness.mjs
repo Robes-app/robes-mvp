@@ -1249,9 +1249,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   const b = await page.evaluate(() => ({
     head: document.querySelector('.rbc-lhead .lab')?.textContent,
     robes: document.querySelector('.rbc-lhead .robes')?.textContent,
-    rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-name')).map((n) => n.textContent),
-    shop: Array.from(document.querySelectorAll('.rb-lk-shopname')).map((n) => n.textContent),
-    shopActs: Array.from(document.querySelectorAll('.rb-lk-shop .rbc-act')).map((b2) => b2.textContent.trim()),
+    rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
+    shop: Array.from(document.querySelectorAll('.rb-lk-prop .rbc-name')).map((n) => n.textContent),
+    shopActs: Array.from(document.querySelectorAll('.rb-lk-prop .rbc-act')).map((b2) => b2.textContent.trim()),
     flicks: document.querySelectorAll('.rbc-rack .rbc-arrow').length,
     removes: document.querySelectorAll('.rbc-rack .rbc-rm').length,
     title: document.getElementById('rb-lk-newtitle')?.value,
@@ -1262,13 +1262,14 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     quote: document.querySelector('.rbc-quote')?.textContent,
     tags: Array.from(document.querySelectorAll('.rbc-tags .tg')).map((t) => t.textContent),
     fabrics: document.querySelectorAll('.rbc-fabrics .fab').length,
-    slotEye: document.querySelector('.rb-lk-shopslot')?.textContent,
-    hownote: document.querySelector('.rb-lk-shop .rbc-hownote')?.textContent,
-    actsAlign: getComputedStyle(document.querySelector('.rb-lk-shopacts')).justifyContent,
+    slotEye: document.querySelector('.rb-lk-prop .vslot')?.textContent,
+    hownote: document.querySelector('.rb-lk-prop .rbc-hownote')?.textContent,
+    swapIcon: !!document.querySelector('.rb-lk-prop .rbc-acts button svg'),
+    saveCls: !!document.querySelector('.rb-lk-prop .rbc-act.save'),
   }));
   check('build · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('build · her own pieces hang in the rack, attributed to Robes',
-    b.rows.length === 3 && b.robes === "Robes' build", JSON.stringify([b.rows, b.robes]));
+    b.rows.length === 3 && b.robes === 'Robes', JSON.stringify([b.rows, b.robes]));
   check('build · one shop suggestion covers the slot her wardrobe cannot',
     b.shop.length === 1 && b.shop[0] === 'Cropped Bouclé Jacket', JSON.stringify(b.shop));
   check('build · a proposal carries only Swap and Save',
@@ -1282,10 +1283,10 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     b.quote === BUILD_NOTE.note, JSON.stringify(b.quote));
   check('build · the look arrives filed — tags on the row, texture under the mosaic',
     b.tags.length >= 1 && b.fabrics >= 1, JSON.stringify([b.tags, b.fabrics]));
-  check('build · a proposal card leads with its type label and carries its row note',
-    /Jacket/.test(b.slotEye || '') && /Not yours yet/i.test(b.slotEye || '') && !!b.hownote,
-    JSON.stringify([b.slotEye, b.hownote]));
-  check('build · Swap and Save sit right-aligned', b.actsAlign === 'flex-end', b.actsAlign);
+  check('build · a proposal is the shared rack row — slot label on the frame, row note beneath',
+    /Jacket/.test(b.slotEye || '') && !!b.hownote, JSON.stringify([b.slotEye, b.hownote]));
+  check('build · the proposal carries the same Swap (icon) and Save components as every rack card',
+    b.swapIcon === true && b.saveCls === true, JSON.stringify([b.swapIcon, b.saveCls]));
   check('build · the photo door reads Replace the photo', b.photo === 'Replace the photo', b.photo);
   check('build · Save leads; Try another and Wear it today follow',
     b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today']),
@@ -1299,8 +1300,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     window.__lkShopSwap(0);
     await new Promise((r) => setTimeout(r, 200));
     return {
-      shop: document.querySelector('.rb-lk-shopname')?.textContent,
-      rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-name')).map((n) => n.textContent),
+      shop: document.querySelector('.rb-lk-prop .rbc-name')?.textContent,
+      rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
     };
   });
   check('build · Swap moves to the next suggestion, the look intact',
@@ -1310,7 +1311,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   const kept = await page.evaluate(async () => {
     window.__lkShopSave(0);
     await new Promise((r) => setTimeout(r, 400));
-    return { label: document.querySelector('.rb-lk-shopacts .done')?.textContent };
+    return { label: document.querySelector('.rb-lk-prop .rbc-act.done')?.textContent };
   });
   check('build · Save keeps the proposal, and says so', /Saved/.test(kept.label || ''), kept.label);
   await page.waitForTimeout(400);
@@ -1344,7 +1345,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await page.evaluate(() => window.__lkRobesBuild());
   await page.waitForTimeout(2800);
   const pending = await page.evaluate(() => ({
-    placeholders: document.querySelectorAll('.rb-lk-shop .rb-lk-shopph').length,
+    placeholders: document.querySelectorAll('.rb-lk-prop .rb-lk-shopph').length,
     boardTiles: document.querySelectorAll('.rbc-board .rbc-tile').length,
   }));
   check('imagery · the look board carries the proposals, not just what she owns',
@@ -1356,7 +1357,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     JSON.stringify(jobBody));
   await page.waitForTimeout(5000);
   const landed = await page.evaluate(() => ({
-    thumbs: document.querySelectorAll('.rb-lk-shopchip img').length,
+    thumbs: document.querySelectorAll('.rb-lk-prop .rbc-vp img').length,
     boardImgs: document.querySelectorAll('.rbc-board .rbc-tile img').length,
     placeholders: document.querySelectorAll('.rb-lk-shopph').length,
   }));
@@ -1424,6 +1425,10 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     !!lookWrite && /^https?:/.test(lookWrite.body?.photo_url || ''), JSON.stringify(lookWrite?.body?.photo_url));
   check('nothing owned · the stylist note travels onto the saved look',
     lookWrite?.body?.note === BUILD_NOTE.note, JSON.stringify(lookWrite?.body?.note));
+  check('nothing owned · the proposals ride the saved look row whole',
+    Array.isArray(lookWrite?.body?.proposals) && lookWrite.body.proposals.length === 4
+      && lookWrite.body.proposals.every((r) => Array.isArray(r.opts) && r.opts.length > 0),
+    JSON.stringify((lookWrite?.body?.proposals || []).length));
   check('nothing owned · and every proposal lands in the wishlist',
     writes.filter((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)).length >= 1,
     JSON.stringify(writes.map((w) => w.url).slice(-6)));
@@ -1438,14 +1443,22 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       acts: Array.from(document.querySelectorAll('.rb-lk-acts .rb-lk-act')).map((x) => x.textContent),
       wishDoor: /Open your wishlist/.test(body?.textContent || ''),
       stats: document.querySelectorAll('.rb-lk-stats').length,
-      rackNote: /wishlist/i.test(document.querySelector('.rbc-rack')?.textContent || ''),
+      props: document.querySelectorAll('.rbc-rack .rb-lk-prop').length,
+      board: document.querySelectorAll('.rbc-board .rbc-tile').length,
+      head: document.querySelector('.rbc-lhead .lab')?.textContent,
+      propActs: Array.from(document.querySelectorAll('.rbc-rack .rb-lk-prop .rbc-act')).map((x) => x.textContent.trim()),
       quote: document.querySelector('.rbc-quote')?.textContent,
     };
   });
   check('nothing owned · the saved detail offers the wishlist, never dead wear verbs',
-    det.acts.length === 0 && det.wishDoor === true, JSON.stringify(det));
-  check('nothing owned · no zeroed stats; the rack says where the pieces live',
-    det.stats === 0 && det.rackNote === true, JSON.stringify([det.stats, det.rackNote]));
+    det.acts.length === 0 && det.wishDoor === true, JSON.stringify([det.acts, det.wishDoor]));
+  check('nothing owned · the saved look reopens WHOLE — mosaic and rack cards, like the composer',
+    det.props === 4 && det.board === 4 && det.head === 'The look · 0 yours, 4 to find',
+    JSON.stringify([det.props, det.board, det.head]));
+  check('nothing owned · saved proposals keep Swap, and read as already kept to the wishlist',
+    det.propActs.filter((x) => x === 'Swap').length === 4 && det.propActs.filter((x) => /Saved/.test(x)).length === 4,
+    JSON.stringify(det.propActs));
+  check('nothing owned · no zeroed stats ledger', det.stats === 0, JSON.stringify(det.stats));
   check('nothing owned · the note reads back on the saved look',
     det.quote === BUILD_NOTE.note, JSON.stringify(det.quote));
   check('nothing owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
@@ -1472,19 +1485,19 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('aspirational · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   const a = await page.evaluate(() => ({
     head: document.querySelector('.rbc-lhead .lab')?.textContent,
-    rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-name')).map((n) => n.textContent),
-    shop: document.querySelectorAll('.rb-lk-shop').length,
-    chips: Array.from(document.querySelectorAll('.rb-lk-shop .rb-lk-shopph span')).map((c) => c.textContent),
-    owned: document.querySelector('.rb-lk-shopslot')?.textContent,
+    rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
+    shop: document.querySelectorAll('.rb-lk-prop').length,
+    chips: Array.from(document.querySelectorAll('.rb-lk-prop .rb-lk-shopph span')).map((c) => c.textContent),
+    prov: document.querySelector('.rb-lk-prop .rbc-sub')?.textContent,
     title: document.getElementById('rb-lk-newtitle')?.value,
     foot: Array.from(document.querySelectorAll('.rb-lk-buildfoot button')).map((x) => x.textContent),
   }));
   check('aspirational · one of hers, three to find, and the head says so',
     a.rows.length === 1 && a.shop === 3 && a.head === 'The look · 1 yours, 3 to find',
     JSON.stringify([a.rows, a.shop, a.head]));
-  check('aspirational · each proposal is a full piece card with its category chip',
+  check('aspirational · each proposal is a full piece card with its category chip and provenance',
     JSON.stringify(a.chips) === JSON.stringify(['Trousers', 'Jacket', 'Shoes'])
-      && /Not yours yet/i.test(a.owned || ''), JSON.stringify([a.chips, a.owned]));
+      && /Sézane|Toteme/.test(a.prov || ''), JSON.stringify([a.chips, a.prov]));
   check('aspirational · the title comes from her icons, not the pieces',
     a.title === 'Margot Robbie meets Chanel.', a.title);
   check('aspirational · Wear it today is withheld; the exit is Build from mine only',
@@ -2204,6 +2217,40 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   });
   check('daily all-owned · wearing an unkept look keeps it first, then logs the wear',
     b.cta === 'Share this look' && /Worn/.test(b.worn || ''), JSON.stringify(b));
+
+  // Leaving an unkept look asks first — save it, or let it go (Annie,
+  // 2026-08-13): the back door holds the page, Save from the ask keeps it.
+  const c = await page.evaluate(async () => {
+    window.__dlRenderResult(window.__dlMkData('The one she almost lost.'), 'dress me later');
+    await new Promise((r) => setTimeout(r, 400));
+    window.__dlGoBack();
+    await new Promise((r) => setTimeout(r, 250));
+    const m = document.getElementById('rb-del-modal');
+    const held = !!m && document.getElementById('dl-result-page').style.display !== 'none';
+    const text = (m?.textContent || '').replace(/\s+/g, ' ');
+    m?.querySelector('#rb-dlexit-save')?.click();
+    await new Promise((r) => setTimeout(r, 700));
+    return {
+      held, text: text.slice(0, 120),
+      cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent,
+      closed: document.getElementById('dl-result-page').style.display === 'none',
+    };
+  });
+  check('daily · leaving an unkept look asks first — the page holds until she answers',
+    c.held === true && /isn.t saved/.test(c.text), JSON.stringify(c));
+  check('daily · Save from the exit ask keeps the look, then lets her go',
+    c.cta === 'Share this look' && c.closed === true, JSON.stringify([c.cta, c.closed]));
+
+  const d = await page.evaluate(async () => {
+    window.__dlRenderResult(window.__dlMkData('The one she let go.'), 'dress me once more');
+    await new Promise((r) => setTimeout(r, 400));
+    window.__dlGoBack();
+    await new Promise((r) => setTimeout(r, 250));
+    document.querySelector('#rb-dlexit-go')?.click();
+    await new Promise((r) => setTimeout(r, 400));
+    return { closed: document.getElementById('dl-result-page').style.display === 'none' };
+  });
+  check('daily · Let it go closes without keeping', d.closed === true, JSON.stringify(d));
   check('daily all-owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
