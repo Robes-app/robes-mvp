@@ -6320,6 +6320,11 @@
 @media(max-width:1080px){
 .rb-lookv2 .dlm-console,.rb-lookv2 .tvm-console{grid-template-columns:1fr !important}
 .rb-lookv2 .rbc-panel{max-width:480px;margin-left:auto;margin-right:auto}
+}
+/* A kept action (Save on an unkept look) never hides behind the dock —
+   appended last so it wins the ≤767px display:none above */
+@media(max-width:767px){
+.rbc-action.keep{display:block}
 }`;
 
       function _rbcEnsureCss() {
@@ -6490,8 +6495,12 @@
         // cfg.boardOnlyItems lets a surface put pieces on the board that its
         // rack draws differently (the look builder's shop proposals).
         const boardItems = (cfg.boardOnlyItems || items).slice(0, 6);
+        // cfg.actionKeep keeps the action visible ≤767px (a Save that IS the
+        // commitment can't hide behind the share badge); cfg.shareBadge:false
+        // drops the mobile share circle — sharing an unkept look would save
+        // it as a side effect, skipping the wishlist confirm.
         const actionHtml = cfg.lookActionHtml
-          ? `<div class="rbc-action">${cfg.lookActionHtml}</div>` : '';
+          ? `<div class="rbc-action${cfg.actionKeep ? ' keep' : ''}">${cfg.lookActionHtml}</div>` : '';
         const lookHtml = `
           <div class="rbc-panel">
             <div class="rbc-lhead">
@@ -6500,7 +6509,7 @@
             </div>
             ${cfg.occHtml || ''}
             ${cfg.quoteHtml ? `<div class="rbc-quote">${cfg.quoteHtml}</div>` : ''}
-            <div class="rbc-board" data-n="${boardItems.length}">${boardItems.map((it, i) => _rbcTile(it, i === 0, cfg)).join('')}${cfg.lookActionHtml ? `<button class="rbc-share-m" onclick="window.__rbShare&&window.__rbShare()" aria-label="Share this look"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></button>` : ''}</div>
+            <div class="rbc-board" data-n="${boardItems.length}">${boardItems.map((it, i) => _rbcTile(it, i === 0, cfg)).join('')}${cfg.lookActionHtml && cfg.shareBadge !== false ? `<button class="rbc-share-m" onclick="window.__rbShare&&window.__rbShare()" aria-label="Share this look"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></button>` : ''}</div>
             ${cfg.fabricsHtml ? `<div class="rbc-fabrics">${cfg.fabricsHtml}</div>` : ''}
             <div class="rbc-lfoot">
               <span class="rbc-palette">${cfg.paletteHtml || ''}</span>
@@ -7200,6 +7209,11 @@
       var _lkBuilt = false, _lkBuilding = false, _lkAspirational = false;
       var _lkShop = [], _lkBuildGaps = [], _lkBuildMine = false;
       var _lkShopImgs = [], _lkShopTimer = null;
+      // The build's stylist note (fetched from /api/lookbuild/note AFTER the
+      // pieces settle — the pick stays deterministic, the words arrive async)
+      // and a sequence token so a stale response can't write over a newer
+      // build or a reset composer.
+      var _lkBuildNote = null, _lkBuildPalette = [], _lkBuildSeq = 0;
       // Composer tags (spec F3, "built by hand · inherited"): null means
       // derived live from the pieces on every paint; set once she edits.
       var _lkNewTags = null;
@@ -7780,7 +7794,12 @@
 .rb-lk-shopmeta{margin-top:4px;font-size:11.5px;color:var(--ink-soft)}
 .rb-lk-shopmeta i{font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink)}
 .rb-lk-shopown{margin-top:5px;font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--cream-400)}
-.rb-lk-shopacts{display:flex;gap:9px;margin-top:11px;flex-wrap:wrap}
+/* The type eyebrow leads the card — slot · provenance, the rack rows' own
+   "slot · status" register (Annie, 2026-08-13: the card was missing its
+   type label) */
+.rb-lk-shopslot{margin-bottom:3px;font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
+/* Actions sit right, as they do on every other rack card */
+.rb-lk-shopacts{display:flex;gap:9px;margin-top:11px;flex-wrap:wrap;justify-content:flex-end}
 .rb-lk-shopacts .rbc-act.done{color:var(--ink);border-color:rgba(32,32,33,0.22)}
 /* After a build the footer is Try another | (Wear it today · hers only) */
 .rb-lk-buildfoot{display:flex;align-items:center;gap:16px}
@@ -8344,13 +8363,27 @@
         // wear, a future day places the look in the Calendar — same verb,
         // the date is the only difference. (Swap-a-piece was dropped,
         // streamline pass — every rack row already carries Swap.)
-        h += '<div class="rb-lk-acts">' +
-          (wornToday
-            ? '<button type="button" class="rb-lk-act" disabled style="opacity:.5;cursor:default">Worn today ✓</button>'
-            : '<button type="button" class="rb-lk-act primary" onclick="window.__lkWearToday()">Wear it today</button>') +
-          '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pin\')">Wear on a day</button>' +
-          '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pack\')">Pack it</button>' +
-          '</div>';
+        // A look she owns nothing of yet (a saved aspirational build) cannot
+        // be worn, scheduled or packed — those verbs read as broken buttons
+        // on it (Annie, 2026-08-13). Its one honest action is the wishlist,
+        // where its pieces live until they are hers.
+        const ownedNone = !ids.length;
+        if (ownedNone) {
+          h += '<div class="rb-lk-panel">' +
+            '<div class="pl">Not yours yet.</div>' +
+            '<div class="pb">Robes proposed this look before the pieces were in your wardrobe — they’re saved to your Wishlist. As each one becomes yours, add it here and the look is ready to wear.</div>' +
+            '<div class="rb-lk-panel-acts">' +
+              '<button type="button" class="rb-lk-act primary" onclick="window.__lkOpenWishlist()">Open your wishlist</button>' +
+            '</div></div>';
+        } else {
+          h += '<div class="rb-lk-acts">' +
+            (wornToday
+              ? '<button type="button" class="rb-lk-act" disabled style="opacity:.5;cursor:default">Worn today ✓</button>'
+              : '<button type="button" class="rb-lk-act primary" onclick="window.__lkWearToday()">Wear it today</button>') +
+            '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pin\')">Wear on a day</button>' +
+            '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pack\')">Pack it</button>' +
+            '</div>';
+        }
 
         // Quiet undo on the day, not a toast (A4)
         if (wornToday) {
@@ -8397,20 +8430,26 @@
 
         // The Rack — the same rack rows every console uses. Flick and Swap
         // both route through the promotion gate when there is history.
+        // With nothing owned there are no rows to hang: say so honestly
+        // instead of drawing an empty rack over zeroed stats.
         h += '<div class="rb-lk-sec" style="margin-top:0">The Rack</div>' +
           '<div class="rbc-rack">' +
-          _rbRackRolesHtml(items, { onFlip: '__lkDFlip', onSwap: '__lkDSwap', onRoleDrop: '__lkDRoleDrop' }) +
+          (ownedNone
+            ? '<div class="rb-lk-wear"><div class="pc" style="font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">Nothing of yours hangs here yet — the pieces are on your wishlist.</div></div>'
+            : _rbRackRolesHtml(items, { onFlip: '__lkDFlip', onSwap: '__lkDSwap', onRoleDrop: '__lkDRoleDrop' })) +
           '</div>';
 
         // Stats read as the payoff of the rack, below it (streamline pass).
-        h += '<div class="rb-lk-stats">' +
+        // Zero pieces would print a row of zeros — the wishlist panel above
+        // already tells the true story, so the ledger waits for a piece.
+        if (!ownedNone) h += '<div class="rb-lk-stats">' +
           '<div class="rb-lk-stat"><b>' + ids.length + '</b><span>Pieces</span></div>' +
           '<div class="rb-lk-stat"><b>' + n + '</b><span>Wears</span></div>' +
           '<div class="rb-lk-stat"><b>' + _lkFmt(_lkLastWorn(l)) + '</b><span>Last worn</span></div>' +
           (cpw ? '<div class="rb-lk-stat"><b>' + cpw + '</b><span>Per wear</span></div>' : '') +
           '</div>';
 
-        h += '<div class="rb-lk-sec" style="display:flex;align-items:baseline;gap:14px">Worn' +
+        if (!ownedNone) h += '<div class="rb-lk-sec" style="display:flex;align-items:baseline;gap:14px">Worn' +
           '<button type="button" class="rb-lk-quiet" style="letter-spacing:0;text-transform:none;font-weight:400" onclick="window.__lkRetro()">I wore this — add a date</button></div>';
         if (_lkRetro) {
           h += '<div class="rb-lk-panel-acts" style="margin:0 0 12px">' +
@@ -8427,7 +8466,7 @@
               '<div class="pc">' + _waEsc(names || '—') + '</div>' +
               '<div class="tg">' + (_lkSig(w.piece_ids) === cur ? 'Confirmed' : 'As worn') + '</div></div>';
           });
-        } else {
+        } else if (!ownedNone) {
           h += '<div class="rb-lk-wear"><div class="pc" style="font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">Not worn yet.</div></div>';
         }
 
@@ -8573,12 +8612,13 @@
             '<div class="rbc-row rb-lk-shop' + (row.busy ? ' busy' : '') + '">' +
               '<div class="rb-lk-shopchip">' + _lkShopFrame(i, row.chip) + '</div>' +
               '<div class="rb-lk-shopbody">' +
+                '<div class="rb-lk-shopslot">' + _waEsc(row.chip) + ' · Not yours yet</div>' +
                 '<div class="rb-lk-shopname">' + _waEsc(a.name || '') + '</div>' +
                 '<div class="rb-lk-shopmeta">' +
                   (a.brand ? '<i>' + _waEsc(a.brand) + '</i> ' : '') +
                   _waEsc([a.retailer_hint, a.price_point].filter(Boolean).join(' · ')) +
                 '</div>' +
-                '<div class="rb-lk-shopown">Not yours yet</div>' +
+                (a.how ? '<div class="rbc-hownote">' + _waEsc(a.how) + '</div>' : '') +
                 '<div class="rb-lk-shopacts">' +
                   '<button type="button" class="rbc-act" onclick="window.__lkShopSwap(' + i + ')">Swap</button>' +
                   (row.saved
@@ -8647,24 +8687,39 @@
               '<span style="font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:19px;color:var(--ink-faint)">The look, once you start.</span></div>' +
             '</div>';
         } else {
-          const note = _lkStyleNote(used);
+          // A Robes build speaks: the fetched stylist note leads the panel
+          // (the hand-built composer keeps its quiet derived line).
+          const note = (_lkBuilt && _lkBuildNote) || _lkStyleNote(used);
           const board = items.concat(_lkShopBoardItems(items.length));
+          const tones = used.map(id => _ltToneOf(_waItems.find(w => String(w.id) === String(id)))).filter(Boolean);
+          // Colour + texture under the mosaic (daily-console parity): fabric
+          // chips read off every piece on the board, proposals included.
+          const fabItems = used.map(id => {
+            const w = _waItems.find(x => String(x.id) === String(id));
+            return w ? { name: w.label, wardrobe_match: { color: _ltToneOf(w) || '' } } : null;
+          }).filter(Boolean).concat(_lkShop.map(row => {
+            const a = row.opts[row.oi] || {};
+            return a.name ? { name: a.name } : null;
+          }).filter(Boolean));
           lookHtml = _rbConsole({
             boardOnlyItems: board,
             headLabel: headLabel,
             robesLabel: robesLabel,
             quoteHtml: note ? _waEsc(note) : '',
-            paletteHtml: used.map(id => {
-              const tone = _ltToneOf(_waItems.find(w => String(w.id) === String(id)));
-              return tone ? '<span style="background:' + _waEsc(tone) + '"></span>' : '';
-            }).join(''),
+            fabricsHtml: _lkBuilt && !_lkBuilding ? _rbcFabricsHtml(fabItems, tones) : '',
+            // Owned tones lead; a build whose pieces are all proposals reads
+            // its colour story from the stylist instead of showing nothing.
+            paletteHtml: (tones.length || !_lkBuilt ? tones : _lkBuildPalette)
+              .map(t => '<span style="background:' + _waEsc(t) + '"></span>').join(''),
             rackLabel: 'The Rack',
             onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove',
           }, items).lookHtml;
         }
         // The pieces' overlap seeds the tags (spec F3) — shown live, hers
         // to refine with a tap, stored only at save.
-        const tagsRow = nPlaced >= 2
+        // A Robes build counts its proposals toward the tag-row floor — a
+        // four-piece look she owns one (or none) of still gets filed.
+        const tagsRow = (nPlaced >= 2 || (_lkBuilt && !_lkBuilding && nPlaced + _lkShop.length >= 2))
           ? '<div style="margin-top:2px">' + _rbTagsRowHtml(_lkNewTags || _rbInheritLookTags(used), '__lkNewTagsEdit') + '</div>'
           : '';
         const photoRow = '<div style="display:flex;align-items:baseline;gap:14px;margin-top:12px">' +
@@ -8772,6 +8827,15 @@
 
       // ── Handlers ────────────────────────────────────────────────────────
       window.__lkSort = function() { _lkSortDesc = !_lkSortDesc; _lkPaint(); _rbTrack('looks_sorted', { desc: _lkSortDesc }); };
+      // The zero-owned look's one honest door: its pieces live on the
+      // wishlist (same open pattern as the /wishlist deep link — showWardrobe
+      // closes the lookbook page itself, then the view flips).
+      window.__lkOpenWishlist = function() {
+        if (window.App && App.showWardrobe) {
+          App.showWardrobe();
+          setTimeout(() => window.__waSetView && window.__waSetView('wishlist'), 150);
+        }
+      };
       // A look card opens as it is worn (cohesion pass 2026-08-08): assigned
       // to a calendar day → that day's daily view (next upcoming pin, else
       // the latest); a generic look → today's daily view. Both render
@@ -9122,6 +9186,7 @@
         _lkView = 'new';
         _lkBuilt = false; _lkBuilding = false; _lkAspirational = false;
         _lkShop = []; _lkBuildGaps = []; _lkBuildMine = false;
+        _lkBuildNote = null; _lkBuildPalette = []; _lkBuildSeq++;
         _lkShopImgs = []; if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
         _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
         _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null;
@@ -9173,6 +9238,8 @@
         _rbTrack('look_robes_door', { first: !_lkLooks.length, mineOnly });
         _lkBuilding = true;
         _lkBuilt = true;
+        _lkBuildNote = null; _lkBuildPalette = [];
+        const seq = ++_lkBuildSeq;
         _lkShop = [];
         _lkNewTitleDraft = null; _lkNewTitleTouched = false;
         _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
@@ -9220,11 +9287,40 @@
             }, 420);
           }, wait);
         };
-        if (!wantShop.length) { settle(); return; }
+        if (!wantShop.length) { _lkBuildNoteFetch(seq); settle(); return; }
         Promise.all(wantShop.map(def => _lkShopFetch(def, names)))
-          .then(rows => { _lkShop = rows.filter(Boolean); _lkShopImages(); settle(); })
-          .catch(() => { _lkShop = []; settle(); });
+          .then(rows => { _lkShop = rows.filter(Boolean); _lkShopImages(); _lkBuildNoteFetch(seq); settle(); })
+          .catch(() => { _lkShop = []; _lkBuildNoteFetch(seq); settle(); });
       };
+      // The words arrive after the pieces (never instead of them): once the
+      // build knows what it holds, /api/lookbuild/note writes the panel note
+      // and files the tags — the same register the prompt-built daily look
+      // speaks in, so the two doors stop reading as two different products
+      // (Annie's discrepancy report, 2026-08-13). Fire-and-forget: a slow or
+      // failed fetch leaves the build exactly as it was.
+      function _lkBuildNoteFetch(seq) {
+        const pieces = [];
+        _lkUsed().forEach(id => {
+          const w = _waItems.find(x => String(x.id) === String(id));
+          if (w) pieces.push({ name: w.label, role: _lkNewRoles[String(id)] || '', owned: true });
+        });
+        _lkShop.forEach(row => {
+          const a = row.opts[row.oi] || {};
+          if (a.name) pieces.push({ name: a.name, role: row.role, owned: false });
+        });
+        if (pieces.length < 2) return;
+        fetch('/api/lookbuild/note', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pieces, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender() }),
+        }).then(r => r.ok ? r.json() : null).then(j => {
+          if (seq !== _lkBuildSeq || !_lkBuilt || !j) return;
+          if (j.note) _lkBuildNote = j.note;
+          if (Array.isArray(j.palette)) _lkBuildPalette = j.palette.filter(h => /^#[0-9A-Fa-f]{6}$/.test(String(h)));
+          // Robes' filing seeds the tag row; her edit (once made) stands.
+          if (j.look_tags && !_lkNewTags) _lkNewTags = j.look_tags;
+          if (j.note || j.look_tags) _lkPaint();
+        }).catch(() => {});
+      }
       // A shoppable proposal for a slot her wardrobe can't fill. /api/alternates
       // is the app's light, fast suggestion endpoint (flash, thinking off) —
       // it answers in the 1–3s this state budgets for, and returns two, so
@@ -9719,6 +9815,9 @@
           l = _lkCreate({
             pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed,
             source: 'manual',
+            // A Robes build carries its stylist note onto the saved look —
+            // the Look detail's quote slot reads it back (looks.note).
+            note: (_lkBuilt && _lkBuildNote) || undefined,
             // A look she owns nothing of yet would save with no imagery at
             // all — its own generated still stands in until she has a piece
             // (or a photo) of her own.
@@ -9741,6 +9840,7 @@
         }
         _lkBuilt = false; _lkBuilding = false; _lkAspirational = false;
         _lkShop = []; _lkBuildGaps = []; _lkBuildMine = false;
+        _lkBuildNote = null; _lkBuildPalette = []; _lkBuildSeq++;
         _lkShopImgs = []; if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
         // Save lands her back on the grid, new look visible — no interstitial
         // (Annie, 2026-07-30: the confirmation page read as a broken landing).
@@ -10110,6 +10210,64 @@
         _dlRerender();
       };
 
+      // ── Deferred save (2026-08-13) — a fully-aspirational daily look is
+      // kept only when she keeps it. The confirm says where the unowned
+      // pieces go FIRST (the same sentence the composer's build uses), then
+      // one call writes everything: the lookbook row, the diary index, and
+      // every proposed piece into the wishlist.
+      window.__dlSaveAsk = function() {
+        const flat = window.__dlCurrentItems || [];
+        const n = flat.filter(it => !it.wardrobe_match).length;
+        if (!n) { window.__dlSaveKeep(); return; }
+        document.getElementById('rb-del-modal')?.remove();
+        const modal = document.createElement('div');
+        modal.id = 'rb-del-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML =
+          '<div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:390px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:28px 26px;text-align:center">' +
+            '<p style="font-family:\'Cormorant\',Georgia,serif;font-size:24px;font-weight:300;color:#202021;margin:0 0 8px;line-height:1.25">' +
+              (n === 1 ? 'One piece isn’t yours yet.' : n + ' pieces aren’t yours yet.') + '</p>' +
+            '<p style="font-size:12.5px;color:#6E6A64;line-height:1.6;margin:0 0 20px">' +
+              'The look is saved to your Lookbook, and ' + (n === 1 ? 'that piece goes' : 'those pieces go') +
+              ' to your Wishlist so you can find ' + (n === 1 ? 'it' : 'them') + ' again.</p>' +
+            '<div style="display:flex;gap:9px">' +
+              '<button id="rb-dlsave-cancel" style="flex:1;padding:13px 20px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:inherit">Cancel</button>' +
+              '<button id="rb-dlsave-yes" style="flex:1;padding:13px 20px;border:none;border-radius:100px;background:#202021;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#fff;font-family:inherit">Save the look</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(modal);
+        modal.querySelector('#rb-dlsave-cancel').onclick = function() { modal.remove(); };
+        modal.querySelector('#rb-dlsave-yes').onclick = function() { modal.remove(); window.__dlSaveKeep(); };
+      };
+      window.__dlSaveKeep = function() {
+        const data = window.__lastDlData;
+        if (!data || _dlActiveSaveId) return;
+        delete data._dlDeferred;
+        const persistable = (Array.isArray(data.generatedImages) ? data.generatedImages : [])
+          .map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
+        const weekday = (data.anchor_date ? new Date(data.anchor_date + 'T00:00:00') : new Date()).toLocaleDateString('en-GB', { weekday: 'long' });
+        const saveCopy = { ...data, jobId: undefined, generatedImages: persistable, prompt: window.__lastDlPrompt || data.prompt || '' };
+        _dlActiveSaveId = snAdd({
+          type: 'daily-look',
+          title: data.headline || 'Today’s look',
+          subtitle: 'Daily look · ' + weekday,
+          img: persistable.find(Boolean) || null,
+          dlData: saveCopy,
+        });
+        _rbTrack('look_generated', { track: 'daily', item: String(_dlActiveSaveId), deferred: true });
+        _pdSync('daily', _dlActiveSaveId, saveCopy);
+        (window.__dlCurrentItems || []).forEach(it => {
+          if (!it.wardrobe_match && !it.wishlisted && typeof _wlSaveFromItem === 'function') {
+            _wlSaveFromItem(it, { silent: true });
+          }
+        });
+        _waShowToast('Saved to your Lookbook ✓');
+        // Rerender flips Save back to Share (the flag is gone, the id is set)
+        // and any frames still generating persist through _dlPersistImages.
+        _dlRerender();
+      };
+
       let _dlWorn = false;
       window.__dlWear = async function() {
         if (_dlWorn) { _waShowToast('Already logged for this look'); return; }
@@ -10187,6 +10345,12 @@
 #dl-result-page .dlm-tag .val{font-size:11.5px;font-weight:500;color:var(--sage)}
 #dl-result-page .dlm-rule{height:0.5px;background:var(--rule);margin:22px 0 28px}
 #dl-result-page .dlm-console{display:grid;grid-template-columns:360px minmax(0,1fr);gap:34px;align-items:start}
+/* One held container (Annie, 2026-08-13: the prompt-built look sat loose on
+   the page where the composer's build is held in a card) — the composer's
+   own dress: white card, hairline, whisper shadow, and no frame inside a
+   frame (the Look panel's chrome strips so the board sits on the card). */
+#dl-result-page .dlm-console{background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);padding:26px;box-shadow:0 1px 2px rgba(32,32,33,0.025)}
+#dl-result-page .dlm-console .rbc-panel{background:transparent;border:none;border-radius:0;padding:0}
 #dl-result-page .dlm-look{position:sticky;top:18px;display:flex;flex-direction:column;gap:13px}
 
 
@@ -10249,7 +10413,7 @@
 
 
 @media(max-width:900px){
-#dl-result-page .dlm-console{grid-template-columns:1fr;gap:26px}
+#dl-result-page .dlm-console{grid-template-columns:1fr;gap:26px;padding:18px 16px;border-radius:var(--rad-card,14px)}
 #dl-result-page .dlm-look{position:static}
 #dl-result-page .dlm-wrap{padding:28px 20px 20px}
 }
@@ -10299,6 +10463,16 @@
         // no longer emphasised as jargon labels (bug report 4.7). The rack
         // itself now labels each piece by its garment slot, not its role.
         const summaryHtml = _waEsc(data.stylist_summary || '');
+
+        // A look she owns NOTHING of is a proposal, not a record — it must
+        // not land in her Lookbook until she keeps it (Annie, 2026-08-13:
+        // the prompt-built look "appears immediately in the Lookbook, with
+        // no CTAs"). The flag rides the data object so flick/swap rerenders
+        // (skipSave, no savedId) keep the Save door; saving, or reopening a
+        // saved entry, clears it.
+        if ((!opts || !opts.skipSave) && owned === 0 && total > 0) data._dlDeferred = true;
+        if (opts && opts.savedId) delete data._dlDeferred;
+        const dlDeferred = !!data._dlDeferred;
 
         if (!dlResultPage) {
           dlResultPage = document.createElement('div');
@@ -10406,11 +10580,19 @@
           rackLabel: `The rack · ${_waEsc(dlMomentLabel)}`,
           headButtonsHtml: (data && data.worn)
             ? `<span class="rbc-hbtn" style="opacity:.55;pointer-events:none">Worn ✓</span><button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`
-            : `<button class="rbc-hbtn" id="dl-wear-btn" onclick="window.__dlWear()" title="Log these pieces as worn — wear counts feed cost-per-wear">✓ Wore it</button><button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
+            // "Wore it" logs wears on OWNED pieces — with none in the look
+            // it is a button that does nothing, so it waits for one.
+            : `${owned > 0 ? `<button class="rbc-hbtn" id="dl-wear-btn" onclick="window.__dlWear()" title="Log these pieces as worn — wear counts feed cost-per-wear">✓ Wore it</button>` : ''}<button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
           onFlip: '__dlFlip', onSwap: '__dlSwap', onAnchor: '__dlAnchor', onRemove: '__dlRemove',
           onRoleDrop: '__dlRoleDrop',
           addPieceFn: '__dlAddPiece',
-          lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
+          // Until she keeps it, Save is the one real commitment on the
+          // screen — Share belongs to a look that exists.
+          lookActionHtml: dlDeferred
+            ? `<button onclick="window.__dlSaveAsk&&window.__dlSaveAsk()">Save this look</button>`
+            : `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
+          actionKeep: dlDeferred,
+          shareBadge: !dlDeferred,
         }, conItems);
 
         // Header mirrors the live Moodboard: eyebrow → short serif title →
@@ -10454,17 +10636,24 @@
         // a reopened entry must never poll a dead job. Images land later via
         // _dlPersistImages as hosted URLs (base64 is never persisted).
         if (!opts || !opts.skipSave) {
-          const persistable = images.map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
-          const saveCopy = { ...data, jobId: undefined, generatedImages: persistable, prompt: promptText || data.prompt || '' };
-          _dlActiveSaveId = snAdd({
-            type: 'daily-look',
-            title: data.headline || 'Today’s look',
-            subtitle: 'Daily look · ' + weekday,
-            img: persistable.find(Boolean) || null,
-            dlData: saveCopy,
-          });
-          _rbTrack('look_generated', { track: 'daily', item: String(_dlActiveSaveId) });
-          _pdSync('daily', _dlActiveSaveId, saveCopy);
+          if (dlDeferred) {
+            // Saves nothing until she does — the look lives on screen and in
+            // __lastDlData only; __dlSaveKeep writes it (and the wishlist).
+            _dlActiveSaveId = null;
+            window.__lastDlPrompt = promptText || data.prompt || '';
+          } else {
+            const persistable = images.map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
+            const saveCopy = { ...data, jobId: undefined, generatedImages: persistable, prompt: promptText || data.prompt || '' };
+            _dlActiveSaveId = snAdd({
+              type: 'daily-look',
+              title: data.headline || 'Today’s look',
+              subtitle: 'Daily look · ' + weekday,
+              img: persistable.find(Boolean) || null,
+              dlData: saveCopy,
+            });
+            _rbTrack('look_generated', { track: 'daily', item: String(_dlActiveSaveId) });
+            _pdSync('daily', _dlActiveSaveId, saveCopy);
+          }
         } else {
           _dlActiveSaveId = (opts && opts.savedId) || data.id || null;
         }

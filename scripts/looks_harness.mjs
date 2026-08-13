@@ -1203,16 +1203,26 @@ const browser = await chromium.launch(
 // ─────────────────────────────────────────────────────────────────────────
 const ALTS = {
   alternates: [
-    { name: 'Cropped Bouclé Jacket', brand: 'Sézane', retailer_hint: 'Sezane.com', price_point: '€250' },
-    { name: 'Wide Wool Trouser', brand: 'Toteme', retailer_hint: 'Net-a-Porter', price_point: '€390' },
+    { name: 'Cropped Bouclé Jacket', brand: 'Sézane', retailer_hint: 'Sezane.com', price_point: '€250', how: 'Worn open, sleeves pushed to the forearm.' },
+    { name: 'Wide Wool Trouser', brand: 'Toteme', retailer_hint: 'Net-a-Porter', price_point: '€390', how: 'Hem breaking just over the shoe.' },
   ],
 };
+// The build's stylist words (2026-08-13): /api/lookbuild/note writes the
+// panel note, the colour story and the filing AFTER the pieces settle.
+const BUILD_NOTE = {
+  note: 'Soft tailoring against denim; the jacket does the finishing.',
+  palette: ['#E7E0CF', '#3B3F52'],
+  look_tags: { climate: 'year_round', wear_for: ['work'], vibe: ['soft'] },
+};
+const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
+  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(BUILD_NOTE) }));
 {
   // pics:6 covers Canvas / Anchor / Exclamation; the fixture has no
   // Outerwear, so Texture is the one gap → the owned build.
   const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 6 });
   await page.route('**/api/alternates', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));
+  await routeBuildNote(page);
   await page.route('**res.cloudinary.com/**', (r) => r.abort());
   await openLooks(page);
   await page.waitForTimeout(300);
@@ -1249,6 +1259,12 @@ const ALTS = {
     foot: Array.from(document.querySelectorAll('.rb-lk-buildfoot button')).map((x) => x.textContent),
     saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
     photo: Array.from(document.querySelectorAll('.rb-lk-quiet')).map((x) => x.textContent)[0],
+    quote: document.querySelector('.rbc-quote')?.textContent,
+    tags: Array.from(document.querySelectorAll('.rbc-tags .tg')).map((t) => t.textContent),
+    fabrics: document.querySelectorAll('.rbc-fabrics .fab').length,
+    slotEye: document.querySelector('.rb-lk-shopslot')?.textContent,
+    hownote: document.querySelector('.rb-lk-shop .rbc-hownote')?.textContent,
+    actsAlign: getComputedStyle(document.querySelector('.rb-lk-shopacts')).justifyContent,
   }));
   check('build · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('build · her own pieces hang in the rack, attributed to Robes',
@@ -1262,6 +1278,14 @@ const ALTS = {
     b.flicks === 0 && b.removes === 0, JSON.stringify([b.flicks, b.removes]));
   check('build · the name lands last, offered not applied',
     !!b.title && /Yours to change/.test(b.note || ''), JSON.stringify([b.title, b.note]));
+  check('build · the stylist note reads on the panel',
+    b.quote === BUILD_NOTE.note, JSON.stringify(b.quote));
+  check('build · the look arrives filed — tags on the row, texture under the mosaic',
+    b.tags.length >= 1 && b.fabrics >= 1, JSON.stringify([b.tags, b.fabrics]));
+  check('build · a proposal card leads with its type label and carries its row note',
+    /Jacket/.test(b.slotEye || '') && /Not yours yet/i.test(b.slotEye || '') && !!b.hownote,
+    JSON.stringify([b.slotEye, b.hownote]));
+  check('build · Swap and Save sit right-aligned', b.actsAlign === 'flex-end', b.actsAlign);
   check('build · the photo door reads Replace the photo', b.photo === 'Replace the photo', b.photo);
   check('build · Save leads; Try another and Wear it today follow',
     b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today']),
@@ -1304,6 +1328,7 @@ const ALTS = {
   const { ctx, page, errs } = await boot(browser, { seed: false, pics: 1 });
   await page.route('**/api/alternates', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));
+  await routeBuildNote(page);
   await page.route('**res.cloudinary.com/**', (r) => r.abort());
   let jobBody = null;
   await page.route('**/api/lookbuild/images', (r) => {
@@ -1349,6 +1374,7 @@ const ALTS = {
   const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 0 });
   await page.route('**/api/alternates', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));
+  await routeBuildNote(page);
   await page.route('**/api/lookbuild/images', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'j3', imageCount: 4 }) }));
   await page.route('**/api/images/j3', (r) => r.fulfill({
@@ -1396,9 +1422,32 @@ const ALTS = {
   const lookWrite = writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop();
   check('nothing owned · it carries its own imagery, never a blank card',
     !!lookWrite && /^https?:/.test(lookWrite.body?.photo_url || ''), JSON.stringify(lookWrite?.body?.photo_url));
+  check('nothing owned · the stylist note travels onto the saved look',
+    lookWrite?.body?.note === BUILD_NOTE.note, JSON.stringify(lookWrite?.body?.note));
   check('nothing owned · and every proposal lands in the wishlist',
     writes.filter((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)).length >= 1,
     JSON.stringify(writes.map((w) => w.url).slice(-6)));
+
+  // The saved zero-owned look's detail: no dead wear verbs, no zeroed
+  // ledger — the wishlist door and an honest rack line instead.
+  const det = await page.evaluate(async () => {
+    document.querySelector('#rb-lk-grid .lt-card')?.click();
+    await new Promise((r) => setTimeout(r, 700));
+    const body = document.getElementById('rb-lk-body');
+    return {
+      acts: Array.from(document.querySelectorAll('.rb-lk-acts .rb-lk-act')).map((x) => x.textContent),
+      wishDoor: /Open your wishlist/.test(body?.textContent || ''),
+      stats: document.querySelectorAll('.rb-lk-stats').length,
+      rackNote: /wishlist/i.test(document.querySelector('.rbc-rack')?.textContent || ''),
+      quote: document.querySelector('.rbc-quote')?.textContent,
+    };
+  });
+  check('nothing owned · the saved detail offers the wishlist, never dead wear verbs',
+    det.acts.length === 0 && det.wishDoor === true, JSON.stringify(det));
+  check('nothing owned · no zeroed stats; the rack says where the pieces live',
+    det.stats === 0 && det.rackNote === true, JSON.stringify([det.stats, det.rackNote]));
+  check('nothing owned · the note reads back on the saved look',
+    det.quote === BUILD_NOTE.note, JSON.stringify(det.quote));
   check('nothing owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
@@ -1407,6 +1456,7 @@ const ALTS = {
   const { ctx, page, errs } = await boot(browser, { seed: false, pics: 1 });
   await page.route('**/api/alternates', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));
+  await routeBuildNote(page);
   await page.route('**/api/lookbuild/images', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'j2', imageCount: 3 }) }));
   await page.route('**/api/images/j2', (r) =>
@@ -1425,7 +1475,7 @@ const ALTS = {
     rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-name')).map((n) => n.textContent),
     shop: document.querySelectorAll('.rb-lk-shop').length,
     chips: Array.from(document.querySelectorAll('.rb-lk-shop .rb-lk-shopph span')).map((c) => c.textContent),
-    owned: document.querySelector('.rb-lk-shopown')?.textContent,
+    owned: document.querySelector('.rb-lk-shopslot')?.textContent,
     title: document.getElementById('rb-lk-newtitle')?.value,
     foot: Array.from(document.querySelectorAll('.rb-lk-buildfoot button')).map((x) => x.textContent),
   }));
@@ -2023,6 +2073,79 @@ const ALTS = {
     door.hadDoor && door.copy, JSON.stringify(door));
   check('IA zero-looks · the door lands in the composer', landed.composer && landed.calOff, JSON.stringify(landed));
   check('IA zero-looks · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 9 · Daily look at zero owned pieces (2026-08-13) — a fully-aspirational
+// look is a proposal, not a record: it must NOT land in the Lookbook until
+// she keeps it, and keeping it moves every proposed piece to the wishlist
+// (the same confirm the composer's Robes build uses).
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 0 });
+  const DL = {
+    headline: 'A Dublin office look.',
+    occasion_label: 'Office day',
+    stylist_summary: 'Soft tailoring for a working day; flat leather keeps it moving.',
+    steps: [
+      { title: 'The Canvas', items: [{ name: 'Fine merino knit', category: 'Tops', brand: 'COS', retailer_hint: 'COS', price_point: '€69' }] },
+      { title: 'The Anchor', items: [{ name: 'Wide linen trousers', category: 'Bottoms', brand: 'Arket', retailer_hint: 'Arket', price_point: '€120' }] },
+      { title: 'The Exclamation Point', items: [{ name: 'Leather loafers', category: 'Shoes', brand: 'Gucci', retailer_hint: 'Net-a-Porter', price_point: '€790' }] },
+    ],
+  };
+  const rendered = await page.evaluate(async (data) => {
+    // __dlSubmit stamps anchor_date before every real render — mirror it
+    const p = (n) => String(n).padStart(2, '0');
+    const t = new Date();
+    data.anchor_date = t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
+    window.__dlRenderResult(data, 'Style me for a day in the office');
+    await new Promise((r) => setTimeout(r, 500));
+    return {
+      cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent,
+      keep: !!document.querySelector('#dl-result-page .rbc-action.keep'),
+      badge: !!document.querySelector('#dl-result-page .rbc-share-m'),
+      wear: !!document.getElementById('dl-wear-btn'),
+      card: getComputedStyle(document.querySelector('#dl-result-page .dlm-console')).backgroundColor,
+      panelBorder: getComputedStyle(document.querySelector('#dl-result-page .rbc-panel')).borderTopStyle,
+    };
+  }, DL);
+  check('daily zero-owned · nothing lands in the Lookbook until she saves',
+    !writes.some((w) => w.method === 'POST' && /^(lookbook_items|planned_days)/.test(w.url)),
+    JSON.stringify(writes.map((w) => w.url).slice(-6)));
+  check('daily zero-owned · Save this look is the one commitment (Share waits)',
+    rendered.cta === 'Save this look' && rendered.keep === true && rendered.badge === false,
+    JSON.stringify(rendered));
+  check('daily zero-owned · Wore it waits for a piece she owns', rendered.wear === false, JSON.stringify(rendered.wear));
+  check('daily zero-owned · the console is held in the composer’s card, no frame in a frame',
+    rendered.card === 'rgb(255, 255, 255)' && rendered.panelBorder === 'none', JSON.stringify([rendered.card, rendered.panelBorder]));
+
+  // A rerender (keeping one piece to the wishlist) must leave the Save door standing
+  const still = await page.evaluate(async () => {
+    window.__dlSaveWishlist(0);
+    await new Promise((r) => setTimeout(r, 600));
+    return { cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent };
+  });
+  check('daily zero-owned · a rerender leaves the Save door standing', still.cta === 'Save this look', JSON.stringify(still));
+
+  const saved = await page.evaluate(async () => {
+    window.__dlSaveAsk();
+    await new Promise((r) => setTimeout(r, 250));
+    const m = document.getElementById('rb-del-modal');
+    const text = (m?.textContent || '').replace(/\s+/g, ' ');
+    document.getElementById('rb-dlsave-yes')?.click();
+    await new Promise((r) => setTimeout(r, 1000));
+    return { text, cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent };
+  });
+  check('daily zero-owned · Save says where the unowned pieces go, before it happens',
+    /aren.t yours yet/.test(saved.text) && /Wishlist/.test(saved.text), saved.text.slice(0, 140));
+  check('daily zero-owned · once kept, the look shares like any other', saved.cta === 'Share this look', JSON.stringify(saved.cta));
+  check('daily zero-owned · one keep writes the look, the diary row and every piece to the wishlist',
+    writes.some((w) => w.method === 'POST' && /^lookbook_items/.test(w.url))
+      && writes.some((w) => w.method === 'POST' && /^planned_days/.test(w.url))
+      && writes.filter((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)).length === 3,
+    JSON.stringify(writes.map((w) => w.method + ' ' + w.url).slice(-8)));
+  check('daily zero-owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 

@@ -954,6 +954,14 @@ Dress her for this exact day, start to finish, through the four architectural st
 // gemini-2.5-flash (thinking off) is the cheapest model already proven
 // reliable on this API — see CLAUDE.md's Gemini model chain notes before
 // ever trying a cheaper/smaller model that isn't already validated here.
+// The model occasionally leaks a JSON-escaped code point as literal text
+// ("\\u20ac135" rendered verbatim on a shop card, beta screenshot
+// 2026-08-13) — one more decode pass turns a leaked escape back into its
+// character and leaves ordinary text untouched.
+function deEscUnicode(s) {
+  return String(s || '').replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
+
 const ALTERNATES_SCHEMA = {
   type: 'object',
   properties: {
@@ -1071,13 +1079,85 @@ ${otherItems.length ? `THE REST OF THIS LOOK (do not suggest these): ${otherItem
     const alternates = (Array.isArray(parsed.alternates) ? parsed.alternates : [])
       .filter(a => a && a.name && a.name.toLowerCase() !== itemName.toLowerCase())
       .slice(0, 2)
-      .map(a => ({ name: String(a.name).slice(0, 120), brand: a.brand || '', retailer_hint: a.retailer_hint || '', price_point: a.price_point || '', how: String(a.how || '').slice(0, 160) }));
+      .map(a => ({ name: deEscUnicode(String(a.name).slice(0, 120)), brand: deEscUnicode(a.brand || ''), retailer_hint: deEscUnicode(a.retailer_hint || ''), price_point: deEscUnicode(a.price_point || ''), how: deEscUnicode(String(a.how || '').slice(0, 160)) }));
     logAI({ feature: 'alternates', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, count: alternates.length });
     res.json({ alternates });
   } catch (err) {
     logAI({ feature: 'alternates', stage: 'text', success: false, reason: err.message });
     console.error('[alternates] Gemini error:', err.message);
     res.status(500).json({ error: err.message || 'Alternates failed' });
+  }
+});
+
+/* ── look-builder stylist note (empty-state parity, 2026-08-13) ──────── */
+// The client-side Robes build picks pieces deterministically (the fifth-pass
+// decision stands: no LLM decides the pieces), but the assembled look was
+// arriving mute — no panel note, no tags — where the prompt-built daily look
+// speaks (Annie's discrepancy report). This is the "new lightweight endpoint"
+// that decision flagged: it only WRITES ABOUT a look the client already
+// built, in the same register as every other surface (PANEL_NOTE_RULE +
+// LOOK_TAGS_RULE), on the same cheap model as /api/alternates.
+const LOOKBUILD_NOTE_SCHEMA = {
+  type: 'object',
+  properties: {
+    note: { type: 'string' },
+    // The colour whisper under the mosaic — a fully-proposed build has no
+    // owned pieces to read tones from, so the stylist names them.
+    palette: { type: 'array', items: { type: 'string' } },
+    look_tags: LOOK_TAGS_SCHEMA,
+  },
+  required: ['note', 'look_tags'],
+};
+
+app.post('/api/lookbuild/note', rateLimit({ windowMs: 60_000, max: 30 }), async (req, res) => {
+  const { pieces, styleDna, styleIcons, gender } = req.body;
+  const g = normGender(gender);
+  const list = (Array.isArray(pieces) ? pieces : [])
+    .filter(p => p && typeof p.name === 'string' && p.name.trim())
+    .slice(0, 8)
+    .map(p => ({
+      name: String(p.name).trim().slice(0, 120),
+      role: String(p.role || '').trim().slice(0, 40),
+      owned: !!p.owned,
+    }));
+  if (list.length < 2) return res.status(400).json({ error: 'Need at least 2 pieces.' });
+  const dnaBlock = styleDnaPromptBlock(styleDna, 0, styleIcons);
+
+  const systemInstruction = `You are Robes' head stylist. ${genderDirective(g)} A look has already been assembled — you are writing its note and filing it, never changing the pieces.
+- "note" is this look's PANEL NOTE. ${PANEL_NOTE_RULE}
+- "palette" is 2–4 six-digit hex codes reading the look's colour story off the pieces as named — muted, true to the garments, never invented brights.
+${LOOK_TAGS_RULE}
+
+${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}`;
+
+  const userText = `THE LOOK, AS ASSEMBLED:\n${list.map(p =>
+    `- ${p.name}${p.role ? ' [' + p.role + ']' : ''}${p.owned ? ' (her own piece)' : ' (proposed, not owned yet)'}`).join('\n')}
+\nWrite the panel note and file the look.`;
+
+  try {
+    const t0 = Date.now();
+    const r = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: LOOKBUILD_NOTE_SCHEMA,
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: 450,
+      },
+    });
+    const parsed = JSON.parse(r.text);
+    const note = deEscUnicode(String(parsed.note || '').trim().slice(0, 300));
+    const palette = (Array.isArray(parsed.palette) ? parsed.palette : [])
+      .filter(h => typeof h === 'string' && /^#[0-9A-Fa-f]{6}$/.test(h.trim()))
+      .map(h => h.trim()).slice(0, 4);
+    logAI({ feature: 'lookbuild', stage: 'note', model: 'gemini-2.5-flash', ms: Date.now() - t0 });
+    res.json({ note, palette, look_tags: normLookTags(parsed.look_tags) });
+  } catch (err) {
+    logAI({ feature: 'lookbuild', stage: 'note', success: false, reason: err.message });
+    console.error('[lookbuild/note] Gemini error:', err.message);
+    res.status(500).json({ error: err.message || 'Note failed' });
   }
 });
 
