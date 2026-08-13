@@ -10215,6 +10215,7 @@
       // pieces go FIRST (the same sentence the composer's build uses), then
       // one call writes everything: the lookbook row, the diary index, and
       // every proposed piece into the wishlist.
+      let _dlWearAfterSave = false;
       window.__dlSaveAsk = function() {
         const flat = window.__dlCurrentItems || [];
         const n = flat.filter(it => !it.wardrobe_match).length;
@@ -10223,7 +10224,7 @@
         const modal = document.createElement('div');
         modal.id = 'rb-del-modal';
         modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
-        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.onclick = function(e) { if (e.target === modal) { _dlWearAfterSave = false; modal.remove(); } };
         modal.innerHTML =
           '<div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:390px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:28px 26px;text-align:center">' +
             '<p style="font-family:\'Cormorant\',Georgia,serif;font-size:24px;font-weight:300;color:#202021;margin:0 0 8px;line-height:1.25">' +
@@ -10237,7 +10238,7 @@
             '</div>' +
           '</div>';
         document.body.appendChild(modal);
-        modal.querySelector('#rb-dlsave-cancel').onclick = function() { modal.remove(); };
+        modal.querySelector('#rb-dlsave-cancel').onclick = function() { _dlWearAfterSave = false; modal.remove(); };
         modal.querySelector('#rb-dlsave-yes').onclick = function() { modal.remove(); window.__dlSaveKeep(); };
       };
       window.__dlSaveKeep = function() {
@@ -10266,6 +10267,11 @@
         // Rerender flips Save back to Share (the flag is gone, the id is set)
         // and any frames still generating persist through _dlPersistImages.
         _dlRerender();
+        // A wear that had to keep the look first now completes.
+        if (_dlWearAfterSave) {
+          _dlWearAfterSave = false;
+          setTimeout(() => { if (window.__dlWear) window.__dlWear(); }, 60);
+        }
       };
 
       let _dlWorn = false;
@@ -10274,6 +10280,13 @@
         const flat = window.__dlCurrentItems || [];
         const ownedIds = flat.filter(it => it.wardrobe_match).map(it => it.wardrobe_match.id);
         if (!ownedIds.length) { _waShowToast('Nothing owned in this look yet — snap your pieces to log wears'); return; }
+        // Wearing an unkept look is the strongest keep there is — save it
+        // first. Unowned pieces still get their wishlist confirm (the wear
+        // completes after she answers; Cancel cancels both).
+        if (!_dlActiveSaveId && window.__lastDlData && window.__lastDlData._dlDeferred) {
+          if (flat.some(it => !it.wardrobe_match)) { _dlWearAfterSave = true; window.__dlSaveAsk(); return; }
+          window.__dlSaveKeep();
+        }
         _dlWorn = true;
         try {
           // Passive accrual (brief B3): this confirmed wear saves the Look, so
@@ -10464,13 +10477,13 @@
         // itself now labels each piece by its garment slot, not its role.
         const summaryHtml = _waEsc(data.stylist_summary || '');
 
-        // A look she owns NOTHING of is a proposal, not a record — it must
-        // not land in her Lookbook until she keeps it (Annie, 2026-08-13:
-        // the prompt-built look "appears immediately in the Lookbook, with
-        // no CTAs"). The flag rides the data object so flick/swap rerenders
-        // (skipSave, no savedId) keep the Save door; saving, or reopening a
-        // saved entry, clears it.
-        if ((!opts || !opts.skipSave) && owned === 0 && total > 0) data._dlDeferred = true;
+        // EVERY fresh daily look is a proposal, not a record — nothing lands
+        // in her Lookbook until she keeps it (Annie, 2026-08-13, widened
+        // same day: "make the user save every look — the commitment action
+        // is important"). The flag rides the data object so flick/swap
+        // rerenders (skipSave, no savedId) keep the Save door; saving, or
+        // reopening/restyling a saved entry (savedId), clears it.
+        if ((!opts || !opts.skipSave) && total > 0) data._dlDeferred = true;
         if (opts && opts.savedId) delete data._dlDeferred;
         const dlDeferred = !!data._dlDeferred;
 

@@ -2149,6 +2149,65 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await ctx.close();
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// 10 · EVERY fresh daily look waits to be kept (widened same day, Annie:
+// "make the user save every look — the commitment action is important").
+// All-owned: Save commits directly, no wishlist confirm to answer; and
+// wearing an unkept look keeps it first, then logs the wear.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 4 });
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  const a = await page.evaluate(async () => {
+    const mkData = (headline) => {
+      const p = (n) => String(n).padStart(2, '0');
+      const t = new Date();
+      return {
+        headline, occasion_label: 'Everyday',
+        anchor_date: t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()),
+        steps: [
+          { title: 'The Canvas', items: [{ name: 'Cream silk shirt', category: 'Tops', wardrobe_match: { id: 'w-top1', label: 'Cream silk shirt', image_url: 'https://res.cloudinary.com/demo/image/upload/w-top1.jpg' } }] },
+          { title: 'The Anchor', items: [{ name: 'Barrel-leg jeans', category: 'Bottoms', wardrobe_match: { id: 'w-bot1', label: 'Barrel-leg jeans', image_url: 'https://res.cloudinary.com/demo/image/upload/w-bot1.jpg' } }] },
+        ],
+      };
+    };
+    window.__dlMkData = mkData;
+    window.__dlRenderResult(mkData('A look of her own.'), 'dress me today');
+    await new Promise((r) => setTimeout(r, 400));
+    const cta1 = document.querySelector('#dl-result-page .rbc-action button')?.textContent;
+    const wear = !!document.getElementById('dl-wear-btn');
+    window.__dlSaveAsk();
+    await new Promise((r) => setTimeout(r, 400));
+    return {
+      cta1, wear,
+      modal: !!document.getElementById('rb-del-modal'),
+      cta2: document.querySelector('#dl-result-page .rbc-action button')?.textContent,
+    };
+  });
+  check('daily all-owned · a fresh look still waits to be kept, Wore it standing',
+    a.cta1 === 'Save this look' && a.wear === true, JSON.stringify(a));
+  check('daily all-owned · Save commits directly — no wishlist confirm to answer',
+    a.modal === false && a.cta2 === 'Share this look', JSON.stringify(a));
+  check('daily all-owned · the keep writes the lookbook row',
+    writes.some((w) => w.method === 'POST' && /^lookbook_items/.test(w.url)),
+    JSON.stringify(writes.map((w) => w.url).slice(-5)));
+
+  const b = await page.evaluate(async () => {
+    window.__dlRenderResult(window.__dlMkData('Worn straight off the rack.'), 'dress me again');
+    await new Promise((r) => setTimeout(r, 400));
+    window.__dlWear();
+    await new Promise((r) => setTimeout(r, 900));
+    return {
+      cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent,
+      worn: document.getElementById('dl-wear-btn')?.textContent,
+    };
+  });
+  check('daily all-owned · wearing an unkept look keeps it first, then logs the wear',
+    b.cta === 'Share this look' && /Worn/.test(b.worn || ''), JSON.stringify(b));
+  check('daily all-owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
 await browser.close();
 server.kill();
 
