@@ -244,23 +244,25 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   const { ctx, page } = await boot(browser, 0, 1280, { looks: false });
   await page.evaluate(() => window.App && App.showWardrobe && App.showWardrobe());
   await page.waitForTimeout(900);
+  // De-dupe pass (Annie, 2026-08-13): at zero pieces the hero invitation
+  // is the WHOLE page — the milestone bar (home's learning meter carries
+  // that promise) and the add-card grid (it returns with the first piece)
+  // are gone.
   const w = await page.evaluate(() => ({
     headline: document.querySelector('#wg-grid div')?.textContent || '',
     hasBar: !!document.querySelector('#wg-grid .rb-ms'),
-    barHasStatus: !!document.querySelector('#wg-grid .rb-ms-st'),
-    unlocksText: (document.querySelector('#wg-grid .rb-ms')?.closest('div[style]')?.textContent || '').replace(/\s+/g, ' '),
     ghosts: document.querySelectorAll('#wg-grid .rb-ghost-card').length,
+    addCards: document.querySelectorAll('#wg-grid .rb-add-card').length,
     prose: (document.querySelector('#wg-grid p') || {}).textContent || '',
+    tabs: Array.from(document.querySelectorAll('#wg-filters .wg-tab')).map((t) => t.textContent),
   }));
   check('wardrobe empty · serif line', /Every look starts with a photograph/.test(w.headline), w.headline.slice(0, 80));
-  check('wardrobe empty · milestone bar shown', w.hasBar);
-  check('wardrobe empty · bar drops status line', !w.barHasStatus);
-  check('wardrobe empty · header reads "What more pieces bring"',
-    /What more pieces bring/i.test(w.unlocksText), w.unlocksText.slice(0, 90));
-  check('wardrobe empty · no denominator, no unlock language',
-    !/\/\s*\d|of 15|unlock/i.test(w.unlocksText), w.unlocksText.slice(0, 90));
-  check('wardrobe empty · two ghost tiles', w.ghosts === 2, String(w.ghosts));
+  check('wardrobe empty · milestone bar gone — home carries the meter', !w.hasBar);
+  check('wardrobe empty · no ghost tiles, no add-card duplication',
+    w.ghosts === 0 && w.addCards === 0, JSON.stringify([w.ghosts, w.addCards]));
   check('wardrobe empty · no prose block', !w.prose, w.prose.slice(0, 60));
+  check('wardrobe empty · tab row is All + ten categories + More, one line',
+    w.tabs.length === 12 && w.tabs[0] === 'All' && /^More/.test(w.tabs[11]), JSON.stringify(w.tabs));
 
   await page.evaluate(() => window.__snOpen && window.__snOpen());
   await page.waitForTimeout(600);

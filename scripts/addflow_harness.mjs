@@ -616,6 +616,32 @@ const browser = await chromium.launch(
   check('browse · Pack-a-trip pill and FAB retired', !base.pack && !base.fab);
   check('browse · star always visible on cards', base.starOpacity === '1', base.starOpacity);
 
+  // Top-ten tab row (2026-08-13): the overflow sits behind More ▾, the add
+  // card rides the grid once a piece exists, and a category picked from
+  // More surfaces into the row as the active tab.
+  const moreUx = await page.evaluate(async () => {
+    const addCard = !!document.querySelector('#wg-grid .rb-add-card');
+    const rowTabs = Array.from(document.querySelectorAll('#wg-filters .wg-tab')).map((t) => t.textContent);
+    window.__waMoreTap();
+    await new Promise((r) => setTimeout(r, 150));
+    const pop = document.getElementById('rb-wg-morepop');
+    const cats = Array.from(pop?.querySelectorAll('button[data-cat]') || []).map((b) => b.dataset.cat);
+    pop?.querySelector('button[data-cat="Swim & beach"]')?.click();
+    await new Promise((r) => setTimeout(r, 350));
+    const surfaced = !!document.querySelector('#wg-filters .wg-tab[data-cat="Swim & beach"].active');
+    const popGone = !document.getElementById('rb-wg-morepop');
+    window.__waCatTap('All');
+    await new Promise((r) => setTimeout(r, 250));
+    return { addCard, rowTabs, cats, surfaced, popGone };
+  });
+  check('browse · one tab line — All + ten by count + More ▾; add card back with pieces',
+    moreUx.rowTabs.length === 12 && moreUx.rowTabs[0] === 'All' && /^More/.test(moreUx.rowTabs[11]) && moreUx.addCard === true,
+    JSON.stringify(moreUx.rowTabs));
+  check('browse · the overflow lives in the More popover',
+    moreUx.cats.length >= 4 && moreUx.cats.includes('Swim & beach'), JSON.stringify(moreUx.cats));
+  check('browse · a category picked from More surfaces into the row, active',
+    moreUx.surfaced === true && moreUx.popGone === true, JSON.stringify([moreUx.surfaced, moreUx.popGone]));
+
   // Cascade: Bottoms → Jeans → Skinny jeans
   await page.click('#wg-filters .wg-tab[data-cat="Bottoms"]');
   await page.waitForTimeout(200);

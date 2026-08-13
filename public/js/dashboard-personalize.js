@@ -672,13 +672,11 @@
           });
           const frag = document.createDocumentFragment();
           if (!_waItems.length) {
-            // True cold start — the module the whole product depends on gets
-            // an invitation, not a lone dashed tile in an empty grid. The
-            // prose that used to sit here is gone (FTUE 2026-07-28: too text
-            // heavy on the emptiest screen); what the pieces actually buy her
-            // is shown, not described, by the SAME milestone bar home uses —
-            // identical thresholds and wording, so the promise reads the same
-            // in both places.
+            // True cold start — ONE invitation, nothing else (Annie,
+            // 2026-08-13: the milestone bar and the add-card grid doubled
+            // the same ask on the emptiest screen — the learning meter
+            // lives on home, and the add card returns with the first
+            // piece). The hero card's two doors are the whole page.
             const invite = document.createElement('div');
             invite.style.cssText = 'grid-column:1/-1;padding:44px 28px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);background:#fff;text-align:center';
             invite.innerHTML =
@@ -687,15 +685,6 @@
               '<button onclick="window.WA&&WA.open&&WA.open()" style="border:none;background:var(--ink);color:#fff;border-radius:100px;padding:14px 28px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Catalogue your wardrobe</button>' +
               '<div style="margin-top:16px"><button onclick="window.WA&&WA.open&&WA.open()" style="border:none;background:none;padding:0;font-size:12.5px;color:var(--ink-soft);border-bottom:0.5px solid var(--rule-mid);cursor:pointer;font-family:inherit">Or photograph what you&rsquo;re wearing now</button></div>';
             frag.appendChild(invite);
-
-            const unlocks = document.createElement('div');
-            unlocks.style.cssText = 'grid-column:1/-1;padding:18px 22px;border-radius:var(--rad-card);background:var(--sage-bg)';
-            unlocks.innerHTML =
-              '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px">' +
-                '<div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)">What more pieces bring</div>' +
-                '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:19px;color:var(--ink)">0<span style="font-family:var(--font-sans,\'Inter\',sans-serif);font-size:9px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-left:7px">Pieces filed</span></div>' +
-              '</div>' + _msBarHtml(0);
-            frag.appendChild(unlocks);
           } else if (!filtered.length) {
             // Filter miss is NOT the empty wardrobe — say so, offer the way back.
             const miss = document.createElement('div');
@@ -706,17 +695,10 @@
             frag.appendChild(miss);
           }
           filtered.forEach(it => frag.appendChild(_waCard(it)));
-          frag.appendChild(_waAddCard());
-          if (!_waItems.length) {
-            // Ghost tiles behind the live add card — they show the shape the
-            // filled grid takes. Decorative only, at a lighter dash.
-            for (let g = 0; g < 2; g++) {
-              const ghost = document.createElement('div');
-              ghost.className = 'wg-item rb-ghost-card';
-              ghost.setAttribute('aria-hidden', 'true');
-              frag.appendChild(ghost);
-            }
-          }
+          // The add card rides the grid only once a piece exists — at zero
+          // the hero invitation is the one door (the ghost tiles retired
+          // with it).
+          if (_waItems.length) frag.appendChild(_waAddCard());
           grid.innerHTML = '';
           grid.appendChild(frag);
           _waSyncCounts();
@@ -724,7 +706,9 @@
         _waObserver.observe(grid, { childList: true });
         if (_waLoaded && window.scrollY !== _waScrollY) window.scrollTo(0, _waScrollY);
         _waRendering = false;
-        // Keep the v2 sections (hero rail, sub-tabs, wishlist) in step
+        // Keep the v2 sections (hero rail, sub-tabs, wishlist) in step —
+        // and the tab row's top-ten ranking, which follows the counts.
+        if (_waFiltersBuilt) _waTabsPaint();
         _waV2Sync();
         _waTrailSync();
       }
@@ -1125,6 +1109,87 @@
         return div;
       }
 
+      // The tab row holds the top TEN sheet categories by piece count —
+      // membership by count, display in the sheet's canonical order — with
+      // the remainder behind one "More ▾" popover, so the row never wraps
+      // to a second line (Annie, 2026-08-13). At zero pieces the first ten
+      // canonical categories stand in; an active category never hides —
+      // picked from More, it surfaces into the row.
+      var _waMoreCats = [];
+      function _waTabCounts() {
+        const counts = {};
+        _waItems.forEach(it => { const c = _waSheetCatOf(it) || 'Other'; counts[c] = (counts[c] || 0) + 1; });
+        return counts;
+      }
+      function _waTabsPaint() {
+        const container = document.getElementById('wg-filters');
+        if (!container) return;
+        // An open cascade lives inside this container — never repaint under
+        // it (the tab tap that closes it repaints on its way through).
+        if (container.querySelector('#rb-wg-cascade')) return;
+        document.getElementById('rb-wg-morepop')?.remove();
+        const counts = _waTabCounts();
+        const pool = _WA_TAB_CATS.filter(c => c !== 'All');
+        const top = pool.map((c, i) => ({ c, n: counts[c] || 0, i }))
+          .sort((a, b) => b.n - a.n || a.i - b.i)
+          .slice(0, 10).map(x => x.c);
+        const visible = pool.filter(c => top.indexOf(c) > -1 || c === _waCat);
+        _waMoreCats = pool.filter(c => visible.indexOf(c) < 0);
+        container.innerHTML = '';
+        // Light text tabs — the taxonomy sheet's L1 categories. A tab whose
+        // category carries subcategories opens the Subcategory › Item type
+        // cascade (redesign 2026-08-05): the browse drill reads the SAME
+        // taxonomy tree the add/edit pickers do — one source of truth.
+        ['All'].concat(visible).forEach(cat => {
+          const btn = document.createElement('button');
+          btn.className = 'wg-tab' + (cat === _waCat ? ' active' : '');
+          btn.dataset.cat = cat;
+          btn.textContent = cat;
+          btn.addEventListener('click', () => window.__waCatTap(cat));
+          container.appendChild(btn);
+        });
+        if (_waMoreCats.length) {
+          const more = document.createElement('button');
+          more.className = 'wg-tab';
+          more.id = 'rb-wg-moretab';
+          more.textContent = 'More ▾';
+          more.addEventListener('click', e => window.__waMoreTap(e));
+          container.appendChild(more);
+        }
+      }
+      window.__waMoreTap = function(e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        const old = document.getElementById('rb-wg-morepop');
+        if (old) { old.remove(); return; }
+        const btn = document.getElementById('rb-wg-moretab');
+        if (!btn || !_waMoreCats.length) return;
+        const r = btn.getBoundingClientRect();
+        const counts = _waTabCounts();
+        const pop = document.createElement('div');
+        pop.id = 'rb-wg-morepop';
+        pop.style.cssText = 'position:fixed;z-index:990;top:' + Math.round(r.bottom + 6) + 'px;left:' +
+          Math.round(Math.max(12, Math.min(r.left, window.innerWidth - 244))) +
+          'px;background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad);box-shadow:0 14px 36px -10px rgba(32,32,33,0.2);padding:6px;min-width:220px;max-height:60vh;overflow-y:auto';
+        pop.innerHTML = _waMoreCats.map(c =>
+          '<button data-cat="' + _waEsc(c) + '" style="display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;border:none;background:none;padding:9px 12px;border-radius:8px;font-family:inherit;font-size:12.5px;color:var(--ink);cursor:pointer;text-align:left">' +
+            '<span>' + _waEsc(c) + '</span>' +
+            (counts[c] ? '<span style="font-size:10.5px;color:var(--ink-faint)">' + counts[c] + '</span>' : '') +
+          '</button>').join('');
+        pop.addEventListener('click', ev => {
+          const b = ev.target.closest('button[data-cat]');
+          if (!b) return;
+          pop.remove();
+          window.__waCatTap(b.dataset.cat);
+        });
+        document.body.appendChild(pop);
+        setTimeout(() => {
+          const dismiss = ev => {
+            if (!pop.contains(ev.target)) { pop.remove(); document.removeEventListener('click', dismiss); }
+          };
+          document.addEventListener('click', dismiss);
+        }, 0);
+      };
+
       let _waFiltersBuilt = false;
       function _waBuildFilters() {
         const container = document.getElementById('wg-filters');
@@ -1133,20 +1198,8 @@
         // carry no .wg-tab class, so their write leaves none behind)
         const existing = container.querySelector('.wg-tab');
         if (_waFiltersBuilt && existing) { _waTrailSync(); return; }
-        container.innerHTML = '';
         _waFiltersBuilt = true;
-        // Light text tabs — the taxonomy sheet's L1 categories. A tab whose
-        // category carries subcategories opens the Subcategory › Item type
-        // cascade (redesign 2026-08-05): the browse drill reads the SAME
-        // taxonomy tree the add/edit pickers do — one source of truth.
-        _WA_TAB_CATS.forEach(cat => {
-          const btn = document.createElement('button');
-          btn.className = 'wg-tab' + (cat === _waCat ? ' active' : '');
-          btn.dataset.cat = cat;
-          btn.textContent = cat;
-          btn.addEventListener('click', () => window.__waCatTap(cat));
-          container.appendChild(btn);
-        });
+        _waTabsPaint();
         // The trail row below the tabs: breadcrumb + live count on the left,
         // Add piece + Refine on the right (the mobile FAB and the wardrobe
         // Pack-a-trip pill retired with this layout — packing lives in the
@@ -3630,7 +3683,6 @@
             '.rb-add-serif{font-family:var(--font-serif);font-weight:300;font-size:19px;color:var(--ink)}',
             '.rb-add-hint{font-size:10px;letter-spacing:.05em;color:var(--ink-faint)}',
             // decorative ghost tiles behind the add card at zero pieces
-            '.rb-ghost-card{aspect-ratio:3/4;border-radius:var(--rad);border:1px dashed var(--rule);pointer-events:none}',
             // mobile
             '@media(max-width:767px){.rb-wg-cta{padding:9px 14px;font-size:10px}.rb-wsub{gap:16px}#rb-wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}.wg-filters .wg-tab{flex-shrink:0;margin-right:9px}#rb-refine{position:fixed;left:0;right:0;bottom:0;z-index:960;margin:0;border-radius:18px 18px 0 0;max-height:74vh;max-height:74dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px));box-shadow:0 -14px 40px rgba(32,32,33,.22)}.rb-ref-mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-family:var(--font-serif);font-weight:300;font-size:24px;color:var(--ink)}.rb-ref-grid{display:flex;flex-direction:column;gap:18px}.rb-ref-sec{border-top:1px solid #EFE9DC;padding-top:16px}.rb-ref-sec.sea{border-top:none;padding-top:0}.rb-ref-sec.wear{border-top:1px solid #EFE9DC;padding-top:16px}.rb-ref-foot{flex-direction:column-reverse;align-items:stretch;gap:12px}.rb-ref-foot .rb-wg-cta{width:100%;padding:15px}.rb-ref-foot button:first-child{align-self:center}.rb-ref-mhead button{background:none;border:none;font-size:16px;color:var(--ink);cursor:pointer;font-family:inherit;padding:2px 4px}}'
           ].join('\n');
