@@ -5603,11 +5603,18 @@
       const _rbcSwapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
       const _rbcCheckSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
+      // A leaked JSON escape rendered verbatim ("\\u20ac110", "Pol\\u00e8ne"
+      // — beta screenshots 2026-08-13). New generations are cleaned
+      // server-side (deEscDeep); this display-side pass covers rows saved
+      // before that fix.
+      function _rbDeEsc(s) {
+        return String(s || '').replace(/\\u([0-9a-fA-F]{4})/g, function(_, h) { return String.fromCharCode(parseInt(h, 16)); });
+      }
       // Display-side price normaliser (audit F3/D4) — the model sometimes
       // emits "EUR550" instead of "€550" (only Weekly's prompt lacked the €
       // example); this is defence in depth, not a substitute for that fix.
       function _rbcPrice(raw) {
-        const s = String(raw || '').trim();
+        const s = _rbDeEsc(String(raw || '').trim());
         if (!s) return '';
         const m = s.match(/^(?:EUR|eur)\s*(.+)$/);
         return m ? '€' + m[1] : s;
@@ -5621,8 +5628,8 @@
       // _rbcProvenance's full HTML output, but it must reuse this logic
       // rather than re-deriving it, which is what produced "ZARA · ZARA".
       function _rbcRetailPrice(it) {
-        const brand = (it.brand || '').trim();
-        const retailerRaw = (it.retailer_hint || '').trim();
+        const brand = _rbDeEsc((it.brand || '').trim());
+        const retailerRaw = _rbDeEsc((it.retailer_hint || '').trim());
         const retailer = (retailerRaw && retailerRaw.toLowerCase() !== brand.toLowerCase()) ? retailerRaw : '';
         return [retailer, _rbcPrice(it.price_point)].filter(Boolean).join(' · ');
       }
@@ -5633,7 +5640,7 @@
       // (Travel's Worth adding / Added to the pack).
       function _rbcProvenance(it, extraHtml) {
         if (it.wardrobe_match) return `<span class="owned">${_rbcCheckSvg} In your wardrobe</span>`;
-        const brand = (it.brand || '').trim();
+        const brand = _rbDeEsc((it.brand || '').trim());
         const retailPrice = _rbcRetailPrice(it);
         return `${extraHtml || ''}${brand ? `<span class="brand">${_waEsc(brand)}</span>` : ''}${retailPrice ? `<span class="price">${_waEsc(retailPrice)}</span>` : ''}`;
       }
@@ -8494,7 +8501,7 @@
         // honestly instead of drawing empty.
         const propEmpties = props.map((row, i) => ({
           role: row.role,
-          html: _lkPropRowHtml(row, i, _lkPropDetailFrame(row), { swap: '__lkPropSwap', save: '__lkPropSave' }),
+          html: _lkPropRowHtml(row, i, _lkPropDetailFrame(row), { swap: '__lkPropSwap', save: '__lkPropSave', flip: '__lkPropFlip' }),
         }));
         h += '<div class="rb-lk-sec" style="margin-top:0">The Rack</div>' +
           '<div class="rbc-rack">' +
@@ -8682,20 +8689,27 @@
           shortName: String(a.name || row.chip || 'piece').split(/\s+/).slice(-1)[0].toLowerCase(),
           owned: false, anchored: false, isNew: true,
           frame: { pollAttr: '', inner: frameInner },
-          count: { cur: 0, len: 1 },
           subHtml: _rbcProvenance(a),
           noteHtml: a.how ? '<div class="rbc-hownote">' + _waEsc(a.how) + '</div>' : '',
           thirdHtml: row.saved
             ? '<span class="rbc-act done">' + _rbcCheckSvg + ' Saved</span>'
             : '<button class="rbc-act save" onclick="window.' + fns.save + '(' + i + ')">Save</button>',
           rowClass: ' rb-lk-prop' + (row.busy ? ' rb-lk-busy' : ''),
-        }, { onSwap: fns.swap });
+          // On the saved look the flick cluster cycles the stored
+          // suggestions (fns.flip); the live build keeps Swap-as-cycle.
+          count: fns.flip
+            ? { cur: Math.max(0, row.oi || 0), len: Math.max(1, (row.opts || []).length) }
+            : { cur: 0, len: 1 },
+        }, { onSwap: fns.swap, onFlip: fns.flip });
       }
-      // A saved proposal's frame: its stored still, else a quiet serif
-      // initial (the same fallback a flicked-in daily alternate wears).
+      // A saved proposal's frame: its stored still — honest only for the
+      // suggestion it was shot for (img_oi), a flick away wears the serif
+      // initial instead (the same fallback a flicked-in daily alternate
+      // wears), and flicking back recovers the still.
       function _lkPropDetailFrame(row) {
         const a = row.opts[row.oi] || {};
-        const url = _pdHttp(row.image_url);
+        const imgOk = row.img_oi == null || row.img_oi === row.oi;
+        const url = imgOk ? _pdHttp(row.image_url) : null;
         if (url) return '<img src="' + _waEsc(url) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="' + _waEsc(a.name || row.chip || '') + '">';
         return '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--cream-100)">' +
           '<span style="font-family:var(--font-serif);font-size:26px;font-weight:300;color:var(--ink-faint)">' +
@@ -9432,35 +9446,61 @@
             _lkPaint();
           });
       };
-      // The saved build's proposals keep their verbs (2026-08-13 second
-      // pass): Swap cycles the stored suggestions — refetching when both
-      // are spent — and persists onto the look row; Save re-offers the
-      // wishlist for a swapped-in piece. A swapped-in suggestion has no
-      // still, so it wears the serif-initial tile until she owns it.
+      // The saved build's proposals keep their verbs (2026-08-13 second +
+      // third passes): the FLICK cluster cycles the stored suggestions
+      // (non-destructive — img_oi remembers which one the still was shot
+      // for, so flicking back recovers it), while SWAP opens the shared
+      // modal exactly as the daily rack does (Annie: "hitting swap should
+      // open the modal") — her wardrobe's same-category pieces, Snap mine,
+      // the affiliate door. Picking an owned piece is the moment the look
+      // becomes hers: the proposal comes off the rack and the piece joins
+      // look_pieces with the proposal's role.
+      window.__lkPropFlip = function(i, dir) {
+        const l = _lkFind(_lkActive);
+        const row = l && Array.isArray(l.proposals) ? l.proposals[i] : null;
+        if (!row || row.busy || !Array.isArray(row.opts) || row.opts.length < 2) return;
+        row.oi = (row.oi + dir + row.opts.length) % row.opts.length;
+        row.saved = false;
+        _lkPatch(l.id, { proposals: l.proposals });
+        _lkPaint();
+      };
+      var _lkPropSwapIdx = null;
       window.__lkPropSwap = function(i) {
         const l = _lkFind(_lkActive);
         const row = l && Array.isArray(l.proposals) ? l.proposals[i] : null;
-        if (!row || row.busy) return;
-        const persist = () => _lkPatch(l.id, { proposals: l.proposals });
-        if (row.oi + 1 < row.opts.length) {
-          row.oi++; row.saved = false; row.image_url = null;
-          persist(); _lkPaint(); return;
-        }
-        row.busy = true; _lkPaint();
-        const names = _lkPieceIds(l)
-          .map(id => (_waItems.find(w => String(w.id) === String(id)) || {}).label)
-          .filter(Boolean)
-          .concat(l.proposals.filter((r, k) => k !== i).map(r => (r.opts[r.oi] || {}).name).filter(Boolean));
-        _lkShopFetch({ role: row.role, chip: row.chip, ask: (row.opts[0] || {}).name || row.chip, cats: row.cats || [] }, names)
-          .then(fresh => {
-            row.busy = false;
-            if (fresh && fresh.opts.length) {
-              row.opts = row.opts.concat(fresh.opts);
-              row.oi++; row.saved = false; row.image_url = null;
-              persist();
-            }
-            _lkPaint();
-          });
+        if (!row) return;
+        const a = row.opts[row.oi] || {};
+        _lkPropSwapIdx = i;
+        _rbSwapModal({
+          name: a.name || row.chip, brand: a.brand || '',
+          category: (row.cats || [])[0] || row.chip,
+          retailer_hint: a.retailer_hint || '', price_point: a.price_point || '',
+        }, { id: 'rb-lkprop-swap', applyName: '__lkPropSwapApply', snapName: '__lkPropSnap', idx: i });
+      };
+      window.__lkPropSwapApply = function(i, wid) {
+        const l = _lkFind(_lkActive);
+        const row = l && Array.isArray(l.proposals) ? l.proposals[i] : null;
+        const wi = _waItems.find(w => String(w.id) === String(wid));
+        if (!row || !wi) return;
+        document.getElementById('rb-lkprop-swap')?.remove();
+        l.proposals.splice(i, 1);
+        if (!l.proposals.length) l.proposals = null;
+        l.pieces = (l.pieces || []).concat([{
+          id: wi.id, slot: row.chip || wi.category || null,
+          position: (l.pieces || []).length, role: row.role || null,
+        }]);
+        _lkPatch(l.id, { proposals: l.proposals }, true);
+        _lkPaint();
+        _waShowToast(wi.label + ' takes its place ✓');
+        _rbTrack('piece_swapped', { surface: 'look-proposal' });
+      };
+      window.__lkPropSnap = function() {
+        const i = _lkPropSwapIdx;
+        document.getElementById('rb-lkprop-swap')?.remove();
+        if (i == null) return;
+        _waEditId = null;
+        _waAfterAdd = function(newId) { window.__lkPropSwapApply(i, newId); };
+        if (window.WA && WA.open) WA.open();
       };
       window.__lkPropSave = function(i) {
         const l = _lkFind(_lkActive);
@@ -9941,7 +9981,9 @@
           // every proposal to the wishlist below.
           const proposals = (_lkBuilt && _lkShop.length) ? _lkShop.map((row, i) => ({
             role: row.role, chip: row.chip, cats: row.cats,
-            opts: row.opts, oi: row.oi, saved: true,
+            // img_oi: which suggestion the still was shot for — a later
+            // flick away from it falls back to the initial tile, honestly.
+            opts: row.opts, oi: row.oi, img_oi: row.oi, saved: true,
             image_url: _pdHttp(_lkShopImgs[i]) || null,
           })) : null;
           l = _lkCreate({
@@ -10887,8 +10929,11 @@
         // {id, label, image_url, category}.
         const scoped = Array.isArray(cfg.pool);
         const candidates = (scoped ? cfg.pool : _waItems).filter(catMatch);
-        const retailer = item.retailer_hint || '';
-        const price = item.price_point || '';
+        // Legacy rows can carry leaked JSON escapes — clean at display
+        const itemName = _rbDeEsc(item.name || '');
+        const itemBrand = _rbDeEsc(item.brand || '');
+        const retailer = _rbDeEsc(item.retailer_hint || '');
+        const price = _rbcPrice(item.price_point || '');
 
         let aiAlt = null;
         if (!scoped && !candidates.length && _waItems.length > 0) aiAlt = _waItems[0];
@@ -10957,8 +11002,8 @@
                 <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">Swap this piece</p>
                 <button onclick="document.getElementById('${cfg.id}').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
               </div>
-              <p style="font-family:'Cormorant',Georgia,serif;font-size:26px;font-weight:300;color:#202021;margin:0 0 2px;line-height:1.15">${_waEsc(item.name)}</p>
-              ${(item.brand || retailer) ? `<p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:0 0 14px">${_waEsc(item.brand || retailer)}</p>` : `<div style="height:14px"></div>`}
+              <p style="font-family:'Cormorant',Georgia,serif;font-size:26px;font-weight:300;color:#202021;margin:0 0 2px;line-height:1.15">${_waEsc(itemName)}</p>
+              ${(itemBrand || retailer) ? `<p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:0 0 14px">${_waEsc(itemBrand || retailer)}</p>` : `<div style="height:14px"></div>`}
               ${cfg.headHtml || ''}
               <div style="height:1px;background:rgba(32,32,33,0.08);margin:0 -20px 20px"></div>
             </div>

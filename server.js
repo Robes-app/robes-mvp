@@ -489,7 +489,7 @@ Style this key piece three ways. Make each look genuinely distinct — different
     ]);
 
     const textMs = Date.now() - t0;
-    const parsed = JSON.parse(textResponse.text);
+    const parsed = deEscDeep(JSON.parse(textResponse.text));
     const fallback = parsed.fallback === true;
     const ways = parsed.ways;
     logAI({ feature: 'style', stage: 'text', model: 'gemini-2.5-flash', ms: textMs, fallback });
@@ -831,7 +831,7 @@ Dress her for this exact day, start to finish, through the four architectural st
         maxOutputTokens: 4800,
       },
     }));
-    const parsed = JSON.parse(textResponse.text);
+    const parsed = deEscDeep(JSON.parse(textResponse.text));
 
     // Normalise: canonical step order, ≤2 items per step, wardrobe matching
     let steps = Array.isArray(parsed.steps)
@@ -960,6 +960,16 @@ Dress her for this exact day, start to finish, through the four architectural st
 // character and leaves ordinary text untouched.
 function deEscUnicode(s) {
   return String(s || '').replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
+// The leak shows up across generators (a daily rack card read "\\u20ac110",
+// a brand "Pol\\u00e8ne" — beta screenshot 2026-08-13), so every parsed
+// payload gets one deep pass before normalisation. Strings only; shapes
+// untouched.
+function deEscDeep(v) {
+  if (typeof v === 'string') return deEscUnicode(v);
+  if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = deEscDeep(v[i]); return v; }
+  if (v && typeof v === 'object') { for (const k of Object.keys(v)) v[k] = deEscDeep(v[k]); return v; }
+  return v;
 }
 
 const ALTERNATES_SCHEMA = {
@@ -1147,7 +1157,7 @@ ${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}`;
         maxOutputTokens: 450,
       },
     });
-    const parsed = JSON.parse(r.text);
+    const parsed = deEscDeep(JSON.parse(r.text));
     const note = deEscUnicode(String(parsed.note || '').trim().slice(0, 300));
     const palette = (Array.isArray(parsed.palette) ? parsed.palette : [])
       .filter(h => typeof h === 'string' && /^#[0-9A-Fa-f]{6}$/.test(h.trim()))
@@ -1678,7 +1688,7 @@ ${shortIdxs.length ? `Pack every key piece, map the wears each one earns, add on
         maxOutputTokens: 9000,
       },
     }));
-    return JSON.parse(r.text);
+    return deEscDeep(JSON.parse(r.text));
   }
 
   // Shortlisted pieces missing from the capsule — every shortlist piece
@@ -1928,7 +1938,7 @@ ${wxLine}`;
         maxOutputTokens: 4000,
       },
     });
-    const parsed = JSON.parse(r.text);
+    const parsed = deEscDeep(JSON.parse(r.text));
 
     let newItem = parsed.new_item_needed === true && parsed.new_item && parsed.new_item.name
       ? { ...parsed.new_item, tier: TRAVEL_TIERS.includes(parsed.new_item.tier) ? parsed.new_item.tier : TRAVEL_TIERS[1], wardrobe_index: -1 }
@@ -2319,7 +2329,7 @@ ${taxonomyPromptBlock()}
     });
 
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    const parsed = JSON.parse(text);
+    const parsed = deEscDeep(JSON.parse(text));
     logAI({ feature: 'wardrobe_analyse', ms: Date.now() - t0, no_item_detected: parsed.no_item_detected, success: true });
 
     if (parsed.no_item_detected) {

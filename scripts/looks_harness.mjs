@@ -1447,6 +1447,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       board: document.querySelectorAll('.rbc-board .rbc-tile').length,
       head: document.querySelector('.rbc-lhead .lab')?.textContent,
       propActs: Array.from(document.querySelectorAll('.rbc-rack .rb-lk-prop .rbc-act')).map((x) => x.textContent.trim()),
+      arrows: document.querySelectorAll('.rbc-rack .rb-lk-prop .rbc-arrow').length,
       quote: document.querySelector('.rbc-quote')?.textContent,
     };
   });
@@ -1459,8 +1460,46 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     det.propActs.filter((x) => x === 'Swap').length === 4 && det.propActs.filter((x) => /Saved/.test(x)).length === 4,
     JSON.stringify(det.propActs));
   check('nothing owned · no zeroed stats ledger', det.stats === 0, JSON.stringify(det.stats));
+  check('nothing owned · the flick cluster cycles the stored suggestions',
+    det.arrows === 8, JSON.stringify(det.arrows));
   check('nothing owned · the note reads back on the saved look',
     det.quote === BUILD_NOTE.note, JSON.stringify(det.quote));
+
+  // Swap on a saved proposal opens the shared modal (third pass, Annie:
+  // "hitting swap should open the modal") — and picking an owned piece is
+  // the moment the look becomes hers: proposal off the rack, piece onto
+  // look_pieces, the wear verbs return.
+  const swapM = await page.evaluate(async () => {
+    const btn = Array.from(document.querySelectorAll('.rbc-rack .rb-lk-prop button.rbc-act')).find((x) => /Swap/.test(x.textContent));
+    btn?.click();
+    await new Promise((r) => setTimeout(r, 250));
+    const m = document.getElementById('rb-lkprop-swap');
+    return {
+      open: !!m,
+      wardrobe: /From your wardrobe/.test(m?.textContent || ''),
+      snap: /Snap mine/.test(m?.textContent || ''),
+      affiliate: /Shop via Affiliate/.test(m?.textContent || ''),
+    };
+  });
+  check('nothing owned · Swap on a saved proposal opens the swap modal, daily-style',
+    swapM.open === true && swapM.wardrobe === true && swapM.snap === true && swapM.affiliate === true,
+    JSON.stringify(swapM));
+  const adopted = await page.evaluate(async () => {
+    const card = document.querySelector('#rb-lkprop-swap [onclick*="__lkPropSwapApply"]');
+    card?.click();
+    await new Promise((r) => setTimeout(r, 600));
+    return {
+      picked: !!card,
+      props: document.querySelectorAll('.rbc-rack .rb-lk-prop').length,
+      ownedRows: document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name').length,
+      acts: Array.from(document.querySelectorAll('.rb-lk-acts .rb-lk-act')).map((x) => x.textContent).length,
+      modalGone: !document.getElementById('rb-lkprop-swap'),
+    };
+  });
+  check('nothing owned · picking an owned piece moves it ONTO the look — proposal off, wear verbs back',
+    adopted.picked === true && adopted.props === 3 && adopted.ownedRows === 1
+      && adopted.acts === 3 && adopted.modalGone === true,
+    JSON.stringify(adopted));
   check('nothing owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
