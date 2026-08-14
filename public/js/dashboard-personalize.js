@@ -4049,7 +4049,14 @@
               rows.push({
                 ..._pdBase('travel', sourceId, i, date, k === 0 ? 'day' : 'evening'),
                 status: 'planned',
-                activity: (k === 0 && title) || l.occasion || null,
+                // 2B (Annie 2026-08-14): `activity` is HER words only — the
+                // day title. A look's occasion never rides the user slot
+                // (that conflation put "Sunset drinks" where the day's
+                // name belonged). Robes' contribution is the look's NAME,
+                // on headline — so an un-named dressed day titles as its
+                // look, and the rail's evening line reads the evening
+                // look's name.
+                activity: (k === 0 && title) || null,
                 headline: l.title || l.occasion || null,
                 thumb_urls: pieces.length
                   ? _pdThumbs(pieces, t.generatedImages)
@@ -11765,7 +11772,7 @@
 #tv-result-page .tvw-card input{font-family:var(--font-serif);font-size:15px;border:none;border-bottom:1px solid rgba(32,32,33,0.3);border-radius:0;background:transparent;outline:none;padding:0 0 3px;width:100%;color:var(--ink);box-sizing:border-box}
 #tv-result-page .tvw-look{margin-top:auto;display:flex;flex-direction:column;gap:4px;min-width:0}
 #tv-result-page .tvw-look .note{font-family:var(--font-serif);font-style:italic;font-size:11.5px;color:var(--rose)}
-#tv-result-page .tvw-look .nm{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tv-result-page .tvw-look .lknames{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:12.5px;line-height:1.35;color:var(--ink-faint);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 #tv-result-page .tvw-look .sw{display:flex;gap:3px;align-items:center}
 #tv-result-page .tvw-look .sw span{width:15px;height:15px;border-radius:3px;border:0.5px solid rgba(32,32,33,0.08);box-sizing:border-box}
 #tv-result-page .tvw-look .sw .swplus{width:auto;height:auto;border:none;font-size:9.5px;color:var(--ink-faint);margin-left:2px;letter-spacing:.04em}
@@ -12244,17 +12251,22 @@ body>*:not(#tv-result-page){display:none !important}
             const wi = e.it.wardrobe_match && _waItems.find(w => String(w.id) === String(e.it.wardrobe_match.id));
             return wi ? _ltToneOf(wi) : null;
           }).filter(Boolean).slice(0, 3) : [];
-          // v3 title rule (F2, Annie 2026-08-14): HER typed plan renders
-          // verbatim; an un-named dressed day takes the look's OCCASION —
-          // a name ("Beach club"), never the look-title sentence. The
-          // pencil retires: the title IS the rename affordance. The
-          // second line is the occasion only when it adds something the
-          // title doesn't already say; uppercase labels lose the full
-          // stop; the +N (more looks) overflow rides the swatch row.
-          const occRaw = first ? String(first.l.occasion || first.l.title || '').replace(/\.\s*$/, '').trim() : '';
-          const dispTitle = title || occRaw;
-          const second = (first && title && occRaw && occRaw.toLowerCase() !== title.trim().toLowerCase()) ? occRaw : '';
-          const plus = pinned.length > 1 ? `<span class="swplus">+${pinned.length - 1}</span>` : '';
+          // 2B "Quiet" (Annie 2026-08-14, production fix): the day's
+          // TITLE and the looks' NAMES are separate facts and the card
+          // renders the trio — title, then the look names as ONE serif
+          // phrase in the weight the occasion line used to hold ("Golden
+          // hour glow · Cozy and sophisticated"), both names, no labels.
+          // Occasions never render on the card (the "Sunset drinks" tag
+          // was the first look's occasion conflated with the day). HER
+          // typed plan is the title verbatim; an un-named dressed day
+          // titles as its day look's NAME, and that name never repeats
+          // in the phrase. Looks beyond the two named ride the swatch
+          // row as +N. The pencil stays retired.
+          const lookName = x => String((x.l.title || x.l.occasion || '')).replace(/\.\s*$/, '').trim();
+          const names = pinned.slice(0, 2).map(lookName).filter(Boolean);
+          const dispTitle = title || names[0] || '';
+          const phrase = names.filter(n => n.toLowerCase() !== dispTitle.trim().toLowerCase()).join(' · ');
+          const plus = pinned.length > 2 ? `<span class="swplus">+${pinned.length - 2}</span>` : '';
           const titleHtml = editing
             ? `<input id="tv-daytitle-in" value="${_waEsc(title)}" placeholder="what’s happening?" maxlength="60"
                  onclick="event.stopPropagation()"
@@ -12266,7 +12278,7 @@ body>*:not(#tv-result-page){display:none !important}
           const lookHtml = pinned.length
             ? `<span class="tvw-look">
                 ${note ? `<span class="note">${_waEsc(note)}</span>` : ''}
-                ${second ? `<span class="nm">${_waEsc(second)}</span>` : ''}
+                ${phrase ? `<span class="lknames">${_waEsc(phrase)}</span>` : ''}
                 ${(sw.length || plus) ? `<span class="sw">${sw.map(h => `<span style="background:${_waEsc(h)}"></span>`).join('')}${plus}</span>` : ''}
               </span>`
             : (stageUnpinned
