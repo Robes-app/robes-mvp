@@ -4137,6 +4137,18 @@
             del('&day_index=gte.' + built.totalDays);
             const evIdx = built.rows.filter(x => x.slot === 'evening').map(x => x.day_index);
             del('&slot=eq.evening' + (evIdx.length ? '&day_index=not.in.(' + evIdx.join(',') + ')' : ''));
+            // Date-range sweep (F4, DayCard v3 2026-08-14): a MOVED plan
+            // must never leave its old dates behind. The day_index upsert
+            // normally updates rows in place, but any orphan outside the
+            // blob's current span — a partially-failed earlier sweep, an
+            // older build's rows — would band the old dates on the Diary
+            // beside the moved trip. Belt and braces: nothing of this
+            // source survives outside the dates it now emits.
+            const dates = built.rows.map(x => x.day_date).filter(Boolean).sort();
+            if (dates.length) {
+              del('&day_date=lt.' + dates[0]);
+              del('&day_date=gt.' + dates[dates.length - 1]);
+            }
             // A fresh plan should show on the home rail when she returns
             if (window._rbRailPaint) setTimeout(window._rbRailPaint, 700);
           })
@@ -6781,10 +6793,11 @@
       // 2026-07-24: the USER'S words win, the generated headline is the
       // fallback). 'robes' flips the preference with no render changes.
       var _DC_TITLE_MODE = 'user';
-      // §10.1 — thumbnails are wardrobe-truth (spec v2.0 recommendation,
-      // shipped). 'swatch' restores the palette-whisper treatment (hex
-      // dots) if the escalated decision reopens.
-      var _DC_THUMB_MODE = 'image';
+      // v3 (2026-08-14, settled): swatches EVERYWHERE — the rail's
+      // "palette whisper" is the rule on every day surface; thumbnail
+      // imagery already saturates the product. 'image' restores the v2
+      // wardrobe-truth thumbnails if the decision reopens.
+      var _DC_THUMB_MODE = 'swatch';
 
       var _DC_RING_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 L11 7 L16 9 L11 11 L9 16 L7 11 L2 9 L7 7 Z"></path><path d="M18.5 14 L19.5 16.5 L22 17.5 L19.5 18.5 L18.5 21 L17.5 18.5 L15 17.5 L17.5 16.5 Z"></path></svg>';
 
@@ -6802,7 +6815,7 @@
 .rb-dc.is-void{border-color:rgba(32,32,33,0.05);background:transparent}
 .rb-dc.is-pinned{border-color:#8E6A7C;box-shadow:0 0 0 1px #8E6A7C inset}
 .rb-dc.is-focus{border-color:var(--ink,#202021);box-shadow:0 0 0 1px var(--ink,#202021) inset}
-.rb-dc .dc-ey{font-weight:500;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-dc .dc-ey{font-weight:500;font-size:9px;letter-spacing:.14em;text-transform:uppercase;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rb-dc.dc-compact .dc-ey{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:22px;letter-spacing:0;text-transform:none;opacity:.9;line-height:1;margin-bottom:2px}
 .rb-dc .dc-title{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:22px;line-height:1.08;letter-spacing:.002em;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.16em}
 .rb-dc.dc-compact .dc-title{font-weight:400;font-size:17px;min-height:0}
@@ -6831,17 +6844,30 @@
 .rb-mcells .rb-dc.dc-compact .dc-title{font-size:10px;line-height:1.25;margin-top:2px;min-height:0}
 .rb-mcells .rb-dc.dc-compact .dc-eve{display:none}
 .rb-mcells .rb-dc.dc-compact .dc-foot{display:none}
+.rb-mcells .rb-dc.dc-compact .dc-sw{display:none}
+.rb-mcells .rb-dc.dc-compact .dc-invite{display:none}
+.rb-mcells .rb-dc.dc-compact .dc-look{display:none}
 .rb-mcells .rb-dc.dc-compact .dc-evemark{display:block}
 }
 .rb-dc .dc-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
 .rb-dc.dc-compact .dc-foot{margin-top:8px}
 .rb-dc .dc-status{font-weight:400;font-size:10px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;opacity:.45}
 .rb-dc .dc-empty{flex:1;display:flex;flex-direction:column;justify-content:flex-end}
+.rb-dc .dc-empty.top{flex:none;justify-content:flex-start;margin-top:8px}
 .rb-dc .dc-empty .t{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:19px;line-height:1.1;opacity:.55}
 .rb-dc .dc-empty .s{font-weight:300;font-size:11px;opacity:.42;margin-top:4px}
 .rb-dc .dc-ring{position:absolute;top:7px;right:7px;height:28px;min-width:28px;justify-content:center;border:none;background:transparent;cursor:pointer;padding:4px;color:inherit;display:flex;align-items:center;gap:5px;opacity:.6;transition:opacity .2s;font-family:inherit;z-index:2}
 .rb-dc .dc-ring:hover{opacity:.9}
-.rb-dc.has-ring .dc-ey{padding-right:32px}
+.rb-dc.has-ring .dc-ey{padding-right:30px}
+.rb-dc .dc-invite{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:12px;line-height:1.2;opacity:.5;margin-top:4px}
+.rb-dc .dc-look{margin-top:10px;align-self:flex-start;font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;border:1px dashed rgba(32,32,33,0.3);border-radius:100px;padding:5px 12px;background:none;cursor:pointer;color:inherit;opacity:.7;font-family:inherit;transition:opacity .15s,border-color .15s}
+.rb-dc .dc-look:hover{opacity:1;border-color:rgba(32,32,33,0.55)}
+.rb-dc.dc-compact .dc-look{margin-top:auto;padding:3px 8px;font-size:8px;letter-spacing:.1em}
+.rb-dc .dc-sw{display:flex;gap:4px;margin-top:12px}
+.rb-dc .dc-sw i{width:18px;height:18px;border-radius:4px;flex:0 0 auto;box-shadow:inset 0 0 0 0.5px rgba(32,32,33,0.14)}
+.rb-dc.dc-compact .dc-sw{gap:3px;margin-top:6px}
+.rb-dc.dc-compact .dc-sw i{width:11px;height:11px;border-radius:3px}
+.rb-dc .dc-name-in{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:19px;line-height:1.1;border:none;border-bottom:1px solid rgba(32,32,33,0.3);border-radius:0;background:transparent;outline:none;width:100%;box-sizing:border-box;margin-top:8px;padding:0 0 3px;color:inherit}
 #rb-dpk{position:fixed;inset:0;z-index:940;display:flex;align-items:center;justify-content:center;padding:24px}
 #rb-dpk .dpk-veil{position:absolute;inset:0;background:rgba(32,32,33,0.38)}
 #rb-dpk .dpk-card{position:relative;background:#FAF8F5;border-radius:var(--rad-card);max-width:420px;width:100%;max-height:80vh;overflow-y:auto;padding:24px 26px 22px;box-shadow:0 18px 60px rgba(32,32,33,0.22)}
@@ -6884,10 +6910,17 @@
         s = String(s || '').trim();
         return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
       }
+      // Title rule (v3 + F2, Annie 2026-08-14): authorship decides the
+      // treatment. HER words render VERBATIM — never normalised, "dinner
+      // with mum" stays exactly as typed. A Robes-authored title is a
+      // NAME, not a sentence — trailing full stops are stripped here as
+      // the render-side belt (the server prompt rule is the braces).
       function _dcTitleOf(m) {
         if (!m) return '';
         const user = m.activity, gen = m.headline;
-        return _dcSentence((_DC_TITLE_MODE === 'user' ? (user || gen) : (gen || user)) || '');
+        if (_DC_TITLE_MODE === 'user' && user) return String(user).trim();
+        const t = (_DC_TITLE_MODE === 'user' ? gen : (gen || user)) || '';
+        return _dcSentence(String(t).replace(/\.\s*$/, ''));
       }
       // Context chip = MEMBERSHIP only (spec §4.6): a trip or week the day
       // belongs to. A daily look belongs to nothing → no chip, never a
@@ -6950,43 +6983,54 @@
 
       // ── The normaliser: (day moment, evening moment) → DayCardData.
       // Moments are planned_days-shaped rows — from the index (rail,
-      // calendar) or freshly derived from the live blob (strips). 'free'
-      // and empty-future fold into ONE empty state (the component's rule:
-      // an unfilled day always offers the CTA); a past empty day is its
-      // own quiet state; 'void' (out-of-month) is the caller's to set.
+      // calendar) or freshly derived from the live blob (strips).
+      // v3 (spec 2026-08-14): TWO AXES, not five states — `when`
+      // (past/today/future; 'outside' is the caller's 'void') answers
+      // where the day sits, `stage` (empty/named/dressed; 'naming' is a
+      // transient UI state the surface arms) answers how far the compose
+      // sequence has run. A day with a name but no look — the cell v2
+      // had no state for — is stage 'named'. 'free' folds into 'empty':
+      // an unfilled day always offers the invitation, and it KEEPS the
+      // plan's chip (membership is a property of the date, never the
+      // stage). `state` survives as the legacy composite for callers/CSS.
       function _dcMoments(dayM, eveM, o) {
         o = o || {};
         const has = !!(dayM || eveM);
         const allFree = has && (!dayM || dayM.status === 'free') && (!eveM || eveM.status === 'free');
         const past = o.date && o.today && o.date < o.today;
         const todayIs = o.date && o.date === o.today;
-        // A deliberately-free day is HER decision, not an absence — it keeps
-        // its own state (+ the parent plan's chip) instead of folding into
-        // empty and telling her "Nothing yet." (Wave 4, review finding).
-        const state = !has
-          ? (past ? 'empty-past' : 'empty')
-          : allFree
-            ? (past ? 'empty-past' : 'free')
-            : (past ? 'past' : todayIs ? 'today' : 'planned');
         const d = {
           eyebrow: o.eyebrow || '',
-          state,
+          state: past ? 'empty-past' : 'empty',
+          when: past ? 'past' : todayIs ? 'today' : 'future',
+          stage: 'empty',
           pinned: !!((dayM && dayM.pinned) || (eveM && eveM.pinned)),
           modifier: null,
           title: '', evening: null, chip: null, pieces: [], pieceTotal: 0,
           date: o.date || null,
         };
-        if (state === 'free') { d.chip = _dcChipOf(dayM || eveM); return d; }
-        if (state === 'empty' || state === 'empty-past') return d;
+        if (!has || allFree) {
+          d.chip = has ? _dcChipOf(dayM || eveM) : null;
+          return d;
+        }
         const lead = (dayM && dayM.status !== 'free') ? dayM : (eveM || dayM);
         d.title = _dcTitleOf(lead);
+        // Dressed = a look is actually pinned/generated here; a bare title
+        // (a travel day she named but hasn't dressed) is stage 'named'.
+        const dressed = !!((lead.thumb_urls || []).length || (lead.item_ids || []).length || lead.headline);
+        d.stage = dressed ? 'dressed' : 'named';
+        d.state = past ? 'past' : todayIs ? 'today' : 'planned';
         if (eveM && eveM.status !== 'free' && lead !== eveM) {
           const a = eveM.activity || eveM.headline;
           // 'Evening · Evening look' placeholder copy never reaches the
-          // card (§11.3) — a contentless evening renders the bare mark.
-          d.evening = (a && !/^evening( look| plan| outfit)?$/i.test(String(a).trim())) ? _dcSentence(a) : true;
+          // card (§11.3), and an evening that merely RESTATES the title
+          // renders the bare mark too (F2 — the repetition read as noise).
+          const clean = a ? String(a).trim() : '';
+          const repeats = clean && clean.toLowerCase().replace(/\.\s*$/, '') === String(d.title).toLowerCase().replace(/\.\s*$/, '');
+          d.evening = (clean && !repeats && !/^evening( look| plan| outfit)?$/i.test(clean)) ? _dcSentence(clean) : true;
         }
         d.chip = _dcChipOf(lead);
+        if (!dressed) return d;
         if (_DC_THUMB_MODE === 'swatch') {
           d.pieces = _dcSwatches(dayM, eveM);
           d.pieceTotal = d.pieces.length;
@@ -7008,44 +7052,76 @@
         return d;
       }
 
-      // ── The renderer. opts: {density, body, ring, ringTip, ringTipShort,
-      // focus, extraClass}. body/ring are inline onclick strings; the ring
-      // renders only on full, populated, unmodified cards (component rule).
+      // ── The renderer (v3). opts: {density, body, ring, ringTip, focus,
+      // extraClass, naming: {value, key, blur}, lookAdd}. body/ring/lookAdd
+      // are inline onclick strings. The compose sequence never dead-ends:
+      // empty offers the invitation, named offers + Look, dressed carries
+      // the look. The ring (sparkle) rides EVERY full-density card that
+      // isn't past — one control, one rule (v3 §C: production showed it on
+      // four of seven cards with no rule behind which).
       function _dcCard(d, opts) {
         _dcEnsureCss();
         opts = opts || {};
         const compact = opts.density === 'compact';
         const state = d.state || 'planned';
-        const isEmpty = state === 'empty' || state === 'empty-past' || state === 'void';
+        const stage = opts.naming ? 'naming'
+          : d.stage || (state === 'empty' || state === 'empty-past' || state === 'void' ? 'empty' : 'dressed');
+        const past = state === 'past' || state === 'empty-past';
+        const isVoid = state === 'void';
         const cls = ['rb-dc'];
         if (compact) cls.push('dc-compact');
         cls.push('is-' + state);
-        if (d.pinned && state !== 'void') cls.push('is-pinned');
+        cls.push('st-' + stage);
+        if (d.pinned && !isVoid) cls.push('is-pinned');
         if (opts.focus) cls.push('is-focus');
         if (opts.extraClass) cls.push(opts.extraClass);
-        const body = opts.body && state !== 'void' && state !== 'empty-past'
+        const body = opts.body && !isVoid && state !== 'empty-past' && !opts.naming
           ? ` onclick="${opts.body}" role="button" tabindex="0"` : '';
         const eyTxt = d.eyebrow != null && d.eyebrow !== '' ? _waEsc(String(d.eyebrow)) : '&nbsp;';
         let inner = `<div class="dc-ey">${eyTxt}</div>`;
-        const ring = (!compact && !isEmpty && !d.modifier && opts.ring)
+        const ring = (!compact && !isVoid && !past && opts.ring && !opts.naming)
           ? `<button class="dc-ring" title="${_waEsc(opts.ringTip || 'Set this day as focus')}" aria-label="${_waEsc(opts.ringTip || 'Set this day as focus')}" onclick="${opts.ring}">${_DC_RING_SVG}</button>`
           : '';
         if (ring) cls.push('has-ring');
-        if (isEmpty) {
-          // Compact empties are bare numerals — no body copy (component)
-          if (!compact && state !== 'void') {
-            inner += state === 'empty-past'
-              ? `<div class="dc-empty"><div class="t">—</div></div>`
-              : `<div class="dc-empty"><div class="t">Nothing yet.</div><div class="s">Tap to dress it.</div></div>`;
+        // The chip follows the DATE, not the stage (v3 settled): a day
+        // inside a trip window carries the tag even while empty or
+        // mid-naming, always below the second line, never at the foot.
+        const chipHtml = (!compact && d.chip) ? `<div class="dc-chip"><span><i></i>${_waEsc(d.chip)}</span></div>` : '';
+        if (isVoid) {
+          // outside — a numeral and nothing else (fourth `when`, no stage)
+        } else if (stage === 'naming') {
+          // 02 · Naming: the caret goes IN the title — the card does not
+          // move, open a sheet, or leave the strip.
+          const n = opts.naming;
+          inner += `<input class="dc-name-in" id="${_waEsc(n.id || 'rb-dc-name-in')}" value="${_waEsc(n.value || '')}" placeholder="what’s happening?" maxlength="60"` +
+            ` onclick="event.stopPropagation()"${n.key ? ` onkeydown="${n.key}"` : ''}${n.blur ? ` onblur="${n.blur}"` : ''}>`;
+          inner += chipHtml;
+        } else if (stage === 'empty') {
+          if (state === 'empty-past') {
+            // A past day nobody planned offers nothing to plan — quiet.
+            if (!compact) inner += `<div class="dc-empty"><div class="t">—</div></div>`;
+          } else if (compact) {
+            // The month cell keeps the invitation legible at cell scale
+            inner += `<div class="dc-invite">add plans…</div>`;
+          } else {
+            // 01 · Empty: the day OFFERS, rather than reports — the Trip
+            // strip's invitation, verbatim, now everywhere (v3 §B). It
+            // flows in the TITLE position so the chip sits beneath the
+            // second line exactly as on a dressed card — never at the
+            // foot (§C: production dropped the chip to the foot exactly
+            // when the day was least legible).
+            inner += `<div class="dc-empty top"><div class="t">add plans…</div><div class="s">name the day and add a look</div></div>`;
+            inner += chipHtml;
           }
-        } else if (state === 'free') {
-          // Her deliberate blank page — named as such, carrying the plan it
-          // belongs to; the tap still offers to dress it. COPY: needs sign-off
-          inner += compact
-            ? `<div class="dc-freetag">left free</div>`
-            : `<div class="dc-empty"><div class="t" style="font-style:italic">Left free.</div><div class="s">Tap to dress it.</div></div>`;
-          if (!compact && d.chip) inner += `<div class="dc-chip"><span><i></i>${_waEsc(d.chip)}</span></div>`;
+        } else if (stage === 'named') {
+          // 03 · Named: a name but no look — the slot is a dashed control.
+          // Past+named stays quiet (the look was never pinned — §A matrix).
+          inner += _ltTitleHtml(d.title, 'dc');
+          inner += chipHtml;
+          inner += `<div class="dc-sp"></div>`;
+          if (!past && opts.lookAdd) inner += `<button class="dc-look" onclick="event.stopPropagation();${opts.lookAdd}">+ Look</button>`;
         } else {
+          // 04 · Dressed
           inner += _ltTitleHtml(d.title, 'dc');
           if (d.evening) {
             const txt = typeof d.evening === 'string' ? 'Evening · ' + _dcTruncate(d.evening, compact ? 16 : 34) : 'Evening';
@@ -7054,11 +7130,15 @@
             // the two-moment signal legible (§6.3 at 48px cells)
             if (compact) inner += `<span class="dc-evemark" title="Evening planned">☾</span>`;
           }
-          if (!compact && d.chip) inner += `<div class="dc-chip"><span><i></i>${_waEsc(d.chip)}</span></div>`;
+          inner += chipHtml;
           inner += `<div class="dc-sp"></div>`;
-          // The pieces are LookTile's (the strip density) — mobile's 2-thumb
-          // treatment and the +N denominator live there, once.
-          inner += _ltStripHtml(d.pieces, d.pieceTotal, 'dc');
+          // Swatch mode draws its own quiet dots (no denominator — counts
+          // belong to the console, F3); image mode keeps LookTile's strip.
+          if (_DC_THUMB_MODE === 'swatch') {
+            if (d.pieces.length) inner += `<div class="dc-sw">${d.pieces.map(h => `<i style="background:${_waEsc(h)}"></i>`).join('')}</div>`;
+          } else {
+            inner += _ltStripHtml(d.pieces, d.pieceTotal, 'dc');
+          }
           if (d.modifier === 'worn') inner += `<div class="dc-foot"><span class="dc-status">Worn ✓</span></div>`;
           else if (d.modifier === 'packed') inner += `<div class="dc-foot"><span class="dc-status">Packed ✓</span></div>`;
         }
@@ -11673,19 +11753,22 @@
 #tv-result-page .tvm-addbtn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:100px;padding:9px 18px;font-size:12px;background:var(--ink);color:#fff;cursor:pointer;font-family:inherit;transition:opacity .15s}
 #tv-result-page .tvm-addbtn:hover{opacity:.85}
 #tv-result-page .tvw-grid{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x proximity}
-#tv-result-page .tvw-card{position:relative;flex:1 0 200px;max-width:280px;scroll-snap-align:start;background:#fff;border:0.5px solid var(--rule-mid);border-radius:10px;padding:13px 14px;display:flex;flex-direction:column;gap:6px;min-height:128px;cursor:pointer;text-align:left;font-family:inherit;transition:border-color .15s;box-sizing:border-box}
+#tv-result-page .tvw-card{position:relative;flex:1 0 200px;max-width:280px;scroll-snap-align:start;background:#fff;border:0.5px solid var(--rule-mid);border-radius:10px;padding:13px 14px;display:flex;flex-direction:column;gap:6px;min-height:176px;cursor:pointer;text-align:left;font-family:inherit;transition:border-color .15s;box-sizing:border-box}
 #tv-result-page .tvw-card.bare{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.2)}
 #tv-result-page .tvw-card.sel{border-color:var(--ink)}
-#tv-result-page .tvw-card .d{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--rose)}
+#tv-result-page .tvw-card .d{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--rose);padding-right:26px}
 #tv-result-page .tvw-card .t{font-family:var(--font-serif);font-size:16.5px;line-height:1.2;color:var(--ink)}
-#tv-result-page .tvw-card .t .pen{font-size:11px;color:var(--ink-faint)}
+#tv-result-page .tvw-card .t:hover{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+#tv-result-page .tvw-spark{position:absolute;top:8px;right:8px;border:none;background:transparent;cursor:pointer;padding:4px;color:var(--ink);opacity:.5;display:flex;transition:opacity .15s}
+#tv-result-page .tvw-spark:hover{opacity:.9}
 #tv-result-page .tvw-card .t-add{font-family:var(--font-serif);font-style:italic;font-size:13.5px;color:var(--ink-faint)}
 #tv-result-page .tvw-card input{font-family:var(--font-serif);font-size:15px;border:none;border-bottom:1px solid rgba(32,32,33,0.3);border-radius:0;background:transparent;outline:none;padding:0 0 3px;width:100%;color:var(--ink);box-sizing:border-box}
 #tv-result-page .tvw-look{margin-top:auto;display:flex;flex-direction:column;gap:4px;min-width:0}
 #tv-result-page .tvw-look .note{font-family:var(--font-serif);font-style:italic;font-size:11.5px;color:var(--rose)}
 #tv-result-page .tvw-look .nm{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#tv-result-page .tvw-look .sw{display:flex;gap:3px}
+#tv-result-page .tvw-look .sw{display:flex;gap:3px;align-items:center}
 #tv-result-page .tvw-look .sw span{width:15px;height:15px;border-radius:3px;border:0.5px solid rgba(32,32,33,0.08);box-sizing:border-box}
+#tv-result-page .tvw-look .sw .swplus{width:auto;height:auto;border:none;font-size:9.5px;color:var(--ink-faint);margin-left:2px;letter-spacing:.04em}
 #tv-result-page .tvw-pin{margin-top:auto;align-self:flex-start;font-size:9px;letter-spacing:.14em;text-transform:uppercase;border:1px dashed rgba(32,32,33,0.25);border-radius:100px;padding:5px 12px;color:var(--ink-soft);background:none;cursor:pointer;font-family:inherit}
 #tv-result-page .tvw-pin:hover{border-color:rgba(32,32,33,0.5)}
 #tv-result-page .tvw-hint{margin-top:auto;font-family:var(--font-serif);font-style:italic;font-size:12px;color:var(--ink-faint)}
@@ -12161,27 +12244,44 @@ body>*:not(#tv-result-page){display:none !important}
             const wi = e.it.wardrobe_match && _waItems.find(w => String(w.id) === String(e.it.wardrobe_match.id));
             return wi ? _ltToneOf(wi) : null;
           }).filter(Boolean).slice(0, 3) : [];
+          // v3 title rule (F2, Annie 2026-08-14): HER typed plan renders
+          // verbatim; an un-named dressed day takes the look's OCCASION —
+          // a name ("Beach club"), never the look-title sentence. The
+          // pencil retires: the title IS the rename affordance. The
+          // second line is the occasion only when it adds something the
+          // title doesn't already say; uppercase labels lose the full
+          // stop; the +N (more looks) overflow rides the swatch row.
+          const occRaw = first ? String(first.l.occasion || first.l.title || '').replace(/\.\s*$/, '').trim() : '';
+          const dispTitle = title || occRaw;
+          const second = (first && title && occRaw && occRaw.toLowerCase() !== title.trim().toLowerCase()) ? occRaw : '';
+          const plus = pinned.length > 1 ? `<span class="swplus">+${pinned.length - 1}</span>` : '';
           const titleHtml = editing
             ? `<input id="tv-daytitle-in" value="${_waEsc(title)}" placeholder="what’s happening?" maxlength="60"
                  onclick="event.stopPropagation()"
                  onkeydown="window.__tvDayTitleKey(event,${di})"
                  onblur="window.__tvDayTitleCommit(${di})">`
-            : (title
-              ? `<span class="t" onclick="event.stopPropagation();window.__tvDayTitleEdit(${di})">${_waEsc(title)} <span class="pen">✎</span></span>`
+            : (dispTitle
+              ? `<span class="t" title="Tap to rename" onclick="event.stopPropagation();window.__tvDayTitleEdit(${di})">${_waEsc(dispTitle)}</span>`
               : `<span class="t-add" onclick="event.stopPropagation();window.__tvDayTitleEdit(${di})">add plans…</span>`);
           const lookHtml = pinned.length
             ? `<span class="tvw-look">
                 ${note ? `<span class="note">${_waEsc(note)}</span>` : ''}
-                <span class="nm">${_waEsc(first.l.title || first.l.occasion || 'The look')}${pinned.length > 1 ? ' +' + (pinned.length - 1) : ''}</span>
-                ${sw.length ? `<span class="sw">${sw.map(h => `<span style="background:${_waEsc(h)}"></span>`).join('')}</span>` : ''}
+                ${second ? `<span class="nm">${_waEsc(second)}</span>` : ''}
+                ${(sw.length || plus) ? `<span class="sw">${sw.map(h => `<span style="background:${_waEsc(h)}"></span>`).join('')}${plus}</span>` : ''}
               </span>`
             : (stageUnpinned
               ? `<button class="tvw-pinstage tv-noprint" onclick="event.stopPropagation();window.__tvStagePin(${di})">pin ${_waEsc(String(stageLk.title || stageLk.occasion || 'it').toLowerCase())} here</button>`
               : title
                 ? `<button class="tvw-pin tv-noprint" onclick="event.stopPropagation();window.__tvDayPick(${di})">+ Look</button>`
                 : `<span class="tvw-hint">name the day and add a look</span>`);
+          // The sparkle (v3 §D — the strip gains it): restyling a dressed
+          // day and dressing an undressed one open the SAME surface, the
+          // __tvDayPick sheet — one destination, double duty.
+          const spark = pinned.length
+            ? `<button class="tvw-spark tv-noprint" title="Restyle this day" aria-label="Restyle this day" onclick="event.stopPropagation();window.__tvDayPick(${di})">${_DC_RING_SVG}</button>`
+            : '';
           return `<div class="tvw-card${(title || pinned.length) ? '' : ' bare'}${sel ? ' sel' : ''}" onclick="window.__tvDayTap(${di})" role="button" tabindex="0">
-            <span class="d">${_waEsc(_tvDayShort(di, true))}</span>
+            ${spark}<span class="d">${_waEsc(_tvDayShort(di, true))}</span>
             ${titleHtml}
             ${lookHtml}
           </div>`;
@@ -12249,15 +12349,15 @@ body>*:not(#tv-result-page){display:none !important}
               <button onclick="document.getElementById('tv-daypick-modal').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);line-height:1;margin-top:-2px">${closeSvg}</button>
             </div>
             <p style="font-family:${_tvSerif};font-size:24px;font-weight:300;color:#202021;margin:0 0 14px;line-height:1.2">${_waEsc(title || 'Dress this day.')}</p>
-            ${rowHtml ? `<p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px">This trip’s looks</p>${rowHtml}` : ''}
             <button onclick="window.__tvAddSavedLook({pinTo:${di}})" style="${optCss}">
               <span style="display:block;font-size:13px;color:#202021">From your lookbook</span>
               <span style="display:block;font-size:11px;color:var(--ink-faint);margin-top:2px">a saved look travels whole — its pieces join the capsule</span>
             </button>
-            <button onclick="document.getElementById('tv-daypick-modal').remove();window.__tvStyleLooks({pinTo:${di},preset:${title ? `['${_tvAttrJs(title)}']` : '[]'}})" style="${optCss};margin-bottom:0">
+            <button onclick="document.getElementById('tv-daypick-modal').remove();window.__tvStyleLooks({pinTo:${di},preset:${title ? `['${_tvAttrJs(title)}']` : '[]'}})" style="${optCss}${rowHtml ? '' : ';margin-bottom:0'}">
               <span style="display:block;font-size:13px;color:#202021">✦ Robes styles one</span>
               <span style="display:block;font-size:11px;color:var(--ink-faint);margin-top:2px">a fresh look from the capsule${title ? ', dressed for “' + _waEsc(title) + '”' : ''}</span>
             </button>
+            ${rowHtml ? `<p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:12px 0 8px">Or one of this trip’s looks</p>${rowHtml}` : ''}
           </div>`;
         document.body.appendChild(modal);
       };
@@ -16362,6 +16462,7 @@ body>*:not(#tv-result-page){display:none !important}
       (function _rbRail() {
         var _railSlots = null;
         var _railToday = null;
+        var _railNaming = null; // slot index mid-inline-name (v3 stage 'naming')
 
         // "Palette whisper" (design 1c, 2026-07-23 — supersedes the warm
         // frame): text-led calendar cells with NO imagery. Three small
@@ -16506,25 +16607,40 @@ body>*:not(#tv-result-page){display:none !important}
           return out;
         }
 
-        // DayCard path (spec v2.0): full density, wardrobe thumbnails
-        // (§10.1 — replaces the palette-whisper swatches), membership-only
-        // chip (a daily look carries none). Body-tap on a populated card
-        // opens the day PEEK (Annie §6.2); on an empty/free card it aims
-        // the prompt (the component folds free into empty — "Tap to dress
-        // it"). The ring scopes the prompt to the date — the old
-        // flag-dependent body branch (__rbRailTap) survives only for the
-        // ?daycard=off path.
+        // DayCard path (v3, 2026-08-14): full density, swatches, the
+        // compose sequence on every card. Bodies follow the STAGE —
+        // dressed → the day peek; named → the add-a-look picker; empty
+        // in a trip window → inline naming (the title stores on the
+        // trip's dayTitles); empty with no plan behind it → the prompt,
+        // scoped to the date (naming a bare day IS typing the plan into
+        // the prompt — the standing every-route-lands-on-the-prompt
+        // rule). The ring (sparkle) rides every non-past card and always
+        // scopes the prompt.
+        function railTripMoment(slot) {
+          return (slot.moments || []).find(m => m.source_type === 'travel') || null;
+        }
         function cardV2(slot, i) {
           const dayM = slot.moments.find(m => (m.slot || 'day') === 'day') || slot.moments[0] || null;
           const eveM = slot.moments.find(m => m.slot === 'evening') || null;
           const d = _dcMoments(dayM, eveM, { date: slot.date, today: _railToday, eyebrow: fmtCard(slot.date).toUpperCase() });
-          const populated = d.state === 'past' || d.state === 'today' || d.state === 'planned';
-          const body = d.state === 'empty-past' ? null
-            : populated ? `window.__rbRailPeek(${i})` : `window.__rbRailScope(${i})`;
+          let body = null;
+          if (d.state !== 'empty-past') {
+            body = d.stage === 'dressed' ? `window.__rbRailPeek(${i})`
+              : d.stage === 'named' ? `window.__rbRailLook(${i})`
+              : railTripMoment(slot) ? `window.__rbRailName(${i})`
+              : `window.__rbRailScope(${i})`;
+          }
           return _dcCard(d, {
             density: 'full',
             body,
-            ring: populated ? `window.__rbRailFocus(${i},event)` : null,
+            naming: _railNaming === i ? {
+              id: 'rb-dc-name-in',
+              value: (railTripMoment(slot) && railTripMoment(slot).activity) || '',
+              key: `window.__rbRailNameKey(event,${i})`,
+              blur: `window.__rbRailNameCommit(${i})`,
+            } : null,
+            lookAdd: d.stage === 'named' ? `window.__rbRailLook(${i})` : null,
+            ring: `window.__rbRailFocus(${i},event)`,
             ringTip: 'Refine the prompt for this day',
             ringTipShort: 'Refine prompt',
           });
@@ -16603,8 +16719,11 @@ body>*:not(#tv-result-page){display:none !important}
           const holder = document.getElementById('rb-rail-up');
           if (!holder || _pdDown || !_waUid() || !_waToken()) return;
           _waFetch('GET', 'planned_days?user_id=eq.' + _waUid() + '&day_date=gt.' + _pdAddISO(_railToday, 5)
-            + '&order=day_date.asc&limit=60&select=source_id,source_type,day_date')
+            + '&order=day_date.asc&limit=60&select=source_id,source_type,day_date,updated_at')
             .then(rows => {
+              // Same-plan supersession (F4/D-08): a rescheduled plan's
+              // stale twin must not win the Coming-up slot.
+              rows = Array.isArray(rows) ? _pdSupersede(rows) : rows;
               if (!Array.isArray(rows) || !rows.length) { holder.innerHTML = ''; return; }
               const first = rows[0];
               const mine = rows.filter(r => r.source_id === first.source_id).map(r => r.day_date);
@@ -16676,6 +16795,56 @@ body>*:not(#tv-result-page){display:none !important}
             return;
           }
           window.__rbRailScope(i);
+        };
+        // v3 · 02 Naming — inline, in the card, for a day that belongs to
+        // a trip (the title stores on the trip's dayTitles by day_index,
+        // the same write the Trip strip's editor makes). The card never
+        // moves, opens a sheet, or leaves the strip.
+        window.__rbRailName = function(i) {
+          const slot = _railSlots && _railSlots[i];
+          if (!slot) return;
+          const m = (slot.moments || []).find(x => x.source_type === 'travel');
+          if (!m) { window.__rbRailScope(i); return; }
+          _railNaming = i;
+          paint(_railSlots);
+          setTimeout(() => {
+            const inp = document.getElementById('rb-dc-name-in');
+            if (inp) { inp.focus(); try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (_) {} }
+          }, 30);
+        };
+        window.__rbRailNameKey = function(e, i) {
+          if (e.key === 'Enter') { e.preventDefault(); window.__rbRailNameCommit(i); }
+          else if (e.key === 'Escape') { _railNaming = null; paint(_railSlots); }
+        };
+        window.__rbRailNameCommit = function(i) {
+          if (_railNaming !== i) return;
+          const inp = document.getElementById('rb-dc-name-in');
+          const v = ((inp && inp.value) || '').trim().slice(0, 60);
+          _railNaming = null;
+          const slot = _railSlots && _railSlots[i];
+          const m = slot && (slot.moments || []).find(x => x.source_type === 'travel');
+          if (!slot || !m) { paint(_railSlots); return; }
+          const it = snLoad().find(x => String(x.id) === String(m.source_id));
+          if (it && it.tvData) {
+            if (!it.tvData.dayTitles || typeof it.tvData.dayTitles !== 'object') it.tvData.dayTitles = {};
+            if (v) it.tvData.dayTitles[m.day_index] = v; else delete it.tvData.dayTitles[m.day_index];
+            snUpdate(it.id, { tvData: it.tvData });
+            _pdSyncSaved(it.id);
+            _rbTrack('trip_day_named', { day_index: m.day_index, from: 'rail', cleared: !v });
+          }
+          // Reflect her words in the slot in hand — the debounced index
+          // write follows; a repaint from cache must not lose the name.
+          m.activity = v || null;
+          m.status = v ? 'planned' : 'free';
+          paint(_railSlots);
+        };
+        // v3 · 03 Named → + Look: the shared add-a-look picker (the two
+        // make-doors lead it; her saved looks pin via _lkPin).
+        window.__rbRailLook = function(i) {
+          const slot = _railSlots && _railSlots[i];
+          if (!slot) return;
+          if (window.__mvWear) window.__mvWear(slot.date);
+          else window.__rbRailScope(i);
         };
         // Tap a populated card → open the day inside its parent plan
         window.__rbRailOpen = function(i) {
@@ -17073,20 +17242,23 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
               const eveW = _pdWinner(here.filter(r => (r.slot || 'day') === 'evening'));
               const inMonth = date >= g.first && date <= g.last;
               if (dcOn) {
-                // Compact DayCard cell: numeral eyebrow, evening line,
-                // thumbnails, Worn ✓ (the §10.4 proposal, live). Void
-                // (out-of-month) and past-empty are DISTINCT states now
-                // (§7 — they used to collapse into one is-bare branch).
+                // Compact DayCard cell (v3): ONE empty treatment — a
+                // future/today empty carries the invitation and opens the
+                // add-a-look picker; a named day carries + Look; a past
+                // empty day stays quiet (nothing left to plan); void
+                // (out-of-month) is a bare numeral. Worn renders here —
+                // the month grid is where accumulation is legible.
                 const dc = _dcMoments(dayW, eveW, { date, today, eyebrow: inMonth ? String(+date.slice(8, 10)) : '' });
                 if (!inMonth) dc.state = 'void';
-                const populated = dc.state === 'past' || dc.state === 'today' || dc.state === 'planned';
-                // An empty day (today or ahead) offers "wear a look" — the
-                // calendar schedules looks that already exist, it never
-                // creates one (IA 2026-08-08).
-                const wearable = inMonth && dc.state === 'empty';
+                const dressed = inMonth && dc.stage === 'dressed';
+                const named = inMonth && dc.stage === 'named';
+                const invitable = inMonth && dc.stage === 'empty' && dc.state === 'empty';
                 html += _dcCard(dc, {
                   density: 'compact',
-                  body: populated ? `window.__mvCell('${date}')` : (wearable ? `window.__mvWear('${date}')` : null),
+                  body: dressed ? `window.__mvCell('${date}')`
+                    : named ? (dc.state === 'past' ? `window.__mvCell('${date}')` : `window.__mvWear('${date}')`)
+                    : invitable ? `window.__mvWear('${date}')` : null,
+                  lookAdd: named && dc.state !== 'past' ? `window.__mvWear('${date}')` : null,
                 });
                 continue;
               }
@@ -17141,37 +17313,61 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           _rbTrack('month_band_opened', { source_type: type });
           window.__snOpenItem(Number(sid));
         };
-        // An empty day's offer: wear a look that already exists. Tiles
-        // compose window._rbLookTile (handoff rule: never a second look
-        // card); zero looks hands her to the Lookbook to make one.
+        // The add-a-look picker (v3 §B — one panel, every surface): the
+        // two ways of MAKING a look lead it — "Robes styles one" (the
+        // prompt, scoped to the date) — then her saved looks under a
+        // "Your looks" heading. Tiles compose window._rbLookTile
+        // (handoff rule: never a second look card); zero looks keeps the
+        // Lookbook door. The rail's named days open this too.
         window.__mvWear = function(date) {
           document.getElementById('rb-mv-wear')?.remove();
           const looks = (typeof _lkLooks !== 'undefined' && Array.isArray(_lkLooks)) ? _lkLooks : [];
           const serif = "'Cormorant',Georgia,serif";
           const lt = window._rbLookTile;
+          // The day's own name heads the panel when it has one
+          const here = (_mvRows || []).filter(r => r.day_date === date && r.status !== 'free');
+          const w = here.length ? _pdWinner(here) : null;
+          const dayTitle = (w && w.activity) ? String(w.activity) : '';
           const modal = document.createElement('div');
           modal.id = 'rb-mv-wear';
           modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
           modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+          const robesDoor = `
+            <button onclick="window.__mvRobes('${date}')" style="display:block;width:100%;text-align:left;border:0.5px solid rgba(32,32,33,0.3);border-radius:12px;background:#fff;padding:12px 14px;cursor:pointer;font-family:inherit;margin-bottom:14px">
+              <span style="display:block;font-size:13px;color:#202021">✦ Robes styles one</span>
+              <span style="display:block;font-family:${serif};font-style:italic;font-size:13.5px;color:var(--ink-faint);margin-top:2px">${dayTitle ? 'dressed for “' + _waEsc(dayTitle) + '”' : 'a fresh look for this day'}</span>
+            </button>`;
           const body = looks.length
-            ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px">` +
+            ? `${robesDoor}<p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px">Your looks</p>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px">` +
               looks.slice(0, 60).map(l => `
                 <button onclick="window.__mvWearPick('${date}','${_waEsc(String(l.id))}')" style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:10px;padding:8px;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit">
                   ${lt.mosaic(lt.cells(_lkPieceIds(l)), { photo: l.photo_url || undefined, alt: l.name || 'Saved look' })}
                   <div style="padding:7px 2px 2px;font-size:11.5px;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(l.name || 'A look')}</div>
                 </button>`).join('') + `</div>`
-            : `<p style="font-family:${serif};font-style:italic;font-size:16px;color:var(--ink-faint);margin:0 0 18px">Nothing in the Lookbook yet — looks are made there, then worn here.</p>
+            : `${robesDoor}<p style="font-family:${serif};font-style:italic;font-size:16px;color:var(--ink-faint);margin:0 0 18px">Nothing in the Lookbook yet — looks are made there, then worn here.</p>
                <button onclick="document.getElementById('rb-mv-wear').remove();window.__lkNew&&window.__lkNew()" style="padding:13px 22px;border:none;border-radius:100px;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit">Make one in the Lookbook →</button>`;
           modal.innerHTML = `
             <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px">
               <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
-                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">${_waEsc(_lkFmt(date))}</p>
+                <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">Add a look · ${_waEsc(_lkFmt(date))}</p>
                 <button onclick="document.getElementById('rb-mv-wear').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);font-size:16px;line-height:1">×</button>
               </div>
-              <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 16px;line-height:1.2">Wear a look this day?</p>
+              <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 16px;line-height:1.2">${_waEsc(dayTitle || 'Wear a look this day?')}</p>
               ${body}
             </div>`;
           document.body.appendChild(modal);
+        };
+        // The Robes door: every route lands on the home prompt, scoped to
+        // the date — the Diary itself never creates a look.
+        window.__mvRobes = function(date) {
+          document.getElementById('rb-mv-wear')?.remove();
+          const pageOpen = snPage && snPage.style.display !== 'none';
+          if (pageOpen && window.__rbNavGo) window.__rbNavGo('home');
+          setTimeout(() => {
+            if (typeof window._ikScopeDay === 'function') window._ikScopeDay(date, null);
+            _rbTrack('day_robes_door', { date });
+          }, pageOpen ? 340 : 0);
         };
         window.__mvWearPick = function(date, id) {
           document.getElementById('rb-mv-wear')?.remove();
@@ -17181,6 +17377,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           _rbTrack('look_worn_from_calendar', { look: String(l.id) });
           _waShowToast('“' + (l.name || 'Your look') + '” — wearing it ' + _lkFmt(date));
           _mvLoad();
+          if (window._rbRailPaint) setTimeout(window._rbRailPaint, 700);
         };
         // The +N reveal (spec §11.1): a small popover listing the bands
         // the two lanes couldn't hold — each row opens its artifact.
