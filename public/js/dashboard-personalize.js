@@ -6881,6 +6881,12 @@
 #rb-dpk .dpk-card{position:relative;background:#FAF8F5;border-radius:var(--rad-card);max-width:420px;width:100%;max-height:80vh;overflow-y:auto;padding:24px 26px 22px;box-shadow:0 18px 60px rgba(32,32,33,0.22)}
 #rb-dpk .dpk-x{position:absolute;top:12px;right:14px;border:none;background:none;font-size:20px;color:var(--ink-faint);cursor:pointer;line-height:1;padding:4px}
 #rb-dpk .dpk-date{font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px}
+#rb-dpk .dpk-ttl-row{display:flex;align-items:baseline;gap:8px;margin:-8px 0 12px}
+#rb-dpk .dpk-ttl{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:26px;line-height:1.1;color:var(--ink,#202021)}
+#rb-dpk button.dpk-ttl.none{border:none;background:none;padding:0;cursor:pointer;font-style:italic;font-size:18px;color:var(--ink-faint)}
+#rb-dpk .dpk-pen{border:none;background:none;cursor:pointer;font-size:13px;color:var(--ink-faint);padding:2px 4px;line-height:1}
+#rb-dpk .dpk-pen:hover{color:var(--ink,#202021)}
+#rb-dpk .dpk-ttl-in{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:22px;border:none;border-bottom:1px solid rgba(32,32,33,0.3);border-radius:0;background:transparent;outline:none;width:100%;box-sizing:border-box;padding:0 0 3px;color:var(--ink,#202021)}
 #rb-dpk .mo{padding:12px 0;border-top:0.5px solid rgba(32,32,33,0.08)}
 #rb-dpk .mo:first-of-type{border-top:none;padding-top:0}
 #rb-dpk .mo .sl{font-size:9px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
@@ -7236,6 +7242,59 @@
         if (ids.length) setTimeout(_waLoad, 900);
         _waShowToast('Logged — Robes remembers what you wore ✓');
       }
+      // ── Day rename, ONE write path for every surface (Annie
+      // 2026-08-14: the trip strip edits plans inline, so the rail and
+      // the Diary must offer the same — on the card while no look is
+      // assigned, on the modal once one is). The moment decides where
+      // the title lives: a trip day writes the trip's dayTitles (the
+      // strip's own write), a daily look its occasion_label, a pinned
+      // Look re-pins with the label. Returns true when something stored.
+      function _rbDayRenameTarget(moments) {
+        moments = moments || [];
+        const tv = moments.find(m => m && m.source_type === 'travel');
+        if (tv) return tv;
+        const day = moments.find(m => m && (m.slot || 'day') === 'day') || moments[0];
+        if (day && day.status !== 'free' && (day.source_type === 'daily' || day.source_type === 'look')) return day;
+        return null;
+      }
+      function _rbDayRename(m, v) {
+        v = String(v || '').trim().slice(0, 60);
+        if (!m) return false;
+        try {
+          if (m.source_type === 'travel') {
+            const it = snLoad().find(x => String(x.id) === String(m.source_id));
+            if (!it || !it.tvData) return false;
+            if (!it.tvData.dayTitles || typeof it.tvData.dayTitles !== 'object') it.tvData.dayTitles = {};
+            if (v) it.tvData.dayTitles[m.day_index] = v; else delete it.tvData.dayTitles[m.day_index];
+            snUpdate(it.id, { tvData: it.tvData });
+            _pdSyncSaved(it.id);
+          } else if (m.source_type === 'daily') {
+            const it = snLoad().find(x => String(x.id) === String(m.source_id));
+            if (!it || !it.dlData) return false;
+            it.dlData.occasion_label = v || null;
+            snUpdate(it.id, { dlData: it.dlData });
+            _pdSyncSaved(it.id);
+          } else if (m.source_type === 'look') {
+            // The pin rebuild carries names forward — an empty commit
+            // can't clear here, it just keeps the standing name.
+            if (!v || typeof _lkPin !== 'function') return false;
+            _lkPin(m.source_id, m.day_date, v);
+          } else return false;
+          // Reflect her words in the row in hand — the debounced index
+          // write follows; a repaint from cache must not lose the name.
+          m.activity = v || null;
+          if (m.status === 'free' && v) m.status = 'planned';
+          _rbTrack('day_renamed', { source_type: m.source_type });
+          return true;
+        } catch (_) { return false; }
+      }
+      function _rbDayRepaints() {
+        // SOFT repaints from the rows in hand — a refetch here would race
+        // the debounced planned_days upsert and revert the fresh name.
+        if (window._rbRailRepaint) window._rbRailRepaint();
+        const sn = document.getElementById('sn-page');
+        if (sn && sn.classList.contains('rb-cal-on') && window._rbMvRepaint) window._rbMvRepaint();
+      }
       window.__rbDayPeek = function(date, moments) {
         if (!moments || !moments.length) return;
         _dcEnsureCss();
@@ -7246,12 +7305,14 @@
         const dayM = moments.find(m => (m.slot || 'day') === 'day') || moments[0];
         const worn = moments.some(m => m.status === 'worn');
         const isPast = date < today;
+        // The trio holds in the peek too (2B): the DAY's title heads the
+        // modal — the slot lines carry the LOOKS' names, never the day's
+        // title again ("Exploring City" was naming the Day slot where
+        // "Golden hour glow" belonged).
         const moBlock = m => {
-          const t = _dcTitleOf(m) || (m.status === 'free' ? 'Left free' : 'Planned');
+          const nm = m.status === 'free' ? '' : String(m.headline || '').replace(/\.\s*$/, '').trim();
+          const t = nm || _dcTitleOf(m) || (m.status === 'free' ? 'Left free' : 'Planned');
           let chip = _dcChipOf(m);
-          // A pinned Look belongs to this day card — when the day carries
-          // her own name for it (the prompt text), the look's name rides
-          // the slot line so both survive at a glance.
           if (!chip && m.source_type === 'look') {
             const l = typeof _lkFind === 'function' ? _lkFind(m.source_id) : null;
             if (l && l.name && l.name !== t) chip = l.name;
@@ -7263,6 +7324,19 @@
             (th.length ? `<div class="th">${th.map(u => `<i style="background-image:url('${_waEsc(u)}')"></i>`).join('')}</div>` : '') +
             `</div>`;
         };
+        // Her name for the day + the rename pencil (the strip's inline
+        // edit, reaching the modal surfaces — Annie 2026-08-14)
+        const renameT = _rbDayRenameTarget(moments);
+        const dayTitle = (dayM && dayM.status !== 'free' && dayM.activity) ? String(dayM.activity) : '';
+        _dpkState.dayTitle = dayTitle;
+        const ttlRow = (dayTitle || renameT)
+          ? `<div class="dpk-ttl-row">` +
+            (dayTitle
+              ? `<div class="dpk-ttl">${_waEsc(dayTitle)}</div>`
+              : `<button class="dpk-ttl none" onclick="window.__rbDayPeekRename()">add plans…</button>`) +
+            (renameT && dayTitle ? `<button class="dpk-pen" onclick="window.__rbDayPeekRename()" title="Rename the day" aria-label="Rename the day">✎</button>` : '') +
+            `</div>`
+          : '';
         const wear = isPast && !worn
           ? `<button class="dpk-btn" onclick="window.__rbDayPeekWear()">Wore it ✓</button>`
           : (worn ? `<span class="dpk-worn">Worn ✓</span>` : '');
@@ -7278,6 +7352,7 @@
           `<div class="dpk-card" role="dialog" aria-modal="true">` +
           `<button class="dpk-x" onclick="window.__rbDayPeekClose()" aria-label="Close">×</button>` +
           `<div class="dpk-date">${_waEsc(long)}</div>` +
+          ttlRow +
           moments.map(moBlock).join('') +
           `<div class="dpk-acts">${wear}${unpin}<button class="dpk-btn primary" onclick="window.__rbDayPeekOpen()">${openLbl}</button></div>` +
           `</div>`;
@@ -7287,6 +7362,37 @@
       window.__rbDayPeekClose = function() {
         document.getElementById('rb-dpk')?.remove();
         _dpkState = null;
+      };
+      // Rename in the modal: the title row swaps to an input in place —
+      // commit writes through _rbDayRename and repaints peek + surfaces.
+      window.__rbDayPeekRename = function() {
+        const s = _dpkState;
+        if (!s) return;
+        const row = document.querySelector('#rb-dpk .dpk-ttl-row');
+        if (!row) return;
+        row.innerHTML = `<input id="rb-dpk-ttl-in" class="dpk-ttl-in" value="${_waEsc(s.dayTitle || '')}" maxlength="60" placeholder="what’s happening?"` +
+          ` onkeydown="window.__rbDayPeekRenameKey(event)" onblur="window.__rbDayPeekRenameCommit()">`;
+        const inp = document.getElementById('rb-dpk-ttl-in');
+        if (inp) { inp.focus(); try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (_) {} }
+      };
+      window.__rbDayPeekRenameKey = function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); window.__rbDayPeekRenameCommit(); }
+        else if (e.key === 'Escape') {
+          const s = _dpkState;
+          if (s) window.__rbDayPeek(s.date, s.moments);
+        }
+      };
+      window.__rbDayPeekRenameCommit = function() {
+        const s = _dpkState;
+        const inp = document.getElementById('rb-dpk-ttl-in');
+        if (!s || !inp) return;
+        const v = inp.value;
+        const t = _rbDayRenameTarget(s.moments);
+        if (t && String(v).trim() !== String(s.dayTitle || '')) {
+          _rbDayRename(t, v);
+          _rbDayRepaints();
+        }
+        window.__rbDayPeek(s.date, s.moments);
       };
       window.__rbDayPeekOpen = function() {
         const s = _dpkState;
@@ -16657,8 +16763,11 @@ body>*:not(#tv-result-page){display:none !important}
           const d = _dcMoments(dayM, eveM, { date: slot.date, today: _railToday, eyebrow: fmtCard(slot.date).toUpperCase() });
           let body = null;
           if (d.state !== 'empty-past') {
+            // While no look is assigned the CARD edits the plan inline
+            // (the trip strip's affordance, Annie 2026-08-14); + Look is
+            // the picker door. Once dressed, editing moves to the peek.
             body = d.stage === 'dressed' ? `window.__rbRailPeek(${i})`
-              : d.stage === 'named' ? `window.__rbRailLook(${i})`
+              : d.stage === 'named' ? (railTripMoment(slot) ? `window.__rbRailName(${i})` : `window.__rbRailLook(${i})`)
               : railTripMoment(slot) ? `window.__rbRailName(${i})`
               : `window.__rbRailScope(${i})`;
           }
@@ -16851,23 +16960,13 @@ body>*:not(#tv-result-page){display:none !important}
         window.__rbRailNameCommit = function(i) {
           if (_railNaming !== i) return;
           const inp = document.getElementById('rb-dc-name-in');
-          const v = ((inp && inp.value) || '').trim().slice(0, 60);
+          const v = ((inp && inp.value) || '');
           _railNaming = null;
           const slot = _railSlots && _railSlots[i];
           const m = slot && (slot.moments || []).find(x => x.source_type === 'travel');
           if (!slot || !m) { paint(_railSlots); return; }
-          const it = snLoad().find(x => String(x.id) === String(m.source_id));
-          if (it && it.tvData) {
-            if (!it.tvData.dayTitles || typeof it.tvData.dayTitles !== 'object') it.tvData.dayTitles = {};
-            if (v) it.tvData.dayTitles[m.day_index] = v; else delete it.tvData.dayTitles[m.day_index];
-            snUpdate(it.id, { tvData: it.tvData });
-            _pdSyncSaved(it.id);
-            _rbTrack('trip_day_named', { day_index: m.day_index, from: 'rail', cleared: !v });
-          }
-          // Reflect her words in the slot in hand — the debounced index
-          // write follows; a repaint from cache must not lose the name.
-          m.activity = v || null;
-          m.status = v ? 'planned' : 'free';
+          // ONE write path with the peek and the Diary picker
+          if (_rbDayRename(m, v) && !String(v).trim()) m.status = 'free';
           paint(_railSlots);
         };
         // v3 · 03 Named → + Look: the shared add-a-look picker (the two
@@ -17011,6 +17110,7 @@ body>*:not(#tv-result-page){display:none !important}
         var _mvRows = [];             // fetched grid±7d rows, freshest-filtered per date
         var _mvSources = {};
         var _mvHidden = [];           // per-week bands beyond the two lanes (+N reveal)
+        var _mvWearCtx = null;        // add-a-look picker: {date, target, title} for rename
         const pad2 = n => String(n).padStart(2, '0');
         const dISO = iso => Date.parse(iso + 'T00:00:00Z');
         const diffD = (a, b) => Math.round((dISO(b) - dISO(a)) / 86400000);
@@ -17165,6 +17265,12 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           rows.forEach(r => { (byDate[r.day_date] = byDate[r.day_date] || []).push(r); });
           return Object.keys(byDate).reduce((out, d) => out.concat(_pdFreshest(byDate[d])), []);
         }
+        // Soft repaint from the rows already in hand (rename writes mutate
+        // them in place; the debounced index write follows)
+        window._rbMvRepaint = function() {
+          if (_mvY == null) return;
+          _mvPaint(_mvGrid(), _mvRows, _mvSources);
+        };
         function _mvLoad() {
           const g = _mvGrid();
           _mvPaint(g, _mvRows, _mvSources); // last data first — no blank flash
@@ -17356,10 +17462,15 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const looks = (typeof _lkLooks !== 'undefined' && Array.isArray(_lkLooks)) ? _lkLooks : [];
           const serif = "'Cormorant',Georgia,serif";
           const lt = window._rbLookTile;
-          // The day's own name heads the panel when it has one
+          // The day's own name heads the panel when it has one — and the
+          // strip's rename affordance reaches here too (Annie 2026-08-14:
+          // the modal edits the plan once the day opens through a modal).
           const here = (_mvRows || []).filter(r => r.day_date === date && r.status !== 'free');
           const w = here.length ? _pdWinner(here) : null;
           const dayTitle = (w && w.activity) ? String(w.activity) : '';
+          const hereAll = (_mvRows || []).filter(r => r.day_date === date);
+          const renameT = _rbDayRenameTarget(hereAll);
+          _mvWearCtx = { date, target: renameT, title: dayTitle };
           const modal = document.createElement('div');
           modal.id = 'rb-mv-wear';
           modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
@@ -17385,7 +17496,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
                 <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">Add a look · ${_waEsc(_lkFmt(date))}</p>
                 <button onclick="document.getElementById('rb-mv-wear').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);font-size:16px;line-height:1">×</button>
               </div>
-              <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 16px;line-height:1.2">${_waEsc(dayTitle || 'Wear a look this day?')}</p>
+              <p id="rb-mv-wear-ttl" style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 16px;line-height:1.2">${_waEsc(dayTitle || 'Wear a look this day?')}${renameT ? ` <button onclick="window.__mvWearRename()" title="Rename the day" aria-label="Rename the day" style="border:none;background:none;cursor:pointer;font-size:13px;color:var(--ink-faint);padding:2px 4px;line-height:1">✎</button>` : ''}</p>
               ${body}
             </div>`;
           document.body.appendChild(modal);
@@ -17400,6 +17511,33 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             if (typeof window._ikScopeDay === 'function') window._ikScopeDay(date, null);
             _rbTrack('day_robes_door', { date });
           }, pageOpen ? 340 : 0);
+        };
+        // Rename in the picker: the headline swaps to an input in place;
+        // commit runs the shared _rbDayRename and repaints every surface.
+        window.__mvWearRename = function() {
+          const c = _mvWearCtx;
+          const ttl = document.getElementById('rb-mv-wear-ttl');
+          if (!c || !c.target || !ttl) return;
+          ttl.innerHTML = `<input id="rb-mv-wear-ttl-in" value="${_waEsc(c.title || '')}" maxlength="60" placeholder="what’s happening?"` +
+            ` style="font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:22px;border:none;border-bottom:1px solid rgba(32,32,33,0.3);border-radius:0;background:transparent;outline:none;width:100%;box-sizing:border-box;padding:0 0 3px;color:#202021"` +
+            ` onkeydown="window.__mvWearRenameKey(event)" onblur="window.__mvWearRenameCommit()">`;
+          const inp = document.getElementById('rb-mv-wear-ttl-in');
+          if (inp) { inp.focus(); try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (_) {} }
+        };
+        window.__mvWearRenameKey = function(e) {
+          if (e.key === 'Enter') { e.preventDefault(); window.__mvWearRenameCommit(); }
+          else if (e.key === 'Escape') { const c = _mvWearCtx; if (c) window.__mvWear(c.date); }
+        };
+        window.__mvWearRenameCommit = function() {
+          const c = _mvWearCtx;
+          const inp = document.getElementById('rb-mv-wear-ttl-in');
+          if (!c || !inp) return;
+          const v = inp.value;
+          if (c.target && String(v).trim() !== String(c.title || '')) {
+            _rbDayRename(c.target, v);
+            _rbDayRepaints();
+          }
+          window.__mvWear(c.date);
         };
         window.__mvWearPick = function(date, id) {
           document.getElementById('rb-mv-wear')?.remove();
