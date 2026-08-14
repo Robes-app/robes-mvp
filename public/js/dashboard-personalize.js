@@ -6826,7 +6826,8 @@
 .rb-dc.dc-compact .dc-ey{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:22px;letter-spacing:0;text-transform:none;opacity:.9;line-height:1;margin-bottom:2px}
 .rb-dc .dc-title{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:22px;line-height:1.08;letter-spacing:.002em;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.16em}
 .rb-dc.dc-compact .dc-title{font-weight:400;font-size:17px;min-height:0}
-.rb-dc .dc-eve{font-weight:300;font-size:11.5px;line-height:1.4;opacity:.62;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-dc .dc-eve{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:12.5px;line-height:1.35;opacity:.62;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rb-dc.dc-compact .dc-eve{font-size:11px;-webkit-line-clamp:1}
 .rb-dc .dc-chip{margin-top:10px}
 .rb-dc .dc-chip span{display:inline-flex;align-items:center;gap:6px;font-weight:400;font-size:9px;letter-spacing:.18em;text-transform:uppercase;opacity:.7}
 .rb-dc .dc-chip i{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.5;flex:none}
@@ -6929,6 +6930,22 @@
         const t = (_DC_TITLE_MODE === 'user' ? gen : (gen || user)) || '';
         return _dcSentence(String(t).replace(/\.\s*$/, ''));
       }
+      // ONE second-line rule, every day surface (2B "Quiet", Annie
+      // 2026-08-14 — the rail, the diary and the trip strip must never
+      // diverge on this again): the day's trio is title / day look /
+      // evening look, and the second line is the look NAMES as one quiet
+      // serif phrase, joined " · ", no Day/Evening labels, minus any
+      // name the title already says. The trip strip feeds it from the
+      // blob, the rail and diary from the index rows — same phrase.
+      function _dcLookPhrase(title, names) {
+        const t = String(title || '').replace(/\.\s*$/, '').trim().toLowerCase();
+        const out = [];
+        (names || []).forEach(n => {
+          n = String(n || '').replace(/\.\s*$/, '').trim();
+          if (n && n.toLowerCase() !== t && out.indexOf(n) === -1) out.push(n);
+        });
+        return out.join(' · ');
+      }
       // Context chip = MEMBERSHIP only (spec §4.6): a trip or week the day
       // belongs to. A daily look belongs to nothing → no chip, never a
       // type label filling the slot.
@@ -7027,15 +7044,19 @@
         const dressed = !!((lead.thumb_urls || []).length || (lead.item_ids || []).length || lead.headline);
         d.stage = dressed ? 'dressed' : 'named';
         d.state = past ? 'past' : todayIs ? 'today' : 'planned';
-        if (eveM && eveM.status !== 'free' && lead !== eveM) {
-          const a = eveM.activity || eveM.headline;
-          // 'Evening · Evening look' placeholder copy never reaches the
-          // card (§11.3), and an evening that merely RESTATES the title
-          // renders the bare mark too (F2 — the repetition read as noise).
-          const clean = a ? String(a).trim() : '';
-          const repeats = clean && clean.toLowerCase().replace(/\.\s*$/, '') === String(d.title).toLowerCase().replace(/\.\s*$/, '');
-          d.evening = (clean && !repeats && !/^evening( look| plan| outfit)?$/i.test(clean)) ? _dcSentence(clean) : true;
-        }
+        // The second line is the look NAMES (the shared 2B phrase —
+        // headline carries Robes' name for a look; `activity` is never
+        // read here, it's HER slot and stale rows carried occasions in
+        // it). `evening` survives as the boolean two-moment signal for
+        // the compact ☾ mark.
+        const lookNm = m => {
+          if (!m || m.status === 'free') return '';
+          const n = String(m.headline || '').trim();
+          // 'Evening look' placeholder copy never reaches the card (§11.3)
+          return /^evening( look| plan| outfit)?$/i.test(n) ? '' : n;
+        };
+        d.second = _dcLookPhrase(d.title, [lookNm(dayM), lookNm(eveM)]);
+        d.evening = !!(eveM && eveM.status !== 'free' && lead !== eveM);
         d.chip = _dcChipOf(lead);
         if (!dressed) return d;
         if (_DC_THUMB_MODE === 'swatch') {
@@ -7128,15 +7149,13 @@
           inner += `<div class="dc-sp"></div>`;
           if (!past && opts.lookAdd) inner += `<button class="dc-look" onclick="event.stopPropagation();${opts.lookAdd}">+ Look</button>`;
         } else {
-          // 04 · Dressed
+          // 04 · Dressed — the trio: title, then the look names as one
+          // quiet serif phrase (the shared 2B rule, no Evening· label).
           inner += _ltTitleHtml(d.title, 'dc');
-          if (d.evening) {
-            const txt = typeof d.evening === 'string' ? 'Evening · ' + _dcTruncate(d.evening, compact ? 16 : 34) : 'Evening';
-            inner += `<div class="dc-eve">${_waEsc(txt)}</div>`;
-            // Phone-scale calendar drops the text line — the ☾ mark keeps
-            // the two-moment signal legible (§6.3 at 48px cells)
-            if (compact) inner += `<span class="dc-evemark" title="Evening planned">☾</span>`;
-          }
+          if (d.second) inner += `<div class="dc-eve">${_waEsc(_dcTruncate(d.second, compact ? 30 : 72))}</div>`;
+          // Phone-scale calendar drops the text line — the ☾ mark keeps
+          // the two-moment signal legible (§6.3 at 48px cells)
+          if (compact && d.evening) inner += `<span class="dc-evemark" title="Evening planned">☾</span>`;
           inner += chipHtml;
           inner += `<div class="dc-sp"></div>`;
           // Swatch mode draws its own quiet dots (no denominator — counts
@@ -12265,7 +12284,8 @@ body>*:not(#tv-result-page){display:none !important}
           const lookName = x => String((x.l.title || x.l.occasion || '')).replace(/\.\s*$/, '').trim();
           const names = pinned.slice(0, 2).map(lookName).filter(Boolean);
           const dispTitle = title || names[0] || '';
-          const phrase = names.filter(n => n.toLowerCase() !== dispTitle.trim().toLowerCase()).join(' · ');
+          const phrase = _dcLookPhrase(dispTitle, names); // the ONE shared second-line rule
+
           const plus = pinned.length > 2 ? `<span class="swplus">+${pinned.length - 2}</span>` : '';
           const titleHtml = editing
             ? `<input id="tv-daytitle-in" value="${_waEsc(title)}" placeholder="what’s happening?" maxlength="60"
