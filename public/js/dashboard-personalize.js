@@ -8123,10 +8123,6 @@
 .rb-lkref-chips{display:flex;gap:7px;flex-wrap:wrap}
 .rb-lkref-chip{border-radius:100px;padding:7px 13px;font-size:11.5px;cursor:pointer;font-family:inherit;background:#fff;border:1px solid rgba(32,32,33,0.16);color:var(--ink-soft);transition:all .15s}
 .rb-lkref-chip.on{background:var(--secondary,#E3E1CC);border-color:transparent;color:var(--ink)}
-.rb-lkvibe{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 16px}
-.rb-lkvibe .vl{font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);padding-right:4px}
-.rb-lkvibe .rb-lkref-chip.on{background:var(--rose-bg)}
-.rb-lkvibe-read{grid-column:1/-1;margin-top:8px;background:#fff;border:0.5px solid var(--rule);border-radius:var(--rad-sm);padding:15px 18px;font-size:12px;line-height:1.6;color:var(--ink-soft)}
 .rb-lkref-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:0.5px solid var(--rule);padding-top:12px}
 #rb-lk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
 @media(max-width:1023px){#rb-lk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -8379,12 +8375,6 @@
         // artifacts sort and filter on the same axes (ADR-002 [C10]). A
         // control must be gated on the thing it actually controls.
         const sortLive = streamN >= 4;
-        // Browse-by-vibe is its own control and is NOT gated on four looks —
-        // it renders exactly when her looks carry vibes, which is the only
-        // state in which it can do anything. A filter left standing after
-        // the last look carrying it went is cleared rather than orphaned.
-        let vibeRowHtml = _lkVibeRowHtml();
-        if (!vibeRowHtml && _lkRefine.vibe.length) { _lkRefine.vibe = []; vibeRowHtml = _lkVibeRowHtml(); }
         if (allHead) {
           const inert = sortLive ? '' : ' disabled';
           allHead.innerHTML = '<div class="rb-lk-allrow">' +
@@ -8398,14 +8388,12 @@
               (sortLive ? ' onclick="window.__lkRefineToggle()"' : '') + '>' +
               '<span>Refine' + (sortLive && refN ? ' · ' + refN : '') + '</span></button>' +
             '</div>' +
-            (sortLive && _lkRefineOpen ? _lkRefineHtml() : '') +
-            vibeRowHtml;
+            (sortLive && _lkRefineOpen ? _lkRefineHtml() : '');
         }
         // Filters can only be SET while Refine is live, but a delete can
         // drop the count back under four — never leave a live filter
-        // hiding looks behind an inert control. The vibe row is the
-        // exception: it sets its own filter at any count.
-        const refActive = (sortLive && refN) || _lkRefine.vibe.length;
+        // hiding looks behind an inert control.
+        const refActive = sortLive && refN;
         const looksShown = refActive ? _lkSorted().filter(_lkMatchRefine) : _lkSorted();
         const noneHtml = refActive && !looksShown.length
           ? '<div style="grid-column:1/-1;padding:26px 0 6px;font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">No looks carry those tags. <button type="button" class="rb-lk-quiet" onclick="window.__lkRefineClear()" style="font-style:normal">Clear the filters</button></div>'
@@ -8432,9 +8420,7 @@
           '<span class="rb-add-plus">+</span>' +
           '<span class="rb-add-serif">New look</span>' +
           '<span class="rb-add-hint">Built on the rack</span>' +
-        '</div>' +
-        // The read closes the shelf, under the looks it is read from.
-        _lkVibeInsight();
+        '</div>';
       }
 
       // The Looks stream holds SAVED LOOKS ONLY (Look Rules 1a, 2026-08-17).
@@ -8652,77 +8638,13 @@
         // Count what the grid will actually show — Looks AND artifacts.
         const n = _lkLooks.filter(_lkMatchRefine).length
           + _lkShelfItems().filter(_lkMatchRefineItem).length;
-        // Vibe is NOT in the drawer — it has its own standing row above the
-        // grid (E2), and one axis offered in two places reads as two filters.
-        return '<div class="rb-lk-refwrap">' + g('climate') + g('wear') +
+        // Vibe filters HERE, under Season and Wear it for — one filtering
+        // system, one place (Annie, 2026-08-17: no standing vibe row on the
+        // Lookbook; the vibe is part of Refine, not a second surface).
+        return '<div class="rb-lk-refwrap">' + g('climate') + g('wear') + g('vibe') +
           '<div class="rb-lkref-foot"><button type="button" class="rb-lk-quiet" onclick="window.__lkRefineClear()">Clear all</button>' +
           '<span style="font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint)">' + _lkN(n, 'look') + '</span></div></div>';
       }
-      // ── Browse by vibe (Look Rules 1e / E2) ─────────────────────────────
-      // The one axis that earns a standing row rather than a drawer: it is
-      // how she thinks about her looks ("what do I have that's powerhouse")
-      // and what makes the wear data answerable. Counts ride the chips, so
-      // the row doubles as the read — four powerhouse looks, two chic.
-      // Only vibes her looks actually carry appear; the full ten live in
-      // the tag sheet, where they are assigned.
-      function _lkVibeCounts() {
-        const counts = {};
-        _lkLooks.forEach(l => {
-          const sl = _rbVibeOf(_lkTagsOf(l));
-          if (sl) counts[sl] = (counts[sl] || 0) + 1;
-        });
-        return Object.keys(counts)
-          .sort((a, b) => counts[b] - counts[a] || _rbTagLabel('vibe', a).localeCompare(_rbTagLabel('vibe', b)))
-          .map(slug => ({ slug, n: counts[slug] }));
-      }
-      // What the vibe tags buy her (E2): occasion counts would only say how
-      // often she goes to work — vibe counts say which register she
-      // actually reaches for. Derived, never authored, and it only speaks
-      // when the comparison is real: two vibes, two looks each, a wear
-      // apiece and a gap wide enough to mean something.
-      function _lkVibeInsight() {
-        const stats = {};
-        _lkLooks.forEach(l => {
-          const sl = _rbVibeOf(_lkTagsOf(l));
-          if (!sl) return;
-          const s = stats[sl] || (stats[sl] = { looks: 0, wears: 0 });
-          s.looks++; s.wears += _lkWearCount(l);
-        });
-        const ranked = Object.keys(stats)
-          .filter(sl => stats[sl].looks >= 2 && stats[sl].wears >= 1)
-          .map(sl => ({ sl, per: stats[sl].wears / stats[sl].looks }))
-          .sort((a, b) => b.per - a.per);
-        if (ranked.length < 2) return '';
-        const top = ranked[0], low = ranked[ranked.length - 1];
-        const ratio = top.per / low.per;
-        if (!(ratio >= 1.5)) return '';
-        const times = ratio >= 2.5 ? 'three times' : ratio >= 1.75 ? 'twice' : 'half as often again';
-        const lead = ratio >= 1.75 ? ' as often as ' : ' as ';
-        return '<div class="rb-lkvibe-read">Your ' + _waEsc(_rbTagLabel('vibe', top.sl).toLowerCase()) +
-          ' looks are worn ' + times + lead + 'your ' +
-          _waEsc(_rbTagLabel('vibe', low.sl).toLowerCase()) + ' ones.</div>';
-      }
-      function _lkVibeRowHtml() {
-        const rows = _lkVibeCounts();
-        if (!rows.length) return '';
-        return '<div class="rb-lkvibe"><span class="vl">Vibe</span>' +
-          rows.map(r => '<button type="button" class="rb-lkref-chip' +
-            (_lkRefine.vibe.indexOf(r.slug) > -1 ? ' on' : '') + '" data-val="' + _waEsc(r.slug) +
-            '" onclick="window.__lkVibePick(this)">' + _waEsc(_rbTagLabel('vibe', r.slug)) + ' · ' + r.n + '</button>').join('') +
-          (_lkRefine.vibe.length
-            ? '<button type="button" class="rb-lk-quiet" onclick="window.__lkVibeClear()">Clear</button>'
-            : '') +
-          '</div>';
-      }
-      window.__lkVibePick = function(el) {
-        const v = el && el.getAttribute('data-val');
-        if (!v) return;
-        const k = _lkRefine.vibe.indexOf(v);
-        if (k > -1) _lkRefine.vibe.splice(k, 1); else _lkRefine.vibe.push(v);
-        _lkPaint();
-        _rbTrack('looks_browsed_by_vibe', { vibe: v, on: k < 0 });
-      };
-      window.__lkVibeClear = function() { _lkRefine.vibe = []; _lkPaint(); };
       window.__lkRefineToggle = function() { _lkRefineOpen = !_lkRefineOpen; _lkPaint(); };
       window.__lkRefinePick = function(el) {
         const ax = el.getAttribute('data-ax'), v = el.getAttribute('data-val');
@@ -9496,17 +9418,14 @@
       // look); the Look detail stays one tap away behind the daily view's
       // "Look details →" door, and remains the fallback when the look's
       // pieces can't be resolved.
+      // A Lookbook card opens the SAVED LOOK DETAIL — the look and its
+      // history, no date, no weather, no share (Look Rules 1c, Annie's beta
+      // catch 2026-08-17: a saved look opened from the grid was picking up a
+      // day's chrome). The DAY is entered from a diary cell only — the home
+      // strip, the travel strip, the month view — never from the Lookbook;
+      // __lkOpenAsDay survives as exactly that entry (_rbOpenPlannedDay).
+      // Supersedes the 2026-08-08 "a look card opens as it is worn" routing.
       window.__lkCardOpen = function(id) {
-        const today = _pdLocalISO();
-        const pins = _lkPins(id);
-        const up = pins.filter(d => d >= today);
-        const date = up.length ? up[0] : (pins.length ? pins[pins.length - 1] : today);
-        let activity = null;
-        if (pins.length) {
-          const row = _pdCacheRead().find(r => r.source_type === 'look' && String(r.source_id) === String(id) && r.day_date === date);
-          activity = (row && row.activity) || null;
-        }
-        if (window.__lkOpenAsDay && window.__lkOpenAsDay({ source_id: id, day_date: date, activity })) return;
         window.__lkOpen(id);
       };
       // The daily view's quiet door back to the Look entity — rename, wear
@@ -11631,7 +11550,11 @@
           : '';
         const dlMomentLabel = weekday + (dlEve ? ' evening' : '');
         const con = _rbConsole({
-          headLabel: `The look · ${_waEsc(dlMomentLabel)} · ${total} pieces`,
+          // This panel is the DAY's composition (D1 anatomy) — "The day",
+          // marked Adjusted the moment it differs from the saved look. The
+          // rack keeps the weekday; the Look detail keeps "The look".
+          headLabel: `The ${dlEve ? 'evening' : 'day'} · ${total} pieces`,
+          robesLabel: dayChg.n ? '<span style="color:#8C9A72">Adjusted</span>' : 'Robes',
           occHtml: dlOccHtml,
           quoteHtml: summaryHtml || (quote ? '“' + _waEsc(quote) + '”' : ''),
           fabricsHtml,
@@ -11668,10 +11591,17 @@
           ? new Date(data.anchor_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
           : '';
         const occTitle = data.occasion_label ? cap1(String(data.occasion_label).toLowerCase()) : '';
-        const dayTitle = occTitle || dayFull || headline;
-        // "A day with no occasion set simply titles itself by the date, and
-        // the eyebrow drops away" (E3) — the date cannot lead twice.
-        const dayEyebrow = occTitle && dayFull ? dayFull
+        // The title ladder (E3 + D1): the OCCASION titles the day when she
+        // set one; a day wearing a saved look with no occasion titles as
+        // "Wearing {the look}" (D1's header — a bare date would just repeat
+        // the eyebrow); a day with neither titles by the date and the
+        // eyebrow drops away. The look's name is italic serif, never
+        // conflated with the day's own facts.
+        const wearingTitle = !occTitle && dayLook;
+        const dayTitleHtml = occTitle ? _waEsc(occTitle)
+          : wearingTitle ? 'Wearing <span style="font-style:italic">' + _waEsc(dayLook.name) + '</span>'
+          : _waEsc(dayFull || headline);
+        const dayEyebrow = (occTitle || wearingTitle) && dayFull ? dayFull
           : (dayFull ? '' : _rbTrackCfg('daily').artifact.eyebrow);
         const dlVibe = _rbVibeLabel(data.look_tags);
         try { dlResultPage.innerHTML = `
@@ -11679,12 +11609,12 @@
             <header>
               ${dayEyebrow ? `<div class="dlm-eyebrow">${_waEsc(dayEyebrow)}</div>` : ''}
               <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-                <h1 class="dlm-title">${_waEsc(dayTitle)}</h1>
+                <h1 class="dlm-title">${dayTitleHtml}</h1>
                 <button class="rb-rename-tbtn" title="Name the day" style="margin-top:6px" onclick="window.__dlDayRename&&window.__dlDayRename()"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
               </div>
               <div class="dlm-meta-row">
                 ${ctx && (ctx.city || ctx.tempRange) ? `<div class="dlm-wx"><span>🌤</span><strong>${_waEsc([ctx.city, ctx.month].filter(Boolean).join(' · '))}</strong>${ctx.tempRange ? `<span class="div"></span><span>${_waEsc(ctx.tempRange)}</span>` : ''}${ctx.hint ? `<span class="div"></span><span>${_waEsc(ctx.hint)}</span>` : ''}</div>` : ''}
-                ${headline ? `<div class="dlm-wearing">Wearing <em>${_waEsc(headline)}</em><button class="rb-rename-tbtn" title="Rename the look" onclick="window.__rbRename&&window.__rbRename('dl')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button></div>` : ''}
+                ${headline && !wearingTitle ? `<div class="dlm-wearing">Wearing <em>${_waEsc(headline)}</em><button class="rb-rename-tbtn" title="Rename the look" onclick="window.__rbRename&&window.__rbRename('dl')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button></div>` : ''}
                 ${dlVibe ? `<button class="dlm-vibe" onclick="window.__dlTagsEdit&&window.__dlTagsEdit()" title="Not quite? Change the vibe">${_waEsc(dlVibe)}</button>` : ''}
               </div>
               ${dlVibe ? `<div class="dlm-vibread">Robes read <b>${_waEsc(dlVibe)}</b> as the vibe. <button onclick="window.__dlTagsEdit&&window.__dlTagsEdit()">Not quite? Change the vibe</button></div>` : ''}

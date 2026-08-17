@@ -336,40 +336,55 @@ const browser = await chromium.launch(
   // the axis is her vocabulary, so an empty one is nothing to show.
   // The axis reads "Season", matching the wardrobe's own filter — one
   // vocabulary means one word for it. The column stays climate_band.
-  check('bar · Refine opens the surviving tag axes',
-    JSON.stringify(bar.axes) === JSON.stringify(['Season', 'Wear it for']), JSON.stringify(bar.axes));
+  check('bar · Refine opens the three axes — Season, Wear it for, Vibe',
+    JSON.stringify(bar.axes) === JSON.stringify(['Season', 'Wear it for', 'Vibe']), JSON.stringify(bar.axes));
   // restored === 4: the two fixture looks plus the two padding artifacts,
   // which share the stream's card class
   check('bar · a pick filters; nothing-matches names itself; Clear restores',
     bar.shown === 0 && bar.none === true && bar.restored === 4, JSON.stringify(bar));
 
-  // ── Browse by vibe (Look Rules 1e / E2) ─────────────────────────────────
-  // Vibe earns a standing row above the grid rather than a slot in the
-  // drawer: it is what the Lookbook is browsed by. Counts ride the chips,
-  // it is NOT gated on four looks (unlike sort/Refine), and the vibe rides
-  // each card so a filtered set stays readable.
-  const vibeRow = await page.evaluate(() => {
-    // Give one fixture look a vibe and leave the other without.
+  // ── Vibe filters inside Refine (Annie, 2026-08-17) ──────────────────────
+  // One filtering system: Vibe sits in the drawer under Season and Wear it
+  // for — never a standing row of its own on the Lookbook. The vibe still
+  // rides each card so a filtered set stays readable.
+  const vibeRef = await page.evaluate(() => {
+    // Give one fixture look a vibe and leave the other without; pad the
+    // stream past four so the drawer is live (legacy look items — a daily
+    // look is a day and no longer rides this stream).
     window.__lkOpen('lk-1');
     window.__lkTagsApply({ climate: 'spring_summer', wear: ['everyday'], vibe: ['powerhouse'] });
+    const prior = localStorage.getItem('robes_style_notes__u-test');
+    localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
+      { id: 1754660000010, type: 'look', title: 'Pad three', subtitle: 'Look', img: null },
+      { id: 1754660000011, type: 'look', title: 'Pad four', subtitle: 'Look', img: null },
+    ]));
     window.__lkGo();
-    const row = document.querySelector('.rb-lkvibe');
-    const chips = row ? Array.from(row.querySelectorAll('.rb-lkref-chip')).map((c) => c.textContent) : [];
+    const noRow = !document.querySelector('.rb-lkvibe');
     const cardVibe = Array.from(document.querySelectorAll('#rb-lk-grid .lt-vibe')).map((v) => v.textContent);
-    const chip = row && row.querySelector('.rb-lkref-chip');
+    window.__lkRefineToggle();
+    const drawer = document.querySelector('.rb-lk-refwrap');
+    const axes = drawer ? Array.from(drawer.querySelectorAll('.rb-lkref-ax')).map((e) => e.textContent) : [];
+    const chip = drawer && drawer.querySelector('.rb-lkref-chip[data-ax="vibe"][data-val="powerhouse"]');
+    const label = chip ? chip.textContent : '';
     if (chip) chip.click();
     const shown = document.querySelectorAll('#rb-lk-grid .lt-card').length;
-    const clear = Array.from(document.querySelectorAll('.rb-lkvibe .rb-lk-quiet')).find((b) => b.textContent === 'Clear');
-    if (clear) clear.click();
+    window.__lkRefineClear();
     const restored = document.querySelectorAll('#rb-lk-grid .lt-card').length;
-    return { chips, cardVibe, shown, restored, hasClear: !!clear };
+    window.__lkRefineToggle();
+    if (prior === null) localStorage.removeItem('robes_style_notes__u-test');
+    else localStorage.setItem('robes_style_notes__u-test', prior);
+    window.__lkGo();
+    return { noRow, cardVibe, axes, label, shown, restored };
   });
-  check('vibe · the row offers only the vibes her looks carry, with counts',
-    JSON.stringify(vibeRow.chips) === JSON.stringify(['Powerhouse · 1']), JSON.stringify(vibeRow.chips));
-  check('vibe · the card carries it too, labelled not slugged',
-    JSON.stringify(vibeRow.cardVibe) === JSON.stringify(['Powerhouse']), JSON.stringify(vibeRow.cardVibe));
-  check('vibe · picking one browses the Lookbook by it, and Clear restores',
-    vibeRow.shown === 1 && vibeRow.hasClear === true && vibeRow.restored === 2, JSON.stringify(vibeRow));
+  check('vibe · no standing row — Vibe is a Refine axis under Season and Wear it for',
+    vibeRef.noRow === true
+      && JSON.stringify(vibeRef.axes) === JSON.stringify(['Season', 'Wear it for', 'Vibe']),
+    JSON.stringify([vibeRef.noRow, vibeRef.axes]));
+  check('vibe · the card carries it, labelled not slugged',
+    JSON.stringify(vibeRef.cardVibe) === JSON.stringify(['Powerhouse']), JSON.stringify(vibeRef.cardVibe));
+  check('vibe · picking it in the drawer filters the grid, and Clear restores',
+    vibeRef.label === 'Powerhouse' && vibeRef.shown === 1 && vibeRef.restored === 4,
+    JSON.stringify(vibeRef));
 
   // ONE vibe per look (1e) — picking a second REPLACES the first, or the
   // wear data stops being able to answer which register she actually wears.
@@ -388,15 +403,12 @@ const browser = await chromium.launch(
     window.__rbTagDone(true);
     window.__lkGo();
     const after = Array.from(document.querySelectorAll('#rb-lk-grid .lt-vibe')).map((v) => v.textContent);
-    const rowChips = Array.from(document.querySelectorAll('.rb-lkvibe .rb-lkref-chip')).map((c) => c.textContent);
-    return { seeds, addChip, after, rowChips, hasGroup: groups.length > 0 };
+    return { seeds, addChip, after, hasGroup: groups.length > 0 };
   });
   check('vibe · the ten ship as the starting set, plus a door to her own',
     oneVibe.seeds.length === 10 && oneVibe.addChip === true, JSON.stringify(oneVibe.seeds));
   check('vibe · picking another replaces it — a look never carries two',
-    JSON.stringify(oneVibe.after) === JSON.stringify(['Chic'])
-      && JSON.stringify(oneVibe.rowChips) === JSON.stringify(['Chic · 1']),
-    JSON.stringify([oneVibe.after, oneVibe.rowChips]));
+    JSON.stringify(oneVibe.after) === JSON.stringify(['Chic']), JSON.stringify(oneVibe.after));
 
   // Delete runs LAST — it consumes the fixture
   check('grid · tiles carry the lookbook hover-✕', s.rmx === 2, String(s.rmx));
@@ -2021,10 +2033,35 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('IA · the split offers New Look and New travel edit',
     JSON.stringify(split.opts) === JSON.stringify(['New Look', 'New travel edit']), JSON.stringify(split.opts));
 
-  // A generic look opens hosted as a daily look (today's view), with the
-  // quiet door back to the Look details.
-  const dayView = await page.evaluate(async () => {
+  // C1 — a Lookbook card opens the SAVED LOOK DETAIL: the look and its
+  // history, no date, no weather, no share (Annie's beta catch 2026-08-17;
+  // supersedes "a look card opens as it is worn"). The DAY is entered from
+  // a diary cell only — probed below through __lkOpenAsDay, the cells' one
+  // opener.
+  const cardOpen = await page.evaluate(async () => {
     window.__lkCardOpen('lk-1');
+    await new Promise((r) => setTimeout(r, 300));
+    const dlEl = document.getElementById('dl-result-page');
+    return {
+      dlOpen: !!dlEl && dlEl.style.display !== 'none',
+      detailTitle: document.getElementById('rb-lk-title')?.textContent,
+      eyebrow: document.querySelector('.rb-lk-eyebrow')?.textContent,
+      weather: !!document.querySelector('#rb-lk-body .dlm-wx'),
+      share: /Share this look/.test(document.getElementById('rb-lk-body')?.textContent || ''),
+    };
+  });
+  check('C1 · a Lookbook card opens the saved look detail, never the day',
+    cardOpen.dlOpen === false && cardOpen.detailTitle === 'The Thursday one'
+      && /^Saved look/.test(cardOpen.eyebrow || ''),
+    JSON.stringify(cardOpen));
+  check('C1 · no date, no weather, no share — those belong to the day',
+    cardOpen.weather === false && cardOpen.share === false, JSON.stringify(cardOpen));
+
+  const dayView = await page.evaluate(async () => {
+    const p = (n) => String(n).padStart(2, '0');
+    const t = new Date();
+    const iso = t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
+    window.__lkOpenAsDay({ source_id: 'lk-1', day_date: iso });
     await new Promise((r) => setTimeout(r, 300));
     const dl = document.getElementById('dl-result-page');
     const onTop = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
@@ -2044,13 +2081,12 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       todayIso: (() => { const p = (n) => String(n).padStart(2, '0'); const t = new Date(); return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()); })(),
     };
   });
-  // E3 — the day has no occasion of its own here, so it titles itself by
-  // the date; the LOOK's name rides the line beneath. The two are separate
-  // facts and are never conflated.
-  check('IA · a generic look opens as the DAY, dated, wearing the look by name',
-    dayView.open && /^[A-Z][a-z]+day \d+ [A-Z]/.test(dayView.headline || '')
-      && /The Thursday one/.test(dayView.wearing) && dayView.rows === 4
-      && dayView.anchor === dayView.todayIso,
+  // D1 — a diary-entered day wearing a saved look with no occasion titles
+  // "Wearing {the look}", the date as its eyebrow. The look's name never
+  // conflates with the day's own facts.
+  check('D1 · the day titles "Wearing {look}", dated in the eyebrow',
+    dayView.open && dayView.headline === 'Wearing The Thursday one'
+      && dayView.rows === 4 && dayView.anchor === dayView.todayIso,
     JSON.stringify(dayView));
   check('IA · the day view actually lands ON TOP (the Lookbook closes under it)',
     dayView.snClosed === true && dayView.topIsDl === true, JSON.stringify([dayView.snClosed, dayView.topIsDl]));
@@ -2075,7 +2111,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const iso = t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
     window.__lkPinTo(iso);   // the detail is active on lk-1 from the door
     await new Promise((r) => setTimeout(r, 200));
-    window.__lkCardOpen('lk-1');
+    window.__lkOpenAsDay({ source_id: 'lk-1', day_date: iso });   // the diary cell's opener
     await new Promise((r) => setTimeout(r, 300));
     return { anchor: window.__lastDlData?.anchor_date, target: iso };
   });
