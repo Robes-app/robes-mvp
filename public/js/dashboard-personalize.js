@@ -5430,20 +5430,22 @@
           _kpActiveSaveId = (opts && opts.savedId) || data.id || null;
         }
 
-        // "Build this look" — hand the chosen way to the Daily Look engine,
-        // which owns the piece-by-piece Look/Rack console (wardrobe matching,
-        // flick-through, imagery, the save-to-Lookbook offer). The kp look is
-        // prose, so the full outfit text travels as the brief; origin flags
-        // let the console adapt its framing and route back here.
+        // "Build this look" — the chosen way becomes an EDITABLE LOOK in the
+        // Lookbook, named after the way itself ("Off-Duty Parisian"), its
+        // pieces itemised from the way's prose. No new imagery: the way's
+        // original editorial frame is the look's photograph, and her
+        // uploaded product photo rides the key piece's own card.
         window.__kpBuildLook = function(i) {
           const w = ways[i];
-          if (!w || typeof window.__dlSubmit !== 'function') return;
-          const bits = ['Build this exact look for me, piece by piece: ' + (w.outfit || w.title || '')];
-          if (w.accessories) bits.push('Accessories: ' + w.accessories);
-          if (w.details) bits.push('Key styling detail: ' + w.details);
-          bits.push('The mood: ' + [w.eyebrow, w.title].filter(Boolean).join(' — ') + '.');
+          if (!w) return;
           _rbTrack('kp_build_look', { item: String(_kpActiveSaveId || ''), way: String(i) });
-          window.__dlSubmit(bits.join(' '), { origin: 'key-piece', kpSourceId: _kpActiveSaveId });
+          const imgs = (window.__lastKpData && window.__lastKpData.generatedImages) || generatedImages || [];
+          const wayImg = (typeof imgs[i] === 'string' && imgs[i].indexOf('http') === 0) ? imgs[i] : null;
+          _kpBuildLookRun(w, {
+            pieceName: pieceName,
+            photoUrl: (typeof photoUrl === 'string' && photoUrl.indexOf('http') === 0) ? photoUrl : null,
+            wayImage: wayImg,
+          });
         };
 
         let kpFbRating = null;
@@ -5470,6 +5472,134 @@
           document.getElementById('kp-fb-done').hidden = false;
         };
       };
+
+      // ── "Build this look" — kp way → Look entity (Annie, 2026-08-17) ────
+      // The daily engine ITEMISES the way's prose (composition only —
+      // noImages, so no fresh frames are generated), then the result is
+      // minted straight into the Lookbook: owned matches become
+      // look_pieces, everything else hangs as proposals (migration 19) so
+      // the look reopens with its gaps to fill, exactly like a Robes build.
+      // The look is NAMED after the way, its photograph is the way's
+      // original kp frame, and her uploaded product photo lands on the key
+      // piece's own proposal card. She lands on the editable Look detail.
+      function _kpBuildToks(s) {
+        return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
+          .filter(t => t.length > 2 && ['the', 'and', 'with', 'style', 'three', 'ways', 'for', 'piece', 'look'].indexOf(t) < 0);
+      }
+      async function _kpBuildLookRun(w, kp) {
+        if (typeof _lkCreate !== 'function' || typeof window.__lkOpen !== 'function') return;
+        let overlay = document.getElementById('kp-loading-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'kp-loading-overlay';
+          overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
+          overlay.innerHTML = `
+            <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
+            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Composing your looks</div>
+            <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
+              <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
+            </div>`;
+          document.body.appendChild(overlay);
+        }
+        const loadTitle = document.getElementById('kp-load-title');
+        if (loadTitle) loadTitle.innerHTML = 'Building your look,<br><em>piece by piece…</em>';
+        overlay.style.display = 'flex';
+        const msgs = ['Reading the look', 'Checking your wardrobe…', 'Naming the gaps…', 'Almost ready…'];
+        let mi = 0;
+        const msgEl0 = document.getElementById('kp-load-msg');
+        if (msgEl0) msgEl0.textContent = msgs[0];
+        const msgInterval = setInterval(() => {
+          mi = Math.min(mi + 1, msgs.length - 1);
+          const el = document.getElementById('kp-load-msg');
+          if (el) el.textContent = msgs[mi];
+        }, 8000);
+        const guard = _rbOverlayGuard(overlay);
+        const genId = _rbGenId();
+        const brief = ['Build this exact look for me, piece by piece: ' + (w.outfit || w.title || '')]
+          .concat(w.accessories ? ['Accessories: ' + w.accessories] : [])
+          .concat(w.details ? ['Key styling detail: ' + w.details] : [])
+          .concat(['The mood: ' + [w.eyebrow, w.title].filter(Boolean).join(' — ') + '.'])
+          .join(' ');
+        try {
+          const res = await fetch('/api/daily', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: guard.signal,
+            body: JSON.stringify({
+              prompt: brief,
+              name,
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
+              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, season_band: _waItemBand(i) })),
+              vibes: _rbVibeVocab(),
+              userId: _waUid() || undefined,
+              genId,
+              noImages: true,
+            }),
+          });
+          if (!res.ok) throw new Error(await res.text());
+          const data = await res.json();
+          const flat = [];
+          (data.steps || []).forEach(s => (s.items || []).forEach(it => { if (!it.role) it.role = s.title; flat.push(it); }));
+          if (!flat.length) throw new Error('empty build');
+          const ownedIds = [], roles = {};
+          flat.forEach(it => {
+            if (!it.wardrobe_match) return;
+            const id = String(it.wardrobe_match.id);
+            if (ownedIds.indexOf(id) < 0) ownedIds.push(id);
+            if (it.role) roles[id] = _rbRoleNorm(it.role) || null;
+          });
+          const unowned = flat.filter(it => !it.wardrobe_match);
+          // Which unowned item IS her key piece — it wears the product photo
+          // she uploaded, so the look's mosaic shows the real piece.
+          const kpToks = _kpBuildToks(kp.pieceName);
+          let kpItem = null, bestN = 0;
+          unowned.forEach(it => {
+            const n = _kpBuildToks(it.name).filter(t => kpToks.indexOf(t) >= 0).length;
+            if (n > bestN) { bestN = n; kpItem = it; }
+          });
+          if (!kp.photoUrl || bestN < Math.min(2, Math.max(1, kpToks.length))) kpItem = null;
+          const proposals = unowned.map(it => ({
+            role: _rbRoleNorm(it.role) || 'The Canvas',
+            chip: _dlSlot(it).l,
+            cats: [it.category || 'Other'],
+            opts: [{ name: it.name, brand: it.brand || '', retailer_hint: it.retailer_hint || '', price_point: it.price_point || '', how: it.how || '' }]
+              .concat((Array.isArray(it.alternates) ? it.alternates : []).map(a => ({ name: a.name, brand: a.brand || '', retailer_hint: a.retailer_hint || '', price_point: a.price_point || '', how: a.how || '' }))),
+            oi: 0, img_oi: 0, saved: false,
+            image_url: it === kpItem ? kp.photoUrl : null,
+          }));
+          // The way names the look (rule 01: Robes generated it, Robes names
+          // it — provisional, hers to change from the detail).
+          const lkName = String(w.title || '').replace(/\.$/, '').trim()
+            || String(data.headline || '').replace(/\.$/, '').trim()
+            || 'A look from your key piece';
+          const l = _lkCreate({
+            pieces: ownedIds,
+            name: lkName, name_provisional: true,
+            source: 'daily',
+            note: data.stylist_summary || w.details || undefined,
+            proposals: proposals.length ? proposals : null,
+            photo_url: kp.wayImage || (!ownedIds.length ? kp.photoUrl : null) || null,
+            lookTags: _rbTagsParse(data.look_tags),
+            roles,
+          });
+          guard.done();
+          clearInterval(msgInterval);
+          overlay.style.display = 'none';
+          if (kpResultPage) kpResultPage.style.display = 'none';
+          window.rbClearCrumb && window.rbClearCrumb();
+          window.__lkOpen(l.id);
+          _waShowToast('“' + lkName + '” saved to your Lookbook');
+        } catch (err) {
+          guard.done();
+          clearInterval(msgInterval);
+          overlay.style.display = 'none';
+          console.error('[Robes] kp build-look error:', err.message);
+          if (guard.userCancelled) return;
+          _waShowToast(guard.timedOut
+            ? 'That took longer than it should — please try again.'
+            : 'Robes couldn’t build that look — please try again in a moment.');
+        }
+      }
 
       // ── Daily Look — Context-to-Core page (PRD: systematic daily dressing) ──
       // One outfit for the real day, rendered as the stylist's four

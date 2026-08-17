@@ -43,7 +43,8 @@ const STYLE_RESP = {
     { eyebrow: 'Refined athletic', title: 'Coffee Run', outfit: 'Umbro shorts, an olive long-sleeve tee.', details: 'Sleeves knotted.', accessories: 'White sneakers, raffia tote.' },
     { eyebrow: 'Elevated leisure', title: 'Park Hangout', outfit: 'Umbro shorts, a white linen tank.', details: 'Three tones only.', accessories: 'Espadrilles, straw bag.' },
   ],
-  generatedImages: [], fallback: false, photoUrl: null,
+  generatedImages: ['https://res.cloudinary.com/demo/way1.jpg', 'https://res.cloudinary.com/demo/way2.jpg', 'https://res.cloudinary.com/demo/way3.jpg'],
+  fallback: false, photoUrl: 'https://res.cloudinary.com/demo/piece.jpg',
 };
 const DAILY_RESP = {
   headline: 'Coffee run, elevated.', occasion_label: 'a built look', stylist_summary: 'The shorts lead; everything else stays quiet.',
@@ -69,7 +70,7 @@ await page.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => {
 });
 await page.route('**nominatim**', (r) => r.abort());
 await page.route('**open-meteo**', (r) => r.abort());
-let styleCalls = 0; let dailyCalls = 0;
+let styleCalls = 0; let dailyCalls = 0; let dailyBodies = [];
 await page.route('**/api/style', async (r) => {
   styleCalls++;
   await new Promise((res) => setTimeout(res, 1200)); // let the scan state show
@@ -77,6 +78,7 @@ await page.route('**/api/style', async (r) => {
 });
 await page.route('**/api/daily', async (r) => {
   dailyCalls++;
+  try { dailyBodies.push(r.request().postDataJSON()); } catch (_) { dailyBodies.push(null); }
   await new Promise((res) => setTimeout(res, 400));
   r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(DAILY_RESP) });
 });
@@ -130,22 +132,29 @@ check('kp result page visible', await page.locator('#kp-result-page').isVisible(
 const kpTxt = await page.locator('#kp-result-page').innerText();
 check('three ways rendered', kpTxt.includes('Urbane Weekend') && kpTxt.includes('Park Hangout'));
 
-// 5 · Build this look → daily console with kp framing
+// 5 · Build this look → an editable Look entity in the Lookbook,
+// named after the chosen way, itemised composition-only (noImages)
 const buildBtns = page.locator('#kp-result-page button:has-text("Build this look")');
 check('Build this look on every look card', await buildBtns.count() === 3);
 await buildBtns.first().click();
-await page.waitForTimeout(1200);
+await page.waitForTimeout(1400);
 check('one /api/daily call', dailyCalls === 1);
-check('daily console visible', await page.locator('#dl-result-page').isVisible());
-const dlTxt = await page.locator('#dl-result-page').innerText();
-check('masthead names the kp source', dlTxt.includes('Built from') && dlTxt.includes('Back to the three ways'));
-check('console holds The look + The rack', /the look/i.test(dlTxt) && /the rack/i.test(dlTxt));
-check('origin persisted on data', await page.evaluate(() => window.__lastDlData && window.__lastDlData.origin === 'key-piece' && !!window.__lastDlData.kpSourceId));
+check('composition only — noImages sent, no image job', dailyBodies[0] && dailyBodies[0].noImages === true);
+check('brief carries the way prose', dailyBodies[0] && /Umbro shorts, a white ribbed tank/.test(dailyBodies[0].prompt || ''));
+check('lands on the Lookbook look detail, not a daily look', await page.locator('#sn-page').isVisible() && !(await page.locator('#dl-result-page').count() && await page.locator('#dl-result-page').isVisible()));
+const lkTxt = await page.locator('#sn-page').innerText();
+check('the look is named after the way', lkTxt.includes('Urbane Weekend'));
+check('gaps hang as proposals to find', /to find/i.test(lkTxt));
+const lkHtml = await page.locator('#sn-page').innerHTML();
+check('her product photo rides the key piece card', lkHtml.includes('piece.jpg'));
+await page.evaluate(() => window.__lkBack());
+await page.waitForTimeout(500);
+check('look card photograph is the way’s original kp frame', (await page.locator('#sn-page').innerHTML()).includes('way1.jpg'));
 
-// 6 · Back to the three ways
-await page.locator('#dl-result-page .dlm-lksrc button:has-text("Back to the three ways")').click();
-await page.waitForTimeout(600);
-check('back lands on the kp result', await page.locator('#kp-result-page').isVisible() && !(await page.locator('#dl-result-page').isVisible()));
+// 6 · The kp result survives — reopening from Inspiration still shows the three ways
+await page.evaluate(() => window.__rbInspOpen());
+await page.waitForTimeout(500);
+check('inspiration still lists the styled key piece', (await page.locator('#rb-insp-page').innerText()).includes('Styled three ways by Robes'));
 
 // 7 · Cancel path: reopen modal, submit, cancel mid-scan
 await page.evaluate(() => window.__rbInspOpen());
