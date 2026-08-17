@@ -4586,10 +4586,183 @@
           ta.focus();
         }, 240);
       };
+      // ── "Style a key piece" modal (Annie's Inspiration mock, 2026-08-17) ──
+      // A deliberate exception to every-route-lands-on-the-prompt (the same
+      // class of exception as __lkNewHoliday's intake): Inspiration's CTA
+      // opens the mock's two-step modal — snap/attach + a few words, then
+      // the scan state — and lands on the kp result. The generation call
+      // mirrors _cbStyleSubmit's /api/style contract exactly.
+      var _inStM = null;      // modal element (null = closed)
+      var _inStStep = 1;
+      var _inStPhoto = null;  // downscaled dataURL
+      var _inStText = '';     // survives an error's return to step 1
+      var _inStTimer = null;  // scan-stage cycler
+      var _inStAbort = null;  // in-flight AbortController
+      var _IN_SCAN_STAGES = [
+        { h: 'Reading your piece…', s: 'One moment — Robes is looking at the photo.', c: 'Reading the silhouette…' },
+        { h: 'Reading your piece…', s: 'One moment — Robes is looking at the photo.', c: 'Noting the colour and fabric…' },
+        { h: 'Generating your look…', s: 'Pulling pieces that sit well with it.', c: 'Checking your wardrobe…' },
+        { h: 'Generating your look…', s: 'Pulling pieces that sit well with it.', c: 'Styling three ways…' },
+      ];
+      function _inStClose() {
+        if (_inStTimer) { clearInterval(_inStTimer); _inStTimer = null; }
+        if (_inStAbort) { try { _inStAbort.abort(); } catch (_) {} _inStAbort = null; }
+        if (_inStM) { _inStM.remove(); _inStM = null; }
+        _inStPhoto = null;
+        _inStText = '';
+        _inStStep = 1;
+      }
+      window.__inStyleClose = _inStClose;
+      function _inStDots() {
+        var wide = '<span style="width:22px;height:5px;border-radius:999px;background:#A89880;display:inline-block"></span>';
+        var dot = '<span style="width:5px;height:5px;border-radius:999px;background:#D8CFC0;display:inline-block"></span>';
+        return '<div style="display:flex;align-items:center;gap:7px">' +
+          (_inStStep === 1 ? wide + dot + dot : dot + wide + dot) + '</div>';
+      }
+      function _inStTileHtml() {
+        if (_inStPhoto) {
+          return '<img src="' + _inStPhoto + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" alt="">' +
+            '<span style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);padding:5px 12px;border-radius:100px;background:rgba(250,248,245,0.92);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5C574F;white-space:nowrap">Change photo</span>';
+        }
+        return '<span style="width:38px;height:38px;border-radius:50%;background:#EDE7DE;display:flex;align-items:center;justify-content:center">' +
+          '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"></path><circle cx="12" cy="13" r="3.2"></circle></svg></span>' +
+          '<span style="font-size:12px;line-height:1.6;color:#5C574F;text-align:center">Snap or attach<br>your key piece</span>';
+      }
+      function _inStPaint() {
+        if (!_inStM) return;
+        var serif = "'Cormorant',Georgia,serif";
+        var card = _inStM.firstElementChild;
+        var head = '<div style="display:flex;align-items:center;justify-content:space-between">' +
+          '<div style="font-family:' + serif + ';font-weight:400;font-size:16px;letter-spacing:.22em;text-transform:uppercase;color:#202021">Robes</div>' +
+          _inStDots() +
+          '<button onclick="window.__inStyleClose()" style="border:none;background:none;font-size:18px;color:#A89880;cursor:pointer;line-height:1;padding:2px 4px;font-family:inherit">×</button></div>';
+        if (_inStStep === 1) {
+          card.innerHTML = head +
+            '<div style="font-family:' + serif + ';font-weight:300;font-size:clamp(32px,6vw,44px);line-height:1.04;color:#202021;margin-top:34px">Style a key piece,<br><span style="font-style:italic;color:#B09A94">three ways.</span></div>' +
+            '<div id="rb-inst-grid" style="display:grid;grid-template-columns:200px 1fr;gap:20px;margin-top:32px">' +
+              '<div onclick="window.__inStPick()" role="button" style="position:relative;overflow:hidden;border:1px dashed #D8CFC0;border-radius:8px;background:#F7F4EF;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;min-height:172px;cursor:pointer;box-sizing:border-box">' + _inStTileHtml() + '</div>' +
+              '<div style="display:flex;flex-direction:column;justify-content:space-between;border:1px solid #D8CFC0;border-radius:8px;background:#FFFDFB;padding:18px 20px;min-height:172px;box-sizing:border-box">' +
+                '<textarea id="rb-inst-ta" oninput="window.__inStSync(this)" placeholder="The piece, the occasion, how you like to feel in it..." style="border:none;background:none;outline:none;resize:none;width:100%;flex:1;font-family:inherit;font-size:14px;line-height:1.6;color:#202021"></textarea>' +
+                '<div style="display:flex;flex-direction:column;gap:12px">' +
+                  '<div style="height:1px;background:#E7E0CF"></div>' +
+                  '<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#A89880">' +
+                    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.6 6 .7-4.4 4.1 1.2 6-5.4-3-5.4 3 1.2-6L3.4 9.8l6-.7Z"></path></svg>' +
+                    '<span>A photo makes it sharper — but a few words is plenty.</span></div></div></div></div>' +
+            '<button onclick="window.__inStGo()" class="rb-inst-cta" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;margin-top:24px;padding:20px;background:#EDE7DE;border:none;border-radius:8px;font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#5C574F;cursor:pointer;font-family:inherit;transition:all .2s"><span>Style it three ways</span><span>→</span></button>' +
+            '<input type="file" id="rb-inst-file" accept="image/*" hidden onchange="window.__inStFile(event)">';
+          var ta = card.querySelector('#rb-inst-ta');
+          if (ta && _inStText) ta.value = _inStText;
+          setTimeout(function() { if (ta) ta.focus(); }, 120);
+        } else {
+          card.innerHTML = head +
+            '<div style="display:flex;flex-direction:column;gap:10px;margin-top:30px">' +
+              '<div id="rb-inst-h" style="font-family:' + serif + ';font-weight:300;font-size:clamp(32px,6vw,44px);line-height:1.04;color:#202021"></div>' +
+              '<div id="rb-inst-s" style="font-size:14px;line-height:1.7;color:#5C574F"></div></div>' +
+            '<div style="position:relative;margin-top:22px;height:290px;background:#1C1C1B;border-radius:8px;overflow:hidden">' +
+              '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">' +
+                '<div style="width:210px;height:100%;background:#F5F0E8;overflow:hidden">' +
+                  (_inStPhoto ? '<img src="' + _inStPhoto + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' : '') +
+                '</div></div>' +
+              '<div style="position:absolute;left:0;right:0;height:1px;background:#FAF8F5;box-shadow:0 0 22px 6px rgba(250,248,245,0.35);animation:rbInstScan 2.4s ease-in-out infinite"></div>' +
+              '<div style="position:absolute;top:18px;left:18px;width:26px;height:26px;border-top:1px solid rgba(250,248,245,0.7);border-left:1px solid rgba(250,248,245,0.7)"></div>' +
+              '<div style="position:absolute;top:18px;right:18px;width:26px;height:26px;border-top:1px solid rgba(250,248,245,0.7);border-right:1px solid rgba(250,248,245,0.7)"></div>' +
+              '<div style="position:absolute;bottom:18px;left:18px;width:26px;height:26px;border-bottom:1px solid rgba(250,248,245,0.7);border-left:1px solid rgba(250,248,245,0.7)"></div>' +
+              '<div style="position:absolute;bottom:18px;right:18px;width:26px;height:26px;border-bottom:1px solid rgba(250,248,245,0.7);border-right:1px solid rgba(250,248,245,0.7)"></div>' +
+              '<div id="rb-inst-c" style="position:absolute;bottom:22px;left:22px;font-size:13px;color:#FAF8F5;animation:rbInstBreathe 2.4s ease-in-out infinite"></div></div>' +
+            '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;font-size:12px;color:#A89880">' +
+              '<span>This takes about twenty seconds.</span>' +
+              '<button onclick="window.__inStyleClose()" style="border:none;background:none;padding:0;color:#5C574F;text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:12px;font-family:inherit">Cancel</button></div>';
+          var si = 0;
+          var stage = function() {
+            var st = _IN_SCAN_STAGES[si % _IN_SCAN_STAGES.length];
+            var h = document.getElementById('rb-inst-h'), s = document.getElementById('rb-inst-s'), c = document.getElementById('rb-inst-c');
+            if (h) h.textContent = st.h;
+            if (s) s.textContent = st.s;
+            if (c) c.textContent = st.c;
+            si++;
+          };
+          stage();
+          if (_inStTimer) clearInterval(_inStTimer);
+          _inStTimer = setInterval(stage, 2400);
+        }
+      }
+      window.__inStSync = function(ta) { _inStText = ta.value; };
+      window.__inStPick = function() {
+        var f = document.getElementById('rb-inst-file');
+        if (f) f.click();
+      };
+      window.__inStFile = function(e) {
+        var f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!f) return;
+        _rbDownscale(f).then(function(dataUrl) {
+          _inStPhoto = dataUrl;
+          if (_inStM && _inStStep === 1) _inStPaint();
+        }).catch(function() { _waShowToast('Robes couldn’t read that photo — try another'); });
+      };
+      window.__inStGo = async function() {
+        if (!_inStM || _inStStep !== 1) return;
+        var prompt = (_inStText || '').trim();
+        if (!prompt && !_inStPhoto) { _waShowToast('Add a photo or a few words first'); return; }
+        _inStStep = 2;
+        _inStPaint();
+        _rbTrack('inspiration_style_modal', { photo: String(!!_inStPhoto) });
+        var genId = _rbGenId();
+        _inStAbort = new AbortController();
+        var abortTimer = setTimeout(function() { if (_inStAbort) _inStAbort.abort(); }, 90000);
+        try {
+          const res = await fetch('/api/style', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: _inStAbort.signal,
+            body: JSON.stringify({
+              prompt,
+              photo: _inStPhoto || null,
+              userId: _waUid() || undefined,
+              genId,
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
+              wardrobeCount: _waItems.length,
+              wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })),
+              intent: 'style',
+              context: null,
+            }),
+          });
+          clearTimeout(abortTimer);
+          if (!res.ok) throw new Error(await res.text());
+          const data = await res.json();
+          data.genId = genId;
+          _inStClose();
+          window.__inClose();
+          window.__kpRenderResult(data, prompt, { intent: 'style' });
+        } catch (err) {
+          clearTimeout(abortTimer);
+          _inStAbort = null;
+          if (!_inStM) return; // she cancelled — stay quiet
+          _inStStep = 1;       // back to her inputs, nothing lost
+          _inStPaint();
+          _waShowToast('Robes couldn’t finish those looks — please try again in a moment.');
+        }
+      };
       window.__inStyleNew = function() {
-        window.__inClose();
-        if (window.__rbNavGo) window.__rbNavGo('home');
-        setTimeout(function() { if (typeof _cbSetIntent === 'function') _cbSetIntent('style'); }, 240);
+        _inStClose();
+        if (!document.getElementById('rb-inst-style')) {
+          var st = document.createElement('style');
+          st.id = 'rb-inst-style';
+          st.textContent =
+            '@keyframes rbInstScan{0%{top:6%;opacity:0}15%{opacity:1}85%{opacity:1}100%{top:94%;opacity:0}}' +
+            '@keyframes rbInstBreathe{0%,100%{opacity:.55}50%{opacity:1}}' +
+            '.rb-inst-cta:hover{background:#202021 !important;color:#FAF8F5 !important}' +
+            '@media(max-width:640px){#rb-inst-grid{grid-template-columns:1fr !important}#rb-inst-wrap{padding:16px !important}#rb-inst-wrap>div{padding:26px 22px 30px !important}}';
+          document.head.appendChild(st);
+        }
+        _inStM = document.createElement('div');
+        _inStM.id = 'rb-inst-wrap';
+        _inStM.style.cssText = 'position:fixed;inset:0;background:rgba(32,32,33,0.42);display:flex;align-items:flex-start;justify-content:center;padding:48px;overflow:auto;z-index:950';
+        _inStM.onclick = function(e) { if (e.target === _inStM && _inStStep === 1) _inStClose(); };
+        _inStM.innerHTML = '<div style="width:720px;max-width:100%;box-sizing:border-box;flex:none;background:#FAF8F5;border-radius:14px;padding:34px 40px 40px"></div>';
+        document.body.appendChild(_inStM);
+        _inStStep = 1;
+        _inStPaint();
       };
 
       // ── Lookbook empty state · "Ways to fill it" ──────────────────────
