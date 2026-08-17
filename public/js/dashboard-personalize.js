@@ -7533,7 +7533,7 @@
       var _lkSortDesc = true;
       var _lkView = 'grid';          // 'grid' | 'detail' | 'new'
       var _lkActive = null;          // open look id
-      var _lkPending = null;         // {from,to,pieces} awaiting Update / Save as new
+      var _lkPending = null;         // retired promotion-gate state (edits ride _lkDraft now)
       var _lkDone = null;            // quiet confirmation line after a resolution
       var _lkActNote = null;            // transient action note key
       var _lkTitleDraft = null, _lkTitleTouched = false, _lkTitleEditing = false;
@@ -7542,9 +7542,26 @@
       // The saved look's rack has two modes (Look Rules 1c): it READS by
       // default — the pieces and how often each is worn — and only takes
       // edits once she asks for them through "Edit & resave". A rack that
-      // is always editable turns a history page into a form, and every
-      // stray flick then trips the promotion gate.
+      // is always editable turns a history page into a form.
       var _lkEditMode = false;
+      // Edits show IN REAL TIME on the view (Annie's beta pass 2026-08-17 —
+      // the old promotion gate asked BEFORE applying, so nothing visibly
+      // changed): every flick and swap lands on this DRAFT, the mosaic and
+      // rack repaint from it live, and the SAVED look is untouched until
+      // she resolves the quiet strip — update it, save it as a new look
+      // (D2's question, with the name), or discard.
+      var _lkDraft = null;   // { lookId, pieces: [{id, slot, role}] }
+      function _lkDraftPieces(l) {
+        return (_lkDraft && String(_lkDraft.lookId) === String(l.id)) ? _lkDraft.pieces : (l.pieces || []);
+      }
+      function _lkDraftChanges(l) {
+        if (!_lkDraft || String(_lkDraft.lookId) !== String(l.id)) return 0;
+        const saved = (l.pieces || []).map(p => String(p.id));
+        const now = _lkDraft.pieces.map(p => String(p.id));
+        let d = Math.abs(now.length - saved.length);
+        for (let i = 0; i < Math.min(now.length, saved.length); i++) if (now[i] !== saved[i]) d++;
+        return d;
+      }
 
       // The composer's rack. Slots are PRESENTATIONAL — the wardrobe's own
       // categories decide what can fill each one.
@@ -8126,7 +8143,14 @@
 .rb-lkref-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:0.5px solid var(--rule);padding-top:12px}
 #rb-lk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
 @media(max-width:1023px){#rb-lk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:767px){#rb-lk-grid{grid-template-columns:1fr}}
+@media(max-width:767px){#rb-lk-grid{grid-template-columns:1fr}
+/* C2 — the actions run full width at touch: Wear today leads at >=46px,
+   the calendar circle rides beside it. */
+.rb-lk-actrow{width:100%;padding-top:8px}
+.rb-lk-wearbtn{flex:1;min-height:46px;order:1}
+.rb-lk-calbtn{width:46px;height:46px;order:2}
+.rb-lk-stat{padding:11px 14px}
+.rb-lk-ledger .wornsec{padding:16px 16px}}
 .rb-lk-eyebrow{font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
 .rb-lk-title-in{width:100%;margin-top:7px;padding:2px 0 9px;border:none;border-bottom:0.5px solid var(--rule-mid);background:transparent;font-family:var(--font-serif);font-weight:300;font-size:clamp(26px,3vw,34px);line-height:1.1;color:var(--ink);outline:none}
 .rb-lk-title-in.prov{font-style:italic;color:var(--ink-soft)}
@@ -8135,9 +8159,34 @@
 .rb-lk-title{font-family:var(--font-serif);font-weight:300;font-size:clamp(26px,3vw,34px);line-height:1.1;color:var(--ink);margin:7px 0 0;min-width:0;overflow-wrap:anywhere}
 .rb-lk-title.prov{font-style:italic;color:var(--ink-soft)}
 .rb-lk-hint{font-size:11.5px;color:var(--ink-faint);margin-top:8px;min-height:1.2em}
-.rb-lk-stats{display:flex;gap:28px;flex-wrap:wrap;margin-top:22px;padding:16px 0;border-top:0.5px solid var(--rule);border-bottom:0.5px solid var(--rule)}
-.rb-lk-stat b{display:block;font-family:var(--font-serif);font-weight:300;font-size:25px;line-height:1;color:var(--ink)}
-.rb-lk-stat span{display:block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-top:4px}
+/* Masthead actions (C1): the circled calendar schedules, the outlined
+   pill wears today. Black stays reserved for the one real commitment on
+   a screen — reading a look is not one. */
+.rb-lk-mastrow{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.rb-lk-actrow{display:flex;align-items:center;gap:10px;flex:none;padding-top:22px}
+.rb-lk-calbtn{width:36px;height:36px;border-radius:50%;border:0.5px solid var(--rule-mid);background:#fff;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);cursor:pointer;flex:none;transition:all .15s}
+.rb-lk-calbtn:hover{border-color:var(--ink);color:var(--ink)}
+.rb-lk-wearbtn{border:1px solid var(--ink);border-radius:100px;padding:11px 22px;background:#fff;font-family:inherit;font-size:10px;font-weight:400;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);cursor:pointer;white-space:nowrap;transition:all .15s}
+.rb-lk-wearbtn:hover{background:var(--cream-100)}
+/* The pinned reminder strip (C1) — one quiet line pointing at the day. */
+.rb-lk-pinstrip{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:18px;background:var(--secondary,#E3E1CC);border-radius:8px;padding:10px 16px;font-size:12px;color:#4F4B3C}
+.rb-lk-pinstrip button{background:none;border:none;padding:0 0 1px;font-family:inherit;font-size:12px;color:var(--ink);border-bottom:1px solid rgba(32,32,33,0.25);cursor:pointer;white-space:nowrap;flex:none}
+/* The edit strip — the day banner's register (D1): one quiet line naming
+   the changes as unsaved, with the three ways out. */
+.rb-lk-editbar{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-top:14px;padding:14px 18px;background:#fff;border:0.5px solid var(--rule);border-radius:var(--rad-sm);font-size:12px;color:var(--ink-soft);line-height:1.6}
+.rb-lk-editbar .acts{display:flex;align-items:center;gap:16px;flex-wrap:wrap;flex:none}
+.rb-lk-editbar button{background:none;border:none;padding:0 0 2px;font-family:inherit;font-size:12px;color:var(--ink);border-bottom:0.5px solid var(--rule-mid);cursor:pointer;white-space:nowrap}
+.rb-lk-editbar button.q{color:var(--ink-faint)}
+/* One ledger card (C1): stat cells in a row over the worn log. */
+.rb-lk-ledger{background:#fff;border:0.5px solid var(--rule);border-radius:var(--rad-lg,14px);overflow:hidden;margin-top:26px}
+.rb-lk-ledger .cells{display:flex;flex-wrap:wrap}
+.rb-lk-stat{display:flex;align-items:baseline;gap:10px;padding:12px 18px;border-left:0.5px solid var(--rule)}
+.rb-lk-stat:first-child{border-left:none}
+.rb-lk-stat span{font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
+.rb-lk-stat b{font-size:13px;font-weight:400;color:var(--ink)}
+.rb-lk-ledger .wornsec{border-top:0.5px solid var(--rule);padding:20px 22px;display:flex;flex-direction:column;gap:4px}
+.rb-lk-ledger .wornhead{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:8px}
+.rb-lk-ledger .wornhead .k{font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
 .rb-lk-acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}
 .rb-lk-act{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:100px;border:0.5px solid var(--rule-mid);background:#fff;color:var(--ink-soft);font-family:inherit;font-size:11.5px;cursor:pointer;transition:all .15s;white-space:nowrap}
 .rb-lk-act:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
@@ -8161,10 +8210,10 @@
 .rb-lk-opt:hover{border-color:var(--ink)}
 .rb-lk-opt i{display:block;height:74px;background-size:cover;background-position:center;background-color:var(--cream-200)}
 .rb-lk-opt span{display:block;padding:7px 8px;font-size:10.5px;line-height:1.3;color:var(--ink)}
-.rb-lk-wear{display:flex;align-items:baseline;gap:14px;padding:10px 0;border-top:0.5px solid var(--rule)}
-.rb-lk-wear .dt{width:74px;flex:none;font-family:var(--font-serif);font-size:18px;color:var(--ink)}
-.rb-lk-wear .pc{flex:1;font-size:11.5px;line-height:1.5;color:var(--ink-soft)}
-.rb-lk-wear .tg{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+/* Worn rows (C1): date + what was actually on the body, no chips. */
+.rb-lk-wear{display:flex;align-items:baseline;gap:20px;padding:10px 0;border-top:0.5px solid var(--rule)}
+.rb-lk-wear .dt{width:64px;flex:none;font-size:12px;font-weight:400;color:var(--ink)}
+.rb-lk-wear .pc{flex:1;font-size:12px;line-height:1.6;color:var(--ink-faint)}
 .rb-lk-empty{padding:56px 0 32px;max-width:520px}
 .rb-lk-empty h3{font-family:var(--font-serif);font-weight:300;font-size:clamp(24px,3vw,30px);line-height:1.14;color:var(--ink);margin:0}
 .rb-lk-empty h3 em{font-style:italic;color:var(--ink-soft)}
@@ -8684,9 +8733,11 @@
       // uses (UX review, 2026-07-30: the detail was drawing a look in a
       // language the app retired on 22 Jul).
       function _lkDetailItems(l) {
-        return _lkPieceIds(l).map((id, idx) => {
+        // Draft-first: mid-edit the page draws what she is making, live.
+        const entries = _lkDraftPieces(l);
+        return entries.map(p => p.id).map((id, idx) => {
           const wi = _waItems.find(w => String(w.id) === String(id));
-          const slot = ((l.pieces || [])[idx] || {}).slot || (wi && wi.category) || 'Piece';
+          const slot = (entries[idx] || {}).slot || (wi && wi.category) || 'Piece';
           if (!wi) {
             return {
               idx, slot, name: 'A piece no longer in your wardrobe', shortName: 'piece',
@@ -8701,7 +8752,7 @@
           const opts = _lkDOpts(l, id);
           const worn = Number(wi.times_worn) || 0;
           return {
-            idx, slot, role: (((l.pieces || [])[idx]) || {}).role || null,
+            idx, slot, role: ((entries[idx]) || {}).role || null,
             name: wi.label,
             // The saved look's rack reads as a ledger until she edits it
             // (1c): each row carries the PIECE's own wear count, which is
@@ -8726,7 +8777,7 @@
       function _lkDOpts(l, pieceId) {
         const wi = _waItems.find(w => String(w.id) === String(pieceId));
         if (!wi) return [];
-        const inLook = _lkPieceIds(l).map(String);
+        const inLook = _lkDraftPieces(l).map(p => String(p.id));
         return _waItems.filter(x => x.category === wi.category &&
           (String(x.id) === String(pieceId) || inLook.indexOf(String(x.id)) === -1));
       }
@@ -8771,7 +8822,10 @@
         if (!l) return _lkEmptyHtml();
         _rbcEnsureCss();
         try { document.body.classList.add('rb-lookv2'); } catch (_) {}
-        const ids = _lkPieceIds(l);
+        // The composition on screen is the DRAFT while one exists — edits
+        // show in real time; wear data always reads off the SAVED look.
+        const ids = _lkDraftPieces(l).map(p => p.id);
+        const dirty = _lkDraftChanges(l);
         const n = _lkWearCount(l);
         const cpw = _lkCpw(l);
         const today = _pdLocalISO();
@@ -8841,33 +8895,40 @@
         // Look panel once the columns stacked). Rename is the app's pencil
         // (rb-rename-tbtn), not a standing input — an always-on input reads
         // as a form and invites accidental edits.
-        let h = '<div class="rb-lk-mast">' +
-          // The page is the LOOK and its history — no date, no weather, no
-          // share, because all three describe a day (1c). The eyebrow says
-          // what this is: a look she saved.
-          '<div class="rb-lk-eyebrow">' + (prov ? 'Saved look · Robes named it' : 'Saved look') + '</div>';
+        // Masthead per the C1 frame: eyebrow + name on the left; on the
+        // right the TWO actions the page carries — a circled calendar
+        // (wear on a day) and an outlined "Wear today" pill. Wear stays
+        // the one scheduling verb (IA rule 02); black stays reserved for
+        // the one real commitment on a screen, and reading a look is not
+        // one. (Pack it left the row — the mock carries no third action;
+        // packing lives in the travel intake, which imports saved looks.)
+        const ownedNone = !ids.length;
+        const calSvg = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="1"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+        let mastL = '<div class="rb-lk-eyebrow">' + (prov ? 'Saved look · Robes named it' : 'Saved look') + '</div>';
         if (_lkTitleEditing) {
-          h += '<input id="rb-lk-title" class="rb-lk-title-in' + (prov ? ' prov' : '') + '" value="' + _waEsc(title) + '"' +
+          mastL += '<input id="rb-lk-title" class="rb-lk-title-in' + (prov ? ' prov' : '') + '" value="' + _waEsc(title) + '"' +
             ' oninput="window.__lkTitleInput(this.value)" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="window.__lkTitleCommit(this.value)">' +
             '<div class="rb-lk-hint" id="rb-lk-hint">' + (prov ? 'Leave it and it keeps this name.' : '') + '</div>';
         } else {
-          h += '<div style="display:flex;align-items:baseline;gap:10px;min-width:0">' +
+          mastL += '<div style="display:flex;align-items:baseline;gap:10px;min-width:0">' +
             '<h2 class="rb-lk-title' + (prov ? ' prov' : '') + '" id="rb-lk-title">' + _waEsc(title) + '</h2>' +
             '<button type="button" class="rb-rename-tbtn" title="Rename" onclick="window.__lkTitleEdit()"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>' +
             '</div>';
         }
+        let h = '<div class="rb-lk-mast">' +
+          '<div class="rb-lk-mastrow"><div style="min-width:0">' + mastL + '</div>' +
+          (ownedNone ? '' :
+            '<div class="rb-lk-actrow">' +
+              '<button type="button" class="rb-lk-calbtn" title="Wear on a day" aria-label="Wear on a day" onclick="window.__lkAct(\'pin\')">' + calSvg + '</button>' +
+              (wornToday
+                ? '<button type="button" class="rb-lk-wearbtn" disabled style="opacity:.5;cursor:default">Worn today ✓</button>'
+                : '<button type="button" class="rb-lk-wearbtn" onclick="window.__lkWearToday()">Wear today</button>') +
+            '</div>') +
+          '</div>';
 
-        // The actions are load-bearing (A3) — without them the tab is a
-        // gallery; with them Looks is the tissue between Daily and Travel.
-        // Wear is the one scheduling verb (IA rule 02): today logs the
-        // wear, a future day places the look in the Calendar — same verb,
-        // the date is the only difference. (Swap-a-piece was dropped,
-        // streamline pass — every rack row already carries Swap.)
         // A look she owns nothing of yet (a saved aspirational build) cannot
-        // be worn, scheduled or packed — those verbs read as broken buttons
-        // on it (Annie, 2026-08-13). Its one honest action is the wishlist,
-        // where its pieces live until they are hers.
-        const ownedNone = !ids.length;
+        // be worn or scheduled — its one honest action is the wishlist,
+        // where its pieces live until they are hers (Annie, 2026-08-13).
         if (ownedNone) {
           h += '<div class="rb-lk-panel">' +
             '<div class="pl">Not yours yet.</div>' +
@@ -8875,14 +8936,6 @@
             '<div class="rb-lk-panel-acts">' +
               '<button type="button" class="rb-lk-act primary" onclick="window.__lkOpenWishlist()">Open your wishlist</button>' +
             '</div></div>';
-        } else {
-          h += '<div class="rb-lk-acts">' +
-            (wornToday
-              ? '<button type="button" class="rb-lk-act" disabled style="opacity:.5;cursor:default">Worn today ✓</button>'
-              : '<button type="button" class="rb-lk-act primary" onclick="window.__lkWearToday()">Wear it today</button>') +
-            '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pin\')">Wear on a day</button>' +
-            '<button type="button" class="rb-lk-act" onclick="window.__lkAct(\'pack\')">Pack it</button>' +
-            '</div>';
         }
 
         // Quiet undo on the day, not a toast (A4)
@@ -8906,97 +8959,97 @@
         }
 
         if (pins.length) {
-          // The pin is the one line on this page that points OUT of it —
-          // the day is where the date, the weather and the wear live.
-          h += '<div class="rb-lk-panel" style="border-color:var(--rule-mid);background:var(--sage-bg)">' +
-            '<div class="pl">Pinned for ' + pins.map(_lkFmtLong).join(' and ') + '.</div>' +
-            '<div class="rb-lk-panel-acts"><button type="button" class="rb-lk-quiet" onclick="window.__lkSeeDay(\'' + pins[0] + '\')">Open the day →</button></div></div>';
+          // A subtle reminder STRIP, not a panel (C1) — the one line on
+          // this page that points OUT of it; the day is where the date,
+          // the weather and the wear live.
+          h += '<div class="rb-lk-pinstrip"><span>Pinned for ' + pins.map(_lkFmtLong).join(' and ') + '.</span>' +
+            '<button type="button" onclick="window.__lkSeeDay(\'' + pins[0] + '\')">Open the day →</button></div>';
         }
         if (_lkDone) h += '<div class="rb-lk-panel" style="border-color:var(--rule-mid);background:#fff"><div class="pl">' + _waEsc(_lkDone) + '</div></div>';
 
-        // Variant promotion (A5) — never silent, never inferred.
-        if (_lkPending) {
-          const toName = (_waItems.find(w => String(w.id) === String(_lkPending.to)) || {}).label || 'that piece';
-          h += '<div class="rb-lk-panel"><div class="pl">' + _waEsc(l.name) + ' has been worn ' + _lkN(n, 'time') + '.</div>' +
-            '<div class="pb">Swapping the ' + _waEsc(String(toName).toLowerCase()) + ' in keeps one look with ' + _lkN(n, 'wear') +
-            ' — the days you already wore stay exactly as they were. Or keep both, if this is a different thing.</div>' +
-            '<div class="rb-lk-panel-acts">' +
-            '<button type="button" class="rb-lk-act primary" onclick="window.__lkUpdate()">Update this look</button>' +
-            '<button type="button" class="rb-lk-act" onclick="window.__lkPromote()">Save as a new look</button>' +
-            '<button type="button" class="rb-lk-quiet" onclick="window.__lkCancelPromote()">Leave it</button>' +
-            '</div></div>';
+        // Edits landed live above — this quiet line (the day banner's D1
+        // register) is where they resolve: update the look (its wears
+        // stand), save them as a new look (D2's question, with the name),
+        // or discard. The saved look is untouched until she answers.
+        if (dirty) {
+          h += '<div class="rb-lk-editbar"><span>' +
+            (dirty === 1 ? 'One change' : dirty + ' changes') + ' to this look.' +
+            (n ? ' Its ' + _lkN(n, 'wear') + ' stay with it if you update.' : '') + '</span>' +
+            '<span class="acts">' +
+              '<button type="button" class="q" onclick="window.__lkDraftDiscard()">Discard</button>' +
+              '<button type="button" onclick="window.__lkResave()">Update this look</button>' +
+              '<button type="button" onclick="window.__lkPromoteAsk()">Save as a new look</button>' +
+            '</span></div>';
         }
 
         h += '</div>';
         h += '<div class="rb-lk-con"><div>' + lookPanel + '</div><div>';
 
-        // The Rack — the same rack rows every console uses. Flick and Swap
-        // both route through the promotion gate when there is history.
-        // A saved build's proposals hang as full rack cards (the shared
-        // _rbcRow, exactly as they hung in the composer — Swap cycles
-        // suggestions, Save re-offers the wishlist for a swapped-in piece).
-        // Only with nothing owned AND nothing proposed does the rack say so
-        // honestly instead of drawing empty.
+        // The Rack — the same rack rows every console uses. A saved build's
+        // proposals hang as full rack cards (the shared _rbcRow). Only with
+        // nothing owned AND nothing proposed does the rack say so honestly
+        // instead of drawing empty.
         const propEmpties = props.map((row, i) => ({
           role: row.role,
           html: _lkPropRowHtml(row, i, _lkPropDetailFrame(row), { swap: '__lkPropSwap', save: '__lkPropSave', flip: '__lkPropFlip' }),
         }));
         // Reading, or editing — never both (1c). Reading, each row carries
-        // the piece's own wear count; editing, it carries the flick cluster
-        // and Swap, and every change still answers to the promotion gate.
-        const rackCfg = _lkEditMode
+        // the piece's own wear count; editing, flick and Swap land on the
+        // DRAFT and paint live. While changes stand, the rack stays
+        // editable and the strip above is the way out — a Done that could
+        // silently strand half-made changes is not offered.
+        const editing = _lkEditMode || dirty > 0;
+        const rackCfg = editing
           ? { onFlip: '__lkDFlip', onSwap: '__lkDSwap', onRoleDrop: '__lkDRoleDrop' }
           : { onRoleDrop: '__lkDRoleDrop' };
         // The wear count is INFORMATION, not an action — its own class, so
         // nothing reads a row that only reports as a row that can be acted on.
-        const rackItems = _lkEditMode ? items : items.map(it => Object.assign({}, it, {
+        const rackItems = editing ? items : items.map(it => Object.assign({}, it, {
           count: { cur: 0, len: 1 },
           thirdHtml: it.owned ? '<span class="rbc-wears">' + _lkN(it.wearCount || 0, 'wear') + '</span>' : '',
         }));
         h += '<div class="rb-lk-sec" style="margin-top:0;display:flex;align-items:baseline;gap:14px">' +
           '<span>The Rack · ' + _lkN(ids.length, 'piece') + '</span><span style="flex:1"></span>' +
-          (ownedNone && !props.length ? '' :
+          (ownedNone && !props.length || dirty ? '' :
             '<button type="button" class="rb-lk-sort" style="text-transform:uppercase;letter-spacing:.14em;font-size:10px" onclick="window.__lkEditToggle()">' +
               (_lkEditMode ? 'Done editing' : 'Edit &amp; resave') + '</button>') +
           '</div>' +
-          (_lkEditMode ? '<div class="rb-lk-namenote" style="margin:-6px 0 12px">Swap or flick a piece. A look with wears behind it asks before it changes.</div>' : '') +
+          (editing && !dirty ? '<div class="rb-lk-namenote" style="margin:-6px 0 12px">Swap or flick a piece — you\u2019ll see it change here, and nothing is saved until you say so.</div>' : '') +
           '<div class="rbc-rack">' +
           (ownedNone && !props.length
             ? '<div class="rb-lk-wear"><div class="pc" style="font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">Nothing of yours hangs here yet — the pieces are on your wishlist.</div></div>'
             : _rbRackRolesHtml(rackItems, rackCfg, propEmpties)) +
           '</div>';
 
-        // Stats read as the payoff of the rack, below it (streamline pass).
-        // Zero pieces would print a row of zeros — the wishlist panel above
-        // already tells the true story, so the ledger waits for a piece.
-        // Wears / Last worn / Pieces / Saved — the ledger the look earns by
-        // being saved (rule 03). "Saved" is the day the counter started.
-        if (!ownedNone) h += '<div class="rb-lk-stats">' +
-          '<div class="rb-lk-stat"><b>' + n + '</b><span>Wears</span></div>' +
-          '<div class="rb-lk-stat"><b>' + _lkFmt(_lkLastWorn(l)) + '</b><span>Last worn</span></div>' +
-          '<div class="rb-lk-stat"><b>' + ids.length + '</b><span>Pieces</span></div>' +
-          '<div class="rb-lk-stat"><b>' + _lkFmt(l.created_at) + '</b><span>Saved</span></div>' +
-          (cpw ? '<div class="rb-lk-stat"><b>' + cpw + '</b><span>Per wear</span></div>' : '') +
-          '</div>';
-
-        if (!ownedNone) h += '<div class="rb-lk-sec" style="display:flex;align-items:baseline;gap:14px">Worn' +
-          '<button type="button" class="rb-lk-quiet" style="letter-spacing:0;text-transform:none;font-weight:400" onclick="window.__lkRetro()">I wore this — add a date</button></div>';
-        if (_lkRetro) {
-          h += '<div class="rb-lk-panel-acts" style="margin:0 0 12px">' +
-            '<button type="button" class="rb-lk-act" onclick="window.__lkRetroPick(\'' + today + '\')">Today</button>' +
-            '<button type="button" class="rb-lk-act" onclick="window.__lkRetroPick(\'' + _pdAddISO(today, -1) + '\')">Yesterday</button>' +
-            '<input type="date" max="' + today + '" onchange="window.__lkRetroPick(this.value)" style="border:0.5px solid var(--rule-mid);border-radius:100px;padding:10px 14px;font-family:inherit;font-size:11.5px;background:#fff;color:var(--ink)">' +
-            '</div>';
-        }
-        if (n) {
-          (l.wears || []).slice().sort((a, b) => String(b.worn_on).localeCompare(String(a.worn_on))).forEach(w => {
-            const d = _lkWearDiff(l, w);
-            h += '<div class="rb-lk-wear"><div class="dt">' + _lkFmt(w.worn_on) + '</div>' +
-              '<div class="pc">' + d.line + '</div>' +
-              '<div class="tg">' + _waEsc(d.tag) + '</div></div>';
-          });
-        } else if (!ownedNone) {
-          h += '<div class="rb-lk-wear"><div class="pc" style="font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">Not worn yet.</div></div>';
+        // ONE ledger card (C1): the stat cells in a row — Wears / Last worn
+        // / Pieces / Saved (+ per-wear when priced) — over the worn log,
+        // all inside one hairline card. "Saved" is the day the counter
+        // started (rule 03). Zero pieces would print a row of zeros — the
+        // wishlist panel above already tells the true story.
+        if (!ownedNone) {
+          const cell = (k, v) => '<div class="rb-lk-stat"><span>' + k + '</span><b>' + v + '</b></div>';
+          h += '<div class="rb-lk-ledger"><div class="cells">' +
+            cell('Wears', n) + cell('Last worn', _lkFmt(_lkLastWorn(l))) +
+            cell('Pieces', ids.length) + cell('Saved', _lkFmt(l.created_at)) +
+            (cpw ? cell('Per wear', cpw) : '') +
+            '</div><div class="wornsec">' +
+            '<div class="wornhead"><span class="k">Worn' + (n ? ' · ' + _lkN(n, 'time') : '') + '</span>' +
+              '<button type="button" class="rb-lk-quiet" onclick="window.__lkRetro()">Add a date</button></div>' +
+            (_lkRetro
+              ? '<div class="rb-lk-panel-acts" style="margin:0">' +
+                '<button type="button" class="rb-lk-act" onclick="window.__lkRetroPick(\'' + today + '\')">Today</button>' +
+                '<button type="button" class="rb-lk-act" onclick="window.__lkRetroPick(\'' + _pdAddISO(today, -1) + '\')">Yesterday</button>' +
+                '<input type="date" max="' + today + '" onchange="window.__lkRetroPick(this.value)" style="border:0.5px solid var(--rule-mid);border-radius:100px;padding:10px 14px;font-family:inherit;font-size:11.5px;background:#fff;color:var(--ink)">' +
+                '</div>'
+              : '') +
+            (n
+              ? (l.wears || []).slice().sort((a, b) => String(b.worn_on).localeCompare(String(a.worn_on))).map(w => {
+                  const d = _lkWearDiff(l, w);
+                  return '<div class="rb-lk-wear"><div class="dt">' + _lkFmt(w.worn_on) + '</div>' +
+                    '<div class="pc">' + d.line + '</div></div>';
+                }).join('')
+              : '<div class="rb-lk-wear" style="border-top:none;padding-top:0"><div class="pc" style="font-family:var(--font-serif);font-style:italic;font-size:15px;color:var(--ink-faint)">Not worn yet. The counter started when you saved it.</div></div>') +
+            '</div></div>';
         }
 
         // Lineage (1c): when a day edit was saved as a new look, both looks
@@ -9437,14 +9490,14 @@
       window.__lkOpen = function(id) {
         _lkShelfOpen();
         _lkActive = id; _lkView = 'detail';
-        _lkPending = null; _lkDone = null; _lkActNote = null;
+        _lkPending = null; _lkDone = null; _lkActNote = null; _lkDraft = null;
         _lkTitleDraft = null; _lkTitleTouched = false; _lkTitleEditing = false; _lkRetro = false;
         _lkEditMode = false;   // every look opens READING (1c)
         _lkPaint();
         _rbTrack('look_opened', {});
       };
       window.__lkBack = function() {
-        _lkView = 'grid'; _lkActive = null; _lkActNote = null; _lkDone = null; _lkEditMode = false;
+        _lkView = 'grid'; _lkActive = null; _lkActNote = null; _lkDone = null; _lkEditMode = false; _lkDraft = null;
         _lkPaint();
       };
       // Role re-cast on a saved look — presentational like a rename, so it
@@ -9514,7 +9567,9 @@
         if (!iso) return;
         _lkPin(_lkActive, iso);
         _lkActNote = null;
-        _lkDone = 'Wearing it ' + _lkFmt(iso) + ' — it’s in your diary.';
+        // No second confirmation — the pinned reminder strip appearing IS
+        // the confirmation (C1), and it stays as long as the pin does.
+        _lkDone = null;
         _lkPaint();
       };
       // The look card's Wear — opens the detail with the day question armed
@@ -9618,7 +9673,7 @@
       window.__lkDFlip = function(idx, dir) {
         const l = _lkFind(_lkActive);
         if (!l) return;
-        const from = _lkPieceIds(l)[idx];
+        const from = (_lkDraftPieces(l)[idx] || {}).id;
         const opts = _lkDOpts(l, from);
         if (opts.length < 2) { _waShowToast('Nothing else in that category yet'); return; }
         const cur = Math.max(0, opts.findIndex(o => String(o.id) === String(from)));
@@ -9629,7 +9684,7 @@
       var _lkDSwapIdx = null;
       window.__lkDSwap = function(idx) {
         const l = _lkFind(_lkActive);
-        const wi = l && _waItems.find(w => String(w.id) === String(_lkPieceIds(l)[idx]));
+        const wi = l && _waItems.find(w => String(w.id) === String((_lkDraftPieces(l)[idx] || {}).id));
         if (!wi) return;
         _lkDSwapIdx = idx;
         _rbSwapModal(
@@ -9640,8 +9695,8 @@
         const l = _lkFind(_lkActive);
         if (!l) return;
         document.getElementById('lkd-swap-modal')?.remove();
-        const from = _lkPieceIds(l)[idx];
-        if (_lkPieceIds(l).map(String).indexOf(String(wardrobeId)) > -1) { _waShowToast('Already in this look'); return; }
+        const from = (_lkDraftPieces(l)[idx] || {}).id;
+        if (_lkDraftPieces(l).some(p => String(p.id) === String(wardrobeId))) { _waShowToast('Already in this look'); return; }
         window.__lkSwapPick(from, wardrobeId);
       };
       window.__lkDSnapMine = function() {
@@ -9658,60 +9713,104 @@
         };
         setTimeout(poke, 220);
       };
+      // The swap lands on the DRAFT and paints immediately — she sees the
+      // change on the mosaic and the rack in real time, and the SAVED look
+      // is untouched until the strip's question is answered (Annie's beta
+      // pass 2026-08-17; supersedes the ask-before-apply promotion gate).
       window.__lkSwapPick = function(from, to) {
         const l = _lkFind(_lkActive);
         if (!l) return;
-        const next = _lkPieceIds(l).map(id => (String(id) === String(from) ? to : id));
-        // With history, the scope question is HERS to answer (A5). Without it,
-        // there is nothing to protect — the edit just lands.
-        if (_lkWearCount(l)) {
-          _lkPending = { from, to, pieces: next };
-        } else {
-          l.pieces = next.map((id, i) => ({ id, slot: (l.pieces[i] || {}).slot || null, position: i }));
-          l.note = _lkStyleNote(next);
-          _lkCacheWrite();
-          _lkPatchCloud(l, { note: l.note });
-          _lkPiecesCloud(l);
-          _lkDone = 'Swapped.';
+        if (!_lkDraft || String(_lkDraft.lookId) !== String(l.id)) {
+          _lkDraft = { lookId: String(l.id), pieces: (l.pieces || []).map(p => ({ id: p.id, slot: p.slot || null, role: p.role || null })) };
         }
+        _lkDraft.pieces = _lkDraft.pieces.map(p =>
+          String(p.id) === String(from) ? { id: to, slot: p.slot, role: p.role } : p);
+        // Flicked back to the look as saved — nothing stands, the strip goes.
+        if (!_lkDraftChanges(l)) _lkDraft = null;
+        _lkDone = null;
         _lkPaint();
       };
-      window.__lkUpdate = function() {
+      // "Update this look": the draft becomes the look. The wears keep
+      // their own snapshots — history is never rewritten.
+      window.__lkResave = function() {
         const l = _lkFind(_lkActive);
-        if (!l || !_lkPending) return;
-        const n = _lkWearCount(l);
-        l.pieces = _lkPending.pieces.map((id, i) => ({ id, slot: (l.pieces[i] || {}).slot || null, position: i }));
-        l.note = _lkStyleNote(_lkPending.pieces);
+        if (!l || !_lkDraft) return;
+        const wearN = _lkWearCount(l);
+        l.pieces = _lkDraft.pieces.map((p, i) => ({ id: p.id, slot: p.slot || null, position: i, role: p.role || null }));
+        l.note = _lkStyleNote(l.pieces.map(p => p.id));
+        _lkDraft = null;
+        _lkEditMode = false;
         _lkCacheWrite();
         _lkPatchCloud(l, { note: l.note });
         _lkPiecesCloud(l);
-        _lkPending = null;
-        // The wears keep their own snapshots — history is never rewritten.
-        _lkDone = 'Updated. Its ' + _lkN(n, 'wear') + ' stay as they were.';
-        _rbTrack('look_updated', { wears: n });
+        _lkDone = wearN ? 'Updated. Its ' + _lkN(wearN, 'wear') + ' stay as they were.' : 'Updated.';
+        _rbTrack('look_updated', { wears: wearN });
         _lkPaint();
       };
-      window.__lkPromote = function() {
+      window.__lkDraftDiscard = function() {
+        _lkDraft = null;
+        _lkEditMode = false;
+        _lkPaint();
+      };
+      // "Save as a new look" — D2's question, asked with the name (rule 02:
+      // she is generating this one, so she names it; a suggested name is an
+      // offer). The variant carries lineage; the ancestor is untouched.
+      window.__lkPromoteAsk = function() {
         const l = _lkFind(_lkActive);
-        if (!l || !_lkPending) return;
-        const toName = (_waItems.find(w => String(w.id) === String(_lkPending.to)) || {}).label || '';
+        if (!l || !_lkDraft) return;
+        const chg = _lkDraftChanges(l);
+        const savedIds = (l.pieces || []).map(p => String(p.id));
+        const firstNew = _lkDraft.pieces.map(p => String(p.id)).find(id => savedIds.indexOf(id) < 0);
+        const toName = (_waItems.find(w => String(w.id) === String(firstNew)) || {}).label || '';
         const word = String(toName).trim().split(/\s+/).slice(-1)[0];
-        const nl = _lkCreate({
-          pieces: _lkPending.pieces,
-          name: l.name + (word ? ', in the ' + word.toLowerCase() : ' (variant)'),
-          source: 'variant',
-          origin_look_id: l.id,
-          // The variant carries the ancestor's tags — same day, same job,
-          // one piece different; she refines from the detail if not.
-          tags: (Array.isArray(l.tags) && l.tags.length) ? l.tags.slice() : null,
-        });
-        _lkPending = null;
-        _lkActive = nl.id;
-        _lkDone = 'Saved as its own look. ' + l.name + ' is untouched.';
-        _rbTrack('look_promoted', {});
-        _lkPaint();
+        const suggested = (String(l.name).replace(/\.$/, '') + (word ? ', in the ' + word.toLowerCase() : ', again')).slice(0, 60);
+        document.getElementById('rb-del-modal')?.remove();
+        const modal = document.createElement('div');
+        modal.id = 'rb-del-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML =
+          '<div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:430px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:28px 26px">' +
+            '<p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">' + _waEsc(l.name) + '</p>' +
+            '<p style="font-family:\'Cormorant\',Georgia,serif;font-size:26px;font-weight:300;color:#202021;margin:0 0 18px;line-height:1.2">' +
+              'You changed ' + (chg === 1 ? 'one piece' : chg + ' pieces') +
+              '. <span style="font-style:italic;color:#A89880">Save it as a new look?</span></p>' +
+            '<p style="font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 8px">Name the new look</p>' +
+            '<input id="rb-lknew-name" value="' + _waEsc(suggested) + '" ' +
+              'style="width:100%;box-sizing:border-box;border:none;border-bottom:1px solid #DDD5C4;background:none;padding:0 0 8px;' +
+              'font-family:\'Cormorant\',Georgia,serif;font-style:italic;font-weight:300;font-size:24px;color:#202021;outline:none">' +
+            '<div style="display:flex;align-items:center;gap:20px;margin-top:22px;flex-wrap:wrap">' +
+              '<button id="rb-lknew-yes" style="padding:15px 26px;border:none;border-radius:100px;background:#202021;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;color:#FAF8F5;font-family:inherit">Save as a new look</button>' +
+              '<button id="rb-lknew-no" style="background:none;border:none;padding:0 0 2px;font-size:13px;color:#5F5A4E;border-bottom:1px solid #D8CFC0;cursor:pointer;font-family:inherit">Just update this look</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(modal);
+        modal.querySelector('#rb-lknew-no').onclick = function() { modal.remove(); window.__lkResave(); };
+        modal.querySelector('#rb-lknew-yes').onclick = function() {
+          const v = String((modal.querySelector('#rb-lknew-name') || {}).value || '').trim();
+          if (!v) { _waShowToast('Name the new look and it\u2019s yours to keep'); return; }
+          modal.remove();
+          const slots = {}, roles = {};
+          _lkDraft.pieces.forEach(p => { slots[p.id] = p.slot || null; roles[p.id] = p.role || null; });
+          const nl = _lkCreate({
+            pieces: _lkDraft.pieces.map(p => p.id),
+            name: v, name_provisional: false,
+            source: 'variant',
+            origin_look_id: l.id,
+            slots, roles,
+            // The variant carries the ancestor's tags — same day, same
+            // job, one piece different; she refines from the detail if not.
+            tags: (Array.isArray(l.tags) && l.tags.length) ? l.tags.slice() : null,
+          });
+          _lkDraft = null;
+          _lkEditMode = false;
+          _lkActive = nl.id;
+          _lkDone = 'Saved as its own look. ' + l.name + ' is untouched.';
+          _rbTrack('look_promoted', {});
+          _lkPaint();
+        };
+        try { const inp = modal.querySelector('#rb-lknew-name'); inp.focus(); inp.select(); } catch (_) {}
       };
-      window.__lkCancelPromote = function() { _lkPending = null; _lkPaint(); };
       window.__lkToday = function() {
         if (window.__rbNavGo) window.__rbNavGo('home');
         setTimeout(() => { if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me'); }, 240);
