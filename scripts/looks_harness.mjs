@@ -290,8 +290,10 @@ const browser = await chromium.launch(
     return el ? { txt: el.textContent, opacity: getComputedStyle(el).opacity } : null;
   });
   check('grid · metadata is printed, like every neighbouring grid', meta && meta.opacity === '1', JSON.stringify(meta));
-  check('grid · metadata carries pieces + wears + last worn',
-    !!meta && /4 pieces · 2 wears · last 23 Jul/.test(meta.txt), meta && meta.txt);
+  // Wears lead the card (Look Rules E2) — the Lookbook is browsed by vibe
+  // and read by how often a look is actually worn.
+  check('grid · metadata leads with wears, then pieces and the last wear',
+    !!meta && /2 wears · 4 pieces · last 23 Jul/.test(meta.txt), meta && meta.txt);
 
   // The grid bar (2026-08-07): + New look beside Refine, which filters the
   // grid on the looks' tag axes. "Formal / Gala" is a vocabulary pick no
@@ -301,13 +303,14 @@ const browser = await chromium.launch(
     const barEl = document.getElementById('rb-lk-bar');
     const newBtn = barEl && Array.from(barEl.querySelectorAll('button')).find((b) => /\+ New/.test(b.textContent));
     // Sort and Refine are inert below four looks (2026-08-12), and this
-    // fixture holds two — pad the stream with two untagged artifacts so
-    // the controls are live, then put the shelf back.
+    // fixture holds two — pad the stream so the controls are live, then put
+    // the shelf back. The padding is legacy 'look' items: a daily look is a
+    // DAY and no longer rides this stream at all (Look Rules 1a).
     const prior = localStorage.getItem('robes_style_notes__u-test');
     const inertBefore = document.querySelector('.rb-lk-sort')?.disabled;
     localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
-      { id: 1754660000000, type: 'daily-look', title: 'Pad one', subtitle: 'Daily look', img: null, dlData: {} },
-      { id: 1754660000001, type: 'daily-look', title: 'Pad two', subtitle: 'Daily look', img: null, dlData: {} },
+      { id: 1754660000000, type: 'look', title: 'Pad one', subtitle: 'Look', img: null },
+      { id: 1754660000001, type: 'look', title: 'Pad two', subtitle: 'Look', img: null },
     ]));
     window.__lkGo();
     const liveAfter = document.querySelector('.rb-lk-sort')?.disabled === false;
@@ -340,40 +343,60 @@ const browser = await chromium.launch(
   check('bar · a pick filters; nothing-matches names itself; Clear restores',
     bar.shown === 0 && bar.none === true && bar.restored === 4, JSON.stringify(bar));
 
-  // A vibe that exists only inside a generated artifact's blob must be
-  // OFFERED as a filter chip, not merely matchable. Reported from beta
-  // 2026-08-12: the Vibe axis never appeared, because the option list only
-  // scanned Look entities while the grid filtered artifacts too.
-  const vibeFilter = await page.evaluate(() => {
-    // The delete test further down consumes this fixture, so put it back.
-    const prior = localStorage.getItem('robes_style_notes__u-test');
-    localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
-      { id: 1754650000000, type: 'daily-look', title: 'Soft Tuesday', subtitle: 'Daily look', img: null,
-        dlData: { anchor_date: '2026-08-05', look_tags: { climate: 'spring_summer', wear_for: ['everyday'], vibe: ['Sharp Tailoring'] } } },
-      { id: 1754650000001, type: 'daily-look', title: 'Other', subtitle: 'Daily look', img: null,
-        dlData: { anchor_date: '2026-08-06', look_tags: { climate: 'year_round', wear_for: ['work'], vibe: [] } } },
-    ]));
+  // ── Browse by vibe (Look Rules 1e / E2) ─────────────────────────────────
+  // Vibe earns a standing row above the grid rather than a slot in the
+  // drawer: it is what the Lookbook is browsed by. Counts ride the chips,
+  // it is NOT gated on four looks (unlike sort/Refine), and the vibe rides
+  // each card so a filtered set stays readable.
+  const vibeRow = await page.evaluate(() => {
+    // Give one fixture look a vibe and leave the other without.
+    window.__lkOpen('lk-1');
+    window.__lkTagsApply({ climate: 'spring_summer', wear: ['everyday'], vibe: ['powerhouse'] });
     window.__lkGo();
-    window.__lkRefineToggle();
-    const drawer = document.querySelector('.rb-lk-refwrap');
-    const axes = drawer ? Array.from(drawer.querySelectorAll('.rb-lkref-ax')).map((e) => e.textContent) : [];
-    const chip = drawer && drawer.querySelector('.rb-lkref-chip[data-val="sharp-tailoring"]');
-    const label = chip ? chip.textContent : '';
+    const row = document.querySelector('.rb-lkvibe');
+    const chips = row ? Array.from(row.querySelectorAll('.rb-lkref-chip')).map((c) => c.textContent) : [];
+    const cardVibe = Array.from(document.querySelectorAll('#rb-lk-grid .lt-vibe')).map((v) => v.textContent);
+    const chip = row && row.querySelector('.rb-lkref-chip');
     if (chip) chip.click();
     const shown = document.querySelectorAll('#rb-lk-grid .lt-card').length;
-    window.__lkRefineClear();
-    window.__lkRefineToggle();
-    if (prior === null) localStorage.removeItem('robes_style_notes__u-test');
-    else localStorage.setItem('robes_style_notes__u-test', prior);
-    window.__lkGo();
-    return { axes, label, shown };
+    const clear = Array.from(document.querySelectorAll('.rb-lkvibe .rb-lk-quiet')).find((b) => b.textContent === 'Clear');
+    if (clear) clear.click();
+    const restored = document.querySelectorAll('#rb-lk-grid .lt-card').length;
+    return { chips, cardVibe, shown, restored, hasClear: !!clear };
   });
-  check('refine · a vibe carried only in an artifact blob is offered as a chip',
-    vibeFilter.axes.indexOf('Vibe') > -1, JSON.stringify(vibeFilter.axes));
-  check('refine · and it keeps its label rather than rendering as a slug',
-    vibeFilter.label === 'Sharp Tailoring', vibeFilter.label);
-  check('refine · picking it filters the artifacts down',
-    vibeFilter.shown === 1, String(vibeFilter.shown));
+  check('vibe · the row offers only the vibes her looks carry, with counts',
+    JSON.stringify(vibeRow.chips) === JSON.stringify(['Powerhouse · 1']), JSON.stringify(vibeRow.chips));
+  check('vibe · the card carries it too, labelled not slugged',
+    JSON.stringify(vibeRow.cardVibe) === JSON.stringify(['Powerhouse']), JSON.stringify(vibeRow.cardVibe));
+  check('vibe · picking one browses the Lookbook by it, and Clear restores',
+    vibeRow.shown === 1 && vibeRow.hasClear === true && vibeRow.restored === 2, JSON.stringify(vibeRow));
+
+  // ONE vibe per look (1e) — picking a second REPLACES the first, or the
+  // wear data stops being able to answer which register she actually wears.
+  const oneVibe = await page.evaluate(() => {
+    window.__lkOpen('lk-1');
+    window.__lkTagsEdit();
+    const sheet = document.getElementById('rb-tag-sheet');
+    const groups = Array.from(sheet.querySelectorAll('div')).filter((d) =>
+      /^Vibe/.test(d.querySelector('div')?.textContent || ''));
+    const seeds = Array.from(sheet.querySelectorAll('button'))
+      .filter((b) => ['Powerhouse', 'Chic', 'Undone', 'Polished', 'Easy', 'Romantic', 'Sharp', 'Quiet', 'Statement', 'Off-duty'].includes(b.textContent))
+      .map((b) => b.textContent);
+    const addChip = !!Array.from(sheet.querySelectorAll('button')).find((b) => b.textContent === '+ Add a vibe');
+    // She already carries Powerhouse; picking Chic must REPLACE it.
+    Array.from(sheet.querySelectorAll('button')).find((b) => b.textContent === 'Chic').click();
+    window.__rbTagDone(true);
+    window.__lkGo();
+    const after = Array.from(document.querySelectorAll('#rb-lk-grid .lt-vibe')).map((v) => v.textContent);
+    const rowChips = Array.from(document.querySelectorAll('.rb-lkvibe .rb-lkref-chip')).map((c) => c.textContent);
+    return { seeds, addChip, after, rowChips, hasGroup: groups.length > 0 };
+  });
+  check('vibe · the ten ship as the starting set, plus a door to her own',
+    oneVibe.seeds.length === 10 && oneVibe.addChip === true, JSON.stringify(oneVibe.seeds));
+  check('vibe · picking another replaces it — a look never carries two',
+    JSON.stringify(oneVibe.after) === JSON.stringify(['Chic'])
+      && JSON.stringify(oneVibe.rowChips) === JSON.stringify(['Chic · 1']),
+    JSON.stringify([oneVibe.after, oneVibe.rowChips]));
 
   // Delete runs LAST — it consumes the fixture
   check('grid · tiles carry the lookbook hover-✕', s.rmx === 2, String(s.rmx));
@@ -444,7 +467,8 @@ const browser = await chromium.launch(
   await page.evaluate(() => window.__lkOpen('lk-1'));
   await page.waitForTimeout(200);
   check('detail · named title is not provisional', d.title === 'The Thursday one' && d.provisional === false, `${d.title}/${d.provisional}`);
-  check('detail · eyebrow reads Look for a named look', d.eyebrow === 'Look', d.eyebrow);
+  // The page is the look and its history — the eyebrow says so (1c).
+  check('detail · eyebrow reads Saved look', d.eyebrow === 'Saved look', d.eyebrow);
   // Black is reserved for the one real commitment on a screen (Save this
   // look, Start packing) — the Look detail's verbs lead with ink type on a
   // firmer hairline, never a fill (Annie, 2026-08-12).
@@ -474,7 +498,9 @@ const browser = await chromium.launch(
   });
   check('detail · the name leads the page (masthead above the console)', layout.mastFirst && layout.titleInMast, JSON.stringify(layout));
   check('detail · rename is the pencil, not a standing input', layout.pencil === true);
-  check('detail · the card list is The Rack', layout.rackLabel === 'The Rack', String(layout.rackLabel));
+  check('detail · the card list is The Rack, and offers Edit & resave',
+    /^The Rack · 4 pieces/.test(layout.rackLabel || '') && /Edit & resave/.test(layout.rackLabel || ''),
+    String(layout.rackLabel));
   check('detail · stats live below the Rack', layout.statsBelowRack === true);
   const renamed = await page.evaluate(async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -496,14 +522,35 @@ const browser = await chromium.launch(
   check('detail · pencil opens the inline input', renamed.isInput === true);
   check('detail · commit lands the name back as the static title',
     renamed.tag === 'H2' && renamed.title === 'Thursday, renamed', JSON.stringify(renamed));
-  check('detail · stats show pieces, wears, last worn',
-    JSON.stringify(d.stats.slice(0, 3)) === JSON.stringify([['4', 'Pieces'], ['2', 'Wears'], ['23 Jul', 'Last worn']]),
+  // Wears / Last worn / Pieces / Saved — the ledger a look earns by being
+  // saved (rule 03); "Saved" is the day the counter started.
+  check('detail · the ledger reads wears, last worn, pieces, saved',
+    JSON.stringify(d.stats.slice(0, 4)) === JSON.stringify([['2', 'Wears'], ['23 Jul', 'Last worn'], ['4', 'Pieces'], ['20 Jul', 'Saved']]),
     JSON.stringify(d.stats));
   check('detail · cost per wear derives from priced pieces (700/2)',
     d.stats.some((s) => s[1] === 'Per wear' && s[0] === '€350'), JSON.stringify(d.stats));
   check('detail · every piece is a shared rack row', d.pieceRows === 4, String(d.pieceRows));
-  check('detail · the rack rows carry flick and Swap', d.flicks === 8 && d.rowSwaps === 4, JSON.stringify([d.flicks, d.rowSwaps]));
+  // The saved rack READS by default (1c) — the piece's own wear count where
+  // the flick cluster and Swap sit once she asks to edit.
+  check('detail · the rack reads until she asks to edit it',
+    d.flicks === 0 && d.rowSwaps === 0, JSON.stringify([d.flicks, d.rowSwaps]));
   check('detail · the inline swap strip is gone', d.inlineStrip === false);
+  const editMode = await page.evaluate(() => {
+    const wearsBefore = Array.from(document.querySelectorAll('.rbc-rack .rbc-wears')).map((e) => e.textContent.trim());
+    window.__lkEditToggle();
+    const out = {
+      wearsBefore,
+      flicks: document.querySelectorAll('.rbc-rack .rbc-arrow').length,
+      swaps: Array.from(document.querySelectorAll('.rbc-rack .rbc-act')).filter((b) => /Swap/.test(b.textContent)).length,
+      label: document.querySelector('.rb-lk-con .rb-lk-sec button')?.textContent,
+    };
+    window.__lkEditToggle();
+    return out;
+  });
+  check('detail · reading, each row carries its piece\'s wear count',
+    editMode.wearsBefore.length === 4 && /wear/.test(editMode.wearsBefore[0] || ''), JSON.stringify(editMode.wearsBefore));
+  check('detail · Edit & resave brings the flick cluster and Swap back',
+    editMode.flicks === 8 && editMode.swaps === 4 && editMode.label === 'Done editing', JSON.stringify(editMode));
   check('detail · The Look is the standing 4:5 board',
     d.lookv2 && d.boardTiles === 4 && d.boardN === '4', JSON.stringify([d.lookv2, d.boardTiles, d.boardN]));
   check('detail · the panel head is the console\'s', d.headLabel === 'The look · 4 pieces', d.headLabel);
@@ -511,8 +558,8 @@ const browser = await chromium.launch(
   check('detail · ownership line is the canonical copy', /4.of.4 from your wardrobe/.test(d.yours || ''), d.yours);
   check('detail · a quiet delete exists', d.deleteLink === true);
   check('detail · wear history lists both wears', d.wearRows === 2, String(d.wearRows));
-  check('detail · a wear whose snapshot differs is not labelled Confirmed',
-    d.wearTags.join(',') === 'Confirmed,As worn', JSON.stringify(d.wearTags));
+  check('detail · a wear whose snapshot differs is marked Adjusted',
+    d.wearTags.join(',') === 'Confirmed,Adjusted', JSON.stringify(d.wearTags));
 
   // Formula strips + look tags (Look Template spec A3 + F, 2026-08-07)
   const specA3F = await page.evaluate(() => {
@@ -623,7 +670,7 @@ const browser = await chromium.launch(
   const worn = await page.evaluate(() => {
     document.querySelector('.rb-lk-acts .rb-lk-act.primary').click();
     return {
-      wears: document.querySelectorAll('.rb-lk-stat')[1]?.querySelector('b')?.textContent,
+      wears: document.querySelectorAll('.rb-lk-stat')[0]?.querySelector('b')?.textContent,
       undo: !!Array.from(document.querySelectorAll('.rb-lk-quiet')).find((b) => b.textContent === 'Not this, actually'),
       dialog: !!document.querySelector('.sheet-overlay.open'),
       wearRows: document.querySelectorAll('.rb-lk-wear').length,
@@ -647,7 +694,7 @@ const browser = await chromium.launch(
   const undone = await page.evaluate(() => {
     Array.from(document.querySelectorAll('.rb-lk-quiet')).find((b) => b.textContent === 'Not this, actually').click();
     return {
-      wears: document.querySelectorAll('.rb-lk-stat')[1]?.querySelector('b')?.textContent,
+      wears: document.querySelectorAll('.rb-lk-stat')[0]?.querySelector('b')?.textContent,
       backToPrimary: document.querySelector('.rb-lk-acts .rb-lk-act.primary')?.textContent,
     };
   });
@@ -705,7 +752,7 @@ const browser = await chromium.launch(
     window.__lkPromote();
     return {
       title: ((e) => e ? (e.tagName === 'INPUT' ? e.value : e.textContent) : null)(document.getElementById('rb-lk-title')),
-      wears: document.querySelectorAll('.rb-lk-stat')[1]?.querySelector('b')?.textContent,
+      wears: document.querySelectorAll('.rb-lk-stat')[0]?.querySelector('b')?.textContent,
       note: document.querySelector('.rb-lk-panel .pl')?.textContent,
       count: document.getElementById('wg-count')?.textContent,
     };
@@ -729,7 +776,7 @@ const browser = await chromium.launch(
     window.__lkUpdate();
     return {
       note: document.querySelector('.rb-lk-panel .pl')?.textContent,
-      wears: document.querySelectorAll('.rb-lk-stat')[1]?.querySelector('b')?.textContent,
+      wears: document.querySelectorAll('.rb-lk-stat')[0]?.querySelector('b')?.textContent,
       pieces: Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((n) => n.textContent),
       firstWearSnapshot: document.querySelector('.rb-lk-wear .pc')?.textContent,
     };
@@ -770,7 +817,7 @@ const browser = await chromium.launch(
     return { btns, done: document.querySelector('.rb-lk-panel .pl')?.textContent };
   });
   check('pin · offers today, tomorrow and a date', pinned.btns.length >= 3, JSON.stringify(pinned.btns));
-  check('pin · confirms the day in the wear vocabulary', /^Wearing it /.test(pinned.done || ''), pinned.done);
+  check('pin · confirms the day, and points at it', /^Pinned for /.test(pinned.done || ''), pinned.done);
   await page.waitForTimeout(1200);   // the planned_days write is debounced
   const pinWrite = writes.find((w) => w.method === 'POST' && /^planned_days/.test(w.url));
   check('pin · writes a planned_days row of source_type look',
@@ -1074,16 +1121,28 @@ const browser = await chromium.launch(
   const two = await page.evaluate(() => {
     window.__lkRowPick('r1', 'w-top1');
     window.__lkRowPick('r2', 'w-bot1');
-    return {
+    const out = {
       saveShown: !!document.querySelector('.rb-lk-save'),
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
+      gate: !!document.getElementById('rb-lk-namegate'),
       note: document.querySelector('.rb-lk-con .rbc-quote')?.textContent,
       boardTiles: document.querySelectorAll('.rb-lk-con .rbc-board .rbc-tile').length,
       yours: document.querySelector('.rb-lk-con .rbc-yours')?.textContent,
     };
+    // Typing flips the button in place — a repaint here would take the
+    // caret out of the field she is typing into.
+    window.__lkNewTitleInput('Terrace mornings');
+    out.namedLive = document.querySelector('.rb-lk-save')?.disabled === false;
+    window.__lkNewTitleInput('');
+    return out;
   });
-  check('composer · Save comes live at two pieces',
-    two.saveShown === true && two.saveDisabled === false, JSON.stringify([two.saveShown, two.saveDisabled]));
+  // RULE 02 — pieces are not enough. The name is the gate on Save, and it
+  // says so where the answer goes rather than only in a tooltip.
+  check('composer · two pieces are not enough — the name is the gate',
+    two.saveShown === true && two.saveDisabled === true && two.gate === true,
+    JSON.stringify([two.saveShown, two.saveDisabled, two.gate]));
+  check('composer · naming it brings Save live, without losing the caret',
+    two.namedLive === true, JSON.stringify(two));
   check('composer · Robes describes the look once it can',
     two.note === 'Cream silk shirt with the barrel-leg jeans.', two.note);
   check('composer · both pieces are on the board', two.boardTiles === 2, String(two.boardTiles));
@@ -1143,20 +1202,30 @@ const browser = await chromium.launch(
   check('composer · a saved look has no wears (it is a plan, not a fact)',
     !writes.some((w) => w.method === 'POST' && /^wears/.test(w.url)));
 
-  // An untouched name saves as the offered name, provisional
+  // An unnamed look never reaches the grid (rule 02): Save declines and
+  // puts the caret where the answer goes.
   const offered = await page.evaluate(() => {
     window.__lkNew();
     window.__lkRowPick('r1', 'w-top2');
     window.__lkRowPick('r2', 'w-bot2');
+    const start = document.querySelectorAll('#rb-lk-grid .lt-title').length;
     window.__lkSave();
-    const tile = Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).find((t) => t.textContent === 'The tank one' && t.classList.contains('prov'));
-    return { onGrid: !!tile };
+    const before = document.querySelectorAll('#rb-lk-grid .lt-title').length;
+    const grew = before > start;
+    const focused = document.activeElement && document.activeElement.id;
+    window.__lkNewTitleInput('The tank one');
+    window.__lkSave();
+    const tile = Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).find((t) => t.textContent === 'The tank one');
+    return { grew, focused, onGrid: !!tile, prov: tile ? tile.classList.contains('prov') : null };
   });
-  check('composer · an untouched name saves as the offered name, provisional on the grid',
-    offered.onGrid === true, JSON.stringify(offered));
+  check('composer · an unnamed look does not save — it asks for the name',
+    offered.grew === false && offered.focused === 'rb-lk-newtitle', JSON.stringify(offered));
+  check('composer · named, it lands on the grid as HER name, not a provisional one',
+    offered.onGrid === true && offered.prov === false, JSON.stringify(offered));
   await page.waitForTimeout(400);
   const provWrite = writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop();
-  check('composer · and is marked provisional', provWrite?.body?.name_provisional === true,
+  check('composer · and the name she typed is what persists',
+    provWrite?.body?.name === 'The tank one' && provWrite?.body?.name_provisional === false,
     JSON.stringify(provWrite?.body || null));
   await ctx.close();
 }
@@ -1612,13 +1681,27 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   }));
   check('empty · a key piece alone leaves the Lookbook on its one door (it lives on Inspiration)',
     kpOnly.composer === true && kpOnly.waysShown === false, JSON.stringify(kpOnly));
-  // A daily look DOES fill the shelf — the unified stream shows it in the
-  // shared card (eyebrow Look, date as status), the add card keeps the way
-  // in, and sort/Refine stay withheld until an actual Look exists.
+  // A daily look is a DAY (Look Rules 1a) — it lives in the Diary and is
+  // reached from a day cell, never from the Lookbook. The Lookbook holds
+  // saved looks only, so an account with nothing but days still meets the
+  // composer, its one door.
   await page.evaluate(() => {
     localStorage.setItem('robes_style_notes__u-test',
       JSON.stringify([{ id: 1754640000000, type: 'daily-look', title: 'A look', subtitle: 'Daily look · Tuesday', img: null,
         dlData: { anchor_date: '2026-08-05', worn: true } }]));
+    window.__lkGo();
+  });
+  await page.waitForTimeout(300);
+  const dayOnly = await page.evaluate(() => ({
+    cards: document.querySelectorAll('#rb-lk-grid .lt-card').length,
+    composer: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
+  }));
+  check('empty · a day is not a look — it stays out of the Lookbook grid',
+    dayOnly.cards === 0 && dayOnly.composer === true, JSON.stringify(dayOnly));
+  // A legacy 'look' item still fills the shelf: it has nowhere else to live.
+  await page.evaluate(() => {
+    localStorage.setItem('robes_style_notes__u-test',
+      JSON.stringify([{ id: 1754640000000, type: 'look', title: 'A look', subtitle: 'Look', img: null }]));
     window.__lkGo();
   });
   await page.waitForTimeout(300);
@@ -1643,10 +1726,10 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     holNew: !!document.querySelector('#rb-lk-hol .rb-lk-holcard.new'),
   }));
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
-  check('empty · a saved daily look fills the shelf even with zero looks',
+  check('empty · a legacy look item still fills the shelf',
     e.itemCards === 1 && e.addCard === true, JSON.stringify(e));
-  check('empty · daily look is not a type — eyebrow Look, date as status',
-    e.eyebrow === 'Look' && e.meta === 'Worn 5 Aug', JSON.stringify([e.eyebrow, e.meta]));
+  check('empty · it draws in the one card language — eyebrow Look',
+    e.eyebrow === 'Look', JSON.stringify([e.eyebrow, e.meta]));
   check('empty · no module empty state once anything exists', e.moduleEmpty === false);
   // Superseded 2026-08-12: sort and Refine RENDER at every count and sit
   // inert below four looks, rather than appearing from nowhere.
@@ -1689,6 +1772,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     window.__lkNew();
     window.__lkRowPick('r1', 'w-top1');
     window.__lkRowPick('r3', 'w-sho1');
+    window.__lkNewTitleInput('Terrace mornings');   // rule 02 holds here too
     window.__lkSave();
     return { tiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length };
   });
@@ -1718,6 +1802,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
 
   const md = await page.evaluate(() => {
     window.__lkOpen('lk-1');
+    window.__lkEditToggle();   // the touch targets live on the editable rack
     const det = document.querySelector('.rb-lk-con');
     const ey = document.querySelector('.rbc-rackhead .ey');
     const vslot = document.querySelector('.rbc-vp .vslot');
@@ -1891,8 +1976,12 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       })(),
     };
   });
-  check('IA · the stream holds looks and daily looks in one card language ("daily look" is not a type)',
-    uni.cards === 3 && uni.itemCard && JSON.stringify(uni.eyebrows) === JSON.stringify(['Look', 'Look', 'Look']),
+  // The Lookbook holds SAVED LOOKS ONLY (Look Rules 1a): her two fixture
+  // looks, in one card language. The daily look is a day and lives in the
+  // Diary; the key piece lives on Inspiration; the travel edit rides its
+  // own pinned strip.
+  check('IA · the stream holds saved looks only, in one card language',
+    uni.cards === 2 && uni.itemCard === false && JSON.stringify(uni.eyebrows) === JSON.stringify(['Look', 'Look']),
     JSON.stringify(uni));
   check('IA · a key piece never enters the Lookbook stream', uni.kpInStream === false);
   // "Travel edit" is the noun everywhere now (Annie, 2026-08-12) — the
@@ -1918,7 +2007,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     JSON.stringify([uni.holShown, uni.holCards, uni.holNew, uni.holMeta]));
   check('IA · one + New button, split two ways', uni.newSplit === true);
   check('IA · the top row carries the collection stat; sort/Refine align with All looks',
-    uni.stat === '3 looks · 1 travel edit' && uni.allRow.label === 'All looks'
+    uni.stat === '2 looks · 1 travel edit' && uni.allRow.label === 'All looks'
       && uni.allRow.sortHere === true && uni.allRow.sortInBar === false,
     JSON.stringify([uni.stat, uni.allRow]));
   const split = await page.evaluate(() => {
@@ -1947,6 +2036,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       snClosed: document.getElementById('sn-page').style.display === 'none',
       topIsDl: !!(onTop && onTop.closest && onTop.closest('#dl-result-page')),
       headline: document.querySelector('#dl-result-page .dlm-title')?.textContent,
+      wearing: document.querySelector('#dl-result-page .dlm-wearing')?.textContent || '',
       rows: document.querySelectorAll('#dl-result-page .rbc-row').length,
       door: !!document.querySelector('#dl-result-page .dlm-lksrc button'),
       doorCopy: document.querySelector('#dl-result-page .dlm-lksrc')?.textContent || '',
@@ -1954,13 +2044,18 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       todayIso: (() => { const p = (n) => String(n).padStart(2, '0'); const t = new Date(); return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()); })(),
     };
   });
-  check('IA · a generic look opens hosted as a daily look, anchored today',
-    dayView.open && dayView.headline === 'The Thursday one' && dayView.rows === 4 && dayView.anchor === dayView.todayIso,
+  // E3 — the day has no occasion of its own here, so it titles itself by
+  // the date; the LOOK's name rides the line beneath. The two are separate
+  // facts and are never conflated.
+  check('IA · a generic look opens as the DAY, dated, wearing the look by name',
+    dayView.open && /^[A-Z][a-z]+day \d+ [A-Z]/.test(dayView.headline || '')
+      && /The Thursday one/.test(dayView.wearing) && dayView.rows === 4
+      && dayView.anchor === dayView.todayIso,
     JSON.stringify(dayView));
   check('IA · the day view actually lands ON TOP (the Lookbook closes under it)',
     dayView.snClosed === true && dayView.topIsDl === true, JSON.stringify([dayView.snClosed, dayView.topIsDl]));
   check('IA · the daily view keeps a quiet door to the Look details',
-    dayView.door && /From your look/.test(dayView.doorCopy), dayView.doorCopy);
+    dayView.door && /Saved in your Lookbook/.test(dayView.doorCopy), dayView.doorCopy);
 
   const back = await page.evaluate(async () => {
     document.querySelector('#dl-result-page .dlm-lksrc button').click();
@@ -2129,10 +2224,12 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// 9 · Daily look at zero owned pieces (2026-08-13) — a fully-aspirational
-// look is a proposal, not a record: it must NOT land in the Lookbook until
-// she keeps it, and keeping it moves every proposed piece to the wishlist
-// (the same confirm the composer's Robes build uses).
+// 9 · RULE 04 — a look made FOR A DAY is pinned to that date, and saving it
+// to the Lookbook is OFFERED, never forced. Two different things, so two
+// different writes: the day record lands on generation (the diary must not
+// have a hole where she was dressed) and the Lookbook save mints a named
+// Look, which is what starts gathering wear data (rule 03).
+// Supersedes the 2026-08-13 deferral, which withheld both and lost the day.
 // ─────────────────────────────────────────────────────────────────────────
 {
   const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 0 });
@@ -2140,6 +2237,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     headline: 'A Dublin office look.',
     occasion_label: 'Office day',
     stylist_summary: 'Soft tailoring for a working day; flat leather keeps it moving.',
+    look_tags: { climate: 'year_round', wear_for: ['work'], vibe: ['powerhouse'] },
     steps: [
       { title: 'The Canvas', items: [{ name: 'Fine merino knit', category: 'Tops', brand: 'COS', retailer_hint: 'COS', price_point: '€69' }] },
       { title: 'The Anchor', items: [{ name: 'Wide linen trousers', category: 'Bottoms', brand: 'Arket', retailer_hint: 'Arket', price_point: '€120' }] },
@@ -2153,32 +2251,47 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     data.anchor_date = t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
     window.__dlRenderResult(data, 'Style me for a day in the office');
     await new Promise((r) => setTimeout(r, 500));
+    const head = document.querySelector('#dl-result-page header');
     return {
+      eyebrow: head?.querySelector('.dlm-eyebrow')?.textContent,
+      title: head?.querySelector('.dlm-title')?.textContent,
+      wearing: head?.querySelector('.dlm-wearing')?.textContent,
+      vibe: head?.querySelector('.dlm-vibe')?.textContent,
+      vibeRead: head?.querySelector('.dlm-vibread')?.textContent.replace(/\s+/g, ' '),
+      offer: head?.querySelector('.dlm-offer button')?.textContent,
       cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent,
-      keep: !!document.querySelector('#dl-result-page .rbc-action.keep'),
-      badge: !!document.querySelector('#dl-result-page .rbc-share-m'),
       wear: !!document.getElementById('dl-wear-btn'),
       card: getComputedStyle(document.querySelector('#dl-result-page .dlm-console')).backgroundColor,
       panelBorder: getComputedStyle(document.querySelector('#dl-result-page .rbc-panel')).borderTopStyle,
     };
   }, DL);
-  check('daily zero-owned · nothing lands in the Lookbook until she saves',
-    !writes.some((w) => w.method === 'POST' && /^(lookbook_items|planned_days)/.test(w.url)),
+  await page.waitForTimeout(1200);   // the planned_days write is debounced
+  check('rule 04 · the DAY is recorded on generation — the diary keeps no hole',
+    writes.some((w) => w.method === 'POST' && /^lookbook_items/.test(w.url))
+      && writes.some((w) => w.method === 'POST' && /^planned_days/.test(w.url)),
+    JSON.stringify(writes.map((w) => w.method + ' ' + w.url).slice(-6)));
+  check('rule 04 · but no Look is minted — that is hers to keep',
+    !writes.some((w) => w.method === 'POST' && /^looks/.test(w.url)),
     JSON.stringify(writes.map((w) => w.url).slice(-6)));
-  check('daily zero-owned · Save this look is the one commitment (Share waits)',
-    rendered.cta === 'Save this look' && rendered.keep === true && rendered.badge === false,
-    JSON.stringify(rendered));
+  // E3 — the DAY is titled by its OCCASION, the date leads as the eyebrow,
+  // and the look's own name sits in the line beneath.
+  check('E3 · the day is titled by its occasion, dated in the eyebrow',
+    rendered.title === 'Office day' && /^[A-Z][a-z]+day \d+ [A-Z]/.test(rendered.eyebrow || ''),
+    JSON.stringify([rendered.eyebrow, rendered.title]));
+  check('E3 · the look is named in the line beneath, never conflated with the day',
+    /Wearing/.test(rendered.wearing || '') && /A Dublin office look/.test(rendered.wearing || ''),
+    rendered.wearing);
+  // E1 — Robes always shows which vibe it chose, and it is always editable.
+  check('E1 · the vibe rides the day, and says it was read',
+    rendered.vibe === 'Powerhouse' && /Robes read Powerhouse as the vibe/.test(rendered.vibeRead || '')
+      && /Change the vibe/.test(rendered.vibeRead || ''),
+    JSON.stringify([rendered.vibe, rendered.vibeRead]));
+  check('rule 04 · the Lookbook save is an OFFER, and Share stays the day\'s action',
+    rendered.offer === 'Save to your Lookbook' && rendered.cta === 'Share this look',
+    JSON.stringify([rendered.offer, rendered.cta]));
   check('daily zero-owned · Wore it waits for a piece she owns', rendered.wear === false, JSON.stringify(rendered.wear));
   check('daily zero-owned · the console is held in the composer’s card, no frame in a frame',
     rendered.card === 'rgb(255, 255, 255)' && rendered.panelBorder === 'none', JSON.stringify([rendered.card, rendered.panelBorder]));
-
-  // A rerender (keeping one piece to the wishlist) must leave the Save door standing
-  const still = await page.evaluate(async () => {
-    window.__dlSaveWishlist(0);
-    await new Promise((r) => setTimeout(r, 600));
-    return { cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent };
-  });
-  check('daily zero-owned · a rerender leaves the Save door standing', still.cta === 'Save this look', JSON.stringify(still));
 
   const saved = await page.evaluate(async () => {
     window.__dlSaveAsk();
@@ -2187,14 +2300,19 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const text = (m?.textContent || '').replace(/\s+/g, ' ');
     document.getElementById('rb-dlsave-yes')?.click();
     await new Promise((r) => setTimeout(r, 1000));
-    return { text, cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent };
+    const head = document.querySelector('#dl-result-page header');
+    return {
+      text,
+      offer: !!head?.querySelector('.dlm-offer'),
+      door: head?.querySelector('.dlm-lksrc')?.textContent.replace(/\s+/g, ' '),
+    };
   });
-  check('daily zero-owned · Save says where the unowned pieces go, before it happens',
+  check('rule 04 · the offer says where the unowned pieces go, before it happens',
     /aren.t yours yet/.test(saved.text) && /Wishlist/.test(saved.text), saved.text.slice(0, 140));
-  check('daily zero-owned · once kept, the look shares like any other', saved.cta === 'Share this look', JSON.stringify(saved.cta));
-  check('daily zero-owned · one keep writes the look, the diary row and every piece to the wishlist',
-    writes.some((w) => w.method === 'POST' && /^lookbook_items/.test(w.url))
-      && writes.some((w) => w.method === 'POST' && /^planned_days/.test(w.url))
+  check('rule 04 · once kept, the offer retires and the day points at the look',
+    saved.offer === false && /Saved in your Lookbook/.test(saved.door || ''), JSON.stringify(saved));
+  check('rule 04 · the keep mints the Look and sends every proposal to the wishlist',
+    writes.some((w) => w.method === 'POST' && /^looks/.test(w.url))
       && writes.filter((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)).length === 3,
     JSON.stringify(writes.map((w) => w.method + ' ' + w.url).slice(-8)));
   check('daily zero-owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
@@ -2202,95 +2320,158 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// 10 · EVERY fresh daily look waits to be kept (widened same day, Annie:
-// "make the user save every look — the commitment action is important").
-// All-owned: Save commits directly, no wishlist confirm to answer; and
-// wearing an unkept look keeps it first, then logs the wear.
+// 10 · RULES 05 + 06 — a look pinned to a day, adjusted. Every change is
+// local to the day and marked as such; the saved look is untouched. Robes
+// asks ONCE, on marking it worn or on leaving: keep the changes here (the
+// wear goes to the original look, recorded as adjusted) or save them as a
+// new, named look (the wear goes to that one).
 // ─────────────────────────────────────────────────────────────────────────
 {
-  const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 4 });
+  const { ctx, page, errs, writes } = await boot(browser, { pics: 4 });
   await page.route('**res.cloudinary.com/**', (r) => r.abort());
-  const a = await page.evaluate(async () => {
-    const mkData = (headline) => {
-      const p = (n) => String(n).padStart(2, '0');
-      const t = new Date();
-      return {
-        headline, occasion_label: 'Everyday',
-        anchor_date: t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()),
-        steps: [
-          { title: 'The Canvas', items: [{ name: 'Cream silk shirt', category: 'Tops', wardrobe_match: { id: 'w-top1', label: 'Cream silk shirt', image_url: 'https://res.cloudinary.com/demo/image/upload/w-top1.jpg' } }] },
-          { title: 'The Anchor', items: [{ name: 'Barrel-leg jeans', category: 'Bottoms', wardrobe_match: { id: 'w-bot1', label: 'Barrel-leg jeans', image_url: 'https://res.cloudinary.com/demo/image/upload/w-bot1.jpg' } }] },
-        ],
-      };
-    };
-    window.__dlMkData = mkData;
-    window.__dlRenderResult(mkData('A look of her own.'), 'dress me today');
-    await new Promise((r) => setTimeout(r, 400));
-    const cta1 = document.querySelector('#dl-result-page .rbc-action button')?.textContent;
-    const wear = !!document.getElementById('dl-wear-btn');
-    window.__dlSaveAsk();
-    await new Promise((r) => setTimeout(r, 400));
+  await openLooks(page);
+  // lk-1 is a saved look of four pieces — open the day that wears it.
+  const day = await page.evaluate(async () => {
+    const p = (n) => String(n).padStart(2, '0');
+    const t = new Date();
+    const iso = t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
+    window.__lkOpenAsDay({ source_id: 'lk-1', day_date: iso, activity: 'Board day' });
+    await new Promise((r) => setTimeout(r, 500));
+    const head = document.querySelector('#dl-result-page header');
     return {
-      cta1, wear,
-      modal: !!document.getElementById('rb-del-modal'),
-      cta2: document.querySelector('#dl-result-page .rbc-action button')?.textContent,
+      iso,
+      title: head?.querySelector('.dlm-title')?.textContent,
+      wearing: head?.querySelector('.dlm-wearing')?.textContent,
+      banner: !!head?.querySelector('.dlm-adjusted'),
+      rows: document.querySelectorAll('#dl-result-page .rbc-rack .rbc-row').length,
     };
   });
-  check('daily all-owned · a fresh look still waits to be kept, Wore it standing',
-    a.cta1 === 'Save this look' && a.wear === true, JSON.stringify(a));
-  check('daily all-owned · Save commits directly — no wishlist confirm to answer',
-    a.modal === false && a.cta2 === 'Share this look', JSON.stringify(a));
-  check('daily all-owned · the keep writes the lookbook row',
-    writes.some((w) => w.method === 'POST' && /^lookbook_items/.test(w.url)),
-    JSON.stringify(writes.map((w) => w.url).slice(-5)));
+  check('rule 05 · the day opens on its own title, wearing the saved look',
+    day.title === 'Board day' && /The Thursday one/.test(day.wearing || '') && day.rows === 4,
+    JSON.stringify(day));
+  check('rule 05 · an untouched day says nothing — the banner is for changes',
+    day.banner === false, JSON.stringify(day));
 
-  const b = await page.evaluate(async () => {
-    window.__dlRenderResult(window.__dlMkData('Worn straight off the rack.'), 'dress me again');
+  const adjusted = await page.evaluate(async () => {
+    window.__dlFlip(0, 1);   // swap the first piece for another of hers
     await new Promise((r) => setTimeout(r, 400));
+    const head = document.querySelector('#dl-result-page header');
+    const local = document.querySelector('#dl-result-page .rbc-hownote.dl-local');
+    return {
+      banner: (head?.querySelector('.dlm-adjusted')?.textContent || '').replace(/\s+/g, ' '),
+      chip: local?.querySelector('.dl-todayonly')?.textContent,
+      localCopy: (local?.textContent || '').replace(/\s+/g, ' '),
+      undo: !!local?.querySelector('button'),
+      marked: document.querySelectorAll('#dl-result-page .rbc-row.dl-localrow').length,
+      reset: !!head?.querySelector('.dlm-adjusted button.q'),
+    };
+  });
+  check('rule 05 · one quiet line says the change is local, and names the untouched look',
+    /One change on this day only/.test(adjusted.banner) && /The Thursday one/.test(adjusted.banner)
+      && /is unchanged/.test(adjusted.banner),
+    adjusted.banner.slice(0, 160));
+  check('rule 05 · the changed row is marked Today only, names what it stands in for, and undoes',
+    adjusted.chip === 'Today only' && /Swapped in for the/.test(adjusted.localCopy)
+      && adjusted.undo === true && adjusted.marked === 1,
+    JSON.stringify(adjusted));
+  check('rule 05 · the banner offers both ways out — reset, or save as new',
+    adjusted.reset === true && /Save as a new look/.test(adjusted.banner), adjusted.banner.slice(0, 160));
+  check('rule 05 · the saved look itself is untouched',
+    !writes.some((w) => w.method === 'DELETE' && /^look_pieces/.test(w.url)),
+    JSON.stringify(writes.filter((w) => /look_pieces/.test(w.url)).map((w) => w.method + ' ' + w.url)));
+
+  // RULE 06 — asked once, on marking it worn.
+  const asked = await page.evaluate(async () => {
     window.__dlWear();
-    await new Promise((r) => setTimeout(r, 900));
-    return {
-      cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent,
-      worn: document.getElementById('dl-wear-btn')?.textContent,
-    };
-  });
-  check('daily all-owned · wearing an unkept look keeps it first, then logs the wear',
-    b.cta === 'Share this look' && /Worn/.test(b.worn || ''), JSON.stringify(b));
-
-  // Leaving an unkept look asks first — save it, or let it go (Annie,
-  // 2026-08-13): the back door holds the page, Save from the ask keeps it.
-  const c = await page.evaluate(async () => {
-    window.__dlRenderResult(window.__dlMkData('The one she almost lost.'), 'dress me later');
     await new Promise((r) => setTimeout(r, 400));
-    window.__dlGoBack();
-    await new Promise((r) => setTimeout(r, 250));
     const m = document.getElementById('rb-del-modal');
-    const held = !!m && document.getElementById('dl-result-page').style.display !== 'none';
     const text = (m?.textContent || '').replace(/\s+/g, ' ');
-    m?.querySelector('#rb-dlexit-save')?.click();
-    await new Promise((r) => setTimeout(r, 700));
     return {
-      held, text: text.slice(0, 120),
-      cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent,
-      closed: document.getElementById('dl-result-page').style.display === 'none',
+      shown: !!m,
+      text: text.slice(0, 160),
+      suggested: m?.querySelector('#rb-dlnew-name')?.value,
+      keep: !!Array.from(m?.querySelectorAll('button') || []).find((b) => b.textContent === 'Just keep it on the day'),
     };
   });
-  check('daily · leaving an unkept look asks first — the page holds until she answers',
-    c.held === true && /isn.t saved/.test(c.text), JSON.stringify(c));
-  check('daily · Save from the exit ask keeps the look, then lets her go',
-    c.cta === 'Share this look' && c.closed === true, JSON.stringify([c.cta, c.closed]));
+  check('rule 06 · marking it worn asks the one question, with a name ready',
+    asked.shown === true && /You changed one piece/.test(asked.text)
+      && /Save it as a new look/.test(asked.text) && !!asked.suggested && asked.keep === true,
+    JSON.stringify(asked));
 
-  const d = await page.evaluate(async () => {
-    window.__dlRenderResult(window.__dlMkData('The one she let go.'), 'dress me once more');
-    await new Promise((r) => setTimeout(r, 400));
-    window.__dlGoBack();
-    await new Promise((r) => setTimeout(r, 250));
-    document.querySelector('#rb-dlexit-go')?.click();
-    await new Promise((r) => setTimeout(r, 400));
-    return { closed: document.getElementById('dl-result-page').style.display === 'none' };
+  const kept = await page.evaluate(async () => {
+    Array.from(document.querySelectorAll('#rb-del-modal button'))
+      .find((b) => b.textContent === 'Just keep it on the day').click();
+    await new Promise((r) => setTimeout(r, 900));
+    return { worn: document.getElementById('dl-wear-btn')?.textContent };
   });
-  check('daily · Let it go closes without keeping', d.closed === true, JSON.stringify(d));
-  check('daily all-owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  check('rule 06 · keeping it on the day logs the wear', /Worn/.test(kept.worn || ''), JSON.stringify(kept));
+  await page.waitForTimeout(400);
+  const wearWrite = writes.filter((w) => w.method === 'POST' && /^wears/.test(w.url)).pop();
+  check('rule 06 · the wear goes to the ORIGINAL look, carrying what she actually wore',
+    wearWrite?.body?.look_id === 'lk-1'
+      && Array.isArray(wearWrite?.body?.piece_ids)
+      && wearWrite.body.piece_ids.length === 4
+      && !wearWrite.body.piece_ids.includes('w-top1'),
+    JSON.stringify(wearWrite?.body || null));
+  check('rule 06 · no second look was created by keeping it on the day',
+    !writes.some((w) => w.method === 'POST' && /^looks/.test(w.url)),
+    JSON.stringify(writes.filter((w) => /^looks/.test(w.url)).map((w) => w.method)));
+  // …and the worn log names the difference rather than hiding it (1c).
+  const log = await page.evaluate(async () => {
+    window.__lkGo();
+    window.__lkOpen('lk-1');
+    await new Promise((r) => setTimeout(r, 300));
+    const rows = Array.from(document.querySelectorAll('.rb-lk-wear')).map((r) => ({
+      pc: (r.querySelector('.pc')?.textContent || '').replace(/\s+/g, ' '),
+      tg: r.querySelector('.tg')?.textContent,
+    }));
+    return { rows, lineage: !!document.querySelector('.rb-lk-lin') };
+  });
+  check('1c · the worn log names the swap and marks it adjusted on the day',
+    log.rows.some((r) => r.tg === 'Adjusted' && /instead of the/.test(r.pc)),
+    JSON.stringify(log.rows));
+
+  // The other answer: save it as a new look. The variant carries lineage,
+  // and the wear follows the look she named (rule 06).
+  const promoted = await page.evaluate(async () => {
+    const p = (n) => String(n).padStart(2, '0');
+    const t = new Date(Date.now() + 86400000);
+    const iso = t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
+    window.__lkOpenAsDay({ source_id: 'lk-1', day_date: iso, activity: 'Board day' });
+    await new Promise((r) => setTimeout(r, 500));
+    window.__dlFlip(0, 1);
+    await new Promise((r) => setTimeout(r, 300));
+    window.__dlDayPromote();
+    await new Promise((r) => setTimeout(r, 250));
+    const inp = document.getElementById('rb-dlnew-name');
+    if (inp) inp.value = 'The Thursday one, warmer';
+    document.getElementById('rb-dlnew-yes')?.click();
+    await new Promise((r) => setTimeout(r, 800));
+    const head = document.querySelector('#dl-result-page header');
+    return {
+      banner: !!head?.querySelector('.dlm-adjusted'),
+      door: head?.querySelector('.dlm-lksrc')?.textContent.replace(/\s+/g, ' '),
+    };
+  });
+  await page.waitForTimeout(400);
+  const newLook = writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop();
+  check('rule 06 · save-as-new writes a variant that names its ancestor',
+    newLook?.body?.name === 'The Thursday one, warmer'
+      && newLook?.body?.origin_look_id === 'lk-1'
+      && newLook?.body?.source === 'variant',
+    JSON.stringify(newLook?.body || null));
+  check('rule 06 · the day now wears the new look, and reads settled again',
+    promoted.banner === false && /Saved in your Lookbook/.test(promoted.door || ''),
+    JSON.stringify(promoted));
+  const lineage = await page.evaluate(async () => {
+    window.__lkGo();
+    window.__lkOpen('lk-1');
+    await new Promise((r) => setTimeout(r, 300));
+    return Array.from(document.querySelectorAll('.rb-lk-lin')).map((b) => b.textContent);
+  });
+  check('1c · both looks name each other — nothing is orphaned',
+    lineage.includes('The Thursday one, warmer'), JSON.stringify(lineage));
+  check('rules 05/06 · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 

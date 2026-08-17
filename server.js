@@ -644,7 +644,23 @@ const LOOK_TAGS_SCHEMA = {
   },
   required: ['climate', 'wear_for'],
 };
-const LOOK_TAGS_RULE = `- "look_tags" files the look for search — assign from the brief's intent and the pieces, never leave it generic. "climate" is thermal, not calendar, and is one of exactly three: "spring_summer" (lightweight, single-layer, warm weather), "autumn_winter" (layered, knits and coats, cold weather), "year_round" (reads correctly in any weather). "wear_for" is the lifestyle occasions the look is FOR — one or two of everyday, work, evening, occasion, travel, active, lounge; the sharpest matches only, never all of them. "vibe" is 1–3 short lowercase words for the silhouette or mood, lifted from HER OWN WORDS in the brief wherever she gave any (e.g. "soft and undone for a long lunch" -> ["soft","undone"]); invent one only when the brief carries no mood language at all, and omit the field entirely rather than reaching.`;
+// The ten starting vibes (Look Rules 1e, 2026-08-17). A vibe is how she
+// wants to FEEL and belongs to the look; the occasion is where she is going
+// and belongs to the day. Exactly one vibe per look — stacking them makes
+// the wear data unreadable. She can add her own, so this is a starting
+// vocabulary the client may extend per request, never a closed enum.
+const LOOK_TAG_VIBE_SEEDS = ['powerhouse', 'chic', 'undone', 'polished', 'easy',
+  'romantic', 'sharp', 'quiet', 'statement', 'off-duty'];
+// Her own set, when the client sends one — so "powerhouse", "power CEO" and
+// "boss" all land on the one tag she already has rather than minting a third.
+function vibeVocabLine(vibes) {
+  const set = (Array.isArray(vibes) ? vibes : [])
+    .map(v => String(v || '').trim().toLowerCase()).filter(Boolean).slice(0, 40);
+  const list = set.length ? set : LOOK_TAG_VIBE_SEEDS;
+  return `HER VIBE SET (map to exactly one of these wherever the brief's mood language reaches one of them, matching on meaning not spelling — "power CEO", "powerhouse" and "boss" are all the one tag): ${list.join(', ')}.`;
+}
+const LOOK_TAGS_RULE = `- "look_tags" files the look for search — assign from the brief's intent and the pieces, never leave it generic. "climate" is thermal, not calendar, and is one of exactly three: "spring_summer" (lightweight, single-layer, warm weather), "autumn_winter" (layered, knits and coats, cold weather), "year_round" (reads correctly in any weather). "wear_for" is the lifestyle occasions the look is FOR — one or two of everyday, work, evening, occasion, travel, active, lounge; the sharpest matches only, never all of them. "vibe" is how she wants to FEEL in the look, and there is EXACTLY ONE — an array of a single short lowercase word. Read it from her own mood language in the brief ("I want to feel like a powerhouse CEO on Thursday" -> ["powerhouse"]) and map that onto her vibe set below wherever one of them carries the same meaning. Coin a new single word only when nothing in her set fits, and omit the field entirely rather than reaching. Never emit two.
+${vibeVocabLine(null)}`;
 function normLookTags(t) {
   t = t && typeof t === 'object' ? t : {};
   const climate = LOOK_TAG_CLIMATES.includes(t.climate) ? t.climate
@@ -656,13 +672,15 @@ function normLookTags(t) {
     const mapped = LOOK_TAG_WEAR.includes(w) ? [w] : (LOOK_TAG_WEAR_LEGACY[w] || []);
     mapped.forEach(m => { if (!wear.includes(m)) wear.push(m); });
   });
-  // Uncapped (ADR-002 §4): a cap forces a choice between a functional tag and
-  // a capsule tag, which is the choice that stops capsules forming. 8 is a
-  // runaway guard, not a product limit.
+  // wear_for stays uncapped (ADR-002 §4): a cap forces a choice between a
+  // functional tag and a capsule tag, which is the choice that stops capsules
+  // forming. 8 is a runaway guard, not a product limit.
+  // vibe is capped at ONE (Look Rules 1e) — a look sits in one bucket or the
+  // wear data cannot answer "which vibe do you actually wear".
   const vibeRaw = Array.isArray(t.vibe) ? t.vibe : (t.vibe ? [t.vibe] : []);
   const vibe = vibeRaw
     .map(v => String(v || '').replace(/^vibe:/i, '').trim().slice(0, 28))
-    .filter(Boolean).slice(0, 3);
+    .filter(Boolean).slice(0, 1);
   return { climate, wear_for: wear.slice(0, 8), vibe };
 }
 
@@ -736,7 +754,7 @@ const DAILY_SCHEMA = {
 };
 
 app.post('/api/daily', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, locked, gender } = req.body;
+  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, locked, gender, vibes } = req.body;
   const g = normGender(gender);
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
@@ -799,6 +817,7 @@ FIELD RULES:
 - Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" (e.g. "COS", "Net-a-Porter", "Arket") and a realistic EUR "price_point" (e.g. "€89").
 - "alternates": exactly 2 per item — similar-but-distinct options for the SAME slot (a different colour, fabrication or register that still honours the palette, the weather and the DNA below), each with its own real brand, retailer_hint and EUR price_point. These power the flick-through rail, so make them genuinely wearable alternatives, never filler.
 ${LOOK_TAGS_RULE}
+${vibeVocabLine(vibes)}
 - "fallback": true ONLY if the brief is gibberish or random characters — then dress her for a pleasant, unremarkable day in the given context instead. A plain occasion, agenda or mood is a valid daily brief.${dnaBlock ? '\n\n' + dnaBlock : ''}
 
 ${BANNED_CONSTRUCTIONS_RULE}
@@ -1120,7 +1139,7 @@ const LOOKBUILD_NOTE_SCHEMA = {
 };
 
 app.post('/api/lookbuild/note', rateLimit({ windowMs: 60_000, max: 30 }), async (req, res) => {
-  const { pieces, styleDna, styleIcons, gender } = req.body;
+  const { pieces, styleDna, styleIcons, gender, vibes } = req.body;
   const g = normGender(gender);
   const list = (Array.isArray(pieces) ? pieces : [])
     .filter(p => p && typeof p.name === 'string' && p.name.trim())
@@ -1137,6 +1156,7 @@ app.post('/api/lookbuild/note', rateLimit({ windowMs: 60_000, max: 30 }), async 
 - "note" is this look's PANEL NOTE. ${PANEL_NOTE_RULE}
 - "palette" is 2–4 six-digit hex codes reading the look's colour story off the pieces as named — muted, true to the garments, never invented brights.
 ${LOOK_TAGS_RULE}
+${vibeVocabLine(vibes)}
 
 ${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}`;
 

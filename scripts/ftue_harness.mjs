@@ -77,10 +77,16 @@ async function boot(browser, n, width = 1280, { looks = true } = {}) {
     Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
   }, n);
   if (looks) {
+    // A SAVED LOOK, not a daily look: a day is not a look and no longer
+    // fills the Lookbook (Look Rules 1a, 2026-08-17), so seeding one would
+    // leave the home builder standing and hide the learning card.
     await page.addInitScript(() => {
-      localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
-        { id: 1754600000000, type: 'daily-look', title: 'A look', subtitle: 'Daily look', img: null,
-          dlData: { anchor_date: '2026-08-05' } },
+      localStorage.setItem('rb_looks__u-test', JSON.stringify([
+        { id: 'lk-seed', name: 'A look', name_provisional: false, note: '', photo_url: null,
+          tags: null, climate_band: 'year_round', climate_source: 'derived', source: 'manual',
+          origin_look_id: null, created_at: '2026-08-05T10:00:00.000Z',
+          pieces: [{ id: 'w0', slot: 'Top', position: 0, role: null }, { id: 'w1', slot: 'Bottom', position: 1, role: null }],
+          wears: [] },
       ]));
     });
   }
@@ -458,6 +464,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   // Saving retires the module and hands the page back to the Lookbook row
   const saved = await page.evaluate(async () => {
     window.__lkApplyNew('w1');
+    window.__lkNewTitleInput('Terrace mornings');   // rule 02: the name is the gate
     window.__lkSave();
     await new Promise((r) => setTimeout(r, 300));
     window.__snClose();
@@ -524,7 +531,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
         { title: 'Brunch in the City', occasion: 'Easy', outfit: 'A blazer.', why: 'Because.' },
         { title: 'Evening Cocktails', occasion: 'Sharp', outfit: 'A heel.', why: 'Because.' },
       ] } },
-      { id: 1754690000000, type: 'daily-look', title: 'A Dublin day', subtitle: 'Daily look', img: null, dlData: { anchor_date: '2026-08-05' } },
+      { id: 1754690000000, type: 'travel-edit', title: 'Ibiza edit', subtitle: 'Travel edit', img: null,
+        tvData: { capsule: [], looks: [], dateFrom: '2026-08-07', tripDays: 5 } },
     ]));
   });
   await page.reload({ waitUntil: 'networkidle' });
@@ -539,7 +547,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       title: ir?.querySelector('.rb-sn-title')?.textContent,
       type: ir?.querySelector('.rb-sn-type')?.textContent,
       kpInLookbookRow: /Pink barrel-leg/.test(sn?.textContent || ''),
-      lookbookRowHasLook: /A Dublin day/.test(sn?.textContent || ''),
+      lookbookRowHasLook: /Ibiza edit/.test(sn?.textContent || ''),
     };
   });
   check('inspiration row · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
@@ -548,6 +556,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     JSON.stringify(k));
   check('inspiration row · View all lands on the Inspiration tab',
     /__rbInspOpen/.test(k.link || ''), k.link);
+  // The home row mirrors what the Lookbook holds: her looks and her travel
+  // edits. Key pieces are Inspiration's; days are the Diary's.
   check('inspiration row · key pieces never enter the Lookbook row, which keeps its looks',
     k.kpInLookbookRow === false && k.lookbookRowHasLook === true, JSON.stringify(k));
   // …and the key-piece result lights Inspiration in the nav, not Lookbook
