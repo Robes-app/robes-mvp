@@ -525,6 +525,13 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   // looks:false so boot's own seed can't overwrite this fixture on reload
   const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
   await page.evaluate(() => {
+    localStorage.setItem('rb_looks__u-test', JSON.stringify([
+      { id: 'lk-row', name: 'A look', name_provisional: false, note: '', photo_url: null,
+        tags: null, climate_band: 'year_round', climate_source: 'derived', source: 'manual',
+        origin_look_id: null, created_at: '2026-08-05T10:00:00.000Z',
+        pieces: [{ id: 'w0', slot: 'Top', position: 0, role: null }, { id: 'w1', slot: 'Bottom', position: 1, role: null }],
+        wears: [] },
+    ]));
     localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
       { id: 1754700000000, type: 'key-piece', title: 'Pink barrel-leg jeans', subtitle: 'Worn three ways', img: null, kpData: { piece_name: 'Pink barrel-leg jeans', the_looks: [], ways: [
         { title: 'The Art Gallery Opening', occasion: 'Effortless chic', outfit: 'A shirt.', why: 'Because.' },
@@ -548,6 +555,9 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       type: ir?.querySelector('.rb-sn-type')?.textContent,
       kpInLookbookRow: /Pink barrel-leg/.test(sn?.textContent || ''),
       lookbookRowHasLook: /Ibiza edit/.test(sn?.textContent || ''),
+      // A saved Look's card draws its piece MOSAIC — photo_url is rare on a
+      // Look, and the row must never show a blank cream card for one.
+      lookMosaic: !!sn?.querySelector('.rb-sn-card .rb-lk-mos'),
     };
   });
   check('inspiration row · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
@@ -560,6 +570,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   // edits. Key pieces are Inspiration's; days are the Diary's.
   check('inspiration row · key pieces never enter the Lookbook row, which keeps its looks',
     k.kpInLookbookRow === false && k.lookbookRowHasLook === true, JSON.stringify(k));
+  check('lookbook row · a saved look draws its piece mosaic, never a blank card',
+    k.lookMosaic === true, JSON.stringify(k.lookMosaic));
   // …and the key-piece result lights Inspiration in the nav, not Lookbook
   const nav = await page.evaluate(async () => {
     window.__snOpenItem(1754700000000);

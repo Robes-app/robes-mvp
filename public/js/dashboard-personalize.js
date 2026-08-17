@@ -15129,6 +15129,7 @@ body>*:not(#tv-result-page){display:none !important}
           .rb-sn-card:hover { border-color:rgba(32,32,33,0.2); }
           .rb-sn-img { width:100%;aspect-ratio:3/4;object-fit:cover;display:block; }
           .rb-sn-img-ph { aspect-ratio:3/4;background:var(--cream-100); }
+          .rb-sn-card .rb-lk-mos { border-radius:0; }
           .rb-sn-body { padding:11px 13px 13px; }
           .rb-sn-type { font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px; }
           .rb-sn-title { font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:15px;color:var(--ink);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
@@ -15547,6 +15548,11 @@ body>*:not(#tv-result-page){display:none !important}
               id: l.id, look: true, title: l.name || 'A look', type: 'look',
               subtitle: _lkN((l.pieces || []).length, 'piece'),
               img: (typeof l.photo_url === 'string' && l.photo_url.indexOf('http') === 0) ? l.photo_url : null,
+              // A saved Look's image IS its piece mosaic (the handoff rule:
+              // every surface that draws a look composes _rbLookTile) — a
+              // Look rarely has a photo_url, so without this the row drew
+              // blank cream cards (Annie's beta catch 2026-08-17).
+              mosaic: _ltMosaicHtml(_ltCells(_lkPieceIds(l)), { alt: l.name || 'A look' }),
               ts: Date.parse(l.created_at || '') || 0,
             }))
             .concat(_lkShelfItems().concat(_lkHolidayItems())
@@ -15571,7 +15577,7 @@ body>*:not(#tv-result-page){display:none !important}
                 : `window.__snOpenItem(${Number(item.id)})`}">
                 ${item.img
                   ? `<img src="${_waEsc(item.img)}" class="rb-sn-img" alt="">`
-                  : '<div class="rb-sn-img-ph"></div>'}
+                  : (item.mosaic || '<div class="rb-sn-img-ph"></div>')}
                 <div class="rb-sn-body">
                   <div class="rb-sn-type">${_snTypeLabel(item.type)}</div>
                   <div class="rb-sn-title">${_waEsc(item.title)}</div>
