@@ -1539,11 +1539,15 @@
       snPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:60px;z-index:45;background:#FAF8F5;overflow-y:auto';
       snPage.innerHTML = `
         <div style="padding:32px 24px 24px;max-width:960px;margin:0 auto">
-          <p style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;margin:0 0 24px">Saved looks & key pieces</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 24px">
+            <p style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A89880;margin:0">Saved looks & key pieces</p>
+            <button onclick="window.__snStyleKeyPiece()" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:100px;background:#202021;color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer;white-space:nowrap;font-family:inherit">Style a key piece</button>
+          </div>
           <div id="sn-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
           <div id="sn-empty" style="display:none;padding:80px 0;text-align:center">
             <p style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#202021;margin:0 0 10px">Nothing saved yet.</p>
             <p style="font-size:13px;color:#A89880;line-height:1.6">Style a key piece or save today's look<br>and it will appear here.</p>
+            <button onclick="window.__snStyleKeyPiece()" style="display:inline-flex;align-items:center;gap:8px;margin-top:22px;padding:13px 26px;border-radius:100px;background:#202021;color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer;white-space:nowrap;font-family:inherit">Style a key piece</button>
           </div>
         </div>`;
       document.body.appendChild(snPage);
@@ -1560,6 +1564,14 @@
         snRenderPage();
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Lookbook' }]);
         window._rbNav && window._rbNav('/lookbook');
+      };
+      // The page's "Style a key piece" CTA — close the overlay first so the
+      // KP modal opens over the dashboard (same pattern as the result
+      // footer's "Style another piece"); the styled result then lands on
+      // the key piece page via the existing /api/style flow.
+      window.__snStyleKeyPiece = function() {
+        window.__snClose();
+        setTimeout(function() { if (window.KP && KP.openKeyPiece) KP.openKeyPiece(); }, 180);
       };
       // Deleting is destructive — always confirm first (beta feedback:
       // looks were vanishing on a stray tap of the hover ×).
@@ -2087,6 +2099,10 @@
                       <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Key Details</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${w.details}</p></div>
                       <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Accessories</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${w.accessories}</p></div>
                     </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:auto;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.08)">
+                      <span style="font-size:12px;color:#A89880;font-style:italic">See it piece by piece — what's yours, what would finish it.</span>
+                      <button onclick="window.__kpBuildLook(${i})" style="flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Build this look<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+                    </div>
                   </div>
                 </div>`;
               }).join('')}
@@ -2150,6 +2166,21 @@
           // stayed null and every Share lazy-minted a duplicate key-piece row.
           _kpActiveSaveId = (opts && opts.savedId) || data.id || null;
         }
+
+        // "Build this look" — hand the chosen way to the Daily Look engine,
+        // which owns the piece-by-piece Look/Rack console (wardrobe matching,
+        // flick-through, imagery). The kp look is prose, so the full outfit
+        // text travels as the brief; origin flags let the console adapt its
+        // framing and route back here.
+        window.__kpBuildLook = function(i) {
+          const w = ways[i];
+          if (!w || typeof window.__dlSubmit !== 'function') return;
+          const bits = ['Build this exact look for me, piece by piece: ' + (w.outfit || w.title || '')];
+          if (w.accessories) bits.push('Accessories: ' + w.accessories);
+          if (w.details) bits.push('Key styling detail: ' + w.details);
+          bits.push('The mood: ' + [w.eyebrow, w.title].filter(Boolean).join(' — ') + '.');
+          window.__dlSubmit(bits.join(' '), { origin: 'key-piece', kpSourceId: _kpActiveSaveId });
+        };
 
         let kpFbRating = null;
         window.__kpFbRate = function(val) {
@@ -2271,6 +2302,26 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
+      // A look built from a styled key piece routes back to its three-ways
+      // page (the saved kp entry re-renders — survives reloads); if that
+      // entry is gone, fall back to the still-mounted kp page or home.
+      window.__dlBackToKp = function() {
+        if (dlResultPage) dlResultPage.style.display = 'none';
+        _waAfterAdd = null;
+        const id = window.__lastDlData && window.__lastDlData.kpSourceId;
+        const item = id && snLoad().find(i => String(i.id) === String(id));
+        if (item) { window.__snOpenItem(item.id); return; }
+        const kp = document.getElementById('kp-result-page');
+        if (kp && kp.innerHTML) {
+          kp.style.display = 'block';
+          window.rbSetCrumb && window.rbSetCrumb([{ label: 'Style a piece' }]);
+        } else {
+          window.rbClearCrumb && window.rbClearCrumb();
+          window._rbNav && window._rbNav('/dashboard');
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
       // Footer "Dress me again" (bug report 4.7): return her to the home
       // prompt to start a fresh brief, rather than silently re-mixing this
       // look (that's what the in-context "Restyle it" does).
@@ -2316,6 +2367,15 @@
 
       window.__dlSubmit = async function(prompt, opts) {
         const locked = (opts && Array.isArray(opts.locked)) ? opts.locked : null;
+        // origin === 'key-piece': this look is being built from a styled key
+        // piece (kp result CTA) — the console adapts its framing and keeps a
+        // route back to the three ways. A restyle of a built look (savedId,
+        // no explicit origin) inherits the flags from the live data so the
+        // framing survives evolution.
+        const origin = (opts && opts.origin)
+          || (opts && opts.savedId && window.__lastDlData && window.__lastDlData.origin) || null;
+        const kpSourceId = (opts && opts.kpSourceId)
+          || (origin && window.__lastDlData && window.__lastDlData.kpSourceId) || null;
         let overlay = document.getElementById('kp-loading-overlay');
         if (!overlay) {
           overlay = document.createElement('div');
@@ -2335,9 +2395,13 @@
         const loadTitle = document.getElementById('kp-load-title');
         if (loadTitle) loadTitle.innerHTML = locked && locked.length
           ? 'Restyling around<br><em>your anchors…</em>'
-          : 'Dressing you<br><em>for today…</em>';
+          : origin === 'key-piece'
+            ? 'Building your look,<br><em>piece by piece…</em>'
+            : 'Dressing you<br><em>for today…</em>';
         overlay.style.display = 'flex';
-        const msgs = ['Reading the day’s context', 'Building anchor to accents…', 'Balancing the proportions…', 'Almost ready…'];
+        const msgs = origin === 'key-piece'
+          ? ['Reading the look', 'Checking your wardrobe…', 'Naming the gaps…', 'Almost ready…']
+          : ['Reading the day’s context', 'Building anchor to accents…', 'Balancing the proportions…', 'Almost ready…'];
         let mi = 0;
         const msgEl0 = document.getElementById('kp-load-msg');
         if (msgEl0) msgEl0.textContent = msgs[0];
@@ -2379,6 +2443,10 @@
           overlay.style.display = 'none';
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
+          if (origin) {
+            data.origin = origin;
+            if (kpSourceId) data.kpSourceId = kpSourceId;
+          }
           // Re-mark the anchors on the fresh look so they stay locked
           if (locked && locked.length) {
             const freshFlat = [];
@@ -2706,7 +2774,8 @@
         const imagesPending = !!data.jobId && !images.some(Boolean);
         const hexOk = h => typeof h === 'string' && /^#[0-9A-Fa-f]{6}$/.test(h);
         const palette = (Array.isArray(data.palette) ? data.palette : []).filter(hexOk).slice(0, 3);
-        const headline = data.headline || 'A look for today.';
+        const builtFromKp = data.origin === 'key-piece';
+        const headline = data.headline || (builtFromKp ? 'Your look, built.' : 'A look for today.');
         const provenance = owned === total && total > 0
           ? 'All ' + total + ' pieces from your wardrobe'
           : owned > 0 ? owned + ' of ' + total + ' from your wardrobe' : total + ' pieces · an editorial build';
@@ -2838,11 +2907,11 @@
 
         // Header mirrors the live Moodboard: eyebrow → short serif title →
         // keyword row → meta row (weather-strip pill + occasion tag pill).
-        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Daily look' }]);
+        window.rbSetCrumb && window.rbSetCrumb([{ label: builtFromKp ? 'Your look' : 'Daily look' }]);
         try { dlResultPage.innerHTML = `
           <div class="dlm-wrap">
             <header>
-              <div class="dlm-eyebrow">Your daily look</div>
+              <div class="dlm-eyebrow">${builtFromKp ? 'Your look, built' : 'Your daily look'}</div>
               <h1 class="dlm-title">${_waEsc(headline)}</h1>
               ${data.occasion_label ? `<div class="dlm-kws"><span class="kw">${_waEsc(data.occasion_label)}</span></div>` : ''}
               <div class="dlm-meta-row">
@@ -2882,7 +2951,7 @@
                 <div class="dlm-rackhead">
                   <div style="min-width:0">
                     <span class="ey">The rack</span>
-                    <h2>Flip through. Robes reads the day.</h2>
+                    <h2>${builtFromKp ? 'Flip through. Make it yours.' : 'Flip through. Robes reads the day.'}</h2>
                   </div>
                   <button class="dlm-restyle" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">${restyleSvg} Restyle it</button>
                 </div>
@@ -2918,7 +2987,9 @@
               <div class="dlm-pbtns">
                 <button class="dlm-pbtn" onclick="window.__rbShare&&window.__rbShare()"><span>Share</span></button>
                 <button class="dlm-pbtn" onclick="window.__dlWear()"><span>Wear today</span></button>
-                <button class="dlm-pbtn primary" onclick="window.__dlDressAgain()">${restyleSvg}<span>Dress me again</span></button>
+                ${builtFromKp
+                  ? `<button class="dlm-pbtn primary" onclick="window.__dlBackToKp()"><span>Try another way</span></button>`
+                  : `<button class="dlm-pbtn primary" onclick="window.__dlDressAgain()">${restyleSvg}<span>Dress me again</span></button>`}
               </div>
             </div>
           </div>`; } catch (e) {
@@ -2939,8 +3010,8 @@
           const saveCopy = { ...data, jobId: undefined, generatedImages: persistable, prompt: promptText || data.prompt || '' };
           _dlActiveSaveId = snAdd({
             type: 'daily-look',
-            title: data.headline || 'Today’s look',
-            subtitle: 'Daily look · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
+            title: data.headline || (builtFromKp ? 'Your look, built' : 'Today’s look'),
+            subtitle: (builtFromKp ? 'Built from a key piece · ' : 'Daily look · ') + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
             img: persistable.find(Boolean) || null,
             dlData: saveCopy,
           });
@@ -2963,7 +3034,7 @@
             rating: dlFbRating,
             comment,
             prompt: promptText || '',
-            looksOutput: JSON.stringify({ surface: 'daily-look', occasion: data.occasion_label || '', headline: data.headline || '', owned, total, context: ctx, ts: new Date().toISOString() }),
+            looksOutput: JSON.stringify({ surface: 'daily-look', origin: data.origin || '', occasion: data.occasion_label || '', headline: data.headline || '', owned, total, context: ctx, ts: new Date().toISOString() }),
           }) }).catch(() => {});
           document.getElementById('dl-fb-prompt').hidden = true;
           document.getElementById('dl-fb-expand').hidden = true;
