@@ -883,17 +883,17 @@
           });
           return;
         }
+        // The concierge's slot is a RULE now, not an accident of markup
+        // order (Annie, 2026-08-18): it follows the prompt and the rail,
+        // ahead of the Lookbook and Inspiration rows.
+        const svc = dash.querySelector('.services');
         const seq = (n < _MS_UNLOCKS[0].at
-          ? [styled, conc, rail]
-          : [conc, rail, styled]).filter(Boolean);
+          ? [styled, conc, rail, svc]
+          : [conc, rail, styled, svc]).filter(Boolean);
         seq.forEach((el, i) => {
           const prev = i === 0 ? mast : seq[i - 1];
           if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
         });
-        // "Robes is learning" is demoted to the page's LAST module whenever
-        // it is visible (Annie, 2026-08-18) — supersedes the progress-leads-
-        // below-3 order.
-        if (dash.lastElementChild !== trk) dash.appendChild(trk);
       }
 
       // The concierge is absent until the first unlock — a brand-new user is
@@ -901,13 +901,118 @@
       // the section appears with ALL THREE edits open: Daily Look, Weekly
       // Planner and Travel Edit are all built and live, and the app-wide
       // convention is that a working feature is never locked behind a count.
+      // The concierge is a MENU for someone who doesn't know what Robes
+      // does (merge pass 2a, 2026-08-18). Once she has created one of each
+      // live edit — a daily look and a travel edit (the weekly planner is a
+      // coming-soon promo; it rejoins this condition when the track
+      // returns) — she knows, and the whole module falls away, all at once,
+      // meter and all. Data-driven, so it never comes back while the rows
+      // stand. Nothing takes its place: the actions live permanently
+      // elsewhere, so home gets shorter rather than backfilled.
+      function _rbConciergeDone() {
+        try {
+          const t = (typeof snLoad === 'function' ? snLoad() : []).map(i => i && i.type);
+          return t.indexOf('daily-look') > -1 && t.indexOf('travel-edit') > -1;
+        } catch (_) { return false; }
+      }
+      window.__rbSvcAll = function() { if (window.App && App.showWardrobe) App.showWardrobe(); };
+      window.__rbSvcSnap = function() { _wtrkOpenAdd(); };
+      // "Robes is learning" merged INTO the concierge (2a): a quiet header
+      // meter with ONE job — filing replaces borrowed pieces with her own,
+      // the only honest reason to catalogue when access isn't the reward —
+      // and a filed-piece RECEIPT row (one thumbnail, always: the most
+      // recent piece, never a growing strip that duplicates the Wardrobe
+      // tab) closing the module with the one add door.
+      function _rbConciergeSync(n) {
+        const svc = document.querySelector('.services');
+        if (!svc) return;
+        if (!document.getElementById('rb-svc-style')) {
+          const st = document.createElement('style');
+          st.id = 'rb-svc-style';
+          st.textContent =
+            '.services .sec-head{align-items:flex-start}' +
+            '#rb-svc-learn{margin-left:auto;max-width:300px}' +
+            '#rb-svc-learn .t{display:flex;align-items:baseline;justify-content:space-between;gap:16px}' +
+            '#rb-svc-learn .ey{font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--rose,#8E7077);white-space:nowrap}' +
+            '#rb-svc-learn .n{font-size:11px;color:var(--ink-soft,#55524E);white-space:nowrap}' +
+            '#rb-svc-learn .bar{height:2px;border-radius:2px;background:var(--cream-200,#EDE9E2);margin:7px 0;overflow:hidden}' +
+            '#rb-svc-learn .bar i{display:block;height:100%;background:var(--ink,#202021);opacity:.7;transition:width .65s cubic-bezier(0.4,0,0.2,1)}' +
+            '#rb-svc-learn .cap{font-size:11px;line-height:1.5;color:var(--ink-faint,#9C9891)}' +
+            '.rb-svc-note{font-size:11.5px;color:var(--ink-faint,#9C9891);line-height:1.4;margin:9px 0 0;padding-top:9px;border-top:0.5px solid var(--rule,rgba(32,32,33,0.08))}' +
+            '#rb-svc-filed{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:20px;padding-top:18px;border-top:0.5px solid var(--rule-mid,rgba(32,32,33,0.14))}' +
+            '#rb-svc-filed .th{flex:none;width:42px;height:54px;border-radius:6px;overflow:hidden;background:var(--cream-200,#EDE9E2)}' +
+            '#rb-svc-filed .th img{width:100%;height:100%;object-fit:cover;display:block}' +
+            '#rb-svc-filed .th .mono{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-size:18px;color:var(--ink-faint,#9C9891)}' +
+            '#rb-svc-filed .txt{display:flex;flex-direction:column;gap:3px;min-width:0}' +
+            '#rb-svc-filed .nm{font-size:13px;color:var(--ink,#202021)}' +
+            '#rb-svc-filed .meta{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint,#9C9891)}' +
+            '#rb-svc-filed .all{background:none;border:none;border-left:0.5px solid var(--rule-mid,rgba(32,32,33,0.14));padding:4px 0 4px 16px;margin-left:4px;font-family:inherit;font-size:12px;color:var(--ink-soft,#55524E);cursor:pointer;text-align:left}' +
+            '#rb-svc-filed .all span{color:var(--ink,#202021);border-bottom:0.5px solid rgba(32,32,33,0.3);margin-left:6px}' +
+            '#rb-svc-filed .sp{flex:1}' +
+            '#rb-svc-filed .note{font-size:12px;color:var(--ink-soft,#55524E);white-space:nowrap}' +
+            '#rb-svc-filed .cta{flex:none;padding:11px 20px;border:0.5px solid rgba(32,32,33,0.25);border-radius:100px;background:#fff;font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink,#202021);cursor:pointer}' +
+            '#rb-svc-filed .cta:hover{border-color:var(--ink,#202021)}' +
+            '@media(max-width:767px){.services .sec-head{flex-direction:column;gap:12px}' +
+              '#rb-svc-learn{margin-left:0;max-width:none;width:100%}' +
+              '#rb-svc-filed .note{display:none}#rb-svc-filed .cta{flex:1;min-height:44px}}';
+          document.head.appendChild(st);
+        }
+        // Header: the eyebrow and the meter carry it — the static
+        // "Specialised edits, on request" meta yields its slot.
+        const head = svc.querySelector('.sec-head');
+        if (head) {
+          const meta = head.querySelector('.sec-meta');
+          if (meta) meta.remove();
+          let learn = document.getElementById('rb-svc-learn');
+          if (!learn) {
+            learn = document.createElement('div');
+            learn.id = 'rb-svc-learn';
+            head.appendChild(learn);
+          }
+          const pct = Math.min(100, typeof _msFillPct === 'function' ? _msFillPct(n) : n);
+          // Bare count, never a denominator (learning-meter rule holds here)
+          learn.innerHTML = '<div class="t"><span class="ey">Robes is learning</span>' +
+            '<span class="n">' + n + ' piece' + (n === 1 ? '' : 's') + ' filed</span></div>' +
+            '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
+            '<div class="cap">Every piece you file replaces a borrowed one in the looks below.</div>';
+        }
+        // The filed-piece row — a receipt, not a wardrobe: one thumbnail,
+        // fixed height, the CTA never pushed off the row.
+        let row = document.getElementById('rb-svc-filed');
+        if (!row) {
+          row = document.createElement('div');
+          row.id = 'rb-svc-filed';
+          svc.appendChild(row);
+        }
+        const it = _waItems[0] || null;
+        const receipt = it
+          ? '<span class="th">' + (it.image_url
+              ? '<img src="' + _waEsc(it.image_url) + '" alt="">'
+              : '<span class="mono">' + _waEsc((it.label || '?').charAt(0).toUpperCase()) + '</span>') + '</span>' +
+            '<span class="txt"><span class="nm">' + _waEsc(it.label || 'A piece') + '</span>' +
+            '<span class="meta">' + _waEsc(it.category || 'Piece') + ' · ' + (n === 1 ? 'Your first filed piece' : 'Last filed') + '</span></span>'
+          : '';
+        const all = n >= 2
+          ? '<button type="button" class="all" onclick="window.__rbSvcAll()">' + n + ' pieces in your wardrobe<span>See all →</span></button>'
+          : '';
+        row.innerHTML = receipt + all + '<span class="sp"></span>' +
+          '<span class="note">One photo files four pieces.</span>' +
+          '<button type="button" class="cta" onclick="window.__rbSvcSnap()">Catalogue what you’re wearing now</button>';
+      }
       function _rbGateConcierge(n) {
         const svc = document.querySelector('.services');
         if (!svc) return;
         // FTU simplification (2026-08-18): while the index rows carry home
-        // (zero looks) nothing competes with the one CTA — the service
-        // shelf stands down at any piece count until the first look exists.
-        svc.style.display = (!document.getElementById('rb-ftu-rows') && n >= _MS_UNLOCKS[0].at) ? '' : 'none';
+        // (zero looks / first look) nothing competes with the one CTA — the
+        // service shelf stands down at any piece count until then. Once she
+        // has made one of each live edit the module retires for good (2a).
+        const show = !document.getElementById('rb-ftu-rows')
+          && n >= _MS_UNLOCKS[0].at && !_rbConciergeDone();
+        svc.style.display = show ? '' : 'none';
+        if (show) {
+          _rbConciergeSync(n);
+          if (typeof _rbUpdateDailyOutfitLock === 'function') _rbUpdateDailyOutfitLock();
+        }
       }
 
       window.__wtrkEdit = function(id) {
@@ -967,18 +1072,13 @@
         const numEl = document.getElementById('wtrk-num');
         const headEl = document.getElementById('wtrk-head');
         const msEl = document.getElementById('wtrk-ms');
-        // The card retires for good one piece PAST the last milestone — at 15
-        // it still has a job (Style notes has only just unlocked); at 16 count
-        // and adding both live in the Wardrobe tab and nothing takes its place.
-        // The section stays in the DOM — it's _rbApplyLayout's anchor.
-        const complete = n > _WA_TARGET;
+        // MERGED (2a, 2026-08-18): "Robes is learning" lives inside the
+        // Styling Concierge now — a header meter + the filed-piece receipt
+        // row. The standalone card never renders again; the section stays
+        // in the DOM only as _rbApplyLayout's anchor (and its internals
+        // keep painting, invisibly, so nothing downstream breaks).
         const trkSection = document.getElementById('wtrk');
-        if (trkSection) {
-          // …and it does not render at all while the inline rack is on home
-          // (FTUE step 3, 2026-08-12): the rack replaces it, so home never
-          // shows a progress bar at zero looks.
-          trkSection.style.display = complete || (typeof _lkHomeZero === 'function' && _lkHomeZero()) ? 'none' : '';
-        }
+        if (trkSection) trkSection.style.display = 'none';
         // Bare count, no denominator — "n / 15" read as the wardrobe's item
         // limit (Clodagh test 2026-07-29). Never reintroduce a fraction here.
         if (numEl) numEl.innerHTML = n + '<span class="wtrk-num-lbl">Piece' + (n === 1 ? '' : 's') + ' filed</span>';
@@ -10929,11 +11029,10 @@
         _rbFtuRows(zero
           ? (document.getElementById('rb-styled') ? 'zero' : 'zero-lead')
           : (firstLook ? 'look' : null));
-        // The learning card stands down at zero looks (the rows carry home)
-        // and while the first-look card is up (Finish it is the one nudge;
-        // the card's caption carries the wardrobe's progress).
+        // The learning card is merged into the concierge (2a) — the
+        // standalone section never renders.
         const trk = document.getElementById('wtrk');
-        if (trk) trk.style.display = (zero || firstLook || _waItems.length > _WA_TARGET) ? 'none' : '';
+        if (trk) trk.style.display = 'none';
         if (typeof _rbRenderStyleNotes === 'function') _rbRenderStyleNotes();
         if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow();
         if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length);
@@ -16388,24 +16487,40 @@ body>*:not(#tv-result-page){display:none !important}
         const svcImg = dailyCard.querySelector('.svc-img');
         const svcCta = dailyCard.querySelector('.svc-cta');
         if (!svcImg) return;
-        const growing = _waItems.length < _WA_TARGET;
 
-        // Progress pill in the image area — informational, never a lock:
-        // the Daily Look works from day one (fully editorial on an empty
-        // closet, hybrid while growing, closet-first at 15).
-        let pill = svcImg.querySelector('.rb-lock-wrap');
-        if (growing) {
-          if (!pill) {
-            pill = document.createElement('div');
-            pill.className = 'rb-lock-wrap';
-            svcImg.appendChild(pill);
+        // NOTHING GATED (merge pass 2a, 2026-08-18): no card states a
+        // condition and no number is a threshold — the progress pill is
+        // gone. Each card carries a one-line caption instead: the specific
+        // version of "filing buys quality, not access".
+        const pill = svcImg.querySelector('.rb-lock-wrap');
+        if (pill) pill.remove();
+        const n = _waItems.length;
+        const dailyNote = n >= _WA_TARGET
+          ? 'Today’s look: styled entirely from your closet.'
+          : n >= 4
+            ? 'Today’s look: your pieces first, gaps borrowed.'
+            : n >= 1
+              ? 'Today’s look: ' + n + ' piece' + (n === 1 ? '' : 's') + ' yours, ' + (4 - n) + ' borrowed.'
+              : 'Today’s look: borrowed until you file a piece.';
+        const notes = {
+          'Daily outfit': dailyNote,
+          'Weekly planner': 'Seven looks in one pass. Nothing worn twice.',
+          'Travel edit': 'Tell Robes where and how long.',
+        };
+        grid.querySelectorAll('.svc').forEach(card => {
+          const title = (card.querySelector('.svc-title') || {}).textContent;
+          const note = notes[title];
+          let el = card.querySelector('.rb-svc-note');
+          if (!note) { if (el) el.remove(); return; }
+          if (!el) {
+            el = document.createElement('div');
+            el.className = 'rb-svc-note';
+            const cta = card.querySelector('.svc-cta');
+            if (cta && cta.parentNode) cta.parentNode.insertBefore(el, cta);
+            else (card.querySelector('.svc-body') || card).appendChild(el);
           }
-          // No trailing count fraction — "n/15" reads as an item limit
-          // (learning-meter reframe 2026-07-29).
-          pill.innerHTML = `<span class="rb-lock-pill">✦ ${Math.max(1, _WA_TARGET - _waItems.length)} more pieces and every look is closet-only</span>`;
-        } else if (pill) {
-          pill.remove();
-        }
+          el.textContent = note;
+        });
 
         if (svcCta) {
           svcCta.classList.remove('svc-cta-locked');

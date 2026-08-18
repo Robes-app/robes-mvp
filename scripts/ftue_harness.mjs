@@ -121,37 +121,37 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     const dash = document.getElementById('dash');
     const vis = (el) => !!el && el.offsetParent !== null;
     const order = Array.from(dash ? dash.children : [])
-      .filter((el) => el.offsetParent !== null || el.id === 'wtrk')
+      .filter((el) => el.offsetParent !== null)
       .map((el) => el.id || el.className.split(' ')[0]);
-    const cols = Array.from(document.querySelectorAll('#wtrk-ms .rb-ms-col')).map((c) => ({
-      at: c.querySelector('.rb-ms-at')?.textContent,
-      label: c.querySelector('.rb-ms-lbl')?.textContent,
-      on: c.classList.contains('on'),
-    }));
     return {
       order,
       trackerVisible: vis(document.getElementById('wtrk')),
       servicesVisible: vis(document.querySelector('.services')),
-      head: document.getElementById('wtrk-head')?.innerHTML || '',
-      num: document.getElementById('wtrk-num')?.textContent || '',
-      fill: document.querySelector('#wtrk-ms .rb-ms-fill')?.style.width || '',
-      cols,
-      tickLefts: Array.from(document.querySelectorAll('#wtrk-ms .rb-ms-tick')).map((t) => t.style.left),
-      trackMask: (() => {
-        const t = document.querySelector('#wtrk-ms .rb-ms-track');
-        if (!t) return '';
-        const cs = getComputedStyle(t);
-        return cs.maskImage && cs.maskImage !== 'none' ? cs.maskImage : (cs.webkitMaskImage || '');
-      })(),
-      pill: document.querySelector('.svc-daily .rb-lock-pill')?.textContent || '',
-      eyebrow: document.querySelector('#wtrk .wtrk-ey')?.textContent || '',
       styleNotes: !!document.getElementById('rb-sil-prompt'),
-      hasStatus: !!document.querySelector('#wtrk-ms .rb-ms-st'),
-      msText: (document.getElementById('wtrk-ms')?.textContent || '').trim(),
-      trackerH: Math.round(document.getElementById('wtrk')?.getBoundingClientRect().height || 0),
-      trkTone: (() => {
-        const c = document.querySelector('#wtrk .wtrk-card');
-        return c ? getComputedStyle(c).backgroundColor : '';
+      // The merged header meter (2a): eyebrow + count + line + one caption
+      learnEy: document.querySelector('#rb-svc-learn .ey')?.textContent || '',
+      learnN: document.querySelector('#rb-svc-learn .n')?.textContent || '',
+      learnCap: document.querySelector('#rb-svc-learn .cap')?.textContent || '',
+      learnFill: document.querySelector('#rb-svc-learn .bar i')?.style.width || '',
+      secMeta: !!document.querySelector('.services .sec-meta'),
+      pill: document.querySelector('.services .rb-lock-pill')?.textContent || '',
+      // Card captions — the specific version of "filing buys quality"
+      notes: Array.from(document.querySelectorAll('.services-grid .svc')).map((c) => ({
+        title: c.querySelector('.svc-title')?.textContent,
+        note: c.querySelector('.rb-svc-note')?.textContent || '',
+      })),
+      // The filed-piece row — a receipt, not a wardrobe
+      filed: (() => {
+        const r = document.getElementById('rb-svc-filed');
+        if (!r) return null;
+        return {
+          thumbs: r.querySelectorAll('.th').length,
+          nm: r.querySelector('.nm')?.textContent || '',
+          meta: r.querySelector('.meta')?.textContent || '',
+          all: r.querySelector('.all')?.textContent || '',
+          note: r.querySelector('.note')?.textContent || '',
+          cta: r.querySelector('.cta')?.textContent || '',
+        };
       })(),
       railAfterConcierge: (() => {
         const c = dash?.querySelector('.concierge');
@@ -160,11 +160,12 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     };
   });
 
-  // Progress card retires one piece past the last milestone
-  check(`n=${n} · progress card ${n > 15 ? 'retired' : 'visible'}`,
-    state.trackerVisible === (n <= 15));
+  // MERGED (2a, 2026-08-18): the standalone learning card never renders —
+  // Robes is learning lives inside the Styling Concierge header.
+  check(`n=${n} · standalone learning card never renders`,
+    state.trackerVisible === false);
 
-  // Concierge absent below the first unlock
+  // Concierge absent below the first unlock (visibility unchanged)
   check(`n=${n} · concierge ${n >= 3 ? 'shown' : 'hidden'}`,
     state.servicesVisible === (n >= 3));
 
@@ -172,40 +173,29 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check(`n=${n} · style notes ${n >= 15 ? 'introduced' : 'absent'}`,
     state.styleNotes === (n >= 15), `got ${state.styleNotes}`);
 
-  // Rail stays glued to the prompt
+  // Rail stays glued to the prompt, which leads the page at every count;
+  // the concierge follows the rail, ahead of the Lookbook row (its slot is
+  // a rule now, not an accident of markup order).
   check(`n=${n} · rail follows prompt`, state.railAfterConcierge, JSON.stringify(state.order));
-
-  // The prompt leads at every count, and the learning card is DEMOTED to
-  // the page's last module (Annie, 2026-08-18 — supersedes progress-leads-
-  // below-3).
-  if (n <= 15) {
-    const iTrk = state.order.indexOf('wtrk');
+  if (n >= 3) {
     const iCon = state.order.findIndex((x) => x === 'concierge');
-    check(`n=${n} · prompt leads, learning card last`,
-      iCon >= 0 && iTrk === state.order.length - 1 && iCon < iTrk,
-      JSON.stringify(state.order));
+    const iSvc = state.order.indexOf('services');
+    const iSn = state.order.indexOf('rb-sn');
+    check(`n=${n} · prompt leads, concierge after the rail, before the Lookbook row`,
+      iCon >= 0 && iSvc > iCon && (iSn === -1 || iSvc < iSn), JSON.stringify(state.order));
   }
 
-  // Compact register (2026-08-18): smaller than the pre-demotion 337-380px
-  if (n <= 15) {
-    check(`n=${n} · tracker height <= 320`, state.trackerH <= 320, String(state.trackerH));
-    check(`n=${n} · tracker card off the sage wash (white)`,
-      state.trkTone === 'rgb(255, 255, 255)', state.trkTone);
-  }
-
-  // Milestone bar shape + fill — the LEARNING meter (2026-07-29): capability
-  // copy, a 20-piece track with the last milestone at 78%, a faded final
-  // quarter, and NO denominator anywhere on the card.
-  if (n <= 15) {
-    // Weekly milestone retired 2026-08-08 (the weekly track is gone) —
-    // three capability columns: daily / travel / style notes.
-    check(`n=${n} · three milestones`, state.cols.length === 3, JSON.stringify(state.cols));
-    check(`n=${n} · capability labels`,
-      state.cols.map((c) => c.at + ' ' + c.label).join('|') ===
-      '03 Dresses today|10 Packs your trips|15 Knows your taste',
-      state.cols.map((c) => c.at + ' ' + c.label).join('|'));
-    check(`n=${n} · ticks at 15/50/78%`,
-      state.tickLefts.join('|') === '15%|50%|78%', state.tickLefts.join('|'));
+  // The merged header meter: bare count, no denominator, the one honest
+  // reason to catalogue, and the fill still walks the milestone curve.
+  if (n >= 3) {
+    check(`n=${n} · header meter reads "Robes is learning · N pieces filed"`,
+      state.learnEy === 'Robes is learning'
+        && new RegExp(`^${n}\\s*pieces? filed$`, 'i').test(state.learnN.trim())
+        && state.secMeta === false,
+      JSON.stringify([state.learnEy, state.learnN, state.secMeta]));
+    check(`n=${n} · the meter's one job is the borrowed-piece promise`,
+      state.learnCap === 'Every piece you file replaces a borrowed one in the looks below.',
+      state.learnCap);
     const pts = [[0, 0], [3, 15], [10, 50], [15, 78], [20, 100]];
     const want = (() => {
       for (let i = 1; i < pts.length; i++) {
@@ -216,44 +206,43 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       }
       return 100;
     })();
-    check(`n=${n} · fill ${want.toFixed(1)}%`,
-      Math.abs(parseFloat(state.fill) - want) < 0.6, `got ${state.fill}`);
-    check(`n=${n} · track fades out (no endpoint)`,
-      /gradient/.test(state.trackMask), state.trackMask.slice(0, 80));
-    const numText = state.num.replace(/\s+/g, ' ').trim();
-    check(`n=${n} · bare count, "pieces filed" beneath`,
-      new RegExp(`^${n}\\s*Pieces? filed$`, 'i').test(numText), numText);
-    check(`n=${n} · no denominator on the card`,
-      !/\/\s*\d|of 15/i.test(numText + ' ' + state.head + ' ' + state.msText),
-      numText + ' | ' + state.head);
-    check(`n=${n} · eyebrow reads "Robes is learning"`,
-      state.eyebrow === 'Robes is learning', state.eyebrow);
-  }
+    check(`n=${n} · meter fill ${want.toFixed(1)}%`,
+      Math.abs(parseFloat(state.learnFill) - want) < 0.6, `got ${state.learnFill}`);
+    check(`n=${n} · no denominator, no lock language anywhere on the module`,
+      !/\/\s*\d|of 15|unlock|lock/i.test(state.learnN + ' ' + state.learnCap
+        + ' ' + state.notes.map((x) => x.note).join(' ')),
+      state.learnN);
 
-  // Concierge progress pill (visible 3–14): no fraction, no lock language
-  if (n >= 3 && n < 15) {
-    check(`n=${n} · concierge pill carries no fraction`,
-      state.pill.length > 0 && !/\/\s*\d|of 15|unlock|lock/i.test(state.pill), state.pill);
-  }
+    // NOTHING GATED: the progress pill is gone; each card carries its
+    // one-line caption instead.
+    check(`n=${n} · no progress pill on any card`, state.pill === '', state.pill);
+    const noteFor = (t) => (state.notes.find((x) => x.title === t) || {}).note;
+    const wantDaily = n >= 15
+      ? 'Today’s look: styled entirely from your closet.'
+      : n >= 4
+        ? 'Today’s look: your pieces first, gaps borrowed.'
+        : `Today’s look: ${n} piece${n === 1 ? '' : 's'} yours, ${4 - n} borrowed.`;
+    check(`n=${n} · card captions say what filing buys`,
+      noteFor('Daily outfit') === wantDaily
+        && noteFor('Weekly planner') === 'Seven looks in one pass. Nothing worn twice.'
+        && noteFor('Travel edit') === 'Tell Robes where and how long.',
+      JSON.stringify(state.notes));
 
-  // No per-tick status text anywhere — "Locked" would be a lie, and the
-  // headline already carries earned/next. Lit state = passed or next target.
-  if (n <= 15) {
-    check(`n=${n} · no status text`,
-      !state.hasStatus && !/locked/i.test(state.msText), state.msText);
-    const ats = [3, 10, 15];
-    const nextIdx = ats.findIndex((a) => a > n);
-    const litOk = state.cols.every((c, i) => c.on === (n >= ats[i] || i === nextIdx));
-    check(`n=${n} · lit milestones`, litOk, state.cols.map((c) => c.at + ':' + c.on).join('|'));
-  }
-
-  if (n === 0) {
-    check('n=0 · headline names the first unlock',
-      /Three pieces/.test(state.head), state.head);
-  }
-  if (n === 1) {
-    check('n=1 · headline counts down',
-      /Two more pieces/.test(state.head), state.head);
+    // The filed-piece row: one thumbnail always, the caption flipping from
+    // "your first filed piece" to "last filed" + a way into the wardrobe.
+    check(`n=${n} · filed row is a one-thumb receipt with the add door`,
+      !!state.filed && state.filed.thumbs === 1
+        && state.filed.nm === 'Piece 1'
+        && state.filed.note === 'One photo files four pieces.'
+        && /Catalogue what you’re wearing now/.test(state.filed.cta),
+      JSON.stringify(state.filed));
+    check(`n=${n} · filed row caption ${n === 1 ? 'names the first' : 'reads last filed + count'}`,
+      n === 1
+        ? (/Your first filed piece/i.test(state.filed.meta) && state.filed.all === '')
+        : (/Last filed/i.test(state.filed.meta)
+          && state.filed.all.indexOf(n + ' pieces in your wardrobe') === 0
+          && /See all/.test(state.filed.all)),
+      JSON.stringify(state.filed));
   }
 
   await ctx.close();
@@ -875,22 +864,46 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 
+// The module retires (2a): once she has created one of each live edit — a
+// daily look and a travel edit (the weekly planner is a coming-soon promo;
+// it rejoins the condition when the track returns) — the whole concierge
+// falls away at once, meter, receipt row and all. Nothing takes its place.
+{
+  const { ctx, page, errs } = await boot(browser, 6);
+  await page.evaluate(() => {
+    localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
+      { id: 1755400000000, type: 'daily-look', title: 'A day', subtitle: '', img: null, dlData: { items: [] } },
+      { id: 1755300000000, type: 'travel-edit', title: 'Lisbon edit', subtitle: '', img: null,
+        tvData: { capsule: [], looks: [], dateFrom: '2026-08-01', tripDays: 3 } },
+    ]));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const r = await page.evaluate(() => ({
+    services: document.querySelector('.services')?.offsetParent !== null,
+    errsFree: true,
+  }));
+  check('concierge retires · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('concierge retires · one of each live edit made — the module falls away whole',
+    r.services === false, JSON.stringify(r));
+  await ctx.close();
+}
+
 // Mobile
 {
   const { ctx, page, errs } = await boot(browser, 1, 390);
   check('390px · no page errors', errs.length === 0, errs.join(' | ').slice(0, 160));
   const m = await page.evaluate(() => {
-    const cols = document.querySelector('#wtrk-ms .rb-ms-cols');
     const dash = document.getElementById('dash');
     return {
-      cols: cols ? getComputedStyle(cols).gridTemplateColumns.split(' ').length : 0,
       overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
       concFirst: dash?.querySelector('.dash-mast')?.nextElementSibling?.classList.contains('concierge'),
+      trackerGone: document.getElementById('wtrk')?.offsetParent === null,
     };
   });
-  check('390px · three milestone columns hold', m.cols === 3, String(m.cols));
   check('390px · no horizontal overflow', m.overflow);
   check('390px · the prompt leads under the masthead', m.concFirst === true, String(m.concFirst));
+  check('390px · no standalone learning card', m.trackerGone === true);
   await ctx.close();
 }
 
