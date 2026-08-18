@@ -17,8 +17,13 @@
       --accent: var(--mauve);
       --muted: #E8D5D2;
       --cream-30: var(--cream);
-      --cream-300: var(--cream-300);
-      --cream-400: var(--cream-400);
+      /* --cream-300 / --cream-400 come from tokens.css. They were redeclared
+         here as var(--cream-300) / var(--cream-400) — a self-reference cycle,
+         which computes to the guaranteed-invalid value, so every rule reading
+         them was invalid at computed-value time and fell back to unset. That
+         silently removed EVERY hairline in the flow (field, chips, dropdown,
+         progress track, capture panels) — border-style resolved to none.
+         Never re-alias a name tokens.css already defines. */
       --cream-500: #C4B8A4;
       --cream-600: var(--ink-faint);
       --fg-2: var(--cream-600);
@@ -153,6 +158,8 @@
       transition: background .2s var(--ease-default), color .2s var(--ease-default), border-color .2s var(--ease-default);
     }
     .chip-ghost:hover { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
+    .chip-plus { color: var(--cream-500); margin-right: 8px; font-size: 13px; transition: color .2s var(--ease-default); }
+    .chip-ghost:hover .chip-plus { color: rgba(250,248,245,0.6); }
     .chip-solid {
       display: inline-flex; align-items: center; gap: 10px;
       font-weight: 400; font-size: 14px; color: var(--cream-30); background: var(--primary);
@@ -167,24 +174,35 @@
     }
     .chip-x:hover { color: var(--cream-30); }
 
+    /* ONE field, ONE pool: the chosen icons live as chips INSIDE the field
+       (never a second "Your icons" shelf below it), the helper row under it
+       carries how-to on the left and where-you-are on the right, and the
+       pool is the only other thing on the screen. */
     .v1-fieldwrap { position: relative; }
     .v1-field {
-      display: flex; align-items: stretch; border: 1px solid var(--cream-300);
-      border-radius: 2px; background: var(--cream-30); margin-bottom: 36px;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px; cursor: text;
+      border: 1px solid var(--cream-300); border-radius: 2px; background: var(--cream-30);
+      padding: 8px 10px; margin-bottom: 11px;
       transition: border-color .2s var(--ease-default);
     }
-    .v1-field:focus-within { border-color: var(--cream-500); }
+    /* The field IS the focus target — the chips and the input share it, so the
+       indicator belongs on the wrapper. The input keeps its own ring
+       suppressed (the page's :focus-visible rule would otherwise draw a
+       second, heavier box just inside this border). */
+    .v1-field:focus-within { border-color: var(--foreground); box-shadow: inset 0 0 0 1px var(--foreground); }
+    .v1-input:focus, .v1-input:focus-visible { outline: none; }
+    .ic-chips { display: contents; }
+    .v1-field .chip-solid { font-size: 13px; padding: 9px 10px 9px 15px; }
     .v1-input {
-      flex: 1; border: none; background: none; outline: none;
+      flex: 1 1 180px; min-width: 140px; border: none; background: none; outline: none;
       font-family: var(--font-sans); font-weight: 300; font-size: 16px;
-      color: var(--foreground); padding: 19px 20px;
+      color: var(--foreground); padding: 11px 10px;
     }
     .v1-input::placeholder { color: var(--cream-500); }
-    .v1-hint { align-self: center; padding-right: 18px; font-size: 11px; color: var(--cream-500); white-space: nowrap; }
+    .ic-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 40px; }
+    .v1-hint { font-size: 11px; color: var(--cream-500); white-space: nowrap; }
     .v1-hint kbd { font-family: var(--font-sans); font-size: 10px; border: 1px solid var(--cream-300); border-radius: 2px; padding: 2px 6px; color: var(--fg-2); }
-    .v1-selected-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
-    .v1-empty { font-weight: 300; font-size: 13px; color: var(--cream-500); margin: 0 0 4px; }
-    .v1-divider { height: 1px; background: var(--cream-300); margin: 30px 0; }
+    .ic-tally { font-family: var(--font-serif); font-style: italic; font-size: 14px; color: var(--cream-500); white-space: nowrap; }
     .v1-pool-head { margin-bottom: 16px; }
 
     .v2-drop {
@@ -330,7 +348,8 @@
       .ob-step { letter-spacing: 0.1em; }
       .ob-back span:not(.ob-arrow) { display: none; }
       .ob-sub { margin-bottom: 40px; }
-      .v1-hint { display: none; }
+      .v1-field { padding: 7px 8px; }
+      .v1-input { padding: 10px 8px; }
     }
   
 /* a11y: keyboard focus + no-zoom-needed input sizing (Wave 2) */
@@ -525,31 +544,37 @@
   function renderIcons(i) {
     stepChrome(i, {
       step: 'Step 01 · Icons', eyebrow: 'Style',
-      title: 'Whose style<br><em>do you love?</em>',
-      sub: 'The more you add, the faster Robes learns your taste.',
+      title: 'Who do you<br><em>dress like?</em>',
+      sub: 'Add the people and brands whose style inspire you. The more you add, the faster Robes gets to know you.',
     });
 
     const zone = document.getElementById('ob-zone');
     zone.innerHTML = `
       <div class="v1-fieldwrap" id="ic-wrap">
-        <div class="v1-field">
-          <input class="v1-input" id="ic-input" placeholder="Add a name…" autocomplete="off">
-          <span class="v1-hint">Press <kbd>Enter</kbd> to add</span>
+        <div class="v1-field" id="ic-field">
+          <span class="ic-chips" id="ic-chips"></span>
+          <input class="v1-input" id="ic-input" placeholder="Type a name — person or brand" autocomplete="off">
         </div>
         <ul class="v2-drop" id="ic-drop" hidden></ul>
       </div>
-      <div class="v1-selected-head">
-        <span class="ob-label">Your icons</span>
-        <span class="ob-tally" id="ic-tally"></span>
+      <div class="ic-meta">
+        <span class="v1-hint">Press <kbd>Enter</kbd> to add</span>
+        <span class="ic-tally" id="ic-tally"></span>
       </div>
-      <div id="ic-selected"></div>
-      <div class="v1-divider"></div>
-      <div class="v1-pool-head"><span class="ob-label">Popular among stylists</span></div>
+      <div class="v1-pool-head"><span class="ob-label">Or tap a popular one</span></div>
       <div class="chip-row" id="ic-pool"></div>`;
 
     const input = document.getElementById('ic-input');
     const drop = document.getElementById('ic-drop');
     let active = 0;
+
+    // Tapping the field's padding lands in the input, the way a real text
+    // field behaves — the chips sit inside it, so the input is rarely the
+    // element under the finger.
+    document.getElementById('ic-field').onmousedown = e => {
+      if (e.target.closest('.chip-solid')) return;
+      if (e.target !== input) { e.preventDefault(); input.focus(); }
+    };
 
     const isSel = name => st.icons.some(x => normalize(x) === normalize(name));
     const add = raw => {
@@ -560,25 +585,28 @@
     };
 
     function paintSelected() {
-      document.getElementById('ic-tally').textContent = st.icons.length;
-      const box = document.getElementById('ic-selected');
-      if (!st.icons.length) {
-        box.innerHTML = '<p class="v1-empty">Nothing yet — tap a name below or type your own.</p>';
-      } else {
-        box.innerHTML = '<div class="chip-row">' + st.icons.map((n, idx) =>
-          `<span class="chip-solid">${esc(n)}<button class="chip-x" data-i="${idx}" aria-label="Remove ${esc(n)}">×</button></span>`).join('') + '</div>';
-        box.querySelectorAll('.chip-x').forEach(btn => {
-          btn.onclick = () => { st.icons.splice(Number(btn.dataset.i), 1); paintSelected(); paintPool(); };
-        });
-      }
+      const n = st.icons.length;
+      document.getElementById('ic-tally').textContent = n ? n + ' added' : 'Three is plenty to start';
+      input.placeholder = n ? 'Add another…' : 'Type a name — person or brand';
+      const box = document.getElementById('ic-chips');
+      box.innerHTML = st.icons.map((name, idx) =>
+        `<span class="chip-solid">${esc(name)}<button class="chip-x" data-i="${idx}" aria-label="Remove ${esc(name)}">×</button></span>`).join('');
+      box.querySelectorAll('.chip-x').forEach(btn => {
+        btn.onclick = () => { st.icons.splice(Number(btn.dataset.i), 1); paintSelected(); paintPool(); };
+      });
+      // Once she has answered the question, skipping it is no longer an
+      // option — the footer's only way forward is Continue (beta feedback).
+      const skip = document.getElementById('ob-skip');
+      if (skip) skip.style.display = n ? 'none' : '';
     }
 
     function paintPool() {
-      const pool = ROBES_ICONS.filter(n => !isSel(n)).slice(0, 12);
+      const pool = ROBES_ICONS.filter(n => !isSel(n)).slice(0, 10);
       const box = document.getElementById('ic-pool');
-      box.innerHTML = pool.map(n => `<button class="chip-ghost">${esc(n)}</button>`).join('');
+      box.innerHTML = pool.map(n =>
+        `<button class="chip-ghost" data-v="${esc(n)}"><span class="chip-plus">+</span>${esc(n)}</button>`).join('');
       box.querySelectorAll('.chip-ghost').forEach(btn => {
-        btn.onclick = () => { add(btn.textContent); paintSelected(); paintPool(); };
+        btn.onclick = () => { add(btn.dataset.v); paintSelected(); paintPool(); };
       });
     }
 
@@ -632,6 +660,10 @@
         e.preventDefault();
         const pick = active < matches.length ? matches[active] : input.value;
         commit(pick);
+      }
+      else if (e.key === 'Backspace' && !input.value && st.icons.length) {
+        // The chips live in the field, so backspace takes the last one back.
+        st.icons.pop(); paintSelected(); paintPool(); paintDrop();
       }
     };
     document.addEventListener('mousedown', function onDoc(e) {
