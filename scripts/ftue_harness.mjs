@@ -149,6 +149,10 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       hasStatus: !!document.querySelector('#wtrk-ms .rb-ms-st'),
       msText: (document.getElementById('wtrk-ms')?.textContent || '').trim(),
       trackerH: Math.round(document.getElementById('wtrk')?.getBoundingClientRect().height || 0),
+      trkTone: (() => {
+        const c = document.querySelector('#wtrk .wtrk-card');
+        return c ? getComputedStyle(c).backgroundColor : '';
+      })(),
       railAfterConcierge: (() => {
         const c = dash?.querySelector('.concierge');
         return !!c && c.nextElementSibling?.id === 'rb-rail';
@@ -171,18 +175,22 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   // Rail stays glued to the prompt
   check(`n=${n} · rail follows prompt`, state.railAfterConcierge, JSON.stringify(state.order));
 
-  // Order: progress leads below 3, prompt leads from 3
+  // The prompt leads at every count, and the learning card is DEMOTED to
+  // the page's last module (Annie, 2026-08-18 — supersedes progress-leads-
+  // below-3).
   if (n <= 15) {
     const iTrk = state.order.indexOf('wtrk');
     const iCon = state.order.findIndex((x) => x === 'concierge');
-    const leads = n < 3 ? iTrk < iCon : iCon < iTrk;
-    check(`n=${n} · ${n < 3 ? 'progress' : 'prompt'} leads`, leads && iTrk >= 0 && iCon >= 0,
+    check(`n=${n} · prompt leads, learning card last`,
+      iCon >= 0 && iTrk === state.order.length - 1 && iCon < iTrk,
       JSON.stringify(state.order));
   }
 
-  // The section must stay near its pre-FTUE height (was 337-353 desktop)
+  // Compact register (2026-08-18): smaller than the pre-demotion 337-380px
   if (n <= 15) {
-    check(`n=${n} · tracker height <= 380`, state.trackerH <= 380, String(state.trackerH));
+    check(`n=${n} · tracker height <= 320`, state.trackerH <= 320, String(state.trackerH));
+    check(`n=${n} · tracker card off the sage wash (white)`,
+      state.trkTone === 'rgb(255, 255, 255)', state.trkTone);
   }
 
   // Milestone bar shape + fill — the LEARNING meter (2026-07-29): capability
@@ -678,8 +686,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   });
   check('styled card · an open row compacts it to the header line',
     c.compact === true && c.tilesHidden === true, JSON.stringify(c));
-  check('styled card · the rack fallback points back at the three looks',
-    c.door === 'Or start from one of your three looks', c.door);
+  check('styled card · the rack fallback is the Robes door (2026-08-18 revert)',
+    c.door === 'Or let Robes build the first one', c.door);
 
   // Opening the looks retires the card — home re-decides, and the prompt
   // steps out to lead the page (never a bare index with no door).
@@ -765,6 +773,36 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check('O7 · nothing competes: Lookbook row, services, styled card all stand down',
     o.snRowHidden === true && o.servicesHidden === true && o.styled === false,
     JSON.stringify([o.snRowHidden, o.servicesHidden, o.styled]));
+
+  // A planned day EXPOSES the week ahead by default (Annie, 2026-08-18):
+  // pin the look to tomorrow and the row unfurls itself, whisper updated.
+  const tomorrow = new Date(Date.now() + 86400000);
+  const tomorrowISO = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+  await page.route('**planned_days**', (r) => {
+    const u = r.request().url();
+    // The Coming-up strip queries beyond the rail window — keep it empty.
+    const body = u.includes('day_date=gt.') ? '[]' : JSON.stringify([
+      { user_id: 'u-test', source_id: 'lk-1', source_type: 'look', day_index: 0, slot: 'day',
+        day_date: tomorrowISO, status: 'planned', activity: 'Dinner with friends',
+        headline: 'Effortless Parisian Polish', thumb_urls: [], item_ids: ['w0'], pinned: true,
+        updated_at: new Date().toISOString() },
+    ]);
+    return r.fulfill({ status: 200, contentType: 'application/json', body });
+  });
+  const wk = await page.evaluate(async () => {
+    window._rbRailPaint();
+    await new Promise((r) => setTimeout(r, 900));
+    const row = document.getElementById('rb-ftu-row-week');
+    return {
+      open: row?.classList.contains('open'),
+      sub: row?.querySelector('.rb-ftu-sub')?.textContent,
+      quiet: row?.classList.contains('rb-quiet'),
+      railVisible: document.querySelector('#rb-ftu-body-week #rb-rail')?.offsetParent !== null,
+    };
+  });
+  check('O7 · a planned day exposes The week ahead by default',
+    wk.open === true && wk.sub === 'One day planned.' && wk.quiet === false && wk.railVisible === true,
+    JSON.stringify(wk));
   await ctx.close();
 }
 
@@ -847,11 +885,12 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     return {
       cols: cols ? getComputedStyle(cols).gridTemplateColumns.split(' ').length : 0,
       overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
-      trkFirst: dash?.querySelector('.dash-mast')?.nextElementSibling?.id,
+      concFirst: dash?.querySelector('.dash-mast')?.nextElementSibling?.classList.contains('concierge'),
     };
   });
   check('390px · three milestone columns hold', m.cols === 3, String(m.cols));
   check('390px · no horizontal overflow', m.overflow);
+  check('390px · the prompt leads under the masthead', m.concFirst === true, String(m.concFirst));
   await ctx.close();
 }
 

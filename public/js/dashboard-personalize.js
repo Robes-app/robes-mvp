@@ -884,12 +884,16 @@
           return;
         }
         const seq = (n < _MS_UNLOCKS[0].at
-          ? [styled, trk, conc, rail]
-          : [conc, rail, styled, trk]).filter(Boolean);
+          ? [styled, conc, rail]
+          : [conc, rail, styled]).filter(Boolean);
         seq.forEach((el, i) => {
           const prev = i === 0 ? mast : seq[i - 1];
           if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
         });
+        // "Robes is learning" is demoted to the page's LAST module whenever
+        // it is visible (Annie, 2026-08-18) — supersedes the progress-leads-
+        // below-3 order.
+        if (dash.lastElementChild !== trk) dash.appendChild(trk);
       }
 
       // The concierge is absent until the first unlock — a brand-new user is
@@ -924,7 +928,26 @@
           st.id = 'rb-wtrk-style';
           st.textContent =
             '.wtrk-star{position:absolute;top:5px;right:5px;width:18px;height:18px;border-radius:100px;background:var(--ink,#202021);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none}' +
-            '.wtrk-star svg{width:9px;height:9px;display:block}';
+            '.wtrk-star svg{width:9px;height:9px;display:block}' +
+            // Demoted register (Annie, 2026-08-18): the learning card is the
+            // page's LAST module — smaller, more compact, and off the sage
+            // wash onto the app's white-card language (rose eyebrow like
+            // every other home section).
+            '.tracker{margin-bottom:44px}' +
+            '.wtrk-ey{color:var(--rose,#8E7077)}' +
+            '.wtrk-card{background:#fff;padding:16px 20px 14px}' +
+            '.wtrk-toprow{gap:18px;align-items:center}' +
+            '.wtrk-head{font-size:16.5px}' +
+            '.wtrk-num{font-size:30px}' +
+            '.wtrk-num .wtrk-num-lbl{margin-top:5px}' +
+            '.wtrk-ms{margin:10px 0 12px}' +
+            '.wtrk-it,.wtrk-add{flex:0 0 66px;height:88px}' +
+            '.wtrk-it-scrim{padding:18px 6px 6px}' +
+            '.wtrk-it-name{font-size:9px}' +
+            '.wtrk-mono{font-size:20px}' +
+            '.wtrk-cta{padding:9px 16px}' +
+            '.wtrk-fastrow{margin-top:12px}' +
+            '.wtrk-snap{padding:8px 15px}';
           document.head.appendChild(st);
         }
 
@@ -9778,11 +9801,9 @@
         // Save closes the look out into the Lookbook; beside it the one
         // alternative door — Robes builds it instead. The label reads
         // first-time on an empty Lookbook, repeat once she has looks.
-        // On HOME with a styled key piece waiting, the fallback points back
-        // at the three looks rather than a fresh generation (O1b): "See the
-        // full looks" leads into Build-this-look, which converts a
-        // generated look into her own.
-        const kpEntry = home ? (_inItems()[0] || null) : null;
+        // (A first cut pointed the home fallback back at the styled key
+        // piece's three looks — reverted same day, Annie: the Robes door is
+        // the one alternative everywhere.)
         const robesDoor = _lkLooks.length ? 'Or let Robes create your look' : 'Or let Robes build the first one';
         // After a build the footer changes hands: Save still leads, and the
         // two quiet doors are Try another and — only when everything in the
@@ -9796,9 +9817,7 @@
                 ? '<button type="button" class="rb-lk-quiet" onclick="window.__lkBuildMineOnly()">Build from mine only</button>'
                 : '<button type="button" class="rb-lk-quiet" onclick="window.__lkSaveAndWear()">Wear it today</button>') +
             '</div>'
-          : (kpEntry
-            ? '<button type="button" class="rb-lk-quiet rb-lk-robesdoor" onclick="window.__snOpenItem(' + Number(kpEntry.id) + ')">Or start from one of your three looks</button>'
-            : '<button type="button" class="rb-lk-quiet rb-lk-robesdoor" onclick="window.__lkRobesBuild()">' + _waEsc(robesDoor) + '</button>');
+          : '<button type="button" class="rb-lk-quiet rb-lk-robesdoor" onclick="window.__lkRobesBuild()">' + _waEsc(robesDoor) + '</button>';
         rackHtml += '<div class="rb-lk-saverow' + (_lkBuilt && !_lkBuilding ? ' built' : '') + '">' +
           '<button type="button" class="rb-lk-save" onclick="window.__lkSaveAsk()"' +
             (canSave ? '' : ' disabled title="' + (!enoughPieces
@@ -10658,6 +10677,7 @@
             if (rail && el.contains(rail)) dash.appendChild(rail);
             el.remove();
             _rbFtuOpen = {};
+            _rbFtuWeekAutoDone = false;
             if (echo) echo.textContent = _RB_FTU_ECHO;
           }
           if (concEy) concEy.remove();
@@ -10672,8 +10692,10 @@
           if (conc && el.contains(conc)) dash.appendChild(conc);
           if (rail && el.contains(rail)) dash.appendChild(rail);
           el.remove(); el = null;
-          // A mode flip starts the new row set closed (O7's hairlines).
+          // A mode flip starts the new row set closed (O7's hairlines) —
+          // and re-arms the planned-day auto-open for the fresh set.
           _rbFtuOpen = {};
+          _rbFtuWeekAutoDone = false;
         }
         if (!el) {
           el = document.createElement('section');
@@ -10790,6 +10812,36 @@
         if (!document.getElementById('rb-ftu-row-style') || _rbFtuOpen.style) return;
         _rbFtuOpen.style = true;
         _rbFtuPaint();
+      }
+      // A planned day EXPOSES the week ahead by default (Annie, 2026-08-18:
+      // a plan she made must not hide behind a closed hairline). The rail's
+      // paint feeds this the resolved slots; the whisper follows the truth
+      // either way, and the auto-open fires once per row set so a fold she
+      // makes afterwards stands.
+      var _rbFtuWeekAutoDone = false;
+      function _rbFtuWeekAuto(slots) {
+        const row = document.getElementById('rb-ftu-row-week');
+        if (!row) return;
+        const today = _pdLocalISO();
+        const n = (slots || []).filter(sl => sl.date >= today && (sl.moments || []).length).length;
+        const sub = row.querySelector('.rb-ftu-sub');
+        if (!n) {
+          if (sub) {
+            const mode = document.getElementById('rb-ftu-rows')?.getAttribute('data-mode');
+            sub.textContent = mode === 'look' ? 'One look, unplanned.' : 'Nothing planned yet.';
+            row.classList.add('rb-quiet');
+          }
+          return;
+        }
+        if (sub) {
+          sub.textContent = n === 1 ? 'One day planned.' : n + ' days planned.';
+          row.classList.remove('rb-quiet');
+        }
+        if (!_rbFtuWeekAutoDone && !_rbFtuOpen.week) {
+          _rbFtuOpen.week = true;
+          _rbFtuPaint();
+        }
+        _rbFtuWeekAutoDone = true;
       }
 
       // "Your looks" (O7): the look she owns takes the hero slot. Finish it
@@ -18170,6 +18222,8 @@ body>*:not(#tv-result-page){display:none !important}
             row.scrollLeft = Math.max(0, t.offsetLeft - (row.clientWidth - t.offsetWidth) / 2);
           }
           comingUp();
+          // FTU rows: a planned day exposes The week ahead by default.
+          if (typeof _rbFtuWeekAuto === 'function') _rbFtuWeekAuto(slots);
         }
 
         // "Coming up" — the next plan starting OUTSIDE the rail window.
