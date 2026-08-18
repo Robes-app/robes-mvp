@@ -401,9 +401,10 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 
-// FTU simplification (2026-08-18, W01/O1): at zero looks home is the quiet
-// index — three hairline rows carrying the demoted modules, each unfurling
-// IN PLACE, one open at a time. The rack renders only when she asks.
+// FTU simplification (2026-08-18, W01/O1 + Annie's bare-page beta pass): at
+// zero looks with NO styled card, the prompt LEADS the page in focus under
+// the greeting's question; Build your own and The week ahead are hairlines
+// that unfurl in place. The rack renders only when she asks.
 {
   const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
   const h = await page.evaluate(() => {
@@ -411,15 +412,17 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     const rows = document.getElementById('rb-ftu-rows');
     const vis = (el) => !!el && el.offsetParent !== null;
     return {
+      mode: rows?.getAttribute('data-mode'),
       rowIds: Array.from(rows?.querySelectorAll('.rb-ftu-row') || []).map((r) => r.id),
-      underMast: dash?.querySelector('.dash-mast')?.nextElementSibling?.id,
-      concInStyleRow: !!document.querySelector('#rb-ftu-body-style .concierge'),
+      order: Array.from(dash.children).map((e) => e.id || e.className.split(' ')[0])
+        .filter((id) => ['concierge', 'rb-ftu-rows'].includes(id)),
+      concEy: document.getElementById('rb-conc-ey')?.textContent,
+      echo: dash.querySelector('.dash-echo')?.textContent,
+      promptVisible: vis(document.getElementById('cb-ta')),
       railInWeekRow: !!document.querySelector('#rb-ftu-body-week #rb-rail'),
       // the rack is NOT rendered until she asks for it (W01 spec note)
       rackAbsent: !document.getElementById('rb-lkhome'),
-      // with no styled card the prompt row opens itself — the one door
       open: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
-      promptVisible: vis(document.getElementById('cb-ta')),
       // nothing competes: services, tracker, Lookbook + Inspiration rows
       servicesHidden: !vis(document.querySelector('.services')),
       trkHidden: document.getElementById('wtrk')?.style.display === 'none',
@@ -430,22 +433,22 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     };
   });
   check('ftu rows · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('ftu rows · three hairline rows sit under the masthead',
-    JSON.stringify(h.rowIds) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-style', 'rb-ftu-row-week'])
-      && h.underMast === 'rb-ftu-rows', JSON.stringify([h.rowIds, h.underMast]));
-  check('ftu rows · the prompt and the rail live inside their rows',
-    h.concInStyleRow === true && h.railInWeekRow === true, JSON.stringify(h));
+  check('ftu rows · without the styled card the prompt leads the page',
+    h.mode === 'zero-lead' && JSON.stringify(h.order) === JSON.stringify(['concierge', 'rb-ftu-rows'])
+      && h.concEy === 'Style something' && h.promptVisible === true
+      && h.echo === 'What are you dressing for today?',
+    JSON.stringify([h.mode, h.order, h.concEy, h.echo, h.promptVisible]));
+  check('ftu rows · two hairlines beneath it, closed, the rail inside its row',
+    JSON.stringify(h.rowIds) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-week'])
+      && h.open.length === 0 && h.railInWeekRow === true,
+    JSON.stringify([h.rowIds, h.open, h.railInWeekRow]));
   check('ftu rows · the rack is not rendered until she asks', h.rackAbsent === true);
-  check('ftu rows · with no styled card, the prompt row is the open door',
-    JSON.stringify(h.open) === JSON.stringify(['rb-ftu-row-style']) && h.promptVisible === true,
-    JSON.stringify([h.open, h.promptVisible]));
   check('ftu rows · nothing competes: services, tracker, rows all stand down',
     h.servicesHidden === true && h.trkHidden === true && h.snRowHidden === true && h.wtrkCta === false,
     JSON.stringify([h.servicesHidden, h.trkHidden, h.snRowHidden, h.wtrkCta]));
   check('ftu rows · the week whisper is honest', h.weekSub === 'Nothing planned yet.', h.weekSub);
 
-  // Build your own unfurls the rack in place — and the prompt row STAYS
-  // open beside it (rows never close a sibling, Annie 2026-08-18).
+  // Build your own unfurls the rack in place
   const b = await page.evaluate(async () => {
     window.__rbFtuToggle('build');
     await new Promise((r) => setTimeout(r, 250));
@@ -454,7 +457,6 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       open: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
       inBuildRow: !!document.querySelector('#rb-ftu-body-build #rb-lkhome'),
       arrowBuild: document.querySelector('#rb-ftu-row-build .rb-ftu-arrow')?.textContent,
-      arrowStyle: document.querySelector('#rb-ftu-row-style .rb-ftu-arrow')?.textContent,
       count: el?.querySelector('.rb-lkh-count')?.textContent,
       ghostRows: el?.querySelectorAll('.rbc-rghost').length,
       snapWired: Array.from(el?.querySelectorAll('.rbc-rghost') || [])
@@ -465,9 +467,9 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       showMoreHidden: getComputedStyle(el.querySelector('.rb-lkh-showmore')).display === 'none',
     };
   });
-  check('ftu rows · Build your own unfurls the rack in place, the prompt row stays open',
-    JSON.stringify(b.open) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-style']) && b.inBuildRow === true
-      && b.arrowBuild === '↑' && b.arrowStyle === '↑', JSON.stringify(b));
+  check('ftu rows · Build your own unfurls the rack in place',
+    JSON.stringify(b.open) === JSON.stringify(['rb-ftu-row-build']) && b.inBuildRow === true
+      && b.arrowBuild === '↑', JSON.stringify(b));
   check('ftu rows · four slots, every one of them the camera path',
     b.ghostRows === 4 && b.snapWired === true && b.count === '0 of 4 on the rack',
     JSON.stringify([b.ghostRows, b.snapWired, b.count]));
@@ -476,30 +478,30 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check('ftu rows · exactly one composer in the DOM', b.composers === 1, String(b.composers));
   check('ftu rows · all four slots render on web (no collapse)', b.showMoreHidden === true);
 
-  // The week ahead unfurls the rail — the rack stays open beside it, and a
-  // second tap on a row folds only that row.
+  // The week ahead unfurls the rail — the rack stays open beside it (rows
+  // never close a sibling), and a second tap folds only that row.
   const w = await page.evaluate(async () => {
     window.__rbFtuToggle('week');
     await new Promise((r) => setTimeout(r, 350));
     const allOpen = Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id);
     const rackStays = !!document.querySelector('#rb-ftu-body-build #rb-lkhome');
-    window.__rbFtuToggle('style');
+    const railCards = document.querySelectorAll('#rb-ftu-body-week #rb-rail .rb-dc, #rb-ftu-body-week #rb-rail .rb-rc').length;
+    const railHeadHidden = (() => {
+      const hd = document.querySelector('#rb-rail .rb-rail-head');
+      return !hd || getComputedStyle(hd).display === 'none';
+    })();
+    window.__rbFtuToggle('week');
     await new Promise((r) => setTimeout(r, 200));
     return {
-      allOpen, rackStays,
+      allOpen, rackStays, railCards, railHeadHidden,
       afterFold: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
-      railCards: document.querySelectorAll('#rb-ftu-body-week #rb-rail .rb-dc, #rb-ftu-body-week #rb-rail .rb-rc').length,
-      railHeadHidden: (() => {
-        const hd = document.querySelector('#rb-rail .rb-rail-head');
-        return !hd || getComputedStyle(hd).display === 'none';
-      })(),
     };
   });
   check('ftu rows · The week ahead unfurls the rail alongside the open rack',
-    JSON.stringify(w.allOpen) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-style', 'rb-ftu-row-week'])
+    JSON.stringify(w.allOpen) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-week'])
       && w.rackStays === true && w.railCards === 7 && w.railHeadHidden === true, JSON.stringify(w));
   check('ftu rows · a second tap folds only that row',
-    JSON.stringify(w.afterFold) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-week']),
+    JSON.stringify(w.afterFold) === JSON.stringify(['rb-ftu-row-build']),
     JSON.stringify(w.afterFold));
 
   // The draft is SHARED with the Lookbook composer — never a second copy
@@ -632,6 +634,9 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       filledButtons: filled,
       echo: document.querySelector('.dash-echo')?.textContent,
       open: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
+      mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
+      rowIds: Array.from(document.querySelectorAll('.rb-ftu-row')).map((r) => r.id),
+      concInStyleRow: !!document.querySelector('#rb-ftu-body-style .concierge'),
     };
   });
   check('styled card · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
@@ -647,6 +652,10 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     s.echo === 'Your first piece is filed.', s.echo);
   check('styled card · every row starts closed — the card is the CTA',
     s.open.length === 0, JSON.stringify(s.open));
+  check('styled card · all three rows stand, the prompt waiting behind its row',
+    s.mode === 'zero'
+      && JSON.stringify(s.rowIds) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-style', 'rb-ftu-row-week'])
+      && s.concInStyleRow === true, JSON.stringify([s.mode, s.rowIds, s.concInStyleRow]));
   // The saved key piece IS the hero card — the Inspiration row would be a
   // second copy of it, so it stands down only while the card is up.
   const inspWhileCard = await page.evaluate(() =>
@@ -671,6 +680,22 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     c.compact === true && c.tilesHidden === true, JSON.stringify(c));
   check('styled card · the rack fallback points back at the three looks',
     c.door === 'Or start from one of your three looks', c.door);
+
+  // Opening the looks retires the card — home re-decides, and the prompt
+  // steps out to lead the page (never a bare index with no door).
+  const after = await page.evaluate(async () => {
+    document.getElementById('rb-styled-open')?.click();
+    await new Promise((r) => setTimeout(r, 900));
+    return {
+      styledGone: !document.getElementById('rb-styled'),
+      mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
+      concLeads: document.querySelector('.concierge')?.parentNode?.id === 'dash'
+        && !!document.getElementById('rb-conc-ey'),
+    };
+  });
+  check('styled card · once it retires the prompt steps out to lead',
+    after.styledGone === true && after.mode === 'zero-lead' && after.concLeads === true,
+    JSON.stringify(after));
   await ctx.close();
 }
 

@@ -872,7 +872,11 @@
         const ftuRows = document.getElementById('rb-ftu-rows');
         if (ftuRows) {
           const firstlook = document.getElementById('rb-firstlook');
-          const seq0 = (firstlook ? [conc, firstlook, ftuRows] : [styled, ftuRows]).filter(Boolean);
+          // 'zero' leads with the styled card; every other posture leads
+          // with the prompt (then "Your looks" when it exists).
+          const seq0 = (ftuRows.getAttribute('data-mode') === 'zero'
+            ? [styled, ftuRows]
+            : [conc, firstlook, ftuRows]).filter(Boolean);
           seq0.forEach((el, i) => {
             const prev = i === 0 ? mast : seq0[i - 1];
             if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
@@ -10569,7 +10573,6 @@
       // CAPTION on that card, never a CTA — and Build your own + The week
       // ahead stay hairlines until a second look (or a planned day) exists.
       var _rbFtuOpen = {};            // open rows, key -> true (they stay open together — Annie, 2026-08-18)
-      var _rbFtuTouched = false;      // she has opened/closed a row herself
       var _RB_FTU_ECHO = 'What are you dressing for today?';
       function _rbFtuCss() {
         if (document.getElementById('rb-ftu-style')) return;
@@ -10628,11 +10631,16 @@
             { key: 'build', ey: 'Build your own', sub: 'Start a look from the rack.' },
             { key: 'week', ey: 'The week ahead', sub: 'One look, unplanned.', quiet: true },
           ]
-          : [
-            { key: 'build', ey: 'Build your own', sub: 'Start a look from the rack.' },
-            { key: 'style', ey: 'Style something', sub: 'Ask for a look in your own words.' },
-            { key: 'week', ey: 'The week ahead', sub: 'Nothing planned yet.', quiet: true },
-          ];
+          : mode === 'zero-lead'
+            ? [
+              { key: 'build', ey: 'Build your own', sub: 'Start a look from the rack.' },
+              { key: 'week', ey: 'The week ahead', sub: 'Nothing planned yet.', quiet: true },
+            ]
+            : [
+              { key: 'build', ey: 'Build your own', sub: 'Start a look from the rack.' },
+              { key: 'style', ey: 'Style something', sub: 'Ask for a look in your own words.' },
+              { key: 'week', ey: 'The week ahead', sub: 'Nothing planned yet.', quiet: true },
+            ];
       }
       function _rbFtuRows(mode) {
         const dash = document.getElementById('dash');
@@ -10685,22 +10693,28 @@
           const anchor = (styled && styled.nextSibling) || (mast && mast.nextSibling) || null;
           if (anchor) dash.insertBefore(el, anchor); else dash.appendChild(el);
         }
-        // Without the styled card the page would carry no door at all — the
-        // prompt row opens itself (a returning zero-look session, or the
-        // card retiring after she has seen the looks). With the card
-        // present every row starts closed: "See the full looks" is the one
-        // CTA on the screen. Never overrides a state she set herself.
-        if (mode === 'zero' && !_rbFtuTouched && !Object.keys(_rbFtuOpen).length
-          && !document.getElementById('rb-styled')) _rbFtuOpen.style = true;
         // Where the demoted modules live: the rail always inside its row;
-        // the prompt inside its row at zero, OUT as the leading card once
-        // the first look exists (O7 — the prompt is the one filled button).
+        // the prompt inside its row only while the styled card is the hero
+        // ('zero'). Without the card the page read bare (Annie's beta pass,
+        // 2026-08-18), so the prompt LEADS the page in every other posture
+        // — 'zero-lead' and 'look' — under the Style-something eyebrow,
+        // with the greeting's question as its invitation.
         const styleBody = document.getElementById('rb-ftu-body-style');
         const weekBody = document.getElementById('rb-ftu-body-week');
         if (conc) {
           if (mode === 'zero' && styleBody && conc.parentNode !== styleBody) styleBody.appendChild(conc);
-          if (mode === 'look') {
-            if (conc.parentNode !== dash) dash.appendChild(conc);
+          if (mode !== 'zero') {
+            if (conc.parentNode !== dash) {
+              // Moving a node drops its focus — a mode flip mid-typing
+              // (the styled card collapsing on her first keystroke) must
+              // hand the caret straight back.
+              const hadFocus = document.activeElement && document.activeElement.id === 'cb-ta';
+              dash.appendChild(conc);
+              if (hadFocus) {
+                const ta = document.getElementById('cb-ta');
+                if (ta) { try { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } catch (_) {} }
+              }
+            }
             if (!document.getElementById('rb-conc-ey')) {
               const ey = document.createElement('div');
               ey.id = 'rb-conc-ey';
@@ -10710,9 +10724,11 @@
             }
           }
         }
-        if (mode !== 'look' && concEy) concEy.remove();
+        if (mode === 'zero' && concEy) concEy.remove();
         if (rail && weekBody && rail.parentNode !== weekBody) weekBody.appendChild(rail);
-        // Masthead echo answers the state (O1): her first piece is filed.
+        // Masthead echo answers the state: "Your first piece is filed."
+        // belongs to the styled card alone — everywhere else the standing
+        // question leads her into the prompt beneath it.
         if (echo) echo.textContent = (mode === 'zero' && _waItems.length) ? 'Your first piece is filed.' : _RB_FTU_ECHO;
         _rbGateConcierge(_waItems.length);
         _rbFtuPaint();
@@ -10753,7 +10769,6 @@
       window.__rbFtuToggle = function(key) {
         const opening = !_rbFtuOpen[key];
         if (opening) _rbFtuOpen[key] = true; else delete _rbFtuOpen[key];
-        _rbFtuTouched = true;
         _rbFtuPaint();
         if (opening) {
           if (key === 'week' && window._rbRailPaint) window._rbRailPaint();
@@ -10855,7 +10870,13 @@
         // hoisted-var boot trap, so it reads defensively.)
         const firstLook = !zero && (_lkLooks || []).length === 1 && !others;
         _rbFirstLookCard(firstLook);
-        _rbFtuRows(zero ? 'zero' : (firstLook ? 'look' : null));
+        // Zero looks splits on the styled card: with it, the card is the
+        // hero and the prompt waits behind its row ('zero'); without it the
+        // page read bare, so the prompt leads ('zero-lead' — Annie's beta
+        // pass, 2026-08-18).
+        _rbFtuRows(zero
+          ? (document.getElementById('rb-styled') ? 'zero' : 'zero-lead')
+          : (firstLook ? 'look' : null));
         // The learning card stands down at zero looks (the rows carry home)
         // and while the first-look card is up (Finish it is the one nudge;
         // the card's caption carries the wardrobe's progress).
