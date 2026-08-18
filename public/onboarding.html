@@ -743,6 +743,23 @@
 
   function renderKeyPiece(i) {
     const P = st.piece;
+    // var, not let: paint() calls syncSkip() and runs BEFORE the skip wiring
+    // at the foot of this function — a let here would be in the temporal
+    // dead zone on that first call (the trap that once broke the dashboard).
+    var skipArmed = false;
+
+    // Same rule as step 01: once she has answered — a photo attached, a piece
+    // filed — skipping is no longer on offer, so Continue is the only way
+    // forward. Removing the photo (or an unreadable one clearing itself)
+    // gives the skip back, disarmed.
+    function syncSkip() {
+      const skip = document.getElementById('ob-skip');
+      if (!skip) return;
+      const answered = !!(P.img || P.tag);
+      skip.style.display = answered ? 'none' : '';
+      if (answered) { skipArmed = false; skip.textContent = 'Skip for now'; }
+    }
+
     stepChrome(i, {
       step: 'Step 02 · Wardrobe', eyebrow: 'Your first piece',
       title: 'Add your first piece',
@@ -834,6 +851,7 @@
     function paint() {
       const zone = document.getElementById('ob-zone');
       if (!zone) return;
+      syncSkip();
       const vals = readVals();
       zone.innerHTML = `
         <div class="cap">
@@ -1073,16 +1091,17 @@
     if (P.busy) { next.disabled = true; next.textContent = 'Reading your piece…'; }
     next.onclick = catalogue;
     // Skipping the first piece leaves the wardrobe empty — the whole dashboard
-    // styles from catalogued pieces, so make it a deliberate two-tap choice
-    // (unless a piece is already filed, in which case skip just proceeds).
-    let skipArmed = false;
+    // styles from catalogued pieces, so make it a deliberate two-tap choice.
+    // Only ever reachable with nothing attached: syncSkip takes the control
+    // away the moment a photo lands.
     const skip = document.getElementById('ob-skip');
     skip.onclick = () => {
       if (P.busy) return; // mid-read skip landed on a lying done screen
-      if (P.tag || skipArmed) { go('done'); return; }
+      if (skipArmed) { go('done'); return; }
       skipArmed = true;
       skip.textContent = 'Skip anyway — Robes styles only what you add';
     };
+    syncSkip();
   }
 
   /* ── Done ───────────────────────────────────────────────────────── */
