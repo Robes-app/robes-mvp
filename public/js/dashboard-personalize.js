@@ -864,15 +864,24 @@
         if (!dash || !mast || !conc || !trk) return;
         const rail = document.getElementById('rb-rail');
         const styled = document.getElementById('rb-styled');
-        // FTUE step 3 (2026-08-12): while the inline rack is on home it
-        // leads the prompt, directly under "Your piece, styled" — it IS the
-        // first thing to do, and the learning card it replaces is hidden.
-        const lkhome = document.getElementById('rb-lkhome');
-        const seq = (lkhome
-          ? [styled, lkhome, conc, rail]
-          : (n < _MS_UNLOCKS[0].at
-            ? [styled, trk, conc, rail]
-            : [conc, rail, styled, trk])).filter(Boolean);
+        // FTU simplification (2026-08-18): while the quiet index rows carry
+        // home, the modules they demote live INSIDE the rows and are never
+        // resequenced at dash level. Zero looks (W01/O1) → styled card +
+        // rows; first look (O7) → the prompt leads as a card, then "Your
+        // looks", then the remaining hairlines.
+        const ftuRows = document.getElementById('rb-ftu-rows');
+        if (ftuRows) {
+          const firstlook = document.getElementById('rb-firstlook');
+          const seq0 = (firstlook ? [conc, firstlook, ftuRows] : [styled, ftuRows]).filter(Boolean);
+          seq0.forEach((el, i) => {
+            const prev = i === 0 ? mast : seq0[i - 1];
+            if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
+          });
+          return;
+        }
+        const seq = (n < _MS_UNLOCKS[0].at
+          ? [styled, trk, conc, rail]
+          : [conc, rail, styled, trk]).filter(Boolean);
         seq.forEach((el, i) => {
           const prev = i === 0 ? mast : seq[i - 1];
           if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
@@ -887,7 +896,10 @@
       function _rbGateConcierge(n) {
         const svc = document.querySelector('.services');
         if (!svc) return;
-        svc.style.display = n >= _MS_UNLOCKS[0].at ? '' : 'none';
+        // FTU simplification (2026-08-18): while the index rows carry home
+        // (zero looks) nothing competes with the one CTA — the service
+        // shelf stands down at any piece count until the first look exists.
+        svc.style.display = (!document.getElementById('rb-ftu-rows') && n >= _MS_UNLOCKS[0].at) ? '' : 'none';
       }
 
       window.__wtrkEdit = function(id) {
@@ -9762,6 +9774,11 @@
         // Save closes the look out into the Lookbook; beside it the one
         // alternative door — Robes builds it instead. The label reads
         // first-time on an empty Lookbook, repeat once she has looks.
+        // On HOME with a styled key piece waiting, the fallback points back
+        // at the three looks rather than a fresh generation (O1b): "See the
+        // full looks" leads into Build-this-look, which converts a
+        // generated look into her own.
+        const kpEntry = home ? (_inItems()[0] || null) : null;
         const robesDoor = _lkLooks.length ? 'Or let Robes create your look' : 'Or let Robes build the first one';
         // After a build the footer changes hands: Save still leads, and the
         // two quiet doors are Try another and — only when everything in the
@@ -9775,7 +9792,9 @@
                 ? '<button type="button" class="rb-lk-quiet" onclick="window.__lkBuildMineOnly()">Build from mine only</button>'
                 : '<button type="button" class="rb-lk-quiet" onclick="window.__lkSaveAndWear()">Wear it today</button>') +
             '</div>'
-          : '<button type="button" class="rb-lk-quiet rb-lk-robesdoor" onclick="window.__lkRobesBuild()">' + _waEsc(robesDoor) + '</button>';
+          : (kpEntry
+            ? '<button type="button" class="rb-lk-quiet rb-lk-robesdoor" onclick="window.__snOpenItem(' + Number(kpEntry.id) + ')">Or start from one of your three looks</button>'
+            : '<button type="button" class="rb-lk-quiet rb-lk-robesdoor" onclick="window.__lkRobesBuild()">' + _waEsc(robesDoor) + '</button>');
         rackHtml += '<div class="rb-lk-saverow' + (_lkBuilt && !_lkBuilding ? ' built' : '') + '">' +
           '<button type="button" class="rb-lk-save" onclick="window.__lkSaveAsk()"' +
             (canSave ? '' : ' disabled title="' + (!enoughPieces
@@ -10525,46 +10544,323 @@
         const el = document.getElementById('rb-lkhome');
         if (!el) return;
         const n = _lkUsed().length;
+        // The Build-your-own row titles the module now — the head carries
+        // only the rack count (FTU simplification 2026-08-18).
         el.innerHTML = '<div class="rb-lkh-head">' +
-          '<span class="rb-lk-eyebrow">Build your first look</span>' +
+          '<span style="flex:1"></span>' +
           '<span class="rb-lkh-count">' + n + ' of 4 on the rack</span>' +
           '</div>' + _lkNewHtml({ home: true });
       }
-      // One composer in the DOM: the module retires the moment the Lookbook
-      // holds anything, and stands down while the Lookbook page is open (it
-      // renders the same draft there).
-      function _lkHomeSync() {
+
+      // ── FTU home simplification (2026-08-18, Annie's W01/O1/O1b/O7 mocks) ─
+      // Until she has BUILT HER OWN look or planned an outfit, home is one
+      // goal at a time, never a stack of CTAs.
+      // ZERO looks (W01/O1): the styled card with its single "See the full
+      // looks" CTA, then three hairline index rows — Build your own / Style
+      // something / The week ahead — each unfurling its module IN PLACE
+      // (the rack, the prompt, the rail). One open at a time; the rack is
+      // not rendered at all until she asks for it.
+      // FIRST look (O7, hero card retired · prompt leads): "Your piece,
+      // styled" retires to Inspiration; the prompt takes its place as the
+      // one filled button, then "Your looks" — the look she owns, Finish it
+      // as the only nudge back into cataloguing, wardrobe progress a
+      // CAPTION on that card, never a CTA — and Build your own + The week
+      // ahead stay hairlines until a second look (or a planned day) exists.
+      var _rbFtuOpen = null;          // 'build' | 'style' | 'week' | null
+      var _rbFtuTouched = false;      // she has opened/closed a row herself
+      var _RB_FTU_ECHO = 'What are you dressing for today?';
+      function _rbFtuCss() {
+        if (document.getElementById('rb-ftu-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-ftu-style';
+        st.textContent =
+          '#rb-ftu-rows{margin:34px 0 46px}' +
+          '.rb-ftu-row{border-top:0.5px solid var(--rule-mid,rgba(32,32,33,0.14))}' +
+          '.rb-ftu-row:last-child{border-bottom:0.5px solid var(--rule-mid,rgba(32,32,33,0.14))}' +
+          '.rb-ftu-head{display:flex;align-items:center;gap:18px;width:100%;padding:19px 2px;background:none;border:none;cursor:pointer;text-align:left;font-family:inherit}' +
+          '.rb-ftu-txt{flex:1;display:flex;align-items:baseline;gap:24px;min-width:0}' +
+          '.rb-ftu-ey{flex:none;width:150px;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
+          '.rb-ftu-sub{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-weight:300;font-size:17px;color:var(--ink-soft,#55524E);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+          '.rb-ftu-row.rb-quiet .rb-ftu-sub{color:var(--ink-faint,#9C9891)}' +
+          '.rb-ftu-arrow{flex:none;font-size:15px;line-height:1;color:var(--ink-faint,#9C9891)}' +
+          '.rb-ftu-body{display:none;padding:4px 0 28px}' +
+          '.rb-ftu-row.open .rb-ftu-body{display:block}' +
+          '.rb-ftu-row.open .rb-ftu-arrow{color:var(--ink,#202021)}' +
+          // The unfurled modules drop their own margins/headers — the row
+          // titles them.
+          '#rb-ftu-rows .concierge{margin-bottom:0}' +
+          '#rb-ftu-rows #rb-rail{margin:0}' +
+          '#rb-ftu-rows #rb-rail .rb-rail-head{display:none}' +
+          '#rb-ftu-rows #rb-lkhome{margin:0}' +
+          // The styled card compacts to its header line while a row is open
+          // (O1b: only one thing open at a time).
+          '#rb-styled.rb-styled-compact #rb-styled-tiles,#rb-styled.rb-styled-compact #rb-styled-foot{display:none!important}' +
+          '@media(max-width:767px){.rb-ftu-txt{flex-direction:column;gap:4px}.rb-ftu-ey{width:auto}}' +
+          // O7: the prompt-as-card gets its section eyebrow back
+          '.rb-ftu-conc-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0 0 12px}' +
+          // "Your looks" — the O7 card: the look she owns, Finish it, and
+          // the wardrobe's progress as a caption (never a CTA).
+          '#rb-firstlook{margin:0 0 40px}' +
+          '.rb-fl-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin:0 0 12px}' +
+          '.rb-fl-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
+          '.rb-fl-card{background:#fff;border:0.5px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:var(--rad-card,14px);padding:20px 22px}' +
+          '.rb-fl-row{display:flex;align-items:center;gap:18px;width:100%;background:none;border:none;padding:0;cursor:pointer;text-align:left;font-family:inherit}' +
+          '.rb-fl-img{position:relative;flex:none;width:96px;aspect-ratio:4/5;border-radius:var(--rad-sm,8px);background:var(--cream-200,#EDE9E2);overflow:hidden}' +
+          '.rb-fl-img>img{width:100%;height:100%;object-fit:cover;display:block}' +
+          '.rb-fl-img .rb-lk-mos{position:absolute;inset:0;height:100%;aspect-ratio:auto}' +
+          '.rb-fl-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}' +
+          '.rb-fl-name{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:300;font-size:clamp(21px,2.2vw,25px);line-height:1.14;color:var(--ink,#202021)}' +
+          '.rb-fl-meta{font-size:12px;color:var(--ink-soft,#55524E)}' +
+          '.rb-fl-cta{flex:none;padding:10px 20px;border:0.5px solid rgba(32,32,33,0.25);border-radius:100px;background:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink,#202021);pointer-events:none}' +
+          '.rb-fl-progress{height:2px;border-radius:2px;background:var(--cream-200,#EDE9E2);margin:18px 0 0;overflow:hidden}' +
+          '.rb-fl-progress i{display:block;height:100%;background:var(--rose,#8E7077);opacity:.55;transition:width .65s cubic-bezier(0.4,0,0.2,1)}' +
+          '.rb-fl-cap{font-size:12.5px;line-height:1.5;color:var(--ink-soft,#55524E);margin-top:10px}' +
+          '@media(max-width:560px){.rb-fl-row{flex-wrap:wrap}.rb-fl-cta{margin-left:auto}}';
+        document.head.appendChild(st);
+      }
+      function _rbFtuRowDefs(mode) {
+        // The week ahead stays a hairline until a second look (or a planned
+        // day) exists — its whisper names the state honestly.
+        return mode === 'look'
+          ? [
+            { key: 'build', ey: 'Build your own', sub: 'Start a look from the rack.' },
+            { key: 'week', ey: 'The week ahead', sub: 'One look, unplanned.', quiet: true },
+          ]
+          : [
+            { key: 'build', ey: 'Build your own', sub: 'Start a look from the rack.' },
+            { key: 'style', ey: 'Style something', sub: 'Ask for a look in your own words.' },
+            { key: 'week', ey: 'The week ahead', sub: 'Nothing planned yet.', quiet: true },
+          ];
+      }
+      function _rbFtuRows(mode) {
         const dash = document.getElementById('dash');
         if (!dash) return;
-        const page = document.getElementById('sn-page');
-        const pageOpen = !!page && page.style.display !== 'none';
-        const zero = _lkHomeZero();
-        // The rack replaces the learning card and the Lookbook row while it
-        // is on home, and hands both back the moment a look is saved — this
-        // is the one place that decides, so they can't drift.
-        const trk = document.getElementById('wtrk');
-        if (trk) trk.style.display = (zero || _waItems.length > _WA_TARGET) ? 'none' : '';
-        if (typeof _rbRenderStyleNotes === 'function') _rbRenderStyleNotes();
-        if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow();
-        const want = zero && !pageOpen;
-        let el = document.getElementById('rb-lkhome');
-        if (!want) {
-          if (el) { el.remove(); if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length); }
+        const conc = dash.querySelector('.concierge');
+        const rail = document.getElementById('rb-rail');
+        let el = document.getElementById('rb-ftu-rows');
+        const echo = dash.querySelector('.dash-echo');
+        const concEy = document.getElementById('rb-conc-ey');
+        if (!mode) {
+          if (el) {
+            // Hand the demoted modules back to the dash flow before the
+            // rows go — _rbFtueOrder re-sequences them as cards.
+            if (conc && el.contains(conc)) dash.appendChild(conc);
+            if (rail && el.contains(rail)) dash.appendChild(rail);
+            el.remove();
+            _rbFtuOpen = null;
+            if (echo) echo.textContent = _RB_FTU_ECHO;
+          }
+          if (concEy) concEy.remove();
+          _rbGateConcierge(_waItems.length);
           return;
+        }
+        _rbFtuCss();
+        // The row set follows the state (zero carries Style something;
+        // first-look promotes the prompt out as the leading card) — a mode
+        // flip rebuilds the rows, handing the modules out first.
+        if (el && el.getAttribute('data-mode') !== mode) {
+          if (conc && el.contains(conc)) dash.appendChild(conc);
+          if (rail && el.contains(rail)) dash.appendChild(rail);
+          el.remove(); el = null;
+          if (_rbFtuOpen === 'style') _rbFtuOpen = null;
         }
         if (!el) {
           el = document.createElement('section');
-          el.id = 'rb-lkhome';
-          el.className = 'rb-section';
-        }
-        // Directly under "Your piece, styled" and above the prompt.
-        const styled = document.getElementById('rb-styled');
-        const conc = dash.querySelector('.concierge');
-        const anchor = (styled && styled.nextSibling) || conc || null;
-        if (el.parentNode !== dash || el.nextSibling !== anchor) {
+          el.id = 'rb-ftu-rows';
+          el.setAttribute('data-mode', mode);
+          el.innerHTML = _rbFtuRowDefs(mode).map(r =>
+            '<div class="rb-ftu-row' + (r.quiet ? ' rb-quiet' : '') + '" id="rb-ftu-row-' + r.key + '">' +
+              '<button type="button" class="rb-ftu-head" onclick="window.__rbFtuToggle(\'' + r.key + '\')">' +
+                '<span class="rb-ftu-txt"><span class="rb-ftu-ey">' + r.ey + '</span>' +
+                '<span class="rb-ftu-sub">' + r.sub + '</span></span>' +
+                '<span class="rb-ftu-arrow" aria-hidden="true">→</span>' +
+              '</button>' +
+              '<div class="rb-ftu-body" id="rb-ftu-body-' + r.key + '"></div>' +
+            '</div>').join('');
+          const styled = document.getElementById('rb-styled');
+          const mast = dash.querySelector('.dash-mast');
+          const anchor = (styled && styled.nextSibling) || (mast && mast.nextSibling) || null;
           if (anchor) dash.insertBefore(el, anchor); else dash.appendChild(el);
         }
+        // Without the styled card the page would carry no door at all — the
+        // prompt row opens itself (a returning zero-look session, or the
+        // card retiring after she has seen the looks). With the card
+        // present every row starts closed: "See the full looks" is the one
+        // CTA on the screen. Never overrides a state she set herself.
+        if (mode === 'zero' && !_rbFtuTouched && _rbFtuOpen == null
+          && !document.getElementById('rb-styled')) _rbFtuOpen = 'style';
+        // Where the demoted modules live: the rail always inside its row;
+        // the prompt inside its row at zero, OUT as the leading card once
+        // the first look exists (O7 — the prompt is the one filled button).
+        const styleBody = document.getElementById('rb-ftu-body-style');
+        const weekBody = document.getElementById('rb-ftu-body-week');
+        if (conc) {
+          if (mode === 'zero' && styleBody && conc.parentNode !== styleBody) styleBody.appendChild(conc);
+          if (mode === 'look') {
+            if (conc.parentNode !== dash) dash.appendChild(conc);
+            if (!document.getElementById('rb-conc-ey')) {
+              const ey = document.createElement('div');
+              ey.id = 'rb-conc-ey';
+              ey.className = 'rb-ftu-conc-ey';
+              ey.textContent = 'Style something';
+              conc.insertBefore(ey, conc.firstChild);
+            }
+          }
+        }
+        if (mode !== 'look' && concEy) concEy.remove();
+        if (rail && weekBody && rail.parentNode !== weekBody) weekBody.appendChild(rail);
+        // Masthead echo answers the state (O1): her first piece is filed.
+        if (echo) echo.textContent = (mode === 'zero' && _waItems.length) ? 'Your first piece is filed.' : _RB_FTU_ECHO;
+        _rbGateConcierge(_waItems.length);
+        _rbFtuPaint();
+      }
+      // The rack renders ONLY when she asks for it (W01 spec note: the
+      // first look should come from Robes, not an empty four-slot form) —
+      // and stands down while the Lookbook page renders the same draft.
+      function _rbFtuRackSync() {
+        const body = document.getElementById('rb-ftu-body-build');
+        const page = document.getElementById('sn-page');
+        const pageOpen = !!page && page.style.display !== 'none';
+        const want = body && _rbFtuOpen === 'build' && !pageOpen;
+        let el = document.getElementById('rb-lkhome');
+        if (!want) { if (el) el.remove(); return; }
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'rb-lkhome';
+        }
+        if (el.parentNode !== body) body.appendChild(el);
         _lkHomePaint();
+      }
+      function _rbFtuPaint() {
+        const rows = document.getElementById('rb-ftu-rows');
+        if (!rows) return;
+        Array.from(rows.querySelectorAll('.rb-ftu-row')).forEach(row => {
+          const key = (row.id || '').replace('rb-ftu-row-', '');
+          const open = _rbFtuOpen === key;
+          row.classList.toggle('open', open);
+          const arrow = row.querySelector('.rb-ftu-arrow');
+          if (arrow) arrow.textContent = open ? '↑' : '→';
+        });
+        _rbFtuRackSync();
+        // The styled card collapses to its one-line header while a row is
+        // open, so only one thing is open at a time (O1b).
+        const styled = document.getElementById('rb-styled');
+        if (styled) styled.classList.toggle('rb-styled-compact', !!_rbFtuOpen);
+      }
+      window.__rbFtuToggle = function(key) {
+        const opening = _rbFtuOpen !== key;
+        _rbFtuOpen = opening ? key : null;
+        _rbFtuTouched = true;
+        _rbFtuPaint();
+        if (opening) {
+          if (key === 'week' && window._rbRailPaint) window._rbRailPaint();
+          const row = document.getElementById('rb-ftu-row-' + key);
+          if (row && row.scrollIntoView) setTimeout(() => row.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
+          if (key === 'style') setTimeout(() => {
+            const ta = document.getElementById('cb-ta');
+            if (ta) try { ta.focus({ preventScroll: true }); } catch (_) { ta.focus(); }
+          }, 80);
+        }
+        _rbTrack('ftu_row_toggle', { row: key, open: opening });
+      };
+      // Anything that arms or scopes the prompt while the rows carry home
+      // must unfurl the Style-something row first, or it writes into a
+      // closed drawer (_cbSetIntent, the rail's day scoping).
+      function _rbFtuRevealPrompt() {
+        // Only the zero state keeps the prompt behind a row — once the
+        // first look exists the prompt already leads the page as a card.
+        if (!document.getElementById('rb-ftu-row-style') || _rbFtuOpen === 'style') return;
+        _rbFtuOpen = 'style';
+        _rbFtuPaint();
+      }
+
+      // "Your looks" (O7): the look she owns takes the hero slot. Finish it
+      // — the borrowed slots waiting on the look — is the ONLY nudge back
+      // into cataloguing; the wardrobe's progress rides the card as a
+      // caption, never a CTA, so the learning card and the home Lookbook
+      // row stand down while this is up.
+      function _rbFirstLookCard(active) {
+        const dash = document.getElementById('dash');
+        let el = document.getElementById('rb-firstlook');
+        const l = active ? ((_lkLooks || [])[0] || null) : null;
+        if (!active || !l || !dash) {
+          if (el) el.remove();
+          return;
+        }
+        _rbFtuCss();
+        // "Your piece, styled" retires to Inspiration — its slot is the
+        // look's now (the three ways stay browsable on the Inspiration tab).
+        if (typeof window.__rbStyledCollapse === 'function') { try { window.__rbStyledCollapse(); } catch (_) {} }
+        if (!el) {
+          el = document.createElement('section');
+          el.id = 'rb-firstlook';
+          el.className = 'rb-section';
+          const mast = dash.querySelector('.dash-mast');
+          if (mast && mast.nextSibling) dash.insertBefore(el, mast.nextSibling);
+          else dash.appendChild(el);
+        }
+        const owned = (l.pieces || []).length;
+        const props = Array.isArray(l.proposals) ? l.proposals.length : 0;
+        const meta = _lkN(owned, 'piece') + ' yours' + (props ? ' · ' + props + ' borrowed' : '');
+        const photo = (typeof l.photo_url === 'string' && l.photo_url.indexOf('http') === 0) ? l.photo_url : null;
+        const img = photo
+          ? '<img src="' + _waEsc(photo) + '" alt="">'
+          : _ltMosaicHtml(_ltCells(_lkPieceIds(l)), { alt: l.name || 'Your look' });
+        const n = _waItems.length;
+        const cap = n >= _WA_TARGET
+          ? 'Your wardrobe’s there — Robes styles you head to toe from what you own.'
+          : _lkN(n, 'piece') + ' filed. At ' + _WA_TARGET + ', Robes builds every look entirely from your own closet.';
+        const bar = n >= _WA_TARGET ? '' :
+          '<div class="rb-fl-progress"><i style="width:' + (typeof _msFillPct === 'function' ? _msFillPct(n) : Math.min(100, Math.round(n / _WA_TARGET * 100))) + '%"></i></div>';
+        el.innerHTML =
+          '<div class="rb-fl-head"><span class="rb-fl-ey">Your looks</span></div>' +
+          '<div class="rb-fl-card">' +
+            '<button type="button" class="rb-fl-row" onclick="window.__lkCardOpen(\'' + _waEsc(String(l.id)) + '\')">' +
+              '<span class="rb-fl-img">' + img + '</span>' +
+              '<span class="rb-fl-mid">' +
+                '<span class="rb-fl-name">' + _waEsc(l.name || 'Your look') + '</span>' +
+                '<span class="rb-fl-meta">' + _waEsc(meta) + '</span>' +
+              '</span>' +
+              '<span class="rb-fl-cta">' + (props ? 'Finish it' : 'Open →') + '</span>' +
+            '</button>' +
+            bar +
+            '<div class="rb-fl-cap">' + cap + '</div>' +
+          '</div>';
+      }
+
+      // One composer in the DOM: the module retires the moment the Lookbook
+      // holds anything, and stands down while the Lookbook page is open (it
+      // renders the same draft there). This is the ONE place that decides
+      // home's FTU state — the index rows, the first-look card, the
+      // learning card and the Lookbook/Inspiration rows all follow it, so
+      // they can't drift.
+      function _lkHomeSync() {
+        const dash = document.getElementById('dash');
+        if (!dash) return;
+        const zero = _lkHomeZero();
+        // O7 holds while the Lookbook holds exactly her first saved Look
+        // and she has neither built her own second one nor planned an
+        // outfit — any other saved artifact (a look, a daily look, a travel
+        // edit) hands home its full set of modules back.
+        let others = 0;
+        try {
+          others = (typeof snLoad === 'function' ? snLoad() : [])
+            .filter(i => i && (i.type === 'look' || i.type === 'daily-look' || i.type === 'travel-edit')).length;
+        } catch (_) { others = 0; }
+        // (_lkLooks is assigned further down the closure than the first
+        // _waSyncCounts call — a bare .length here is the documented
+        // hoisted-var boot trap, so it reads defensively.)
+        const firstLook = !zero && (_lkLooks || []).length === 1 && !others;
+        _rbFirstLookCard(firstLook);
+        _rbFtuRows(zero ? 'zero' : (firstLook ? 'look' : null));
+        // The learning card stands down at zero looks (the rows carry home)
+        // and while the first-look card is up (Finish it is the one nudge;
+        // the card's caption carries the wardrobe's progress).
+        const trk = document.getElementById('wtrk');
+        if (trk) trk.style.display = (zero || firstLook || _waItems.length > _WA_TARGET) ? 'none' : '';
+        if (typeof _rbRenderStyleNotes === 'function') _rbRenderStyleNotes();
+        if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow();
+        if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length);
       }
       window._lkHomeSync = _lkHomeSync;
       window.__lkRowOpen = function(key) { _lkOpenRow = _lkOpenRow === key ? null : key; _lkPaint(); };
@@ -15909,6 +16205,15 @@ body>*:not(#tv-result-page){display:none !important}
       function _rbRenderStyleNotes() {
         const el = document.getElementById('rb-sn');
         if (!el) return;
+        // FTU simplification (2026-08-18): while the index rows or the
+        // "Your looks" card carry home, the Lookbook row stands down — the
+        // card IS the Lookbook's presence, and a second grid of the same
+        // content is exactly the clutter the pass removes.
+        if (document.getElementById('rb-ftu-rows') || document.getElementById('rb-firstlook')) {
+          el.innerHTML = '';
+          el.style.display = 'none';
+          return;
+        }
         // The row mirrors what the LOOKBOOK holds — her Looks, daily looks
         // and travel edits, newest first. Key pieces are Inspiration's, and
         // never appear here. (Her saved Looks are entities, not lookbook
@@ -15965,6 +16270,14 @@ body>*:not(#tv-result-page){display:none !important}
       function _rbRenderInspRow() {
         const el = document.getElementById('rb-insp-row');
         if (!el) return;
+        // FTU simplification (2026-08-18): while the index rows carry home
+        // the styled piece is the hero card (zero looks) or has retired to
+        // the Inspiration tab (first look) — never a second row here.
+        if (document.getElementById('rb-ftu-rows')) {
+          el.innerHTML = '';
+          el.style.display = 'none';
+          return;
+        }
         let items = [];
         try { items = _inItems().slice(0, 4); } catch (_) { items = []; }
         if (!items.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
@@ -16271,6 +16584,9 @@ body>*:not(#tv-result-page){display:none !important}
 
       function _cbSetIntent(intent) {
         _cbHideClarify();
+        // FTU rows: arming the prompt must unfurl the Style-something row
+        // first, or the scaffold lands in a closed drawer.
+        if (typeof _rbFtuRevealPrompt === 'function') _rbFtuRevealPrompt();
         const ta = document.getElementById('cb-ta');
         const def = _CHIP_DEFS.find(c => c.intent === intent);
         // Only arm intents that have a scaffold — assigning before this
@@ -17656,7 +17972,13 @@ body>*:not(#tv-result-page){display:none !important}
           if (!document.getElementById('rb-rail')) {
             const el = document.createElement('section');
             el.id = 'rb-rail';
-            conc.parentNode.insertBefore(el, conc.nextSibling);
+            // FTU simplification (2026-08-18): while the index rows carry
+            // home, the rail lives inside The-week-ahead's body — never at
+            // dash level (and never inside the prompt's row, which is where
+            // conc.nextSibling would land it).
+            const ftuWeek = document.getElementById('rb-ftu-body-week');
+            if (ftuWeek) ftuWeek.appendChild(el);
+            else conc.parentNode.insertBefore(el, conc.nextSibling);
           }
           return true;
         }
@@ -18738,6 +19060,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
       window._ikScopeDay = function(date, slot) {
         const m = slot && slot.moments && slot.moments.length ? slot.moments[0] : null;
         _ikSetScope({ kind: 'day', id: m ? m.source_id : null, date, label: _ikChipDateLabel(date) });
+        // FTU rows: scoping from the rail must unfurl the prompt's row
+        // first, or the chip lands in a closed drawer.
+        if (typeof _rbFtuRevealPrompt === 'function') _rbFtuRevealPrompt();
         const ta = document.getElementById('cb-ta');
         if (ta) { ta.focus(); ta.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       };
@@ -19422,7 +19747,12 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             card.style.opacity = '0';
             card.style.margin = '0';
           });
-          setTimeout(function() { card.remove(); }, 500);
+          setTimeout(function() {
+            card.remove();
+            // FTU rows: with the hero gone, home re-decides — the prompt
+            // row takes over as the open door unless she has set her own.
+            if (typeof window._lkHomeSync === 'function') { try { window._lkHomeSync(); } catch (_) {} }
+          }, 500);
         }
         window.__rbStyledCollapse = collapse;
         document.addEventListener('input', function onType(e) {
@@ -19439,6 +19769,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const tracker = dash.querySelector('.tracker');
           if (tracker && tracker.parentNode) tracker.parentNode.insertBefore(card, tracker);
           else dash.insertBefore(card, dash.firstChild);
+          // FTU rows: the card is the hero — re-sequence so the index rows
+          // fall in directly beneath it, whichever mounted first.
+          if (typeof _rbFtueOrder === 'function') { try { _rbFtueOrder(_waItems.length); } catch (_) {} }
         }
 
         const photoThumb = piece.photo
@@ -19516,30 +19849,25 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
               '<div style="font-family:' + serif + ';font-size:14px;color:#202021;margin-top:8px;line-height:1.25">' + _waEsc(w.title || 'Look ' + (i + 1)) + '</div>' +
             '</div>';
           }).join('');
-          // Peak-emotion moment → cataloguing loop. The wow is delivered, so
-          // the dominant next action is the NEXT piece (the WAW driver), not
-          // more consumption; "See the full looks" steps back to a text link.
+          // FTU simplification (2026-08-18, W01/O1): ONE goal on the card.
+          // "See the full looks" is the single filled button on the screen
+          // — it leads into Build-this-look, where a generated look becomes
+          // her own. The piece count is a caption, never a second CTA (the
+          // "Add your next piece" dark button was the CTA testers hit
+          // instead of the wow).
           const nCat = Math.max(1, _waItems.length);
-          const leftCat = Math.max(0, _WA_TARGET - nCat);
-          const nudge = leftCat > 0
-            ? 'That’s piece ' + nCat + ' filed. Add ' + leftCat + ' more and Robes builds every look entirely from your own closet.'
-            : 'Your wardrobe’s there — Robes now styles you head to toe from what you own.';
+          const nudge = nCat >= _WA_TARGET
+            ? 'Your wardrobe’s there — Robes now styles you head to toe from what you own.'
+            : (nCat === 1 ? 'One piece' : nCat + ' pieces') + ' filed. Every look borrows the rest until you photograph your own.';
           const footer =
-            '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.10)">' +
-              '<div style="font-size:12.5px;color:#6E6A64;line-height:1.4;flex:1;min-width:180px">' + nudge + '</div>' +
-              (leftCat > 0
-                ? '<button id="rb-styled-addnext" style="flex-shrink:0;padding:11px 20px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">Add your next piece →</button>'
-                : '') +
-            '</div>';
+            '<div id="rb-styled-foot" style="margin-top:18px;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.10);font-size:12.5px;color:#6E6A64;line-height:1.4">' + nudge + '</div>';
           card.innerHTML = shell(
-            'Your first piece, <em>worn three ways.</em>',
-            'Built around your ' + _waEsc(pieceName.toLowerCase()) + ' — tap through for the full looks.',
+            'Your ' + _waEsc(pieceName.toLowerCase()) + ', <em>worn three ways.</em>',
+            'Three complete looks, built and waiting.',
             tiles,
-            '<button id="rb-styled-open" style="flex-shrink:0;padding:10px 16px;border-radius:100px;border:0.5px solid rgba(32,32,33,0.2);background:#fff;color:#202021;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">See the full looks →</button>',
+            '<button id="rb-styled-open" style="flex-shrink:0;padding:12px 22px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">See the full looks →</button>',
             footer);
           mount();
-          const addNext = document.getElementById('rb-styled-addnext');
-          if (addNext) addNext.onclick = function() { _wtrkOpenAdd(); collapse(); };
           if (!cardSaveId) {
             const persistable = imgs.map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
             const title = data.fallback ? 'Balmain waistcoat' : ((prompt || 'Your piece').slice(0, 60));

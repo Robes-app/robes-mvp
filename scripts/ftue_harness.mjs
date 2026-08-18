@@ -50,9 +50,10 @@ function wardrobe(n) {
   }));
 }
 
-// The learning card and the home Lookbook row only render once the Lookbook
-// holds something — at zero looks the inline rack replaces both (FTUE step 3,
-// 2026-08-12). Seed one saved look by default so the milestone rules below
+// The learning card and the home Lookbook row only render once home has
+// left its FTU states — zero looks shows the quiet index rows (W01/O1),
+// exactly ONE look shows the O7 "Your looks" page (FTU simplification
+// 2026-08-18). Seed TWO saved looks by default so the milestone rules below
 // still have a card to assert against; pass looks:false for the zero state.
 async function boot(browser, n, width = 1280, { looks = true } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height: 1100 } });
@@ -77,15 +78,20 @@ async function boot(browser, n, width = 1280, { looks = true } = {}) {
     Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
   }, n);
   if (looks) {
-    // A SAVED LOOK, not a daily look: a day is not a look and no longer
-    // fills the Lookbook (Look Rules 1a, 2026-08-17), so seeding one would
-    // leave the home builder standing and hide the learning card.
+    // TWO saved looks, not one: a single look is the O7 first-look state
+    // (hero card, tracker hidden), and a daily look would not fill the
+    // Lookbook at all (Look Rules 1a, 2026-08-17).
     await page.addInitScript(() => {
       localStorage.setItem('rb_looks__u-test', JSON.stringify([
         { id: 'lk-seed', name: 'A look', name_provisional: false, note: '', photo_url: null,
           tags: null, climate_band: 'year_round', climate_source: 'derived', source: 'manual',
           origin_look_id: null, created_at: '2026-08-05T10:00:00.000Z',
           pieces: [{ id: 'w0', slot: 'Top', position: 0, role: null }, { id: 'w1', slot: 'Bottom', position: 1, role: null }],
+          wears: [] },
+        { id: 'lk-seed-2', name: 'A second look', name_provisional: false, note: '', photo_url: null,
+          tags: null, climate_band: 'year_round', climate_source: 'derived', source: 'manual',
+          origin_look_id: null, created_at: '2026-08-04T10:00:00.000Z',
+          pieces: [{ id: 'w2', slot: 'Top', position: 0, role: null }, { id: 'w3', slot: 'Bottom', position: 1, role: null }],
           wears: [] },
       ]));
     });
@@ -395,53 +401,102 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 
-// The look, inline on home (FTUE step 3, 2026-08-12) — at zero looks the
-// builder replaces both the learning card and the Lookbook row.
+// FTU simplification (2026-08-18, W01/O1): at zero looks home is the quiet
+// index — three hairline rows carrying the demoted modules, each unfurling
+// IN PLACE, one open at a time. The rack renders only when she asks.
 {
   const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
   const h = await page.evaluate(() => {
     const dash = document.getElementById('dash');
-    const el = document.getElementById('rb-lkhome');
+    const rows = document.getElementById('rb-ftu-rows');
+    const vis = (el) => !!el && el.offsetParent !== null;
     return {
-      mounted: !!el,
-      // it leads the prompt, and the learning card + Lookbook row stand down
-      abovePrompt: el?.nextElementSibling?.classList.contains('concierge'),
+      rowIds: Array.from(rows?.querySelectorAll('.rb-ftu-row') || []).map((r) => r.id),
+      underMast: dash?.querySelector('.dash-mast')?.nextElementSibling?.id,
+      concInStyleRow: !!document.querySelector('#rb-ftu-body-style .concierge'),
+      railInWeekRow: !!document.querySelector('#rb-ftu-body-week #rb-rail'),
+      // the rack is NOT rendered until she asks for it (W01 spec note)
+      rackAbsent: !document.getElementById('rb-lkhome'),
+      // with no styled card the prompt row opens itself — the one door
+      open: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
+      promptVisible: vis(document.getElementById('cb-ta')),
+      // nothing competes: services, tracker, Lookbook + Inspiration rows
+      servicesHidden: !vis(document.querySelector('.services')),
       trkHidden: document.getElementById('wtrk')?.style.display === 'none',
       snRowHidden: (document.getElementById('rb-sn')?.style.display === 'none')
         || !document.getElementById('rb-sn')?.textContent.trim(),
-      // no "catalogue your wardrobe" door anywhere on home
       wtrkCta: document.getElementById('wtrk-cta')?.offsetParent !== null,
-      eyebrow: el?.querySelector('.rb-lk-eyebrow')?.textContent,
+      weekSub: document.querySelector('#rb-ftu-row-week .rb-ftu-sub')?.textContent,
+    };
+  });
+  check('ftu rows · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('ftu rows · three hairline rows sit under the masthead',
+    JSON.stringify(h.rowIds) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-style', 'rb-ftu-row-week'])
+      && h.underMast === 'rb-ftu-rows', JSON.stringify([h.rowIds, h.underMast]));
+  check('ftu rows · the prompt and the rail live inside their rows',
+    h.concInStyleRow === true && h.railInWeekRow === true, JSON.stringify(h));
+  check('ftu rows · the rack is not rendered until she asks', h.rackAbsent === true);
+  check('ftu rows · with no styled card, the prompt row is the open door',
+    JSON.stringify(h.open) === JSON.stringify(['rb-ftu-row-style']) && h.promptVisible === true,
+    JSON.stringify([h.open, h.promptVisible]));
+  check('ftu rows · nothing competes: services, tracker, rows all stand down',
+    h.servicesHidden === true && h.trkHidden === true && h.snRowHidden === true && h.wtrkCta === false,
+    JSON.stringify([h.servicesHidden, h.trkHidden, h.snRowHidden, h.wtrkCta]));
+  check('ftu rows · the week whisper is honest', h.weekSub === 'Nothing planned yet.', h.weekSub);
+
+  // Build your own unfurls the rack in place — and closes the prompt row
+  const b = await page.evaluate(async () => {
+    window.__rbFtuToggle('build');
+    await new Promise((r) => setTimeout(r, 250));
+    const el = document.getElementById('rb-lkhome');
+    return {
+      open: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
+      inBuildRow: !!document.querySelector('#rb-ftu-body-build #rb-lkhome'),
+      arrowBuild: document.querySelector('#rb-ftu-row-build .rb-ftu-arrow')?.textContent,
+      arrowStyle: document.querySelector('#rb-ftu-row-style .rb-ftu-arrow')?.textContent,
       count: el?.querySelector('.rb-lkh-count')?.textContent,
       ghostRows: el?.querySelectorAll('.rbc-rghost').length,
-      // every empty slot is the camera path, not the chooser sheet
       snapWired: Array.from(el?.querySelectorAll('.rbc-rghost') || [])
         .every((r) => /__lkHomeSnap/.test(r.getAttribute('onclick') || '')),
       save: !!el?.querySelector('.rb-lk-save'),
       door: el?.querySelector('.rb-lk-robesdoor')?.textContent,
-      // ONE composer in the DOM — the Lookbook page is closed
       composers: document.querySelectorAll('.rb-lk-composer').length,
       showMoreHidden: getComputedStyle(el.querySelector('.rb-lkh-showmore')).display === 'none',
     };
   });
-  check('home rack · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('home rack · the builder sits on home at zero looks, leading the prompt',
-    h.mounted === true && h.abovePrompt === true, JSON.stringify([h.mounted, h.abovePrompt]));
-  check('home rack · it replaces the learning card and the Lookbook row',
-    h.trkHidden === true && h.snRowHidden === true && h.wtrkCta === false,
-    JSON.stringify([h.trkHidden, h.snRowHidden, h.wtrkCta]));
-  check('home rack · titled "Build your first look", counting the rack',
-    h.eyebrow === 'Build your first look' && h.count === '0 of 4 on the rack',
-    JSON.stringify([h.eyebrow, h.count]));
-  check('home rack · four slots, every one of them the camera path',
-    h.ghostRows === 4 && h.snapWired === true, JSON.stringify([h.ghostRows, h.snapWired]));
-  check('home rack · carries Save and the Robes door',
-    h.save === true && h.door === 'Or let Robes build the first one', JSON.stringify([h.save, h.door]));
-  check('home rack · exactly one composer in the DOM', h.composers === 1, String(h.composers));
-  check('home rack · all four slots render on web (no collapse)', h.showMoreHidden === true);
+  check('ftu rows · Build your own unfurls the rack in place, one row at a time',
+    JSON.stringify(b.open) === JSON.stringify(['rb-ftu-row-build']) && b.inBuildRow === true
+      && b.arrowBuild === '↑' && b.arrowStyle === '→', JSON.stringify(b));
+  check('ftu rows · four slots, every one of them the camera path',
+    b.ghostRows === 4 && b.snapWired === true && b.count === '0 of 4 on the rack',
+    JSON.stringify([b.ghostRows, b.snapWired, b.count]));
+  check('ftu rows · carries Save and the Robes door',
+    b.save === true && b.door === 'Or let Robes build the first one', JSON.stringify([b.save, b.door]));
+  check('ftu rows · exactly one composer in the DOM', b.composers === 1, String(b.composers));
+  check('ftu rows · all four slots render on web (no collapse)', b.showMoreHidden === true);
+
+  // The week ahead unfurls the rail — and folds the rack away
+  const w = await page.evaluate(async () => {
+    window.__rbFtuToggle('week');
+    await new Promise((r) => setTimeout(r, 350));
+    return {
+      open: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
+      rackGone: !document.getElementById('rb-lkhome'),
+      railCards: document.querySelectorAll('#rb-ftu-body-week #rb-rail .rb-dc, #rb-ftu-body-week #rb-rail .rb-rc').length,
+      railHeadHidden: (() => {
+        const hd = document.querySelector('#rb-rail .rb-rail-head');
+        return !hd || getComputedStyle(hd).display === 'none';
+      })(),
+    };
+  });
+  check('ftu rows · The week ahead unfurls the rail, folding the rack away',
+    JSON.stringify(w.open) === JSON.stringify(['rb-ftu-row-week']) && w.rackGone === true
+      && w.railCards === 7 && w.railHeadHidden === true, JSON.stringify(w));
 
   // The draft is SHARED with the Lookbook composer — never a second copy
   const shared = await page.evaluate(async () => {
+    window.__rbFtuToggle('build');
+    await new Promise((r) => setTimeout(r, 200));
     window.__lkApplyNew('w0');
     await new Promise((r) => setTimeout(r, 200));
     const onHome = document.querySelector('#rb-lkhome .rbc-rack .rbc-name')?.textContent;
@@ -455,13 +510,14 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       inLookbook: document.querySelector('#rb-lk-body .rbc-rack .rbc-name')?.textContent,
     };
   });
-  check('home rack · a piece added on home hangs in the rack and counts',
+  check('ftu rows · a piece added on home hangs in the rack and counts',
     shared.onHome === 'Piece 1' && shared.count === '1 of 4 on the rack', JSON.stringify(shared));
-  check('home rack · the SAME draft continues in the Lookbook, never a second copy',
+  check('ftu rows · the SAME draft continues in the Lookbook, never a second copy',
     shared.inLookbook === 'Piece 1' && shared.homeGone === true && shared.composers === 1,
     JSON.stringify(shared));
 
-  // Saving retires the module and hands the page back to the Lookbook row
+  // Saving the first look flips home to O7: the prompt leads as a card,
+  // "Your looks" takes the hero slot, the rows shrink to build + week.
   const saved = await page.evaluate(async () => {
     window.__lkApplyNew('w1');
     window.__lkNewTitleInput('Terrace mornings');   // rule 02: the name is the gate
@@ -469,23 +525,39 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     await new Promise((r) => setTimeout(r, 300));
     window.__snClose();
     await new Promise((r) => setTimeout(r, 500));
+    const dash = document.getElementById('dash');
     return {
-      homeGone: !document.getElementById('rb-lkhome'),
-      snRow: (document.getElementById('rb-sn')?.textContent || '').trim().length > 0,
-      trkBack: document.getElementById('wtrk')?.style.display !== 'none',
+      mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
+      rowIds: Array.from(document.querySelectorAll('.rb-ftu-row')).map((r) => r.id),
+      order: Array.from(dash.children).map((e) => e.id || e.className.split(' ')[0])
+        .filter((id) => ['concierge', 'rb-firstlook', 'rb-ftu-rows'].includes(id)),
+      concEy: document.getElementById('rb-conc-ey')?.textContent,
+      flName: document.querySelector('.rb-fl-name')?.textContent,
+      flCta: document.querySelector('.rb-fl-cta')?.textContent,
+      weekSub: document.querySelector('#rb-ftu-row-week .rb-ftu-sub')?.textContent,
+      trkHidden: document.getElementById('wtrk')?.style.display === 'none',
     };
   });
-  check('home rack · saving retires the module and moves everything to the Lookbook row',
-    saved.homeGone === true && saved.snRow === true, JSON.stringify(saved));
-  check('home rack · the learning card comes back once the Lookbook holds something',
-    saved.trkBack === true, JSON.stringify(saved));
+  check('ftu rows · the first save lands O7: prompt card, Your looks, two hairlines',
+    saved.mode === 'look'
+      && JSON.stringify(saved.rowIds) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-week'])
+      && JSON.stringify(saved.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-ftu-rows']),
+    JSON.stringify(saved));
+  check('ftu rows · the saved look is the card, all hers',
+    saved.flName === 'Terrace mornings' && saved.flCta === 'Open →' && saved.concEy === 'Style something',
+    JSON.stringify(saved));
+  check('ftu rows · the week ahead stays a hairline until a second look',
+    saved.weekSub === 'One look, unplanned.' && saved.trkHidden === true, JSON.stringify(saved));
   await ctx.close();
 }
 
-// The home rack on a phone: texture + finish collapse, preview stands down
+// The rows on a phone: unfurled rack collapses texture + finish, preview
+// stands down; no horizontal overflow.
 {
   const { ctx, page, errs } = await boot(browser, 4, 390, { looks: false });
-  const m = await page.evaluate(() => {
+  const m = await page.evaluate(async () => {
+    window.__rbFtuToggle('build');
+    await new Promise((r) => setTimeout(r, 300));
     const el = document.getElementById('rb-lkhome');
     const more = el?.querySelector('.rb-lkh-more');
     const showmore = el?.querySelector('.rb-lkh-showmore');
@@ -495,16 +567,15 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       moreHidden: more ? getComputedStyle(more).display === 'none' : null,
       showmoreShown: showmore ? getComputedStyle(showmore).display !== 'none' : null,
       previewHidden: el?.querySelector('.rb-lk-con > div:first-child')?.offsetParent === null,
-      h: Math.round(el?.getBoundingClientRect().height || 0),
       overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
     };
   });
-  check('390px home rack · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('390px home rack · canvas and anchor are the ask; texture + finish collapse',
+  check('390px ftu rows · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('390px ftu rows · canvas and anchor are the ask; texture + finish collapse',
     JSON.stringify(m.shown) === JSON.stringify(['The Canvas', 'The Anchor'])
       && m.moreHidden === true && m.showmoreShown === true, JSON.stringify(m));
-  check('390px home rack · the preview is web-only here', m.previewHidden === true);
-  check('390px home rack · no horizontal overflow', m.overflow === true);
+  check('390px ftu rows · the preview is web-only here', m.previewHidden === true);
+  check('390px ftu rows · no horizontal overflow', m.overflow === true);
 
   // Show expands for the session; a piece cast into a late role force-expands
   const opened = await page.evaluate(async () => {
@@ -514,8 +585,137 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     return Array.from(el.querySelectorAll('.rbc-rolestrip span'))
       .filter((s) => s.offsetParent !== null).map((s) => s.textContent.trim());
   });
-  check('390px home rack · Show reveals the other two slots',
+  check('390px ftu rows · Show reveals the other two slots',
     JSON.stringify(opened) === JSON.stringify(_RB_ROLE_NAMES), JSON.stringify(opened));
+  await ctx.close();
+}
+
+// The styled card (W01/O1): one goal, one filled button. "See the full
+// looks" is the single CTA; the piece count is a caption, never a second
+// ask; the rows start closed beneath it.
+{
+  const { ctx, page, errs } = await boot(browser, 1, 1280, { looks: false });
+  await page.evaluate(() => {
+    sessionStorage.setItem('rb_onboard_piece', JSON.stringify({
+      prompt: 'Acid green cropped jumper', photo: null, cataloged: true }));
+    sessionStorage.setItem('rb_onboard_styled', JSON.stringify({
+      prompt: 'Acid green cropped jumper', ts: Date.now(),
+      data: { ways: [
+        { title: 'Effortless Parisian Polish' }, { title: 'Modern Romantic Edge' }, { title: 'Curated Comfort' },
+      ], generatedImages: [], fallback: false, photoUrl: null } }));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const s = await page.evaluate(() => {
+    const card = document.getElementById('rb-styled');
+    const open = document.getElementById('rb-styled-open');
+    const filled = Array.from(document.querySelectorAll('#dash button'))
+      .filter((btn) => btn.offsetParent !== null)
+      .filter((btn) => {
+        const bg = getComputedStyle(btn).backgroundColor;
+        return bg === 'rgb(32, 32, 33)' || bg === 'rgb(0, 0, 0)';
+      }).map((btn) => btn.textContent.trim());
+    return {
+      cardFirst: document.querySelector('.dash-mast')?.nextElementSibling?.id,
+      rowsNext: card?.nextElementSibling?.id,
+      title: card?.querySelector('div div div')?.textContent || card?.textContent.slice(0, 120),
+      openFilled: open ? getComputedStyle(open).backgroundColor === 'rgb(32, 32, 33)' : false,
+      addNext: !!document.getElementById('rb-styled-addnext'),
+      foot: document.getElementById('rb-styled-foot')?.textContent,
+      filledButtons: filled,
+      echo: document.querySelector('.dash-echo')?.textContent,
+      open: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
+    };
+  });
+  check('styled card · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('styled card · the hero leads, the rows fall in beneath it',
+    s.cardFirst === 'rb-styled' && s.rowsNext === 'rb-ftu-rows', JSON.stringify([s.cardFirst, s.rowsNext]));
+  check('styled card · "See the full looks" is the one filled button, no add-next CTA',
+    s.openFilled === true && s.addNext === false
+      && s.filledButtons.length === 1 && /See the full looks/i.test(s.filledButtons[0] || ''),
+    JSON.stringify([s.openFilled, s.addNext, s.filledButtons]));
+  check('styled card · the piece count is a caption, and it borrows honestly',
+    s.foot === 'One piece filed. Every look borrows the rest until you photograph your own.', s.foot);
+  check('styled card · the masthead answers the state',
+    s.echo === 'Your first piece is filed.', s.echo);
+  check('styled card · every row starts closed — the card is the CTA',
+    s.open.length === 0, JSON.stringify(s.open));
+
+  // Opening a row compacts the card to its header line (O1b), and the
+  // composer's fallback points back at the three looks, never a fresh
+  // generation.
+  const c = await page.evaluate(async () => {
+    window.__rbFtuToggle('build');
+    await new Promise((r) => setTimeout(r, 250));
+    return {
+      compact: document.getElementById('rb-styled')?.classList.contains('rb-styled-compact'),
+      tilesHidden: document.getElementById('rb-styled-tiles')?.offsetParent === null,
+      door: document.querySelector('#rb-lkhome .rb-lk-robesdoor')?.textContent,
+    };
+  });
+  check('styled card · an open row compacts it to the header line',
+    c.compact === true && c.tilesHidden === true, JSON.stringify(c));
+  check('styled card · the rack fallback points back at the three looks',
+    c.door === 'Or start from one of your three looks', c.door);
+  await ctx.close();
+}
+
+// O7 — hero card retired, prompt leads: exactly one look, nothing planned.
+{
+  const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
+  await page.evaluate(() => {
+    localStorage.setItem('rb_looks__u-test', JSON.stringify([
+      { id: 'lk-1', name: 'Effortless Parisian Polish', name_provisional: false, note: '', photo_url: null,
+        tags: null, source: 'manual', origin_look_id: null, created_at: '2026-08-17T10:00:00.000Z',
+        pieces: [
+          { id: 'w0', slot: 'Top', position: 0, role: null },
+          { id: 'w1', slot: 'Bottom', position: 1, role: null },
+          { id: 'w2', slot: 'Shoes', position: 2, role: null }],
+        proposals: [{ role: null, chip: 'Bag', cats: ['Bags'], opts: [{ name: 'A bag' }], oi: 0, saved: false, image_url: null }],
+        wears: [] },
+    ]));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const o = await page.evaluate(() => {
+    const dash = document.getElementById('dash');
+    return {
+      mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
+      order: Array.from(dash.children).map((e) => e.id || e.className.split(' ')[0])
+        .filter((id) => ['concierge', 'rb-firstlook', 'rb-ftu-rows'].includes(id)),
+      concEy: document.getElementById('rb-conc-ey')?.textContent,
+      styleRowGone: !document.getElementById('rb-ftu-row-style'),
+      flEy: document.querySelector('.rb-fl-ey')?.textContent,
+      flName: document.querySelector('.rb-fl-name')?.textContent,
+      flMeta: document.querySelector('.rb-fl-meta')?.textContent,
+      flCta: document.querySelector('.rb-fl-cta')?.textContent,
+      flCap: document.querySelector('.rb-fl-cap')?.textContent,
+      flBar: !!document.querySelector('.rb-fl-progress i'),
+      flOpen: document.querySelector('.rb-fl-row')?.getAttribute('onclick'),
+      weekSub: document.querySelector('#rb-ftu-row-week .rb-ftu-sub')?.textContent,
+      trkHidden: document.getElementById('wtrk')?.style.display === 'none',
+      snRowHidden: (document.getElementById('rb-sn')?.style.display === 'none')
+        || !document.getElementById('rb-sn')?.textContent.trim(),
+      servicesHidden: document.querySelector('.services')?.offsetParent === null,
+      styled: !!document.getElementById('rb-styled'),
+    };
+  });
+  check('O7 · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('O7 · the prompt leads as a card, then Your looks, then the hairlines',
+    o.mode === 'look' && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-ftu-rows'])
+      && o.concEy === 'Style something' && o.styleRowGone === true, JSON.stringify(o));
+  check('O7 · the look she owns is the card, Finish it the only nudge',
+    o.flEy === 'Your looks' && o.flName === 'Effortless Parisian Polish'
+      && o.flMeta === '3 pieces yours · 1 borrowed' && o.flCta === 'Finish it'
+      && /__lkCardOpen/.test(o.flOpen || ''), JSON.stringify(o));
+  check('O7 · wardrobe progress is a caption on the look card, never a CTA',
+    o.flCap === '4 pieces filed. At 15, Robes builds every look entirely from your own closet.'
+      && o.flBar === true && o.trkHidden === true, JSON.stringify([o.flCap, o.flBar, o.trkHidden]));
+  check('O7 · the week ahead stays a hairline, honestly whispered',
+    o.weekSub === 'One look, unplanned.', o.weekSub);
+  check('O7 · nothing competes: Lookbook row, services, styled card all stand down',
+    o.snRowHidden === true && o.servicesHidden === true && o.styled === false,
+    JSON.stringify([o.snRowHidden, o.servicesHidden, o.styled]));
   await ctx.close();
 }
 
