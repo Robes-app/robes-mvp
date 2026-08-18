@@ -134,6 +134,14 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       learnCap: document.querySelector('#rb-svc-learn .cap')?.textContent || '',
       learnFill: document.querySelector('#rb-svc-learn .bar i')?.style.width || '',
       secMeta: !!document.querySelector('.services .sec-meta'),
+      bandTint: (() => {
+        const el = document.querySelector('.services');
+        return el ? getComputedStyle(el).backgroundColor : '';
+      })(),
+      dailyImg: document.querySelector('.svc-daily .svc-img img')?.getAttribute('src') || '',
+      filledInBand: Array.from(document.querySelectorAll('.services button, .services .svc-cta, #rb-svc-filed .cta'))
+        .filter((el) => el.offsetParent !== null)
+        .filter((el) => getComputedStyle(el).backgroundColor === 'rgb(32, 32, 33)').length,
       pill: document.querySelector('.services .rb-lock-pill')?.textContent || '',
       // Card captions — the specific version of "filing buys quality"
       notes: Array.from(document.querySelectorAll('.services-grid .svc')).map((c) => ({
@@ -193,21 +201,21 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
         && new RegExp(`^${n}\\s*pieces? filed$`, 'i').test(state.learnN.trim())
         && state.secMeta === false,
       JSON.stringify([state.learnEy, state.learnN, state.secMeta]));
-    check(`n=${n} · the meter's one job is the borrowed-piece promise`,
-      state.learnCap === 'Every piece you file replaces a borrowed one in the looks below.',
-      state.learnCap);
-    const pts = [[0, 0], [3, 15], [10, 50], [15, 78], [20, 100]];
-    const want = (() => {
-      for (let i = 1; i < pts.length; i++) {
-        if (n <= pts[i][0]) {
-          const a = pts[i - 1], b = pts[i];
-          return a[1] + ((n - a[0]) / (b[0] - a[0])) * (b[1] - a[1]);
-        }
-      }
-      return 100;
-    })();
-    check(`n=${n} · meter fill ${want.toFixed(1)}%`,
+    // 4a: no caption line under the meter — the eyebrow, rail and count
+    // carry the header; the card captions carry the borrowed-piece claim.
+    check(`n=${n} · no title or caption line on the band header`,
+      state.learnCap === '', state.learnCap);
+    // R6: fill = min(pieces / 15, 1) — linear, the milestone curve retired.
+    const want = Math.min(100, (n / 15) * 100);
+    check(`n=${n} · meter fill ${want.toFixed(1)}% (linear)`,
       Math.abs(parseFloat(state.learnFill) - want) < 0.6, `got ${state.learnFill}`);
+    // The tinted band (4a): #F2EEE7, exactly one per screen, and no filled
+    // dark button inside it (R3 — the prompt keeps the only one).
+    check(`n=${n} · the concierge is the tinted band, no filled button inside`,
+      state.bandTint === 'rgb(242, 238, 231)' && state.filledInBand === 0,
+      JSON.stringify([state.bandTint, state.filledInBand]));
+    check(`n=${n} · the cards carry the look photography`,
+      /looks\/look1\.jpg/.test(state.dailyImg), state.dailyImg);
     check(`n=${n} · no denominator, no lock language anywhere on the module`,
       !/\/\s*\d|of 15|unlock|lock/i.test(state.learnN + ' ' + state.learnCap
         + ' ' + state.notes.map((x) => x.note).join(' ')),

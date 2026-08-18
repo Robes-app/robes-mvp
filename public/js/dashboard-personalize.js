@@ -909,10 +909,29 @@
       // meter and all. Data-driven, so it never comes back while the rows
       // stand. Nothing takes its place: the actions live permanently
       // elsewhere, so home gets shorter rather than backfilled.
+      // R5: GENERATED counts — a save is not required. The daily look defers
+      // its save (2026-08-13), so generation is flagged per user the moment
+      // a fresh result renders; saved rows still count (they also carry the
+      // fact across devices, which the local flag cannot).
+      function _rbSvcFlags() {
+        try { const u = _waUid(); return u ? JSON.parse(localStorage.getItem('rb_svc_done__' + u) || '{}') : {}; } catch (_) { return {}; }
+      }
+      function _rbSvcComplete(kind) {
+        try {
+          const u = _waUid(); if (!u) return;
+          const f = _rbSvcFlags();
+          if (f[kind]) return;
+          f[kind] = true;
+          localStorage.setItem('rb_svc_done__' + u, JSON.stringify(f));
+          // The retirement fires on the next home sync, not mid-render.
+        } catch (_) {}
+      }
       function _rbConciergeDone() {
         try {
+          const f = _rbSvcFlags();
           const t = (typeof snLoad === 'function' ? snLoad() : []).map(i => i && i.type);
-          return t.indexOf('daily-look') > -1 && t.indexOf('travel-edit') > -1;
+          return (f.daily || t.indexOf('daily-look') > -1)
+            && (f.travel || t.indexOf('travel-edit') > -1);
         } catch (_) { return false; }
       }
       window.__rbSvcAll = function() { if (window.App && App.showWardrobe) App.showWardrobe(); };
@@ -930,31 +949,63 @@
           const st = document.createElement('style');
           st.id = 'rb-svc-style';
           st.textContent =
-            '.services .sec-head{align-items:flex-start}' +
-            '#rb-svc-learn{margin-left:auto;max-width:300px}' +
-            '#rb-svc-learn .t{display:flex;align-items:baseline;justify-content:space-between;gap:16px}' +
-            '#rb-svc-learn .ey{font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--rose,#8E7077);white-space:nowrap}' +
-            '#rb-svc-learn .n{font-size:11px;color:var(--ink-soft,#55524E);white-space:nowrap}' +
-            '#rb-svc-learn .bar{height:2px;border-radius:2px;background:var(--cream-200,#EDE9E2);margin:7px 0;overflow:hidden}' +
-            '#rb-svc-learn .bar i{display:block;height:100%;background:var(--ink,#202021);opacity:.7;transition:width .65s cubic-bezier(0.4,0,0.2,1)}' +
-            '#rb-svc-learn .cap{font-size:11px;line-height:1.5;color:var(--ink-faint,#9C9891)}' +
-            '.rb-svc-note{font-size:11.5px;color:var(--ink-faint,#9C9891);line-height:1.4;margin:9px 0 0;padding-top:9px;border-top:0.5px solid var(--rule,rgba(32,32,33,0.08))}' +
-            '#rb-svc-filed{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:20px;padding-top:18px;border-top:0.5px solid var(--rule-mid,rgba(32,32,33,0.14))}' +
-            '#rb-svc-filed .th{flex:none;width:42px;height:54px;border-radius:6px;overflow:hidden;background:var(--cream-200,#EDE9E2)}' +
+            // ── The tinted band (4a): full-bleed within the shell frame —
+            // negative gutters mirror .dash's own padding at each
+            // breakpoint, so the inner content stays on the page grid.
+            // Exactly ONE band per screen; #F2EEE7 with #E1DACB as its
+            // hairline (cream-300 disappears against the tint).
+            '.services{--rb-bleed:var(--s6,80px);margin:6px calc(var(--rb-bleed) * -1) 48px;padding:48px var(--rb-bleed);background:#F2EEE7;border-top:1px solid var(--rule,#E7E0CF);border-bottom:1px solid var(--rule,#E7E0CF)}' +
+            'body[data-density="compact"] .services{--rb-bleed:36px}' +
+            '@media(max-width:920px){.services{--rb-bleed:26px;padding-top:36px;padding-bottom:36px}}' +
+            '@media(max-width:560px){.services{--rb-bleed:20px;padding-top:32px;padding-bottom:32px}}' +
+            // R1 header on the band: eyebrow ink, the meter beside it, one
+            // hairline under the pair. No title line.
+            '.services .sec-head{align-items:baseline;flex-wrap:wrap;row-gap:10px;padding-bottom:14px;border-bottom:1px solid var(--rule-mid,#D8CFC0);margin-bottom:24px}' +
+            '.services .sec-ey{font-weight:400;color:var(--ink,#202021)}' +
+            '#rb-svc-learn{margin-left:auto;display:flex;align-items:center;gap:14px}' +
+            '#rb-svc-learn .ey{font-size:10px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A9082);white-space:nowrap}' +
+            // R6: linear fill, and the rail never animates in place.
+            '#rb-svc-learn .bar{width:96px;height:2px;background:#E1DACB;overflow:hidden}' +
+            '#rb-svc-learn .bar i{display:block;height:100%;background:var(--ink,#202021)}' +
+            '#rb-svc-learn .n{font-size:11px;font-weight:300;color:var(--ink-soft,#6E665C);white-space:nowrap}' +
+            '#rb-svc-learn .n b{font-weight:400;color:var(--ink,#202021)}' +
+            // Cards on the band (4a): white, 4px, 160px photography with a
+            // quiet serif ordinal; status caption over its own hairline;
+            // text CTA only — never a filled button (R3).
+            '.services .svc{border:1px solid var(--rule,#E7E0CF);border-radius:4px}' +
+            '.services .svc:hover{border-color:var(--rule-mid,#D8CFC0)}' +
+            '.services .svc-img{aspect-ratio:auto;height:160px}' +
+            '.services .svc-num{top:10px;left:12px;font-size:15px;color:rgba(250,248,245,0.86);text-shadow:0 1px 8px rgba(32,32,33,0.35)}' +
+            '.services .svc-body{padding:20px;gap:11px}' +
+            '.services .svc-title{font-size:22px;margin-bottom:0}' +
+            '.services .svc-desc{font-size:12px;line-height:1.65;margin-bottom:0}' +
+            '.services .svc-cta{gap:8px;font-size:10px;letter-spacing:.2em}' +
+            '.services .svc-cta svg{width:15px;height:15px;stroke-width:1.4}' +
+            '.rb-svc-note{font-size:11px;font-weight:300;color:var(--ink-faint,#9A9082);line-height:1.4;margin:0 0 11px;padding-bottom:11px;border-bottom:1px solid var(--cream-200,#EFE9DC)}' +
+            // The filed-piece row (R4): a receipt, not a wardrobe.
+            '#rb-svc-filed{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:24px;padding-top:22px;border-top:1px solid var(--rule-mid,#D8CFC0)}' +
+            '#rb-svc-filed .th{flex:none;width:40px;height:50px;border-radius:2px;border:1px solid #E1DACB;overflow:hidden;background:var(--cream-100,#F5F0E8)}' +
             '#rb-svc-filed .th img{width:100%;height:100%;object-fit:cover;display:block}' +
-            '#rb-svc-filed .th .mono{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-size:18px;color:var(--ink-faint,#9C9891)}' +
+            '#rb-svc-filed .th .mono{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-size:17px;color:var(--ink-faint,#9A9082)}' +
             '#rb-svc-filed .txt{display:flex;flex-direction:column;gap:3px;min-width:0}' +
-            '#rb-svc-filed .nm{font-size:13px;color:var(--ink,#202021)}' +
-            '#rb-svc-filed .meta{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint,#9C9891)}' +
-            '#rb-svc-filed .all{background:none;border:none;border-left:0.5px solid var(--rule-mid,rgba(32,32,33,0.14));padding:4px 0 4px 16px;margin-left:4px;font-family:inherit;font-size:12px;color:var(--ink-soft,#55524E);cursor:pointer;text-align:left}' +
-            '#rb-svc-filed .all span{color:var(--ink,#202021);border-bottom:0.5px solid rgba(32,32,33,0.3);margin-left:6px}' +
+            '#rb-svc-filed .nm{font-size:12px;font-weight:400;color:var(--ink,#202021)}' +
+            '#rb-svc-filed .meta{font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#9A9082)}' +
+            '#rb-svc-filed .all{background:none;border:none;border-left:1px solid var(--rule-mid,#D8CFC0);padding:4px 0 4px 14px;margin-left:0;font-family:inherit;font-size:12px;font-weight:300;color:var(--ink-soft,#6E665C);cursor:pointer;text-align:left}' +
+            '#rb-svc-filed .all span{color:var(--ink,#202021);margin-left:6px}' +
             '#rb-svc-filed .sp{flex:1}' +
-            '#rb-svc-filed .note{font-size:12px;color:var(--ink-soft,#55524E);white-space:nowrap}' +
-            '#rb-svc-filed .cta{flex:none;padding:11px 20px;border:0.5px solid rgba(32,32,33,0.25);border-radius:100px;background:#fff;font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink,#202021);cursor:pointer}' +
-            '#rb-svc-filed .cta:hover{border-color:var(--ink,#202021)}' +
-            '@media(max-width:767px){.services .sec-head{flex-direction:column;gap:12px}' +
-              '#rb-svc-learn{margin-left:0;max-width:none;width:100%}' +
-              '#rb-svc-filed .note{display:none}#rb-svc-filed .cta{flex:1;min-height:44px}}';
+            '#rb-svc-filed .note{font-size:12px;font-weight:300;color:var(--ink-faint,#9A9082);white-space:nowrap}' +
+            '#rb-svc-filed .cta{flex:none;padding:16px 28px;border:1px solid var(--rule-mid,#D8CFC0);border-radius:2px;background:transparent;font-family:inherit;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink,#202021);cursor:pointer;transition:all .2s}' +
+            '#rb-svc-filed .cta:hover{border-color:var(--ink,#202021);background:rgba(32,32,33,0.02)}' +
+            // R1 — one header rule for every section on home: eyebrow left,
+            // its one action right, a hairline under the pair.
+            '#rb-rail .rb-rail-head{padding-bottom:14px;border-bottom:1px solid var(--rule,#E7E0CF);margin-bottom:16px}' +
+            '#rb-rail .rb-rail-ey{font-weight:400;letter-spacing:.24em;color:var(--ink-faint,#9A9082)}' +
+            '#rb-sn .rb-sec-head,#rb-insp-row .rb-sec-head{padding-bottom:14px;border-bottom:1px solid var(--rule,#E7E0CF)}' +
+            '#rb-sn .rb-sec-ey,#rb-insp-row .rb-sec-ey{font-weight:400;letter-spacing:.24em;color:var(--ink-faint,#9A9082)}' +
+            '@media(max-width:767px){' +
+              '.services .sec-head{flex-direction:column;align-items:stretch}' +
+              '#rb-svc-learn{margin-left:0}#rb-svc-learn .bar{flex:1;width:auto}' +
+              '#rb-svc-filed .note{display:none}#rb-svc-filed .cta{flex:1 1 100%;min-height:48px;text-align:center}}';
           document.head.appendChild(st);
         }
         // Header: the eyebrow and the meter carry it — the static
@@ -969,12 +1020,12 @@
             learn.id = 'rb-svc-learn';
             head.appendChild(learn);
           }
-          const pct = Math.min(100, typeof _msFillPct === 'function' ? _msFillPct(n) : n);
-          // Bare count, never a denominator (learning-meter rule holds here)
-          learn.innerHTML = '<div class="t"><span class="ey">Robes is learning</span>' +
-            '<span class="n">' + n + ' piece' + (n === 1 ? '' : 's') + ' filed</span></div>' +
-            '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
-            '<div class="cap">Every piece you file replaces a borrowed one in the looks below.</div>';
+          // R6: fill = min(pieces / 15, 1) — the milestone ladder described
+          // gates, and there are none. Bare count, never a denominator.
+          const pct = Math.min(100, Math.round((n / _WA_TARGET) * 1000) / 10);
+          learn.innerHTML = '<span class="ey">Robes is learning</span>' +
+            '<span class="bar"><i style="width:' + pct + '%"></i></span>' +
+            '<span class="n"><b>' + n + '</b> piece' + (n === 1 ? '' : 's') + ' filed</span>';
         }
         // The filed-piece row — a receipt, not a wardrobe: one thumbnail,
         // fixed height, the CTA never pushed off the row.
@@ -993,7 +1044,7 @@
             '<span class="meta">' + _waEsc(it.category || 'Piece') + ' · ' + (n === 1 ? 'Your first filed piece' : 'Last filed') + '</span></span>'
           : '';
         const all = n >= 2
-          ? '<button type="button" class="all" onclick="window.__rbSvcAll()">' + n + ' pieces in your wardrobe<span>See all →</span></button>'
+          ? '<button type="button" class="all" onclick="window.__rbSvcAll()">' + n + ' pieces in your wardrobe ·<span>See all →</span></button>'
           : '';
         row.innerHTML = receipt + all + '<span class="sp"></span>' +
           '<span class="note">One photo files four pieces.</span>' +
@@ -5191,9 +5242,11 @@
             if (kpTitle) kpTitle.textContent = 'Daily outfit';
             const kpDesc = keyPiece.querySelector('.svc-desc');
             if (kpDesc) kpDesc.textContent = 'A fresh look styled from your wardrobe each morning, synced to the forecast.';
+            // 4a: the three cards carry the repo's own look photography —
+            // the calendar/suitcase illustrations retired with the redesign.
+            const kpImg = keyPiece.querySelector('.svc-img img');
+            if (kpImg) { kpImg.src = '/images/looks/look1.jpg'; kpImg.style.objectPosition = '50% 22%'; }
 
-            // Calendar illustration for the Weekly Planner promo card
-            const calSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" width="400" height="280"><rect width="400" height="280" fill="%23F5F1EB"/><g fill="none" stroke="%23D4C8B8" stroke-width="0.8"><line x1="57" y1="40" x2="57" y2="260"/><line x1="114" y1="40" x2="114" y2="260"/><line x1="171" y1="40" x2="171" y2="260"/><line x1="228" y1="40" x2="228" y2="260"/><line x1="285" y1="40" x2="285" y2="260"/><line x1="342" y1="40" x2="342" y2="260"/><line x1="28" y1="80" x2="372" y2="80"/><line x1="28" y1="140" x2="372" y2="140"/><line x1="28" y1="200" x2="372" y2="200"/><line x1="28" y1="40" x2="372" y2="40"/><line x1="28" y1="260" x2="372" y2="260"/><line x1="28" y1="40" x2="28" y2="260"/><line x1="372" y1="40" x2="372" y2="260"/></g><g font-family="Georgia,serif" font-size="11" fill="%23B0A090" text-anchor="middle"><text x="42" y="30">M</text><text x="85" y="30">T</text><text x="142" y="30">W</text><text x="199" y="30">T</text><text x="256" y="30">F</text><text x="313" y="30">S</text><text x="357" y="30">S</text></g><g font-family="Georgia,serif" font-size="10" fill="%23C8B8A8" text-anchor="middle"><text x="42" y="58">14</text><text x="99" y="58">15</text><text x="156" y="58">16</text><text x="213" y="58">17</text><text x="270" y="58">18</text><text x="327" y="58">19</text><text x="357" y="58">20</text></g><rect x="31" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.9"/><rect x="4" y="86" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="86" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="231" y="66" width="50" height="104" rx="4" fill="%23E8DEDD" opacity="0.85"/><rect x="227" y="66" width="3" height="104" rx="1.5" fill="%23789060"/><rect x="88" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="84" y="146" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="174" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="170" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="345" y="146" width="22" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="341" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="206" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="288" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="284" y="206" width="3" height="44" rx="1.5" fill="%23A89878"/></svg>`;
 
             // Weekly Planner is promotional only: illustration + copy stay,
             // the CTA reads "Coming soon" and the tap opens the standard
@@ -5207,17 +5260,15 @@
               if (window.KP && KP.comingSoon) KP.comingSoon('Week planning,<br><em>coming soon.</em>', 'Planning your week is moving into the diary — you’ll dress any day from its own chip, right on your dashboard.');
             };
             const weeklyImg = weekly.querySelector('.svc-img img');
-            if (weeklyImg) weeklyImg.src = calSvg;
+            if (weeklyImg) { weeklyImg.src = '/images/looks/look2.jpg'; weeklyImg.style.objectPosition = '50% 20%'; }
             const wkDesc = weekly.querySelector('.svc-desc');
             if (wkDesc) wkDesc.textContent = 'Your week mapped day by day — every outfit routed through your own wardrobe, no repeats.';
             const wkCta = weekly.querySelector('.svc-cta');
             if (wkCta) wkCta.textContent = 'Coming soon';
 
-            // Premium suitcase illustration for Travel Edit
-            const suitSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280"><rect width="400" height="280" fill="%23EEE8E4"/><rect x="62" y="62" width="276" height="178" rx="22" fill="%23E8E0D6" stroke="%23C8BAB0" stroke-width="1.4"/><rect x="74" y="74" width="252" height="154" rx="16" fill="%23E2D8CE" stroke="%23C0B4A8" stroke-width="0.7"/><path d="M168 62 C168 38 232 38 232 62" fill="none" stroke="%23C0B0A6" stroke-width="2" stroke-linecap="round"/><rect x="158" y="56" width="14" height="10" rx="4" fill="%23D0C4BA"/><rect x="228" y="56" width="14" height="10" rx="4" fill="%23D0C4BA"/><rect x="62" y="62" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="328" y="62" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="62" y="230" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="328" y="230" width="10" height="10" rx="3" fill="%23D4C8BC"/><line x1="74" y1="156" x2="326" y2="156" stroke="%23C0B4A8" stroke-width="0.8"/><rect x="186" y="150" width="28" height="12" rx="5" fill="%23D8CCBF" stroke="%23C0B0A4" stroke-width="1"/><rect x="192" y="154" width="16" height="5" rx="2" fill="%23C8BBB0"/><rect x="86" y="84" width="110" height="62" rx="10" fill="%23DDD4C8" stroke="%23C4B8AC" stroke-width="0.8"/><line x1="98" y1="99" x2="184" y2="99" stroke="%23C8BCAF" stroke-width="0.9"/><line x1="98" y1="112" x2="178" y2="112" stroke="%23C8BCAF" stroke-width="0.7"/><line x1="98" y1="124" x2="170" y2="124" stroke="%23C8BCAF" stroke-width="0.6" opacity="0.7"/><rect x="206" y="84" width="110" height="62" rx="10" fill="%23E4DAD0" stroke="%23C4B4A8" stroke-width="0.8"/><ellipse cx="237" cy="105" rx="18" ry="14" fill="%23D8CEBE" stroke="%23C0B2A4" stroke-width="0.9"/><ellipse cx="278" cy="105" rx="18" ry="14" fill="%23D4CAB8" stroke="%23BCAE9E" stroke-width="0.9"/><ellipse cx="257" cy="130" rx="18" ry="14" fill="%23DCD2C0" stroke="%23C0B2A4" stroke-width="0.9"/><ellipse cx="237" cy="105" rx="7" ry="5" fill="none" stroke="%23C8BAA8" stroke-width="0.7"/><ellipse cx="278" cy="105" rx="7" ry="5" fill="none" stroke="%23C0B2A0" stroke-width="0.7"/><rect x="86" y="164" width="52" height="58" rx="10" fill="%23DAD0C4" stroke="%23C4B8AC" stroke-width="0.8"/><path d="M96 202 Q108 192 126 196 Q130 197 130 202" fill="none" stroke="%23C0B4A8" stroke-width="1.1" stroke-linecap="round"/><rect x="148" y="164" width="58" height="58" rx="10" fill="%23D8CEC2" stroke="%23C0B4A8" stroke-width="0.8"/><line x1="160" y1="184" x2="194" y2="184" stroke="%23C4B8AC" stroke-width="0.9"/><line x1="160" y1="196" x2="188" y2="196" stroke="%23C4B8AC" stroke-width="0.7"/><rect x="216" y="164" width="100" height="58" rx="10" fill="%23E0D6CA" stroke="%23C8BCAE" stroke-width="0.8"/><rect x="228" y="177" width="36" height="32" rx="6" fill="%23D4CAB8" stroke="%23C0B4A4" stroke-width="0.8"/><rect x="272" y="177" width="32" height="32" rx="6" fill="%23D0C6B4" stroke="%23BCAE9E" stroke-width="0.8"/></svg>`;
 
             const travelImg = travel.querySelector('.svc-img img');
-            if (travelImg) travelImg.src = suitSvg;
+            if (travelImg) { travelImg.src = '/images/looks/look3.jpg'; travelImg.style.objectPosition = '50% 20%'; }
 
             // Travel Edit is live — replace the bundle's comingSoon with the
             // capsule packing brief modal
@@ -12309,6 +12360,9 @@
           _waShowToast('Could not build today’s look — please try again');
           return;
         }
+        // A fresh generation completes the concierge's Daily card (R5) —
+        // reopens pass skipSave and never count.
+        if (!opts || !opts.skipSave) { try { _rbSvcComplete('daily'); } catch (_) {} }
         _dlStopPolling();
         window.__lastDlData = data;
         window.__lastDlPrompt = promptText || data.prompt || '';
@@ -14585,6 +14639,7 @@ body>*:not(#tv-result-page){display:none !important}
           _waShowToast('Could not build this trip — please try again');
           return;
         }
+        if (!opts || !opts.skipSave) { try { _rbSvcComplete('travel'); } catch (_) {} }
         _tvMigrate(data);
         _tvStopPolling();
         _tvSelected = null;
