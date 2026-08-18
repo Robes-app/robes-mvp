@@ -438,6 +438,24 @@
     window.scrollTo(0, 0);
   }
 
+  // Straight onto the dashboard — the "Welcome in" done screen is retired
+  // (Annie, 2026-08-18: an intermediary screen between filing the piece and
+  // the dashboard added nothing). The done screen's writes move here: the
+  // per-user session flag lands synchronously (the dashboard's onboarding
+  // gate reads it, so the bounce-back can't fire), and the onboarded_at
+  // write gets a capped beat to settle before navigation kills it — the
+  // flag covers this session either way.
+  async function finishToDashboard() {
+    if (!st.doneMarked) {
+      st.doneMarked = true;
+      try { sessionStorage.setItem('rb_onboarded__' + st.uid, '1'); } catch (e) {}
+      try {
+        await Promise.race([save({ onboarded_at: new Date().toISOString() }), new Promise(r => setTimeout(r, 1500))]);
+      } catch (e) {}
+    }
+    window.location.href = '/dashboard';
+  }
+
   function render() {
     if (st.stage === 'splash') return renderSplash();
     if (st.stage === 'intro') return renderIntro();
@@ -934,7 +952,12 @@
           if (cta) { cta.disabled = true; cta.textContent = 'Filing your piece…'; }
           try { await Promise.race([P.savePromise, new Promise(r => setTimeout(r, 1500))]); } catch (e) {}
         }
-        writeHandoff(); go('done'); return;
+        writeHandoff();
+        // No done screen — the dashboard's "Your piece, styled" card is the
+        // arrival moment now.
+        const goCta = document.getElementById('ob-next');
+        if (goCta) { goCta.disabled = true; goCta.textContent = 'Opening your dashboard…'; }
+        finishToDashboard(); return;
       }
       if (!P.img || !P.data) {
         const nudge = document.getElementById('kp-nudge');
@@ -1096,8 +1119,8 @@
     // away the moment a photo lands.
     const skip = document.getElementById('ob-skip');
     skip.onclick = () => {
-      if (P.busy) return; // mid-read skip landed on a lying done screen
-      if (skipArmed) { go('done'); return; }
+      if (P.busy) return; // a mid-read skip would abandon the piece being filed
+      if (skipArmed) { skip.style.pointerEvents = 'none'; finishToDashboard(); return; }
       skipArmed = true;
       skip.textContent = 'Skip anyway — Robes styles only what you add';
     };
@@ -1105,6 +1128,9 @@
   }
 
   /* ── Done ───────────────────────────────────────────────────────── */
+  // UNREACHED since 2026-08-18 (kept, like renderPhotoStep, should the
+  // screen return): finishToDashboard() sends the flow straight from the
+  // key-piece step onto the dashboard — no intermediary "Welcome in".
   function renderDone() {
     if (!st.doneMarked) {
       st.doneMarked = true;

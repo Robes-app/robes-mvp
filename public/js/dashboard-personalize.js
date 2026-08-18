@@ -10558,15 +10558,17 @@
       // ZERO looks (W01/O1): the styled card with its single "See the full
       // looks" CTA, then three hairline index rows — Build your own / Style
       // something / The week ahead — each unfurling its module IN PLACE
-      // (the rack, the prompt, the rail). One open at a time; the rack is
-      // not rendered at all until she asks for it.
+      // (the rack, the prompt, the rail). Rows she opens STAY open — an
+      // unfurl never closes a sibling (Annie, 2026-08-18, superseding the
+      // O1b one-at-a-time note); the rack is not rendered at all until she
+      // asks for it.
       // FIRST look (O7, hero card retired · prompt leads): "Your piece,
       // styled" retires to Inspiration; the prompt takes its place as the
       // one filled button, then "Your looks" — the look she owns, Finish it
       // as the only nudge back into cataloguing, wardrobe progress a
       // CAPTION on that card, never a CTA — and Build your own + The week
       // ahead stay hairlines until a second look (or a planned day) exists.
-      var _rbFtuOpen = null;          // 'build' | 'style' | 'week' | null
+      var _rbFtuOpen = {};            // open rows, key -> true (they stay open together — Annie, 2026-08-18)
       var _rbFtuTouched = false;      // she has opened/closed a row herself
       var _RB_FTU_ECHO = 'What are you dressing for today?';
       function _rbFtuCss() {
@@ -10592,8 +10594,8 @@
           '#rb-ftu-rows #rb-rail{margin:0}' +
           '#rb-ftu-rows #rb-rail .rb-rail-head{display:none}' +
           '#rb-ftu-rows #rb-lkhome{margin:0}' +
-          // The styled card compacts to its header line while a row is open
-          // (O1b: only one thing open at a time).
+          // The styled card compacts to its header line while any row is
+          // open (O1b) — the unfurled module is what she is looking at.
           '#rb-styled.rb-styled-compact #rb-styled-tiles,#rb-styled.rb-styled-compact #rb-styled-foot{display:none!important}' +
           '@media(max-width:767px){.rb-ftu-txt{flex-direction:column;gap:4px}.rb-ftu-ey{width:auto}}' +
           // O7: the prompt-as-card gets its section eyebrow back
@@ -10647,7 +10649,7 @@
             if (conc && el.contains(conc)) dash.appendChild(conc);
             if (rail && el.contains(rail)) dash.appendChild(rail);
             el.remove();
-            _rbFtuOpen = null;
+            _rbFtuOpen = {};
             if (echo) echo.textContent = _RB_FTU_ECHO;
           }
           if (concEy) concEy.remove();
@@ -10662,7 +10664,8 @@
           if (conc && el.contains(conc)) dash.appendChild(conc);
           if (rail && el.contains(rail)) dash.appendChild(rail);
           el.remove(); el = null;
-          if (_rbFtuOpen === 'style') _rbFtuOpen = null;
+          // A mode flip starts the new row set closed (O7's hairlines).
+          _rbFtuOpen = {};
         }
         if (!el) {
           el = document.createElement('section');
@@ -10687,8 +10690,8 @@
         // card retiring after she has seen the looks). With the card
         // present every row starts closed: "See the full looks" is the one
         // CTA on the screen. Never overrides a state she set herself.
-        if (mode === 'zero' && !_rbFtuTouched && _rbFtuOpen == null
-          && !document.getElementById('rb-styled')) _rbFtuOpen = 'style';
+        if (mode === 'zero' && !_rbFtuTouched && !Object.keys(_rbFtuOpen).length
+          && !document.getElementById('rb-styled')) _rbFtuOpen.style = true;
         // Where the demoted modules live: the rail always inside its row;
         // the prompt inside its row at zero, OUT as the leading card once
         // the first look exists (O7 — the prompt is the one filled button).
@@ -10721,7 +10724,7 @@
         const body = document.getElementById('rb-ftu-body-build');
         const page = document.getElementById('sn-page');
         const pageOpen = !!page && page.style.display !== 'none';
-        const want = body && _rbFtuOpen === 'build' && !pageOpen;
+        const want = body && _rbFtuOpen.build && !pageOpen;
         let el = document.getElementById('rb-lkhome');
         if (!want) { if (el) el.remove(); return; }
         if (!el) {
@@ -10736,20 +10739,20 @@
         if (!rows) return;
         Array.from(rows.querySelectorAll('.rb-ftu-row')).forEach(row => {
           const key = (row.id || '').replace('rb-ftu-row-', '');
-          const open = _rbFtuOpen === key;
+          const open = !!_rbFtuOpen[key];
           row.classList.toggle('open', open);
           const arrow = row.querySelector('.rb-ftu-arrow');
           if (arrow) arrow.textContent = open ? '↑' : '→';
         });
         _rbFtuRackSync();
-        // The styled card collapses to its one-line header while a row is
-        // open, so only one thing is open at a time (O1b).
+        // The styled card collapses to its one-line header while any row
+        // is open (O1b) — the hero yields to whatever she unfurled.
         const styled = document.getElementById('rb-styled');
-        if (styled) styled.classList.toggle('rb-styled-compact', !!_rbFtuOpen);
+        if (styled) styled.classList.toggle('rb-styled-compact', Object.keys(_rbFtuOpen).length > 0);
       }
       window.__rbFtuToggle = function(key) {
-        const opening = _rbFtuOpen !== key;
-        _rbFtuOpen = opening ? key : null;
+        const opening = !_rbFtuOpen[key];
+        if (opening) _rbFtuOpen[key] = true; else delete _rbFtuOpen[key];
         _rbFtuTouched = true;
         _rbFtuPaint();
         if (opening) {
@@ -10769,8 +10772,8 @@
       function _rbFtuRevealPrompt() {
         // Only the zero state keeps the prompt behind a row — once the
         // first look exists the prompt already leads the page as a card.
-        if (!document.getElementById('rb-ftu-row-style') || _rbFtuOpen === 'style') return;
-        _rbFtuOpen = 'style';
+        if (!document.getElementById('rb-ftu-row-style') || _rbFtuOpen.style) return;
+        _rbFtuOpen.style = true;
         _rbFtuPaint();
       }
 
@@ -16270,10 +16273,12 @@ body>*:not(#tv-result-page){display:none !important}
       function _rbRenderInspRow() {
         const el = document.getElementById('rb-insp-row');
         if (!el) return;
-        // FTU simplification (2026-08-18): while the index rows carry home
-        // the styled piece is the hero card (zero looks) or has retired to
-        // the Inspiration tab (first look) — never a second row here.
-        if (document.getElementById('rb-ftu-rows')) {
+        // FTU simplification (2026-08-18, second pass — Annie: a saved key
+        // piece must appear under Inspiration on home): the row renders in
+        // the FTU states too, standing down only while the styled card is
+        // the hero — the card IS that key piece, and two copies of it on
+        // one screen is the clutter the pass removes.
+        if (document.getElementById('rb-ftu-rows') && document.getElementById('rb-styled')) {
           el.innerHTML = '';
           el.style.display = 'none';
           return;

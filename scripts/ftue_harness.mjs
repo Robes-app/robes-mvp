@@ -444,7 +444,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     JSON.stringify([h.servicesHidden, h.trkHidden, h.snRowHidden, h.wtrkCta]));
   check('ftu rows · the week whisper is honest', h.weekSub === 'Nothing planned yet.', h.weekSub);
 
-  // Build your own unfurls the rack in place — and closes the prompt row
+  // Build your own unfurls the rack in place — and the prompt row STAYS
+  // open beside it (rows never close a sibling, Annie 2026-08-18).
   const b = await page.evaluate(async () => {
     window.__rbFtuToggle('build');
     await new Promise((r) => setTimeout(r, 250));
@@ -464,9 +465,9 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       showMoreHidden: getComputedStyle(el.querySelector('.rb-lkh-showmore')).display === 'none',
     };
   });
-  check('ftu rows · Build your own unfurls the rack in place, one row at a time',
-    JSON.stringify(b.open) === JSON.stringify(['rb-ftu-row-build']) && b.inBuildRow === true
-      && b.arrowBuild === '↑' && b.arrowStyle === '→', JSON.stringify(b));
+  check('ftu rows · Build your own unfurls the rack in place, the prompt row stays open',
+    JSON.stringify(b.open) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-style']) && b.inBuildRow === true
+      && b.arrowBuild === '↑' && b.arrowStyle === '↑', JSON.stringify(b));
   check('ftu rows · four slots, every one of them the camera path',
     b.ghostRows === 4 && b.snapWired === true && b.count === '0 of 4 on the rack',
     JSON.stringify([b.ghostRows, b.snapWired, b.count]));
@@ -475,13 +476,18 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check('ftu rows · exactly one composer in the DOM', b.composers === 1, String(b.composers));
   check('ftu rows · all four slots render on web (no collapse)', b.showMoreHidden === true);
 
-  // The week ahead unfurls the rail — and folds the rack away
+  // The week ahead unfurls the rail — the rack stays open beside it, and a
+  // second tap on a row folds only that row.
   const w = await page.evaluate(async () => {
     window.__rbFtuToggle('week');
     await new Promise((r) => setTimeout(r, 350));
+    const allOpen = Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id);
+    const rackStays = !!document.querySelector('#rb-ftu-body-build #rb-lkhome');
+    window.__rbFtuToggle('style');
+    await new Promise((r) => setTimeout(r, 200));
     return {
-      open: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
-      rackGone: !document.getElementById('rb-lkhome'),
+      allOpen, rackStays,
+      afterFold: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
       railCards: document.querySelectorAll('#rb-ftu-body-week #rb-rail .rb-dc, #rb-ftu-body-week #rb-rail .rb-rc').length,
       railHeadHidden: (() => {
         const hd = document.querySelector('#rb-rail .rb-rail-head');
@@ -489,14 +495,15 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       })(),
     };
   });
-  check('ftu rows · The week ahead unfurls the rail, folding the rack away',
-    JSON.stringify(w.open) === JSON.stringify(['rb-ftu-row-week']) && w.rackGone === true
-      && w.railCards === 7 && w.railHeadHidden === true, JSON.stringify(w));
+  check('ftu rows · The week ahead unfurls the rail alongside the open rack',
+    JSON.stringify(w.allOpen) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-style', 'rb-ftu-row-week'])
+      && w.rackStays === true && w.railCards === 7 && w.railHeadHidden === true, JSON.stringify(w));
+  check('ftu rows · a second tap folds only that row',
+    JSON.stringify(w.afterFold) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-week']),
+    JSON.stringify(w.afterFold));
 
   // The draft is SHARED with the Lookbook composer — never a second copy
   const shared = await page.evaluate(async () => {
-    window.__rbFtuToggle('build');
-    await new Promise((r) => setTimeout(r, 200));
     window.__lkApplyNew('w0');
     await new Promise((r) => setTimeout(r, 200));
     const onHome = document.querySelector('#rb-lkhome .rbc-rack .rbc-name')?.textContent;
@@ -640,6 +647,13 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     s.echo === 'Your first piece is filed.', s.echo);
   check('styled card · every row starts closed — the card is the CTA',
     s.open.length === 0, JSON.stringify(s.open));
+  // The saved key piece IS the hero card — the Inspiration row would be a
+  // second copy of it, so it stands down only while the card is up.
+  const inspWhileCard = await page.evaluate(() =>
+    document.getElementById('rb-insp-row')?.offsetParent === null
+      || !document.getElementById('rb-insp-row')?.textContent.trim());
+  check('styled card · the Inspiration row yields to the hero (one copy of the piece)',
+    inspWhileCard === true, String(inspWhileCard));
 
   // Opening a row compacts the card to its header line (O1b), and the
   // composer's fallback points back at the three looks, never a fresh
@@ -674,6 +688,12 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
         proposals: [{ role: null, chip: 'Bag', cats: ['Bags'], opts: [{ name: 'A bag' }], oi: 0, saved: false, image_url: null }],
         wears: [] },
     ]));
+    // A styled key piece lives on Inspiration — it must surface in the home
+    // Inspiration row here (the styled card has retired, so no duplicate).
+    localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
+      { id: 1754700000000, type: 'key-piece', title: 'Acid green cropped jumper', subtitle: 'Worn three ways',
+        img: null, kpData: { ways: [] } },
+    ]));
   });
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
@@ -698,9 +718,13 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
         || !document.getElementById('rb-sn')?.textContent.trim(),
       servicesHidden: document.querySelector('.services')?.offsetParent === null,
       styled: !!document.getElementById('rb-styled'),
+      inspShown: document.getElementById('rb-insp-row')?.offsetParent !== null
+        && /Acid green cropped jumper/.test(document.getElementById('rb-insp-row')?.textContent || ''),
     };
   });
   check('O7 · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('O7 · a saved key piece surfaces in the home Inspiration row',
+    o.inspShown === true, String(o.inspShown));
   check('O7 · the prompt leads as a card, then Your looks, then the hairlines',
     o.mode === 'look' && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-ftu-rows'])
       && o.concEy === 'Style something' && o.styleRowGone === true, JSON.stringify(o));

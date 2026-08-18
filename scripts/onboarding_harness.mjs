@@ -25,6 +25,10 @@ fs.writeFileSync(TMP, PNG);
 
 const srv = http.createServer((q, r) => {
   const u = q.url.split('?')[0];
+  // A same-origin stub for /dashboard — the straight-to-dashboard section
+  // asserts sessionStorage after navigating there, and a bare 404 gives
+  // Chrome's error page an opaque origin that denies the read.
+  if (u === '/dashboard') { r.writeHead(200, { 'Content-Type': 'text/html' }); return r.end('<!doctype html><title>dash stub</title>'); }
   const f = u === '/onboarding' ? path.join(ROOT, 'onboarding.html') : path.join(ROOT, u);
   if (fs.existsSync(f) && fs.statSync(f).isFile()) { r.writeHead(200); return r.end(fs.readFileSync(f)); }
   r.writeHead(404); r.end('');
@@ -140,6 +144,40 @@ console.log('\n\x1b[1m== unreadable piece ==\x1b[0m');
   await p.waitForTimeout(1400);
   ok(await skip.isVisible(), 'skip RETURNS when an unreadable photo clears itself');
   ok((await skip.innerText()).trim() === 'Skip for now', 'and it returns DISARMED');
+  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+
+// The "Welcome in" done screen is retired (2026-08-18): filing the piece
+// goes STRAIGHT onto the dashboard, and so does a deliberate double skip —
+// with the per-user onboarded flag landing before navigation either way.
+console.log('\n\x1b[1m== straight to the dashboard ==\x1b[0m');
+{
+  const { ctx, p, errs } = await open({ width: 1280, height: 900 });
+  await p.click('#ob-next'); await p.waitForTimeout(500);       // -> step 02
+  await p.setInputFiles('#kp-file', TMP); await p.waitForTimeout(2600);
+  let sawDone = false;
+  const watch = setInterval(() => { p.evaluate(() => !!document.querySelector('.done-screen')).then(v => { if (v) sawDone = true; }).catch(() => {}); }, 60);
+  await p.click('#ob-next');
+  await p.waitForURL('**/dashboard', { timeout: 6000 }).catch(() => {});
+  clearInterval(watch);
+  ok(p.url().endsWith('/dashboard'), 'filing the piece lands on /dashboard');
+  ok(sawDone === false, 'no intermediary "Welcome in" screen on the way');
+  const flag = await p.evaluate(() => sessionStorage.getItem('rb_onboarded__u1'));
+  ok(flag === '1', 'the per-user onboarded flag landed before navigation');
+  const piece = await p.evaluate(() => sessionStorage.getItem('rb_onboard_piece'));
+  ok(!!piece && /Cream blazer/.test(piece), 'the handoff payload rides along');
+  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+{
+  const { ctx, p, errs } = await open({ width: 1280, height: 900 });
+  await p.click('#ob-next'); await p.waitForTimeout(500);       // -> step 02
+  const skip = p.locator('#ob-skip');
+  await skip.click(); await p.waitForTimeout(120);              // arm
+  await skip.click();                                           // skip anyway
+  await p.waitForURL('**/dashboard', { timeout: 6000 }).catch(() => {});
+  ok(p.url().endsWith('/dashboard'), 'a deliberate double skip lands on /dashboard');
   ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
   await ctx.close();
 }
