@@ -4589,7 +4589,7 @@
       snPage.innerHTML = `
         <div style="padding:32px var(--s6,24px) 24px;max-width:var(--shell,1440px);margin:0 auto;box-sizing:border-box">
           <div id="sn-headrow" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 16px">
-            <p id="sn-eyebrow" style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0">Lookbook</p>
+            <p id="sn-eyebrow" style="font-size:10px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A9082);margin:0">Lookbook</p>
           </div>
           <div id="sn-grid" style="display:none;gap:20px"></div>
           <div id="sn-empty" style="display:none;padding:80px 0;text-align:center">
@@ -7260,6 +7260,13 @@
 .rb-lk-tile{cursor:pointer;text-align:left;font-family:inherit}
 .rb-lk-mos{position:relative;aspect-ratio:3/4;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1px;background:var(--rule-mid);border-radius:var(--rad);overflow:hidden}
 .rb-lk-mos.lt-hero{aspect-ratio:1/1;border-radius:var(--rad-card)}
+/* The mosaic fills, always (Lookbook redesign 2026-08-18): the piece count
+   decides how the square divides — one piece is the whole frame, two are
+   two full-height tiles, three are one plus two stacked, four+ a quartet.
+   No empty half, and no tile is ever letterboxed. */
+.rb-lk-mos.n1{grid-template-columns:1fr;grid-template-rows:1fr}
+.rb-lk-mos.n2{grid-template-columns:1fr 1fr;grid-template-rows:1fr}
+.rb-lk-mos.n3 i:first-child{grid-row:span 2}
 .rb-lk-mos i{display:block;background-size:cover;background-position:center;background-color:var(--cream-200);transition:transform .4s var(--ease)}
 .rb-lk-mos i.e{background-color:var(--cream-100)}
 .rb-lk-tile:hover .rb-lk-mos i{transform:scale(1.03)}
@@ -7268,17 +7275,18 @@
 .lt-title{font-family:var(--font-serif);font-weight:400;font-size:19px;line-height:1.15;color:var(--ink)}
 .lt-title.prov{font-style:italic;color:var(--ink-soft)}
 .lt-meta{font-size:10.5px;color:var(--ink-faint);margin-top:3px}
-.lt-ey{display:block;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px}
+.lt-ey{display:block;font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px}
 .lt-vibe{display:inline-block;margin-top:6px;padding:4px 11px;border-radius:100px;background:var(--rose-bg);color:var(--ink);font-size:10px;line-height:1.4}
-/* The card dress (cohesion pass 2026-08-08): the same white-card chrome
-   the lookbook's item shelves wear, so every object the Lookbook holds —
-   a Look, a key piece styled, a daily look, a travel edit — reads as one
-   family. The mosaic yields its own radius inside the card. */
-.lt-card{background:#fff;border-radius:var(--rad);overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08)}
-.lt-card .rb-lk-mos{border-radius:0}
-.lt-card .lt-info{padding:13px 16px 15px}
-.lt-card .lt-title{font-size:17px;font-weight:300;line-height:1.3}
-@media(max-width:767px){.lt-title{font-size:17px}}`;
+/* The card dress (Lookbook redesign 2026-08-18, "one column width, one
+   mosaic"): white on cream, 1px rule, 3px corners, shadow-free — and the
+   image area is SQUARE inside the card, so nothing is letterboxed. */
+.lt-card{background:#fff;border:1px solid var(--rule,#E7E0CF);border-radius:3px;overflow:hidden;transition:border-color .2s}
+.lt-card:hover{border-color:var(--rule-mid,#D8CFC0)}
+.lt-card .rb-lk-mos{border-radius:0;aspect-ratio:1/1}
+.lt-card .lt-info{padding:14px 18px 18px}
+.lt-card .lt-title{font-size:22px;font-weight:400;line-height:1.15}
+.lt-card .lt-meta{font-size:11px;font-weight:300;margin-top:4px}
+@media(max-width:767px){.lt-title{font-size:17px}.lt-card .lt-title{font-size:19px}}`;
       function _ltEnsureCss() {
         if (document.getElementById('rb-lt-style')) return;
         const st = document.createElement('style');
@@ -7339,13 +7347,20 @@
       function _ltMosaicHtml(cells, opts) {
         _ltEnsureCss();
         opts = opts || {};
-        const cls = 'rb-lk-mos' + (opts.hero ? ' lt-hero' : '');
         if (opts.photo) {
-          return `<div class="${cls}"><img class="lt-photo" src="${_waEsc(opts.photo)}" alt="${_waEsc(opts.alt || 'This look')}" loading="lazy"></div>`;
+          const cls0 = 'rb-lk-mos' + (opts.hero ? ' lt-hero' : '');
+          return `<div class="${cls0}"><img class="lt-photo" src="${_waEsc(opts.photo)}" alt="${_waEsc(opts.alt || 'This look')}" loading="lazy"></div>`;
         }
+        // The mosaic fills, always: 1–3 pieces subdivide the frame whole
+        // (n1/n2/n3), four or more take the quartet. Zero pieces keep the
+        // quartet of empties (the legacy no-data state).
+        const live = (cells || []).filter(Boolean);
+        const shape = live.length === 1 ? ' n1' : live.length === 2 ? ' n2' : live.length === 3 ? ' n3' : '';
+        const cls = 'rb-lk-mos' + shape + (opts.hero ? ' lt-hero' : '');
+        const slots = live.length >= 1 && live.length <= 3 ? live.length : 4;
         let inner = '';
-        for (let i = 0; i < 4; i++) {
-          const c = (cells || [])[i];
+        for (let i = 0; i < slots; i++) {
+          const c = live[i];
           if (!c) { inner += `<i class="e"></i>`; continue; }
           inner += c.url
             ? `<i style="background-image:url('${_waEsc(c.url)}')" title="${_waEsc(c.name)}"></i>`
@@ -8636,30 +8651,34 @@
 #rb-lk-bar{display:flex;align-items:center;gap:12px;margin:0 0 18px;flex-wrap:wrap}
 #rb-lk-hol{display:none;margin:0 0 26px}
 #rb-lk-allhead{display:none}
-.rb-lk-statline{font-family:var(--font-serif);font-style:italic;font-size:14px;color:var(--ink-faint)}
-.rb-lk-allrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.rb-lk-statline{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:17px;color:var(--ink-soft)}
+.rb-lk-allrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid var(--rule)}
 #rb-lk-allhead .rb-lk-refwrap{margin:0 0 16px}
-.rb-lk-holrow{display:flex;gap:14px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
+.rb-lk-holrow{display:flex;gap:20px;overflow-x:auto;margin:0 calc(var(--s6,24px) * -1);padding:2px var(--s6,24px) 8px;scrollbar-width:none}
+.rb-lk-shead{display:flex;align-items:baseline;justify-content:space-between;gap:20px;margin:4px 0 14px;padding-bottom:10px;border-bottom:1px solid var(--rule)}
+.rb-lk-shead .hcount{font-size:11px;font-weight:300;color:var(--ink-faint);white-space:nowrap}
 .rb-lk-holrow::-webkit-scrollbar{width:0;height:0}
-.rb-lk-holcard{flex:none;width:236px;display:flex;flex-direction:column;background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad);overflow:hidden;cursor:pointer;font-family:inherit;text-align:left;padding:0;transition:border-color .15s}
-.rb-lk-holcard:hover{border-color:var(--ink)}
-.rb-lk-holcard .him{display:block;height:110px;background-size:cover;background-position:center;background-color:var(--cream-200)}
-.rb-lk-holcard .hpad{display:block;padding:11px 14px 13px}
-.rb-lk-holcard .ht{display:block;font-family:var(--font-serif);font-weight:300;font-size:16px;line-height:1.25;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rb-lk-holcard .hm{display:block;font-size:10.5px;color:var(--ink-faint);margin-top:3px}
-.rb-lk-holcard.new{border-style:dashed;background:var(--cream-100);align-items:center;justify-content:center;gap:8px;min-height:160px}
-.rb-lk-holcard.new:hover{background:var(--cream-200)}
-.rb-lk-holcard.new .hplus{width:32px;height:32px;border-radius:100px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:300;line-height:1}
-.rb-lk-holcard.new .hnew{font-family:var(--font-serif);font-weight:300;font-size:15px;color:var(--ink)}
+.rb-lk-holcard{flex:none;width:386px;max-width:86vw;display:flex;flex-direction:column;background:#fff;border:1px solid var(--rule);border-radius:3px;overflow:hidden;cursor:pointer;font-family:inherit;text-align:left;padding:0;transition:border-color .2s}
+.rb-lk-holcard:hover{border-color:var(--rule-mid)}
+/* A trip reads bigger by holding MORE TILES, not by being wider: a denser
+   3×2 mosaic of the case's pieces, the sixth cell counting the remainder. */
+.rb-lk-holcard .hmos{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:1px;height:257px;background:var(--cream-200)}
+.rb-lk-holcard .hmos i{display:flex;align-items:flex-end;padding:9px;background-size:cover;background-position:center;background-color:var(--cream-100);overflow:hidden}
+.rb-lk-holcard .hmos i em{font-style:normal;font-size:10px;font-weight:400;line-height:1.35;color:var(--ink-soft)}
+.rb-lk-holcard .hmos .hplusn{align-items:center;justify-content:center;padding:0;background:#F7F4EE;font-family:var(--font-serif);font-weight:300;font-size:26px;color:var(--ink-soft)}
+.rb-lk-holcard .hpad{display:block;padding:16px 18px 18px}
+.rb-lk-holcard .ht{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:var(--font-serif);font-weight:400;font-size:23px;line-height:1.15;color:var(--ink)}
+.rb-lk-holcard .hm{display:block;font-size:11px;font-weight:300;color:var(--ink-faint);margin-top:7px}
 /* Zero edits: the invitation leads, one dimmed Robes example follows */
-.rb-lk-holcard.invite{width:268px;justify-content:center;min-height:160px}
-.rb-lk-holcard.invite .hpad{padding:20px 20px 22px}
-.rb-lk-holcard.invite .ht{font-size:21px;white-space:normal}
-.rb-lk-holcard.invite .hb{display:block;font-size:11.5px;line-height:1.55;color:var(--ink-soft);margin-top:7px}
-.rb-lk-holcard.invite .hcta{display:inline-flex;align-items:center;margin-top:16px;padding:11px 20px;border-radius:100px;background:var(--ink);color:#fff;font-size:10px;font-weight:500;letter-spacing:.09em;text-transform:uppercase}
-.rb-lk-holcard.example{width:200px;opacity:.6;cursor:default;pointer-events:none}
-.rb-lk-holcard.example .him{position:relative}
-.rb-lk-holcard.example .hex{position:absolute;left:10px;top:10px;padding:3px 8px;border-radius:100px;background:rgba(255,255,255,0.82);font-size:8.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+/* Three cards, one footprint (1b): Plan a trip, the Robes example and New
+   look all sit on the column. Hers is the loud one — the example is
+   labelled and captioned "not yours", its CTA a hairline, never a fill. */
+.rb-lk-holcard.invite{justify-content:space-between;min-height:343px;padding:26px;box-sizing:border-box}
+.rb-lk-holcard.invite .ht{font-weight:300;font-size:32px;line-height:1.1;-webkit-line-clamp:unset}
+.rb-lk-holcard.invite .hb{display:block;font-size:13px;font-weight:300;line-height:1.65;color:var(--ink-soft);margin-top:12px}
+.rb-lk-holcard.invite .hcta{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;margin-top:24px;border:1px solid var(--rule-mid);border-radius:2px;background:transparent;padding:14px 22px;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink)}
+.rb-lk-holcard.example{cursor:default;pointer-events:none}
+.rb-lk-holcard .hex{position:absolute;top:12px;left:12px;z-index:2;background:rgba(32,32,33,0.72);border-radius:2px;padding:6px 10px;font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#FAF8F5}
 .rb-lk-sort{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border:0.5px solid var(--rule-mid);background:#fff;border-radius:100px;cursor:pointer;font-family:inherit;font-size:11.5px;color:var(--ink);transition:border-color .15s}
 .rb-lk-sort:hover{border-color:var(--ink)}
 .rb-lk-sort b{font-weight:400;color:var(--ink-faint)}
@@ -8736,7 +8755,10 @@
 .rb-lk-lin{background:none;border:none;padding:0;font-family:var(--font-serif);font-style:italic;font-size:15px;color:var(--ink);cursor:pointer}
 .rbc-wears{font-size:11px;color:var(--ink-faint);white-space:nowrap}
 .rb-lk-quiet:hover{color:var(--ink);border-bottom-color:var(--ink)}
-.rb-lk-sec{font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin:26px 0 12px}
+.rb-lk-sec{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--ink);margin:26px 0 12px}
+#rb-lk-hol{margin:6px 0 30px}
+/* New look — the same footprint as the cards beside it (1b) */
+#rb-lk-grid .rb-add-card{aspect-ratio:auto;min-height:340px;background:#F7F4EE;border:1px solid var(--rule);border-radius:3px}
 .rb-lk-pick{display:flex;gap:10px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
 .rb-lk-pick::-webkit-scrollbar{width:0;height:0}
 .rb-lk-opt{flex:none;width:92px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);overflow:hidden;cursor:pointer;background:#fff;padding:0;font-family:inherit;text-align:left;transition:border-color .15s}
@@ -9105,33 +9127,62 @@
         if (dr) parts.push(dr);
         return parts.join(' · ') || i.subtitle || '';
       }
+      // A travel edit card is a DENSER MOSAIC of the same grammar as a look
+      // card (redesign 2026-08-18, "one column width, one mosaic"): a 3×2
+      // grid of the case's pieces — wardrobe photos, then persisted stills,
+      // then quiet tones — with the remainder counted in the sixth cell.
+      // No hero image, no letterbox.
+      function _lkHolCells(i) {
+        const tv = i.tvData || {};
+        const caps = Array.isArray(tv.capsule) ? tv.capsule : [];
+        const gen = Array.isArray(tv.generatedImages) ? tv.generatedImages : [];
+        const tones = ['#E8DCCB', '#E3E1CC', '#EFE9DC', '#D4C8C4', '#F1EDE6'];
+        const styles = caps.slice(0, 5).map((it, k) => {
+          const url = (it && it.wardrobe_match && _pdHttp(it.wardrobe_match.image_url))
+            || ((it && Number.isInteger(it.image_index)) ? _pdHttp(gen[it.image_index]) : null);
+          return url ? "background-image:url('" + _waEsc(url) + "')" : 'background-color:' + tones[k % 5];
+        });
+        // A trip with no piece imagery at all still gets its saved hero in
+        // the lead cell, so an old save never reads as six blank tones.
+        if (!styles.some(st => st.indexOf('url') > -1) && typeof i.img === 'string' && i.img.indexOf('http') === 0) {
+          styles[0] = "background-image:url('" + _waEsc(i.img) + "')";
+        }
+        while (styles.length < 5) styles.push('background-color:' + tones[styles.length % 5]);
+        const rest = Math.max(0, caps.length - 5);
+        return '<span class="hmos">' + styles.map(st => '<i style="' + st + '"></i>').join('') +
+          '<i class="hplusn">' + (rest ? '+' + rest : '') + '</i></span>';
+      }
       function _lkHolidayRowHtml(holidays) {
         // With no edits yet the strip is an invitation plus ONE
-        // Robes-authored example, dimmed and labelled as an example so it
-        // can never be mistaken for her own trip (FTUE pass 2026-08-12).
+        // Robes-authored example, labelled on the image and captioned "not
+        // yours" so it can never be mistaken for her own trip.
         const cards = holidays.length
-          ? holidays.map(i => {
-              const img = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : null;
-              return '<button type="button" class="rb-lk-holcard" onclick="window.__snOpenItem(' + Number(i.id) + ')">' +
-                '<span class="him"' + (img ? ' style="background-image:url(\'' + _waEsc(img) + '\')"' : '') + '></span>' +
+          ? holidays.map(i =>
+              '<button type="button" class="rb-lk-holcard" onclick="window.__snOpenItem(' + Number(i.id) + ')">' +
+                _lkHolCells(i) +
                 '<span class="hpad"><span class="ht">' + _waEsc(i.title || 'Travel edit') + '</span>' +
-                '<span class="hm">' + _waEsc(_lkHolMeta(i)) + '</span></span></button>';
-            }).join('') +
-            '<button type="button" class="rb-lk-holcard new" onclick="window.__lkNewHoliday()">' +
-              '<span class="hplus">+</span><span class="hnew">New travel edit</span></button>'
+                '<span class="hm">' + _waEsc(_lkHolMeta(i)) + '</span></span></button>'
+            ).join('')
           : '<button type="button" class="rb-lk-holcard invite" onclick="window.__lkNewHoliday()">' +
-              '<span class="hpad"><span class="ht">Plan a trip.</span>' +
-              '<span class="hb">Name the date and location. Robes will pack your trip.</span>' +
-              '<span class="hcta">Start planning →</span></span></button>' +
-            // The meta line now carries real trip data, so the example
-            // marker moves onto the image — dimming alone would leave a
-            // convincing trip she never planned (the standing rule: it
-            // must never be mistaken for her own).
+              '<span><span class="ht">Plan a trip.</span>' +
+              '<span class="hb">Name the date and location. Robes will pack your trip.</span></span>' +
+              '<span class="hcta">Start planning →</span></button>' +
             '<div class="rb-lk-holcard example" aria-hidden="true">' +
-              '<span class="him"><span class="hex">Robes example</span></span>' +
+              '<span class="hmos"><span class="hex">Robes example</span>' +
+                '<i style="background-color:#F1EDE6"><em>Sequin slip dress</em></i>' +
+                '<i style="background-color:#E3E1CC"><em>White linen shirt</em></i>' +
+                '<i style="background-color:#D4C8C4"><em>Black bikini</em></i>' +
+                '<i style="background-color:#EFE9DC"><em>Raffia tote</em></i>' +
+                '<i style="background-color:#E8DCCB"><em>Gold flat sandals</em></i>' +
+                '<i class="hplusn">+9</i></span>' +
               '<span class="hpad"><span class="ht">A chic Ibiza escape</span>' +
-              '<span class="hm">5 looks · 7–14 Aug</span></span></div>';
-        return '<div class="rb-lk-sec" style="margin:4px 0 12px">Travel edit</div>' +
+              '<span class="hm">14 pieces · 5 looks · 7–14 Aug · not yours</span></span></div>';
+        // R1 header: eyebrow left, the count right, one hairline under the
+        // pair. The row bleeds past the gutter so the next trip is visibly
+        // cut — that plus the count is the whole scroll affordance (the
+        // dashed + New card retired; + New ▾ above is the creation door).
+        return '<div class="rb-lk-shead"><span class="rb-lk-sec" style="margin:0">Travel edit</span>' +
+          '<span class="hcount">' + (holidays.length ? 'All ' + holidays.length : 'None packed yet') + '</span></div>' +
           '<div class="rb-lk-holrow">' + cards + '</div>';
       }
 
