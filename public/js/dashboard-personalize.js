@@ -974,14 +974,14 @@
             // text CTA only — never a filled button (R3).
             '.services .svc{border:1px solid var(--rule,#E7E0CF);border-radius:4px}' +
             '.services .svc:hover{border-color:var(--rule-mid,#D8CFC0)}' +
-            '.services .svc-img{aspect-ratio:auto;height:160px}' +
+            '.services .svc-img{aspect-ratio:auto;height:260px}' +
             '.services .svc-num{top:10px;left:12px;font-size:15px;color:rgba(250,248,245,0.86);text-shadow:0 1px 8px rgba(32,32,33,0.35)}' +
-            '.services .svc-body{padding:20px;gap:11px}' +
+            '.services .svc-body{padding:14px 16px;gap:7px}' +
             '.services .svc-title{font-size:22px;margin-bottom:0}' +
-            '.services .svc-desc{font-size:12px;line-height:1.65;margin-bottom:0}' +
+            '.services .svc-desc{font-size:12px;line-height:1.5;margin-bottom:0}' +
             '.services .svc-cta{gap:8px;font-size:10px;letter-spacing:.2em}' +
             '.services .svc-cta svg{width:15px;height:15px;stroke-width:1.4}' +
-            '.rb-svc-note{font-size:11px;font-weight:300;color:var(--ink-faint,#9A9082);line-height:1.4;margin:0 0 11px;padding-bottom:11px;border-bottom:1px solid var(--cream-200,#EFE9DC)}' +
+            '.rb-svc-note{font-size:11px;font-weight:300;color:var(--ink-faint,#9A9082);line-height:1.4;margin:0;padding-bottom:11px;border-bottom:1px solid var(--cream-200,#EFE9DC)}' +
             // The filed-piece row (R4): a receipt, not a wardrobe.
             '#rb-svc-filed{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:24px;padding-top:22px;border-top:1px solid var(--rule-mid,#D8CFC0)}' +
             '#rb-svc-filed .th{flex:none;width:40px;height:50px;border-radius:2px;border:1px solid #E1DACB;overflow:hidden;background:var(--cream-100,#F5F0E8)}' +
@@ -5245,30 +5245,30 @@
             // 4a: the three cards carry the repo's own look photography —
             // the calendar/suitcase illustrations retired with the redesign.
             const kpImg = keyPiece.querySelector('.svc-img img');
-            if (kpImg) { kpImg.src = '/images/looks/look1.jpg'; kpImg.style.objectPosition = '50% 22%'; }
+            if (kpImg) { kpImg.src = '/images/looks/look1.jpg'; kpImg.style.objectPosition = '50% 8%'; }
 
 
-            // Weekly Planner is promotional only: illustration + copy stay,
-            // the CTA reads "Coming soon" and the tap opens the standard
-            // coming-soon dialog. No live track behind it — /api/weekly and
-            // _cbSetIntent('weekly') are gone. .svc-promo marks it so the
-            // empty-Lookbook clone loop can skip it (a coming-soon door is
-            // not a way to fill the lookbook).
-            weekly.classList.add('svc-promo');
+            // Weekly planner is a LIVE door now (Annie, 2026-08-18): week
+            // planning lives in the diary day chips, so "Plan the week"
+            // opens the prompt scoped to TOMORROW — one day at a time is
+            // how the week gets planned. The coming-soon dialog and
+            // .svc-promo are retired with it.
             weekly.removeAttribute('onclick'); // static __wkOpen opener is dead code
             weekly.onclick = function() {
-              if (window.KP && KP.comingSoon) KP.comingSoon('Week planning,<br><em>coming soon.</em>', 'Planning your week is moving into the diary — you’ll dress any day from its own chip, right on your dashboard.');
+              if (typeof window._ikScopeDay === 'function' && typeof _rbDiaryOn === 'function' && _rbDiaryOn()) {
+                window._ikScopeDay(_pdAddISO(_pdLocalISO(), 1));
+              } else if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me');
             };
             const weeklyImg = weekly.querySelector('.svc-img img');
-            if (weeklyImg) { weeklyImg.src = '/images/looks/look2.jpg'; weeklyImg.style.objectPosition = '50% 20%'; }
+            if (weeklyImg) { weeklyImg.src = '/images/looks/look2.jpg'; weeklyImg.style.objectPosition = '50% 8%'; }
             const wkDesc = weekly.querySelector('.svc-desc');
             if (wkDesc) wkDesc.textContent = 'Your week mapped day by day — every outfit routed through your own wardrobe, no repeats.';
             const wkCta = weekly.querySelector('.svc-cta');
-            if (wkCta) wkCta.textContent = 'Coming soon';
+            if (wkCta) wkCta.innerHTML = 'Plan the week<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>';
 
 
             const travelImg = travel.querySelector('.svc-img img');
-            if (travelImg) { travelImg.src = '/images/looks/look3.jpg'; travelImg.style.objectPosition = '50% 20%'; }
+            if (travelImg) { travelImg.src = '/images/looks/look3.jpg'; travelImg.style.objectPosition = '50% 8%'; }
 
             // Travel Edit is live — replace the bundle's comingSoon with the
             // capsule packing brief modal
@@ -16581,7 +16581,14 @@ body>*:not(#tv-result-page){display:none !important}
           svcCta.classList.remove('svc-cta-locked');
           svcCta.innerHTML = `Style today<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
         }
-        dailyCard.onclick = () => { if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me'); };
+        // Style today = the prompt in focus with TODAY loaded (Annie,
+        // 2026-08-18): the day chip carries the date, her words carry the
+        // brief. The dress-me scaffold survives as the no-diary fallback.
+        dailyCard.onclick = () => {
+          if (typeof window._ikScopeDay === 'function' && typeof _rbDiaryOn === 'function' && _rbDiaryOn()) {
+            window._ikScopeDay(_pdLocalISO());
+          } else if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me');
+        };
 
         // Chip is always live — clear any legacy count badge
         const dressChip = document.getElementById('chip-dress');

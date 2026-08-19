@@ -897,6 +897,44 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 
+// The concierge cards are day doors (2026-08-18): Style today scopes the
+// prompt to TODAY, Plan the week scopes it to TOMORROW — the day chip
+// carries the date, her words carry the brief. Image window 260px.
+{
+  const { ctx, page, errs } = await boot(browser, 5);
+  // Node and Chromium disagree on the en-GB comma — compare comma-free.
+  const fmt = (off) => {
+    const d = new Date(Date.now() + off * 86400000);
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/,/g, '');
+  };
+  const c = await page.evaluate(async () => {
+    const imgH = Math.round(document.querySelector('.svc-daily .svc-img')?.getBoundingClientRect().height || 0);
+    const wkCta = Array.from(document.querySelectorAll('.services-grid .svc'))
+      .map((el) => ({ t: el.querySelector('.svc-title')?.textContent, cta: el.querySelector('.svc-cta')?.textContent.trim() }))
+      .find((x) => x.t === 'Weekly planner')?.cta || '';
+    document.querySelector('.svc-daily').click();
+    await new Promise((r) => setTimeout(r, 300));
+    const chip = document.getElementById('rb-scopechip');
+    const daily = { on: chip?.classList.contains('on'), label: chip?.querySelector('.lbl')?.textContent,
+      focused: document.activeElement?.id === 'cb-ta' };
+    Array.from(document.querySelectorAll('.services-grid .svc'))
+      .find((el) => el.querySelector('.svc-title')?.textContent === 'Weekly planner')?.click();
+    await new Promise((r) => setTimeout(r, 300));
+    const weekly = { on: chip?.classList.contains('on'), label: chip?.querySelector('.lbl')?.textContent };
+    return { imgH, wkCta, daily, weekly };
+  });
+  check('concierge doors · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('concierge doors · the image window is 260px', c.imgH === 260, String(c.imgH));
+  check('concierge doors · the weekly CTA is live: "Plan the week"',
+    c.wkCta === 'Plan the week', c.wkCta);
+  check('concierge doors · Style today scopes the prompt to TODAY, in focus',
+    c.daily.on === true && (c.daily.label || '').replace(/,/g, '') === fmt(0) && c.daily.focused === true,
+    JSON.stringify([c.daily, fmt(0)]));
+  check('concierge doors · Plan the week scopes the prompt to TOMORROW',
+    c.weekly.on === true && (c.weekly.label || '').replace(/,/g, '') === fmt(1), JSON.stringify([c.weekly, fmt(1)]));
+  await ctx.close();
+}
+
 // Mobile
 {
   const { ctx, page, errs } = await boot(browser, 1, 390);
