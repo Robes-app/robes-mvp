@@ -173,9 +173,17 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check(`n=${n} · standalone learning card never renders`,
     state.trackerVisible === false);
 
-  // Concierge absent below the first unlock (visibility unchanged)
-  check(`n=${n} · concierge ${n >= 3 ? 'shown' : 'hidden'}`,
-    state.servicesVisible === (n >= 3));
+  // Load rules (2026-08-19): the concierge stands from the FIRST session,
+  // at any piece count — only "Your piece, styled" holding the screen
+  // delays it, and none of these boots carries the styled card.
+  check(`n=${n} · concierge shown at every count (no piece floor)`,
+    state.servicesVisible === true);
+  if (n === 0) {
+    check('n=0 · the band paints with an empty receipt (CTA only, no thumb)',
+      !!state.filed && state.filed.thumbs === 0 && state.filed.nm === ''
+        && /Catalogue what you’re wearing now/.test(state.filed.cta),
+      JSON.stringify(state.filed));
+  }
 
   // Style Notes only at the last milestone
   check(`n=${n} · style notes ${n >= 15 ? 'introduced' : 'absent'}`,
@@ -185,7 +193,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   // the concierge follows the rail, ahead of the Lookbook row (its slot is
   // a rule now, not an accident of markup order).
   check(`n=${n} · rail follows prompt`, state.railAfterConcierge, JSON.stringify(state.order));
-  if (n >= 3) {
+  {
     const iCon = state.order.findIndex((x) => x === 'concierge');
     const iSvc = state.order.indexOf('services');
     const iSn = state.order.indexOf('rb-sn');
@@ -420,7 +428,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       mode: rows?.getAttribute('data-mode'),
       rowIds: Array.from(rows?.querySelectorAll('.rb-ftu-row') || []).map((r) => r.id),
       order: Array.from(dash.children).map((e) => e.id || e.className.split(' ')[0])
-        .filter((id) => ['concierge', 'rb-ftu-rows'].includes(id)),
+        .filter((id) => ['concierge', 'rb-ftu-rows', 'services'].includes(id)),
       concEy: document.getElementById('rb-conc-ey')?.textContent,
       echo: dash.querySelector('.dash-echo')?.textContent,
       promptVisible: vis(document.getElementById('cb-ta')),
@@ -438,8 +446,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     };
   });
   check('ftu rows · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('ftu rows · without the styled card the prompt leads the page',
-    h.mode === 'zero-lead' && JSON.stringify(h.order) === JSON.stringify(['concierge', 'rb-ftu-rows'])
+  check('ftu rows · without the styled card the prompt leads, the concierge band closes the page',
+    h.mode === 'zero-lead' && JSON.stringify(h.order) === JSON.stringify(['concierge', 'rb-ftu-rows', 'services'])
       && h.concEy === 'Style something' && h.promptVisible === true
       && h.echo === 'What are you dressing for today?',
     JSON.stringify([h.mode, h.order, h.concEy, h.echo, h.promptVisible]));
@@ -448,8 +456,10 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       && h.open.length === 0 && h.railInWeekRow === true,
     JSON.stringify([h.rowIds, h.open, h.railInWeekRow]));
   check('ftu rows · the rack is not rendered until she asks', h.rackAbsent === true);
-  check('ftu rows · nothing competes: services, tracker, rows all stand down',
-    h.servicesHidden === true && h.trkHidden === true && h.snRowHidden === true && h.wtrkCta === false,
+  // Load rules (2026-08-19): the concierge STANDS beneath the rows from
+  // the first session — tracker and Lookbook row still stand down.
+  check('ftu rows · the concierge stands beneath the rows; tracker + Lookbook row stand down',
+    h.servicesHidden === false && h.trkHidden === true && h.snRowHidden === true && h.wtrkCta === false,
     JSON.stringify([h.servicesHidden, h.trkHidden, h.snRowHidden, h.wtrkCta]));
   check('ftu rows · the week whisper is honest', h.weekSub === 'Nothing planned yet.', h.weekSub);
 
@@ -642,6 +652,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
       rowIds: Array.from(document.querySelectorAll('.rb-ftu-row')).map((r) => r.id),
       concInStyleRow: !!document.querySelector('#rb-ftu-body-style .concierge'),
+      servicesHidden: document.querySelector('.services')?.offsetParent === null,
     };
   });
   check('styled card · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
@@ -661,6 +672,10 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     s.mode === 'zero'
       && JSON.stringify(s.rowIds) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-style', 'rb-ftu-row-week'])
       && s.concInStyleRow === true, JSON.stringify([s.mode, s.rowIds, s.concInStyleRow]));
+  // Load rules (2026-08-19): the concierge waits ONLY while the styled
+  // card is the hero — the click through to the full looks brings it in.
+  check('styled card · the concierge waits behind the hero',
+    s.servicesHidden === true, String(s.servicesHidden));
   // The saved key piece IS the hero card — the Inspiration row would be a
   // second copy of it, so it stands down only while the card is up.
   const inspWhileCard = await page.evaluate(() =>
@@ -691,16 +706,58 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   const after = await page.evaluate(async () => {
     document.getElementById('rb-styled-open')?.click();
     await new Promise((r) => setTimeout(r, 900));
+    const filled = (id) => {
+      const b = document.getElementById(id);
+      return b ? getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)' : null;
+    };
     return {
       styledGone: !document.getElementById('rb-styled'),
       mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
       concLeads: document.querySelector('.concierge')?.parentNode?.id === 'dash'
         && !!document.getElementById('rb-conc-ey'),
+      // Load rules (2026-08-19): the click through brings the concierge in
+      servicesShown: document.querySelector('.services')?.offsetParent !== null,
+      // 2B guide band on the first landing
+      kpOpen: document.getElementById('kp-result-page')?.style.display === 'block',
+      band: !!document.getElementById('kp-guide-band'),
+      bandText: (document.getElementById('kp-guide-band')?.textContent || '').replace(/\s+/g, ' '),
+      firstFilled: filled('kp-build-btn-0'),
+      secondFilled: filled('kp-build-btn-1'),
     };
   });
   check('styled card · once it retires the prompt steps out to lead',
     after.styledGone === true && after.mode === 'zero-lead' && after.concLeads === true,
-    JSON.stringify(after));
+    JSON.stringify([after.styledGone, after.mode, after.concLeads]));
+  check('styled card · the concierge loads the moment she clicks through',
+    after.servicesShown === true, String(after.servicesShown));
+  check('kp guide band · stands on the first landing, in the band cream register',
+    after.kpOpen === true && after.band === true
+      && /Start here/i.test(after.bandText)
+      && /Pick one of the three looks below and build it from your wardrobe\./.test(after.bandText)
+      && /Or head home to catalogue your wardrobe and start a look of your own\./.test(after.bandText)
+      && /Build a look/i.test(after.bandText) && /Home dashboard/.test(after.bandText),
+    after.bandText.slice(0, 220));
+  check('kp guide band · card 01 carries the ONE filled Build this look while the band is up',
+    after.firstFilled === true && after.secondFilled === false,
+    JSON.stringify([after.firstFilled, after.secondFilled]));
+
+  // × dismisses — the fill reverts, the flag persists, and a reopen never
+  // brings the band back (it survives a reload only UNTIL dismissed).
+  const bandB = await page.evaluate(async () => {
+    document.getElementById('kp-guide-close')?.click();
+    await new Promise((r) => setTimeout(r, 120));
+    const b0 = document.getElementById('kp-build-btn-0');
+    const goneNow = !document.getElementById('kp-guide-band');
+    const unfilled = b0 ? getComputedStyle(b0).backgroundColor !== 'rgb(32, 32, 33)' : null;
+    const flag = !!localStorage.getItem('rb_kp_guide_done__u-test');
+    window.__kpRenderResult(window.__lastKpData, 'Acid green cropped jumper',
+      { intent: 'style', skipSave: true, savedId: null });
+    await new Promise((r) => setTimeout(r, 200));
+    return { goneNow, unfilled, flag, backAgain: !!document.getElementById('kp-guide-band') };
+  });
+  check('kp guide band · × dismisses, reverts the fill, and it never returns',
+    bandB.goneNow === true && bandB.unfilled === true && bandB.flag === true && bandB.backAgain === false,
+    JSON.stringify(bandB));
   await ctx.close();
 }
 
@@ -767,8 +824,10 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       && o.flBar === true && o.trkHidden === true, JSON.stringify([o.flCap, o.flBar, o.trkHidden]));
   check('O7 · the week ahead stays a hairline, honestly whispered',
     o.weekSub === 'One look, unplanned.', o.weekSub);
-  check('O7 · nothing competes: Lookbook row, services, styled card all stand down',
-    o.snRowHidden === true && o.servicesHidden === true && o.styled === false,
+  // Load rules (2026-08-19): the concierge stands on O7 too — only the
+  // styled card ever delays it, and that card has retired here.
+  check('O7 · Lookbook row + styled card stand down; the concierge stands',
+    o.snRowHidden === true && o.servicesHidden === false && o.styled === false,
     JSON.stringify([o.snRowHidden, o.servicesHidden, o.styled]));
 
   // A planned day EXPOSES the week ahead by default (Annie, 2026-08-18):

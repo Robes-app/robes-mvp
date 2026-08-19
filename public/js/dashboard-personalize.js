@@ -872,11 +872,15 @@
         const ftuRows = document.getElementById('rb-ftu-rows');
         if (ftuRows) {
           const firstlook = document.getElementById('rb-firstlook');
+          const svc0 = dash.querySelector('.services');
           // 'zero' leads with the styled card; every other posture leads
-          // with the prompt (then "Your looks" when it exists).
+          // with the prompt (then "Your looks" when it exists). The
+          // concierge band closes the sequence — it stands beneath the
+          // rows from the first session (load rules 2026-08-19; it is
+          // hidden in 'zero' anyway, while the styled card is the hero).
           const seq0 = (ftuRows.getAttribute('data-mode') === 'zero'
-            ? [styled, ftuRows]
-            : [conc, firstlook, ftuRows]).filter(Boolean);
+            ? [styled, ftuRows, svc0]
+            : [conc, firstlook, ftuRows, svc0]).filter(Boolean);
           seq0.forEach((el, i) => {
             const prev = i === 0 ? mast : seq0[i - 1];
             if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
@@ -896,13 +900,15 @@
         });
       }
 
-      // The concierge is absent until the first unlock — a brand-new user is
-      // never shown a shelf of edits she has nothing to feed. From 3 pieces
-      // the section appears with ALL THREE edits open: Daily Look, Weekly
-      // Planner and Travel Edit are all built and live, and the app-wide
-      // convention is that a working feature is never locked behind a count.
-      // The concierge is a MENU for someone who doesn't know what Robes
-      // does (merge pass 2a, 2026-08-18). Once she has created one of each
+      // The concierge stands from the FIRST session (Annie's FTUE testing,
+      // 2026-08-19 — supersedes both the 3-piece floor and the FTU-rows
+      // stand-down of 2026-08-18): it is the MENU for someone who doesn't
+      // know what Robes does, so it must be there before she has anything.
+      // The one thing that delays it is "Your piece, styled" holding the
+      // screen — one goal at a time: clicking through to See the full looks
+      // retires the card and the band stands from then on; no piece filed
+      // in onboarding means no card, so the band loads straight away.
+      // Once she has created one of each
       // live edit — a daily look and a travel edit (the weekly planner is a
       // coming-soon promo; it rejoins this condition when the track
       // returns) — she knows, and the whole module falls away, all at once,
@@ -1053,12 +1059,13 @@
       function _rbGateConcierge(n) {
         const svc = document.querySelector('.services');
         if (!svc) return;
-        // FTU simplification (2026-08-18): while the index rows carry home
-        // (zero looks / first look) nothing competes with the one CTA — the
-        // service shelf stands down at any piece count until then. Once she
-        // has made one of each live edit the module retires for good (2a).
-        const show = !document.getElementById('rb-ftu-rows')
-          && n >= _MS_UNLOCKS[0].at && !_rbConciergeDone();
+        // Load rules (Annie, 2026-08-19): the band shows from the first
+        // session at any piece count — even beneath the FTU index rows —
+        // and only waits while "Your piece, styled" is the hero (the
+        // click through to the full looks retires the card, which is what
+        // brings the band in). Once she has made one of each live edit
+        // the module retires for good (2a).
+        const show = !document.getElementById('rb-styled') && !_rbConciergeDone();
         svc.style.display = show ? '' : 'none';
         if (show) {
           _rbConciergeSync(n);
@@ -5474,6 +5481,36 @@
         _kpPollTimer = setTimeout(tick, 2500);
       }
 
+      // ── First-landing guide band (2B "Guidance without a gate", Annie's
+      // FTUE testing 2026-08-19): sits between the nav and the kp result in
+      // the band cream, so it reads as page furniture rather than a
+      // warning. "Build a look" scrolls to card 01 and fills its button —
+      // the only filled Build this look on the page while the band is up.
+      // Dismisses on × or on the first look opened; never returns (per-user
+      // flag). Because it doesn't gate, it survives a reload within the
+      // first session — which a modal shouldn't.
+      function _kpGuideDone() {
+        try { const u = _waUid(); return !!(u && localStorage.getItem('rb_kp_guide_done__' + u)); } catch (_) { return false; }
+      }
+      function _kpGuideDismiss() {
+        try { const u = _waUid(); if (u) localStorage.setItem('rb_kp_guide_done__' + u, '1'); } catch (_) {}
+        const band = document.getElementById('kp-guide-band');
+        if (band) band.remove();
+        if (kpResultPage) kpResultPage.classList.remove('kp-guide-on');
+      }
+      window.__kpGuideClose = function() {
+        _kpGuideDismiss();
+        _rbTrack('kp_guide_dismissed', { via: 'close' });
+      };
+      window.__kpGuideBuild = function() {
+        const card = kpResultPage && kpResultPage.querySelector('.kp-look-card');
+        if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+      window.__kpGuideHome = function() {
+        // Heading home doesn't dismiss — she may come back to the looks.
+        if (window.__kpGoBack) window.__kpGoBack();
+      };
+
       window.__kpRenderResult = function(data, promptText, opts) {
         if (!data || !Array.isArray(data.ways) || !data.ways.length) {
           _waShowToast('Could not render looks — please try again');
@@ -5510,13 +5547,37 @@
             // min-height only backstops the pending-placeholder state.
             '@media(max-width:700px){.kp-look-card{grid-template-columns:1fr !important}.kp-look-card>div:last-child{padding:20px 22px 26px !important}.kp-look-imgwrap{min-height:300px !important}.kp-look-imgwrap img{position:static !important;height:auto !important}}' +
             // <=767px the glass header share circle covers kp — hide the in-page one
-            '@media(max-width:767px){.rb-kp-share{display:none !important}}';
+            '@media(max-width:767px){.rb-kp-share{display:none !important}}' +
+            // 2B guide band: while it stands, card 01's Build this look is
+            // the one filled button on the page (inline styles keep the
+            // outline register, so the fill needs !important to win).
+            '#kp-result-page.kp-guide-on .kp-build-first{background:#202021 !important;color:#fff !important;border-color:#202021 !important}' +
+            '@media(max-width:700px){#kp-guide-band{padding:14px 20px !important}}';
           document.head.appendChild(kis);
         }
         const imagesPending = !!data.jobId;
 
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Style a piece' }]);
+        // Guidance without a gate (2B): the first landing on the styled
+        // result carries the band — never on the dress-me variant, and
+        // never again once she has opened a look or waved it away.
+        const kpGuide = !kpDaily && !_kpGuideDone();
         try { kpResultPage.innerHTML = `
+          ${kpGuide ? `
+          <div id="kp-guide-band" style="background:#F2EEE7;border-bottom:1px solid #E1DACB;padding:16px 32px;box-sizing:border-box">
+            <div style="max-width:900px;margin:0 auto;display:flex;align-items:center;gap:22px;flex-wrap:wrap">
+              <span style="font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:#9A9082;flex-shrink:0">Start here</span>
+              <div style="flex:1;min-width:230px">
+                <div style="font-size:14.5px;color:#202021;line-height:1.45">Pick one of the three looks below and build it from your wardrobe.</div>
+                <div style="font-family:${serif};font-style:italic;font-size:15px;color:#8A8072;margin-top:2px">Or head home to catalogue your wardrobe and start a look of your own.</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;flex-wrap:wrap">
+                <button onclick="window.__kpGuideBuild()" style="border:none;background:#202021;color:#FAF8F5;border-radius:100px;padding:13px 24px;font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;font-family:${sans}">Build a look ↓</button>
+                <button onclick="window.__kpGuideHome()" style="border:none;background:none;padding:2px 0;font-size:13px;color:#5F5A4E;border-bottom:1px solid #B8AF9E;cursor:pointer;font-family:${sans}">Home dashboard</button>
+                <button id="kp-guide-close" aria-label="Dismiss" onclick="window.__kpGuideClose()" style="border:none;background:none;padding:6px 8px;font-size:17px;line-height:1;color:#9A9082;cursor:pointer;font-family:${sans}">×</button>
+              </div>
+            </div>
+          </div>` : ''}
           <div style="width:100%;max-width:900px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
 
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 12px">
@@ -5566,7 +5627,7 @@
                     </div>
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:auto;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.08)">
                       <span style="font-size:12px;color:var(--ink-faint);font-style:italic">See it piece by piece — what's yours, what would finish it.</span>
-                      <button onclick="window.__kpBuildLook(${i})" style="flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Build this look<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+                      <button id="kp-build-btn-${i}" class="kp-build-btn${i === 0 ? ' kp-build-first' : ''}" onclick="window.__kpBuildLook(${i})" style="flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Build this look<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
                     </div>
                   </div>
                 </div>`;
@@ -5593,6 +5654,7 @@
           kpResultPage.innerHTML = `<div style="padding:80px 24px;text-align:center;font-family:${sans};color:#6E6A64">Something went wrong rendering your looks — please try again.</div>`;
         }
 
+        kpResultPage.classList.toggle('kp-guide-on', kpGuide);
         kpResultPage.style.display = 'block';
         kpResultPage.scrollTo({ top: 0 });
 
@@ -5628,6 +5690,8 @@
         window.__kpBuildLook = function(i) {
           const w = ways[i];
           if (!w) return;
+          // Opening a look IS the guidance taken — the band never returns.
+          _kpGuideDismiss();
           _rbTrack('kp_build_look', { item: String(_kpActiveSaveId || ''), way: String(i) });
           const imgs = (window.__lastKpData && window.__lastKpData.generatedImages) || generatedImages || [];
           const wayImg = (typeof imgs[i] === 'string' && imgs[i].indexOf('http') === 0) ? imgs[i] : null;
@@ -11990,6 +12054,7 @@
           oi: 0, img_oi: 0, saved: true,
           image_url: (typeof it._kpPhotoUrl === 'string' && it._kpPhotoUrl.indexOf('http') === 0) ? it._kpPhotoUrl : null,
         }));
+        const dlLooseSave = !!data._dlLoose && !data.anchor_date;
         const l = _lkCreate({
           pieces: ownedIds,
           name, name_provisional: true,
@@ -12018,6 +12083,13 @@
         });
         _rbTrack('look_saved_from_day', { pieces: ownedIds.length, unowned: unowned.length });
         _waShowToast(name + ' saved to your Lookbook ✓');
+        // Guided landing (Annie's FTUE testing, 2026-08-19): saving a LOOSE
+        // look is the journey's commitment — the console's one action just
+        // completed, so she is handed back to the dashboard (where the
+        // concierge now stands) instead of a page with nothing left to do.
+        // A day look stays on its day (Share / Wore it still belong there),
+        // and a wear-first keep stays put so the wear can complete.
+        const goHome = dlLooseSave && !_dlWearAfterSave;
         // Rerender drops the offer (the look_id is set) and any frames still
         // generating persist through _dlPersistImages.
         _dlRerender();
@@ -12026,6 +12098,15 @@
         if (_dlWearAfterSave) {
           _dlWearAfterSave = false;
           setTimeout(() => { if (window.__dlWear) window.__dlWear(); }, 60);
+        }
+        if (goHome) {
+          // A short beat so the save reads on the console before the move;
+          // the toast rides fixed on body, so it survives the landing.
+          setTimeout(() => {
+            if (typeof window.__rbNavGo === 'function') window.__rbNavGo('home');
+            else if (typeof window.__dlGoBack === 'function') window.__dlGoBack();
+            try { if (typeof _lkHomeSync === 'function') _lkHomeSync(); } catch (_) {}
+          }, 600);
         }
       };
 

@@ -2500,6 +2500,14 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('loose · once kept it is a saved look — Share returns, the door points at it',
     looseKept.cta === 'Share this look' && /Saved in your Lookbook/.test(looseKept.door),
     JSON.stringify(looseKept));
+  // Guided landing (Annie's FTUE testing, 2026-08-19): the keep was the
+  // console's one commitment — she is handed back to the dashboard.
+  const landed = await page.evaluate(() => ({
+    dlHidden: document.getElementById('dl-result-page')?.style.display === 'none',
+    path: location.pathname,
+  }));
+  check('loose · the keep lands her back on the dashboard',
+    landed.dlHidden === true && landed.path === '/dashboard', JSON.stringify(landed));
   await ctx.close();
 }
 
