@@ -5504,9 +5504,16 @@
           // A restyle keeps the saved look's original date; a fresh submit
           // defaults to today unless the caller aimed it (opts.anchorDate).
           const savedPrev = (opts && opts.savedId) ? snLoad().find(x => x.id === opts.savedId) : null;
-          data.anchor_date = (opts && opts.anchorDate)
-            || (savedPrev && savedPrev.dlData && savedPrev.dlData.anchor_date)
-            || _pdLocalISO();
+          // A look built around a PIECE is made LOOSE (rules map 1a · 02):
+          // it is not for a day, so it takes no date, writes no day record,
+          // and lives in the builder until she saves it. Everything date-
+          // shaped downstream (day title, switcher, diary sync) keys off
+          // anchor_date, so a loose look simply never gets one.
+          if (opts && opts.loose) data._dlLoose = true;
+          data.anchor_date = data._dlLoose ? undefined
+            : ((opts && opts.anchorDate)
+              || (savedPrev && savedPrev.dlData && savedPrev.dlData.anchor_date)
+              || _pdLocalISO());
           // An evening ask lands as the date's EVENING moment — it
           // coexists with the day's look in planned_days instead of
           // displacing it (restyles keep the saved look's slot).
@@ -5610,33 +5617,25 @@
         });
         return chips.join('');
       }
-      // The flick-through carousel for one rack card: the original styled
-      // piece, then AI alternates and owned wardrobe matches in whichever
-      // order opts.aiFirst asks for. Rebuilt from live data each time.
-      // opts.aiFirst controls whether AI-suggested alternates or owned
-      // wardrobe matches come first after the served original (Build 2's
-      // ordering guard): Daily keeps its established order (AI alternates
-      // were always generated upfront, ahead of owned); Weekly and Travel
-      // — which are quietly protecting the wear-what-you-own north star by
-      // only ever offering owned matches — must show owned first, with any
-      // newly on-demand-fetched AI alternates trailing behind, never ahead.
-      function _dlOptions(it, opts) {
-        const aiFirst = !opts || opts.aiFirst !== false;
+      // The flick-through carousel for one rack card, rebuilt from live
+      // data each time.
+      // The flick cluster is reserved for HER WARDROBE (Annie, 2026-08-17):
+      // the served piece, then her other pieces of the same L1 category —
+      // "if the user has a Top, they can flick through all of their other
+      // tops to see how the outfit changes". AI alternates are OUT of the
+      // set: a Robes suggestion she can't flick into another suggestion,
+      // only Swap for a piece she owns. A suggestion with no owned peers
+      // therefore has no flick at all (_rbcRow hides the cluster at one
+      // option). The alternates data still rides the payloads untouched.
+      function _dlOptions(it) {
         if (!it.orig) it.orig = { name: it.name, brand: it.brand || '', retailer_hint: it.retailer_hint || '', price_point: it.price_point || '', wardrobe_match: it.wardrobe_match || null, how: it.how || '' };
         const origOpt = { kind: 'orig', name: it.orig.name, brand: it.orig.brand, retailer_hint: it.orig.retailer_hint, price_point: it.orig.price_point, wardrobe_match: it.orig.wardrobe_match, how: it.orig.how };
-        const aiOpts = [];
-        (Array.isArray(it.alternates) ? it.alternates : []).forEach(a => {
-          if (a && a.name && a.name.toLowerCase() !== origOpt.name.toLowerCase() && !aiOpts.some(o => (o.name || '').toLowerCase() === a.name.toLowerCase())) {
-            aiOpts.push({ kind: 'ai', name: a.name, brand: a.brand || '', retailer_hint: a.retailer_hint || '', price_point: a.price_point || '', how: a.how || '' });
-          }
-        });
         const catL = (it.category || '').toLowerCase().replace(/s$/, '');
         const origId = it.orig.wardrobe_match ? String(it.orig.wardrobe_match.id) : null;
         const ownedOpts = [];
         _waItems.filter(wi => ((wi.category || '').toLowerCase().replace(/s$/, '') === catL) && String(wi.id) !== origId)
-          .slice(0, 4)
           .forEach(wi => ownedOpts.push({ kind: 'owned', name: wi.label, brand: wi.brand || '', retailer_hint: '', price_point: '', wardrobeId: wi.id, image: wi.image_url || null, color: wi.color || '' }));
-        return aiFirst ? [origOpt, ...aiOpts, ...ownedOpts] : [origOpt, ...ownedOpts, ...aiOpts];
+        return [origOpt, ...ownedOpts];
       }
       function _dlOptIndex(it, list) {
         if (it.wardrobe_match) {
@@ -6621,7 +6620,7 @@
               ${it.noteHtml || ''}
             </div>
             <div class="rbc-foot">
-              ${cfg.onFlip ? `<div class="rbc-flip">
+              ${cfg.onFlip && it.count.len > 1 ? `<div class="rbc-flip">
                 <button class="rbc-arrow" onclick="window.${cfg.onFlip}(${it.idx},-1)" aria-label="Previous option">${_rbcChevL}</button>
                 ${dots}
                 <button class="rbc-arrow" onclick="window.${cfg.onFlip}(${it.idx},1)" aria-label="Next option">${_rbcChevR}</button>
@@ -8991,7 +8990,10 @@
         // instead of drawing empty.
         const propEmpties = props.map((row, i) => ({
           role: row.role,
-          html: _lkPropRowHtml(row, i, _lkPropDetailFrame(row), { swap: '__lkPropSwap', save: '__lkPropSave', flip: '__lkPropFlip' }),
+          // No flick on a proposal (Annie, 2026-08-17: the cluster is
+          // reserved for pieces she owns — a suggestion is never flicked
+          // into another suggestion). Swap stays the one way out.
+          html: _lkPropRowHtml(row, i, _lkPropDetailFrame(row), { swap: '__lkPropSwap', save: '__lkPropSave' }),
         }));
         // Reading, or editing — never both (1c). Reading, each row carries
         // the piece's own wear count; editing, flick and Swap land on the
@@ -10955,6 +10957,9 @@
         window.__dlSubmit(window.__lastDlPrompt || (window.__lastDlData && window.__lastDlData.prompt) || '', {
           locked,
           savedId: _dlActiveSaveId,
+          // A loose page restyles loose — the re-mix must not turn a look
+          // built around a piece into a day (1a).
+          loose: !!(window.__lastDlData && window.__lastDlData._dlLoose),
           // No saved row (a pinned-look day rendered via __lkOpenAsDay):
           // the fresh generation must still anchor to the day on screen,
           // not to whenever the restyle runs.
@@ -10999,6 +11004,7 @@
       // named it (rule 01) and the headline is that name; she can rename it
       // from the Look detail. Unowned pieces still go to the Wishlist, and
       // she is told so first.
+      let _dlWearAfterSave = false;
       window.__dlSaveAsk = function() {
         const flat = window.__dlCurrentItems || [];
         const n = flat.filter(it => !it.wardrobe_match).length;
@@ -11021,7 +11027,7 @@
             '</div>' +
           '</div>';
         document.body.appendChild(modal);
-        modal.querySelector('#rb-dlsave-cancel').onclick = function() { modal.remove(); };
+        modal.querySelector('#rb-dlsave-cancel').onclick = function() { _dlWearAfterSave = false; modal.remove(); };
         modal.querySelector('#rb-dlsave-yes').onclick = function() { modal.remove(); window.__dlSaveKeep(); };
       };
       // The day's look becomes a SAVED LOOK: a `looks` entity, named, from
@@ -11057,7 +11063,8 @@
         delete data._dlDeferred;
         // The day now knows which look it is wearing — and that look is the
         // baseline every later change on this day is local to (rule 05).
-        _dlDayBase = { lookId: String(l.id), ids: ownedIds.slice() };
+        // A loose look has no day, so no baseline arms.
+        _dlDayBase = data.anchor_date ? { lookId: String(l.id), ids: ownedIds.slice() } : null;
         _dlAsked = false;
         if (_dlActiveSaveId) {
           const saved = snLoad().find(x => x.id === _dlActiveSaveId);
@@ -11071,6 +11078,12 @@
         // Rerender drops the offer (the look_id is set) and any frames still
         // generating persist through _dlPersistImages.
         _dlRerender();
+        // A wear that had to keep the look first (a loose look worn straight
+        // off the rack) now completes.
+        if (_dlWearAfterSave) {
+          _dlWearAfterSave = false;
+          setTimeout(() => { if (window.__dlWear) window.__dlWear(); }, 60);
+        }
       };
 
       // ── The one question (rule 06), asked ONCE ───────────────────────────
@@ -11290,6 +11303,15 @@
         // (the wear goes to that one). Either way the answer decides where
         // the wear belongs, so it has to come first.
         if (window._dlExitGuard(function() { window.__dlWear(); })) return;
+        // Wearing a LOOSE, unkept look is the strongest keep there is (1a:
+        // it exists nowhere until saved — and a wear needs a look to land
+        // on, rule 03). Save it first; unowned pieces get their wishlist
+        // confirm, and the wear completes after she answers.
+        if (window.__lastDlData && window.__lastDlData._dlLoose
+            && !(window.__lastDlData.look_id && _lkFind(window.__lastDlData.look_id))) {
+          if (flat.some(it => !it.wardrobe_match)) { _dlWearAfterSave = true; window.__dlSaveAsk(); return; }
+          window.__dlSaveKeep();
+        }
         _dlWorn = true;
         try {
           // The wear lands on the look this day is WEARING — addressed by id
@@ -11525,14 +11547,22 @@
         // and clears the moment a look_id exists.
         delete data._dlDeferred;   // the retired flag, on reopened blobs
         data._dlNoLook = !(data.look_id && typeof _lkFind === 'function' && _lkFind(data.look_id));
-        const dlNoLook = !!data._dlNoLook && total > 0;
+        // A LOOSE look (built around a piece, not for a day — 1a) is the
+        // builder's: no day record, no day chrome, and Save is the one
+        // commitment on the screen. Kept, it becomes a saved look like any
+        // other. Rule 04's automatic day write below is days-only.
+        const dlLoose = !!data._dlLoose;
+        const dlLooseUnkept = dlLoose && !!data._dlNoLook && total > 0;
+        const dlNoLook = !dlLoose && !!data._dlNoLook && total > 0;
 
         // The day's baseline — the saved look it is wearing, if any. Set on
         // a FIRST render only (a flick rerender must not re-baseline to the
         // piece she just changed, or every change would erase the one before
         // it and the day would never read as adjusted).
         const dayLook = data.look_id && typeof _lkFind === 'function' ? _lkFind(data.look_id) : null;
-        if (!dayLook) { _dlDayBase = null; _dlAsked = false; }
+        // The baseline is a DAY mechanism (rule 05: local to the day) — a
+        // loose page edits the look itself, so it never arms one.
+        if (!dayLook || data._dlLoose) { _dlDayBase = null; _dlAsked = false; }
         else if (!_dlDayBase || String(_dlDayBase.lookId) !== String(dayLook.id)) {
           _dlDayBase = { lookId: String(dayLook.id), ids: _lkPieceIds(dayLook).map(String) };
           _dlAsked = false;
@@ -11647,12 +11677,12 @@
             + dlSeg('Evening' + (dlEve || dlSib ? '' : ' · free'), 1, dlEve)
             + `</div>`
           : '';
-        const dlMomentLabel = weekday + (dlEve ? ' evening' : '');
+        const dlMomentLabel = dlLoose ? 'this look' : weekday + (dlEve ? ' evening' : '');
         const con = _rbConsole({
           // This panel is the DAY's composition (D1 anatomy) — "The day",
           // marked Adjusted the moment it differs from the saved look. The
           // rack keeps the weekday; the Look detail keeps "The look".
-          headLabel: `The ${dlEve ? 'evening' : 'day'} · ${total} pieces`,
+          headLabel: dlLoose ? `The look · ${total} pieces` : `The ${dlEve ? 'evening' : 'day'} · ${total} pieces`,
           robesLabel: dayChg.n ? '<span style="color:#8C9A72">Adjusted</span>' : 'Robes',
           occHtml: dlOccHtml,
           quoteHtml: summaryHtml || (quote ? '“' + _waEsc(quote) + '”' : ''),
@@ -11660,22 +11690,25 @@
           paletteHtml: palette.map(h => `<span style="background:${h}"></span>`).join(''),
           addChipLabel: _rbTrackCfg('daily').console.addVerb,
           tagsHtml: _rbTagsRowHtml(data.look_tags, '__dlTagsEdit'),
-          rackLabel: `The rack · ${_waEsc(dlMomentLabel)}`,
+          rackLabel: dlLoose ? 'The rack' : `The rack · ${_waEsc(dlMomentLabel)}`,
           headButtonsHtml: (data && data.worn)
-            ? `<span class="rbc-hbtn" style="opacity:.55;pointer-events:none">Worn ✓</span><button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`
+            ? `<span class="rbc-hbtn" style="opacity:.55;pointer-events:none">Worn ✓</span><button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ ${dlLoose ? 'Restyle it' : 'Restyle this day'}</button>`
             // "Wore it" logs wears on OWNED pieces — with none in the look
             // it is a button that does nothing, so it waits for one.
-            : `${owned > 0 ? `<button class="rbc-hbtn" id="dl-wear-btn" onclick="window.__dlWear()" title="Log these pieces as worn — wear counts feed cost-per-wear">✓ Wore it</button>` : ''}<button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ Restyle this day</button>`,
+            : `${owned > 0 ? `<button class="rbc-hbtn" id="dl-wear-btn" onclick="window.__dlWear()" title="Log these pieces as worn — wear counts feed cost-per-wear">✓ Wore it</button>` : ''}<button class="rbc-hbtn" onclick="window.__dlRestyle()" title="A fresh look — anchored pieces stay">↻ ${dlLoose ? 'Restyle it' : 'Restyle this day'}</button>`,
           onFlip: '__dlFlip', onSwap: '__dlSwap', onAnchor: '__dlAnchor', onRemove: '__dlRemove',
           onRoleDrop: '__dlRoleDrop',
           addPieceFn: '__dlAddPiece',
-          // Until she keeps it, Save is the one real commitment on the
-          // screen — Share belongs to a look that exists.
-          // Share belongs to the day (1c: date, weather and share all
-          // describe a day, not a look), so it stays the action on the
-          // panel. Saving to the Lookbook is a separate, quieter offer in
-          // the masthead — rule 04's "offered, never forced".
-          lookActionHtml: `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
+          // On a DAY, Share is the panel's action (1c: date, weather and
+          // share all describe a day) and the Lookbook save is the quieter
+          // masthead offer. A LOOSE look exists nowhere until she saves it
+          // (1a) — Save is the one real commitment on that screen, and
+          // sharing waits for a look that exists.
+          lookActionHtml: dlLooseUnkept
+            ? `<button onclick="window.__dlSaveAsk&&window.__dlSaveAsk()">Save this look</button>`
+            : `<button onclick="window.__rbShare&&window.__rbShare()">Share this look</button>`,
+          actionKeep: dlLooseUnkept,
+          shareBadge: !dlLooseUnkept,
         }, conItems);
 
         // Header mirrors the live Moodboard: eyebrow → short serif title →
@@ -11696,11 +11729,15 @@
         // the eyebrow); a day with neither titles by the date and the
         // eyebrow drops away. The look's name is italic serif, never
         // conflated with the day's own facts.
-        const wearingTitle = !occTitle && dayLook;
-        const dayTitleHtml = occTitle ? _waEsc(occTitle)
+        // A loose look skips the day ladder entirely — it is a LOOK, so its
+        // name titles the page and no date leads it.
+        const wearingTitle = !dlLoose && !occTitle && dayLook;
+        const dayTitleHtml = dlLoose ? _waEsc(headline)
+          : occTitle ? _waEsc(occTitle)
           : wearingTitle ? 'Wearing <span style="font-style:italic">' + _waEsc(dayLook.name) + '</span>'
           : _waEsc(dayFull || headline);
-        const dayEyebrow = (occTitle || wearingTitle) && dayFull ? dayFull
+        const dayEyebrow = dlLoose ? 'Your look'
+          : (occTitle || wearingTitle) && dayFull ? dayFull
           : (dayFull ? '' : _rbTrackCfg('daily').artifact.eyebrow);
         const dlVibe = _rbVibeLabel(data.look_tags);
         try { dlResultPage.innerHTML = `
@@ -11709,11 +11746,11 @@
               ${dayEyebrow ? `<div class="dlm-eyebrow">${_waEsc(dayEyebrow)}</div>` : ''}
               <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
                 <h1 class="dlm-title">${dayTitleHtml}</h1>
-                <button class="rb-rename-tbtn" title="Name the day" style="margin-top:6px" onclick="window.__dlDayRename&&window.__dlDayRename()"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
+                ${dlLoose ? '' : `<button class="rb-rename-tbtn" title="Name the day" style="margin-top:6px" onclick="window.__dlDayRename&&window.__dlDayRename()"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>`}
               </div>
               <div class="dlm-meta-row">
                 ${ctx && (ctx.city || ctx.tempRange) ? `<div class="dlm-wx"><span>🌤</span><strong>${_waEsc([ctx.city, ctx.month].filter(Boolean).join(' · '))}</strong>${ctx.tempRange ? `<span class="div"></span><span>${_waEsc(ctx.tempRange)}</span>` : ''}${ctx.hint ? `<span class="div"></span><span>${_waEsc(ctx.hint)}</span>` : ''}</div>` : ''}
-                ${headline && !wearingTitle ? `<div class="dlm-wearing">Wearing <em>${_waEsc(headline)}</em><button class="rb-rename-tbtn" title="Rename the look" onclick="window.__rbRename&&window.__rbRename('dl')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button></div>` : ''}
+                ${headline && !wearingTitle && !dlLoose ? `<div class="dlm-wearing">Wearing <em>${_waEsc(headline)}</em><button class="rb-rename-tbtn" title="Rename the look" onclick="window.__rbRename&&window.__rbRename('dl')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button></div>` : ''}
                 ${dlVibe ? `<button class="dlm-vibe" onclick="window.__dlTagsEdit&&window.__dlTagsEdit()" title="Not quite? Change the vibe">${_waEsc(dlVibe)}</button>` : ''}
               </div>
               ${dlVibe ? `<div class="dlm-vibread">Robes read <b>${_waEsc(dlVibe)}</b> as the vibe. <button onclick="window.__dlTagsEdit&&window.__dlTagsEdit()">Not quite? Change the vibe</button></div>` : ''}
@@ -11743,7 +11780,12 @@
         // Auto-save to the lookbook. jobId is stripped from the stored copy —
         // a reopened entry must never poll a dead job. Images land later via
         // _dlPersistImages as hosted URLs (base64 is never persisted).
-        if (!opts || !opts.skipSave) {
+        if (dlLoose && (!opts || !opts.skipSave)) {
+          // Made LOOSE (1a) — it lives in the builder only: no lookbook
+          // row, no diary index. __dlSaveKeep mints the Look when she does.
+          _dlActiveSaveId = null;
+          window.__lastDlPrompt = promptText || data.prompt || '';
+        } else if (!opts || !opts.skipSave) {
           // RULE 04 — the DAY is written, always. This row plus its
           // planned_days index IS the day: the date, its weather and what
           // she was dressed in. It is not the Lookbook, and it does not
@@ -16048,7 +16090,7 @@ body>*:not(#tv-result-page){display:none !important}
             </div>
             <div style="display:flex;flex-direction:column;gap:9px">
               <button id="rb-fork-ways" style="width:100%;padding:13px 20px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit">Style it 3 ways</button>
-              <button id="rb-fork-daily" style="width:100%;padding:13px 20px;border-radius:100px;border:0.5px solid rgba(32,32,33,0.2);background:#fff;color:#202021;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit">Build today's look around it</button>
+              <button id="rb-fork-daily" style="width:100%;padding:13px 20px;border-radius:100px;border:0.5px solid rgba(32,32,33,0.2);background:#fff;color:#202021;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit">Build a look around it</button>
               <button id="rb-fork-skip" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--ink-faint);text-decoration:underline;font-family:inherit;padding:6px">Not now — keep cataloguing</button>
             </div>
           </div>`;
@@ -16060,7 +16102,9 @@ body>*:not(#tv-result-page){display:none !important}
         };
         modal.querySelector('#rb-fork-daily').onclick = function() {
           modal.remove();
-          window.__dlSubmit('An outfit for today built around my ' + row.label);
+          // A look built around a piece is made LOOSE (1a) — it opens in
+          // the builder, editable, and exists nowhere until she saves it.
+          window.__dlSubmit('A look built around my ' + row.label, { loose: true });
         };
         modal.querySelector('#rb-fork-skip').onclick = function() { modal.remove(); };
       };

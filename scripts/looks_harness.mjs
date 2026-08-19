@@ -1584,8 +1584,10 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     det.propActs.filter((x) => x === 'Swap').length === 4 && det.propActs.filter((x) => /Saved/.test(x)).length === 4,
     JSON.stringify(det.propActs));
   check('nothing owned · no zeroed stats ledger', det.stats === 0, JSON.stringify(det.stats));
-  check('nothing owned · the flick cluster cycles the stored suggestions',
-    det.arrows === 8, JSON.stringify(det.arrows));
+  // Superseded 2026-08-17: a proposal is never flicked into another
+  // suggestion — the cluster is reserved for pieces she owns; Swap stays.
+  check('nothing owned · saved proposals carry NO flick cluster',
+    det.arrows === 0, JSON.stringify(det.arrows));
   check('nothing owned · the note reads back on the saved look',
     det.quote === BUILD_NOTE.note, JSON.stringify(det.quote));
 
@@ -2395,6 +2397,95 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       && writes.filter((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)).length === 3,
     JSON.stringify(writes.map((w) => w.method + ' ' + w.url).slice(-8)));
   check('daily zero-owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+
+  // ── Made LOOSE (1a) — a look built around a piece, not for a day. It
+  // opens in the builder, editable, writes NOTHING, and Save is the one
+  // commitment. The flick cluster is absent on suggestions with no owned
+  // peers — AI alternates never enter the flick set (Annie, 2026-08-17).
+  const wBefore = writes.length;
+  const loose = await page.evaluate(async () => {
+    const data = {
+      _dlLoose: true,
+      headline: 'Built around the linen shirt.',
+      occasion_label: '',
+      stylist_summary: 'The shirt leads; everything else stays quiet.',
+      steps: [
+        { title: 'The Canvas', items: [{ name: 'White linen shirt', category: 'Tops', brand: 'Arket', retailer_hint: 'Arket', price_point: '€89',
+            alternates: [{ name: 'Striped cotton shirt', brand: 'COS', retailer_hint: 'COS', price_point: '€79' }] }] },
+        { title: 'The Anchor', items: [{ name: 'Camel wool coat', category: 'Outerwear', brand: 'Toteme', retailer_hint: 'Net-a-Porter', price_point: '€890',
+            alternates: [{ name: 'Grey wool coat', brand: 'COS', retailer_hint: 'COS', price_point: '€290' }] }] },
+      ],
+    };
+    window.__dlRenderResult(data, 'A look built around my linen shirt');
+    await new Promise((r) => setTimeout(r, 500));
+    const head = document.querySelector('#dl-result-page header');
+    const rowOf = (name) => Array.from(document.querySelectorAll('#dl-result-page .rbc-row'))
+      .find((r) => r.querySelector('.rbc-name')?.textContent === name);
+    // Flick the shirt through its whole cycle — her own tops only, the
+    // stored AI alternate must never surface.
+    const seen = [];
+    for (let k = 0; k < 4; k++) {
+      window.__dlFlip(0, 1);
+      await new Promise((r) => setTimeout(r, 120));
+      seen.push(window.__dlCurrentItems[0].name);
+    }
+    return {
+      coatArrows: rowOf('Camel wool coat') ? rowOf('Camel wool coat').querySelectorAll('.rbc-arrow').length : -1,
+      shirtArrows: rowOf(window.__dlCurrentItems[0].name) ? 2 : 0,
+      seen,
+      eyebrow: head?.querySelector('.dlm-eyebrow')?.textContent,
+      title: head?.querySelector('.dlm-title')?.textContent,
+      wearing: !!head?.querySelector('.dlm-wearing'),
+      offer: !!head?.querySelector('.dlm-offer'),
+      dayPencil: !!head?.querySelector('[title="Name the day"]'),
+      cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent,
+      keep: !!document.querySelector('#dl-result-page .rbc-action.keep'),
+      panelHead: document.querySelector('#dl-result-page .rbc-lhead .lab')?.textContent,
+      restyle: Array.from(document.querySelectorAll('#dl-result-page .rbc-hbtn')).map((x) => x.textContent).join('|'),
+    };
+  });
+  await page.waitForTimeout(1000);
+  const looseWrites = writes.slice(wBefore).map((w) => w.method + ' ' + w.url);
+  check('loose · a look built around a piece writes NOTHING on render (1a)',
+    !looseWrites.some((x) => /POST (lookbook_items|planned_days|looks)/.test(x)),
+    JSON.stringify(looseWrites));
+  check('loose · no day chrome — the look titles the page, Save is the commitment',
+    loose.eyebrow === 'Your look' && loose.title === 'Built around the linen shirt.'
+      && loose.wearing === false && loose.offer === false && loose.dayPencil === false
+      && loose.cta === 'Save this look' && loose.keep === true
+      && loose.panelHead === 'The look · 2 pieces' && /Restyle it/.test(loose.restyle),
+    JSON.stringify(loose));
+  // Both suggestions carry stored AI alternates. The shirt has owned peers
+  // (her tops) so it flicks — through HER tops only, the alternate never
+  // surfaces. The coat has no owned peers, so it has no flick at all: a
+  // suggestion is only ever swapped for a piece she owns.
+  check('flick · a suggestion with no owned peers has no cluster',
+    loose.coatArrows === 0, String(loose.coatArrows));
+  check('flick · a suggestion with owned peers cycles HER pieces only — never another suggestion',
+    loose.seen.length === 4 && !loose.seen.includes('Striped cotton shirt')
+      && loose.seen.includes('Cream silk shirt') && loose.seen.includes('White linen shirt'),
+    JSON.stringify(loose.seen));
+
+  const looseKept = await page.evaluate(async () => {
+    window.__dlSaveAsk();
+    await new Promise((r) => setTimeout(r, 250));
+    document.getElementById('rb-dlsave-yes')?.click();
+    await new Promise((r) => setTimeout(r, 800));
+    const head = document.querySelector('#dl-result-page header');
+    return {
+      cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent,
+      door: (head?.querySelector('.dlm-lksrc')?.textContent || '').replace(/\s+/g, ' '),
+    };
+  });
+  await page.waitForTimeout(600);
+  const keptWrites = writes.slice(wBefore).map((w) => w.method + ' ' + w.url);
+  check('loose · keeping it mints the LOOK and nothing else — still no day record',
+    keptWrites.some((x) => /POST looks/.test(x))
+      && !keptWrites.some((x) => /POST (lookbook_items|planned_days)/.test(x)),
+    JSON.stringify(keptWrites.slice(-6)));
+  check('loose · once kept it is a saved look — Share returns, the door points at it',
+    looseKept.cta === 'Share this look' && /Saved in your Lookbook/.test(looseKept.door),
+    JSON.stringify(looseKept));
   await ctx.close();
 }
 
