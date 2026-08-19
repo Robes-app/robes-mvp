@@ -240,7 +240,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
         : `Today’s look: ${n} piece${n === 1 ? '' : 's'} yours, ${4 - n} borrowed.`;
     check(`n=${n} · card captions say what filing buys`,
       noteFor('Daily outfit') === wantDaily
-        && noteFor('Weekly planner') === 'Seven looks in one pass. Nothing worn twice.'
+        && noteFor('Weekly planner') === 'Each day styled from your own wardrobe.'
         && noteFor('Travel edit') === 'Tell Robes where and how long.',
       JSON.stringify(state.notes));
 
@@ -733,7 +733,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check('kp guide band · stands on the first landing, in the band cream register',
     after.kpOpen === true && after.band === true
       && /Start here/i.test(after.bandText)
-      && /Pick one of the three looks below and build it from your wardrobe\./.test(after.bandText)
+      && /Pick one of the three looks below and build it around what’s yours — Robes borrows the rest\./.test(after.bandText)
       && /Or head home to catalogue your wardrobe and start a look of your own\./.test(after.bandText)
       && /Build a look/i.test(after.bandText) && /Home dashboard/.test(after.bandText),
     after.bandText.slice(0, 220));
@@ -984,12 +984,12 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   });
   check('concierge doors · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   check('concierge doors · the image window is 260px', c.imgH === 260, String(c.imgH));
-  check('concierge doors · the weekly CTA is live: "Plan the week"',
-    c.wkCta === 'Plan the week', c.wkCta);
+  check('concierge doors · the weekly CTA promises the day-chip reality (audit 7.1)',
+    c.wkCta === 'Start with tomorrow', c.wkCta);
   check('concierge doors · Style today scopes the prompt to TODAY, in focus',
     c.daily.on === true && (c.daily.label || '').replace(/,/g, '') === fmt(0) && c.daily.focused === true,
     JSON.stringify([c.daily, fmt(0)]));
-  check('concierge doors · Plan the week scopes the prompt to TOMORROW',
+  check('concierge doors · Start-with-tomorrow scopes the prompt to TOMORROW',
     c.weekly.on === true && (c.weekly.label || '').replace(/,/g, '') === fmt(1), JSON.stringify([c.weekly, fmt(1)]));
   await ctx.close();
 }

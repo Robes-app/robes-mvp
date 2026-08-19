@@ -124,6 +124,13 @@ const Dash = (function () {
     'Style my Balmain waistcoat for the office',
     'Help me pack for Ibiza',
   ];
+  /* The personalize layer can swap in wardrobe-fed examples once her
+     pieces load (window.__rbPromptExamples) — read lazily each cycle so
+     the late-loading wardrobe takes effect at the next line. */
+  function twList() {
+    return (window.__rbPromptExamples && window.__rbPromptExamples.length)
+      ? window.__rbPromptExamples : PROMPT_EXAMPLES;
+  }
   const CARET = '\u258F';
   let twTimer = null, twOn = false;
   function stopType() { twOn = false; if (twTimer) { clearTimeout(twTimer); twTimer = null; } }
@@ -137,7 +144,7 @@ const Dash = (function () {
     let pi = 0;
     (function typeOne() {
       if (!twOn) return;
-      const full = PROMPT_EXAMPLES[pi];
+      const full = twList()[pi % twList().length];
       let i = 0;
       (function typeStep() {
         if (!twOn) return;
@@ -152,7 +159,7 @@ const Dash = (function () {
           if (!twOn) return;
           ta.placeholder = full.slice(0, len) + CARET;
           if (len > 0) { len--; twTimer = setTimeout(eraseStep, 24); }
-          else { pi = (pi + 1) % PROMPT_EXAMPLES.length; twTimer = setTimeout(typeOne, 380); }
+          else { pi = (pi + 1) % twList().length; twTimer = setTimeout(typeOne, 380); }
         })();
       }
     })();

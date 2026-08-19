@@ -142,6 +142,8 @@ const browser = await chromium.launch(
       btns: Array.from(document.querySelectorAll('.rb-wf-drop-btns')).filter(shown)
         .flatMap((w) => Array.from(w.querySelectorAll('.rb-wf-btn')).map((b) => b.textContent)),
       link: !!document.querySelector('.rb-wf-linkrow input'),
+      batch: (() => { const b = document.querySelector('.rb-wf-batch'); if (!b) return false;
+        const cs = getComputedStyle(b); return cs.borderRadius === '100px' && /Add several at once/.test(b.textContent); })(),
       nophoto: document.querySelector('.rb-wf-nophoto')?.textContent || '',
       file: !!document.getElementById('wa-rb-file'),
       multiple: document.getElementById('wa-rb-file')?.multiple,
@@ -151,7 +153,11 @@ const browser = await chromium.launch(
   check('step1 · Add a piece heading', /Add a piece/.test(s1.heading), s1.heading);
   check('step1 · desktop is drop-first with one Choose-files button', s1.dropH.join('|') === 'Drop an image here'
     && s1.btns.join('|') === 'Choose files', `${s1.dropH.join('|')} / ${s1.btns.join('|')}`);
-  check('step1 · From-a-link field + Add-without-a-photo route', s1.link && s1.nophoto === 'Add without a photo', s1.nophoto);
+  // Audit 3.2 (2026-08-19): the From-a-link coming-soon door is HIDDEN from
+  // the FTU add modal until the feature is live — a dead door in a
+  // first-session modal costs trust. __waLinkSoon survives doorless.
+  check('step1 · no From-a-link dead door; Add-without-a-photo route stands', !s1.link && s1.nophoto === 'Add without a photo', s1.nophoto);
+  check('step1 · the batch promise reads as a chip', s1.batch, JSON.stringify(s1.batch));
   check('step1 · multi file input, never capture on the picker', s1.file && s1.multiple === true && s1.capture === false, String(s1.capture));
   const cam = await page.evaluate(() => ({
     exists: !!document.getElementById('wa-rb-cam'),
@@ -165,23 +171,6 @@ const browser = await chromium.launch(
   check('step1 · library input is photos-only (image/* multiple, no capture) so iOS skips the source chooser',
     cam.lib && cam.libAccept === 'image/*' && cam.libMulti === true && cam.libCapture === false, JSON.stringify(cam));
 
-  // Paste-a-link opens the Coming Soon dialog ABOVE the add modal
-  await page.click('.rb-wf-linkrow input');
-  await page.waitForTimeout(200);
-  const soon = await page.evaluate(() => {
-    const cs = document.getElementById('cs-modal');
-    const fm = document.getElementById('wa-modal');
-    return {
-      open: !!cs && cs.classList.contains('open'),
-      above: cs && fm ? parseInt(getComputedStyle(cs).zIndex, 10) > parseInt(getComputedStyle(fm).zIndex, 10) : false,
-    };
-  });
-  check('step1 · paste-a-link shows Coming Soon over the modal', soon.open && soon.above, JSON.stringify(soon));
-  await page.evaluate(() => {
-    document.getElementById('cs-modal')?.classList.remove('open');
-    document.body.classList.remove('modal-open');
-  });
-  await page.waitForTimeout(150);
 
   await page.setInputFiles('#wa-rb-file', { name: 'blazer.png', mimeType: 'image/png', buffer: PNG_OK });
   await page.waitForTimeout(300);

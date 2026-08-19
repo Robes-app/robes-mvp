@@ -140,13 +140,14 @@ const kpTxt = await page.locator('#kp-result-page').innerText();
 check('three ways rendered', kpTxt.includes('Urbane Weekend') && kpTxt.includes('Park Hangout'));
 
 // 5 · Build this look → an editable Look entity in the Lookbook,
-// named after the chosen way, itemised composition-only (noImages)
+// named after the chosen way, itemised WITH imagery (audit 2.2,
+// 2026-08-19 — the image should always render; blank tiles read as failures)
 const buildBtns = page.locator('#kp-result-page button:has-text("Build this look")');
 check('Build this look on every look card', await buildBtns.count() === 3);
 await buildBtns.first().click();
 await page.waitForTimeout(1400);
 check('one /api/daily call', dailyCalls === 1);
-check('composition only — noImages sent, no image job', dailyBodies[0] && dailyBodies[0].noImages === true);
+check('imagery requested — noImages no longer sent (audit 2.2)', dailyBodies[0] && !dailyBodies[0].noImages);
 check('brief carries the way prose', dailyBodies[0] && /Umbro shorts, a white ribbed tank/.test(dailyBodies[0].prompt || ''));
 // EDIT MODE, not a saved look (Annie's beta pass 2026-08-17): the itemised
 // way lands LOOSE — the editable console, nothing written, Save this look

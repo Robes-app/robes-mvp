@@ -1086,6 +1086,21 @@
         const n = _waItems.length;
         const label = n + ' piece' + (n !== 1 ? 's' : '');
 
+        // Audit X.1 — the typewriter demos with HER wardrobe, not the
+        // Balmain fallback piece: once anything is filed, the rotating
+        // examples lead with her most recent pieces (the bundle's
+        // twList() reads window.__rbPromptExamples lazily each cycle).
+        try {
+          const named = _waItems.filter(i => i.label && i.label.length <= 34);
+          if (named.length) {
+            const ex = ['Style my ' + named[0].label.toLowerCase() + ' three ways'];
+            if (named.length > 1) ex.push('An outfit around my ' + named[1].label.toLowerCase() + ' for the weekend');
+            ex.push('What should I wear to dinner in the city tonight?');
+            ex.push('Help me pack for a weekend away');
+            window.__rbPromptExamples = ex;
+          }
+        } catch (_) {}
+
         if (!document.getElementById('rb-wtrk-style')) {
           const st = document.createElement('style');
           st.id = 'rb-wtrk-style';
@@ -1748,7 +1763,7 @@
             <div id="wa-rb-zone" class="rb-wf-drop">
               <span class="rb-wf-drop-h rb-wf-dt">Drop an image here</span>
               <span class="rb-wf-drop-h rb-wf-mb">Snap or attach the piece</span>
-              <span class="rb-wf-drop-s">Select several and Robes files them one after another</span>
+              <span class="rb-wf-drop-s rb-wf-batch"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="14" height="14" rx="2"/><path d="M3 17V5a2 2 0 0 1 2-2h12"/></svg>Add several at once — Robes files them one after another</span>
               <span class="rb-wf-drop-btns rb-wf-dt">
                 <button type="button" class="rb-wf-btn ink" data-pick="lib">Choose files</button>
               </span>
@@ -1763,10 +1778,6 @@
                 style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
               <input id="wa-rb-cam" type="file" accept="image/*" capture="environment"
                 style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
-            </div>
-            <div class="rb-wf-linkrow">
-              <span class="rb-wf-lbl" style="margin:0;white-space:nowrap;">From a link</span>
-              <input readonly placeholder="Paste a product page" onclick="window.__waLinkSoon&&__waLinkSoon()">
             </div>
             <button type="button" class="rb-wf-nophoto" onclick="window.__waManualStart&&__waManualStart()">Add without a photo</button>`;
           _setDot(1);
@@ -1936,6 +1947,9 @@
             '.rb-wf-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border:1.5px dashed #D8CFC0;border-radius:var(--rad);background:#FAF8F5;cursor:pointer;text-align:center;padding:36px 22px;box-sizing:border-box;position:relative}',
             '.rb-wf-drop-h{font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:24px;color:#2A2520}',
             '.rb-wf-drop-s{font-size:13px;color:var(--ink-faint);margin-top:-8px}',
+            // Audit 3.3 — the batch promise is the biggest cold-start lever;
+            // a chip reads where a quiet sub-line disappeared.
+            '.rb-wf-batch{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#202021;background:#fff;border:0.5px solid rgba(32,32,33,0.18);border-radius:100px;padding:6px 14px;margin-top:-4px}',
             '.rb-wf-drop-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}',
             '.rb-wf-btn{display:inline-flex;align-items:center;justify-content:center;padding:13px 24px;border-radius:100px;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;cursor:pointer;box-sizing:border-box}',
             '.rb-wf-btn.ink{background:var(--ink,#202021);color:#FAF8F5}',
@@ -2819,7 +2833,16 @@
             await _waLoad();
             if (batchNext) _waShowToast('Piece ' + _waBatchDone + ' of ' + batchTotal + ' added');
             else if (!editId && batchTotal > 1) _waShowToast('All ' + batchTotal + ' pieces in your wardrobe');
-            else _waShowToast(editId ? 'Piece updated' : 'Added to wardrobe');
+            else if (editId) _waShowToast('Piece updated');
+            else {
+              // Below the fork threshold every add used to end in a bare
+              // toast (audit 3.1) — a one-line payoff names what the piece
+              // just changed, without a modal taxing the batch.
+              const nNow = _waItems.length;
+              _waShowToast(nNow >= 15 ? 'Added to wardrobe'
+                : nNow < 4 ? 'Added — today’s look is now ' + nNow + ' piece' + (nNow === 1 ? '' : 's') + ' yours, ' + (4 - nNow) + ' borrowed.'
+                : 'Added — ' + nNow + ' pieces filed. Each one replaces a borrowed piece in your looks.');
+            }
 
             // A pending "Snap mine" swap is waiting on this new piece —
             // apply it now that _waItems has reloaded with the new row.
@@ -5268,10 +5291,14 @@
             };
             const weeklyImg = weekly.querySelector('.svc-img img');
             if (weeklyImg) { weeklyImg.src = '/images/looks/look2.jpg'; weeklyImg.style.objectPosition = '50% 8%'; }
+            // Audit 7.1 — the card must promise what the tap delivers: the
+            // weekly engine is gone (ADR-001), the week is planned a day at
+            // a time through the diary chips. The seven-looks-in-one-pass
+            // copy returns only when a week-scale flow does.
             const wkDesc = weekly.querySelector('.svc-desc');
-            if (wkDesc) wkDesc.textContent = 'Your week mapped day by day — every outfit routed through your own wardrobe, no repeats.';
+            if (wkDesc) wkDesc.textContent = 'Plan the week a day at a time — name tomorrow, Robes dresses it, and the diary keeps the week.';
             const wkCta = weekly.querySelector('.svc-cta');
-            if (wkCta) wkCta.innerHTML = 'Plan the week<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>';
+            if (wkCta) wkCta.innerHTML = 'Start with tomorrow<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>';
 
 
             const travelImg = travel.querySelector('.svc-img img');
@@ -5568,7 +5595,7 @@
             <div style="max-width:900px;margin:0 auto;display:flex;align-items:center;gap:22px;flex-wrap:wrap">
               <span style="font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:#9A9082;flex-shrink:0">Start here</span>
               <div style="flex:1;min-width:230px">
-                <div style="font-size:14.5px;color:#202021;line-height:1.45">Pick one of the three looks below and build it from your wardrobe.</div>
+                <div style="font-size:14.5px;color:#202021;line-height:1.45">Pick one of the three looks below and build it around what’s yours — Robes borrows the rest.</div>
                 <div style="font-family:${serif};font-style:italic;font-size:15px;color:#8A8072;margin-top:2px">Or head home to catalogue your wardrobe and start a look of your own.</div>
               </div>
               <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;flex-wrap:wrap">
@@ -5728,8 +5755,9 @@
       };
 
       // ── "Build this look" — kp way → Look entity (Annie, 2026-08-17) ────
-      // The daily engine ITEMISES the way's prose (composition only —
-      // noImages, so no fresh frames are generated), then the result is
+      // The daily engine ITEMISES the way's prose (WITH imagery since
+      // 2026-08-19 — unowned pieces rendered as blank tiles at the wow
+      // moment; Annie: the image should always render), then the result is
       // minted straight into the Lookbook: owned matches become
       // look_pieces, everything else hangs as proposals (migration 19) so
       // the look reopens with its gaps to fill, exactly like a Robes build.
@@ -5787,7 +5815,6 @@
               vibes: _rbVibeVocab(),
               userId: _waUid() || undefined,
               genId,
-              noImages: true,
             }),
           });
           if (!res.ok) throw new Error(await res.text());
@@ -5860,6 +5887,8 @@
       // nothing for its changes to be local TO.
       let _dlDayBase = null;      // {lookId, ids:[…]}
       let _dlAsked = false;       // the one question, asked once per day (rule 06)
+      let _dlKeepAsked = false;   // audit 5.3: the keep ask on leaving, once per fresh look
+      let _dlKeepArmed = null;    // the data object the keep ask is armed for (fresh generations only)
       function _dlDayChanges() {
         if (!_dlDayBase) return { n: 0, added: [], gone: [] };
         const flat = window.__dlCurrentItems || [];
@@ -5911,12 +5940,16 @@
       }
 
       function _dlSettlePlaceholder(i) {
+        // A frame that never arrives settles to the piece's monogram, not a
+        // broken-image glyph (audit 2.2).
+        const it = (window.__dlCurrentItems || []).find(x => x && x.image_index === i);
+        const ch = ((it && it.name) || '?').charAt(0).toUpperCase();
         document.querySelectorAll('[data-dlimg="' + i + '"]').forEach(wrap => {
           if (wrap.querySelector('img')) return;
           const ph = wrap.querySelector('.dl-img-ph');
           if (ph) {
             ph.style.animation = 'none';
-            ph.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+            ph.innerHTML = '<span class="rbc-mono" style="font-family:\'Cormorant\',Georgia,serif;font-size:30px;font-weight:300;color:var(--ink-faint)">' + _waEsc(ch) + '</span>';
           }
         });
       }
@@ -5964,7 +5997,7 @@
         // Leaving an unkept look asks first — save it, or let it go
         // (Annie, 2026-08-13). After either answer the guard stands down
         // and this re-entry falls through.
-        if (window._dlExitGuard && window._dlExitGuard(window.__dlGoBack)) return;
+        if (window._dlExitGuard && window._dlExitGuard(window.__dlGoBack, { keepAsk: true })) return;
         if (dlResultPage) dlResultPage.style.display = 'none';
         _waAfterAdd = null; // leaving the look cancels any armed snap-mine swap
         window.rbClearCrumb && window.rbClearCrumb();
@@ -6183,6 +6216,23 @@
         const map = [['linen', 'linen'], ['silk', 'silk'], ['satin', 'satin'], ['cotton', 'cotton'], ['crochet', 'knit'], ['knit', 'knit'], ['cashmere', 'cashmere'], ['wool', 'wool'], ['denim', 'denim'], ['jean', 'denim'], ['leather', 'leather'], ['suede', 'suede'], ['straw', 'raffia'], ['woven', 'raffia'], ['tee', 'jersey'], ['tank', 'jersey'], ['jersey', 'jersey'], ['polo', 'piqué'], ['sneaker', 'canvas'], ['trainer', 'canvas'], ['loafer', 'leather'], ['sandal', 'leather'], ['boot', 'leather'], ['gold', 'gold'], ['necklace', 'gold'], ['earring', 'gold'], ['sunglass', 'acetate'], ['trench', 'cotton twill'], ['pliss', 'plissé'], ['tweed', 'tweed'], ['velvet', 'velvet']];
         for (const [k, v] of map) if (n.indexOf(k) !== -1) return v;
         return 'textile';
+      }
+      // The "Robes read X as the vibe" teaching line shows once per user
+      // (audit 5.1 — the masthead stacked three meta systems); after that
+      // the vibe chip alone carries change-the-vibe (it is already the
+      // same button). Stable across rerenders of the SAME look (flick /
+      // swap repaint with the same data object).
+      function _dlVibreadOn(data) {
+        try {
+          const u = _waUid();
+          if (!u) return true;
+          if (window._dlVibreadData === data) return true;
+          const k = 'rb_vibread_seen__' + u;
+          if (localStorage.getItem(k)) return false;
+          localStorage.setItem(k, '1');
+          window._dlVibreadData = data;
+          return true;
+        } catch (_) { return true; }
       }
       function _dlAltered(it) {
         return !!(it.orig && (it.orig.name || '').toLowerCase() !== (it.name || '').toLowerCase());
@@ -6409,14 +6459,26 @@
       // until a piece lands in its group — the education layer and the
       // standing drop targets (spec B1 amendments 2026-08-07; slot rows
       // are gone — no slot ever forecasts a role).
+      // Plain-word asides for the formula roles (audit 4.1) — the composer
+      // is a first-session surface, and the strip names alone are the first
+      // jargon a new user meets. Rendered only where cfg.roleHints asks.
+      const _RB_ROLE_HINTS = {
+        'The Canvas': 'tops & basics',
+        'The Anchor': 'the hero piece',
+        'The Texture': 'a layer with depth',
+        'The Exclamation Point': 'shoes, bag & finish',
+      };
       function _rbRackRolesHtml(items, cfg, empties) {
         if (cfg.onRoleDrop) _rbcDndInit();
         const withRole = items.map((it, i) => ({ it, i, role: _rbRoleOf(it) }));
         const ord = r => { const k = _RB_ROLES.indexOf(r); return k < 0 ? 99 : k; };
         withRole.sort((a, b) => ord(a.role) - ord(b.role) || a.i - b.i);
         const ctxAttr = cfg.roleCtx != null ? ` data-rolectx="${_waEsc(String(cfg.roleCtx))}"` : '';
+        // The hint rides ::after via data-hint, NOT a text node — strip
+        // textContent stays byte-identical for every consumer that matches
+        // strips by their text.
         const stripHtml = (role, ghost) =>
-          `<div class="rbc-rolestrip${ghost ? ' ghost' : ''}"${cfg.onRoleDrop ? ` data-roledrop="${_waEsc(role)}" data-rolefn="${cfg.onRoleDrop}"${ctxAttr}` : ''}><span>${_waEsc(role)}</span><i></i></div>`;
+          `<div class="rbc-rolestrip${ghost ? ' ghost' : ''}"${cfg.onRoleDrop ? ` data-roledrop="${_waEsc(role)}" data-rolefn="${cfg.onRoleDrop}"${ctxAttr}` : ''}><span${cfg.roleHints && _RB_ROLE_HINTS[role] ? ` data-hint="· ${_waEsc(_RB_ROLE_HINTS[role])}"` : ''}>${_waEsc(role)}</span><i></i></div>`;
         const rowHtml = x => cfg.onRoleDrop
           ? `<div class="rbc-dragrow" draggable="true" data-roledrag="${x.i}" data-rolefn="${cfg.onRoleDrop}" data-rolehome="${_waEsc(x.role)}"${ctxAttr}>${_rbcRow(x.it, cfg)}</div>`
           : _rbcRow(x.it, cfg);
@@ -6827,6 +6889,8 @@
 .rbc-panel{background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);padding:18px}
 .rbc-rolestrip{display:flex;align-items:center;gap:10px;margin:2px 2px -5px}
 .rbc-rolestrip span{font-size:8px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+.rbc-rolestrip span[data-hint]::after{content:attr(data-hint);font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:12px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-faint);margin-left:7px}
+.rbc-rolestrip.ghost span[data-hint]::after{color:var(--cream-400,#D8CFC0)}
 .rbc-rolestrip i{flex:1;height:1px;background:var(--rule)}
 .rbc-rolestrip.ghost span{color:var(--cream-400,#D8CFC0)}
 .rbc-rolestrip.ghost i{background:var(--cream-200,#EFE9DC)}
@@ -7826,7 +7890,13 @@
             // second line exactly as on a dressed card — never at the
             // foot (§C: production dropped the chip to the foot exactly
             // when the day was least legible).
-            inner += `<div class="dc-empty top"><div class="t">add plans…</div><div class="s">name the day and add a look</div></div>`;
+            // opts.inviteSub — the surface can vary the second line
+            // (audit 7.2: six identical invitations read as wallpaper —
+            // the rail gives the FIRST empty day a worked example and
+            // quiets the rest). undefined keeps the canonical line.
+            const inviteSub = opts.inviteSub === undefined
+              ? 'name the day and add a look' : opts.inviteSub;
+            inner += `<div class="dc-empty top"><div class="t">add plans…</div>${inviteSub ? `<div class="s">${_waEsc(inviteSub)}</div>` : ''}</div>`;
             inner += chipHtml;
           }
         } else if (stage === 'named') {
@@ -8866,6 +8936,7 @@
 @keyframes rbLkFill{0%,100%{opacity:1}50%{opacity:.62}}
 @media(prefers-reduced-motion:reduce){.rb-lk-fill{animation:none}}
 .rb-lk-namenote{margin-top:9px;font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:14px;color:var(--ink-faint)}
+.rb-lk-savegate{margin-top:0}
 /* A piece she doesn't own yet: the full card — category chip, brand,
    retailer, price — and TWO actions only, Swap and Save. */
 /* Proposal rows are the shared _rbcRow — only two build-specific states
@@ -10028,9 +10099,9 @@
         // No image carousel on an unsaved build — it belongs to the SAVED
         // card, not here; Swap is the one action on a hung piece.
         const rowCfg = _lkBuilt
-          ? { onSwap: '__lkCSwap', onRoleDrop: '__lkCRoleDrop', onRoleAdd: home ? '__lkHomeSnap' : '__lkAddOpen', allStrips: true }
+          ? { onSwap: '__lkCSwap', onRoleDrop: '__lkCRoleDrop', onRoleAdd: home ? '__lkHomeSnap' : '__lkAddOpen', allStrips: true, roleHints: true }
           : { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop',
-              onRoleAdd: home ? '__lkHomeSnap' : '__lkAddOpen', allStrips: true };
+              onRoleAdd: home ? '__lkHomeSnap' : '__lkAddOpen', allStrips: true, roleHints: true };
         const empties = _lkBuilt ? _lkBuildEmpties() : [];
         // No slot-bound empty rows (founder call 2026-08-07: her trousers
         // can anchor, her top can be the exclamation — a slot must never
@@ -10077,6 +10148,14 @@
                 : '<button type="button" class="rb-lk-quiet" onclick="window.__lkSaveAndWear()">Wear it today</button>') +
             '</div>'
           : '<button type="button" class="rb-lk-quiet rb-lk-robesdoor" onclick="window.__lkRobesBuild()">' + _waEsc(robesDoor) + '</button>';
+        // The disabled Save says WHY on screen (audit 4.2) — the title
+        // attribute alone is invisible on touch. The name gate keeps its
+        // own note in the masthead; this line covers the piece floor.
+        const saveGateNote = !canSave && !enoughPieces
+          ? '<div class="rb-lk-namenote rb-lk-savegate">' + (_lkBuilt
+              ? 'Add a piece of your own and this look is yours to keep.'
+              : 'Add two pieces and this look is yours to keep.') + '</div>'
+          : '';
         rackHtml += '<div class="rb-lk-saverow' + (_lkBuilt && !_lkBuilding ? ' built' : '') + '">' +
           '<button type="button" class="rb-lk-save" onclick="window.__lkSaveAsk()"' +
             (canSave ? '' : ' disabled title="' + (!enoughPieces
@@ -10084,6 +10163,7 @@
                 ? 'Add a piece of your own and this look is yours to keep'
                 : 'Add two pieces and this look is yours to keep')
               : 'Name your look and it’s yours to keep') + '"') + '>Save this look</button>' +
+          saveGateNote +
           foot +
           '</div>';
 
@@ -10961,7 +11041,7 @@
           el.id = 'rb-ftu-rows';
           el.setAttribute('data-mode', mode);
           el.innerHTML = _rbFtuRowDefs(mode).map(r =>
-            '<div class="rb-ftu-row' + (r.quiet ? ' rb-quiet' : '') + '" id="rb-ftu-row-' + r.key + '">' +
+            '<div class="rb-ftu-row' + (r.quiet ? ' rb-quiet' : '') + '" id="rb-ftu-row-' + r.key + '" onclick="window.__rbFtuRowTap(event,\'' + r.key + '\')">' +
               '<button type="button" class="rb-ftu-head" onclick="window.__rbFtuToggle(\'' + r.key + '\')">' +
                 '<span class="rb-ftu-txt"><span class="rb-ftu-ey">' + r.ey + '</span>' +
                 '<span class="rb-ftu-sub">' + r.sub + '</span></span>' +
@@ -11061,6 +11141,15 @@
           }, 80);
         }
         _rbTrack('ftu_row_toggle', { row: key, open: opening });
+      };
+      // The WHOLE row is a tap target (audit 4.3) — a click landing on the
+      // row element ITSELF (its padding/hairlines, outside the head button
+      // and the open body) toggles too. Direct-target only: body content
+      // can repaint mid-bubble (showmore, pickers), which detaches
+      // e.target and would defeat any closest() guard.
+      window.__rbFtuRowTap = function(e, key) {
+        if (!e || e.target !== e.currentTarget) return;
+        window.__rbFtuToggle(key);
       };
       // Anything that arms or scopes the prompt while the rows carry home
       // must unfurl the Style-something row first, or it writes into a
@@ -12124,11 +12213,60 @@
         return !!(_dlDayBase && !_dlAsked && _dlDayChanges().n
           && dlResultPage && dlResultPage.style.display !== 'none');
       }
+      // Audit 5.3 — a freshly generated look she never kept: the day is
+      // written (rule 04) but nothing landed in the Lookbook, and testers
+      // leave without realising the split. On a NAVIGATION exit only
+      // (opts.keepAsk — never the wear path or internal transitions), ask
+      // once whether to keep it.
+      function _dlKeepAskOnScreen() {
+        const d = window.__lastDlData;
+        return !!(d && d === _dlKeepArmed && d._dlNoLook && !_dlKeepAsked
+          && dlResultPage && dlResultPage.style.display !== 'none');
+      }
+      function _dlKeepAskModal(proceed) {
+        const d = window.__lastDlData || {};
+        const loose = !!d._dlLoose;
+        _dlKeepAsked = true;
+        document.getElementById('rb-del-modal')?.remove();
+        const modal = document.createElement('div');
+        modal.id = 'rb-del-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        const dismiss = function() { modal.remove(); proceed(); };
+        modal.onclick = function(e) { if (e.target === modal) dismiss(); };
+        modal.innerHTML =
+          '<div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:430px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:28px 26px">' +
+            '<p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#A89880;margin:0 0 6px">' +
+              (loose ? 'Your look' : _waEsc(_dlDayLabel())) + '</p>' +
+            '<p style="font-family:\'Cormorant\',Georgia,serif;font-size:26px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.2">' +
+              'Keep this look?</p>' +
+            '<p style="font-size:13px;line-height:1.6;color:#5F5A4E;margin:0 0 20px">' +
+              (loose
+                ? 'It isn’t saved yet — leaving lets it go.'
+                : 'The day is written in your diary, but the look isn’t in your Lookbook yet — saved, it starts counting its wears.') + '</p>' +
+            '<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">' +
+              '<button id="rb-dlkeep-yes" style="padding:15px 26px;border:none;border-radius:100px;background:#202021;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;color:#FAF8F5;font-family:inherit">Save to your Lookbook</button>' +
+              '<button id="rb-dlkeep-no" style="background:none;border:none;padding:0 0 2px;font-size:13px;color:#5F5A4E;border-bottom:1px solid #D8CFC0;cursor:pointer;font-family:inherit">' +
+                (loose ? 'Let it go' : 'Leave it on the day') + '</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(modal);
+        modal.querySelector('#rb-dlkeep-no').onclick = dismiss;
+        modal.querySelector('#rb-dlkeep-yes').onclick = function() {
+          modal.remove();
+          // The offer's own flow: the wishlist confirm interposes when
+          // unowned pieces exist, exactly as the on-page button.
+          if (typeof window.__dlSaveAsk === 'function') window.__dlSaveAsk();
+        };
+        return true;
+      }
       // proceed(): what happens after she answers (leave the day, log the
       // wear). Returns true when it took the question — the caller then
       // waits rather than continuing.
-      window._dlExitGuard = function(proceed) {
-        if (!_dlDayDirtyOnScreen()) return false;
+      window._dlExitGuard = function(proceed, opts) {
+        if (!_dlDayDirtyOnScreen()) {
+          if (opts && opts.keepAsk && _dlKeepAskOnScreen()) return _dlKeepAskModal(proceed);
+          return false;
+        }
         const chg = _dlDayChanges();
         const base = _lkFind(_dlDayBase.lookId);
         const suggested = _dlDaySuggestName(base);
@@ -12191,7 +12329,7 @@
       setTimeout(function() {
         const wrap = fn => function() {
           const args = arguments, self = this;
-          if (window._dlExitGuard(function() { fn.apply(self, args); })) return;
+          if (window._dlExitGuard(function() { fn.apply(self, args); }, { keepAsk: true })) return;
           return fn.apply(self, args);
         };
         if (typeof window.__rbNavGo === 'function') window.__rbNavGo = wrap(window.__rbNavGo);
@@ -12522,8 +12660,15 @@
           return;
         }
         // A fresh generation completes the concierge's Daily card (R5) —
-        // reopens pass skipSave and never count.
-        if (!opts || !opts.skipSave) { try { _rbSvcComplete('daily'); } catch (_) {} }
+        // reopens pass skipSave and never count. A fresh generation also
+        // arms the keep-ask on leaving (audit 5.3) — reopened days never
+        // nag, and flick/swap rerenders (skipSave, same data object) keep
+        // the armed state.
+        if (!opts || !opts.skipSave) {
+          try { _rbSvcComplete('daily'); } catch (_) {}
+          _dlKeepArmed = data;
+          _dlKeepAsked = false;
+        }
         _dlStopPolling();
         window.__lastDlData = data;
         window.__lastDlPrompt = promptText || data.prompt || '';
@@ -12632,11 +12777,12 @@
           const src = wmImg || (genOk ? images[it.image_index] : null);
           const pollAttr = (!wmImg && genOk) ? ' data-dlimg="' + it.image_index + '"' : '';
           const pulse = !src && !wmImg && genOk && imagesPending;
+          // No frame and no live job to deliver one → the monogram tile,
+          // never the broken-image glyph (audit 2.2 — a blank tile at the
+          // wow moment read as a failure).
           const phInner = pulse
             ? `<span style="font-family:${serif};font-style:italic;font-size:12px;color:var(--ink-faint);text-align:center;padding:0 12px">Creating imagery…</span>`
-            : (altered && !wmImg)
-              ? `<span class="rbc-mono" style="font-family:${serif};font-size:30px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`
-              : phSvg;
+            : `<span class="rbc-mono" style="font-family:${serif};font-size:30px;font-weight:300;color:var(--ink-faint)">${_waEsc((it.name || '?').charAt(0).toUpperCase())}</span>`;
           const inner = src && typeof src === 'string'
             ? `<img src="${_waEsc(src)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
             : `<div class="dl-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${pulse ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${phInner}</div>`;
@@ -12788,7 +12934,7 @@
                 ${headline && !wearingTitle && !dlLoose ? `<div class="dlm-wearing">Wearing <em>${_waEsc(headline)}</em><button class="rb-rename-tbtn" title="Rename the look" onclick="window.__rbRename&&window.__rbRename('dl')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button></div>` : ''}
                 ${dlVibe ? `<button class="dlm-vibe" onclick="window.__dlTagsEdit&&window.__dlTagsEdit()" title="Not quite? Change the vibe">${_waEsc(dlVibe)}</button>` : ''}
               </div>
-              ${dlVibe ? `<div class="dlm-vibread">Robes read <b>${_waEsc(dlVibe)}</b> as the vibe. <button onclick="window.__dlTagsEdit&&window.__dlTagsEdit()">Not quite? Change the vibe</button></div>` : ''}
+              ${dlVibe && _dlVibreadOn(data) ? `<div class="dlm-vibread">Robes read <b>${_waEsc(dlVibe)}</b> as the vibe. <button onclick="window.__dlTagsEdit&&window.__dlTagsEdit()">Not quite? Change the vibe</button></div>` : ''}
               ${data.look_id && typeof _lkFind === 'function' && _lkFind(data.look_id) ? `<div class="dlm-lksrc">Saved in your Lookbook — <button onclick="window.__lkFromDaily&&window.__lkFromDaily('${_waEsc(String(data.look_id))}')">Look details →</button></div>` : ''}
               ${kpSrc ? `<div class="dlm-lksrc">Built from <em>${_waEsc(kpSrc.title || 'your styled key piece')}</em> — <button onclick="window.__dlBackToKp()">Back to the three ways →</button></div>` : ''}
               ${dlNoLook ? `<div class="dlm-offer"><span>This day is dressed. Keep the look and it joins your Lookbook, where it starts counting its wears.</span><button onclick="window.__dlSaveAsk&&window.__dlSaveAsk()">Save to your Lookbook</button></div>` : ''}
@@ -12850,8 +12996,28 @@
       // ── Shared swap modal (PRD 3.B) — ONE implementation for the Daily,
       // Weekly and Travel racks. cfg: {id, applyName, snapName, idx} — the
       // apply/snap handlers stay per-surface, the modal itself never forks.
+      // The open swap modal's item + optional after-wish repaint hook
+      // (audit 6.2 — the affiliate coming-soon dead end is replaced by a
+      // real Save-to-wishlist; the rack card's own Save stays the primary,
+      // both share it.wishlisted so a double save no-ops).
+      let _rbSwapItem = null, _rbSwapAfterWish = null;
+      window.__rbSwapWishSave = async function(btn) {
+        const it = _rbSwapItem;
+        if (!it) return;
+        await _wlSaveFromItem(it);
+        if (btn) {
+          btn.disabled = true;
+          btn.style.cursor = 'default';
+          btn.style.color = 'var(--ink-faint)';
+          btn.textContent = '✓ Saved to wishlist';
+        }
+        const fn = _rbSwapAfterWish && window[_rbSwapAfterWish];
+        if (typeof fn === 'function') { try { fn(); } catch (_) {} }
+      };
       function _rbSwapModal(item, cfg) {
         document.getElementById(cfg.id)?.remove();
+        _rbSwapItem = item;
+        _rbSwapAfterWish = cfg.afterWish || null;
 
         const catLower = (item.category || '').toLowerCase();
         const catMatch = wi => {
@@ -12894,7 +13060,7 @@
           wardrobeSection = `
             <div style="margin-bottom:24px;background:#F5F2EE;border-radius:var(--rad);padding:14px">
               <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 6px">Robes’ suggestion</p>
-              <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don’t have a ${_waEsc((item.category || 'piece').toLowerCase())}, but your <em>${_waEsc(aiAlt.label)}</em> creates a similar outline.</p>
+              <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don’t own any ${_waEsc((item.category || 'piece').toLowerCase())} yet, but your <em>${_waEsc(aiAlt.label)}</em> creates a similar outline.</p>
               <button onclick="window.${cfg.applyName}(${cfg.idx},'${_waEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
             </div>`;
         }
@@ -12943,15 +13109,15 @@
             </div>
             <div style="padding:0 20px 32px">
               ${wardrobeSection}${adoptSection}
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${(retailer || price) ? '10px' : '0'}">
+              <div style="display:grid;grid-template-columns:${item.wardrobe_match ? '1fr' : '1fr 1fr'};gap:10px;margin-bottom:${(retailer || price) ? '10px' : '0'}">
                 <button onclick="window.${cfg.snapName}()" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#EDE8E0;border:none;border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
                   ${cameraSvg} Snap mine
                 </button>
-                <button onclick="window.__rbAffiliateSoon('${cfg.id}')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
-                  Shop via Affiliate ${arrowSvg}
-                </button>
+                ${item.wardrobe_match ? '' : (item.wishlisted
+                  ? `<button disabled style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:var(--ink-faint);background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:default;letter-spacing:.01em">✓ Saved to wishlist</button>`
+                  : `<button onclick="window.__rbSwapWishSave(this)" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">Save to wishlist</button>`)}
               </div>
-              ${(retailer || price) ? `<p style="text-align:center;font-size:11px;color:var(--ink-faint);margin:0">Opens ${_waEsc(retailer)}${price ? ' · ' + _waEsc(price) : ''}</p>` : ''}
+              ${(retailer || price) ? `<p style="text-align:center;font-size:11px;color:var(--ink-faint);margin:0">Sold at ${_waEsc(retailer)}${price ? ' · ' + _waEsc(price) : ''}</p>` : ''}
             </div>
           </div>`;
         document.body.appendChild(modal);
@@ -12973,8 +13139,11 @@
         const item = (window.__dlCurrentItems || [])[idx];
         if (!item) return;
         _dlSwapIdx = idx;
-        _rbSwapModal(item, { id: 'dl-swap-modal', applyName: '__dlSwapApply', snapName: '__dlSnapMine', idx });
+        _rbSwapModal(item, { id: 'dl-swap-modal', applyName: '__dlSwapApply', snapName: '__dlSnapMine', idx, afterWish: '__dlWishSync' });
       };
+      // A wishlist save from inside the swap modal syncs the rack card's
+      // own Save button (both read it.wishlisted).
+      window.__dlWishSync = function() { try { _dlRerender(); } catch (_) {} };
 
       window.__dlSwapApply = function(idx, wardrobeId) {
         _rbTrack('piece_swapped', { surface: 'daily', item: String(wardrobeId) });
@@ -13552,8 +13721,8 @@
 #tv-result-page .tvm-seclab{font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose)}
 #tv-result-page .tvm-sechint{font-family:var(--font-serif);font-style:italic;font-size:13.5px;color:var(--ink-faint)}
 #tv-result-page .tvm-secact{margin-left:auto;display:flex;gap:8px;align-items:center;position:relative}
-#tv-result-page .tvm-addbtn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:100px;padding:9px 18px;font-size:12px;background:var(--ink);color:#fff;cursor:pointer;font-family:inherit;transition:opacity .15s}
-#tv-result-page .tvm-addbtn:hover{opacity:.85}
+#tv-result-page .tvm-addbtn{display:inline-flex;align-items:center;gap:6px;border:0.5px solid rgba(32,32,33,0.25);border-radius:100px;padding:9px 18px;font-size:12px;background:#fff;color:var(--ink);cursor:pointer;font-family:inherit;transition:background .15s}
+#tv-result-page .tvm-addbtn:hover{background:var(--cream-100,#F5F1EA)}
 #tv-result-page .tvw-grid{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x proximity}
 #tv-result-page .tvw-card{position:relative;flex:1 0 200px;max-width:280px;scroll-snap-align:start;background:#fff;border:0.5px solid var(--rule-mid);border-radius:10px;padding:13px 14px;display:flex;flex-direction:column;gap:6px;min-height:176px;cursor:pointer;text-align:left;font-family:inherit;transition:border-color .15s;box-sizing:border-box}
 #tv-result-page .tvw-card.bare{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.2)}
@@ -14530,7 +14699,11 @@ body>*:not(#tv-result-page){display:none !important}
         if (!el || !data) return;
         const open = _tvSelDayI != null || _tvSelLookI != null;
         if (sec) {
-          sec.style.display = (open || (data.looks || []).length) ? 'block' : 'none';
+          // Audit 8.3 — the stage exists only while something is ON it.
+          // The empty dashed placeholder held a large box before any tap;
+          // the LOOKS eyebrow already says "tap any look to bring it onto
+          // the stage".
+          sec.style.display = open ? 'block' : 'none';
           sec.classList.toggle('on', open);
         }
         const clearBtn = document.getElementById('tv-stage-clear');
@@ -16740,7 +16913,7 @@ body>*:not(#tv-result-page){display:none !important}
               : 'Today’s look: borrowed until you file a piece.';
         const notes = {
           'Daily outfit': dailyNote,
-          'Weekly planner': 'Seven looks in one pass. Nothing worn twice.',
+          'Weekly planner': 'Each day styled from your own wardrobe.',
           'Travel edit': 'Tell Robes where and how long.',
         };
         grid.querySelectorAll('.svc').forEach(card => {
@@ -17930,6 +18103,8 @@ body>*:not(#tv-result-page){display:none !important}
         const item = look[idx];
         if (!item) return;
         _mbSwapIdx = idx;
+        _rbSwapItem = item;
+        _rbSwapAfterWish = null;
         document.getElementById('mb-swap-modal')?.remove();
 
         const catLower = (item.category || '').toLowerCase();
@@ -17968,7 +18143,7 @@ body>*:not(#tv-result-page){display:none !important}
           wardrobeSection = `
             <div style="margin-bottom:24px;background:#F5F2EE;border-radius:var(--rad);padding:14px">
               <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 6px">Robes’ suggestion</p>
-              <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don't have a ${_mbEsc(item.category.toLowerCase())}, but your <em>${_mbEsc(aiAlt.label)}</em> creates a similar outline.</p>
+              <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don't own any ${_mbEsc(item.category.toLowerCase())} yet, but your <em>${_mbEsc(aiAlt.label)}</em> creates a similar outline.</p>
               <button onclick="window.__mbSwapApply(${idx},'${_mbEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
             </div>`;
         }
@@ -17994,11 +18169,11 @@ body>*:not(#tv-result-page){display:none !important}
                 <button onclick="window.__mbSnapMine()" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#EDE8E0;border:none;border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
                   ${cameraSvg} Snap mine
                 </button>
-                <button onclick="window.__rbAffiliateSoon('mb-swap-modal')" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
-                  Shop via Affiliate ${arrowSvg}
+                <button onclick="window.__rbSwapWishSave(this)" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#fff;border:1px solid rgba(32,32,33,0.15);border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
+                  Save to wishlist
                 </button>
               </div>
-              ${(retailer || price) ? `<p style="text-align:center;font-size:11px;color:var(--ink-faint);margin:0">Opens ${_mbEsc(retailer)}${price ? ' · ' + _mbEsc(price) : ''}</p>` : ''}
+              ${(retailer || price) ? `<p style="text-align:center;font-size:11px;color:var(--ink-faint);margin:0">Sold at ${_mbEsc(retailer)}${price ? ' · ' + _mbEsc(price) : ''}</p>` : ''}
             </div>
           </div>`;
         document.body.appendChild(modal);
@@ -18426,9 +18601,12 @@ body>*:not(#tv-result-page){display:none !important}
           const now = new Date(_railToday + 'T00:00:00');
           const sameMonth = d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
           const dm = d.toLocaleDateString('en-GB', sameMonth ? { weekday: 'short', day: 'numeric' } : { weekday: 'short', day: 'numeric', month: 'short' });
-          if (iso === _railToday) return 'Today · ' + dm;
-          if (iso === _pdAddISO(_railToday, -1)) return 'Yesterday · ' + dm;
-          if (iso === _pdAddISO(_railToday, 1)) return 'Tomorrow · ' + dm;
+          // Relative labels stand alone (audit 7.2) — "TODAY · WED 19"
+          // ellipsized at seven columns, and the neighbouring cards carry
+          // the dates. Never truncate letters; drop the date instead.
+          if (iso === _railToday) return 'Today';
+          if (iso === _pdAddISO(_railToday, -1)) return 'Yesterday';
+          if (iso === _pdAddISO(_railToday, 1)) return 'Tomorrow';
           return dm;
         }
         function fmtLong(iso) {
@@ -18501,9 +18679,17 @@ body>*:not(#tv-result-page){display:none !important}
               : railTripMoment(slot) ? `window.__rbRailName(${i})`
               : `window.__rbRailScope(${i})`;
           }
+          // Audit 7.2 — one worked example, not six identical invitations:
+          // the first plannable empty day shows what "plans" means, the
+          // rest keep the bare invite.
+          const firstInvite = (_railSlots || []).findIndex(s =>
+            !(s.moments || []).length && s.date >= _railToday);
           return _dcCard(d, {
             density: 'full',
             body,
+            inviteSub: (d.stage === 'empty' && d.state !== 'empty-past')
+              ? (i === firstInvite ? 'name the day — try “dinner with mum”' : '')
+              : undefined,
             naming: _railNaming === i ? {
               id: 'rb-dc-name-in',
               value: (railTripMoment(slot) && railTripMoment(slot).activity) || '',
@@ -20086,7 +20272,15 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           // Straight into the travel edit page (hifi 2026-08-10) — the
           // where/when/vibe crumbs ARE the brief; days are named and looks
           // added on the page itself.
+          const askedToPack = /\b(pack|style|dress)\w*\b/i.test(String(st.prompt || ''));
           _tvCreateTrip();
+          // Audit 8.1 — "Pack me for…" must not land on an empty canvas
+          // that asks her to ask again: a prompt that carried a pack/style
+          // verb runs the engine straight away (the canvas-first landing
+          // survives for bare "plan a trip" intents).
+          if (askedToPack && typeof window.__tvRobesStyleTrip === 'function') {
+            setTimeout(function() { try { window.__tvRobesStyleTrip(); } catch (_) {} }, 350);
+          }
           return;
         }
         // No other engine commits through the intake (daily submits

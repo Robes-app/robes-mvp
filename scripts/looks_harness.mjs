@@ -1616,7 +1616,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       open: !!m,
       wardrobe: /From your wardrobe/.test(m?.textContent || ''),
       snap: /Snap mine/.test(m?.textContent || ''),
-      affiliate: /Shop via Affiliate/.test(m?.textContent || ''),
+      // Audit 6.2 (2026-08-19): the affiliate coming-soon dead end is
+      // replaced by a real Save-to-wishlist in the shared modal.
+      affiliate: /Save to wishlist/.test(m?.textContent || ''),
     };
   });
   check('nothing owned · Swap on a saved proposal opens the swap modal, daily-style',

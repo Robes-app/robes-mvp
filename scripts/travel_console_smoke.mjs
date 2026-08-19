@@ -127,7 +127,9 @@ ok(await page.locator('#tv-weekstrip .tvw-card').count() === 4, 'week strip has 
 ok(await page.evaluate(() => getComputedStyle(document.getElementById('tv-weekstrip')).flexWrap) !== 'wrap', 'week strip stays on one line (scrolls, never wraps)');
 ok((await page.locator('#tv-weekstrip .tvw-card').first().innerText()).includes('Arrive · coastal walk'), 'day title renders on its card');
 ok(await page.locator('#tv-stage .rbc-panel').count() === 0, 'nothing on the stage until something is tapped');
-ok(/Nothing on the stage/.test(await page.locator('#tv-stage').innerText()), 'the empty stage says so');
+// Audit 8.3 (2026-08-19): the empty stage no longer holds a dashed box —
+// the whole section stands down until a day or look is tapped.
+ok(await page.evaluate(() => getComputedStyle(document.getElementById('tv-sec-stage')).display === 'none'), 'the stage section is hidden while empty');
 ok(await page.locator('#tv-looksrow .tvm-lookcard').count() === 3, 'looks grid: 3 looks, all within the first row');
 ok(await page.locator('#tv-looksrow .tvm-lookadd').count() === 0, 'no + New Look tile — adding lives on the header button');
 ok(await page.locator('#tv-looks-more button').count() === 0, 'no expand toggle when one row holds everything');
@@ -165,7 +167,7 @@ ok(await page.locator('#tv-weekstrip .tvw-card.sel').count() === 1, 'the rail ou
 ok(await page.locator('#tv-looksrow .tvm-lookcard.active').count() === 1, 'the staged card carries the highlight');
 await page.evaluate(() => window.__tvStageClose());
 await page.waitForTimeout(150);
-ok(/Nothing on the stage/.test(await page.locator('#tv-stage').innerText()), 'Clear empties the stage');
+ok(await page.evaluate(() => getComputedStyle(document.getElementById('tv-sec-stage')).display === 'none'), 'Clear hides the stage section');
 ok(await page.locator('#tv-stage .rbc-hbtn', { hasText: 'Pin to days' }).count() === 0, 'no duplicated Pin-to-days CTA anywhere');
 
 // select the imported look → the SAME interactive console, pieces resolved
