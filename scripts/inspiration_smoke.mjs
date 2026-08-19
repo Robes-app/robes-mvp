@@ -64,8 +64,15 @@ const results = [];
 const check = (name, pass, detail = '') => results.push({ name, pass, detail });
 
 await page.route('**cdn.jsdelivr.net/**', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: SUPA_STUB }));
+const writes = [];
 await page.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => {
-  if (r.request().method() !== 'GET') return r.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
+  const req = r.request();
+  if (req.method() !== 'GET') {
+    let body = null;
+    try { body = req.postDataJSON(); } catch (_) {}
+    writes.push({ method: req.method(), url: req.url().split('/rest/v1/')[1] || req.url(), body });
+    return r.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
+  }
   return r.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
 });
 await page.route('**nominatim**', (r) => r.abort());
@@ -141,15 +148,45 @@ await page.waitForTimeout(1400);
 check('one /api/daily call', dailyCalls === 1);
 check('composition only — noImages sent, no image job', dailyBodies[0] && dailyBodies[0].noImages === true);
 check('brief carries the way prose', dailyBodies[0] && /Umbro shorts, a white ribbed tank/.test(dailyBodies[0].prompt || ''));
-check('lands on the Lookbook look detail, not a daily look', await page.locator('#sn-page').isVisible() && !(await page.locator('#dl-result-page').count() && await page.locator('#dl-result-page').isVisible()));
-const lkTxt = await page.locator('#sn-page').innerText();
-check('the look is named after the way', lkTxt.includes('Urbane Weekend'));
-check('gaps hang as proposals to find', /to find/i.test(lkTxt));
-const lkHtml = await page.locator('#sn-page').innerHTML();
-check('her product photo rides the key piece card', lkHtml.includes('piece.jpg'));
-await page.evaluate(() => window.__lkBack());
-await page.waitForTimeout(500);
-check('look card photograph is the way’s original kp frame', (await page.locator('#sn-page').innerHTML()).includes('way1.jpg'));
+// EDIT MODE, not a saved look (Annie's beta pass 2026-08-17): the itemised
+// way lands LOOSE — the editable console, nothing written, Save this look
+// as the one commitment. Keeping it mints the Look with the way's name,
+// its kp frame as the photograph, and every gap as a proposal.
+check('lands in EDIT mode — the loose console, not a saved look',
+  await page.locator('#dl-result-page').isVisible());
+const looseState = await page.evaluate(() => ({
+  eyebrow: document.querySelector('#dl-result-page .dlm-eyebrow')?.textContent,
+  title: document.querySelector('#dl-result-page .dlm-title')?.textContent,
+  cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent,
+  offer: !!document.querySelector('#dl-result-page .dlm-offer'),
+  loose: !!(window.__lastDlData && window.__lastDlData._dlLoose),
+}));
+check('the way names the offer, Save is the commitment',
+  looseState.title === 'Urbane Weekend' && looseState.eyebrow === 'Your look'
+    && looseState.cta === 'Save this look' && looseState.loose === true && looseState.offer === false);
+// (The kp artifact's own lookbook row is a different, standing write —
+// the styled key piece lives on Inspiration. The BUILD must not mint a
+// look or a day.)
+check('nothing is written until she saves',
+  !writes.some((w) => w.method === 'POST' && /^(looks\?|looks$|look_pieces|planned_days)/.test(w.url)),
+  JSON.stringify(writes.filter((w) => w.method === 'POST').map((w) => w.url)));
+await page.evaluate(async () => {
+  window.__dlSaveAsk();
+  await new Promise((r) => setTimeout(r, 250));
+  document.getElementById('rb-dlsave-yes')?.click();
+});
+await page.waitForTimeout(1000);
+const keptLook = writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop();
+check('the keep mints the Look, named after the way',
+  keptLook && keptLook.body && keptLook.body.name === 'Urbane Weekend' && keptLook.body.name_provisional === true,
+  JSON.stringify(keptLook && keptLook.body || null));
+check('gaps ride the kept look as proposals, her product photo on the key piece card',
+  keptLook && Array.isArray(keptLook.body.proposals) && keptLook.body.proposals.length >= 1
+    && JSON.stringify(keptLook.body.proposals).includes('piece.jpg'),
+  JSON.stringify(keptLook && keptLook.body.proposals || null));
+check('look card photograph is the way’s original kp frame',
+  keptLook && keptLook.body.photo_url === 'https://res.cloudinary.com/demo/way1.jpg',
+  JSON.stringify(keptLook && keptLook.body.photo_url || null));
 
 // 6 · The kp result survives — reopening from Inspiration still shows the three ways
 await page.evaluate(() => window.__rbInspOpen());

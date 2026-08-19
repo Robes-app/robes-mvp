@@ -5740,45 +5740,36 @@
           });
           const unowned = flat.filter(it => !it.wardrobe_match);
           // Which unowned item IS her key piece — it wears the product photo
-          // she uploaded, so the look's mosaic shows the real piece.
+          // she uploaded, so the kept look's card shows the real piece.
           const kpToks = _kpBuildToks(kp.pieceName);
           let kpItem = null, bestN = 0;
           unowned.forEach(it => {
             const n = _kpBuildToks(it.name).filter(t => kpToks.indexOf(t) >= 0).length;
             if (n > bestN) { bestN = n; kpItem = it; }
           });
-          if (!kp.photoUrl || bestN < Math.min(2, Math.max(1, kpToks.length))) kpItem = null;
-          const proposals = unowned.map(it => ({
-            role: _rbRoleNorm(it.role) || 'The Canvas',
-            chip: _dlSlot(it).l,
-            cats: [it.category || 'Other'],
-            opts: [{ name: it.name, brand: it.brand || '', retailer_hint: it.retailer_hint || '', price_point: it.price_point || '', how: it.how || '' }]
-              .concat((Array.isArray(it.alternates) ? it.alternates : []).map(a => ({ name: a.name, brand: a.brand || '', retailer_hint: a.retailer_hint || '', price_point: a.price_point || '', how: a.how || '' }))),
-            oi: 0, img_oi: 0, saved: false,
-            image_url: it === kpItem ? kp.photoUrl : null,
-          }));
-          // The way names the look (rule 01: Robes generated it, Robes names
-          // it — provisional, hers to change from the detail).
-          const lkName = String(w.title || '').replace(/\.$/, '').trim()
+          if (kp.photoUrl && kpItem && bestN >= Math.min(2, Math.max(1, kpToks.length))) {
+            kpItem._kpPhotoUrl = kp.photoUrl;
+          }
+          // EDIT MODE, not a saved look (Annie's beta pass, same day: the
+          // first cut minted the Look here and toasted "saved") — the
+          // itemised way lands as a LOOSE look (1a): the editable console,
+          // nothing written, Save this look as the one commitment. The way
+          // names the offer (rule 01), its editorial frame becomes the
+          // look's photograph AT THE KEEP, and __dlSaveKeep carries every
+          // unowned piece as a proposal so the saved look reopens whole.
+          data._dlLoose = true;
+          data.anchor_date = undefined;
+          data.headline = String(w.title || '').replace(/\.$/, '').trim()
             || String(data.headline || '').replace(/\.$/, '').trim()
             || 'A look from your key piece';
-          const l = _lkCreate({
-            pieces: ownedIds,
-            name: lkName, name_provisional: true,
-            source: 'daily',
-            note: data.stylist_summary || w.details || undefined,
-            proposals: proposals.length ? proposals : null,
-            photo_url: kp.wayImage || (!ownedIds.length ? kp.photoUrl : null) || null,
-            lookTags: _rbTagsParse(data.look_tags),
-            roles,
-          });
+          data._dlPhotoUrl = kp.wayImage || (!ownedIds.length ? kp.photoUrl : null) || null;
+          data.genId = genId;
           guard.done();
           clearInterval(msgInterval);
           overlay.style.display = 'none';
           if (kpResultPage) kpResultPage.style.display = 'none';
           window.rbClearCrumb && window.rbClearCrumb();
-          window.__lkOpen(l.id);
-          _waShowToast('“' + lkName + '” saved to your Lookbook');
+          window.__dlRenderResult(data, brief);
         } catch (err) {
           guard.done();
           clearInterval(msgInterval);
@@ -11985,12 +11976,28 @@
           .map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
         const roles = {};
         flat.forEach(it => { if (it.wardrobe_match && it.role) roles[String(it.wardrobe_match.id)] = _rbRoleNorm(it.role) || null; });
+        // Unowned pieces ride the saved look as PROPOSALS (looks.proposals,
+        // migration 19) — the look reopens whole, gaps and all, exactly
+        // like a Robes build. Each keeps its Swap suggestions; a key
+        // piece's own product photo (stamped on the item by the kp build)
+        // becomes its card's image.
+        const proposals = unowned.map(it => ({
+          role: _rbRoleNorm(it.role) || 'The Canvas',
+          chip: _dlSlot(it).l,
+          cats: [it.category || 'Other'],
+          opts: [{ name: it.name, brand: it.brand || '', retailer_hint: it.retailer_hint || '', price_point: it.price_point || '', how: it.how || '' }]
+            .concat((Array.isArray(it.alternates) ? it.alternates : []).map(a => ({ name: a.name, brand: a.brand || '', retailer_hint: a.retailer_hint || '', price_point: a.price_point || '', how: a.how || '' }))),
+          oi: 0, img_oi: 0, saved: true,
+          image_url: (typeof it._kpPhotoUrl === 'string' && it._kpPhotoUrl.indexOf('http') === 0) ? it._kpPhotoUrl : null,
+        }));
         const l = _lkCreate({
           pieces: ownedIds,
           name, name_provisional: true,
           source: 'daily',
           note: data.stylist_summary || undefined,
-          photo_url: (!ownedIds.length && persistable.find(Boolean)) || null,
+          proposals: proposals.length ? proposals : null,
+          photo_url: (typeof data._dlPhotoUrl === 'string' && data._dlPhotoUrl.indexOf('http') === 0 ? data._dlPhotoUrl : null)
+            || (!ownedIds.length && persistable.find(Boolean)) || null,
           lookTags: _rbTagsParse(data.look_tags),
           roles,
         });
