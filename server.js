@@ -754,7 +754,10 @@ const DAILY_SCHEMA = {
 };
 
 app.post('/api/daily', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, locked, gender, vibes } = req.body;
+  // noImages: composition-only — the caller already has imagery for this
+  // look (e.g. building a Look entity from a styled key piece reuses the
+  // kp result's frames), so no image job is started and no jobId returned.
+  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, locked, gender, vibes, noImages } = req.body;
   const g = normGender(gender);
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
@@ -895,8 +898,8 @@ Dress her for this exact day, start to finish, through the four architectural st
       });
     })();
 
-    const jobId = randomBytes(6).toString('hex');
-    imageJobs.set(jobId, { images: flat.map(() => null), done: false, created: Date.now() });
+    const jobId = noImages ? null : randomBytes(6).toString('hex');
+    if (jobId) imageJobs.set(jobId, { images: flat.map(() => null), done: false, created: Date.now() });
     res.json({
       fallback: parsed.fallback === true,
       occasion_label: parsed.occasion_label || '',
@@ -906,9 +909,10 @@ Dress her for this exact day, start to finish, through the four architectural st
       palette: Array.isArray(parsed.palette) ? parsed.palette.slice(0, 3) : [],
       look_tags: normLookTags(parsed.look_tags),
       steps,
-      jobId,
+      jobId: jobId || undefined,
       itemCount: flat.length,
     });
+    if (noImages) return;
 
     // Background imagery — one frame per item, staggered under Gemini's
     // rate limit: the anchor gets the full-look editorial shot, everything

@@ -193,15 +193,26 @@ const browser = await chromium.launch(
       dcTitle: LT.title('Studio', 'dc'),
       ltTitle: LT.title('Studio', 'lt', true),
       mosaic: LT.mosaic([{ url: 'https://x/a.jpg', name: 'A' }], {}),
+      mosaic2: LT.mosaic([{ url: 'https://x/a.jpg', name: 'A' }, { url: 'https://x/b.jpg', name: 'B' }], {}),
+      mosaic3: LT.mosaic([{ url: 'https://x/a.jpg', name: 'A' }, { url: 'https://x/b.jpg', name: 'B' }, { url: 'https://x/c.jpg', name: 'C' }], {}),
+      mosaic5: LT.mosaic([1, 2, 3, 4, 5].map((k) => ({ url: 'https://x/' + k + '.jpg', name: 'P' + k })), {}),
       photo: LT.mosaic([], { photo: 'https://x/p.jpg', alt: 'A look' }),
     };
   });
   check('LookTile · a whole-look photo replaces the mosaic',
     /class="lt-photo" src="https:\/\/x\/p\.jpg"/.test(prim.photo || '') && !/<i[ >]/.test(prim.photo || ''),
     (prim.photo || '').slice(0, 160));
-  check('LookTile · a short look still renders four cells, the rest empty',
-    (prim.mosaic.match(/<i/g) || []).length === 4 && (prim.mosaic.match(/class="e"/g) || []).length === 3,
-    (prim.mosaic || '').slice(0, 200));
+  // The mosaic fills, always (redesign 2026-08-18): the piece count decides
+  // how the frame divides — no empty half, no letterboxed tile.
+  check('LookTile · the mosaic subdivides to the pieces, never an empty half',
+    /rb-lk-mos n1/.test(prim.mosaic) && (prim.mosaic.match(/<i/g) || []).length === 1
+      && /rb-lk-mos n2/.test(prim.mosaic2) && (prim.mosaic2.match(/<i/g) || []).length === 2
+      && /rb-lk-mos n3/.test(prim.mosaic3) && (prim.mosaic3.match(/<i/g) || []).length === 3
+      && !/class="e"/.test(prim.mosaic + prim.mosaic2 + prim.mosaic3),
+    (prim.mosaic || '').slice(0, 120) + ' | ' + (prim.mosaic3 || '').slice(0, 120));
+  check('LookTile · four or more pieces take the quartet',
+    !/n[123]/.test(prim.mosaic5) && (prim.mosaic5.match(/<i/g) || []).length === 4,
+    (prim.mosaic5 || '').slice(0, 160));
   check('LookTile · no overflow chip when nothing is hidden',
     !/class="ov/.test(prim.evenStrip || ''), (prim.evenStrip || '').slice(0, 160));
   check('LookTile · strip emits dc-th with .t3 and both overflow chips',
@@ -239,7 +250,7 @@ const browser = await chromium.launch(
       wearBtns: document.querySelectorAll('#rb-lk-grid .rb-lk-wearx').length,
       titles: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).map((t) => t.textContent),
       provisional: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title.prov')).map((t) => t.textContent),
-      mosaicCells: document.querySelectorAll('#rb-lk-grid .rb-lk-tilewrap:first-child .rb-lk-mos i').length,
+      mosaicCells: document.querySelectorAll('#rb-lk-grid .rb-lk-mos.n3 i').length,
       sortLabel: document.querySelector('.rb-lk-sort span')?.textContent,
       sortArrow: document.querySelector('.rb-lk-sort b')?.textContent,
       eyebrows: Array.from(document.querySelectorAll('#rb-lk-grid .lt-ey')).map((e) => e.textContent),
@@ -265,7 +276,8 @@ const browser = await chromium.launch(
   check('grid · a New look add card mirrors the pieces grid',
     s.addCard === true && /New look/.test(s.addCardText || ''), JSON.stringify([s.addCard, s.addCardText]));
 
-  check('grid · mosaic always renders four cells', s.mosaicCells === 4, String(s.mosaicCells));
+  check('grid · a 3-piece look subdivides whole (n3: one spanning, two stacked)',
+    s.mosaicCells === 3, String(s.mosaicCells));
   check('grid · provisional title renders provisional', s.provisional.length === 1 && s.provisional[0] === 'The tank one', JSON.stringify(s.provisional));
   check('sort · defaults to Last worn ↓', s.sortLabel === 'Last worn' && s.sortArrow === '↓', `${s.sortLabel} ${s.sortArrow}`);
   check('sort · worn look leads descending', s.titles[0] === 'The Thursday one', JSON.stringify(s.titles));
@@ -2059,8 +2071,10 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     naming.sec === 'Travel edit' && /travel edit/.test(naming.stat) && /New travel edit/.test(naming.menu)
       && !/holiday/i.test(naming.sec + naming.stat + naming.menu),
     JSON.stringify(naming));
-  check('IA · holiday edits ride the pinned row, with + New at its end',
-    uni.holShown && uni.holCards === 1 && uni.holNew === true && uni.holMeta === '12 pieces · 6 looks · 7–14 Aug',
+  // The dashed + New card retired with the column redesign (2026-08-18):
+  // + New ▾ above is the creation door, the header count the affordance.
+  check('IA · holiday edits ride the pinned row, mosaic cards on the column',
+    uni.holShown && uni.holCards === 1 && uni.holNew === false && uni.holMeta === '12 pieces · 6 looks · 7–14 Aug',
     JSON.stringify([uni.holShown, uni.holCards, uni.holNew, uni.holMeta]));
   check('IA · one + New button, split two ways', uni.newSplit === true);
   check('IA · the top row carries the collection stat; sort/Refine align with All looks',

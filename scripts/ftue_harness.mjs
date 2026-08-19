@@ -50,9 +50,10 @@ function wardrobe(n) {
   }));
 }
 
-// The learning card and the home Lookbook row only render once the Lookbook
-// holds something — at zero looks the inline rack replaces both (FTUE step 3,
-// 2026-08-12). Seed one saved look by default so the milestone rules below
+// The learning card and the home Lookbook row only render once home has
+// left its FTU states — zero looks shows the quiet index rows (W01/O1),
+// exactly ONE look shows the O7 "Your looks" page (FTU simplification
+// 2026-08-18). Seed TWO saved looks by default so the milestone rules below
 // still have a card to assert against; pass looks:false for the zero state.
 async function boot(browser, n, width = 1280, { looks = true } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height: 1100 } });
@@ -77,15 +78,20 @@ async function boot(browser, n, width = 1280, { looks = true } = {}) {
     Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
   }, n);
   if (looks) {
-    // A SAVED LOOK, not a daily look: a day is not a look and no longer
-    // fills the Lookbook (Look Rules 1a, 2026-08-17), so seeding one would
-    // leave the home builder standing and hide the learning card.
+    // TWO saved looks, not one: a single look is the O7 first-look state
+    // (hero card, tracker hidden), and a daily look would not fill the
+    // Lookbook at all (Look Rules 1a, 2026-08-17).
     await page.addInitScript(() => {
       localStorage.setItem('rb_looks__u-test', JSON.stringify([
         { id: 'lk-seed', name: 'A look', name_provisional: false, note: '', photo_url: null,
           tags: null, climate_band: 'year_round', climate_source: 'derived', source: 'manual',
           origin_look_id: null, created_at: '2026-08-05T10:00:00.000Z',
           pieces: [{ id: 'w0', slot: 'Top', position: 0, role: null }, { id: 'w1', slot: 'Bottom', position: 1, role: null }],
+          wears: [] },
+        { id: 'lk-seed-2', name: 'A second look', name_provisional: false, note: '', photo_url: null,
+          tags: null, climate_band: 'year_round', climate_source: 'derived', source: 'manual',
+          origin_look_id: null, created_at: '2026-08-04T10:00:00.000Z',
+          pieces: [{ id: 'w2', slot: 'Top', position: 0, role: null }, { id: 'w3', slot: 'Bottom', position: 1, role: null }],
           wears: [] },
       ]));
     });
@@ -115,34 +121,46 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     const dash = document.getElementById('dash');
     const vis = (el) => !!el && el.offsetParent !== null;
     const order = Array.from(dash ? dash.children : [])
-      .filter((el) => el.offsetParent !== null || el.id === 'wtrk')
+      .filter((el) => el.offsetParent !== null)
       .map((el) => el.id || el.className.split(' ')[0]);
-    const cols = Array.from(document.querySelectorAll('#wtrk-ms .rb-ms-col')).map((c) => ({
-      at: c.querySelector('.rb-ms-at')?.textContent,
-      label: c.querySelector('.rb-ms-lbl')?.textContent,
-      on: c.classList.contains('on'),
-    }));
     return {
       order,
       trackerVisible: vis(document.getElementById('wtrk')),
       servicesVisible: vis(document.querySelector('.services')),
-      head: document.getElementById('wtrk-head')?.innerHTML || '',
-      num: document.getElementById('wtrk-num')?.textContent || '',
-      fill: document.querySelector('#wtrk-ms .rb-ms-fill')?.style.width || '',
-      cols,
-      tickLefts: Array.from(document.querySelectorAll('#wtrk-ms .rb-ms-tick')).map((t) => t.style.left),
-      trackMask: (() => {
-        const t = document.querySelector('#wtrk-ms .rb-ms-track');
-        if (!t) return '';
-        const cs = getComputedStyle(t);
-        return cs.maskImage && cs.maskImage !== 'none' ? cs.maskImage : (cs.webkitMaskImage || '');
-      })(),
-      pill: document.querySelector('.svc-daily .rb-lock-pill')?.textContent || '',
-      eyebrow: document.querySelector('#wtrk .wtrk-ey')?.textContent || '',
       styleNotes: !!document.getElementById('rb-sil-prompt'),
-      hasStatus: !!document.querySelector('#wtrk-ms .rb-ms-st'),
-      msText: (document.getElementById('wtrk-ms')?.textContent || '').trim(),
-      trackerH: Math.round(document.getElementById('wtrk')?.getBoundingClientRect().height || 0),
+      // The merged header meter (2a): eyebrow + count + line + one caption
+      learnEy: document.querySelector('#rb-svc-learn .ey')?.textContent || '',
+      learnN: document.querySelector('#rb-svc-learn .n')?.textContent || '',
+      learnCap: document.querySelector('#rb-svc-learn .cap')?.textContent || '',
+      learnFill: document.querySelector('#rb-svc-learn .bar i')?.style.width || '',
+      secMeta: !!document.querySelector('.services .sec-meta'),
+      bandTint: (() => {
+        const el = document.querySelector('.services');
+        return el ? getComputedStyle(el).backgroundColor : '';
+      })(),
+      dailyImg: document.querySelector('.svc-daily .svc-img img')?.getAttribute('src') || '',
+      filledInBand: Array.from(document.querySelectorAll('.services button, .services .svc-cta, #rb-svc-filed .cta'))
+        .filter((el) => el.offsetParent !== null)
+        .filter((el) => getComputedStyle(el).backgroundColor === 'rgb(32, 32, 33)').length,
+      pill: document.querySelector('.services .rb-lock-pill')?.textContent || '',
+      // Card captions — the specific version of "filing buys quality"
+      notes: Array.from(document.querySelectorAll('.services-grid .svc')).map((c) => ({
+        title: c.querySelector('.svc-title')?.textContent,
+        note: c.querySelector('.rb-svc-note')?.textContent || '',
+      })),
+      // The filed-piece row — a receipt, not a wardrobe
+      filed: (() => {
+        const r = document.getElementById('rb-svc-filed');
+        if (!r) return null;
+        return {
+          thumbs: r.querySelectorAll('.th').length,
+          nm: r.querySelector('.nm')?.textContent || '',
+          meta: r.querySelector('.meta')?.textContent || '',
+          all: r.querySelector('.all')?.textContent || '',
+          note: r.querySelector('.note')?.textContent || '',
+          cta: r.querySelector('.cta')?.textContent || '',
+        };
+      })(),
       railAfterConcierge: (() => {
         const c = dash?.querySelector('.concierge');
         return !!c && c.nextElementSibling?.id === 'rb-rail';
@@ -150,11 +168,12 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     };
   });
 
-  // Progress card retires one piece past the last milestone
-  check(`n=${n} · progress card ${n > 15 ? 'retired' : 'visible'}`,
-    state.trackerVisible === (n <= 15));
+  // MERGED (2a, 2026-08-18): the standalone learning card never renders —
+  // Robes is learning lives inside the Styling Concierge header.
+  check(`n=${n} · standalone learning card never renders`,
+    state.trackerVisible === false);
 
-  // Concierge absent below the first unlock
+  // Concierge absent below the first unlock (visibility unchanged)
   check(`n=${n} · concierge ${n >= 3 ? 'shown' : 'hidden'}`,
     state.servicesVisible === (n >= 3));
 
@@ -162,84 +181,76 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check(`n=${n} · style notes ${n >= 15 ? 'introduced' : 'absent'}`,
     state.styleNotes === (n >= 15), `got ${state.styleNotes}`);
 
-  // Rail stays glued to the prompt
+  // Rail stays glued to the prompt, which leads the page at every count;
+  // the concierge follows the rail, ahead of the Lookbook row (its slot is
+  // a rule now, not an accident of markup order).
   check(`n=${n} · rail follows prompt`, state.railAfterConcierge, JSON.stringify(state.order));
-
-  // Order: progress leads below 3, prompt leads from 3
-  if (n <= 15) {
-    const iTrk = state.order.indexOf('wtrk');
+  if (n >= 3) {
     const iCon = state.order.findIndex((x) => x === 'concierge');
-    const leads = n < 3 ? iTrk < iCon : iCon < iTrk;
-    check(`n=${n} · ${n < 3 ? 'progress' : 'prompt'} leads`, leads && iTrk >= 0 && iCon >= 0,
-      JSON.stringify(state.order));
+    const iSvc = state.order.indexOf('services');
+    const iSn = state.order.indexOf('rb-sn');
+    check(`n=${n} · prompt leads, concierge after the rail, before the Lookbook row`,
+      iCon >= 0 && iSvc > iCon && (iSn === -1 || iSvc < iSn), JSON.stringify(state.order));
   }
 
-  // The section must stay near its pre-FTUE height (was 337-353 desktop)
-  if (n <= 15) {
-    check(`n=${n} · tracker height <= 380`, state.trackerH <= 380, String(state.trackerH));
-  }
+  // The merged header meter: bare count, no denominator, the one honest
+  // reason to catalogue, and the fill still walks the milestone curve.
+  if (n >= 3) {
+    check(`n=${n} · header meter reads "Robes is learning · N pieces filed"`,
+      state.learnEy === 'Robes is learning'
+        && new RegExp(`^${n}\\s*pieces? filed$`, 'i').test(state.learnN.trim())
+        && state.secMeta === false,
+      JSON.stringify([state.learnEy, state.learnN, state.secMeta]));
+    // 4a: no caption line under the meter — the eyebrow, rail and count
+    // carry the header; the card captions carry the borrowed-piece claim.
+    check(`n=${n} · no title or caption line on the band header`,
+      state.learnCap === '', state.learnCap);
+    // R6: fill = min(pieces / 15, 1) — linear, the milestone curve retired.
+    const want = Math.min(100, (n / 15) * 100);
+    check(`n=${n} · meter fill ${want.toFixed(1)}% (linear)`,
+      Math.abs(parseFloat(state.learnFill) - want) < 0.6, `got ${state.learnFill}`);
+    // The tinted band (4a): #F2EEE7, exactly one per screen, and no filled
+    // dark button inside it (R3 — the prompt keeps the only one).
+    check(`n=${n} · the concierge is the tinted band, no filled button inside`,
+      state.bandTint === 'rgb(242, 238, 231)' && state.filledInBand === 0,
+      JSON.stringify([state.bandTint, state.filledInBand]));
+    check(`n=${n} · the cards carry the look photography`,
+      /looks\/look1\.jpg/.test(state.dailyImg), state.dailyImg);
+    check(`n=${n} · no denominator, no lock language anywhere on the module`,
+      !/\/\s*\d|of 15|unlock|lock/i.test(state.learnN + ' ' + state.learnCap
+        + ' ' + state.notes.map((x) => x.note).join(' ')),
+      state.learnN);
 
-  // Milestone bar shape + fill — the LEARNING meter (2026-07-29): capability
-  // copy, a 20-piece track with the last milestone at 78%, a faded final
-  // quarter, and NO denominator anywhere on the card.
-  if (n <= 15) {
-    // Weekly milestone retired 2026-08-08 (the weekly track is gone) —
-    // three capability columns: daily / travel / style notes.
-    check(`n=${n} · three milestones`, state.cols.length === 3, JSON.stringify(state.cols));
-    check(`n=${n} · capability labels`,
-      state.cols.map((c) => c.at + ' ' + c.label).join('|') ===
-      '03 Dresses today|10 Packs your trips|15 Knows your taste',
-      state.cols.map((c) => c.at + ' ' + c.label).join('|'));
-    check(`n=${n} · ticks at 15/50/78%`,
-      state.tickLefts.join('|') === '15%|50%|78%', state.tickLefts.join('|'));
-    const pts = [[0, 0], [3, 15], [10, 50], [15, 78], [20, 100]];
-    const want = (() => {
-      for (let i = 1; i < pts.length; i++) {
-        if (n <= pts[i][0]) {
-          const a = pts[i - 1], b = pts[i];
-          return a[1] + ((n - a[0]) / (b[0] - a[0])) * (b[1] - a[1]);
-        }
-      }
-      return 100;
-    })();
-    check(`n=${n} · fill ${want.toFixed(1)}%`,
-      Math.abs(parseFloat(state.fill) - want) < 0.6, `got ${state.fill}`);
-    check(`n=${n} · track fades out (no endpoint)`,
-      /gradient/.test(state.trackMask), state.trackMask.slice(0, 80));
-    const numText = state.num.replace(/\s+/g, ' ').trim();
-    check(`n=${n} · bare count, "pieces filed" beneath`,
-      new RegExp(`^${n}\\s*Pieces? filed$`, 'i').test(numText), numText);
-    check(`n=${n} · no denominator on the card`,
-      !/\/\s*\d|of 15/i.test(numText + ' ' + state.head + ' ' + state.msText),
-      numText + ' | ' + state.head);
-    check(`n=${n} · eyebrow reads "Robes is learning"`,
-      state.eyebrow === 'Robes is learning', state.eyebrow);
-  }
+    // NOTHING GATED: the progress pill is gone; each card carries its
+    // one-line caption instead.
+    check(`n=${n} · no progress pill on any card`, state.pill === '', state.pill);
+    const noteFor = (t) => (state.notes.find((x) => x.title === t) || {}).note;
+    const wantDaily = n >= 15
+      ? 'Today’s look: styled entirely from your closet.'
+      : n >= 4
+        ? 'Today’s look: your pieces first, gaps borrowed.'
+        : `Today’s look: ${n} piece${n === 1 ? '' : 's'} yours, ${4 - n} borrowed.`;
+    check(`n=${n} · card captions say what filing buys`,
+      noteFor('Daily outfit') === wantDaily
+        && noteFor('Weekly planner') === 'Seven looks in one pass. Nothing worn twice.'
+        && noteFor('Travel edit') === 'Tell Robes where and how long.',
+      JSON.stringify(state.notes));
 
-  // Concierge progress pill (visible 3–14): no fraction, no lock language
-  if (n >= 3 && n < 15) {
-    check(`n=${n} · concierge pill carries no fraction`,
-      state.pill.length > 0 && !/\/\s*\d|of 15|unlock|lock/i.test(state.pill), state.pill);
-  }
-
-  // No per-tick status text anywhere — "Locked" would be a lie, and the
-  // headline already carries earned/next. Lit state = passed or next target.
-  if (n <= 15) {
-    check(`n=${n} · no status text`,
-      !state.hasStatus && !/locked/i.test(state.msText), state.msText);
-    const ats = [3, 10, 15];
-    const nextIdx = ats.findIndex((a) => a > n);
-    const litOk = state.cols.every((c, i) => c.on === (n >= ats[i] || i === nextIdx));
-    check(`n=${n} · lit milestones`, litOk, state.cols.map((c) => c.at + ':' + c.on).join('|'));
-  }
-
-  if (n === 0) {
-    check('n=0 · headline names the first unlock',
-      /Three pieces/.test(state.head), state.head);
-  }
-  if (n === 1) {
-    check('n=1 · headline counts down',
-      /Two more pieces/.test(state.head), state.head);
+    // The filed-piece row: one thumbnail always, the caption flipping from
+    // "your first filed piece" to "last filed" + a way into the wardrobe.
+    check(`n=${n} · filed row is a one-thumb receipt with the add door`,
+      !!state.filed && state.filed.thumbs === 1
+        && state.filed.nm === 'Piece 1'
+        && state.filed.note === 'One photo files four pieces.'
+        && /Catalogue what you’re wearing now/.test(state.filed.cta),
+      JSON.stringify(state.filed));
+    check(`n=${n} · filed row caption ${n === 1 ? 'names the first' : 'reads last filed + count'}`,
+      n === 1
+        ? (/Your first filed piece/i.test(state.filed.meta) && state.filed.all === '')
+        : (/Last filed/i.test(state.filed.meta)
+          && state.filed.all.indexOf(n + ' pieces in your wardrobe') === 0
+          && /See all/.test(state.filed.all)),
+      JSON.stringify(state.filed));
   }
 
   await ctx.close();
@@ -395,50 +406,108 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 
-// The look, inline on home (FTUE step 3, 2026-08-12) — at zero looks the
-// builder replaces both the learning card and the Lookbook row.
+// FTU simplification (2026-08-18, W01/O1 + Annie's bare-page beta pass): at
+// zero looks with NO styled card, the prompt LEADS the page in focus under
+// the greeting's question; Build your own and The week ahead are hairlines
+// that unfurl in place. The rack renders only when she asks.
 {
   const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
   const h = await page.evaluate(() => {
     const dash = document.getElementById('dash');
-    const el = document.getElementById('rb-lkhome');
+    const rows = document.getElementById('rb-ftu-rows');
+    const vis = (el) => !!el && el.offsetParent !== null;
     return {
-      mounted: !!el,
-      // it leads the prompt, and the learning card + Lookbook row stand down
-      abovePrompt: el?.nextElementSibling?.classList.contains('concierge'),
+      mode: rows?.getAttribute('data-mode'),
+      rowIds: Array.from(rows?.querySelectorAll('.rb-ftu-row') || []).map((r) => r.id),
+      order: Array.from(dash.children).map((e) => e.id || e.className.split(' ')[0])
+        .filter((id) => ['concierge', 'rb-ftu-rows'].includes(id)),
+      concEy: document.getElementById('rb-conc-ey')?.textContent,
+      echo: dash.querySelector('.dash-echo')?.textContent,
+      promptVisible: vis(document.getElementById('cb-ta')),
+      railInWeekRow: !!document.querySelector('#rb-ftu-body-week #rb-rail'),
+      // the rack is NOT rendered until she asks for it (W01 spec note)
+      rackAbsent: !document.getElementById('rb-lkhome'),
+      open: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
+      // nothing competes: services, tracker, Lookbook + Inspiration rows
+      servicesHidden: !vis(document.querySelector('.services')),
       trkHidden: document.getElementById('wtrk')?.style.display === 'none',
       snRowHidden: (document.getElementById('rb-sn')?.style.display === 'none')
         || !document.getElementById('rb-sn')?.textContent.trim(),
-      // no "catalogue your wardrobe" door anywhere on home
       wtrkCta: document.getElementById('wtrk-cta')?.offsetParent !== null,
-      eyebrow: el?.querySelector('.rb-lk-eyebrow')?.textContent,
+      weekSub: document.querySelector('#rb-ftu-row-week .rb-ftu-sub')?.textContent,
+    };
+  });
+  check('ftu rows · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('ftu rows · without the styled card the prompt leads the page',
+    h.mode === 'zero-lead' && JSON.stringify(h.order) === JSON.stringify(['concierge', 'rb-ftu-rows'])
+      && h.concEy === 'Style something' && h.promptVisible === true
+      && h.echo === 'What are you dressing for today?',
+    JSON.stringify([h.mode, h.order, h.concEy, h.echo, h.promptVisible]));
+  check('ftu rows · two hairlines beneath it, closed, the rail inside its row',
+    JSON.stringify(h.rowIds) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-week'])
+      && h.open.length === 0 && h.railInWeekRow === true,
+    JSON.stringify([h.rowIds, h.open, h.railInWeekRow]));
+  check('ftu rows · the rack is not rendered until she asks', h.rackAbsent === true);
+  check('ftu rows · nothing competes: services, tracker, rows all stand down',
+    h.servicesHidden === true && h.trkHidden === true && h.snRowHidden === true && h.wtrkCta === false,
+    JSON.stringify([h.servicesHidden, h.trkHidden, h.snRowHidden, h.wtrkCta]));
+  check('ftu rows · the week whisper is honest', h.weekSub === 'Nothing planned yet.', h.weekSub);
+
+  // Build your own unfurls the rack in place
+  const b = await page.evaluate(async () => {
+    window.__rbFtuToggle('build');
+    await new Promise((r) => setTimeout(r, 250));
+    const el = document.getElementById('rb-lkhome');
+    return {
+      open: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
+      inBuildRow: !!document.querySelector('#rb-ftu-body-build #rb-lkhome'),
+      arrowBuild: document.querySelector('#rb-ftu-row-build .rb-ftu-arrow')?.textContent,
       count: el?.querySelector('.rb-lkh-count')?.textContent,
       ghostRows: el?.querySelectorAll('.rbc-rghost').length,
-      // every empty slot is the camera path, not the chooser sheet
       snapWired: Array.from(el?.querySelectorAll('.rbc-rghost') || [])
         .every((r) => /__lkHomeSnap/.test(r.getAttribute('onclick') || '')),
       save: !!el?.querySelector('.rb-lk-save'),
       door: el?.querySelector('.rb-lk-robesdoor')?.textContent,
-      // ONE composer in the DOM — the Lookbook page is closed
       composers: document.querySelectorAll('.rb-lk-composer').length,
       showMoreHidden: getComputedStyle(el.querySelector('.rb-lkh-showmore')).display === 'none',
     };
   });
-  check('home rack · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('home rack · the builder sits on home at zero looks, leading the prompt',
-    h.mounted === true && h.abovePrompt === true, JSON.stringify([h.mounted, h.abovePrompt]));
-  check('home rack · it replaces the learning card and the Lookbook row',
-    h.trkHidden === true && h.snRowHidden === true && h.wtrkCta === false,
-    JSON.stringify([h.trkHidden, h.snRowHidden, h.wtrkCta]));
-  check('home rack · titled "Build your first look", counting the rack',
-    h.eyebrow === 'Build your first look' && h.count === '0 of 4 on the rack',
-    JSON.stringify([h.eyebrow, h.count]));
-  check('home rack · four slots, every one of them the camera path',
-    h.ghostRows === 4 && h.snapWired === true, JSON.stringify([h.ghostRows, h.snapWired]));
-  check('home rack · carries Save and the Robes door',
-    h.save === true && h.door === 'Or let Robes build the first one', JSON.stringify([h.save, h.door]));
-  check('home rack · exactly one composer in the DOM', h.composers === 1, String(h.composers));
-  check('home rack · all four slots render on web (no collapse)', h.showMoreHidden === true);
+  check('ftu rows · Build your own unfurls the rack in place',
+    JSON.stringify(b.open) === JSON.stringify(['rb-ftu-row-build']) && b.inBuildRow === true
+      && b.arrowBuild === '↑', JSON.stringify(b));
+  check('ftu rows · four slots, every one of them the camera path',
+    b.ghostRows === 4 && b.snapWired === true && b.count === '0 of 4 on the rack',
+    JSON.stringify([b.ghostRows, b.snapWired, b.count]));
+  check('ftu rows · carries Save and the Robes door',
+    b.save === true && b.door === 'Or let Robes build the first one', JSON.stringify([b.save, b.door]));
+  check('ftu rows · exactly one composer in the DOM', b.composers === 1, String(b.composers));
+  check('ftu rows · all four slots render on web (no collapse)', b.showMoreHidden === true);
+
+  // The week ahead unfurls the rail — the rack stays open beside it (rows
+  // never close a sibling), and a second tap folds only that row.
+  const w = await page.evaluate(async () => {
+    window.__rbFtuToggle('week');
+    await new Promise((r) => setTimeout(r, 350));
+    const allOpen = Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id);
+    const rackStays = !!document.querySelector('#rb-ftu-body-build #rb-lkhome');
+    const railCards = document.querySelectorAll('#rb-ftu-body-week #rb-rail .rb-dc, #rb-ftu-body-week #rb-rail .rb-rc').length;
+    const railHeadHidden = (() => {
+      const hd = document.querySelector('#rb-rail .rb-rail-head');
+      return !hd || getComputedStyle(hd).display === 'none';
+    })();
+    window.__rbFtuToggle('week');
+    await new Promise((r) => setTimeout(r, 200));
+    return {
+      allOpen, rackStays, railCards, railHeadHidden,
+      afterFold: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
+    };
+  });
+  check('ftu rows · The week ahead unfurls the rail alongside the open rack',
+    JSON.stringify(w.allOpen) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-week'])
+      && w.rackStays === true && w.railCards === 7 && w.railHeadHidden === true, JSON.stringify(w));
+  check('ftu rows · a second tap folds only that row',
+    JSON.stringify(w.afterFold) === JSON.stringify(['rb-ftu-row-build']),
+    JSON.stringify(w.afterFold));
 
   // The draft is SHARED with the Lookbook composer — never a second copy
   const shared = await page.evaluate(async () => {
@@ -455,13 +524,14 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       inLookbook: document.querySelector('#rb-lk-body .rbc-rack .rbc-name')?.textContent,
     };
   });
-  check('home rack · a piece added on home hangs in the rack and counts',
+  check('ftu rows · a piece added on home hangs in the rack and counts',
     shared.onHome === 'Piece 1' && shared.count === '1 of 4 on the rack', JSON.stringify(shared));
-  check('home rack · the SAME draft continues in the Lookbook, never a second copy',
+  check('ftu rows · the SAME draft continues in the Lookbook, never a second copy',
     shared.inLookbook === 'Piece 1' && shared.homeGone === true && shared.composers === 1,
     JSON.stringify(shared));
 
-  // Saving retires the module and hands the page back to the Lookbook row
+  // Saving the first look flips home to O7: the prompt leads as a card,
+  // "Your looks" takes the hero slot, the rows shrink to build + week.
   const saved = await page.evaluate(async () => {
     window.__lkApplyNew('w1');
     window.__lkNewTitleInput('Terrace mornings');   // rule 02: the name is the gate
@@ -469,23 +539,39 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     await new Promise((r) => setTimeout(r, 300));
     window.__snClose();
     await new Promise((r) => setTimeout(r, 500));
+    const dash = document.getElementById('dash');
     return {
-      homeGone: !document.getElementById('rb-lkhome'),
-      snRow: (document.getElementById('rb-sn')?.textContent || '').trim().length > 0,
-      trkBack: document.getElementById('wtrk')?.style.display !== 'none',
+      mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
+      rowIds: Array.from(document.querySelectorAll('.rb-ftu-row')).map((r) => r.id),
+      order: Array.from(dash.children).map((e) => e.id || e.className.split(' ')[0])
+        .filter((id) => ['concierge', 'rb-firstlook', 'rb-ftu-rows'].includes(id)),
+      concEy: document.getElementById('rb-conc-ey')?.textContent,
+      flName: document.querySelector('.rb-fl-name')?.textContent,
+      flCta: document.querySelector('.rb-fl-cta')?.textContent,
+      weekSub: document.querySelector('#rb-ftu-row-week .rb-ftu-sub')?.textContent,
+      trkHidden: document.getElementById('wtrk')?.style.display === 'none',
     };
   });
-  check('home rack · saving retires the module and moves everything to the Lookbook row',
-    saved.homeGone === true && saved.snRow === true, JSON.stringify(saved));
-  check('home rack · the learning card comes back once the Lookbook holds something',
-    saved.trkBack === true, JSON.stringify(saved));
+  check('ftu rows · the first save lands O7: prompt card, Your looks, two hairlines',
+    saved.mode === 'look'
+      && JSON.stringify(saved.rowIds) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-week'])
+      && JSON.stringify(saved.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-ftu-rows']),
+    JSON.stringify(saved));
+  check('ftu rows · the saved look is the card, all hers',
+    saved.flName === 'Terrace mornings' && saved.flCta === 'Open →' && saved.concEy === 'Style something',
+    JSON.stringify(saved));
+  check('ftu rows · the week ahead stays a hairline until a second look',
+    saved.weekSub === 'One look, unplanned.' && saved.trkHidden === true, JSON.stringify(saved));
   await ctx.close();
 }
 
-// The home rack on a phone: texture + finish collapse, preview stands down
+// The rows on a phone: unfurled rack collapses texture + finish, preview
+// stands down; no horizontal overflow.
 {
   const { ctx, page, errs } = await boot(browser, 4, 390, { looks: false });
-  const m = await page.evaluate(() => {
+  const m = await page.evaluate(async () => {
+    window.__rbFtuToggle('build');
+    await new Promise((r) => setTimeout(r, 300));
     const el = document.getElementById('rb-lkhome');
     const more = el?.querySelector('.rb-lkh-more');
     const showmore = el?.querySelector('.rb-lkh-showmore');
@@ -495,16 +581,15 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       moreHidden: more ? getComputedStyle(more).display === 'none' : null,
       showmoreShown: showmore ? getComputedStyle(showmore).display !== 'none' : null,
       previewHidden: el?.querySelector('.rb-lk-con > div:first-child')?.offsetParent === null,
-      h: Math.round(el?.getBoundingClientRect().height || 0),
       overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
     };
   });
-  check('390px home rack · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('390px home rack · canvas and anchor are the ask; texture + finish collapse',
+  check('390px ftu rows · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('390px ftu rows · canvas and anchor are the ask; texture + finish collapse',
     JSON.stringify(m.shown) === JSON.stringify(['The Canvas', 'The Anchor'])
       && m.moreHidden === true && m.showmoreShown === true, JSON.stringify(m));
-  check('390px home rack · the preview is web-only here', m.previewHidden === true);
-  check('390px home rack · no horizontal overflow', m.overflow === true);
+  check('390px ftu rows · the preview is web-only here', m.previewHidden === true);
+  check('390px ftu rows · no horizontal overflow', m.overflow === true);
 
   // Show expands for the session; a piece cast into a late role force-expands
   const opened = await page.evaluate(async () => {
@@ -514,8 +599,207 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     return Array.from(el.querySelectorAll('.rbc-rolestrip span'))
       .filter((s) => s.offsetParent !== null).map((s) => s.textContent.trim());
   });
-  check('390px home rack · Show reveals the other two slots',
+  check('390px ftu rows · Show reveals the other two slots',
     JSON.stringify(opened) === JSON.stringify(_RB_ROLE_NAMES), JSON.stringify(opened));
+  await ctx.close();
+}
+
+// The styled card (W01/O1): one goal, one filled button. "See the full
+// looks" is the single CTA; the piece count is a caption, never a second
+// ask; the rows start closed beneath it.
+{
+  const { ctx, page, errs } = await boot(browser, 1, 1280, { looks: false });
+  await page.evaluate(() => {
+    sessionStorage.setItem('rb_onboard_piece', JSON.stringify({
+      prompt: 'Acid green cropped jumper', photo: null, cataloged: true }));
+    sessionStorage.setItem('rb_onboard_styled', JSON.stringify({
+      prompt: 'Acid green cropped jumper', ts: Date.now(),
+      data: { ways: [
+        { title: 'Effortless Parisian Polish' }, { title: 'Modern Romantic Edge' }, { title: 'Curated Comfort' },
+      ], generatedImages: [], fallback: false, photoUrl: null } }));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const s = await page.evaluate(() => {
+    const card = document.getElementById('rb-styled');
+    const open = document.getElementById('rb-styled-open');
+    const filled = Array.from(document.querySelectorAll('#dash button'))
+      .filter((btn) => btn.offsetParent !== null)
+      .filter((btn) => {
+        const bg = getComputedStyle(btn).backgroundColor;
+        return bg === 'rgb(32, 32, 33)' || bg === 'rgb(0, 0, 0)';
+      }).map((btn) => btn.textContent.trim());
+    return {
+      cardFirst: document.querySelector('.dash-mast')?.nextElementSibling?.id,
+      rowsNext: card?.nextElementSibling?.id,
+      title: card?.querySelector('div div div')?.textContent || card?.textContent.slice(0, 120),
+      openFilled: open ? getComputedStyle(open).backgroundColor === 'rgb(32, 32, 33)' : false,
+      addNext: !!document.getElementById('rb-styled-addnext'),
+      foot: document.getElementById('rb-styled-foot')?.textContent,
+      filledButtons: filled,
+      echo: document.querySelector('.dash-echo')?.textContent,
+      open: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
+      mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
+      rowIds: Array.from(document.querySelectorAll('.rb-ftu-row')).map((r) => r.id),
+      concInStyleRow: !!document.querySelector('#rb-ftu-body-style .concierge'),
+    };
+  });
+  check('styled card · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('styled card · the hero leads, the rows fall in beneath it',
+    s.cardFirst === 'rb-styled' && s.rowsNext === 'rb-ftu-rows', JSON.stringify([s.cardFirst, s.rowsNext]));
+  check('styled card · "See the full looks" is the one filled button, no add-next CTA',
+    s.openFilled === true && s.addNext === false
+      && s.filledButtons.length === 1 && /See the full looks/i.test(s.filledButtons[0] || ''),
+    JSON.stringify([s.openFilled, s.addNext, s.filledButtons]));
+  check('styled card · the piece count is a caption, and it borrows honestly',
+    s.foot === 'One piece filed. Every look borrows the rest until you photograph your own.', s.foot);
+  check('styled card · the masthead answers the state',
+    s.echo === 'Your first piece is filed.', s.echo);
+  check('styled card · every row starts closed — the card is the CTA',
+    s.open.length === 0, JSON.stringify(s.open));
+  check('styled card · all three rows stand, the prompt waiting behind its row',
+    s.mode === 'zero'
+      && JSON.stringify(s.rowIds) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-style', 'rb-ftu-row-week'])
+      && s.concInStyleRow === true, JSON.stringify([s.mode, s.rowIds, s.concInStyleRow]));
+  // The saved key piece IS the hero card — the Inspiration row would be a
+  // second copy of it, so it stands down only while the card is up.
+  const inspWhileCard = await page.evaluate(() =>
+    document.getElementById('rb-insp-row')?.offsetParent === null
+      || !document.getElementById('rb-insp-row')?.textContent.trim());
+  check('styled card · the Inspiration row yields to the hero (one copy of the piece)',
+    inspWhileCard === true, String(inspWhileCard));
+
+  // Opening a row compacts the card to its header line (O1b), and the
+  // composer's fallback points back at the three looks, never a fresh
+  // generation.
+  const c = await page.evaluate(async () => {
+    window.__rbFtuToggle('build');
+    await new Promise((r) => setTimeout(r, 250));
+    return {
+      compact: document.getElementById('rb-styled')?.classList.contains('rb-styled-compact'),
+      tilesHidden: document.getElementById('rb-styled-tiles')?.offsetParent === null,
+      door: document.querySelector('#rb-lkhome .rb-lk-robesdoor')?.textContent,
+    };
+  });
+  check('styled card · an open row compacts it to the header line',
+    c.compact === true && c.tilesHidden === true, JSON.stringify(c));
+  check('styled card · the rack fallback is the Robes door (2026-08-18 revert)',
+    c.door === 'Or let Robes build the first one', c.door);
+
+  // Opening the looks retires the card — home re-decides, and the prompt
+  // steps out to lead the page (never a bare index with no door).
+  const after = await page.evaluate(async () => {
+    document.getElementById('rb-styled-open')?.click();
+    await new Promise((r) => setTimeout(r, 900));
+    return {
+      styledGone: !document.getElementById('rb-styled'),
+      mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
+      concLeads: document.querySelector('.concierge')?.parentNode?.id === 'dash'
+        && !!document.getElementById('rb-conc-ey'),
+    };
+  });
+  check('styled card · once it retires the prompt steps out to lead',
+    after.styledGone === true && after.mode === 'zero-lead' && after.concLeads === true,
+    JSON.stringify(after));
+  await ctx.close();
+}
+
+// O7 — hero card retired, prompt leads: exactly one look, nothing planned.
+{
+  const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
+  await page.evaluate(() => {
+    localStorage.setItem('rb_looks__u-test', JSON.stringify([
+      { id: 'lk-1', name: 'Effortless Parisian Polish', name_provisional: false, note: '', photo_url: null,
+        tags: null, source: 'manual', origin_look_id: null, created_at: '2026-08-17T10:00:00.000Z',
+        pieces: [
+          { id: 'w0', slot: 'Top', position: 0, role: null },
+          { id: 'w1', slot: 'Bottom', position: 1, role: null },
+          { id: 'w2', slot: 'Shoes', position: 2, role: null }],
+        proposals: [{ role: null, chip: 'Bag', cats: ['Bags'], opts: [{ name: 'A bag' }], oi: 0, saved: false, image_url: null }],
+        wears: [] },
+    ]));
+    // A styled key piece lives on Inspiration — it must surface in the home
+    // Inspiration row here (the styled card has retired, so no duplicate).
+    localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
+      { id: 1754700000000, type: 'key-piece', title: 'Acid green cropped jumper', subtitle: 'Worn three ways',
+        img: null, kpData: { ways: [] } },
+    ]));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const o = await page.evaluate(() => {
+    const dash = document.getElementById('dash');
+    return {
+      mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
+      order: Array.from(dash.children).map((e) => e.id || e.className.split(' ')[0])
+        .filter((id) => ['concierge', 'rb-firstlook', 'rb-ftu-rows'].includes(id)),
+      concEy: document.getElementById('rb-conc-ey')?.textContent,
+      styleRowGone: !document.getElementById('rb-ftu-row-style'),
+      flEy: document.querySelector('.rb-fl-ey')?.textContent,
+      flName: document.querySelector('.rb-fl-name')?.textContent,
+      flMeta: document.querySelector('.rb-fl-meta')?.textContent,
+      flCta: document.querySelector('.rb-fl-cta')?.textContent,
+      flCap: document.querySelector('.rb-fl-cap')?.textContent,
+      flBar: !!document.querySelector('.rb-fl-progress i'),
+      flOpen: document.querySelector('.rb-fl-row')?.getAttribute('onclick'),
+      weekSub: document.querySelector('#rb-ftu-row-week .rb-ftu-sub')?.textContent,
+      trkHidden: document.getElementById('wtrk')?.style.display === 'none',
+      snRowHidden: (document.getElementById('rb-sn')?.style.display === 'none')
+        || !document.getElementById('rb-sn')?.textContent.trim(),
+      servicesHidden: document.querySelector('.services')?.offsetParent === null,
+      styled: !!document.getElementById('rb-styled'),
+      inspShown: document.getElementById('rb-insp-row')?.offsetParent !== null
+        && /Acid green cropped jumper/.test(document.getElementById('rb-insp-row')?.textContent || ''),
+    };
+  });
+  check('O7 · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('O7 · a saved key piece surfaces in the home Inspiration row',
+    o.inspShown === true, String(o.inspShown));
+  check('O7 · the prompt leads as a card, then Your looks, then the hairlines',
+    o.mode === 'look' && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-ftu-rows'])
+      && o.concEy === 'Style something' && o.styleRowGone === true, JSON.stringify(o));
+  check('O7 · the look she owns is the card, Finish it the only nudge',
+    o.flEy === 'Your looks' && o.flName === 'Effortless Parisian Polish'
+      && o.flMeta === '3 pieces yours · 1 borrowed' && o.flCta === 'Finish it'
+      && /__lkCardOpen/.test(o.flOpen || ''), JSON.stringify(o));
+  check('O7 · wardrobe progress is a caption on the look card, never a CTA',
+    o.flCap === '4 pieces filed. At 15, Robes builds every look entirely from your own closet.'
+      && o.flBar === true && o.trkHidden === true, JSON.stringify([o.flCap, o.flBar, o.trkHidden]));
+  check('O7 · the week ahead stays a hairline, honestly whispered',
+    o.weekSub === 'One look, unplanned.', o.weekSub);
+  check('O7 · nothing competes: Lookbook row, services, styled card all stand down',
+    o.snRowHidden === true && o.servicesHidden === true && o.styled === false,
+    JSON.stringify([o.snRowHidden, o.servicesHidden, o.styled]));
+
+  // A planned day EXPOSES the week ahead by default (Annie, 2026-08-18):
+  // pin the look to tomorrow and the row unfurls itself, whisper updated.
+  const tomorrow = new Date(Date.now() + 86400000);
+  const tomorrowISO = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+  await page.route('**planned_days**', (r) => {
+    const u = r.request().url();
+    // The Coming-up strip queries beyond the rail window — keep it empty.
+    const body = u.includes('day_date=gt.') ? '[]' : JSON.stringify([
+      { user_id: 'u-test', source_id: 'lk-1', source_type: 'look', day_index: 0, slot: 'day',
+        day_date: tomorrowISO, status: 'planned', activity: 'Dinner with friends',
+        headline: 'Effortless Parisian Polish', thumb_urls: [], item_ids: ['w0'], pinned: true,
+        updated_at: new Date().toISOString() },
+    ]);
+    return r.fulfill({ status: 200, contentType: 'application/json', body });
+  });
+  const wk = await page.evaluate(async () => {
+    window._rbRailPaint();
+    await new Promise((r) => setTimeout(r, 900));
+    const row = document.getElementById('rb-ftu-row-week');
+    return {
+      open: row?.classList.contains('open'),
+      sub: row?.querySelector('.rb-ftu-sub')?.textContent,
+      quiet: row?.classList.contains('rb-quiet'),
+      railVisible: document.querySelector('#rb-ftu-body-week #rb-rail')?.offsetParent !== null,
+    };
+  });
+  check('O7 · a planned day exposes The week ahead by default',
+    wk.open === true && wk.sub === 'One day planned.' && wk.quiet === false && wk.railVisible === true,
+    JSON.stringify(wk));
   await ctx.close();
 }
 
@@ -588,21 +872,84 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 
+// The module retires (2a): once she has created one of each live edit — a
+// daily look and a travel edit (the weekly planner is a coming-soon promo;
+// it rejoins the condition when the track returns) — the whole concierge
+// falls away at once, meter, receipt row and all. Nothing takes its place.
+{
+  const { ctx, page, errs } = await boot(browser, 6);
+  await page.evaluate(() => {
+    localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
+      { id: 1755400000000, type: 'daily-look', title: 'A day', subtitle: '', img: null, dlData: { items: [] } },
+      { id: 1755300000000, type: 'travel-edit', title: 'Lisbon edit', subtitle: '', img: null,
+        tvData: { capsule: [], looks: [], dateFrom: '2026-08-01', tripDays: 3 } },
+    ]));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const r = await page.evaluate(() => ({
+    services: document.querySelector('.services')?.offsetParent !== null,
+    errsFree: true,
+  }));
+  check('concierge retires · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('concierge retires · one of each live edit made — the module falls away whole',
+    r.services === false, JSON.stringify(r));
+  await ctx.close();
+}
+
+// The concierge cards are day doors (2026-08-18): Style today scopes the
+// prompt to TODAY, Plan the week scopes it to TOMORROW — the day chip
+// carries the date, her words carry the brief. Image window 260px.
+{
+  const { ctx, page, errs } = await boot(browser, 5);
+  // Node and Chromium disagree on the en-GB comma — compare comma-free.
+  const fmt = (off) => {
+    const d = new Date(Date.now() + off * 86400000);
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/,/g, '');
+  };
+  const c = await page.evaluate(async () => {
+    const imgH = Math.round(document.querySelector('.svc-daily .svc-img')?.getBoundingClientRect().height || 0);
+    const wkCta = Array.from(document.querySelectorAll('.services-grid .svc'))
+      .map((el) => ({ t: el.querySelector('.svc-title')?.textContent, cta: el.querySelector('.svc-cta')?.textContent.trim() }))
+      .find((x) => x.t === 'Weekly planner')?.cta || '';
+    document.querySelector('.svc-daily').click();
+    await new Promise((r) => setTimeout(r, 300));
+    const chip = document.getElementById('rb-scopechip');
+    const daily = { on: chip?.classList.contains('on'), label: chip?.querySelector('.lbl')?.textContent,
+      focused: document.activeElement?.id === 'cb-ta' };
+    Array.from(document.querySelectorAll('.services-grid .svc'))
+      .find((el) => el.querySelector('.svc-title')?.textContent === 'Weekly planner')?.click();
+    await new Promise((r) => setTimeout(r, 300));
+    const weekly = { on: chip?.classList.contains('on'), label: chip?.querySelector('.lbl')?.textContent };
+    return { imgH, wkCta, daily, weekly };
+  });
+  check('concierge doors · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('concierge doors · the image window is 260px', c.imgH === 260, String(c.imgH));
+  check('concierge doors · the weekly CTA is live: "Plan the week"',
+    c.wkCta === 'Plan the week', c.wkCta);
+  check('concierge doors · Style today scopes the prompt to TODAY, in focus',
+    c.daily.on === true && (c.daily.label || '').replace(/,/g, '') === fmt(0) && c.daily.focused === true,
+    JSON.stringify([c.daily, fmt(0)]));
+  check('concierge doors · Plan the week scopes the prompt to TOMORROW',
+    c.weekly.on === true && (c.weekly.label || '').replace(/,/g, '') === fmt(1), JSON.stringify([c.weekly, fmt(1)]));
+  await ctx.close();
+}
+
 // Mobile
 {
   const { ctx, page, errs } = await boot(browser, 1, 390);
   check('390px · no page errors', errs.length === 0, errs.join(' | ').slice(0, 160));
   const m = await page.evaluate(() => {
-    const cols = document.querySelector('#wtrk-ms .rb-ms-cols');
     const dash = document.getElementById('dash');
     return {
-      cols: cols ? getComputedStyle(cols).gridTemplateColumns.split(' ').length : 0,
       overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
-      trkFirst: dash?.querySelector('.dash-mast')?.nextElementSibling?.id,
+      concFirst: dash?.querySelector('.dash-mast')?.nextElementSibling?.classList.contains('concierge'),
+      trackerGone: document.getElementById('wtrk')?.offsetParent === null,
     };
   });
-  check('390px · three milestone columns hold', m.cols === 3, String(m.cols));
   check('390px · no horizontal overflow', m.overflow);
+  check('390px · the prompt leads under the masthead', m.concFirst === true, String(m.concFirst));
+  check('390px · no standalone learning card', m.trackerGone === true);
   await ctx.close();
 }
 

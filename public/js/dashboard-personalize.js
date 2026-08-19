@@ -864,15 +864,32 @@
         if (!dash || !mast || !conc || !trk) return;
         const rail = document.getElementById('rb-rail');
         const styled = document.getElementById('rb-styled');
-        // FTUE step 3 (2026-08-12): while the inline rack is on home it
-        // leads the prompt, directly under "Your piece, styled" — it IS the
-        // first thing to do, and the learning card it replaces is hidden.
-        const lkhome = document.getElementById('rb-lkhome');
-        const seq = (lkhome
-          ? [styled, lkhome, conc, rail]
-          : (n < _MS_UNLOCKS[0].at
-            ? [styled, trk, conc, rail]
-            : [conc, rail, styled, trk])).filter(Boolean);
+        // FTU simplification (2026-08-18): while the quiet index rows carry
+        // home, the modules they demote live INSIDE the rows and are never
+        // resequenced at dash level. Zero looks (W01/O1) → styled card +
+        // rows; first look (O7) → the prompt leads as a card, then "Your
+        // looks", then the remaining hairlines.
+        const ftuRows = document.getElementById('rb-ftu-rows');
+        if (ftuRows) {
+          const firstlook = document.getElementById('rb-firstlook');
+          // 'zero' leads with the styled card; every other posture leads
+          // with the prompt (then "Your looks" when it exists).
+          const seq0 = (ftuRows.getAttribute('data-mode') === 'zero'
+            ? [styled, ftuRows]
+            : [conc, firstlook, ftuRows]).filter(Boolean);
+          seq0.forEach((el, i) => {
+            const prev = i === 0 ? mast : seq0[i - 1];
+            if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
+          });
+          return;
+        }
+        // The concierge's slot is a RULE now, not an accident of markup
+        // order (Annie, 2026-08-18): it follows the prompt and the rail,
+        // ahead of the Lookbook and Inspiration rows.
+        const svc = dash.querySelector('.services');
+        const seq = (n < _MS_UNLOCKS[0].at
+          ? [styled, conc, rail, svc]
+          : [conc, rail, styled, svc]).filter(Boolean);
         seq.forEach((el, i) => {
           const prev = i === 0 ? mast : seq[i - 1];
           if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
@@ -884,10 +901,169 @@
       // the section appears with ALL THREE edits open: Daily Look, Weekly
       // Planner and Travel Edit are all built and live, and the app-wide
       // convention is that a working feature is never locked behind a count.
+      // The concierge is a MENU for someone who doesn't know what Robes
+      // does (merge pass 2a, 2026-08-18). Once she has created one of each
+      // live edit — a daily look and a travel edit (the weekly planner is a
+      // coming-soon promo; it rejoins this condition when the track
+      // returns) — she knows, and the whole module falls away, all at once,
+      // meter and all. Data-driven, so it never comes back while the rows
+      // stand. Nothing takes its place: the actions live permanently
+      // elsewhere, so home gets shorter rather than backfilled.
+      // R5: GENERATED counts — a save is not required. The daily look defers
+      // its save (2026-08-13), so generation is flagged per user the moment
+      // a fresh result renders; saved rows still count (they also carry the
+      // fact across devices, which the local flag cannot).
+      function _rbSvcFlags() {
+        try { const u = _waUid(); return u ? JSON.parse(localStorage.getItem('rb_svc_done__' + u) || '{}') : {}; } catch (_) { return {}; }
+      }
+      function _rbSvcComplete(kind) {
+        try {
+          const u = _waUid(); if (!u) return;
+          const f = _rbSvcFlags();
+          if (f[kind]) return;
+          f[kind] = true;
+          localStorage.setItem('rb_svc_done__' + u, JSON.stringify(f));
+          // The retirement fires on the next home sync, not mid-render.
+        } catch (_) {}
+      }
+      function _rbConciergeDone() {
+        try {
+          const f = _rbSvcFlags();
+          const t = (typeof snLoad === 'function' ? snLoad() : []).map(i => i && i.type);
+          return (f.daily || t.indexOf('daily-look') > -1)
+            && (f.travel || t.indexOf('travel-edit') > -1);
+        } catch (_) { return false; }
+      }
+      window.__rbSvcAll = function() { if (window.App && App.showWardrobe) App.showWardrobe(); };
+      window.__rbSvcSnap = function() { _wtrkOpenAdd(); };
+      // "Robes is learning" merged INTO the concierge (2a): a quiet header
+      // meter with ONE job — filing replaces borrowed pieces with her own,
+      // the only honest reason to catalogue when access isn't the reward —
+      // and a filed-piece RECEIPT row (one thumbnail, always: the most
+      // recent piece, never a growing strip that duplicates the Wardrobe
+      // tab) closing the module with the one add door.
+      function _rbConciergeSync(n) {
+        const svc = document.querySelector('.services');
+        if (!svc) return;
+        if (!document.getElementById('rb-svc-style')) {
+          const st = document.createElement('style');
+          st.id = 'rb-svc-style';
+          st.textContent =
+            // ── The tinted band (4a): full-bleed within the shell frame —
+            // negative gutters mirror .dash's own padding at each
+            // breakpoint, so the inner content stays on the page grid.
+            // Exactly ONE band per screen; #F2EEE7 with #E1DACB as its
+            // hairline (cream-300 disappears against the tint).
+            '.services{--rb-bleed:var(--s6,80px);margin:6px calc(var(--rb-bleed) * -1) 48px;padding:48px var(--rb-bleed);background:#F2EEE7;border-top:1px solid var(--rule,#E7E0CF);border-bottom:1px solid var(--rule,#E7E0CF)}' +
+            'body[data-density="compact"] .services{--rb-bleed:36px}' +
+            '@media(max-width:920px){.services{--rb-bleed:26px;padding-top:36px;padding-bottom:36px}}' +
+            '@media(max-width:560px){.services{--rb-bleed:20px;padding-top:32px;padding-bottom:32px}}' +
+            // R1 header on the band: eyebrow ink, the meter beside it, one
+            // hairline under the pair. No title line.
+            '.services .sec-head{align-items:baseline;flex-wrap:wrap;row-gap:10px;padding-bottom:14px;border-bottom:1px solid var(--rule-mid,#D8CFC0);margin-bottom:24px}' +
+            '.services .sec-ey{font-weight:400;color:var(--ink,#202021)}' +
+            '#rb-svc-learn{margin-left:auto;display:flex;align-items:center;gap:14px}' +
+            '#rb-svc-learn .ey{font-size:10px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A9082);white-space:nowrap}' +
+            // R6: linear fill, and the rail never animates in place.
+            '#rb-svc-learn .bar{width:96px;height:2px;background:#E1DACB;overflow:hidden}' +
+            '#rb-svc-learn .bar i{display:block;height:100%;background:var(--ink,#202021)}' +
+            '#rb-svc-learn .n{font-size:11px;font-weight:300;color:var(--ink-soft,#6E665C);white-space:nowrap}' +
+            '#rb-svc-learn .n b{font-weight:400;color:var(--ink,#202021)}' +
+            // Cards on the band (4a): white, 4px, 160px photography with a
+            // quiet serif ordinal; status caption over its own hairline;
+            // text CTA only — never a filled button (R3).
+            '.services .svc{border:1px solid var(--rule,#E7E0CF);border-radius:4px}' +
+            '.services .svc:hover{border-color:var(--rule-mid,#D8CFC0)}' +
+            '.services .svc-img{aspect-ratio:auto;height:260px}' +
+            '.services .svc-num{top:10px;left:12px;font-size:15px;color:rgba(250,248,245,0.86);text-shadow:0 1px 8px rgba(32,32,33,0.35)}' +
+            '.services .svc-body{padding:14px 16px;gap:7px}' +
+            '.services .svc-title{font-size:22px;margin-bottom:0}' +
+            '.services .svc-desc{font-size:12px;line-height:1.5;margin-bottom:0}' +
+            '.services .svc-cta{gap:8px;font-size:10px;letter-spacing:.2em}' +
+            '.services .svc-cta svg{width:15px;height:15px;stroke-width:1.4}' +
+            '.rb-svc-note{font-size:11px;font-weight:300;color:var(--ink-faint,#9A9082);line-height:1.4;margin:0;padding-bottom:11px;border-bottom:1px solid var(--cream-200,#EFE9DC)}' +
+            // The filed-piece row (R4): a receipt, not a wardrobe.
+            '#rb-svc-filed{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:24px;padding-top:22px;border-top:1px solid var(--rule-mid,#D8CFC0)}' +
+            '#rb-svc-filed .th{flex:none;width:40px;height:50px;border-radius:2px;border:1px solid #E1DACB;overflow:hidden;background:var(--cream-100,#F5F0E8)}' +
+            '#rb-svc-filed .th img{width:100%;height:100%;object-fit:cover;display:block}' +
+            '#rb-svc-filed .th .mono{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-size:17px;color:var(--ink-faint,#9A9082)}' +
+            '#rb-svc-filed .txt{display:flex;flex-direction:column;gap:3px;min-width:0}' +
+            '#rb-svc-filed .nm{font-size:12px;font-weight:400;color:var(--ink,#202021)}' +
+            '#rb-svc-filed .meta{font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#9A9082)}' +
+            '#rb-svc-filed .all{background:none;border:none;border-left:1px solid var(--rule-mid,#D8CFC0);padding:4px 0 4px 14px;margin-left:0;font-family:inherit;font-size:12px;font-weight:300;color:var(--ink-soft,#6E665C);cursor:pointer;text-align:left}' +
+            '#rb-svc-filed .all span{color:var(--ink,#202021);margin-left:6px}' +
+            '#rb-svc-filed .sp{flex:1}' +
+            '#rb-svc-filed .note{font-size:12px;font-weight:300;color:var(--ink-faint,#9A9082);white-space:nowrap}' +
+            '#rb-svc-filed .cta{flex:none;padding:16px 28px;border:1px solid var(--rule-mid,#D8CFC0);border-radius:2px;background:transparent;font-family:inherit;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink,#202021);cursor:pointer;transition:all .2s}' +
+            '#rb-svc-filed .cta:hover{border-color:var(--ink,#202021);background:rgba(32,32,33,0.02)}' +
+            // R1 — one header rule for every section on home: eyebrow left,
+            // its one action right, a hairline under the pair.
+            '#rb-rail .rb-rail-head{padding-bottom:14px;border-bottom:1px solid var(--rule,#E7E0CF);margin-bottom:16px}' +
+            '#rb-rail .rb-rail-ey{font-weight:400;letter-spacing:.24em;color:var(--ink-faint,#9A9082)}' +
+            '#rb-sn .rb-sec-head,#rb-insp-row .rb-sec-head{padding-bottom:14px;border-bottom:1px solid var(--rule,#E7E0CF)}' +
+            '#rb-sn .rb-sec-ey,#rb-insp-row .rb-sec-ey{font-weight:400;letter-spacing:.24em;color:var(--ink-faint,#9A9082)}' +
+            '@media(max-width:767px){' +
+              '.services .sec-head{flex-direction:column;align-items:stretch}' +
+              '#rb-svc-learn{margin-left:0}#rb-svc-learn .bar{flex:1;width:auto}' +
+              '#rb-svc-filed .note{display:none}#rb-svc-filed .cta{flex:1 1 100%;min-height:48px;text-align:center}}';
+          document.head.appendChild(st);
+        }
+        // Header: the eyebrow and the meter carry it — the static
+        // "Specialised edits, on request" meta yields its slot.
+        const head = svc.querySelector('.sec-head');
+        if (head) {
+          const meta = head.querySelector('.sec-meta');
+          if (meta) meta.remove();
+          let learn = document.getElementById('rb-svc-learn');
+          if (!learn) {
+            learn = document.createElement('div');
+            learn.id = 'rb-svc-learn';
+            head.appendChild(learn);
+          }
+          // R6: fill = min(pieces / 15, 1) — the milestone ladder described
+          // gates, and there are none. Bare count, never a denominator.
+          const pct = Math.min(100, Math.round((n / _WA_TARGET) * 1000) / 10);
+          learn.innerHTML = '<span class="ey">Robes is learning</span>' +
+            '<span class="bar"><i style="width:' + pct + '%"></i></span>' +
+            '<span class="n"><b>' + n + '</b> piece' + (n === 1 ? '' : 's') + ' filed</span>';
+        }
+        // The filed-piece row — a receipt, not a wardrobe: one thumbnail,
+        // fixed height, the CTA never pushed off the row.
+        let row = document.getElementById('rb-svc-filed');
+        if (!row) {
+          row = document.createElement('div');
+          row.id = 'rb-svc-filed';
+          svc.appendChild(row);
+        }
+        const it = _waItems[0] || null;
+        const receipt = it
+          ? '<span class="th">' + (it.image_url
+              ? '<img src="' + _waEsc(it.image_url) + '" alt="">'
+              : '<span class="mono">' + _waEsc((it.label || '?').charAt(0).toUpperCase()) + '</span>') + '</span>' +
+            '<span class="txt"><span class="nm">' + _waEsc(it.label || 'A piece') + '</span>' +
+            '<span class="meta">' + _waEsc(it.category || 'Piece') + ' · ' + (n === 1 ? 'Your first filed piece' : 'Last filed') + '</span></span>'
+          : '';
+        const all = n >= 2
+          ? '<button type="button" class="all" onclick="window.__rbSvcAll()">' + n + ' pieces in your wardrobe ·<span>See all →</span></button>'
+          : '';
+        row.innerHTML = receipt + all + '<span class="sp"></span>' +
+          '<span class="note">One photo files four pieces.</span>' +
+          '<button type="button" class="cta" onclick="window.__rbSvcSnap()">Catalogue what you’re wearing now</button>';
+      }
       function _rbGateConcierge(n) {
         const svc = document.querySelector('.services');
         if (!svc) return;
-        svc.style.display = n >= _MS_UNLOCKS[0].at ? '' : 'none';
+        // FTU simplification (2026-08-18): while the index rows carry home
+        // (zero looks / first look) nothing competes with the one CTA — the
+        // service shelf stands down at any piece count until then. Once she
+        // has made one of each live edit the module retires for good (2a).
+        const show = !document.getElementById('rb-ftu-rows')
+          && n >= _MS_UNLOCKS[0].at && !_rbConciergeDone();
+        svc.style.display = show ? '' : 'none';
+        if (show) {
+          _rbConciergeSync(n);
+          if (typeof _rbUpdateDailyOutfitLock === 'function') _rbUpdateDailyOutfitLock();
+        }
       }
 
       window.__wtrkEdit = function(id) {
@@ -908,7 +1084,26 @@
           st.id = 'rb-wtrk-style';
           st.textContent =
             '.wtrk-star{position:absolute;top:5px;right:5px;width:18px;height:18px;border-radius:100px;background:var(--ink,#202021);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none}' +
-            '.wtrk-star svg{width:9px;height:9px;display:block}';
+            '.wtrk-star svg{width:9px;height:9px;display:block}' +
+            // Demoted register (Annie, 2026-08-18): the learning card is the
+            // page's LAST module — smaller, more compact, and off the sage
+            // wash onto the app's white-card language (rose eyebrow like
+            // every other home section).
+            '.tracker{margin-bottom:44px}' +
+            '.wtrk-ey{color:var(--rose,#8E7077)}' +
+            '.wtrk-card{background:#fff;padding:16px 20px 14px}' +
+            '.wtrk-toprow{gap:18px;align-items:center}' +
+            '.wtrk-head{font-size:16.5px}' +
+            '.wtrk-num{font-size:30px}' +
+            '.wtrk-num .wtrk-num-lbl{margin-top:5px}' +
+            '.wtrk-ms{margin:10px 0 12px}' +
+            '.wtrk-it,.wtrk-add{flex:0 0 66px;height:88px}' +
+            '.wtrk-it-scrim{padding:18px 6px 6px}' +
+            '.wtrk-it-name{font-size:9px}' +
+            '.wtrk-mono{font-size:20px}' +
+            '.wtrk-cta{padding:9px 16px}' +
+            '.wtrk-fastrow{margin-top:12px}' +
+            '.wtrk-snap{padding:8px 15px}';
           document.head.appendChild(st);
         }
 
@@ -928,18 +1123,13 @@
         const numEl = document.getElementById('wtrk-num');
         const headEl = document.getElementById('wtrk-head');
         const msEl = document.getElementById('wtrk-ms');
-        // The card retires for good one piece PAST the last milestone — at 15
-        // it still has a job (Style notes has only just unlocked); at 16 count
-        // and adding both live in the Wardrobe tab and nothing takes its place.
-        // The section stays in the DOM — it's _rbApplyLayout's anchor.
-        const complete = n > _WA_TARGET;
+        // MERGED (2a, 2026-08-18): "Robes is learning" lives inside the
+        // Styling Concierge now — a header meter + the filed-piece receipt
+        // row. The standalone card never renders again; the section stays
+        // in the DOM only as _rbApplyLayout's anchor (and its internals
+        // keep painting, invisibly, so nothing downstream breaks).
         const trkSection = document.getElementById('wtrk');
-        if (trkSection) {
-          // …and it does not render at all while the inline rack is on home
-          // (FTUE step 3, 2026-08-12): the rack replaces it, so home never
-          // shows a progress bar at zero looks.
-          trkSection.style.display = complete || (typeof _lkHomeZero === 'function' && _lkHomeZero()) ? 'none' : '';
-        }
+        if (trkSection) trkSection.style.display = 'none';
         // Bare count, no denominator — "n / 15" read as the wardrobe's item
         // limit (Clodagh test 2026-07-29). Never reintroduce a fraction here.
         if (numEl) numEl.innerHTML = n + '<span class="wtrk-num-lbl">Piece' + (n === 1 ? '' : 's') + ' filed</span>';
@@ -4399,7 +4589,7 @@
       snPage.innerHTML = `
         <div style="padding:32px var(--s6,24px) 24px;max-width:var(--shell,1440px);margin:0 auto;box-sizing:border-box">
           <div id="sn-headrow" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 16px">
-            <p id="sn-eyebrow" style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0">Lookbook</p>
+            <p id="sn-eyebrow" style="font-size:10px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A9082);margin:0">Lookbook</p>
           </div>
           <div id="sn-grid" style="display:none;gap:20px"></div>
           <div id="sn-empty" style="display:none;padding:80px 0;text-align:center">
@@ -4496,7 +4686,10 @@
       inPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:var(--nav-h,64px);z-index:45;background:#FAF8F5;overflow-y:auto';
       inPage.innerHTML = `
         <div style="padding:32px var(--s6,24px) 64px;max-width:var(--shell,1440px);margin:0 auto;box-sizing:border-box">
-          <p style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0 0 20px">Inspiration</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 20px">
+            <p style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0">Inspiration</p>
+            <button onclick="window.__inStyleNew()" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:100px;background:var(--ink,#202021);color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer;white-space:nowrap;font-family:inherit">Style a key piece</button>
+          </div>
           <div id="rb-in-sec" style="font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 14px">Key pieces, styled</div>
           <div id="rb-in-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px"></div>
           <div id="rb-in-empty" style="display:none;padding:8px 0 40px"></div>
@@ -4583,10 +4776,183 @@
           ta.focus();
         }, 240);
       };
+      // ── "Style a key piece" modal (Annie's Inspiration mock, 2026-08-17) ──
+      // A deliberate exception to every-route-lands-on-the-prompt (the same
+      // class of exception as __lkNewHoliday's intake): Inspiration's CTA
+      // opens the mock's two-step modal — snap/attach + a few words, then
+      // the scan state — and lands on the kp result. The generation call
+      // mirrors _cbStyleSubmit's /api/style contract exactly.
+      var _inStM = null;      // modal element (null = closed)
+      var _inStStep = 1;
+      var _inStPhoto = null;  // downscaled dataURL
+      var _inStText = '';     // survives an error's return to step 1
+      var _inStTimer = null;  // scan-stage cycler
+      var _inStAbort = null;  // in-flight AbortController
+      var _IN_SCAN_STAGES = [
+        { h: 'Reading your piece…', s: 'One moment — Robes is looking at the photo.', c: 'Reading the silhouette…' },
+        { h: 'Reading your piece…', s: 'One moment — Robes is looking at the photo.', c: 'Noting the colour and fabric…' },
+        { h: 'Generating your look…', s: 'Pulling pieces that sit well with it.', c: 'Checking your wardrobe…' },
+        { h: 'Generating your look…', s: 'Pulling pieces that sit well with it.', c: 'Styling three ways…' },
+      ];
+      function _inStClose() {
+        if (_inStTimer) { clearInterval(_inStTimer); _inStTimer = null; }
+        if (_inStAbort) { try { _inStAbort.abort(); } catch (_) {} _inStAbort = null; }
+        if (_inStM) { _inStM.remove(); _inStM = null; }
+        _inStPhoto = null;
+        _inStText = '';
+        _inStStep = 1;
+      }
+      window.__inStyleClose = _inStClose;
+      function _inStDots() {
+        var wide = '<span style="width:22px;height:5px;border-radius:999px;background:#A89880;display:inline-block"></span>';
+        var dot = '<span style="width:5px;height:5px;border-radius:999px;background:#D8CFC0;display:inline-block"></span>';
+        return '<div style="display:flex;align-items:center;gap:7px">' +
+          (_inStStep === 1 ? wide + dot + dot : dot + wide + dot) + '</div>';
+      }
+      function _inStTileHtml() {
+        if (_inStPhoto) {
+          return '<img src="' + _inStPhoto + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" alt="">' +
+            '<span style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);padding:5px 12px;border-radius:100px;background:rgba(250,248,245,0.92);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5C574F;white-space:nowrap">Change photo</span>';
+        }
+        return '<span style="width:38px;height:38px;border-radius:50%;background:#EDE7DE;display:flex;align-items:center;justify-content:center">' +
+          '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"></path><circle cx="12" cy="13" r="3.2"></circle></svg></span>' +
+          '<span style="font-size:12px;line-height:1.6;color:#5C574F;text-align:center">Snap or attach<br>your key piece</span>';
+      }
+      function _inStPaint() {
+        if (!_inStM) return;
+        var serif = "'Cormorant',Georgia,serif";
+        var card = _inStM.firstElementChild;
+        var head = '<div style="display:flex;align-items:center;justify-content:space-between">' +
+          '<div style="font-family:' + serif + ';font-weight:400;font-size:16px;letter-spacing:.22em;text-transform:uppercase;color:#202021">Robes</div>' +
+          _inStDots() +
+          '<button onclick="window.__inStyleClose()" style="border:none;background:none;font-size:18px;color:#A89880;cursor:pointer;line-height:1;padding:2px 4px;font-family:inherit">×</button></div>';
+        if (_inStStep === 1) {
+          card.innerHTML = head +
+            '<div style="font-family:' + serif + ';font-weight:300;font-size:clamp(32px,6vw,44px);line-height:1.04;color:#202021;margin-top:34px">Style a key piece,<br><span style="font-style:italic;color:#B09A94">three ways.</span></div>' +
+            '<div id="rb-inst-grid" style="display:grid;grid-template-columns:200px 1fr;gap:20px;margin-top:32px">' +
+              '<div onclick="window.__inStPick()" role="button" style="position:relative;overflow:hidden;border:1px dashed #D8CFC0;border-radius:8px;background:#F7F4EF;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;min-height:172px;cursor:pointer;box-sizing:border-box">' + _inStTileHtml() + '</div>' +
+              '<div style="display:flex;flex-direction:column;justify-content:space-between;border:1px solid #D8CFC0;border-radius:8px;background:#FFFDFB;padding:18px 20px;min-height:172px;box-sizing:border-box">' +
+                '<textarea id="rb-inst-ta" oninput="window.__inStSync(this)" placeholder="The piece, the occasion, how you like to feel in it..." style="border:none;background:none;outline:none;resize:none;width:100%;flex:1;font-family:inherit;font-size:14px;line-height:1.6;color:#202021"></textarea>' +
+                '<div style="display:flex;flex-direction:column;gap:12px">' +
+                  '<div style="height:1px;background:#E7E0CF"></div>' +
+                  '<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#A89880">' +
+                    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.6 6 .7-4.4 4.1 1.2 6-5.4-3-5.4 3 1.2-6L3.4 9.8l6-.7Z"></path></svg>' +
+                    '<span>A photo makes it sharper — but a few words is plenty.</span></div></div></div></div>' +
+            '<button onclick="window.__inStGo()" class="rb-inst-cta" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;margin-top:24px;padding:20px;background:#EDE7DE;border:none;border-radius:8px;font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#5C574F;cursor:pointer;font-family:inherit;transition:all .2s"><span>Style it three ways</span><span>→</span></button>' +
+            '<input type="file" id="rb-inst-file" accept="image/*" hidden onchange="window.__inStFile(event)">';
+          var ta = card.querySelector('#rb-inst-ta');
+          if (ta && _inStText) ta.value = _inStText;
+          setTimeout(function() { if (ta) ta.focus(); }, 120);
+        } else {
+          card.innerHTML = head +
+            '<div style="display:flex;flex-direction:column;gap:10px;margin-top:30px">' +
+              '<div id="rb-inst-h" style="font-family:' + serif + ';font-weight:300;font-size:clamp(32px,6vw,44px);line-height:1.04;color:#202021"></div>' +
+              '<div id="rb-inst-s" style="font-size:14px;line-height:1.7;color:#5C574F"></div></div>' +
+            '<div style="position:relative;margin-top:22px;height:290px;background:#1C1C1B;border-radius:8px;overflow:hidden">' +
+              '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">' +
+                '<div style="width:210px;height:100%;background:#F5F0E8;overflow:hidden">' +
+                  (_inStPhoto ? '<img src="' + _inStPhoto + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' : '') +
+                '</div></div>' +
+              '<div style="position:absolute;left:0;right:0;height:1px;background:#FAF8F5;box-shadow:0 0 22px 6px rgba(250,248,245,0.35);animation:rbInstScan 2.4s ease-in-out infinite"></div>' +
+              '<div style="position:absolute;top:18px;left:18px;width:26px;height:26px;border-top:1px solid rgba(250,248,245,0.7);border-left:1px solid rgba(250,248,245,0.7)"></div>' +
+              '<div style="position:absolute;top:18px;right:18px;width:26px;height:26px;border-top:1px solid rgba(250,248,245,0.7);border-right:1px solid rgba(250,248,245,0.7)"></div>' +
+              '<div style="position:absolute;bottom:18px;left:18px;width:26px;height:26px;border-bottom:1px solid rgba(250,248,245,0.7);border-left:1px solid rgba(250,248,245,0.7)"></div>' +
+              '<div style="position:absolute;bottom:18px;right:18px;width:26px;height:26px;border-bottom:1px solid rgba(250,248,245,0.7);border-right:1px solid rgba(250,248,245,0.7)"></div>' +
+              '<div id="rb-inst-c" style="position:absolute;bottom:22px;left:22px;font-size:13px;color:#FAF8F5;animation:rbInstBreathe 2.4s ease-in-out infinite"></div></div>' +
+            '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;font-size:12px;color:#A89880">' +
+              '<span>This takes about twenty seconds.</span>' +
+              '<button onclick="window.__inStyleClose()" style="border:none;background:none;padding:0;color:#5C574F;text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:12px;font-family:inherit">Cancel</button></div>';
+          var si = 0;
+          var stage = function() {
+            var st = _IN_SCAN_STAGES[si % _IN_SCAN_STAGES.length];
+            var h = document.getElementById('rb-inst-h'), s = document.getElementById('rb-inst-s'), c = document.getElementById('rb-inst-c');
+            if (h) h.textContent = st.h;
+            if (s) s.textContent = st.s;
+            if (c) c.textContent = st.c;
+            si++;
+          };
+          stage();
+          if (_inStTimer) clearInterval(_inStTimer);
+          _inStTimer = setInterval(stage, 2400);
+        }
+      }
+      window.__inStSync = function(ta) { _inStText = ta.value; };
+      window.__inStPick = function() {
+        var f = document.getElementById('rb-inst-file');
+        if (f) f.click();
+      };
+      window.__inStFile = function(e) {
+        var f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!f) return;
+        _rbDownscale(f).then(function(dataUrl) {
+          _inStPhoto = dataUrl;
+          if (_inStM && _inStStep === 1) _inStPaint();
+        }).catch(function() { _waShowToast('Robes couldn’t read that photo — try another'); });
+      };
+      window.__inStGo = async function() {
+        if (!_inStM || _inStStep !== 1) return;
+        var prompt = (_inStText || '').trim();
+        if (!prompt && !_inStPhoto) { _waShowToast('Add a photo or a few words first'); return; }
+        _inStStep = 2;
+        _inStPaint();
+        _rbTrack('inspiration_style_modal', { photo: String(!!_inStPhoto) });
+        var genId = _rbGenId();
+        _inStAbort = new AbortController();
+        var abortTimer = setTimeout(function() { if (_inStAbort) _inStAbort.abort(); }, 90000);
+        try {
+          const res = await fetch('/api/style', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: _inStAbort.signal,
+            body: JSON.stringify({
+              prompt,
+              photo: _inStPhoto || null,
+              userId: _waUid() || undefined,
+              genId,
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
+              wardrobeCount: _waItems.length,
+              wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })),
+              intent: 'style',
+              context: null,
+            }),
+          });
+          clearTimeout(abortTimer);
+          if (!res.ok) throw new Error(await res.text());
+          const data = await res.json();
+          data.genId = genId;
+          _inStClose();
+          window.__inClose();
+          window.__kpRenderResult(data, prompt, { intent: 'style' });
+        } catch (err) {
+          clearTimeout(abortTimer);
+          _inStAbort = null;
+          if (!_inStM) return; // she cancelled — stay quiet
+          _inStStep = 1;       // back to her inputs, nothing lost
+          _inStPaint();
+          _waShowToast('Robes couldn’t finish those looks — please try again in a moment.');
+        }
+      };
       window.__inStyleNew = function() {
-        window.__inClose();
-        if (window.__rbNavGo) window.__rbNavGo('home');
-        setTimeout(function() { if (typeof _cbSetIntent === 'function') _cbSetIntent('style'); }, 240);
+        _inStClose();
+        if (!document.getElementById('rb-inst-style')) {
+          var st = document.createElement('style');
+          st.id = 'rb-inst-style';
+          st.textContent =
+            '@keyframes rbInstScan{0%{top:6%;opacity:0}15%{opacity:1}85%{opacity:1}100%{top:94%;opacity:0}}' +
+            '@keyframes rbInstBreathe{0%,100%{opacity:.55}50%{opacity:1}}' +
+            '.rb-inst-cta:hover{background:#202021 !important;color:#FAF8F5 !important}' +
+            '@media(max-width:640px){#rb-inst-grid{grid-template-columns:1fr !important}#rb-inst-wrap{padding:16px !important}#rb-inst-wrap>div{padding:26px 22px 30px !important}}';
+          document.head.appendChild(st);
+        }
+        _inStM = document.createElement('div');
+        _inStM.id = 'rb-inst-wrap';
+        _inStM.style.cssText = 'position:fixed;inset:0;background:rgba(32,32,33,0.42);display:flex;align-items:flex-start;justify-content:center;padding:48px;overflow:auto;z-index:950';
+        _inStM.onclick = function(e) { if (e.target === _inStM && _inStStep === 1) _inStClose(); };
+        _inStM.innerHTML = '<div style="width:720px;max-width:100%;box-sizing:border-box;flex:none;background:#FAF8F5;border-radius:14px;padding:34px 40px 40px"></div>';
+        document.body.appendChild(_inStM);
+        _inStStep = 1;
+        _inStPaint();
       };
 
       // ── Lookbook empty state · "Ways to fill it" ──────────────────────
@@ -4876,33 +5242,33 @@
             if (kpTitle) kpTitle.textContent = 'Daily outfit';
             const kpDesc = keyPiece.querySelector('.svc-desc');
             if (kpDesc) kpDesc.textContent = 'A fresh look styled from your wardrobe each morning, synced to the forecast.';
+            // 4a: the three cards carry the repo's own look photography —
+            // the calendar/suitcase illustrations retired with the redesign.
+            const kpImg = keyPiece.querySelector('.svc-img img');
+            if (kpImg) { kpImg.src = '/images/looks/look1.jpg'; kpImg.style.objectPosition = '50% 8%'; }
 
-            // Calendar illustration for the Weekly Planner promo card
-            const calSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" width="400" height="280"><rect width="400" height="280" fill="%23F5F1EB"/><g fill="none" stroke="%23D4C8B8" stroke-width="0.8"><line x1="57" y1="40" x2="57" y2="260"/><line x1="114" y1="40" x2="114" y2="260"/><line x1="171" y1="40" x2="171" y2="260"/><line x1="228" y1="40" x2="228" y2="260"/><line x1="285" y1="40" x2="285" y2="260"/><line x1="342" y1="40" x2="342" y2="260"/><line x1="28" y1="80" x2="372" y2="80"/><line x1="28" y1="140" x2="372" y2="140"/><line x1="28" y1="200" x2="372" y2="200"/><line x1="28" y1="40" x2="372" y2="40"/><line x1="28" y1="260" x2="372" y2="260"/><line x1="28" y1="40" x2="28" y2="260"/><line x1="372" y1="40" x2="372" y2="260"/></g><g font-family="Georgia,serif" font-size="11" fill="%23B0A090" text-anchor="middle"><text x="42" y="30">M</text><text x="85" y="30">T</text><text x="142" y="30">W</text><text x="199" y="30">T</text><text x="256" y="30">F</text><text x="313" y="30">S</text><text x="357" y="30">S</text></g><g font-family="Georgia,serif" font-size="10" fill="%23C8B8A8" text-anchor="middle"><text x="42" y="58">14</text><text x="99" y="58">15</text><text x="156" y="58">16</text><text x="213" y="58">17</text><text x="270" y="58">18</text><text x="327" y="58">19</text><text x="357" y="58">20</text></g><rect x="31" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.9"/><rect x="4" y="86" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="86" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="86" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="231" y="66" width="50" height="104" rx="4" fill="%23E8DEDD" opacity="0.85"/><rect x="227" y="66" width="3" height="104" rx="1.5" fill="%23789060"/><rect x="88" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="84" y="146" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="174" y="146" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="170" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="345" y="146" width="22" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="341" y="146" width="3" height="44" rx="1.5" fill="%23A08898"/><rect x="117" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.8"/><rect x="113" y="206" width="3" height="44" rx="1.5" fill="%238A9870"/><rect x="288" y="206" width="50" height="44" rx="4" fill="%23E8DEDD" opacity="0.75"/><rect x="284" y="206" width="3" height="44" rx="1.5" fill="%23A89878"/></svg>`;
 
-            // Weekly Planner is promotional only: illustration + copy stay,
-            // the CTA reads "Coming soon" and the tap opens the standard
-            // coming-soon dialog. No live track behind it — /api/weekly and
-            // _cbSetIntent('weekly') are gone. .svc-promo marks it so the
-            // empty-Lookbook clone loop can skip it (a coming-soon door is
-            // not a way to fill the lookbook).
-            weekly.classList.add('svc-promo');
+            // Weekly planner is a LIVE door now (Annie, 2026-08-18): week
+            // planning lives in the diary day chips, so "Plan the week"
+            // opens the prompt scoped to TOMORROW — one day at a time is
+            // how the week gets planned. The coming-soon dialog and
+            // .svc-promo are retired with it.
             weekly.removeAttribute('onclick'); // static __wkOpen opener is dead code
             weekly.onclick = function() {
-              if (window.KP && KP.comingSoon) KP.comingSoon('Week planning,<br><em>coming soon.</em>', 'Planning your week is moving into the diary — you’ll dress any day from its own chip, right on your dashboard.');
+              if (typeof window._ikScopeDay === 'function' && typeof _rbDiaryOn === 'function' && _rbDiaryOn()) {
+                window._ikScopeDay(_pdAddISO(_pdLocalISO(), 1));
+              } else if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me');
             };
             const weeklyImg = weekly.querySelector('.svc-img img');
-            if (weeklyImg) weeklyImg.src = calSvg;
+            if (weeklyImg) { weeklyImg.src = '/images/looks/look2.jpg'; weeklyImg.style.objectPosition = '50% 8%'; }
             const wkDesc = weekly.querySelector('.svc-desc');
             if (wkDesc) wkDesc.textContent = 'Your week mapped day by day — every outfit routed through your own wardrobe, no repeats.';
             const wkCta = weekly.querySelector('.svc-cta');
-            if (wkCta) wkCta.textContent = 'Coming soon';
+            if (wkCta) wkCta.innerHTML = 'Plan the week<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>';
 
-            // Premium suitcase illustration for Travel Edit
-            const suitSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280"><rect width="400" height="280" fill="%23EEE8E4"/><rect x="62" y="62" width="276" height="178" rx="22" fill="%23E8E0D6" stroke="%23C8BAB0" stroke-width="1.4"/><rect x="74" y="74" width="252" height="154" rx="16" fill="%23E2D8CE" stroke="%23C0B4A8" stroke-width="0.7"/><path d="M168 62 C168 38 232 38 232 62" fill="none" stroke="%23C0B0A6" stroke-width="2" stroke-linecap="round"/><rect x="158" y="56" width="14" height="10" rx="4" fill="%23D0C4BA"/><rect x="228" y="56" width="14" height="10" rx="4" fill="%23D0C4BA"/><rect x="62" y="62" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="328" y="62" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="62" y="230" width="10" height="10" rx="3" fill="%23D4C8BC"/><rect x="328" y="230" width="10" height="10" rx="3" fill="%23D4C8BC"/><line x1="74" y1="156" x2="326" y2="156" stroke="%23C0B4A8" stroke-width="0.8"/><rect x="186" y="150" width="28" height="12" rx="5" fill="%23D8CCBF" stroke="%23C0B0A4" stroke-width="1"/><rect x="192" y="154" width="16" height="5" rx="2" fill="%23C8BBB0"/><rect x="86" y="84" width="110" height="62" rx="10" fill="%23DDD4C8" stroke="%23C4B8AC" stroke-width="0.8"/><line x1="98" y1="99" x2="184" y2="99" stroke="%23C8BCAF" stroke-width="0.9"/><line x1="98" y1="112" x2="178" y2="112" stroke="%23C8BCAF" stroke-width="0.7"/><line x1="98" y1="124" x2="170" y2="124" stroke="%23C8BCAF" stroke-width="0.6" opacity="0.7"/><rect x="206" y="84" width="110" height="62" rx="10" fill="%23E4DAD0" stroke="%23C4B4A8" stroke-width="0.8"/><ellipse cx="237" cy="105" rx="18" ry="14" fill="%23D8CEBE" stroke="%23C0B2A4" stroke-width="0.9"/><ellipse cx="278" cy="105" rx="18" ry="14" fill="%23D4CAB8" stroke="%23BCAE9E" stroke-width="0.9"/><ellipse cx="257" cy="130" rx="18" ry="14" fill="%23DCD2C0" stroke="%23C0B2A4" stroke-width="0.9"/><ellipse cx="237" cy="105" rx="7" ry="5" fill="none" stroke="%23C8BAA8" stroke-width="0.7"/><ellipse cx="278" cy="105" rx="7" ry="5" fill="none" stroke="%23C0B2A0" stroke-width="0.7"/><rect x="86" y="164" width="52" height="58" rx="10" fill="%23DAD0C4" stroke="%23C4B8AC" stroke-width="0.8"/><path d="M96 202 Q108 192 126 196 Q130 197 130 202" fill="none" stroke="%23C0B4A8" stroke-width="1.1" stroke-linecap="round"/><rect x="148" y="164" width="58" height="58" rx="10" fill="%23D8CEC2" stroke="%23C0B4A8" stroke-width="0.8"/><line x1="160" y1="184" x2="194" y2="184" stroke="%23C4B8AC" stroke-width="0.9"/><line x1="160" y1="196" x2="188" y2="196" stroke="%23C4B8AC" stroke-width="0.7"/><rect x="216" y="164" width="100" height="58" rx="10" fill="%23E0D6CA" stroke="%23C8BCAE" stroke-width="0.8"/><rect x="228" y="177" width="36" height="32" rx="6" fill="%23D4CAB8" stroke="%23C0B4A4" stroke-width="0.8"/><rect x="272" y="177" width="32" height="32" rx="6" fill="%23D0C6B4" stroke="%23BCAE9E" stroke-width="0.8"/></svg>`;
 
             const travelImg = travel.querySelector('.svc-img img');
-            if (travelImg) travelImg.src = suitSvg;
+            if (travelImg) { travelImg.src = '/images/looks/look3.jpg'; travelImg.style.objectPosition = '50% 8%'; }
 
             // Travel Edit is live — replace the bundle's comingSoon with the
             // capsule packing brief modal
@@ -5198,6 +5564,10 @@
                       <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Key Details</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${_waEsc(w.details || '')}</p></div>
                       <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Accessories</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${_waEsc(w.accessories || '')}</p></div>
                     </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:auto;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.08)">
+                      <span style="font-size:12px;color:var(--ink-faint);font-style:italic">See it piece by piece — what's yours, what would finish it.</span>
+                      <button onclick="window.__kpBuildLook(${i})" style="flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Build this look<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+                    </div>
                   </div>
                 </div>`;
               }).join('')}
@@ -5250,6 +5620,24 @@
           _kpActiveSaveId = (opts && opts.savedId) || data.id || null;
         }
 
+        // "Build this look" — the chosen way becomes an EDITABLE LOOK in the
+        // Lookbook, named after the way itself ("Off-Duty Parisian"), its
+        // pieces itemised from the way's prose. No new imagery: the way's
+        // original editorial frame is the look's photograph, and her
+        // uploaded product photo rides the key piece's own card.
+        window.__kpBuildLook = function(i) {
+          const w = ways[i];
+          if (!w) return;
+          _rbTrack('kp_build_look', { item: String(_kpActiveSaveId || ''), way: String(i) });
+          const imgs = (window.__lastKpData && window.__lastKpData.generatedImages) || generatedImages || [];
+          const wayImg = (typeof imgs[i] === 'string' && imgs[i].indexOf('http') === 0) ? imgs[i] : null;
+          _kpBuildLookRun(w, {
+            pieceName: pieceName,
+            photoUrl: (typeof photoUrl === 'string' && photoUrl.indexOf('http') === 0) ? photoUrl : null,
+            wayImage: wayImg,
+          });
+        };
+
         let kpFbRating = null;
         window.__kpFbRate = function(val) {
           kpFbRating = val;
@@ -5274,6 +5662,134 @@
           document.getElementById('kp-fb-done').hidden = false;
         };
       };
+
+      // ── "Build this look" — kp way → Look entity (Annie, 2026-08-17) ────
+      // The daily engine ITEMISES the way's prose (composition only —
+      // noImages, so no fresh frames are generated), then the result is
+      // minted straight into the Lookbook: owned matches become
+      // look_pieces, everything else hangs as proposals (migration 19) so
+      // the look reopens with its gaps to fill, exactly like a Robes build.
+      // The look is NAMED after the way, its photograph is the way's
+      // original kp frame, and her uploaded product photo lands on the key
+      // piece's own proposal card. She lands on the editable Look detail.
+      function _kpBuildToks(s) {
+        return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
+          .filter(t => t.length > 2 && ['the', 'and', 'with', 'style', 'three', 'ways', 'for', 'piece', 'look'].indexOf(t) < 0);
+      }
+      async function _kpBuildLookRun(w, kp) {
+        if (typeof _lkCreate !== 'function' || typeof window.__lkOpen !== 'function') return;
+        let overlay = document.getElementById('kp-loading-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'kp-loading-overlay';
+          overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
+          overlay.innerHTML = `
+            <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
+            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Composing your looks</div>
+            <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
+              <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
+            </div>`;
+          document.body.appendChild(overlay);
+        }
+        const loadTitle = document.getElementById('kp-load-title');
+        if (loadTitle) loadTitle.innerHTML = 'Building your look,<br><em>piece by piece…</em>';
+        overlay.style.display = 'flex';
+        const msgs = ['Reading the look', 'Checking your wardrobe…', 'Naming the gaps…', 'Almost ready…'];
+        let mi = 0;
+        const msgEl0 = document.getElementById('kp-load-msg');
+        if (msgEl0) msgEl0.textContent = msgs[0];
+        const msgInterval = setInterval(() => {
+          mi = Math.min(mi + 1, msgs.length - 1);
+          const el = document.getElementById('kp-load-msg');
+          if (el) el.textContent = msgs[mi];
+        }, 8000);
+        const guard = _rbOverlayGuard(overlay);
+        const genId = _rbGenId();
+        const brief = ['Build this exact look for me, piece by piece: ' + (w.outfit || w.title || '')]
+          .concat(w.accessories ? ['Accessories: ' + w.accessories] : [])
+          .concat(w.details ? ['Key styling detail: ' + w.details] : [])
+          .concat(['The mood: ' + [w.eyebrow, w.title].filter(Boolean).join(' — ') + '.'])
+          .join(' ');
+        try {
+          const res = await fetch('/api/daily', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: guard.signal,
+            body: JSON.stringify({
+              prompt: brief,
+              name,
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
+              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, season_band: _waItemBand(i) })),
+              vibes: _rbVibeVocab(),
+              userId: _waUid() || undefined,
+              genId,
+              noImages: true,
+            }),
+          });
+          if (!res.ok) throw new Error(await res.text());
+          const data = await res.json();
+          const flat = [];
+          (data.steps || []).forEach(s => (s.items || []).forEach(it => { if (!it.role) it.role = s.title; flat.push(it); }));
+          if (!flat.length) throw new Error('empty build');
+          const ownedIds = [], roles = {};
+          flat.forEach(it => {
+            if (!it.wardrobe_match) return;
+            const id = String(it.wardrobe_match.id);
+            if (ownedIds.indexOf(id) < 0) ownedIds.push(id);
+            if (it.role) roles[id] = _rbRoleNorm(it.role) || null;
+          });
+          const unowned = flat.filter(it => !it.wardrobe_match);
+          // Which unowned item IS her key piece — it wears the product photo
+          // she uploaded, so the look's mosaic shows the real piece.
+          const kpToks = _kpBuildToks(kp.pieceName);
+          let kpItem = null, bestN = 0;
+          unowned.forEach(it => {
+            const n = _kpBuildToks(it.name).filter(t => kpToks.indexOf(t) >= 0).length;
+            if (n > bestN) { bestN = n; kpItem = it; }
+          });
+          if (!kp.photoUrl || bestN < Math.min(2, Math.max(1, kpToks.length))) kpItem = null;
+          const proposals = unowned.map(it => ({
+            role: _rbRoleNorm(it.role) || 'The Canvas',
+            chip: _dlSlot(it).l,
+            cats: [it.category || 'Other'],
+            opts: [{ name: it.name, brand: it.brand || '', retailer_hint: it.retailer_hint || '', price_point: it.price_point || '', how: it.how || '' }]
+              .concat((Array.isArray(it.alternates) ? it.alternates : []).map(a => ({ name: a.name, brand: a.brand || '', retailer_hint: a.retailer_hint || '', price_point: a.price_point || '', how: a.how || '' }))),
+            oi: 0, img_oi: 0, saved: false,
+            image_url: it === kpItem ? kp.photoUrl : null,
+          }));
+          // The way names the look (rule 01: Robes generated it, Robes names
+          // it — provisional, hers to change from the detail).
+          const lkName = String(w.title || '').replace(/\.$/, '').trim()
+            || String(data.headline || '').replace(/\.$/, '').trim()
+            || 'A look from your key piece';
+          const l = _lkCreate({
+            pieces: ownedIds,
+            name: lkName, name_provisional: true,
+            source: 'daily',
+            note: data.stylist_summary || w.details || undefined,
+            proposals: proposals.length ? proposals : null,
+            photo_url: kp.wayImage || (!ownedIds.length ? kp.photoUrl : null) || null,
+            lookTags: _rbTagsParse(data.look_tags),
+            roles,
+          });
+          guard.done();
+          clearInterval(msgInterval);
+          overlay.style.display = 'none';
+          if (kpResultPage) kpResultPage.style.display = 'none';
+          window.rbClearCrumb && window.rbClearCrumb();
+          window.__lkOpen(l.id);
+          _waShowToast('“' + lkName + '” saved to your Lookbook');
+        } catch (err) {
+          guard.done();
+          clearInterval(msgInterval);
+          overlay.style.display = 'none';
+          console.error('[Robes] kp build-look error:', err.message);
+          if (guard.userCancelled) return;
+          _waShowToast(guard.timedOut
+            ? 'That took longer than it should — please try again.'
+            : 'Robes couldn’t build that look — please try again in a moment.');
+        }
+      }
 
       // ── Daily Look — Context-to-Core page (PRD: systematic daily dressing) ──
       // One outfit for the real day, rendered as the stylist's four
@@ -5434,6 +5950,15 @@
 
       window.__dlSubmit = async function(prompt, opts) {
         const locked = (opts && Array.isArray(opts.locked)) ? opts.locked : null;
+        // origin === 'key-piece': this look is being built from a styled key
+        // piece (kp result "Build this look") — the console adapts its
+        // framing and keeps a route back to the three ways. A restyle of a
+        // built look (savedId, no explicit origin) inherits the flags from
+        // the live data so the framing survives evolution.
+        const origin = (opts && opts.origin)
+          || (opts && opts.savedId && window.__lastDlData && window.__lastDlData.origin) || null;
+        const kpSourceId = (opts && opts.kpSourceId)
+          || (origin && window.__lastDlData && window.__lastDlData.kpSourceId) || null;
         let overlay = document.getElementById('kp-loading-overlay');
         if (!overlay) {
           overlay = document.createElement('div');
@@ -5450,9 +5975,13 @@
         const loadTitle = document.getElementById('kp-load-title');
         if (loadTitle) loadTitle.innerHTML = locked && locked.length
           ? 'Restyling around<br><em>your anchors…</em>'
-          : 'One prompt.<br><em>Dressed for anything.</em>';
+          : origin === 'key-piece'
+            ? 'Building your look,<br><em>piece by piece…</em>'
+            : 'One prompt.<br><em>Dressed for anything.</em>';
         overlay.style.display = 'flex';
-        const msgs = ['Reading the day’s context', 'Building anchor to accents…', 'Balancing the proportions…', 'Almost ready…'];
+        const msgs = origin === 'key-piece'
+          ? ['Reading the look', 'Checking your wardrobe…', 'Naming the gaps…', 'Almost ready…']
+          : ['Reading the day’s context', 'Building anchor to accents…', 'Balancing the proportions…', 'Almost ready…'];
         let mi = 0;
         const msgEl0 = document.getElementById('kp-load-msg');
         if (msgEl0) msgEl0.textContent = msgs[0];
@@ -5499,6 +6028,10 @@
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
           data.genId = genId;
+          if (origin) {
+            data.origin = origin;
+            if (kpSourceId) data.kpSourceId = kpSourceId;
+          }
           // Every daily look is anchored to a local calendar date — the
           // change that makes "dress this day" addressable from the rail.
           // A restyle keeps the saved look's original date; a fresh submit
@@ -6726,6 +7259,13 @@
 .rb-lk-tile{cursor:pointer;text-align:left;font-family:inherit}
 .rb-lk-mos{position:relative;aspect-ratio:3/4;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1px;background:var(--rule-mid);border-radius:var(--rad);overflow:hidden}
 .rb-lk-mos.lt-hero{aspect-ratio:1/1;border-radius:var(--rad-card)}
+/* The mosaic fills, always (Lookbook redesign 2026-08-18): the piece count
+   decides how the square divides — one piece is the whole frame, two are
+   two full-height tiles, three are one plus two stacked, four+ a quartet.
+   No empty half, and no tile is ever letterboxed. */
+.rb-lk-mos.n1{grid-template-columns:1fr;grid-template-rows:1fr}
+.rb-lk-mos.n2{grid-template-columns:1fr 1fr;grid-template-rows:1fr}
+.rb-lk-mos.n3 i:first-child{grid-row:span 2}
 .rb-lk-mos i{display:block;background-size:cover;background-position:center;background-color:var(--cream-200);transition:transform .4s var(--ease)}
 .rb-lk-mos i.e{background-color:var(--cream-100)}
 .rb-lk-tile:hover .rb-lk-mos i{transform:scale(1.03)}
@@ -6734,17 +7274,18 @@
 .lt-title{font-family:var(--font-serif);font-weight:400;font-size:19px;line-height:1.15;color:var(--ink)}
 .lt-title.prov{font-style:italic;color:var(--ink-soft)}
 .lt-meta{font-size:10.5px;color:var(--ink-faint);margin-top:3px}
-.lt-ey{display:block;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px}
+.lt-ey{display:block;font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px}
 .lt-vibe{display:inline-block;margin-top:6px;padding:4px 11px;border-radius:100px;background:var(--rose-bg);color:var(--ink);font-size:10px;line-height:1.4}
-/* The card dress (cohesion pass 2026-08-08): the same white-card chrome
-   the lookbook's item shelves wear, so every object the Lookbook holds —
-   a Look, a key piece styled, a daily look, a travel edit — reads as one
-   family. The mosaic yields its own radius inside the card. */
-.lt-card{background:#fff;border-radius:var(--rad);overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08)}
-.lt-card .rb-lk-mos{border-radius:0}
-.lt-card .lt-info{padding:13px 16px 15px}
-.lt-card .lt-title{font-size:17px;font-weight:300;line-height:1.3}
-@media(max-width:767px){.lt-title{font-size:17px}}`;
+/* The card dress (Lookbook redesign 2026-08-18, "one column width, one
+   mosaic"): white on cream, 1px rule, 3px corners, shadow-free — and the
+   image area is SQUARE inside the card, so nothing is letterboxed. */
+.lt-card{background:#fff;border:1px solid var(--rule,#E7E0CF);border-radius:3px;overflow:hidden;transition:border-color .2s}
+.lt-card:hover{border-color:var(--rule-mid,#D8CFC0)}
+.lt-card .rb-lk-mos{border-radius:0;aspect-ratio:1/1}
+.lt-card .lt-info{padding:14px 18px 18px}
+.lt-card .lt-title{font-size:22px;font-weight:400;line-height:1.15}
+.lt-card .lt-meta{font-size:11px;font-weight:300;margin-top:4px}
+@media(max-width:767px){.lt-title{font-size:17px}.lt-card .lt-title{font-size:19px}}`;
       function _ltEnsureCss() {
         if (document.getElementById('rb-lt-style')) return;
         const st = document.createElement('style');
@@ -6805,13 +7346,20 @@
       function _ltMosaicHtml(cells, opts) {
         _ltEnsureCss();
         opts = opts || {};
-        const cls = 'rb-lk-mos' + (opts.hero ? ' lt-hero' : '');
         if (opts.photo) {
-          return `<div class="${cls}"><img class="lt-photo" src="${_waEsc(opts.photo)}" alt="${_waEsc(opts.alt || 'This look')}" loading="lazy"></div>`;
+          const cls0 = 'rb-lk-mos' + (opts.hero ? ' lt-hero' : '');
+          return `<div class="${cls0}"><img class="lt-photo" src="${_waEsc(opts.photo)}" alt="${_waEsc(opts.alt || 'This look')}" loading="lazy"></div>`;
         }
+        // The mosaic fills, always: 1–3 pieces subdivide the frame whole
+        // (n1/n2/n3), four or more take the quartet. Zero pieces keep the
+        // quartet of empties (the legacy no-data state).
+        const live = (cells || []).filter(Boolean);
+        const shape = live.length === 1 ? ' n1' : live.length === 2 ? ' n2' : live.length === 3 ? ' n3' : '';
+        const cls = 'rb-lk-mos' + shape + (opts.hero ? ' lt-hero' : '');
+        const slots = live.length >= 1 && live.length <= 3 ? live.length : 4;
         let inner = '';
-        for (let i = 0; i < 4; i++) {
-          const c = (cells || [])[i];
+        for (let i = 0; i < slots; i++) {
+          const c = live[i];
           if (!c) { inner += `<i class="e"></i>`; continue; }
           inner += c.url
             ? `<i style="background-image:url('${_waEsc(c.url)}')" title="${_waEsc(c.name)}"></i>`
@@ -8102,30 +8650,34 @@
 #rb-lk-bar{display:flex;align-items:center;gap:12px;margin:0 0 18px;flex-wrap:wrap}
 #rb-lk-hol{display:none;margin:0 0 26px}
 #rb-lk-allhead{display:none}
-.rb-lk-statline{font-family:var(--font-serif);font-style:italic;font-size:14px;color:var(--ink-faint)}
-.rb-lk-allrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.rb-lk-statline{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:17px;color:var(--ink-soft)}
+.rb-lk-allrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid var(--rule)}
 #rb-lk-allhead .rb-lk-refwrap{margin:0 0 16px}
-.rb-lk-holrow{display:flex;gap:14px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
+.rb-lk-holrow{display:flex;gap:20px;overflow-x:auto;margin:0 calc(var(--s6,24px) * -1);padding:2px var(--s6,24px) 8px;scrollbar-width:none}
+.rb-lk-shead{display:flex;align-items:baseline;justify-content:space-between;gap:20px;margin:4px 0 14px;padding-bottom:10px;border-bottom:1px solid var(--rule)}
+.rb-lk-shead .hcount{font-size:11px;font-weight:300;color:var(--ink-faint);white-space:nowrap}
 .rb-lk-holrow::-webkit-scrollbar{width:0;height:0}
-.rb-lk-holcard{flex:none;width:236px;display:flex;flex-direction:column;background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad);overflow:hidden;cursor:pointer;font-family:inherit;text-align:left;padding:0;transition:border-color .15s}
-.rb-lk-holcard:hover{border-color:var(--ink)}
-.rb-lk-holcard .him{display:block;height:110px;background-size:cover;background-position:center;background-color:var(--cream-200)}
-.rb-lk-holcard .hpad{display:block;padding:11px 14px 13px}
-.rb-lk-holcard .ht{display:block;font-family:var(--font-serif);font-weight:300;font-size:16px;line-height:1.25;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rb-lk-holcard .hm{display:block;font-size:10.5px;color:var(--ink-faint);margin-top:3px}
-.rb-lk-holcard.new{border-style:dashed;background:var(--cream-100);align-items:center;justify-content:center;gap:8px;min-height:160px}
-.rb-lk-holcard.new:hover{background:var(--cream-200)}
-.rb-lk-holcard.new .hplus{width:32px;height:32px;border-radius:100px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:300;line-height:1}
-.rb-lk-holcard.new .hnew{font-family:var(--font-serif);font-weight:300;font-size:15px;color:var(--ink)}
+.rb-lk-holcard{flex:none;width:386px;max-width:86vw;display:flex;flex-direction:column;background:#fff;border:1px solid var(--rule);border-radius:3px;overflow:hidden;cursor:pointer;font-family:inherit;text-align:left;padding:0;transition:border-color .2s}
+.rb-lk-holcard:hover{border-color:var(--rule-mid)}
+/* A trip reads bigger by holding MORE TILES, not by being wider: a denser
+   3×2 mosaic of the case's pieces, the sixth cell counting the remainder. */
+.rb-lk-holcard .hmos{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:1px;height:257px;background:var(--cream-200)}
+.rb-lk-holcard .hmos i{display:flex;align-items:flex-end;padding:9px;background-size:cover;background-position:center;background-color:var(--cream-100);overflow:hidden}
+.rb-lk-holcard .hmos i em{font-style:normal;font-size:10px;font-weight:400;line-height:1.35;color:var(--ink-soft)}
+.rb-lk-holcard .hmos .hplusn{align-items:center;justify-content:center;padding:0;background:#F7F4EE;font-family:var(--font-serif);font-weight:300;font-size:26px;color:var(--ink-soft)}
+.rb-lk-holcard .hpad{display:block;padding:16px 18px 18px}
+.rb-lk-holcard .ht{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:var(--font-serif);font-weight:400;font-size:23px;line-height:1.15;color:var(--ink)}
+.rb-lk-holcard .hm{display:block;font-size:11px;font-weight:300;color:var(--ink-faint);margin-top:7px}
 /* Zero edits: the invitation leads, one dimmed Robes example follows */
-.rb-lk-holcard.invite{width:268px;justify-content:center;min-height:160px}
-.rb-lk-holcard.invite .hpad{padding:20px 20px 22px}
-.rb-lk-holcard.invite .ht{font-size:21px;white-space:normal}
-.rb-lk-holcard.invite .hb{display:block;font-size:11.5px;line-height:1.55;color:var(--ink-soft);margin-top:7px}
-.rb-lk-holcard.invite .hcta{display:inline-flex;align-items:center;margin-top:16px;padding:11px 20px;border-radius:100px;background:var(--ink);color:#fff;font-size:10px;font-weight:500;letter-spacing:.09em;text-transform:uppercase}
-.rb-lk-holcard.example{width:200px;opacity:.6;cursor:default;pointer-events:none}
-.rb-lk-holcard.example .him{position:relative}
-.rb-lk-holcard.example .hex{position:absolute;left:10px;top:10px;padding:3px 8px;border-radius:100px;background:rgba(255,255,255,0.82);font-size:8.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+/* Three cards, one footprint (1b): Plan a trip, the Robes example and New
+   look all sit on the column. Hers is the loud one — the example is
+   labelled and captioned "not yours", its CTA a hairline, never a fill. */
+.rb-lk-holcard.invite{justify-content:space-between;min-height:343px;padding:26px;box-sizing:border-box}
+.rb-lk-holcard.invite .ht{font-weight:300;font-size:32px;line-height:1.1;-webkit-line-clamp:unset}
+.rb-lk-holcard.invite .hb{display:block;font-size:13px;font-weight:300;line-height:1.65;color:var(--ink-soft);margin-top:12px}
+.rb-lk-holcard.invite .hcta{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;margin-top:24px;border:1px solid var(--rule-mid);border-radius:2px;background:transparent;padding:14px 22px;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink)}
+.rb-lk-holcard.example{cursor:default;pointer-events:none}
+.rb-lk-holcard .hex{position:absolute;top:12px;left:12px;z-index:2;background:rgba(32,32,33,0.72);border-radius:2px;padding:6px 10px;font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#FAF8F5}
 .rb-lk-sort{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border:0.5px solid var(--rule-mid);background:#fff;border-radius:100px;cursor:pointer;font-family:inherit;font-size:11.5px;color:var(--ink);transition:border-color .15s}
 .rb-lk-sort:hover{border-color:var(--ink)}
 .rb-lk-sort b{font-weight:400;color:var(--ink-faint)}
@@ -8202,7 +8754,10 @@
 .rb-lk-lin{background:none;border:none;padding:0;font-family:var(--font-serif);font-style:italic;font-size:15px;color:var(--ink);cursor:pointer}
 .rbc-wears{font-size:11px;color:var(--ink-faint);white-space:nowrap}
 .rb-lk-quiet:hover{color:var(--ink);border-bottom-color:var(--ink)}
-.rb-lk-sec{font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin:26px 0 12px}
+.rb-lk-sec{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--ink);margin:26px 0 12px}
+#rb-lk-hol{margin:6px 0 30px}
+/* New look — the same footprint as the cards beside it (1b) */
+#rb-lk-grid .rb-add-card{aspect-ratio:auto;min-height:340px;background:#F7F4EE;border:1px solid var(--rule);border-radius:3px}
 .rb-lk-pick{display:flex;gap:10px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
 .rb-lk-pick::-webkit-scrollbar{width:0;height:0}
 .rb-lk-opt{flex:none;width:92px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);overflow:hidden;cursor:pointer;background:#fff;padding:0;font-family:inherit;text-align:left;transition:border-color .15s}
@@ -8571,33 +9126,62 @@
         if (dr) parts.push(dr);
         return parts.join(' · ') || i.subtitle || '';
       }
+      // A travel edit card is a DENSER MOSAIC of the same grammar as a look
+      // card (redesign 2026-08-18, "one column width, one mosaic"): a 3×2
+      // grid of the case's pieces — wardrobe photos, then persisted stills,
+      // then quiet tones — with the remainder counted in the sixth cell.
+      // No hero image, no letterbox.
+      function _lkHolCells(i) {
+        const tv = i.tvData || {};
+        const caps = Array.isArray(tv.capsule) ? tv.capsule : [];
+        const gen = Array.isArray(tv.generatedImages) ? tv.generatedImages : [];
+        const tones = ['#E8DCCB', '#E3E1CC', '#EFE9DC', '#D4C8C4', '#F1EDE6'];
+        const styles = caps.slice(0, 5).map((it, k) => {
+          const url = (it && it.wardrobe_match && _pdHttp(it.wardrobe_match.image_url))
+            || ((it && Number.isInteger(it.image_index)) ? _pdHttp(gen[it.image_index]) : null);
+          return url ? "background-image:url('" + _waEsc(url) + "')" : 'background-color:' + tones[k % 5];
+        });
+        // A trip with no piece imagery at all still gets its saved hero in
+        // the lead cell, so an old save never reads as six blank tones.
+        if (!styles.some(st => st.indexOf('url') > -1) && typeof i.img === 'string' && i.img.indexOf('http') === 0) {
+          styles[0] = "background-image:url('" + _waEsc(i.img) + "')";
+        }
+        while (styles.length < 5) styles.push('background-color:' + tones[styles.length % 5]);
+        const rest = Math.max(0, caps.length - 5);
+        return '<span class="hmos">' + styles.map(st => '<i style="' + st + '"></i>').join('') +
+          '<i class="hplusn">' + (rest ? '+' + rest : '') + '</i></span>';
+      }
       function _lkHolidayRowHtml(holidays) {
         // With no edits yet the strip is an invitation plus ONE
-        // Robes-authored example, dimmed and labelled as an example so it
-        // can never be mistaken for her own trip (FTUE pass 2026-08-12).
+        // Robes-authored example, labelled on the image and captioned "not
+        // yours" so it can never be mistaken for her own trip.
         const cards = holidays.length
-          ? holidays.map(i => {
-              const img = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : null;
-              return '<button type="button" class="rb-lk-holcard" onclick="window.__snOpenItem(' + Number(i.id) + ')">' +
-                '<span class="him"' + (img ? ' style="background-image:url(\'' + _waEsc(img) + '\')"' : '') + '></span>' +
+          ? holidays.map(i =>
+              '<button type="button" class="rb-lk-holcard" onclick="window.__snOpenItem(' + Number(i.id) + ')">' +
+                _lkHolCells(i) +
                 '<span class="hpad"><span class="ht">' + _waEsc(i.title || 'Travel edit') + '</span>' +
-                '<span class="hm">' + _waEsc(_lkHolMeta(i)) + '</span></span></button>';
-            }).join('') +
-            '<button type="button" class="rb-lk-holcard new" onclick="window.__lkNewHoliday()">' +
-              '<span class="hplus">+</span><span class="hnew">New travel edit</span></button>'
+                '<span class="hm">' + _waEsc(_lkHolMeta(i)) + '</span></span></button>'
+            ).join('')
           : '<button type="button" class="rb-lk-holcard invite" onclick="window.__lkNewHoliday()">' +
-              '<span class="hpad"><span class="ht">Plan a trip.</span>' +
-              '<span class="hb">Name the date and location. Robes will pack your trip.</span>' +
-              '<span class="hcta">Start planning →</span></span></button>' +
-            // The meta line now carries real trip data, so the example
-            // marker moves onto the image — dimming alone would leave a
-            // convincing trip she never planned (the standing rule: it
-            // must never be mistaken for her own).
+              '<span><span class="ht">Plan a trip.</span>' +
+              '<span class="hb">Name the date and location. Robes will pack your trip.</span></span>' +
+              '<span class="hcta">Start planning →</span></button>' +
             '<div class="rb-lk-holcard example" aria-hidden="true">' +
-              '<span class="him"><span class="hex">Robes example</span></span>' +
+              '<span class="hmos"><span class="hex">Robes example</span>' +
+                '<i style="background-color:#F1EDE6"><em>Sequin slip dress</em></i>' +
+                '<i style="background-color:#E3E1CC"><em>White linen shirt</em></i>' +
+                '<i style="background-color:#D4C8C4"><em>Black bikini</em></i>' +
+                '<i style="background-color:#EFE9DC"><em>Raffia tote</em></i>' +
+                '<i style="background-color:#E8DCCB"><em>Gold flat sandals</em></i>' +
+                '<i class="hplusn">+9</i></span>' +
               '<span class="hpad"><span class="ht">A chic Ibiza escape</span>' +
-              '<span class="hm">5 looks · 7–14 Aug</span></span></div>';
-        return '<div class="rb-lk-sec" style="margin:4px 0 12px">Travel edit</div>' +
+              '<span class="hm">14 pieces · 5 looks · 7–14 Aug · not yours</span></span></div>';
+        // R1 header: eyebrow left, the count right, one hairline under the
+        // pair. The row bleeds past the gutter so the next trip is visibly
+        // cut — that plus the count is the whole scroll affordance (the
+        // dashed + New card retired; + New ▾ above is the creation door).
+        return '<div class="rb-lk-shead"><span class="rb-lk-sec" style="margin:0">Travel edit</span>' +
+          '<span class="hcount">' + (holidays.length ? 'All ' + holidays.length : 'None packed yet') + '</span></div>' +
           '<div class="rb-lk-holrow">' + cards + '</div>';
       }
 
@@ -9421,6 +10005,9 @@
         // Save closes the look out into the Lookbook; beside it the one
         // alternative door — Robes builds it instead. The label reads
         // first-time on an empty Lookbook, repeat once she has looks.
+        // (A first cut pointed the home fallback back at the styled key
+        // piece's three looks — reverted same day, Annie: the Robes door is
+        // the one alternative everywhere.)
         const robesDoor = _lkLooks.length ? 'Or let Robes create your look' : 'Or let Robes build the first one';
         // After a build the footer changes hands: Save still leads, and the
         // two quiet doors are Try another and — only when everything in the
@@ -10184,46 +10771,375 @@
         const el = document.getElementById('rb-lkhome');
         if (!el) return;
         const n = _lkUsed().length;
+        // The Build-your-own row titles the module now — the head carries
+        // only the rack count (FTU simplification 2026-08-18).
         el.innerHTML = '<div class="rb-lkh-head">' +
-          '<span class="rb-lk-eyebrow">Build your first look</span>' +
+          '<span style="flex:1"></span>' +
           '<span class="rb-lkh-count">' + n + ' of 4 on the rack</span>' +
           '</div>' + _lkNewHtml({ home: true });
       }
-      // One composer in the DOM: the module retires the moment the Lookbook
-      // holds anything, and stands down while the Lookbook page is open (it
-      // renders the same draft there).
-      function _lkHomeSync() {
+
+      // ── FTU home simplification (2026-08-18, Annie's W01/O1/O1b/O7 mocks) ─
+      // Until she has BUILT HER OWN look or planned an outfit, home is one
+      // goal at a time, never a stack of CTAs.
+      // ZERO looks (W01/O1): the styled card with its single "See the full
+      // looks" CTA, then three hairline index rows — Build your own / Style
+      // something / The week ahead — each unfurling its module IN PLACE
+      // (the rack, the prompt, the rail). Rows she opens STAY open — an
+      // unfurl never closes a sibling (Annie, 2026-08-18, superseding the
+      // O1b one-at-a-time note); the rack is not rendered at all until she
+      // asks for it.
+      // FIRST look (O7, hero card retired · prompt leads): "Your piece,
+      // styled" retires to Inspiration; the prompt takes its place as the
+      // one filled button, then "Your looks" — the look she owns, Finish it
+      // as the only nudge back into cataloguing, wardrobe progress a
+      // CAPTION on that card, never a CTA — and Build your own + The week
+      // ahead stay hairlines until a second look (or a planned day) exists.
+      var _rbFtuOpen = {};            // open rows, key -> true (they stay open together — Annie, 2026-08-18)
+      var _RB_FTU_ECHO = 'What are you dressing for today?';
+      function _rbFtuCss() {
+        if (document.getElementById('rb-ftu-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-ftu-style';
+        st.textContent =
+          '#rb-ftu-rows{margin:34px 0 46px}' +
+          '.rb-ftu-row{border-top:0.5px solid var(--rule-mid,rgba(32,32,33,0.14))}' +
+          '.rb-ftu-row:last-child{border-bottom:0.5px solid var(--rule-mid,rgba(32,32,33,0.14))}' +
+          '.rb-ftu-head{display:flex;align-items:center;gap:18px;width:100%;padding:19px 2px;background:none;border:none;cursor:pointer;text-align:left;font-family:inherit}' +
+          '.rb-ftu-txt{flex:1;display:flex;align-items:baseline;gap:24px;min-width:0}' +
+          '.rb-ftu-ey{flex:none;width:150px;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
+          '.rb-ftu-sub{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-weight:300;font-size:17px;color:var(--ink-soft,#55524E);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+          '.rb-ftu-row.rb-quiet .rb-ftu-sub{color:var(--ink-faint,#9C9891)}' +
+          '.rb-ftu-arrow{flex:none;font-size:15px;line-height:1;color:var(--ink-faint,#9C9891)}' +
+          '.rb-ftu-body{display:none;padding:4px 0 28px}' +
+          '.rb-ftu-row.open .rb-ftu-body{display:block}' +
+          '.rb-ftu-row.open .rb-ftu-arrow{color:var(--ink,#202021)}' +
+          // The unfurled modules drop their own margins/headers — the row
+          // titles them.
+          '#rb-ftu-rows .concierge{margin-bottom:0}' +
+          '#rb-ftu-rows #rb-rail{margin:0}' +
+          '#rb-ftu-rows #rb-rail .rb-rail-head{display:none}' +
+          '#rb-ftu-rows #rb-lkhome{margin:0}' +
+          // The styled card compacts to its header line while any row is
+          // open (O1b) — the unfurled module is what she is looking at.
+          '#rb-styled.rb-styled-compact #rb-styled-tiles,#rb-styled.rb-styled-compact #rb-styled-foot{display:none!important}' +
+          '@media(max-width:767px){.rb-ftu-txt{flex-direction:column;gap:4px}.rb-ftu-ey{width:auto}}' +
+          // O7: the prompt-as-card gets its section eyebrow back
+          '.rb-ftu-conc-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0 0 12px}' +
+          // "Your looks" — the O7 card: the look she owns, Finish it, and
+          // the wardrobe's progress as a caption (never a CTA).
+          '#rb-firstlook{margin:0 0 40px}' +
+          '.rb-fl-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin:0 0 12px}' +
+          '.rb-fl-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
+          '.rb-fl-card{background:#fff;border:0.5px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:var(--rad-card,14px);padding:20px 22px}' +
+          '.rb-fl-row{display:flex;align-items:center;gap:18px;width:100%;background:none;border:none;padding:0;cursor:pointer;text-align:left;font-family:inherit}' +
+          '.rb-fl-img{position:relative;flex:none;width:96px;aspect-ratio:4/5;border-radius:var(--rad-sm,8px);background:var(--cream-200,#EDE9E2);overflow:hidden}' +
+          '.rb-fl-img>img{width:100%;height:100%;object-fit:cover;display:block}' +
+          '.rb-fl-img .rb-lk-mos{position:absolute;inset:0;height:100%;aspect-ratio:auto}' +
+          '.rb-fl-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}' +
+          '.rb-fl-name{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:300;font-size:clamp(21px,2.2vw,25px);line-height:1.14;color:var(--ink,#202021)}' +
+          '.rb-fl-meta{font-size:12px;color:var(--ink-soft,#55524E)}' +
+          '.rb-fl-cta{flex:none;padding:10px 20px;border:0.5px solid rgba(32,32,33,0.25);border-radius:100px;background:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink,#202021);pointer-events:none}' +
+          '.rb-fl-progress{height:2px;border-radius:2px;background:var(--cream-200,#EDE9E2);margin:18px 0 0;overflow:hidden}' +
+          '.rb-fl-progress i{display:block;height:100%;background:var(--rose,#8E7077);opacity:.55;transition:width .65s cubic-bezier(0.4,0,0.2,1)}' +
+          '.rb-fl-cap{font-size:12.5px;line-height:1.5;color:var(--ink-soft,#55524E);margin-top:10px}' +
+          '@media(max-width:560px){.rb-fl-row{flex-wrap:wrap}.rb-fl-cta{margin-left:auto}}';
+        document.head.appendChild(st);
+      }
+      function _rbFtuRowDefs(mode) {
+        // The week ahead stays a hairline until a second look (or a planned
+        // day) exists — its whisper names the state honestly.
+        return mode === 'look'
+          ? [
+            { key: 'build', ey: 'Build your own', sub: 'Start a look from the rack.' },
+            { key: 'week', ey: 'The week ahead', sub: 'One look, unplanned.', quiet: true },
+          ]
+          : mode === 'zero-lead'
+            ? [
+              { key: 'build', ey: 'Build your own', sub: 'Start a look from the rack.' },
+              { key: 'week', ey: 'The week ahead', sub: 'Nothing planned yet.', quiet: true },
+            ]
+            : [
+              { key: 'build', ey: 'Build your own', sub: 'Start a look from the rack.' },
+              { key: 'style', ey: 'Style something', sub: 'Ask for a look in your own words.' },
+              { key: 'week', ey: 'The week ahead', sub: 'Nothing planned yet.', quiet: true },
+            ];
+      }
+      function _rbFtuRows(mode) {
         const dash = document.getElementById('dash');
         if (!dash) return;
-        const page = document.getElementById('sn-page');
-        const pageOpen = !!page && page.style.display !== 'none';
-        const zero = _lkHomeZero();
-        // The rack replaces the learning card and the Lookbook row while it
-        // is on home, and hands both back the moment a look is saved — this
-        // is the one place that decides, so they can't drift.
-        const trk = document.getElementById('wtrk');
-        if (trk) trk.style.display = (zero || _waItems.length > _WA_TARGET) ? 'none' : '';
-        if (typeof _rbRenderStyleNotes === 'function') _rbRenderStyleNotes();
-        if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow();
-        const want = zero && !pageOpen;
-        let el = document.getElementById('rb-lkhome');
-        if (!want) {
-          if (el) { el.remove(); if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length); }
+        const conc = dash.querySelector('.concierge');
+        const rail = document.getElementById('rb-rail');
+        let el = document.getElementById('rb-ftu-rows');
+        const echo = dash.querySelector('.dash-echo');
+        const concEy = document.getElementById('rb-conc-ey');
+        if (!mode) {
+          if (el) {
+            // Hand the demoted modules back to the dash flow before the
+            // rows go — _rbFtueOrder re-sequences them as cards.
+            if (conc && el.contains(conc)) dash.appendChild(conc);
+            if (rail && el.contains(rail)) dash.appendChild(rail);
+            el.remove();
+            _rbFtuOpen = {};
+            _rbFtuWeekAutoDone = false;
+            if (echo) echo.textContent = _RB_FTU_ECHO;
+          }
+          if (concEy) concEy.remove();
+          _rbGateConcierge(_waItems.length);
           return;
+        }
+        _rbFtuCss();
+        // The row set follows the state (zero carries Style something;
+        // first-look promotes the prompt out as the leading card) — a mode
+        // flip rebuilds the rows, handing the modules out first.
+        if (el && el.getAttribute('data-mode') !== mode) {
+          if (conc && el.contains(conc)) dash.appendChild(conc);
+          if (rail && el.contains(rail)) dash.appendChild(rail);
+          el.remove(); el = null;
+          // A mode flip starts the new row set closed (O7's hairlines) —
+          // and re-arms the planned-day auto-open for the fresh set.
+          _rbFtuOpen = {};
+          _rbFtuWeekAutoDone = false;
         }
         if (!el) {
           el = document.createElement('section');
-          el.id = 'rb-lkhome';
-          el.className = 'rb-section';
-        }
-        // Directly under "Your piece, styled" and above the prompt.
-        const styled = document.getElementById('rb-styled');
-        const conc = dash.querySelector('.concierge');
-        const anchor = (styled && styled.nextSibling) || conc || null;
-        if (el.parentNode !== dash || el.nextSibling !== anchor) {
+          el.id = 'rb-ftu-rows';
+          el.setAttribute('data-mode', mode);
+          el.innerHTML = _rbFtuRowDefs(mode).map(r =>
+            '<div class="rb-ftu-row' + (r.quiet ? ' rb-quiet' : '') + '" id="rb-ftu-row-' + r.key + '">' +
+              '<button type="button" class="rb-ftu-head" onclick="window.__rbFtuToggle(\'' + r.key + '\')">' +
+                '<span class="rb-ftu-txt"><span class="rb-ftu-ey">' + r.ey + '</span>' +
+                '<span class="rb-ftu-sub">' + r.sub + '</span></span>' +
+                '<span class="rb-ftu-arrow" aria-hidden="true">→</span>' +
+              '</button>' +
+              '<div class="rb-ftu-body" id="rb-ftu-body-' + r.key + '"></div>' +
+            '</div>').join('');
+          const styled = document.getElementById('rb-styled');
+          const mast = dash.querySelector('.dash-mast');
+          const anchor = (styled && styled.nextSibling) || (mast && mast.nextSibling) || null;
           if (anchor) dash.insertBefore(el, anchor); else dash.appendChild(el);
         }
+        // Where the demoted modules live: the rail always inside its row;
+        // the prompt inside its row only while the styled card is the hero
+        // ('zero'). Without the card the page read bare (Annie's beta pass,
+        // 2026-08-18), so the prompt LEADS the page in every other posture
+        // — 'zero-lead' and 'look' — under the Style-something eyebrow,
+        // with the greeting's question as its invitation.
+        const styleBody = document.getElementById('rb-ftu-body-style');
+        const weekBody = document.getElementById('rb-ftu-body-week');
+        if (conc) {
+          if (mode === 'zero' && styleBody && conc.parentNode !== styleBody) styleBody.appendChild(conc);
+          if (mode !== 'zero') {
+            if (conc.parentNode !== dash) {
+              // Moving a node drops its focus — a mode flip mid-typing
+              // (the styled card collapsing on her first keystroke) must
+              // hand the caret straight back.
+              const hadFocus = document.activeElement && document.activeElement.id === 'cb-ta';
+              dash.appendChild(conc);
+              if (hadFocus) {
+                const ta = document.getElementById('cb-ta');
+                if (ta) { try { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } catch (_) {} }
+              }
+            }
+            if (!document.getElementById('rb-conc-ey')) {
+              const ey = document.createElement('div');
+              ey.id = 'rb-conc-ey';
+              ey.className = 'rb-ftu-conc-ey';
+              ey.textContent = 'Style something';
+              conc.insertBefore(ey, conc.firstChild);
+            }
+          }
+        }
+        if (mode === 'zero' && concEy) concEy.remove();
+        if (rail && weekBody && rail.parentNode !== weekBody) weekBody.appendChild(rail);
+        // Masthead echo answers the state: "Your first piece is filed."
+        // belongs to the styled card alone — everywhere else the standing
+        // question leads her into the prompt beneath it.
+        if (echo) echo.textContent = (mode === 'zero' && _waItems.length) ? 'Your first piece is filed.' : _RB_FTU_ECHO;
+        _rbGateConcierge(_waItems.length);
+        _rbFtuPaint();
+      }
+      // The rack renders ONLY when she asks for it (W01 spec note: the
+      // first look should come from Robes, not an empty four-slot form) —
+      // and stands down while the Lookbook page renders the same draft.
+      function _rbFtuRackSync() {
+        const body = document.getElementById('rb-ftu-body-build');
+        const page = document.getElementById('sn-page');
+        const pageOpen = !!page && page.style.display !== 'none';
+        const want = body && _rbFtuOpen.build && !pageOpen;
+        let el = document.getElementById('rb-lkhome');
+        if (!want) { if (el) el.remove(); return; }
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'rb-lkhome';
+        }
+        if (el.parentNode !== body) body.appendChild(el);
         _lkHomePaint();
+      }
+      function _rbFtuPaint() {
+        const rows = document.getElementById('rb-ftu-rows');
+        if (!rows) return;
+        Array.from(rows.querySelectorAll('.rb-ftu-row')).forEach(row => {
+          const key = (row.id || '').replace('rb-ftu-row-', '');
+          const open = !!_rbFtuOpen[key];
+          row.classList.toggle('open', open);
+          const arrow = row.querySelector('.rb-ftu-arrow');
+          if (arrow) arrow.textContent = open ? '↑' : '→';
+        });
+        _rbFtuRackSync();
+        // The styled card collapses to its one-line header while any row
+        // is open (O1b) — the hero yields to whatever she unfurled.
+        const styled = document.getElementById('rb-styled');
+        if (styled) styled.classList.toggle('rb-styled-compact', Object.keys(_rbFtuOpen).length > 0);
+      }
+      window.__rbFtuToggle = function(key) {
+        const opening = !_rbFtuOpen[key];
+        if (opening) _rbFtuOpen[key] = true; else delete _rbFtuOpen[key];
+        _rbFtuPaint();
+        if (opening) {
+          if (key === 'week' && window._rbRailPaint) window._rbRailPaint();
+          const row = document.getElementById('rb-ftu-row-' + key);
+          if (row && row.scrollIntoView) setTimeout(() => row.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
+          if (key === 'style') setTimeout(() => {
+            const ta = document.getElementById('cb-ta');
+            if (ta) try { ta.focus({ preventScroll: true }); } catch (_) { ta.focus(); }
+          }, 80);
+        }
+        _rbTrack('ftu_row_toggle', { row: key, open: opening });
+      };
+      // Anything that arms or scopes the prompt while the rows carry home
+      // must unfurl the Style-something row first, or it writes into a
+      // closed drawer (_cbSetIntent, the rail's day scoping).
+      function _rbFtuRevealPrompt() {
+        // Only the zero state keeps the prompt behind a row — once the
+        // first look exists the prompt already leads the page as a card.
+        if (!document.getElementById('rb-ftu-row-style') || _rbFtuOpen.style) return;
+        _rbFtuOpen.style = true;
+        _rbFtuPaint();
+      }
+      // A planned day EXPOSES the week ahead by default (Annie, 2026-08-18:
+      // a plan she made must not hide behind a closed hairline). The rail's
+      // paint feeds this the resolved slots; the whisper follows the truth
+      // either way, and the auto-open fires once per row set so a fold she
+      // makes afterwards stands.
+      var _rbFtuWeekAutoDone = false;
+      function _rbFtuWeekAuto(slots) {
+        const row = document.getElementById('rb-ftu-row-week');
+        if (!row) return;
+        const today = _pdLocalISO();
+        const n = (slots || []).filter(sl => sl.date >= today && (sl.moments || []).length).length;
+        const sub = row.querySelector('.rb-ftu-sub');
+        if (!n) {
+          if (sub) {
+            const mode = document.getElementById('rb-ftu-rows')?.getAttribute('data-mode');
+            sub.textContent = mode === 'look' ? 'One look, unplanned.' : 'Nothing planned yet.';
+            row.classList.add('rb-quiet');
+          }
+          return;
+        }
+        if (sub) {
+          sub.textContent = n === 1 ? 'One day planned.' : n + ' days planned.';
+          row.classList.remove('rb-quiet');
+        }
+        if (!_rbFtuWeekAutoDone && !_rbFtuOpen.week) {
+          _rbFtuOpen.week = true;
+          _rbFtuPaint();
+        }
+        _rbFtuWeekAutoDone = true;
+      }
+
+      // "Your looks" (O7): the look she owns takes the hero slot. Finish it
+      // — the borrowed slots waiting on the look — is the ONLY nudge back
+      // into cataloguing; the wardrobe's progress rides the card as a
+      // caption, never a CTA, so the learning card and the home Lookbook
+      // row stand down while this is up.
+      function _rbFirstLookCard(active) {
+        const dash = document.getElementById('dash');
+        let el = document.getElementById('rb-firstlook');
+        const l = active ? ((_lkLooks || [])[0] || null) : null;
+        if (!active || !l || !dash) {
+          if (el) el.remove();
+          return;
+        }
+        _rbFtuCss();
+        // "Your piece, styled" retires to Inspiration — its slot is the
+        // look's now (the three ways stay browsable on the Inspiration tab).
+        if (typeof window.__rbStyledCollapse === 'function') { try { window.__rbStyledCollapse(); } catch (_) {} }
+        if (!el) {
+          el = document.createElement('section');
+          el.id = 'rb-firstlook';
+          el.className = 'rb-section';
+          const mast = dash.querySelector('.dash-mast');
+          if (mast && mast.nextSibling) dash.insertBefore(el, mast.nextSibling);
+          else dash.appendChild(el);
+        }
+        const owned = (l.pieces || []).length;
+        const props = Array.isArray(l.proposals) ? l.proposals.length : 0;
+        const meta = _lkN(owned, 'piece') + ' yours' + (props ? ' · ' + props + ' borrowed' : '');
+        const photo = (typeof l.photo_url === 'string' && l.photo_url.indexOf('http') === 0) ? l.photo_url : null;
+        const img = photo
+          ? '<img src="' + _waEsc(photo) + '" alt="">'
+          : _ltMosaicHtml(_ltCells(_lkPieceIds(l)), { alt: l.name || 'Your look' });
+        const n = _waItems.length;
+        const cap = n >= _WA_TARGET
+          ? 'Your wardrobe’s there — Robes styles you head to toe from what you own.'
+          : _lkN(n, 'piece') + ' filed. At ' + _WA_TARGET + ', Robes builds every look entirely from your own closet.';
+        const bar = n >= _WA_TARGET ? '' :
+          '<div class="rb-fl-progress"><i style="width:' + (typeof _msFillPct === 'function' ? _msFillPct(n) : Math.min(100, Math.round(n / _WA_TARGET * 100))) + '%"></i></div>';
+        el.innerHTML =
+          '<div class="rb-fl-head"><span class="rb-fl-ey">Your looks</span></div>' +
+          '<div class="rb-fl-card">' +
+            '<button type="button" class="rb-fl-row" onclick="window.__lkCardOpen(\'' + _waEsc(String(l.id)) + '\')">' +
+              '<span class="rb-fl-img">' + img + '</span>' +
+              '<span class="rb-fl-mid">' +
+                '<span class="rb-fl-name">' + _waEsc(l.name || 'Your look') + '</span>' +
+                '<span class="rb-fl-meta">' + _waEsc(meta) + '</span>' +
+              '</span>' +
+              '<span class="rb-fl-cta">' + (props ? 'Finish it' : 'Open →') + '</span>' +
+            '</button>' +
+            bar +
+            '<div class="rb-fl-cap">' + cap + '</div>' +
+          '</div>';
+      }
+
+      // One composer in the DOM: the module retires the moment the Lookbook
+      // holds anything, and stands down while the Lookbook page is open (it
+      // renders the same draft there). This is the ONE place that decides
+      // home's FTU state — the index rows, the first-look card, the
+      // learning card and the Lookbook/Inspiration rows all follow it, so
+      // they can't drift.
+      function _lkHomeSync() {
+        const dash = document.getElementById('dash');
+        if (!dash) return;
+        const zero = _lkHomeZero();
+        // O7 holds while the Lookbook holds exactly her first saved Look
+        // and she has neither built her own second one nor planned an
+        // outfit — any other saved artifact (a look, a daily look, a travel
+        // edit) hands home its full set of modules back.
+        let others = 0;
+        try {
+          others = (typeof snLoad === 'function' ? snLoad() : [])
+            .filter(i => i && (i.type === 'look' || i.type === 'daily-look' || i.type === 'travel-edit')).length;
+        } catch (_) { others = 0; }
+        // (_lkLooks is assigned further down the closure than the first
+        // _waSyncCounts call — a bare .length here is the documented
+        // hoisted-var boot trap, so it reads defensively.)
+        const firstLook = !zero && (_lkLooks || []).length === 1 && !others;
+        _rbFirstLookCard(firstLook);
+        // Zero looks splits on the styled card: with it, the card is the
+        // hero and the prompt waits behind its row ('zero'); without it the
+        // page read bare, so the prompt leads ('zero-lead' — Annie's beta
+        // pass, 2026-08-18).
+        _rbFtuRows(zero
+          ? (document.getElementById('rb-styled') ? 'zero' : 'zero-lead')
+          : (firstLook ? 'look' : null));
+        // The learning card is merged into the concierge (2a) — the
+        // standalone section never renders.
+        const trk = document.getElementById('wtrk');
+        if (trk) trk.style.display = 'none';
+        if (typeof _rbRenderStyleNotes === 'function') _rbRenderStyleNotes();
+        if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow();
+        if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length);
       }
       window._lkHomeSync = _lkHomeSync;
       window.__lkRowOpen = function(key) { _lkOpenRow = _lkOpenRow === key ? null : key; _lkPaint(); };
@@ -10946,6 +11862,26 @@
         _dlRerender();
         _waShowToast(it.name + ' removed from the look');
       };
+      // A look built from a styled key piece routes back to its three-ways
+      // page (the saved kp entry re-renders via __snOpenItem — survives
+      // reloads); if that entry is gone, fall back to the still-mounted kp
+      // page or quietly land on home.
+      window.__dlBackToKp = function() {
+        if (dlResultPage) dlResultPage.style.display = 'none';
+        const id = window.__lastDlData && window.__lastDlData.kpSourceId;
+        const item = id && snLoad().find(i => String(i.id) === String(id));
+        if (item) { window.__snOpenItem(item.id); return; }
+        const kp = document.getElementById('kp-result-page');
+        if (kp && kp.innerHTML) {
+          kp.style.display = 'block';
+          window.rbSetCrumb && window.rbSetCrumb([{ label: 'Style a piece' }]);
+        } else {
+          window.rbClearCrumb && window.rbClearCrumb();
+          window._rbNav && window._rbNav('/dashboard');
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
       // "Restyle it" / "Dress me again" — a full re-mix that keeps every
       // anchored piece exactly where it is and evolves the SAME saved look.
       window.__dlRestyle = function() {
@@ -11497,6 +12433,9 @@
           _waShowToast('Could not build today’s look — please try again');
           return;
         }
+        // A fresh generation completes the concierge's Daily card (R5) —
+        // reopens pass skipSave and never count.
+        if (!opts || !opts.skipSave) { try { _rbSvcComplete('daily'); } catch (_) {} }
         _dlStopPolling();
         window.__lastDlData = data;
         window.__lastDlPrompt = promptText || data.prompt || '';
@@ -11568,6 +12507,14 @@
           _dlAsked = false;
         }
         const dayChg = _dlDayChanges();
+
+        // A look built from a styled key piece keeps a route back to its
+        // three-ways page — origin flags are stamped by __dlSubmit and ride
+        // dlData, so reopened entries keep the journey too. The line only
+        // renders while the source kp entry still resolves.
+        const builtFromKp = data.origin === 'key-piece';
+        const kpSrc = builtFromKp && data.kpSourceId
+          ? snLoad().find(i => String(i.id) === String(data.kpSourceId)) : null;
 
         if (!dlResultPage) {
           dlResultPage = document.createElement('div');
@@ -11713,7 +12660,7 @@
 
         // Header mirrors the live Moodboard: eyebrow → short serif title →
         // keyword row → meta row (weather-strip pill + occasion tag pill).
-        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Daily look' }]);
+        window.rbSetCrumb && window.rbSetCrumb([{ label: builtFromKp ? 'Your look' : 'Daily look' }]);
         // E3 — the DAY is titled by its OCCASION, because that is the fact
         // about the day. The date leads as the eyebrow; a day with no
         // occasion set titles itself by that date instead and the eyebrow
@@ -11755,6 +12702,7 @@
               </div>
               ${dlVibe ? `<div class="dlm-vibread">Robes read <b>${_waEsc(dlVibe)}</b> as the vibe. <button onclick="window.__dlTagsEdit&&window.__dlTagsEdit()">Not quite? Change the vibe</button></div>` : ''}
               ${data.look_id && typeof _lkFind === 'function' && _lkFind(data.look_id) ? `<div class="dlm-lksrc">Saved in your Lookbook — <button onclick="window.__lkFromDaily&&window.__lkFromDaily('${_waEsc(String(data.look_id))}')">Look details →</button></div>` : ''}
+              ${kpSrc ? `<div class="dlm-lksrc">Built from <em>${_waEsc(kpSrc.title || 'your styled key piece')}</em> — <button onclick="window.__dlBackToKp()">Back to the three ways →</button></div>` : ''}
               ${dlNoLook ? `<div class="dlm-offer"><span>This day is dressed. Keep the look and it joins your Lookbook, where it starts counting its wears.</span><button onclick="window.__dlSaveAsk&&window.__dlSaveAsk()">Save to your Lookbook</button></div>` : ''}
               ${dayChg.n ? `<div class="dlm-adjusted"><span>${dayChg.n === 1 ? 'One change' : dayChg.n + ' changes'} on this day only. <em>${_waEsc((dayLook && dayLook.name) || 'The saved look')}</em> in your Lookbook is unchanged.</span><span class="acts"><button class="q" onclick="window.__dlDayReset()">Reset to the saved look</button><button onclick="window.__dlDayPromote()">Save as a new look</button></span></div>` : ''}
             </header>
@@ -11807,7 +12755,7 @@
 
         _rbFeedbackArm('dl', () => ({
           prompt: promptText || '',
-          looksOutput: JSON.stringify({ surface: 'daily-look', occasion: data.occasion_label || '', headline: data.headline || '', owned, total, context: ctx, ts: new Date().toISOString() }),
+          looksOutput: JSON.stringify({ surface: 'daily-look', origin: data.origin || '', occasion: data.occasion_label || '', headline: data.headline || '', owned, total, context: ctx, ts: new Date().toISOString() }),
         }));
       };
 
@@ -13784,6 +14732,7 @@ body>*:not(#tv-result-page){display:none !important}
           _waShowToast('Could not build this trip — please try again');
           return;
         }
+        if (!opts || !opts.skipSave) { try { _rbSvcComplete('travel'); } catch (_) {} }
         _tvMigrate(data);
         _tvStopPolling();
         _tvSelected = null;
@@ -15579,6 +16528,15 @@ body>*:not(#tv-result-page){display:none !important}
       function _rbRenderStyleNotes() {
         const el = document.getElementById('rb-sn');
         if (!el) return;
+        // FTU simplification (2026-08-18): while the index rows or the
+        // "Your looks" card carry home, the Lookbook row stands down — the
+        // card IS the Lookbook's presence, and a second grid of the same
+        // content is exactly the clutter the pass removes.
+        if (document.getElementById('rb-ftu-rows') || document.getElementById('rb-firstlook')) {
+          el.innerHTML = '';
+          el.style.display = 'none';
+          return;
+        }
         // The row mirrors what the LOOKBOOK holds — her Looks, daily looks
         // and travel edits, newest first. Key pieces are Inspiration's, and
         // never appear here. (Her saved Looks are entities, not lookbook
@@ -15635,6 +16593,16 @@ body>*:not(#tv-result-page){display:none !important}
       function _rbRenderInspRow() {
         const el = document.getElementById('rb-insp-row');
         if (!el) return;
+        // FTU simplification (2026-08-18, second pass — Annie: a saved key
+        // piece must appear under Inspiration on home): the row renders in
+        // the FTU states too, standing down only while the styled card is
+        // the hero — the card IS that key piece, and two copies of it on
+        // one screen is the clutter the pass removes.
+        if (document.getElementById('rb-ftu-rows') && document.getElementById('rb-styled')) {
+          el.innerHTML = '';
+          el.style.display = 'none';
+          return;
+        }
         let items = [];
         try { items = _inItems().slice(0, 4); } catch (_) { items = []; }
         if (!items.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
@@ -15667,30 +16635,53 @@ body>*:not(#tv-result-page){display:none !important}
         const svcImg = dailyCard.querySelector('.svc-img');
         const svcCta = dailyCard.querySelector('.svc-cta');
         if (!svcImg) return;
-        const growing = _waItems.length < _WA_TARGET;
 
-        // Progress pill in the image area — informational, never a lock:
-        // the Daily Look works from day one (fully editorial on an empty
-        // closet, hybrid while growing, closet-first at 15).
-        let pill = svcImg.querySelector('.rb-lock-wrap');
-        if (growing) {
-          if (!pill) {
-            pill = document.createElement('div');
-            pill.className = 'rb-lock-wrap';
-            svcImg.appendChild(pill);
+        // NOTHING GATED (merge pass 2a, 2026-08-18): no card states a
+        // condition and no number is a threshold — the progress pill is
+        // gone. Each card carries a one-line caption instead: the specific
+        // version of "filing buys quality, not access".
+        const pill = svcImg.querySelector('.rb-lock-wrap');
+        if (pill) pill.remove();
+        const n = _waItems.length;
+        const dailyNote = n >= _WA_TARGET
+          ? 'Today’s look: styled entirely from your closet.'
+          : n >= 4
+            ? 'Today’s look: your pieces first, gaps borrowed.'
+            : n >= 1
+              ? 'Today’s look: ' + n + ' piece' + (n === 1 ? '' : 's') + ' yours, ' + (4 - n) + ' borrowed.'
+              : 'Today’s look: borrowed until you file a piece.';
+        const notes = {
+          'Daily outfit': dailyNote,
+          'Weekly planner': 'Seven looks in one pass. Nothing worn twice.',
+          'Travel edit': 'Tell Robes where and how long.',
+        };
+        grid.querySelectorAll('.svc').forEach(card => {
+          const title = (card.querySelector('.svc-title') || {}).textContent;
+          const note = notes[title];
+          let el = card.querySelector('.rb-svc-note');
+          if (!note) { if (el) el.remove(); return; }
+          if (!el) {
+            el = document.createElement('div');
+            el.className = 'rb-svc-note';
+            const cta = card.querySelector('.svc-cta');
+            if (cta && cta.parentNode) cta.parentNode.insertBefore(el, cta);
+            else (card.querySelector('.svc-body') || card).appendChild(el);
           }
-          // No trailing count fraction — "n/15" reads as an item limit
-          // (learning-meter reframe 2026-07-29).
-          pill.innerHTML = `<span class="rb-lock-pill">✦ ${Math.max(1, _WA_TARGET - _waItems.length)} more pieces and every look is closet-only</span>`;
-        } else if (pill) {
-          pill.remove();
-        }
+          el.textContent = note;
+        });
 
         if (svcCta) {
           svcCta.classList.remove('svc-cta-locked');
           svcCta.innerHTML = `Style today<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
         }
-        dailyCard.onclick = () => { if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me'); };
+        // Style today = the prompt in focus with TODAY loaded (Annie,
+        // 2026-08-18): the day chip carries the date, her words carry the
+        // brief. The dress-me scaffold survives as the no-diary fallback.
+        dailyCard.onclick = () => {
+          if (typeof window._ikScopeDay === 'function' && typeof _rbDiaryOn === 'function' && _rbDiaryOn()) {
+            window._ikScopeDay(_pdLocalISO());
+          } else if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me');
+        };
 
         // Chip is always live — clear any legacy count badge
         const dressChip = document.getElementById('chip-dress');
@@ -15941,6 +16932,9 @@ body>*:not(#tv-result-page){display:none !important}
 
       function _cbSetIntent(intent) {
         _cbHideClarify();
+        // FTU rows: arming the prompt must unfurl the Style-something row
+        // first, or the scaffold lands in a closed drawer.
+        if (typeof _rbFtuRevealPrompt === 'function') _rbFtuRevealPrompt();
         const ta = document.getElementById('cb-ta');
         const def = _CHIP_DEFS.find(c => c.intent === intent);
         // Only arm intents that have a scaffold — assigning before this
@@ -17328,7 +18322,13 @@ body>*:not(#tv-result-page){display:none !important}
           if (!document.getElementById('rb-rail')) {
             const el = document.createElement('section');
             el.id = 'rb-rail';
-            conc.parentNode.insertBefore(el, conc.nextSibling);
+            // FTU simplification (2026-08-18): while the index rows carry
+            // home, the rail lives inside The-week-ahead's body — never at
+            // dash level (and never inside the prompt's row, which is where
+            // conc.nextSibling would land it).
+            const ftuWeek = document.getElementById('rb-ftu-body-week');
+            if (ftuWeek) ftuWeek.appendChild(el);
+            else conc.parentNode.insertBefore(el, conc.nextSibling);
           }
           return true;
         }
@@ -17494,6 +18494,8 @@ body>*:not(#tv-result-page){display:none !important}
             row.scrollLeft = Math.max(0, t.offsetLeft - (row.clientWidth - t.offsetWidth) / 2);
           }
           comingUp();
+          // FTU rows: a planned day exposes The week ahead by default.
+          if (typeof _rbFtuWeekAuto === 'function') _rbFtuWeekAuto(slots);
         }
 
         // "Coming up" — the next plan starting OUTSIDE the rail window.
@@ -18410,6 +19412,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
       window._ikScopeDay = function(date, slot) {
         const m = slot && slot.moments && slot.moments.length ? slot.moments[0] : null;
         _ikSetScope({ kind: 'day', id: m ? m.source_id : null, date, label: _ikChipDateLabel(date) });
+        // FTU rows: scoping from the rail must unfurl the prompt's row
+        // first, or the chip lands in a closed drawer.
+        if (typeof _rbFtuRevealPrompt === 'function') _rbFtuRevealPrompt();
         const ta = document.getElementById('cb-ta');
         if (ta) { ta.focus(); ta.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       };
@@ -19094,7 +20099,12 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             card.style.opacity = '0';
             card.style.margin = '0';
           });
-          setTimeout(function() { card.remove(); }, 500);
+          setTimeout(function() {
+            card.remove();
+            // FTU rows: with the hero gone, home re-decides — the prompt
+            // row takes over as the open door unless she has set her own.
+            if (typeof window._lkHomeSync === 'function') { try { window._lkHomeSync(); } catch (_) {} }
+          }, 500);
         }
         window.__rbStyledCollapse = collapse;
         document.addEventListener('input', function onType(e) {
@@ -19111,6 +20121,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const tracker = dash.querySelector('.tracker');
           if (tracker && tracker.parentNode) tracker.parentNode.insertBefore(card, tracker);
           else dash.insertBefore(card, dash.firstChild);
+          // FTU rows: the card is the hero — re-sequence so the index rows
+          // fall in directly beneath it, whichever mounted first.
+          if (typeof _rbFtueOrder === 'function') { try { _rbFtueOrder(_waItems.length); } catch (_) {} }
         }
 
         const photoThumb = piece.photo
@@ -19188,30 +20201,25 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
               '<div style="font-family:' + serif + ';font-size:14px;color:#202021;margin-top:8px;line-height:1.25">' + _waEsc(w.title || 'Look ' + (i + 1)) + '</div>' +
             '</div>';
           }).join('');
-          // Peak-emotion moment → cataloguing loop. The wow is delivered, so
-          // the dominant next action is the NEXT piece (the WAW driver), not
-          // more consumption; "See the full looks" steps back to a text link.
+          // FTU simplification (2026-08-18, W01/O1): ONE goal on the card.
+          // "See the full looks" is the single filled button on the screen
+          // — it leads into Build-this-look, where a generated look becomes
+          // her own. The piece count is a caption, never a second CTA (the
+          // "Add your next piece" dark button was the CTA testers hit
+          // instead of the wow).
           const nCat = Math.max(1, _waItems.length);
-          const leftCat = Math.max(0, _WA_TARGET - nCat);
-          const nudge = leftCat > 0
-            ? 'That’s piece ' + nCat + ' filed. Add ' + leftCat + ' more and Robes builds every look entirely from your own closet.'
-            : 'Your wardrobe’s there — Robes now styles you head to toe from what you own.';
+          const nudge = nCat >= _WA_TARGET
+            ? 'Your wardrobe’s there — Robes now styles you head to toe from what you own.'
+            : (nCat === 1 ? 'One piece' : nCat + ' pieces') + ' filed. Every look borrows the rest until you photograph your own.';
           const footer =
-            '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.10)">' +
-              '<div style="font-size:12.5px;color:#6E6A64;line-height:1.4;flex:1;min-width:180px">' + nudge + '</div>' +
-              (leftCat > 0
-                ? '<button id="rb-styled-addnext" style="flex-shrink:0;padding:11px 20px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">Add your next piece →</button>'
-                : '') +
-            '</div>';
+            '<div id="rb-styled-foot" style="margin-top:18px;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.10);font-size:12.5px;color:#6E6A64;line-height:1.4">' + nudge + '</div>';
           card.innerHTML = shell(
-            'Your first piece, <em>worn three ways.</em>',
-            'Built around your ' + _waEsc(pieceName.toLowerCase()) + ' — tap through for the full looks.',
+            'Your ' + _waEsc(pieceName.toLowerCase()) + ', <em>worn three ways.</em>',
+            'Three complete looks, built and waiting.',
             tiles,
-            '<button id="rb-styled-open" style="flex-shrink:0;padding:10px 16px;border-radius:100px;border:0.5px solid rgba(32,32,33,0.2);background:#fff;color:#202021;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">See the full looks →</button>',
+            '<button id="rb-styled-open" style="flex-shrink:0;padding:12px 22px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">See the full looks →</button>',
             footer);
           mount();
-          const addNext = document.getElementById('rb-styled-addnext');
-          if (addNext) addNext.onclick = function() { _wtrkOpenAdd(); collapse(); };
           if (!cardSaveId) {
             const persistable = imgs.map(s => (typeof s === 'string' && s.indexOf('http') === 0) ? s : null);
             const title = data.fallback ? 'Balmain waistcoat' : ((prompt || 'Your piece').slice(0, 60));
