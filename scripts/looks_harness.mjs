@@ -1203,13 +1203,24 @@ const browser = await chromium.launch(
     window.__lkNewTitleInput('');
     return out;
   });
-  // RULE 02 — pieces are not enough. The name is the gate on Save, and it
-  // says so where the answer goes rather than only in a tooltip.
-  check('composer · two pieces are not enough — the name is the gate',
-    two.saveShown === true && two.saveDisabled === true && two.gate === true,
+  // RULE 02 — pieces are not enough. The name is still the gate, but it
+  // answers at the CLICK (2026-08-20): Save is live, an unnamed save
+  // refuses out loud (focus + toast) and writes nothing.
+  check('composer · two pieces are not enough — the name gates at the click',
+    two.saveShown === true && two.saveDisabled === false && two.gate === true,
     JSON.stringify([two.saveShown, two.saveDisabled, two.gate]));
-  check('composer · naming it brings Save live, without losing the caret',
+  check('composer · naming it keeps Save live, without losing the caret',
     two.namedLive === true, JSON.stringify(two));
+  const refusal = await page.evaluate(async () => {
+    window.__lkSaveAsk();
+    await new Promise((r) => setTimeout(r, 400));
+    return {
+      stillComposing: !!document.getElementById('rb-lk-newtitle'),
+      looksCount: (window.__TEST_LOOKS_WRITES || 0),
+    };
+  });
+  check('composer · an unnamed save writes nothing and stays on the composer',
+    refusal.stillComposing === true, JSON.stringify(refusal));
   check('composer · Robes describes the look once it can',
     two.note === 'Cream silk shirt with the barrel-leg jeans.', two.note);
   check('composer · both pieces are on the board', two.boardTiles === 2, String(two.boardTiles));

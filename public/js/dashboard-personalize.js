@@ -1753,23 +1753,26 @@
           _waForm = null;
           const step = document.querySelector('#wa-modal .fm-step');
           if (!step) return;
-          // Screens 02/10 — the core dropzone flow: snap/attach (both
-          // buttons hand off to the same OS picker — never a `capture`
-          // attribute, see gotchas), a From-a-link field (coming soon) and
-          // the Add-without-a-photo route.
+          // Annie's 3.3 design (2026-08-20 mock): the batch promise IS the
+          // zone — "Add your pieces. One or twenty." with the stacked-photos
+          // glyph. Desktop leads with Choose photos + a quiet take-a-photo
+          // link; ≤767px stacks Attach photos over an outlined Take a photo
+          // (the capture input — never `capture` on the picker, see gotchas).
           step.innerHTML = `
-            <h2 class="fm-h">Add a piece.</h2>
-            <p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">Snap it or attach it. Robes reads the colour, the cut and the label — and fills in the rest.</p>
+            <h2 class="fm-h">Add your pieces.</h2>
+            <p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">One or twenty. Robes reads the colour, the cut and the label — and fills in the rest.</p>
             <div id="wa-rb-zone" class="rb-wf-drop">
-              <span class="rb-wf-drop-h rb-wf-dt">Drop an image here</span>
-              <span class="rb-wf-drop-h rb-wf-mb">Snap or attach the piece</span>
-              <span class="rb-wf-drop-s rb-wf-batch"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="14" height="14" rx="2"/><path d="M3 17V5a2 2 0 0 1 2-2h12"/></svg>Add several at once — Robes files them one after another</span>
+              <span class="rb-wf-glyph" aria-hidden="true"><svg width="46" height="46" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="22" height="28" rx="2" stroke="#C9BCA6" stroke-width="1.4" transform="rotate(-6 8 12)"/><rect x="14" y="10" width="22" height="28" rx="2" stroke="#B8AA92" stroke-width="1.4" transform="rotate(-2 14 10)"/><rect x="21" y="9" width="22" height="28" rx="2" fill="#FAF8F5" stroke="#2A2520" stroke-width="1.5"/></svg></span>
+              <span class="rb-wf-drop-h rb-wf-dt">Drop in as many as you like</span>
+              <span class="rb-wf-drop-h rb-wf-mb">Add as many as you like</span>
+              <span class="rb-wf-drop-s">Robes files them one after another.</span>
               <span class="rb-wf-drop-btns rb-wf-dt">
-                <button type="button" class="rb-wf-btn ink" data-pick="lib">Choose files</button>
+                <button type="button" class="rb-wf-btn ink" data-pick="lib">Choose photos</button>
               </span>
+              <span class="rb-wf-orcam rb-wf-dt">or <button type="button" class="rb-wf-camlink" data-pick="cam">take a photo</button></span>
               <span class="rb-wf-drop-btns rb-wf-mb">
-                <button type="button" class="rb-wf-btn ink" data-pick="cam">Take a photo</button>
-                <button type="button" class="rb-wf-btn line" data-pick="lib-m">Attach photos</button>
+                <button type="button" class="rb-wf-btn ink" data-pick="lib-m">Attach photos</button>
+                <button type="button" class="rb-wf-btn line" data-pick="cam">Take a photo</button>
               </span>
               <input id="wa-rb-file" type="file" multiple
                 accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp"
@@ -1944,12 +1947,12 @@
           st.id = 'rb-wa-form-style';
           st.textContent = [
             // step 1 — the image
-            '.rb-wf-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border:1.5px dashed #D8CFC0;border-radius:var(--rad);background:#FAF8F5;cursor:pointer;text-align:center;padding:36px 22px;box-sizing:border-box;position:relative}',
-            '.rb-wf-drop-h{font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:24px;color:#2A2520}',
+            '.rb-wf-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border:1.5px dashed #D8CFC0;border-radius:var(--rad);background:#FAF8F5;cursor:pointer;text-align:center;padding:34px 22px 30px;box-sizing:border-box;position:relative}',
+            '.rb-wf-glyph{display:block;line-height:0;margin-bottom:2px}',
+            '.rb-wf-drop-h{font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:26px;color:#2A2520}',
             '.rb-wf-drop-s{font-size:13px;color:var(--ink-faint);margin-top:-8px}',
-            // Audit 3.3 — the batch promise is the biggest cold-start lever;
-            // a chip reads where a quiet sub-line disappeared.
-            '.rb-wf-batch{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#202021;background:#fff;border:0.5px solid rgba(32,32,33,0.18);border-radius:100px;padding:6px 14px;margin-top:-4px}',
+            '.rb-wf-orcam{font-size:13px;color:var(--ink-faint);margin-top:-2px}',
+            '.rb-wf-camlink{background:none;border:none;padding:0 0 1px;font-family:inherit;font-size:13px;color:var(--ink,#202021);border-bottom:1px solid rgba(32,32,33,0.35);cursor:pointer}',
             '.rb-wf-drop-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}',
             '.rb-wf-btn{display:inline-flex;align-items:center;justify-content:center;padding:13px 24px;border-radius:100px;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;cursor:pointer;box-sizing:border-box}',
             '.rb-wf-btn.ink{background:var(--ink,#202021);color:#FAF8F5}',
@@ -2835,12 +2838,11 @@
             else if (!editId && batchTotal > 1) _waShowToast('All ' + batchTotal + ' pieces in your wardrobe');
             else if (editId) _waShowToast('Piece updated');
             else {
-              // Below the fork threshold every add used to end in a bare
-              // toast (audit 3.1) — a one-line payoff names what the piece
-              // just changed, without a modal taxing the batch.
+              // A one-line payoff on every add (audit 3.1) — except below 5
+              // pieces, where the fork modal IS the payoff (2026-08-20 gate)
+              // and a toast underneath it would double up.
               const nNow = _waItems.length;
-              _waShowToast(nNow >= 15 ? 'Added to wardrobe'
-                : nNow < 4 ? 'Added — today’s look is now ' + nNow + ' piece' + (nNow === 1 ? '' : 's') + ' yours, ' + (4 - nNow) + ' borrowed.'
+              _waShowToast(nNow < 5 || nNow >= 15 ? 'Added to wardrobe'
                 : 'Added — ' + nNow + ' pieces filed. Each one replaces a borrowed piece in your looks.');
             }
 
@@ -4678,6 +4680,10 @@
       window.__snRemove = function(id) {
         window._rbConfirmDelete('Delete this look?', function() { snRemove(id); });
       };
+      // A trip's delete names what goes with it (2026-08-20).
+      window.__snRemoveTrip = function(id) {
+        window._rbConfirmDelete('Delete this trip? Its looks and packing list go with it.', function() { snRemove(id); });
+      };
       // One label per lookbook entry type — used by all three render sites
       // (lookbook page, dashboard rows); extend here when a new type ships.
       function _snTypeLabel(type) {
@@ -6477,8 +6483,12 @@
         // The hint rides ::after via data-hint, NOT a text node — strip
         // textContent stays byte-identical for every consumer that matches
         // strips by their text.
-        const stripHtml = (role, ghost) =>
-          `<div class="rbc-rolestrip${ghost ? ' ghost' : ''}"${cfg.onRoleDrop ? ` data-roledrop="${_waEsc(role)}" data-rolefn="${cfg.onRoleDrop}"${ctxAttr}` : ''}><span${cfg.roleHints && _RB_ROLE_HINTS[role] ? ` data-hint="· ${_waEsc(_RB_ROLE_HINTS[role])}"` : ''}>${_waEsc(role)}</span><i></i></div>`;
+        // withAdd: a filled role keeps a quiet + on its strip so a SECOND
+        // piece can join it without drag-and-drop (Annie's beta pass
+        // 2026-08-20 — DnD is web-only and undiscoverable; the empty role's
+        // definition row already carries its own + Add).
+        const stripHtml = (role, ghost, withAdd) =>
+          `<div class="rbc-rolestrip${ghost ? ' ghost' : ''}"${cfg.onRoleDrop ? ` data-roledrop="${_waEsc(role)}" data-rolefn="${cfg.onRoleDrop}"${ctxAttr}` : ''}><span${cfg.roleHints && _RB_ROLE_HINTS[role] ? ` data-hint="· ${_waEsc(_RB_ROLE_HINTS[role])}"` : ''}>${_waEsc(role)}</span><i></i>${withAdd ? `<button type="button" class="rbc-stripadd" title="Add another piece here" aria-label="Add another ${_waEsc(role)} piece" onclick="event.stopPropagation();window.${cfg.onRoleAdd}('${_waEsc(role)}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>` : ''}</div>`;
         const rowHtml = x => cfg.onRoleDrop
           ? `<div class="rbc-dragrow" draggable="true" data-roledrag="${x.i}" data-rolefn="${cfg.onRoleDrop}" data-rolehome="${_waEsc(x.role)}"${ctxAttr}>${_rbcRow(x.it, cfg)}</div>`
           : _rbcRow(x.it, cfg);
@@ -6504,7 +6514,7 @@
           // the education layer AND the drop target that lets her cast a
           // piece back to a role nothing currently holds.
           if (!filled.length && !empty.length && _RB_ROLES.indexOf(role) < 0) return;
-          html += stripHtml(role, !filled.length);
+          html += stripHtml(role, !filled.length, !!(filled.length && cfg.onRoleAdd));
           // An awaiting role is a dashed definition row — the education
           // line on the left, its own + Add on the right (cfg.onRoleAdd,
           // called with the role so the pick arrives pre-cast). It gives
@@ -6891,6 +6901,8 @@
 .rbc-rolestrip span{font-size:8px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
 .rbc-rolestrip span[data-hint]::after{content:attr(data-hint);font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:12px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-faint);margin-left:7px}
 .rbc-rolestrip.ghost span[data-hint]::after{color:var(--cream-400,#D8CFC0)}
+.rbc-stripadd{flex:none;width:22px;height:22px;border-radius:100px;border:0.5px solid rgba(32,32,33,0.22);background:#fff;color:var(--ink-soft,#55524E);font-size:12px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.rbc-stripadd:hover{background:var(--cream-100,#F5F1EA)}
 .rbc-rolestrip i{flex:1;height:1px;background:var(--rule)}
 .rbc-rolestrip.ghost span{color:var(--cream-400,#D8CFC0)}
 .rbc-rolestrip.ghost i{background:var(--cream-200,#EFE9DC)}
@@ -8782,8 +8794,9 @@
 .rb-lk-shead{display:flex;align-items:baseline;justify-content:space-between;gap:20px;margin:4px 0 14px;padding-bottom:10px;border-bottom:1px solid var(--rule)}
 .rb-lk-shead .hcount{font-size:11px;font-weight:300;color:var(--ink-faint);white-space:nowrap}
 .rb-lk-holrow::-webkit-scrollbar{width:0;height:0}
-.rb-lk-holcard{flex:none;width:386px;max-width:86vw;display:flex;flex-direction:column;background:#fff;border:1px solid var(--rule);border-radius:3px;overflow:hidden;cursor:pointer;font-family:inherit;text-align:left;padding:0;transition:border-color .2s}
+.rb-lk-holcard{position:relative;flex:none;width:386px;max-width:86vw;display:flex;flex-direction:column;background:#fff;border:1px solid var(--rule);border-radius:3px;overflow:hidden;cursor:pointer;font-family:inherit;text-align:left;padding:0;transition:border-color .2s}
 .rb-lk-holcard:hover{border-color:var(--rule-mid)}
+.rb-lk-holcard:hover .rb-lk-rmx{opacity:1}
 /* A trip reads bigger by holding MORE TILES, not by being wider: a denser
    3×2 mosaic of the case's pieces, the sixth cell counting the remainder. */
 .rb-lk-holcard .hmos{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:1px;height:257px;background:var(--cream-200)}
@@ -9281,12 +9294,19 @@
         // With no edits yet the strip is an invitation plus ONE
         // Robes-authored example, labelled on the image and captioned "not
         // yours" so it can never be mistaken for her own trip.
+        // A div, not a button — the card carries its own delete ✕ (Annie's
+        // beta pass 2026-08-20: a trip could never be removed), and a
+        // button-in-button is invalid markup. Same hover-✕ + confirm as the
+        // grid tiles.
         const cards = holidays.length
           ? holidays.map(i =>
-              '<button type="button" class="rb-lk-holcard" onclick="window.__snOpenItem(' + Number(i.id) + ')">' +
+              '<div class="rb-lk-holcard" role="button" tabindex="0" onclick="window.__snOpenItem(' + Number(i.id) + ')">' +
+                '<button type="button" class="rb-lk-rmx" onclick="event.stopPropagation();window.__snRemoveTrip(' + Number(i.id) + ')" title="Delete this trip" aria-label="Delete this trip">' +
+                  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+                '</button>' +
                 _lkHolCells(i) +
                 '<span class="hpad"><span class="ht">' + _waEsc(i.title || 'Travel edit') + '</span>' +
-                '<span class="hm">' + _waEsc(_lkHolMeta(i)) + '</span></span></button>'
+                '<span class="hm">' + _waEsc(_lkHolMeta(i)) + '</span></span></div>'
             ).join('')
           : '<button type="button" class="rb-lk-holcard invite" onclick="window.__lkNewHoliday()">' +
               '<span><span class="ht">Plan a trip.</span>' +
@@ -9983,7 +10003,11 @@
         // fallback name on a hand-built look any more — an unnamed look in
         // the Lookbook is a look she can never find again.
         const named = String(_lkNewTitleDraft || '').trim().length > 0;
-        const canSave = enoughPieces && named;
+        // The name gate answers at the CLICK, not with a dead button
+        // (Annie's beta pass 2026-08-20: a disabled Save with no alert read
+        // as broken) — Save is live once the pieces suffice; an unnamed
+        // save focuses the name field and says so (__lkSaveAsk's guard).
+        const canSave = enoughPieces;
         const items = _lkConItems();
         // The masthead credit reads plain Robes on every surface (Annie,
         // 2026-08-13 second pass — "Robes' build" was a second label).
@@ -10623,9 +10647,18 @@
       // Her signature names it, not the pieces: two icons, one phrase. With
       // fewer than two saved icons the offered (occasion-shaped) name stands.
       function _lkBuildTitle(ids) {
+        // "{A} meets {B}." is the FIRST build's name only (Annie's beta
+        // pass 2026-08-20: every subsequent build was arriving with the
+        // same icons name) — once any look carries it, later builds take
+        // the occasion-shaped offer instead.
         const icons = (typeof _rbStyleIcons === 'function' ? _rbStyleIcons() : []) || [];
         const two = icons.filter(x => typeof x === 'string' && x.trim()).slice(0, 2);
-        if (two.length === 2) return two[0].trim() + ' meets ' + two[1].trim() + '.';
+        if (two.length === 2) {
+          const iconName = two[0].trim() + ' meets ' + two[1].trim() + '.';
+          const used = (_lkLooks || []).some(l =>
+            String(l.name || '').trim().toLowerCase() === iconName.toLowerCase());
+          if (!used) return iconName;
+        }
         const offered = _lkOfferName(ids, null);
         if (offered && offered !== 'Untitled look') return offered;
         // Nothing of hers to name it after — take the lead proposal's word.
@@ -11587,6 +11620,18 @@
       // go BEFORE it happens — the wishlist is the only place a piece she
       // doesn't own can live (look_pieces references wardrobe_items).
       window.__lkSaveAsk = function() {
+        // Rule 02 answers OUT LOUD (Annie's beta pass 2026-08-20): an
+        // unnamed save focuses the name field and says what it needs —
+        // before any wishlist confirm can stack on top.
+        if (!String(_lkNewTitleDraft || '').trim()) {
+          const inp = document.getElementById('rb-lk-newtitle') || document.getElementById('rb-lk-hometitle');
+          if (inp) {
+            try { inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+            setTimeout(function() { try { inp.focus(); } catch (_) {} }, 250);
+          }
+          _waShowToast('Name your look and it’s yours to keep');
+          return;
+        }
         if (!_lkShop.length) { window.__lkSave(); return; }
         const n = _lkShop.length;
         document.getElementById('rb-del-modal')?.remove();
@@ -12231,7 +12276,21 @@
         const modal = document.createElement('div');
         modal.id = 'rb-del-modal';
         modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
-        const dismiss = function() { modal.remove(); proceed(); };
+        // Answering the ask closes the look and lands HOME, whichever exit
+        // raised it (Annie's beta pass 2026-08-20 — proceeding with the
+        // original tap landed on Inspiration one time and the wardrobe
+        // another; the look is closed, home is where she regroups).
+        const dismiss = function() {
+          modal.remove();
+          try {
+            if (dlResultPage) dlResultPage.style.display = 'none';
+            _waAfterAdd = null;
+            window.rbClearCrumb && window.rbClearCrumb();
+            window._rbNav && window._rbNav('/dashboard');
+            if (typeof _lkHomeSync === 'function') { try { _lkHomeSync(); } catch (_) {} }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          } catch (_) {}
+        };
         modal.onclick = function(e) { if (e.target === modal) dismiss(); };
         modal.innerHTML =
           '<div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:430px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:28px 26px">' +
@@ -13035,8 +13094,15 @@
         const retailer = _rbDeEsc(item.retailer_hint || '');
         const price = _rbcPrice(item.price_point || '');
 
+        // A cross-category "similar outline" suggestion is only honest where
+        // the outline genuinely carries across (a knit can play a layer) —
+        // never the first row of the wardrobe (Annie's beta pass 2026-08-20:
+        // pink barrel-leg jeans are not a replacement for a silver bracelet).
         let aiAlt = null;
-        if (!scoped && !candidates.length && _waItems.length > 0) aiAlt = _waItems[0];
+        if (!scoped && !candidates.length && _waItems.length > 0) {
+          const kin = { outerwear: 'Tops', tops: 'Outerwear' }[catLower.replace(/s$/, '') === 'top' ? 'tops' : catLower];
+          if (kin) aiAlt = _waItems.find(wi => (wi.category || '') === kin) || null;
+        }
 
         const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
         const cameraSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
@@ -13062,6 +13128,25 @@
               <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 6px">Robes’ suggestion</p>
               <p style="font-family:'Cormorant',Georgia,serif;font-size:15px;font-weight:300;color:#202021;margin:0 0 10px;line-height:1.5">You don’t own any ${_waEsc((item.category || 'piece').toLowerCase())} yet, but your <em>${_waEsc(aiAlt.label)}</em> creates a similar outline.</p>
               <button onclick="window.${cfg.applyName}(${cfg.idx},'${_waEsc(aiAlt.id)}')" style="font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#202021;background:#EDE8E0;border:none;border-radius:20px;padding:6px 14px;cursor:pointer">Use this instead</button>
+            </div>`;
+        } else if (!scoped && _waItems.length > 0) {
+          // Nothing filed under this category and no honest cross-category
+          // stand-in — the wardrobe is still HERS to pull from (audit
+          // 6.2/6.3, 2026-08-20): browse every piece, her pick is deliberate.
+          const all = _waItems.slice(0, 8);
+          const allHtml = all.map(wi => `
+            <div onclick="window.${cfg.applyName}(${cfg.idx},'${_waEsc(wi.id)}')" style="cursor:pointer;border-radius:var(--rad-sm);overflow:hidden;background:#fff;border:0.5px solid rgba(32,32,33,0.08);transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 4px 12px rgba(32,32,33,0.12)'" onmouseleave="this.style.boxShadow='none'">
+              ${wi.image_url
+                ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" alt="">`
+                : `<div style="aspect-ratio:1;background:#EDE8E0;display:flex;align-items:center;justify-content:center"><span style="font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:300;color:#C8B8A2">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</span></div>`}
+              <div style="padding:7px 8px;font-size:10.5px;color:#3A3733;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
+            </div>`).join('');
+          wardrobeSection = `
+            <div style="margin-bottom:24px">
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 4px">From your wardrobe</p>
+              <p style="font-size:11px;color:var(--ink-faint);margin:0 0 10px">Nothing filed under ${_waEsc((item.category || 'this category').toLowerCase())} yet — pick any piece, or snap the one you have in mind.</p>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${allHtml}</div>
+              ${_waItems.length > 8 ? `<p style="font-size:11px;color:var(--ink-faint);margin:8px 0 0">+ ${_waItems.length - 8} more in your wardrobe</p>` : ''}
             </div>`;
         }
 
@@ -14604,7 +14689,7 @@ body>*:not(#tv-result-page){display:none !important}
           rackTitleHtml: `<h2>${_waEsc(title)}${!/[.!?]$/.test(title) ? '.' : ''}</h2>`,
           headButtonsHtml: (di != null
             ? `<button class="rbc-hbtn" onclick="window.__tvUnpin(${li},${di})">Unpin from this day</button>`
-            : '')
+            : `<button class="rbc-hbtn" onclick="window.__tvRemoveLook(${li})">Remove from this trip</button>`)
             + `<button class="rbc-hbtn" onclick="window.__tvPackLook(${li},${di == null ? 'null' : di})">${_tvCheckSvg} Pack this look</button>`,
           onFlip: opts.onFlip, onSwap: opts.onSwap, onRemove: opts.onRemove,
           onRoleDrop: '__tvRoleDrop', roleCtx: li + ':' + (di == null ? '' : di),
@@ -14907,6 +14992,25 @@ body>*:not(#tv-result-page){display:none !important}
         window.__tvPinToggle(li, di);
         window.__tvPinSync();
         _waShowToast('Unpinned — the look stays in the row');
+      };
+
+      // An added look can leave the trip again (Annie's beta pass
+      // 2026-08-20) — the confirm names the look; capsule pieces stay (they
+      // may serve other looks; the 1:3 maths and pack list repaint).
+      window.__tvRemoveLook = function(li) {
+        const data = window.__lastTvData;
+        const l = data && Array.isArray(data.looks) && data.looks[li];
+        if (!l) return;
+        window._rbConfirmDelete('Remove “' + (l.title || l.occasion || 'this look') + '” from the trip?', function() {
+          data.looks.splice(li, 1);
+          _tvSelLookI = null;
+          _tvSelDayI = null;
+          window.__tvPinSync();
+          _tvPaintStage();
+          if (typeof _tvPatchSaved === 'function') _tvPatchSaved();
+          _waShowToast('Removed from the trip');
+          _rbTrack('travel_look_removed', {});
+        });
       };
 
       window.__tvPinSync = function() {
@@ -17320,10 +17424,13 @@ body>*:not(#tv-result-page){display:none !important}
       // around it?" — the cataloguing loop's reward, on every add.
       window.__rbAddFork = function(row) {
         if (!row || !row.label) return;
-        // Below the 15-piece threshold she is cataloguing, not styling — a
-        // modal on every add taxes the exact behaviour the product needs
-        // most. The fork returns once the wardrobe is built.
-        if (_waItems.length < 15) return;
+        // Annie's beta pass 2026-08-20 (supersedes the ≥15 gate): the fork
+        // is a FIRST-SESSION payoff — it fires only while the wardrobe
+        // holds fewer than 5 pieces, and only on a direct catalogue (the
+        // caller already skips it when _waAfterAdd was armed by a
+        // swap/snap-mine flow). An engaged user cataloguing at 20+ just
+        // keeps filing.
+        if (_waItems.length >= 5) return;
         document.getElementById('rb-addfork')?.remove();
         const serif = "'Cormorant',Georgia,serif";
         const modal = document.createElement('div');

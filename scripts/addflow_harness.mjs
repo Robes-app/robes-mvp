@@ -142,22 +142,26 @@ const browser = await chromium.launch(
       btns: Array.from(document.querySelectorAll('.rb-wf-drop-btns')).filter(shown)
         .flatMap((w) => Array.from(w.querySelectorAll('.rb-wf-btn')).map((b) => b.textContent)),
       link: !!document.querySelector('.rb-wf-linkrow input'),
-      batch: (() => { const b = document.querySelector('.rb-wf-batch'); if (!b) return false;
-        const cs = getComputedStyle(b); return cs.borderRadius === '100px' && /Add several at once/.test(b.textContent); })(),
+      // Annie's 3.3 mock (2026-08-20): glyph + serif batch headline + sub
+      glyph: !!document.querySelector('.rb-wf-glyph svg'),
+      sub: document.querySelector('.rb-wf-drop-s')?.textContent || '',
+      orcam: (() => { const b = document.querySelector('.rb-wf-orcam .rb-wf-camlink'); return b ? b.textContent.trim() : ''; })(),
       nophoto: document.querySelector('.rb-wf-nophoto')?.textContent || '',
       file: !!document.getElementById('wa-rb-file'),
       multiple: document.getElementById('wa-rb-file')?.multiple,
       capture: document.getElementById('wa-rb-file')?.hasAttribute('capture'),
     };
   });
-  check('step1 · Add a piece heading', /Add a piece/.test(s1.heading), s1.heading);
-  check('step1 · desktop is drop-first with one Choose-files button', s1.dropH.join('|') === 'Drop an image here'
-    && s1.btns.join('|') === 'Choose files', `${s1.dropH.join('|')} / ${s1.btns.join('|')}`);
+  check('step1 · Add your pieces heading (3.3 mock)', /Add your pieces/.test(s1.heading), s1.heading);
+  check('step1 · desktop is drop-first: batch headline + one Choose-photos button', s1.dropH.join('|') === 'Drop in as many as you like'
+    && s1.btns.join('|') === 'Choose photos', `${s1.dropH.join('|')} / ${s1.btns.join('|')}`);
   // Audit 3.2 (2026-08-19): the From-a-link coming-soon door is HIDDEN from
   // the FTU add modal until the feature is live — a dead door in a
   // first-session modal costs trust. __waLinkSoon survives doorless.
   check('step1 · no From-a-link dead door; Add-without-a-photo route stands', !s1.link && s1.nophoto === 'Add without a photo', s1.nophoto);
-  check('step1 · the batch promise reads as a chip', s1.batch, JSON.stringify(s1.batch));
+  check('step1 · the zone carries the glyph, the files-them sub and the take-a-photo link',
+    s1.glyph && s1.sub === 'Robes files them one after another.' && s1.orcam === 'take a photo',
+    JSON.stringify([s1.glyph, s1.sub, s1.orcam]));
   check('step1 · multi file input, never capture on the picker', s1.file && s1.multiple === true && s1.capture === false, String(s1.capture));
   const cam = await page.evaluate(() => ({
     exists: !!document.getElementById('wa-rb-cam'),
@@ -784,8 +788,8 @@ const browser = await chromium.launch(
         .flatMap((w) => Array.from(w.querySelectorAll('.rb-wf-btn')).map((b) => b.textContent)),
     };
   });
-  check('mobile · step 1 keeps the snap/attach pair', ms1.dropH.join('|') === 'Snap or attach the piece'
-    && ms1.btns.join('|') === 'Take a photo|Attach photos', `${ms1.dropH.join('|')} / ${ms1.btns.join('|')}`);
+  check('mobile · step 1 stacks Attach photos over Take a photo (3.3 mock)', ms1.dropH.join('|') === 'Add as many as you like'
+    && ms1.btns.join('|') === 'Attach photos|Take a photo', `${ms1.dropH.join('|')} / ${ms1.btns.join('|')}`);
   check('no page errors (mobile)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
