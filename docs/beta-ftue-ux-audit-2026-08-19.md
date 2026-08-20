@@ -151,13 +151,22 @@ moodboards hidden) is broadly right. The remaining ladder, by engagement stage:
    (2.1): do they read "build from your wardrobe" as "buy these"? Watch the blank tile (2.2).
 3. *"Add three more pieces."* — do they find multi-select (3.3)? What do they say after the third
    toast-only add (3.1)?
-4. *"Ask Robes to dress you for something real this week."* — typed vs pill (X.3 metrics); do they
+4. *"Build a look — start from what you're wearing right now."* (added 2026-08-20) — two lanes, let
+   the tester choose and record which. **Photo-first:** photograph the complete outfit, attach it as
+   the look's photograph ("Add a photo" on the composer — it becomes the look's portrait), then log
+   each piece onto the rack (snap or pick). **Pieces-first:** log the pieces one by one and watch the
+   mosaic assemble as they land. Watch: do they find the composer at all (BUILD YOUR OWN row, or
+   Lookbook → + New)? Do photo-first testers expect Robes to read the pieces out of the outfit photo
+   automatically? (Extraction is deliberately not built — this expectation gap is the task's key
+   recording.) Do the role strips + the ⊕ on a filled strip guide placement (4.1)? Does the unnamed
+   save answer at the click (4.2)? Where do they expect the saved look to live afterwards?
+5. *"Ask Robes to dress you for something real this week."* — typed vs pill (X.3 metrics); do they
    understand the vibe read (5.1); do they save, and can they re-find the look (5.3)?
-5. *"One piece in the look isn't yours — make it yours."* — the snap-mine loop (6.3); note every tap
+6. *"One piece in the look isn't yours — make it yours."* — the snap-mine loop (6.3); note every tap
    on the affiliate dead end (6.2).
-6. *"Plan what you're wearing Friday."* — rail discovery vs dated prompt (7.3); whether the Weekly
+7. *"Plan what you're wearing Friday."* — rail discovery vs dated prompt (7.3); whether the Weekly
    planner card gets tapped and what they expect from it (7.1 — run this task *after* the re-copy).
-7. *"You're going away for a long weekend — get packed."* — the double-ask on the canvas landing
+8. *"You're going away for a long weekend — get packed."* — the double-ask on the canvas landing
    (8.1); whether their stated plans visibly survive (8.2); pin + pack + day-scoped swap (8.5).
 
 **Headline metrics (all already instrumented):** time-to-first-wow (signup → styled card ready),
