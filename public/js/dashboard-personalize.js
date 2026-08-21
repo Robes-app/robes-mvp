@@ -2838,37 +2838,28 @@
             else if (!editId && batchTotal > 1) _waShowToast('All ' + batchTotal + ' pieces in your wardrobe');
             else if (editId) _waShowToast('Piece updated');
             else {
-              // A one-line payoff on every add (audit 3.1) — except below 5
-              // pieces, where the fork modal IS the payoff (2026-08-20 gate)
-              // and a toast underneath it would double up.
+              // A one-line, non-modal payoff on every add (Mary's user
+              // testing, 2026-08-21 — the post-add fork modal that used to
+              // carry this below 5 pieces is gone; it kept throwing
+              // first-session users back into a "style it 3 ways" loop
+              // they hadn't asked for).
               const nNow = _waItems.length;
-              _waShowToast(nNow < 5 || nNow >= 15 ? 'Added to wardrobe'
-                : 'Added — ' + nNow + ' pieces filed. Each one replaces a borrowed piece in your looks.');
+              _waShowToast(nNow >= 15 ? 'Added to wardrobe'
+                : 'Added — ' + nNow + (nNow === 1 ? ' piece' : ' pieces') + ' filed. Each one replaces a borrowed piece in your looks.');
             }
 
             // A pending "Snap mine" swap is waiting on this new piece —
             // apply it now that _waItems has reloaded with the new row.
-            let hooked = false;
             if (!editId && typeof _waAfterAdd === 'function') {
               const hook = _waAfterAdd;
               _waAfterAdd = null;
-              hooked = true;
               const newId = (Array.isArray(created) && created[0] && created[0].id != null)
                 ? created[0].id
                 : (_waItems[0] && _waItems[0].id);
               if (newId != null) { try { hook(newId); } catch (e) { console.warn('[robes] after-add hook:', e); } }
             }
 
-            if (batchNext && typeof _waBatchAdvance === 'function') {
-              _waBatchAdvance(batchNext);
-            } else if (!editId && !hooked) {
-              // P0 fork moment: a freshly filed piece immediately offers its
-              // two payoffs — 3 editorial ways, or today's look built around
-              // it. Skipped when another flow armed the add (swap/snap-mine)
-              // and between batch pieces (fires once, on the last).
-              const newRow = (Array.isArray(created) && created[0]) || _waItems[0] || null;
-              if (newRow && window.__rbAddFork) window.__rbAddFork(newRow);
-            }
+            if (batchNext && typeof _waBatchAdvance === 'function') _waBatchAdvance(batchNext);
           } catch(e) {
             console.error('WA submit:', e);
             // Name the one recoverable case (stale/expired JWT) instead of
@@ -3584,14 +3575,11 @@
             image_url: w.image_url || null,
             item_dna: (w.item_dna && typeof w.item_dna === 'object' && Object.keys(w.item_dna).length) ? w.item_dna : undefined
           };
-          const created = await _waFetch('POST', 'wardrobe_items', payload);
+          await _waFetch('POST', 'wardrobe_items', payload);
           await _waFetch('DELETE', 'wishlist_items?id=eq.' + id, undefined);
           _wlItems = _wlItems.filter(x => String(x.id) !== String(id));
           await _waLoad();
           _waShowToast(w.label + ' is in your wardrobe');
-          // Same peak moment as a fresh add — offer the styling fork
-          const row = (Array.isArray(created) && created[0]) || null;
-          if (row && window.__rbAddFork) window.__rbAddFork(row);
         } catch (e) {
           console.error('wishlist bought:', e);
           _waShowToast('Could not move the piece — try again');
@@ -17119,7 +17107,7 @@ body>*:not(#tv-result-page){display:none !important}
           intent: 'style' },
         { id: 'chip-dress',  label: 'Dress me today',
           cta: 'DRESS ME',
-          inject: 'An outfit for [Sunday brunch]',
+          inject: "I'm going to [the office] and want to feel [chic]",
           placeholder: 'Describe your occasion or mood…',
           intent: 'dress-me' },
         // No chip renders this one — it exists so _cbSetIntent('travel') can
@@ -17418,58 +17406,11 @@ body>*:not(#tv-result-page){display:none !important}
         }
       }
 
-      // ── Post-add fork modal (P0) ─────────────────────────────────────
-      // The moment a piece lands in the wardrobe, offer the instant payoff:
-      // "Style 3 ways for instant inspiration, or build a daily look
-      // around it?" — the cataloguing loop's reward, on every add.
-      window.__rbAddFork = function(row) {
-        if (!row || !row.label) return;
-        // Annie's beta pass 2026-08-20 (supersedes the ≥15 gate): the fork
-        // is a FIRST-SESSION payoff — it fires only while the wardrobe
-        // holds fewer than 5 pieces, and only on a direct catalogue (the
-        // caller already skips it when _waAfterAdd was armed by a
-        // swap/snap-mine flow). An engaged user cataloguing at 20+ just
-        // keeps filing.
-        if (_waItems.length >= 5) return;
-        document.getElementById('rb-addfork')?.remove();
-        const serif = "'Cormorant',Georgia,serif";
-        const modal = document.createElement('div');
-        modal.id = 'rb-addfork';
-        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
-        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-        const thumb = row.image_url
-          ? `<img src="${_waEsc(row.image_url)}" style="width:64px;height:82px;border-radius:var(--rad-sm);object-fit:cover;flex-shrink:0" alt="">`
-          : `<div style="width:64px;height:82px;border-radius:var(--rad-sm);background:#F0EDE8;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-family:${serif};font-size:24px;color:#C8B8A2">${_waEsc((row.label || '?').charAt(0).toUpperCase())}</span></div>`;
-        modal.innerHTML = `
-          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:420px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px 26px 22px">
-            <div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px">In your wardrobe ✓</div>
-            <div style="display:flex;gap:16px;align-items:center;margin-bottom:20px">
-              ${thumb}
-              <div style="flex:1;min-width:0">
-                <div style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;line-height:1.15">Your ${_waEsc(row.label.toLowerCase())} is filed.</div>
-                <div style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-top:4px">Want it styled straight away?</div>
-              </div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:9px">
-              <button id="rb-fork-ways" style="width:100%;padding:13px 20px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit">Style it 3 ways</button>
-              <button id="rb-fork-daily" style="width:100%;padding:13px 20px;border-radius:100px;border:0.5px solid rgba(32,32,33,0.2);background:#fff;color:#202021;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;font-family:inherit">Build a look around it</button>
-              <button id="rb-fork-skip" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--ink-faint);text-decoration:underline;font-family:inherit;padding:6px">Not now — keep cataloguing</button>
-            </div>
-          </div>`;
-        document.body.appendChild(modal);
-        modal.querySelector('#rb-fork-ways').onclick = async function() {
-          modal.remove();
-          const pd = row.image_url ? await _rbUrlToDataUrl(row.image_url).catch(() => null) : null;
-          _cbStyleSubmit('Style my ' + row.label + ' three ways', pd, { intent: 'style' });
-        };
-        modal.querySelector('#rb-fork-daily').onclick = function() {
-          modal.remove();
-          // A look built around a piece is made LOOSE (1a) — it opens in
-          // the builder, editable, and exists nowhere until she saves it.
-          window.__dlSubmit('A look built around my ' + row.label, { loose: true });
-        };
-        modal.querySelector('#rb-fork-skip').onclick = function() { modal.remove(); };
-      };
+      // ── Post-add fork modal — REMOVED 2026-08-21 (Mary's user testing:
+      // "Remove the fork modal entirely after logging a wardrobe piece -
+      // it kept throwing a user back into an unhelpful loop of styling a
+      // look 3 ways during their first session"). The non-modal add toast
+      // (see WA.submit) now carries the below-5 payoff instead.
 
       // ── Conversational intent extraction (PRD §2) ────────────────────
       // A chip is an explicit override; free-typed prompts are classified
@@ -19825,7 +19766,11 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             pills.push({ label: 'Finish ' + (deferred.title || 'your trip'), act: () => { _ikTrack('pill', 'travel'); window.__snOpenItem(deferred.id); } });
           }
           if (!cached.some(r => r.day_date === today)) {
-            pills.push({ label: 'Dress today', act: () => { _ikTrack('pill', 'daily'); window.__dlSubmit('An outfit for today'); } });
+            // Mary's user testing, 2026-08-21: this pill used to jump
+            // straight into a generation with no prompt or guidance — it
+            // now arms the prompt box exactly like the "Dress me today"
+            // chip, so she can edit the occasion/mood before sending.
+            pills.push({ label: 'Dress today', act: () => { _ikTrack('pill', 'daily'); if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me'); } });
           }
         }
         host.innerHTML = '';
