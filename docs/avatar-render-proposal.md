@@ -105,6 +105,13 @@ Because it's deterministic, it's testable in a harness, explainable in `/admin`,
 > - **Without analysis**: an invitation to Style Notes ("Meet your model — start with your colouring"), plus a **two-swatch quick pick** (skin tone + hair, on one neutral figure) for the impatient path — attribute-led selection, never avatar browsing, so it stays inside the body-lineup rule. When she later completes the silhouette chapter the figure cell upgrades silently; her skin/hair picks persist as `avatar_prefs` overrides.
 > - Both doors land on the same catalog, the same change sheet, the same stored `avatar_id` — the only difference is who fills in the starting cell.
 
+> **DESIGN ROUND 1 (Annie's `Style_Notes_to_Your_Model.dc.html`, built 2026-08-25) — three further decisions, all shipped in the page slice:**
+> 1. **Style Notes collapses to ONE entry page** — "Two photographs. One model." (close-up + full-length steps beside a live model rail). Taste & budget moves out to its own menu entry (`/stylenotes#taste`).
+> 2. **Keep her is live from the close-up alone** (supersedes the mock's both-photographs gate — a full-length requirement would re-introduce the exact bail point onboarding removed): colour read = keepable on a neutral figure; the line read upgrades the figure silently later.
+> 3. **Two figure nudge pairs for v1** (Softer/Straighter, Fuller/Narrower — Longer/Shorter cut to keep the catalog matrix small), and **the full analysis chapters survive behind quiet "Her full notes →" doors** on the page (reduced results inline; nothing deleted).
+>
+> The page's model preview is deliberately an **abstract figure, not imagery** — it adjusts instantly and ships before any catalog exists; the photoreal model arrives with the render pipeline (§3.4). Shipped as: rebuilt `public/stylenotes.html`, migration 20 (`supabase/avatar_migration.sql` — `profiles.avatar_id` + `avatar_prefs`, localStorage degrade until run), the deterministic mapper client-side, `scripts/stylenotes_model_harness.mjs` (158 checks).
+
 Product shape (final copy/design hers; constraints below are hard):
 
 1. **The reveal**: after a colour or silhouette analysis lands (Style Notes), and once for existing analysed users on the dashboard — "Meet your model." One proposed avatar, full-length, with the line that she was drawn from her colouring and line. CTA saves her; a quiet alternative opens the change sheet.

@@ -5222,6 +5222,22 @@
           }
         }
 
+        // Taste & budget is its own entry point (2026-08-25: moved out of
+        // the model flow on /stylenotes — the #taste hash is its home)
+        if (avMenu && !document.getElementById('av-taste')) {
+          const tbBtn = document.createElement('button');
+          tbBtn.id = 'av-taste';
+          tbBtn.className = 'av-item';
+          tbBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg>Taste & budget`;
+          tbBtn.onclick = () => { avMenu.classList.remove('open'); window.location.href = '/stylenotes#taste'; };
+          const snItem = document.getElementById('av-stylenotes');
+          if (snItem && snItem.parentNode === avMenu) {
+            avMenu.insertBefore(tbBtn, snItem.nextSibling);
+          } else {
+            avMenu.appendChild(tbBtn);
+          }
+        }
+
         // Add Log out item at the bottom of av-menu
         if (avMenu && !document.getElementById('av-logout')) {
           const loBtn = document.createElement('button');
