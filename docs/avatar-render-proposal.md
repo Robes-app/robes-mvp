@@ -1,7 +1,7 @@
 # Robes — Looks on Her Avatar: Research + Proposed Solution
 
-**Status:** Research complete · proposal for Annie's review · not yet built
-**Date:** 22 August 2026
+**Status:** Research complete · entry-point decision recorded (§3.3) · awaiting Annie's designs
+**Date:** 25 August 2026
 **Supersedes where they conflict:** the Claude Chat brief ("Avatar Outfit Rendering: Technical Brief", 22 Aug 2026) — this document is grounded in the live `beta` codebase; the brief assumed a Next.js/Supabase-Storage stack Robes doesn't have.
 
 ---
@@ -97,6 +97,13 @@ Full cross = 8 × 5 × 5 = 200 images. Two ways to keep launch tractable — **d
 Because it's deterministic, it's testable in a harness, explainable in `/admin`, and free.
 
 ### 3.3 The proposal + change moment (the part Annie designs)
+
+> **DECISION (Annie, 2026-08-25) — analysis-led proposal is the primary door; selection is the fallback; neither lives in onboarding.**
+> The question was "generate from her Style Notes vs. select an avatar during onboarding". Resolved:
+> - **Onboarding stays untouched** — it was deliberately cut to two steps after bail-point feedback, and at that moment she has given no colouring or body data: a proposal would be a guess, a catalog browse is friction, and a grid of avatars differing in figure is a body lineup (forbidden, §6).
+> - **With any analysis on file**: the deterministic proposal is the door — more customised AND lower friction than selecting (zero decisions), and the avatar becomes Style Notes' missing payoff.
+> - **Without analysis**: an invitation to Style Notes ("Meet your model — start with your colouring"), plus a **two-swatch quick pick** (skin tone + hair, on one neutral figure) for the impatient path — attribute-led selection, never avatar browsing, so it stays inside the body-lineup rule. When she later completes the silhouette chapter the figure cell upgrades silently; her skin/hair picks persist as `avatar_prefs` overrides.
+> - Both doors land on the same catalog, the same change sheet, the same stored `avatar_id` — the only difference is who fills in the starting cell.
 
 Product shape (final copy/design hers; constraints below are hard):
 
