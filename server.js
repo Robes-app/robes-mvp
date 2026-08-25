@@ -512,21 +512,29 @@ Style this key piece three ways. Make each look genuinely distinct — different
     // rate limit (that is what left looks imageless); a failed frame gets
     // one retry after a pause long enough to clear a rate-limit window.
     (async () => {
+      // Her model wears every frame when she has one (avatar phase 3): the
+      // SAME woman across all three looks, only the scene changes with the
+      // occasion. Resolved inside the background job — the first-ever cell
+      // generates here and must never delay the text response.
+      const avatarRef = wearer === 'woman' ? await avatarRefForUser(req.body.avatarId, req.body.userId) : null;
       const results = ways.map(() => null);
       for (let i = 0; i < ways.length; i++) {
         if (i > 0) await new Promise(r => setTimeout(r, 3000));
         const w = ways[i];
         const imgParts = [];
+        if (avatarRef) imgParts.push({ inlineData: { mimeType: avatarRef.mimeType, data: avatarRef.data } });
         if (!fallback && photoMatch) {
           imgParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
         }
         const pieceLabel = fallback ? FALLBACK_PIECE : (pieceName || 'the clothing item');
         const pieceLine = daily && !fallback ? '' : `The key piece is ${pieceLabel}. `;
         const photoLine = !fallback && photoMatch
-          ? 'The attached photo shows the key piece only — reproduce the piece faithfully, but compose an entirely new scene; never copy the photo\'s framing, background or crop. '
+          ? (avatarRef
+            ? 'The SECOND image shows the key piece only — reproduce the piece faithfully, but compose an entirely new scene; never copy that photo\'s framing, background or crop. '
+            : 'The attached photo shows the key piece only — reproduce the piece faithfully, but compose an entirely new scene; never copy the photo\'s framing, background or crop. ')
           : '';
         imgParts.push({
-          text: `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one ${wearer}, alone, one scene, no collage, no split panels, no side-by-side images. ${FULL_BODY_FRAME} ${pieceLine}${photoLine}${briefLine}${iconLine}Look: "${w.title}" — ${w.eyebrow}. The ${wearer} wears the complete outfit: ${String(w.outfit || '').trim().replace(/\.$/, '')}. Soft natural light, luxury campaign aesthetic.`,
+          text: `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one ${wearer}, alone, one scene, no collage, no split panels, no side-by-side images. ${avatarRef ? AVATAR_IDENTITY : ''}${FULL_BODY_FRAME} ${pieceLine}${photoLine}${briefLine}${iconLine}Look: "${w.title}" — ${w.eyebrow}. The ${wearer} wears the complete outfit: ${String(w.outfit || '').trim().replace(/\.$/, '')}. Soft natural light, luxury campaign aesthetic.`,
         });
 
         const makeCall = attempt => ai.models.generateContent({
@@ -921,17 +929,24 @@ Dress her for this exact day, start to finish, through the four architectural st
     const allNames = flat.map(f => f.item.name).join(', ');
     const scene = [parsed.occasion_label ? parsed.occasion_label.toLowerCase() : '', rtContext?.city].filter(Boolean).join(' in ');
     (async () => {
+      // The anchor's full-look frame wears her model when she has one —
+      // still-lifes stay garment-only (no figure to condition).
+      const avatarRef = g === 'man' ? null : await avatarRefForUser(req.body.avatarId, req.body.userId);
       for (let i = 0; i < flat.length; i++) {
         if (i > 0) await new Promise(r => setTimeout(r, 3000));
         const { stepTitle, item } = flat[i];
-        const imgPrompt = stepTitle === 'The Anchor'
-          ? `PORTRAIT ORIENTATION ONLY. Single editorial fashion photograph — one ${wearerNoun(g)}, alone, one scene, no collage, no split panels, no text overlays. ${FULL_BODY_FRAME} ${styleIconsImageLine(styleIcons)}${wearerWears(g)} the complete outfit: ${allNames}. The ${item.name} leads the frame. ${scene ? `Setting: ${scene}. ` : ''}Soft natural light, luxury campaign aesthetic.`
+        const anchorFrame = stepTitle === 'The Anchor';
+        const imgPrompt = anchorFrame
+          ? `PORTRAIT ORIENTATION ONLY. Single editorial fashion photograph — one ${wearerNoun(g)}, alone, one scene, no collage, no split panels, no text overlays. ${avatarRef ? AVATAR_IDENTITY : ''}${FULL_BODY_FRAME} ${styleIconsImageLine(styleIcons)}${wearerWears(g)} the complete outfit: ${allNames}. The ${item.name} leads the frame. ${scene ? `Setting: ${scene}. ` : ''}Soft natural light, luxury campaign aesthetic.`
           : `Editorial still-life photograph of a single ${item.name}${item.brand ? ' by ' + item.brand : ''} — ${item.description || ''}. The garment styled alone on a neutral cream-linen surface, soft daylight, quiet luxury catalogue aesthetic. No model, no text, no collage, one item only.`;
+        const imgParts = anchorFrame && avatarRef
+          ? [{ inlineData: { mimeType: avatarRef.mimeType, data: avatarRef.data } }, { text: imgPrompt }]
+          : [{ text: imgPrompt }];
         try {
           const r = await Promise.race([
             ai.models.generateContent({
               model: 'gemini-3.1-flash-image',
-              contents: [{ role: 'user', parts: [{ text: imgPrompt }] }],
+              contents: [{ role: 'user', parts: imgParts }],
               config: { responseModalities: ['TEXT', 'IMAGE'] },
             }),
             new Promise(resolve => setTimeout(() => resolve(null), 50000)),
@@ -2811,6 +2826,30 @@ async function avatarCellEnsure(id) {
   }
   return null;
 }
+
+// Resolve the wearer's model for any generation surface: an explicit
+// avatarId in the body wins, else her profile's avatar_id (service key;
+// needs migration 20). Returns the reference image ready for an inlineData
+// part, or null — callers degrade to today's generic model on null.
+async function avatarRefForUser(avatarId, userId) {
+  let aid = parseAvatarId(avatarId) ? avatarId : null;
+  if (!aid && SUPA_SERVICE_KEY && /^[0-9a-f][0-9a-f-]{10,}$/i.test(String(userId || ''))) {
+    try {
+      const r = await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=avatar_id`, {
+        headers: { apikey: SUPA_SERVICE_KEY, Authorization: 'Bearer ' + SUPA_SERVICE_KEY },
+      });
+      if (r.ok) {
+        const rows = await r.json();
+        if (rows[0] && parseAvatarId(rows[0].avatar_id)) aid = rows[0].avatar_id;
+      }
+    } catch (e) { /* generic model stands */ }
+  }
+  if (!aid) return null;
+  const cellUrl = await avatarCellEnsure(aid);
+  return cellUrl ? await fetchCloudinaryB64(cellUrl) : null;
+}
+// The identity lock for look frames: same woman, new scene every time.
+const AVATAR_IDENTITY = 'The FIRST image is her — the model. Keep the SAME woman: identical face, hair, skin tone and figure; a faithful likeness of the first image. Ignore the first image\'s plain clothing and studio backdrop entirely — dress her in the look described and place her in a real setting that suits the occasion. ';
 
 app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
   const { avatarId, pieces } = req.body;
