@@ -2295,6 +2295,10 @@ app.get('/privacy', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'privacy.html'));
 });
 
+app.get('/specimen', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'specimen.html'));
+});
+
 const ANALYSE_SCHEMA = {
   type: 'object',
   properties: {
