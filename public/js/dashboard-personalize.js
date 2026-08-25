@@ -10334,6 +10334,11 @@
         _lkTitleDraft = null; _lkTitleTouched = false; _lkTitleEditing = false; _lkRetro = false;
         _lkEditMode = false;   // every look opens READING (1c)
         _lkPaint();
+        // Looks saved before the render pipeline (or before her model was
+        // kept) render on their next open — bounded backfill: only looks she
+        // actually opens, once per composition (the render_key cache no-ops
+        // the rest). The hero swaps in live when the photograph lands.
+        _avRenderKick(_lkFind(id));
         _rbTrack('look_opened', {});
       };
       window.__lkBack = function() {
