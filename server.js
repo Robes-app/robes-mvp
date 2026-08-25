@@ -2859,25 +2859,41 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 6 }), async (r
         }
       }
       const prompt =
-        'IMAGE 1 is her — the model. Keep the SAME woman: identical face, hair, skin tone and figure; a faithful likeness of IMAGE 1. ' +
+        'Create one photorealistic editorial photograph. IMAGE 1 is her — the model. Keep the SAME woman: identical face, hair, skin tone and figure; a faithful likeness of IMAGE 1. ' +
         'Dress her in this complete outfit — every listed piece worn together, nothing substituted, nothing extra beyond simple essentials:\n' +
         lines.join('\n') + '\n' +
-        `Standing naturally, facing the camera. ${FULL_BODY_FRAME} ${AVATAR_STUDIO}`;
+        `Standing naturally, facing the camera. ${FULL_BODY_FRAME} ${AVATAR_STUDIO} Generate the single photograph now.`;
       parts.push({ text: prompt });
 
+      // Three attempts with widening backoff — a demand spike returns text
+      // ("has_image": false) or a 503 rather than a frame, and one 8s retry
+      // proved too polite for it in live testing (2026-08-25).
       let url = null;
-      for (let attempt = 0; attempt < 2 && !url; attempt++) {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 8000));
-        const r = await Promise.race([
-          ai.models.generateContent({
-            model: 'gemini-3.1-flash-image',
-            contents: [{ role: 'user', parts }],
-            config: { responseModalities: ['TEXT', 'IMAGE'] },
-          }),
-          new Promise(resolve => setTimeout(() => resolve(null), 60000)),
-        ]);
+      for (let attempt = 0; attempt < 3 && !url; attempt++) {
+        if (attempt === 1) await new Promise(r => setTimeout(r, 8000));
+        if (attempt === 2) await new Promise(r => setTimeout(r, 20000));
+        let r = null;
+        try {
+          r = await Promise.race([
+            ai.models.generateContent({
+              model: 'gemini-3.1-flash-image',
+              contents: [{ role: 'user', parts }],
+              config: { responseModalities: ['TEXT', 'IMAGE'] },
+            }),
+            new Promise(resolve => setTimeout(() => resolve(null), 60000)),
+          ]);
+        } catch (err) {
+          logAI({ feature: 'avatar_render', avatarId, attempt, success: false, reason: err.message });
+          continue;
+        }
         const part = r?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-        if (!part?.inlineData) { logAI({ feature: 'avatar_render', avatarId, attempt, success: false, reason: r ? 'no_inline_data' : 'timeout_60s' }); continue; }
+        if (!part?.inlineData) {
+          // When the model answers with prose instead of a frame, the prose
+          // is the diagnosis — surface it in the Railway logs.
+          const said = r?.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
+          logAI({ feature: 'avatar_render', avatarId, attempt, success: false, reason: r ? 'no_inline_data' : 'timeout_60s', said: said ? String(said).slice(0, 200) : undefined });
+          continue;
+        }
         url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
         if (!url) logAI({ feature: 'avatar_render', avatarId, attempt, success: false, reason: 'cloudinary_failed' });
       }

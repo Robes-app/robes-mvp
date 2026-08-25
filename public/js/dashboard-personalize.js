@@ -8578,18 +8578,28 @@
           .catch(() => { _avId = _avLocalId(); cb(_avId); });   // column missing pre-migration-20
       }
       function _avRenderKick(l) {
-        if (!l || (l.pieces || []).length < 2) return;
+        if (!l || ((l.pieces || []).length + (l.proposals || []).length) < 2) return;
         if (_avBusy[l.id]) return;
         if (typeof _rbGender === 'function' && _rbGender() === 'man') return;   // no men's catalog yet — the mosaic stands
         _avFetchId(function(avatarId) {
           if (!avatarId) return;
-          const key = avatarId + '|' + (l.pieces || []).map(p => String(p.id)).sort().join(',');
+          // A Robes build's proposals render too — their generated stills
+          // ride as references, so an aspirational look (1 yours, 3 to
+          // find) still gets her photograph.
+          const props = (l.proposals || []).map(pr => {
+            const o = (pr && pr.opts && pr.opts[pr.oi || 0]) || {};
+            if (!o.name) return null;
+            const still = (pr.img_oi == null || pr.img_oi === (pr.oi || 0)) ? _pdHttp(pr.image_url) : null;
+            return { name: o.name, category: (pr.cats && pr.cats[0]) || pr.chip || '', color: '', brand: o.brand || '', image_url: still };
+          }).filter(Boolean);
+          const key = avatarId + '|' + (l.pieces || []).map(p => String(p.id)).sort().join(',') +
+            (props.length ? '|p:' + props.map(o => o.name).sort().join('~') : '');
           if (l.render_key === key && l.render_url) return;
           const garments = (l.pieces || []).map(p => {
             const wi = (_waItems || []).find(w => String(w.id) === String(p.id));
             return wi ? { name: wi.label, category: wi.category, color: wi.color, brand: wi.brand, image_url: _pdHttp(wi.image_url) } : null;
-          }).filter(Boolean);
-          if (garments.length < 2) return;
+          }).filter(Boolean).concat(props);
+          if (garments.length < 2 || garments.length > 12) return;
           _avBusy[l.id] = true;
           fetch('/api/avatar/render', {
             method: 'POST',
@@ -9665,7 +9675,11 @@
         const props = Array.isArray(l.proposals) ? l.proposals : [];
         const lkTagsRow = _rbTagsRowHtml(_lkTagsOf(l), '__lkTagsEdit');
         let lookPanel;
-        if (props.length) {
+        // Once her model wears the look, the RENDER leads even on a saved
+        // build — the rack beneath still carries every proposal. Only a
+        // true render outranks the build mosaic: a zero-owned build's
+        // photo_url is its lead still, which belongs IN the mosaic.
+        if (props.length && !_pdHttp(l.render_url)) {
           const propBoard = props.map((row, i) => {
             const a = row.opts[row.oi] || {};
             return {

@@ -55,6 +55,10 @@ const wardrobe = () => PIECES.map((p, i) => ({
 }));
 const SEED_LOOKS = [{ id: 'lk-1', user_id: 'u-test', name: 'The Thursday one', name_provisional: false,
   note: '', photo_url: null, source: 'wear', origin_look_id: null,
+  // one Robes proposal beside the owned pieces — its still must ride the render
+  proposals: [{ role: 'The Texture', chip: 'Jacket', cats: ['Outerwear'], oi: 0,
+    opts: [{ name: 'Taupe suede jacket', brand: 'All Saints' }],
+    image_url: 'https://res.cloudinary.com/demo/image/upload/prop1.jpg' }],
   created_at: '2026-07-20T10:00:00Z', updated_at: '2026-07-20T10:00:00Z' }];
 const SEED_PIECES = [
   { look_id: 'lk-1', wardrobe_item_id: 'w-top1', slot: 'Top', position: 0 },
@@ -117,7 +121,8 @@ await page.waitForTimeout(800);
 ok(renderPosts.length === 1, 'opening the look kicks ONE render', 'got ' + renderPosts.length);
 const post = renderPosts[0] || {};
 ok(post.avatarId === 'w-s2-h0-hg', 'the POST carries her avatar_id', String(post.avatarId));
-ok(Array.isArray(post.pieces) && post.pieces.length === 3, 'all three pieces resolve', JSON.stringify(post.pieces || []).slice(0, 120));
+ok(Array.isArray(post.pieces) && post.pieces.length === 4, 'three owned pieces + the proposal resolve', JSON.stringify(post.pieces || []).slice(0, 160));
+ok(post.pieces && post.pieces.some(g => g.name === 'Taupe suede jacket' && /prop1\.jpg/.test(g.image_url || '')), 'the proposal rides with its generated still');
 ok(post.pieces && post.pieces[0] && /res\.cloudinary\.com/.test(post.pieces[0].image_url || ''), 'garment photos ride along');
 
 await page.waitForTimeout(5000);   // poller ticks at 4s
@@ -127,9 +132,9 @@ const l = await page.evaluate(() => {
   return arr.find(x => x.id === 'lk-1') || null;
 });
 ok(l && l.render_url === 'https://res.cloudinary.com/demo/image/upload/render1.jpg', 'the render patches onto the look', l && l.render_url);
-ok(l && l.render_key === 'w-s2-h0-hg|w-bot1,w-sho1,w-top1', 'render_key = avatar | sorted pieces', l && l.render_key);
+ok(l && l.render_key === 'w-s2-h0-hg|w-bot1,w-sho1,w-top1|p:Taupe suede jacket', 'render_key = avatar | pieces | proposals', l && l.render_key);
 const patched = patches.find(p => p.render_url);
-ok(!!patched && patched.render_key === 'w-s2-h0-hg|w-bot1,w-sho1,w-top1', 'the cloud PATCH carries render_url + render_key');
+ok(!!patched && patched.render_key === 'w-s2-h0-hg|w-bot1,w-sho1,w-top1|p:Taupe suede jacket', 'the cloud PATCH carries render_url + render_key');
 const hero = await page.evaluate(() => {
   const img = document.querySelector('#rb-lk-body img');
   return img ? img.getAttribute('src') : null;
