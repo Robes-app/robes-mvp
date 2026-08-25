@@ -8336,6 +8336,7 @@
             byId[l.id] = {
               id: l.id, name: l.name || '', name_provisional: !!l.name_provisional,
               note: l.note || '', photo_url: l.photo_url || null,
+              render_url: l.render_url || null, render_key: l.render_key || null,
               proposals: Array.isArray(l.proposals) ? l.proposals : null,
               source: l.source || 'wear', origin_look_id: l.origin_look_id || null,
               created_at: l.created_at, pieces: [], wears: [],
@@ -8501,19 +8502,31 @@
           _lkGuard(e, 'pieces');
         });
       }
+      // looks.render_url/render_key arrive with migration 21 — until it
+      // runs, PGRST204 strips them and the render lives in the local cache.
+      var _lkRenderCol = true;
       function _lkPatchCloud(l, patch) {
         if (_lkDown || !_waUid()) return;
         const body = Object.assign({ updated_at: new Date().toISOString() }, patch);
         if (!_lkPropCol) delete body.proposals;
+        if (!_lkRenderCol) { delete body.render_url; delete body.render_key; }
         _waFetch('PATCH', 'looks?id=eq.' + l.id + '&user_id=eq.' + _waUid(), body)
           .catch(e => {
             const t = String(e && e.message || e);
-            if (/PGRST204/.test(t) && /proposals/.test(t)) {
-              _lkPropCol = false;
+            const retryWithout = keys => {
               const retry = Object.assign({}, body);
-              delete retry.proposals;
+              keys.forEach(k => delete retry[k]);
               _waFetch('PATCH', 'looks?id=eq.' + l.id + '&user_id=eq.' + _waUid(), retry)
                 .catch(e2 => _lkGuard(e2, 'patch'));
+            };
+            if (/PGRST204/.test(t) && /proposals/.test(t)) {
+              _lkPropCol = false;
+              retryWithout(['proposals']);
+              return;
+            }
+            if (/PGRST204/.test(t) && /render_url|render_key/.test(t)) {
+              _lkRenderCol = false;
+              retryWithout(['render_url', 'render_key']);
               return;
             }
             _lkGuard(e, 'patch');
@@ -8526,7 +8539,81 @@
         _lkCacheWrite();
         _lkPatchCloud(l, patch);
         if (pieces) _lkPiecesCloud(l);
+        if (pieces) _avRenderKick(l);   // composition changed → her model re-wears it
         return l;
+      }
+
+      // ── Her model wears the look (avatar render, proposal §3.4) ────────
+      // One render per saved composition: at _lkCreate and on a pieces
+      // patch. Cache key = avatar_id | sorted piece ids — an unchanged
+      // composition never re-renders. Display ladder everywhere a look
+      // draws: render_url → photo_url → mosaic (_lkHeroUrl).
+      function _lkHeroUrl(l) { return _pdHttp(l && l.render_url) || _pdHttp(l && l.photo_url) || null; }
+      var _avId = undefined;          // undefined = not fetched; null = no kept model
+      var _avBusy = {};               // look id → true while a render is in flight
+      var _AV_FIG_KEYS = { 'Hourglass': 'hg', 'Pear / Triangle': 'pe', 'Pear': 'pe', 'Rectangle': 're', 'Inverted Triangle': 'it', 'Apple / Round': 'ap', 'Apple': 'ap' };
+      // Fallback mapper for the pre-migration-20 window — mirrors
+      // stylenotes.html's mvModelId (kept prefs always carry resolved
+      // skin/hair indices; the figure key derives from style_dna).
+      function _avLocalId() {
+        try {
+          const raw = localStorage.getItem('rb_model__' + _waUid());
+          if (!raw) return null;
+          const p = JSON.parse(raw);
+          if (!p || !p.kept) return null;
+          const dna = _rbStyleDna() || {};
+          const bt = dna.silhouette_proportions && dna.silhouette_proportions.body_type;
+          let id = 'w-s' + (Number.isInteger(p.skin) ? p.skin : 3) + '-h' + (Number.isInteger(p.hair) ? p.hair : 1) + '-' + (_AV_FIG_KEYS[bt] || 'nt');
+          const n = p.nudges || {};
+          if (n.line) id += '-l' + String(n.line).toLowerCase();
+          if (n.frame) id += '-f' + String(n.frame).toLowerCase();
+          return id;
+        } catch (e) { return null; }
+      }
+      function _avFetchId(cb) {
+        if (_avId !== undefined) { cb(_avId); return; }
+        if (!_waUid()) { cb(null); return; }
+        _waFetch('GET', 'profiles?id=eq.' + _waUid() + '&select=avatar_id')
+          .then(rows => { _avId = (rows && rows[0] && rows[0].avatar_id) || _avLocalId(); cb(_avId); })
+          .catch(() => { _avId = _avLocalId(); cb(_avId); });   // column missing pre-migration-20
+      }
+      function _avRenderKick(l) {
+        if (!l || (l.pieces || []).length < 2) return;
+        if (_avBusy[l.id]) return;
+        if (typeof _rbGender === 'function' && _rbGender() === 'man') return;   // no men's catalog yet — the mosaic stands
+        _avFetchId(function(avatarId) {
+          if (!avatarId) return;
+          const key = avatarId + '|' + (l.pieces || []).map(p => String(p.id)).sort().join(',');
+          if (l.render_key === key && l.render_url) return;
+          const garments = (l.pieces || []).map(p => {
+            const wi = (_waItems || []).find(w => String(w.id) === String(p.id));
+            return wi ? { name: wi.label, category: wi.category, color: wi.color, brand: wi.brand, image_url: _pdHttp(wi.image_url) } : null;
+          }).filter(Boolean);
+          if (garments.length < 2) return;
+          _avBusy[l.id] = true;
+          fetch('/api/avatar/render', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ avatarId, pieces: garments, userId: _waUid(), genId: _rbGenId(), gender: _rbGender() }),
+          }).then(r => r.ok ? r.json() : null).then(function(out) {
+            if (!out || !out.jobId) { delete _avBusy[l.id]; return; }
+            _rbTrack('avatar_render', { pieces: garments.length });
+            const t0 = Date.now();
+            const tick = setInterval(function() {
+              if (Date.now() - t0 > 300000) { clearInterval(tick); delete _avBusy[l.id]; return; }
+              fetch('/api/images/' + out.jobId).then(r => r.ok ? r.json() : null).then(function(job) {
+                if (!job) { clearInterval(tick); delete _avBusy[l.id]; return; }
+                const url = job.images && job.images[0];
+                if (typeof url === 'string' && url.indexOf('http') === 0) {
+                  clearInterval(tick); delete _avBusy[l.id];
+                  _lkPatch(l.id, { render_url: url, render_key: key });
+                  if (_lkView !== 'new') _lkPaint();          // never disturb a half-built composer
+                  try { if (typeof _lkHomeSync === 'function') _lkHomeSync(); } catch (e) {}
+                } else if (job.done) { clearInterval(tick); delete _avBusy[l.id]; }
+              }).catch(function() {});
+            }, 4000);
+          }).catch(function() { delete _avBusy[l.id]; });
+        });
       }
       function _lkCreate(o) {
         const ids = o.pieces || [];
@@ -8554,6 +8641,7 @@
         _lkLooks.unshift(l);
         _lkCacheWrite();
         _lkPushCloud(l);
+        _avRenderKick(l);
         _rbTrack('look_created', { source: l.source, pieces: ids.length });
         return l;
       }
@@ -9204,7 +9292,7 @@
           provisional: l.name_provisional,
           vibe: _rbVibeLabel(_lkTagsOf(l)),
           cells: _ltCells(_lkPieceIds(l)),
-          photo: l.photo_url,
+          photo: _lkHeroUrl(l),
           // Wears lead — the card's job in a lookbook browsed by vibe is to
           // say how often this look actually gets worn. Zero wears is a
           // legitimate state and says so (E2), never hidden.
@@ -9601,11 +9689,11 @@
             rackLabel: 'The Rack',
             onFlip: '__lkDFlip', onSwap: '__lkDSwap',
           }, items).lookHtml;
-        } else if (l.photo_url) {
+        } else if (_lkHeroUrl(l)) {
           lookPanel = '<div class="rbc-panel"><div class="rbc-lhead">' +
             '<span class="lab">The look · ' + _lkN(ids.length, 'piece') + '</span><span class="robes">Robes</span></div>' +
             '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
-              '<img src="' + _waEsc(l.photo_url) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="' + _waEsc(l.name) + '"></div>' +
+              '<img src="' + _waEsc(_lkHeroUrl(l)) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="' + _waEsc(l.name) + '"></div>' +
             (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
             lkTagsRow +
             '</div>';
@@ -11257,7 +11345,7 @@
         const owned = (l.pieces || []).length;
         const props = Array.isArray(l.proposals) ? l.proposals.length : 0;
         const meta = _lkN(owned, 'piece') + ' yours' + (props ? ' · ' + props + ' borrowed' : '');
-        const photo = (typeof l.photo_url === 'string' && l.photo_url.indexOf('http') === 0) ? l.photo_url : null;
+        const photo = _lkHeroUrl(l);
         const img = photo
           ? '<img src="' + _waEsc(photo) + '" alt="">'
           : _ltMosaicHtml(_ltCells(_lkPieceIds(l)), { alt: l.name || 'Your look' });
@@ -16916,7 +17004,7 @@ body>*:not(#tv-result-page){display:none !important}
           items = (_lkLooks || []).map(l => ({
               id: l.id, look: true, title: l.name || 'A look', type: 'look',
               subtitle: _lkN((l.pieces || []).length, 'piece'),
-              img: (typeof l.photo_url === 'string' && l.photo_url.indexOf('http') === 0) ? l.photo_url : null,
+              img: _lkHeroUrl(l),
               // A saved Look's image IS its piece mosaic (the handoff rule:
               // every surface that draws a look composes _rbLookTile) — a
               // Look rarely has a photo_url, so without this the row drew
@@ -17244,7 +17332,7 @@ body>*:not(#tv-result-page){display:none !important}
         modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
         const tiles = looks.slice(0, 60).map(l => `
           <button onclick="window.__cbLookApply('${_waEsc(String(l.id))}')" style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:10px;padding:8px;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit">
-            ${lt.mosaic(lt.cells(_lkPieceIds(l)), { photo: l.photo_url || undefined, alt: l.name || 'Saved look' })}
+            ${lt.mosaic(lt.cells(_lkPieceIds(l)), { photo: _lkHeroUrl(l) || undefined, alt: l.name || 'Saved look' })}
             <div style="padding:7px 2px 2px;font-size:11.5px;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(l.name || 'A look')}</div>
           </button>`).join('');
         modal.innerHTML = `
@@ -19469,7 +19557,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
               <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px">` +
               looks.slice(0, 60).map(l => `
                 <button onclick="window.__mvWearPick('${date}','${_waEsc(String(l.id))}')" style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:10px;padding:8px;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit">
-                  ${lt.mosaic(lt.cells(_lkPieceIds(l)), { photo: l.photo_url || undefined, alt: l.name || 'Saved look' })}
+                  ${lt.mosaic(lt.cells(_lkPieceIds(l)), { photo: _lkHeroUrl(l) || undefined, alt: l.name || 'Saved look' })}
                   <div style="padding:7px 2px 2px;font-size:11.5px;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(l.name || 'A look')}</div>
                 </button>`).join('') + `</div>`
             : `${robesDoor}<p style="font-family:${serif};font-style:italic;font-size:16px;color:var(--ink-faint);margin:0 0 18px">Nothing in the Lookbook yet — looks are made there, then worn here.</p>

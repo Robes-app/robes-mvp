@@ -2692,6 +2692,207 @@ app.post('/api/stylenotes/tryon', rateLimit({ windowMs: 60_000, max: 6 }), async
   })();
 });
 
+/* ── avatar render — looks photographed on her model ─────────────────
+   Phase 2 of the avatar work (docs/avatar-render-proposal.md §3.4).
+   The avatar catalog's attribute space mirrors the client mapper in
+   stylenotes.html (MV_SKINS/MV_HAIRS/figure keys) — keep the two in sync.
+   Cells generate LAZILY: the first render that needs a cell generates its
+   reference image once, uploads to Cloudinary, and stores it in
+   avatar_cells (service key; in-process cache when the table/key is
+   missing). Renders re-feed that stored reference on every call — the
+   reference image IS the identity, never a re-description in text. */
+
+const AVATAR_SKIN_WORDS = [
+  'deep espresso brown', 'rich mahogany brown', 'warm chestnut brown', 'golden tan',
+  'warm honey beige', 'soft warm sand', 'light warm peach', 'fair cool porcelain',
+];
+const AVATAR_HAIR_WORDS = ['jet black', 'dark espresso brown', 'chestnut brown', 'golden caramel blonde', 'light ash blonde'];
+// Internal figure keys only — this vocabulary is prompt-side and never
+// reaches consumer copy (the "no body type language" rule is about the UI).
+const AVATAR_FIG_WORDS = {
+  hg: 'balanced figure with a clearly defined waist',
+  pe: 'figure with hips gently fuller than her shoulders',
+  re: 'straight athletic figure with a subtle waist',
+  it: 'figure with shoulders gently broader than her hips',
+  ap: 'soft rounded figure carrying fullness through the middle',
+  nt: 'balanced natural figure',
+};
+const AVATAR_NUDGE_WORDS = { ll: 'soft, curved lines', lr: 'long, straight lines', fl: 'a fuller frame', fr: 'a narrower, slighter frame' };
+
+function parseAvatarId(id) {
+  const m = /^w-s([0-7])-h([0-4])-(hg|pe|re|it|ap|nt)((?:-(?:ll|lr|fl|fr))*)$/.exec(String(id || ''));
+  if (!m) return null;
+  const nudges = (m[4] || '').split('-').filter(Boolean);
+  return { skin: Number(m[1]), hair: Number(m[2]), fig: m[3], nudges };
+}
+function avatarDescriptor(id) {
+  const c = parseAvatarId(id);
+  if (!c) return null;
+  let d = `She has ${AVATAR_SKIN_WORDS[c.skin]} skin, ${AVATAR_HAIR_WORDS[c.hair]} shoulder-length hair, and a ${AVATAR_FIG_WORDS[c.fig]}`;
+  const extras = c.nudges.map(n => AVATAR_NUDGE_WORDS[n]).filter(Boolean);
+  if (extras.length) d += ', with ' + extras.join(' and ');
+  return d + '.';
+}
+
+const AVATAR_STUDIO = 'Soft even daylight, clean warm-grey studio backdrop, photorealistic editorial photography, no text overlays, no collage, one single image.';
+
+async function fetchCloudinaryB64(url) {
+  if (typeof url !== 'string' || !/^https:\/\/res\.cloudinary\.com\//.test(url)) return null;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const buf = Buffer.from(await r.arrayBuffer());
+    return { data: buf.toString('base64'), mimeType: r.headers.get('content-type') || 'image/jpeg' };
+  } catch (e) { return null; }
+}
+
+const avatarCellCache = new Map(); // id → image_url (process-lifetime)
+
+async function avatarCellRead(id) {
+  if (avatarCellCache.has(id)) return avatarCellCache.get(id);
+  if (SUPA_SERVICE_KEY) {
+    try {
+      const r = await fetch(`${SUPA_URL}/rest/v1/avatar_cells?id=eq.${encodeURIComponent(id)}&select=image_url`, {
+        headers: { apikey: SUPA_SERVICE_KEY, Authorization: 'Bearer ' + SUPA_SERVICE_KEY },
+      });
+      if (r.ok) {
+        const rows = await r.json();
+        if (rows[0] && rows[0].image_url) { avatarCellCache.set(id, rows[0].image_url); return rows[0].image_url; }
+      }
+    } catch (e) { /* table may not exist yet — lazy generation covers it */ }
+  }
+  return null;
+}
+
+async function avatarCellWrite(id, url, descriptor) {
+  avatarCellCache.set(id, url);
+  if (!SUPA_SERVICE_KEY) return;
+  try {
+    await fetch(`${SUPA_URL}/rest/v1/avatar_cells?on_conflict=id`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPA_SERVICE_KEY, Authorization: 'Bearer ' + SUPA_SERVICE_KEY,
+        'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify({ id, image_url: url, descriptor }),
+    });
+  } catch (e) { /* in-process cache still holds it */ }
+}
+
+// Generate a cell's reference image (once per cell, ever). One retry after
+// an 8s pause — the same discipline as every other image path here.
+async function avatarCellEnsure(id) {
+  const have = await avatarCellRead(id);
+  if (have) return have;
+  const desc = avatarDescriptor(id);
+  if (!desc) return null;
+  const prompt = `Full-length editorial fashion photograph of one woman, alone — she is a recurring model and this is her reference portrait. ${desc} She wears a plain base layer: a simple fitted cream vest top and straight-leg mid-blue jeans with simple neutral flat shoes — no accessories, no patterns, no jewellery. Standing relaxed, facing the camera directly, arms at her sides, calm expression, hair naturally framing her face. ${FULL_BODY_FRAME} ${AVATAR_STUDIO}`;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 8000));
+    try {
+      const r = await Promise.race([
+        ai.models.generateContent({
+          model: 'gemini-3.1-flash-image',
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: { responseModalities: ['TEXT', 'IMAGE'] },
+        }),
+        new Promise(resolve => setTimeout(() => resolve(null), 50000)),
+      ]);
+      const part = r?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      if (!part?.inlineData) { logAI({ feature: 'avatar_cell', id, attempt, success: false, reason: r ? 'no_inline_data' : 'timeout_50s' }); continue; }
+      const url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+      if (!url) { logAI({ feature: 'avatar_cell', id, attempt, success: false, reason: 'cloudinary_failed' }); continue; }
+      await avatarCellWrite(id, url, desc);
+      logAI({ feature: 'avatar_cell', id, success: true });
+      return url;
+    } catch (err) {
+      logAI({ feature: 'avatar_cell', id, attempt, success: false, reason: err.message });
+    }
+  }
+  return null;
+}
+
+app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
+  const { avatarId, pieces } = req.body;
+  if (!parseAvatarId(avatarId)) return res.status(400).json({ error: 'bad avatarId' });
+  if (!Array.isArray(pieces) || pieces.length < 2 || pieces.length > 12) {
+    return res.status(400).json({ error: 'pieces must hold 2–12 entries' });
+  }
+  const clean = pieces.map(p => ({
+    name: String(p && p.name || '').slice(0, 120),
+    category: String(p && p.category || '').slice(0, 40),
+    color: String(p && p.color || '').slice(0, 40),
+    brand: String(p && p.brand || '').slice(0, 60),
+    image_url: typeof (p && p.image_url) === 'string' ? p.image_url : null,
+  })).filter(p => p.name);
+  if (clean.length < 2) return res.status(400).json({ error: 'pieces must be named' });
+
+  const jobId = randomBytes(6).toString('hex');
+  imageJobs.set(jobId, { images: [null], done: false, created: Date.now() });
+  res.json({ jobId, count: 1 });
+
+  const t0 = Date.now();
+  (async () => {
+    const finish = () => { const job = imageJobs.get(jobId); if (job) job.done = true; };
+    try {
+      const cellUrl = await avatarCellEnsure(avatarId);
+      if (!cellUrl) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'no_cell' }); return finish(); }
+      const avatar = await fetchCloudinaryB64(cellUrl);
+      if (!avatar) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'cell_fetch_failed' }); return finish(); }
+
+      // Garment references: up to 9 photographed pieces ride as images
+      // (1 avatar + 9 garments stays well inside the 14-reference budget);
+      // the rest are described in text.
+      const parts = [{ inlineData: { mimeType: avatar.mimeType, data: avatar.data } }];
+      const lines = [];
+      let imgN = 1;
+      for (const p of clean) {
+        const detail = [p.color, p.category].filter(Boolean).join(' ') + (p.brand ? ' by ' + p.brand : '');
+        let ref = null;
+        if (imgN < 10 && p.image_url) ref = await fetchCloudinaryB64(p.image_url);
+        if (ref) {
+          imgN += 1;
+          parts.push({ inlineData: { mimeType: ref.mimeType, data: ref.data } });
+          lines.push(`- IMAGE ${imgN}: the ${p.name}${detail ? ' (' + detail + ')' : ''} — reproduce this exact garment faithfully: its true colour, cut, fabric and details.`);
+        } else {
+          lines.push(`- the ${p.name}${detail ? ' (' + detail + ')' : ''}.`);
+        }
+      }
+      const prompt =
+        'IMAGE 1 is her — the model. Keep the SAME woman: identical face, hair, skin tone and figure; a faithful likeness of IMAGE 1. ' +
+        'Dress her in this complete outfit — every listed piece worn together, nothing substituted, nothing extra beyond simple essentials:\n' +
+        lines.join('\n') + '\n' +
+        `Standing naturally, facing the camera. ${FULL_BODY_FRAME} ${AVATAR_STUDIO}`;
+      parts.push({ text: prompt });
+
+      let url = null;
+      for (let attempt = 0; attempt < 2 && !url; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 8000));
+        const r = await Promise.race([
+          ai.models.generateContent({
+            model: 'gemini-3.1-flash-image',
+            contents: [{ role: 'user', parts }],
+            config: { responseModalities: ['TEXT', 'IMAGE'] },
+          }),
+          new Promise(resolve => setTimeout(() => resolve(null), 60000)),
+        ]);
+        const part = r?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        if (!part?.inlineData) { logAI({ feature: 'avatar_render', avatarId, attempt, success: false, reason: r ? 'no_inline_data' : 'timeout_60s' }); continue; }
+        url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+        if (!url) logAI({ feature: 'avatar_render', avatarId, attempt, success: false, reason: 'cloudinary_failed' });
+      }
+      if (url) {
+        const job = imageJobs.get(jobId);
+        if (job) job.images[0] = url;
+        logAI({ feature: 'avatar_render', avatarId, pieces: clean.length, refs: imgN - 1, success: true, ms: Date.now() - t0 });
+      }
+    } catch (err) {
+      logAI({ feature: 'avatar_render', avatarId, success: false, reason: err.message });
+    }
+    finish();
+  })();
+});
+
 /* ── moodboard ───────────────────────────────────────────────────── */
 app.post('/api/moodboard', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
   const { prompt, wardrobeItems = [], styleDna = null, styleIcons = [], gender } = req.body;
