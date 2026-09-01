@@ -98,47 +98,15 @@
             <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">Mobile number</span>
             <input id="acct-mobile" type="tel" value="${_acctEsc(prof.mobile)}" placeholder="+353..." style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:var(--rad-sm);padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
           </label>
-          <div style="margin-bottom:28px;border:1px solid rgba(32,32,33,0.12);border-radius:var(--rad-sm);background:#fff;overflow:hidden">
-            <button type="button" onclick="window.__acctGenderToggle()" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;background:none;border:none;padding:13px 14px;cursor:pointer;font-family:inherit">
-              <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64">How do you identify?</span>
-              <span style="display:flex;align-items:center;gap:8px"><span id="acct-gender-cur" style="font-size:13px;color:#202021"></span><span id="acct-gender-chev" style="font-size:10px;color:#6E6A64">▾</span></span>
-            </button>
-            <div id="acct-gender-body" style="display:none;padding:0 14px 14px">
-              <p style="font-size:12px;color:#6E6A64;margin:0 0 10px;line-height:1.5">Set once — every recommendation Robes makes follows it.</p>
-              <div id="acct-gender-opts" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-            </div>
-          </div>
+          <p style="font-size:12px;color:#6E6A64;margin:0 0 28px;line-height:1.5">How you identify now lives with your model — <a href="/stylenotes" style="color:#8E6A7C;text-decoration:underline">Style notes</a>.</p>
           <button onclick="window.__saveAcctDetails()" style="width:100%;height:48px;background:#202021;color:#fff;border:none;border-radius:var(--rad-sm);font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;font-weight:500">Save changes</button>
         </div>`;
       document.body.appendChild(acctModal);
       acctModal.addEventListener('click', (e) => { if (e.target === acctModal) acctModal.style.display = 'none'; });
 
-      // "How do you identify?" — collapsible because it's set once, then
-      // rarely revisited. 'woman' is the signup default (migration 13);
-      // 'unspecified' renders as "Prefer not to say".
-      const _acctGenderOpts = [['woman', 'Woman'], ['man', 'Man'], ['unspecified', 'Prefer not to say']];
-      const _acctGenderLabel = (v) => (( _acctGenderOpts.find(o => o[0] === v) || _acctGenderOpts[0])[1]);
-      window.__acctGender = _rbGender();
-      const _acctGenderPaint = () => {
-        const cur = document.getElementById('acct-gender-cur');
-        if (cur) cur.textContent = _acctGenderLabel(window.__acctGender);
-        const wrap = document.getElementById('acct-gender-opts');
-        if (!wrap) return;
-        wrap.innerHTML = _acctGenderOpts.map(([v, label]) => {
-          const on = v === window.__acctGender;
-          return '<button type="button" onclick="window.__acctGenderPick(\'' + v + '\')" style="border-radius:100px;padding:9px 16px;font-size:12.5px;cursor:pointer;font-family:inherit;color:#202021;border:1px solid ' + (on ? '#C9BCA6' : 'rgba(32,32,33,0.14)') + ';background:' + (on ? '#F3EFE6' : '#fff') + '">' + (on ? '<span style="margin-right:6px;color:#202021">✓</span>' : '') + label + '</button>';
-        }).join('');
-      };
-      window.__acctGenderToggle = () => {
-        const body = document.getElementById('acct-gender-body');
-        const chev = document.getElementById('acct-gender-chev');
-        if (!body) return;
-        const open = body.style.display !== 'none';
-        body.style.display = open ? 'none' : 'block';
-        if (chev) chev.textContent = open ? '▾' : '▴';
-      };
-      window.__acctGenderPick = (v) => { window.__acctGender = v; _acctGenderPaint(); };
-      _acctGenderPaint();
+      // "How do you identify?" moved OUT of this modal onto the Style notes
+      // model page (2026-09-01) — presence belongs with the model it shapes.
+      // The modal keeps a quiet pointer; _rbGender() stays the one reader.
 
       // Save handler — updates Supabase profiles
       window.__saveAcctDetails = async () => {
@@ -161,13 +129,7 @@
             last_name: document.getElementById('acct-last').value.trim(),
             mobile: document.getElementById('acct-mobile').value.trim()
           };
-          let res = await patch({ ...fields, gender_identity: window.__acctGender || 'woman' });
-          if (!res.ok) {
-            // gender_identity_migration.sql not run yet (PGRST204 unknown
-            // column) — save the rest rather than failing the whole form.
-            const errText = await res.text().catch(() => '');
-            if (errText.indexOf('gender_identity') !== -1) res = await patch(fields);
-          }
+          const res = await patch(fields);
           if (res.ok) {
             msgEl.style.color = '#7E7C5A';
             msgEl.textContent = 'Saved.';
@@ -178,7 +140,6 @@
               window.__robes_profile.first_name = newFirst;
               window.__robes_profile.last_name = document.getElementById('acct-last').value.trim();
               window.__robes_profile.mobile = document.getElementById('acct-mobile').value.trim();
-              window.__robes_profile.gender_identity = window.__acctGender || 'woman';
             }
             if (newFirst) {
               const avN = document.getElementById('av-name');
@@ -8563,7 +8524,8 @@
           if (!p || !p.kept) return null;
           const dna = _rbStyleDna() || {};
           const bt = dna.silhouette_proportions && dna.silhouette_proportions.body_type;
-          let id = 'w-s' + (Number.isInteger(p.skin) ? p.skin : 3) + '-h' + (Number.isInteger(p.hair) ? p.hair : 1) + '-' + (_AV_FIG_KEYS[bt] || 'nt');
+          const g = (p.gender === 'man' || p.gender === 'woman' || p.gender === 'unspecified') ? p.gender : _rbGender();
+          let id = (g === 'man' ? 'm' : 'w') + '-s' + (Number.isInteger(p.skin) ? p.skin : 3) + '-h' + (Number.isInteger(p.hair) ? p.hair : 1) + '-' + (_AV_FIG_KEYS[bt] || 'nt');
           const n = p.nudges || {};
           if (n.line) id += '-l' + String(n.line).toLowerCase();
           if (n.frame) id += '-f' + String(n.frame).toLowerCase();
@@ -8580,7 +8542,9 @@
       function _avRenderKick(l) {
         if (!l || ((l.pieces || []).length + (l.proposals || []).length) < 2) return;
         if (_avBusy[l.id]) return;
-        if (typeof _rbGender === 'function' && _rbGender() === 'man') return;   // no men's catalog yet — the mosaic stands
+        // The men's catalog is live (2026-09-01): a kept 'm-…' model renders
+        // exactly like a 'w-…' one — the server's prefix gate handles any
+        // stale opposite-gender id, so no client-side gender guard here.
         _avFetchId(function(avatarId) {
           if (!avatarId) return;
           // A Robes build's proposals render too — their generated stills

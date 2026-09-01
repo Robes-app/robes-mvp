@@ -512,11 +512,13 @@ Style this key piece three ways. Make each look genuinely distinct — different
     // rate limit (that is what left looks imageless); a failed frame gets
     // one retry after a pause long enough to clear a rate-limit window.
     (async () => {
-      // Her model wears every frame when she has one (avatar phase 3): the
-      // SAME woman across all three looks, only the scene changes with the
-      // occasion. Resolved inside the background job — the first-ever cell
-      // generates here and must never delay the text response.
-      const avatarRef = wearer === 'woman' ? await avatarRefForUser(req.body.avatarId, req.body.userId) : null;
+      // The kept model wears every frame when one exists (avatar phase 3):
+      // the SAME person across all three looks, only the scene changes with
+      // the occasion. Resolved inside the background job — the first-ever
+      // cell generates here and must never delay the text response. The
+      // wearer gates the catalog: a menswear brief on a woman's profile
+      // (or vice versa) falls through to the generic model.
+      const avatarRef = await avatarRefForUser(req.body.avatarId, req.body.userId, wearer);
       const results = ways.map(() => null);
       for (let i = 0; i < ways.length; i++) {
         if (i > 0) await new Promise(r => setTimeout(r, 3000));
@@ -929,9 +931,9 @@ Dress her for this exact day, start to finish, through the four architectural st
     const allNames = flat.map(f => f.item.name).join(', ');
     const scene = [parsed.occasion_label ? parsed.occasion_label.toLowerCase() : '', rtContext?.city].filter(Boolean).join(' in ');
     (async () => {
-      // The anchor's full-look frame wears her model when she has one —
+      // The anchor's full-look frame wears the kept model when one exists —
       // still-lifes stay garment-only (no figure to condition).
-      const avatarRef = g === 'man' ? null : await avatarRefForUser(req.body.avatarId, req.body.userId);
+      const avatarRef = await avatarRefForUser(req.body.avatarId, req.body.userId, g);
       for (let i = 0; i < flat.length; i++) {
         if (i > 0) await new Promise(r => setTimeout(r, 3000));
         const { stepTitle, item } = flat[i];
@@ -2732,18 +2734,32 @@ const AVATAR_FIG_WORDS = {
   ap: 'soft rounded figure carrying fullness through the middle',
   nt: 'balanced natural figure',
 };
+const AVATAR_FIG_WORDS_M = {
+  hg: 'balanced, athletic build with a defined waist',
+  pe: 'build carrying gentle fullness through the hips',
+  re: 'straight, lean build',
+  it: 'broad-shouldered build tapering to the waist',
+  ap: 'soft, rounded build carrying fullness through the middle',
+  nt: 'balanced natural build',
+};
 const AVATAR_NUDGE_WORDS = { ll: 'soft, curved lines', lr: 'long, straight lines', fl: 'a fuller frame', fr: 'a narrower, slighter frame' };
 
+// Cell id prefix: 'w' woman / 'm' man ('unspecified' rides the woman catalog,
+// mirroring today's render-surface behaviour). Legacy ids are all 'w-…'.
 function parseAvatarId(id) {
-  const m = /^w-s([0-7])-h([0-4])-(hg|pe|re|it|ap|nt)((?:-(?:ll|lr|fl|fr))*)$/.exec(String(id || ''));
+  const m = /^([wm])-s([0-7])-h([0-4])-(hg|pe|re|it|ap|nt)((?:-(?:ll|lr|fl|fr))*)$/.exec(String(id || ''));
   if (!m) return null;
-  const nudges = (m[4] || '').split('-').filter(Boolean);
-  return { skin: Number(m[1]), hair: Number(m[2]), fig: m[3], nudges };
+  const nudges = (m[5] || '').split('-').filter(Boolean);
+  return { gender: m[1] === 'm' ? 'man' : 'woman', skin: Number(m[2]), hair: Number(m[3]), fig: m[4], nudges };
 }
 function avatarDescriptor(id) {
   const c = parseAvatarId(id);
   if (!c) return null;
-  let d = `She has ${AVATAR_SKIN_WORDS[c.skin]} skin, ${AVATAR_HAIR_WORDS[c.hair]} shoulder-length hair, and a ${AVATAR_FIG_WORDS[c.fig]}`;
+  const man = c.gender === 'man';
+  const hairLine = man
+    ? `short ${AVATAR_HAIR_WORDS[c.hair]} hair`
+    : `long ${AVATAR_HAIR_WORDS[c.hair]} hair worn down`;
+  let d = `${man ? 'He' : 'She'} has ${AVATAR_SKIN_WORDS[c.skin]} skin, ${hairLine}, and a ${(man ? AVATAR_FIG_WORDS_M : AVATAR_FIG_WORDS)[c.fig]}`;
   const extras = c.nudges.map(n => AVATAR_NUDGE_WORDS[n]).filter(Boolean);
   if (extras.length) d += ', with ' + extras.join(' and ');
   return d + '.';
@@ -2761,9 +2777,18 @@ async function fetchCloudinaryB64(url) {
   } catch (e) { return null; }
 }
 
-const avatarCellCache = new Map(); // id → image_url (process-lifetime)
+const avatarCellCache = new Map(); // storage key → image_url (process-lifetime)
 
-async function avatarCellRead(id) {
+// The art direction of the cell imagery is versioned in the STORAGE key
+// only — avatar_id stays stable everywhere (profiles, render_key, the
+// client mapper) while a style bump quietly invalidates every cached
+// portrait. v2 = the SKIMS-register base layer (2026-09-01: skin-tone
+// seamless set, barefoot, hair down) that the model page now shows.
+const AVATAR_CELL_STYLE = 'v2';
+const avatarCellKey = (id) => id + '@' + AVATAR_CELL_STYLE;
+
+async function avatarCellRead(rawId) {
+  const id = avatarCellKey(rawId);
   if (avatarCellCache.has(id)) return avatarCellCache.get(id);
   if (SUPA_SERVICE_KEY) {
     try {
@@ -2779,7 +2804,8 @@ async function avatarCellRead(id) {
   return null;
 }
 
-async function avatarCellWrite(id, url, descriptor) {
+async function avatarCellWrite(rawId, url, descriptor) {
+  const id = avatarCellKey(rawId);
   avatarCellCache.set(id, url);
   if (!SUPA_SERVICE_KEY) return;
   try {
@@ -2796,12 +2822,28 @@ async function avatarCellWrite(id, url, descriptor) {
 
 // Generate a cell's reference image (once per cell, ever). One retry after
 // an 8s pause — the same discipline as every other image path here.
+// Concurrent asks for the same cell share one generation (the model page
+// and a look render can both want a fresh cell in the same breath).
+const avatarCellInflight = new Map(); // raw id → promise
 async function avatarCellEnsure(id) {
   const have = await avatarCellRead(id);
   if (have) return have;
+  if (avatarCellInflight.has(id)) return avatarCellInflight.get(id);
+  const p = avatarCellGenerate(id).finally(() => avatarCellInflight.delete(id));
+  avatarCellInflight.set(id, p);
+  return p;
+}
+async function avatarCellGenerate(id) {
   const desc = avatarDescriptor(id);
   if (!desc) return null;
-  const prompt = `Full-length editorial fashion photograph of one woman, alone — she is a recurring model and this is her reference portrait. ${desc} She wears a plain base layer: a simple fitted cream vest top and straight-leg mid-blue jeans with simple neutral flat shoes — no accessories, no patterns, no jewellery. Standing relaxed, facing the camera directly, arms at her sides, calm expression, hair naturally framing her face. ${FULL_BODY_FRAME} ${AVATAR_STUDIO}`;
+  const man = parseAvatarId(id).gender === 'man';
+  // The base layer is the SKIMS register: a seamless neutral set close to
+  // the skin tone, barefoot — so every garment later rendered onto the
+  // model reads against a near-nude ground, never against jeans.
+  const baseLayer = man
+    ? 'He wears a minimal fitted base layer in one soft neutral tone close to his skin — a plain fitted crew-neck T-shirt and plain fitted knee-length shorts — barefoot, no accessories, no jewellery, no logos, no patterns.'
+    : 'She wears a minimal seamless base layer in one soft neutral tone close to her skin — a fitted scoop-neck stretch tank top and matching fitted mid-thigh shorts, like a seamless shapewear set — barefoot, no accessories, no jewellery, no logos, no patterns.';
+  const prompt = `Full-length editorial fashion photograph of one ${man ? 'man' : 'woman'}, alone — a recurring model, and this is the reference portrait. ${desc} ${baseLayer} Standing relaxed, facing the camera directly, arms at ${man ? 'his' : 'her'} sides, calm expression${man ? '' : ', hair worn down, naturally framing her face'}. ${FULL_BODY_FRAME} ${AVATAR_STUDIO}`;
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, 8000));
     try {
@@ -2828,10 +2870,13 @@ async function avatarCellEnsure(id) {
 }
 
 // Resolve the wearer's model for any generation surface: an explicit
-// avatarId in the body wins, else her profile's avatar_id (service key;
+// avatarId in the body wins, else the profile's avatar_id (service key;
 // needs migration 20). Returns the reference image ready for an inlineData
 // part, or null — callers degrade to today's generic model on null.
-async function avatarRefForUser(avatarId, userId) {
+// `gender` (normalised) gates the catalog: a look styled for a man never
+// renders on a 'w-…' cell and vice versa — a stale opposite-prefix id
+// simply falls through to the generic model until the next keep.
+async function avatarRefForUser(avatarId, userId, gender) {
   let aid = parseAvatarId(avatarId) ? avatarId : null;
   if (!aid && SUPA_SERVICE_KEY && /^[0-9a-f][0-9a-f-]{10,}$/i.test(String(userId || ''))) {
     try {
@@ -2845,11 +2890,40 @@ async function avatarRefForUser(avatarId, userId) {
     } catch (e) { /* generic model stands */ }
   }
   if (!aid) return null;
+  const want = (gender === 'man' || gender === 'woman') ? gender : 'woman';
+  if (parseAvatarId(aid).gender !== want) return null;
   const cellUrl = await avatarCellEnsure(aid);
   return cellUrl ? await fetchCloudinaryB64(cellUrl) : null;
 }
-// The identity lock for look frames: same woman, new scene every time.
-const AVATAR_IDENTITY = 'The FIRST image is her — the model. Keep the SAME woman: identical face, hair, skin tone and figure; a faithful likeness of the first image. Ignore the first image\'s plain clothing and studio backdrop entirely — dress her in the look described and place her in a real setting that suits the occasion. ';
+// The identity lock for look frames: the same model, new scene every time.
+// Gender-neutral on purpose — the reference image itself carries the identity.
+const AVATAR_IDENTITY = 'The FIRST image is the model. Keep the SAME person: identical face, hair, skin tone and figure; a faithful likeness of the first image. Ignore the first image\'s plain base layer and studio backdrop entirely — dress the model in the look described and place them in a real setting that suits the occasion. ';
+
+/* The model page shows the cell itself (2026-09-01 — no more abstract
+   figure): POST {avatarId} → {url} when the cell already exists, else
+   {jobId} while it generates lazily (poll the standard GET /api/images/:jobId).
+   Cells are a shared catalog keyed by cell id, so anything generated while
+   she adjusts pre-fills the catalog for everyone. */
+app.post('/api/avatar/cell', rateLimit({ windowMs: 60_000, max: 20 }), async (req, res) => {
+  const { avatarId } = req.body;
+  if (!parseAvatarId(avatarId)) return res.status(400).json({ error: 'bad avatarId' });
+  const have = await avatarCellRead(avatarId);
+  if (have) return res.json({ url: have });
+  const jobId = randomBytes(6).toString('hex');
+  imageJobs.set(jobId, { images: [null], done: false, created: Date.now() });
+  res.json({ jobId });
+  (async () => {
+    try {
+      const url = await avatarCellEnsure(avatarId);
+      const job = imageJobs.get(jobId);
+      if (job) { if (url) job.images[0] = url; job.done = true; }
+    } catch (err) {
+      logAI({ feature: 'avatar_cell', id: avatarId, success: false, reason: err.message });
+      const job = imageJobs.get(jobId);
+      if (job) job.done = true;
+    }
+  })();
+});
 
 app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
   const { avatarId, pieces } = req.body;
@@ -2897,9 +2971,10 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 6 }), async (r
           lines.push(`- the ${p.name}${detail ? ' (' + detail + ')' : ''}.`);
         }
       }
+      const cellMan = parseAvatarId(avatarId).gender === 'man';
       const prompt =
-        'Create one photorealistic editorial photograph. IMAGE 1 is her — the model. Keep the SAME woman: identical face, hair, skin tone and figure; a faithful likeness of IMAGE 1. ' +
-        'Dress her in this complete outfit — every listed piece worn together, nothing substituted, nothing extra beyond simple essentials:\n' +
+        `Create one photorealistic editorial photograph. IMAGE 1 is the model. Keep the SAME ${cellMan ? 'man' : 'woman'}: identical face, hair, skin tone and figure; a faithful likeness of IMAGE 1. ` +
+        `Dress ${cellMan ? 'him' : 'her'} in this complete outfit — every listed piece worn together, nothing substituted, nothing extra beyond simple essentials:\n` +
         lines.join('\n') + '\n' +
         `Standing naturally, facing the camera. ${FULL_BODY_FRAME} ${AVATAR_STUDIO} Generate the single photograph now.`;
       parts.push({ text: prompt });

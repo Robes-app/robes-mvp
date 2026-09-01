@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 /*
  * Style Notes → Your Model harness — boots the real /stylenotes against a
- * Supabase stub and asserts the single-entry model page (design 2026-08-25):
- * two photograph steps, the live model rail, keep-after-close-up-alone,
- * the two-pair adjust sheet, the full-notes doors, Taste & budget as its
- * own #taste entry, and the pre-migration degrade.
+ * Supabase stub and asserts the single-entry model page (design 2026-08-25
+ * + the photographed-model iteration 2026-09-01): two photograph steps, the
+ * PHOTOGRAPHED model stage (the actual avatar cell, fetched via
+ * /api/avatar/cell), keep-after-close-up-alone, the presence row (gender
+ * lives here now, not in Account details), the by-hand path with no
+ * photographs, the male catalog (m-… ids), the adjust sheet, the
+ * full-notes doors, Taste & budget as its own #taste entry, and the
+ * pre-migration degrade.
  *
  *   npm i --no-save playwright && node scripts/stylenotes_model_harness.mjs
  *   (set CHROME_PATH if playwright's bundled build isn't installed)
@@ -58,9 +62,17 @@ async function open(vp, profile = 'empty', updateMode = 'ok', hash = '') {
   const ctx = await browser.newContext({ viewport: vp });
   const p = await ctx.newPage();
   const errs = [];
+  const cellPosts = [];
   p.on('pageerror', e => errs.push(String(e)));
   // the CDN copy must never overwrite the stub
   await p.route('**cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'application/javascript', body: '/* stubbed */' }));
+  // the photographed model: the cell endpoint answers instantly with a
+  // hosted URL, and the "Cloudinary" image itself is a 1px PNG
+  await p.route('**/api/avatar/cell', r => {
+    cellPosts.push(r.request().postDataJSON().avatarId);
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://res.cloudinary.com/x/image/upload/model-cell.jpg' }) });
+  });
+  await p.route('**res.cloudinary.com/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG }));
   await p.route('**nominatim.openstreetmap.org/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   await p.route('**api.open-meteo.com/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   await p.route('**/api/stylenotes/analyse', async route => {
@@ -102,26 +114,29 @@ async function open(vp, profile = 'empty', updateMode = 'ok', hash = '') {
   }, { profile, updateMode, COLOUR, COLOUR_DNA, SIL, SIL_DNA });
   await p.goto(`http://localhost:${PORT}/stylenotes${hash}`);
   await p.waitForTimeout(600);
-  return { ctx, p, errs };
+  return { ctx, p, errs, cellPosts };
 }
 
 for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
 
   console.log(`\n\x1b[1m== ${label} · empty profile — nothing read yet ==\x1b[0m`);
   {
-    const { ctx, p, errs } = await open(vp);
+    const { ctx, p, errs, cellPosts } = await open(vp);
     ok((await p.locator('.chapter-h1').first().innerText()).includes('Two photographs'), 'h1 reads Two photographs / One model');
     ok(await p.locator('#st1-result').isHidden(), 'no colour result yet');
     ok(await p.locator('#st2-result').isHidden(), 'no line result yet');
     ok(await p.locator('#mv-step2.dim').count() === 1, 'step 02 dims until the close-up reads');
     ok(await p.locator('#st2-btn.ghost').count() === 1, 'step 02 button is the ghost');
     ok((await p.locator('#st2-hint').innerText()) === 'After your close-up.', 'step 02 hint waits on the close-up');
-    ok(await p.locator('#mv-fig-empty').isVisible(), 'figure carries the she-starts line');
+    ok(await p.locator('#mv-fig-empty').isVisible(), 'figure carries the it-starts line');
     ok((await p.locator('#mv-fig').getAttribute('opacity')) === '0.22', 'figure is ghosted');
+    ok(await p.locator('.mv-photo').count() === 0, 'no model photograph before anything exists');
+    ok(cellPosts.length === 0, 'no cell request before anything exists');
     ok((await p.locator('#mv-fact-harmony').innerText()) === 'Reading', 'harmony fact pending');
     ok((await p.locator('#mv-status').innerText()) === 'Nothing yet.', 'status is Nothing yet');
-    ok(await p.locator('#mv-keep').isHidden(), 'no Keep her before any read');
-    ok(await p.locator('#mv-adjust').isHidden(), 'no adjust door before any read');
+    ok(await p.locator('#mv-keep').isHidden(), 'no Keep her before any read or choice');
+    ok(await p.locator('#mv-adjust').isVisible(), 'the by-hand door is open even before a read (2026-09-01)');
+    ok((await p.locator('#mv-adjust').innerText()) === 'Shape your model by hand', 'and reads Shape your model by hand');
     ok(await p.locator('#colour-sections').isHidden() && await p.locator('#sil-sections').isHidden(), 'full notes stay behind their doors');
     ok(await p.locator('#view-taste').isHidden(), 'taste view is not on this page');
     ok(!(await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), 'no horizontal overflow');
@@ -131,8 +146,14 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
 
   console.log(`\n\x1b[1m== ${label} · close-up read — keep her on colour ALONE ==\x1b[0m`);
   {
-    const { ctx, p, errs } = await open(vp, 'colour');
+    const { ctx, p, errs, cellPosts } = await open(vp, 'colour');
     ok(await p.locator('#st1-read').isVisible(), 'step 01 shows ✓ Read');
+    // THE STAGE IS THE PHOTOGRAPH (2026-09-01): the actual catalog cell
+    ok(await p.waitForSelector('.mv-photo', { timeout: 5000 }).then(() => true).catch(() => false), 'the model photograph lands on the stage');
+    ok(/model-cell\.jpg/.test(await p.locator('.mv-photo').getAttribute('src') || ''), 'and it is the cell the endpoint served');
+    ok(cellPosts.length > 0 && cellPosts[0] === 'w-s5-h1-nt', 'the cell asked for matches the resolved id, got ' + cellPosts[0]);
+    ok((await p.locator('#mv-caption').innerText()) === 'Sand · espresso hair', 'the stage caption names her colouring, got ' + await p.locator('#mv-caption').innerText());
+    ok(/keep her/i.test(await p.locator('#mv-keep').innerText()), 'the keep pill speaks as she does');
     ok((await p.locator('#st1-season').innerText()) === 'Soft Autumn', 'harmony names the season');
     ok(await p.locator('#st1-sw div').count() === 9, 'nine swatches in the reduced strip');
     ok((await p.locator('#st1-undertone').innerText()) === 'Neutral', 'undertone fact');
@@ -186,10 +207,13 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
 
     await p.locator('#mv-adjust').click(); await p.waitForTimeout(200);
     ok(await p.locator('#mv-sheet-wrap').isVisible(), 'adjust sheet opens');
+    ok(await p.locator('#mvs-presence button').count() === 3, 'presence row: Woman / Man / Prefer not to say (moved from Account details)');
+    ok(await p.locator('#mvs-presence button.on').count() === 1 && (await p.locator('#mvs-presence button.on').innerText()) === 'Woman', 'presence defaults to the profile value');
     ok(await p.locator('#mvs-skins button').count() === 8, 'eight skin tones');
     ok(await p.locator('#mvs-hairs button').count() === 5, 'five hair colours');
     ok(await p.locator('#mvs-nudges .mvs-nrow').count() === 2, 'TWO nudge pairs only (Longer/Shorter cut, decision 2026-08-25)');
     ok(!/Longer|Shorter/.test(await p.locator('#mvs-nudges').innerText()), 'no length nudge anywhere');
+    ok(/save her/i.test(await p.locator('#mv-sheet-save').innerText()), 'the sheet save pill speaks as she does');
 
     await p.locator('#mvs-skins button').first().click(); await p.waitForTimeout(150);
     ok((await p.locator('#mv-head').getAttribute('fill')) === '#3B2A22', 'picking a skin repaints the figure live');
@@ -201,6 +225,40 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(await p.locator('#mv-savedrow').isVisible(), 'and keeps her');
     const up = await p.evaluate(() => window.__updates.filter(u => u.avatar_id).pop());
     ok(up && /^w-s0-h1-hg-fr$/.test(up.avatar_id), 'avatar_id carries her picks + figure + nudge, got ' + (up && up.avatar_id));
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  console.log(`\n\x1b[1m== ${label} · presence — the male catalog ==\x1b[0m`);
+  {
+    const { ctx, p, errs, cellPosts } = await open(vp, 'colour');
+    await p.locator('#mv-adjust').click(); await p.waitForTimeout(200);
+    await p.locator('#mvs-presence button[data-v="man"]').click(); await p.waitForTimeout(250);
+    const gup = await p.evaluate(() => window.__updates.find(u => u.gender_identity));
+    ok(gup && gup.gender_identity === 'man', 'picking Man writes gender_identity IMMEDIATELY (identity, not styling)');
+    ok(/save him/i.test(await p.locator('#mv-sheet-save').innerText()), 'the sheet save pill flips to Save him');
+    await p.locator('#mv-sheet-save').click(); await p.waitForTimeout(400);
+    ok((await p.locator('#mv-status').innerText()).includes('He’s on file'), 'the status speaks as he does');
+    const up = await p.evaluate(() => window.__updates.filter(u => u.avatar_id).pop());
+    ok(up && /^m-s5-h1-nt$/.test(up.avatar_id), 'avatar_id lands on the MALE catalog (m- prefix), got ' + (up && up.avatar_id));
+    ok(up && up.avatar_prefs && up.avatar_prefs.gender === 'man', 'prefs carry the presence');
+    await p.waitForTimeout(1100);   // the photo refetch is debounced 900ms
+    ok(cellPosts.some(id => /^m-/.test(id)), 'the stage asks for the male cell, got ' + cellPosts.join(', '));
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  console.log(`\n\x1b[1m== ${label} · shaped by hand — no photograph at all ==\x1b[0m`);
+  {
+    const { ctx, p, errs } = await open(vp);
+    await p.locator('#mv-adjust').click(); await p.waitForTimeout(200);
+    ok(await p.locator('#mv-sheet-wrap').isVisible(), 'the sheet opens with nothing read');
+    await p.locator('#mvs-skins button').first().click(); await p.waitForTimeout(200);
+    ok(await p.locator('#mv-keep').isVisible(), 'a hand-shaped model becomes keepable without any photograph');
+    ok(/Shaped by hand/.test(await p.locator('#mv-status').innerText()), 'the status says shaped by hand');
+    await p.locator('#mv-sheet-save').click(); await p.waitForTimeout(300);
+    const up = await p.evaluate(() => window.__updates.filter(u => u.avatar_id).pop());
+    ok(up && /^w-s0-h1-nt$/.test(up.avatar_id), 'the by-hand keep writes a neutral-figure cell, got ' + (up && up.avatar_id));
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
     await ctx.close();
   }

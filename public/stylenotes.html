@@ -147,6 +147,11 @@
     .mv-figframe { width: 100%; aspect-ratio: 4/5; background: #F5F0E9; border: 1px solid var(--cream-300); border-radius: 2px; margin-top: 16px; position: relative; overflow: hidden; }
     .mv-figframe svg { position: absolute; inset: 0; width: 100%; height: 100%; }
     .mv-fig-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 34px; text-align: center; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.6; color: #B0A798; }
+    /* the photographed model — the actual catalog cell, layered over the
+       abstract figure (which survives only as the pre-photo ghost) */
+    .mv-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; animation: mvFadeIn 0.4s ease both; }
+    .mv-photo-busy { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); white-space: nowrap; font: 400 9.5px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); background: rgba(250,248,245,0.88); border: 1px solid var(--cream-300); border-radius: 100px; padding: 8px 14px; animation: rb-pulse 1.4s ease-in-out infinite; }
+    .mv-caption { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.5; color: #4F4A44; margin-top: 12px; }
     .mv-facts { display: flex; margin-top: 20px; border-top: 1px solid var(--cream-300); }
     .mv-facts > div { flex: 1; padding: 14px 0; }
     .mv-facts > div + div { border-left: 1px solid var(--cream-300); padding-left: 20px; }
@@ -302,6 +307,8 @@
       .mv-facts .k { font-size: 9px; letter-spacing: 0.2em; }
       .mv-facts .v { font-size: 15px; margin-top: 2px; }
       .mv-status { border-top: none; padding-top: 10px; font-size: 12.5px; }
+      .mv-photo-busy { font-size: 6.5px; padding: 5px 7px; letter-spacing: 0.1em; bottom: 6px; }
+      .mv-caption { font-size: 12px; margin-top: 4px; }
       .mv-ctas { grid-column: 1 / -1; margin-top: 4px; }
       .mv-slot-col .photo-slot { width: 88px; height: 118px; }
       .mv-step { gap: 16px; }
@@ -458,10 +465,11 @@
                   <rect id="mv-legs" x="87" y="196" width="26" height="54" fill="#E3DED4" opacity="0.9"></rect>
                 </g>
               </svg>
-              <div class="mv-fig-empty" id="mv-fig-empty">She starts the moment your first photograph reads.</div>
+              <div class="mv-fig-empty" id="mv-fig-empty">Your model starts the moment your first photograph reads — or shape them by hand.</div>
             </div>
             <div class="mv-meta">
               <div class="eyebrow-rose mv-ey-mob" style="margin-bottom:2px;">Your model</div>
+              <div class="mv-caption" id="mv-caption" hidden></div>
               <div class="mv-facts">
                 <div><div class="k">Harmony</div><div class="v pending" id="mv-fact-harmony">Reading</div></div>
                 <div><div class="k">Line</div><div class="v pending" id="mv-fact-line">Reading</div></div>
@@ -671,6 +679,13 @@
       </div>
       <div>
         <div class="mvs-axis-head">
+          <div class="eyebrow-rose">Presence</div>
+          <div class="mvs-axis-note">Every recommendation follows it</div>
+        </div>
+        <div class="mvs-nudges" id="mvs-presence" style="margin-top:16px;"></div>
+      </div>
+      <div>
+        <div class="mvs-axis-head">
           <div class="eyebrow-rose">Skin tone</div>
           <div class="mvs-axis-note">Warm to cool, deep to fair</div>
         </div>
@@ -722,6 +737,13 @@
        archetypes as INTERNAL keys only — never rendered in copy. */
     const MV_SKINS = ['#3B2A22','#5A3B2A','#7A5238','#95664A','#B78A63','#D0A47F','#E3BE9C','#F0D6BE'];
     const MV_HAIRS = ['#1B1614','#3A2A20','#6B4A2E','#A9793F','#CBAE87'];
+    // Display names for the stage caption only — colour words, never body
+    // words (the no-body-type-language rule holds on this page too).
+    const MV_SKIN_NAMES = ['Espresso','Mahogany','Chestnut','Golden','Honey','Sand','Peach','Porcelain'];
+    const MV_HAIR_NAMES = ['black','espresso','chestnut','caramel','ash blonde'];
+    // Presence moved here from Account details (2026-09-01) — the model IS
+    // where identity lives now. Values match profiles.gender_identity.
+    const MV_PRESENCE = [['woman','Woman'],['man','Man'],['unspecified','Prefer not to say']];
     const MV_NUDGES = [
       { key: 'line',  left: 'Softer', right: 'Straighter' },
       { key: 'frame', left: 'Fuller', right: 'Narrower' },
@@ -755,8 +777,10 @@
       spend: '€500–1,500',
       headshotUrl: null,
       fullLengthUrl: null,
-      // the model — null skin/hair means "propose from the analysis"
-      model: { skin: null, hair: null, nudges: {}, kept: false },
+      gender: 'woman',   // profiles.gender_identity, normalised at load
+      // the model — null skin/hair means "propose from the analysis";
+      // touched = she shaped the model by hand (a photograph is optional)
+      model: { skin: null, hair: null, nudges: {}, kept: false, gender: null, touched: false },
     };
 
     function esc(s) {
@@ -990,20 +1014,34 @@
         (st.styleDna && st.styleDna.silhouette_proportions && st.styleDna.silhouette_proportions.body_type);
       return (bt && MV_FIGS[bt]) || MV_FIG_NEUTRAL;
     }
+    function mvGender() {
+      const g = st.model.gender || st.gender;
+      return (g === 'man' || g === 'unspecified') ? g : 'woman';
+    }
+    const mvMan = () => mvGender() === 'man';
+    // she/he for the model's own strings — 'unspecified' rides the woman
+    // catalog, so its model speaks as she does.
+    const mvP = () => mvMan()
+      ? { She: 'He', she: 'he', her: 'his', him: 'him', hers: 'his', Shes: 'He’s' }
+      : { She: 'She', she: 'she', her: 'her', him: 'her', hers: 'hers', Shes: 'She’s' };
     function mvModelId() {
       const n = st.model.nudges || {};
-      let id = 'w-s' + mvSkinIdx() + '-h' + mvHairIdx() + '-' + mvFig().key;
+      let id = (mvMan() ? 'm' : 'w') + '-s' + mvSkinIdx() + '-h' + mvHairIdx() + '-' + mvFig().key;
       if (n.line) id += '-l' + n.line.toLowerCase();
       if (n.frame) id += '-f' + n.frame.toLowerCase();
       return id;
+    }
+    function mvChosen() {
+      return !!(st.model.touched || st.model.kept || st.model.skin != null || st.model.hair != null || st.model.gender);
     }
 
     function renderModel() {
       const hasColor = !!st.colour;
       const hasLine = !!st.sil;
-      const any = hasColor || hasLine;
+      const any = hasColor || hasLine || mvChosen();   // by-hand shaping counts (design 2026-09-01)
       const kept = !!st.model.kept;
       const n = st.model.nudges || {};
+      const P = mvP();
 
       // figure
       const fig = document.getElementById('mv-fig');
@@ -1038,22 +1076,35 @@
       fl.textContent = hasLine ? st.sil.body_type : 'Reading';
       fl.classList.toggle('pending', !hasLine);
 
+      // stage caption — colour words only, never body words
+      const cap = document.getElementById('mv-caption');
+      cap.hidden = !any;
+      if (any) cap.textContent = MV_SKIN_NAMES[mvSkinIdx()] + ' · ' + MV_HAIR_NAMES[mvHairIdx()] + ' hair';
+
       // status
       const status = document.getElementById('mv-status');
       let txt, cls = '';
-      if (kept) { txt = 'She’s on file. Every look you keep is one photograph of her wearing it.'; cls = 'kept'; }
-      else if (hasColor && hasLine) { txt = st.colour.season + ', ' + String(st.sil.body_type).toLowerCase() + '. This is her.'; }
-      else if (hasColor) { txt = 'Robes has your colouring. One more photograph gives her your line.'; }
-      else if (hasLine) { txt = 'Robes has your line. A close-up gives her your colouring.'; }
+      if (kept) { txt = P.Shes + ' on file. Every look you keep is one photograph of ' + P.him + ' wearing it.'; cls = 'kept'; }
+      else if (hasColor && hasLine) { txt = st.colour.season + ', ' + String(st.sil.body_type).toLowerCase() + '. This is ' + P.him + '.'; }
+      else if (hasColor) { txt = 'Robes has your colouring. One more photograph gives ' + P.him + ' your line.'; }
+      else if (hasLine) { txt = 'Robes has your line. A close-up gives ' + P.him + ' your colouring.'; }
+      else if (any) { txt = 'Shaped by hand. Add a photograph whenever you like — the model updates.'; }
       else { txt = 'Nothing yet.'; cls = 'empty'; }
       status.textContent = txt;
       status.className = 'mv-status' + (cls ? ' ' + cls : '');
 
-      // CTAs — she can be kept from the FIRST read (decision 2026-08-25:
-      // the close-up alone is enough; her line arrives silently later)
-      document.getElementById('mv-keep').hidden = !(any && !kept);
-      document.getElementById('mv-adjust').hidden = !any;
+      // CTAs — keepable from the FIRST read (decision 2026-08-25: the
+      // close-up alone is enough) OR from a by-hand shape with no photo at
+      // all (2026-09-01 — the male path and the photo-shy path both need it).
+      const keepBtn = document.getElementById('mv-keep');
+      keepBtn.hidden = !(any && !kept);
+      keepBtn.textContent = mvMan() ? 'Keep him' : 'Keep her';
+      const adjBtn = document.getElementById('mv-adjust');
+      adjBtn.hidden = false;   // the by-hand door is always open
+      adjBtn.textContent = any ? (mvMan() ? 'Not quite him?' : 'Not quite her?') : 'Shape your model by hand';
       document.getElementById('mv-savedrow').hidden = !kept;
+
+      mvPhotoSync(any);
     }
 
     /* keep + persistence — localStorage is the instant cache, the cloud
@@ -1062,7 +1113,7 @@
     const MV_LS = () => st.uid ? 'rb_model__' + st.uid : null;
     let _mvAvatarCols = true;
     async function mvPersist() {
-      const prefs = { skin: mvSkinIdx(), hair: mvHairIdx(), nudges: st.model.nudges || {}, kept: !!st.model.kept, v: 1 };
+      const prefs = { skin: mvSkinIdx(), hair: mvHairIdx(), nudges: st.model.nudges || {}, kept: !!st.model.kept, gender: st.model.gender || null, v: 2 };
       try { const k = MV_LS(); if (k) localStorage.setItem(k, JSON.stringify(prefs)); } catch (e) {}
       if (!st.uid || !_mvAvatarCols) return;
       const { error } = await sbClient.from('profiles')
@@ -1083,9 +1134,99 @@
     }
     document.getElementById('mv-keep').addEventListener('click', mvKeep);
 
+    /* ── The photographed model (2026-09-01) ─────────────────────────
+       The stage shows the ACTUAL avatar catalog cell — the reference
+       photograph the render pipeline dresses — not the abstract figure
+       (which survives only as the pre-photo ghost). Fetch is debounced so
+       flicking through swatches asks for one cell, not eight; a stale
+       response never lands (sequence guard); a failed fetch leaves the
+       ghost standing. Cells are permanent and shared, so a revisit is
+       instant. */
+    let _mvPhotoSeq = 0, _mvPhotoTimer = null, _mvPhotoShown = null, _mvPhotoPoll = null;
+    function mvPhotoBusy(on) {
+      const frame = document.getElementById('mv-figframe');
+      let chip = frame.querySelector('.mv-photo-busy');
+      if (on && !chip) {
+        chip = document.createElement('span');
+        chip.className = 'mv-photo-busy';
+        chip.textContent = 'Photographing…';
+        frame.appendChild(chip);
+      } else if (!on && chip) chip.remove();
+    }
+    function mvPhotoClear() {
+      _mvPhotoSeq++;
+      clearTimeout(_mvPhotoTimer);
+      clearInterval(_mvPhotoPoll);
+      _mvPhotoShown = null;
+      const frame = document.getElementById('mv-figframe');
+      const img = frame.querySelector('.mv-photo');
+      if (img) img.remove();
+      mvPhotoBusy(false);
+    }
+    function mvPhotoSync(any) {
+      if (!any) { mvPhotoClear(); return; }
+      const id = mvModelId();
+      if (id === _mvPhotoShown) return;
+      clearTimeout(_mvPhotoTimer);
+      _mvPhotoTimer = setTimeout(() => mvPhotoFetch(id), _mvPhotoShown || _mvPhotoSeq ? 900 : 0);
+    }
+    async function mvPhotoFetch(id) {
+      const seq = ++_mvPhotoSeq;
+      clearInterval(_mvPhotoPoll);
+      mvPhotoBusy(true);
+      const land = url => {
+        if (seq !== _mvPhotoSeq) return;
+        _mvPhotoShown = id;
+        const frame = document.getElementById('mv-figframe');
+        let img = frame.querySelector('.mv-photo');
+        if (!img) {
+          img = document.createElement('img');
+          img.className = 'mv-photo';
+          img.alt = 'Your model';
+          img.onerror = () => { img.remove(); _mvPhotoShown = null; };
+          frame.appendChild(img);
+        }
+        img.src = url;
+        mvPhotoBusy(false);
+      };
+      try {
+        const r = await fetch('/api/avatar/cell', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ avatarId: id }),
+        });
+        const out = r.ok ? await r.json() : null;
+        if (seq !== _mvPhotoSeq) return;
+        if (out && out.url) return land(out.url);
+        if (out && out.jobId) {
+          const t0 = Date.now();
+          _mvPhotoPoll = setInterval(async () => {
+            if (seq !== _mvPhotoSeq) { clearInterval(_mvPhotoPoll); return; }
+            if (Date.now() - t0 > 180000) { clearInterval(_mvPhotoPoll); mvPhotoBusy(false); return; }
+            try {
+              const jr = await fetch('/api/images/' + out.jobId);
+              const job = jr.ok ? await jr.json() : null;
+              if (seq !== _mvPhotoSeq) { clearInterval(_mvPhotoPoll); return; }
+              const url = job && job.images && job.images[0];
+              if (typeof url === 'string' && url.indexOf('http') === 0) { clearInterval(_mvPhotoPoll); land(url); }
+              else if (!job || job.done) { clearInterval(_mvPhotoPoll); mvPhotoBusy(false); }
+            } catch (e) { /* next tick retries until the ceiling */ }
+          }, 3500);
+        } else mvPhotoBusy(false);
+      } catch (e) {
+        if (seq === _mvPhotoSeq) mvPhotoBusy(false);
+      }
+    }
+
     /* the adjust sheet */
     function mvSheetPaint() {
       const skin = mvSkinIdx(), hair = mvHairIdx(), n = st.model.nudges || {};
+      const g = mvGender();
+      document.getElementById('mvs-presence').innerHTML =
+        '<div class="mvs-nrow">' + MV_PRESENCE.map(([v, label]) =>
+          '<button type="button" data-v="' + v + '" class="' + (v === g ? 'on' : '') + '">' + label + '</button>'
+        ).join('') + '</div>';
+      document.getElementById('mv-sheet-save').textContent = mvMan() ? 'Save him' : 'Save her';
       document.getElementById('mvs-skins').innerHTML = MV_SKINS.map((c, i) =>
         '<button type="button" data-i="' + i + '" class="' + (i === skin ? 'on' : '') + '" style="background:' + c + ';" aria-label="Skin tone ' + (i + 1) + '"></button>'
       ).join('');
@@ -1109,14 +1250,30 @@
     document.getElementById('mv-sheet-wrap').addEventListener('click', e => {
       if (e.target === document.getElementById('mv-sheet-wrap')) mvSheetClose();
     });
+    // Presence persists IMMEDIATELY on pick (unlike skin/hair, which are
+    // model styling and commit on Save) — it's identity, and every
+    // generation surface reads profiles.gender_identity from here on.
+    document.getElementById('mvs-presence').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const v = b.dataset.v;
+      if (v === mvGender()) return;
+      st.model.gender = v;
+      st.model.touched = true;
+      st.gender = v;
+      save({ gender_identity: v });
+      if (st.model.kept) mvPersist();   // a kept model re-files under the new catalog
+      mvSheetPaint(); renderModel();
+    });
     document.getElementById('mvs-skins').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
       st.model.skin = Number(b.dataset.i);
+      st.model.touched = true;
       mvSheetPaint(); renderModel();
     });
     document.getElementById('mvs-hairs').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
       st.model.hair = Number(b.dataset.i);
+      st.model.touched = true;
       mvSheetPaint(); renderModel();
     });
     document.getElementById('mvs-nudges').addEventListener('click', e => {
@@ -1126,6 +1283,7 @@
       n[key] = n[key] === v ? null : v;   // second tap clears the nudge
       if (!n[key]) delete n[key];
       st.model.nudges = n;
+      st.model.touched = true;
       mvSheetPaint(); renderModel();
     });
     document.getElementById('mv-sheet-save').addEventListener('click', () => {
@@ -1440,7 +1598,8 @@
         if (profile.annual_spend) st.spend = profile.annual_spend;
         if (profile.headshot_url) st.headshotUrl = profile.headshot_url;
         if (profile.full_length_url) st.fullLengthUrl = profile.full_length_url;
-        // her model: cloud prefs win, localStorage covers the pre-migration window
+        if (profile.gender_identity === 'man' || profile.gender_identity === 'unspecified') st.gender = profile.gender_identity;
+        // the model: cloud prefs win, localStorage covers the pre-migration window
         let prefs = profile.avatar_prefs && typeof profile.avatar_prefs === 'object' ? profile.avatar_prefs : null;
         if (!prefs) {
           try { const k = MV_LS(); const raw = k && localStorage.getItem(k); if (raw) prefs = JSON.parse(raw); } catch (e) {}
@@ -1451,6 +1610,8 @@
             hair: Number.isInteger(prefs.hair) ? prefs.hair : null,
             nudges: prefs.nudges && typeof prefs.nudges === 'object' ? prefs.nudges : {},
             kept: !!prefs.kept,
+            gender: (prefs.gender === 'man' || prefs.gender === 'woman' || prefs.gender === 'unspecified') ? prefs.gender : null,
+            touched: !!(prefs.kept || Number.isInteger(prefs.skin) || Number.isInteger(prefs.hair) || prefs.gender),
           };
         }
       }
