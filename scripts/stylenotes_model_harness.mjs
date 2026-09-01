@@ -179,12 +179,16 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(/adjust by hand/i.test(await p.locator('#mv-adjust').innerText()), 'the Adjust by hand pill is the way back in');
     ok(await p.locator('#mv-adjust svg').count() === 1, 'and carries the sliders glyph');
 
-    // the quiet door to the full colour notes
-    await p.locator('#st1-door').click(); await p.waitForTimeout(200);
-    ok(await p.locator('#colour-sections').isVisible(), 'colour door opens the full notes');
+    // the door slides the full colour notes in as a drawer
+    await p.locator('#st1-door').click(); await p.waitForTimeout(400);
+    ok(await p.locator('#mv-notes-wrap').isVisible(), 'the colour door opens the notes drawer');
+    ok(await p.locator('#colour-sections').isVisible(), 'with the full colour notes inside');
+    ok(/colour notes/i.test(await p.locator('#mvn-title').innerText()), 'the drawer titles itself Colour notes');
+    ok(/soft autumn/i.test(await p.locator('#mvn-ey').innerText()) && /one of twelve/i.test(await p.locator('#mvn-ey').innerText()), 'the drawer eyebrow carries the harmony name');
     ok(await p.locator('#palette-grid .g-6 div').count() === 18, 'full palette holds all eighteen');
-    await p.locator('#st1-door').click(); await p.waitForTimeout(100);
-    ok(await p.locator('#colour-sections').isHidden(), 'door closes again');
+    ok(await p.locator('#st1-result').isVisible(), 'the read card underneath stays put');
+    await p.locator('#mvn-close').click(); await p.waitForTimeout(200);
+    ok(await p.locator('#mv-notes-wrap').isHidden(), 'the Close pill closes the drawer');
 
     // AUTO-FILE: a read model files itself — no Keep tap anywhere
     const up = await p.evaluate(() => window.__updates.find(u => u.avatar_id));
@@ -209,10 +213,13 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(/read from your photographs/i.test(await p.locator('#mv-stage-ey').innerText()), 'stage eyebrow: read from your photographs');
     ok(/two photographs read/i.test(await p.locator('#mv-status').innerText()), 'the foot note says she is as close as she gets');
 
-    await p.locator('#st2-door').click(); await p.waitForTimeout(200);
-    ok(await p.locator('#sil-sections').isVisible(), 'line door opens the full line notes');
-    ok(await p.locator('#trait-grid .trait-row').count() === 2, 'traits render inside the notes');
-    await p.locator('#st2-door').click();
+    await p.locator('#st2-door').click(); await p.waitForTimeout(400);
+    ok(await p.locator('#mv-notes-wrap').isVisible(), 'the line door opens the notes drawer');
+    ok(await p.locator('#sil-sections').isVisible() && await p.locator('#colour-sections').isHidden(), 'holding the line notes alone');
+    ok(/line notes/i.test(await p.locator('#mvn-title').innerText()), 'titled Line notes');
+    ok(await p.locator('#trait-grid .trait-row').count() === 2, 'traits render inside the drawer');
+    await p.locator('#mv-notes-wrap').click({ position: { x: 8, y: 8 } }); await p.waitForTimeout(200);
+    ok(await p.locator('#mv-notes-wrap').isHidden(), 'clicking the scrim closes it');
 
     await p.locator('#mv-adjust').click(); await p.waitForTimeout(200);
     ok(await p.locator('#mv-shape-rows').isVisible(), 'Adjust by hand unfolds the spec rows');

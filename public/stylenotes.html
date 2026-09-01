@@ -180,6 +180,34 @@
     .mv-build { flex: none; white-space: nowrap; background: var(--ink); color: var(--cream); border: 1px solid var(--ink); border-radius: 100px; padding: 15px 38px; font: 400 11.5px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; }
     .mv-status { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.5; color: #8A8378; }
 
+    /* the full-notes drawer — under the nav, over a whisper scrim */
+    #mv-notes-wrap { position: fixed; left: 0; right: 0; bottom: 0; top: var(--nav-h); z-index: 400;   /* above the mobile dock; the nav stays clear via the top offset */ background: rgba(32,32,33,0.08); animation: mvFadeIn 0.2s ease both; }
+    #mv-notes-wrap[hidden] { display: none; }
+    #mv-notes-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 660px; max-width: 100%; background: var(--cream); border-left: 1px solid var(--cream-300); box-shadow: -18px 0 50px rgba(32,32,33,0.08); display: flex; flex-direction: column; animation: mvnSlideIn 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+    @keyframes mvnSlideIn { from { transform: translateX(100%); } to { transform: none; } }
+    .mvn-grab { display: none; }
+    .mvn-head { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 26px 34px 18px; border-bottom: 1px solid var(--cream-300); }
+    .mvn-title { font-family: 'Cormorant', Georgia, serif; font-weight: 300; font-size: 32px; color: var(--ink); margin-top: 8px; }
+    .mvn-close { flex: none; background: none; border: 1px solid var(--cream-300); border-radius: 100px; padding: 9px 18px; cursor: pointer; font: 400 10px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); }
+    .mvn-close:hover { border-color: #C9BCA6; }
+    .mvn-body { flex: 1; overflow-y: auto; padding: 0 34px 40px; }
+    .mvn-body .mv-notes { margin-top: 0; }
+    /* the chapters were laid out for the full page — fold them to the 660px measure */
+    .mvn-body .g-side { grid-template-columns: 1fr; gap: 36px; }
+    .mvn-body .g-8, .mvn-body .g-7 { grid-template-columns: repeat(4, 1fr); }
+    .mvn-body .g-5 { grid-template-columns: repeat(3, 1fr); }
+    .mvn-body .g-4 { grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 767px) {
+      /* the original design's drawer: a tall bottom sheet with a grab bar */
+      #mv-notes-drawer { top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-height: calc(88dvh - env(safe-area-inset-bottom)); border-left: none; border-top: 1px solid var(--cream-300); border-radius: 14px 14px 0 0; animation: mvnSheetUp 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+      .mvn-grab { display: flex; justify-content: center; padding: 10px 0 0; }
+      .mvn-grab span { width: 44px; height: 4px; border-radius: 100px; background: #E1DACB; }
+      .mvn-head { padding: 12px 20px 12px; }
+      .mvn-title { font-size: 26px; margin-top: 7px; }
+      .mvn-body { padding: 0 20px calc(28px + env(safe-area-inset-bottom)); }
+    }
+    @keyframes mvnSheetUp { from { transform: translateY(100%); } to { transform: none; } }
+
     /* the photographed model — the actual catalog cell, layered over the
        abstract figure (which survives only as the pre-photo ghost) */
     @keyframes mvFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -480,7 +508,22 @@
         </div>
       </div>
 
-      <!-- Her full colour notes (the existing chapter, behind the quiet door) -->
+      <!-- The full notes drawer: 660px from the right under the nav on
+           desktop, the original design's bottom sheet on mobile. The read
+           card underneath stays put — the scrim is a whisper. -->
+      <div id="mv-notes-wrap" hidden>
+        <aside id="mv-notes-drawer" role="dialog" aria-label="Full notes">
+          <div class="mvn-grab"><span></span></div>
+          <div class="mvn-head">
+            <div>
+              <div class="mv2-ey" id="mvn-ey"></div>
+              <div class="mvn-title" id="mvn-title"></div>
+            </div>
+            <button class="mvn-close" id="mvn-close">Close</button>
+          </div>
+          <div class="mvn-body" id="mvn-body">
+
+      <!-- Her full colour notes (the existing chapter, inside the drawer) -->
       <div id="colour-sections" class="mv-notes" hidden>
 
         <section style="margin-top:48px;">
@@ -572,6 +615,10 @@
           <div class="g-5" style="margin-top:24px;gap:16px;" id="tips-grid"></div>
         </section>
 
+      </div>
+
+          </div>
+        </aside>
       </div>
     </div>
 
@@ -920,20 +967,33 @@
       renderModel();
     }
 
-    /* ── The quiet doors to the full notes ───────────────────────── */
+    /* ── The full-notes drawer (2026-09-01) — the doors slide it in
+       from the right (desktop) or up from the foot (mobile); the read
+       card underneath stays put, so she never loses her place. ── */
 
-    function wireDoor(btnId, secId, openLabel, closeLabel) {
-      const btn = document.getElementById(btnId);
-      const sec = document.getElementById(secId);
-      btn.addEventListener('click', () => {
-        const opening = sec.hidden;
-        sec.hidden = !opening;
-        btn.textContent = opening ? closeLabel : openLabel;
-        if (opening) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
+    function mvNotesOpen(kind) {
+      const colour = kind === 'colour';
+      document.getElementById('colour-sections').hidden = !colour;
+      document.getElementById('sil-sections').hidden = colour;
+      document.getElementById('mvn-ey').textContent = colour
+        ? (((st.colour && st.colour.season) || 'Your harmony') + ' \u00b7 one of twelve')
+        : (((st.sil && st.sil.body_type) || 'Your line') + ' \u00b7 one of five');
+      document.getElementById('mvn-title').textContent = colour ? 'Colour notes.' : 'Line notes.';
+      document.getElementById('mvn-close').textContent =
+        window.matchMedia('(max-width: 767px)').matches ? 'Done' : 'Close';
+      document.getElementById('mvn-body').scrollTop = 0;
+      document.getElementById('mv-notes-wrap').hidden = false;
     }
-    wireDoor('st1-door', 'colour-sections', 'Full colour notes →', 'Hide full colour notes');
-    wireDoor('st2-door', 'sil-sections', 'Full line notes →', 'Hide full line notes');
+    function mvNotesClose() { document.getElementById('mv-notes-wrap').hidden = true; }
+    document.getElementById('st1-door').addEventListener('click', () => mvNotesOpen('colour'));
+    document.getElementById('st2-door').addEventListener('click', () => mvNotesOpen('line'));
+    document.getElementById('mvn-close').addEventListener('click', mvNotesClose);
+    document.getElementById('mv-notes-wrap').addEventListener('click', e => {
+      if (e.target === document.getElementById('mv-notes-wrap')) mvNotesClose();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !document.getElementById('mv-notes-wrap').hidden) mvNotesClose();
+    });
 
     /* ── The model — mapping, figure, keep, adjust ───────────────── */
 
