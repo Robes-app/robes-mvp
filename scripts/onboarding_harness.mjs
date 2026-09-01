@@ -8,8 +8,11 @@
  *   (set CHROME_PATH if playwright's bundled build isn't installed)
  *
  * The rule it exists to protect: a skip must not survive an answer. Step 01
- * withdraws it once an icon is chosen, step 02 once a photo is attached, and
- * BOTH give it back — disarmed — if she empties the answer again.
+ * withdraws it once an archetype is picked OR an icon is chosen, step 02 once
+ * a photo is attached, and BOTH give it back — disarmed — if she empties the
+ * answer again. Since the archetype-first redesign (2026-09-01) step 01 also
+ * pins: descriptors print only on a selected card, and the pool seeds from
+ * her picked archetypes.
  */
 import { chromium } from 'playwright';
 import http from 'http';
@@ -80,16 +83,23 @@ async function open(vp, analyse = 'ok') {
 }
 
 for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
-  console.log(`\n\x1b[1m== ${label} · step 01 · Icons ==\x1b[0m`);
+  console.log(`\n\x1b[1m== ${label} · step 01 · Style (archetype first) ==\x1b[0m`);
   const { ctx, p, errs } = await open(vp);
   const skip = p.locator('#ob-skip');
 
-  ok(/Who do you/.test(await p.locator('.ob-title').innerText()), 'title reads "Who do you dress like?"');
+  ok((await p.locator('.ob-step').innerText()).trim().toLowerCase() === 'step 01 · style', 'step chip is Style');
+  ok(/Where does your/.test(await p.locator('.ob-title').innerText()), 'title reads "Where does your style sit?"');
+  ok(await p.locator('.ob-title em').count() === 1, 'title carries the serif-italic accent');
   ok((await p.locator('.ob-eyebrow').innerText()).trim().toLowerCase() === 'style', 'eyebrow');
-  ok(await p.getAttribute('#ic-input', 'placeholder') === 'Type a name — person or brand', 'empty placeholder');
-  ok((await p.locator('#ic-tally').innerText()) === 'Three is plenty to start', 'empty tally');
-  ok(await p.locator('.v1-selected-head').count() === 0, 'no second "Your icons" shelf');
-  ok(await p.locator('.v1-divider').count() === 0, 'no divider');
+  ok(await p.locator('.ob-count').count() === 0, 'no step count in the top bar');
+  ok(await p.locator('.ac-card').count() === 10, 'ten archetype cards');
+  ok(await p.locator('.ac-card.on').count() === 0, 'nothing selected at boot');
+  ok(await p.locator('.ac-desc').count() === 0, 'descriptors print ONLY on a selected card');
+  ok((await p.locator('.ic-refine-head .ob-label').innerText()).toLowerCase() === 'icons and brands', 'icons demoted to the refinement label');
+  const rb = await p.locator('.ic-refine').evaluate(el => getComputedStyle(el).borderTopStyle);
+  ok(rb === 'solid', 'refinement sits behind a hairline, got ' + rb);
+  ok(await p.getAttribute('#ic-input', 'placeholder') === 'Add the people and brands whose style inspire you', 'empty placeholder carries the invite copy');
+  ok((await p.locator('#ic-tally').innerText()) === '', 'tally empty at zero');
   ok((await p.locator('.v1-pool-head .ob-label').innerText()).toLowerCase() === 'or tap a popular one', 'pool label');
   ok(await p.locator('#ic-pool .chip-ghost').count() === 10, 'pool shows 10');
   ok((await p.locator('#ic-pool .chip-ghost .chip-plus').first().innerText()) === '+', 'pool chips carry +');
@@ -97,7 +107,20 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   // the field must actually have a border — the token cycle once killed every hairline
   const bs = await p.locator('#ic-field').evaluate(el => getComputedStyle(el).borderTopStyle);
   ok(bs === 'solid', 'field renders its hairline (token cycle regression), got ' + bs);
-  ok(await skip.isVisible(), 'skip visible at zero icons');
+  ok(await skip.isVisible(), 'skip visible with nothing selected');
+
+  // Archetype selection: descriptor prints, mark fills, skip withdraws.
+  await p.locator('.ac-card').first().click(); await p.waitForTimeout(150);
+  ok(await p.locator('.ac-card.on').count() === 1, 'card takes the selected state');
+  ok(/Clean lines/.test(await p.locator('.ac-card.on .ac-desc').innerText()), 'selected card prints its full descriptor');
+  ok((await p.locator('.ac-card.on .ac-mark').innerText()).trim() === '✓', 'selected card carries the check');
+  ok(!(await skip.isVisible()), 'SKIP REMOVED once an archetype is picked');
+  ok((await p.locator('#ic-pool .chip-ghost').first().innerText()).includes('The Row'), 'pool seeds from the picked archetype');
+
+  await p.locator('.ac-card.on').click(); await p.waitForTimeout(150);
+  ok(await p.locator('.ac-card.on').count() === 0, 'second tap clears the pick');
+  ok(await p.locator('.ac-desc').count() === 0, 'descriptor withdraws with it');
+  ok(await skip.isVisible(), 'skip RETURNS when the pick is cleared');
 
   await p.locator('#ic-pool .chip-ghost').first().click(); await p.waitForTimeout(150);
   ok(await p.locator('#ic-field .chip-solid').count() === 1, 'chip lands INSIDE the field');
@@ -109,16 +132,21 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok(await p.locator('#ic-field .chip-solid').count() === 2, 'typed name adds a chip');
   await p.click('#ic-input'); await p.keyboard.press('Backspace'); await p.waitForTimeout(120);
   ok(await p.locator('#ic-field .chip-solid').count() === 1, 'backspace takes the last chip back');
+
+  // An archetype pick holds the skip away even once the icons empty.
+  await p.locator('.ac-card').nth(1).click(); await p.waitForTimeout(120);
   await p.locator('.chip-x').first().click(); await p.waitForTimeout(150);
-  ok(await skip.isVisible(), 'skip RETURNS when the answer is emptied');
+  ok(!(await skip.isVisible()), 'skip stays away while the OTHER axis still answers');
+  await p.locator('.ac-card.on').click(); await p.waitForTimeout(150);
+  ok(await skip.isVisible(), 'skip RETURNS when both answers are emptied');
   ok(!(await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), 'no horizontal overflow');
 
   console.log(`\n\x1b[1m== ${label} · step 02 · Wardrobe ==\x1b[0m`);
   await p.click('#ob-next'); await p.waitForTimeout(500);
   ok((await p.locator('.ob-step').innerText()).trim().toLowerCase() === 'step 02 · wardrobe', 'step chip is Wardrobe');
-  ok((await p.locator('.ob-eyebrow').innerText()).trim().toLowerCase() === 'your first piece', 'eyebrow is Your first piece');
-  ok((await p.locator('.ob-title').innerText()).trim() === 'Add your first piece', 'title');
-  ok(await p.locator('.ob-title em').count() === 0, 'title carries no italic clause');
+  ok((await p.locator('.ob-eyebrow').innerText()).trim().toLowerCase() === 'wardrobe', 'eyebrow mirrors the step section word');
+  ok((await p.locator('.ob-title').innerText()).trim() === 'Add your first piece.', 'title');
+  ok(await p.locator('.ob-title em').count() === 1, 'title carries the same serif-italic accent as step 01');
   ok(/Give Robes one piece you love/.test(await p.locator('.ob-sub').innerText()), 'anchoring sub copy');
   ok(await skip.isVisible(), 'skip visible with nothing attached');
 

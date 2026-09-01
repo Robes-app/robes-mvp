@@ -120,16 +120,16 @@
     .ob-back:hover { color: var(--foreground); }
     .ob-arrow { font-size: 15px; }
     .ob-step { font-weight: 500; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--foreground); white-space: nowrap; }
-    .ob-count { font-weight: 400; font-size: 11px; letter-spacing: 0.18em; color: var(--cream-500); white-space: nowrap; }
-    .ob-progress { height: 1px; background: var(--cream-300); margin: 24px 64px 0; position: relative; }
-    .ob-progress-fill { position: absolute; left: 0; top: -1px; height: 3px; background: var(--foreground); transition: width .4s var(--ease-default); }
+    .ob-top-spacer { width: 44px; flex: none; }
+    .ob-progress { height: 2px; background: var(--cream-200); margin: 24px 64px 0; position: relative; }
+    .ob-progress-fill { position: absolute; left: 0; top: 0; height: 2px; background: var(--foreground); transition: width .4s var(--ease-default); }
 
-    .ob-body { flex: 1; padding: 58px 64px 44px; max-width: 860px; width: 100%; margin: 0 auto; }
-    .ob-eyebrow { font-weight: 500; font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; margin-bottom: 24px; color: var(--ink-faint); }
-    .ob-title { font-family: var(--font-serif); font-weight: 300; font-size: clamp(34px, 5.4vw, 60px); line-height: 1.04; letter-spacing: -0.01em; margin: 0 0 24px; color: var(--foreground); }
+    .ob-body { flex: 1; padding: 46px 64px 44px; max-width: 860px; width: 100%; margin: 0 auto; }
+    .ob-eyebrow { font-weight: 400; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; margin-bottom: 14px; color: var(--ink-faint); }
+    .ob-title { font-family: var(--font-serif); font-weight: 300; font-size: clamp(32px, 4.6vw, 42px); line-height: 1.05; letter-spacing: -0.01em; margin: 0; color: var(--foreground); }
     .ob-title em { font-style: italic; }
-    .ob-sub { font-weight: 300; font-size: clamp(14px, 1.7vw, 17px); line-height: 1.7; color: var(--fg-2); max-width: 560px; margin: 0 0 52px; }
-    .ob-input-zone { margin-top: 4px; }
+    .ob-sub { font-weight: 300; font-size: clamp(14px, 1.7vw, 16px); line-height: 1.7; color: var(--fg-2); max-width: 560px; margin: 18px 0 0; }
+    .ob-input-zone { margin-top: 28px; }
 
     .ob-footer { padding: 0 64px 38px; max-width: 860px; width: 100%; margin: 0 auto; }
     .ob-continue {
@@ -148,6 +148,36 @@
 
     .ob-label { font-weight: 500; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--cream-600); white-space: nowrap; }
     .ob-tally { font-family: var(--font-serif); font-weight: 400; font-size: 17px; color: var(--cream-500); }
+
+    /* ── Archetype cards (Step 01 · Archetype first) ─────────────── */
+    /* The archetypes are the FIRST decision on the step; a card prints its
+       descriptor only once selected. Selected state is the app-wide warm
+       cream #F3EFE6 / #C9BCA6 convention. */
+    .ac-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .ac-card {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+      padding: 13px 16px; text-align: left; cursor: pointer;
+      background: #fff; border: 1px solid var(--rule); border-radius: var(--rad-sm);
+      font-family: inherit; color: var(--foreground);
+      transition: background .2s var(--ease-default), border-color .2s var(--ease-default);
+    }
+    .ac-card:hover { border-color: var(--cream-400); }
+    .ac-card.on { background: #F3EFE6; border-color: #C9BCA6; }
+    .ac-copy { display: flex; flex-direction: column; min-width: 0; }
+    .ac-name { font-family: var(--font-serif); font-weight: 400; font-size: 18px; line-height: 1.15; }
+    .ac-desc { font-weight: 300; font-size: 12px; line-height: 1.45; color: var(--ink-soft); text-wrap: pretty; margin-top: 4px; }
+    .ac-mark {
+      flex: none; width: 16px; height: 16px; margin-top: 2px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; color: var(--foreground); border: 1px solid var(--rule-mid);
+      transition: background .2s var(--ease-default), border-color .2s var(--ease-default);
+    }
+    .ac-card.on .ac-mark { background: #E4DAC6; border-color: #C9BCA6; }
+
+    /* Icons and brands sit below the archetypes as a refinement, behind a
+       hairline — no longer the step's headline question. */
+    .ic-refine { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--rule); }
+    .ic-refine-head { margin-bottom: 12px; }
 
     /* ── Chips + typeahead (Step 01) ─────────────────────────────── */
     .chip-row { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -181,7 +211,7 @@
     .v1-fieldwrap { position: relative; }
     .v1-field {
       display: flex; flex-wrap: wrap; align-items: center; gap: 8px; cursor: text;
-      border: 1px solid var(--cream-300); border-radius: 2px; background: var(--cream-30);
+      border: 1px solid var(--rule-mid); border-radius: var(--rad-sm); background: #fff;
       padding: 8px 10px; margin-bottom: 11px;
       transition: border-color .2s var(--ease-default);
     }
@@ -199,7 +229,7 @@
       color: var(--foreground); padding: 11px 10px;
     }
     .v1-input::placeholder { color: var(--cream-500); }
-    .ic-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 40px; }
+    .ic-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
     .v1-hint { font-size: 11px; color: var(--cream-500); white-space: nowrap; }
     .v1-hint kbd { font-family: var(--font-sans); font-size: 10px; border: 1px solid var(--cream-300); border-radius: 2px; padding: 2px 6px; color: var(--fg-2); }
     .ic-tally { font-family: var(--font-serif); font-style: italic; font-size: 14px; color: var(--cream-500); white-space: nowrap; }
@@ -207,11 +237,11 @@
 
     .v2-drop {
       list-style: none; margin: 7px 0 0; padding: 6px; position: absolute; left: 0; right: 0; top: 100%; z-index: 5;
-      background: var(--cream-30); border: 1px solid var(--cream-300); border-radius: 2px;
+      background: var(--cream-30); border: 1px solid var(--cream-300); border-radius: var(--rad-sm);
     }
     .v2-opt {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 14px; border-radius: 2px; cursor: pointer;
+      padding: 12px 14px; border-radius: 4px; cursor: pointer;
       font-weight: 300; font-size: 15px; color: var(--foreground);
     }
     .v2-opt.is-active { background: var(--foreground); color: var(--background); }
@@ -224,7 +254,7 @@
     .cap-file { display: none; }
     .cap-panel {
       position: relative; width: 300px; flex: none; aspect-ratio: 3 / 4;
-      border: 1px solid var(--cream-300); border-radius: 2px;
+      border: 1px solid var(--cream-300); border-radius: var(--rad-sm);
       background: #F4EEE8; overflow: hidden;
       transition: border-color .2s var(--ease-default);
     }
@@ -305,7 +335,7 @@
     }
     .kp-banner {
       position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 3;
-      background: rgba(32,32,33,0.86); color: var(--cream-30); border-radius: 2px; padding: 11px 14px;
+      background: rgba(32,32,33,0.86); color: var(--cream-30); border-radius: 4px; padding: 11px 14px;
       font-family: var(--font-serif); font-weight: 300; font-size: 16px; letter-spacing: 0.01em; text-align: center;
       opacity: 0; animation: kpTagPop .55s var(--ease-default) both;
     }
@@ -347,7 +377,13 @@
       .ob-footer { padding: 0 24px 30px; }
       .ob-step { letter-spacing: 0.1em; }
       .ob-back span:not(.ob-arrow) { display: none; }
-      .ob-sub { margin-bottom: 40px; }
+      .ob-eyebrow { font-size: 9px; margin-bottom: 12px; }
+      .ob-input-zone { margin-top: 22px; }
+      .ac-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .ac-card { padding: 11px 14px; }
+      .ac-name { font-size: 17px; }
+      .ac-desc { font-size: 11px; }
+      .ic-refine { margin-top: 22px; padding-top: 16px; }
       .v1-field { padding: 7px 8px; }
       .v1-input { padding: 10px 8px; }
     }
@@ -394,6 +430,36 @@
     'Carolina Herrera', 'Grace Kelly', 'Lee Radziwill',
   ];
 
+  // Archetype-first (design 2026-09-01): the ten style archetypes are the
+  // step's first decision; a card prints its descriptor only once selected.
+  const ARCHETYPES = [
+    { name: 'Minimal', desc: 'Clean lines, few decisions, nothing loud.' },
+    { name: 'Bohemian', desc: 'Loose shapes, print and texture worn together.' },
+    { name: 'Classic', desc: 'Tailoring, good shoes, nothing that dates.' },
+    { name: 'Romantic', desc: 'Soft volume, lace, colour that flatters.' },
+    { name: 'Sculptural', desc: 'Architectural cuts. The volume is the point.' },
+    { name: 'Utility', desc: 'Workwear roots, pockets, honest hardware.' },
+    { name: 'Heritage', desc: 'Collars, knits, a little of the old school.' },
+    { name: 'Eclectic', desc: 'Nothing matches. It works anyway.' },
+    { name: 'Off-duty', desc: 'Technical fabric, worn like it is not.' },
+    { name: 'Avant-garde', desc: 'Asymmetry, black, the unfamiliar shape.' },
+  ];
+
+  // A picked archetype seeds the "popular" pool with names that live in its
+  // world — the refinement follows the decision, so the chips stay relevant.
+  const ARCH_SEED = {
+    Minimal: ['The Row', 'Phoebe Philo', 'Lemaire'],
+    Bohemian: ['Dôen', 'Jane Birkin', 'Chloé'],
+    Classic: ['Carolyn Bessette-Kennedy', 'Max Mara', 'Grace Kelly'],
+    Romantic: ['Simone Rocha', 'Sofia Coppola'],
+    Sculptural: ['Totême', 'Khaite', 'Alaïa'],
+    Utility: ['Margaret Howell', 'Arket'],
+    Heritage: ['Loro Piana', 'Diane Keaton'],
+    Eclectic: ['Miu Miu', 'Marni', 'Iris Apfel'],
+    'Off-duty': ['Auralee', 'Zoë Kravitz'],
+    'Avant-garde': ['Rick Owens', 'Tilda Swinton'],
+  };
+
   // NO photos of her in onboarding: the silhouette step went first (a
   // full-length body photo minutes into a first session was the likeliest
   // bail point) and the colour face scan followed (beta feedback) — both
@@ -406,6 +472,7 @@
     stage: 'splash',       // 'splash' | 'intro' | 'name' | 0..2 | 'done'
     name: '',
     savedName: '',
+    archetypes: [],
     icons: [],
     styleDna: {},
     colour: { photoUrl: '', busy: false, done: null, err: '' },   // done: {season, undertone, contrast}
@@ -534,7 +601,7 @@
         <header class="ob-top">
           <button class="ob-back" id="ob-back"><span class="ob-arrow">←</span> <span>Back</span></button>
           <div class="ob-step">${cfg.step}</div>
-          <div class="ob-count">0${i + 1} / 0${STEPS.length}</div>
+          <span class="ob-top-spacer"></span>
         </header>
         <div class="ob-progress"><div class="ob-progress-fill" style="width:${(i + 1) / STEPS.length * 100}%"></div></div>
         <main class="ob-body">
@@ -554,37 +621,70 @@
   function nextStage(i) { return i < STEPS.length - 1 ? i + 1 : 'done'; }
 
   function renderStep(i) {
-    if (i === 0) return renderIcons(i);
+    if (i === 0) return renderStyle(i);
     return renderKeyPiece(i);
   }
 
-  /* ── Step 01 · Icons ────────────────────────────────────────────── */
-  function renderIcons(i) {
+  /* ── Step 01 · Style (archetype first) ──────────────────────────── */
+  // The archetypes are the first decision; icons and brands stay below as a
+  // refinement behind a hairline. A card prints its descriptor only once
+  // selected, and a skip never survives an answer on EITHER axis.
+  function renderStyle(i) {
     stepChrome(i, {
-      step: 'Step 01 · Icons', eyebrow: 'Style',
-      title: 'Who do you<br><em>dress like?</em>',
-      sub: 'Add the people and brands whose style inspire you. The more you add, the faster Robes gets to know you.',
+      step: 'Step 01 · Style', eyebrow: 'Style',
+      title: 'Where does your<br><em>style sit?</em>',
     });
 
     const zone = document.getElementById('ob-zone');
     zone.innerHTML = `
-      <div class="v1-fieldwrap" id="ic-wrap">
-        <div class="v1-field" id="ic-field">
-          <span class="ic-chips" id="ic-chips"></span>
-          <input class="v1-input" id="ic-input" placeholder="Type a name — person or brand" autocomplete="off">
+      <div class="ac-grid" id="ac-grid"></div>
+      <div class="ic-refine">
+        <div class="ic-refine-head"><span class="ob-label">Icons and brands</span></div>
+        <div class="v1-fieldwrap" id="ic-wrap">
+          <div class="v1-field" id="ic-field">
+            <span class="ic-chips" id="ic-chips"></span>
+            <input class="v1-input" id="ic-input" placeholder="Add the people and brands whose style inspire you" autocomplete="off">
+          </div>
+          <ul class="v2-drop" id="ic-drop" hidden></ul>
         </div>
-        <ul class="v2-drop" id="ic-drop" hidden></ul>
-      </div>
-      <div class="ic-meta">
-        <span class="v1-hint">Press <kbd>Enter</kbd> to add</span>
-        <span class="ic-tally" id="ic-tally"></span>
-      </div>
-      <div class="v1-pool-head"><span class="ob-label">Or tap a popular one</span></div>
-      <div class="chip-row" id="ic-pool"></div>`;
+        <div class="ic-meta">
+          <span class="v1-hint">Press <kbd>Enter</kbd> to add</span>
+          <span class="ic-tally" id="ic-tally"></span>
+        </div>
+        <div class="v1-pool-head"><span class="ob-label">Or tap a popular one</span></div>
+        <div class="chip-row" id="ic-pool"></div>
+      </div>`;
 
     const input = document.getElementById('ic-input');
     const drop = document.getElementById('ic-drop');
     let active = 0;
+
+    // Once she has answered the question — an archetype picked OR an icon
+    // added — skipping is no longer an option (the standing rule from the
+    // one-field pass, now covering both axes).
+    function syncSkip() {
+      const skip = document.getElementById('ob-skip');
+      if (skip) skip.style.display = (st.archetypes.length || st.icons.length) ? 'none' : '';
+    }
+
+    function paintArch() {
+      const box = document.getElementById('ac-grid');
+      box.innerHTML = ARCHETYPES.map(a => {
+        const on = st.archetypes.includes(a.name);
+        return `<button type="button" class="ac-card${on ? ' on' : ''}" data-v="${esc(a.name)}" aria-pressed="${on}">
+          <span class="ac-copy"><span class="ac-name">${esc(a.name)}</span>${on ? `<span class="ac-desc">${esc(a.desc)}</span>` : ''}</span>
+          <span class="ac-mark">${on ? '✓' : ''}</span>
+        </button>`;
+      }).join('');
+      box.querySelectorAll('.ac-card').forEach(btn => {
+        btn.onclick = () => {
+          const name = btn.dataset.v;
+          const at = st.archetypes.indexOf(name);
+          if (at >= 0) st.archetypes.splice(at, 1); else st.archetypes.push(name);
+          paintArch(); paintPool(); syncSkip();
+        };
+      });
+    }
 
     // Tapping the field's padding lands in the input, the way a real text
     // field behaves — the chips sit inside it, so the input is rarely the
@@ -604,22 +704,29 @@
 
     function paintSelected() {
       const n = st.icons.length;
-      document.getElementById('ic-tally').textContent = n ? n + ' added' : 'Three is plenty to start';
-      input.placeholder = n ? 'Add another…' : 'Type a name — person or brand';
+      document.getElementById('ic-tally').textContent = n ? n + ' added' : '';
+      input.placeholder = n ? 'Add another…' : 'Add the people and brands whose style inspire you';
       const box = document.getElementById('ic-chips');
       box.innerHTML = st.icons.map((name, idx) =>
         `<span class="chip-solid">${esc(name)}<button class="chip-x" data-i="${idx}" aria-label="Remove ${esc(name)}">×</button></span>`).join('');
       box.querySelectorAll('.chip-x').forEach(btn => {
         btn.onclick = () => { st.icons.splice(Number(btn.dataset.i), 1); paintSelected(); paintPool(); };
       });
-      // Once she has answered the question, skipping it is no longer an
-      // option — the footer's only way forward is Continue (beta feedback).
-      const skip = document.getElementById('ob-skip');
-      if (skip) skip.style.display = n ? 'none' : '';
+      syncSkip();
+    }
+
+    // The pool leads with names seeded by her picked archetypes, then the
+    // house list fills the rest — the refinement follows the decision.
+    function poolSource() {
+      const out = [];
+      const push = n => { if (!out.some(x => normalize(x) === normalize(n))) out.push(n); };
+      st.archetypes.forEach(a => (ARCH_SEED[a] || []).forEach(push));
+      ROBES_ICONS.forEach(push);
+      return out;
     }
 
     function paintPool() {
-      const pool = ROBES_ICONS.filter(n => !isSel(n)).slice(0, 10);
+      const pool = poolSource().filter(n => !isSel(n)).slice(0, 10);
       const box = document.getElementById('ic-pool');
       box.innerHTML = pool.map(n =>
         `<button class="chip-ghost" data-v="${esc(n)}"><span class="chip-plus">+</span>${esc(n)}</button>`).join('');
@@ -631,8 +738,9 @@
     function opts() {
       const q = normalize(input.value);
       if (!q) return { matches: [], showNew: false };
-      const matches = ROBES_ICONS.filter(n => !isSel(n) && normalize(n).includes(q)).slice(0, 6);
-      const exact = ROBES_ICONS.some(n => normalize(n) === q);
+      const source = poolSource();
+      const matches = source.filter(n => !isSel(n) && normalize(n).includes(q)).slice(0, 6);
+      const exact = source.some(n => normalize(n) === q);
       return { matches, showNew: !exact };
     }
 
@@ -690,10 +798,22 @@
       if (!wrap.contains(e.target)) drop.hidden = true;
     });
 
+    paintArch();
     paintSelected();
     paintPool();
 
-    const proceed = () => { if (st.icons.length) save({ style_icons: st.icons }); go(nextStage(i)); };
+    const proceed = () => {
+      if (st.icons.length) save({ style_icons: st.icons });
+      // Archetypes ride profiles.style_dna (jsonb — no migration needed);
+      // only write when there is something to record or clear, and merge so
+      // an analysis-derived DNA fragment is never dropped.
+      const prev = (st.styleDna && st.styleDna.style_archetypes) || [];
+      if (st.archetypes.length || prev.length) {
+        st.styleDna = Object.assign({}, st.styleDna, { style_archetypes: st.archetypes.slice() });
+        save({ style_dna: st.styleDna });
+      }
+      go(nextStage(i));
+    };
     document.getElementById('ob-next').onclick = proceed;
     document.getElementById('ob-skip').onclick = () => go(nextStage(i));
   }
@@ -778,9 +898,12 @@
       if (answered) { skipArmed = false; skip.textContent = 'Skip for now'; }
     }
 
+    // Header mirrors step 01's archetype-first register: the eyebrow repeats
+    // the step label's section word, the headline closes on the serif-italic
+    // accent — no style deviation across the two steps.
     stepChrome(i, {
-      step: 'Step 02 · Wardrobe', eyebrow: 'Your first piece',
-      title: 'Add your first piece',
+      step: 'Step 02 · Wardrobe', eyebrow: 'Wardrobe',
+      title: 'Add your <em>first piece.</em>',
       sub: 'Give Robes one piece you love — from your wardrobe, or you might be wearing it right now. This is where your wardrobe starts.',
       continueLabel: P.tag ? 'Continue to your dashboard' : 'Style my first piece',
     });
@@ -1196,7 +1319,10 @@
     if (profile) {
       if (profile.first_name) st.savedName = profile.first_name;
       if (profile.style_icons && profile.style_icons.length) st.icons = profile.style_icons;
-      if (profile.style_dna && typeof profile.style_dna === 'object') st.styleDna = profile.style_dna;
+      if (profile.style_dna && typeof profile.style_dna === 'object') {
+        st.styleDna = profile.style_dna;
+        if (Array.isArray(profile.style_dna.style_archetypes)) st.archetypes = profile.style_dna.style_archetypes.slice();
+      }
     }
     if (!st.name) st.name = st.savedName || metaName;
 
