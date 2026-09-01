@@ -173,11 +173,12 @@
     .mvr-cur { font: 400 12px/1 'Inter'; color: #6E675E; margin-left: 6px; }
 
     /* the footer — one ink pill, one italic note */
-    .mv2-foot { margin-top: 36px; border-top: 1px solid var(--cream-300); padding-top: 20px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
-    .mv-keep { flex: none; white-space: nowrap; background: var(--ink); color: var(--cream); border: 1px solid var(--ink); border-radius: 100px; padding: 15px 38px; font: 400 11.5px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; }
-    .mv-keep.onfile { background: var(--cream); color: var(--sage, #4A7B6F); border-color: var(--cream-300); cursor: default; }
+    .mv2-foot { margin-top: 36px; border-top: 1px solid var(--cream-300); padding-top: 20px; display: flex; align-items: center; justify-content: space-between; gap: 22px; flex-wrap: wrap; }
+    .mv2-footcol { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+    .mv-filed { font: 400 10px/1.5 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sage, #4A7B6F); }
+    .mv-filed.flash { animation: mvFadeIn 0.5s ease both; }
+    .mv-build { flex: none; white-space: nowrap; background: var(--ink); color: var(--cream); border: 1px solid var(--ink); border-radius: 100px; padding: 15px 38px; font: 400 11.5px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; }
     .mv-status { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.5; color: #8A8378; }
-    .mv-status.kept { color: var(--sage, #4A7B6F); }
 
     /* the photographed model — the actual catalog cell, layered over the
        abstract figure (which survives only as the pre-photo ghost) */
@@ -298,8 +299,12 @@
       .mv2-likslot .photo-slot { width: 108px; height: 144px; }
       .mvr { flex-wrap: wrap; gap: 10px 16px; }
       .mvr-k { width: 100%; }
+      /* mobile order: filed line, the pill, then the italic note */
       .mv2-foot { flex-direction: column; align-items: stretch; text-align: center; gap: 14px; }
-      .mv-keep { width: 100%; }
+      .mv2-footcol { display: contents; }
+      .mv-filed { order: 1; }
+      .mv-build { order: 2; width: 100%; }
+      .mv-status { order: 3; }
     }
 
 /* a11y: keyboard focus + no-zoom-needed input sizing (Wave 2) */
@@ -466,8 +471,11 @@
 
           <!-- The footer — one ink pill, one italic note -->
           <div class="mv2-foot">
-            <button class="mv-keep" id="mv-keep" hidden>Keep her</button>
-            <div class="mv-status" id="mv-status"></div>
+            <div class="mv2-footcol">
+              <div class="mv-filed" id="mv-filed" hidden></div>
+              <div class="mv-status" id="mv-status"></div>
+            </div>
+            <button class="mv-build" id="mv-build" hidden>Build a look</button>
           </div>
         </div>
       </div>
@@ -1038,25 +1046,21 @@
 
       renderShape(readAny);
 
-      // the footer — Keep is the one commitment on the page. Keepable from
-      // the FIRST read (decision 2026-08-25) OR from a by-hand shape with
-      // no photo at all (2026-09-01 — the male path needs it).
-      const keepBtn = document.getElementById('mv-keep');
-      keepBtn.hidden = !any;
-      keepBtn.disabled = kept;
-      keepBtn.classList.toggle('onfile', kept);
-      keepBtn.textContent = kept
-        ? (mvMan() ? '\u2713 He\u2019s on file' : '\u2713 She\u2019s on file')
-        : (mvMan() ? 'Keep him' : 'Keep her');
+      // the footer — the model AUTO-FILES on every change (no Keep
+      // friction): a quiet ✓ status line carries the affirmation, and the
+      // one ink pill is the forward action, Build a look.
+      const filed = document.getElementById('mv-filed');
+      filed.hidden = !kept;
+      filed.textContent = '\u2713 Filed \u00b7 ' + P.she + ' updates as you change ' + P.him;
+      document.getElementById('mv-build').hidden = !any;
       const note = document.getElementById('mv-status');
-      let txt, cls = '';
-      if (kept) { txt = 'Every look you keep is a photograph of ' + P.him + ' wearing it.'; cls = 'kept'; }
-      else if (hasColor && hasLine) { txt = 'Two photographs read. ' + P.Shes + ' as close as ' + P.she + ' gets.'; }
+      let txt;
+      if (hasColor && hasLine) { txt = 'Two photographs read. ' + P.Shes + ' as close as ' + P.she + ' gets.'; }
       else if (readAny) { txt = 'One more photograph and ' + P.she + ' settles.'; }
-      else if (any) { txt = 'Shaped by hand. Add a photograph whenever you like \u2014 the model updates.'; }
+      else if (any) { txt = 'Add a photograph whenever you like \u2014 ' + P.she + ' updates.'; }
       else { txt = 'Nothing yet. Add a photograph, or shape the model by hand.'; }
       note.textContent = txt;
-      note.className = 'mv-status' + (cls ? ' ' + cls : '');
+      note.className = 'mv-status';
 
       mvPhotoSync(any);
     }
@@ -1064,8 +1068,8 @@
     /* the spec rows — presence, skin, hair, the figure nudges. Rows stand
        open while nothing has read (the by-hand path IS the page then);
        once Robes has read a photograph they fold behind "Adjust by hand".
-       The tap is the preview: every pick repaints the stage live, and a
-       kept model un-keeps so Keep her stays the one commitment. */
+       The tap is the preview: every pick repaints the stage live and
+       auto-files — the footer’s ✓ line is the affirmation. */
     const MV_NUDGE_LABELS = { line: 'The line', frame: 'The frame' };
     const MV_SLIDERS_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
       '<line x1="3" y1="6" x2="21" y2="6"></line><circle cx="15" cy="6" r="2.6" fill="currentColor" stroke="none"></circle>' +
@@ -1114,9 +1118,8 @@
       const b = e.target.closest('button'); if (!b) return;
       const axis = b.dataset.axis, v = b.dataset.v;
       if (axis === 'presence') {
-        // Presence persists IMMEDIATELY on pick (unlike skin/hair, which
-        // commit on Keep) \u2014 it is identity, and every generation surface
-        // reads profiles.gender_identity from here on.
+        // Presence also writes gender_identity \u2014 it is identity, and every
+        // generation surface reads it from the profile from here on.
         if (v !== mvGender()) {
           st.model.gender = v;
           st.gender = v;
@@ -1133,8 +1136,7 @@
         st.model.nudges = nn;
       }
       st.model.touched = true;
-      st.model.kept = false;   // a change un-keeps \u2014 Keep her re-commits
-      renderModel();
+      mvFile();   // auto-file on change (repaints) — the ✓ line confirms
     });
 
     /* keep + persistence — localStorage is the instant cache, the cloud
@@ -1155,14 +1157,23 @@
         console.error('Model save failed:', error.message);
       }
     }
-    function mvKeep() {
-      st.model.skin = mvSkinIdx();
-      st.model.hair = mvHairIdx();
+    // Auto-file: every change files the model (kept is now "filed") —
+    // the ✓ status line flashes as the brief affirmation, never a button.
+    function mvFile() {
       st.model.kept = true;
       mvPersist();
       renderModel();
+      const filed = document.getElementById('mv-filed');
+      filed.classList.remove('flash');
+      void filed.offsetWidth;   // restart the animation
+      filed.classList.add('flash');
     }
-    document.getElementById('mv-keep').addEventListener('click', mvKeep);
+    // Build a look — back to the homepage prompt box with the model on
+    // file; the dashboard boot reads the flag and opens the prompt.
+    document.getElementById('mv-build').addEventListener('click', () => {
+      try { sessionStorage.setItem('rb_model_build', '1'); } catch (e) {}
+      window.location.href = '/dashboard';
+    });
 
     /* ── The photographed model (2026-09-01) ─────────────────────────
        The stage shows the ACTUAL avatar catalog cell — the reference
@@ -1505,9 +1516,7 @@
               renderSil();
             }
             save(patch);
-            // a kept model quietly takes the fresh read (her line arriving
-            // after she kept on colour alone upgrades the figure silently)
-            if (st.model.kept) mvPersist();
+            mvFile();   // a fresh read auto-files — the model always tracks it
           } catch (err) {
             console.error('Analysis failed:', err.message);
             slotError(cfg.errId, err.name === 'AbortError'
@@ -1573,6 +1582,13 @@
         }
       }
       renderAll();
+      // Reads exist but nothing ever filed (pre-auto-file accounts):
+      // file quietly once so the footer’s ✓ line never lies.
+      if ((st.colour || st.sil || mvChosen()) && !st.model.kept) {
+        st.model.kept = true;
+        mvPersist();
+        renderModel();
+      }
     }
 
     document.getElementById('icon-input').addEventListener('keydown', e => {

@@ -4,7 +4,7 @@
  * Supabase stub and asserts the single-entry model page (design 2026-08-25
  * + the photographed-model iteration 2026-09-01): two photograph steps, the
  * PHOTOGRAPHED model stage (the actual avatar cell, fetched via
- * /api/avatar/cell), keep-after-close-up-alone, the presence row (gender
+ * /api/avatar/cell), auto-file + the Build-a-look footer, the presence row (gender
  * lives here now, not in Account details), the by-hand path with no
  * photographs, the male catalog (m-… ids), the on-page spec rows, the
  * full-notes doors, Taste & budget as its own #taste entry, and the
@@ -27,6 +27,7 @@ fs.writeFileSync(TMP, PNG);
 
 const srv = http.createServer((q, r) => {
   const u = q.url.split('?')[0];
+  if (u === '/dashboard') { r.writeHead(200, { 'Content-Type': 'text/html' }); return r.end('<html><body>dash</body></html>'); }
   const f = u === '/stylenotes' ? path.join(ROOT, 'stylenotes.html') : path.join(ROOT, u);
   if (fs.existsSync(f) && fs.statSync(f).isFile()) { r.writeHead(200); return r.end(fs.readFileSync(f)); }
   r.writeHead(404); r.end('');
@@ -134,7 +135,9 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(await p.locator('#mv-stagehead').isHidden(), 'no stage eyebrow/caption before anything exists');
     ok((await p.locator('#mv-fact-harmony').innerText()) === 'Not read yet', 'harmony fact reads Not read yet');
     ok(/^Nothing yet\./.test(await p.locator('#mv-status').innerText()), 'the foot note starts at Nothing yet');
-    ok(await p.locator('#mv-keep').isHidden(), 'no Keep pill before any read or choice');
+    ok(await p.locator('#mv-build').isHidden(), 'no Build a look pill before any read or choice');
+    ok(await p.locator('#mv-filed').isHidden(), 'nothing filed yet — no ✓ line');
+    ok(!(await p.evaluate(() => window.__updates.some(u => u.avatar_id))), 'and nothing auto-files from an empty page');
     // THE BY-HAND PATH IS THE PAGE while nothing has read (design 1a/2a)
     ok(/or shape her by hand/i.test(await p.locator('#mv-shape-ey').innerText()), 'shape section header invites the by-hand path');
     ok(await p.locator('#mv-shape-rows').isVisible(), 'the spec rows stand OPEN with nothing read');
@@ -162,7 +165,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(cellPosts.length > 0 && cellPosts[0] === 'w-s5-h1-nt', 'the cell asked for matches the resolved id, got ' + cellPosts[0]);
     ok(/part read, part chosen/i.test(await p.locator('#mv-stage-ey').innerText()), 'stage eyebrow names the provenance');
     ok((await p.locator('#mv-caption').innerText()) === 'Sand · espresso brown hair', 'the stage caption names her colouring in colour words');
-    ok(/keep her/i.test(await p.locator('#mv-keep').innerText()), 'the keep pill speaks as she does');
+    ok(/filed/i.test(await p.locator('#mv-filed').innerText()) && /she updates as you change her/i.test(await p.locator('#mv-filed').innerText()), 'the ✓ Filed line speaks as she does');
+    ok(/build a look/i.test(await p.locator('#mv-build').innerText()), 'the one ink pill is Build a look');
     ok((await p.locator('#st1-season').innerText()) === 'Soft Autumn', 'the harmony read names the season');
     ok(await p.locator('#st1-sw div').count() === 9, 'nine swatches in the reduced strip');
     ok((await p.locator('#st1-undertone').innerText()) === 'Neutral', 'undertone fact');
@@ -182,16 +186,16 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.locator('#st1-door').click(); await p.waitForTimeout(100);
     ok(await p.locator('#colour-sections').isHidden(), 'door closes again');
 
-    // keep her → persists + on-file state
-    await p.locator('#mv-keep').click(); await p.waitForTimeout(200);
-    ok(/on file/i.test(await p.locator('#mv-keep').innerText()), 'the pill flips to ✓ She’s on file');
-    ok(/every look you keep/i.test(await p.locator('#mv-status').innerText()), 'the foot note flips to the kept line');
+    // AUTO-FILE: a read model files itself — no Keep tap anywhere
     const up = await p.evaluate(() => window.__updates.find(u => u.avatar_id));
-    ok(!!up, 'keep writes avatar_id + prefs to the profile');
+    ok(!!up, 'the model auto-files on load — avatar_id + prefs reach the profile with no tap');
     ok(up && /^w-s5-h1-nt$/.test(up.avatar_id), 'avatar_id encodes the cell (neutral figure, no line yet), got ' + (up && up.avatar_id));
     ok(up && up.avatar_prefs && up.avatar_prefs.kept === true, 'prefs carry kept:true');
     const ls = await p.evaluate(() => localStorage.getItem('rb_model__u1'));
     ok(!!ls && JSON.parse(ls).kept === true, 'localStorage cache holds the model');
+    // Build a look → back to the homepage prompt box
+    await p.locator('#mv-build').click(); await p.waitForTimeout(400);
+    ok(/\/dashboard/.test(p.url()), 'Build a look returns to the dashboard, got ' + p.url());
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
     await ctx.close();
   }
@@ -217,14 +221,12 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(await p.locator('[data-axis="presence"]').count() === 3 && await p.locator('[data-axis="skin"]').count() === 8 && await p.locator('[data-axis="hair"]').count() === 5, 'presence + skins + hairs all in the rows');
     ok(await p.locator('[data-axis="presence"].on').count() === 1 && /Woman/.test(await p.locator('[data-axis="presence"].on').innerText()), 'presence defaults to the profile value');
 
-    await p.locator('[data-axis="skin"][data-v="0"]').click(); await p.waitForTimeout(150);
+    await p.locator('[data-axis="skin"][data-v="0"]').click(); await p.waitForTimeout(200);
     ok((await p.locator('#mv-head').getAttribute('fill')) === '#3B2A22', 'picking a skin repaints the figure live');
-    ok(/keep her/i.test(await p.locator('#mv-keep').innerText()), 'a change un-keeps — Keep her stays the one commitment');
+    ok(await p.locator('#mv-filed').isVisible(), 'the ✓ Filed line stands — a change auto-files, no re-keep');
     const before = await p.locator('#mv-dress').getAttribute('points');
-    await p.locator('[data-axis="frame"][data-v="R"]').click(); await p.waitForTimeout(150);
+    await p.locator('[data-axis="frame"][data-v="R"]').click(); await p.waitForTimeout(250);
     ok((await p.locator('#mv-dress').getAttribute('points')) !== before, 'a nudge redraws the figure');
-    await p.locator('#mv-keep').click(); await p.waitForTimeout(200);
-    ok(/on file/i.test(await p.locator('#mv-keep').innerText()), 'Keep commits the adjusted model');
     const up = await p.evaluate(() => window.__updates.filter(u => u.avatar_id).pop());
     ok(up && /^w-s0-h1-hg-fr$/.test(up.avatar_id), 'avatar_id carries her picks + figure + nudge, got ' + (up && up.avatar_id));
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
@@ -238,13 +240,11 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.locator('[data-axis="presence"][data-v="man"]').click(); await p.waitForTimeout(250);
     const gup = await p.evaluate(() => window.__updates.find(u => u.gender_identity));
     ok(gup && gup.gender_identity === 'man', 'picking Man writes gender_identity IMMEDIATELY (identity, not styling)');
-    ok(/keep him/i.test(await p.locator('#mv-keep').innerText()), 'the keep pill flips to Keep him');
+    ok(/he updates as you change him/i.test(await p.locator('#mv-filed').innerText()), 'the ✓ Filed line speaks as he does');
     ok(/robes read him/i.test(await p.locator('#mv-shape-ey').innerText()), 'the shape header speaks as he does');
     ok((await p.locator('#mv-lik-ey').innerText()).toLowerCase() === 'his likeness', 'the likeness header follows');
-    await p.locator('#mv-keep').click(); await p.waitForTimeout(400);
-    ok(/on file/i.test(await p.locator('#mv-keep').innerText()), 'Keep him lands on file');
     const up = await p.evaluate(() => window.__updates.filter(u => u.avatar_id).pop());
-    ok(up && /^m-s5-h1-nt$/.test(up.avatar_id), 'avatar_id lands on the MALE catalog (m- prefix), got ' + (up && up.avatar_id));
+    ok(up && /^m-s5-h1-nt$/.test(up.avatar_id), 'the pick auto-files onto the MALE catalog (m- prefix), got ' + (up && up.avatar_id));
     ok(up && up.avatar_prefs && up.avatar_prefs.gender === 'man', 'prefs carry the presence');
     await p.waitForTimeout(1100);   // the photo refetch is debounced 900ms
     ok(cellPosts.some(id => /^m-/.test(id)), 'the stage asks for the male cell, got ' + cellPosts.join(', '));
@@ -256,13 +256,13 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   {
     const { ctx, p, errs } = await open(vp);
     ok(await p.locator('#mv-shape-rows').isVisible(), 'the rows stand open with nothing read');
-    await p.locator('[data-axis="skin"][data-v="0"]').click(); await p.waitForTimeout(200);
-    ok(await p.locator('#mv-keep').isVisible(), 'a hand-shaped model becomes keepable without any photograph');
-    ok(/Shaped by hand/.test(await p.locator('#mv-status').innerText()), 'the foot note says shaped by hand');
+    await p.locator('[data-axis="skin"][data-v="0"]').click(); await p.waitForTimeout(300);
+    ok(await p.locator('#mv-build').isVisible(), 'a hand-shaped model earns Build a look without any photograph');
+    ok(await p.locator('#mv-filed').isVisible(), 'and files itself on the first pick');
+    ok(/Add a photograph whenever you like/.test(await p.locator('#mv-status').innerText()), 'the foot note invites the photograph');
     ok(/chosen by hand/i.test(await p.locator('#mv-stage-ey').innerText()), 'the stage eyebrow says chosen by hand');
-    await p.locator('#mv-keep').click(); await p.waitForTimeout(300);
     const up = await p.evaluate(() => window.__updates.filter(u => u.avatar_id).pop());
-    ok(up && /^w-s0-h1-nt$/.test(up.avatar_id), 'the by-hand keep writes a neutral-figure cell, got ' + (up && up.avatar_id));
+    ok(up && /^w-s0-h1-nt$/.test(up.avatar_id), 'the by-hand pick auto-files a neutral-figure cell, got ' + (up && up.avatar_id));
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
     await ctx.close();
   }
@@ -270,7 +270,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   console.log(`\n\x1b[1m== ${label} · kept model reloads + pre-migration degrade ==\x1b[0m`);
   {
     const { ctx, p, errs } = await open(vp, 'kept');
-    ok(/on file/i.test(await p.locator('#mv-keep').innerText()), 'a kept model reopens on file');
+    ok(await p.locator('#mv-filed').isVisible(), 'a filed model reopens with its ✓ Filed line');
     ok((await p.locator('#mv-head').getAttribute('fill')) === '#7A5238', 'her chosen skin wins over the proposal');
     ok((await p.locator('#mv-hair').getAttribute('fill')) === '#1B1614', 'her chosen hair wins');
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
@@ -278,8 +278,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   }
   {
     const { ctx, p, errs } = await open(vp, 'colour', 'nocol');
-    await p.locator('#mv-keep').click(); await p.waitForTimeout(200);
-    ok(/on file/i.test(await p.locator('#mv-keep').innerText()), 'keep still lands locally when migration 20 is missing');
+    await p.waitForTimeout(200);
+    ok(await p.locator('#mv-filed').isVisible(), 'auto-file still lands locally when migration 20 is missing');
     const ls = await p.evaluate(() => localStorage.getItem('rb_model__u1'));
     ok(!!ls, 'localStorage carries the model pre-migration');
     ok(errs.length === 0, 'no page errors on the degrade: ' + errs.join(' | '));
@@ -293,7 +293,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.waitForTimeout(1200);
     ok(await p.locator('#st1-read').isVisible(), 'a fresh close-up read lands ✓ Read');
     ok((await p.locator('#mv-fig').getAttribute('opacity')) === '1', 'the model starts from the fresh read');
-    ok(await p.locator('#mv-keep').isVisible(), 'the keep pill arrives with it');
+    ok(await p.locator('#mv-build').isVisible(), 'the Build a look pill arrives with it');
+    ok(await p.locator('#mv-filed').isVisible(), 'and the fresh read auto-files');
     ok(await p.locator('#mv-shape-rows').isHidden(), 'the spec rows fold away after the fresh read');
     const saved = await p.evaluate(() => window.__updates.find(u => u.colour_analysis));
     ok(!!saved && saved.season === 'Soft Autumn', 'the analysis persists to the profile');

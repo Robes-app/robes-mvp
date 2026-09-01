@@ -161,6 +161,24 @@
         }
       };
 
+      // "Build a look" handoff from the Style notes model page (2026-09-01):
+      // the prompt box opens with her in it — reveal + focus the concierge
+      // prompt once boot settles (the app's late-wiring beat). The model
+      // itself needs no loading: every generation already reads avatar_id.
+      try {
+        if (sessionStorage.getItem('rb_model_build')) {
+          sessionStorage.removeItem('rb_model_build');
+          setTimeout(function() {
+            try { if (typeof _rbFtuRevealPrompt === 'function') _rbFtuRevealPrompt(); } catch (e) {}
+            var ta = document.getElementById('cb-ta');
+            if (ta) {
+              try { ta.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+              ta.focus();
+            }
+          }, 1700);
+        }
+      } catch (e) { /* storage blocked — the prompt still leads home */ }
+
       // Time-based greeting
       const hour = new Date().getHours();
       const tod = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
