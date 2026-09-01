@@ -143,7 +143,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(await p.locator('[data-axis="skin"]').count() === 8, 'eight skin tones');
     ok(await p.locator('[data-axis="hair"]').count() === 5, 'five hair colours');
     ok(!/Longer|Shorter/.test(await p.locator('#mv-shape-rows').innerText()), 'no length nudge anywhere (decision 2026-08-25)');
-    ok(/changes as you choose/i.test(await p.locator('#mv-adjust').innerText()), 'the shape link is the quiet invitation note');
+    ok(await p.locator('#mv-adjust').isHidden(), 'the Adjust pill hides on the manual path — controls are already open');
     ok(await p.locator('#colour-sections').isHidden() && await p.locator('#sil-sections').isHidden(), 'full notes stay behind their doors');
     ok(await p.locator('#view-taste').isHidden(), 'taste view is not on this page');
     ok(!(await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), 'no horizontal overflow');
@@ -172,7 +172,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     // once Robes has read, the rows fold behind Adjust by hand
     ok(/robes read her/i.test(await p.locator('#mv-shape-ey').innerText()), 'the shape header flips to Robes read her');
     ok(await p.locator('#mv-shape-rows').isHidden(), 'the spec rows fold away once a photograph has read');
-    ok(/adjust by hand/i.test(await p.locator('#mv-adjust').innerText()), 'Adjust by hand is the way back in');
+    ok(/adjust by hand/i.test(await p.locator('#mv-adjust').innerText()), 'the Adjust by hand pill is the way back in');
+    ok(await p.locator('#mv-adjust svg').count() === 1, 'and carries the sliders glyph');
 
     // the quiet door to the full colour notes
     await p.locator('#st1-door').click(); await p.waitForTimeout(200);
@@ -211,7 +212,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
 
     await p.locator('#mv-adjust').click(); await p.waitForTimeout(200);
     ok(await p.locator('#mv-shape-rows').isVisible(), 'Adjust by hand unfolds the spec rows');
-    ok(/done adjusting/i.test(await p.locator('#mv-adjust').innerText()), 'and the link flips to Done adjusting');
+    ok(/done adjusting/i.test(await p.locator('#mv-adjust').innerText()), 'and the pill flips to Done adjusting');
+    ok(await p.locator('#mv-adjust.on').count() === 1, 'wearing the warm-selected fill while adjusting');
     ok(await p.locator('[data-axis="presence"]').count() === 3 && await p.locator('[data-axis="skin"]').count() === 8 && await p.locator('[data-axis="hair"]').count() === 5, 'presence + skins + hairs all in the rows');
     ok(await p.locator('[data-axis="presence"].on').count() === 1 && /Woman/.test(await p.locator('[data-axis="presence"].on').innerText()), 'presence defaults to the profile value');
 

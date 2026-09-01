@@ -144,7 +144,6 @@
     @keyframes mvFadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
     @media (prefers-reduced-motion: reduce) { .mv-result { animation: none; } }
     .mv-res-name { font-family: 'Cormorant', Georgia, serif; font-size: 26px; color: var(--ink); }
-    .mv-res-of { font: 400 11px/1 'Inter'; color: #B0A798; }
     .mv-res-sum { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.6; color: #4F4A44; margin-top: 12px; max-width: 520px; }
     .mv-sw-row { display: flex; gap: 4px; margin-top: 12px; }
     .mv-sw-row div { flex: 1; max-width: 56px; height: 38px; }
@@ -155,10 +154,15 @@
     .mv-door:hover { color: var(--ink); }
     .mv2-sechead .mv-door { margin-left: auto; }
 
-    /* or shape by hand — the spec rows on the page */
-    .mv2-shapelink { background: none; border: none; padding: 0; margin-left: auto; cursor: pointer; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 14px; color: var(--rose, #8E6A7C); }
-    .mv2-shapelink:hover { color: var(--ink); }
-    .mv2-shapelink.inert { color: #8A8378; cursor: default; pointer-events: none; }
+    /* or shape by hand — the spec rows on the page. The Adjust pill is a
+       hairline pill sitting ON the section rule: secondary weight, warm-
+       selected while adjusting, hidden on the manual path (rows already open). */
+    #mv-shape .mv2-sechead { position: relative; }
+    .mv2-shapelink { position: absolute; right: 0; bottom: 0; transform: translateY(50%); display: inline-flex; align-items: center; gap: 7px; cursor: pointer; background: #FFFFFF; border: 1px solid var(--cream-300); border-radius: 100px; padding: 8px 14px; font: 400 9.5px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); }
+    .mv2-shapelink:hover { border-color: #C9BCA6; }
+    .mv2-shapelink.on { background: #F3EFE6; border-color: #C9BCA6; }
+    .mv2-shapelink[hidden] { display: none; }   /* inline-flex beats the hidden attr otherwise */
+    .mv2-shapelink svg { flex: none; }
     .mvr { display: flex; align-items: center; gap: 20px; border-bottom: 1px solid rgba(225,218,203,0.6); padding: 14px 0; }
     .mvr-k { flex: none; width: 96px; font: 400 11px/1.4 'Inter'; letter-spacing: 0.1em; text-transform: uppercase; color: #8A8378; }
     .mvr-opts { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
@@ -433,7 +437,6 @@
             <div class="mv2-sechead">
               <span class="mv2-ey">Your harmony</span>
               <span class="mv-res-name" id="st1-season"></span>
-              <span class="mv-res-of">one of twelve</span>
               <button class="mv-door" id="st1-door">Full colour notes →</button>
             </div>
             <p class="mv-res-sum" id="st1-sum"></p>
@@ -447,7 +450,6 @@
             <div class="mv2-sechead">
               <span class="mv2-ey">Your line</span>
               <span class="mv-res-name" id="st2-line"></span>
-              <span class="mv-res-of">one of five</span>
               <button class="mv-door" id="st2-door">Full line notes →</button>
             </div>
             <p class="mv-res-sum" id="st2-sum"></p>
@@ -457,7 +459,7 @@
           <section class="mv2-sec" id="mv-shape">
             <div class="mv2-sechead">
               <span class="mv2-ey" id="mv-shape-ey">Or shape her by hand</span>
-              <button class="mv2-shapelink" id="mv-adjust">She changes as you choose</button>
+              <button class="mv2-shapelink" id="mv-adjust" hidden></button>
             </div>
             <div id="mv-shape-rows"></div>
           </section>
@@ -1065,15 +1067,20 @@
        The tap is the preview: every pick repaints the stage live, and a
        kept model un-keeps so Keep her stays the one commitment. */
     const MV_NUDGE_LABELS = { line: 'The line', frame: 'The frame' };
+    const MV_SLIDERS_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
+      '<line x1="3" y1="6" x2="21" y2="6"></line><circle cx="15" cy="6" r="2.6" fill="currentColor" stroke="none"></circle>' +
+      '<line x1="3" y1="12" x2="21" y2="12"></line><circle cx="8" cy="12" r="2.6" fill="currentColor" stroke="none"></circle>' +
+      '<line x1="3" y1="18" x2="21" y2="18"></line><circle cx="17" cy="18" r="2.6" fill="currentColor" stroke="none"></circle></svg>';
     function renderShape(readAny) {
       const P = mvP();
       document.getElementById('mv-shape-ey').textContent =
         readAny ? ('Robes read ' + P.him) : ('Or shape ' + P.him + ' by hand');
+      // The Adjust pill only exists once Robes has read something — on the
+      // manual path the controls are already open, so it hides entirely.
       const link = document.getElementById('mv-adjust');
-      link.classList.toggle('inert', !readAny);
-      link.textContent = readAny
-        ? (st.byHand ? 'Done adjusting' : 'Adjust by hand \u2192')
-        : (P.She + ' changes as you choose');
+      link.hidden = !readAny;
+      link.classList.toggle('on', readAny && st.byHand);
+      link.innerHTML = MV_SLIDERS_SVG + '<span>' + (st.byHand ? 'Done adjusting' : 'Adjust by hand') + '</span>';
       const rows = document.getElementById('mv-shape-rows');
       const show = !readAny || st.byHand;
       rows.hidden = !show;
@@ -1172,7 +1179,7 @@
       if (on && !chip) {
         chip = document.createElement('span');
         chip.className = 'mv-photo-busy';
-        chip.textContent = 'Photographing…';
+        chip.textContent = 'Creating your model…';
         frame.appendChild(chip);
       } else if (!on && chip) chip.remove();
     }
