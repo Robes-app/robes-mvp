@@ -187,22 +187,25 @@
       padding: 11px 18px; line-height: 1; cursor: pointer;
       transition: background .2s var(--ease-default), color .2s var(--ease-default), border-color .2s var(--ease-default);
     }
-    .chip-ghost:hover { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
+    /* No ink fills on this step's chips — the system reserves the single
+       ink fill for Continue. A chosen token wears the warm selected fill,
+       and the pool hover previews it. */
+    .chip-ghost:hover { background: #F3EFE6; border-color: #C9BCA6; }
     .chip-plus { color: var(--cream-500); margin-right: 8px; font-size: 13px; transition: color .2s var(--ease-default); }
-    .chip-ghost:hover .chip-plus { color: rgba(250,248,245,0.6); }
+    .chip-ghost:hover .chip-plus { color: var(--ink-faint); }
     .chip-solid {
       display: inline-flex; align-items: center; gap: 10px;
-      font-weight: 400; font-size: 14px; color: var(--cream-30); background: var(--primary);
-      border: 1px solid var(--primary); border-radius: 100px;
+      font-weight: 400; font-size: 14px; color: var(--foreground); background: #F3EFE6;
+      border: 1px solid #C9BCA6; border-radius: 100px;
       padding: 11px 14px 11px 18px; line-height: 1;
     }
     .chip-x {
       background: none; border: none; cursor: pointer; padding: 0;
       width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center;
-      color: rgba(250,248,245,0.5); font-size: 17px; line-height: 1;
+      color: var(--ink-faint); font-size: 17px; line-height: 1;
       transition: color .2s var(--ease-default);
     }
-    .chip-x:hover { color: var(--cream-30); }
+    .chip-x:hover { color: var(--foreground); }
 
     /* ONE field, ONE pool: the chosen icons live as chips INSIDE the field
        (never a second "Your icons" shelf below it), the helper row under it

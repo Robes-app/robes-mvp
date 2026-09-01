@@ -124,6 +124,10 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
 
   await p.locator('#ic-pool .chip-ghost').first().click(); await p.waitForTimeout(150);
   ok(await p.locator('#ic-field .chip-solid').count() === 1, 'chip lands INSIDE the field');
+  // The single ink fill on the screen is Continue — a chosen token wears the
+  // warm selected fill (#F3EFE6), never ink.
+  const chipBg = await p.locator('#ic-field .chip-solid').first().evaluate(el => getComputedStyle(el).backgroundColor);
+  ok(chipBg === 'rgb(243, 239, 230)', 'token wears the warm selected fill, not ink — got ' + chipBg);
   ok(await p.getAttribute('#ic-input', 'placeholder') === 'Add another…', 'placeholder flips');
   ok((await p.locator('#ic-tally').innerText()) === '1 added', 'tally reads 1 added');
   ok(!(await skip.isVisible()), 'SKIP REMOVED once an icon is selected');
