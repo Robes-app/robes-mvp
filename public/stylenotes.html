@@ -103,95 +103,84 @@
     .g-7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 14px; }
     .g-8 { display: grid; grid-template-columns: repeat(8, 1fr); gap: 14px; }
 
-    /* ── The model page (2026-08: one entry, two photographs) ─────── */
-    .mv-grid { display: grid; grid-template-columns: 1fr 400px; gap: 56px; align-items: start; }
-    .mv-step { display: flex; gap: 22px; border-top: 1px solid var(--cream-300); margin-top: 30px; padding-top: 26px; transition: opacity 0.3s; }
-    .mv-step.first { margin-top: 40px; }
-    .mv-step.dim { opacity: 0.45; }
-    .mv-step-head { display: flex; align-items: baseline; gap: 12px; }
-    .mv-step-no { font-family: 'Cormorant', Georgia, serif; font-size: 15px; color: #B0A798; }
-    .mv-step-name { font: 500 14px/1 'Inter'; color: var(--ink); }
+    /* ── The model page (2026-09-01: the stage is the photograph — design
+       Your_Model__avatar_iteration.dc.html, 2a anatomy) ─────────────── */
+    .mv2-grid { display: grid; grid-template-columns: 430px minmax(0, 1fr); gap: 56px; align-items: start; }
+    .mv2-stage { position: sticky; top: calc(var(--nav-h) + 24px); height: calc(100vh - var(--nav-h) - 48px); min-height: 520px; max-height: 780px; background: #F5F0E9; border: 1px solid var(--cream-300); border-radius: 2px; overflow: hidden; }
+    .mv2-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .mv2-stage::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 110px; background: linear-gradient(to bottom, rgba(245,240,233,0.9), rgba(245,240,233,0)); z-index: 2; pointer-events: none; }
+    .mv2-stage::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 130px; background: linear-gradient(to top, rgba(245,240,233,0.94), rgba(245,240,233,0)); z-index: 2; pointer-events: none; }
+    .mv2-stagehead { position: absolute; left: 26px; top: 24px; right: 26px; display: none; flex-direction: column; gap: 6px; z-index: 3; }
+    .mv-caption { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 19px; line-height: 1.45; color: #4F4A44; }
+    .mv2-facts { position: absolute; left: 26px; right: 26px; bottom: 20px; display: flex; border-top: 1px solid var(--cream-300); padding-top: 13px; z-index: 3; }
+    .mv2-facts > div { flex: 1; }
+    .mv2-facts .k { font: 400 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--rose, #8E6A7C); }
+    .mv2-facts .v { font-family: 'Cormorant', Georgia, serif; font-size: 20px; color: var(--ink); margin-top: 5px; }
+    .mv2-facts .v.pending { color: #C4BCAE; }
     .mv-read { font: 400 11px/1 'Inter'; color: var(--sage, #4A7B6F); letter-spacing: 0.1em; text-transform: uppercase; }
-    .mv-guide { font: 300 12.5px/1.65 'Inter'; color: #8A8378; margin: 7px 0 0; max-width: 400px; }
-    .mv-cta-row { display: flex; align-items: center; gap: 20px; margin-top: 18px; flex-wrap: wrap; }
-    .mv-cta { background: var(--ink); color: var(--cream); border: 1px solid var(--ink); border-radius: 100px; padding: 13px 26px; font: 400 11px/1 'Inter'; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; }
-    .mv-cta.ghost { background: var(--cream); color: #B0A798; border-color: var(--cream-300); }
-    .mv-cta-hint { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 14px; color: #8A8378; }
-    .mv-result { margin-top: 16px; animation: mvFadeUp 0.5s ease both; }
+    .mv-guide { font: 300 12.5px/1.65 'Inter'; color: #8A8378; margin: 7px 0 0; }
+
+    /* section headers on the right column */
+    .mv2-sec { margin-top: 34px; }
+    .mv2-sechead { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--cream-300); padding-bottom: 9px; }
+    .mv2-ey { font: 400 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--rose, #8E6A7C); }
+    .mv2-note { margin-left: auto; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 14px; color: #8A8378; }
+
+    /* her likeness — the two photograph slots */
+    .mv2-lik { display: flex; gap: 22px; margin-top: 18px; }
+    .mv2-likslot { flex: 1; min-width: 0; display: flex; gap: 16px; align-items: flex-start; }
+    .mv2-likslot .photo-slot { width: 132px; height: 176px; flex: none; border-radius: 3px; }
+    .mv2-likslot .slot-title { font-size: 14px; padding: 0 10px; }
+    .mv2-likslot .slot-hint { font-size: 7.5px; padding: 5px 7px; letter-spacing: 0.14em; }
+    .mv2-likslot .slot-empty { gap: 10px; }
+    .mv2-likslot .slot-replace { bottom: 8px; font-size: 7px; padding: 4px 7px; }
+    .mv2-liktxt { flex: 1; min-width: 0; padding-top: 2px; }
+    .mv2-likhead { display: flex; align-items: baseline; gap: 10px; }
+    .mv2-liklabel { font: 400 9.5px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: #8A8378; }
+    .mv2-likread { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 13.5px; line-height: 1.5; color: #4F4A44; margin: 8px 0 0; }
+
+    /* the reads — harmony / line verdicts in place */
+    .mv-result { animation: mvFadeUp 0.5s ease both; }
     @keyframes mvFadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
     @media (prefers-reduced-motion: reduce) { .mv-result { animation: none; } }
-    .mv-res-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-    .mv-res-name { font-family: 'Cormorant', Georgia, serif; font-size: 24px; color: var(--ink); }
+    .mv-res-name { font-family: 'Cormorant', Georgia, serif; font-size: 26px; color: var(--ink); }
     .mv-res-of { font: 400 11px/1 'Inter'; color: #B0A798; }
-    .mv-res-sum { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 14.5px; line-height: 1.6; color: #4F4A44; margin-top: 8px; max-width: 440px; }
-    .mv-sw-row { display: flex; gap: 5px; margin-top: 14px; }
-    .mv-sw-row div { width: 38px; height: 38px; }
-    .mv-facts-row { display: flex; gap: 34px; margin-top: 16px; }
-    .mv-fact-k { font: 400 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--rose, #8E6A7C); }
-    .mv-fact-v { font-family: 'Cormorant', Georgia, serif; font-size: 17px; color: var(--ink); margin-top: 4px; }
-    .mv-door { display: inline-block; background: none; border: none; padding: 0; margin-top: 16px; cursor: pointer; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 14px; color: var(--rose, #8E6A7C); }
+    .mv-res-sum { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.6; color: #4F4A44; margin-top: 12px; max-width: 520px; }
+    .mv-sw-row { display: flex; gap: 4px; margin-top: 12px; }
+    .mv-sw-row div { flex: 1; max-width: 56px; height: 38px; }
+    .mv-facts-row { display: flex; gap: 40px; margin-top: 16px; }
+    .mv-fact-k { font: 400 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: #B0A798; }
+    .mv-fact-v { font-family: 'Cormorant', Georgia, serif; font-size: 18px; color: var(--ink); margin-top: 4px; }
+    .mv-door { display: inline-block; background: none; border: none; padding: 0; cursor: pointer; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 14px; color: var(--rose, #8E6A7C); }
     .mv-door:hover { color: var(--ink); }
+    .mv2-sechead .mv-door { margin-left: auto; }
 
-    /* small photo slots inside the steps */
-    .mv-slot-col { flex: none; }
-    .mv-slot-col .photo-slot { width: 112px; height: 150px; border-radius: 2px; }
-    .mv-slot-col .slot-title { font-size: 13px; padding: 0 8px; }
-    .mv-slot-col .slot-hint { font-size: 7.5px; padding: 5px 7px; letter-spacing: 0.14em; }
-    .mv-slot-col .slot-empty { gap: 9px; }
-    .mv-slot-col .slot-replace { bottom: 8px; font-size: 7px; padding: 4px 7px; }
+    /* or shape by hand — the spec rows on the page */
+    .mv2-shapelink { background: none; border: none; padding: 0; margin-left: auto; cursor: pointer; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 14px; color: var(--rose, #8E6A7C); }
+    .mv2-shapelink:hover { color: var(--ink); }
+    .mv2-shapelink.inert { color: #8A8378; cursor: default; pointer-events: none; }
+    .mvr { display: flex; align-items: center; gap: 20px; border-bottom: 1px solid rgba(225,218,203,0.6); padding: 14px 0; }
+    .mvr-k { flex: none; width: 96px; font: 400 11px/1.4 'Inter'; letter-spacing: 0.1em; text-transform: uppercase; color: #8A8378; }
+    .mvr-opts { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+    .mvr-pill { border-radius: 100px; padding: 10px 18px; cursor: pointer; font: 400 12px/1 'Inter'; color: var(--ink); background: #FFFFFF; border: 1px solid var(--cream-300); }
+    .mvr-pill.on { background: #F3EFE6; border-color: #C9BCA6; }
+    .mvr-dot { width: 28px; height: 28px; border-radius: 100px; cursor: pointer; padding: 0; border: 1px solid rgba(32,32,33,0.14); }
+    .mvr-dot.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--cream), 0 0 0 3px var(--ink); }
+    .mvr-cur { font: 400 12px/1 'Inter'; color: #6E675E; margin-left: 6px; }
 
-    /* the model rail */
-    .mv-rail { border-left: 1px solid var(--cream-300); padding-left: 40px; position: sticky; top: calc(var(--nav-h) + 24px); }
-    .mv-rail-in { display: flex; flex-direction: column; }
-    .mv-ey-mob { display: none; }
-    .mv-figframe { width: 100%; aspect-ratio: 4/5; background: #F5F0E9; border: 1px solid var(--cream-300); border-radius: 2px; margin-top: 16px; position: relative; overflow: hidden; }
-    .mv-figframe svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-    .mv-fig-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 34px; text-align: center; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.6; color: #B0A798; }
+    /* the footer — one ink pill, one italic note */
+    .mv2-foot { margin-top: 36px; border-top: 1px solid var(--cream-300); padding-top: 20px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+    .mv-keep { flex: none; white-space: nowrap; background: var(--ink); color: var(--cream); border: 1px solid var(--ink); border-radius: 100px; padding: 15px 38px; font: 400 11.5px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; }
+    .mv-keep.onfile { background: var(--cream); color: var(--sage, #4A7B6F); border-color: var(--cream-300); cursor: default; }
+    .mv-status { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.5; color: #8A8378; }
+    .mv-status.kept { color: var(--sage, #4A7B6F); }
+
     /* the photographed model — the actual catalog cell, layered over the
        abstract figure (which survives only as the pre-photo ghost) */
-    .mv-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; animation: mvFadeIn 0.4s ease both; }
-    .mv-photo-busy { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); white-space: nowrap; font: 400 9.5px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); background: rgba(250,248,245,0.88); border: 1px solid var(--cream-300); border-radius: 100px; padding: 8px 14px; animation: rb-pulse 1.4s ease-in-out infinite; }
-    .mv-caption { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.5; color: #4F4A44; margin-top: 12px; }
-    .mv-facts { display: flex; margin-top: 20px; border-top: 1px solid var(--cream-300); }
-    .mv-facts > div { flex: 1; padding: 14px 0; }
-    .mv-facts > div + div { border-left: 1px solid var(--cream-300); padding-left: 20px; }
-    .mv-facts .k { font: 400 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--rose, #8E6A7C); }
-    .mv-facts .v { font-family: 'Cormorant', Georgia, serif; font-size: 19px; color: var(--ink); margin-top: 4px; }
-    .mv-facts .v.pending { color: #C4BCAE; }
-    .mv-status { border-top: 1px solid var(--cream-300); padding-top: 16px; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.6; color: #4F4A44; }
-    .mv-status.empty { color: #B0A798; }
-    .mv-status.kept { color: var(--sage, #4A7B6F); }
-    .mv-ctas { margin-top: 24px; display: flex; flex-direction: column; gap: 16px; align-items: flex-start; }
-    .mv-keep { width: 100%; background: var(--ink); color: var(--cream); border: none; border-radius: 100px; padding: 15px 0; font: 400 12px/1 'Inter'; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; }
-    .mv-adjust { background: none; border: none; padding: 0; cursor: pointer; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; color: var(--rose, #8E6A7C); }
-    .mv-savedrow { display: flex; align-items: center; gap: 12px; width: 100%; border-top: 1px solid var(--cream-300); padding-top: 16px; }
-    .mv-savedrow .tick { font: 400 11px/1 'Inter'; color: var(--sage, #4A7B6F); letter-spacing: 0.1em; text-transform: uppercase; }
-
-    /* the adjust sheet */
-    #mv-sheet-wrap { position: fixed; inset: 0; z-index: 400; background: rgba(32,32,33,0.18); display: flex; justify-content: flex-end; animation: mvFadeIn 0.25s ease both; }
-    #mv-sheet-wrap[hidden] { display: none; }   /* display:flex beats the hidden attr otherwise */
     @keyframes mvFadeIn { from { opacity: 0; } to { opacity: 1; } }
-    #mv-sheet { width: 440px; max-width: 100%; background: var(--cream); border-left: 1px solid var(--cream-300); padding: 36px 40px; display: flex; flex-direction: column; gap: 26px; overflow-y: auto; }
-    .mvs-headrow { display: flex; align-items: baseline; justify-content: space-between; }
-    .mvs-h { font-family: 'Cormorant', Georgia, serif; font-size: 34px; font-weight: 300; color: var(--ink); margin-top: 8px; }
-    .mvs-x { background: none; border: none; cursor: pointer; font-size: 18px; color: #8A8378; padding: 0; }
-    .mvs-axis-head { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--cream-300); padding-bottom: 9px; }
-    .mvs-axis-note { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 13px; color: #8A8378; }
-    .mvs-skins { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-top: 16px; }
-    .mvs-skins button { aspect-ratio: 1; border-radius: 100px; cursor: pointer; border: 1px solid rgba(32,32,33,0.14); padding: 0; }
-    .mvs-hairs { display: flex; gap: 10px; margin-top: 16px; }
-    .mvs-hairs button { width: 38px; height: 38px; border-radius: 100px; cursor: pointer; border: 1px solid rgba(32,32,33,0.14); padding: 0; }
-    .mvs-skins button.on, .mvs-hairs button.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--cream), 0 0 0 3px var(--ink); }
-    .mvs-nudges { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
-    .mvs-nrow { display: flex; gap: 10px; }
-    .mvs-nrow button { flex: 1; border-radius: 100px; padding: 11px 0; cursor: pointer; font: 400 12px/1 'Inter'; background: #FFFFFF; border: 1px solid var(--cream-300); color: var(--ink); }
-    .mvs-nrow button.on { background: #F3EFE6; border-color: #C9BCA6; }
-    .mvs-save { margin-top: auto; background: var(--ink); color: var(--cream); border: none; border-radius: 100px; padding: 15px 0; font: 400 12px/1 'Inter'; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; }
-    @media (max-width: 767px) {
-      #mv-sheet-wrap { align-items: flex-end; justify-content: stretch; }
-      #mv-sheet { width: 100%; max-height: calc(88dvh - env(safe-area-inset-bottom)); border-left: none; border-top: 1px solid var(--cream-300); border-radius: 14px 14px 0 0; padding: 28px 22px calc(28px + env(safe-area-inset-bottom)); }
-      .mvs-save { margin-top: 6px; }
-    }
+    .mv-fig-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 34px; text-align: center; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.6; color: #B0A798; z-index: 3; }
+    .mv-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; animation: mvFadeIn 0.4s ease both; z-index: 1; }
+    .mv-photo-busy { position: absolute; right: 14px; top: 16px; white-space: nowrap; font: 400 9.5px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); background: rgba(250,248,245,0.88); border: 1px solid var(--cream-300); border-radius: 100px; padding: 8px 14px; animation: rb-pulse 1.4s ease-in-out infinite; z-index: 4; }
 
     /* full-notes sections */
     .mv-notes { margin-top: 24px; }
@@ -292,26 +281,21 @@
       .chapter-h1 { font-size: 42px; }
       main { padding-top: 26px; }
 
-      /* the model rail compacts into a header card above the steps */
-      .mv-grid { display: flex; flex-direction: column; gap: 0; }
-      .mv-rail { order: -1; border-left: none; padding-left: 0; position: static; border-bottom: 1px solid var(--cream-300); padding-bottom: 18px; margin-bottom: 4px; }
-      .mv-rail-in { display: grid; grid-template-columns: 96px 1fr; gap: 16px; align-items: start; }
-      .mv-ey-desk { display: none; }
-      .mv-ey-mob { display: block; }
-      .mv-figframe { width: 96px; aspect-ratio: 4/5; margin-top: 0; grid-row: 1 / span 2; }
-      .mv-fig-empty { padding: 0 8px; font-size: 10.5px; }
-      .mv-meta { min-width: 0; }
-      .mv-facts { margin-top: 10px; border-top: none; }
-      .mv-facts > div { padding: 0; }
-      .mv-facts > div + div { border-left: none; padding-left: 18px; }
-      .mv-facts .k { font-size: 9px; letter-spacing: 0.2em; }
-      .mv-facts .v { font-size: 15px; margin-top: 2px; }
-      .mv-status { border-top: none; padding-top: 10px; font-size: 12.5px; }
-      .mv-photo-busy { font-size: 6.5px; padding: 5px 7px; letter-spacing: 0.1em; bottom: 6px; }
-      .mv-caption { font-size: 12px; margin-top: 4px; }
-      .mv-ctas { grid-column: 1 / -1; margin-top: 4px; }
-      .mv-slot-col .photo-slot { width: 88px; height: 118px; }
-      .mv-step { gap: 16px; }
+      /* the stage leads the page full-width (design 1a) */
+      .mv2-grid { display: flex; flex-direction: column; gap: 0; }
+      .mv2-stage { order: -1; position: relative; top: auto; width: 100%; height: 420px; min-height: 0; margin-bottom: 6px; }
+      .mv2-stagehead { left: 18px; top: auto; bottom: 74px; right: 18px; }
+      .mv-caption { font-size: 16px; }
+      .mv2-facts { left: 18px; right: 18px; bottom: 14px; padding-top: 11px; }
+      .mv2-facts .k { font-size: 9px; letter-spacing: 0.2em; }
+      .mv2-facts .v { font-size: 16px; margin-top: 3px; }
+      .mv2-sec { margin-top: 28px; }
+      .mv2-lik { flex-direction: column; gap: 24px; }
+      .mv2-likslot .photo-slot { width: 108px; height: 144px; }
+      .mvr { flex-wrap: wrap; gap: 10px 16px; }
+      .mvr-k { width: 100%; }
+      .mv2-foot { flex-direction: column; align-items: stretch; text-align: center; gap: 14px; }
+      .mv-keep { width: 100%; }
     }
 
 /* a11y: keyboard focus + no-zoom-needed input sizing (Wave 2) */
@@ -364,125 +348,126 @@
     <!-- ============ VIEW — TWO PHOTOGRAPHS, ONE MODEL ============ -->
     <div id="view-model">
 
-      <div class="mv-grid">
-        <div class="mv-left">
-          <div class="eyebrow-rose">Style notes</div>
-          <h1 class="chapter-h1">Two photographs.<br><em>One model.</em></h1>
+      <div class="mv2-grid">
 
-          <!-- Step 01 — the close-up -->
-          <section class="mv-step first" id="mv-step1">
-            <div class="mv-slot-col">
-              <button class="photo-slot" id="headshot-slot" aria-label="Add your close-up photo">
-                <span class="slot-empty">
-                  <span class="slot-title">Add a close-up</span>
-                  <span class="slot-hint" id="headshot-hint">Add photo</span>
-                </span>
-              </button>
-              <input type="file" id="headshot-file" accept="image/*" hidden>
-            </div>
-            <div style="flex:1;min-width:0;">
-              <div class="mv-step-head">
-                <span class="mv-step-no">01</span>
-                <span class="mv-step-name">Your close-up</span>
-                <span class="mv-read" id="st1-read" hidden>✓ Read</span>
-              </div>
-              <p class="mv-guide" id="st1-guide">Soft daylight, facing a window. No filters, no direct sun, no coloured lighting.</p>
-              <div class="mv-cta-row" id="st1-cta">
-                <button class="mv-cta" id="st1-btn">Add photo &amp; read</button>
-                <span class="mv-cta-hint">This alone is enough to start her.</span>
-              </div>
-              <p class="slot-err" id="headshot-err"></p>
-              <div class="mv-result" id="st1-result" hidden>
-                <div class="mv-res-head">
-                  <span class="mv-fact-k">Your harmony</span>
-                  <span class="mv-res-name" id="st1-season"></span>
-                  <span class="mv-res-of">one of twelve</span>
-                </div>
-                <p class="mv-res-sum" id="st1-sum"></p>
-                <div class="mv-sw-row" id="st1-sw"></div>
-                <div class="mv-facts-row">
-                  <div><div class="mv-fact-k">Undertone</div><div class="mv-fact-v" id="st1-undertone"></div></div>
-                  <div><div class="mv-fact-k">Contrast</div><div class="mv-fact-v" id="st1-contrast"></div></div>
-                </div>
-                <button class="mv-door" id="st1-door">Full colour notes →</button>
-              </div>
-            </div>
-          </section>
-
-          <!-- Step 02 — the full-length -->
-          <section class="mv-step" id="mv-step2">
-            <div class="mv-slot-col">
-              <button class="photo-slot" id="full-slot" aria-label="Add your full-length photo">
-                <span class="slot-empty">
-                  <span class="slot-title">Add a full-length</span>
-                  <span class="slot-hint" id="full-hint">Add photo</span>
-                </span>
-              </button>
-              <input type="file" id="full-file" accept="image/*" hidden>
-            </div>
-            <div style="flex:1;min-width:0;">
-              <div class="mv-step-head">
-                <span class="mv-step-no">02</span>
-                <span class="mv-step-name">Your full-length photo</span>
-                <span class="mv-read" id="st2-read" hidden>✓ Read</span>
-              </div>
-              <p class="mv-guide" id="st2-guide">Straight-on, head to toe. Fitted clothing reads best — oversized pieces hide your line.</p>
-              <div class="mv-cta-row" id="st2-cta">
-                <button class="mv-cta ghost" id="st2-btn">Add photo &amp; read</button>
-                <span class="mv-cta-hint" id="st2-hint">After your close-up.</span>
-              </div>
-              <p class="slot-err" id="full-err"></p>
-              <div class="mv-result" id="st2-result" hidden>
-                <div class="mv-res-head">
-                  <span class="mv-fact-k">Your line</span>
-                  <span class="mv-res-name" id="st2-line"></span>
-                  <span class="mv-res-of">one of five</span>
-                </div>
-                <p class="mv-res-sum" id="st2-sum"></p>
-                <button class="mv-door" id="st2-door">Full line notes →</button>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <!-- The model rail -->
-        <aside class="mv-rail">
-          <div class="mv-rail-in">
-            <div class="eyebrow-rose mv-ey-desk">Your model</div>
-            <div class="mv-figframe" id="mv-figframe">
-              <svg viewBox="0 0 200 250" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-                <defs>
-                  <radialGradient id="mv-glow" cx="50%" cy="28%" r="62%">
-                    <stop offset="0%" stop-color="rgba(243,210,215,0.24)"></stop>
-                    <stop offset="100%" stop-color="rgba(243,210,215,0)"></stop>
-                  </radialGradient>
-                </defs>
-                <rect x="0" y="0" width="200" height="250" fill="url(#mv-glow)"></rect>
-                <g id="mv-fig" opacity="0.22">
-                  <ellipse id="mv-hair" cx="100" cy="38" rx="24" ry="17" fill="#D6CFC2"></ellipse>
-                  <ellipse id="mv-head" cx="100" cy="46" rx="18" ry="21" fill="#E3DED4"></ellipse>
-                  <polygon id="mv-dress" points="" fill="#E3DED4"></polygon>
-                  <rect id="mv-legs" x="87" y="196" width="26" height="54" fill="#E3DED4" opacity="0.9"></rect>
-                </g>
-              </svg>
-              <div class="mv-fig-empty" id="mv-fig-empty">Your model starts the moment your first photograph reads — or shape them by hand.</div>
-            </div>
-            <div class="mv-meta">
-              <div class="eyebrow-rose mv-ey-mob" style="margin-bottom:2px;">Your model</div>
-              <div class="mv-caption" id="mv-caption" hidden></div>
-              <div class="mv-facts">
-                <div><div class="k">Harmony</div><div class="v pending" id="mv-fact-harmony">Reading</div></div>
-                <div><div class="k">Line</div><div class="v pending" id="mv-fact-line">Reading</div></div>
-              </div>
-              <div class="mv-status empty" id="mv-status">Nothing yet.</div>
-            </div>
-            <div class="mv-ctas">
-              <button class="mv-keep" id="mv-keep" hidden>Keep her</button>
-              <button class="mv-adjust" id="mv-adjust" hidden>Not quite her?</button>
-              <div class="mv-savedrow" id="mv-savedrow" hidden><span class="tick">✓ Saved</span></div>
-            </div>
+        <!-- The stage — the photographed model -->
+        <aside class="mv2-stage" id="mv-figframe">
+          <svg viewBox="0 0 200 250" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+            <defs>
+              <radialGradient id="mv-glow" cx="50%" cy="28%" r="62%">
+                <stop offset="0%" stop-color="rgba(243,210,215,0.24)"></stop>
+                <stop offset="100%" stop-color="rgba(243,210,215,0)"></stop>
+              </radialGradient>
+            </defs>
+            <rect x="0" y="0" width="200" height="250" fill="url(#mv-glow)"></rect>
+            <g id="mv-fig" opacity="0.22">
+              <ellipse id="mv-hair" cx="100" cy="38" rx="24" ry="17" fill="#D6CFC2"></ellipse>
+              <ellipse id="mv-head" cx="100" cy="46" rx="18" ry="21" fill="#E3DED4"></ellipse>
+              <polygon id="mv-dress" points="" fill="#E3DED4"></polygon>
+              <rect id="mv-legs" x="87" y="196" width="26" height="54" fill="#E3DED4" opacity="0.9"></rect>
+            </g>
+          </svg>
+          <div class="mv-fig-empty" id="mv-fig-empty">Your model starts the moment your first photograph reads — or shape them by hand.</div>
+          <div class="mv2-stagehead" id="mv-stagehead">
+            <div class="mv2-ey" id="mv-stage-ey"></div>
+            <div class="mv-caption" id="mv-caption"></div>
+          </div>
+          <div class="mv2-facts">
+            <div><div class="k">Harmony</div><div class="v pending" id="mv-fact-harmony">Not read yet</div></div>
+            <div><div class="k">Line</div><div class="v pending" id="mv-fact-line">Not read yet</div></div>
           </div>
         </aside>
+
+        <div class="mv2-main">
+          <div class="eyebrow-rose">Style notes</div>
+          <h1 class="chapter-h1">Your <em>model.</em></h1>
+
+          <!-- Her likeness — the two photographs -->
+          <section class="mv2-sec" id="mv-likeness">
+            <div class="mv2-sechead">
+              <span class="mv2-ey" id="mv-lik-ey">Her likeness</span>
+              <span class="mv2-note">Two photographs. One model.</span>
+            </div>
+            <div class="mv2-lik">
+              <div class="mv2-likslot">
+                <button class="photo-slot" id="headshot-slot" aria-label="Add your close-up photo">
+                  <span class="slot-empty">
+                    <span class="slot-title">Add a close-up</span>
+                    <span class="slot-hint" id="headshot-hint">Add photo</span>
+                  </span>
+                </button>
+                <input type="file" id="headshot-file" accept="image/*" hidden>
+                <div class="mv2-liktxt">
+                  <div class="mv2-likhead">
+                    <span class="mv2-liklabel">Close-up</span>
+                    <span class="mv-read" id="st1-read" hidden>✓ Read</span>
+                  </div>
+                  <p class="mv-guide" id="st1-guide">Soft daylight, facing a window. No filters, no direct sun, no coloured lighting.</p>
+                  <p class="mv2-likread" id="st1-readline" hidden></p>
+                  <p class="slot-err" id="headshot-err"></p>
+                </div>
+              </div>
+              <div class="mv2-likslot">
+                <button class="photo-slot" id="full-slot" aria-label="Add your full-length photo">
+                  <span class="slot-empty">
+                    <span class="slot-title">Add a full-length</span>
+                    <span class="slot-hint" id="full-hint">Add photo</span>
+                  </span>
+                </button>
+                <input type="file" id="full-file" accept="image/*" hidden>
+                <div class="mv2-liktxt">
+                  <div class="mv2-likhead">
+                    <span class="mv2-liklabel">Full length</span>
+                    <span class="mv-read" id="st2-read" hidden>✓ Read</span>
+                  </div>
+                  <p class="mv-guide" id="st2-guide">Straight-on, head to toe. Fitted clothing reads best — oversized pieces hide your line.</p>
+                  <p class="mv2-likread" id="st2-readline" hidden></p>
+                  <p class="slot-err" id="full-err"></p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- The reads — verdicts in place, full notes behind the doors -->
+          <section class="mv2-sec mv-result" id="st1-result" hidden>
+            <div class="mv2-sechead">
+              <span class="mv2-ey">Your harmony</span>
+              <span class="mv-res-name" id="st1-season"></span>
+              <span class="mv-res-of">one of twelve</span>
+              <button class="mv-door" id="st1-door">Full colour notes →</button>
+            </div>
+            <p class="mv-res-sum" id="st1-sum"></p>
+            <div class="mv-sw-row" id="st1-sw"></div>
+            <div class="mv-facts-row">
+              <div><div class="mv-fact-k">Undertone</div><div class="mv-fact-v" id="st1-undertone"></div></div>
+              <div><div class="mv-fact-k">Contrast</div><div class="mv-fact-v" id="st1-contrast"></div></div>
+            </div>
+          </section>
+          <section class="mv2-sec mv-result" id="st2-result" hidden>
+            <div class="mv2-sechead">
+              <span class="mv2-ey">Your line</span>
+              <span class="mv-res-name" id="st2-line"></span>
+              <span class="mv-res-of">one of five</span>
+              <button class="mv-door" id="st2-door">Full line notes →</button>
+            </div>
+            <p class="mv-res-sum" id="st2-sum"></p>
+          </section>
+
+          <!-- Or shape the model by hand — the spec rows -->
+          <section class="mv2-sec" id="mv-shape">
+            <div class="mv2-sechead">
+              <span class="mv2-ey" id="mv-shape-ey">Or shape her by hand</span>
+              <button class="mv2-shapelink" id="mv-adjust">She changes as you choose</button>
+            </div>
+            <div id="mv-shape-rows"></div>
+          </section>
+
+          <!-- The footer — one ink pill, one italic note -->
+          <div class="mv2-foot">
+            <button class="mv-keep" id="mv-keep" hidden>Keep her</button>
+            <div class="mv-status" id="mv-status"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Her full colour notes (the existing chapter, behind the quiet door) -->
@@ -667,47 +652,6 @@
 
   </main>
 
-  <!-- Adjust sheet -->
-  <div id="mv-sheet-wrap" hidden>
-    <div id="mv-sheet" role="dialog" aria-label="Adjust your model">
-      <div class="mvs-headrow">
-        <div>
-          <div class="eyebrow-rose">Adjust</div>
-          <div class="mvs-h">Your model.</div>
-        </div>
-        <button class="mvs-x" id="mv-sheet-x" aria-label="Close">×</button>
-      </div>
-      <div>
-        <div class="mvs-axis-head">
-          <div class="eyebrow-rose">Presence</div>
-          <div class="mvs-axis-note">Every recommendation follows it</div>
-        </div>
-        <div class="mvs-nudges" id="mvs-presence" style="margin-top:16px;"></div>
-      </div>
-      <div>
-        <div class="mvs-axis-head">
-          <div class="eyebrow-rose">Skin tone</div>
-          <div class="mvs-axis-note">Warm to cool, deep to fair</div>
-        </div>
-        <div class="mvs-skins" id="mvs-skins"></div>
-      </div>
-      <div>
-        <div class="mvs-axis-head">
-          <div class="eyebrow-rose">Hair</div>
-        </div>
-        <div class="mvs-hairs" id="mvs-hairs"></div>
-      </div>
-      <div>
-        <div class="mvs-axis-head">
-          <div class="eyebrow-rose">The figure</div>
-          <div class="mvs-axis-note">Nudge, don't pick</div>
-        </div>
-        <div class="mvs-nudges" id="mvs-nudges"></div>
-      </div>
-      <button class="mvs-save" id="mv-sheet-save">Save her</button>
-    </div>
-  </div>
-
   <script>
     const SUPABASE_URL  = 'https://ayowpaknssulsqqvwpqx.supabase.co';
     const SUPABASE_ANON = 'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ';
@@ -740,7 +684,7 @@
     // Display names for the stage caption only — colour words, never body
     // words (the no-body-type-language rule holds on this page too).
     const MV_SKIN_NAMES = ['Espresso','Mahogany','Chestnut','Golden','Honey','Sand','Peach','Porcelain'];
-    const MV_HAIR_NAMES = ['black','espresso','chestnut','caramel','ash blonde'];
+    const MV_HAIR_NAMES = ['jet black','espresso brown','chestnut brown','caramel blonde','ash blonde'];
     // Presence moved here from Account details (2026-09-01) — the model IS
     // where identity lives now. Values match profiles.gender_identity.
     const MV_PRESENCE = [['woman','Woman'],['man','Man'],['unspecified','Prefer not to say']];
@@ -778,6 +722,7 @@
       headshotUrl: null,
       fullLengthUrl: null,
       gender: 'woman',   // profiles.gender_identity, normalised at load
+      byHand: false,     // the "Adjust by hand" fold on the shape rows (session-only)
       // the model — null skin/hair means "propose from the analysis";
       // touched = she shaped the model by hand (a photograph is optional)
       model: { skin: null, hair: null, nudges: {}, kept: false, gender: null, touched: false },
@@ -837,16 +782,18 @@
       const a = st.colour;
       const read = document.getElementById('st1-read');
       const guide = document.getElementById('st1-guide');
-      const cta = document.getElementById('st1-cta');
+      const readline = document.getElementById('st1-readline');
       const result = document.getElementById('st1-result');
       if (!a) {
-        read.hidden = true; result.hidden = true;
-        guide.hidden = false; cta.hidden = false;
+        read.hidden = true; result.hidden = true; readline.hidden = true;
+        guide.hidden = false;
         renderModel();
         return;
       }
       read.hidden = false; result.hidden = false;
-      guide.hidden = true; cta.hidden = true;
+      guide.hidden = true;
+      readline.hidden = false;
+      readline.textContent = a.season + ' — read from this photograph.';
 
       document.getElementById('st1-season').textContent = a.season;
       document.getElementById('st1-sum').textContent = a.summary || '';
@@ -912,21 +859,18 @@
       const a = st.sil;
       const read = document.getElementById('st2-read');
       const guide = document.getElementById('st2-guide');
-      const cta = document.getElementById('st2-cta');
+      const readline = document.getElementById('st2-readline');
       const result = document.getElementById('st2-result');
-      // step 02 dims (never blocks) until the close-up has read
-      document.getElementById('mv-step2').classList.toggle('dim', !st.colour && !a);
-      const btn = document.getElementById('st2-btn');
-      btn.classList.toggle('ghost', !st.colour && !a);
-      document.getElementById('st2-hint').textContent = st.colour ? 'This is what gives her your line.' : 'After your close-up.';
       if (!a) {
-        read.hidden = true; result.hidden = true;
-        guide.hidden = false; cta.hidden = false;
+        read.hidden = true; result.hidden = true; readline.hidden = true;
+        guide.hidden = false;
         renderModel();
         return;
       }
       read.hidden = false; result.hidden = false;
-      guide.hidden = true; cta.hidden = true;
+      guide.hidden = true;
+      readline.hidden = false;
+      readline.textContent = a.body_type + ' — read from this photograph.';
 
       document.getElementById('st2-line').textContent = a.body_type;
       document.getElementById('st2-sum').textContent = a.summary || '';
@@ -1038,12 +982,13 @@
     function renderModel() {
       const hasColor = !!st.colour;
       const hasLine = !!st.sil;
-      const any = hasColor || hasLine || mvChosen();   // by-hand shaping counts (design 2026-09-01)
+      const readAny = hasColor || hasLine;
+      const any = readAny || mvChosen();   // by-hand shaping counts (design 2026-09-01)
       const kept = !!st.model.kept;
       const n = st.model.nudges || {};
       const P = mvP();
 
-      // figure
+      // figure (the pre-photo ghost — the photograph layers over it)
       const fig = document.getElementById('mv-fig');
       fig.setAttribute('opacity', any ? '1' : '0.22');
       document.getElementById('mv-fig-empty').style.display = any ? 'none' : 'flex';
@@ -1068,44 +1013,122 @@
       document.getElementById('mv-dress').setAttribute('points', pts);
       legs.setAttribute('x', String(100 - 13));
 
-      // facts
+      // the stage head — where the model came from + colour words only
+      const shead = document.getElementById('mv-stagehead');
+      shead.style.display = any ? 'flex' : 'none';
+      document.getElementById('mv-stage-ey').textContent =
+        (hasColor && hasLine) ? 'Read from your photographs'
+        : readAny ? 'Part read, part chosen'
+        : 'Chosen by hand';
+      document.getElementById('mv-caption').textContent =
+        MV_SKIN_NAMES[mvSkinIdx()] + ' · ' + MV_HAIR_NAMES[mvHairIdx()] + ' hair';
+
+      // facts at the stage's foot
       const fh = document.getElementById('mv-fact-harmony');
-      fh.textContent = hasColor ? st.colour.season : 'Reading';
+      fh.textContent = hasColor ? st.colour.season : 'Not read yet';
       fh.classList.toggle('pending', !hasColor);
       const fl = document.getElementById('mv-fact-line');
-      fl.textContent = hasLine ? st.sil.body_type : 'Reading';
+      fl.textContent = hasLine ? st.sil.body_type : 'Not read yet';
       fl.classList.toggle('pending', !hasLine);
 
-      // stage caption — colour words only, never body words
-      const cap = document.getElementById('mv-caption');
-      cap.hidden = !any;
-      if (any) cap.textContent = MV_SKIN_NAMES[mvSkinIdx()] + ' · ' + MV_HAIR_NAMES[mvHairIdx()] + ' hair';
+      // likeness header speaks the presence
+      document.getElementById('mv-lik-ey').textContent = mvMan() ? 'His likeness' : 'Her likeness';
 
-      // status
-      const status = document.getElementById('mv-status');
-      let txt, cls = '';
-      if (kept) { txt = P.Shes + ' on file. Every look you keep is one photograph of ' + P.him + ' wearing it.'; cls = 'kept'; }
-      else if (hasColor && hasLine) { txt = st.colour.season + ', ' + String(st.sil.body_type).toLowerCase() + '. This is ' + P.him + '.'; }
-      else if (hasColor) { txt = 'Robes has your colouring. One more photograph gives ' + P.him + ' your line.'; }
-      else if (hasLine) { txt = 'Robes has your line. A close-up gives ' + P.him + ' your colouring.'; }
-      else if (any) { txt = 'Shaped by hand. Add a photograph whenever you like — the model updates.'; }
-      else { txt = 'Nothing yet.'; cls = 'empty'; }
-      status.textContent = txt;
-      status.className = 'mv-status' + (cls ? ' ' + cls : '');
+      renderShape(readAny);
 
-      // CTAs — keepable from the FIRST read (decision 2026-08-25: the
-      // close-up alone is enough) OR from a by-hand shape with no photo at
-      // all (2026-09-01 — the male path and the photo-shy path both need it).
+      // the footer — Keep is the one commitment on the page. Keepable from
+      // the FIRST read (decision 2026-08-25) OR from a by-hand shape with
+      // no photo at all (2026-09-01 — the male path needs it).
       const keepBtn = document.getElementById('mv-keep');
-      keepBtn.hidden = !(any && !kept);
-      keepBtn.textContent = mvMan() ? 'Keep him' : 'Keep her';
-      const adjBtn = document.getElementById('mv-adjust');
-      adjBtn.hidden = false;   // the by-hand door is always open
-      adjBtn.textContent = any ? (mvMan() ? 'Not quite him?' : 'Not quite her?') : 'Shape your model by hand';
-      document.getElementById('mv-savedrow').hidden = !kept;
+      keepBtn.hidden = !any;
+      keepBtn.disabled = kept;
+      keepBtn.classList.toggle('onfile', kept);
+      keepBtn.textContent = kept
+        ? (mvMan() ? '\u2713 He\u2019s on file' : '\u2713 She\u2019s on file')
+        : (mvMan() ? 'Keep him' : 'Keep her');
+      const note = document.getElementById('mv-status');
+      let txt, cls = '';
+      if (kept) { txt = 'Every look you keep is a photograph of ' + P.him + ' wearing it.'; cls = 'kept'; }
+      else if (hasColor && hasLine) { txt = 'Two photographs read. ' + P.Shes + ' as close as ' + P.she + ' gets.'; }
+      else if (readAny) { txt = 'One more photograph and ' + P.she + ' settles.'; }
+      else if (any) { txt = 'Shaped by hand. Add a photograph whenever you like \u2014 the model updates.'; }
+      else { txt = 'Nothing yet. Add a photograph, or shape the model by hand.'; }
+      note.textContent = txt;
+      note.className = 'mv-status' + (cls ? ' ' + cls : '');
 
       mvPhotoSync(any);
     }
+
+    /* the spec rows — presence, skin, hair, the figure nudges. Rows stand
+       open while nothing has read (the by-hand path IS the page then);
+       once Robes has read a photograph they fold behind "Adjust by hand".
+       The tap is the preview: every pick repaints the stage live, and a
+       kept model un-keeps so Keep her stays the one commitment. */
+    const MV_NUDGE_LABELS = { line: 'The line', frame: 'The frame' };
+    function renderShape(readAny) {
+      const P = mvP();
+      document.getElementById('mv-shape-ey').textContent =
+        readAny ? ('Robes read ' + P.him) : ('Or shape ' + P.him + ' by hand');
+      const link = document.getElementById('mv-adjust');
+      link.classList.toggle('inert', !readAny);
+      link.textContent = readAny
+        ? (st.byHand ? 'Done adjusting' : 'Adjust by hand \u2192')
+        : (P.She + ' changes as you choose');
+      const rows = document.getElementById('mv-shape-rows');
+      const show = !readAny || st.byHand;
+      rows.hidden = !show;
+      if (!show) { rows.innerHTML = ''; return; }
+      const g = mvGender(), skin = mvSkinIdx(), hairI = mvHairIdx(), nn = st.model.nudges || {};
+      const row = (k, inner) => '<div class="mvr"><div class="mvr-k">' + k + '</div><div class="mvr-opts">' + inner + '</div></div>';
+      const hairName = MV_HAIR_NAMES[hairI].charAt(0).toUpperCase() + MV_HAIR_NAMES[hairI].slice(1);
+      rows.innerHTML =
+        row('Presence', MV_PRESENCE.map(([v, label]) =>
+          '<button type="button" class="mvr-pill' + (v === g ? ' on' : '') + '" data-axis="presence" data-v="' + v + '">' + (v === g ? '\u2713 ' : '') + label + '</button>'
+        ).join('')) +
+        row('Skin', MV_SKINS.map((c, i) =>
+          '<button type="button" class="mvr-dot' + (i === skin ? ' on' : '') + '" data-axis="skin" data-v="' + i + '" style="background:' + c + ';" aria-label="Skin tone ' + (i + 1) + '"></button>'
+        ).join('') + '<span class="mvr-cur">' + MV_SKIN_NAMES[skin] + '</span>') +
+        row('Hair', MV_HAIRS.map((c, i) =>
+          '<button type="button" class="mvr-dot' + (i === hairI ? ' on' : '') + '" data-axis="hair" data-v="' + i + '" style="background:' + c + ';" aria-label="Hair colour ' + (i + 1) + '"></button>'
+        ).join('') + '<span class="mvr-cur">' + hairName + '</span>') +
+        MV_NUDGES.map(nd =>
+          row(MV_NUDGE_LABELS[nd.key], ['L', 'R'].map((v, i) =>
+            '<button type="button" class="mvr-pill' + (nn[nd.key] === v ? ' on' : '') + '" data-axis="' + nd.key + '" data-v="' + v + '">' + (i === 0 ? nd.left : nd.right) + '</button>'
+          ).join(''))
+        ).join('');
+    }
+    document.getElementById('mv-adjust').addEventListener('click', () => {
+      const readAny = !!st.colour || !!st.sil;
+      if (!readAny) return;   // inert note while nothing has read
+      st.byHand = !st.byHand;
+      renderModel();
+    });
+    document.getElementById('mv-shape-rows').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const axis = b.dataset.axis, v = b.dataset.v;
+      if (axis === 'presence') {
+        // Presence persists IMMEDIATELY on pick (unlike skin/hair, which
+        // commit on Keep) \u2014 it is identity, and every generation surface
+        // reads profiles.gender_identity from here on.
+        if (v !== mvGender()) {
+          st.model.gender = v;
+          st.gender = v;
+          save({ gender_identity: v });
+        }
+      } else if (axis === 'skin') {
+        st.model.skin = Number(v);
+      } else if (axis === 'hair') {
+        st.model.hair = Number(v);
+      } else {
+        const nn = st.model.nudges || {};
+        nn[axis] = nn[axis] === v ? null : v;   // second tap clears the nudge
+        if (!nn[axis]) delete nn[axis];
+        st.model.nudges = nn;
+      }
+      st.model.touched = true;
+      st.model.kept = false;   // a change un-keeps \u2014 Keep her re-commits
+      renderModel();
+    });
 
     /* keep + persistence — localStorage is the instant cache, the cloud
        write degrades silently until migration 20 (avatar_migration.sql)
@@ -1217,79 +1240,6 @@
         if (seq === _mvPhotoSeq) mvPhotoBusy(false);
       }
     }
-
-    /* the adjust sheet */
-    function mvSheetPaint() {
-      const skin = mvSkinIdx(), hair = mvHairIdx(), n = st.model.nudges || {};
-      const g = mvGender();
-      document.getElementById('mvs-presence').innerHTML =
-        '<div class="mvs-nrow">' + MV_PRESENCE.map(([v, label]) =>
-          '<button type="button" data-v="' + v + '" class="' + (v === g ? 'on' : '') + '">' + label + '</button>'
-        ).join('') + '</div>';
-      document.getElementById('mv-sheet-save').textContent = mvMan() ? 'Save him' : 'Save her';
-      document.getElementById('mvs-skins').innerHTML = MV_SKINS.map((c, i) =>
-        '<button type="button" data-i="' + i + '" class="' + (i === skin ? 'on' : '') + '" style="background:' + c + ';" aria-label="Skin tone ' + (i + 1) + '"></button>'
-      ).join('');
-      document.getElementById('mvs-hairs').innerHTML = MV_HAIRS.map((c, i) =>
-        '<button type="button" data-i="' + i + '" class="' + (i === hair ? 'on' : '') + '" style="background:' + c + ';" aria-label="Hair colour ' + (i + 1) + '"></button>'
-      ).join('');
-      document.getElementById('mvs-nudges').innerHTML = MV_NUDGES.map(nd =>
-        '<div class="mvs-nrow" data-key="' + nd.key + '">' +
-          '<button type="button" data-v="L" class="' + (n[nd.key] === 'L' ? 'on' : '') + '">' + nd.left + '</button>' +
-          '<button type="button" data-v="R" class="' + (n[nd.key] === 'R' ? 'on' : '') + '">' + nd.right + '</button>' +
-        '</div>'
-      ).join('');
-    }
-    function mvSheetOpen() {
-      document.getElementById('mv-sheet-wrap').hidden = false;
-      mvSheetPaint();
-    }
-    function mvSheetClose() { document.getElementById('mv-sheet-wrap').hidden = true; }
-    document.getElementById('mv-adjust').addEventListener('click', mvSheetOpen);
-    document.getElementById('mv-sheet-x').addEventListener('click', mvSheetClose);
-    document.getElementById('mv-sheet-wrap').addEventListener('click', e => {
-      if (e.target === document.getElementById('mv-sheet-wrap')) mvSheetClose();
-    });
-    // Presence persists IMMEDIATELY on pick (unlike skin/hair, which are
-    // model styling and commit on Save) — it's identity, and every
-    // generation surface reads profiles.gender_identity from here on.
-    document.getElementById('mvs-presence').addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b) return;
-      const v = b.dataset.v;
-      if (v === mvGender()) return;
-      st.model.gender = v;
-      st.model.touched = true;
-      st.gender = v;
-      save({ gender_identity: v });
-      if (st.model.kept) mvPersist();   // a kept model re-files under the new catalog
-      mvSheetPaint(); renderModel();
-    });
-    document.getElementById('mvs-skins').addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b) return;
-      st.model.skin = Number(b.dataset.i);
-      st.model.touched = true;
-      mvSheetPaint(); renderModel();
-    });
-    document.getElementById('mvs-hairs').addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b) return;
-      st.model.hair = Number(b.dataset.i);
-      st.model.touched = true;
-      mvSheetPaint(); renderModel();
-    });
-    document.getElementById('mvs-nudges').addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b) return;
-      const key = b.closest('.mvs-nrow').dataset.key, v = b.dataset.v;
-      const n = st.model.nudges || {};
-      n[key] = n[key] === v ? null : v;   // second tap clears the nudge
-      if (!n[key]) delete n[key];
-      st.model.nudges = n;
-      st.model.touched = true;
-      mvSheetPaint(); renderModel();
-    });
-    document.getElementById('mv-sheet-save').addEventListener('click', () => {
-      mvKeep();
-      mvSheetClose();
-    });
 
     /* ── Taste & budget ──────────────────────────────────────────── */
 
@@ -1623,12 +1573,12 @@
     });
 
     wireSlot({
-      kind: 'colour', slotId: 'headshot-slot', fileId: 'headshot-file', hintId: 'headshot-hint', errId: 'headshot-err', btnId: 'st1-btn',
+      kind: 'colour', slotId: 'headshot-slot', fileId: 'headshot-file', hintId: 'headshot-hint', errId: 'headshot-err',
       busyMsg: 'Reading your colouring…',
       rejectMsg: 'Robes couldn’t find a face in that photo — try a clearer close-up.',
     });
     wireSlot({
-      kind: 'silhouette', slotId: 'full-slot', fileId: 'full-file', hintId: 'full-hint', errId: 'full-err', btnId: 'st2-btn',
+      kind: 'silhouette', slotId: 'full-slot', fileId: 'full-file', hintId: 'full-hint', errId: 'full-err',
       busyMsg: 'Reading your line…',
       rejectMsg: 'Robes couldn’t read a full-length figure — try a head-to-toe photo.',
     });

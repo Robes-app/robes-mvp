@@ -6,7 +6,7 @@
  * PHOTOGRAPHED model stage (the actual avatar cell, fetched via
  * /api/avatar/cell), keep-after-close-up-alone, the presence row (gender
  * lives here now, not in Account details), the by-hand path with no
- * photographs, the male catalog (m-… ids), the adjust sheet, the
+ * photographs, the male catalog (m-… ids), the on-page spec rows, the
  * full-notes doors, Taste & budget as its own #taste entry, and the
  * pre-migration degrade.
  *
@@ -122,21 +122,28 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   console.log(`\n\x1b[1m== ${label} · empty profile — nothing read yet ==\x1b[0m`);
   {
     const { ctx, p, errs, cellPosts } = await open(vp);
-    ok((await p.locator('.chapter-h1').first().innerText()).includes('Two photographs'), 'h1 reads Two photographs / One model');
-    ok(await p.locator('#st1-result').isHidden(), 'no colour result yet');
-    ok(await p.locator('#st2-result').isHidden(), 'no line result yet');
-    ok(await p.locator('#mv-step2.dim').count() === 1, 'step 02 dims until the close-up reads');
-    ok(await p.locator('#st2-btn.ghost').count() === 1, 'step 02 button is the ghost');
-    ok((await p.locator('#st2-hint').innerText()) === 'After your close-up.', 'step 02 hint waits on the close-up');
-    ok(await p.locator('#mv-fig-empty').isVisible(), 'figure carries the it-starts line');
-    ok((await p.locator('#mv-fig').getAttribute('opacity')) === '0.22', 'figure is ghosted');
+    ok((await p.locator('.chapter-h1').first().innerText()).toLowerCase().includes('your'), 'h1 names the page');
+    ok(await p.locator('#st1-result').isHidden(), 'no colour read section yet');
+    ok(await p.locator('#st2-result').isHidden(), 'no line read section yet');
+    ok(await p.locator('#st1-guide').isVisible() && await p.locator('#st2-guide').isVisible(), 'both likeness slots carry their guides');
+    ok(await p.locator('#st1-readline').isHidden() && await p.locator('#st2-readline').isHidden(), 'no read lines yet');
+    ok(await p.locator('#mv-fig-empty').isVisible(), 'the stage carries the it-starts line');
+    ok((await p.locator('#mv-fig').getAttribute('opacity')) === '0.22', 'the ghost figure is ghosted');
     ok(await p.locator('.mv-photo').count() === 0, 'no model photograph before anything exists');
     ok(cellPosts.length === 0, 'no cell request before anything exists');
-    ok((await p.locator('#mv-fact-harmony').innerText()) === 'Reading', 'harmony fact pending');
-    ok((await p.locator('#mv-status').innerText()) === 'Nothing yet.', 'status is Nothing yet');
-    ok(await p.locator('#mv-keep').isHidden(), 'no Keep her before any read or choice');
-    ok(await p.locator('#mv-adjust').isVisible(), 'the by-hand door is open even before a read (2026-09-01)');
-    ok((await p.locator('#mv-adjust').innerText()) === 'Shape your model by hand', 'and reads Shape your model by hand');
+    ok(await p.locator('#mv-stagehead').isHidden(), 'no stage eyebrow/caption before anything exists');
+    ok((await p.locator('#mv-fact-harmony').innerText()) === 'Not read yet', 'harmony fact reads Not read yet');
+    ok(/^Nothing yet\./.test(await p.locator('#mv-status').innerText()), 'the foot note starts at Nothing yet');
+    ok(await p.locator('#mv-keep').isHidden(), 'no Keep pill before any read or choice');
+    // THE BY-HAND PATH IS THE PAGE while nothing has read (design 1a/2a)
+    ok(/or shape her by hand/i.test(await p.locator('#mv-shape-ey').innerText()), 'shape section header invites the by-hand path');
+    ok(await p.locator('#mv-shape-rows').isVisible(), 'the spec rows stand OPEN with nothing read');
+    ok(await p.locator('#mv-shape-rows .mvr').count() === 5, 'five rows: Presence / Skin / Hair / The line / The frame');
+    ok(await p.locator('[data-axis="presence"]').count() === 3, 'presence: Woman / Man / Prefer not to say (moved from Account details)');
+    ok(await p.locator('[data-axis="skin"]').count() === 8, 'eight skin tones');
+    ok(await p.locator('[data-axis="hair"]').count() === 5, 'five hair colours');
+    ok(!/Longer|Shorter/.test(await p.locator('#mv-shape-rows').innerText()), 'no length nudge anywhere (decision 2026-08-25)');
+    ok(/changes as you choose/i.test(await p.locator('#mv-adjust').innerText()), 'the shape link is the quiet invitation note');
     ok(await p.locator('#colour-sections').isHidden() && await p.locator('#sil-sections').isHidden(), 'full notes stay behind their doors');
     ok(await p.locator('#view-taste').isHidden(), 'taste view is not on this page');
     ok(!(await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), 'no horizontal overflow');
@@ -147,28 +154,25 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   console.log(`\n\x1b[1m== ${label} · close-up read — keep her on colour ALONE ==\x1b[0m`);
   {
     const { ctx, p, errs, cellPosts } = await open(vp, 'colour');
-    ok(await p.locator('#st1-read').isVisible(), 'step 01 shows ✓ Read');
+    ok(await p.locator('#st1-read').isVisible(), 'the close-up slot shows ✓ Read');
+    ok((await p.locator('#st1-readline').innerText()).includes('read from this photograph'), 'the read line sits with the photograph');
     // THE STAGE IS THE PHOTOGRAPH (2026-09-01): the actual catalog cell
     ok(await p.waitForSelector('.mv-photo', { timeout: 5000 }).then(() => true).catch(() => false), 'the model photograph lands on the stage');
     ok(/model-cell\.jpg/.test(await p.locator('.mv-photo').getAttribute('src') || ''), 'and it is the cell the endpoint served');
     ok(cellPosts.length > 0 && cellPosts[0] === 'w-s5-h1-nt', 'the cell asked for matches the resolved id, got ' + cellPosts[0]);
-    ok((await p.locator('#mv-caption').innerText()) === 'Sand · espresso hair', 'the stage caption names her colouring, got ' + await p.locator('#mv-caption').innerText());
+    ok(/part read, part chosen/i.test(await p.locator('#mv-stage-ey').innerText()), 'stage eyebrow names the provenance');
+    ok((await p.locator('#mv-caption').innerText()) === 'Sand · espresso brown hair', 'the stage caption names her colouring in colour words');
     ok(/keep her/i.test(await p.locator('#mv-keep').innerText()), 'the keep pill speaks as she does');
-    ok((await p.locator('#st1-season').innerText()) === 'Soft Autumn', 'harmony names the season');
+    ok((await p.locator('#st1-season').innerText()) === 'Soft Autumn', 'the harmony read names the season');
     ok(await p.locator('#st1-sw div').count() === 9, 'nine swatches in the reduced strip');
     ok((await p.locator('#st1-undertone').innerText()) === 'Neutral', 'undertone fact');
-    ok(await p.locator('#mv-step2.dim').count() === 0, 'step 02 undims');
-    ok(await p.locator('#st2-btn.ghost').count() === 0, 'step 02 button darkens');
-    ok((await p.locator('#st2-hint').innerText()) === 'This is what gives her your line.', 'step 02 hint flips');
-    ok((await p.locator('#mv-fig').getAttribute('opacity')) === '1', 'figure comes alive');
-    ok((await p.locator('#mv-hair').getAttribute('fill')) === '#3A2A20', 'hair proposed from her extracted hair hex');
-    const skin = await p.locator('#mv-head').getAttribute('fill');
-    ok(skin === '#D0A47F', 'skin proposed from her extracted skin hex, got ' + skin);
-    ok((await p.locator('#mv-fact-harmony').innerText()) === 'Soft Autumn', 'harmony fact fills');
-    ok((await p.locator('#mv-fact-line').innerText()) === 'Reading', 'line fact still pending');
-    ok(/one more photograph/i.test(await p.locator('#mv-status').innerText()), 'status invites the second photo');
-    ok(await p.locator('#mv-keep').isVisible(), 'KEEP HER IS LIVE ON THE CLOSE-UP ALONE (decision 2026-08-25)');
-    ok(await p.locator('#mv-adjust').isVisible(), 'Not quite her? is live');
+    ok((await p.locator('#mv-fact-harmony').innerText()) === 'Soft Autumn', 'harmony fact fills on the stage');
+    ok((await p.locator('#mv-fact-line').innerText()) === 'Not read yet', 'line fact still waits');
+    ok(/one more photograph/i.test(await p.locator('#mv-status').innerText()), 'the foot note invites the second photo');
+    // once Robes has read, the rows fold behind Adjust by hand
+    ok(/robes read her/i.test(await p.locator('#mv-shape-ey').innerText()), 'the shape header flips to Robes read her');
+    ok(await p.locator('#mv-shape-rows').isHidden(), 'the spec rows fold away once a photograph has read');
+    ok(/adjust by hand/i.test(await p.locator('#mv-adjust').innerText()), 'Adjust by hand is the way back in');
 
     // the quiet door to the full colour notes
     await p.locator('#st1-door').click(); await p.waitForTimeout(200);
@@ -177,11 +181,10 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.locator('#st1-door').click(); await p.waitForTimeout(100);
     ok(await p.locator('#colour-sections').isHidden(), 'door closes again');
 
-    // keep her → persists + saved state
+    // keep her → persists + on-file state
     await p.locator('#mv-keep').click(); await p.waitForTimeout(200);
-    ok(await p.locator('#mv-savedrow').isVisible(), '✓ Saved shows');
-    ok(await p.locator('#mv-keep').isHidden(), 'Keep her retires once kept');
-    ok(/on file/i.test(await p.locator('#mv-status').innerText()), 'status flips to on-file');
+    ok(/on file/i.test(await p.locator('#mv-keep').innerText()), 'the pill flips to ✓ She’s on file');
+    ok(/every look you keep/i.test(await p.locator('#mv-status').innerText()), 'the foot note flips to the kept line');
     const up = await p.evaluate(() => window.__updates.find(u => u.avatar_id));
     ok(!!up, 'keep writes avatar_id + prefs to the profile');
     ok(up && /^w-s5-h1-nt$/.test(up.avatar_id), 'avatar_id encodes the cell (neutral figure, no line yet), got ' + (up && up.avatar_id));
@@ -192,13 +195,14 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await ctx.close();
   }
 
-  console.log(`\n\x1b[1m== ${label} · both read — this is her + adjust sheet ==\x1b[0m`);
+  console.log(`\n\x1b[1m== ${label} · both read — this is her + adjust by hand ==\x1b[0m`);
   {
     const { ctx, p, errs } = await open(vp, 'both');
-    ok(await p.locator('#st2-read').isVisible(), 'step 02 shows ✓ Read');
-    ok((await p.locator('#st2-line').innerText()) === 'Hourglass', 'line names the archetype');
-    ok((await p.locator('#mv-fact-line').innerText()) === 'Hourglass', 'line fact fills');
-    ok(/This is her\./.test(await p.locator('#mv-status').innerText()), 'status reads This is her');
+    ok(await p.locator('#st2-read').isVisible(), 'the full-length slot shows ✓ Read');
+    ok((await p.locator('#st2-line').innerText()) === 'Hourglass', 'the line read names the archetype');
+    ok((await p.locator('#mv-fact-line').innerText()) === 'Hourglass', 'line fact fills on the stage');
+    ok(/read from your photographs/i.test(await p.locator('#mv-stage-ey').innerText()), 'stage eyebrow: read from your photographs');
+    ok(/two photographs read/i.test(await p.locator('#mv-status').innerText()), 'the foot note says she is as close as she gets');
 
     await p.locator('#st2-door').click(); await p.waitForTimeout(200);
     ok(await p.locator('#sil-sections').isVisible(), 'line door opens the full line notes');
@@ -206,23 +210,19 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.locator('#st2-door').click();
 
     await p.locator('#mv-adjust').click(); await p.waitForTimeout(200);
-    ok(await p.locator('#mv-sheet-wrap').isVisible(), 'adjust sheet opens');
-    ok(await p.locator('#mvs-presence button').count() === 3, 'presence row: Woman / Man / Prefer not to say (moved from Account details)');
-    ok(await p.locator('#mvs-presence button.on').count() === 1 && (await p.locator('#mvs-presence button.on').innerText()) === 'Woman', 'presence defaults to the profile value');
-    ok(await p.locator('#mvs-skins button').count() === 8, 'eight skin tones');
-    ok(await p.locator('#mvs-hairs button').count() === 5, 'five hair colours');
-    ok(await p.locator('#mvs-nudges .mvs-nrow').count() === 2, 'TWO nudge pairs only (Longer/Shorter cut, decision 2026-08-25)');
-    ok(!/Longer|Shorter/.test(await p.locator('#mvs-nudges').innerText()), 'no length nudge anywhere');
-    ok(/save her/i.test(await p.locator('#mv-sheet-save').innerText()), 'the sheet save pill speaks as she does');
+    ok(await p.locator('#mv-shape-rows').isVisible(), 'Adjust by hand unfolds the spec rows');
+    ok(/done adjusting/i.test(await p.locator('#mv-adjust').innerText()), 'and the link flips to Done adjusting');
+    ok(await p.locator('[data-axis="presence"]').count() === 3 && await p.locator('[data-axis="skin"]').count() === 8 && await p.locator('[data-axis="hair"]').count() === 5, 'presence + skins + hairs all in the rows');
+    ok(await p.locator('[data-axis="presence"].on').count() === 1 && /Woman/.test(await p.locator('[data-axis="presence"].on').innerText()), 'presence defaults to the profile value');
 
-    await p.locator('#mvs-skins button').first().click(); await p.waitForTimeout(150);
+    await p.locator('[data-axis="skin"][data-v="0"]').click(); await p.waitForTimeout(150);
     ok((await p.locator('#mv-head').getAttribute('fill')) === '#3B2A22', 'picking a skin repaints the figure live');
+    ok(/keep her/i.test(await p.locator('#mv-keep').innerText()), 'a change un-keeps — Keep her stays the one commitment');
     const before = await p.locator('#mv-dress').getAttribute('points');
-    await p.locator('#mvs-nudges .mvs-nrow[data-key="frame"] button[data-v="R"]').click(); await p.waitForTimeout(150);
-    ok((await p.locator('#mv-dress').getAttribute('points')) !== before, 'a nudge redraws her figure');
-    await p.locator('#mv-sheet-save').click(); await p.waitForTimeout(200);
-    ok(await p.locator('#mv-sheet-wrap').isHidden(), 'Save her closes the sheet');
-    ok(await p.locator('#mv-savedrow').isVisible(), 'and keeps her');
+    await p.locator('[data-axis="frame"][data-v="R"]').click(); await p.waitForTimeout(150);
+    ok((await p.locator('#mv-dress').getAttribute('points')) !== before, 'a nudge redraws the figure');
+    await p.locator('#mv-keep').click(); await p.waitForTimeout(200);
+    ok(/on file/i.test(await p.locator('#mv-keep').innerText()), 'Keep commits the adjusted model');
     const up = await p.evaluate(() => window.__updates.filter(u => u.avatar_id).pop());
     ok(up && /^w-s0-h1-hg-fr$/.test(up.avatar_id), 'avatar_id carries her picks + figure + nudge, got ' + (up && up.avatar_id));
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
@@ -233,12 +233,14 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   {
     const { ctx, p, errs, cellPosts } = await open(vp, 'colour');
     await p.locator('#mv-adjust').click(); await p.waitForTimeout(200);
-    await p.locator('#mvs-presence button[data-v="man"]').click(); await p.waitForTimeout(250);
+    await p.locator('[data-axis="presence"][data-v="man"]').click(); await p.waitForTimeout(250);
     const gup = await p.evaluate(() => window.__updates.find(u => u.gender_identity));
     ok(gup && gup.gender_identity === 'man', 'picking Man writes gender_identity IMMEDIATELY (identity, not styling)');
-    ok(/save him/i.test(await p.locator('#mv-sheet-save').innerText()), 'the sheet save pill flips to Save him');
-    await p.locator('#mv-sheet-save').click(); await p.waitForTimeout(400);
-    ok((await p.locator('#mv-status').innerText()).includes('He’s on file'), 'the status speaks as he does');
+    ok(/keep him/i.test(await p.locator('#mv-keep').innerText()), 'the keep pill flips to Keep him');
+    ok(/robes read him/i.test(await p.locator('#mv-shape-ey').innerText()), 'the shape header speaks as he does');
+    ok((await p.locator('#mv-lik-ey').innerText()).toLowerCase() === 'his likeness', 'the likeness header follows');
+    await p.locator('#mv-keep').click(); await p.waitForTimeout(400);
+    ok(/on file/i.test(await p.locator('#mv-keep').innerText()), 'Keep him lands on file');
     const up = await p.evaluate(() => window.__updates.filter(u => u.avatar_id).pop());
     ok(up && /^m-s5-h1-nt$/.test(up.avatar_id), 'avatar_id lands on the MALE catalog (m- prefix), got ' + (up && up.avatar_id));
     ok(up && up.avatar_prefs && up.avatar_prefs.gender === 'man', 'prefs carry the presence');
@@ -251,12 +253,12 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   console.log(`\n\x1b[1m== ${label} · shaped by hand — no photograph at all ==\x1b[0m`);
   {
     const { ctx, p, errs } = await open(vp);
-    await p.locator('#mv-adjust').click(); await p.waitForTimeout(200);
-    ok(await p.locator('#mv-sheet-wrap').isVisible(), 'the sheet opens with nothing read');
-    await p.locator('#mvs-skins button').first().click(); await p.waitForTimeout(200);
+    ok(await p.locator('#mv-shape-rows').isVisible(), 'the rows stand open with nothing read');
+    await p.locator('[data-axis="skin"][data-v="0"]').click(); await p.waitForTimeout(200);
     ok(await p.locator('#mv-keep').isVisible(), 'a hand-shaped model becomes keepable without any photograph');
-    ok(/Shaped by hand/.test(await p.locator('#mv-status').innerText()), 'the status says shaped by hand');
-    await p.locator('#mv-sheet-save').click(); await p.waitForTimeout(300);
+    ok(/Shaped by hand/.test(await p.locator('#mv-status').innerText()), 'the foot note says shaped by hand');
+    ok(/chosen by hand/i.test(await p.locator('#mv-stage-ey').innerText()), 'the stage eyebrow says chosen by hand');
+    await p.locator('#mv-keep').click(); await p.waitForTimeout(300);
     const up = await p.evaluate(() => window.__updates.filter(u => u.avatar_id).pop());
     ok(up && /^w-s0-h1-nt$/.test(up.avatar_id), 'the by-hand keep writes a neutral-figure cell, got ' + (up && up.avatar_id));
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
@@ -266,7 +268,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   console.log(`\n\x1b[1m== ${label} · kept model reloads + pre-migration degrade ==\x1b[0m`);
   {
     const { ctx, p, errs } = await open(vp, 'kept');
-    ok(await p.locator('#mv-savedrow').isVisible(), 'a kept model reopens saved');
+    ok(/on file/i.test(await p.locator('#mv-keep').innerText()), 'a kept model reopens on file');
     ok((await p.locator('#mv-head').getAttribute('fill')) === '#7A5238', 'her chosen skin wins over the proposal');
     ok((await p.locator('#mv-hair').getAttribute('fill')) === '#1B1614', 'her chosen hair wins');
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
@@ -275,7 +277,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   {
     const { ctx, p, errs } = await open(vp, 'colour', 'nocol');
     await p.locator('#mv-keep').click(); await p.waitForTimeout(200);
-    ok(await p.locator('#mv-savedrow').isVisible(), 'keep still lands locally when migration 20 is missing');
+    ok(/on file/i.test(await p.locator('#mv-keep').innerText()), 'keep still lands locally when migration 20 is missing');
     const ls = await p.evaluate(() => localStorage.getItem('rb_model__u1'));
     ok(!!ls, 'localStorage carries the model pre-migration');
     ok(errs.length === 0, 'no page errors on the degrade: ' + errs.join(' | '));
@@ -289,8 +291,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.waitForTimeout(1200);
     ok(await p.locator('#st1-read').isVisible(), 'a fresh close-up read lands ✓ Read');
     ok((await p.locator('#mv-fig').getAttribute('opacity')) === '1', 'the model starts from the fresh read');
-    ok(await p.locator('#mv-keep').isVisible(), 'Keep her arrives with it');
-    ok(await p.locator('#mv-step2.dim').count() === 0, 'step 02 undims after the fresh read');
+    ok(await p.locator('#mv-keep').isVisible(), 'the keep pill arrives with it');
+    ok(await p.locator('#mv-shape-rows').isHidden(), 'the spec rows fold away after the fresh read');
     const saved = await p.evaluate(() => window.__updates.find(u => u.colour_analysis));
     ok(!!saved && saved.season === 'Soft Autumn', 'the analysis persists to the profile');
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
@@ -316,15 +318,25 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   }
 }
 
-// mobile-only: the rail compacts into a header card ABOVE the steps
+// mobile-only: the stage leads the page full-width (design 1a)
 {
-  console.log('\n\x1b[1m== mobile · the model card leads the page ==\x1b[0m');
+  console.log('\n\x1b[1m== mobile · the stage leads the page ==\x1b[0m');
   const { ctx, p } = await open({ width: 390, height: 844 }, 'colour');
-  const railY = (await p.locator('.mv-rail').boundingBox()).y;
-  const stepY = (await p.locator('#mv-step1').boundingBox()).y;
-  ok(railY < stepY, 'model card sits above the steps on mobile');
-  const fig = await p.locator('#mv-figframe').boundingBox();
-  ok(fig.width < 120, 'figure compacts to the small card, got ' + Math.round(fig.width));
+  const stage = await p.locator('.mv2-stage').boundingBox();
+  const likY = (await p.locator('#mv-likeness').boundingBox()).y;
+  ok(stage.y < likY, 'the stage sits above the likeness slots on mobile');
+  ok(stage.width > 300, 'and runs full width, got ' + Math.round(stage.width));
+  await ctx.close();
+}
+
+// desktop-only: the stage is sticky beside the content
+{
+  console.log('\n\x1b[1m== desktop · the stage stands beside the content ==\x1b[0m');
+  const { ctx, p } = await open({ width: 1280, height: 900 }, 'colour');
+  const stage = await p.locator('.mv2-stage').boundingBox();
+  const main = await p.locator('.mv2-main').boundingBox();
+  ok(stage.x < main.x, 'stage left, content right');
+  ok(stage.height > 500, 'the stage is the full-height column, got ' + Math.round(stage.height));
   await ctx.close();
 }
 
