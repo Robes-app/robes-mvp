@@ -123,7 +123,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   console.log(`\n\x1b[1m== ${label} · empty profile — nothing read yet ==\x1b[0m`);
   {
     const { ctx, p, errs, cellPosts } = await open(vp);
-    ok((await p.locator('.chapter-h1').first().innerText()).toLowerCase().includes('your'), 'h1 names the page');
+    ok(/your model/i.test(await p.locator('.mv2-title').innerText()), 'the one header names the page');
+    ok(/two photographs\. one model\./i.test(await p.locator('.mv2-pagehead .mv2-note').innerText()), 'with the note on the same row');
     ok(await p.locator('#st1-result').isHidden(), 'no colour read section yet');
     ok(await p.locator('#st2-result').isHidden(), 'no line read section yet');
     ok(await p.locator('#st1-guide').isVisible() && await p.locator('#st2-guide').isVisible(), 'both likeness slots carry their guides');
@@ -174,8 +175,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok((await p.locator('#mv-fact-line').innerText()) === 'Not read yet', 'line fact still waits');
     ok(/one more photograph/i.test(await p.locator('#mv-status').innerText()), 'the foot note invites the second photo');
     // once Robes has read, the rows fold behind Adjust by hand
-    ok(/robes read her/i.test(await p.locator('#mv-shape-ey').innerText()), 'the shape header flips to Robes read her');
-    ok(await p.locator('#mv-shape-rows').isHidden(), 'the spec rows fold away once a photograph has read');
+    ok(await p.locator('#mv-shape').isHidden(), 'the inline shape section disappears once a photograph has read');
     ok(/adjust by hand/i.test(await p.locator('#mv-adjust').innerText()), 'the Adjust by hand pill is the way back in');
     ok(await p.locator('#mv-adjust svg').count() === 1, 'and carries the sliders glyph');
 
@@ -221,10 +221,11 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.locator('#mv-notes-wrap').click({ position: { x: 8, y: 8 } }); await p.waitForTimeout(200);
     ok(await p.locator('#mv-notes-wrap').isHidden(), 'clicking the scrim closes it');
 
-    await p.locator('#mv-adjust').click(); await p.waitForTimeout(200);
-    ok(await p.locator('#mv-shape-rows').isVisible(), 'Adjust by hand unfolds the spec rows');
-    ok(/done adjusting/i.test(await p.locator('#mv-adjust').innerText()), 'and the pill flips to Done adjusting');
-    ok(await p.locator('#mv-adjust.on').count() === 1, 'wearing the warm-selected fill while adjusting');
+    await p.locator('#mv-adjust').click(); await p.waitForTimeout(400);
+    ok(await p.locator('#mv-adjust-wrap').isVisible(), 'Adjust by hand opens the flyout');
+    ok(/adjust by hand\./i.test(await p.locator('#mv-adjust-flyout .mvn-title').innerText()), 'titled Adjust by hand.');
+    ok(await p.locator('#mvaf-rows .mvr').count() === 5, 'holding the five spec rows');
+    ok(/nothing to save/i.test(await p.locator('#mvaf-foot').innerText()), 'the footer says nothing needs saving');
     ok(await p.locator('[data-axis="presence"]').count() === 3 && await p.locator('[data-axis="skin"]').count() === 8 && await p.locator('[data-axis="hair"]').count() === 5, 'presence + skins + hairs all in the rows');
     ok(await p.locator('[data-axis="presence"].on').count() === 1 && /Woman/.test(await p.locator('[data-axis="presence"].on').innerText()), 'presence defaults to the profile value');
 
@@ -248,8 +249,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     const gup = await p.evaluate(() => window.__updates.find(u => u.gender_identity));
     ok(gup && gup.gender_identity === 'man', 'picking Man writes gender_identity IMMEDIATELY (identity, not styling)');
     ok(/he updates as you change him/i.test(await p.locator('#mv-filed').innerText()), 'the ✓ Filed line speaks as he does');
-    ok(/robes read him/i.test(await p.locator('#mv-shape-ey').innerText()), 'the shape header speaks as he does');
-    ok((await p.locator('#mv-lik-ey').innerText()).toLowerCase() === 'his likeness', 'the likeness header follows');
+        ok(/robes read him/i.test(await p.locator('#mvaf-ey').innerText()), 'the flyout eyebrow speaks as he does');
     const up = await p.evaluate(() => window.__updates.filter(u => u.avatar_id).pop());
     ok(up && /^m-s5-h1-nt$/.test(up.avatar_id), 'the pick auto-files onto the MALE catalog (m- prefix), got ' + (up && up.avatar_id));
     ok(up && up.avatar_prefs && up.avatar_prefs.gender === 'man', 'prefs carry the presence');
@@ -302,7 +302,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok((await p.locator('#mv-fig').getAttribute('opacity')) === '1', 'the model starts from the fresh read');
     ok(await p.locator('#mv-build').isVisible(), 'the Build a look pill arrives with it');
     ok(await p.locator('#mv-filed').isVisible(), 'and the fresh read auto-files');
-    ok(await p.locator('#mv-shape-rows').isHidden(), 'the spec rows fold away after the fresh read');
+    ok(await p.locator('#mv-shape').isHidden(), 'the inline shape section retires after the fresh read');
     const saved = await p.evaluate(() => window.__updates.find(u => u.colour_analysis));
     ok(!!saved && saved.season === 'Soft Autumn', 'the analysis persists to the profile');
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));

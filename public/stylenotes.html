@@ -154,11 +154,15 @@
     .mv-door:hover { color: var(--ink); }
     .mv2-sechead .mv-door { margin-left: auto; }
 
-    /* or shape by hand — the spec rows on the page. The Adjust pill is a
-       hairline pill sitting ON the section rule: secondary weight, warm-
-       selected while adjusting, hidden on the manual path (rows already open). */
-    #mv-shape .mv2-sechead { position: relative; }
-    .mv2-shapelink { position: absolute; right: 0; bottom: 0; transform: translateY(50%); display: inline-flex; align-items: center; gap: 7px; cursor: pointer; background: #FFFFFF; border: 1px solid var(--cream-300); border-radius: 100px; padding: 8px 14px; font: 400 9.5px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); }
+    /* the one page header: serif title on the hairline rule, the note and
+       the Adjust pill (read state only) riding the same row */
+    .mv2-pagehead { align-items: center; padding-bottom: 12px; }
+    .mv2-title { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 26px; color: var(--ink); margin-right: auto; }
+    .mv2-title em { font-style: italic; color: #8A8378; }
+    .mv2-pagehead .mv2-note { margin-left: 0; }
+    /* the Adjust pill — hairline, secondary weight, hidden on the manual
+       path (the rows are already open there) */
+    .mv2-shapelink { display: inline-flex; align-items: center; gap: 7px; flex: none; cursor: pointer; background: #FFFFFF; border: 1px solid var(--cream-300); border-radius: 100px; padding: 8px 14px; font: 400 9.5px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); }
     .mv2-shapelink:hover { border-color: #C9BCA6; }
     .mv2-shapelink.on { background: #F3EFE6; border-color: #C9BCA6; }
     .mv2-shapelink[hidden] { display: none; }   /* inline-flex beats the hidden attr otherwise */
@@ -207,6 +211,18 @@
       .mvn-body { padding: 0 20px calc(28px + env(safe-area-inset-bottom)); }
     }
     @keyframes mvnSheetUp { from { transform: translateY(100%); } to { transform: none; } }
+
+    /* the adjust flyout — the drawer pattern at the 520px measure */
+    #mv-adjust-wrap { position: fixed; left: 0; right: 0; bottom: 0; top: var(--nav-h); z-index: 400; background: rgba(32,32,33,0.08); animation: mvFadeIn 0.2s ease both; }
+    #mv-adjust-wrap[hidden] { display: none; }
+    #mv-adjust-flyout { position: absolute; top: 0; right: 0; bottom: 0; width: 520px; max-width: 100%; background: var(--cream); border-left: 1px solid var(--cream-300); box-shadow: -18px 0 50px rgba(32,32,33,0.08); display: flex; flex-direction: column; animation: mvnSlideIn 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+    .mvaf-body { flex: 1; overflow-y: auto; padding: 8px 30px 14px; }
+    .mvaf-foot { flex: none; border-top: 1px solid var(--cream-300); padding: 14px 30px 18px; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 13.5px; color: #8A8378; }
+    @media (max-width: 767px) {
+      #mv-adjust-flyout { top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-height: calc(88dvh - env(safe-area-inset-bottom)); border-left: none; border-top: 1px solid var(--cream-300); border-radius: 14px 14px 0 0; animation: mvnSheetUp 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+      .mvaf-body { padding: 4px 20px 12px; }
+      .mvaf-foot { padding: 12px 20px calc(16px + env(safe-area-inset-bottom)); }
+    }
 
     /* the photographed model — the actual catalog cell, layered over the
        abstract figure (which survives only as the pre-photo ghost) */
@@ -416,15 +432,16 @@
         </aside>
 
         <div class="mv2-main">
-          <div class="eyebrow-rose">Style notes</div>
-          <h1 class="chapter-h1">Your <em>model.</em></h1>
+          <!-- ONE header: title, the note, and (once read) the Adjust pill.
+               The nav breadcrumb already says where you are — no eyebrow. -->
+          <div class="mv2-sechead mv2-pagehead">
+            <span class="mv2-title">Your <em>model.</em></span>
+            <span class="mv2-note">Two photographs. One model.</span>
+            <button class="mv2-shapelink" id="mv-adjust" hidden></button>
+          </div>
 
-          <!-- Her likeness — the two photographs -->
+          <!-- The two photographs -->
           <section class="mv2-sec" id="mv-likeness">
-            <div class="mv2-sechead">
-              <span class="mv2-ey" id="mv-lik-ey">Her likeness</span>
-              <span class="mv2-note">Two photographs. One model.</span>
-            </div>
             <div class="mv2-lik">
               <div class="mv2-likslot">
                 <button class="photo-slot" id="headshot-slot" aria-label="Add your close-up photo">
@@ -488,11 +505,13 @@
             <p class="mv-res-sum" id="st2-sum"></p>
           </section>
 
-          <!-- Or shape the model by hand — the spec rows -->
+          <!-- Or shape the model by hand — the spec rows, open in place.
+               This section exists ONLY while nothing has read; once a
+               photograph reads, adjusting lives in the flyout alone. -->
           <section class="mv2-sec" id="mv-shape">
             <div class="mv2-sechead">
               <span class="mv2-ey" id="mv-shape-ey">Or shape her by hand</span>
-              <button class="mv2-shapelink" id="mv-adjust" hidden></button>
+              <span class="mv2-note" id="mv-shape-note">She changes as you choose.</span>
             </div>
             <div id="mv-shape-rows"></div>
           </section>
@@ -506,6 +525,23 @@
             <button class="mv-build" id="mv-build" hidden>Build a look</button>
           </div>
         </div>
+      </div>
+
+      <!-- The adjust flyout (read state): 520px from the right — the ONE
+           place to adjust once a photograph has read. Nothing needs saving. -->
+      <div id="mv-adjust-wrap" hidden>
+        <aside id="mv-adjust-flyout" role="dialog" aria-label="Adjust by hand">
+          <div class="mvn-grab"><span></span></div>
+          <div class="mvn-head">
+            <div>
+              <div class="mv2-ey" id="mvaf-ey"></div>
+              <div class="mvn-title">Adjust by hand.</div>
+            </div>
+            <button class="mvn-close" id="mvaf-done">Done</button>
+          </div>
+          <div class="mvaf-body" id="mvaf-rows"></div>
+          <div class="mvaf-foot" id="mvaf-foot"></div>
+        </aside>
       </div>
 
       <!-- The full notes drawer: 660px from the right under the nav on
@@ -992,7 +1028,9 @@
       if (e.target === document.getElementById('mv-notes-wrap')) mvNotesClose();
     });
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && !document.getElementById('mv-notes-wrap').hidden) mvNotesClose();
+      if (e.key !== 'Escape') return;
+      if (!document.getElementById('mv-notes-wrap').hidden) mvNotesClose();
+      else if (!document.getElementById('mv-adjust-wrap').hidden) mvAdjustClose();
     });
 
     /* ── The model — mapping, figure, keep, adjust ───────────────── */
@@ -1101,9 +1139,6 @@
       fl.textContent = hasLine ? st.sil.body_type : 'Not read yet';
       fl.classList.toggle('pending', !hasLine);
 
-      // likeness header speaks the presence
-      document.getElementById('mv-lik-ey').textContent = mvMan() ? 'His likeness' : 'Her likeness';
-
       renderShape(readAny);
 
       // the footer — the model AUTO-FILES on every change (no Keep
@@ -1125,34 +1160,22 @@
       mvPhotoSync(any);
     }
 
-    /* the spec rows — presence, skin, hair, the figure nudges. Rows stand
-       open while nothing has read (the by-hand path IS the page then);
-       once Robes has read a photograph they fold behind "Adjust by hand".
-       The tap is the preview: every pick repaints the stage live and
-       auto-files — the footer’s ✓ line is the affirmation. */
+    /* the spec rows — presence, skin, hair, the figure nudges.
+       DEFAULT (nothing read): the "Or shape her by hand" section stands
+       open in place, no pill. READ state: the section disappears and the
+       header pill opens a 520px flyout — one place to adjust, nothing to
+       save. The tap is always the preview: every pick repaints the stage
+       live and auto-files. */
     const MV_NUDGE_LABELS = { line: 'The line', frame: 'The frame' };
     const MV_SLIDERS_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
       '<line x1="3" y1="6" x2="21" y2="6"></line><circle cx="15" cy="6" r="2.6" fill="currentColor" stroke="none"></circle>' +
       '<line x1="3" y1="12" x2="21" y2="12"></line><circle cx="8" cy="12" r="2.6" fill="currentColor" stroke="none"></circle>' +
       '<line x1="3" y1="18" x2="21" y2="18"></line><circle cx="17" cy="18" r="2.6" fill="currentColor" stroke="none"></circle></svg>';
-    function renderShape(readAny) {
-      const P = mvP();
-      document.getElementById('mv-shape-ey').textContent =
-        readAny ? ('Robes read ' + P.him) : ('Or shape ' + P.him + ' by hand');
-      // The Adjust pill only exists once Robes has read something — on the
-      // manual path the controls are already open, so it hides entirely.
-      const link = document.getElementById('mv-adjust');
-      link.hidden = !readAny;
-      link.classList.toggle('on', readAny && st.byHand);
-      link.innerHTML = MV_SLIDERS_SVG + '<span>' + (st.byHand ? 'Done adjusting' : 'Adjust by hand') + '</span>';
-      const rows = document.getElementById('mv-shape-rows');
-      const show = !readAny || st.byHand;
-      rows.hidden = !show;
-      if (!show) { rows.innerHTML = ''; return; }
+    function mvShapeRowsHtml() {
       const g = mvGender(), skin = mvSkinIdx(), hairI = mvHairIdx(), nn = st.model.nudges || {};
       const row = (k, inner) => '<div class="mvr"><div class="mvr-k">' + k + '</div><div class="mvr-opts">' + inner + '</div></div>';
       const hairName = MV_HAIR_NAMES[hairI].charAt(0).toUpperCase() + MV_HAIR_NAMES[hairI].slice(1);
-      rows.innerHTML =
+      return (
         row('Presence', MV_PRESENCE.map(([v, label]) =>
           '<button type="button" class="mvr-pill' + (v === g ? ' on' : '') + '" data-axis="presence" data-v="' + v + '">' + (v === g ? '\u2713 ' : '') + label + '</button>'
         ).join('')) +
@@ -1166,19 +1189,52 @@
           row(MV_NUDGE_LABELS[nd.key], ['L', 'R'].map((v, i) =>
             '<button type="button" class="mvr-pill' + (nn[nd.key] === v ? ' on' : '') + '" data-axis="' + nd.key + '" data-v="' + v + '">' + (i === 0 ? nd.left : nd.right) + '</button>'
           ).join(''))
-        ).join('');
+        ).join(''));
+    }
+    function renderShape(readAny) {
+      const P = mvP();
+      // the header pill exists only once a photograph has read
+      const link = document.getElementById('mv-adjust');
+      link.hidden = !readAny;
+      link.classList.toggle('on', readAny && st.byHand);
+      link.innerHTML = MV_SLIDERS_SVG + '<span>Adjust by hand</span>';
+      // the inline section is the DEFAULT state's one place to adjust
+      const sec = document.getElementById('mv-shape');
+      sec.hidden = readAny;
+      if (readAny) {
+        document.getElementById('mv-shape-rows').innerHTML = '';
+      } else {
+        document.getElementById('mv-shape-ey').textContent = 'Or shape ' + P.him + ' by hand';
+        document.getElementById('mv-shape-note').textContent = P.She + ' changes as you choose.';
+        document.getElementById('mv-shape-rows').innerHTML = mvShapeRowsHtml();
+      }
+      // the flyout is the READ state's one place to adjust
+      const wrap = document.getElementById('mv-adjust-wrap');
+      if (readAny && st.byHand) {
+        document.getElementById('mvaf-ey').textContent = 'Robes read ' + P.him;
+        document.getElementById('mvaf-rows').innerHTML = mvShapeRowsHtml();
+        document.getElementById('mvaf-foot').textContent = 'Nothing to save \u2014 ' + P.she + ' updates as you choose.';
+        wrap.hidden = false;
+      } else {
+        wrap.hidden = true;
+        document.getElementById('mvaf-rows').innerHTML = '';
+      }
     }
     document.getElementById('mv-adjust').addEventListener('click', () => {
-      const readAny = !!st.colour || !!st.sil;
-      if (!readAny) return;   // inert note while nothing has read
-      st.byHand = !st.byHand;
+      if (!st.colour && !st.sil) return;
+      st.byHand = true;
       renderModel();
     });
-    document.getElementById('mv-shape-rows').addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b) return;
+    function mvAdjustClose() { st.byHand = false; renderModel(); }
+    document.getElementById('mvaf-done').addEventListener('click', mvAdjustClose);
+    document.getElementById('mv-adjust-wrap').addEventListener('click', e => {
+      if (e.target === document.getElementById('mv-adjust-wrap')) mvAdjustClose();
+    });
+    function mvShapeRowPick(e) {
+      const b = e.target.closest('button'); if (!b || !b.dataset.axis) return;
       const axis = b.dataset.axis, v = b.dataset.v;
       if (axis === 'presence') {
-        // Presence also writes gender_identity \u2014 it is identity, and every
+        // Presence also writes gender_identity — it is identity, and every
         // generation surface reads it from the profile from here on.
         if (v !== mvGender()) {
           st.model.gender = v;
@@ -1197,7 +1253,9 @@
       }
       st.model.touched = true;
       mvFile();   // auto-file on change (repaints) — the ✓ line confirms
-    });
+    }
+    document.getElementById('mv-shape-rows').addEventListener('click', mvShapeRowPick);
+    document.getElementById('mvaf-rows').addEventListener('click', mvShapeRowPick);
 
     /* keep + persistence — localStorage is the instant cache, the cloud
        write degrades silently until migration 20 (avatar_migration.sql)
