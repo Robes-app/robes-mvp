@@ -102,7 +102,7 @@ const SEED_WEARS = [
 // Every write the module makes is captured so the harness can assert on the
 // payloads — that a wear is INSERTed and undone by DELETE (never updated), and
 // that a promotion writes a new look rather than mutating the old one.
-async function boot(browser, { width = 1280, looksTable = true, seed = true, dropCat = null, pics = 0 } = {}) {
+async function boot(browser, { width = 1280, looksTable = true, seed = true, dropCat = null, pics = 0, avatar = null } = {}) {
   WARDROBE_PICS = pics;
   const ctx = await browser.newContext({ viewport: { width, height: 1200 } });
   const page = await ctx.newPage();
@@ -136,6 +136,7 @@ async function boot(browser, { width = 1280, looksTable = true, seed = true, dro
     }
     let body = '[]';
     if (u.includes('wardrobe_items')) body = JSON.stringify(wardrobe().filter((w) => !dropCat || w.category !== dropCat));
+    else if (u.includes('/profiles') && u.includes('avatar_id')) body = JSON.stringify(avatar ? [{ avatar_id: avatar }] : []);
     else if (u.includes('/looks')) body = JSON.stringify(seed ? SEED_LOOKS : []);
     else if (u.includes('look_pieces')) body = JSON.stringify(seed ? SEED_PIECES : []);
     else if (u.includes('/wears')) body = JSON.stringify(seed ? SEED_WEARS : []);
@@ -897,10 +898,13 @@ const browser = await chromium.launch(
 
 // ─────────────────────────────────────────────────────────────────────────
 // 5 · The composer (Phase 2) — the live console: Look panel left at 480px,
-// rack rows with flick / swap / ✕ right, save at two pieces
+// rack rows with flick / swap / ✕ right, Save live from the first second
+// (the name is the one gate); her model stands on the canvas and the rack
+// dresses her (2026-09-03)
 // ─────────────────────────────────────────────────────────────────────────
 {
-  const { ctx, page, errs, writes } = await boot(browser);
+  const { ctx, page, errs, writes } = await boot(browser, { avatar: 'w-s5-h2-hg' });
+  await page.route('**/api/avatar/render', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   await openLooks(page);
   await page.evaluate(() => window.__lkNew());
   await page.waitForTimeout(300);
@@ -916,6 +920,16 @@ const browser = await chromium.launch(
       panel: !!document.querySelector('.rb-lk-con .rbc-panel'),
       saveShown: !!document.querySelector('.rb-lk-save'),
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
+      saveUnnamed: document.querySelector('.rb-lk-save')?.classList.contains('unnamed'),
+      saveNote: document.getElementById('rb-lk-namegate')?.textContent,
+      // The model on the canvas (2026-09-03): she stands in her basics
+      // from the first second
+      fig: !!document.querySelector('.rb-lk-con .rb-lkm-fig'),
+      ghost: !!document.querySelector('.rb-lk-con .rb-lkm-fig.ghost'),
+      basics: document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-basic]').length,
+      dressed: document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-piece]').length,
+      photoDoor: document.querySelector('.rb-lk-con .rb-lkm-addphoto')?.textContent.trim(),
+      photoNote: document.querySelector('.rb-lk-con .rb-lkm-note')?.textContent,
       // The composer is one held card, with the name leading it from
       // outside (FTUE pass 2026-08-12)
       card: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
@@ -969,16 +983,27 @@ const browser = await chromium.launch(
   });
   check('composer · the whole slot row is the tap target, 52px+',
     hit.tap === true && hit.h >= 52 && hit.opened === true, JSON.stringify(hit));
-  // Save stays on screen and inert until the look is a look — a missing
-  // button reads as a broken container (FTUE pass 2026-08-12).
-  check('composer · Save stands on screen, withheld until there is a look',
-    c0.saveShown === true && c0.saveDisabled === true, JSON.stringify([c0.saveShown, c0.saveDisabled]));
+  // Save stands on screen and LIVE from the first second — the name is
+  // the one gate (2026-09-03; the two-piece floor is gone). The pill reads
+  // cream until the look is named, and the note beside it says why.
+  check('composer · Save stands on screen, live, cream until the look is named',
+    c0.saveShown === true && c0.saveDisabled === false && c0.saveUnnamed === true
+      && c0.saveNote === 'Name your look and it is yours to keep.',
+    JSON.stringify([c0.saveShown, c0.saveDisabled, c0.saveUnnamed, c0.saveNote]));
   check('composer · the whole composer sits in ONE card, the name leading it from outside',
     c0.card === true && c0.titleOutside === true, JSON.stringify([c0.card, c0.titleOutside]));
-  // The one alternative door beside Save. Wording follows the account:
-  // repeat here (this Lookbook already holds looks), first-time in §6.
-  check('composer · a populated Lookbook offers "Or let Robes create your look"',
-    c0.robesDoor === 'Or let Robes create your look', c0.robesDoor);
+  // The "Or let Robes create your look" door is gone (2026-09-03) — the
+  // home prompt box is where Robes builds.
+  check('composer · no "Or let Robes create your look" door beside Save',
+    c0.robesDoor === undefined, String(c0.robesDoor));
+  // Her model stands on the canvas from the first second, in beige basics
+  // (a kept model reads off profiles.avatar_id — no ghost).
+  check('composer · her model stands on the canvas in her basics from the first second',
+    c0.fig === true && c0.ghost === false && c0.basics === 2 && c0.dressed === 0,
+    JSON.stringify([c0.fig, c0.ghost, c0.basics, c0.dressed]));
+  check('composer · the photograph door sits under the canvas',
+    c0.photoDoor === 'Add your photograph' && /Add your photograph and it is kept alongside her/.test(c0.photoNote || ''),
+    JSON.stringify([c0.photoDoor, c0.photoNote]));
   // B1 amendment (2026-08-07): the empty state teaches the formula — every
   // empty row sits under a GHOSTED strip forecast from its slot. Education
   // only: the forecast never binds what she adds where.
@@ -1008,15 +1033,15 @@ const browser = await chromium.launch(
     c0.titleValue === '' && c0.titlePlaceholder === 'Name your Look',
     JSON.stringify([c0.titleValue, c0.titlePlaceholder]));
   check('composer · no "Named by you" subtext', c0.namedByYou === false);
-  // The empty look panel stretches to the rack's height — the whitespace
-  // reads intentional, never a tower past the rack (Annie, 2026-08-07).
+  // The canvas keeps the standing 4:5 frame (the model's stage), never a
+  // tower past the rack.
   const panelH = await page.evaluate(() => {
-    const kids = document.querySelectorAll('.rb-lk-con > div');
-    if (kids.length < 2) return null;
-    return { left: Math.round(kids[0].getBoundingClientRect().height), right: Math.round(kids[1].getBoundingClientRect().height) };
+    const c = document.querySelector('.rb-lk-con .rb-lkm-canvas');
+    const r = c?.getBoundingClientRect();
+    return r ? { ratio: Math.round((r.height / r.width) * 100) / 100 } : null;
   });
-  check('composer · the empty look panel matches the rack\'s height',
-    !!panelH && Math.abs(panelH.left - panelH.right) <= 2, JSON.stringify(panelH));
+  check('composer · the canvas is the standing 4:5 frame',
+    !!panelH && Math.abs(panelH.ratio - 1.25) <= 0.02, JSON.stringify(panelH));
 
   // "+ Add a piece" opens the A2 chooser: What kind of piece? An EMPTY
   // look goes straight to all fifteen categories — no still-open gate.
@@ -1072,8 +1097,9 @@ const browser = await chromium.launch(
       flick: row?.querySelectorAll('.rbc-arrow').length,
       swap: !!Array.from(row?.querySelectorAll('.rbc-act') || []).find((b) => /Swap/.test(b.textContent)),
       x: !!row?.querySelector('.rbc-rm'),
-      boardTiles: document.querySelectorAll('.rb-lk-con .rbc-board .rbc-tile').length,
+      dressed: Array.from(document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-piece]')).map((g) => g.dataset.piece + (g.classList.contains('on') ? '*' : '')),
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
+      saveUnnamed: document.querySelector('.rb-lk-save')?.classList.contains('unnamed'),
       roleNotes: document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolenote').length,
     };
   });
@@ -1084,8 +1110,11 @@ const browser = await chromium.launch(
   check('composer · the card carries the flick cluster', one.flick === 2, String(one.flick));
   check('composer · the card carries Swap', one.swap === true);
   check('composer · the card carries the corner ✕', one.x === true);
-  check('composer · the look board populates as pieces land', one.boardTiles === 1, String(one.boardTiles));
-  check('composer · one piece is not yet a look (Save still inert)', one.saveDisabled === true);
+  // The pick dresses her the moment it lands — the new layer animates on
+  check('composer · the rack dresses her as pieces land',
+    JSON.stringify(one.dressed) === JSON.stringify(['w-top1*']), JSON.stringify(one.dressed));
+  check('composer · one piece: Save is live, still cream until named',
+    one.saveDisabled === false && one.saveUnnamed === true, JSON.stringify([one.saveDisabled, one.saveUnnamed]));
   const still = await page.evaluate(() => ({ gone: window.__rbLkSheetGone, ...window.__rbLkStill }));
   check('composer · picking a piece closes the sheet into the rack', still.gone === true);
   check('composer · with a piece placed, Still-open leads the chooser',
@@ -1192,15 +1221,17 @@ const browser = await chromium.launch(
       saveShown: !!document.querySelector('.rb-lk-save'),
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
       gate: !!document.getElementById('rb-lk-namegate'),
-      note: document.querySelector('.rb-lk-con .rbc-quote')?.textContent,
-      boardTiles: document.querySelectorAll('.rb-lk-con .rbc-board .rbc-tile').length,
-      yours: document.querySelector('.rb-lk-con .rbc-yours')?.textContent,
+      dressed: Array.from(document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-piece]')).map((g) => g.dataset.piece),
+      head: document.querySelector('.rb-lk-con .rb-lkm-panel .lab')?.textContent,
     };
     // Typing flips the button in place — a repaint here would take the
     // caret out of the field she is typing into.
     window.__lkNewTitleInput('Terrace mornings');
-    out.namedLive = document.querySelector('.rb-lk-save')?.disabled === false;
+    out.namedLive = document.querySelector('.rb-lk-save')?.disabled === false
+      && !document.querySelector('.rb-lk-save')?.classList.contains('unnamed');
+    out.namedNote = document.getElementById('rb-lk-namegate')?.textContent;
     window.__lkNewTitleInput('');
+    out.unnamedAgain = document.querySelector('.rb-lk-save')?.classList.contains('unnamed');
     return out;
   });
   // RULE 02 — pieces are not enough. The name is still the gate, but it
@@ -1209,8 +1240,9 @@ const browser = await chromium.launch(
   check('composer · two pieces are not enough — the name gates at the click',
     two.saveShown === true && two.saveDisabled === false && two.gate === true,
     JSON.stringify([two.saveShown, two.saveDisabled, two.gate]));
-  check('composer · naming it keeps Save live, without losing the caret',
-    two.namedLive === true, JSON.stringify(two));
+  check('composer · naming it inks Save in place, without losing the caret',
+    two.namedLive === true && two.namedNote === 'Filed under Terrace mornings.' && two.unnamedAgain === true,
+    JSON.stringify([two.namedLive, two.namedNote, two.unnamedAgain]));
   const refusal = await page.evaluate(async () => {
     window.__lkSaveAsk();
     await new Promise((r) => setTimeout(r, 400));
@@ -1221,20 +1253,25 @@ const browser = await chromium.launch(
   });
   check('composer · an unnamed save writes nothing and stays on the composer',
     refusal.stillComposing === true, JSON.stringify(refusal));
-  check('composer · Robes describes the look once it can',
-    two.note === 'Cream silk shirt with the barrel-leg jeans.', two.note);
-  check('composer · both pieces are on the board', two.boardTiles === 2, String(two.boardTiles));
-  check('composer · ownership line is the canonical console copy',
-    /2.of.2 from your wardrobe/.test(two.yours || ''), two.yours);
+  check('composer · both pieces dress her — the trouser under the top',
+    JSON.stringify(two.dressed) === JSON.stringify(['w-bot1', 'w-top1']), JSON.stringify(two.dressed));
+  check('composer · the canvas eyebrow counts what she has on', two.head === 'The look · 2 pieces', two.head);
 
-  // A dress in the Top slot retires the Bottom row
+  // A dress in the Top slot retires the Bottom row — and on the canvas a
+  // dress replaces both basics (top and bottom) in one shape
   const dress = await page.evaluate(() => {
     window.__lkRowClear('r2');
     window.__lkRowPick('r1', 'w-dre1');
-    return { slots: Array.from(document.querySelectorAll('.rbc-row .vslot')).map((b) => b.textContent) };
+    return {
+      slots: Array.from(document.querySelectorAll('.rbc-row .vslot')).map((b) => b.textContent),
+      dressed: Array.from(document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-piece]')).map((g) => g.dataset.piece),
+      basics: document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-basic]').length,
+    };
   });
   check('composer · a dress quietly retires the Bottom slot',
     !dress.slots.includes('Bottom'), JSON.stringify(dress.slots));
+  check('composer · a dress replaces both basics on the model, which stay underneath',
+    JSON.stringify(dress.dressed) === JSON.stringify(['w-dre1']) && dress.basics === 2, JSON.stringify(dress));
 
   // "+ Add a piece" routes through the shared chooser and its apply lands
   const added = await page.evaluate(() => {
@@ -1243,13 +1280,17 @@ const browser = await chromium.launch(
     window.__lkApplyNew('w-acc1');
     return {
       names: Array.from(document.querySelectorAll('.rbc-row:not(.rb-lk-rempty) .rbc-name')).map((n) => n.textContent),
-      yours: document.querySelector('.rb-lk-con .rbc-yours')?.textContent,
+      head: document.querySelector('.rb-lk-con .rb-lkm-panel .lab')?.textContent,
+      dressed: Array.from(document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-piece]')).map((g) => g.dataset.piece),
     };
   });
   check('composer · an added piece lands as its own rack card',
     added.names.includes('Gold hoops'), JSON.stringify(added.names));
   check('composer · pieces are never double-counted',
-    /3.of.3 from your wardrobe/.test(added.yours || ''), added.yours);
+    added.head === 'The look · 3 pieces', added.head);
+  // Jewellery counts on the rack but draws nothing; shoes land at the hem
+  check('composer · shoes land at the hem, jewellery draws nothing',
+    JSON.stringify(added.dressed) === JSON.stringify(['w-top1', 'w-sho1']), JSON.stringify(added.dressed));
 
   const saved = await page.evaluate(() => {
     window.__lkRowPick('r4', 'w-bag1');
@@ -1838,8 +1879,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
     };
   });
-  check('empty · the first-time composer offers "Or let Robes build the first one"',
-    ftue.door === 'Or let Robes build the first one' && ftue.card === true && ftue.saveDisabled === true,
+  check('empty · the first-time composer carries no Robes door, and Save is live',
+    ftue.door === undefined && ftue.card === true && ftue.saveDisabled === false,
     JSON.stringify(ftue));
   await ctx.close();
 }
@@ -1966,8 +2007,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('390px · no horizontal overflow on the composer', mc.overflow === true);
   check('390px · the composer is one card, the name leading it from outside',
     mc.inCard === true && mc.titleOutside === true, JSON.stringify([mc.inCard, mc.titleOutside]));
-  check('390px · Save runs full width at 44px+, the Robes door beneath it',
-    mc.saveStacks === true && mc.saveFull === true && mc.saveH >= 44 && !!mc.door,
+  check('390px · Save runs full width at 44px+, no Robes door beneath it',
+    mc.saveStacks === true && mc.saveFull === true && mc.saveH >= 44 && mc.door === undefined,
     JSON.stringify([mc.saveStacks, mc.saveFull, mc.saveH, mc.door]));
   // Save is the last thing on the page and the dock is fixed over it —
   // scrolled to the foot, the commitment must clear the dock.

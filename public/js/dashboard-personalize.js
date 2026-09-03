@@ -4024,8 +4024,23 @@
           setTimeout(() => window.__waSetView && window.__waSetView('wishlist'), 150);
         }, 100);
       }
+      // A draft parked by the composer's "Build your model" door comes
+      // back onto the rack (sessionStorage rb_lk_draft, set in
+      // __lkBuildModel; the Style notes page routes her back here).
+      let _lkDraftBack = null;
+      try {
+        const rawDraft = sessionStorage.getItem('rb_lk_draft');
+        sessionStorage.removeItem('rb_lk_draft');
+        sessionStorage.removeItem('rb_model_return');
+        if (rawDraft) _lkDraftBack = JSON.parse(rawDraft);
+      } catch (_) {}
       if (window.location.pathname === '/lookbook') {
-        setTimeout(() => window.__snOpen && window.__snOpen(), 400);
+        setTimeout(() => {
+          window.__snOpen && window.__snOpen();
+          if (_lkDraftBack && window.__lkDraftRestore) window.__lkDraftRestore(_lkDraftBack, 'lookbook');
+        }, 400);
+      } else if (_lkDraftBack) {
+        setTimeout(() => window.__lkDraftRestore && window.__lkDraftRestore(_lkDraftBack, 'home'), 1700);
       }
       if (window.location.pathname === '/moodboards' && !_RB_MB_HIDDEN) {
         setTimeout(() => window._mbShowAllPage && window._mbShowAllPage(), 400);
@@ -8254,6 +8269,13 @@
       // "Let Robes build the first one": the rack, filled — nothing saved
       // until she saves. Session state only.
       var _lkBuilt = false, _lkBuilding = false, _lkAspirational = false;
+      // The model on the canvas (2026-09-03, "Look Builder · dressing your
+      // model"): undefined = not asked yet, null = nothing on file, else
+      // {id, man, skin, hair} read off profiles.avatar_id (the same id every
+      // render reads). The Style notes page is where she is built.
+      var _lkModel = undefined;
+      var _lkShowPhoto = false;      // You / Model switch once a photograph exists
+      var _lkModelDrawn = {};        // piece ids already on the figure — only a NEW piece animates on
       var _lkShop = [], _lkBuildGaps = [], _lkBuildMine = false;
       var _lkShopImgs = [], _lkShopTimer = null;
       // The build's stylist note (fetched from /api/lookbuild/note AFTER the
@@ -9026,14 +9048,51 @@
    is legible from the empty state (it never reads as a missing button). */
 .rb-lk-save[disabled]{background:var(--cream-400);color:#fff;cursor:default}
 .rb-lk-save[disabled]:hover{opacity:1}
-.rb-lk-robesdoor{font-size:12px}
+/* Cream until the look is named, ink after — the name is the one gate
+   (2026-09-03). Still live: an unnamed click answers out loud. */
+.rb-lk-save.unnamed{background:var(--cream-400)}
+.rb-lk-savenote{flex:1;margin-top:0}
+/* ── The model on the canvas (2026-09-03) ── */
+.rb-lkm-canvas{position:relative;aspect-ratio:4/5;border:1px solid #E6DFD2;border-radius:var(--rad-sm);background:#F1ECE4;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.rb-lkm-canvas.prompt{border:1px dashed #D8CFBE;background:transparent}
+.rb-lkm-canvas.photo{background:var(--cream-200)}
+.rb-lkm-stage{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;background:radial-gradient(circle at 50% 22%,rgba(243,225,215,.5),transparent 66%)}
+.rb-lkm-fig{height:88%;width:auto;max-width:80%;display:block;margin-bottom:3%}
+.rb-lkm-fig.ghost{opacity:.55}
+.rb-lkm-layer.on{animation:rbLkDress .42s cubic-bezier(.22,.7,.2,1) both}
+@keyframes rbLkDress{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.rb-lkm-layer.on{animation:none}}
+.rb-lkm-prompt{display:flex;flex-direction:column;align-items:center;gap:16px;padding:28px 26px;text-align:center;max-width:364px}
+.rb-lkm-outline{width:66px;height:118px;box-sizing:border-box;border:1px dashed #D3C9B6;border-radius:33px 33px 8px 8px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:12px}
+.rb-lkm-outline span{width:30px;height:1px;background:#DCD3C2}
+.rb-lkm-ey{font-size:9.5px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--rose)}
+.rb-lkm-h{font-family:var(--font-serif);font-weight:300;font-size:clamp(24px,2.4vw,32px);line-height:1.22;color:var(--ink);text-wrap:pretty}
+.rb-lkm-h i{font-style:italic}
+.rb-lkm-build{margin-top:2px;background:var(--ink);color:#FAF8F5;border:1px solid var(--ink);border-radius:100px;padding:15px 32px;font-family:inherit;font-size:10.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;transition:opacity .15s}
+.rb-lkm-build:hover{opacity:.85}
+.rb-lkm-orphoto{background:none;border:none;padding:0;cursor:pointer;font-family:var(--font-serif);font-style:italic;font-size:15px;color:var(--rose)}
+.rb-lkm-orphoto:hover{color:var(--ink)}
+.rb-lkm-photo{position:absolute;inset:0}
+.rb-lkm-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.rb-lkm-photo .cap{position:absolute;left:22px;bottom:20px;font-family:var(--font-serif);font-style:italic;font-size:15px;color:#FAF8F5;text-shadow:0 1px 8px rgba(32,32,33,.35)}
+.rb-lkm-replace{position:absolute;top:14px;right:14px;width:28px;height:28px;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(250,248,245,.82);border:1px solid rgba(32,32,33,.10);border-radius:100px;color:#4F4A44}
+.rb-lkm-replace:hover{background:#FAF8F5}
+.rb-lkm-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:14px;flex-wrap:wrap}
+.rb-lkm-addphoto{display:inline-flex;align-items:center;gap:9px;flex:none;cursor:pointer;background:transparent;border:1px solid #C4BCAE;border-radius:100px;padding:11px 18px;font-family:inherit;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink)}
+.rb-lkm-addphoto svg{color:var(--ink-soft)}
+.rb-lkm-addphoto:hover{border-color:var(--ink)}
+.rb-lkm-seg{flex:none;display:flex;border:1px solid var(--rule-mid);border-radius:100px;padding:3px;background:#fff}
+.rb-lkm-seg button{cursor:pointer;background:transparent;border:1px solid transparent;border-radius:100px;padding:8px 15px;font-family:inherit;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
+.rb-lkm-seg button.on{background:#F3EFE6;border-color:#C9BCA6;color:var(--ink)}
+.rb-lkm-note{flex:1;min-width:140px;font-family:var(--font-serif);font-style:italic;font-size:13.5px;line-height:1.45;color:var(--ink-faint);text-align:right}
+.rb-lkm-notice{display:flex;align-items:center;gap:14px;border:1px solid #E6DFD2;background:#FBF8F2;border-radius:var(--rad);padding:15px 18px;margin-bottom:18px;font-size:12.5px;line-height:1.6;color:var(--ink-soft)}
+.rb-lkm-notice .dot{flex:none;width:6px;height:6px;border-radius:100px;background:var(--rose)}
 /* "Let Robes build the first one" — the rack, filled in place (2026-08-12).
    Flat cream blocks while she waits: no spinner, no loader, no navigation. */
 .rb-lk-fill{background:var(--cream-200);animation:rbLkFill 1.5s ease-in-out infinite}
 @keyframes rbLkFill{0%,100%{opacity:1}50%{opacity:.62}}
 @media(prefers-reduced-motion:reduce){.rb-lk-fill{animation:none}}
 .rb-lk-namenote{margin-top:9px;font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:14px;color:var(--ink-faint)}
-.rb-lk-savegate{margin-top:0}
 /* A piece she doesn't own yet: the full card — category chip, brand,
    retailer, price — and TWO actions only, Swap and Save. */
 /* Proposal rows are the shared _rbcRow — only two build-specific states
@@ -9075,8 +9134,9 @@
 .rb-lk-stats{gap:20px}
 .rb-lk-composer{padding:18px 16px 20px;border-radius:var(--rad-card)}
 .rb-lk-saverow{flex-direction:column;align-items:stretch;gap:15px;margin-top:20px}
-.rb-lk-save{width:100%;min-height:52px}
-.rb-lk-robesdoor{align-self:center}
+.rb-lk-save{width:100%;min-height:52px;order:-1}
+.rb-lk-savenote{text-align:center}
+.rb-lkm-note{text-align:left}
 }`;
       function _lkEnsureCss() {
         if (document.getElementById('rb-lk-style')) return;
@@ -9693,6 +9753,15 @@
             (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
             lkTagsRow +
             '</div>';
+        } else if (!ids.length) {
+          // Saved by name with nothing on the rack (the name is the one
+          // gate, 2026-09-03): her model stands in her basics rather than
+          // an empty board.
+          lookPanel = _lkModelPanelHtml({
+            saved: true, items: [],
+            headLabel: 'The look · ' + _lkN(ids.length, 'piece'),
+            tailHtml: lkTagsRow,
+          });
         } else {
           lookPanel = _rbConsole({
             headLabel: 'The look · ' + _lkN(ids.length, 'piece'),
@@ -9746,7 +9815,12 @@
         // A look she owns nothing of yet (a saved aspirational build) cannot
         // be worn or scheduled — its one honest action is the wishlist,
         // where its pieces live until they are hers (Annie, 2026-08-13).
-        if (ownedNone) {
+        if (ownedNone && !props.length) {
+          h += '<div class="rb-lk-panel">' +
+            '<div class="pl">Nothing on it yet.</div>' +
+            '<div class="pb">Saved by name — the rack is empty, so there is nothing to wear or plan yet.</div>' +
+            '</div>';
+        } else if (ownedNone) {
           h += '<div class="rb-lk-panel">' +
             '<div class="pl">Not yours yet.</div>' +
             '<div class="pb">Robes proposed this look before the pieces were in your wardrobe — they’re saved to your Wishlist. As each one becomes yours, add it here and the look is ready to wear.</div>' +
@@ -9837,7 +9911,7 @@
           (editing && !dirty ? '<div class="rb-lk-namenote" style="margin:-6px 0 12px">Swap or flick a piece — you\u2019ll see it change here, and nothing is saved until you say so.</div>' : '') +
           '<div class="rbc-rack">' +
           (ownedNone && !props.length
-            ? '<div class="rb-lk-wear"><div class="pc" style="font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">Nothing of yours hangs here yet — the pieces are on your wishlist.</div></div>'
+            ? '<div class="rb-lk-wear"><div class="pc" style="font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">Nothing hangs here yet.</div></div>'
             : _rbRackRolesHtml(rackItems, rackCfg, propEmpties)) +
           '</div>';
 
@@ -10071,8 +10145,243 @@
         });
         return out;
       }
+      // ── The model on the canvas (2026-09-03) ────────────────────────
+      // Mirrors stylenotes.html's MV_SKINS / MV_HAIRS — keep in sync. The
+      // avatar id carries the catalog indices (w-s3-h1-…), which is all the
+      // sketch needs. The figure and its garments are DRAWN SHAPES standing
+      // in for the photographed cell: a pick dresses her the moment it
+      // lands, and the photographic render still arrives after Save.
+      var _LKM_SKINS = ['#3B2A22', '#5A3B2A', '#7A5238', '#95664A', '#B78A63', '#D0A47F', '#E3BE9C', '#F0D6BE'];
+      var _LKM_HAIRS = ['#1B1614', '#3A2A20', '#6B4A2E', '#A9793F', '#CBAE87'];
+      function _lkModelFromId(id) {
+        if (!id) return null;
+        const s = String(id).match(/-s(\d)/), h = String(id).match(/-h(\d)/);
+        return {
+          id: String(id),
+          man: /^m-/.test(String(id)),
+          skin: _LKM_SKINS[s ? +s[1] : 5] || _LKM_SKINS[5],
+          hair: _LKM_HAIRS[h ? +h[1] : 2] || _LKM_HAIRS[2],
+        };
+      }
+      function _lkModelEnsure() {
+        if (_lkModel !== undefined || !_waUid()) return;
+        _avFetchId(function(id) {
+          _lkModel = _lkModelFromId(id);
+          // The first paint drew the figure as a ghost — repaint whichever
+          // composer is on screen now that the answer is in. Deferred: a
+          // cached id answers synchronously, mid-paint.
+          setTimeout(function() { if (document.querySelector('.rb-lk-composer')) _lkRepaint(); }, 0);
+        });
+      }
+      function _lkRepaint() {
+        _lkPaint();
+        if (document.getElementById('rb-lkhome')) _lkHomePaint();
+      }
+      // Pronouns follow the model on file, else the profile.
+      function _lkModelPro() {
+        const g = _lkModel ? (_lkModel.man ? 'man' : 'woman') : _rbGender();
+        if (g === 'man') return { she: 'he', her: 'him', shell: 'he’ll' };
+        if (g === 'woman') return { she: 'she', her: 'her', shell: 'she’ll' };
+        return { she: 'they', her: 'them', shell: 'they’ll' };
+      }
+      // What a wardrobe piece draws as. The legacy category decides the
+      // family; L2/L3/the label refine it (a trench is a coat, a cardigan a
+      // short layer, a slip skirt a skirt). Jewellery and the like draw
+      // nothing — they still count on the rack.
+      function _lkGarmentKind(wi) {
+        const t = [wi.category_l3, wi.category_l2, wi.label].filter(Boolean).join(' ').toLowerCase();
+        const c = String(wi.category || '');
+        if (c === 'Dresses') return /jumpsuit|boilersuit|playsuit|romper/.test(t) ? 'jumpsuit' : 'dress';
+        if (c === 'Bottoms') return /skirt|skort/.test(t) ? 'skirt' : /short/.test(t) ? 'shorts' : 'trouser';
+        if (c === 'Outerwear') return /coat|trench|parka|\bmac\b|duster|cape|poncho/.test(t) ? 'coat' : 'cardigan';
+        if (c === 'Tops') return /cardigan|coatigan/.test(t) ? 'cardigan' : 'top';
+        if (c === 'Shoes') return /boot/.test(t) ? 'boots' : 'shoes';
+        if (c === 'Bags') return 'bag';
+        if (/\bbag\b|tote|clutch|satchel|basket/.test(t)) return 'bag';
+        return null;
+      }
+      // Garment geometry on the 220×620 figure — a box centred on x=110
+      // clipped to a polygon (percentages of the box), the design's own
+      // shapes.
+      var _LKM_GEO = {
+        top:          { w: 104, y: 92,  h: 186, pts: [[6, 0], [94, 0], [91, 100], [9, 100]] },
+        basicsBottom: { w: 100, y: 272, h: 100, pts: [[0, 0], [100, 0], [100, 100], [0, 100]] },
+        trouser:      { w: 112, y: 276, h: 312, pts: [[5, 0], [95, 0], [93, 100], [64, 100], [56, 40], [44, 40], [36, 100], [7, 100]] },
+        shorts:       { w: 112, y: 276, h: 150, pts: [[5, 0], [95, 0], [93, 100], [64, 100], [56, 40], [44, 40], [36, 100], [7, 100]] },
+        skirt:        { w: 128, y: 278, h: 226, pts: [[16, 0], [84, 0], [100, 100], [0, 100]] },
+        dress:        { w: 116, y: 92,  h: 392, pts: [[14, 0], [86, 0], [82, 26], [98, 100], [2, 100], [18, 26]] },
+        coat:         { w: 140, y: 88,  h: 414, pts: [[4, 0], [96, 0], [100, 16], [95, 100], [73, 100], [64, 22], [36, 22], [27, 100], [5, 100]] },
+        cardigan:     { w: 130, y: 90,  h: 224, pts: [[5, 0], [95, 0], [100, 18], [94, 100], [70, 100], [63, 20], [37, 20], [30, 100], [6, 100]] },
+      };
+      function _lkmShape(geo, c) {
+        const g = _LKM_GEO[geo];
+        const x = 110 - g.w / 2;
+        const pts = g.pts.map(([px, py]) => (x + px / 100 * g.w).toFixed(1) + ',' + (g.y + py / 100 * g.h).toFixed(1)).join(' ');
+        return '<polygon points="' + pts + '" fill="' + _waEsc(c) + '"></polygon>';
+      }
+      // The layers, in dressing order: beige basics first (unfilled slots
+      // keep theirs, so a half-built look never reads as a missing limb),
+      // then the anchor (a dress replaces both basics), the top, the layer
+      // over everything, shoes at the hem and the bag at the hand.
+      function _lkModelLayersSvg(items) {
+        const by = {};
+        items.forEach(wi => {
+          const k = _lkGarmentKind(wi);
+          if (!k) return;
+          const g = k === 'top' ? 'top'
+            : (k === 'coat' || k === 'cardigan') ? 'layer'
+            : (k === 'shoes' || k === 'boots') ? 'shoes'
+            : k === 'bag' ? 'bag'
+            : (k === 'dress' || k === 'jumpsuit') ? 'dress' : 'bottom';
+          if (!by[g]) by[g] = { kind: k, wi };
+        });
+        const tone = wi => _ltToneOf(wi) || '#B9B0A2';
+        const layers = [{ geo: 'top', c: '#D9CCBA' }, { geo: 'basicsBottom', c: '#D0C2AE' }];
+        if (by.bottom) layers.push({ geo: by.bottom.kind, c: tone(by.bottom.wi), id: by.bottom.wi.id });
+        if (by.top && !(by.dress && by.dress.kind === 'dress')) layers.push({ geo: 'top', c: tone(by.top.wi), id: by.top.wi.id });
+        if (by.dress) {
+          if (by.dress.kind === 'jumpsuit') {
+            layers.push({ geo: 'trouser', c: tone(by.dress.wi), id: by.dress.wi.id });
+            layers.push({ geo: 'top', c: tone(by.dress.wi), id: by.dress.wi.id });
+          } else layers.push({ geo: 'dress', c: tone(by.dress.wi), id: by.dress.wi.id });
+        }
+        if (by.layer) layers.push({ geo: by.layer.kind, c: tone(by.layer.wi), id: by.layer.wi.id });
+        if (by.shoes) layers.push({ geo: by.shoes.kind, c: tone(by.shoes.wi), id: by.shoes.wi.id });
+        if (by.bag) layers.push({ geo: 'bag', c: tone(by.bag.wi), id: by.bag.wi.id });
+        const drawn = {};
+        const html = layers.map(l => {
+          const fresh = l.id != null && !_lkModelDrawn[String(l.id)];
+          if (l.id != null) drawn[String(l.id)] = true;
+          let body;
+          if (l.geo === 'shoes' || l.geo === 'boots') {
+            const y = l.geo === 'boots' ? 540 : 592, h = l.geo === 'boots' ? 74 : 22;
+            body = '<rect x="66" y="' + y + '" width="38" height="' + h + '" rx="5" fill="' + _waEsc(l.c) + '"></rect>' +
+              '<rect x="116" y="' + y + '" width="38" height="' + h + '" rx="5" fill="' + _waEsc(l.c) + '"></rect>';
+          } else if (l.geo === 'bag') {
+            body = '<rect x="192" y="250" width="4" height="56" rx="2" fill="' + _waEsc(l.c) + '"></rect>' +
+              '<path d="M172,323 a23,23 0 0 1 46,0 v25 a6,6 0 0 1 -6,6 h-34 a6,6 0 0 1 -6,-6 z" fill="' + _waEsc(l.c) + '"></path>';
+          } else body = _lkmShape(l.geo, l.c);
+          return '<g class="rb-lkm-layer' + (fresh ? ' on' : '') + '"' +
+            (l.id != null ? ' data-piece="' + _waEsc(String(l.id)) + '"' : ' data-basic="1"') + '>' + body + '</g>';
+        }).join('');
+        _lkModelDrawn = drawn;
+        return html;
+      }
+      function _lkModelFigureSvg(items) {
+        const m = _lkModel || null;
+        const skin = m ? m.skin : '#E3DED4', hair = m ? m.hair : '#D6CFC2';
+        const hairHtml = m && m.man
+          ? '<path d="M76,40 a34,34 0 0 1 68,0 v6 h-68 z" fill="' + hair + '"></path>'
+          : '<path d="M72,38 a38,38 0 0 1 76,0 v10 a22,22 0 0 1 -22,22 h-32 a22,22 0 0 1 -22,-22 z" fill="' + hair + '"></path>';
+        return '<svg class="rb-lkm-fig' + (m ? '' : ' ghost') + '" viewBox="0 0 220 620" preserveAspectRatio="xMidYMax meet" aria-hidden="true">' +
+          hairHtml +
+          '<ellipse cx="110" cy="47" rx="30" ry="37" fill="' + skin + '"></ellipse>' +
+          '<rect x="102" y="78" width="16" height="16" fill="' + skin + '"></rect>' +
+          '<polygon points="68,90 152,90 138,192 148,286 72,286 82,192" fill="' + skin + '"></polygon>' +
+          '<polygon points="65,282 155,282 144.6,342 75.4,342" fill="' + skin + '"></polygon>' +
+          '<polygon points="70,340 104,340 95.2,598 76.8,598" fill="' + skin + '"></polygon>' +
+          '<polygon points="116,340 150,340 143.2,598 124.8,598" fill="' + skin + '"></polygon>' +
+          _lkModelLayersSvg(items) +
+          '</svg>';
+      }
+      var _LKM_CAMERA_SVG = '<svg width="13" height="12" viewBox="0 0 13 12" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><rect x=".5" y="2.5" width="12" height="9"></rect><path d="M4 2.5 5 .5h3l1 2"></path><circle cx="6.5" cy="7" r="2.4"></circle></svg>';
+      var _LKM_REFRESH_SVG = '<svg width="13" height="12" viewBox="0 0 13 12" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="M1.4 5.2a4.8 4.8 0 0 1 8.3-2.3l1.5 1.5"></path><path d="M11.6 6.8a4.8 4.8 0 0 1-8.3 2.3L1.8 7.6"></path><path d="M11.2.9v3.5H7.7M1.8 11.1V7.6h3.5"></path></svg>';
+      // The canvas — three states in one frame: the model dressed (she
+      // starts in her basics), her photograph of the look, or — with no
+      // model on file — the invitation to build one.
+      function _lkModelPanelHtml(o) {
+        _lkModelEnsure();
+        const pro = _lkModelPro();
+        // o.saved: a saved look's panel — the composer's photograph and the
+        // build-your-model prompt belong to the composer alone.
+        const photo = !o.saved && _lkPhoto && _lkPhoto.url;
+        const showPhoto = !!photo && (_lkShowPhoto || _lkModel === null);
+        const noModel = !o.saved && _lkModel === null && !showPhoto;
+        let inner;
+        if (showPhoto) {
+          inner = '<div class="rb-lkm-photo"><img src="' + _waEsc(photo) + '" alt="Your photograph of this look">' +
+            '<div class="cap">Your photograph</div>' +
+            '<button type="button" class="rb-lkm-replace" onclick="window.__lkPhotoToggle()" title="Replace photograph" aria-label="Replace photograph">' + _LKM_REFRESH_SVG + '</button>' +
+            '</div>';
+        } else if (noModel) {
+          inner = '<div class="rb-lkm-prompt">' +
+            '<div class="rb-lkm-outline"><span></span></div>' +
+            '<div class="rb-lkm-ey">No model yet</div>' +
+            '<div class="rb-lkm-h">Build ' + pro.her + ' once, and ' + pro.shell + '&nbsp;<i>model all your looks.</i></div>' +
+            '<button type="button" class="rb-lkm-build" onclick="window.__lkBuildModel()">Build your model</button>' +
+            '<button type="button" class="rb-lkm-orphoto" onclick="window.__lkPhotoToggle()">Or start from your own photograph</button>' +
+            '</div>';
+        } else {
+          inner = '<div class="rb-lkm-stage">' + _lkModelFigureSvg(o.items) + '</div>';
+        }
+        return '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
+          '<span class="lab">' + o.headLabel + '</span><span class="robes">' + (o.robesLabel || 'Robes') + '</span></div>' +
+          '<div class="rb-lkm-canvas' + (noModel ? ' prompt' : '') + (showPhoto ? ' photo' : '') + '">' + inner + '</div>' +
+          (o.tailHtml || '') +
+          '</div>';
+      }
+      // Under the canvas: the photograph door, or — once one exists — the
+      // You / Model switch. The photograph is never replaced by the model:
+      // it is the record of the look, and the model is a second view of it.
+      function _lkModelRowHtml() {
+        const pro = _lkModelPro();
+        const photo = _lkPhoto && _lkPhoto.url;
+        const pending = _lkPhoto && _lkPhoto.pending;
+        let left;
+        if (photo) {
+          const on = _lkShowPhoto || _lkModel === null;
+          left = '<div class="rb-lkm-seg" role="group" aria-label="Canvas view">' +
+            '<button type="button"' + (on ? ' class="on"' : '') + ' onclick="window.__lkPhotoView(\'photo\')">You</button>' +
+            '<button type="button"' + (on ? '' : ' class="on"') + ' onclick="window.__lkPhotoView(\'model\')">Model</button></div>';
+        } else {
+          left = '<button type="button" class="rb-lkm-addphoto" onclick="window.__lkPhotoToggle()">' + _LKM_CAMERA_SVG + 'Add your photograph</button>';
+        }
+        const note = pending ? 'Uploading…'
+          : photo ? 'Kept as the record of this look'
+          : 'Wore this look? Add your photograph and it is kept alongside ' + pro.her;
+        return '<div class="rb-lkm-row">' + left + '<div class="rb-lkm-note">' + note + '</div></div>';
+      }
+      // "Build your model" parks the draft and hands off to the Style notes
+      // page; the dashboard restores it on the way back (__lkDraftRestore).
+      window.__lkBuildModel = function() {
+        const home = !!document.querySelector('.rb-lkh-composer');
+        try {
+          sessionStorage.setItem('rb_lk_draft', JSON.stringify({
+            rows: _lkRows, seq: _lkRowSeq, name: _lkNewTitleDraft, tags: _lkNewTags, roles: _lkNewRoles,
+            photo: (_lkPhoto && _lkPhoto.url) ? { url: _lkPhoto.url } : null, home,
+          }));
+          sessionStorage.setItem('rb_model_return', home ? 'home' : 'lookbook');
+        } catch (_) {}
+        _rbTrack('look_model_build', { home });
+        window.location.href = '/stylenotes';
+      };
+      window.__lkDraftRestore = function(d, where) {
+        if (!d || typeof d !== 'object') return;
+        _lkResetComposer();
+        if (Array.isArray(d.rows) && d.rows.length) _lkRows = d.rows.map(r => Object.assign({}, r));
+        if (Number.isInteger(d.seq)) _lkRowSeq = d.seq;
+        _lkNewTitleDraft = d.name || null;
+        _lkNewTitleTouched = !!(d.name && String(d.name).trim());
+        _lkNewTags = d.tags || null;
+        _lkNewRoles = (d.roles && typeof d.roles === 'object') ? d.roles : {};
+        _lkPhoto = (d.photo && d.photo.url) ? { url: d.photo.url } : null;
+        _lkShowPhoto = false;
+        if (where === 'lookbook') { _lkView = 'new'; _lkPaint(); return; }
+        // Home: open the Build-your-own row so the rack is on screen.
+        if (document.getElementById('rb-ftu-row-build') && !_rbFtuOpen.build && window.__rbFtuToggle) window.__rbFtuToggle('build');
+        else _lkRepaint();
+      };
+      window.__lkPhotoView = function(which) {
+        const toPhoto = which === 'photo';
+        // The Model side with nothing built opens the builder.
+        if (!toPhoto && _lkModel === null) { window.__lkBuildModel(); return; }
+        _lkShowPhoto = toPhoto;
+        _lkRepaint();
+      };
+
       function _lkNewHtml(opts) {
         const home = !!(opts && opts.home);
+        _lkModelEnsure();
         // The composer is rbc-markup throughout, and on the zero-piece and
         // photo paths _rbConsole (which injects the stylesheet) never runs —
         // ensure it here or a session that hasn't rendered a console yet
@@ -10081,21 +10390,21 @@
         try { document.body.classList.add('rb-lookv2'); } catch (_) {}
         const used = _lkUsed();
         const nPlaced = used.length;
-        // A Robes build with proposed pieces is savable at one owned piece —
-        // the look is four pieces, three of which she does not own yet.
-        const enoughPieces = nPlaced >= 2 || (_lkBuilt && _lkShop.length > 0);
-        // RULE 02 — the look gets a NAME, and the name is the gate on Save.
-        // Who generated it decides who names it: a Robes build arrives named
-        // (the field is filled, hers to change), a look she built is hers to
-        // name and Save stays inert until it has one. There is no silent
-        // fallback name on a hand-built look any more — an unnamed look in
-        // the Lookbook is a look she can never find again.
+        // RULE 02 — the look gets a NAME, and the name is the ONE gate on
+        // Save (2026-09-03: the two-piece floor is gone — a look is hers to
+        // keep the moment it is named, however many pieces stand on the
+        // rack). Who generated it decides who names it: a Robes build
+        // arrives named (the field is filled, hers to change), a look she
+        // built is hers to name. There is no silent fallback name on a
+        // hand-built look — an unnamed look in the Lookbook is a look she
+        // can never find again.
         const named = String(_lkNewTitleDraft || '').trim().length > 0;
         // The name gate answers at the CLICK, not with a dead button
         // (Annie's beta pass 2026-08-20: a disabled Save with no alert read
-        // as broken) — Save is live once the pieces suffice; an unnamed
-        // save focuses the name field and says so (__lkSaveAsk's guard).
-        const canSave = enoughPieces;
+        // as broken) — Save stays live; an unnamed save focuses the name
+        // field and says so (__lkSaveAsk's guard). The pill reads cream
+        // until the look is named, ink after.
+        const canSave = !_lkBuilding;
         const items = _lkConItems();
         // The masthead credit reads plain Robes on every surface (Annie,
         // 2026-08-13 second pass — "Robes' build" was a second label).
@@ -10109,7 +10418,14 @@
         // The Look — the console panel. Zero pieces and the photo case get a
         // quiet stand-in with the same chrome (states no generated console has).
         let lookHtml;
-        if (_lkPhoto && _lkPhoto.url) {
+        if (!_lkBuilt && !_lkBuilding) {
+          // The model on the canvas (2026-09-03): she stands in her basics
+          // from the first second and the rack dresses her as it fills.
+          lookHtml = _lkModelPanelHtml({
+            headLabel, robesLabel,
+            items: used.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean),
+          });
+        } else if (_lkPhoto && _lkPhoto.url) {
           lookHtml = '<div class="rbc-panel"><div class="rbc-lhead">' +
             '<span class="lab">' + headLabel + '</span><span class="robes">' + robesLabel + '</span></div>' +
             '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
@@ -10169,11 +10485,14 @@
         const tagsRow = (nPlaced >= 2 || (_lkBuilt && !_lkBuilding && nPlaced + _lkShop.length >= 2))
           ? '<div style="margin-top:2px">' + _rbTagsRowHtml(_lkNewTags || _rbInheritLookTags(used), '__lkNewTagsEdit') + '</div>'
           : '';
-        const photoRow = '<div style="display:flex;align-items:baseline;gap:14px;margin-top:12px">' +
-          '<button type="button" class="rb-lk-quiet" onclick="window.__lkPhotoToggle()">' +
-            (_lkPhoto ? 'Remove the photo' : (_lkBuilt ? 'Replace the photo' : 'Add a photo')) + '</button>' +
-          (_lkPhoto && _lkPhoto.pending ? '<span style="font-size:11px;color:var(--ink-faint)">Uploading…</span>' : '') +
-          '</div>' + tagsRow;
+        // Under the canvas: the photograph door, or the You / Model switch
+        // once one exists. (A Robes build keeps its quiet text door.)
+        const photoRow = (_lkBuilt
+          ? '<div style="display:flex;align-items:baseline;gap:14px;margin-top:12px">' +
+            '<button type="button" class="rb-lk-quiet" onclick="window.__lkPhotoToggle()">Replace the photo</button>' +
+            (_lkPhoto && _lkPhoto.pending ? '<span style="font-size:11px;color:var(--ink-faint)">Uploading…</span>' : '') +
+            '</div>'
+          : _lkModelRowHtml()) + tagsRow;
 
         // The name leads the whole composer from OUTSIDE the card (the
         // masthead pattern the Look detail already uses) — the card holds
@@ -10187,12 +10506,11 @@
         const titleHtml = '<input id="' + (home ? 'rb-lk-hometitle' : 'rb-lk-newtitle') + '" class="rb-lk-title-in"' +
           ' value="' + _waEsc(_lkNewTitleDraft != null ? _lkNewTitleDraft : '') + '"' +
           ' placeholder="' + namePh + '" oninput="window.__lkNewTitleInput(this.value)">';
-        // Robes' name is an offer, and says so. On a look she built the
-        // field is the gate, so the note says what the disabled Save cannot
-        // (a title attribute is invisible on touch).
+        // Robes' name is an offer, and says so. (The name gate's own note
+        // lives beside Save now — see saveNote below.)
         const nameNote = _lkBuilt && !_lkBuilding && !_lkNewTitleTouched && _lkNewTitleDraft
           ? '<div class="rb-lk-namenote">Robes\u2019 name for it. Yours to change.</div>'
-          : (enoughPieces && !named ? '<div class="rb-lk-namenote" id="rb-lk-namegate">Name it, and it\u2019s yours to keep.</div>' : '');
+          : '';
         const mastHtml = home ? '' : '<div class="rb-lk-mast rb-lk-newmast">' + titleHtml + nameNote + '</div>';
 
         // The Rack — the formula strips name themselves, so no second
@@ -10203,7 +10521,12 @@
         // force-expands, or it would hide on the small screen.
         const lastTwo = _RB_ROLES.slice(2);
         const homeOpen = !home || _lkHomeMoreOn || items.some(it => lastTwo.indexOf(_rbRoleOf(it)) > -1);
-        let rackHtml = (home ? '<div class="rb-lkh-name">' + titleHtml + nameNote + '</div>' : '') +
+        // No model yet: a hairline notice keeps the rack open — the prompt
+        // on the canvas never blocks the thing she came to do.
+        const modelNotice = (!home && !_lkBuilt && _lkModel === null && !(_lkPhoto && _lkPhoto.url))
+          ? '<div class="rb-lkm-notice"><span class="dot"></span>Add pieces now if you like. They stay on the rack, and your model wears them the moment ' + _lkModelPro().she + ' exists.</div>'
+          : '';
+        let rackHtml = (home ? '<div class="rb-lkh-name">' + titleHtml + nameNote + '</div>' : '') + modelNotice +
           '<div class="rbc-rack' + (home && !homeOpen ? ' rb-lkh-collapsed' : '') + '">';
         // Every empty slot on home opens the camera and comes back with the
         // piece hung in the slot it was opened from — cataloguing is a
@@ -10240,13 +10563,9 @@
             ? ''
             : '<button class="rbc-addpiece" onclick="window.__lkAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>');
 
-        // Save closes the look out into the Lookbook; beside it the one
-        // alternative door — Robes builds it instead. The label reads
-        // first-time on an empty Lookbook, repeat once she has looks.
-        // (A first cut pointed the home fallback back at the styled key
-        // piece's three looks — reverted same day, Annie: the Robes door is
-        // the one alternative everywhere.)
-        const robesDoor = _lkLooks.length ? 'Or let Robes create your look' : 'Or let Robes build the first one';
+        // Save closes the look out into the Lookbook. The "Or let Robes
+        // create your look" door is GONE (2026-09-03) — the home prompt box
+        // is where Robes builds, with more to go on than a bare rack.
         // After a build the footer changes hands: Save still leads, and the
         // two quiet doors are Try another and — only when everything in the
         // look is hers — Wear it today. She cannot wear what she does not
@@ -10259,27 +10578,23 @@
                 ? '<button type="button" class="rb-lk-quiet" onclick="window.__lkBuildMineOnly()">Build from mine only</button>'
                 : '<button type="button" class="rb-lk-quiet" onclick="window.__lkSaveAndWear()">Wear it today</button>') +
             '</div>'
-          : '<button type="button" class="rb-lk-quiet rb-lk-robesdoor" onclick="window.__lkRobesBuild()">' + _waEsc(robesDoor) + '</button>';
-        // The disabled Save says WHY on screen (audit 4.2) — the title
-        // attribute alone is invisible on touch. The name gate keeps its
-        // own note in the masthead; this line covers the piece floor.
-        const saveGateNote = !canSave && !enoughPieces
-          ? '<div class="rb-lk-namenote rb-lk-savegate">' + (_lkBuilt
-              ? 'Add a piece of your own and this look is yours to keep.'
-              : 'Add two pieces and this look is yours to keep.') + '</div>'
           : '';
+        // The save note says what the pill cannot (a title attribute is
+        // invisible on touch): the name is the gate. __lkNewTitleInput
+        // rewrites it in place so typing never repaints.
+        const saveNote = '<div class="rb-lk-namenote rb-lk-savenote" id="rb-lk-namegate">' +
+          (named ? 'Filed under ' + _waEsc(String(_lkNewTitleDraft).trim()) + '.' : 'Name your look and it is yours to keep.') +
+          '</div>';
         rackHtml += '<div class="rb-lk-saverow' + (_lkBuilt && !_lkBuilding ? ' built' : '') + '">' +
-          '<button type="button" class="rb-lk-save" onclick="window.__lkSaveAsk()"' +
-            (canSave ? '' : ' disabled title="' + (!enoughPieces
-              ? (_lkBuilt
-                ? 'Add a piece of your own and this look is yours to keep'
-                : 'Add two pieces and this look is yours to keep')
-              : 'Name your look and it’s yours to keep') + '"') + '>Save this look</button>' +
-          saveGateNote +
+          saveNote +
+          '<button type="button" class="rb-lk-save' + (named ? '' : ' unnamed') + '" onclick="window.__lkSaveAsk()"' +
+            (canSave ? '' : ' disabled') + '>Save this look</button>' +
           foot +
           '</div>';
 
-        const stretchLeft = !items.length && !(_lkPhoto && _lkPhoto.url);
+        // The zero-piece stand-in stretches to the rack's height; the model
+        // canvas keeps its own 4:5 frame.
+        const stretchLeft = _lkBuilt && !items.length && !(_lkPhoto && _lkPhoto.url);
         return mastHtml + '<div class="rb-lk-composer' + (home ? ' rb-lkh-composer' : '') + '"><div class="rb-lk-con"><div' + (stretchLeft ? ' style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div></div>';
       }
       function _lkRowOptions(r) {
@@ -10708,6 +11023,7 @@
         _lkShopImgs = []; if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
         _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
         _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null;
+        _lkShowPhoto = false; _lkModelDrawn = {};
         _lkNewTitleDraft = null; _lkNewTitleTouched = false;
         _lkNewTags = null; _lkNewRoles = {};
       }
@@ -11657,14 +11973,9 @@
         // field she is typing into.
         const named = String(v || '').trim().length > 0;
         const btn = document.querySelector('.rb-lk-composer .rb-lk-save, .rb-lkh-composer .rb-lk-save');
-        if (btn) {
-          const piecesOk = _lkUsed().length >= 2 || (_lkBuilt && _lkShop.length > 0);
-          btn.disabled = !(piecesOk && named);
-          if (!btn.disabled) btn.removeAttribute('title');
-          else if (piecesOk) btn.setAttribute('title', 'Name your look and it’s yours to keep');
-        }
+        if (btn) btn.classList.toggle('unnamed', !named);
         const gate = document.getElementById('rb-lk-namegate');
-        if (gate) gate.style.display = named ? 'none' : '';
+        if (gate) gate.textContent = named ? 'Filed under ' + String(v).trim() + '.' : 'Name your look and it is yours to keep.';
       };
       window.__lkNewTagsEdit = function() {
         window.__rbTagSheet(_lkNewTags || _rbInheritLookTags(_lkUsed()), '__lkNewTagsApply', 'New look');
@@ -11677,8 +11988,9 @@
       // The photo is the look's image and nothing more — no reading, no
       // extraction (Phase 3 is a later, smaller problem). Hosted before it is
       // stored: base64 never goes into a row.
+      // Adds or replaces — never removes: once an image of her in this look
+      // exists it is the record, and the model is a second view of it.
       window.__lkPhotoToggle = function() {
-        if (_lkPhoto) { _lkPhoto = null; _lkPaint(); return; }
         const inp = document.createElement('input');
         inp.type = 'file';
         inp.accept = 'image/*,.jpg,.jpeg,.png,.heic,.heif,.webp';
@@ -11688,8 +12000,9 @@
           const f = inp.files && inp.files[0];
           inp.remove();
           if (!f) return;
+          const prev = _lkPhoto && _lkPhoto.url ? { url: _lkPhoto.url } : null;
           _lkPhoto = { pending: true };
-          _lkPaint();
+          _lkRepaint();
           _rbDownscale(f).then(dataUrl => {
             const m = String(dataUrl).match(/^data:([^;]+);base64,(.+)$/);
             if (!m) throw new Error('unreadable');
@@ -11698,13 +12011,13 @@
               body: JSON.stringify({ data: m[2], mimeType: m[1] }),
             }).then(r => r.json());
           }).then(j => {
-            if (j && j.url) { _lkPhoto = { url: j.url }; }
-            else { _lkPhoto = null; _waShowToast('That photo would not upload — try again shortly'); }
-            _lkPaint();
+            if (j && j.url) { _lkPhoto = { url: j.url }; _lkShowPhoto = true; }
+            else { _lkPhoto = prev; _waShowToast('That photo would not upload — try again shortly'); }
+            _lkRepaint();
           }).catch(() => {
-            _lkPhoto = null;
+            _lkPhoto = prev;
             _waShowToast('That photo would not upload — try again shortly');
-            _lkPaint();
+            _lkRepaint();
           });
         });
         inp.click();
@@ -11750,12 +12063,11 @@
       };
       window.__lkSave = function() {
         const used = _lkUsed();
-        // A Robes build with proposed pieces is a four-piece look, one of
-        // which is hers — the two-piece floor holds everywhere else.
+        // No piece floor (2026-09-03): the name is the one gate — a look
+        // saves with whatever stands on the rack, an empty rack included.
         // A Robes build is savable whatever she owns of it — the pieces she
         // doesn't own travel to the wishlist (she is told so first).
-        const floor = (_lkBuilt && _lkShop.length) ? 0 : 2;
-        if (used.length < floor || (!used.length && !(_lkBuilt && _lkShop.length)) || _lkBusy) return;
+        if (_lkBusy || _lkBuilding) return;
         if (_lkPhoto && _lkPhoto.pending) { _waShowToast('One moment — the photo is still uploading'); return; }
         // RULE 02 — no name, no save. Robes fills the field on a build, so in
         // practice this only ever stops a hand-built look, and it stops it by

@@ -1291,7 +1291,20 @@
     }
     // Build a look — back to the homepage prompt box with the model on
     // file; the dashboard boot reads the flag and opens the prompt.
+    // Sent here by the look composer's "Build your model" door instead
+    // (rb_model_return, 2026-09-03): the draft is parked in sessionStorage
+    // and the dashboard restores it onto the rack — so the pill reads
+    // "Back to your look" and lands where she left off.
+    let mvReturnTo = null;
+    try { mvReturnTo = sessionStorage.getItem('rb_model_return'); } catch (e) {}
+    if (mvReturnTo === 'lookbook' || mvReturnTo === 'home') {
+      document.getElementById('mv-build').textContent = 'Back to your look';
+      const back = document.querySelector('.sn-back');
+      if (back && mvReturnTo === 'lookbook') { back.href = '/lookbook'; back.lastChild.textContent = 'Lookbook'; }
+    }
     document.getElementById('mv-build').addEventListener('click', () => {
+      if (mvReturnTo === 'lookbook') { window.location.href = '/lookbook'; return; }
+      if (mvReturnTo === 'home') { window.location.href = '/dashboard'; return; }
       try { sessionStorage.setItem('rb_model_build', '1'); } catch (e) {}
       window.location.href = '/dashboard';
     });

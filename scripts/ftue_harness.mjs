@@ -320,31 +320,31 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     JSON.stringify(l.strips) === JSON.stringify(['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'])
       && l.ghostRows === 4, JSON.stringify([l.strips, l.ghostRows]));
   check('lookbook empty · the generic + Add a piece closes the rack', l.trailingAdd === true);
-  check('lookbook empty · Save stands there, withheld until two pieces',
-    l.save === true && l.saveDisabled === true, JSON.stringify([l.save, l.saveDisabled]));
-  check('lookbook empty · the alternative door is worded first-time',
-    l.door === 'Or let Robes build the first one', l.door);
+  // The name is the one gate (2026-09-03): Save stands there, live
+  check('lookbook empty · Save stands there, live from the first second',
+    l.save === true && l.saveDisabled === false, JSON.stringify([l.save, l.saveDisabled]));
+  check('lookbook empty · no "Or let Robes build the first one" door (the prompt box is where Robes builds)',
+    l.door === '', l.door);
   check('lookbook empty · nothing competes: no travel strip, All-looks header, sort or refine',
     l.bar === false && l.hol === false && l.allHead === false && l.sort === false,
     JSON.stringify([l.bar, l.hol, l.allHead, l.sort]));
 
-  // The Robes door fills THIS rack, in place — no new screen, no modal, no
-  // navigation (2026-08-12; it used to hand off to the home prompt).
-  const routed = await page.evaluate(async () => {
-    const before = location.pathname;
-    document.querySelector('.rb-lk-robesdoor').click();
-    await new Promise((r) => setTimeout(r, 250));
-    return {
-      lookbookStillOpen: document.getElementById('sn-page').style.display !== 'none',
-      moved: location.pathname !== before,
-      fill: !!document.querySelector('.rb-lk-fill'),
-      modalOpen: !!document.querySelector('#tv-brief-modal[style*="flex"], #wk-plan-modal[style*="flex"]'),
-    };
-  });
-  check('lookbook empty · the Robes door fills this rack in place',
-    routed.lookbookStillOpen === true && routed.moved === false && routed.fill === true,
-    JSON.stringify(routed));
-  check('lookbook empty · opening no modal', !routed.modalOpen);
+  // No model on file: the canvas is the invitation to build one, and the
+  // rack stays open under a hairline notice (2026-09-03).
+  const noModel = await page.evaluate(() => ({
+    prompt: !!document.querySelector('.rb-lk-con .rb-lkm-canvas.prompt'),
+    ey: document.querySelector('.rb-lk-con .rb-lkm-ey')?.textContent,
+    build: document.querySelector('.rb-lk-con .rb-lkm-build')?.textContent,
+    orPhoto: document.querySelector('.rb-lk-con .rb-lkm-orphoto')?.textContent,
+    notice: document.querySelector('.rb-lk-composer .rb-lkm-notice')?.textContent || '',
+    ghostRows: document.querySelectorAll('.rb-lk-con .rbc-rghost').length,
+  }));
+  check('lookbook empty · with no model, the canvas asks for one',
+    noModel.prompt === true && noModel.ey === 'No model yet' && noModel.build === 'Build your model'
+      && noModel.orPhoto === 'Or start from your own photograph', JSON.stringify(noModel));
+  check('lookbook empty · the rack stays open under the notice',
+    /They stay on the rack, and your model wears them the moment she exists/.test(noModel.notice) && noModel.ghostRows === 4,
+    JSON.stringify([noModel.notice, noModel.ghostRows]));
 
   await ctx.close();
 }
@@ -488,8 +488,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check('ftu rows · four slots, every one of them the camera path',
     b.ghostRows === 4 && b.snapWired === true && b.count === '0 of 4 on the rack',
     JSON.stringify([b.ghostRows, b.snapWired, b.count]));
-  check('ftu rows · carries Save and the Robes door',
-    b.save === true && b.door === 'Or let Robes build the first one', JSON.stringify([b.save, b.door]));
+  check('ftu rows · carries Save, and no Robes door',
+    b.save === true && b.door === undefined, JSON.stringify([b.save, b.door]));
   check('ftu rows · exactly one composer in the DOM', b.composers === 1, String(b.composers));
   check('ftu rows · all four slots render on web (no collapse)', b.showMoreHidden === true);
 
@@ -698,8 +698,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   });
   check('styled card · an open row compacts it to the header line',
     c.compact === true && c.tilesHidden === true, JSON.stringify(c));
-  check('styled card · the rack fallback is the Robes door (2026-08-18 revert)',
-    c.door === 'Or let Robes build the first one', c.door);
+  check('styled card · the rack carries no Robes door (2026-09-03)',
+    c.door === undefined, String(c.door));
 
   // Opening the looks retires the card — home re-decides, and the prompt
   // steps out to lead the page (never a bare index with no door).
