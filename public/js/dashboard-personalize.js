@@ -9062,7 +9062,7 @@
 .rb-lkm-canvas.prompt{border:1px dashed #D8CFBE;background:transparent}
 .rb-lkm-canvas.photo{background:var(--cream-200)}
 .rb-lkm-stage{position:absolute;inset:0;background:#EDE8E0 radial-gradient(circle at 50% 22%,rgba(243,225,215,.5),transparent 66%)}
-.rb-lkm-img{width:100%;height:100%;object-fit:contain;object-position:50% 100%;display:block;animation:rbLkmIn .35s ease both}
+.rb-lkm-img{width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block;animation:rbLkmIn .35s ease both}
 @keyframes rbLkmIn{from{opacity:0}to{opacity:1}}
 .rb-lkm-stage.busy .rb-lkm-img{opacity:.72;transition:opacity .3s}
 .rb-lkm-busy{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);white-space:nowrap;padding:8px 14px;border-radius:100px;background:rgba(250,248,245,.9);border:1px solid rgba(32,32,33,.10);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);animation:rbLkFill 1.5s ease-in-out infinite}
