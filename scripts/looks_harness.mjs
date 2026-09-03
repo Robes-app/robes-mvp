@@ -904,7 +904,20 @@ const browser = await chromium.launch(
 // ─────────────────────────────────────────────────────────────────────────
 {
   const { ctx, page, errs, writes } = await boot(browser, { avatar: 'w-s5-h2-hg' });
-  await page.route('**/api/avatar/render', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+  // Her cell answers at once; each render is a job that lands one frame,
+  // named for the pieces it was asked for.
+  const renders = [];
+  await page.route('**/api/avatar/cell', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/cell.jpg' }) }));
+  await page.route('**/api/avatar/render', (r) => {
+    const b = r.request().postDataJSON();
+    renders.push(b.pieces.map((p) => p.name));
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'rj' + renders.length }) });
+  });
+  await page.route('**/api/images/rj*', (r) => {
+    const n = r.request().url().split('/rj')[1];
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: ['https://img.test/render-' + n + '.jpg'], done: true }) });
+  });
+  await page.route('**img.test/**', (r) => r.abort());
   await openLooks(page);
   await page.evaluate(() => window.__lkNew());
   await page.waitForTimeout(300);
@@ -922,12 +935,11 @@ const browser = await chromium.launch(
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
       saveUnnamed: document.querySelector('.rb-lk-save')?.classList.contains('unnamed'),
       saveNote: document.getElementById('rb-lk-namegate')?.textContent,
-      // The model on the canvas (2026-09-03): she stands in her basics
-      // from the first second
-      fig: !!document.querySelector('.rb-lk-con .rb-lkm-fig'),
-      ghost: !!document.querySelector('.rb-lk-con .rb-lkm-fig.ghost'),
-      basics: document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-basic]').length,
-      dressed: document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-piece]').length,
+      // The model on the canvas (2026-09-03): her photograph, in the base
+      // layer, from the first second
+      stage: !!document.querySelector('.rb-lk-con .rb-lkm-stage'),
+      img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'),
+      busy: !!document.querySelector('.rb-lk-con .rb-lkm-busy'),
       photoDoor: document.querySelector('.rb-lk-con .rb-lkm-addphoto')?.textContent.trim(),
       photoNote: document.querySelector('.rb-lk-con .rb-lkm-note')?.textContent,
       // The composer is one held card, with the name leading it from
@@ -996,11 +1008,11 @@ const browser = await chromium.launch(
   // home prompt box is where Robes builds.
   check('composer · no "Or let Robes create your look" door beside Save',
     c0.robesDoor === undefined, String(c0.robesDoor));
-  // Her model stands on the canvas from the first second, in beige basics
-  // (a kept model reads off profiles.avatar_id — no ghost).
-  check('composer · her model stands on the canvas in her basics from the first second',
-    c0.fig === true && c0.ghost === false && c0.basics === 2 && c0.dressed === 0,
-    JSON.stringify([c0.fig, c0.ghost, c0.basics, c0.dressed]));
+  // Her REAL model stands on the canvas from the first second — the
+  // avatar cell (her in the base layer), no sketch, nothing still coming.
+  check('composer · her photographed model stands on the canvas from the first second',
+    c0.stage === true && c0.img === 'https://img.test/cell.jpg' && c0.busy === false,
+    JSON.stringify([c0.stage, c0.img, c0.busy]));
   check('composer · the photograph door sits under the canvas',
     c0.photoDoor === 'Add your photograph' && /Add your photograph and it is kept alongside her/.test(c0.photoNote || ''),
     JSON.stringify([c0.photoDoor, c0.photoNote]));
@@ -1097,12 +1109,21 @@ const browser = await chromium.launch(
       flick: row?.querySelectorAll('.rbc-arrow').length,
       swap: !!Array.from(row?.querySelectorAll('.rbc-act') || []).find((b) => /Swap/.test(b.textContent)),
       x: !!row?.querySelector('.rbc-rm'),
-      dressed: Array.from(document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-piece]')).map((g) => g.dataset.piece + (g.classList.contains('on') ? '*' : '')),
+      img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'),
+      busy: document.querySelector('.rb-lk-con .rb-lkm-busy')?.textContent,
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
       saveUnnamed: document.querySelector('.rb-lk-save')?.classList.contains('unnamed'),
       roleNotes: document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolenote').length,
     };
   });
+  // The pick asks for a render after a beat of quiet; the cell stays up,
+  // with the chip, until the frame lands — then she wears the piece.
+  await page.waitForTimeout(2600);
+  const oneLanded = await page.evaluate(() => ({
+    img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'),
+    busy: !!document.querySelector('.rb-lk-con .rb-lkm-busy'),
+    caret: document.activeElement?.id,
+  }));
   check('composer · a filled row is the shared rack card',
     one.name === 'Cream silk shirt' && one.owned === true, `${one.name}/${one.owned}`);
   check('composer · the education line gives way once its role is cast',
@@ -1110,9 +1131,11 @@ const browser = await chromium.launch(
   check('composer · the card carries the flick cluster', one.flick === 2, String(one.flick));
   check('composer · the card carries Swap', one.swap === true);
   check('composer · the card carries the corner ✕', one.x === true);
-  // The pick dresses her the moment it lands — the new layer animates on
-  check('composer · the rack dresses her as pieces land',
-    JSON.stringify(one.dressed) === JSON.stringify(['w-top1*']), JSON.stringify(one.dressed));
+  check('composer · a pick keeps her photograph up and says the next one is coming',
+    one.img === 'https://img.test/cell.jpg' && one.busy === 'Dressing her…', JSON.stringify([one.img, one.busy]));
+  check('composer · one render per settled composition, for the piece on the rack',
+    JSON.stringify(renders) === JSON.stringify([['Cream silk shirt']]) && oneLanded.img === 'https://img.test/render-1.jpg' && oneLanded.busy === false,
+    JSON.stringify([renders, oneLanded]));
   check('composer · one piece: Save is live, still cream until named',
     one.saveDisabled === false && one.saveUnnamed === true, JSON.stringify([one.saveDisabled, one.saveUnnamed]));
   const still = await page.evaluate(() => ({ gone: window.__rbLkSheetGone, ...window.__rbLkStill }));
@@ -1221,7 +1244,7 @@ const browser = await chromium.launch(
       saveShown: !!document.querySelector('.rb-lk-save'),
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
       gate: !!document.getElementById('rb-lk-namegate'),
-      dressed: Array.from(document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-piece]')).map((g) => g.dataset.piece),
+      img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'),
       head: document.querySelector('.rb-lk-con .rb-lkm-panel .lab')?.textContent,
     };
     // Typing flips the button in place — a repaint here would take the
@@ -1253,8 +1276,18 @@ const browser = await chromium.launch(
   });
   check('composer · an unnamed save writes nothing and stays on the composer',
     refusal.stillComposing === true, JSON.stringify(refusal));
-  check('composer · both pieces dress her — the trouser under the top',
-    JSON.stringify(two.dressed) === JSON.stringify(['w-bot1', 'w-top1']), JSON.stringify(two.dressed));
+  // Two picks in one beat → ONE render, for both pieces; the last frame
+  // stayed up meanwhile.
+  await page.waitForTimeout(2600);
+  const twoLanded = await page.evaluate(() => ({
+    img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'),
+    busy: !!document.querySelector('.rb-lk-con .rb-lkm-busy'),
+  }));
+  check('composer · two picks in one beat ask for one render, both pieces on it',
+    two.img === 'https://img.test/render-1.jpg' && renders.length === 2
+      && JSON.stringify(renders[1].slice().sort()) === JSON.stringify(['Barrel-leg jeans', 'Cream silk shirt'])
+      && twoLanded.img === 'https://img.test/render-2.jpg' && twoLanded.busy === false,
+    JSON.stringify([two.img, renders, twoLanded]));
   check('composer · the canvas eyebrow counts what she has on', two.head === 'The look · 2 pieces', two.head);
 
   // A dress in the Top slot retires the Bottom row — and on the canvas a
@@ -1262,16 +1295,10 @@ const browser = await chromium.launch(
   const dress = await page.evaluate(() => {
     window.__lkRowClear('r2');
     window.__lkRowPick('r1', 'w-dre1');
-    return {
-      slots: Array.from(document.querySelectorAll('.rbc-row .vslot')).map((b) => b.textContent),
-      dressed: Array.from(document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-piece]')).map((g) => g.dataset.piece),
-      basics: document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-basic]').length,
-    };
+    return { slots: Array.from(document.querySelectorAll('.rbc-row .vslot')).map((b) => b.textContent) };
   });
   check('composer · a dress quietly retires the Bottom slot',
     !dress.slots.includes('Bottom'), JSON.stringify(dress.slots));
-  check('composer · a dress replaces both basics on the model, which stay underneath',
-    JSON.stringify(dress.dressed) === JSON.stringify(['w-dre1']) && dress.basics === 2, JSON.stringify(dress));
 
   // "+ Add a piece" routes through the shared chooser and its apply lands
   const added = await page.evaluate(() => {
@@ -1281,19 +1308,17 @@ const browser = await chromium.launch(
     return {
       names: Array.from(document.querySelectorAll('.rbc-row:not(.rb-lk-rempty) .rbc-name')).map((n) => n.textContent),
       head: document.querySelector('.rb-lk-con .rb-lkm-panel .lab')?.textContent,
-      dressed: Array.from(document.querySelectorAll('.rb-lk-con .rb-lkm-layer[data-piece]')).map((g) => g.dataset.piece),
     };
   });
   check('composer · an added piece lands as its own rack card',
     added.names.includes('Gold hoops'), JSON.stringify(added.names));
   check('composer · pieces are never double-counted',
     added.head === 'The look · 3 pieces', added.head);
-  // Jewellery counts on the rack but draws nothing; shoes land at the hem
-  check('composer · shoes land at the hem, jewellery draws nothing',
-    JSON.stringify(added.dressed) === JSON.stringify(['w-top1', 'w-sho1']), JSON.stringify(added.dressed));
 
+  await page.evaluate(() => { window.__lkRowPick('r4', 'w-bag1'); });
+  await page.waitForTimeout(2600);
+  const beforeSave = renders.length;
   const saved = await page.evaluate(() => {
-    window.__lkRowPick('r4', 'w-bag1');
     window.__lkNewTitleInput('Terrace mornings');
     window.__lkSave();
     return {
@@ -1313,6 +1338,13 @@ const browser = await chromium.launch(
   check('composer · writes the look with her name, not provisional',
     !!lookWrite && lookWrite.body?.name === 'Terrace mornings' && lookWrite.body?.name_provisional === false && lookWrite.body?.source === 'manual',
     JSON.stringify(lookWrite?.body || null));
+  // The photograph already on the canvas IS the saved look's render — the
+  // row carries it under the same key, and Save asks for no second frame.
+  const renderWrite = writes.filter((w) => w.method === 'PATCH' && /^looks\?id=eq\./.test(w.url) && w.body?.render_url).pop();
+  check('composer · Save reuses the canvas render — no second render',
+    !!renderWrite && renderWrite.body.render_url === 'https://img.test/render-' + beforeSave + '.jpg'
+      && /^w-s5-h2-hg\|/.test(renderWrite.body.render_key || '') && renders.length === beforeSave,
+    JSON.stringify([renderWrite?.body?.render_url, renderWrite?.body?.render_key, beforeSave, renders.length]));
   // the hoops landed in the Bag slot (first empty slot taking Accessories)
   // and the test then swapped the tote in over them — 3 pieces at save
   check('composer · writes its composition with slots',

@@ -2925,11 +2925,14 @@ app.post('/api/avatar/cell', rateLimit({ windowMs: 60_000, max: 20 }), async (re
   })();
 });
 
-app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
+// The look composer renders her on every rack change (debounced client-side,
+// cached by render key), so the window is wider than the save-only days and a
+// single piece is a legitimate ask — she wears it over her base layer.
+app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (req, res) => {
   const { avatarId, pieces } = req.body;
   if (!parseAvatarId(avatarId)) return res.status(400).json({ error: 'bad avatarId' });
-  if (!Array.isArray(pieces) || pieces.length < 2 || pieces.length > 12) {
-    return res.status(400).json({ error: 'pieces must hold 2–12 entries' });
+  if (!Array.isArray(pieces) || pieces.length < 1 || pieces.length > 12) {
+    return res.status(400).json({ error: 'pieces must hold 1–12 entries' });
   }
   const clean = pieces.map(p => ({
     name: String(p && p.name || '').slice(0, 120),
@@ -2938,7 +2941,7 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 6 }), async (r
     brand: String(p && p.brand || '').slice(0, 60),
     image_url: typeof (p && p.image_url) === 'string' ? p.image_url : null,
   })).filter(p => p.name);
-  if (clean.length < 2) return res.status(400).json({ error: 'pieces must be named' });
+  if (clean.length < 1) return res.status(400).json({ error: 'pieces must be named' });
 
   const jobId = randomBytes(6).toString('hex');
   imageJobs.set(jobId, { images: [null], done: false, created: Date.now() });
@@ -2974,7 +2977,7 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 6 }), async (r
       const cellMan = parseAvatarId(avatarId).gender === 'man';
       const prompt =
         `Create one photorealistic editorial photograph. IMAGE 1 is the model. Keep the SAME ${cellMan ? 'man' : 'woman'}: identical face, hair, skin tone and figure; a faithful likeness of IMAGE 1. ` +
-        `Dress ${cellMan ? 'him' : 'her'} in this complete outfit — every listed piece worn together, nothing substituted, nothing extra beyond simple essentials:\n` +
+        `Dress ${cellMan ? 'him' : 'her'} in ${clean.length > 1 ? 'this complete outfit — every listed piece worn together, nothing substituted, nothing extra beyond simple essentials' : 'this piece, worn over the plain fitted base layer from IMAGE 1 — nothing substituted, nothing extra'}:\n` +
         lines.join('\n') + '\n' +
         `Standing naturally, facing the camera. ${FULL_BODY_FRAME} ${AVATAR_STUDIO} Generate the single photograph now.`;
       parts.push({ text: prompt });

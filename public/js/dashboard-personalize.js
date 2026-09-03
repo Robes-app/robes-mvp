@@ -8275,7 +8275,6 @@
       // render reads). The Style notes page is where she is built.
       var _lkModel = undefined;
       var _lkShowPhoto = false;      // You / Model switch once a photograph exists
-      var _lkModelDrawn = {};        // piece ids already on the figure — only a NEW piece animates on
       var _lkShop = [], _lkBuildGaps = [], _lkBuildMine = false;
       var _lkShopImgs = [], _lkShopTimer = null;
       // The build's stylist note (fetched from /api/lookbuild/note AFTER the
@@ -8462,6 +8461,10 @@
         };
         const after = () => {
           _lkPiecesCloud(l);
+          // A look rendered on the composer's canvas saves WITH its frame —
+          // the same PATCH the render pipeline makes, so the migration-21
+          // degrade covers it.
+          if (l.render_url && l.render_key) _lkPatchCloud(l, { render_url: l.render_url, render_key: l.render_key });
           if (l._lookTags) {
             _tgSetLinks('look', l.id, 'wear_for', l._lookTags.wear || [], 'inferred');
             _tgSetLinks('look', l.id, 'vibe', l._lookTags.vibe || [], 'inferred');
@@ -8637,6 +8640,8 @@
           name_provisional: o.name_provisional !== false,
           note: o.note != null ? o.note : _lkStyleNote(ids),
           photo_url: o.photo_url || null,
+          render_url: o.render_url || null,
+          render_key: o.render_key || null,
           proposals: o.proposals || null,
           tags: o.tags || null,
           // ADR-002: climate is a column, derived-with-override. A new look
@@ -9056,12 +9061,12 @@
 .rb-lkm-canvas{position:relative;aspect-ratio:4/5;border:1px solid #E6DFD2;border-radius:var(--rad-sm);background:#F1ECE4;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .rb-lkm-canvas.prompt{border:1px dashed #D8CFBE;background:transparent}
 .rb-lkm-canvas.photo{background:var(--cream-200)}
-.rb-lkm-stage{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;background:radial-gradient(circle at 50% 22%,rgba(243,225,215,.5),transparent 66%)}
-.rb-lkm-fig{height:88%;width:auto;max-width:80%;display:block;margin-bottom:3%}
-.rb-lkm-fig.ghost{opacity:.55}
-.rb-lkm-layer.on{animation:rbLkDress .42s cubic-bezier(.22,.7,.2,1) both}
-@keyframes rbLkDress{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
-@media(prefers-reduced-motion:reduce){.rb-lkm-layer.on{animation:none}}
+.rb-lkm-stage{position:absolute;inset:0;background:#EDE8E0 radial-gradient(circle at 50% 22%,rgba(243,225,215,.5),transparent 66%)}
+.rb-lkm-img{width:100%;height:100%;object-fit:contain;object-position:50% 100%;display:block;animation:rbLkmIn .35s ease both}
+@keyframes rbLkmIn{from{opacity:0}to{opacity:1}}
+.rb-lkm-stage.busy .rb-lkm-img{opacity:.72;transition:opacity .3s}
+.rb-lkm-busy{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);white-space:nowrap;padding:8px 14px;border-radius:100px;background:rgba(250,248,245,.9);border:1px solid rgba(32,32,33,.10);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);animation:rbLkFill 1.5s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.rb-lkm-img,.rb-lkm-busy{animation:none}}
 .rb-lkm-prompt{display:flex;flex-direction:column;align-items:center;gap:16px;padding:28px 26px;text-align:center;max-width:364px}
 .rb-lkm-outline{width:66px;height:118px;box-sizing:border-box;border:1px dashed #D3C9B6;border-radius:33px 33px 8px 8px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:12px}
 .rb-lkm-outline span{width:30px;height:1px;background:#DCD3C2}
@@ -10146,31 +10151,23 @@
         return out;
       }
       // ── The model on the canvas (2026-09-03) ────────────────────────
-      // Mirrors stylenotes.html's MV_SKINS / MV_HAIRS — keep in sync. The
-      // avatar id carries the catalog indices (w-s3-h1-…), which is all the
-      // sketch needs. The figure and its garments are DRAWN SHAPES standing
-      // in for the photographed cell: a pick dresses her the moment it
-      // lands, and the photographic render still arrives after Save.
-      var _LKM_SKINS = ['#3B2A22', '#5A3B2A', '#7A5238', '#95664A', '#B78A63', '#D0A47F', '#E3BE9C', '#F0D6BE'];
-      var _LKM_HAIRS = ['#1B1614', '#3A2A20', '#6B4A2E', '#A9793F', '#CBAE87'];
+      // The REAL model, photographed: the canvas shows her avatar cell (her
+      // in the base layer — the beige basics) the moment the composer
+      // opens, and every change to the rack re-renders her wearing what
+      // is on it through /api/avatar/render (debounced, cached by the same
+      // render key the saved look uses, so Save reuses the frame). The
+      // previous photograph stays up while the next one is coming — she
+      // is never replaced by a blank.
       function _lkModelFromId(id) {
         if (!id) return null;
-        const s = String(id).match(/-s(\d)/), h = String(id).match(/-h(\d)/);
-        return {
-          id: String(id),
-          man: /^m-/.test(String(id)),
-          skin: _LKM_SKINS[s ? +s[1] : 5] || _LKM_SKINS[5],
-          hair: _LKM_HAIRS[h ? +h[1] : 2] || _LKM_HAIRS[2],
-        };
+        return { id: String(id), man: /^m-/.test(String(id)) };
       }
       function _lkModelEnsure() {
         if (_lkModel !== undefined || !_waUid()) return;
         _avFetchId(function(id) {
           _lkModel = _lkModelFromId(id);
-          // The first paint drew the figure as a ghost — repaint whichever
-          // composer is on screen now that the answer is in. Deferred: a
-          // cached id answers synchronously, mid-paint.
-          setTimeout(function() { if (document.querySelector('.rb-lk-composer')) _lkRepaint(); }, 0);
+          // Deferred: a cached id answers synchronously, mid-paint.
+          setTimeout(function() { if (document.querySelector('.rb-lk-composer, .rb-lkm-stage')) _lkRepaint(); }, 0);
         });
       }
       function _lkRepaint() {
@@ -10184,105 +10181,124 @@
         if (g === 'woman') return { she: 'she', her: 'her', shell: 'she’ll' };
         return { she: 'they', her: 'them', shell: 'they’ll' };
       }
-      // What a wardrobe piece draws as. The legacy category decides the
-      // family; L2/L3/the label refine it (a trench is a coat, a cardigan a
-      // short layer, a slip skirt a skirt). Jewellery and the like draw
-      // nothing — they still count on the rack.
-      function _lkGarmentKind(wi) {
-        const t = [wi.category_l3, wi.category_l2, wi.label].filter(Boolean).join(' ').toLowerCase();
-        const c = String(wi.category || '');
-        if (c === 'Dresses') return /jumpsuit|boilersuit|playsuit|romper/.test(t) ? 'jumpsuit' : 'dress';
-        if (c === 'Bottoms') return /skirt|skort/.test(t) ? 'skirt' : /short/.test(t) ? 'shorts' : 'trouser';
-        if (c === 'Outerwear') return /coat|trench|parka|\bmac\b|duster|cape|poncho/.test(t) ? 'coat' : 'cardigan';
-        if (c === 'Tops') return /cardigan|coatigan/.test(t) ? 'cardigan' : 'top';
-        if (c === 'Shoes') return /boot/.test(t) ? 'boots' : 'shoes';
-        if (c === 'Bags') return 'bag';
-        if (/\bbag\b|tote|clutch|satchel|basket/.test(t)) return 'bag';
-        return null;
+      var _lkmCell = {};        // avatarId → cell url (her in the base layer), or false when it failed
+      var _lkmCellBusy = {};    // avatarId → true while the cell is being fetched/created
+      var _lkmCellFail = {};    // avatarId → when the last cell fetch failed (retried after a cooldown)
+      var _lkmRenders = {};     // render key → url, or false when the render failed
+      var _lkmBusy = null;      // the render key most recently sent
+      var _lkmTimer = null;     // the pick debounce
+      var _lkmShown = null;     // the last photograph on the canvas — stays up while the next one comes
+      var _LKM_DEBOUNCE = 1800; // ms of quiet after the last rack change before she is re-rendered
+      // The SAME key _avRenderKick writes onto the saved look — so a look
+      // rendered on the canvas saves with its frame and never renders twice.
+      function _lkmKey(ids) { return (_lkModel ? _lkModel.id : '') + '|' + ids.map(String).sort().join(','); }
+      function _lkmGarments(items) {
+        return items.map(wi => ({ name: wi.label, category: wi.category, color: wi.color, brand: wi.brand, image_url: _pdHttp(wi.image_url) }))
+          .filter(g => g.name);
       }
-      // Garment geometry on the 220×620 figure — a box centred on x=110
-      // clipped to a polygon (percentages of the box), the design's own
-      // shapes.
-      var _LKM_GEO = {
-        top:          { w: 104, y: 92,  h: 186, pts: [[6, 0], [94, 0], [91, 100], [9, 100]] },
-        basicsBottom: { w: 100, y: 272, h: 100, pts: [[0, 0], [100, 0], [100, 100], [0, 100]] },
-        trouser:      { w: 112, y: 276, h: 312, pts: [[5, 0], [95, 0], [93, 100], [64, 100], [56, 40], [44, 40], [36, 100], [7, 100]] },
-        shorts:       { w: 112, y: 276, h: 150, pts: [[5, 0], [95, 0], [93, 100], [64, 100], [56, 40], [44, 40], [36, 100], [7, 100]] },
-        skirt:        { w: 128, y: 278, h: 226, pts: [[16, 0], [84, 0], [100, 100], [0, 100]] },
-        dress:        { w: 116, y: 92,  h: 392, pts: [[14, 0], [86, 0], [82, 26], [98, 100], [2, 100], [18, 26]] },
-        coat:         { w: 140, y: 88,  h: 414, pts: [[4, 0], [96, 0], [100, 16], [95, 100], [73, 100], [64, 22], [36, 22], [27, 100], [5, 100]] },
-        cardigan:     { w: 130, y: 90,  h: 224, pts: [[5, 0], [95, 0], [100, 18], [94, 100], [70, 100], [63, 20], [37, 20], [30, 100], [6, 100]] },
-      };
-      function _lkmShape(geo, c) {
-        const g = _LKM_GEO[geo];
-        const x = 110 - g.w / 2;
-        const pts = g.pts.map(([px, py]) => (x + px / 100 * g.w).toFixed(1) + ',' + (g.y + py / 100 * g.h).toFixed(1)).join(' ');
-        return '<polygon points="' + pts + '" fill="' + _waEsc(c) + '"></polygon>';
+      // Poll the standard image job: first read at once, then every 4s, 180s ceiling.
+      function _lkmPoll(jobId, cb) {
+        const t0 = Date.now();
+        (function tick() {
+          fetch('/api/images/' + jobId).then(r => r.ok ? r.json() : null).then(function(job) {
+            const url = job && job.images && job.images[0];
+            if (typeof url === 'string' && url.indexOf('http') === 0) return cb(url);
+            if (!job || job.done || Date.now() - t0 > 180000) return cb(null);
+            setTimeout(tick, 4000);
+          }).catch(() => cb(null));
+        })();
       }
-      // The layers, in dressing order: beige basics first (unfilled slots
-      // keep theirs, so a half-built look never reads as a missing limb),
-      // then the anchor (a dress replaces both basics), the top, the layer
-      // over everything, shoes at the hem and the bag at the hand.
-      function _lkModelLayersSvg(items) {
-        const by = {};
-        items.forEach(wi => {
-          const k = _lkGarmentKind(wi);
-          if (!k) return;
-          const g = k === 'top' ? 'top'
-            : (k === 'coat' || k === 'cardigan') ? 'layer'
-            : (k === 'shoes' || k === 'boots') ? 'shoes'
-            : k === 'bag' ? 'bag'
-            : (k === 'dress' || k === 'jumpsuit') ? 'dress' : 'bottom';
-          if (!by[g]) by[g] = { kind: k, wi };
+      function _lkmCellFetch() {
+        const id = _lkModel && _lkModel.id;
+        if (!id || _lkmCell[id] !== undefined || _lkmCellBusy[id]) return;
+        _lkmCellBusy[id] = true;
+        const done = url => { _lkmCell[id] = url || false; if (!url) _lkmCellFail[id] = Date.now(); delete _lkmCellBusy[id]; _lkmPaintStage(); };
+        fetch('/api/avatar/cell', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ avatarId: id }) })
+          .then(r => r.ok ? r.json() : null)
+          .then(function(out) {
+            if (!out) return done(null);
+            if (out.url) return done(out.url);
+            if (out.jobId) return _lkmPoll(out.jobId, done);
+            done(null);
+          }).catch(() => done(null));
+      }
+      function _lkmRender(key, items) {
+        _lkmBusy = key;
+        const finish = url => { _lkmRenders[key] = url || false; if (_lkmBusy === key) _lkmBusy = null; _lkmPaintStage(); };
+        fetch('/api/avatar/render', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ avatarId: _lkModel.id, pieces: _lkmGarments(items), userId: _waUid(), genId: _rbGenId(), gender: _rbGender() }),
+        }).then(r => r.ok ? r.json() : null).then(function(out) {
+          if (!out || !out.jobId) return finish(null);
+          _rbTrack('avatar_render', { pieces: items.length, surface: 'composer' });
+          _lkmPoll(out.jobId, finish);
+        }).catch(() => finish(null));
+      }
+      // What the canvas shows for this composition right now, and whether
+      // a photograph is still coming.
+      function _lkmStageState(ids) {
+        const pro = _lkModelPro();
+        const cell = _lkModel ? _lkmCell[_lkModel.id] : undefined;
+        const key = _lkmKey(ids);
+        const target = ids.length ? _lkmRenders[key] : cell;
+        const url = target || _lkmShown || cell || null;
+        if (url) _lkmShown = url;
+        // false = tried and failed: the previous photograph stands, no chip
+        const busy = !target && target !== false;
+        return { url, busy, label: ids.length ? 'Dressing ' + pro.her + '…' : 'Creating your model…', key };
+      }
+      // Schedule whatever this composition still needs — the cell at once,
+      // a render after a beat of quiet (flicking through options asks for
+      // one render, not one per flick). Never paints synchronously.
+      function _lkmSync(ids) {
+        if (!_lkModel) return;
+        // Deferred a tick so the stage is in the DOM, then only for a stage
+        // that is actually on screen — the Lookbook paints its composer
+        // while hidden (boot, the early empty-lookbook arming), and a
+        // hidden canvas must never spend a render or a cell.
+        setTimeout(function() {
+          const el = document.querySelector('.rb-lkm-stage[data-ids="' + ids.join(',') + '"]');
+          if (!el || !el.getClientRects().length || !_lkModel) return;
+          const id = _lkModel.id;
+          if (_lkmCell[id] === false && Date.now() - (_lkmCellFail[id] || 0) > 30000) _lkmCell[id] = undefined;
+          if (_lkmCell[id] === undefined) _lkmCellFetch();
+          if (!ids.length || ids.length > 12) return;
+          const key = _lkmKey(ids);
+          if (_lkmRenders[key] !== undefined || _lkmBusy === key) return;
+          clearTimeout(_lkmTimer);
+          _lkmTimer = setTimeout(function() {
+            _lkmTimer = null;
+            const items = ids.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean);
+            if (!items.length || _lkmRenders[key] !== undefined) return;
+            _lkmRender(key, items);
+          }, _LKM_DEBOUNCE);
+        }, 0);
+      }
+      function _lkmStageHtml(ids) {
+        const st = _lkmStageState(ids);
+        return '<div class="rb-lkm-stage' + (st.busy ? ' busy' : '') + '" data-ids="' + _waEsc(ids.join(',')) + '">' +
+          (st.url ? '<img class="rb-lkm-img" src="' + _waEsc(st.url) + '" alt="Your model wearing this look">' : '') +
+          (st.busy ? '<div class="rb-lkm-busy">' + st.label + '</div>' : '') +
+          '</div>';
+      }
+      // Paint a landed photograph INTO the stage on screen — never a whole
+      // composer repaint, which would take the caret out of the name field.
+      function _lkmPaintStage() {
+        document.querySelectorAll('.rb-lkm-stage').forEach(function(el) {
+          const ids = String(el.getAttribute('data-ids') || '').split(',').filter(Boolean);
+          const st = _lkmStageState(ids);
+          let img = el.querySelector('.rb-lkm-img');
+          if (st.url) {
+            if (!img) { img = document.createElement('img'); img.className = 'rb-lkm-img'; img.alt = 'Your model wearing this look'; el.insertBefore(img, el.firstChild); }
+            if (img.getAttribute('src') !== st.url) img.setAttribute('src', st.url);
+          }
+          el.classList.toggle('busy', st.busy);
+          let chip = el.querySelector('.rb-lkm-busy');
+          if (st.busy) {
+            if (!chip) { chip = document.createElement('div'); chip.className = 'rb-lkm-busy'; el.appendChild(chip); }
+            chip.textContent = st.label;
+          } else if (chip) chip.remove();
         });
-        const tone = wi => _ltToneOf(wi) || '#B9B0A2';
-        const layers = [{ geo: 'top', c: '#D9CCBA' }, { geo: 'basicsBottom', c: '#D0C2AE' }];
-        if (by.bottom) layers.push({ geo: by.bottom.kind, c: tone(by.bottom.wi), id: by.bottom.wi.id });
-        if (by.top && !(by.dress && by.dress.kind === 'dress')) layers.push({ geo: 'top', c: tone(by.top.wi), id: by.top.wi.id });
-        if (by.dress) {
-          if (by.dress.kind === 'jumpsuit') {
-            layers.push({ geo: 'trouser', c: tone(by.dress.wi), id: by.dress.wi.id });
-            layers.push({ geo: 'top', c: tone(by.dress.wi), id: by.dress.wi.id });
-          } else layers.push({ geo: 'dress', c: tone(by.dress.wi), id: by.dress.wi.id });
-        }
-        if (by.layer) layers.push({ geo: by.layer.kind, c: tone(by.layer.wi), id: by.layer.wi.id });
-        if (by.shoes) layers.push({ geo: by.shoes.kind, c: tone(by.shoes.wi), id: by.shoes.wi.id });
-        if (by.bag) layers.push({ geo: 'bag', c: tone(by.bag.wi), id: by.bag.wi.id });
-        const drawn = {};
-        const html = layers.map(l => {
-          const fresh = l.id != null && !_lkModelDrawn[String(l.id)];
-          if (l.id != null) drawn[String(l.id)] = true;
-          let body;
-          if (l.geo === 'shoes' || l.geo === 'boots') {
-            const y = l.geo === 'boots' ? 540 : 592, h = l.geo === 'boots' ? 74 : 22;
-            body = '<rect x="66" y="' + y + '" width="38" height="' + h + '" rx="5" fill="' + _waEsc(l.c) + '"></rect>' +
-              '<rect x="116" y="' + y + '" width="38" height="' + h + '" rx="5" fill="' + _waEsc(l.c) + '"></rect>';
-          } else if (l.geo === 'bag') {
-            body = '<rect x="192" y="250" width="4" height="56" rx="2" fill="' + _waEsc(l.c) + '"></rect>' +
-              '<path d="M172,323 a23,23 0 0 1 46,0 v25 a6,6 0 0 1 -6,6 h-34 a6,6 0 0 1 -6,-6 z" fill="' + _waEsc(l.c) + '"></path>';
-          } else body = _lkmShape(l.geo, l.c);
-          return '<g class="rb-lkm-layer' + (fresh ? ' on' : '') + '"' +
-            (l.id != null ? ' data-piece="' + _waEsc(String(l.id)) + '"' : ' data-basic="1"') + '>' + body + '</g>';
-        }).join('');
-        _lkModelDrawn = drawn;
-        return html;
-      }
-      function _lkModelFigureSvg(items) {
-        const m = _lkModel || null;
-        const skin = m ? m.skin : '#E3DED4', hair = m ? m.hair : '#D6CFC2';
-        const hairHtml = m && m.man
-          ? '<path d="M76,40 a34,34 0 0 1 68,0 v6 h-68 z" fill="' + hair + '"></path>'
-          : '<path d="M72,38 a38,38 0 0 1 76,0 v10 a22,22 0 0 1 -22,22 h-32 a22,22 0 0 1 -22,-22 z" fill="' + hair + '"></path>';
-        return '<svg class="rb-lkm-fig' + (m ? '' : ' ghost') + '" viewBox="0 0 220 620" preserveAspectRatio="xMidYMax meet" aria-hidden="true">' +
-          hairHtml +
-          '<ellipse cx="110" cy="47" rx="30" ry="37" fill="' + skin + '"></ellipse>' +
-          '<rect x="102" y="78" width="16" height="16" fill="' + skin + '"></rect>' +
-          '<polygon points="68,90 152,90 138,192 148,286 72,286 82,192" fill="' + skin + '"></polygon>' +
-          '<polygon points="65,282 155,282 144.6,342 75.4,342" fill="' + skin + '"></polygon>' +
-          '<polygon points="70,340 104,340 95.2,598 76.8,598" fill="' + skin + '"></polygon>' +
-          '<polygon points="116,340 150,340 143.2,598 124.8,598" fill="' + skin + '"></polygon>' +
-          _lkModelLayersSvg(items) +
-          '</svg>';
       }
       var _LKM_CAMERA_SVG = '<svg width="13" height="12" viewBox="0 0 13 12" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><rect x=".5" y="2.5" width="12" height="9"></rect><path d="M4 2.5 5 .5h3l1 2"></path><circle cx="6.5" cy="7" r="2.4"></circle></svg>';
       var _LKM_REFRESH_SVG = '<svg width="13" height="12" viewBox="0 0 13 12" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="M1.4 5.2a4.8 4.8 0 0 1 8.3-2.3l1.5 1.5"></path><path d="M11.6 6.8a4.8 4.8 0 0 1-8.3 2.3L1.8 7.6"></path><path d="M11.2.9v3.5H7.7M1.8 11.1V7.6h3.5"></path></svg>';
@@ -10312,7 +10328,9 @@
             '<button type="button" class="rb-lkm-orphoto" onclick="window.__lkPhotoToggle()">Or start from your own photograph</button>' +
             '</div>';
         } else {
-          inner = '<div class="rb-lkm-stage">' + _lkModelFigureSvg(o.items) + '</div>';
+          const ids = (o.items || []).map(wi => String(wi.id));
+          inner = _lkmStageHtml(ids);
+          _lkmSync(ids);
         }
         return '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
           '<span class="lab">' + o.headLabel + '</span><span class="robes">' + (o.robesLabel || 'Robes') + '</span></div>' +
@@ -11023,7 +11041,9 @@
         _lkShopImgs = []; if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
         _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
         _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null;
-        _lkShowPhoto = false; _lkModelDrawn = {};
+        _lkShowPhoto = false;
+        if (_lkmTimer) { clearTimeout(_lkmTimer); _lkmTimer = null; }
+        _lkmShown = null;
         _lkNewTitleDraft = null; _lkNewTitleTouched = false;
         _lkNewTags = null; _lkNewRoles = {};
       }
@@ -12105,10 +12125,15 @@
             opts: row.opts, oi: row.oi, img_oi: row.oi, saved: true,
             image_url: _pdHttp(_lkShopImgs[i]) || null,
           })) : null;
+          // The photograph already on the canvas is the saved look's render
+          // (same key as _avRenderKick) — Save never renders her twice.
+          const canvasKey = (_lkModel && !proposals) ? _lkmKey(used.map(String)) : null;
+          const canvasUrl = canvasKey ? _pdHttp(_lkmRenders[canvasKey]) : null;
           l = _lkCreate({
             pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed,
             source: 'manual',
             proposals: proposals,
+            render_url: canvasUrl || null, render_key: canvasUrl ? canvasKey : null,
             // A Robes build carries its stylist note onto the saved look —
             // the Look detail's quote slot reads it back (looks.note).
             note: (_lkBuilt && _lkBuildNote) || undefined,
