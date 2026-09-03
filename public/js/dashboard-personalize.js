@@ -9063,6 +9063,7 @@
 .rb-lkm-canvas.photo{background:var(--cream-200)}
 .rb-lkm-stage{position:absolute;inset:0;background:#EDE8E0 radial-gradient(circle at 50% 22%,rgba(243,225,215,.5),transparent 66%)}
 .rb-lkm-img{width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block;animation:rbLkmIn .35s ease both}
+.rb-lkm-img.tall{object-fit:contain}
 @keyframes rbLkmIn{from{opacity:0}to{opacity:1}}
 .rb-lkm-stage.busy .rb-lkm-img{opacity:.72;transition:opacity .3s}
 .rb-lkm-busy{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);white-space:nowrap;padding:8px 14px;border-radius:100px;background:rgba(250,248,245,.9);border:1px solid rgba(32,32,33,.10);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);animation:rbLkFill 1.5s ease-in-out infinite}
@@ -10277,10 +10278,16 @@
       function _lkmStageHtml(ids) {
         const st = _lkmStageState(ids);
         return '<div class="rb-lkm-stage' + (st.busy ? ' busy' : '') + '" data-ids="' + _waEsc(ids.join(',')) + '">' +
-          (st.url ? '<img class="rb-lkm-img" src="' + _waEsc(st.url) + '" alt="Your model wearing this look">' : '') +
+          (st.url ? '<img class="rb-lkm-img" src="' + _waEsc(st.url) + '" alt="Your model wearing this look" onload="window.__lkmFit(this)">' : '') +
           (st.busy ? '<div class="rb-lkm-busy">' + st.label + '</div>' : '') +
           '</div>';
       }
+      // A photograph wider than the 4:5 frame covers it (only the empty
+      // studio at the sides is cropped); a narrower one is shown whole —
+      // her head and feet are never cropped by the frame.
+      window.__lkmFit = function(img) {
+        try { img.classList.toggle('tall', img.naturalWidth / img.naturalHeight < 0.78); } catch (_) {}
+      };
       // Paint a landed photograph INTO the stage on screen — never a whole
       // composer repaint, which would take the caret out of the name field.
       function _lkmPaintStage() {
@@ -10289,7 +10296,7 @@
           const st = _lkmStageState(ids);
           let img = el.querySelector('.rb-lkm-img');
           if (st.url) {
-            if (!img) { img = document.createElement('img'); img.className = 'rb-lkm-img'; img.alt = 'Your model wearing this look'; el.insertBefore(img, el.firstChild); }
+            if (!img) { img = document.createElement('img'); img.className = 'rb-lkm-img'; img.alt = 'Your model wearing this look'; img.onload = function() { window.__lkmFit(img); }; el.insertBefore(img, el.firstChild); }
             if (img.getAttribute('src') !== st.url) img.setAttribute('src', st.url);
           }
           el.classList.toggle('busy', st.busy);

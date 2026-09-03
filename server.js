@@ -2851,7 +2851,8 @@ async function avatarCellGenerate(id) {
         ai.models.generateContent({
           model: 'gemini-3.1-flash-image',
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: { responseModalities: ['TEXT', 'IMAGE'] },
+          // 4:5 — the canvas frame every render and the cell are shown in
+          config: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: '4:5' } },
         }),
         new Promise(resolve => setTimeout(() => resolve(null), 50000)),
       ]);
@@ -2995,7 +2996,7 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (
             ai.models.generateContent({
               model: 'gemini-3.1-flash-image',
               contents: [{ role: 'user', parts }],
-              config: { responseModalities: ['TEXT', 'IMAGE'] },
+              config: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: '4:5' } },
             }),
             new Promise(resolve => setTimeout(() => resolve(null), 60000)),
           ]);
