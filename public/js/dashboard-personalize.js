@@ -8226,6 +8226,8 @@
       // edits once she asks for them through "Edit & resave". A rack that
       // is always editable turns a history page into a form.
       var _lkEditMode = false;
+      var _lkDetailView = null;          // saved look: 'photo' | 'model' (null = photo when one exists)
+      var _lkDetailPhotoPending = false;
       // Edits show IN REAL TIME on the view (Annie's beta pass 2026-08-17 —
       // the old promotion gate asked BEFORE applying, so nothing visibly
       // changed): every flick and swap lands on this DRAFT, the mosaic and
@@ -9722,6 +9724,11 @@
         // the same after being saved").
         const props = Array.isArray(l.proposals) ? l.proposals : [];
         const lkTagsRow = _rbTagsRowHtml(_lkTagsOf(l), '__lkTagsEdit');
+        // Her own photograph of the look (never a build's lead still, which
+        // rides photo_url on a zero-owned build): the You / Model switch
+        // under the panel picks the view, photo first when one exists.
+        const dPhoto = props.length ? null : _pdHttp(l.photo_url);
+        const dView = _lkDetailView || (dPhoto ? 'photo' : 'model');
         let lookPanel;
         // Once her model wears the look, the RENDER leads even on a saved
         // build — the rack beneath still carries every proposal. Only a
@@ -9751,11 +9758,23 @@
             rackLabel: 'The Rack',
             onFlip: '__lkDFlip', onSwap: '__lkDSwap',
           }, items).lookHtml;
-        } else if (_lkHeroUrl(l)) {
+        } else if (dPhoto && dView === 'photo') {
+          // Her photograph of the look — the record, with the model a
+          // second view of it (the You / Model switch beneath).
+          lookPanel = '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
+            '<span class="lab">The look · ' + _lkN(ids.length, 'piece') + '</span><span class="robes">Robes</span></div>' +
+            '<div class="rb-lkm-canvas photo"><div class="rb-lkm-photo"><img src="' + _waEsc(dPhoto) + '" alt="Your photograph of ' + _waEsc(l.name) + '">' +
+              '<div class="cap">Your photograph</div>' +
+              '<button type="button" class="rb-lkm-replace" onclick="window.__lkDetailPhotoAdd()" title="Replace photograph" aria-label="Replace photograph">' + _LKM_REFRESH_SVG + '</button>' +
+            '</div></div>' +
+            (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
+            lkTagsRow +
+            '</div>';
+        } else if (_pdHttp(l.render_url)) {
           lookPanel = '<div class="rbc-panel"><div class="rbc-lhead">' +
             '<span class="lab">The look · ' + _lkN(ids.length, 'piece') + '</span><span class="robes">Robes</span></div>' +
             '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
-              '<img src="' + _waEsc(_lkHeroUrl(l)) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="' + _waEsc(l.name) + '"></div>' +
+              '<img src="' + _waEsc(_pdHttp(l.render_url)) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="' + _waEsc(l.name) + '"></div>' +
             (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
             lkTagsRow +
             '</div>';
@@ -9880,7 +9899,18 @@
         }
 
         h += '</div>';
-        h += '<div class="rb-lk-con"><div>' + lookPanel + '</div><div>';
+        // The photograph door under the panel — the same row the composer
+        // carries: add (or replace) her photograph, then You / Model.
+        const dPro = _lkModelPro();
+        const dRow = props.length ? '' : '<div class="rb-lkm-row">' +
+          (dPhoto
+            ? '<div class="rb-lkm-seg" role="group" aria-label="Look view">' +
+                '<button type="button"' + (dView === 'photo' ? ' class="on"' : '') + ' onclick="window.__lkDetailPhotoView(\'photo\')">You</button>' +
+                '<button type="button"' + (dView === 'photo' ? '' : ' class="on"') + ' onclick="window.__lkDetailPhotoView(\'model\')">Model</button></div>'
+            : '<button type="button" class="rb-lkm-addphoto" onclick="window.__lkDetailPhotoAdd()">' + _LKM_CAMERA_SVG + 'Add your photograph</button>') +
+          '<div class="rb-lkm-note">' + (_lkDetailPhotoPending ? 'Uploading…' : dPhoto ? 'Kept as the record of this look'
+            : 'Wore this look? Add your photograph and it is kept alongside ' + dPro.her) + '</div></div>';
+        h += '<div class="rb-lk-con"><div>' + lookPanel + dRow + '</div><div>';
 
         // The Rack — the same rack rows every console uses. A saved build's
         // proposals hang as full rack cards (the shared _rbcRow). Only with
@@ -10245,7 +10275,7 @@
         const url = target || _lkmShown || cell || null;
         if (url) _lkmShown = url;
         // false = tried and failed: the previous photograph stands, no chip
-        const busy = !target && target !== false;
+        const busy = !!_lkModel && !target && target !== false;
         return { url, busy, label: ids.length ? 'Dressing ' + pro.her + '…' : 'Creating your model…', key };
       }
       // Schedule whatever this composition still needs — the cell at once,
@@ -10664,6 +10694,7 @@
         window.__lkOpen(id);
       };
       window.__lkOpen = function(id) {
+        _lkDetailView = null; _lkDetailPhotoPending = false;
         _lkShelfOpen();
         _lkActive = id; _lkView = 'detail';
         _lkPending = null; _lkDone = null; _lkActNote = null; _lkDraft = null;
@@ -12015,9 +12046,9 @@
       // The photo is the look's image and nothing more — no reading, no
       // extraction (Phase 3 is a later, smaller problem). Hosted before it is
       // stored: base64 never goes into a row.
-      // Adds or replaces — never removes: once an image of her in this look
-      // exists it is the record, and the model is a second view of it.
-      window.__lkPhotoToggle = function() {
+      // Pick a photograph, downscale it, host it (base64 never reaches a
+      // row), and hand back the URL — or null when it would not upload.
+      function _lkPhotoPick(onStart, onDone) {
         const inp = document.createElement('input');
         inp.type = 'file';
         inp.accept = 'image/*,.jpg,.jpeg,.png,.heic,.heif,.webp';
@@ -12027,9 +12058,7 @@
           const f = inp.files && inp.files[0];
           inp.remove();
           if (!f) return;
-          const prev = _lkPhoto && _lkPhoto.url ? { url: _lkPhoto.url } : null;
-          _lkPhoto = { pending: true };
-          _lkRepaint();
+          onStart();
           _rbDownscale(f).then(dataUrl => {
             const m = String(dataUrl).match(/^data:([^;]+);base64,(.+)$/);
             if (!m) throw new Error('unreadable');
@@ -12037,17 +12066,42 @@
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ data: m[2], mimeType: m[1] }),
             }).then(r => r.json());
-          }).then(j => {
-            if (j && j.url) { _lkPhoto = { url: j.url }; _lkShowPhoto = true; }
-            else { _lkPhoto = prev; _waShowToast('That photo would not upload — try again shortly'); }
-            _lkRepaint();
-          }).catch(() => {
-            _lkPhoto = prev;
-            _waShowToast('That photo would not upload — try again shortly');
-            _lkRepaint();
-          });
+          }).then(j => onDone(j && j.url ? j.url : null)).catch(() => onDone(null));
         });
         inp.click();
+      }
+      // Adds or replaces — never removes: once an image of her in this look
+      // exists it is the record, and the model is a second view of it.
+      window.__lkPhotoToggle = function() {
+        const prev = _lkPhoto && _lkPhoto.url ? { url: _lkPhoto.url } : null;
+        _lkPhotoPick(function() {
+          _lkPhoto = { pending: true };
+          _lkRepaint();
+        }, function(url) {
+          if (url) { _lkPhoto = { url }; _lkShowPhoto = true; }
+          else { _lkPhoto = prev; _waShowToast('That photo would not upload — try again shortly'); }
+          _lkRepaint();
+        });
+      };
+      // The SAVED look's photograph door — the same one-way door on the
+      // detail page: add or replace her photograph of the look, kept on
+      // looks.photo_url beside the render; then You / Model switch views.
+      window.__lkDetailPhotoAdd = function() {
+        const l = _lkFind(_lkActive);
+        if (!l) return;
+        _lkPhotoPick(function() {
+          _lkDetailPhotoPending = true;
+          _lkPaint();
+        }, function(url) {
+          _lkDetailPhotoPending = false;
+          if (url) { _lkPatch(l.id, { photo_url: url }); _lkDetailView = 'photo'; _rbTrack('look_photo_added', { surface: 'detail' }); }
+          else _waShowToast('That photo would not upload — try again shortly');
+          _lkPaint();
+        });
+      };
+      window.__lkDetailPhotoView = function(which) {
+        _lkDetailView = which === 'photo' ? 'photo' : 'model';
+        _lkPaint();
       };
       // Saving a look that holds pieces she doesn't own tells her where they
       // go BEFORE it happens — the wishlist is the only place a piece she
