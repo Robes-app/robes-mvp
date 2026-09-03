@@ -6921,6 +6921,8 @@
 .rbc-lhead .robes{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose)}
 .rbc-quote{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:16px;line-height:1.42;color:var(--ink-soft);margin-bottom:14px;padding-left:13px;border-left:2px solid var(--rose-mid)}
 .rbc-board{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rbc-hero{position:relative;aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)}
+.rbc-hero img{width:100%;height:100%;object-fit:cover;display:block}
 .rbc-tile{position:relative;border-radius:var(--rad-sm);overflow:hidden;aspect-ratio:1/1.16;text-align:left;padding:0;background:var(--cream-200);border:0.5px solid var(--rule-mid);cursor:pointer}
 .rbc-tile.wide{grid-column:span 2;aspect-ratio:2/1.05}
 .rbc-tile.isnew{border:1px dashed rgba(185,138,78,0.6)}
@@ -7328,7 +7330,7 @@
             </div>
             ${cfg.occHtml || ''}
             ${cfg.quoteHtml ? `<div class="rbc-quote">${cfg.quoteHtml}</div>` : ''}
-            <div class="rbc-board" data-n="${boardItems.length}">${boardItems.map((it, i) => _rbcTile(it, i === 0, cfg)).join('')}${cfg.lookActionHtml && cfg.shareBadge !== false ? `<button class="rbc-share-m" onclick="window.__rbShare&&window.__rbShare()" aria-label="Share this look"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></button>` : ''}</div>
+            ${cfg.heroUrl ? `<div class="rbc-hero"><img src="${_waEsc(cfg.heroUrl)}" alt="${_waEsc(cfg.heroAlt || 'The look')}">` : `<div class="rbc-board" data-n="${boardItems.length}">${boardItems.map((it, i) => _rbcTile(it, i === 0, cfg)).join('')}`}${cfg.lookActionHtml && cfg.shareBadge !== false ? `<button class="rbc-share-m" onclick="window.__rbShare&&window.__rbShare()" aria-label="Share this look"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></button>` : ''}</div>
             ${cfg.fabricsHtml ? `<div class="rbc-fabrics">${cfg.fabricsHtml}</div>` : ''}
             <div class="rbc-lfoot">
               <span class="rbc-palette">${cfg.paletteHtml || ''}</span>
@@ -14674,6 +14676,23 @@ body>*:not(#tv-result-page){display:none !important}
         _tvPaintDayConsole();
       };
 
+      // The saved look behind an imported trip look, and its photograph of
+      // her model (render → her own photograph, the Lookbook's ladder) —
+      // only while the trip still wears the look exactly as it was saved;
+      // a swapped or added piece hands the surface back to the pieces.
+      function _tvLookHero(li, di) {
+        const data = window.__lastTvData || {};
+        const l = (data.looks || [])[li];
+        if (!l || !l.imported || !l.lookId) return null;
+        const lk = _lkFind(l.lookId);
+        const url = lk && _lkHeroUrl(lk);
+        if (!url) return null;
+        const saved = _lkPieceIds(lk).map(String).sort().join(',');
+        const worn = ((l.formula || []).length
+          ? _tvLookEntries(li, di).map(x => x.it && x.it.wardrobe_match && x.it.wardrobe_match.id)
+          : (l.pieces || []).map(p => p.id)).filter(v => v != null).map(String).sort().join(',');
+        return worn === saved ? url : null;
+      }
       function _tvLookCells(li) {
         const data = window.__lastTvData || {};
         const l = (data.looks || [])[li];
@@ -14739,7 +14758,7 @@ body>*:not(#tv-result-page){display:none !important}
           const eyebrow = l.occasion || (l.imported ? 'From your lookbook' : '');
           return `<div class="tvm-lookcard${sel ? ' active' : ''}" onclick="window.__tvLookTap(${li})" role="button" tabindex="0">
             ${eyebrow || pieceN ? `<span class="locc">${_waEsc(eyebrow)}${eyebrow && pieceN ? ' · ' : ''}${pieceN ? pieceN + ' pieces' : ''}</span>` : ''}
-            ${mos(_tvLookCells(li), { photo: l.img || undefined, alt: l.title || l.occasion || 'Look' })}
+            ${mos(_tvLookCells(li), { photo: _tvLookHero(li, null) || l.img || undefined, alt: l.title || l.occasion || 'Look' })}
             ${(window._rbLookTile && window._rbLookTile.title) ? window._rbLookTile.title(l.title || 'The look', 'lt') : `<div class="lt-title">${_waEsc(l.title || 'The look')}</div>`}
             <span class="lpins${pins.length ? '' : ' free'}">${_waEsc(pinsLine)}</span>
           </div>`;
@@ -15170,6 +15189,7 @@ body>*:not(#tv-result-page){display:none !important}
         const title = l.title || l.occasion || 'The look';
         const con = _rbConsole({
           headLabel: `The look · ${_waEsc(labelCtx)} · ${conItems.length} pieces`,
+          heroUrl: _tvLookHero(li, di), heroAlt: title,
           occHtml: opts.occHtml || '',
           quoteHtml: l.how ? _waEsc(l.how) : (l.imported ? 'Packed whole from your looks — worn exactly as you styled it.' : ''),
           fabricsHtml: _rbcFabricsHtml(items, palette),
