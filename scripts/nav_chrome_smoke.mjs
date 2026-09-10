@@ -289,8 +289,8 @@ const titleTop = (page) => page.evaluate(() => {
 
   await page.evaluate((fx) => window.__tvRenderResult(fx), TRIP); await page.waitForTimeout(900);
   const tb = await band(page);
-  const tt = await page.evaluate(() => ({ ey: document.querySelector('#tv-result-page .tvm-eyebrow')?.textContent, title: document.getElementById('tv-headline')?.textContent, pen: document.querySelector('#tv-result-page .rb-tb-trow .tvm-pen')?.getAttribute('aria-label'), pens: document.querySelectorAll('#tv-result-page .tvm-mast .rb-tb-btn').length, arrow: !!document.querySelector('#tv-result-page .tvm-back'), facts: !!document.querySelector('#tv-mastmeta .tvm-facts'), doors: document.querySelectorAll('#tv-weekstrip .tvw-lk').length }));
-  check('trip · the bare ← Diary arrow is gone; ‹ July 2026 names the month the trip lives in; eyebrow The travel edit, ONE pen after the name (Edit details), the fact card kept',
+  const tt = await page.evaluate(() => ({ ey: document.querySelector('#tv-result-page .tvm-eyebrow')?.textContent, title: document.getElementById('tv-headline')?.textContent, pen: document.querySelector('#tv-result-page .rb-tb-trow .tvm-pen')?.getAttribute('aria-label'), pens: document.querySelectorAll('#tv-result-page .tvm-mast .rb-tb-btn').length, arrow: !!document.querySelector('#tv-result-page .tvm-back'), facts: !!document.querySelector('#tv-mastmeta .tvm-line') && !document.querySelector('#tv-mastmeta .tvm-facts'), doors: document.querySelectorAll('#tv-weekstrip .tvw-lk').length }));
+  check('trip · the bare ← Diary arrow is gone; ‹ July 2026 names the month the trip lives in; eyebrow The travel edit, ONE pen after the name (Edit details), destination + dates + weather on one line',
     !!tb && tb.label === 'July 2026' && tt.ey === 'The travel edit' && tt.title === 'A trip to Lahinch.' && tt.pen === 'Edit details' && tt.pens === 1 && !tt.arrow && tt.facts && JSON.stringify(await lit(page)) === '["diary"]', JSON.stringify([tb, tt]));
   check('trip · a look row on the Travel diary is the door to the look', tt.doors === 1);
   await page.locator('#tv-weekstrip .tvw-lk').first().click(); await page.waitForTimeout(700);

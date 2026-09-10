@@ -148,7 +148,12 @@ ok(await page.locator('#tv-weekstrip .tvw-card').nth(2).locator('.tvw-lk').count
 ok(await page.locator('#tv-weekstrip .tvw-add').count() === 4, 'every day carries an Add-a-look slot');
 ok(/add a look/i.test(await page.locator('#tv-weekstrip .tvw-card').first().locator('.tvw-add').innerText()) && /add the first look/i.test(await page.locator('#tv-weekstrip .tvw-card').nth(2).locator('.tvw-add').innerText()), 'the slot reads Add a look, or Add the first look on an empty day');
 ok(/four days, dressed in advance/.test(await page.locator('#tv-week-hint').innerText()), 'the diary head counts the days in words');
-ok(await page.locator('#tv-mastmeta .tvm-wxline').count() === 1 && /14–19°C · passing showers/.test(await page.locator('#tv-mastmeta .tvm-wxline').innerText()) && /A shell and one warm layer/.test(await page.locator('#tv-mastmeta .tvm-wxline').innerText()), 'the weather line stands under the fact card — forecast, then what it means for the case');
+// Destination and dates read as ONE saved line beside the weather (Annie
+// 2026-09-10) — the Diary's trip block already reads this way, and the two
+// standing fact boxes read as a form for facts she has already given.
+ok(await page.locator('#tv-mastmeta .tvm-facts').count() === 0 && await page.locator('#tv-mastmeta .tvm-line').count() === 1, 'the fact boxes are retired — destination, dates and weather are one line');
+ok(/Lahinch/.test(await page.locator('#tv-mastmeta .tvm-where').innerText()) && /· 4 days/.test(await page.locator('#tv-mastmeta .tvm-where').innerText()) && await page.locator('#tv-mastmeta .tvm-where[onclick*="__tvEditDetails"]').count() === 1, 'the line reads destination · dates · N days and opens Edit details');
+ok(/14–19°C · passing showers/.test(await page.locator('#tv-mastmeta .tvm-wx-in').innerText()) && /A shell and one warm layer/.test(await page.locator('#tv-mastmeta .tvm-wx-in').innerText()), 'the forecast sits on the same line, then what it means for the case');
 ok(await page.locator('#tv-mastmeta .tvm-fact.fc').count() === 0, 'the forecast left the fact card');
 ok(await page.locator('#tv-stage .rbc-panel').count() === 0, 'nothing on the stage until something is tapped');
 // Audit 8.3 (2026-08-19): the empty stage no longer holds a dashed box —

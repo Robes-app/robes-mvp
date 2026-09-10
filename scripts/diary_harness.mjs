@@ -149,21 +149,25 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
       segOn: qa('#sn-cal .rb-mv-seg button').map((b) => b.classList.contains('on')),
       nav: qa('#sn-cal .rb-mv-nav > button[aria-label]').map((b) => b.getAttribute('aria-label')),
       addBesideEyebrow: !!q('#sn-headrow #sn-headact .rb-mv-add'),
-      segInHead: (() => { const t = q('#sn-cal .rb-mv-title'), sg = q('#sn-cal .rb-mv-head .rb-mv-seg'); return !!t && !!sg && sg.getBoundingClientRect().top > t.getBoundingClientRect().bottom; })(),
+      segInActs: (() => { const sg = q('#sn-cal .rb-mv-nav .rb-mv-seg'), nx = q('#sn-cal .rb-mv-nav button[aria-label="Next month"]'); if (!sg || !nx) return false; const a = sg.getBoundingClientRect(), b = nx.getBoundingClientRect(); return Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)) < 4; })(),
       noChevrons: !q('#sn-cal .dy-trip-h svg:last-child path[d^="M4.8"]') && !q('#sn-cal .dy-tail svg'),
-      whiteCards: (() => { const c = q('#sn-cal .dy-card'); return !c || getComputedStyle(c).backgroundColor === 'rgb(255, 255, 255)'; })(),
+      whiteCards: (() => { const c = q('#sn-cal .dy-block'); return !!c && getComputedStyle(c).backgroundColor === 'rgb(255, 255, 255)'; })(),
+      blockRows: qa('#sn-cal .dy-block').map((b) => qa('.dy-tday', b).length),
+      hoverLift: (() => { const c = q('#sn-cal .dy-block .dy-tday'); return !!c && /background/.test(getComputedStyle(c).transition || ''); })(),
+      lookArrows: qa('#sn-cal .dy-look').every((l) => !!q('.dy-look-ar', l)),
       title: q('#sn-cal .rb-mv-title')?.textContent,
-      invites: qa('#sn-cal .dy-row .dy-invite').map((el) => el.closest('.dy-row').dataset.date),
+      count: q('#sn-cal .rb-mast-n')?.textContent,
+      invites: qa('#sn-cal .dy-invite').map((el) => el.closest('[data-date]').dataset.date),
       invitePh: q('#sn-cal .dy-inv-in input')?.placeholder,
-      past: qa('#sn-cal .dy-row.past').map((el) => ({ date: el.dataset.date, name: q('.dy-past-n', el)?.textContent, meta: q('.dy-past-m', el)?.textContent, worn: !!q('.dy-worn', el) })),
-      card: (() => { const c = q('#sn-cal .dy-card'); if (!c) return null; return { date: c.closest('.dy-row').dataset.date, title: q('.dy-card-h h3', c)?.textContent, pen: !!q('.dy-pen', c), looks: qa('.dy-look', c).map((l) => q('.dy-look-n', l).textContent + ' · ' + q('.dy-look-m', l).textContent.trim()), add: q('.dy-addlook', c)?.textContent.trim() }; })(),
+      past: qa('#sn-cal .dy-block .dy-tday.past').map((el) => ({ date: el.dataset.date, name: q('.dy-past-n', el)?.textContent, meta: q('.dy-past-m', el)?.textContent, worn: !!q('.dy-worn', el) })),
+      card: (() => { const c = qa('#sn-cal .dy-block .dy-tday').find((d) => q('.dy-look', d) && !d.classList.contains('past')); if (!c) return null; return { date: c.dataset.date, title: q('.dy-tday-t', c)?.textContent, meta: q('.dy-tday-m', c)?.textContent, g: qa('.dy-g span', c).map((x) => x.textContent).join('|'), looks: qa('.dy-look', c).map((l) => q('.dy-look-n', l).textContent + ' · ' + q('.dy-look-m', l).textContent.trim()), add: q('.dy-tadd', c)?.textContent.trim() }; })(),
       trip: trip ? {
         title: q('.dy-trip-h h3', trip)?.textContent, range: q('.dy-trip-d', trip)?.textContent,
         wx: q('.dy-trip-wx span', trip)?.textContent, wxEm: q('.dy-trip-wx em', trip)?.textContent,
-        days: qa('.dy-tday', trip).map((d) => ({ date: d.dataset.date, g: qa('.dy-g span', d).map((x) => x.textContent).join('|'), title: q('.dy-tday-t', d)?.textContent, looks: qa('.dy-look .dy-look-n', d).map((x) => x.textContent), add: !!q('.dy-tadd', d) })),
+        days: qa('.dy-tday', trip).map((d) => ({ date: d.dataset.date, g: qa('.dy-g span', d).map((x) => x.textContent).join('|'), title: q('.dy-tday-t', d)?.textContent, meta: q('.dy-tday-m', d)?.textContent, looks: qa('.dy-look .dy-look-n', d).map((x) => x.textContent), add: q('.dy-tadd', d)?.textContent.trim() || null })),
       } : null,
       tail: q('#sn-cal .dy-tail p')?.textContent, tailBtn: q('#sn-cal .dy-tail button')?.textContent,
-      order: qa('#sn-cal .dy-list > .dy-row').map((r) => r.dataset.date || ('trip:' + r.dataset.trip)),
+      order: qa('#sn-cal .dy-list > .dy-block > .dy-tday, #sn-cal .dy-list > .dy-triprow').map((r) => r.dataset.date || ('trip:' + r.dataset.trip)),
       cap: !!q('#sn-cal .rb-mv-cap'),
     };
   });
@@ -171,43 +175,59 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
   check('list · the Diary opens at /diary, lit, on the LIST by default (no month grid, no caption)',
     s.path === '/diary' && s.eyebrow === 'Diary' && s.diaryLit === true && s.list === true && s.grid === false && s.cap === false
       && JSON.stringify(s.segOn) === JSON.stringify([true, false]), JSON.stringify([s.path, s.eyebrow, s.diaryLit, s.list, s.grid, s.segOn]));
-  check('list · the header is the month, ‹ ›, the List | Month toggle and +',
-    // One masthead line (nav architecture 2026-09-10): the month in caps + the
-    // count, the List | Month toggle beneath it in the same head, ‹ › + as circles.
-    /\d{4}/.test(s.title || '') && JSON.stringify(s.nav) === JSON.stringify(['Previous month', 'Next month', 'Add']) && s.segInHead, JSON.stringify([s.title, s.nav, s.segInHead]));
+  check('list · the header is the month, and the List | Month toggle sits on the line with ‹ › + (Annie 2026-09-10)',
+    // One masthead line: the month in caps + the count on the left, then the
+    // toggle and the circles together as one action cluster on the right.
+    /\d{4}/.test(s.title || '') && JSON.stringify(s.nav) === JSON.stringify(['Previous month', 'Next month', 'Add']) && s.segInActs, JSON.stringify([s.title, s.nav, s.segInActs]));
+  // The count reads what the month actually holds — dISO() returns epoch
+  // millis, so the old string-vs-number compare always read "nothing filed
+  // yet" however full the month was (fixed 2026-09-10).
+  check('list · the month\'s count names the days it holds',
+    /^\d+ days? filed$/.test(s.count || ''), s.count);
   check('list · today and the week ahead invite while empty ("Name the day" + the + door), nothing beyond',
     JSON.stringify(s.invites) === JSON.stringify(expInvites) && s.invitePh === 'Name the day', JSON.stringify([s.invites, expInvites, s.invitePh]));
   const pastExp = inMonth(PAST) ? [{ date: PAST, name: 'The black one', meta: 'Filed · 4 pieces', worn: true }] : [];
   check('list · the past files quietly: name, "Filed · N pieces", the Worn chip',
     JSON.stringify(s.past) === JSON.stringify(pastExp), JSON.stringify([s.past, pastExp]));
   if (inMonth(TOM)) {
-    check('list · a dressed day is a card: her title, the pencil, its look with "N pieces", + Add a look',
-      s.card && s.card.date === TOM && s.card.title === 'Golf Club Event' && s.card.pen === true
-        && JSON.stringify(s.card.looks) === JSON.stringify(['Daytime Nine · 3 pieces']) && s.card.add === 'Add a look', JSON.stringify(s.card));
+    // The Travel diary's own row (Annie 2026-09-10): the gutter inside the
+    // block, her title in italic, "N looks filed", the look row, the dashed
+    // add slot — a diary day and a trip day read identically.
+    check('list · a dressed day is the Travel diary\'s row: gutter, italic title, "1 look filed", the look, + Add a look',
+      s.card && s.card.date === TOM && s.card.title === 'Golf Club Event' && s.card.meta === '1 look filed'
+        && /^[A-Z][a-z]{2}\|\d+\|[A-Z][a-z]{2}$/.test(s.card.g)
+        && JSON.stringify(s.card.looks) === JSON.stringify(['Daytime Nine · 3 pieces']) && /Add a look/i.test(s.card.add || ''), JSON.stringify(s.card));
   }
   if (inMonth(T0)) {
     const tripDays = [T0, T1, T2].filter(inMonth);
     check('list · a trip is a block: title, dates, destination · temp · condition',
       s.trip && s.trip.title === 'A trip to Lahinch.' && /^\d+(–\d+)? [A-Z][a-z]{2}/.test(s.trip.range || '') && !/Sept/.test(s.trip.range || '')
         && /^Lahinch, Ireland · 13–19°C · passing showers$/.test(s.trip.wx || '') && s.trip.wxEm === 'passing showers', JSON.stringify(s.trip));
-    check('list · the trip\'s days sit inside it: weekday / numeral / month gutter, her title in italic, the look, + Add on an undressed day',
+    check('list · the trip\'s days sit inside it: weekday / numeral / month gutter, her title in italic, the look, the add slot on every day',
       s.trip && JSON.stringify(s.trip.days.map((d) => d.date)) === JSON.stringify(tripDays)
-        && s.trip.days[0].title === 'Travel and Dinner' && JSON.stringify(s.trip.days[0].looks) === JSON.stringify(['Golf Club Dinner']) && s.trip.days[0].add === false
+        && s.trip.days[0].title === 'Travel and Dinner' && JSON.stringify(s.trip.days[0].looks) === JSON.stringify(['Golf Club Dinner'])
         && /^[A-Z][a-z]{2}\|\d+\|[A-Z][a-z]{2}$/.test(s.trip.days[0].g) && !/Sept/.test(s.trip.days[0].g)
-        && (tripDays.length < 3 || (s.trip.days[2].title === 'Travel home' && s.trip.days[2].looks.length === 0 && s.trip.days[2].add === true)),
+        && s.trip.days[0].meta === '1 look filed' && /Add a look/i.test(s.trip.days[0].add || '')
+        && (tripDays.length < 3 || (s.trip.days[2].title === 'Travel home' && s.trip.days[2].looks.length === 0 && /Add the first look/i.test(s.trip.days[2].add || ''))),
       JSON.stringify(s.trip && s.trip.days));
     check('list · one row per date in order; the trip holds its dates (no invitations inside it)',
       s.order.indexOf('trip:' + TRIP_ID) >= 0 && !s.invites.some((d) => tripDays.includes(d)) && s.order.slice().every((v, i, a) => i === 0 || v.startsWith('trip:') || a[i - 1].startsWith('trip:') || v > a[i - 1]),
       JSON.stringify(s.order));
   }
-  check('list · no chevrons on the list; cards are white on hairlines (the platform register)', s.noChevrons && s.whiteCards, JSON.stringify([s.noChevrons, s.whiteCards]));
+  check('list · no chevrons on the list; the block is white on a hairline (the platform register)', s.noChevrons && s.whiteCards, JSON.stringify([s.noChevrons, s.whiteCards]));
+  // The convergence itself: consecutive days ride ONE bordered block, the
+  // rows highlight on hover, and every look row carries the → that says it
+  // opens — the trip page's Travel diary, on the Diary (Annie 2026-09-10).
+  check('list · consecutive days ride ONE block, rows lift on hover, look rows carry the arrow',
+    s.blockRows.length > 0 && s.blockRows.some((n) => n > 1) && s.hoverLift === true && s.lookArrows === true,
+    JSON.stringify([s.blockRows, s.hoverLift, s.lookArrows]));
   check('list · the tail says the rest of the month is unfiled and offers the next month',
     /^Nothing filed for the rest of [A-Z][a-z]+\.$/.test(s.tail || '') && /\d{4}/.test(s.tailBtn || ''), JSON.stringify([s.tail, s.tailBtn]));
 
   // Inline naming — trip day (writes tvData.dayTitles through the one path)
   if (inMonth(T0)) {
     const named = await page.evaluate(async () => {
-      const day = document.querySelector('#sn-cal .dy-tday');
+      const day = document.querySelector('#sn-cal .dy-trip .dy-tday');
       day.querySelector('.dy-tday-t').click();
       await new Promise((r) => setTimeout(r, 120));
       const inp = document.getElementById('dy-name-in');
@@ -217,14 +237,14 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
       await new Promise((r) => setTimeout(r, 300));
       const items = JSON.parse(localStorage.getItem('robes_style_notes__u-test') || '[]');
       const trip = items.find((i) => i.type === 'travel-edit');
-      return { inp: true, stored: trip && trip.tvData.dayTitles[0], shown: document.querySelector('#sn-cal .dy-tday .dy-tday-t')?.textContent, inputGone: !document.getElementById('dy-name-in') };
+      return { inp: true, stored: trip && trip.tvData.dayTitles[0], shown: document.querySelector('#sn-cal .dy-trip .dy-tday .dy-tday-t')?.textContent, inputGone: !document.getElementById('dy-name-in') };
     });
     check('list · a trip day renames inline, writing the trip\'s own day title',
       named.inp && named.stored === 'Arrival supper' && named.shown === 'Arrival supper' && named.inputGone, JSON.stringify(named));
   }
   if (inMonth(TOM)) {
     const renamed = await page.evaluate(async () => {
-      document.querySelector('#sn-cal .dy-card .dy-pen').click();
+      document.querySelector('#sn-cal .dy-block .dy-tday .dy-pen').click();
       await new Promise((r) => setTimeout(r, 120));
       const inp = document.getElementById('dy-name-in');
       if (!inp) return { inp: false };
@@ -233,13 +253,13 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
       await new Promise((r) => setTimeout(r, 300));
       const items = JSON.parse(localStorage.getItem('robes_style_notes__u-test') || '[]');
       const dl = items.find((i) => i.type === 'daily-look' && i.title === 'Golf Club Event');
-      return { inp: true, stored: dl && dl.dlData.occasion_label, shown: document.querySelector('#sn-cal .dy-card-h h3')?.textContent };
+      return { inp: true, stored: dl && dl.dlData.occasion_label, shown: document.querySelector('#sn-cal .dy-block .dy-tday .dy-tday-t')?.textContent };
     });
     check('list · a day card renames inline through the day\'s occasion (the one rename path)',
       renamed.inp && renamed.stored === 'Club day' && renamed.shown === 'Club day', JSON.stringify(renamed));
     // + Add a look opens the shared picker for THAT date
     const add = await page.evaluate(async (TOM) => {
-      document.querySelector('#sn-cal .dy-card .dy-addlook').click();
+      document.querySelector('#sn-cal .dy-block .dy-tday .dy-tadd').click();
       await new Promise((r) => setTimeout(r, 200));
       const m = document.getElementById('rb-mv-wear');
       const t = m ? m.textContent : '';
@@ -253,7 +273,7 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
   // The trip's undressed day: Add opens the trip on that day
   if (inMonth(T2)) {
     const opened = await page.evaluate(async () => {
-      const btn = document.querySelector('#sn-cal .dy-tday .dy-tadd');
+      const btn = document.querySelector('#sn-cal .dy-trip .dy-tday .dy-tadd');
       btn.click();
       await new Promise((r) => setTimeout(r, 900));
       const tv = document.getElementById('tv-result-page');
@@ -269,7 +289,7 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
   // The + on an invitation is a dated menu
   if (expInvites.length) {
     const menu = await page.evaluate(async (d) => {
-      const row = document.querySelector('#sn-cal .dy-row[data-date="' + d + '"] .dy-inv-add');
+      const row = document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"] .dy-inv-add');
       row.click();
       await new Promise((r) => setTimeout(r, 100));
       const m = document.getElementById('rb-dy-addmenu');
@@ -289,32 +309,32 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
     // adds afterwards inherits the name.
     const namedBefore = writes.length;
     const named = await page.evaluate(async (d) => {
-      const inp = document.querySelector('#sn-cal .dy-row[data-date="' + d + '"] .dy-inv-in input');
+      const inp = document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"] .dy-inv-in input');
       inp.value = 'Dinner with mum';
       inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       await new Promise((r) => setTimeout(r, 900));
-      const row = document.querySelector('#sn-cal .dy-row[data-date="' + d + '"]');
+      const row = document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"]');
       return {
         diaryOpen: document.getElementById('sn-page')?.style.display === 'block',
-        card: !!row?.querySelector('.dy-card'),
-        title: row?.querySelector('.dy-card-h h3')?.textContent,
+        card: !!row?.querySelector('.dy-tday-b'),
+        title: row?.querySelector('.dy-tday-t')?.textContent,
         pen: !!row?.querySelector('.dy-pen'),
         looks: row?.querySelectorAll('.dy-look').length,
-        add: row?.querySelector('.dy-addlook')?.textContent.trim(),
+        add: row?.querySelector('.dy-tadd')?.textContent.trim(),
         invitesLeft: document.querySelectorAll('#sn-cal .dy-invite').length,
         prompt: document.getElementById('cb-ta')?.value || '',
       };
     }, expInvites[0]);
     const dayWrite = writes.slice(namedBefore).find((w) => w.method === 'POST' && /^planned_days/.test(w.url) && Array.isArray(w.body) && w.body[0]?.source_type === 'day');
     check('list · naming a bare day keeps the name in place — a named card with + Add a look, the Diary still open, nothing sent to the prompt',
-      named.diaryOpen && named.card && named.title === 'Dinner with mum' && named.pen && named.looks === 0 && named.add === 'Add a look'
+      named.diaryOpen && named.card && named.title === 'Dinner with mum' && named.pen && named.looks === 0 && /Add the first look/i.test(named.add || '')
         && named.invitesLeft === expInvites.length - 1 && named.prompt === '', JSON.stringify(named));
     check('list · the name has a data home: one planned_days row of its own source (day:<date>)',
       !!dayWrite && dayWrite.body[0].source_id === 'day:' + expInvites[0] && dayWrite.body[0].day_date === expInvites[0]
         && dayWrite.body[0].activity === 'Dinner with mum' && dayWrite.body[0].status === 'planned', JSON.stringify(dayWrite?.body?.[0] || null));
     // Renaming the named day in place rewrites the same row; emptying it removes the day
     const renamedDay = await page.evaluate(async (d) => {
-      const row = document.querySelector('#sn-cal .dy-row[data-date="' + d + '"]');
+      const row = document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"]');
       row?.querySelector('.dy-pen')?.click();
       await new Promise((r) => setTimeout(r, 120));
       const inp = document.getElementById('dy-name-in');
@@ -322,14 +342,14 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
       inp.value = 'Supper with mum';
       inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       await new Promise((r) => setTimeout(r, 300));
-      return { inp: true, shown: document.querySelector('#sn-cal .dy-row[data-date="' + d + '"] .dy-card-h h3')?.textContent };
+      return { inp: true, shown: document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"] .dy-tday-t')?.textContent };
     }, expInvites[0]);
     check('list · a named day renames in place through the one rename path', renamedDay.inp && renamedDay.shown === 'Supper with mum', JSON.stringify(renamedDay));
   }
     // The look she adds to the named day inherits the name
     const pinBefore = writes.length;
     const inherit = await page.evaluate(async (d) => {
-      document.querySelector('#sn-cal .dy-row[data-date="' + d + '"] .dy-addlook').click();
+      document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"] .dy-tadd').click();
       await new Promise((r) => setTimeout(r, 200));
       const m = document.getElementById('rb-mv-wear');
       const head = m?.querySelector('#rb-mv-wear-ttl')?.textContent || '';
@@ -448,7 +468,7 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
   await page.evaluate(() => window.__rbNavGo('diary'));
   await page.waitForTimeout(900);
   const d = await page.evaluate(async (TOM) => {
-    document.querySelector('#sn-cal .dy-row[data-date="' + TOM + '"] .dy-card-h h3').click();
+    document.querySelector('#sn-cal .dy-tday[data-date="' + TOM + '"] .dy-tday-t').click();
     await new Promise((r) => setTimeout(r, 700));
     const pg = document.getElementById('dl-result-page');
     const q = (s) => pg && pg.querySelector(s);
@@ -469,7 +489,7 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
   const p = await page.evaluate(async (PAST) => {
     window.__rbNavGo('diary');
     await new Promise((r) => setTimeout(r, 700));
-    document.querySelector('#sn-cal .dy-row[data-date="' + PAST + '"] .dy-past').click();
+    document.querySelector('#sn-cal .dy-tday[data-date="' + PAST + '"] .dy-past').click();
     await new Promise((r) => setTimeout(r, 700));
     const pg = document.getElementById('dl-result-page');
     const q = (s) => pg && pg.querySelector(s);
@@ -482,7 +502,7 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
   const lr = await page.evaluate(async (TOM) => {
     window.__rbNavGo('diary');
     await new Promise((r) => setTimeout(r, 700));
-    const row = document.querySelector('#sn-cal .dy-row[data-date="' + TOM + '"] .dy-look');
+    const row = document.querySelector('#sn-cal .dy-tday[data-date="' + TOM + '"] .dy-look');
     const meta = row?.querySelector('.dy-look-m')?.textContent.replace(/\s+/g, ' ').trim();
     row?.click();
     await new Promise((r) => setTimeout(r, 700));
