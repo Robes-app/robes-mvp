@@ -9056,11 +9056,14 @@
       }
       function _lkDraftChanges(l) {
         if (!_lkDraft || String(_lkDraft.lookId) !== String(l.id)) return 0;
+        // Composition, not order: a swap is one change, a piece out is one,
+        // a piece in is one — taking the first piece off never reads as
+        // three changes because the rest moved up.
         const saved = (l.pieces || []).map(p => String(p.id));
         const now = _lkDraft.pieces.map(p => String(p.id));
-        let d = Math.abs(now.length - saved.length);
-        for (let i = 0; i < Math.min(now.length, saved.length); i++) if (now[i] !== saved[i]) d++;
-        return d;
+        const gone = saved.filter(id => now.indexOf(id) < 0).length;
+        const came = now.filter(id => saved.indexOf(id) < 0).length;
+        return Math.max(gone, came);
       }
 
       // The composer's rack. Slots are PRESENTATIONAL — the wardrobe's own
@@ -9189,7 +9192,13 @@
         }
       }
 
-      function _lkFind(id) { return _lkLooks.find(l => String(l.id) === String(id)) || null; }
+      // A trip draft (a Robes-styled trip look opened in the editor, not
+      // yet a looks row) resolves like a look while it stands — it never
+      // enters _lkLooks, the cache or the cloud.
+      function _lkFind(id) {
+        if (_lkTripDraft && String(_lkTripDraft.id) === String(id)) return _lkTripDraft;
+        return _lkLooks.find(l => String(l.id) === String(id)) || null;
+      }
       function _lkPieceIds(l) { return ((l && l.pieces) || []).map(p => p.id); }
       // Identity for passive accrual (B3): the exact SET of pieces. Not a
       // similarity threshold — an identical composition IS the same look.
@@ -9314,7 +9323,7 @@
       // simply lives in the local cache (same degrade family as _waTaxCols).
       var _lkRoleCol = true;
       function _lkPiecesCloud(l) {
-        if (_lkDown || !_waUid()) return;
+        if (_lkDown || !_waUid() || (l && l._draft)) return;
         const mk = withRole => (l.pieces || []).map((p, i) => {
           const row = { look_id: l.id, wardrobe_item_id: p.id, slot: p.slot || null, position: p.position != null ? p.position : i };
           if (withRole) row.role = p.role || null;
@@ -9339,7 +9348,7 @@
       // runs, PGRST204 strips them and the render lives in the local cache.
       var _lkRenderCol = true;
       function _lkPatchCloud(l, patch) {
-        if (_lkDown || !_waUid()) return;
+        if (_lkDown || !_waUid() || (l && l._draft)) return;
         const body = Object.assign({ updated_at: new Date().toISOString() }, patch);
         if (!_lkPropCol) delete body.proposals;
         if (!_lkRenderCol) { delete body.render_url; delete body.render_key; }
@@ -9412,7 +9421,7 @@
           .catch(() => { _avId = _avLocalId(); cb(_avId); });   // column missing pre-migration-20
       }
       function _avRenderKick(l) {
-        if (!l || ((l.pieces || []).length + (l.proposals || []).length) < 2) return;
+        if (!l || l._draft || ((l.pieces || []).length + (l.proposals || []).length) < 2) return;
         if (_avBusy[l.id]) return;
         // The men's catalog is live (2026-09-01): a kept 'm-…' model renders
         // exactly like a 'w-…' one — the server's prefix gate handles any
@@ -10137,7 +10146,7 @@ button.rb-lk-live{cursor:pointer}
         // composer, whatever route landed here — the seg's Looks tab, a
         // bridge, a delete that emptied it. Guarding here rather than at
         // each caller is what makes it a rule instead of a path.
-        if (!any && _lkView !== 'new') {
+        if (!any && _lkView !== 'new' && !_lkTripDraft) {
           // Arm it — but a draft in progress is HERS: the home module and
           // this page render one shared draft, so landing here (e.g. via
           // __snOpen, which resets the view to 'grid') must never wipe it.
@@ -10688,6 +10697,16 @@ button.rb-lk-live{cursor:pointer}
           '<' + (onclick ? 'button type="button"' : 'div') + ' class="rb-lk-live' + cls + '"' + (onclick ? ' onclick="' + onclick + '"' : '') + '>' +
             '<span class="l"><b>' + b + '</b>' + (i ? '<i>' + i + '</i>' : '') + '</span>' +
             '<span class="m">' + mark + '</span></' + (onclick ? 'button' : 'div') + '>';
+        if (l._draft) {
+          const t = _lkTripCtx(l);
+          const tripTitle = t ? String(t.data.headline || (t.data.destination ? 'A trip to ' + t.data.destination : 'A trip')).replace(/\.$/, '') : '';
+          return '<div class="rb-lk-lives">' +
+            '<div class="lh"><span class="lab">Where it lives</span><span class="sub">save it and it keeps its wears</span></div>' +
+            '<div class="rows">' +
+              row('', 'The lookbook', 'Joins it the moment you save', '', '') +
+              (t ? row(' on', 'A travel edit · ' + _waEsc(tripTitle), 'Packs with the trip', '✓', 'window.__lkBackDoor()') : '') +
+            '</div></div>';
+        }
         return '<div class="rb-lk-lives">' +
           '<div class="lh"><span class="lab">Where it lives</span><span class="sub">every door keeps its wears</span></div>' +
           '<div class="rows">' +
@@ -10816,7 +10835,10 @@ button.rb-lk-live{cursor:pointer}
         // Reading, or editing — never both (1c). Editing is the composer's
         // frame; while changes stand the rack stays editable and the change
         // bar is the way out.
-        const editing = _lkEditMode || dirty > 0;
+        // A trip draft (a Robes-styled trip look) ONLY ever edits — save
+        // or discard are its two ways out (Annie, 2026-09-09).
+        const draft = !!l._draft;
+        const editing = _lkEditMode || dirty > 0 || draft;
         const n = _lkWearCount(l);
         const cpw = _lkCpw(l);
         const today = _pdLocalISO();
@@ -10865,7 +10887,7 @@ button.rb-lk-live{cursor:pointer}
         // The wear verbs left the header: the diary lives on the image and
         // the wear record after the rack.
         const back = _lkFrom || { label: 'Lookbook' };
-        let mastL = '<div class="rb-lk-eyebrow">' + (prov && !editing ? 'Saved look · Robes named it' : 'Saved look') + '</div>';
+        let mastL = '<div class="rb-lk-eyebrow">' + (draft ? 'Draft look · Robes styled it for the trip' : (prov && !editing ? 'Saved look · Robes named it' : 'Saved look')) + '</div>';
         if (_lkTitleEditing) {
           mastL += '<input id="rb-lk-title" class="rb-lk-title-in' + (prov ? ' prov' : '') + '" value="' + _waEsc(title) + '"' +
             ' oninput="window.__lkTitleInput(this.value)" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="window.__lkTitleCommit(this.value)">' +
@@ -10884,7 +10906,9 @@ button.rb-lk-live{cursor:pointer}
         // A look she owns nothing of yet (a saved aspirational build) cannot
         // be worn or scheduled — its one honest action is the wishlist,
         // where its pieces live until they are hers (Annie, 2026-08-13).
-        if (ownedNone && !props.length) {
+        if (draft) {
+          // No wishlist / empty panels on a draft — the rack says it all.
+        } else if (ownedNone && !props.length) {
           h += '<div class="rb-lk-panel">' +
             '<div class="pl">Nothing on it yet.</div>' +
             '<div class="pb">Saved by name — the rack is empty, so there is nothing to wear or plan yet.</div>' +
@@ -10948,7 +10972,11 @@ button.rb-lk-live{cursor:pointer}
           // paints live, the SAVED look untouched until the bar answers.
           const rackCfg = { onFlip: '__lkDFlip', onSwap: '__lkDSwap', onRemove: '__lkDRemove', onRoleDrop: '__lkDRoleDrop',
             onRoleAdd: '__lkDAddOpen', allStrips: true, roleHints: true, onPiece: '__lkPieceOpen' };
-          const line = dirty
+          const line = draft
+            ? (dirty
+                ? (dirty === 1 ? 'One change' : dirty + ' changes') + ' to this look, not yet saved. Save it and the trip wears it as it stands here.'
+                : 'Not in your Lookbook yet. Save it and it keeps its wears; discard and the trip keeps the look as Robes styled it.')
+            : dirty
             ? (dirty === 1 ? 'One change' : dirty + ' changes') + ' to this look.' + (n ? ' Its ' + _lkN(n, 'wear') + ' stay with it if you update.' : '')
             : 'No changes yet. Swap, add or take a piece out and this line tells you what happens to its wear.';
           h += '<div class="rb-lk-held rb-lk-editing"><div class="rb-lk-con"><div>' + lookPanel + '</div><div>' +
@@ -10959,12 +10987,17 @@ button.rb-lk-live{cursor:pointer}
             // The change bar states the consequence: update and the wears
             // stay with the look; save as a new look and the original
             // keeps them. Update is the one ink fill on the screen.
-            '<div class="rb-lk-editbar"><span>' + line + '</span><span class="acts">' +
-              '<button type="button" class="q" onclick="window.__lkDraftDiscard()">Discard</button>' +
-              (dirty ? '<button type="button" onclick="window.__lkPromoteAsk()">Save as a new look</button>' : '') +
-              '<button type="button" class="p" onclick="window.__lkResave()">Update this look</button>' +
-            '</span></div>' +
-            '<div class="rb-lk-editfoot"><button type="button" class="rb-lk-quiet" onclick="window.__lkDeleteAsk(\'' + l.id + '\')">Delete this look</button></div>' +
+            (draft
+              ? '<div class="rb-lk-editbar rb-lk-draftbar"><span>' + line + '</span><span class="acts">' +
+                  '<button type="button" class="q" onclick="window.__lkTripDraftDiscard()">Discard</button>' +
+                  '<button type="button" class="p" onclick="window.__lkTripDraftSave()">Save this look</button>' +
+                '</span></div>'
+              : '<div class="rb-lk-editbar"><span>' + line + '</span><span class="acts">' +
+                  '<button type="button" class="q" onclick="window.__lkDraftDiscard()">Discard</button>' +
+                  (dirty ? '<button type="button" onclick="window.__lkPromoteAsk()">Save as a new look</button>' : '') +
+                  '<button type="button" class="p" onclick="window.__lkResave()">Update this look</button>' +
+                '</span></div>' +
+                '<div class="rb-lk-editfoot"><button type="button" class="rb-lk-quiet" onclick="window.__lkDeleteAsk(\'' + l.id + '\')">Delete this look</button></div>') +
             '</div></div></div>';
           return h + '</div>';
         }
@@ -11808,26 +11841,158 @@ button.rb-lk-live{cursor:pointer}
       // strip and the pack toggles are the only additions. Returns false
       // when the saved look no longer resolves (the trip's own look page
       // then serves).
+      // A look Robes styled for the trip has no saved entity, so it opens
+      // as a DRAFT in the same frame Edit & resave uses (Annie, 2026-09-09:
+      // one look entity, never the trip's own page) — Save mints the looks
+      // row and links the trip look to it, Discard hands her back to the
+      // trip untouched. The draft lives here alone until she decides.
+      var _lkTripDraft = null;
+      function _lkTripDoor() {
+        const savedId = _tvActiveSaveId;
+        return savedId
+          ? { label: 'Travel edit', go: function() { window.__snOpenItem && window.__snOpenItem(savedId); } }
+          : { label: 'Travel edit', go: function() { window.__rbDiaryOpen && window.__rbDiaryOpen(); } };
+      }
+      function _lkTripDraftFrom(data, li, di) {
+        const tl = data.looks[li];
+        const entries = (tl.formula || []).length || !(tl.pieces || []).length
+          ? _tvLookEntries(li, di)
+          : (tl.pieces || []).map(p => ({ it: { name: p.name, category: p.category, wardrobe_match: p.id != null ? { id: p.id, image_url: p.image } : null }, f: null, ci: -1 }));
+        const pieces = [], props = [];
+        entries.forEach(x => {
+          const wm = x.it && x.it.wardrobe_match;
+          const wi = wm && _waItems.find(w => String(w.id) === String(wm.id));
+          if (wi) {
+            if (pieces.some(p => String(p.id) === String(wi.id))) return;
+            pieces.push({ id: wi.id, slot: null, position: pieces.length, role: _rbRoleNorm(x.f && x.f.role) || null });
+            return;
+          }
+          if (!x.it || !x.it.name) return;
+          // An unowned capsule piece rides the draft as a PROPOSAL — the
+          // same card a saved Robes build hangs — and lands on the look
+          // as one when she saves (migration 19).
+          props.push({
+            role: _rbRoleNorm(x.f && x.f.role) || 'The Canvas',
+            chip: _dlSlot(x.it).l,
+            cats: [x.it.category || 'Other'],
+            opts: [{ name: x.it.name, brand: x.it.brand || '', retailer_hint: x.it.retailer_hint || '', price_point: x.it.price_point || '', how: (x.f && x.f.note) || '' }],
+            oi: 0, img_oi: 0, saved: false,
+            image_url: _pdHttp(_tvImgOf(x.it)) || null,
+            _ci: x.ci,
+          });
+        });
+        const t = _rbTagsParse(tl.look_tags);
+        const l = {
+          id: 'draft:trip:' + li, _draft: true,
+          name: String(tl.title || tl.occasion || '').replace(/\.$/, '').trim() || _lkOfferName(pieces.map(p => p.id), tl.occasion || data.destination),
+          name_provisional: true,
+          note: tl.how || '',
+          photo_url: null, render_url: null, render_key: null,
+          proposals: props.length ? props : null,
+          tags: null, climate_band: null, climate_source: 'derived',
+          source: 'travel', origin_look_id: null,
+          created_at: new Date().toISOString(),
+          pieces, wears: [],
+        };
+        if (t && (t.climate || (t.wear || []).length || (t.vibe || []).length)) {
+          l.climate_band = t.climate || 'year_round';
+          l._tags = { wear: (t.wear || []).slice(), vibe: (t.vibe || []).slice() };
+          l.tags = _rbTagsFlat(t);
+        }
+        return l;
+      }
+      // A look row on a trip: a SAVED look opens its own page (back reads
+      // "Travel edit", the trip's pin strip and the pack toggles are the
+      // only additions); a Robes-styled look opens as a draft in the
+      // editor. Returns false only when the trip data is missing.
       window.__lkFromTripLook = function(li, di) {
         const data = window.__lastTvData;
         const l = data && data.looks && data.looks[li];
-        if (!l || !l.imported || !l.lookId || !_lkFind(l.lookId)) return false;
-        const savedId = _tvActiveSaveId;
+        if (!l) return false;
         _tvSelDayI = null; _tvSelLookI = null; _tvDayLookIdx = 0;
         if (window.__rbCloseResultOverlays) window.__rbCloseResultOverlays();
-        window.__lkOpen(l.lookId, {
-          from: savedId ? { label: 'Travel edit', go: function() { window.__snOpenItem && window.__snOpenItem(savedId); } } : { label: 'Travel edit', go: function() { window.__rbDiaryOpen && window.__rbDiaryOpen(); } },
-          trip: { li: li, di: di == null ? null : di },
-        });
+        const trip = { li: li, di: di == null ? null : di };
+        if (l.imported && l.lookId && _lkFind(l.lookId)) {
+          window.__lkOpen(l.lookId, { from: _lkTripDoor(), trip });
+          return true;
+        }
+        const d = _lkTripDraftFrom(data, li, trip.di);
+        _lkTripDraft = d;
+        window.__lkOpen(d.id, { from: _lkTripDoor(), trip });
+        _rbTrack('look_draft_opened', { source: 'travel' });
         return true;
       };
       function _lkTripCtx(l) {
         const data = window.__lastTvData;
         if (!_lkTrip || !data || !l) return null;
         const tl = (data.looks || [])[_lkTrip.li];
-        if (!tl || String(tl.lookId) !== String(l.id)) return null;
+        if (!tl) return null;
+        if (!(l._draft && String(l.id) === 'draft:trip:' + _lkTrip.li) && String(tl.lookId) !== String(l.id)) return null;
         return { data, l: tl, li: _lkTrip.li, di: _lkTrip.di };
       }
+      // Save the draft: the looks row is minted from what stands on the
+      // rack, the trip look becomes an import of it (imported + lookId —
+      // the exact rule a saved look packed onto a trip follows), its
+      // formula re-pointed at the case so packing stays truthful, and the
+      // page lands on the saved look with the trip's strip and Pack toggles.
+      window.__lkTripDraftSave = function() {
+        const l = _lkFind(_lkActive);
+        if (!l || !l._draft) return;
+        const t = _lkTripCtx(l);
+        const pieces = _lkDraftPieces(l).map((p, i) => ({ id: p.id, slot: p.slot || null, position: i, role: p.role || null }));
+        const ids = pieces.map(p => p.id);
+        const props = Array.isArray(l.proposals) ? l.proposals : [];
+        if (!ids.length && !props.length) { _waShowToast('Add a piece and this look is yours to keep'); return; }
+        const name = String((_lkTitleDraft != null ? _lkTitleDraft : l.name) || '').trim() || l.name;
+        const slots = {}, roles = {};
+        pieces.forEach(p => { slots[p.id] = p.slot; roles[p.id] = p.role; });
+        const nl = _lkCreate({
+          pieces: ids, name, name_provisional: !!l.name_provisional && _lkTitleDraft == null,
+          source: 'travel',
+          note: l.note || undefined,
+          proposals: props.length ? props.map(p => { const c = Object.assign({}, p, { saved: true }); delete c._ci; return c; }) : null,
+          tags: l.tags || null,
+          lookTags: _lkTagsOf(l),
+          slots, roles,
+        });
+        if (t) {
+          const tl = t.l, data = t.data;
+          const was = _tvLookEntries(t.li, t.di);
+          const byPiece = {};
+          was.forEach(x => { const wm = x.it && x.it.wardrobe_match; if (wm && x.f) byPiece[String(wm.id)] = x; });
+          const formula = pieces.map(p => {
+            const wi = _waItems.find(w => String(w.id) === String(p.id));
+            const prev = byPiece[String(p.id)];
+            const ci = wi ? _tvCapsuleIndexFor(wi) : (prev ? prev.ci : -1);
+            return ci >= 0 ? { role: p.role || (prev && prev.f.role) || 'The Canvas', item_index: ci, note: (prev && prev.f.note) || '' } : null;
+          }).filter(Boolean).concat(props.filter(p => Number.isInteger(p._ci) && p._ci >= 0 && data.capsule[p._ci])
+            .map(p => ({ role: p.role || 'The Canvas', item_index: p._ci, note: (p.opts[0] || {}).how || '' })));
+          tl.imported = true; tl.lookId = nl.id;
+          tl.title = nl.name; tl.how = nl.note || tl.how || '';
+          tl.formula = formula;
+          tl.overrides = {}; tl.slotOverrides = {}; tl.dayAdds = {}; tl.dayDrops = {};
+          tl.pieces = ids.map(id => {
+            const wi = _waItems.find(w => String(w.id) === String(id));
+            return wi ? { id: wi.id, name: wi.label, image: wi.image_url || null, category: wi.category || '' } : null;
+          }).filter(Boolean);
+          // Unowned pieces go to the wishlist, as every keep does
+          props.forEach(p => {
+            const it = Number.isInteger(p._ci) ? data.capsule[p._ci] : null;
+            if (it && !it.wishlisted && typeof _wlSaveFromItem === 'function') _wlSaveFromItem(it, { silent: true });
+          });
+          _tvPatchSaved();
+        }
+        const trip = _lkTrip;
+        const from = _lkFrom;
+        _lkTripDraft = null; _lkDraft = null; _lkEditMode = false; _lkTitleDraft = null;
+        _rbTrack('look_saved_from_trip', { pieces: ids.length, unowned: props.length });
+        _waShowToast(nl.name + ' saved to your Lookbook ✓');
+        window.__lkOpen(nl.id, { from: from || _lkTripDoor(), trip });
+      };
+      window.__lkTripDraftDiscard = function() {
+        _lkTripDraft = null; _lkDraft = null; _lkEditMode = false; _lkTitleDraft = null;
+        window.__lkBackDoor();
+      };
       function _lkTripCi(data, pieceId) {
         return (data.capsule || []).findIndex(c => c.wardrobe_match && String(c.wardrobe_match.id) === String(pieceId));
       }
@@ -11848,10 +12013,12 @@ button.rb-lk-live{cursor:pointer}
       window.__lkBackDoor = function() {
         const f = _lkFrom;
         _lkFrom = null;
+        _lkTripDraft = null;
         if (f && typeof f.go === 'function') { f.go(); return; }
         window.__lkBack();
       };
       window.__lkOpen = function(id, opts) {
+        if (_lkTripDraft && String(_lkTripDraft.id) !== String(id)) _lkTripDraft = null;
         _lkFrom = (opts && opts.from && opts.from.label) ? opts.from : null;
         _lkTrip = (opts && opts.trip && opts.trip.li != null) ? opts.trip : null;
         _lkDetailView = null; _lkDetailPhotoPending = false;
@@ -11869,7 +12036,7 @@ button.rb-lk-live{cursor:pointer}
         _rbTrack('look_opened', {});
       };
       window.__lkBack = function() {
-        _lkView = 'grid'; _lkActive = null; _lkActNote = null; _lkDone = null; _lkEditMode = false; _lkDraft = null;
+        _lkView = 'grid'; _lkActive = null; _lkActNote = null; _lkDone = null; _lkEditMode = false; _lkDraft = null; _lkTripDraft = null;
         _lkPaint();
       };
       // Role re-cast on a saved look — presentational like a rename, so it
@@ -12141,6 +12308,14 @@ button.rb-lk-live{cursor:pointer}
       // both land here. The caller repaints its own surface.
       function _lkTagsApplyTo(l, t, surface) {
         t = _rbTagsParse(t);
+        if (l._draft) {
+          // Nothing is written until she saves — the draft carries its tags
+          // and _lkCreate lands them with the row.
+          l.climate_band = t.climate || 'year_round'; l.climate_source = 'user';
+          l._tags = { wear: t.wear.slice(), vibe: t.vibe.slice() };
+          l.tags = _rbTagsFlat(t);
+          return;
+        }
         // Editing climate in the Tags sheet is HER judgement, and it is
         // permanent: climate_source flips to 'user' and the look is never
         // re-derived again, including when a constituent piece is re-tagged.
@@ -12658,6 +12833,8 @@ button.rb-lk-live{cursor:pointer}
           id: wi.id, slot: row.chip || wi.category || null,
           position: (l.pieces || []).length, role: row.role || null,
         }]);
+        // A standing edit draft follows — the rack draws the draft while one stands
+        if (_lkDraft && String(_lkDraft.lookId) === String(l.id)) _lkDraft.pieces.push({ id: wi.id, slot: row.chip || wi.category || null, role: row.role || null });
         _lkPatch(l.id, { proposals: l.proposals }, true);
         _lkPaint();
         _waShowToast(wi.label + ' takes its place ✓');
@@ -16568,16 +16745,24 @@ body>*:not(#tv-result-page){display:none !important}
         if (!l || di < 0) return;
         const was = (l.pins || []).indexOf(di) !== -1;
         window.__tvPinToggle(li, di);
-        if (!was) {
-          _tvSelDayI = di; _tvSelLookI = null;
-          _tvDayLookIdx = Math.max(0, data.looks.map((o, oi) => ({ o, oi })).filter(x => (x.o.pins || []).indexOf(di) !== -1).findIndex(x => x.oi === li));
-        } else if (_tvSelDayI === di && !(l.pins || []).length) {
-          _tvSelDayI = null; _tvSelLookI = li; _tvDayLookIdx = 0;
-        }
+        // Nothing opens on a pin (the look page is gone, 2026-09-09): the
+        // trip's diary row takes the look and scrolls into view. Pinned from
+        // the saved look's own page (its strip), that page repaints on the
+        // day it just dressed.
+        _tvSelDayI = null; _tvSelLookI = null; _tvDayLookIdx = 0;
         window.__tvPinSync();
         _tvPaintPackProgress();
         const day = (_tvDayInfo(di).date || _tvDayInfo(di).dow).replace(/,/g, '');
         _waShowToast('“' + (l.title || l.occasion || 'The look') + '” ' + (was ? 'unpinned from ' : 'pinned to ') + day);
+        if (_lkTrip && _lkTrip.li === li && _lkView === 'detail' && typeof _lkPaint === 'function') {
+          _lkTrip.di = was ? ((l.pins || []).length ? (l.pins || []).slice().sort((a, b) => a - b)[0] : null) : di;
+          _lkPaint();
+          return;
+        }
+        try {
+          const row = document.querySelectorAll('#tv-weekstrip .tvw-card')[di];
+          if (row && row.scrollIntoView) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        } catch (_) {}
       };
       function _tvPinSheetPaint() {
         const data = window.__lastTvData;

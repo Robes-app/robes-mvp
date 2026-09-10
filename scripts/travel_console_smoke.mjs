@@ -5,7 +5,8 @@
 // THE CAPSULE drawer), the single stage (pinned looks open as their
 // day, unpinned lead with the Pin-to-a-day bar), day-plan title
 // editing, the day "+ Add a look" pin sheet, the Travel diary rows, the
-// scoped flick + badge, imported-look capsule join, looks collapse,
+// scoped flick + badge, imported-look capsule join, a Robes-styled look
+// opening as a DRAFT in the look editor (discard / save), looks collapse,
 // the pack stat on the capsule bar, the empty canvas trip,
 // Edit-details clamping, legacy-save migration and the mobile sheet.
 // Run manually: npm i --no-save playwright && node scripts/travel_console_smoke.mjs
@@ -249,12 +250,34 @@ await page.evaluate(() => window.__tvDaySetLook(1));
 await page.waitForTimeout(150);
 ok((await page.locator('#tv-stage .rbc-rackhead').innerText()).includes('Tide-line morning'), 'walking swaps to the second look');
 ok((await page.locator('#tv-weekstrip .tvw-lk.on').innerText()).includes('Tide-line morning'), 'the diary row follows the stage');
-// a look row in the diary opens THAT look's rack
-await page.evaluate(() => window.__tvDayLookOpen(0, 0));
-await page.waitForTimeout(150);
-ok((await page.locator('#tv-stage .rbc-rackhead').innerText()).includes('Coast after dark') && (await page.locator('#tv-stage .rbc-rackhead').innerText()).toLowerCase().includes('day 1'), 'a diary look row opens that look, day-scoped');
 
-// ── 4. Scoped flick from the day console ──
+// ── 3b. A Robes-styled look opens as a DRAFT in the look editor ──
+// (Annie, 2026-09-09: one look entity — the same frame as Edit & resave,
+// Save or Discard its two ways out; the trip's own look page is never
+// reached from a tap). An unowned capsule piece rides as a proposal.
+await page.evaluate(() => { window.__lastTvData.looks[0].formula.push({ role: 'The Texture', item_index: 5, note: 'Over everything when it rains' }); });
+await page.evaluate(() => window.__tvDayLookOpen(0, 0));
+await page.waitForTimeout(500);
+ok(await page.locator('#sn-page').isVisible() && !(await page.locator('#tv-result-page').isVisible()) && !(await page.locator('#tv-look-page').isVisible()), 'a Robes-styled look row opens the Lookbook’s editor, not a trip page');
+ok(await page.locator('#sn-page .rb-lk-page.editing').count() === 1 && /draft look/i.test(await page.locator('#sn-page .rb-lk-eyebrow').innerText()), 'it opens EDITING, as a draft');
+ok((await page.locator('#sn-page #rb-lk-title').innerText()).includes('Coast after dark') && /Travel edit/i.test(await page.locator('#sn-page .rb-lk-back').innerText()), 'the draft carries the look’s name, back reads Travel edit');
+ok(await page.locator('#sn-page .rbc-rack .rbc-row:not(.rbc-rghost)').count() === 4 && await page.locator('#sn-page .rb-lk-prop').count() === 1, 'the rack holds the day’s pieces — the unowned capsule piece as a proposal card');
+ok(await page.locator('#sn-page .rb-lk-draftbar button.q', { hasText: 'Discard' }).count() === 1 && await page.locator('#sn-page .rb-lk-draftbar button.p', { hasText: 'Save this look' }).count() === 1, 'the change bar offers Discard and Save this look');
+ok(/Not in your Lookbook yet/.test(await page.locator('#sn-page .rb-lk-draftbar').innerText()), 'the bar says it is not saved yet');
+ok(await page.locator('#sn-page .rb-lk-editbar button', { hasText: 'Save as a new look' }).count() === 0 && await page.locator('#sn-page .rb-lk-editfoot').count() === 0 && await page.locator('#sn-page .rb-lk-editbtn', { hasText: 'Edit & resave' }).count() === 0, 'no Save-as-new, no Delete, no Edit & resave on a draft');
+const lives = page.locator('#sn-page .rb-lk-lives .rb-lk-live');
+ok(await lives.count() === 2 && !(await lives.nth(0).evaluate(e => e.classList.contains('on'))) && /Joins it the moment you save/.test(await lives.nth(0).innerText()), 'Where it lives: the lookbook, once she saves');
+ok(await lives.nth(1).evaluate(e => e.classList.contains('on')) && /travel edit/i.test(await lives.nth(1).innerText()) && /Packs with the trip/.test(await lives.nth(1).innerText()), 'Where it lives: the travel edit, packed with it');
+await page.evaluate(() => window.__lkTripDraftDiscard());
+await page.waitForTimeout(500);
+ok(await page.locator('#tv-result-page').isVisible() && !(await page.locator('#sn-page').isVisible()) && !(await page.locator('#tv-look-page').isVisible()), 'Discard hands her back to the trip, nothing open');
+// (the trip reopens from its SAVED row — the unsaved formula entry pushed
+// above never persisted, so the look reads exactly as Robes styled it)
+ok(await page.evaluate(() => !window.__lastTvData.looks[0].imported && !window.__lastTvData.looks[0].lookId && window.__lastTvData.looks[0].formula.length === 3), 'Discard writes nothing — the trip keeps the look as Robes styled it');
+
+// ── 4. Scoped flick from the day console (selected programmatically) ──
+await page.evaluate(() => window.__tvSelectDay(0));
+await page.waitForTimeout(150);
 await page.evaluate(() => window.__tvDaySetLook(0));
 await page.waitForTimeout(120);
 await page.locator('#tv-stage .rbc-row').nth(2).locator('.rbc-arrow').nth(1).click();
@@ -299,8 +322,8 @@ ok(await page.locator('#tv-stage .rbc-row').count() === 4, 'Day 2 still wears it
 await page.evaluate(() => window.__tvUnpin(1, 0));
 await page.evaluate(() => window.__tvSelectLook(1));
 await page.waitForTimeout(150);
-ok(await page.locator('#tv-stage .tvm-pinbar').count() === 0 && await page.locator('#tv-look-page').isVisible(), 'an unpinned look opens its page — no pin bar');
-ok(/Not yet scheduled/i.test(await page.locator('#tv-look-head .tvl-ey').innerText()) && await page.locator('#tv-look-head .tvl-calbtn').count() === 1, 'the unscheduled look page carries the calendar icon');
+ok(await page.locator('#tv-stage .tvm-pinbar').count() === 0 && await page.locator('#tv-look-page').isVisible(), 'selected programmatically, an unpinned look draws the trip console — no pin bar');
+ok(/Not yet scheduled/i.test(await page.locator('#tv-look-head .tvl-ey').innerText()) && await page.locator('#tv-look-head .tvl-calbtn').count() === 1, 'the unscheduled console carries the calendar icon');
 ok(await page.locator('#tv-looksrow .tvm-lookcard').count() === 1 && await page.locator('#tv-looksrow .tvm-lookcard.active').count() === 1, 'the unpinned look now stands in Looks, not yet scheduled — active');
 ok(await page.locator('#tv-looksrow .tvm-lookcard .tvm-calbtn').count() === 1 && await page.locator('#tv-looksrow .tvm-pinpill').count() === 0, 'its card carries the calendar icon, not a pill');
 ok((await page.locator('#tv-looks-stat').innerText()) === '1 packed · 2 already in a day', 'the stat follows the unpin');
@@ -386,7 +409,7 @@ ok(await page.locator('#tv-looksrow .tvm-lookcard').count() === 6, 'expanding sh
 ok(/Show fewer/.test(await page.locator('#tv-looks-more').innerText()), 'the toggle offers the way back');
 
 // pin from the calendar: the sheet offers only the trip's dates, and the
-// look page lands on the day it just dressed
+// diary row takes the look — nothing opens
 await page.evaluate(() => window.__tvPinSheet(3));
 await page.waitForTimeout(200);
 ok(await page.locator('#rb-lkdy').count() === 1 && /Pin to a day/i.test(await page.locator('#rb-lkdy .who .ey').innerText()), 'the calendar icon opens the pin sheet');
@@ -404,7 +427,43 @@ await page.evaluate(() => window.__tvPinSheetGo());
 await page.waitForTimeout(250);
 ok(await page.evaluate(() => window.__lastTvData.looks[3].pins.indexOf(1) !== -1), 'the sheet pins the look to the day');
 ok(await page.locator('#rb-lkdy').count() === 0, 'the sheet closes on the pin');
-ok(await page.locator('#tv-look-page').isVisible() && await page.locator('#tv-stage .rbc-hbtn', { hasText: 'Unpin from this day' }).count() === 1, 'the look page lands on the day it just dressed');
+ok(!(await page.locator('#tv-look-page').isVisible()) && (await page.locator('#tv-weekstrip .tvw-card').nth(1).innerText()).includes(await page.evaluate(() => window.__lastTvData.looks[3].title)), 'nothing opens — the day’s diary row takes the look');
+
+// ── 7b. Saving the draft mints the look and links the trip to it ──
+// (section 6 re-rendered the trip unsaved; a real trip always has its
+// lookbook row, which is what the back door and the patch address)
+await page.evaluate(() => window.__tvRenderResult(window.__lastTvData));
+await page.waitForTimeout(300);
+await page.evaluate(() => window.__tvLookTap(1));
+await page.waitForTimeout(500);
+ok(await page.locator('#sn-page .rb-lk-page.editing').count() === 1 && /draft look/i.test(await page.locator('#sn-page .rb-lk-eyebrow').innerText()), 'the unscheduled card opens the draft editor too');
+const draftRows = await page.locator('#sn-page .rbc-rack .rbc-row:not(.rbc-rghost)').count();
+await page.evaluate(() => window.__lkDRemove(0));
+await page.waitForTimeout(200);
+ok(await page.locator('#sn-page .rbc-rack .rbc-row:not(.rbc-rghost)').count() === draftRows - 1 && /One change to this look, not yet saved/.test(await page.locator('#sn-page .rb-lk-draftbar').innerText()), 'an edit on the draft paints live and the bar counts it');
+await page.evaluate(() => window.__lkTitleEdit());
+await page.waitForTimeout(100);
+await page.evaluate(() => window.__lkTitleCommit('Tide-line, again'));
+await page.waitForTimeout(150);
+ok((await page.locator('#sn-page #rb-lk-title').innerText()).includes('Tide-line, again'), 'the draft renames in place');
+await page.evaluate(() => window.__lkTripDraftSave());
+await page.waitForTimeout(700);
+ok(await page.locator('#sn-page').isVisible() && await page.locator('#sn-page .rb-lk-page.editing').count() === 0 && /^saved look/i.test((await page.locator('#sn-page .rb-lk-eyebrow').innerText()).trim()), 'Save lands on the SAVED look’s reading page');
+ok(/Packed for Lahinch — not yet on a day/.test(await page.locator('#sn-page .rb-lk-tripstrip').innerText()), 'the trip strip reads it as packed, not yet on a day');
+ok(await page.locator('#sn-page .rb-lk-packbtn').count() === draftRows - 1 && await page.locator('#sn-page .rb-lk-packall').count() === 1 && await page.locator('#sn-page .rb-lk-editbtn', { hasText: 'Edit & resave' }).count() === 1, 'the saved page carries the Pack toggles, Pack this look and Edit & resave');
+const linked = await page.evaluate(() => { const l = window.__lastTvData.looks[1]; return { imported: !!l.imported, lookId: l.lookId, title: l.title, formula: l.formula.length, pieces: (l.pieces || []).length }; });
+ok(linked.imported && !!linked.lookId && linked.title === 'Tide-line, again', 'the trip look is now an import of the saved look, carrying its name');
+ok(linked.formula === draftRows - 1 && linked.pieces === draftRows - 1, 'the trip’s formula follows the saved composition');
+await page.evaluate(() => window.__lkBackDoor());
+await page.waitForTimeout(500);
+await page.evaluate(() => { const b = document.querySelector('#tv-looks-more button'); if (b && /Show all/i.test(b.innerText)) b.click(); });
+await page.waitForTimeout(150);
+ok(await page.locator('#tv-result-page').isVisible() && await page.locator('#tv-looksrow .tvm-lookcard', { hasText: 'Tide-line, again' }).count() === 1, 'back on the trip, the card wears the saved name');
+await page.evaluate(() => window.__tvLookTap(1));
+await page.waitForTimeout(500);
+ok(await page.locator('#sn-page .rb-lk-page.editing').count() === 0 && await page.locator('#sn-page .rb-lk-tripstrip').count() === 1, 'reopened, it is the saved look’s page — never a draft again');
+await page.evaluate(() => window.__lkBackDoor());
+await page.waitForTimeout(400);
 
 // ── 8. Empty canvas trip ──
 await page.evaluate((fx) => window.__tvRenderResult(fx), EMPTY_TRIP);
