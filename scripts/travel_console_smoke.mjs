@@ -141,10 +141,10 @@ ok(await page.locator('#tv-weekstrip .tvw-card').count() === 4, 'week strip has 
 ok(await page.evaluate(() => getComputedStyle(document.getElementById('tv-weekstrip')).flexWrap) !== 'wrap', 'week strip stays on one line (scrolls, never wraps)');
 ok((await page.locator('#tv-weekstrip .tvw-card').first().innerText()).includes('Arrive · coastal walk'), 'day title renders on its card');
 // The Travel diary in the Diary day's vocabulary (2026-09-09)
-ok((await page.locator('#tv-weekstrip .tvw-card').first().innerText()).includes('2 looks filed'), 'a day row counts its looks');
+ok(await page.locator('#tv-weekstrip .tvw-card').first().locator('.tvw-lk').count() === 2 && !/looks? filed/i.test(await page.locator('#tv-weekstrip .tvw-card').first().innerText()), 'a day row shows its looks — and no count above them ("N looks filed" is noise, 2026-09-10)');
 ok(await page.locator('#tv-weekstrip .tvw-lk').count() === 4, 'every pinned look is a row on its day (thumb · name · pieces)');
 ok((await page.locator('#tv-weekstrip .tvw-lk').first().innerText()).includes('Coast after dark') && (await page.locator('#tv-weekstrip .tvw-lk').first().innerText()).includes('3 pieces'), 'a look row reads its name and piece count');
-ok(await page.locator('#tv-weekstrip .tvw-card').nth(2).locator('.tvw-lk').count() === 0 && (await page.locator('#tv-weekstrip .tvw-card').nth(2).innerText()).includes('nothing filed yet'), 'an empty day says nothing filed yet');
+ok(await page.locator('#tv-weekstrip .tvw-card').nth(2).locator('.tvw-lk').count() === 0 && !/nothing filed yet/i.test(await page.locator('#tv-weekstrip .tvw-card').nth(2).innerText()), 'an empty day says nothing — its add slot is the whole message');
 ok(await page.locator('#tv-weekstrip .tvw-add').count() === 4, 'every day carries an Add-a-look slot');
 ok(/add a look/i.test(await page.locator('#tv-weekstrip .tvw-card').first().locator('.tvw-add').innerText()) && /add the first look/i.test(await page.locator('#tv-weekstrip .tvw-card').nth(2).locator('.tvw-add').innerText()), 'the slot reads Add a look, or Add the first look on an empty day');
 ok(/four days, dressed in advance/.test(await page.locator('#tv-week-hint').innerText()), 'the diary head counts the days in words');
@@ -212,7 +212,9 @@ await page.waitForTimeout(400);
 // The return pill names the trip by its own title (nav architecture 2026-09-10)
 ok(await page.locator('#sn-page').isVisible() && await page.locator('#sn-page .rb-ret-pill').count() === 1 && /A long weekend in Lahinch/i.test(await page.locator('#sn-page .rb-ret-pill .lab').innerText()), 'the saved look opens its own page, the return pill naming the trip');
 ok(!(await page.locator('#tv-result-page').isVisible()), 'the trip stands down beneath it');
-ok(/Pinned for Saturday 1 Aug/.test(await page.locator('#sn-page .rb-lk-tripstrip').innerText()) && /on the trip to Lahinch/.test(await page.locator('#sn-page .rb-lk-tripstrip').innerText()), 'the strip names the trip day');
+// The pin prints ONCE, on the title block's meta line — the sage strip
+// beneath it said the same thing a second time (Annie, 2026-09-10).
+ok(/pinned for Saturday 1 Aug/i.test(await page.locator('#sn-page .rb-tb-meta').innerText()) && await page.locator('#sn-page .rb-lk-tripstrip').count() === 0, 'the pin reads on the meta line, and the duplicate sage strip is gone');
 ok(await page.locator('#sn-page .rb-lk-packbtn').count() === 2 && await page.locator('#sn-page .rb-lk-packall').count() === 1, 'every owned row carries the case’s Pack toggle, the head Pack this look');
 ok(await page.locator('#sn-page .rb-lk-editbtn', { hasText: 'Edit & resave' }).count() === 1 && await page.locator('#sn-page .rbc-wears').count() === 2, 'the look page is otherwise the Lookbook’s: Edit & resave, the wear counts');
 const packCi = await page.evaluate(() => window.__lastTvData.capsule.findIndex(c => c.wardrobe_match && c.wardrobe_match.id === 'w1'));
@@ -373,7 +375,7 @@ await page.waitForTimeout(200);
 ok(await page.evaluate(() => window.__lastTvData.looks[1].pins.indexOf(3) !== -1), 'picking a trip look pins it to the day');
 ok(await page.locator('#tv-stage .rbc-panel').count() === 1, 'the day console opens on the freshly pinned day');
 ok(await page.locator('#tv-look-head .tvl-walk').count() === 0, 'one pinned look — nothing to walk, no moment label');
-ok(/1 look filed/.test(await day3Card.innerText()) && /add a look/i.test(await day3Card.locator('.tvw-add').innerText()), 'the day row now counts one look and keeps its add slot');
+ok(await day3Card.locator('.tvw-lk').count() === 1 && /add a look/i.test(await day3Card.locator('.tvw-add').innerText()), 'the day row now carries one look row and keeps its add slot');
 
 // ── 7. Edit details: dates clamp everything day-indexed ──
 await page.evaluate(() => window.__tvEditDetails());

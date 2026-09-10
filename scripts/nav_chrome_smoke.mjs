@@ -248,8 +248,19 @@ const titleTop = (page) => page.evaluate(() => {
   await page.locator('#sn-page .rb-ret-pill').click(); await page.waitForTimeout(400);
   check('look · ‹ Lookbook lands on the grid', await page.locator('#rb-lk-grid').isVisible() && (await band(page)) === null);
   await page.evaluate(() => window.__rbNavGo('diary')); await page.waitForTimeout(700);
-  check('diary · a root: no band; the masthead is the month in caps + the count, the toggle beneath, ‹ › + as circles',
-    (await band(page)) === null && await page.evaluate(() => { const h = document.querySelector('#sn-cal .rb-mv-head'); return getComputedStyle(h.querySelector('.rb-mv-title')).textTransform === 'uppercase' && !!h.querySelector('.rb-mast-n') && h.querySelectorAll('.rb-mv-seg button').length === 2 && h.querySelectorAll('.rb-mv-nav .rb-circ').length === 3 && ![...h.querySelectorAll('button')].some((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)'); }));
+  // The list carries + alone; ‹ › are Month's, since the list scrolls a
+  // rolling window rather than paging (Annie, 2026-09-10).
+  check('diary · a root: no band; the masthead is the window in caps + the count, the toggle and + on the line, ‹ › only on Month',
+    (await band(page)) === null && await page.evaluate(async () => {
+      const h = () => document.querySelector('#sn-cal .rb-mv-head');
+      const ok1 = getComputedStyle(h().querySelector('.rb-mv-title')).textTransform === 'uppercase' && !!h().querySelector('.rb-mast-n')
+        && h().querySelectorAll('.rb-mv-seg button').length === 2 && h().querySelectorAll('.rb-mv-nav .rb-circ').length === 1
+        && ![...h().querySelectorAll('button')].some((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)');
+      window.__dySetMode('month'); await new Promise((r) => setTimeout(r, 400));
+      const ok2 = h().querySelectorAll('.rb-mv-nav .rb-circ').length === 3;
+      window.__dySetMode('list'); await new Promise((r) => setTimeout(r, 300));
+      return ok1 && ok2;
+    }));
   await page.evaluate(() => window.__rbNavGo('inspiration')); await page.waitForTimeout(600);
   const insp = await page.evaluate(() => { const m = document.getElementById('rb-in-mast'); const p = m.querySelector('.rb-pill'); return { lab: m.querySelector('.rb-mast-lab')?.textContent, pill: p?.textContent, bg: getComputedStyle(p).backgroundColor, oldEyebrow: !!document.querySelector('#rb-insp-page p'), sec: !!document.getElementById('rb-in-sec') }; });
   check('inspiration · a root: one masthead line "Key pieces, styled", the Style a key piece pill is hairline, no stacked labels', (await band(page)) === null && insp.lab === 'Key pieces, styled' && insp.pill === 'Style a key piece' && insp.bg === 'rgb(255, 255, 255)' && insp.sec === false, JSON.stringify(insp));

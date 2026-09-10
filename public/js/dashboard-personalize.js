@@ -11260,23 +11260,23 @@ button.rb-lk-live{cursor:pointer}
             '<button type="button" class="x" title="Dismiss" aria-label="Dismiss this reminder" onclick="window.__lkStripHide(\'' + d + '\')">×</button>' +
             '</span></div>').join('');
         }
-        // Opened from a trip: the same strip names the trip's day (or that
-        // the look is packed but not yet on a day) — the one line that
-        // points back out to the travel edit.
+        // Opened from a trip: the strip survives ONLY for a look that is
+        // packed but not yet on a day — it carries the one door that puts
+        // it on one. A PINNED look already prints its day in the title
+        // block's meta line ("pinned for Sat 5 Sep, Watching golf"), and
+        // the sage strip beneath said it a second time (Annie,
+        // 2026-09-10: get rid of the duplicate).
         const trip = editing ? null : _lkTripCtx(l);
-        if (trip) {
+        if (trip && trip.di == null) {
           const dest = trip.data.destination || 'the trip';
           const dayTitle = trip.di != null ? ((trip.data.dayTitles || {})[trip.di] || '') : '';
           const iso = trip.di != null && trip.data.dateFrom ? _pdAddISO(trip.data.dateFrom, trip.di) : null;
           const when = trip.di != null ? (iso ? _lkFmtLong(iso) : 'Day ' + (trip.di + 1)) : '';
+          void dayTitle; void when;
           h += '<div class="rb-lk-pinstrip rb-lk-tripstrip"><span>' +
-            (trip.di != null
-              ? 'Pinned for ' + _waEsc(when) + (dayTitle ? ' · ' + _waEsc(dayTitle) : '') + ', on the trip to ' + _waEsc(dest) + '.'
-              : 'Packed for ' + _waEsc(dest) + ' — not yet on a day.') +
+            'Packed for ' + _waEsc(dest) + ' — not yet on a day.' +
             '</span><span class="acts">' +
-            (trip.di != null
-              ? ''
-              : '<button type="button" onclick="window.__tvPinSheet(' + trip.li + ')">Pin to a day →</button>') +
+            '<button type="button" onclick="window.__tvPinSheet(' + trip.li + ')">Pin to a day →</button>' +
             '</span></div>';
         }
 
@@ -12358,7 +12358,11 @@ button.rb-lk-live{cursor:pointer}
         if (_lkTripDraft && String(_lkTripDraft.id) !== String(id)) _lkTripDraft = null;
         _lkFrom = (opts && opts.from && opts.from.label) ? opts.from : null;
         _lkTrip = (opts && opts.trip && opts.trip.li != null) ? opts.trip : null;
-        _lkSet = (opts && opts.siblings && opts.siblings.length) ? { siblings: opts.siblings.map(String), suffix: opts.suffix || '', meta: opts.meta || '' } : null;
+        // Meta alone is enough to hold the set: a trip look's "pinned for
+        // Sat 1 Aug" is the ONE place that fact prints now (the sage strip
+        // that repeated it is gone — Annie, 2026-09-10), so a trip of one
+        // look must not lose it for want of siblings.
+        _lkSet = (opts && ((opts.siblings && opts.siblings.length) || opts.meta)) ? { siblings: (opts.siblings || []).map(String), suffix: opts.suffix || '', meta: opts.meta || '' } : null;
         _lkDetailView = null; _lkDetailPhotoPending = false;
         // From home a look is a Lookbook errand; from anywhere else the
         // section she entered through stays lit.
@@ -16798,7 +16802,6 @@ button.rb-lk-live{cursor:pointer}
 #tv-result-page .tvw-b{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;padding-right:22px}
 #tv-result-page .tvw-card .d{display:none}
 #tv-result-page .tvw-head{display:flex;flex-direction:column;gap:4px;min-width:0}
-#tv-result-page .tvw-meta{font-size:11px;font-weight:300;color:var(--ink-faint)}
 #tv-result-page .tvw-lk{display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;background:var(--cream-100);border:0.5px solid var(--rule);border-radius:4px;padding:8px 12px 8px 8px;cursor:pointer;text-align:left;font-family:inherit;color:var(--ink);transition:border-color .15s,background .15s}
 #tv-result-page .tvw-lk:hover{border-color:var(--rule-mid);background:#fff}
 #tv-result-page .tvw-lk.on{border-color:var(--ink);background:#fff}
@@ -17420,14 +17423,12 @@ body>*:not(#tv-result-page){display:none !important}
               : `<span class="t-add" onclick="event.stopPropagation();window.__tvDayTitleEdit(${di})">Name the day</span>`);
           // The Travel diary in the Diary day's vocabulary (Annie's
           // wireframe, 2026-09-09): one row per day — the date rail, the
-          // day's title + "N looks filed" / "nothing filed yet", every
-          // pinned look as a row (her model's thumbnail, the name, N
-          // pieces, an arrow) that opens THAT look's rack on the stage,
-          // and an "+ Add a look" slot on EVERY day ("+ Add the first
-          // look" while nothing is filed). No moment labels.
-          const meta = pinned.length
-            ? pinned.length + ' look' + (pinned.length === 1 ? '' : 's') + ' filed'
-            : 'nothing filed yet';
+          // day's title, every pinned look as a row (her model's
+          // thumbnail, the name, N pieces, an arrow) that opens THAT
+          // look's rack on the stage, and an "+ Add a look" slot on EVERY
+          // day ("+ Add the first look" while nothing is filed). No
+          // moment labels and no count — the rows ARE the count (Annie,
+          // 2026-09-10: "N looks filed" is noise).
           const lookRow = (x, k) => {
             const entries = _tvLookEntries(x.li, di);
             const first = entries[0] && entries[0].it;
@@ -17459,7 +17460,7 @@ body>*:not(#tv-result-page){display:none !important}
             : `<span class="tvw-g"><span class="wd">Day</span><span class="n">${di + 1}</span></span>`;
           return `<div class="tvw-card${(title || pinned.length) ? '' : ' bare'}${sel ? ' sel' : ''}" onclick="window.__tvDayTap(${di})" role="button" tabindex="0">
             ${spark}${gutter}<span class="tvw-b"><span class="d">${_waEsc(_tvDayShort(di, true))}</span>
-            <span class="tvw-head">${titleHtml}<span class="tvw-meta">${_waEsc(meta)}</span></span>
+            <span class="tvw-head">${titleHtml}</span>
             ${pinned.length ? `<span class="tvw-look">${pinned.map(lookRow).join('')}</span>` : ''}
             ${addHtml}</span>
           </div>`;
@@ -22373,6 +22374,12 @@ body>*:not(#tv-result-page){display:none !important}
         // plan."), remembered per device.
         var _dyMode = 'list';
         try { if (localStorage.getItem('rb_diary_mode') === 'month') _dyMode = 'month'; } catch (_) {}
+        // The list is a ROLLING WINDOW from today, not a month (Annie,
+        // 2026-09-10): it scrolls the next thirty days and every empty day
+        // in them offers its invitation. Anything beyond — or behind —
+        // lives on Month, which is why ‹ › only exist there.
+        var _DY_LIST_DAYS = 30;
+        function _dyWindow() { const t = _pdLocalISO(); return { from: t, to: _pdAddISO(t, _DY_LIST_DAYS) }; }
         var _dyNaming = null;         // date whose inline rename is open
         var _dyNameTarget = null;     // the moment that rename writes to
         var _dyMoments = {};          // key → moment, for the list's openers
@@ -22503,7 +22510,6 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 .dy-tday-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap;min-width:0}
 .dy-tday-h .dy-pen{width:22px;height:22px}
 .dy-tday-h .dy-pen svg{width:11px;height:11px}
-.dy-tday-m{font-size:11px;font-weight:300;color:var(--ink-faint,#9A9082)}
 .dy-tday .dy-invite{border-radius:5px}
 .dy-tday .dy-inv-in{border-radius:5px 0 0 5px;padding:9px 12px}
 .dy-tday .dy-inv-add{border-radius:0 5px 5px 0;padding:0 16px;min-width:44px;justify-content:center}
@@ -22625,7 +22631,13 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         // Open the Diary AT a date's month — what a day or a trip climbs
         // back to. The view (list / month) is the one she left.
         window.__rbDiaryOpenAt = function(iso) {
-          if (iso && /^\d{4}-\d{2}/.test(String(iso))) { _mvY = +String(iso).slice(0, 4); _mvM = +String(iso).slice(5, 7); }
+          if (iso && /^\d{4}-\d{2}/.test(String(iso))) {
+            _mvY = +String(iso).slice(0, 4); _mvM = +String(iso).slice(5, 7);
+            // The list only holds the rolling window — a date behind or
+            // beyond it lands on Month, where every date lives.
+            const w = _dyWindow(), d = String(iso).slice(0, 10);
+            if (_dyMode === 'list' && (d < w.from || d > w.to)) _dyMode = 'month';
+          }
           window.__rbDiaryOpen();
         };
         // The lookbook always reopens on the Looks view (wardrobe convention)
@@ -22658,8 +22670,12 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         function _mvLoad() {
           const g = _mvGrid();
           _mvPaint(g, _mvRows, _mvSources); // last data first — no blank flash
-          // ±7d beyond the grid so a band clipped by the boundary knows it
-          _pdMonth(_pdAddISO(g.gridStart, -7), _pdAddISO(g.gridEnd, 7)).then(res => {
+          // ±7d beyond the grid so a band clipped by the boundary knows it;
+          // in list view the range is the rolling window instead.
+          const w = _dyWindow();
+          const from = _dyMode === 'list' ? _pdAddISO(w.from, -1) : _pdAddISO(g.gridStart, -7);
+          const to = _dyMode === 'list' ? _pdAddISO(w.to, 1) : _pdAddISO(g.gridEnd, 7);
+          _pdMonth(from, to).then(res => {
             _mvRows = _mvFresh(res.rows || []);
             _mvSources = res.sources || {};
             _mvPaint(g, _mvRows, _mvSources);
@@ -22700,22 +22716,26 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         // List | Month toggle beneath (a view, not a destination), and ‹ ›
         // + as hairline circles on the right — the + opens the choice.
         function _dyHeadHtml(g, rows) {
-          const monthName = new Date(dISO(g.first)).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+          const list = _dyMode === 'list';
+          const w = _dyWindow();
+          // The list names its window, the month names itself. ‹ › only
+          // exist on Month — the list scrolls, it does not page.
+          const title = list ? 'The next ' + _DY_LIST_DAYS + ' days' : new Date(dISO(g.first)).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
           // g.first/g.last are ISO strings — compare against them directly.
           // dISO() returns epoch millis, so the old string-vs-number compare
           // never matched and the count always read "nothing filed yet".
-          const first = g.first, last = g.last;
+          const first = list ? w.from : g.first, last = list ? w.to : g.last;
           const filed = {};
           (rows || []).forEach(r => { const d = String(r.day_date || '').slice(0, 10); if (d >= first && d <= last && r.status !== 'free') filed[d] = 1; });
           const nFiled = Object.keys(filed).length;
           return `
             <div class="rb-mv-head rb-mast">
               <div class="rb-mast-l">
-                <div class="rb-mast-line"><span class="rb-mast-lab rb-mv-title">${_waEsc(monthName)}</span><span class="rb-mast-n">${nFiled ? nFiled + (nFiled === 1 ? ' day filed' : ' days filed') : 'nothing filed yet'}</span></div>
+                <div class="rb-mast-line"><span class="rb-mast-lab rb-mv-title">${_waEsc(title)}</span><span class="rb-mast-n">${nFiled ? nFiled + (nFiled === 1 ? ' day filed' : ' days filed') : 'nothing filed yet'}</span></div>
               </div>
               <div class="rb-mv-nav rb-mast-acts">
                 <span class="rb-mv-seg" role="group" aria-label="View"><button class="${_dyMode === 'list' ? 'on' : ''}" onclick="window.__dySetMode('list')" title="List" aria-label="List">List</button><button class="${_dyMode === 'month' ? 'on' : ''}" onclick="window.__dySetMode('month')" title="Month" aria-label="Month">Month</button></span>
-                <button class="rb-circ" onclick="window.__mvNav(-1)" aria-label="Previous month">‹</button><button class="rb-circ" onclick="window.__mvNav(1)" aria-label="Next month">›</button>
+                ${list ? '' : `<button class="rb-circ" onclick="window.__mvNav(-1)" aria-label="Previous month">‹</button><button class="rb-circ" onclick="window.__mvNav(1)" aria-label="Next month">›</button>`}
                 <button class="rb-circ rb-mv-add" onclick="window.__rbDiaryAddMenu(event)" aria-label="Add" title="Add">+</button>
               </div>
             </div>`;
@@ -22837,7 +22857,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           _dyMode = m === 'month' ? 'month' : 'list';
           try { localStorage.setItem('rb_diary_mode', _dyMode); } catch (_) {}
           _rbTrack('diary_mode', { mode: _dyMode });
-          if (_mvY != null) _mvPaint(_mvGrid(), _mvRows, _mvSources);
+          if (_mvY != null) { _mvPaint(_mvGrid(), _mvRows, _mvSources); _mvLoad(); }
         };
         const _DY_SVG = {
           pen: '<svg viewBox="0 0 16 16"><path d="M11.2 2.6l2.2 2.2-8 8-3 .8.8-3 8-8z"/></svg>',
@@ -22879,9 +22899,6 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           void i; void n0;
           return `<button type="button" class="dy-look" onclick="window.__dyOpen('${k}')">${_dyThumb(m)}<span class="dy-look-b"><span class="dy-look-n">${_waEsc(nm)}</span><span class="dy-look-m"><i class="dy-chk">${_DY_SVG.chk}</i>${pre}${n ? _waEsc(_lkN(n, 'piece')) : 'a look'}</span></span><span class="dy-look-ar">\u2192</span></button>`;
         }
-        // "N looks filed" / "nothing filed yet" — the trip page's own meta
-        // line, so a diary day and a trip day read identically.
-        function _dyFiledMeta(n) { return `<span class="dy-tday-m">${n ? _lkN(n, 'look') + ' filed' : 'nothing filed yet'}</span>`; }
         function _dyAddSlot(onclick, first) {
           return `<button type="button" class="dy-tadd" onclick="${onclick}"><span class="plus">+</span><span>${first ? 'Add the first look' : 'Add a look'}</span></button>`;
         }
@@ -22917,7 +22934,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
                 ? `<button type="button" class="dy-tday-t none" onclick="window.__dyRename('${date}','${tk}')">Name the day</button>`
                 : `<button type="button" class="dy-tday-t" onclick="window.__dyOpenDay('${date}')">${date === today ? 'Today' : 'Planned'}</button>`);
           const n0 = looks.length;
-          return `<div class="dy-tday${date === today ? ' today' : ''}" data-date="${date}">${_dyGutter(date, true)}<div class="dy-tday-b"><div class="dy-tday-h">${head}${naming ? '' : _dyFiledMeta(n0)}</div>${looks.map((m, i) => _dyLookRow(m, i, n0)).join('')}${_dyAddSlot(`window.__mvWear('${date}')`, !n0)}</div></div>`;
+          return `<div class="dy-tday${date === today ? ' today' : ''}" data-date="${date}">${_dyGutter(date, true)}<div class="dy-tday-b"><div class="dy-tday-h">${head}</div>${looks.map((m, i) => _dyLookRow(m, i, n0)).join('')}${_dyAddSlot(`window.__mvWear('${date}')`, !n0)}</div></div>`;
         }
         // The past files quietly: the day's name (else its one look's), the
         // pieces across every look, "· N looks" when there were several.
@@ -22956,16 +22973,18 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             const titleHtml = naming ? _dyNameInput(t)
               : t ? `<button type="button" class="dy-tday-t" onclick="window.__dyRename('${date}','${k}')" title="Rename the day">${_waEsc(t)}</button>`
               : (past ? '' : `<button type="button" class="dy-tday-t none" onclick="window.__dyRename('${date}','${k}')">Name the day</button>`);
-            return `<div class="dy-tday${past ? ' past' : ''}" data-date="${date}">${_dyGutter(date, true, past)}<div class="dy-tday-b"><div class="dy-tday-h">${titleHtml}${naming || (past && !looks.length) ? '' : _dyFiledMeta(looks.length)}</div>${looks.map((m, i) => _dyLookRow(m, i, looks.length)).join('')}${past ? '' : _dyAddSlot(`window.__dyOpen('${k}')`, !looks.length)}</div></div>`;
+            return `<div class="dy-tday${past ? ' past' : ''}" data-date="${date}">${_dyGutter(date, true, past)}<div class="dy-tday-b"><div class="dy-tday-h">${titleHtml}</div>${looks.map((m, i) => _dyLookRow(m, i, looks.length)).join('')}${past ? '' : _dyAddSlot(`window.__dyOpen('${k}')`, !looks.length)}</div></div>`;
           }).join('');
           return `<div class="dy-row dy-triprow" data-trip="${_waEsc(String(sid))}"><div class="dy-trip"><button type="button" class="dy-trip-h" onclick="window.__snOpenItem(${Number(sid)})">${_DY_SVG.bag}<h3>${_waEsc(title)}</h3>${range ? `<span class="dy-trip-d">${_waEsc(range)}</span>` : ''}</button>${wxLine ? `<div class="dy-trip-wx">${_DY_SVG.pin}<span>${wxLine}</span></div>` : ''}${days}</div></div>`;
         }
         function _dyListHtml(g, rows, sources, today) {
           _dyMoments = {};
-          const inMonth = rows.filter(r => r.day_date >= g.first && r.day_date <= g.last);
-          const horizon = _pdAddISO(today, 6);
-          const monthLong = new Date(dISO(g.first)).toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' });
-          const nextName = new Date(Date.UTC(_mvY, _mvM, 1)).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+          void g;
+          // The rolling window, today first — every day in it renders, so
+          // an empty Thursday three weeks out still offers its invitation
+          // (Annie, 2026-09-10: the list showed only filled days).
+          const win = _dyWindow();
+          const inWindow = rows.filter(r => r.day_date >= win.from && r.day_date <= win.to);
           // Consecutive diary days ride ONE bordered block, exactly as the
           // trip page's Travel diary does — the day rows are its rows, not
           // free-floating cards (Annie, 2026-09-10).
@@ -22976,15 +22995,14 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           };
           const pushBlock = h => parts.push({ k: 'block', h });
           let html = '<div class="dy-list">';
-          if (!inMonth.length) {
-            // The design's empty state — nothing planned in this month.
+          if (!inWindow.length) {
+            // The design's empty state — nothing planned in the window.
             // "Plan a trip" is the one commitment on the screen; the
-            // week's invitations still follow beneath (current month).
+            // invitations still follow beneath.
             html += `<div class="dy-empty"><h3>Nothing planned<br><em>yet.</em></h3><p>Name a day, or pack for somewhere. The diary keeps the dates; the lookbook keeps the looks.</p><button type="button" class="dy-empty-cta" onclick="window.__lkNewHoliday()">Plan a trip</button></div>`;
           }
-          const dates = _pdDateList(g.first, g.last);
+          const dates = _pdDateList(win.from, win.to);
           const done = {};
-          let lastShown = null;
           for (let i = 0; i < dates.length; i++) {
             const date = dates[i];
             const here = rows.filter(r => r.day_date === date);
@@ -22995,7 +23013,6 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
                 done[tvRow.source_id] = true;
                 pushBlock(_dyTripBlock(tvRow.source_id, dates.slice(i), rows, sources, today));
               }
-              lastShown = date;
               continue;
             }
             const dayW = _pdWinner(here.filter(r => (r.slot || 'day') === 'day'));
@@ -23003,14 +23020,15 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             const looks = _pdDayLooks(here);
             const dc = _dcMoments(dayW, eveW, { date, today, looks });
             if (dc.stage === 'empty' && !looks.length) {
-              if (!past && date <= horizon) { pushDay(_dyInviteRow(date, today)); lastShown = date; }
+              if (!past) pushDay(_dyInviteRow(date, today));
               continue;
             }
             pushDay(past ? _dyPastRow(date, here, looks, dc) : _dyDayCard(date, here, looks, dc, today));
-            lastShown = date;
           }
           html += parts.map(p2 => p2.k === 'days' ? `<div class="dy-block">${p2.h}</div>` : p2.h).join('');
-          html += `<div class="dy-tail">${lastShown === g.last ? '' : `<p>Nothing filed for the rest of ${_waEsc(monthLong)}.</p>`}<button type="button" onclick="window.__mvNav(1)"><span>${_waEsc(nextName)}</span></button></div></div>`;
+          // The window ends where Month begins — the tail is the door to
+          // it, not a month-by-month page turn.
+          html += `<div class="dy-tail"><p>That's the next ${_DY_LIST_DAYS} days.</p><button type="button" onclick="window.__dySetMode('month')"><span>Month view</span></button></div></div>`;
           return html;
         }
         // Openers + writes — the list never invents a path: a look row

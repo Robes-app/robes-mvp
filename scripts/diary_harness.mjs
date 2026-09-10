@@ -123,12 +123,14 @@ async function boot(browser, { width = 1280, seed = true, mode = null } = {}) {
 
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
 
-// Expected invitations: today + the six days after, inside this month,
-// minus the days something already holds (the daily look, the trip).
+// The list is a ROLLING WINDOW — today and the thirty days after it, month
+// boundaries irrelevant (Annie, 2026-09-10). Every empty day in it invites;
+// the days something already holds (the daily look, the trip) do not.
+const WIN_DAYS = 30;
 const held = new Set(PD.map((r) => r.day_date));
-const monthOf = TODAY.slice(0, 7);
-const expInvites = [0, 1, 2, 3, 4, 5, 6].map(addD).filter((d) => d.slice(0, 7) === monthOf && !held.has(d));
-const inMonth = (d) => d.slice(0, 7) === monthOf;
+const winDates = Array.from({ length: WIN_DAYS + 1 }, (_, i) => addD(i));
+const expInvites = winDates.filter((d) => !held.has(d));
+const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
 
 // ─────────────────────────────────────────────────────────────────────────
 // 1 · The list, seeded (1280)
@@ -149,7 +151,7 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
       segOn: qa('#sn-cal .rb-mv-seg button').map((b) => b.classList.contains('on')),
       nav: qa('#sn-cal .rb-mv-nav > button[aria-label]').map((b) => b.getAttribute('aria-label')),
       addBesideEyebrow: !!q('#sn-headrow #sn-headact .rb-mv-add'),
-      segInActs: (() => { const sg = q('#sn-cal .rb-mv-nav .rb-mv-seg'), nx = q('#sn-cal .rb-mv-nav button[aria-label="Next month"]'); if (!sg || !nx) return false; const a = sg.getBoundingClientRect(), b = nx.getBoundingClientRect(); return Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)) < 4; })(),
+      segInActs: (() => { const sg = q('#sn-cal .rb-mv-nav .rb-mv-seg'), nx = q('#sn-cal .rb-mv-nav .rb-mv-add'); if (!sg || !nx) return false; const a = sg.getBoundingClientRect(), b = nx.getBoundingClientRect(); return Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)) < 4; })(),
       noChevrons: !q('#sn-cal .dy-trip-h svg:last-child path[d^="M4.8"]') && !q('#sn-cal .dy-tail svg'),
       whiteCards: (() => { const c = q('#sn-cal .dy-block'); return !!c && getComputedStyle(c).backgroundColor === 'rgb(255, 255, 255)'; })(),
       blockRows: qa('#sn-cal .dy-block').map((b) => qa('.dy-tday', b).length),
@@ -175,31 +177,32 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
   check('list · the Diary opens at /diary, lit, on the LIST by default (no month grid, no caption)',
     s.path === '/diary' && s.eyebrow === 'Diary' && s.diaryLit === true && s.list === true && s.grid === false && s.cap === false
       && JSON.stringify(s.segOn) === JSON.stringify([true, false]), JSON.stringify([s.path, s.eyebrow, s.diaryLit, s.list, s.grid, s.segOn]));
-  check('list · the header is the month, and the List | Month toggle sits on the line with ‹ › + (Annie 2026-09-10)',
-    // One masthead line: the month in caps + the count on the left, then the
-    // toggle and the circles together as one action cluster on the right.
-    /\d{4}/.test(s.title || '') && JSON.stringify(s.nav) === JSON.stringify(['Previous month', 'Next month', 'Add']) && s.segInActs, JSON.stringify([s.title, s.nav, s.segInActs]));
-  // The count reads what the month actually holds — dISO() returns epoch
+  check('list · the header names the window, and the List | Month toggle sits on the line with + (Annie 2026-09-10)',
+    // One masthead line: the window in caps + the count on the left, then
+    // the toggle and the + together as one action cluster on the right.
+    // ‹ › page MONTHS — the list scrolls, so they are not on it.
+    s.title === 'The next ' + WIN_DAYS + ' days' && JSON.stringify(s.nav) === JSON.stringify(['Add']) && s.segInActs, JSON.stringify([s.title, s.nav, s.segInActs]));
+  // The count reads what the window actually holds — dISO() returns epoch
   // millis, so the old string-vs-number compare always read "nothing filed
-  // yet" however full the month was (fixed 2026-09-10).
-  check('list · the month\'s count names the days it holds',
+  // yet" however full it was (fixed 2026-09-10).
+  check('list · the count names the days the window holds',
     /^\d+ days? filed$/.test(s.count || ''), s.count);
-  check('list · today and the week ahead invite while empty ("Name the day" + the + door), nothing beyond',
-    JSON.stringify(s.invites) === JSON.stringify(expInvites) && s.invitePh === 'Name the day', JSON.stringify([s.invites, expInvites, s.invitePh]));
-  const pastExp = inMonth(PAST) ? [{ date: PAST, name: 'The black one', meta: 'Filed · 4 pieces', worn: true }] : [];
-  check('list · the past files quietly: name, "Filed · N pieces", the Worn chip',
-    JSON.stringify(s.past) === JSON.stringify(pastExp), JSON.stringify([s.past, pastExp]));
-  if (inMonth(TOM)) {
+  check('list · EVERY empty day in the next 30 invites, not just the week ahead ("Name the day" + the + door)',
+    JSON.stringify(s.invites) === JSON.stringify(expInvites) && s.invites.length > 7 && s.invitePh === 'Name the day', JSON.stringify([s.invites.length, expInvites.length, s.invitePh]));
+  check('list · the window starts at today — the past lives on Month, not the list',
+    s.past.length === 0 && s.invites[0] === TODAY && !s.order.includes(PAST), JSON.stringify([s.past, s.invites[0], TODAY]));
+  if (inWin(TOM)) {
     // The Travel diary's own row (Annie 2026-09-10): the gutter inside the
-    // block, her title in italic, "N looks filed", the look row, the dashed
-    // add slot — a diary day and a trip day read identically.
-    check('list · a dressed day is the Travel diary\'s row: gutter, italic title, "1 look filed", the look, + Add a look',
-      s.card && s.card.date === TOM && s.card.title === 'Golf Club Event' && s.card.meta === '1 look filed'
+    // block, her title in italic, the look row, the dashed add slot — a
+    // diary day and a trip day read identically. No "N looks filed": the
+    // rows are the count (Annie, 2026-09-10 — "it's noise").
+    check('list · a dressed day is the Travel diary\'s row: gutter, italic title, no count, the look, + Add a look',
+      s.card && s.card.date === TOM && s.card.title === 'Golf Club Event' && s.card.meta == null
         && /^[A-Z][a-z]{2}\|\d+\|[A-Z][a-z]{2}$/.test(s.card.g)
         && JSON.stringify(s.card.looks) === JSON.stringify(['Daytime Nine · 3 pieces']) && /Add a look/i.test(s.card.add || ''), JSON.stringify(s.card));
   }
-  if (inMonth(T0)) {
-    const tripDays = [T0, T1, T2].filter(inMonth);
+  if (inWin(T0)) {
+    const tripDays = [T0, T1, T2].filter(inWin);
     check('list · a trip is a block: title, dates, destination · temp · condition',
       s.trip && s.trip.title === 'A trip to Lahinch.' && /^\d+(–\d+)? [A-Z][a-z]{2}/.test(s.trip.range || '') && !/Sept/.test(s.trip.range || '')
         && /^Lahinch, Ireland · 13–19°C · passing showers$/.test(s.trip.wx || '') && s.trip.wxEm === 'passing showers', JSON.stringify(s.trip));
@@ -207,7 +210,7 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
       s.trip && JSON.stringify(s.trip.days.map((d) => d.date)) === JSON.stringify(tripDays)
         && s.trip.days[0].title === 'Travel and Dinner' && JSON.stringify(s.trip.days[0].looks) === JSON.stringify(['Golf Club Dinner'])
         && /^[A-Z][a-z]{2}\|\d+\|[A-Z][a-z]{2}$/.test(s.trip.days[0].g) && !/Sept/.test(s.trip.days[0].g)
-        && s.trip.days[0].meta === '1 look filed' && /Add a look/i.test(s.trip.days[0].add || '')
+        && s.trip.days[0].meta == null && /Add a look/i.test(s.trip.days[0].add || '')
         && (tripDays.length < 3 || (s.trip.days[2].title === 'Travel home' && s.trip.days[2].looks.length === 0 && /Add the first look/i.test(s.trip.days[2].add || ''))),
       JSON.stringify(s.trip && s.trip.days));
     check('list · one row per date in order; the trip holds its dates (no invitations inside it)',
@@ -221,11 +224,11 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
   check('list · consecutive days ride ONE block, rows lift on hover, look rows carry the arrow',
     s.blockRows.length > 0 && s.blockRows.some((n) => n > 1) && s.hoverLift === true && s.lookArrows === true,
     JSON.stringify([s.blockRows, s.hoverLift, s.lookArrows]));
-  check('list · the tail says the rest of the month is unfiled and offers the next month',
-    /^Nothing filed for the rest of [A-Z][a-z]+\.$/.test(s.tail || '') && /\d{4}/.test(s.tailBtn || ''), JSON.stringify([s.tail, s.tailBtn]));
+  check('list · the tail closes the window and hands her to Month for anything beyond it',
+    s.tail === "That's the next " + WIN_DAYS + ' days.' && s.tailBtn === 'Month view', JSON.stringify([s.tail, s.tailBtn]));
 
   // Inline naming — trip day (writes tvData.dayTitles through the one path)
-  if (inMonth(T0)) {
+  if (inWin(T0)) {
     const named = await page.evaluate(async () => {
       const day = document.querySelector('#sn-cal .dy-trip .dy-tday');
       day.querySelector('.dy-tday-t').click();
@@ -242,7 +245,7 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
     check('list · a trip day renames inline, writing the trip\'s own day title',
       named.inp && named.stored === 'Arrival supper' && named.shown === 'Arrival supper' && named.inputGone, JSON.stringify(named));
   }
-  if (inMonth(TOM)) {
+  if (inWin(TOM)) {
     const renamed = await page.evaluate(async () => {
       document.querySelector('#sn-cal .dy-block .dy-tday .dy-pen').click();
       await new Promise((r) => setTimeout(r, 120));
@@ -271,7 +274,7 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
       add.had && add.dated && add.robes, JSON.stringify(add));
   }
   // The trip's undressed day: Add opens the trip on that day
-  if (inMonth(T2)) {
+  if (inWin(T2)) {
     const opened = await page.evaluate(async () => {
       const btn = document.querySelector('#sn-cal .dy-trip .dy-tday .dy-tadd');
       btn.click();
@@ -388,6 +391,8 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
     const r = {
       grid: !!document.querySelector('#sn-cal .rb-mv-cal'), list: !!document.querySelector('#sn-cal .dy-list'),
       cap: document.querySelector('#sn-cal .rb-mv-cap')?.textContent, segOn: Array.from(document.querySelectorAll('#sn-cal .rb-mv-seg button')).map((b) => b.classList.contains('on')),
+      nav: Array.from(document.querySelectorAll('#sn-cal .rb-mv-nav > button[aria-label]')).map((b) => b.getAttribute('aria-label')),
+      title: document.querySelector('#sn-cal .rb-mv-title')?.textContent,
       stored: localStorage.getItem('rb_diary_mode'),
     };
     window.__rbNavGo('lookbook'); await new Promise((r2) => setTimeout(r2, 300));
@@ -400,6 +405,11 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
   check('list · Month is one toggle away, captioned, and remembered per device',
     month.grid && !month.list && month.cap === 'Month reads the shape of it. List is where you plan.' && JSON.stringify(month.segOn) === JSON.stringify([false, true])
       && month.stored === 'month' && month.stillMonth && month.backToList, JSON.stringify(month));
+  // ‹ › are the MONTH's (Annie, 2026-09-10): the list scrolls a rolling
+  // window, so paging only exists where it means something.
+  check('month · the month names itself and ‹ › page it — the pair the list does not carry',
+    JSON.stringify(month.nav) === JSON.stringify(['Previous month', 'Next month', 'Add']) && /^[A-Z][a-z]+ \d{4}$/.test(month.title || ''),
+    JSON.stringify([month.nav, month.title]));
   check('list · no page errors after the walk', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
@@ -424,12 +434,12 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
     document.getElementById('tv-brief-modal')?.remove();
     return r;
   });
-  const expEmptyInvites = [0, 1, 2, 3, 4, 5, 6].map(addD).filter(inMonth).length;
+  const expEmptyInvites = winDates.length;
   check('empty · the design\'s empty state: "Nothing planned yet.", the line, Plan a trip',
     e.had && /Nothing planned/.test(e.h || '') && /yet\./.test(e.h || '') && /The diary keeps the dates; the lookbook keeps the looks\./.test(e.p || '') && e.cta === 'Plan a trip', JSON.stringify(e));
   check('empty · Plan a trip is the ONE dark fill and opens the travel intake over the Diary',
     e.darkFills === 1 /* the CTA alone — the List | Month toggle is a view, warm-selected (nav architecture 2026-09-10) */ && e.intake && e.diaryStill, JSON.stringify(e));
-  check('empty · the week\'s invitations still follow beneath', e.invites === expEmptyInvites, JSON.stringify([e.invites, expEmptyInvites]));
+  check('empty · the window\'s invitations still follow beneath — all thirty-one of them', e.invites === expEmptyInvites, JSON.stringify([e.invites, expEmptyInvites]));
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
@@ -486,17 +496,26 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
     d.diaryHidden && d.visible && d.title === 'Golf Club Event' && /^[A-Z][a-z]+day \d+ [A-Z]/.test(d.eyebrow || '') && d.sec === 'Looks planned'
       && d.stat === '1 look · 3 pieces filed' && JSON.stringify(d.cards) === JSON.stringify(['Look 1 · Daytime Nine · 3 pieces']) && d.add && d.diaryLit,
     JSON.stringify(d));
+  // The past is Month's now — the list starts at today (Annie, 2026-09-10),
+  // so a filed past day is opened from its month cell.
   const p = await page.evaluate(async (PAST) => {
     window.__rbNavGo('diary');
     await new Promise((r) => setTimeout(r, 700));
-    document.querySelector('#sn-cal .dy-tday[data-date="' + PAST + '"] .dy-past').click();
+    window.__dySetMode('month');
+    await new Promise((r) => setTimeout(r, 500));
+    const sel = '#sn-cal [onclick*="__mvCell(\'' + PAST + '\')"]';
+    if (!document.querySelector(sel)) { window.__mvNav(-1); await new Promise((r) => setTimeout(r, 700)); }
+    const cell = document.querySelector(sel);
+    cell?.click();
     await new Promise((r) => setTimeout(r, 700));
     const pg = document.getElementById('dl-result-page');
     const q = (s) => pg && pg.querySelector(s);
-    return { visible: !!pg && pg.style.display !== 'none', title: q('.dlm-title')?.textContent.trim(), sec: q('.dyp-sec-l')?.textContent, worn: q('.dyp-card .dyp-worn')?.textContent, cards: pg ? pg.querySelectorAll('.dyp-card').length : 0 };
+    const r = { cell: !!cell, visible: !!pg && pg.style.display !== 'none', title: q('.dlm-title')?.textContent.trim(), sec: q('.dyp-sec-l')?.textContent, worn: q('.dyp-card .dyp-worn')?.textContent, cards: pg ? pg.querySelectorAll('.dyp-card').length : 0 };
+    window.__dySetMode('list');
+    return r;
   }, PAST);
-  check('day page · a past row opens its day: Looks filed, the look carries Worn',
-    p.visible && p.title === 'The black one' && p.sec === 'Looks filed' && /Worn/.test(p.worn || '') && p.cards === 1, JSON.stringify(p));
+  check('day page · a past day opens from its month cell: Looks filed, the look carries Worn',
+    p.cell && p.visible && p.title === 'The black one' && p.sec === 'Looks filed' && /Worn/.test(p.worn || '') && p.cards === 1, JSON.stringify(p));
   // The look row on the list opens the DAY too (the look is reached from the
   // day page — Annie, 2026-09-09), with the door back reading Diary
   const lr = await page.evaluate(async (TOM) => {
