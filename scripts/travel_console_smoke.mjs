@@ -204,7 +204,8 @@ ok(await page.locator('#tv-stage .rbc-hbtn', { hasText: 'Pin to days' }).count()
 // whose pieces can then be packed)
 await page.evaluate(() => window.__tvDayLookOpen(1, 2));
 await page.waitForTimeout(400);
-ok(await page.locator('#sn-page').isVisible() && await page.locator('#sn-page .rb-lk-back').count() === 1 && /Travel edit/i.test(await page.locator('#sn-page .rb-lk-back').innerText()), 'the saved look opens its own page, back reading Travel edit');
+// The return pill names the trip by its own title (nav architecture 2026-09-10)
+ok(await page.locator('#sn-page').isVisible() && await page.locator('#sn-page .rb-ret-pill').count() === 1 && /A long weekend in Lahinch/i.test(await page.locator('#sn-page .rb-ret-pill .lab').innerText()), 'the saved look opens its own page, the return pill naming the trip');
 ok(!(await page.locator('#tv-result-page').isVisible()), 'the trip stands down beneath it');
 ok(/Pinned for Saturday 1 Aug/.test(await page.locator('#sn-page .rb-lk-tripstrip').innerText()) && /on the trip to Lahinch/.test(await page.locator('#sn-page .rb-lk-tripstrip').innerText()), 'the strip names the trip day');
 ok(await page.locator('#sn-page .rb-lk-packbtn').count() === 2 && await page.locator('#sn-page .rb-lk-packall').count() === 1, 'every owned row carries the case’s Pack toggle, the head Pack this look');
@@ -260,7 +261,7 @@ await page.evaluate(() => window.__tvDayLookOpen(0, 0));
 await page.waitForTimeout(500);
 ok(await page.locator('#sn-page').isVisible() && !(await page.locator('#tv-result-page').isVisible()) && !(await page.locator('#tv-look-page').isVisible()), 'a Robes-styled look row opens the Lookbook’s editor, not a trip page');
 ok(await page.locator('#sn-page .rb-lk-page.editing').count() === 1 && /draft look/i.test(await page.locator('#sn-page .rb-lk-eyebrow').innerText()), 'it opens EDITING, as a draft');
-ok((await page.locator('#sn-page #rb-lk-title').innerText()).includes('Coast after dark') && /Travel edit/i.test(await page.locator('#sn-page .rb-lk-back').innerText()), 'the draft carries the look’s name, back reads Travel edit');
+ok((await page.locator('#sn-page #rb-lk-title').innerText()).includes('Coast after dark') && /A long weekend in Lahinch/i.test(await page.locator('#sn-page .rb-ret-pill .lab').innerText()), 'the draft carries the look’s name, the return pill naming the trip');
 ok(await page.locator('#sn-page .rbc-rack .rbc-row:not(.rbc-rghost)').count() === 4 && await page.locator('#sn-page .rb-lk-prop').count() === 1, 'the rack holds the day’s pieces — the unowned capsule piece as a proposal card');
 ok(await page.locator('#sn-page .rb-lk-draftbar button.q', { hasText: 'Discard' }).count() === 1 && await page.locator('#sn-page .rb-lk-draftbar button.p', { hasText: 'Save this look' }).count() === 1, 'the change bar offers Discard and Save this look');
 ok(/Not in your Lookbook yet/.test(await page.locator('#sn-page .rb-lk-draftbar').innerText()), 'the bar says it is not saved yet');

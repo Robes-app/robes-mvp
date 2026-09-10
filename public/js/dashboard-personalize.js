@@ -1403,17 +1403,10 @@
         if (!document.getElementById('rb-wg-trail')) {
           const trail = document.createElement('div');
           trail.id = 'rb-wg-trail';
-          trail.innerHTML = '<div id="rb-wg-crumbs" class="rb-wg-crumbs"></div>' +
-            '<div class="rb-wg-trailbtns">' +
-              '<button class="wg-pill rb-add-pill" id="rb-add-pill">+ Add piece</button>' +
-              '<button class="wg-pill rb-refine-pill" id="rb-refine-pill">Refine</button>' +
-            '</div>';
+          // The row carries the drill path + the count alone — the add and
+          // Refine pills sit on the masthead line (nav architecture 2026-09-10).
+          trail.innerHTML = '<div id="rb-wg-crumbs" class="rb-wg-crumbs"></div>';
           container.parentNode.insertBefore(trail, container.nextSibling);
-          trail.querySelector('#rb-add-pill').addEventListener('click', () => {
-            if (_waView === 'wishlist') window.__wlOpenAdd();
-            else window.__waAddChooser();
-          });
-          trail.querySelector('#rb-refine-pill').addEventListener('click', () => window.__waRefToggle());
         }
         _waRefinePillSync();
         _waTrailSync();
@@ -3374,8 +3367,9 @@
         const pill = document.getElementById('rb-refine-pill');
         if (!pill) return;
         const n = _waRefineCount();
-        pill.classList.toggle('active', _waRefineOpen || n > 0);
-        pill.innerHTML = 'Refine' + (n ? ' <span class="rb-refine-badge">' + n + '</span>' : '');
+        // Live = the warm selected treatment, never an ink fill.
+        pill.classList.toggle('on', _waRefineOpen || n > 0);
+        pill.innerHTML = 'Refine' + (n ? ' <span class="badge rb-refine-badge">' + n + '</span>' : '');
       }
 
       function _waRefineRender() {
@@ -3771,8 +3765,10 @@
             ? _wlItems.length + ' saved'
             : _waItems.length + ' piece' + (_waItems.length === 1 ? '' : 's');
         }
-        const cta = document.getElementById('rb-wg-cta-head');
-        if (cta) cta.style.display = wish ? '' : 'none'; // wishlist-only add path
+        const addPill = document.getElementById('rb-add-pill');
+        if (addPill) addPill.textContent = wish ? '+ Save a piece' : '+ Add piece';
+        const refPill = document.getElementById('rb-refine-pill');
+        if (refPill) refPill.style.display = wish ? 'none' : '';
         const filters = document.getElementById('wg-filters');
         if (filters) filters.style.display = wish ? 'none' : '';
         const trail = document.getElementById('rb-wg-trail');
@@ -3793,6 +3789,247 @@
         _waRefineRender();
         if (wish) _wlRender();
       }
+
+      // ═══ Shared chrome — three bands, fixed heights (Navigation_Architecture,
+      // 2026-09-10) ═══════════════════════════════════════════════════════
+      // Every screen answers three questions in three permanent slots:
+      //   band one   — the sticky nav: WHERE AM I (lit by the section she
+      //                entered through, held in _rbNavOrigin, never derived
+      //                from the object);
+      //   band two   — the RETURN band (48px, full-bleed, hairline-bottomed):
+      //                ONE pill naming the previous screen by its own title
+      //                + the set position when the object is one of a set
+      //                ("1 of 4 in this look" ‹ ›). Absent on the four roots;
+      //   band three — the TITLE block (34px top pad): rose eyebrow = the KIND
+      //                of object (Saved look / In your wardrobe / a date),
+      //                serif title, then the pencil / star immediately after
+      //                it, a serif-italic sub, a 12px meta line. Object
+      //                actions live HERE, identical whichever route reached
+      //                the object.
+      // Index screens carry no band two and no eyebrow — ONE masthead line
+      // (tracked caps + serif-italic count) with hairline pills beside it.
+      // ≤767px the two web bands collapse into the nav bar: the pill
+      // replaces the wordmark, the position replaces the avatar
+      // (_rbNavSync mirrors the topmost visible band; the in-page band
+      // hides). Handlers ride a registry keyed per surface (_rbRetReg) so
+      // several overlays can hold a band in the DOM while only the top one
+      // answers. Every action pill in the app is `.rb-pill` — 11px, .04em,
+      // ink-soft on white, hairline, 10/16, radius 100; ink fills are held
+      // in reserve for a step that genuinely commits.
+      var _rbRetCfgs = {};
+      const _RB_CHROME_CSS = `
+.rb-pill{display:inline-flex;align-items:center;gap:8px;font:400 11px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.04em;padding:10px 16px;background:#fff;border:1px solid var(--rule-mid,rgba(32,32,33,0.12));border-radius:100px;color:var(--ink-soft,#6E6A64);cursor:pointer;font-family:var(--font-sans,Inter,sans-serif);white-space:nowrap;text-decoration:none;transition:border-color .15s,color .15s,background .15s}
+.rb-pill:hover{border-color:rgba(32,32,33,0.3);color:var(--ink,#202021)}
+.rb-pill.sm{padding:9px 14px}
+.rb-pill.on{background:#F3EFE6;border-color:#C9BCA6;color:var(--ink,#202021)}
+.rb-pill[disabled]{background:transparent;border-color:var(--rule,rgba(32,32,33,0.075));color:var(--cream-400,#D8CFC0);cursor:default}
+.rb-pill .caret{font-size:9px;color:var(--ink-faint,#7E6F50)}
+.rb-pill .badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:100px;background:var(--ink,#202021);color:#fff;font-size:9px;padding:0 4px}
+.rb-circ{width:30px;height:30px;border-radius:100px;border:1px solid var(--rule-mid,rgba(32,32,33,0.12));background:#fff;display:inline-flex;align-items:center;justify-content:center;font:300 16px/1 var(--font-sans,Inter,sans-serif);color:var(--ink-soft,#6E6A64);cursor:pointer;padding:0;transition:border-color .15s,color .15s}
+.rb-circ:hover{border-color:rgba(32,32,33,0.3);color:var(--ink,#202021)}
+.rb-circ svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.rb-ret{height:48px;border-bottom:1px solid var(--rule,rgba(32,32,33,0.075));background:var(--cream,#FAF8F5);flex:none}
+.rb-ret-in{max-width:var(--shell,1440px);margin:0 auto;height:100%;padding:0 var(--s6,24px);display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box}
+.rb-ret-pill{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--rule-mid,rgba(32,32,33,0.12));border-radius:100px;padding:8px 15px 8px 12px;font:400 11px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.04em;color:var(--ink-soft,#6E6A64);cursor:pointer;font-family:var(--font-sans,Inter,sans-serif);max-width:min(60vw,360px);transition:border-color .15s,color .15s}
+.rb-ret-pill:hover{border-color:rgba(32,32,33,0.3);color:var(--ink,#202021)}
+.rb-ret-pill .ch{color:var(--ink-faint,#7E6F50);font-size:13px;line-height:1}
+.rb-ret-pill .lab{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-ret-set{display:inline-flex;align-items:center;gap:12px;flex:none}
+.rb-ret-pos{font:400 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#7E6F50);white-space:nowrap}
+.rb-ret-nav{width:26px;height:26px;border-radius:100px;border:1px solid var(--rule-mid,rgba(32,32,33,0.12));background:transparent;display:inline-flex;align-items:center;justify-content:center;font-size:12px;line-height:1;color:var(--ink,#202021);cursor:pointer;padding:0;font-family:inherit;transition:border-color .15s}
+.rb-ret-nav:hover{border-color:rgba(32,32,33,0.3)}
+.rb-ret-nav[disabled]{color:var(--ink-faint,#7E6F50);opacity:.45;cursor:default}
+.rb-tb{padding:34px var(--s6,24px) 0;max-width:var(--shell,1440px);margin:0 auto;box-sizing:border-box}
+.rb-tb.bare{padding-left:0;padding-right:0;max-width:none}
+.rb-tb-row{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.rb-tb-main{min-width:0;max-width:680px;flex:1 1 320px}
+.rb-tb-right{display:flex;align-items:center;gap:10px;flex:none;padding-top:22px}
+.rb-tb-ey{font:400 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}
+.rb-tb-ey.faint{color:var(--ink-faint,#7E6F50)}
+.rb-tb-trow{display:flex;align-items:center;gap:14px;margin-top:12px;min-width:0;flex-wrap:wrap}
+.rb-tb-title{font:300 31px/1.15 var(--font-serif,Cormorant,Georgia,serif);margin:0;color:var(--ink,#202021);min-width:0;overflow-wrap:anywhere}
+.rb-tb-title.it{font-style:italic}
+.rb-tb-title em{color:var(--ink-faint,#7E6F50);font-style:italic}
+.rb-tb-title-in{font:300 31px/1.15 var(--font-serif,Cormorant,Georgia,serif);color:var(--ink,#202021);background:transparent;border:none;border-bottom:1px solid var(--ink,#202021);padding:0 0 4px;margin:0;outline:none;min-width:0;width:min(100%,560px);font-family:var(--font-serif,Cormorant,Georgia,serif)}
+.rb-tb-btn{flex:none;width:28px;height:28px;border-radius:100px;border:1px solid var(--rule-mid,rgba(32,32,33,0.12));background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;color:var(--ink-soft,#6E6A64);position:relative;transition:border-color .15s,color .15s,background .15s}
+.rb-tb-btn::after{content:'';position:absolute;inset:-8px}
+.rb-tb-btn:hover{border-color:rgba(32,32,33,0.3);color:var(--ink,#202021)}
+.rb-tb-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.rb-tb-btn.star svg{width:12px;height:12px;stroke:none;fill:currentColor}
+.rb-tb-btn.on{background:#F3EFE6;border-color:#C9BCA6;color:var(--ink,#202021)}
+.rb-tb-sub{font:300 15px/1.3 var(--font-serif,Cormorant,Georgia,serif);font-style:italic;color:var(--ink-soft,#6E6A64);margin-top:8px}
+.rb-tb-meta{font:400 12px/1.5 var(--font-sans,Inter,sans-serif);color:var(--ink-soft,#6E6A64);margin-top:10px}
+.rb-tb-meta em{font-style:italic}
+.rb-mast{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.rb-mast-l{display:flex;flex-direction:column;min-width:0}
+.rb-mast-line{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.rb-mast-lab{font:400 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#7E6F50);white-space:nowrap}
+.rb-mast-n{font:300 14px/1 var(--font-serif,Cormorant,Georgia,serif);font-style:italic;color:var(--ink-soft,#6E6A64)}
+.rb-mast-acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.rb-mast-tabs{display:flex;gap:22px;align-items:baseline}
+.rb-mast-tab{background:none;border:none;border-bottom:1px solid transparent;padding:0 0 5px;font:400 13px/1 var(--font-sans,Inter,sans-serif);color:var(--ink-soft,#6E6A64);cursor:pointer;font-family:inherit;transition:color .15s}
+.rb-mast-tab:hover{color:var(--ink,#202021)}
+.rb-mast-tab.active{color:var(--ink,#202021);border-bottom-color:var(--ink,#202021)}
+.rb-popmenu{position:fixed;inset:0;z-index:930}
+.rb-popmenu .card{position:absolute;min-width:216px;max-width:260px;background:#fff;border:1px solid var(--rule-mid,rgba(32,32,33,0.12));border-radius:var(--rad-sm,8px);box-shadow:0 6px 22px rgba(32,32,33,0.07);overflow:hidden;display:flex;flex-direction:column}
+.rb-popmenu .card button{display:block;width:100%;border:none;border-bottom:1px solid var(--rule,rgba(32,32,33,0.075));background:transparent;padding:12px 16px;cursor:pointer;font-family:inherit;text-align:left;color:var(--ink,#202021)}
+.rb-popmenu .card button:last-child{border-bottom:none}
+.rb-popmenu .card button:hover{background:var(--cream-100,#F5F0E8)}
+.rb-popmenu .card .t{font:400 12px/1.2 var(--font-sans,Inter,sans-serif);margin:0}
+.rb-popmenu .card .s{font:400 10px/1.3 var(--font-sans,Inter,sans-serif);color:var(--ink-soft,#6E6A64);margin:5px 0 0}
+#rb-navset{display:none;font:400 9px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint,#7E6F50);white-space:nowrap}
+@media(max-width:767px){
+.rb-ret{display:none}
+.rb-tb{padding-top:22px}
+.rb-tb-title,.rb-tb-title-in{font-size:26px;line-height:1.1}
+.rb-tb-trow{gap:10px;margin-top:10px}
+.rb-tb-ey{font-size:9px;letter-spacing:.22em}
+.rb-tb-right{width:100%;padding-top:6px}
+.rb-mast{align-items:flex-start}
+.rb-mast-lab{font-size:9px}
+#rb-backpill .lab{max-width:52vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav.rb-depth #nav-wordmark{display:none !important}
+.nav.rb-depth .av-wrap,.nav.rb-depth #nav-weather{display:none !important}
+.nav.rb-depth #rb-navset{display:inline-block}
+}`;
+      function _rbChromeEnsure() {
+        if (document.getElementById('rb-chrome-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-chrome-style';
+        st.textContent = _RB_CHROME_CSS;
+        document.head.appendChild(st);
+      }
+      // Register the handlers a band answers with. cfg: {back, prev, next}
+      function _rbRetReg(key, cfg) { _rbRetCfgs[key] = cfg || {}; }
+      window.__rbRet = function(key, what) {
+        const c = _rbRetCfgs[key];
+        if (!c) return;
+        const fn = c[what];
+        if (typeof fn === 'function') fn();
+      };
+      function _rbRetPosText(pos) {
+        if (!pos || !(pos.n > 1) || !(pos.i >= 1)) return '';
+        return pos.i + ' of ' + pos.n + (pos.suffix ? ' ' + pos.suffix : '');
+      }
+      // Band two. cfg: {key, label, pos: {i, n, suffix} | null}. Handlers
+      // are read from the registry at tap time (register before painting).
+      function _rbRetHtml(cfg) {
+        _rbChromeEnsure();
+        const key = _waEsc(cfg.key);
+        const posText = _rbRetPosText(cfg.pos);
+        const pos = cfg.pos || {};
+        const set = posText
+          ? '<span class="rb-ret-set"><span class="rb-ret-pos">' + _waEsc(posText) + '</span>' +
+            '<button type="button" class="rb-ret-nav" aria-label="Previous" onclick="window.__rbRet(\'' + key + '\',\'prev\')"' + (pos.i <= 1 ? ' disabled' : '') + '>‹</button>' +
+            '<button type="button" class="rb-ret-nav" aria-label="Next" onclick="window.__rbRet(\'' + key + '\',\'next\')"' + (pos.i >= pos.n ? ' disabled' : '') + '>›</button></span>'
+          : '<span class="rb-ret-set"></span>';
+        return '<div class="rb-ret" data-rbret="' + key + '"><div class="rb-ret-in">' +
+          '<button type="button" class="rb-ret-pill" onclick="window.__rbRet(\'' + key + '\',\'back\')"><span class="ch">‹</span><span class="lab">' + _waEsc(cfg.label || 'Back') + '</span></button>' +
+          set + '</div></div>';
+      }
+      const _RB_PENCIL_SVG = '<svg viewBox="0 0 16 16"><path d="M11.2 2.6l2.2 2.2-8 8-3 .8.8-3 8-8z"></path></svg>';
+      const _RB_STAR_SVG = '<svg viewBox="0 0 14 14"><path d="M7 1.6l1.7 3.5 3.8.5-2.8 2.7.7 3.8L7 10.2l-3.4 1.9.7-3.8L1.5 5.6l3.8-.5z"></path></svg>';
+      // Band three. cfg: {eyebrow, tone:'rose'|'faint', titleHtml, italic,
+      // titleId, titleTag ('h1' default), afterTitleHtml (pencil / star —
+      // .rb-tb-btn), sub, subHtml, meta, metaHtml, rightHtml, cls, bare}
+      function _rbTitleHtml(cfg) {
+        _rbChromeEnsure();
+        const tag = cfg.titleTag || 'h1';
+        const title = cfg.titleInputHtml
+          ? cfg.titleInputHtml
+          : '<' + tag + ' class="rb-tb-title' + (cfg.italic ? ' it' : '') + (cfg.titleCls ? ' ' + cfg.titleCls : '') + '"' + (cfg.titleId ? ' id="' + _waEsc(cfg.titleId) + '"' : '') + '>' + (cfg.titleHtml || '') + '</' + tag + '>';
+        return '<div class="rb-tb' + (cfg.bare ? ' bare' : '') + (cfg.cls ? ' ' + cfg.cls : '') + '"' + (cfg.id ? ' id="' + _waEsc(cfg.id) + '"' : '') + '><div class="rb-tb-row"><div class="rb-tb-main">' +
+          (cfg.eyebrow ? '<div class="rb-tb-ey' + (cfg.tone === 'faint' ? ' faint' : '') + '">' + cfg.eyebrow + '</div>' : '') +
+          '<div class="rb-tb-trow">' + title + (cfg.afterTitleHtml || '') + '</div>' +
+          (cfg.subHtml ? '<div class="rb-tb-sub">' + cfg.subHtml + '</div>' : cfg.sub ? '<div class="rb-tb-sub">' + _waEsc(cfg.sub) + '</div>' : '') +
+          (cfg.metaHtml ? '<div class="rb-tb-meta">' + cfg.metaHtml + '</div>' : cfg.meta ? '<div class="rb-tb-meta">' + _waEsc(cfg.meta) + '</div>' : '') +
+          '</div>' + (cfg.rightHtml ? '<div class="rb-tb-right">' + cfg.rightHtml + '</div>' : '') + '</div>' +
+          (cfg.belowHtml || '') + '</div>';
+      }
+      function _rbTbBtn(cfg) {
+        return '<button type="button" class="rb-tb-btn' + (cfg.cls ? ' ' + cfg.cls : '') + (cfg.on ? ' on' : '') + '" title="' + _waEsc(cfg.title || '') + '" aria-label="' + _waEsc(cfg.title || '') + '"' + (cfg.id ? ' id="' + _waEsc(cfg.id) + '"' : '') + ' onclick="' + cfg.onclick + '">' + cfg.svg + '</button>';
+      }
+      // An index masthead — ONE line. cfg: {label, count, tabsHtml, actionsHtml, belowHtml, cls, id}
+      function _rbMastHtml(cfg) {
+        _rbChromeEnsure();
+        const left = cfg.tabsHtml
+          ? '<div class="rb-mast-tabs">' + cfg.tabsHtml + '</div>'
+          : '<div class="rb-mast-line"><span class="rb-mast-lab">' + _waEsc(cfg.label || '') + '</span>' + (cfg.count ? '<span class="rb-mast-n">' + _waEsc(cfg.count) + '</span>' : '') + '</div>';
+        return '<div class="rb-mast' + (cfg.cls ? ' ' + cfg.cls : '') + '"' + (cfg.id ? ' id="' + _waEsc(cfg.id) + '"' : '') + '><div class="rb-mast-l">' + left + (cfg.belowHtml || '') + '</div>' +
+          (cfg.actionsHtml ? '<div class="rb-mast-acts">' + cfg.actionsHtml + '</div>' : '') + '</div>';
+      }
+      // The disclosure a control opens when a screen can do more than one
+      // kind of thing (the diary's + and "Style this piece ▾" share it).
+      // items: [{t, s, onclick}]
+      window.__rbPopMenu = function(ev, items) {
+        _rbChromeEnsure();
+        document.getElementById('rb-popmenu')?.remove();
+        const wrap = document.createElement('div');
+        wrap.id = 'rb-popmenu';
+        wrap.className = 'rb-popmenu';
+        wrap.innerHTML = '<div class="card">' + items.map((it, i) =>
+          '<button type="button" data-i="' + i + '"><p class="t">' + _waEsc(it.t) + '</p>' + (it.s ? '<p class="s">' + _waEsc(it.s) + '</p>' : '') + '</button>').join('') + '</div>';
+        wrap.addEventListener('click', function(e) {
+          const b = e.target.closest('button[data-i]');
+          wrap.remove();
+          if (b && items[+b.dataset.i] && typeof items[+b.dataset.i].onclick === 'function') items[+b.dataset.i].onclick();
+        });
+        document.body.appendChild(wrap);
+        const card = wrap.querySelector('.card');
+        const r = ev && ev.currentTarget && ev.currentTarget.getBoundingClientRect ? ev.currentTarget.getBoundingClientRect() : { left: 24, bottom: 80, right: 24 };
+        const w = card.offsetWidth || 220;
+        let left = r.left;
+        if (left + w > window.innerWidth - 12) left = Math.max(12, window.innerWidth - 12 - w);
+        card.style.left = left + 'px';
+        card.style.top = (r.bottom + 8) + 'px';
+      };
+      // "September 2026" — the Diary's own title for a month, which is what
+      // a day or a trip climbs back to.
+      function _rbMonthLabel(iso) {
+        const d = iso ? new Date(String(iso).slice(0, 10) + 'T00:00:00') : null;
+        return d && !isNaN(d) ? d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : '';
+      }
+      // The section she entered through, as a pill label.
+      function _rbOriginLabel() {
+        const o = window._rbNavOrigin;
+        return o === 'diary' ? 'Diary' : o === 'wardrobe' ? 'Wardrobe' : o === 'inspiration' ? 'Inspiration' : o === 'lookbook' ? 'Lookbook' : 'Home';
+      }
+      // The topmost visible return band — the nav bar mirrors it ≤767px.
+      // Overlays in z order: piece (46) › lookbook/inspiration (45) › the
+      // result pages (40). A root on top has no band, so this reads null.
+      function _rbRetTop() {
+        const ids = ['rb-piece-page', 'sn-page', 'rb-insp-page', 'kp-result-page', 'dl-result-page', 'tv-result-page'];
+        for (let i = 0; i < ids.length; i++) {
+          const el = document.getElementById(ids[i]);
+          if (!el || el.style.display === 'none') continue;
+          return el.querySelector('.rb-ret');
+        }
+        return null;
+      }
+      window._rbRetTop = _rbRetTop;
+      // Swipe is the pager on a phone: a horizontal swipe on the title
+      // block or the media walks the set. Rack rows and scroll strips keep
+      // their own gestures (the swipe only arms on the chrome + the media).
+      (function() {
+        let sx = 0, sy = 0, armed = false;
+        document.addEventListener('touchstart', function(e) {
+          const t = e.touches && e.touches[0];
+          if (!t) return;
+          armed = !!(e.target.closest && e.target.closest('.rb-tb,.rb-pc-media,.rbc-panel,.rb-lkm-canvas'));
+          sx = t.clientX; sy = t.clientY;
+        }, { passive: true });
+        document.addEventListener('touchend', function(e) {
+          if (!armed) return;
+          armed = false;
+          const t = e.changedTouches && e.changedTouches[0];
+          if (!t) return;
+          const dx = t.clientX - sx, dy = t.clientY - sy;
+          if (Math.abs(dx) < 70 || Math.abs(dy) > 50) return;
+          const band = _rbRetTop();
+          if (!band) return;
+          window.__rbRet(band.getAttribute('data-rbret'), dx < 0 ? 'next' : 'prev');
+        }, { passive: true });
+      })();
 
       // One-time DOM augmentation of the static wardrobe panel
       (function _waV2Setup() {
@@ -3899,7 +4136,7 @@
             // amplified add-entry card
             '.rb-add-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;aspect-ratio:3/4;border-radius:var(--rad);border:1.5px dashed var(--rule-mid);background:var(--cream-100);cursor:pointer;transition:all .15s;text-align:center;padding:14px;box-sizing:border-box;font-family:inherit}',
             '.rb-add-card:hover{border-color:var(--ink-faint);background:var(--cream-200)}',
-            '.rb-add-plus{width:40px;height:40px;border-radius:100px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:300;line-height:1}',
+            '.rb-add-plus{width:40px;height:40px;border-radius:100px;background:#fff;border:1px solid var(--rule-mid);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:300;line-height:1}',
             '.rb-add-serif{font-family:var(--font-serif);font-weight:300;font-size:19px;color:var(--ink)}',
             '.rb-add-hint{font-size:10px;letter-spacing:.05em;color:var(--ink-faint)}',
             // decorative ghost tiles behind the add card at zero pieces
@@ -3917,35 +4154,41 @@
 
         // Sub-tabs BELOW the title (mock order: YOUR WARDROBE leads, then
         // All pieces / Wishlist) — Wishlist nests UNDER Wardrobe
+        // The tabs ARE the masthead (nav architecture 2026-09-10): the
+        // YOUR WARDROBE title is gone — the first tab is simply Wardrobe,
+        // Wishlist (N) secondary beside it, and the actions sit on that
+        // line. Wardrobe | Wishlist — what you own, and future ownership
+        // (the Looks tab moved to the Lookbook, IA 2026-08-08).
+        _rbChromeEnsure();
         const tabs = document.createElement('div');
         tabs.id = 'rb-wsub';
-        tabs.className = 'rb-wsub';
-        // All pieces | Wishlist — what you own, and future ownership. The
-        // Looks tab moved to the Lookbook (IA 2026-08-08: a wardrobe holds
-        // garments, not outfits — one home per object).
-        tabs.innerHTML = '<button data-view="all" class="active">All pieces</button>' +
-          '<button data-view="wishlist">Wishlist</button>';
+        tabs.className = 'rb-mast-tabs';
+        tabs.innerHTML = '<button data-view="all" class="rb-mast-tab active">Wardrobe</button>' +
+          '<button data-view="wishlist" class="rb-mast-tab">Wishlist</button>';
         tabs.addEventListener('click', function(e) {
           const b = e.target.closest('button[data-view]');
           if (b) window.__waSetView(b.dataset.view);
         });
-        header.parentNode.insertBefore(tabs, header.nextSibling);
+        header.innerHTML = '';
+        header.classList.add('rb-mast');
+        header.appendChild(tabs);
 
         // Header carries only the count now (add rework, nav architecture
         // 2026-07: adding moved to the toolbar + mobile FAB). The old
         // header CTA survives ONLY for the wishlist view — its toolbar is
         // hidden there, so this stays the wishlist's add path.
+        // + Add piece / + Save a piece follows the tab (you are adding to
+        // different places); Refine is an attribute panel over the drill.
+        // Both are hairline pills — nothing on this screen is filled ink.
         const actions = document.createElement('div');
-        actions.className = 'rb-wg-actions';
-        const cta = document.createElement('button');
-        cta.id = 'rb-wg-cta-head';
-        cta.className = 'rb-wg-cta';
-        cta.textContent = '+ Save a piece';
-        cta.style.display = 'none';
-        cta.addEventListener('click', function() { window.__wlOpenAdd(); });
-        actions.appendChild(cta);
-        const countEl = document.getElementById('wg-count');
-        if (countEl) actions.appendChild(countEl); // move, keep id
+        actions.className = 'rb-wg-actions rb-mast-acts';
+        actions.innerHTML = '<button class="rb-pill rb-add-pill" id="rb-add-pill">+ Add piece</button>' +
+          '<button class="rb-pill rb-refine-pill" id="rb-refine-pill">Refine</button>';
+        actions.querySelector('#rb-add-pill').addEventListener('click', function() {
+          if (_waView === 'wishlist') window.__wlOpenAdd();
+          else window.__waAddChooser();
+        });
+        actions.querySelector('#rb-refine-pill').addEventListener('click', function() { window.__waRefToggle(); });
         header.appendChild(actions);
 
         // The mobile FAB retired 2026-08-05 — "+ Add piece" lives in the
@@ -4754,7 +4997,6 @@
       window.__snOpen = function() {
         const av = document.getElementById('av-menu');
         if (av) av.classList.remove('open');
-        window._rbNavOrigin = 'lookbook';
         document.getElementById('sn-page').style.display = 'block';
         const ey = document.getElementById('sn-eyebrow');
         if (ey) ey.textContent = 'Lookbook';
@@ -4810,6 +5052,11 @@
         document.getElementById('sn-page').style.display = 'none';
         const inEl = document.getElementById('rb-insp-page');
         if (inEl) inEl.style.display = 'none';
+        if (window._rbNavOrigin === 'home' || !window._rbNavOrigin) {
+          window._rbNavOrigin = item.type === 'key-piece' ? 'inspiration'
+            : item.type === 'travel-edit' ? 'diary'
+            : (item.dlData && item.dlData.anchor_date) ? 'diary' : 'lookbook';
+        }
         if (item.type === 'daily-look' && item.dlData) {
           window.__dlRenderResult(item.dlData, item.dlData.prompt || item.title, { skipSave: true, savedId: item.id });
         } else if (item.type === 'travel-edit' && item.tvData) {
@@ -4840,38 +5087,24 @@
       const _PC_CSS = `
 #rb-piece-page{font-family:var(--font-sans,Inter,sans-serif);color:var(--ink,#202021)}
 #rb-piece-page *{box-sizing:border-box}
-.rb-pc-head{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px var(--s6,24px) 12px;border-bottom:0.5px solid var(--rule-mid,rgba(32,32,33,0.14));background:var(--cream,#FAF8F5)}
-.rb-pc-back{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:100px;padding:7px 15px 7px 11px;background:var(--cream,#FAF8F5);cursor:pointer;font:400 12px/1 var(--font-sans,Inter,sans-serif);color:var(--ink,#202021);max-width:min(60vw,320px);font-family:inherit;transition:border-color .15s}
-.rb-pc-back:hover{border-color:var(--cream-400,#C9BCA6)}
-.rb-pc-back span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rb-pc-right{display:flex;align-items:center;gap:8px}
-.rb-pc-pager{font:400 9px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint,#A89880)}
-.rb-pc-nav{width:28px;height:28px;border-radius:100px;border:1px solid var(--rule-mid,rgba(32,32,33,0.14));background:transparent;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-soft,#5C574F);cursor:pointer;padding:0;transition:border-color .15s,color .15s}
-.rb-pc-nav:hover{border-color:var(--cream-400,#C9BCA6);color:var(--ink,#202021)}
-.rb-pc-nav[disabled]{opacity:.35;cursor:default}
-.rb-pc-star{width:30px;height:30px;border-radius:100px;border:1px solid var(--rule-mid,rgba(32,32,33,0.14));background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;color:var(--ink-soft,#5C574F);transition:all .15s}
-.rb-pc-star.on{background:var(--ink,#202021);border-color:var(--ink,#202021);color:var(--cream,#FAF8F5)}
-.rb-pc-star:hover{border-color:var(--cream-400,#C9BCA6)}
-.rb-pc-body{max-width:640px;margin:0 auto;padding:16px var(--s6,24px) 60px}
-.rb-pc-ey{font:400 9px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.24em;text-transform:uppercase;color:var(--sage,#7E7C5A);margin-top:4px}
-.rb-pc-ey.wish{color:var(--rose,#8E7077)}
-.rb-pc-titlerow{display:flex;align-items:flex-start;gap:10px;margin-top:12px}
-.rb-pc-title{font:300 30px/1.05 var(--font-serif,Cormorant,Georgia,serif);margin:0;flex:1;color:var(--ink,#202021)}
-.rb-pc-pencil{width:30px;height:30px;flex:none;margin-top:4px;border-radius:100px;border:1px solid var(--rule-mid,rgba(32,32,33,0.14));background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-soft,#5C574F);padding:0;transition:border-color .15s,color .15s}
-.rb-pc-pencil:hover{border-color:var(--cream-400,#C9BCA6);color:var(--ink,#202021)}
-.rb-pc-brand{font:400 17px/1.3 var(--font-serif,Cormorant,Georgia,serif);font-style:italic;color:var(--ink-soft,#5C574F);margin-top:4px}
-.rb-pc-card{margin-top:18px;background:#fff;border:0.5px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:var(--rad-lg,16px);padding:18px;overflow:hidden}
-.rb-pc-cardhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font:500 9px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint,#A89880)}
-.rb-pc-photo{position:relative;margin:0 auto;width:min(100%,390px);aspect-ratio:3/4;background:var(--cream-200,#EFE9DC);border-radius:var(--rad-sm,8px);overflow:hidden}
+.rb-pc-body{max-width:var(--shell,1440px);margin:0 auto;padding:22px var(--s6,24px) 60px}
+.rb-pc-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}
+.rb-pc-media{min-width:0}
+.rb-pc-rest{min-width:0;max-width:680px}
+@media(min-width:1024px){.rb-pc-cols{grid-template-columns:clamp(360px,38%,560px) minmax(0,1fr);gap:56px;align-items:start}.rb-pc-rest{max-width:none}}
+.rb-pc-card{background:#fff;border:0.5px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:var(--rad-lg,16px);padding:18px;overflow:hidden}
+.rb-pc-photo{position:relative;margin:0 auto;width:100%;aspect-ratio:1/1;background:var(--cream-200,#EFE9DC);border-radius:var(--rad-sm,8px);overflow:hidden}
 .rb-pc-photo img{width:100%;height:100%;object-fit:contain;display:block}
 .rb-pc-photo .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:400 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#A89880)}
-.rb-pc-rephoto{position:absolute;top:14px;right:14px;width:28px;height:28px;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(250,248,245,.82);border:1px solid rgba(32,32,33,.10);border-radius:100px;color:#4F4A44}
+.rb-pc-rephoto{position:absolute;top:14px;right:14px;width:28px;height:28px;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(250,248,245,.9);border:1px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:100px;color:#4F4A44}
 .rb-pc-rephoto:hover{background:#FAF8F5}
 .rb-pc-rephoto.busy{opacity:.5;pointer-events:none}
 .rb-pc-note{font-family:var(--font-serif,Cormorant,Georgia,serif);font-style:italic;font-weight:300;font-size:15px;line-height:1.62;color:var(--ink-soft,#5C574F);margin:16px 0 0}
 .rb-pc-tags{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--rule,rgba(32,32,33,0.08))}
 .rb-pc-tag{background:var(--secondary,#E3E1CC);border-radius:100px;padding:4px 11px;font-size:10.5px;color:var(--ink,#202021);white-space:nowrap}
-.rb-pc-rule{display:flex;align-items:center;gap:10px;margin-top:28px}
+.rb-pc-act{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px}
+.rb-pc-rule{display:flex;align-items:center;gap:10px;margin-top:6px}
+@media(max-width:1023px){.rb-pc-rule{margin-top:28px}}
 .rb-pc-rule .lab{font:400 9px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#A89880)}
 .rb-pc-rule .line{flex:1;height:1px;background:var(--rule,rgba(32,32,33,0.08))}
 .rb-pc-rule .val{font:400 14px/1 var(--font-serif,Cormorant,Georgia,serif);font-style:italic;color:var(--ink-soft,#5C574F)}
@@ -4883,24 +5116,18 @@
 .rb-pc-link{margin-top:14px;font:400 12px/1 var(--font-sans,Inter,sans-serif);color:var(--ink-soft,#5C574F);cursor:pointer;background:none;border:none;padding:0;font-family:inherit;text-align:left}
 .rb-pc-link:hover{color:var(--ink,#202021)}
 .rb-pc-sec{font:400 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#A89880);margin-top:28px}
-.rb-pc-rail{display:flex;gap:12px;margin-top:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;margin-right:calc(-1 * var(--s6,24px));padding-right:var(--s6,24px)}
-.rb-pc-rail::-webkit-scrollbar{width:0;height:0}
-.rb-pc-rail .rb-lk-tile{flex:none;width:126px;cursor:pointer}
+.rb-pc-rail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+@media(min-width:1024px){.rb-pc-rail{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.rb-pc-rail .rb-lk-tile{cursor:pointer;min-width:0}
 .rb-pc-rail .rb-lk-tile .lt-info{padding:8px 0 0}
-.rb-pc-rail .rb-lk-tile .lt-title{font:400 15px/1.2 var(--font-serif,Cormorant,Georgia,serif);margin:0}
-.rb-pc-rail .rb-lk-tile .lt-meta{font:400 10px/1 var(--font-sans,Inter,sans-serif);color:var(--ink-faint,#A89880);margin-top:5px}
-.rb-pc-rail .rb-lk-tile .rb-lk-mos{height:168px;aspect-ratio:auto;border:1px solid var(--rule,rgba(32,32,33,0.08));border-radius:3px}
-.rb-pc-build{flex:none;width:126px;cursor:pointer;background:none;border:none;padding:0;text-align:left;font-family:inherit}
-.rb-pc-build .bx{height:168px;border-radius:3px;border:1px dashed var(--cream-400,#C9BCA6);display:flex;align-items:center;justify-content:center;color:var(--ink-faint,#A89880);transition:background .15s,color .15s}
-.rb-pc-build:hover .bx{background:var(--cream-100,#F7F4EE);color:var(--ink,#202021)}
-.rb-pc-build .t{font:400 15px/1.2 var(--font-serif,Cormorant,Georgia,serif);margin-top:8px;color:var(--ink,#202021)}
-.rb-pc-build .m{font:400 10px/1 var(--font-sans,Inter,sans-serif);color:var(--ink-faint,#A89880);margin-top:5px}
-.rb-pc-empty{margin-top:14px;font:400 15px/1.4 var(--font-serif,Cormorant,Georgia,serif);font-style:italic;color:var(--ink-faint,#A89880)}
-.rb-pc-foot{margin-top:26px;padding-top:20px;border-top:1px solid var(--rule,rgba(32,32,33,0.08))}
-.rb-pc-cta{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;background:var(--ink,#202021);color:var(--cream,#FAF8F5);border:none;border-radius:100px;padding:17px 22px;cursor:pointer;font:500 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.2em;text-transform:uppercase;font-family:inherit}
-.rb-pc-quiet{display:block;margin:18px auto 0;background:none;border:none;padding:0;cursor:pointer;font:400 12px/1 var(--font-sans,Inter,sans-serif);color:var(--rose,#8E7077);font-family:inherit}
+.rb-pc-rail .rb-lk-tile .lt-title{font:300 14px/1.2 var(--font-serif,Cormorant,Georgia,serif);margin:0}
+.rb-pc-rail .rb-lk-tile .lt-meta{font:400 10px/1 var(--font-sans,Inter,sans-serif);color:var(--ink-soft,#6E6A64);margin-top:4px}
+.rb-pc-rail .rb-lk-tile .rb-lk-mos{aspect-ratio:4/5;border:1px solid var(--rule,rgba(32,32,33,0.08));border-radius:2px}
+.rb-pc-empty{margin-top:14px;font:300 14px/1.4 var(--font-serif,Cormorant,Georgia,serif);font-style:italic;color:var(--ink-soft,#6E6A64)}
+.rb-pc-cta{display:inline-flex;align-items:center;justify-content:center;gap:12px;background:var(--ink,#202021);color:var(--cream,#FAF8F5);border:none;border-radius:100px;padding:14px 22px;cursor:pointer;font:500 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.2em;text-transform:uppercase;font-family:inherit}
 @media(max-width:767px){
 .rb-pc-body{padding-bottom:110px}
+.rb-pc-cta{width:100%}
 }`;
       function _pcEnsure() {
         if (!document.getElementById('rb-piece-style')) {
@@ -5018,42 +5245,49 @@
         _pcCtx.kind = kind;
         const wish = kind === 'wishlist';
         const fromLook = from === 'look' && !wish;
+        const fromDay = from === 'day' && !wish;
         const sid = _waEsc(String(it.id));
-        const backLabel = fromLook ? (_pcCtx.lookName || 'Back') : (wish ? 'Wishlist' : 'Wardrobe');
+        const cat = wish ? (it.category || '') : (_waSheetCatOf(it) || it.category || 'Piece');
 
-        // Header: back to where she came from; the look's own pager, or
-        // the wardrobe's favourite star.
-        let right = '';
-        if (fromLook) {
-          const sibs = (_pcCtx.siblings || []).map(String);
-          const at = sibs.indexOf(String(it.id));
-          if (sibs.length > 1 && at > -1) {
-            right = '<span class="rb-pc-pager">' + (at + 1) + ' of ' + sibs.length + '</span>' +
-              '<button type="button" class="rb-pc-nav" title="Previous piece in this look" aria-label="Previous piece in this look" onclick="window.__rbPiecePage(-1)"' + (at === 0 ? ' disabled' : '') + '>' + _PC_CHEV_L + '</button>' +
-              '<button type="button" class="rb-pc-nav" title="Next piece in this look" aria-label="Next piece in this look" onclick="window.__rbPiecePage(1)"' + (at === sibs.length - 1 ? ' disabled' : '') + '>' + _PC_CHEV_R + '</button>';
-          }
-        } else if (!wish) {
-          const isHero = it.hero_position != null;
-          right = '<button type="button" class="rb-pc-star' + (isHero ? ' on' : '') + '" title="' + (isHero ? 'Remove from Hero Rack' : 'Favourite') + '" aria-label="' + (isHero ? 'Remove from Hero Rack' : 'Favourite') + '" onclick="window.__waHeroToggle(\'' + sid + '\')">' + _PC_STAR + '</button>';
-        }
-        const head = '<div class="rb-pc-head">' +
-          '<button type="button" class="rb-pc-back" onclick="window.__rbPieceClose()">' + _PC_CHEV_L + '<span>' + _waEsc(backLabel) + '</span></button>' +
-          '<div class="rb-pc-right">' + right + '</div></div>';
+        // Band two — the return pill names the screen she came from, and
+        // the set position prints whenever the piece is one of a set: the
+        // look's pieces, the category's pieces, the wishlist.
+        const sibs = (_pcCtx.siblings || []).map(String);
+        const at = sibs.indexOf(String(it.id));
+        const suffix = (fromLook || fromDay) ? 'in this look' : (wish ? 'on your wishlist' : (cat ? 'in ' + cat.toLowerCase() : ''));
+        const backLabel = (fromLook || fromDay) ? (_pcCtx.lookName || 'Back') : (wish ? 'Wishlist' : 'Wardrobe');
+        _rbRetReg('piece', {
+          back: function() { window.__rbPieceClose(); },
+          prev: function() { window.__rbPiecePage(-1); },
+          next: function() { window.__rbPiecePage(1); },
+        });
+        const band = _rbRetHtml({ key: 'piece', label: backLabel, pos: (sibs.length > 1 && at > -1) ? { i: at + 1, n: sibs.length, suffix } : null });
 
-        // The piece
+        // Band three — the object, and its actions, identical from every door.
         const wears = wish ? [] : _pcWears(it.id);
         const worn = wish ? 0 : Math.max(Number(it.times_worn) || 0, wears.length);
         const looks = wish ? [] : _pcLooks(it.id);
-        const cat = wish ? (it.category || '') : (_waSheetCatOf(it) || it.category || 'Piece');
+        const isHero = !wish && it.hero_position != null;
+        const after = wish ? '' :
+          _rbTbBtn({ cls: 'rb-pc-pencil', title: 'Edit this piece', onclick: 'window.__rbPieceEdit()', svg: _RB_PENCIL_SVG }) +
+          _rbTbBtn({ cls: 'star rb-pc-star', on: isHero, title: isHero ? 'Remove from Hero Rack' : 'Favourite', onclick: "window.__waHeroToggle('" + sid + "')", svg: _RB_STAR_SVG });
+        const metaBits = wish
+          ? [cat, it.price > 0 ? '€' + Math.round(it.price) : ''].filter(Boolean)
+          : [cat, 'worn ' + _pcTimes(worn), looks.length ? 'in ' + _lkN(looks.length, 'look') : ''].filter(Boolean);
+        const title = _rbTitleHtml({
+          eyebrow: wish ? 'On your wishlist' : 'In your wardrobe',
+          titleHtml: _waEsc(it.label || 'A piece'), titleId: 'rb-pc-title', titleCls: 'rb-pc-title',
+          afterTitleHtml: after,
+          sub: it.brand || '',
+          meta: metaBits.join(' · '),
+        });
+
+        // The piece leads: the photograph card, its tags, then the one
+        // styling action directly under it — a hairline pill opening the
+        // two things Robes can do (never a banner at the foot of the page).
         const img = _pdHttp(it.image_url);
         const note = wish ? (it.note || '') : (it.notes || '');
-        let body = '<div class="rb-pc-ey' + (wish ? ' wish' : '') + '">' + (wish ? 'On your wishlist' : 'In your wardrobe') + '</div>' +
-          '<div class="rb-pc-titlerow"><h2 class="rb-pc-title">' + _waEsc(it.label || 'A piece') + '</h2>' +
-          (wish ? '' : '<button type="button" class="rb-pc-pencil" title="Edit this piece" aria-label="Edit this piece" onclick="window.__rbPieceEdit()">' + _PC_PENCIL + '</button>') +
-          '</div>' +
-          (it.brand ? '<div class="rb-pc-brand">' + _waEsc(it.brand) + '</div>' : '');
-        body += '<div class="rb-pc-card' + (fromLook ? '' : ' nohead') + '">' +
-          (fromLook ? '<div class="rb-pc-cardhead"><span>' + _waEsc(cat) + '</span><span>Worn ' + _waEsc(_pcTimes(worn)) + '</span></div>' : '') +
+        let media = '<div class="rb-pc-card">' +
           '<div class="rb-pc-photo">' + (img ? '<img src="' + _waEsc(img) + '" alt="' + _waEsc(it.label || '') + '">' : '<div class="ph">' + (wish ? 'No photo' : 'Photo') + '</div>') +
             (wish ? '' : '<button type="button" class="rb-pc-rephoto" id="rb-pc-rephoto" title="Replace photo" aria-label="Replace photo" onclick="window.__rbPiecePhoto()">' + (typeof _LKM_REFRESH_SVG === 'string' ? _LKM_REFRESH_SVG : _PC_CAM) + '</button>' +
               '<input type="file" id="rb-pc-photoin" accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" onchange="window.__rbPiecePhotoPick(event)">') +
@@ -5061,39 +5295,39 @@
           (note ? '<p class="rb-pc-note">' + _waEsc(note) + '</p>' : '') +
           '<div class="rb-pc-tags">' + (wish ? _pcWishTagsHtml(it) : _pcTagsHtml(it)) + '</div>' +
           '</div>';
+        if (!wish) {
+          media += '<div class="rb-pc-act"><button type="button" class="rb-pill rb-pc-stylebtn" onclick="window.__rbPieceMenu(event)">Style this piece <span class="caret">▾</span></button></div>';
+        } else {
+          media += '<div class="rb-pc-act"><button type="button" class="rb-pc-cta" onclick="window.__rbPieceBought()"><span>I bought this</span>' + _PC_ARROW + '</button>' +
+            '<button type="button" class="rb-pill sm rb-pc-quiet" onclick="window.__rbPieceWlRemove()">Remove from wishlist</button></div>';
+        }
 
-        if (!wish && !fromLook) {
-          // The record: the recent wears, date and look, view all behind a link.
-          body += '<div class="rb-pc-rule"><span class="lab">Worn</span><div class="line"></div><span class="val">' + _waEsc(_pcTimes(worn)) + '</span></div>';
+        // Everything else: Worn, then the looks it appears in.
+        let rest = '';
+        // From a look the page is a preview and the company it keeps — the
+        // wear ledger belongs to the record (the wardrobe door).
+        if (!wish && !fromLook && !fromDay) {
+          rest += '<div class="rb-pc-rule"><span class="lab">Worn</span><div class="line"></div><span class="val">' + _waEsc(_pcTimes(worn)) + '</span></div>';
           if (wears.length) {
             const shown = _pcWearsAll ? wears : wears.slice(0, 3);
-            body += '<div class="rb-pc-wears">' + shown.map(w =>
+            rest += '<div class="rb-pc-wears">' + shown.map(w =>
               '<button type="button" class="rb-pc-wear" onclick="' + w.open + '">' +
                 '<span class="d">' + _waEsc(_pcFmtDay(w.date)) + '</span><span class="l">' + _waEsc(w.name) + '</span>' + _PC_ARROW + '</button>').join('') + '</div>';
-            if (wears.length > 3) body += '<button type="button" class="rb-pc-link" onclick="window.__rbPieceWearsAll()">' + (_pcWearsAll ? 'Show the recent three' : 'View all ' + _waEsc(_pcTimes(wears.length).replace(' times', '')) + ' wears') + ' →</button>';
+            if (wears.length > 3) rest += '<button type="button" class="rb-pc-link" onclick="window.__rbPieceWearsAll()">' + (_pcWearsAll ? 'Show the recent three' : 'View all ' + _waEsc(_pcTimes(wears.length).replace(' times', '')) + ' wears') + ' →</button>';
           }
           if (worn > wears.length) {
             const k = worn - wears.length;
-            body += '<div class="rb-pc-empty" style="margin-top:' + (wears.length ? 12 : 14) + 'px">' + _waEsc(k === 1 ? 'One wear' : k + ' wears') + ' counted before Robes kept the dates.</div>';
+            rest += '<div class="rb-pc-empty" style="margin-top:' + (wears.length ? 12 : 14) + 'px">' + _waEsc(k === 1 ? 'One wear' : k + ' wears') + ' counted before Robes kept the dates.</div>';
           }
         }
-
         if (!wish) {
           const n = looks.length;
-          body += '<div class="rb-pc-sec">' + (n ? 'In ' + _lkN(n, 'look') : (fromLook ? 'Not in a saved look yet' : 'Not in a look yet')) + '</div>';
-          const ord = _PC_ORD[n];
-          const build = fromLook ? '' :
-            '<button type="button" class="rb-pc-build" onclick="window.__rbPieceBuild()">' +
-              '<div class="bx"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M6 1.8v8.4M1.8 6h8.4"></path></svg></div>' +
-              '<div class="t">' + (ord ? 'A ' + ord + ' look' : 'Another look') + '</div><div class="m">Build it from this piece</div></button>';
-          if (n || build) body += _pcRailHtml(looks, build);
-          if (fromLook) body += '<button type="button" class="rb-pc-link" style="margin-top:16px" onclick="window.__rbPieceRecord()">See the full record in your wardrobe →</button>';
-          else body += '<div class="rb-pc-foot"><button type="button" class="rb-pc-cta" onclick="window.__rbPieceStyle()"><span>Style it three ways</span>' + _PC_ARROW + '</button></div>';
-        } else {
-          body += '<div class="rb-pc-foot"><button type="button" class="rb-pc-cta" onclick="window.__rbPieceBought()"><span>I bought this</span>' + _PC_ARROW + '</button>' +
-            '<button type="button" class="rb-pc-quiet" onclick="window.__rbPieceWlRemove()">Remove from wishlist</button></div>';
+          rest += '<div class="rb-pc-sec">' + (n ? 'In ' + _lkN(n, 'look') : 'Not in a look yet') + '</div>';
+          if (n) rest += _pcRailHtml(looks);
+          else rest += '<div class="rb-pc-empty">Build a look and it files here.</div>';
+          if (fromLook || fromDay) rest += '<button type="button" class="rb-pc-link" style="margin-top:16px" onclick="window.__rbPieceRecord()">See the full record in your wardrobe →</button>';
         }
-        el.innerHTML = head + '<div class="rb-pc-body">' + body + '</div>';
+        el.innerHTML = band + title + '<div class="rb-pc-body"><div class="rb-pc-cols"><div class="rb-pc-media">' + media + '</div><div class="rb-pc-rest">' + rest + '</div></div></div>';
       }
       // A wishlist piece has no tags of its own — its provenance and price
       // stand where the wardrobe's tags do.
@@ -5110,12 +5344,25 @@
         ctx = ctx || {};
         const found = _pcFind(id);
         if (!found) { _waShowToast('Robes couldn’t find that piece'); return false; }
-        const from = ctx.from === 'look' ? 'look' : (found.kind === 'wishlist' ? 'wishlist' : 'wardrobe');
+        const from = ctx.from === 'look' ? 'look' : ctx.from === 'day' ? 'day' : (found.kind === 'wishlist' ? 'wishlist' : 'wardrobe');
         const reopening = _pcOpen() && _pcCtx;
+        // The set the piece belongs to, by door: the look's pieces, the
+        // wishlist, or the wardrobe category (in the grid's own order).
+        let sibs = ctx.siblings || (reopening && reopening.siblings) || [];
+        if (!sibs.length && from === 'wishlist') sibs = (_wlItems || []).map(w => String(w.id));
+        if (!sibs.length && from === 'wardrobe') {
+          const cat = _waSheetCatOf(found.it) || found.it.category || '';
+          sibs = _waItems.filter(w => (_waSheetCatOf(w) || w.category || '') === cat)
+            .sort((x, y) => (y.hero_position != null) - (x.hero_position != null) || String(y.created_at || '').localeCompare(String(x.created_at || '')))
+            .map(w => String(w.id));
+        }
+        // A detail keeps the section she entered through lit; from home the
+        // piece is a wardrobe errand.
+        if (window._rbNavOrigin === 'home' || !window._rbNavOrigin) window._rbNavOrigin = 'wardrobe';
         _pcCtx = {
           from, id: String(id), kind: found.kind,
           lookName: ctx.lookName || (reopening && reopening.lookName) || null,
-          siblings: ctx.siblings || (reopening && reopening.siblings) || [],
+          siblings: sibs,
           prevPath: reopening ? reopening.prevPath
             : (window.location.pathname.indexOf('/piece/') === 0 ? null : window.location.pathname),
         };
@@ -5141,7 +5388,7 @@
         window.__rbPieceHide();
         _pcCtx = null;
         if (!ctx) return;
-        if (ctx.from === 'look') {
+        if (ctx.from === 'look' || ctx.from === 'day') {
           if (ctx.prevPath && window._rbNav) _rbNav(ctx.prevPath);
         } else {
           const wp = document.querySelector('.wardrobe-panel');
@@ -5167,7 +5414,7 @@
         const at = sibs.indexOf(String(_pcCtx.id));
         const next = sibs[at + dir];
         if (next == null) return;
-        window.__rbPieceOpen(next, { from: 'look', lookName: _pcCtx.lookName, siblings: sibs });
+        window.__rbPieceOpen(next, { from: _pcCtx.from, lookName: _pcCtx.lookName, siblings: sibs });
       };
       window.__rbPieceWearsAll = function() { _pcWearsAll = !_pcWearsAll; window.__rbPieceSync(); };
       // ONE editor from either door — the wardrobe's edit modal, as is.
@@ -5210,17 +5457,19 @@
         window.__rbPieceSync();
       };
       window.__rbPieceLookOpen = function(kind, id) {
-        // The look page's back pill names the piece she came from
-        // (Robes_Look_IA: back to the door she came through).
+        // The look page's return pill names the piece she came from, and
+        // the set it walks is the piece's own looks (nav architecture
+        // 2026-09-10: ‹ {piece} + "n of N with this piece").
         const pid = _pcCtx && _pcCtx.id;
         const found = pid != null ? _pcFind(pid) : null;
+        const looks = pid != null ? _pcLooks(pid).map(l => String(l.id)) : [];
         window.__rbPieceHide();
         _pcCtx = null;
         if (kind === 'look') {
           window.__lkOpen && window.__lkOpen(id, found ? { from: {
             label: String(found.it.label || 'Wardrobe'),
             go: function() { window.__rbPieceOpen(pid, { from: found.kind === 'wishlist' ? 'wishlist' : 'wardrobe' }); },
-          } } : null);
+          }, siblings: looks, suffix: 'with this piece' } : null);
         }
         else {
           const item = snLoad().find(i => String(i.id) === String(id));
@@ -5241,8 +5490,17 @@
         _pcCtx = null;
         window.__rbPieceOpen(id, { from: 'wardrobe' });
       };
-      // The dashed tile at the end of the rail: the composer with this piece
-      // already on the rack (it lands in the first slot its category fits).
+      // "Style this piece ▾" — the one styling control, opening the two
+      // things Robes can do with a piece (the diary's + uses the same
+      // disclosure). Never a full-width banner at the foot of the page.
+      window.__rbPieceMenu = function(ev) {
+        window.__rbPopMenu(ev, [
+          { t: 'Build a look', s: 'Start from this piece', onclick: function() { window.__rbPieceBuild(); } },
+          { t: 'Style it three ways', s: 'Robes proposes three', onclick: function() { window.__rbPieceStyle(); } },
+        ]);
+      };
+      // Build a look: the composer with this piece already on the rack (it
+      // lands in the first slot its category fits).
       window.__rbPieceBuild = function() {
         if (!_pcCtx) return;
         const id = _pcCtx.id;
@@ -5330,11 +5588,9 @@
       inPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:var(--nav-h,64px);z-index:45;background:#FAF8F5;overflow-y:auto';
       inPage.innerHTML = `
         <div style="padding:32px var(--s6,24px) 64px;max-width:var(--shell,1440px);margin:0 auto;box-sizing:border-box">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 20px">
-            <p style="font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0">Inspiration</p>
-            <button onclick="window.__inStyleNew()" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:100px;background:var(--ink,#202021);color:#FAF8F5;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:none;cursor:pointer;white-space:nowrap;font-family:inherit">Style a key piece</button>
+          <div class="rb-mast" id="rb-in-mast" style="margin:0 0 22px"><div class="rb-mast-l"><div class="rb-mast-line"><span class="rb-mast-lab">Key pieces, styled</span><span class="rb-mast-n" id="rb-in-count"></span></div></div>
+            <div class="rb-mast-acts"><button class="rb-pill" onclick="window.__inStyleNew()">Style a key piece</button></div>
           </div>
-          <div id="rb-in-sec" style="font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 14px">Key pieces, styled</div>
           <div id="rb-in-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px"></div>
           <div id="rb-in-empty" style="display:none;padding:8px 0 40px"></div>
         </div>`;
@@ -5363,11 +5619,12 @@
       function inRenderPage() {
         const grid = document.getElementById('rb-in-grid');
         const empty = document.getElementById('rb-in-empty');
-        const sec = document.getElementById('rb-in-sec');
+        const cnt = document.getElementById('rb-in-count');
         if (!grid) return;
         const items = _inItems();
+        _rbChromeEnsure();
         grid.style.display = items.length ? 'grid' : 'none';
-        if (sec) sec.style.display = items.length ? '' : 'none';
+        if (cnt) cnt.textContent = items.length ? items.length + ' styled' : '';
         if (empty) empty.style.display = items.length ? 'none' : 'block';
         // The "Style a piece" card moved here off home (FTUE step 3) — a
         // piece styled three ways lives on Inspiration, so the invitation
@@ -5388,7 +5645,7 @@
               '<div class="rb-in-title">' + _waEsc(i.title || 'A piece, styled') + '</div>' +
               '<div class="rb-in-sub">Styled three ways by Robes</div>' +
               '<div class="rb-in-acts">' +
-                '<button type="button" class="rb-in-act" onclick="event.stopPropagation();window.__inRestyle(' + Number(i.id) + ')">Restyle</button>' +
+                '<button type="button" class="rb-pill sm rb-in-act" onclick="event.stopPropagation();window.__inRestyle(' + Number(i.id) + ')">Restyle</button>' +
               '</div>' +
             '</div></div>';
         }).join('');
@@ -6202,6 +6459,17 @@
       };
 
       window.__kpRenderResult = function(data, promptText, opts) {
+        // A key-piece result is Inspiration's, whichever door raised it
+        // (the home card, the home row, the prompt): rule 1 lights the
+        // section the object belongs to — never nothing, never a stale one.
+        window._rbNavOrigin = 'inspiration';
+        // The standing rule: an opener that renders one fixed overlay from
+        // inside another closes the higher-z pages first (kp is z-40 under
+        // the Lookbook / Inspiration pages at 45).
+        (function() {
+          const snEl = document.getElementById('sn-page'); if (snEl) snEl.style.display = 'none';
+          const inEl = document.getElementById('rb-insp-page'); if (inEl) inEl.style.display = 'none';
+        })();
         if (!data || !Array.isArray(data.ways) || !data.ways.length) {
           _waShowToast('Could not render looks — please try again');
           return;
@@ -6237,7 +6505,8 @@
             // min-height only backstops the pending-placeholder state.
             '@media(max-width:700px){.kp-look-card{grid-template-columns:1fr !important}.kp-look-card>div:last-child{padding:20px 22px 26px !important}.kp-look-imgwrap{min-height:300px !important}.kp-look-imgwrap img{position:static !important;height:auto !important}}' +
             // <=767px the glass header share circle covers kp — hide the in-page one
-            '@media(max-width:767px){.rb-kp-share{display:none !important}}' +
+            '.kp-shareRow{margin-top:16px}.kp-head{margin-bottom:12px;padding-top:34px}' +
+            '@media(max-width:767px){.rb-kp-share{display:none !important}.kp-shareRow{display:none}}' +
             // 2B guide band: while it stands, card 01's Build this look is
             // the one filled button on the page (inline styles keep the
             // outline register, so the fill needs !important to win).
@@ -6252,7 +6521,34 @@
         // result carries the band — never on the dress-me variant, and
         // never again once she has opened a look or waved it away.
         const kpGuide = !kpDaily && !_kpGuideDone();
+        // Band two + three (nav architecture 2026-09-10): the result climbs
+        // back to Inspiration and walks its set; the eyebrow says what
+        // this is (Key piece), the request's own words lead the title so
+        // the italic wink still lands, the pencil sits after it, Share is a
+        // hairline pill in the block.
+        const kpSavedId = (opts && opts.savedId != null) ? opts.savedId : null;
+        const kpSet = (typeof _inItems === 'function' ? _inItems() : []).map(i => i.id);
+        const kpAt = kpSavedId != null ? kpSet.indexOf(kpSavedId) : -1;
+        _rbRetReg('kp', {
+          back: function() { window.__rbNavGo('inspiration'); },
+          prev: function() { if (kpAt > 0) window.__snOpenItem(kpSet[kpAt - 1]); },
+          next: function() { if (kpAt > -1 && kpAt < kpSet.length - 1) window.__snOpenItem(kpSet[kpAt + 1]); },
+        });
+        const kpBand = _rbRetHtml({ key: 'kp', label: kpDaily ? _rbOriginLabel() : 'Inspiration', pos: (!kpDaily && kpAt > -1 && kpSet.length > 1) ? { i: kpAt + 1, n: kpSet.length } : null });
+        const kpTitleBlock = _rbTitleHtml({
+          bare: true, cls: 'kp-head',
+          eyebrow: kpDaily ? 'Your day' : 'Key piece',
+          // The request's own words lead the title (her rename first, else
+          // the prompt), so the italic wink still lands (design 11).
+          titleHtml: kpDaily
+            ? (kpHeadline ? _waEsc(kpHeadline) : 'Your day,<br><em>dressed three ways.</em>')
+            : _waEsc(kpHeadline || (fallback ? 'Your piece' : String(promptText || '').trim() || 'Your piece')) + ',<br><em>worn three ways.</em>',
+          titleId: 'kp-headline',
+          afterTitleHtml: _rbTbBtn({ cls: 'kp-pen', title: 'Rename', onclick: "window.__rbRename&&window.__rbRename('kp')", svg: _RB_PENCIL_SVG }),
+          belowHtml: '<div class="kp-shareRow"><button class="rb-pill rb-kp-share" title="Share this look" onclick="window.__rbShare&&window.__rbShare()">Share this look</button></div>',
+        });
         try { kpResultPage.innerHTML = `
+          ${kpBand}
           ${kpGuide ? `
           <div id="kp-guide-band" style="background:#F2EEE7;border-bottom:1px solid #E1DACB;padding:16px 32px;box-sizing:border-box">
             <div style="max-width:900px;margin:0 auto;display:flex;align-items:center;gap:22px;flex-wrap:wrap">
@@ -6268,12 +6564,8 @@
               </div>
             </div>
           </div>` : ''}
-          <div style="width:100%;max-width:900px;margin:0 auto;padding:40px 32px 80px;box-sizing:border-box">
-
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 12px">
-              <h1 id="kp-headline" style="font-family:${serif};font-weight:300;font-size:clamp(32px,4vw,52px);color:#202021;line-height:1.1;margin:0">${kpHeadline ? _waEsc(kpHeadline) : (kpDaily ? 'Your day,<br><em style="color:var(--ink-faint)">dressed three ways.</em>' : 'Your piece,<br><em style="color:var(--ink-faint)">worn three ways.</em>')}</h1>
-              <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-shrink:0"><button class="rb-kp-share" title="Share this look" style="border:none;background:var(--ink);color:var(--cream-100);border-radius:100px;padding:12px 22px;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit;transition:opacity .15s" onclick="window.__rbShare&&window.__rbShare()">Share this look</button><button class="rb-rename-tbtn" title="Rename" onclick="window.__rbRename&&window.__rbRename('kp')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button></div>
-            </div>
+          <div style="width:100%;max-width:900px;margin:0 auto;padding:0 32px 80px;box-sizing:border-box">
+            ${kpTitleBlock}
             <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : kpDaily ? 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.' : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
 
             ${kpDaily && kpCtx && (kpCtx.city || kpCtx.tempRange) ? `
@@ -6284,14 +6576,14 @@
               ${kpCtx.hint ? `<span style="color:rgba(32,32,33,0.2)">|</span><span style="font-style:italic">${_waEsc(kpCtx.hint)}</span>` : ''}
             </div>` : ''}
 
-            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:var(--rad);background:#fff;max-width:400px;margin-bottom:40px">
+            ${(kpDaily || photoUrl) ? `<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:var(--rad);background:#fff;max-width:400px;margin-bottom:40px">
               ${photoUrl ? `<img src="${_waEsc(photoUrl)}" style="width:64px;height:80px;border-radius:4px;object-fit:cover;flex-shrink:0" alt="">` : ''}
               <div>
                 <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px">${kpDaily ? "Today's brief" : 'Your piece'}</div>
-                <div style="font-family:${serif};font-size:22px;font-weight:400;color:#202021;line-height:1.1">${_waEsc(pieceName)}</div>
+                ${kpDaily ? `<div style="font-family:${serif};font-size:22px;font-weight:400;color:#202021;line-height:1.1">${_waEsc(pieceName)}</div>` : ''}
                 ${photoUrl ? '<div style="font-size:12px;color:var(--ink-faint);margin-top:4px">✓ The one you uploaded</div>' : ''}
               </div>
-            </div>
+            </div>` : ''}
 
             <div style="display:flex;flex-direction:column;gap:32px">
               ${ways.map((w, i) => {
@@ -6773,6 +7065,20 @@
         _dlPollTimer = setTimeout(tick, 3000);
       }
 
+      // The return pill on a day: back to its month in the Diary (the view
+      // she left — list or month — is the one she returns to); a loose
+      // look climbs to the section it was opened from. Same exit guard.
+      window.__dlBandBack = function() {
+        if (window._dlExitGuard && window._dlExitGuard(window.__dlBandBack, { keepAsk: true })) return;
+        const d = window.__lastDlData || {};
+        const loose = !d.anchor_date;
+        if (dlResultPage) dlResultPage.style.display = 'none';
+        _waAfterAdd = null;
+        window.rbClearCrumb && window.rbClearCrumb();
+        if (!loose && window.__rbDiaryOpenAt) window.__rbDiaryOpenAt(d.anchor_date);
+        else if (window._rbNavOrigin === 'home' || !window._rbNavOrigin) window.__rbNavGo('home');
+        else window.__rbNavGo('back');
+      };
       window.__dlGoBack = function() {
         // Leaving an unkept look asks first — save it, or let it go
         // (Annie, 2026-08-13). After either answer the guard stands down
@@ -9743,9 +10049,13 @@
       // ── The tab ─────────────────────────────────────────────────────────
       var _LK_CSS = `
 #rb-lk-wrap{display:none}
-#rb-lk-bar{display:flex;align-items:center;gap:12px;margin:0 0 18px;flex-wrap:wrap}
+#sn-headrow{display:none !important}
+#rb-lk-bar{display:block;margin:0 0 22px}
+#rb-lk-body .rb-ret{margin:-32px calc(-1 * var(--s6,24px)) 0}
+.rb-tb-right .rb-lk-actrow{padding-top:0}
+.rb-lk-sort b{font-weight:400;color:var(--ink-faint)}
 #rb-lk-hol{display:none;margin:0 0 26px}
-#rb-lk-allhead{display:none}
+#rb-lk-allhead{display:none;margin:-8px 0 18px}
 .rb-lk-statline{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:17px;color:var(--ink-soft)}
 .rb-lk-allcount{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:14px;color:var(--ink-faint);margin-left:2px}
 .rb-lk-allrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid var(--rule)}
@@ -9776,7 +10086,7 @@
 .rb-lk-holcard.invite .hcta{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;margin-top:24px;border:1px solid var(--rule-mid);border-radius:2px;background:transparent;padding:14px 22px;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink)}
 .rb-lk-holcard.example{cursor:default;pointer-events:none}
 .rb-lk-holcard .hex{position:absolute;top:12px;left:12px;z-index:2;background:rgba(32,32,33,0.72);border-radius:2px;padding:6px 10px;font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#FAF8F5}
-.rb-lk-sort{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border:0.5px solid var(--rule-mid);background:#fff;border-radius:100px;cursor:pointer;font-family:inherit;font-size:11.5px;color:var(--ink);transition:border-color .15s}
+.rb-lk-sort{gap:9px}
 .rb-lk-sort:hover{border-color:var(--ink)}
 .rb-lk-sort b{font-weight:400;color:var(--ink-faint)}
 .rb-lk-sort.hot{background:var(--ink);border-color:var(--ink);color:#fff}
@@ -9887,7 +10197,7 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-editbar button.p:hover{opacity:.85}
 .rb-lk-editing .rb-lk-editbar{margin-top:22px}
 .rb-lk-acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}
-.rb-lk-act{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:100px;border:0.5px solid var(--rule-mid);background:#fff;color:var(--ink-soft);font-family:inherit;font-size:11.5px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.rb-lk-act{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:100px;border:1px solid var(--rule-mid);background:#fff;color:var(--ink-soft);font:400 11px/1 var(--font-sans);letter-spacing:.04em;font-family:var(--font-sans);cursor:pointer;transition:border-color .15s,color .15s;white-space:nowrap}
 .rb-lk-act:hover{border-color:rgba(32,32,33,0.22);color:var(--ink)}
 /* Emphasis without a fill (softening pass 2026-08-12): black is reserved
    for the one real commitment on a screen — Save this look, Start packing.
@@ -10172,10 +10482,13 @@ button.rb-lk-live{cursor:pointer}
         if (!bar || !grid || !body) return;
         const allHead = document.getElementById('rb-lk-allhead');
         const detail = _lkView !== 'grid';
-        bar.style.display = 'none';
-        (function() { const ha = document.getElementById('sn-headact'); if (ha && snEl && !snEl.classList.contains('rb-cal-on') && (detail || !any)) ha.innerHTML = ''; })();
-        if (allHead) allHead.style.display = detail || !any ? 'none' : 'block';
+        bar.style.display = detail || !any ? 'none' : 'block';
+        if (allHead) allHead.style.display = detail || !any || !_lkRefineOpen ? 'none' : 'block';
         grid.style.display = detail || !any ? 'none' : 'grid';
+        // The page's old eyebrow row is retired — the masthead line is the
+        // one header on the index, and a detail carries its own bands.
+        const headRow = document.getElementById('sn-headrow');
+        if (headRow) headRow.style.display = 'none';
         if (detail) {
           // ONE composer in the DOM: while the home module owns the draft
           // (page closed, Lookbook empty) this body stays empty, or the two
@@ -10195,37 +10508,31 @@ button.rb-lk-live{cursor:pointer}
         // Diary, 2026-09-08) beside the one creation door, + New look. The
         // split menu retired with the travel edit; a trip is added from
         // the Diary's + menu.
-        // The creation door sits inline with the page eyebrow (Annie's
-        // review 2026-09-08 — one header, no stat row); the count rides
-        // beside "All looks" below.
-        bar.innerHTML = ''; bar.style.display = 'none';
-        const headAct = document.getElementById('sn-headact');
-        if (headAct && snEl && !snEl.classList.contains('rb-cal-on')) headAct.innerHTML = '<button type="button" class="rb-lk-act" onclick="window.__lkNew()">+ New look</button>';
-        // The All looks section header carries its own controls. They now
-        // RENDER at every count and sit inert below four looks (FTUE pass
-        // 2026-08-12, superseding "withheld until a Look exists") — a
+        // ONE masthead line (nav architecture 2026-09-10): the section in
+        // tracked caps with its count in serif italic beside it, and the
+        // controls as hairline pills on the same line — no eyebrow stacked
+        // above a title, nothing filled ink (+ New look is a pill too; the
+        // ink is held for a commitment). Sort + Refine RENDER at every
+        // count and sit inert below four looks (FTUE pass 2026-08-12) — a
         // control that appears from nowhere is harder to learn than one
-        // that is visibly not yet needed.
-        // Four LOOKS as the stat line counts them — the whole stream, since
-        // artifacts sort and filter on the same axes (ADR-002 [C10]). A
-        // control must be gated on the thing it actually controls.
+        // that is visibly not yet needed. Four LOOKS as the count line
+        // counts them — the whole stream (ADR-002 [C10]).
         const sortLive = streamN >= 4;
-        if (allHead) {
-          const inert = sortLive ? '' : ' disabled';
-          allHead.innerHTML = '<div class="rb-lk-allrow">' +
-            '<span class="rb-lk-sec" style="margin:0">All looks</span>' +
-            '<span class="rb-lk-allcount">' + _waEsc(_lkN(streamN, 'look')) + '</span>' +
-            '<span style="flex:1"></span>' +
-            '<button type="button" class="rb-lk-sort"' + inert +
+        const inert = sortLive ? '' : ' disabled';
+        bar.innerHTML = _rbMastHtml({
+          label: 'All looks', count: _lkN(streamN, 'look'),
+          actionsHtml:
+            '<button type="button" class="rb-pill sm rb-lk-sort"' + inert +
               (sortLive ? ' onclick="window.__lkSort()"' : '') + '>' +
               '<span>' + (_lkSortDesc ? 'Last worn' : 'First worn') + '</span>' +
               '<b>' + (_lkSortDesc ? '↓' : '↑') + '</b></button>' +
-            '<button type="button" class="rb-lk-sort' + (sortLive && (refN || _lkRefineOpen) ? ' hot' : '') + '"' + inert +
+            '<button type="button" class="rb-pill sm rb-lk-sort rb-lk-refine' + (sortLive && (refN || _lkRefineOpen) ? ' on' : '') + '"' + inert +
               (sortLive ? ' onclick="window.__lkRefineToggle()"' : '') + '>' +
               '<span>Refine' + (sortLive && refN ? ' · ' + refN : '') + '</span></button>' +
-            '</div>' +
-            (sortLive && _lkRefineOpen ? _lkRefineHtml() : '');
-        }
+            '<button type="button" class="rb-pill rb-lk-act rb-lk-new" onclick="window.__lkNew()">+ New look</button>',
+        });
+        // The Refine drawer opens beneath the masthead line.
+        if (allHead) allHead.innerHTML = sortLive && _lkRefineOpen ? _lkRefineHtml() : '';
         // Filters can only be SET while Refine is live, but a delete can
         // drop the count back under four — never leave a live filter
         // hiding looks behind an inert control.
@@ -10887,21 +11194,42 @@ button.rb-lk-live{cursor:pointer}
         // The wear verbs left the header: the diary lives on the image and
         // the wear record after the rack.
         const back = _lkFrom || { label: 'Lookbook' };
-        let mastL = '<div class="rb-lk-eyebrow">' + (draft ? 'Draft look · Robes styled it for the trip' : (prov && !editing ? 'Saved look · Robes named it' : 'Saved look')) + '</div>';
-        if (_lkTitleEditing) {
-          mastL += '<input id="rb-lk-title" class="rb-lk-title-in' + (prov ? ' prov' : '') + '" value="' + _waEsc(title) + '"' +
-            ' oninput="window.__lkTitleInput(this.value)" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="window.__lkTitleCommit(this.value)">' +
-            '<div class="rb-lk-hint" id="rb-lk-hint">' + (prov ? 'Leave it and it keeps this name.' : '') + '</div>';
-        } else {
-          mastL += '<div style="display:flex;align-items:baseline;gap:10px;min-width:0">' +
-            '<h2 class="rb-lk-title' + (prov ? ' prov' : '') + '" id="rb-lk-title">' + _waEsc(title) + '</h2>' +
-            '<button type="button" class="rb-rename-tbtn" title="Rename" onclick="window.__lkTitleEdit()"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>' +
-            '</div>';
-        }
-        let h = '<div class="rb-lk-page' + (editing ? ' editing' : '') + '"><div class="rb-lk-mast">' +
-          '<div class="rb-lk-backrow"><button type="button" class="rb-lk-back" onclick="window.__lkBackDoor()">' + _LK_CHEV_L + '<span>' + _waEsc(back.label) + '</span></button></div>' +
-          '<div class="rb-lk-mastrow"><div style="min-width:0">' + mastL + '</div></div>' +
-          '</div>';
+        // Band two + band three (nav architecture 2026-09-10): the return
+        // pill names the door she came through (Lookbook, the day, the trip
+        // by its title, the piece, Home) with the set position beside it —
+        // the grid's order by default, else the set the door passed
+        // (_lkSet: a trip's saved looks, a piece's looks); the title block
+        // carries the kind, the name + pencil, and a meta line reading the
+        // facts (pieces · wears · last worn · pinned).
+        const lkSet = _lkSet || {};
+        const lkSibs = (lkSet.siblings && lkSet.siblings.length ? lkSet.siblings : _lkSorted().map(x => String(x.id))).map(String);
+        const lkAt = lkSibs.indexOf(String(l.id));
+        _rbRetReg('look', {
+          back: function() { window.__lkBackDoor(); },
+          prev: function() { window.__lkStep(-1); },
+          next: function() { window.__lkStep(1); },
+        });
+        const lkBand = _rbRetHtml({ key: 'look', label: back.label || 'Lookbook',
+          pos: (!draft && lkSibs.length > 1 && lkAt > -1) ? { i: lkAt + 1, n: lkSibs.length, suffix: lkSet.suffix || '' } : null });
+        const lastW = _lkLastWorn(l);
+        const metaBits = draft ? [] : [_lkN(ids.length, 'piece'), n ? _lkN(n, 'wear') : 'not yet worn'];
+        if (!draft && lastW) metaBits.push('last worn ' + _lkFmt(lastW));
+        if (lkSet.meta) metaBits.push(lkSet.meta);
+        else if (!draft && pins.length) metaBits.push('pinned for ' + _lkFmtLong(pins[0]));
+        const eyebrowText = draft ? 'Draft look · Robes styled it for the trip' : (prov && !editing ? 'Saved look · Robes named it' : 'Saved look');
+        const titleInput = _lkTitleEditing
+          ? '<input id="rb-lk-title" class="rb-tb-title-in rb-lk-title-in' + (prov ? ' prov' : '') + '" value="' + _waEsc(title) + '"' +
+            ' oninput="window.__lkTitleInput(this.value)" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="window.__lkTitleCommit(this.value)">'
+          : null;
+        const tbHtml = _rbTitleHtml({
+          bare: true, cls: 'rb-lk-mast',
+          eyebrow: '<span class="rb-lk-eyebrow">' + eyebrowText + '</span>',
+          titleHtml: _waEsc(title), titleId: 'rb-lk-title', titleCls: 'rb-lk-title' + (prov ? ' prov' : ''),
+          titleInputHtml: titleInput,
+          afterTitleHtml: _lkTitleEditing ? '' : _rbTbBtn({ cls: 'rb-lk-pencil', title: 'Rename', onclick: 'window.__lkTitleEdit()', svg: _RB_PENCIL_SVG }),
+          metaHtml: (_lkTitleEditing && prov ? '<span class="rb-lk-hint" id="rb-lk-hint">Leave it and it keeps this name.</span>' + (metaBits.length ? ' · ' : '') : '') + _waEsc(metaBits.join(' · ')),
+        });
+        let h = '<div class="rb-lk-page' + (editing ? ' editing' : '') + '">' + lkBand + tbHtml;
 
         // A look she owns nothing of yet (a saved aspirational build) cannot
         // be worn or scheduled — its one honest action is the wishlist,
@@ -10947,7 +11275,7 @@ button.rb-lk-live{cursor:pointer}
               : 'Packed for ' + _waEsc(dest) + ' — not yet on a day.') +
             '</span><span class="acts">' +
             (trip.di != null
-              ? '<button type="button" onclick="window.__lkBackDoor()">Open the travel edit →</button>'
+              ? ''
               : '<button type="button" onclick="window.__tvPinSheet(' + trip.li + ')">Pin to a day →</button>') +
             '</span></div>';
         }
@@ -11689,7 +12017,8 @@ button.rb-lk-live{cursor:pointer}
         const nameNote = _lkBuilt && !_lkBuilding && !_lkNewTitleTouched && _lkNewTitleDraft
           ? '<div class="rb-lk-namenote">Robes\u2019 name for it. Yours to change.</div>'
           : '';
-        const mastHtml = home ? '' : '<div class="rb-lk-mast rb-lk-newmast">' + titleHtml + nameNote + '</div>';
+        if (!home) _rbRetReg('look', { back: function() { window.__lkBack(); } });
+        const mastHtml = home ? '' : _rbRetHtml({ key: 'look', label: 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast">' + titleHtml + nameNote + '</div>';
 
         // The Rack — the formula strips name themselves, so no second
         // header sits above them (the masthead already names the look).
@@ -11847,11 +12176,14 @@ button.rb-lk-live{cursor:pointer}
       // row and links the trip look to it, Discard hands her back to the
       // trip untouched. The draft lives here alone until she decides.
       var _lkTripDraft = null;
+      // The return pill names the trip by its own title (never a section).
       function _lkTripDoor() {
         const savedId = _tvActiveSaveId;
+        const data = window.__lastTvData || {};
+        const label = data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.');
         return savedId
-          ? { label: 'Travel edit', go: function() { window.__snOpenItem && window.__snOpenItem(savedId); } }
-          : { label: 'Travel edit', go: function() { window.__rbDiaryOpen && window.__rbDiaryOpen(); } };
+          ? { label, go: function() { window.__snOpenItem && window.__snOpenItem(savedId); } }
+          : { label, go: function() { window.__rbDiaryOpen && window.__rbDiaryOpen(); } };
       }
       function _lkTripDraftFrom(data, li, di) {
         const tl = data.looks[li];
@@ -11913,7 +12245,8 @@ button.rb-lk-live{cursor:pointer}
         if (window.__rbCloseResultOverlays) window.__rbCloseResultOverlays();
         const trip = { li: li, di: di == null ? null : di };
         if (l.imported && l.lookId && _lkFind(l.lookId)) {
-          window.__lkOpen(l.lookId, { from: _lkTripDoor(), trip });
+          const sibs = (data.looks || []).filter(x => x && x.imported && x.lookId && _lkFind(x.lookId)).map(x => String(x.lookId));
+          window.__lkOpen(l.lookId, { from: _lkTripDoor(), trip, siblings: sibs, suffix: 'on this trip', meta: _lkTripMeta(data, trip.di) });
           return true;
         }
         const d = _lkTripDraftFrom(data, li, trip.di);
@@ -12010,6 +12343,10 @@ button.rb-lk-live{cursor:pointer}
       };
       // Back climbs to the door she came through; with none recorded, the
       // Lookbook grid.
+      // The set a look was opened from (nav architecture 2026-09-10):
+      // {siblings[], suffix, meta} — the return band prints "n of N {suffix}"
+      // and ‹ › walk it; null = the Lookbook grid's own order.
+      var _lkSet = null;
       window.__lkBackDoor = function() {
         const f = _lkFrom;
         _lkFrom = null;
@@ -12021,7 +12358,11 @@ button.rb-lk-live{cursor:pointer}
         if (_lkTripDraft && String(_lkTripDraft.id) !== String(id)) _lkTripDraft = null;
         _lkFrom = (opts && opts.from && opts.from.label) ? opts.from : null;
         _lkTrip = (opts && opts.trip && opts.trip.li != null) ? opts.trip : null;
+        _lkSet = (opts && opts.siblings && opts.siblings.length) ? { siblings: opts.siblings.map(String), suffix: opts.suffix || '', meta: opts.meta || '' } : null;
         _lkDetailView = null; _lkDetailPhotoPending = false;
+        // From home a look is a Lookbook errand; from anywhere else the
+        // section she entered through stays lit.
+        if (window._rbNavOrigin === 'home' || !window._rbNavOrigin) window._rbNavOrigin = 'lookbook';
         _lkShelfOpen();
         _lkActive = id; _lkView = 'detail';
         _lkPending = null; _lkDone = null; _lkActNote = null; _lkDraft = null;
@@ -12036,9 +12377,45 @@ button.rb-lk-live{cursor:pointer}
         _rbTrack('look_opened', {});
       };
       window.__lkBack = function() {
+        _lkSet = null;
         _lkView = 'grid'; _lkActive = null; _lkActNote = null; _lkDone = null; _lkEditMode = false; _lkDraft = null; _lkTripDraft = null;
         _lkPaint();
       };
+      // ‹ › in the return band: the next look in the set the detail was
+      // opened from (the grid's order, a trip's looks, a piece's looks).
+      // On a trip the next look keeps its trip context (the strip + the
+      // Pack toggles) — its own li, its first pinned day.
+      window.__lkStep = function(dir) {
+        const set = _lkSet || {};
+        const sibs = (set.siblings && set.siblings.length ? set.siblings : _lkSorted().map(x => String(x.id))).map(String);
+        const at = sibs.indexOf(String(_lkActive));
+        const next = sibs[at + dir];
+        if (next == null) return;
+        const opts = { from: _lkFrom, siblings: sibs, suffix: set.suffix, meta: '' };
+        const data = window.__lastTvData;
+        if (_lkTrip && data && data.looks) {
+          const li = data.looks.findIndex(x => x && String(x.lookId) === String(next));
+          if (li > -1) {
+            const tl = data.looks[li];
+            const di = tl.pins && tl.pins.length ? Math.min.apply(null, tl.pins) : null;
+            opts.trip = { li, di };
+            opts.meta = _lkTripMeta(data, di);
+          }
+        }
+        window.__lkOpen(next, opts);
+      };
+      // "pinned for Sat 1 Aug, Dinner out" — the trip's pin as a plain meta
+      // line on the look page (design 08: the pin prints, no notice).
+      function _lkTripMeta(data, di) {
+        if (!data || di == null || !data.dateFrom) return '';
+        const iso = _pdAddISO(data.dateFrom, di);
+        const t = (data.dayTitles || {})[di] || '';
+        return 'pinned for ' + _lkFmtLong(iso) + (t ? ', ' + t : '');
+      }
+      function _lkFmtLong(iso) {
+        const d = new Date(String(iso).slice(0, 10) + 'T00:00:00');
+        return isNaN(d) ? '' : d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }).replace(',', '');
+      }
       // Role re-cast on a saved look — presentational like a rename, so it
       // applies silently (no promotion gate: composition is untouched).
       window.__lkDRoleDrop = function(idx, role) {
@@ -14671,8 +15048,9 @@ button.rb-lk-live{cursor:pointer}
       const _DL_CSS = `
 #dl-result-page{color:var(--ink);font-weight:300}
 #dl-result-page .dlm-wrap{max-width:var(--shell,1440px);margin:0 auto;padding:34px var(--s6,36px) 28px;box-sizing:border-box}
-#dl-result-page .dlm-eyebrow{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose);margin-bottom:8px}
-#dl-result-page .dlm-title{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:clamp(30px,4vw,42px);line-height:1.05;color:var(--ink);margin:0}
+#dl-result-page .dlm-eyebrow{color:var(--rose)}
+#dl-result-page .dlm-title{font-family:var(--font-serif);font-weight:300;font-style:italic;color:var(--ink);margin:0}
+#dl-result-page .dlm-head{padding-top:0}
 #dl-result-page .dlm-lksrc{font-size:11.5px;color:var(--ink-faint);margin:10px 0 0}
 #dl-result-page .dlm-lksrc button{background:none;border:none;padding:0 0 1px;font-family:inherit;font-size:11.5px;color:var(--ink-soft);border-bottom:0.5px solid var(--rule-mid);cursor:pointer}
 #dl-result-page .dlm-lksrc button:hover{color:var(--ink);border-bottom-color:var(--ink)}
@@ -14840,6 +15218,10 @@ button.rb-lk-live{cursor:pointer}
 }`;
 
       window.__dlRenderResult = function(data, promptText, opts) {
+        // A day belongs to the Diary, a loose look to the Lookbook — the
+        // section lights from home (rule 1); from anywhere else the one
+        // she entered through stays lit.
+        if (window._rbNavOrigin === 'home' || !window._rbNavOrigin) window._rbNavOrigin = (data && data.anchor_date) ? 'diary' : 'lookbook';
         if (!data || !Array.isArray(data.steps) || !data.steps.length) {
           _waShowToast('Could not build today’s look — please try again');
           return;
@@ -15151,33 +15533,38 @@ button.rb-lk-live{cursor:pointer}
           : (dayFull ? '' : _rbTrackCfg('daily').artifact.eyebrow);
         const dlVibe = _rbVibeLabel(data.look_tags);
         // The way back to the DAY (its page lists every look on the date)
-        const dayBackHtml = (data.anchor_date && !dlLoose)
-          ? `<button type="button" class="dlm-dayback" onclick="window.__dlToDay('${_waEsc(data.anchor_date)}')"><span class="chev">‹</span>${_waEsc(_lkFmtDay(data.anchor_date))}</button>`
-          : '';
+        // Band two (nav architecture 2026-09-10): a look on a day climbs back
+        // to the DAY (its page lists every look on the date) — the pill
+        // names it; a loose look climbs to the section it was opened from.
+        const dayBackHtml = '';
+        _rbRetReg('day', { back: function() {
+          if (data.anchor_date && !dlLoose) window.__dlToDay(data.anchor_date);
+          else window.__dlBandBack();
+        } });
+        const dlBand = _rbRetHtml({ key: 'day', label: (data.anchor_date && !dlLoose) ? _lkFmtDay(data.anchor_date) : _rbOriginLabel() });
         // From the day page the header is the LOOK's: the door back to the
         // day, the eyebrow, its name + the rename pencil. The day's own
         // facts (its name, the weather, the day pencil) live on the day page.
-        const lookHeadHtml = `
-              ${dayBackHtml}
-              <div class="dlm-eyebrow">${_waEsc(_rbTrackCfg('daily').artifact.eyebrow)}</div>
-              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-                <h1 class="dlm-title">${_waEsc((dayLook && dayLook.name) || headline)}</h1>
-                <button class="rb-rename-tbtn" title="Rename the look" style="margin-top:6px" onclick="window.__rbRename&&window.__rbRename('dl')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
-              </div>
-              ${dlVibe ? `<div class="dlm-meta-row"><button class="dlm-vibe" onclick="window.__dlTagsEdit&&window.__dlTagsEdit()" title="Not quite? Change the vibe">${_waEsc(dlVibe)}</button></div>` : ''}`;
-        const dayHeadHtml = `
-              ${dayBackHtml}
-              ${dayEyebrow ? `<div class="dlm-eyebrow">${_waEsc(dayEyebrow)}</div>` : ''}
-              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-                <h1 class="dlm-title">${dayTitleHtml}</h1>
-                ${dlLoose ? '' : `<button class="rb-rename-tbtn" title="Name the day" style="margin-top:6px" onclick="window.__dlDayRename&&window.__dlDayRename()"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>`}
-              </div>
+        const lookHeadHtml = _rbTitleHtml({
+          bare: true, cls: 'dlm-head',
+          eyebrow: '<span class="dlm-eyebrow">' + _waEsc(_rbTrackCfg('daily').artifact.eyebrow) + '</span>',
+          titleHtml: _waEsc((dayLook && dayLook.name) || headline), italic: true, titleCls: 'dlm-title',
+          afterTitleHtml: _rbTbBtn({ cls: 'dlm-lookpen', title: 'Rename the look', onclick: "window.__rbRename&&window.__rbRename('dl')", svg: _RB_PENCIL_SVG }),
+          belowHtml: dlVibe ? `<div class="dlm-meta-row"><button class="dlm-vibe" onclick="window.__dlTagsEdit&&window.__dlTagsEdit()" title="Not quite? Change the vibe">${_waEsc(dlVibe)}</button></div>` : '',
+        });
+        const dayHeadHtml = _rbTitleHtml({
+          bare: true, cls: 'dlm-head',
+          eyebrow: dayEyebrow ? '<span class="dlm-eyebrow">' + _waEsc(dayEyebrow) + '</span>' : '',
+          titleHtml: dayTitleHtml, italic: true, titleCls: 'dlm-title',
+          afterTitleHtml: dlLoose ? '' : _rbTbBtn({ cls: 'dlm-daypen', title: 'Name the day', onclick: 'window.__dlDayRename&&window.__dlDayRename()', svg: _RB_PENCIL_SVG }),
+          belowHtml: `
               <div class="dlm-meta-row">
                 ${ctx && (ctx.city || ctx.tempRange) ? `<div class="dlm-wx"><span>🌤</span><strong>${_waEsc([ctx.city, ctx.month].filter(Boolean).join(' · '))}</strong>${ctx.tempRange ? `<span class="div"></span><span>${_waEsc(ctx.tempRange)}</span>` : ''}${ctx.hint ? `<span class="div"></span><span>${_waEsc(ctx.hint)}</span>` : ''}</div>` : ''}
                 ${headline && !wearingTitle && !dlLoose ? `<div class="dlm-wearing">Wearing <em>${_waEsc(headline)}</em><button class="rb-rename-tbtn" title="Rename the look" onclick="window.__rbRename&&window.__rbRename('dl')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button></div>` : ''}
                 ${dlVibe ? `<button class="dlm-vibe" onclick="window.__dlTagsEdit&&window.__dlTagsEdit()" title="Not quite? Change the vibe">${_waEsc(dlVibe)}</button>` : ''}
-              </div>`;
-        try { dlResultPage.innerHTML = `
+              </div>`,
+        });
+        try { dlResultPage.innerHTML = dlBand + `
           <div class="dlm-wrap">
             <header>
               ${dlFromDay ? lookHeadHtml : dayHeadHtml}
@@ -15371,26 +15758,33 @@ button.rb-lk-live{cursor:pointer}
         const pieces = looks.reduce((a, m) => a + (_dcPieceTotal(m) || (m.item_ids || []).length), 0);
         const stat = n ? _lkN(n, 'look') + (pieces ? ' · ' + _lkN(pieces, 'piece') + ' filed' : '') : '';
         const secLabel = date === today ? 'Looks filed today' : (date < today ? 'Looks filed' : 'Looks planned');
-        const titleHtml = _dyPgNaming
-          ? `<input id="dyp-name-in" class="dyp-name-in" value="${_waEsc(title)}" maxlength="60" placeholder="Name the day" onkeydown="window.__rbDayNameKey(event)" onblur="window.__rbDayNameCommit()">`
-          : title
-            ? `<h1 class="dlm-title">${_waEsc(title)}</h1>`
-            : `<button type="button" class="dlm-title dyp-title-none" onclick="window.__rbDayNameEdit()">Name the day</button>`;
+        // Band three (nav architecture 2026-09-10): the date is the eyebrow,
+        // the day's title in italic serif with the pencil after it.
+        const titleInputHtml = _dyPgNaming
+          ? `<input id="dyp-name-in" class="rb-tb-title-in dyp-name-in" value="${_waEsc(title)}" maxlength="60" placeholder="Name the day" onkeydown="window.__rbDayNameKey(event)" onblur="window.__rbDayNameCommit()">`
+          : (title ? null : `<button type="button" class="rb-tb-title it dlm-title dyp-title-none" onclick="window.__rbDayNameEdit()">Name the day</button>`);
         const pen = (_dyPgNaming || !title) ? '' :
-          `<button class="rb-rename-tbtn" title="Rename the day" aria-label="Rename the day" style="margin-top:6px" onclick="window.__rbDayNameEdit()"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>`;
+          _rbTbBtn({ cls: 'dyp-pen', title: 'Rename the day', onclick: 'window.__rbDayNameEdit()', svg: _RB_PENCIL_SVG });
         const wxHtml = wx ? `<div class="dlm-meta-row"><div class="dlm-wx"><span>🌤</span><strong>${_waEsc([wx.city, wx.condition].filter(Boolean).join(' · '))}</strong>${wx.tempRange ? `<span class="div"></span><span>${_waEsc(wx.tempRange)}</span>` : ''}${wx.hint ? `<span class="div"></span><span>${_waEsc(wx.hint)}</span>` : ''}</div></div>` : '';
         const tripHtml = tvIt ? `<div class="dlm-lksrc">Part of <em>${_waEsc(tvIt.title || 'a travel edit')}</em> — <button onclick="window._rbOpenMoment(window._dyPgTrip())">Open the travel edit →</button></div>` : '';
         const add = `<button type="button" class="dyp-add" onclick="window.__mvWear('${date}')"><span class="dyp-add-plus">+</span><span class="dyp-add-l">Add a look</span><span class="dyp-add-s">${n ? 'another moment in the day' : 'the first moment of the day'}</span></button>`;
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Diary' }]);
-        const backHtml = `<button type="button" class="dlm-dayback dyp-back" onclick="window.__rbDayBack()"><span class="chev">‹</span>${s.from === 'home' ? 'Home' : 'Diary'}</button>`;
-        dlResultPage.innerHTML = `
+        // Band two: ‹ the month the day lives in (or Home, when the rail
+        // opened it) — returning restores the view she left.
+        _rbRetReg('dayp', { back: function() { window.__rbDayBack(); } });
+        const dypBand = _rbRetHtml({ key: 'dayp', label: s.from === 'home' ? 'Home' : (_rbMonthLabel(date) || 'Diary') });
+        const dypTitle = _rbTitleHtml({
+          bare: true, cls: 'dlm-head dyp-head',
+          eyebrow: '<span class="dlm-eyebrow">' + _waEsc(long) + '</span>',
+          titleHtml: _waEsc(title), italic: true, titleCls: 'dlm-title',
+          titleInputHtml,
+          afterTitleHtml: pen,
+          belowHtml: wxHtml + tripHtml,
+        });
+        dlResultPage.innerHTML = dypBand + `
           <div class="dlm-wrap dyp-wrap">
             <header>
-              ${backHtml}
-              <div class="dlm-eyebrow">${_waEsc(long)}</div>
-              <div class="dyp-titlerow">${titleHtml}${pen}</div>
-              ${wxHtml}
-              ${tripHtml}
+              ${dypTitle}
             </header>
             <div class="dyp-sec"><span class="dyp-sec-l">${secLabel}</span><span class="dyp-sec-r">${_waEsc(stat)}</span></div>
             ${n ? '' : `<p class="dyp-none">Nothing filed ${date === today ? 'yet today' : date < today ? 'that day' : 'yet'}.</p>`}
@@ -15406,13 +15800,15 @@ button.rb-lk-live{cursor:pointer}
       // The day's door back to where she came from
       window.__rbDayBack = function() {
         const from = (_dyPg && _dyPg.from) || 'diary';
+        const date = _dyPg && _dyPg.date;
         if (dlResultPage) dlResultPage.style.display = 'none';
         _dyPg = null;
         window.rbClearCrumb && window.rbClearCrumb();
         if (from === 'home') {
           window._rbNav && window._rbNav('/dashboard');
           window.scrollTo({ top: 0, behavior: 'smooth' });
-        } else if (window.__rbDiaryOpen) window.__rbDiaryOpen();
+        } else if (window.__rbDiaryOpenAt) window.__rbDiaryOpenAt(date);
+        else if (window.__rbDiaryOpen) window.__rbDiaryOpen();
         else if (window.__rbNavGo) window.__rbNavGo('back');
       };
       window.__rbDayOpen = function(date, opts) {
@@ -15885,10 +16281,38 @@ button.rb-lk-live{cursor:pointer}
         if (tvResultPage) tvResultPage.style.display = 'none';
         _waAfterAdd = null; // leaving the edit cancels any armed snap-mine swap
         window.rbClearCrumb && window.rbClearCrumb();
-        // Back climbs to the Diary — the list a trip lives in (2026-09-08)
-        if (window.__rbDiaryOpen) { window.__rbDiaryOpen(); }
+        // Back climbs to the Diary — the month the trip lives in
+        // (2026-09-08; the pill names it since 2026-09-10)
+        const from = window.__lastTvData && window.__lastTvData.dateFrom;
+        if (window.__rbDiaryOpenAt) { window.__rbDiaryOpenAt(from); }
+        else if (window.__rbDiaryOpen) { window.__rbDiaryOpen(); }
         else { window._rbNav && window._rbNav('/dashboard'); }
         window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+      // A look row on the Travel diary with a saved Look behind it opens
+      // THE LOOK as a screen (design 08): the pill names the trip, the set
+      // is the trip's saved looks, the pin is a plain meta line — one
+      // route back, no notice repeating it.
+      window.__tvLookDetail = function(li, di) {
+        const data = window.__lastTvData;
+        if (!data) return;
+        const l = (data.looks || [])[li];
+        if (!l || !l.lookId) return;
+        const sibs = (data.looks || []).filter(x => x && x.lookId && _lkFind(x.lookId)).map(x => String(x.lookId));
+        const tripTitle = data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.');
+        const info = di != null ? _tvDayInfo(di) : null;
+        const dayT = di != null && data.dayTitles ? data.dayTitles[di] : '';
+        const meta = info && info.date ? 'pinned for ' + info.date.replace(/,/g, '') + (dayT ? ', ' + dayT : '') : '';
+        const savedId = _tvActiveSaveId;
+        window.__lkOpen(String(l.lookId), {
+          label: tripTitle, siblings: sibs, suffix: 'on this trip', meta,
+          back: function() {
+            if (savedId != null && window.__snOpenItem) {
+              window.__snOpenItem(savedId);
+              if (di != null) setTimeout(function() { window.__tvSelectDay && window.__tvSelectDay(di); }, 120);
+            } else if (window.__rbDiaryOpen) window.__rbDiaryOpen();
+          },
+        });
       };
 
       // Brief-modal state — survives the "snap a new piece" round trip
@@ -16306,12 +16730,15 @@ button.rb-lk-live{cursor:pointer}
       const _TV_CSS = `
 #tv-result-page{color:var(--ink);font-weight:300}
 #tv-result-page .tvm-wrap{max-width:var(--shell,1440px);margin:0 auto;padding:34px var(--s6,36px) 28px;box-sizing:border-box}\n#tv-result-page .tvm-capgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}\n@media(max-width:1199px){#tv-result-page .tvm-capgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}\n@media(max-width:767px){#tv-result-page .tvm-capgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}
-#tv-result-page .tvm-eyebrow{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose);margin-bottom:8px}
+#tv-result-page .tvm-eyebrow{color:var(--rose)}
+#tv-result-page .tvm-mast.rb-tb{padding-top:0;display:block}
+#tv-result-page .tvw-lk.door{cursor:pointer}
+#tv-result-page .tvw-lk.door:hover .ln{text-decoration:underline;text-decoration-color:var(--rule-mid);text-underline-offset:3px}
 #tv-result-page .tvm-back{background:none;border:none;cursor:pointer;padding:0;margin:0 0 14px;font-size:11px;letter-spacing:.04em;color:var(--ink-faint);font-family:inherit}
 #tv-result-page .tvm-back:hover{color:var(--ink)}
 #tv-result-page .tvm-mast{display:flex;justify-content:space-between;align-items:flex-start;gap:28px}
 #tv-result-page .tvm-mast>.tv-noprint{margin-top:26px}
-#tv-result-page .tvm-title{font-family:var(--font-serif);font-weight:300;font-style:italic;font-size:clamp(30px,4vw,44px);line-height:1.05;margin:0;color:var(--ink);max-width:22ch}
+#tv-result-page .tvm-title{font-family:var(--font-serif);font-weight:300;font-style:italic;margin:0;color:var(--ink);max-width:22ch}
 #tv-result-page .tvm-factwrap{margin-top:18px;max-width:520px}
 #tv-result-page .tvm-facts{background:#fff;border:1px solid var(--rule-mid);border-radius:var(--rad-sm);overflow:hidden}
 #tv-result-page .tvm-fact{display:flex;align-items:center;gap:11px;width:100%;padding:12px 13px;border:none;border-bottom:1px solid var(--rule-mid);background:transparent;cursor:pointer;text-align:left;font-family:inherit;color:var(--ink);transition:background .15s;box-sizing:border-box}
@@ -17914,19 +18341,24 @@ body>*:not(#tv-result-page){display:none !important}
         const capOpen = _tvCapIsOpen();
 
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Travel edit' }]);
-        try { tvResultPage.innerHTML = `
+        // Band two + three (nav architecture 2026-09-10): the bare "← Diary"
+        // arrow became the standard pill, naming the month the trip lives
+        // in; the eyebrow says what this is (The travel edit), the pencil
+        // sits after the name, Edit details rides the title block's right.
+        _rbRetReg('trip', { back: function() { window.__tvGoBack(); } });
+        const tvBand = _rbRetHtml({ key: 'trip', label: _rbMonthLabel(data.dateFrom) || 'Diary' });
+        const tvTitleBlock = _rbTitleHtml({
+          bare: true, cls: 'tvm-mast',
+          eyebrow: '<span class="tvm-eyebrow">' + _waEsc(_rbTrackCfg('travel').artifact.eyebrow) + '</span>',
+          titleHtml: _waEsc(data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.')), italic: true, titleId: 'tv-headline', titleCls: 'tvm-title',
+          // ONE pen (Annie's Diary review, 2026-09-08): Edit details carries
+          // the title — the pencil after the name opens it.
+          afterTitleHtml: _rbTbBtn({ cls: 'rb-rename-tbtn tvm-editbtn tvm-pen tv-noprint', title: 'Edit details', onclick: 'window.__tvEditDetails()', svg: _RB_PENCIL_SVG }),
+          belowHtml: '<div class="tvm-factwrap" id="tv-mastmeta">' + _tvMastMetaHtml(data) + '</div>',
+        });
+        try { tvResultPage.innerHTML = tvBand + `
           <div class="tvm-wrap">
-            <button class="tvm-back tv-noprint" onclick="window.__tvGoBack()">← Diary</button>
-            <header class="tvm-mast">
-              <div style="min-width:0;flex:1">
-                <div class="tvm-eyebrow">${_waEsc(_rbTrackCfg('travel').artifact.eyebrow)}</div>
-                <div style="display:flex;align-items:flex-start;gap:10px;min-width:0">
-                  <h1 class="tvm-title" id="tv-headline" style="min-width:0">${_waEsc(data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.'))}</h1>
-                  <button class="rb-rename-tbtn tvm-editbtn tv-noprint" title="Edit details" aria-label="Edit details" style="margin-top:6px" onclick="window.__tvEditDetails()"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
-                </div>
-                <div class="tvm-factwrap" id="tv-mastmeta">${_tvMastMetaHtml(data)}</div>
-              </div>
-            </header>
+            ${tvTitleBlock}
             ${data.fallback ? `<p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin:12px 0 0">Robes couldn’t quite read the brief, so it’s packed you for a lovely week away instead.</p>` : ''}
             <div class="tvm-rule"></div>
 
@@ -19350,34 +19782,51 @@ body>*:not(#tv-result-page){display:none !important}
         // belongs to the Lookbook — __snOpen / __rbDiaryOpen stamp it, and
         // the back pill + the lit tab read it while a detail hides both
         // pages underneath.
-        window._rbNavOrigin = window._rbNavOrigin || 'lookbook';
+        // WHERE AM I is held in state, never derived from the object
+        // (nav architecture 2026-09-10): every root open stamps the section
+        // she entered through, and a detail on top — a piece, a look, a
+        // day, a trip, a key piece — lights that section for the whole
+        // journey. 'home' is the fifth value: nothing lit on desktop, Home
+        // on the dock.
+        window._rbNavOrigin = window._rbNavOrigin || 'home';
+        function _rootOpen(dest) {
+          // The Diary tab is a root: it opens on the current month. A return
+          // pill (‹ September 2026) is what lands on a specific month.
+          if (dest === 'diary') {
+            if (window.__rbDiaryOpenAt) window.__rbDiaryOpenAt(_pdLocalISO());
+            else if (window.__rbDiaryOpen) window.__rbDiaryOpen();
+          }
+          else if (dest === 'inspiration') { window.__rbInspOpen && window.__rbInspOpen(); }
+          else if (dest === 'wardrobe') {
+            if (!_wardrobeOpen() && window.App && App.showWardrobe) App.showWardrobe();
+            if (window.__waSetView) window.__waSetView('all');
+          } else { window.__snOpen && window.__snOpen(); }
+        }
+        // Back: the topmost return band answers (it names the previous
+        // screen); with none on screen, climb to the section she entered.
+        window.__rbNavBack = function() {
+          const band = _rbRetTop();
+          if (band) { window.__rbRet(band.getAttribute('data-rbret'), 'back'); return; }
+          window.__rbNavGo('back');
+        };
         window.__rbNavGo = function(dest) {
           if (dest === 'home') {
             const wm = document.getElementById('nav-wordmark');
             if (wm && wm.onclick) wm.onclick();
+            window._rbNavOrigin = 'home';
           } else if (dest === 'back') {
-            // Back climbs to the list the detail lives in.
             _closeOverlays();
             _closeWardrobe(); // its patched open would re-hide sn-page, so close first
-            if (window._rbNavOrigin === 'diary' && window.__rbDiaryOpen) window.__rbDiaryOpen();
-            else window.__snOpen && window.__snOpen();
-          } else if (dest === 'lookbook') {
-            _closeOverlays();
-            _closeWardrobe();
-            window.__snOpen && window.__snOpen();
-          } else if (dest === 'diary' || dest === 'calendar') {
+            const o = window._rbNavOrigin;
+            _rootOpen(o === 'diary' || o === 'wardrobe' || o === 'inspiration' ? o : 'lookbook');
+          } else if (dest === 'lookbook' || dest === 'diary' || dest === 'calendar' || dest === 'inspiration') {
             // 'calendar' survives as a legacy alias
             _closeOverlays();
             _closeWardrobe();
-            window.__rbDiaryOpen && window.__rbDiaryOpen();
-          } else if (dest === 'inspiration') {
-            _closeOverlays();
-            _closeWardrobe();
-            window.__rbInspOpen && window.__rbInspOpen();
+            _rootOpen(dest === 'calendar' ? 'diary' : dest);
           } else if (dest === 'wardrobe') {
             _closeOverlays();
-            if (!_wardrobeOpen() && window.App && App.showWardrobe) App.showWardrobe();
-            if (window.__waSetView) window.__waSetView('all');
+            _rootOpen('wardrobe');
           }
           _rbNavSync();
         };
@@ -19392,6 +19841,7 @@ body>*:not(#tv-result-page){display:none !important}
         const dkI = document.getElementById('rb-dock-inspiration');
         const backPill = document.getElementById('rb-backpill');
         const backLabel = document.getElementById('rb-backpill-label');
+        const navSet = document.getElementById('rb-navset');
         function _rbNavSync() {
           const snEl = document.getElementById('sn-page');
           const snOpen = !!(snEl && snEl.style.display === 'block');
@@ -19400,21 +19850,24 @@ body>*:not(#tv-result-page){display:none !important}
           const inOpen = !!(inEl && inEl.style.display === 'block');
           const wOpen = _wardrobeOpen();
           const detail = _detailOpen();
-          // The Diary is its own destination (2026-09-08): the Diary page
-          // lights Diary, the looks view lights Lookbook, and a detail
-          // lights whichever list it was opened from (_rbNavOrigin).
-          // A key-piece result is Inspiration's (key pieces moved off the
-          // Lookbook, 2026-08-10), so it lights Inspiration, not Lookbook.
-          const kpOpen = !!(kpResultPage && kpResultPage.style.display !== 'none');
-          // The piece page lights the tab of the door she came through: the
-          // wardrobe (or its wishlist), else whatever look surface is under it.
-          const pc = window.__rbPieceCtx ? window.__rbPieceCtx() : null;
-          const origin = window._rbNavOrigin === 'diary' ? 'diary' : 'lookbook';
-          const active = (pc && pc.from !== 'look') || wOpen ? 'wardrobe'
-            : (inOpen || kpOpen) ? 'inspiration'
-            : diaryOpen ? 'diary'
-            : snOpen ? 'lookbook'
-            : detail ? origin : 'home';
+          const pcEl = document.getElementById('rb-piece-page');
+          const pcOn = !!(pcEl && pcEl.style.display !== 'none');
+          // The Look detail and the composer are details INSIDE the
+          // Lookbook page — the section stays lit from the entry, the
+          // grid underneath is not what she is looking at.
+          const lkDetail = snOpen && !diaryOpen && typeof _lkView !== 'undefined' && _lkView !== 'grid';
+          // Which ROOT is on top, if any — a detail on top reads null.
+          let root = null;
+          if (!pcOn && !detail) {
+            if (wOpen) root = 'wardrobe';
+            else if (inOpen) root = 'inspiration';
+            else if (diaryOpen) root = 'diary';
+            else if (snOpen && !lkDetail) root = 'lookbook';
+          }
+          const anyOpen = pcOn || detail || wOpen || inOpen || snOpen;
+          if (root) window._rbNavOrigin = root;
+          else if (!anyOpen) window._rbNavOrigin = 'home';
+          const active = root || (anyOpen ? window._rbNavOrigin : 'home');
           if (tnW) tnW.classList.toggle('active', active === 'wardrobe');
           if (tnL) tnL.classList.toggle('active', active === 'lookbook');
           if (tnD) tnD.classList.toggle('active', active === 'diary');
@@ -19424,28 +19877,39 @@ body>*:not(#tv-result-page){display:none !important}
           if (dkL) dkL.classList.toggle('active', active === 'lookbook');
           if (dkD) dkD.classList.toggle('active', active === 'diary');
           if (dkI) dkI.classList.toggle('active', active === 'inspiration');
-          // Mobile detail screens: the back pill replaces the wordmark line,
-          // and Share rises into the header (the footer copy hides ≤640px).
-          // The piece page carries its own back pill — the nav's stands down.
-          const showPill = detail && !pc && window.matchMedia('(max-width:767px)').matches;
-          if (backPill) backPill.style.display = showPill ? 'inline-flex' : 'none';
-          if (backLabel) backLabel.textContent = origin === 'diary' ? 'Diary' : 'Lookbook';
+          // ≤767px the nav bar IS the return band at any depth: the pill
+          // (naming the previous screen) replaces the wordmark, the set
+          // position replaces the avatar, and nothing else rides the bar.
+          const band = _rbRetTop();
+          const mobile = window.matchMedia('(max-width:767px)').matches;
+          const depth = !!band && mobile;
+          const navEl = document.querySelector('.nav');
+          if (navEl) navEl.classList.toggle('rb-depth', depth);
+          if (backPill) backPill.style.display = depth ? 'inline-flex' : 'none';
+          if (backLabel && band) {
+            const lab = band.querySelector('.rb-ret-pill .lab');
+            backLabel.textContent = lab ? lab.textContent : 'Back';
+          }
+          if (navSet) {
+            const pos = band ? band.querySelector('.rb-ret-pos') : null;
+            navSet.textContent = pos ? pos.textContent : '';
+          }
           const shareBtn = document.getElementById('rb-share-btn');
           if (shareBtn) {
-            // The console surfaces (Daily/Weekly/Travel) carry their own
-            // "Share this look" button inside The Look, so the mobile nav
-            // share icon is redundant there — drop it and let the in-Look
-            // action own sharing. Key-piece has no console Share, so it keeps
-            // the nav icon.
-            const consoleShare = [dlResultPage, tvResultPage].some(p => p && p.style.display !== 'none');
-            shareBtn.style.display = (showPill && !consoleShare) ? 'inline-flex' : 'none';
+            // The key-piece result has no Share of its own on a phone (its
+            // in-page button hides ≤767px) — the header circle stays as its
+            // one share door. The consoles carry "Share this look" in The
+            // Look, and every other depth holds the pill + position alone.
+            const kpOn = !!(kpResultPage && kpResultPage.style.display !== 'none');
+            shareBtn.style.display = (depth && kpOn) ? 'inline-flex' : 'none';
           }
           const wm = document.getElementById('nav-wordmark');
           if (wm) {
-            if (showPill) wm.style.setProperty('display', 'none', 'important');
+            if (depth) wm.style.setProperty('display', 'none', 'important');
             // The wardrobe observer owns the wordmark while the panel is
-            // open (force-inline defence) — leave it alone in that state.
-            else if (!wOpen && wm.style.getPropertyValue('display') === 'none') wm.style.removeProperty('display');
+            // open (force-inline defence) — hand it back in that state.
+            else if (wOpen) { if (wm.style.getPropertyValue('display') === 'none') wm.style.setProperty('display', 'inline', 'important'); }
+            else if (wm.style.getPropertyValue('display') === 'none') wm.style.removeProperty('display');
           }
           // The nav weather pill shows her CURRENT city, geolocated — over a
           // live trip it reads as wrong even though it isn't (audit
@@ -19518,10 +19982,13 @@ body>*:not(#tv-result-page){display:none !important}
           function _rbForceWordmark() {
             const wm = document.getElementById('nav-wordmark');
             if (!wm) return;
-            wm.style.setProperty('display', 'inline', 'important');
+            // At depth on a phone the return pill holds the wordmark's
+            // slot (nav architecture 2026-09-10) — never force it back then.
+            const atDepth = () => !!document.querySelector('.nav.rb-depth');
+            if (!atDepth()) wm.style.setProperty('display', 'inline', 'important');
             if (!_wmObserver) {
               _wmObserver = new MutationObserver(function() {
-                if (panel.classList.contains('visible')) {
+                if (panel.classList.contains('visible') && !atDepth()) {
                   wm.style.setProperty('display', 'inline', 'important');
                 }
               });
@@ -21906,13 +22373,9 @@ body>*:not(#tv-result-page){display:none !important}
 #sn-page.rb-cal-on #sn-grid{display:none!important}
 #sn-page.rb-cal-on #sn-empty{display:none!important}
 #sn-page.rb-cal-on #rb-lk-wrap{display:none!important}
-.rb-mv-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 18px}
-.rb-mv-title{font-family:'Cormorant',Georgia,serif;font-size:34px;font-weight:300;color:var(--ink,#202021);margin:0}
-.rb-mv-nav{display:flex;gap:6px}
-.rb-mv-nav button{width:32px;height:32px;border:0.5px solid rgba(32,32,33,0.18);border-radius:50%;background:#fff;color:#6E6A64;font-size:14px;cursor:pointer;line-height:1}
-.rb-mv-nav button:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
-.rb-mv-add{width:34px;height:34px;border:0.5px solid rgba(32,32,33,0.18);border-radius:50%;background:#fff;color:#6E6A64;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:border-color .15s,color .15s}
-.rb-mv-add:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
+.rb-mv-head{margin:0 0 22px}
+.rb-mv-nav{display:flex;gap:10px;align-items:center}
+.rb-mv-nav .rb-mv-add{font-size:16px}
 #rb-dy-addmenu{position:fixed;inset:0;z-index:930}
 #rb-dy-addmenu .card{position:absolute;min-width:216px;background:#fff;border:1px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:var(--rad-sm,8px);box-shadow:0 10px 32px rgba(32,32,33,0.12);padding:6px 0;display:flex;flex-direction:column}
 #rb-dy-addmenu .card button{display:flex;align-items:flex-start;gap:11px;border:none;background:transparent;padding:10px 16px;cursor:pointer;font-family:inherit;text-align:left;color:var(--ink,#202021)}
@@ -21958,14 +22421,11 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-mv-pop .card button i{flex:none;width:8px;height:8px;border-radius:50%}
 .rb-mcells .rb-dc.dc-compact{min-height:150px}
 @media(max-width:1000px){.rb-mc-strip{display:none}}
-@media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:var(--rad-sm)}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}.rb-mband{font-size:9px;padding:0 6px;height:14px}.rb-mv-title{font-size:26px}}
+@media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:var(--rad-sm)}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}.rb-mband{font-size:9px;padding:0 6px;height:14px}}
 /* ── Diary list view (phase 3) ── */
-.rb-mv-nav{align-items:center}
-.rb-mv-modebar{display:flex;align-items:center;margin:-6px 0 20px}
-.rb-mv-seg{display:inline-flex;gap:2px;padding:3px;border:none;border-radius:100px;background:var(--cream-100,#F7F4EE)}
-.rb-mv-seg button{border:none;border-radius:100px;background:transparent;color:var(--ink-soft,#6E6A64);display:inline-flex;align-items:center;gap:7px;cursor:pointer;padding:6px 14px;font-family:inherit;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;transition:background .15s,color .15s}
-.rb-mv-seg button.on{background:#fff;color:var(--ink,#202021);box-shadow:0 1px 2px rgba(32,32,33,0.06)}
-.rb-mv-seg button svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.1;stroke-linecap:round;stroke-linejoin:round}
+.rb-mv-seg{display:inline-flex;gap:4px;padding:3px;background:var(--cream-100,#F5F0E8);border-radius:100px;margin-top:14px;align-self:flex-start}
+.rb-mv-seg button{border:1px solid transparent;border-radius:100px;background:transparent;color:var(--ink-soft,#6E6A64);font:400 9px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.16em;text-transform:uppercase;padding:7px 13px;cursor:pointer;font-family:var(--font-sans,Inter,sans-serif)}
+.rb-mv-seg button.on{background:#fff;border-color:var(--rule-mid,rgba(32,32,33,0.12));color:var(--ink,#202021)}
 .rb-mv-cap{font-size:11px;line-height:1.5;color:var(--ink-faint,#9A9082);text-align:center;margin:18px 0 0}
 .dy-list{display:flex;flex-direction:column;gap:2px;max-width:760px}
 .dy-row{display:flex;gap:14px;padding:10px 0}
@@ -22047,7 +22507,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 .dy-empty h3{font-family:'Cormorant',Georgia,serif;font-size:32px;font-weight:300;line-height:1.15;margin:0;color:var(--ink,#202021)}
 .dy-empty p{font-size:13px;line-height:1.7;color:var(--ink-soft,#6E6A64);margin:16px 0 0;max-width:300px}
 .dy-empty-cta{margin-top:28px;background:var(--ink,#202021);color:#fff;border:none;border-radius:100px;padding:14px 28px;cursor:pointer;font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-family:inherit;font-weight:500}
-@media(max-width:767px){.dy-list{max-width:none}.dy-row{gap:12px}.dy-tday{padding:12px 12px 12px 10px}.rb-mv-head{align-items:center;gap:10px}.rb-mv-title{font-size:26px}.rb-mv-nav{gap:4px}.rb-mv-nav button{width:30px;height:30px;font-size:13px}}`;
+@media(max-width:767px){.dy-list{max-width:none}.dy-row{gap:12px}.dy-tday{padding:12px 12px 12px 10px}.rb-mv-head{gap:10px}.rb-mv-nav{gap:8px}.rb-mv-seg{margin-top:10px}}`;
           document.head.appendChild(st);
         }
 
@@ -22130,6 +22590,12 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           window._rbNav && window._rbNav('/diary');
         };
         window.__rbCalOpen = window.__rbDiaryOpen; // legacy alias
+        // Open the Diary AT a date's month — what a day or a trip climbs
+        // back to. The view (list / month) is the one she left.
+        window.__rbDiaryOpenAt = function(iso) {
+          if (iso && /^\d{4}-\d{2}/.test(String(iso))) { _mvY = +String(iso).slice(0, 4); _mvM = +String(iso).slice(5, 7); }
+          window.__rbDiaryOpen();
+        };
         // The lookbook always reopens on the Looks view (wardrobe convention)
         const _snOpenPrev = window.__snOpen;
         window.__snOpen = function() { _snOpenPrev(); _mvSetView('grid'); };
@@ -22197,24 +22663,31 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           return bands;
         }
 
-        function _dyHeadHtml(g) {
+        // The Diary's masthead (nav architecture 2026-09-10): the month in
+        // tracked caps with "N days filed" in serif italic beside it, the
+        // List | Month toggle beneath (a view, not a destination), and ‹ ›
+        // + as hairline circles on the right — the + opens the choice.
+        function _dyHeadHtml(g, rows) {
           const monthName = new Date(dISO(g.first)).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-          const ico = {
-            list: '<svg viewBox="0 0 14 14"><path d="M2 3.5h10M2 7h10M2 10.5h10"/></svg>',
-            month: '<svg viewBox="0 0 14 14"><rect x="2" y="2.5" width="10" height="9.5" rx="1"/><path d="M2 5.6h10M5.4 5.6v6.4M8.6 5.6v6.4"/></svg>',
-          };
+          const first = dISO(g.first), last = dISO(g.last);
+          const filed = {};
+          (rows || []).forEach(r => { const d = String(r.day_date || '').slice(0, 10); if (d >= first && d <= last && r.status !== 'free') filed[d] = 1; });
+          const nFiled = Object.keys(filed).length;
           return `
-            <div class="rb-mv-head">
-              <h2 class="rb-mv-title">${_waEsc(monthName)}</h2>
-              <div class="rb-mv-nav">
-                <button onclick="window.__mvNav(-1)" aria-label="Previous month">‹</button><button onclick="window.__mvNav(1)" aria-label="Next month">›</button>
+            <div class="rb-mv-head rb-mast">
+              <div class="rb-mast-l">
+                <div class="rb-mast-line"><span class="rb-mast-lab rb-mv-title">${_waEsc(monthName)}</span><span class="rb-mast-n">${nFiled ? nFiled + (nFiled === 1 ? ' day filed' : ' days filed') : 'nothing filed yet'}</span></div>
+                <span class="rb-mv-seg" role="group" aria-label="View"><button class="${_dyMode === 'list' ? 'on' : ''}" onclick="window.__dySetMode('list')" title="List" aria-label="List">List</button><button class="${_dyMode === 'month' ? 'on' : ''}" onclick="window.__dySetMode('month')" title="Month" aria-label="Month">Month</button></span>
               </div>
-            </div>
-            <div class="rb-mv-modebar"><span class="rb-mv-seg" role="group" aria-label="View"><button class="${_dyMode === 'list' ? 'on' : ''}" onclick="window.__dySetMode('list')" aria-label="List">${ico.list}<span>List</span></button><button class="${_dyMode === 'month' ? 'on' : ''}" onclick="window.__dySetMode('month')" aria-label="Month">${ico.month}<span>Month</span></button></span></div>`;
+              <div class="rb-mv-nav rb-mast-acts">
+                <button class="rb-circ" onclick="window.__mvNav(-1)" aria-label="Previous month">‹</button><button class="rb-circ" onclick="window.__mvNav(1)" aria-label="Next month">›</button>
+                <button class="rb-circ rb-mv-add" onclick="window.__rbDiaryAddMenu(event)" aria-label="Add" title="Add">+</button>
+              </div>
+            </div>`;
         }
         function _mvPaint(g, rows, sources) {
           const today = _pdLocalISO();
-          if (_dyMode === 'list') { cal.innerHTML = _dyHeadHtml(g) + _dyListHtml(g, rows, sources, today); return; }
+          if (_dyMode === 'list') { cal.innerHTML = _dyHeadHtml(g, rows) + _dyListHtml(g, rows, sources, today); return; }
           const dcOn = _rbDayCardOn();
           const bands = _mvBands(g, rows, sources);
           // Lane assignment per week row (max two lanes + overflow).
@@ -22242,7 +22715,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             placed.push({ band: p.band, sg, si: p.si, lane });
           });
           _mvHidden = weekHidden;
-          let html = _dyHeadHtml(g) + `
+          let html = _dyHeadHtml(g, rows) + `
             <div class="rb-mv-dow">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => '<div>' + d + '</div>').join('')}</div>
             <div class="rb-mv-cal">`;
           for (let w = 0; w < g.weeks; w++) {

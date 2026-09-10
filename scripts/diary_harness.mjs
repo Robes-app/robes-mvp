@@ -149,7 +149,7 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
       segOn: qa('#sn-cal .rb-mv-seg button').map((b) => b.classList.contains('on')),
       nav: qa('#sn-cal .rb-mv-nav > button[aria-label]').map((b) => b.getAttribute('aria-label')),
       addBesideEyebrow: !!q('#sn-headrow #sn-headact .rb-mv-add'),
-      segBelow: (() => { const t = q('#sn-cal .rb-mv-title'), sg = q('#sn-cal .rb-mv-modebar .rb-mv-seg'); return !!t && !!sg && sg.getBoundingClientRect().top > t.getBoundingClientRect().bottom; })(),
+      segInHead: (() => { const t = q('#sn-cal .rb-mv-title'), sg = q('#sn-cal .rb-mv-head .rb-mv-seg'); return !!t && !!sg && sg.getBoundingClientRect().top > t.getBoundingClientRect().bottom; })(),
       noChevrons: !q('#sn-cal .dy-trip-h svg:last-child path[d^="M4.8"]') && !q('#sn-cal .dy-tail svg'),
       whiteCards: (() => { const c = q('#sn-cal .dy-card'); return !c || getComputedStyle(c).backgroundColor === 'rgb(255, 255, 255)'; })(),
       title: q('#sn-cal .rb-mv-title')?.textContent,
@@ -172,7 +172,9 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
     s.path === '/diary' && s.eyebrow === 'Diary' && s.diaryLit === true && s.list === true && s.grid === false && s.cap === false
       && JSON.stringify(s.segOn) === JSON.stringify([true, false]), JSON.stringify([s.path, s.eyebrow, s.diaryLit, s.list, s.grid, s.segOn]));
   check('list · the header is the month, ‹ ›, the List | Month toggle and +',
-    /\d{4}/.test(s.title || '') && JSON.stringify(s.nav) === JSON.stringify(['Previous month', 'Next month']) && s.addBesideEyebrow && s.segBelow, JSON.stringify([s.title, s.nav, s.addBesideEyebrow, s.segBelow]));
+    // One masthead line (nav architecture 2026-09-10): the month in caps + the
+    // count, the List | Month toggle beneath it in the same head, ‹ › + as circles.
+    /\d{4}/.test(s.title || '') && JSON.stringify(s.nav) === JSON.stringify(['Previous month', 'Next month', 'Add']) && s.segInHead, JSON.stringify([s.title, s.nav, s.segInHead]));
   check('list · today and the week ahead invite while empty ("Name the day" + the + door), nothing beyond',
     JSON.stringify(s.invites) === JSON.stringify(expInvites) && s.invitePh === 'Name the day', JSON.stringify([s.invites, expInvites, s.invitePh]));
   const pastExp = inMonth(PAST) ? [{ date: PAST, name: 'The black one', meta: 'Filed · 4 pieces', worn: true }] : [];
@@ -406,7 +408,7 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
   check('empty · the design\'s empty state: "Nothing planned yet.", the line, Plan a trip',
     e.had && /Nothing planned/.test(e.h || '') && /yet\./.test(e.h || '') && /The diary keeps the dates; the lookbook keeps the looks\./.test(e.p || '') && e.cta === 'Plan a trip', JSON.stringify(e));
   check('empty · Plan a trip is the ONE dark fill and opens the travel intake over the Diary',
-    e.darkFills === 1 && e.intake && e.diaryStill, JSON.stringify(e));
+    e.darkFills === 1 /* the CTA alone — the List | Month toggle is a view, warm-selected (nav architecture 2026-09-10) */ && e.intake && e.diaryStill, JSON.stringify(e));
   check('empty · the week\'s invitations still follow beneath', e.invites === expEmptyInvites, JSON.stringify([e.invites, expEmptyInvites]));
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
@@ -485,12 +487,13 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
     row?.click();
     await new Promise((r) => setTimeout(r, 700));
     const pg = document.getElementById('dl-result-page');
-    return { meta, visible: !!pg && pg.style.display !== 'none', grid: !!pg?.querySelector('.dyp-grid'), title: pg?.querySelector('.dlm-title')?.textContent.trim(), back: pg?.querySelector('.dyp-back')?.textContent.trim(), diaryHidden: document.getElementById('sn-page')?.style.display === 'none' };
+    return { meta, visible: !!pg && pg.style.display !== 'none', grid: !!pg?.querySelector('.dyp-grid'), title: pg?.querySelector('.dlm-title')?.textContent.trim(), back: pg?.querySelector('.rb-ret-pill .lab')?.textContent.trim(), diaryHidden: document.getElementById('sn-page')?.style.display === 'none' };
   }, TOM);
-  check('day page · a look row on the list opens the DAY (no moment label on the row); the door back reads Diary',
-    lr.visible && lr.grid && lr.title === 'Golf Club Event' && /Diary$/.test(lr.back || '') && !/Day ·|Evening ·|Morning ·/.test(lr.meta || '') && lr.diaryHidden, JSON.stringify(lr));
+  // The return pill names the month the day lives in (nav architecture 2026-09-10)
+  check('day page · a look row on the list opens the DAY (no moment label on the row); the return pill names the month',
+    lr.visible && lr.grid && lr.title === 'Golf Club Event' && /^[A-Z][a-z]+ \d{4}$/.test(lr.back || '') && !/Day ·|Evening ·|Morning ·/.test(lr.meta || '') && lr.diaryHidden, JSON.stringify(lr));
   const bk = await page.evaluate(async () => {
-    document.querySelector('#dl-result-page .dyp-back').click();
+    document.querySelector('#dl-result-page .rb-ret-pill').click();
     await new Promise((r) => setTimeout(r, 700));
     return { diary: document.getElementById('sn-page')?.style.display === 'block' && document.getElementById('sn-page')?.classList.contains('rb-cal-on'), dlHidden: document.getElementById('dl-result-page')?.style.display === 'none' };
   });
@@ -504,10 +507,10 @@ const inMonth = (d) => d.slice(0, 7) === monthOf;
     cell.click();
     await new Promise((r) => setTimeout(r, 700));
     const pg = document.getElementById('dl-result-page');
-    return { cell: true, peek: !!document.getElementById('rb-dpk'), visible: !!pg && pg.style.display !== 'none', grid: !!pg?.querySelector('.dyp-grid'), title: pg?.querySelector('.dlm-title')?.textContent.trim(), back: pg?.querySelector('.dyp-back')?.textContent.trim() };
+    return { cell: true, peek: !!document.getElementById('rb-dpk'), visible: !!pg && pg.style.display !== 'none', grid: !!pg?.querySelector('.dyp-grid'), title: pg?.querySelector('.dlm-title')?.textContent.trim(), back: pg?.querySelector('.rb-ret-pill .lab')?.textContent.trim() };
   }, TOM);
-  check('day page · a month cell opens the day directly — no peek; the door back reads Diary',
-    mc.cell && mc.peek === false && mc.visible && mc.grid && mc.title === 'Golf Club Event' && /Diary$/.test(mc.back || ''), JSON.stringify(mc));
+  check('day page · a month cell opens the day directly — no peek; the return pill names the month',
+    mc.cell && mc.peek === false && mc.visible && mc.grid && mc.title === 'Golf Club Event' && /^[A-Z][a-z]+ \d{4}$/.test(mc.back || ''), JSON.stringify(mc));
   check('day page · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }

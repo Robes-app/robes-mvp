@@ -357,7 +357,6 @@ const browser = await chromium.launch(
   // state is deterministic.
   const bar = await page.evaluate(() => {
     const barEl = document.getElementById('rb-lk-bar');
-        const newBtn = document.querySelector('#sn-headact button');
     // Sort and Refine are inert below four looks (2026-08-12), and this
     // fixture holds two — pad the stream so the controls are live, then put
     // the shelf back. The padding is legacy 'look' items: a daily look is a
@@ -383,9 +382,10 @@ const browser = await chromium.launch(
     if (prior === null) localStorage.removeItem('robes_style_notes__u-test');
     else localStorage.setItem('robes_style_notes__u-test', prior);
     window.__lkGo();
-    return { newBtn: !!newBtn, axes, shown, none, restored, inertBefore, liveAfter };
+    const newBtn = !!(barEl && barEl.querySelector('.rb-lk-new'));
+    return { newBtn, axes, shown, none, restored, inertBefore, liveAfter };
   });
-  check('bar · + New look sits inline with the page eyebrow (Annie 2026-09-08)', bar.newBtn === true);
+  check('bar · + New look is a pill on the masthead line (nav architecture 2026-09-10)', bar.newBtn === true);
   check('bar · sort and Refine are inert below four looks and come live at four',
     bar.inertBefore === true && bar.liveAfter === true, JSON.stringify([bar.inertBefore, bar.liveAfter]));
   // ADR-002 §7: Light is deleted, and Vibe only renders once she has one —
@@ -500,8 +500,10 @@ const browser = await chromium.launch(
 
   const d = await page.evaluate(() => ({
     back: !!document.querySelector('.rb-lk-back'),
-    backLabel: document.querySelector('.rb-lk-back span')?.textContent,
-    eyebrow: document.querySelector('.rb-lk-eyebrow')?.textContent,
+    // Band two (nav architecture 2026-09-10): ONE return pill naming the
+    // previous screen + the set position; band three's eyebrow says the kind.
+    ret: ((b) => b ? { label: b.querySelector('.rb-ret-pill .lab')?.textContent, pos: b.querySelector('.rb-ret-pos')?.textContent, h: Math.round(b.getBoundingClientRect().height) } : null)(document.querySelector('#rb-lk-body .rb-ret')),
+    eyebrow: document.querySelector('.rb-lk-mast .rb-tb-ey')?.textContent,
     title: ((e) => e ? (e.tagName === 'INPUT' ? e.value : e.textContent) : null)(document.getElementById('rb-lk-title')),
     provisional: document.getElementById('rb-lk-title')?.classList.contains('prov'),
     wornVal: document.querySelector('.rb-lk-worn .rb-lk-rule .val')?.textContent,
@@ -526,9 +528,9 @@ const browser = await chromium.launch(
     rowSwaps: document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-act').length,
   }));
   check('detail · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
-  // The back pill names the door she came through (Robes_Look_IA) — the
-  // grid, here.
-  check('detail · the back pill names the door — Lookbook from the grid', d.back === true && d.backLabel === 'Lookbook', String(d.backLabel));
+  check('detail · no sub-sub-nav back line', d.back === false);
+  check('detail · the return band names the Lookbook and walks its set (n of N)',
+    !!d.ret && d.ret.label === 'Lookbook' && /^\d of 2$/.test(d.ret.pos || '') && d.ret.h === 48, JSON.stringify(d.ret));
   check('detail · grid yields to the detail', d.gridHidden === true);
   const tabBack = await page.evaluate(() => {
     document.getElementById('rb-tn-lookbook').click();
@@ -557,7 +559,7 @@ const browser = await chromium.launch(
     return {
       calRound: cc.borderRadius, calBg: cc.backgroundColor, calTitle: c.getAttribute('title'),
       camTitle: cam.getAttribute('title'), lblHidden: lbl ? getComputedStyle(lbl).display === 'none' : null,
-      headerVerbs: document.querySelectorAll('.rb-lk-mast button:not(.rb-rename-tbtn):not(.rb-lk-back)').length,
+      headerVerbs: document.querySelectorAll('.rb-lk-mast button:not(.rb-rename-tbtn):not(.rb-lk-back):not(.rb-tb-btn)').length,
     };
   });
   check('detail · the diary icon and the camera sit ON the image, no verbs in the header',
@@ -573,7 +575,7 @@ const browser = await chromium.launch(
     return {
       mastFirst: !!(mast && con) && !!(mast.compareDocumentPosition(con) & Node.DOCUMENT_POSITION_FOLLOWING),
       titleInMast: !!mast?.querySelector('#rb-lk-title'),
-      pencil: !!mast?.querySelector('.rb-rename-tbtn'),
+      pencil: !!mast?.querySelector('.rb-tb-trow .rb-tb-btn'),
       rackLabel: con?.querySelector('.rb-lk-sec')?.textContent,
       wornBelowRack: !!(rack && worn) && !!(rack.compareDocumentPosition(worn) & Node.DOCUMENT_POSITION_FOLLOWING),
     };
@@ -603,7 +605,7 @@ const browser = await chromium.launch(
   });
   check('detail · pencil opens the inline input', renamed.isInput === true);
   check('detail · commit lands the name back as the static title',
-    renamed.tag === 'H2' && renamed.title === 'Thursday, renamed', JSON.stringify(renamed));
+    renamed.tag === 'H1' && renamed.title === 'Thursday, renamed', JSON.stringify(renamed));
   // The wear record reads the way a wardrobe piece prints it: "Worn ———
   // twice" over a hairline (rule 03 — the counter started at the save),
   // cost per wear beside it when priced pieces exist (700/2).
@@ -2048,10 +2050,10 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     addCard: !!document.querySelector('#rb-lk-grid .rb-add-card'),
     moduleEmpty: !!document.querySelector('.rb-lk-empty'),
     sorts: Array.from(document.querySelectorAll('.rb-lk-sort')).map((b) => b.disabled),
-    stat: document.querySelector('#rb-lk-allhead .rb-lk-allcount')?.textContent,
+    stat: document.querySelector('#rb-lk-bar .rb-mast-n')?.textContent,
     // No travel strip on the Lookbook (Diary IA phase 2, 2026-09-08)
     holGone: !document.getElementById('rb-lk-hol') && !document.querySelector('.rb-lk-holcard'),
-    newLook: Array.from(document.querySelectorAll('#sn-headact button')).map((b) => b.textContent),
+    newLook: Array.from(document.querySelectorAll('#rb-lk-bar .rb-mast-acts button')).map((b) => b.textContent),
   }));
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('empty · a legacy look item still fills the shelf',
@@ -2064,8 +2066,10 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('empty · sort and Refine render inert below four looks; the stat counts looks alone',
     JSON.stringify(e.sorts) === JSON.stringify([true, true]) && e.stat === '1 look',
     JSON.stringify([e.sorts, e.stat]));
-  check('empty · no travel strip on the Lookbook — trips live in the Diary; + New look is the one door',
-    e.holGone === true && JSON.stringify(e.newLook) === JSON.stringify(['+ New look']),
+  // One masthead line (nav architecture 2026-09-10): ALL LOOKS · count,
+  // then sort / Refine / + New look as hairline pills on the same line.
+  check('empty · no travel strip on the Lookbook — trips live in the Diary; the masthead line carries sort, Refine and + New look',
+    e.holGone === true && JSON.stringify(e.newLook) === JSON.stringify(['Last worn↓', 'Refine', '+ New look']),
     JSON.stringify([e.holGone, e.newLook]));
   // FTUE wording on the composer's one alternative door — she has no looks
   // yet, so Robes offers to build the FIRST one (2026-08-12).
@@ -2288,14 +2292,16 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       kpInStream: /Umbro shorts/.test(document.getElementById('rb-lk-grid')?.textContent || ''),
       holGone: !document.getElementById('rb-lk-hol') && !document.querySelector('.rb-lk-holcard'),
       tripInStream: /Ibiza holiday edit/.test(document.getElementById('rb-lk-grid')?.textContent || ''),
-      newLook: /\+ New look/.test(document.getElementById('sn-headact')?.textContent || '') && !/▾/.test(document.getElementById('sn-headact')?.textContent || ''),
-      stat: document.querySelector('#rb-lk-allhead .rb-lk-allcount')?.textContent,
+      newLook: /\+ New look/.test(document.getElementById('rb-lk-bar')?.textContent || '') && !/▾/.test(document.getElementById('rb-lk-bar')?.textContent || ''),
+      stat: document.querySelector('#rb-lk-bar .rb-mast-n')?.textContent,
       allRow: (() => {
-        const row = document.querySelector('#rb-lk-allhead .rb-lk-allrow');
+        const row = document.querySelector('#rb-lk-bar .rb-mast');
         return {
-          label: row?.querySelector('.rb-lk-sec')?.textContent,
+          label: row?.querySelector('.rb-mast-lab')?.textContent,
           sortHere: !!row?.querySelector('.rb-lk-sort'),
-          sortInBar: !!document.querySelector('#rb-lk-bar .rb-lk-sort'),
+          oneLine: !!row && Math.abs(row.querySelector('.rb-mast-lab').getBoundingClientRect().top - row.querySelector('.rb-lk-new').getBoundingClientRect().top) < 30,
+          noEyebrowRow: getComputedStyle(document.getElementById('sn-headrow')).display === 'none',
+          inkFills: Array.from(row?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
         };
       })(),
     };
@@ -2314,9 +2320,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('IA · no travel strip and no trip in the stream — trips live in the Diary',
     uni.holGone === true && uni.tripInStream === false, JSON.stringify([uni.holGone, uni.tripInStream]));
   check('IA · + New look is the one creation door (no split)', uni.newLook === true);
-  check('IA · the top row carries the looks count alone; sort/Refine align with All looks',
+  check('IA · ONE masthead line — ALL LOOKS · count, sort / Refine / + New look beside it, no eyebrow stacked above, nothing filled ink',
     uni.stat === '2 looks' && uni.allRow.label === 'All looks'
-      && uni.allRow.sortHere === true && uni.allRow.sortInBar === false,
+      && uni.allRow.sortHere === true && uni.allRow.oneLine === true && uni.allRow.noEyebrowRow === true && uni.allRow.inkFills === 0,
     JSON.stringify([uni.stat, uni.allRow]));
   // The Diary's + menu offers the two things a diary holds: a look for a
   // day and a travel edit. The intake opens OVER the Diary, and the trip
@@ -2343,14 +2349,17 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const tvOpen = document.getElementById('tv-result-page')?.style.display !== 'none';
     const diaryLit = document.getElementById('rb-tn-diary')?.classList.contains('active');
     const lookbookLit = document.getElementById('rb-tn-lookbook')?.classList.contains('active');
-    const back = document.querySelector('#tv-result-page .tvm-back')?.textContent;
+    // The bare "← Diary" arrow became the standard return pill, naming the
+    // month the trip lives in (nav architecture 2026-09-10).
+    const back = document.querySelector('#tv-result-page .rb-ret-pill .lab')?.textContent;
+    const arrow = !!document.querySelector('#tv-result-page .tvm-back');
     window.__tvEditDetails();
     const del = !!document.getElementById('tv-ed-delete');
     document.getElementById('tv-edit-modal')?.remove();
     window.__tvGoBack();
     await new Promise((r) => setTimeout(r, 500));
     const landedDiary = document.getElementById('sn-page')?.classList.contains('rb-cal-on') && location.pathname === '/diary';
-    return { hadAdd: !!addBtn, opts, subs, hadModal: !!modal, diaryStillOpen, files, tvOpen, diaryLit, lookbookLit, back, del, landedDiary };
+    return { hadAdd: !!addBtn, opts, subs, hadModal: !!modal, diaryStillOpen, files, tvOpen, diaryLit, lookbookLit, back, arrow, del, landedDiary };
   });
   check('IA · the Diary\'s + menu offers Add a look and Add a travel edit',
     diaryAdd.hadAdd && JSON.stringify(diaryAdd.opts) === JSON.stringify(['Add a look', 'Add a travel edit'])
@@ -2359,7 +2368,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('IA · the travel intake opens over the Diary and says where the trip files',
     diaryAdd.hadModal && diaryAdd.diaryStillOpen && diaryAdd.files, JSON.stringify(diaryAdd));
   check('IA · a trip lights the Diary, backs to the Diary, and can be deleted from Edit details',
-    diaryAdd.tvOpen && diaryAdd.diaryLit === true && diaryAdd.lookbookLit === false && diaryAdd.back === '← Diary'
+    diaryAdd.tvOpen && diaryAdd.diaryLit === true && diaryAdd.lookbookLit === false && /^[A-Z][a-z]+ \d{4}$/.test(diaryAdd.back || '') && diaryAdd.arrow === false
       && diaryAdd.del === true && diaryAdd.landedDiary === true, JSON.stringify(diaryAdd));
   await page.evaluate(() => window.__lkGo());
   await page.waitForTimeout(400);
@@ -2376,7 +2385,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     return {
       dlOpen: !!dlEl && dlEl.style.display !== 'none',
       detailTitle: document.getElementById('rb-lk-title')?.textContent,
-      eyebrow: document.querySelector('.rb-lk-eyebrow')?.textContent,
+      eyebrow: document.querySelector('.rb-lk-mast .rb-tb-ey')?.textContent,
       weather: !!document.querySelector('#rb-lk-body .dlm-wx'),
       share: /Share this look/.test(document.getElementById('rb-lk-body')?.textContent || ''),
     };
@@ -2496,7 +2505,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const head = modal ? modal.textContent : '';
     window.__mvWearPick(niso, 'lk-1');
     await new Promise((r) => setTimeout(r, 200));
+    const cal0 = document.getElementById('sn-cal');
     return {
+      dbg: { rows: cal0.querySelectorAll('.dy-row').length, invites: cal0.querySelectorAll('.dy-invite').length, cards: cal0.querySelectorAll('.dy-card').length, trips: cal0.querySelectorAll('.dy-trip').length, tadd: cal0.querySelectorAll('.dy-tadd').length, mode: localStorage.getItem('rb_diary_mode'), head: (cal0.textContent || '').replace(/\s+/g, ' ').slice(0, 160) },
       cellWired: !!cell || isMonthTail,
       hadModal: !!modal, tiles,
       asks: /Wear a look this day\?/.test(head),
@@ -2504,7 +2515,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       today: iso, target: niso,
     };
   });
-  check('IA · empty future days are wired to the wear-a-look door', wear.cellWired === true);
+  check('IA · empty future days are wired to the wear-a-look door', wear.cellWired === true, JSON.stringify(wear));
   check('IA · the door lists her looks and asks, never creates',
     wear.hadModal && wear.tiles === 2 && wear.asks, JSON.stringify(wear));
   await page.waitForTimeout(1200); // the planned_days write is debounced
@@ -3054,7 +3065,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       eyebrow: q('.dlm-eyebrow')?.textContent,
       title: q('.dlm-title')?.textContent.trim(),
       titleIsDoor: !!q('button.dyp-title-none'),
-      pen: !!q('.dyp-titlerow .rb-rename-tbtn'),
+      pen: !!q('.rb-tb-trow .dyp-pen'),
       sec: q('.dyp-sec-l')?.textContent, stat: q('.dyp-sec-r')?.textContent,
       cards: qa('.dyp-card').map((c) => ({
         ey: q('.dyp-ey > span:first-child', c)?.textContent, when: q('.dyp-when', c)?.textContent || null,
@@ -3063,7 +3074,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       })),
       add: q('.dyp-add') ? q('.dyp-add .dyp-add-l').textContent + ' · ' + q('.dyp-add .dyp-add-s').textContent : null,
       console: !!q('.dlm-console'), switcher: !!q('[onclick*="__dlSetSlot"]'),
-      back: q('.dlm-dayback')?.textContent.trim() || null,
+      back: q('#dl-result-page .rb-ret-pill .lab')?.textContent.trim() || null,
       whens: qa('.dyp-when').length,
     };
   });
@@ -3082,7 +3093,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       && d1.sec === 'Looks filed today' && d1.stat === '1 look · 4 pieces filed' && d1.console === false,
     JSON.stringify(d1));
   check('day page · the day carries a door back to where she came from (Home from the rail; Diary from the Diary)',
-    d1.back === '‹Home' || d1.back === '‹ Home', d1.back);
+    d1.back === 'Home', d1.back);
   check('day page · one look, one card: LOOK 1, no moment label, the name, the piece count, her frame, the ✕',
     d1.cards.length === 1 && d1.cards[0].ey === 'Look 1' && d1.cards[0].when === null && d1.cards[0].name === 'The Thursday one'
       && d1.cards[0].n === '4 pieces' && d1.cards[0].img && d1.cards[0].x,
@@ -3141,7 +3152,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       lookPage: !!sn && sn.style.display === 'block' && !!wrap && getComputedStyle(wrap).display !== 'none',
       title: document.querySelector('#rb-lk-wrap .rb-lk-title')?.textContent.trim(),
       eyebrow: document.querySelector('#rb-lk-wrap .rb-lk-eyebrow')?.textContent.trim(),
-      back: document.querySelector('#rb-lk-wrap .rb-lk-back')?.textContent.trim(),
+      back: document.querySelector('#rb-lk-wrap .rb-ret-pill .lab')?.textContent.trim(),
       dayHeader: !!document.querySelector('#rb-lk-wrap .dlm-eyebrow, #rb-lk-wrap .dlm-wx'),
       dlHidden: document.getElementById('dl-result-page')?.style.display === 'none',
     };
@@ -3153,7 +3164,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     /^‹?\s*[A-Z][a-z]{2} \d+ [A-Z][a-z]{2}$/.test(look.back || ''), look.back);
   if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/day-look.png' }).catch(() => {});
   await page.evaluate(async () => {
-    document.querySelector('#rb-lk-wrap .rb-lk-back').click();
+    document.querySelector('#rb-lk-wrap .rb-ret-pill').click();
     await new Promise((r) => setTimeout(r, 500));
   });
   const d4 = await readDay();
