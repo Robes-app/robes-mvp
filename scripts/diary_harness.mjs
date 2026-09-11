@@ -221,6 +221,29 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
   // The convergence itself: consecutive days ride ONE bordered block, the
   // rows highlight on hover, and every look row carries the → that says it
   // opens — the trip page's Travel diary, on the Diary (Annie 2026-09-10).
+  // The WHOLE row is the door (Annie, 2026-09-10 — the look rows were the
+  // only way into a day): a tap on the row's body opens the day page, while
+  // the pencil, the add slot and the name input keep their own jobs.
+  const rowTap = await page.evaluate(async (TOM) => {
+    const row = document.querySelector('#sn-cal .dy-tday[data-date="' + TOM + '"]');
+    const r = { tappable: !!row && row.getAttribute('role') === 'button' && /__dyOpenDay/.test(row.getAttribute('onclick') || '') };
+    row?.querySelector('.dy-tday-b')?.click();
+    await new Promise((x) => setTimeout(x, 700));
+    const pg = document.getElementById('dl-result-page');
+    r.day = !!pg && pg.style.display !== 'none' && !!pg.querySelector('.dyp-grid');
+    r.title = pg?.querySelector('.dlm-title')?.textContent.trim();
+    window.__rbNavGo('diary');
+    await new Promise((x) => setTimeout(x, 700));
+    // the pencil renames in place rather than opening the day
+    document.querySelector('#sn-cal .dy-tday[data-date="' + TOM + '"] .dy-pen')?.click();
+    await new Promise((x) => setTimeout(x, 200));
+    r.pencil = !!document.getElementById('dy-name-in') && document.getElementById('dl-result-page')?.style.display === 'none';
+    document.getElementById('dy-name-in')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await new Promise((x) => setTimeout(x, 200));
+    return r;
+  }, TOM);
+  check('list · the whole day row opens the day; the pencil still renames in place',
+    rowTap.tappable && rowTap.day && rowTap.title === 'Golf Club Event' && rowTap.pencil, JSON.stringify(rowTap));
   check('list · consecutive days ride ONE block, rows lift on hover, look rows carry the arrow',
     s.blockRows.length > 0 && s.blockRows.some((n) => n > 1) && s.hoverLift === true && s.lookArrows === true,
     JSON.stringify([s.blockRows, s.hoverLift, s.lookArrows]));
@@ -548,6 +571,39 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
     const pg = document.getElementById('dl-result-page');
     return { cell: true, peek: !!document.getElementById('rb-dpk'), visible: !!pg && pg.style.display !== 'none', grid: !!pg?.querySelector('.dyp-grid'), title: pg?.querySelector('.dlm-title')?.textContent.trim(), back: pg?.querySelector('.rb-ret-pill .lab')?.textContent.trim() };
   }, TOM);
+  // A TRIP day is still a day (Annie, 2026-09-10): its month cell lands on
+  // the day page carrying the trip's looks + the line out to the travel
+  // edit, never the trip's own console with the look in edit mode.
+  const tc = await page.evaluate(async (T0) => {
+    window.__rbNavGo('diary');
+    await new Promise((r) => setTimeout(r, 700));
+    window.__dySetMode('month');
+    await new Promise((r) => setTimeout(r, 500));
+    const cell = document.querySelector('#sn-cal [onclick*="__mvCell(\'' + T0 + '\')"]');
+    cell?.click();
+    await new Promise((r) => setTimeout(r, 800));
+    const pg = document.getElementById('dl-result-page');
+    const q = (sel) => pg && pg.querySelector(sel);
+    const r = {
+      cell: !!cell,
+      day: !!pg && pg.style.display !== 'none' && !!q('.dyp-grid'),
+      tvClosed: document.getElementById('tv-result-page')?.style.display !== 'block',
+      title: q('.dlm-title')?.textContent.trim(),
+      cards: Array.from(pg ? pg.querySelectorAll('.dyp-card') : []).map((c) => q('.dyp-name', c) ? c.querySelector('.dyp-name').textContent : ''),
+      tripLine: q('.dlm-lksrc')?.textContent.replace(/\s+/g, ' ').trim(),
+      x: pg ? pg.querySelectorAll('.dyp-card .dyp-x').length : -1,
+      wx: q('.dlm-wx')?.textContent.replace(/\s+/g, ' ').trim(),
+    };
+    window.__dySetMode('list');
+    return r;
+  }, T0);
+  check('day page · a TRIP day opens the day page — its looks as cards, the trip named, no ✕ on a packed look',
+    tc.cell && tc.day && tc.tvClosed && tc.title === 'Travel and Dinner'
+      && JSON.stringify(tc.cards) === JSON.stringify(['Golf Club Dinner']) && /Open the travel edit/.test(tc.tripLine || '') && tc.x === 0,
+    JSON.stringify(tc));
+  // The trip's own forecast is the day's weather there — a day holding one
+  // pinned look filed none of its own, and the header read broken.
+  check('day page · a trip day reads the DESTINATION\'s weather', /Lahinch, Ireland/.test(tc.wx || '') && /13–19°C/.test(tc.wx || ''), tc.wx);
   check('day page · a month cell opens the day directly — no peek; the return pill names the month',
     mc.cell && mc.peek === false && mc.visible && mc.grid && mc.title === 'Golf Club Event' && /^[A-Z][a-z]+ \d{4}$/.test(mc.back || ''), JSON.stringify(mc));
   check('day page · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
