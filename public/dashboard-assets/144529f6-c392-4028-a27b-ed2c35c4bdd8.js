@@ -137,6 +137,10 @@ const Dash = (function () {
   function startType() {
     const ta = $('cb-ta'); if (!ta) return;
     stopType();
+    /* The personalize layer pins ghost text while a scope chip is armed
+       (window.__rbPromptHold) — the rotating examples would otherwise
+       overwrite it on the next blur. */
+    if (window.__rbPromptHold) { ta.placeholder = window.__rbPromptHold; return; }
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       ta.placeholder = STATIC_PH; return;
     }
@@ -171,7 +175,7 @@ const Dash = (function () {
     if (App.setIntent) App.setIntent('trip');   // routing default for the single prompt
     const ta = $('cb-ta');
     startType();
-    ta.addEventListener('focus', () => { stopType(); ta.placeholder = STATIC_PH; });
+    ta.addEventListener('focus', () => { stopType(); ta.placeholder = window.__rbPromptHold || STATIC_PH; });
     ta.addEventListener('input', stopType);
     ta.addEventListener('blur', () => { if (!ta.value.trim()) startType(); });
     // close the + photo menu on outside click

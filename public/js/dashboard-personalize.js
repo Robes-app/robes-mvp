@@ -23446,8 +23446,15 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 
       var _IK_FLAG_KEY = 'rb_diary_prompt';
       var _ikScope = { kind: 'none', id: null, label: '', date: null };
+      // The day chip's own ghost text (Annie, 2026-09-14) — a scoped day
+      // asks two questions, and the rotating examples answer neither.
+      var _IK_DAY_PH = 'Where are you going? What’s the vibe?';
       var _ikState = null;       // intake-local state; null = closed
       var _ikOpenedAt = 0;
+      // Bumped by every open and every close — a classify that lands after
+      // she has moved on (tapped a pill, cancelled) must not paint its
+      // panel over whatever is on the box now.
+      var _ikSeq = 0;
 
       function _rbDiaryOn() {
         // Default ON for everyone (Annie, 2026-07-24 — the Diary is the
@@ -23549,7 +23556,19 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         chip.className = 'on' + (_ikScope.kind === 'day' ? ' sel' : '');
         chip.innerHTML = '<span class="lbl">' + _ikEsc(_ikScope.label) + '</span><span class="x">×</span>';
       }
-      function _ikSetScope(s) { _ikScope = s || { kind: 'none', id: null, label: '', date: null }; _ikChipPaint(); _ikPillsPaint(); }
+      function _ikSetScope(s) {
+        _ikScope = s || { kind: 'none', id: null, label: '', date: null };
+        _ikPromptHint(); _ikChipPaint(); _ikPillsPaint();
+      }
+      // The pinned placeholder rides window.__rbPromptHold so the bundle's
+      // typewriter hands the field over while a day is scoped, and takes it
+      // back the moment the chip clears.
+      function _ikPromptHint() {
+        const day = _ikScope.kind === 'day';
+        try { window.__rbPromptHold = day ? _IK_DAY_PH : null; } catch (_) {}
+        const ta = document.getElementById('cb-ta');
+        if (ta) ta.placeholder = day ? _IK_DAY_PH : _CB_PLACEHOLDER;
+      }
       // Escaping a day scope always clears the chip — the plan auto-scope
       // this used to fall back to is disabled (product call: the day chip
       // is the only chip that should ever appear).
@@ -23570,36 +23589,59 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
       // exists — trips never auto-scope (decision 3), and the weekly plan
       // that used to feed the plan scope no longer has an artifact.
 
-      // ── suggestion pills — the cold-start mechanism. Never a place or
-      // date that isn't already in the user's data. ──────────────────
+      // ── suggestion pills — THE THREE DOORS (Annie, 2026-09-14) ─────
+      // Always these three, in this order, whatever the state: they are the
+      // menu of what the prompt can do, so a row that changes shape stops
+      // reading as one. Supersedes the state-derived cold-start pills
+      // (+ Add pieces / Finish your trip / Dress today) and the day-scope
+      // tone modifiers — nothing else ever renders here.
       function _ikPillsPaint() {
         const host = document.getElementById('rb-sugg');
         if (!host) return;
-        const pills = [];
-        const today = _pdLocalISO();
-        const cached = _pdCacheRead();
-        if (_ikScope.kind === 'day') {
-          // Tone modifiers — never dated, never placed
-          ['A touch warmer', 'Softer and easier', 'Flats today'].forEach(t =>
-            pills.push({ label: t, act: () => { _ikTrack('pill', 'restyle_day'); _ikRestyleDay(t); } }));
-        } else {
-          if (_waItems.length < 15) {
-            pills.push({ label: '+ Add pieces — a few photos at once', act: () => { _ikTrack('pill', 'wardrobe'); if (window.__waAddChooser) window.__waAddChooser(); else if (window.App && App.showWardrobe) App.showWardrobe(); } });
-          }
-          const deferred = snLoad().find(t => t.type === 'travel-edit' && t.tvData && (!Array.isArray(t.tvData.days) || !t.tvData.days.length));
-          if (deferred) {
-            pills.push({ label: 'Finish ' + (deferred.title || 'your trip'), act: () => { _ikTrack('pill', 'travel'); window.__snOpenItem(deferred.id); } });
-          }
-          if (!cached.some(r => r.day_date === today)) {
-            // Mary's user testing, 2026-08-21: this pill used to jump
-            // straight into a generation with no prompt or guidance — it
-            // now arms the prompt box exactly like the "Dress me today"
-            // chip, so she can edit the occasion/mood before sending.
-            pills.push({ label: 'Dress today', act: () => { _ikTrack('pill', 'daily'); if (typeof _cbSetIntent === 'function') _cbSetIntent('dress-me'); } });
-          }
-        }
+        // A pill is a fresh start — an open unfurl from the door before it
+        // would otherwise hang under the box while this one is answering.
+        const fresh = () => { if (_ikState) _ikClose(true); };   // _ikClose skips the abandon event for a reading state
+        const pills = [
+          // Today's date chip + the day's own ghost text. No generation —
+          // she names the day, then sends (Mary's testing, 2026-08-21).
+          { label: 'Style today', act: () => {
+              _ikTrack('pill', 'daily');
+              fresh();
+              // A photo or an attached look always routes to the style
+              // track — it would silently outrank this door (_cbSetIntent
+              // clears them for the same reason).
+              _cbClearPhoto();
+              _ikClearPrompt();
+              _cbResetCta();
+              window._ikScopeDay(_pdLocalISO());
+            } },
+          // The unfurl IS the trip intake — where / when / vibe, on the
+          // prompt box, with nothing read from a prompt she hasn't typed.
+          { label: 'Plan a trip', act: () => {
+              _ikTrack('pill', 'travel');
+              fresh();
+              // A photo or an attached look always routes to the style
+              // track — it would silently outrank this door (_cbSetIntent
+              // clears them for the same reason).
+              _cbClearPhoto();
+              _ikSetScope(null);
+              _ikClearPrompt();
+              _cbResetCta();
+              _ikOpen('travel', {});
+            } },
+          // Her wardrobe is the brief — the picker writes "Style my {piece}
+          // three ways" and attaches the photo, so the track is settled.
+          { label: 'Style a piece', act: () => {
+              _ikTrack('pill', 'style');
+              fresh();
+              _ikSetScope(null);
+              _ikClearPrompt();
+              _cbResetCta();
+              if (window.__cbWardrobePick) window.__cbWardrobePick();
+            } },
+        ];
         host.innerHTML = '';
-        pills.slice(0, 3).forEach((p, i) => {
+        pills.forEach(p => {
           const b = document.createElement('button');
           b.className = 'rb-schip';
           b.textContent = p.label;
@@ -23659,7 +23701,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         // ready (or clarify); a failure is never a dead end and never
         // loses the prompt.
         _ikOpenReading(prompt);
+        const seq = _ikSeq;
         _ikClassify(prompt).then(seed => {
+          if (seq !== _ikSeq) return;   // she moved on — this answer is stale
           const ms = Date.now() - t0;
           _rbTrack('prompt_submitted', { intent: seed.intent, scope: _ikScope.kind, source: 'typed', latency_ms: ms, ok: true });
           const conf = seed.confidence >= 0.6 && seed.intent !== 'unclear';
@@ -23675,6 +23719,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           }
           _ikOpen(seed.intent, { ...seed, prompt });
         }).catch(() => {
+          if (seq !== _ikSeq) return;
           _rbTrack('prompt_submitted', { intent: 'error', scope: _ikScope.kind, source: 'typed', latency_ms: Date.now() - t0, ok: false });
           _ikOpen('clarify', { prompt, failed: true });
         });
@@ -23745,6 +23790,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         if (!host) return;
         _ikState = { kind: 'reading', reading: true, prompt, openedAt: Date.now() };
         _ikOpenedAt = Date.now();
+        _ikSeq++;
         _ikAttach(true);
         // COPY: needs sign-off (was "Reading your week" — stale since the
         // weekly track retired; the classify covers day and trip prompts)
@@ -23831,6 +23877,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           _rbTrack('intake_abandoned', { kind: _ikState.kind, seconds_open: Math.round((Date.now() - (_ikState.openedAt || Date.now())) / 1000) });
         }
         _ikState = null;
+        _ikSeq++;
         _ikAttach(false);
         const host = document.getElementById('rb-intake');
         if (host) host.innerHTML = '';
@@ -24197,6 +24244,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             box.parentNode.insertBefore(sugg, host ? host.nextSibling : box.nextSibling);
           }
           ta.addEventListener('keydown', e => { if (e.key === 'Escape') _ikScopeBack(); });
+          // The three doors read nothing from her data, so they paint the
+          // moment the box exists — no waiting on the session or the cache.
+          _ikPillsPaint();
           return true;
         };
         let tries = 0;
