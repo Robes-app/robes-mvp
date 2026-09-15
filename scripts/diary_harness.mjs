@@ -162,11 +162,11 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
       invites: qa('#sn-cal .dy-invite').map((el) => el.closest('[data-date]').dataset.date),
       invitePh: q('#sn-cal .dy-inv-in input')?.placeholder,
       past: qa('#sn-cal .dy-block .dy-tday.past').map((el) => ({ date: el.dataset.date, name: q('.dy-past-n', el)?.textContent, meta: q('.dy-past-m', el)?.textContent, worn: !!q('.dy-worn', el) })),
-      card: (() => { const c = qa('#sn-cal .dy-block .dy-tday').find((d) => q('.dy-look', d) && !d.classList.contains('past')); if (!c) return null; return { date: c.dataset.date, title: q('.dy-tday-t', c)?.textContent, meta: q('.dy-tday-m', c)?.textContent, g: qa('.dy-g span', c).map((x) => x.textContent).join('|'), looks: qa('.dy-look', c).map((l) => q('.dy-look-n', l).textContent + ' · ' + q('.dy-look-m', l).textContent.trim()), add: q('.dy-tadd', c)?.textContent.trim() }; })(),
+      card: (() => { const c = qa('#sn-cal .dy-block .dy-tday').find((d) => q('.dy-look', d) && !d.classList.contains('past')); if (!c) return null; return { date: c.dataset.date, title: q('.dy-tday-t', c)?.textContent, meta: q('.dy-tday-m', c)?.textContent, g: qa('.dy-g span', c).map((x) => x.textContent).join('|'), looks: qa('.dy-look', c).map((l) => q('.dy-look-n', l).textContent + ' · ' + q('.dy-look-m', l).textContent.trim()), add: q('.dy-dadd', c)?.title }; })(),
       trip: trip ? {
         title: q('.dy-trip-h h3', trip)?.textContent, range: q('.dy-trip-d', trip)?.textContent,
         wx: q('.dy-trip-wx span', trip)?.textContent, wxEm: q('.dy-trip-wx em', trip)?.textContent,
-        days: qa('.dy-tday', trip).map((d) => ({ date: d.dataset.date, g: qa('.dy-g span', d).map((x) => x.textContent).join('|'), title: q('.dy-tday-t', d)?.textContent, meta: q('.dy-tday-m', d)?.textContent, looks: qa('.dy-look .dy-look-n', d).map((x) => x.textContent), add: q('.dy-tadd', d)?.textContent.trim() || null })),
+        days: qa('.dy-tday', trip).map((d) => ({ date: d.dataset.date, g: qa('.dy-g span', d).map((x) => x.textContent).join('|'), title: q('.dy-tday-t', d)?.textContent, meta: q('.dy-tday-m', d)?.textContent, looks: qa('.dy-look .dy-look-n', d).map((x) => x.textContent), add: q('.dy-dadd', d)?.title || null })),
       } : null,
       tail: q('#sn-cal .dy-tail p')?.textContent, tailBtn: q('#sn-cal .dy-tail button')?.textContent,
       order: qa('#sn-cal .dy-list > .dy-block > .dy-tday, #sn-cal .dy-list > .dy-triprow').map((r) => r.dataset.date || ('trip:' + r.dataset.trip)),
@@ -196,7 +196,7 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
     // block, her title in italic, the look row, the dashed add slot — a
     // diary day and a trip day read identically. No "N looks filed": the
     // rows are the count (Annie, 2026-09-10 — "it's noise").
-    check('list · a dressed day is the Travel diary\'s row: gutter, italic title, no count, the look, + Add a look',
+    check('list · a dressed day is the Travel diary\'s row: gutter, italic title, no count, the look, the + on the title line',
       s.card && s.card.date === TOM && s.card.title === 'Golf Club Event' && s.card.meta == null
         && /^[A-Z][a-z]{2}\|\d+\|[A-Z][a-z]{2}$/.test(s.card.g)
         && JSON.stringify(s.card.looks) === JSON.stringify(['Daytime Nine · 3 pieces']) && /Add a look/i.test(s.card.add || ''), JSON.stringify(s.card));
@@ -206,7 +206,7 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
     check('list · a trip is a block: title, dates, destination · temp · condition',
       s.trip && s.trip.title === 'A trip to Lahinch.' && /^\d+(–\d+)? [A-Z][a-z]{2}/.test(s.trip.range || '') && !/Sept/.test(s.trip.range || '')
         && /^Lahinch, Ireland · 13–19°C · passing showers$/.test(s.trip.wx || '') && s.trip.wxEm === 'passing showers', JSON.stringify(s.trip));
-    check('list · the trip\'s days sit inside it: weekday / numeral / month gutter, her title in italic, the look, the add slot on every day',
+    check('list · the trip\'s days sit inside it: weekday / numeral / month gutter, her title in italic, the look, the + on every day',
       s.trip && JSON.stringify(s.trip.days.map((d) => d.date)) === JSON.stringify(tripDays)
         && s.trip.days[0].title === 'Travel and Dinner' && JSON.stringify(s.trip.days[0].looks) === JSON.stringify(['Golf Club Dinner'])
         && /^[A-Z][a-z]{2}\|\d+\|[A-Z][a-z]{2}$/.test(s.trip.days[0].g) && !/Sept/.test(s.trip.days[0].g)
@@ -285,7 +285,7 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
       renamed.inp && renamed.stored === 'Club day' && renamed.shown === 'Club day', JSON.stringify(renamed));
     // + Add a look opens the shared picker for THAT date
     const add = await page.evaluate(async (TOM) => {
-      document.querySelector('#sn-cal .dy-block .dy-tday .dy-tadd').click();
+      document.querySelector('#sn-cal .dy-block .dy-tday .dy-tady-h .dy-dadd, #sn-cal .dy-block .dy-tday .dy-dadd').click();
       await new Promise((r) => setTimeout(r, 200));
       const m = document.getElementById('rb-mv-wear');
       const t = m ? m.textContent : '';
@@ -299,7 +299,7 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
   // The trip's undressed day: Add opens the trip on that day
   if (inWin(T2)) {
     const opened = await page.evaluate(async () => {
-      const btn = document.querySelector('#sn-cal .dy-trip .dy-tday .dy-tadd');
+      const btn = document.querySelector('#sn-cal .dy-trip .dy-tday .dy-dadd');
       btn.click();
       await new Promise((r) => setTimeout(r, 900));
       const tv = document.getElementById('tv-result-page');
@@ -346,7 +346,7 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
         title: row?.querySelector('.dy-tday-t')?.textContent,
         pen: !!row?.querySelector('.dy-pen'),
         looks: row?.querySelectorAll('.dy-look').length,
-        add: row?.querySelector('.dy-tadd')?.textContent.trim(),
+        add: row?.querySelector('.dy-dadd')?.title,
         invitesLeft: document.querySelectorAll('#sn-cal .dy-invite').length,
         prompt: document.getElementById('cb-ta')?.value || '',
       };
@@ -375,7 +375,7 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
     // The look she adds to the named day inherits the name
     const pinBefore = writes.length;
     const inherit = await page.evaluate(async (d) => {
-      document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"] .dy-tadd').click();
+      document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"] .dy-dadd').click();
       await new Promise((r) => setTimeout(r, 200));
       const m = document.getElementById('rb-mv-wear');
       const head = m?.querySelector('#rb-mv-wear-ttl')?.textContent || '';

@@ -8822,52 +8822,88 @@
 .rb-dc.dc-compact .dc-sw{gap:3px;margin-top:6px}
 .rb-dc.dc-compact .dc-sw i{width:11px;height:11px;border-radius:3px}
 .rb-dc .dc-name-in{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:19px;line-height:1.1;border:none;border-bottom:1px solid rgba(32,32,33,0.3);border-radius:0;background:transparent;outline:none;width:100%;box-sizing:border-box;margin-top:8px;padding:0 0 3px;color:inherit}
-/* ── v4 (2026-09-15): three conditions, one component ── */
-.rb-dc.dc-v4{min-height:236px;padding:16px 16px 14px;border-radius:3px;background:#fff;border:1px solid #E3DDD2}
-.rb-dc.dc-v4.dc-compact{min-height:214px;padding:13px 13px 12px}
-.rb-dc.dc-v4.is-empty,.rb-dc.dc-v4.is-empty-past{background:#FAF8F5;border-style:dashed;border-color:#D8CFC0}
-.rb-dc.dc-v4.is-today{background:#fff;border:1.5px solid var(--ink,#202021);box-shadow:none}
-.rb-dc.dc-v4.is-past{background:var(--cream-100,#F3EFE6);border-color:#E7E0CF;opacity:1}
-.rb-dc.dc-v4.is-empty-past{opacity:.55}
-.rb-dc.dc-v4.is-void{background:transparent;border:1px solid rgba(32,32,33,0.05)}
-.rb-dc.dc-v4 .dc-ey{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-weight:500;font-size:10px;letter-spacing:.16em;opacity:.7}
-.rb-dc.dc-v4.dc-compact .dc-ey{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:22px;letter-spacing:0;text-transform:none;opacity:.92;line-height:1}
-.rb-dc.dc-v4 .dc-todaytag{font-family:'Inter',-apple-system,sans-serif;font-weight:500;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;opacity:.75}
-.rb-dc.dc-v4 .dc-name{display:flex;align-items:center;gap:6px;margin-top:12px;padding:8px 9px;border:1px solid #E3DDD2;border-radius:3px;background:#fff;cursor:text}
+/* ── v5 (2026-09-15, Home_Fixes): three conditions, one component, one
+   132px height. The add door rides the eyebrow beside the date so a
+   dressed day fits without growing the row; the day's looks are a strip
+   of avatars rather than full-width rows; today is a ROSE hairline, so
+   the only black on the page stays on the one committing action. ── */
+.rb-dc.dc-v4{min-height:132px;padding:12px;gap:8px;border-radius:var(--rad-sm,8px);background:#fff;border:1px solid var(--rule,#EDE6D8)}
+.rb-dc.dc-v4.dc-compact{min-height:132px;padding:11px;gap:6px}
+.rb-dc.dc-v4.is-empty{background:transparent;border:1px dashed var(--cream-400,#D8CFC0)}
+.rb-dc.dc-v4.is-today{background:#fff;border:1px solid var(--rose,#8E7077);box-shadow:none}
+.rb-dc.dc-v4.dc-now{border-color:var(--rose,#8E7077);box-shadow:none}
+.rb-dc.dc-v4.dc-now .dc-ey,.rb-dc.dc-v4.dc-now.dc-compact .dc-ey{color:var(--rose,#8E7077)}
+.rb-dc.dc-v4.is-past{background:var(--cream-100,#F3EFE6);border-color:var(--rule,#EDE6D8);opacity:1}
+.rb-dc.dc-v4.is-empty-past{background:var(--cream-100,#F5F0E8);border:1px solid var(--rule,#EDE6D8);opacity:1}
+.rb-dc.dc-v4.is-void{background:transparent;border:0}
+.rb-dc.dc-v4 .dc-ey{display:flex;flex:none;align-items:center;justify-content:space-between;gap:6px;min-width:0;font-weight:400;font-size:9px;letter-spacing:.18em;color:var(--ink-faint,#9A9082);opacity:1}
+.rb-dc.dc-v4 .dc-ey > span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rb-dc.dc-v4.dc-compact .dc-ey{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:17px;letter-spacing:0;text-transform:none;line-height:1;color:var(--ink,#202021)}
+.rb-dc.dc-v4.dc-compact.is-past .dc-ey,.rb-dc.dc-v4.dc-compact.is-empty .dc-ey,.rb-dc.dc-v4.dc-compact.is-empty-past .dc-ey,.rb-dc.dc-v4.dc-compact.is-void .dc-ey{color:var(--ink-faint,#9A9082)}
+.rb-dc.dc-v4.dc-compact.is-today .dc-ey{color:var(--ink,#202021)}
+.rb-dc.dc-v4 .dc-todaytag{font-family:'Inter',-apple-system,sans-serif;font-weight:400;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--rose,#8E7077);white-space:nowrap;flex:none}
+/* EMPTY · AHEAD — the invitation. On a card it keeps its own hairline
+   box; in a month cell the cell's dash IS the boundary, so the name is
+   faint italic text in place (fix 08 — never two dashed edges nested). */
+.rb-dc.dc-v4 .dc-name{display:flex;align-items:center;gap:6px;padding:8px 9px;border:1px solid var(--rule,#EDE6D8);border-radius:var(--rad-sm,8px);background:#fff;cursor:text}
 .rb-dc.dc-v4 .dc-name:focus-within{border-color:rgba(32,32,33,0.45)}
-.rb-dc.dc-v4 .dc-pen{display:inline-flex;width:12px;height:12px;flex:none;opacity:.5}
-.rb-dc.dc-v4 .dc-pen svg,.rb-dc.dc-v4 .dc-pen-btn svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
-.rb-dc.dc-v4 .dc-name input{flex:1;min-width:0;width:100%;border:0;background:transparent;outline:none;font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:15px;color:var(--ink,#202021);padding:0}
+.rb-dc.dc-v4.dc-compact .dc-name{padding:0;border:0;background:transparent;border-radius:0}
+.rb-dc.dc-v4 .dc-pen{display:inline-flex;width:11px;height:11px;flex:none;opacity:.55}
+.rb-dc.dc-v4.dc-compact .dc-pen{display:none}
+.rb-dc.dc-v4 .dc-pen svg,.rb-dc.dc-v4 .dc-pen-btn svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.rb-dc.dc-v4 .dc-name input{flex:1;min-width:0;width:100%;border:0;background:transparent;outline:none;font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:12px;line-height:1.3;color:var(--ink,#202021);padding:0}
+.rb-dc.dc-v4.dc-compact .dc-name input{font-size:13px}
 .rb-dc.dc-v4 .dc-name input::placeholder{color:var(--ink-faint,#9A958E);opacity:1}
-.rb-dc.dc-v4 .dc-h{display:flex;align-items:flex-start;gap:8px;margin-top:10px}
-.rb-dc.dc-v4 .dc-h .dc-title{flex:1;min-width:0;margin-top:0;font-style:italic;font-weight:300;font-size:20px;line-height:1.15;min-height:0;-webkit-line-clamp:2}
-.rb-dc.dc-v4.dc-compact .dc-h .dc-title{font-size:18px}
-.rb-dc.dc-v4 .dc-pen-btn{flex:none;border:0;background:none;padding:2px;cursor:pointer;color:inherit;opacity:.45;margin-top:3px}
+/* NAMED · DRESSED — her title, two lines, clamped (fix 04). */
+.rb-dc.dc-v4 .dc-h{display:flex;align-items:flex-start;gap:6px;min-width:0;min-height:0;overflow:hidden}
+.rb-dc.dc-v4 .dc-h .dc-title{flex:1;min-width:0;margin-top:0;font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:14px;line-height:1.3;min-height:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink,#202021)}
+.rb-dc.dc-v4.dc-compact .dc-h .dc-title{font-size:13.5px}
+.rb-dc.dc-v4.is-past .dc-h .dc-title{color:var(--ink-soft,#5C574F)}
+.rb-dc.dc-v4 .dc-pen-btn{flex:none;border:0;background:none;padding:1px;cursor:pointer;color:inherit;opacity:.4;margin-top:1px}
 .rb-dc.dc-v4 .dc-pen-btn:hover{opacity:.9}
-.rb-dc.dc-v4 .dc-rows{display:flex;flex-direction:column;gap:6px;margin-top:10px}
-.rb-dc.dc-v4 .dc-lrow{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid #E3DDD2;border-radius:3px;background:#fff;padding:7px 9px;cursor:pointer;font-family:inherit;color:inherit;min-height:44px}
-.rb-dc.dc-v4 .dc-lrow:hover{border-color:rgba(32,32,33,0.4)}
-.rb-dc.dc-v4 .dc-lth{width:30px;height:38px;border-radius:2px;flex:none;background-color:#EFE9DC;background-size:cover;background-position:center}
-.rb-dc.dc-v4 .dc-ln{font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:16px;line-height:1.15;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rb-dc.dc-v4 .dc-more{align-self:flex-start;font-size:10px;font-weight:500;letter-spacing:.12em;opacity:.6;padding:2px 4px}
-.rb-dc.dc-v4 .dc-add{position:absolute;right:12px;bottom:12px;width:32px;height:32px;border-radius:50%;border:1px solid #D8CFC0;background:#fff;color:var(--ink,#202021);font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;padding:0;z-index:2}
-.rb-dc.dc-v4 .dc-add:hover{border-color:var(--ink,#202021)}
-.rb-dc.dc-v4.dc-compact .dc-add{width:28px;height:28px;right:10px;bottom:10px}
-.rb-dc.dc-v4 .dc-filed{font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;opacity:.6;margin-top:10px}
-.rb-dc.dc-v4 .dc-worn{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;border:1.5px solid #C9BCA6;border-radius:100px;background:#F3EFE6;padding:7px 14px;color:var(--ink,#202021)}
-.rb-dc.dc-v4 .dc-wearq{font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;border:1px solid #D8CFC0;border-radius:100px;background:transparent;padding:7px 14px;cursor:pointer;color:inherit;font-family:inherit;opacity:.75}
-.rb-dc.dc-v4 .dc-wearq:hover{opacity:1;border-color:var(--ink,#202021)}
-.rb-dc.dc-v4 .dc-foot{margin-top:12px;justify-content:flex-start}
-.rb-dc.dc-v4 .dc-sw{margin-top:12px}
-.rb-dc.dc-v4 .dc-empty{margin-top:8px}
+/* The day's looks as a strip of avatars — each one a door, its name in
+   the tooltip; beyond two the card prints "+N". */
+.rb-dc.dc-v4 .dc-rows{display:flex;align-items:flex-end;gap:5px;min-width:0}
+.rb-dc.dc-v4 .dc-lrow{flex:none;width:24px;height:30px;padding:0;border:1px solid var(--rule,#EDE6D8);border-radius:3px;background-color:#EFE9DC;background-size:cover;background-position:center;cursor:pointer;font-family:inherit;color:inherit;overflow:hidden;transition:border-color .15s}
+.rb-dc.dc-v4 .dc-lrow:hover{border-color:rgba(32,32,33,0.45)}
+.rb-dc.dc-v4 .dc-ln{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.rb-dc.dc-v4 .dc-more{flex:none;align-self:center;font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:13px;color:var(--ink-faint,#9A9082);padding:0 2px}
+/* The + — the one add door, beside the date (fix 04). */
+.rb-dc.dc-v4 .dc-add{position:static;flex:none;width:24px;height:24px;box-sizing:border-box;border-radius:100px;border:1px solid var(--rule-mid,rgba(32,32,33,0.14));background:#fff;color:var(--ink-soft,#5C574F);font-size:13px;font-weight:400;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;padding:0}
+.rb-dc.dc-v4 .dc-add:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
+.rb-dc.dc-v4.dc-compact .dc-add{width:22px;height:22px;font-size:12px}
 @media(max-width:767px){
-.rb-mcells .rb-dc.dc-v4.dc-compact{min-height:0;aspect-ratio:1;padding:5px}
+.rb-dc.dc-v4 .dc-add,.rb-dc.dc-v4 .dc-ring{position:relative}
+.rb-dc.dc-v4 .dc-add::after,.rb-dc.dc-v4 .dc-ring::after{content:'';position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
+}
+/* PAST · FILED — a record: the title, the count, the colours, the log. */
+.rb-dc.dc-v4 .dc-filed{font-weight:400;font-size:9px;line-height:1.4;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint,#9A9082);opacity:1}
+.rb-dc.dc-v4 .dc-worn{align-self:flex-start;display:inline-flex;align-items:center;gap:5px;font-weight:400;font-size:9px;line-height:1;letter-spacing:.16em;text-transform:uppercase;border:1px solid #C9BCA6;border-radius:100px;background:#F3EFE6;padding:5px 10px;color:var(--ink,#202021)}
+.rb-dc.dc-v4 .dc-wearq{align-self:flex-start;font-weight:400;font-size:9px;line-height:1;letter-spacing:.16em;text-transform:uppercase;border:1px solid var(--cream-400,#C9BCA6);border-radius:100px;background:transparent;padding:5px 10px;cursor:pointer;color:var(--ink-soft,#5C574F);font-family:inherit}
+.rb-dc.dc-v4 .dc-wearq:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
+.rb-dc.dc-v4 .dc-foot{margin-top:0;justify-content:flex-start}
+/* The palette whisper — round dots on a hairline, never an ink fill. */
+.rb-dc.dc-v4 .dc-sw{margin-top:0;gap:4px}
+.rb-dc.dc-v4 .dc-sw i{width:11px;height:11px;border-radius:100px;border:1px solid var(--rule,#EDE6D8);box-shadow:none}
+.rb-dc.dc-v4 .dc-chip{margin-top:0;min-width:0;overflow:hidden}
+.rb-dc.dc-v4 .dc-chip span{max-width:100%;font-size:8.5px;line-height:1.2;letter-spacing:.16em;opacity:.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-dc.dc-v4 .dc-empty{margin-top:0}
+.rb-dc.dc-v4 .dc-invite{margin-top:0;font-size:12px}
+/* The sparkle sits beside the + in the eyebrow (the phone mock's own
+   answer to the collision), never floating over the card's corner. */
+.rb-dc.dc-v4 .dc-ring{position:static;flex:none;width:22px;height:22px;min-width:0;padding:0;opacity:.5}
+.rb-dc.dc-v4 .dc-ring:hover{opacity:.95}
+.rb-dc.dc-v4.has-ring .dc-ey{padding-right:0}
+.rb-dc.dc-v4 .dc-name-in{margin-top:0;font-size:14px;font-style:italic}
+@media(max-width:767px){
+.rb-mcells .rb-dc.dc-v4.dc-compact{min-height:0;aspect-ratio:1;padding:5px;gap:3px}
 .rb-mcells .rb-dc.dc-v4.dc-compact .dc-ey{font-size:13px}
 .rb-mcells .rb-dc.dc-v4.dc-compact .dc-todaytag{display:none}
-.rb-mcells .rb-dc.dc-v4.dc-compact .dc-name,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-rows,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-add,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-filed,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-pen-btn,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-foot,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-name-in{display:none}
-.rb-mcells .rb-dc.dc-v4.dc-compact .dc-h{margin-top:2px}
-.rb-mcells .rb-dc.dc-v4.dc-compact .dc-h .dc-title{font-size:10px;line-height:1.25;font-style:normal}
-.rb-mcells .rb-dc.dc-v4.dc-compact .dc-sw{display:flex;margin-top:4px}
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-name,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-rows,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-add,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-filed,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-pen-btn,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-foot,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-name-in,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-chip{display:none}
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-h{margin-top:0}
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-h .dc-title{font-size:8.5px;line-height:1.3;letter-spacing:.01em;font-style:normal;-webkit-line-clamp:2;word-break:normal;overflow-wrap:normal;hyphens:none}
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-sw{display:flex;margin-top:0;gap:3px}
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-sw i{width:7px;height:7px}
 }
 #rb-dpk{position:fixed;inset:0;z-index:940;display:flex;align-items:center;justify-content:center;padding:24px}
 #rb-dpk .dpk-veil{position:absolute;inset:0;background:rgba(32,32,33,0.38)}
@@ -9132,30 +9168,37 @@
         if (compact) cls.push('dc-compact');
         cls.push('is-' + state);
         cls.push('st-' + stage);
+        if ((d.when === 'today' || state === 'today') && !isVoid) cls.push('dc-now');
         if (d.pinned && !isVoid) cls.push('is-pinned');
         if (opts.focus) cls.push('is-focus');
         if (opts.extraClass) cls.push(opts.extraClass);
         const body = opts.body && !isVoid && state !== 'empty-past' && !opts.naming
           ? ` onclick="${opts.body}" role="button" tabindex="0"` : '';
         const eyTxt = d.eyebrow != null && d.eyebrow !== '' ? _waEsc(String(d.eyebrow)) : '&nbsp;';
-        let inner = `<div class="dc-ey"><span>${eyTxt}</span>${(state === 'today' && compact) ? '<span class="dc-todaytag">Today</span>' : ''}</div>`;
+        const stop = 'event.stopPropagation();';
+        // The eyebrow is the card's one control row (v5): the date, then
+        // the sparkle and the + beside it — the add door sits with the
+        // date rather than floating in the corner, which is what lets a
+        // dressed day fit inside one 132px height (fix 04).
         const ring = (!compact && !isVoid && !past && opts.ring && !opts.naming)
-          ? `<button class="dc-ring" title="${_waEsc(opts.ringTip || 'Set this day as focus')}" aria-label="${_waEsc(opts.ringTip || 'Set this day as focus')}" onclick="${opts.ring}">${_DC_RING_SVG}</button>`
+          ? `<button class="dc-ring" title="${_waEsc(opts.ringTip || 'Set this day as focus')}" aria-label="${_waEsc(opts.ringTip || 'Set this day as focus')}" onclick="${stop}${opts.ring}">${_DC_RING_SVG}</button>`
           : '';
         if (ring) cls.push('has-ring');
-        const chipHtml = (!compact && d.chip) ? `<div class="dc-chip"><span><i></i>${_waEsc(d.chip)}</span></div>` : '';
-        const stop = 'event.stopPropagation();';
         const addBtn = (!past && !isVoid && opts.add)
           ? `<button type="button" class="dc-add" onclick="${stop}${opts.add}" title="Add a look" aria-label="Add a look">+</button>` : '';
+        let inner = `<div class="dc-ey"><span>${eyTxt}</span>${(state === 'today' && compact) ? '<span class="dc-todaytag">Today</span>' : ''}${ring}${addBtn}</div>`;
+        const chipHtml = (!compact && d.chip && !looks.length) ? `<div class="dc-chip"><span><i></i>${_waEsc(d.chip)}</span></div>` : '';
         const nameBox = (n, cur) => `<label class="dc-name" onclick="event.stopPropagation()"><span class="dc-pen">${_DC_PEN_SVG}</span>` +
           `<input id="${_waEsc(n.id || 'rb-dc-name-in')}" value="${_waEsc(cur || n.value || '')}" placeholder="Name the day" maxlength="60" autocomplete="off"` +
           `${n.key ? ` onkeydown="${n.key}"` : ''}${n.blur ? ` onblur="${n.blur}"` : ''}></label>`;
+        // A look is an AVATAR on the day's strip, not a full-width row —
+        // the tile itself is the door and carries its name in the tooltip
+        // (the day page prints them as rows, where there is room).
         const rowsHtml = list => list.map((x, j) => {
           const oc = opts.lookOpen ? ` onclick="${stop}${opts.lookOpen(j)}"` : '';
-          const th = x.thumb
-            ? `<i class="dc-lth" style="background-image:url('${_waEsc(x.thumb)}')"></i>`
-            : `<i class="dc-lth" style="background-color:${_waEsc(x.tone || '#EFE9DC')}"></i>`;
-          return `<button type="button" class="dc-lrow"${oc} title="${_waEsc(x.name)}">${th}<span class="dc-ln">${_waEsc(x.name)}</span></button>`;
+          const bg = `background-color:${_waEsc(x.tone || '#EFE9DC')}`
+            + (x.thumb ? `;background-image:url('${_waEsc(x.thumb)}')` : '');
+          return `<button type="button" class="dc-lrow"${oc} style="${bg}" title="${_waEsc(x.name)}"><span class="dc-ln">${_waEsc(x.name)}</span></button>`;
         }).join('');
         const rowsBlock = () => {
           const shown = looks.slice(0, 2);
@@ -9171,15 +9214,16 @@
           const n = opts.naming;
           inner += `<input class="dc-name-in" id="${_waEsc(n.id || 'rb-dc-name-in')}" value="${_waEsc(n.value || '')}" placeholder="Name the day" maxlength="60"` +
             ` onclick="event.stopPropagation()"${n.key ? ` onkeydown="${n.key}"` : ''}${n.blur ? ` onblur="${n.blur}"` : ''}>`;
-          inner += chipHtml + rowsBlock() + `<div class="dc-sp"></div>` + addBtn;
+          inner += chipHtml + rowsBlock();
         } else if (stage === 'empty') {
           if (state === 'empty-past') {
             // A past day nobody planned offers nothing to plan — quiet.
             if (!compact) inner += `<div class="dc-empty"><div class="t">—</div></div>`;
           } else {
-            // EMPTY · AHEAD — two invitations: the input, the +.
+            // EMPTY · AHEAD — the invitation: the name in place, the + on
+            // the date line above it.
             inner += opts.name ? nameBox(opts.name) : `<div class="dc-invite">Name the day</div>`;
-            inner += chipHtml + `<div class="dc-sp"></div>` + addBtn;
+            inner += chipHtml;
           }
         } else if (past) {
           // PAST · FILED — a record, not a place to act (bar the one log).
@@ -9188,20 +9232,21 @@
           const nPieces = d.pieceSum || d.pieceTotal || 0;
           inner += `<div class="dc-filed">Filed${nPieces ? ' · ' + _waEsc(typeof _lkN === 'function' ? _lkN(nPieces, 'piece') : nPieces + ' pieces') : ''}</div>`;
           inner += swHtml + chipHtml + `<div class="dc-sp"></div>`;
-          if (d.modifier === 'worn') inner += `<div class="dc-foot"><span class="dc-worn">✓ Worn</span></div>`;
+          if (d.modifier === 'worn') inner += `<span class="dc-worn">✓ Worn</span>`;
           else if (d.modifier === 'packed') inner += `<div class="dc-foot"><span class="dc-status">Packed ✓</span></div>`;
-          else if (opts.wear && stage === 'dressed') inner += `<div class="dc-foot"><button type="button" class="dc-wearq" onclick="${stop}${opts.wear}">Wore it?</button></div>`;
+          else if (opts.wear && stage === 'dressed') inner += `<button type="button" class="dc-wearq" onclick="${stop}${opts.wear}">Wore it?</button>`;
         } else {
-          // NAMED · DRESSED — her title (pencil), the looks as rows, the +.
+          // NAMED · DRESSED — her title (pencil), the looks as an avatar
+          // strip; the + is on the date line above.
           const pen = opts.rename
             ? `<button type="button" class="dc-pen-btn" onclick="${stop}${opts.rename}" title="Rename the day" aria-label="Rename the day">${_DC_PEN_SVG}</button>` : '';
           if (d.title) inner += `<div class="dc-h">${_ltTitleHtml(d.title, 'dc')}${pen}</div>`;
           else if (opts.name) inner += nameBox(opts.name);
           else if (looks[0]) inner += `<div class="dc-h">${_ltTitleHtml(looks[0].name, 'dc')}${pen}</div>`;
-          inner += chipHtml + rowsBlock() + `<div class="dc-sp"></div>` + addBtn;
-          if (d.modifier === 'packed') inner += `<div class="dc-foot"><span class="dc-status">Packed ✓</span></div>`;
+          inner += chipHtml + rowsBlock();
+          if (d.modifier === 'packed') inner += `<div class="dc-sp"></div><div class="dc-foot"><span class="dc-status">Packed ✓</span></div>`;
         }
-        return `<div class="${cls.join(' ')}"${body}>${ring}${inner}</div>`;
+        return `<div class="${cls.join(' ')}"${body}>${inner}</div>`;
       }
 
       // ── The ring's shared handler (§2.3): what the strip body USED to
@@ -22191,11 +22236,11 @@ body>*:not(#tv-result-page){display:none !important}
         // never the rail alone.
         const RAIL_CSS = `
 #rb-rail{margin:6px 0 30px}
-#rb-rail .rb-rail-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 10px}
-#rb-rail .rb-rail-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}
-#rb-rail .rb-rail-open{border:0;background:none;padding:0;cursor:pointer;font-family:inherit;font-size:12.5px;color:var(--ink-soft,#4A4744)}
+#rb-rail .rb-rail-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 16px;padding-bottom:10px;border-bottom:1px solid var(--rule,#EDE6D8)}
+#rb-rail .rb-rail-ey{font-size:10px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A9082)}
+#rb-rail .rb-rail-open{border:0;background:none;padding:0;cursor:pointer;font-family:inherit;font-size:11px;color:var(--ink-faint,#9A9082)}
 #rb-rail .rb-rail-open:hover{color:var(--ink,#202021)}
-#rb-rail .rb-rail-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px}
+#rb-rail .rb-rail-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:stretch;gap:8px}
 #rb-rail .rb-rc{position:relative;display:flex;flex-direction:column;padding:0;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad-card);cursor:pointer;box-sizing:border-box;overflow:hidden;transition:border-color .2s;text-align:left}
 #rb-rail .rb-rc:hover{border-color:rgba(32,32,33,0.4)}
 #rb-rail .rb-rc-body{flex:1;display:flex;flex-direction:column;gap:5px;padding:13px 14px 13px;min-width:0;min-height:172px}
@@ -22231,21 +22276,19 @@ body>*:not(#tv-result-page){display:none !important}
 #rb-rail .rb-rc.is-empty-past{background:transparent;border-style:dashed;border-color:rgba(32,32,33,0.1);opacity:.45;cursor:default}
 #rb-rail .rb-rc.is-pinned{border-color:var(--mauve,#D4C8C4);box-shadow:0 0 0 1px var(--mauve,#D4C8C4) inset}
 #rb-rail .rb-rc-worn{font-size:10px;letter-spacing:.06em;color:#7E7C5A;margin-top:auto}
-#rb-rail .rb-upnext{display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;text-align:left;margin-top:10px;padding:8px 14px;background:rgba(212,200,196,0.16);border:0.5px solid rgba(32,32,33,0.1);border-radius:var(--rad);cursor:pointer;font-family:inherit;transition:border-color .2s}
+#rb-rail .rb-upnext{display:flex;align-items:center;flex-wrap:wrap;gap:12px;width:100%;box-sizing:border-box;text-align:left;margin-top:12px;padding:11px 20px;background:#fff;border:1px solid var(--rule,#EDE6D8);border-radius:100px;cursor:pointer;font-family:inherit;transition:border-color .2s}
 #rb-rail .rb-upnext:hover{border-color:rgba(32,32,33,0.35)}
-#rb-rail .rb-upnext .th{flex:none;width:36px;height:36px;border-radius:7px;overflow:hidden;background:#EFE9DC}
-#rb-rail .rb-upnext .th img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.55) sepia(.18) contrast(.95)}
-#rb-rail .rb-upnext .k{flex:none;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
-#rb-rail .rb-upnext .t{font-family:'Cormorant',Georgia,serif;font-size:16px;color:var(--ink,#202021);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#rb-rail .rb-upnext .m{font-size:10.5px;color:var(--ink-faint);white-space:nowrap}
-#rb-rail .rb-upnext .cta{margin-left:auto;flex:none;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint)}
+#rb-rail .rb-upnext .k{flex:none;font-size:9px;font-weight:400;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+#rb-rail .rb-upnext .t{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:15px;color:var(--ink,#202021);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rb-rail .rb-upnext .m{font-size:11px;color:var(--ink-faint);white-space:nowrap}
+#rb-rail .rb-upnext .cta{margin-left:auto;flex:none;font-size:9px;font-weight:400;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
 #rb-rail .rb-upnext:hover .cta{color:var(--ink,#202021)}
 @media(max-width:999px){
   #rb-rail .rb-rail-row{display:flex;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   #rb-rail .rb-rail-row::-webkit-scrollbar{display:none}
   #rb-rail .rb-rc{flex:none;width:158px;scroll-snap-align:center}
-  #rb-rail .rb-dc{flex:none;width:170px;scroll-snap-align:center}
-  #rb-rail .rb-upnext{flex-wrap:wrap;gap:8px}
+  #rb-rail .rb-dc{flex:none;width:150px;scroll-snap-align:center}
+  #rb-rail .rb-upnext{flex-wrap:wrap;gap:8px;border-radius:var(--rad-sm,8px);padding:12px 16px}
   #rb-rail .rb-upnext .cta{margin-left:0}
 }`;
 
@@ -22479,12 +22522,12 @@ body>*:not(#tv-result-page){display:none !important}
                 const looks = (item.tvData.days || []).reduce((n, d) => n + ((d.slots || []).length), 0);
                 counts = (pieces ? ' · ' + pieces + ' pieces' : '') + (looks ? ' · ' + looks + ' looks' : '');
               }
-              // The trip's editorial hero (the lookbook card thumbnail) leads
-              const thumb = (item && item.img && String(item.img).indexOf('http') === 0)
-                ? `<span class="th"><img src="${_waEsc(item.img)}" alt="" onerror="this.parentNode.style.display='none'"></span>` : '';
+              // The band is a hairline pill now (fix 06 — the filled tint
+              // stepped down), so the editorial hero has no square to sit
+              // in: the line of type is the whole band.
               const cta = first.source_type === 'travel' ? 'Open the trip →' : 'Open →';
               holder.innerHTML =
-                `<button class="rb-upnext" onclick="window.__snOpenItem(${Number(first.source_id)})">${thumb}` +
+                `<button class="rb-upnext" onclick="window.__snOpenItem(${Number(first.source_id)})">` +
                 `<span class="k">Coming up</span><span class="t">${_waEsc(title)}</span>` +
                 `<span class="m">${_waEsc(range + counts)}</span><span class="cta">${cta}</span></button>`;
             })
@@ -22846,10 +22889,13 @@ body>*:not(#tv-result-page){display:none !important}
 #rb-dy-addmenu .card .t{font-size:13px;line-height:1.2}
 #rb-dy-addmenu .card .s{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:12.5px;line-height:1.3;color:var(--ink-soft,#5C574F);margin-top:3px}
 .rb-mv-dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-bottom:8px}
-.rb-mv-dow div{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);padding-left:2px}
+.rb-mv-dow div{font-size:9px;font-weight:400;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);padding-left:2px}
 .rb-mv-cal{display:flex;flex-direction:column;gap:8px}
 .rb-mw{position:relative}
-.rb-mcells{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+/* Fix 07 - every week row runs on the same 132px floor with its
+   cells stretched to it, so the calendar's horizontals line up down
+   the page (week one used to run 178px against week two's 160px). */
+.rb-mcells{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:minmax(132px,auto);align-items:stretch;gap:8px}
 .rb-mc{aspect-ratio:1.25;border:0.5px solid rgba(32,32,33,0.14);border-radius:10px;padding:8px;display:flex;flex-direction:column;background:#fff;min-width:0;box-sizing:border-box;text-align:left;font-family:inherit;position:relative}
 .rb-mc[onclick]{cursor:pointer;transition:border-color .15s}
 .rb-mc[onclick]:hover{border-color:var(--ink,#202021)}
@@ -22868,10 +22914,13 @@ body>*:not(#tv-result-page){display:none !important}
 .rb-mc.is-fut .act{color:var(--ink-soft)}
 .rb-mc-strip{display:flex;gap:3px;margin-top:6px;flex:none}
 .rb-mc-strip img{flex:1;min-width:0;height:16px;object-fit:cover;border-radius:2px;display:block}
-.rb-mband{position:absolute;height:16px;border:none;border-radius:100px;display:flex;align-items:center;padding:0 10px;font-size:9px;font-weight:500;letter-spacing:.06em;white-space:nowrap;overflow:hidden;font-family:inherit;box-sizing:border-box;text-overflow:ellipsis;cursor:pointer}
-.rb-mband.week{background:rgba(155,161,123,0.30);color:#5F6247}
-.rb-mband.trip{background:rgba(212,200,196,0.60);color:#6A4F48}
-.rb-mband.cont{opacity:.72;font-style:italic}
+.rb-mband{position:absolute;height:28px;border:1px solid var(--rule,#EDE6D8);border-radius:100px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 14px;font-family:inherit;box-sizing:border-box;cursor:pointer;overflow:hidden;text-align:left;transition:border-color .15s}
+.rb-mband:hover{border-color:rgba(32,32,33,0.4)}
+.rb-mband .bt{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:14px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rb-mband .bd{flex:none;font-size:9px;font-weight:400;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#9A9082)}
+.rb-mband.week{background:var(--sage-bg,rgba(155,161,123,0.16));color:#5F6247}
+.rb-mband.trip{background:var(--sage-bg,rgba(155,161,123,0.16));color:var(--ink,#202021)}
+.rb-mband.cont .bt{opacity:.72}
 .rb-mv-more{position:absolute;right:0;top:0;font-size:9px;color:var(--ink-faint)}
 button.rb-mv-morebtn{border:none;background:transparent;cursor:pointer;font-family:inherit;color:#8E6A7C;letter-spacing:.08em;text-transform:uppercase;padding:2px 4px}
 button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
@@ -22881,9 +22930,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-mv-pop .card button{display:flex;align-items:center;gap:9px;border:none;background:transparent;padding:9px 11px;border-radius:7px;font-size:11.5px;color:var(--ink,#202021);cursor:pointer;font-family:inherit;text-align:left}
 #rb-mv-pop .card button:hover{background:rgba(32,32,33,0.05)}
 #rb-mv-pop .card button i{flex:none;width:8px;height:8px;border-radius:50%}
-.rb-mcells .rb-dc.dc-compact{min-height:150px}
+.rb-mcells .rb-dc.dc-compact{min-height:132px}
 @media(max-width:1000px){.rb-mc-strip{display:none}}
-@media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:var(--rad-sm)}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}.rb-mband{font-size:9px;padding:0 6px;height:14px}}
+@media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:var(--rad-sm)}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}.rb-mcells{grid-auto-rows:auto}.rb-mband{padding:0 8px;height:20px}.rb-mband .bt{font-size:11px}.rb-mband .bd{display:none}}
 /* ── Diary list view (phase 3) ── */
 .rb-mv-seg{display:inline-flex;gap:3px;padding:3px;background:var(--cream-100,#F5F0E8);border-radius:100px;margin-right:4px}
 .rb-mv-seg button{border:1px solid transparent;border-radius:100px;background:transparent;color:var(--ink-soft,#6E6A64);font:400 9px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.16em;text-transform:uppercase;height:24px;padding:0 13px;cursor:pointer;font-family:var(--font-sans,Inter,sans-serif)}
@@ -22896,16 +22945,16 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 .dy-wd{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#9A9082);line-height:1}
 .dy-n{font-family:'Cormorant',Georgia,serif;font-size:20px;font-weight:300;line-height:1.1;margin-top:4px;color:var(--ink,#202021)}
 .dy-g.quiet .dy-n{color:var(--ink-soft,#6E6A64)}
-.dy-invite{flex:1;min-width:0;display:flex;align-items:stretch;border:1px dashed var(--cream-400,#C9BCA6);border-radius:var(--rad-sm,8px)}
-.dy-inv-in{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:var(--rad-sm,8px) 0 0 var(--rad-sm,8px);cursor:text;transition:background .15s}
-.dy-inv-in:hover,.dy-inv-in:focus-within{background:var(--cream-100,#F7F4EE)}
+.dy-invite{flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:1px dashed var(--cream-400,#D8CFC0);border-radius:var(--rad-sm,8px);padding:9px 10px 9px 14px;transition:border-color .15s}
+.dy-invite:hover,.dy-invite:focus-within{border-color:rgba(32,32,33,0.3)}
+.dy-inv-in{flex:1;min-width:0;display:flex;align-items:center;gap:8px;cursor:text}
 .dy-inv-in svg{flex:none;width:11px;height:11px;stroke:var(--ink-faint,#9A9082);fill:none;stroke-width:1.1;stroke-linecap:round;stroke-linejoin:round}
-.dy-inv-in input{flex:1;min-width:0;background:transparent;border:0;outline:none;padding:4px 0;font-size:12.5px;font-family:inherit;color:var(--ink,#202021)}
-.dy-inv-in input::placeholder{color:var(--ink-faint,#9A9082)}
-.dy-inv-div{width:1px;background:var(--cream-400,#C9BCA6)}
-.dy-inv-add{flex:none;border:none;background:transparent;padding:0 18px;color:var(--ink-faint,#9A9082);cursor:pointer;border-radius:0 var(--rad-sm,8px) var(--rad-sm,8px) 0;display:flex;align-items:center;transition:background .15s,color .15s}
-.dy-inv-add:hover{background:var(--cream-100,#F7F4EE);color:var(--ink,#202021)}
-.dy-inv-add svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.2;stroke-linecap:round}
+.dy-inv-in input{flex:1;min-width:0;background:transparent;border:0;outline:none;padding:2px 0;font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:14px;color:var(--ink,#202021)}
+.dy-inv-in input::placeholder{color:var(--ink-faint,#9A9082);opacity:1}
+.dy-inv-add{flex:none;width:26px;height:26px;box-sizing:border-box;border:1px solid var(--rule-mid,rgba(32,32,33,0.12));background:#fff;border-radius:100px;color:var(--ink-soft,#5C574F);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:border-color .15s,color .15s}
+.dy-inv-add:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
+.dy-inv-add svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:1.3;stroke-linecap:round}
+@media(max-width:767px){.dy-inv-add,.dy-dadd{width:44px;height:44px}.dy-inv-add svg,.dy-dadd svg{width:13px;height:13px}.dy-dadd{font-size:17px}}
 .dy-card{flex:1;min-width:0;background:#fff;border:1px solid var(--rule,#EDE6D8);border-radius:var(--rad-sm,8px);overflow:hidden}
 .dy-card-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:0.5px solid var(--rule-mid,rgba(32,32,33,0.14))}
 .dy-card-h h3{flex:1;min-width:0;font-family:'Cormorant',Georgia,serif;font-size:19px;font-weight:400;line-height:1.25;margin:0;color:var(--ink,#202021)}
@@ -22925,8 +22974,8 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 .dy-look-b{flex:1;min-width:0}
 .dy-look-n{display:block;font-family:'Cormorant',Georgia,serif;font-size:17px;line-height:1.2;color:var(--ink,#202021);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dy-look-m{display:flex;align-items:center;gap:7px;margin-top:6px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft,#6E6A64)}
-.dy-chk{width:15px;height:15px;border-radius:100px;background:var(--ink,#202021);display:inline-flex;align-items:center;justify-content:center;flex:none}
-.dy-chk svg{width:8px;height:8px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.dy-chk{width:14px;height:14px;box-sizing:border-box;border-radius:100px;border:1px solid var(--cream-400,#D8CFC0);background:transparent;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.dy-chk svg{width:8px;height:8px;stroke:var(--ink-soft,#5C574F);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .dy-addlook{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;border:1px dashed var(--cream-400,#C9BCA6);background:none;border-radius:5px;padding:11px;cursor:pointer;font-size:11px;color:var(--ink-faint,#9A9082);font-family:inherit;transition:background .15s,color .15s}
 .dy-addlook:hover{background:var(--cream-100,#F7F4EE);color:var(--ink,#202021)}
 .dy-addlook svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:1.2;stroke-linecap:round}
@@ -22944,14 +22993,13 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 .dy-tday.tap{cursor:pointer}
 .dy-tday.tap .dy-tday-h .dy-tday-t{cursor:pointer}
 .dy-tday:last-child{border-bottom:none;padding-bottom:16px}
-.dy-tday.today{box-shadow:inset 3px 0 0 var(--ink,#202021)}
+.dy-tday.today{box-shadow:inset 3px 0 0 var(--rose,#8E7077)}
 .dy-tday.past .dy-tday-b{opacity:.72}
-.dy-tday-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap;min-width:0}
+.dy-tday-h{display:flex;align-items:center;gap:9px;min-width:0}
+.dy-tday-h .dy-tday-t,.dy-tday-h .dy-pen{align-self:center}
 .dy-tday-h .dy-pen{width:22px;height:22px}
 .dy-tday-h .dy-pen svg{width:11px;height:11px}
-.dy-tday .dy-invite{border-radius:5px}
-.dy-tday .dy-inv-in{border-radius:5px 0 0 5px;padding:9px 12px}
-.dy-tday .dy-inv-add{border-radius:0 5px 5px 0;padding:0 16px;min-width:44px;justify-content:center}
+.dy-tday .dy-invite{padding:8px 9px 8px 12px}
 .dy-tday .dy-g{width:34px;align-items:center;padding-top:0}
 .dy-tday .dy-g .dy-wd{font-size:8.5px;letter-spacing:.18em}
 .dy-tday .dy-g .dy-n{font-size:24px;line-height:1.05;margin:3px 0}
@@ -22963,9 +23011,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 .dy-tday .dy-look{padding:8px 12px 8px 8px;border-radius:4px}
 .dy-tday .dy-th{width:38px;height:48px;border-radius:2px}
 .dy-tday .dy-look-n{font-size:16px}
-.dy-tadd{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;border:1px dashed var(--rule-mid,rgba(32,32,33,0.14));border-radius:4px;background:transparent;padding:9px 12px;font-size:9.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft,#6E6A64);cursor:pointer;font-family:inherit;text-align:left;transition:border-color .15s,color .15s}
-.dy-tadd:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
-.dy-tadd .plus{font-size:15px;font-weight:300;line-height:1;letter-spacing:0}
+.dy-tday-h .dy-sp{flex:1}
+.dy-dadd{flex:none;width:26px;height:26px;box-sizing:border-box;border:1px solid var(--rule-mid,rgba(32,32,33,0.12));background:#fff;border-radius:100px;color:var(--ink-soft,#5C574F);font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;padding:0;transition:border-color .15s,color .15s}
+.dy-dadd:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}
 .dy-row.past{padding:8px 0}
 .dy-past{width:100%;box-sizing:border-box;display:flex;align-items:center;gap:12px;background:var(--cream-100,#F7F4EE);border:0.5px solid var(--rule,#EDE6D8);border-radius:4px;padding:8px 12px 8px 8px;cursor:pointer;text-align:left;font-family:inherit;transition:border-color .15s,background .15s}
 .dy-past:hover{border-color:var(--rule-mid,rgba(32,32,33,0.14));background:#fff}
@@ -23145,7 +23193,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
               const a = s > ws ? s : ws, b = e < we ? e : we;
               segs.push({ week: w, start_col: diffD(ws, a), span: diffD(a, b) + 1, is_start: a === s && s >= g.gridStart });
             }
-            bands.push({ sid, type, title, segs });
+            bands.push({ sid, type, title, segs, range: _rbDateRange(s, e) || '' });
           });
           return bands;
         }
@@ -23180,6 +23228,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             </div>`;
         }
         var _mvLooksCache = {};
+        // The trip ribbon's own height + its gap — one constant, read by
+        // the per-week reserve and by each segment's top offset.
+        var _MV_LANE_H = 32;
         function _mvPaint(g, rows, sources) {
           const today = _pdLocalISO();
           if (_dyMode === 'list') { cal.innerHTML = _dyHeadHtml(g, rows) + _dyListHtml(g, rows, sources, today); return; }
@@ -23221,15 +23272,15 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             // — the month grid holds vertical rhythm (spec §11.2; the
             // "blank hero slot" the audit dismissed was this reservation
             // varying per row).
-            const padTop = dcOn ? 4 + 2 * 18 : (lanes ? 4 + lanes * 18 : 0);
+            const padTop = lanes ? 4 + lanes * _MV_LANE_H : 0;
             html += `<div class="rb-mw" style="padding-top:${padTop}px">`;
             placed.filter(p => p.sg.week === w).forEach(p => {
               // First VISIBLE segment carries the label only when the band
               // genuinely starts there; anything else is a continuation.
-              const contHtml = '↳ ' + _waEsc(p.band.title) + ', continued';
-              const label = (p.si === 0 && p.sg.is_start) ? _waEsc(p.band.title) : contHtml;
               const cont = !(p.si === 0 && p.sg.is_start);
-              html += `<button class="rb-mband ${p.band.type === 'travel' ? 'trip' : 'week'}${cont ? ' cont' : ''}" style="left:${(p.sg.start_col / 7 * 100).toFixed(4)}%;width:${(p.sg.span / 7 * 100).toFixed(4)}%;top:${2 + p.lane * 18}px" onclick="window.__mvBand('${String(p.band.sid).replace(/'/g, '')}','${p.band.type}')">${label}</button>`;
+              const label = cont ? '↳ ' + _waEsc(p.band.title) + ', continued' : _waEsc(p.band.title);
+              const range = (!cont && p.band.range) ? `<span class="bd">${_waEsc(p.band.range)}</span>` : '';
+              html += `<button class="rb-mband ${p.band.type === 'travel' ? 'trip' : 'week'}${cont ? ' cont' : ''}" style="left:${(p.sg.start_col / 7 * 100).toFixed(4)}%;width:${(p.sg.span / 7 * 100).toFixed(4)}%;top:${2 + p.lane * _MV_LANE_H}px" onclick="window.__mvBand('${String(p.band.sid).replace(/'/g, '')}','${p.band.type}')" title="${_waEsc(p.band.title + (p.band.range ? ' · ' + p.band.range : ''))}"><span class="bt">${label}</span>${range}</button>`;
             });
             if (weekMore[w]) {
               // +N more gets a designed reveal (spec §11.1) — a popover of
@@ -23353,8 +23404,12 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           void i; void n0;
           return `<button type="button" class="dy-look" onclick="event.stopPropagation();window.__dyOpen('${k}')">${_dyThumb(m)}<span class="dy-look-b"><span class="dy-look-n">${_waEsc(nm)}</span><span class="dy-look-m"><i class="dy-chk">${_DY_SVG.chk}</i>${pre}${n ? _waEsc(_lkN(n, 'piece')) : 'a look'}</span></span><span class="dy-look-ar">\u2192</span></button>`;
         }
+        // The one add door, at the right edge of the day's title line —
+        // the design's list row is numeral, title, +, with the day's looks
+        // beneath it.
         function _dyAddSlot(onclick, first) {
-          return `<button type="button" class="dy-tadd" onclick="event.stopPropagation();${onclick}"><span class="plus">+</span><span>${first ? 'Add the first look' : 'Add a look'}</span></button>`;
+          const lab = first ? 'Add the first look' : 'Add a look';
+          return `<span class="dy-sp"></span><button type="button" class="dy-dadd" onclick="event.stopPropagation();${onclick}" title="${lab}" aria-label="${lab}">+</button>`;
         }
         function _dyGutter(date, withMonth, quiet) {
           const d = new Date(date + 'T00:00:00');
@@ -23366,7 +23421,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           return `<input class="dy-name-in" id="dy-name-in" value="${_waEsc(value || '')}" placeholder="Name the day" maxlength="60" onclick="event.stopPropagation()" onkeydown="window.__dyRenameKey(event)" onblur="window.__dyRenameCommit()"${extra || ''}>`;
         }
         function _dyInviteRow(date, today) {
-          return `<div class="dy-tday dy-bare${date === today ? ' today' : ''}" data-date="${date}">${_dyGutter(date, true)}<div class="dy-tday-b"><div class="dy-invite"><label class="dy-inv-in">${_DY_SVG.pen}<input placeholder="Name the day" maxlength="60" onkeydown="window.__dyInviteKey(event,'${date}')"></label><span class="dy-inv-div"></span><button type="button" class="dy-inv-add" onclick="window.__rbDiaryAddMenu(event,'${date}')" title="Add" aria-label="Add">${_DY_SVG.plus}</button></div></div></div>`;
+          return `<div class="dy-tday dy-bare${date === today ? ' today' : ''}" data-date="${date}">${_dyGutter(date, true)}<div class="dy-tday-b"><div class="dy-invite"><label class="dy-inv-in">${_DY_SVG.pen}<input placeholder="Name the day" maxlength="60" onkeydown="window.__dyInviteKey(event,'${date}')"></label><button type="button" class="dy-inv-add" onclick="window.__rbDiaryAddMenu(event,'${date}')" title="Add a look" aria-label="Add a look">${_DY_SVG.plus}</button></div></div></div>`;
         }
         // The day card: the DAY's title (the typed name row, or the name a
         // look carries for the day — never a look's own name), then one row
@@ -23392,7 +23447,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           // look rows were the only way in). The pencil, the add slot and
           // the name input stop it; the title is a plain span now, since
           // its own tap is the row's.
-          return `<div class="dy-tday tap${date === today ? ' today' : ''}" data-date="${date}" role="button" tabindex="0" onclick="window.__dyOpenDay('${date}')">${_dyGutter(date, true)}<div class="dy-tday-b"><div class="dy-tday-h">${head}</div>${looks.map((m, i) => _dyLookRow(m, i, n0)).join('')}${_dyAddSlot(`window.__mvWear('${date}')`, !n0)}</div></div>`;
+          return `<div class="dy-tday tap${date === today ? ' today' : ''}" data-date="${date}" role="button" tabindex="0" onclick="window.__dyOpenDay('${date}')">${_dyGutter(date, true)}<div class="dy-tday-b"><div class="dy-tday-h">${head}${_dyAddSlot(`window.__mvWear('${date}')`, !n0)}</div>${looks.map((m, i) => _dyLookRow(m, i, n0)).join('')}</div></div>`;
         }
         // The past files quietly: the day's name (else its one look's), the
         // pieces across every look, "· N looks" when there were several.
@@ -23429,7 +23484,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             const titleHtml = naming ? _dyNameInput(t)
               : t ? `<button type="button" class="dy-tday-t" onclick="event.stopPropagation();window.__dyRename('${date}','${k}')" title="Rename the day">${_waEsc(t)}</button>`
               : (past ? '' : `<button type="button" class="dy-tday-t none" onclick="event.stopPropagation();window.__dyRename('${date}','${k}')">Name the day</button>`);
-            return `<div class="dy-tday tap${past ? ' past' : ''}" data-date="${date}" role="button" tabindex="0" onclick="window.__dyOpenDay('${date}')">${_dyGutter(date, true, past)}<div class="dy-tday-b"><div class="dy-tday-h">${titleHtml}</div>${looks.map((m, i) => _dyLookRow(m, i, looks.length)).join('')}${past ? '' : _dyAddSlot(`window.__dyOpenTrip('${k}')`, !looks.length)}</div></div>`;
+            return `<div class="dy-tday tap${past ? ' past' : ''}" data-date="${date}" role="button" tabindex="0" onclick="window.__dyOpenDay('${date}')">${_dyGutter(date, true, past)}<div class="dy-tday-b"><div class="dy-tday-h">${titleHtml || '<span class="dy-tday-t none">&nbsp;</span>'}${past ? '' : _dyAddSlot(`window.__dyOpenTrip('${k}')`, !looks.length)}</div>${looks.map((m, i) => _dyLookRow(m, i, looks.length)).join('')}</div></div>`;
           }).join('');
           return `<div class="dy-row dy-triprow" data-trip="${_waEsc(String(sid))}"><div class="dy-trip"><button type="button" class="dy-trip-h" onclick="window.__snOpenItem(${Number(sid)})">${_DY_SVG.bag}<h3>${_waEsc(title)}</h3>${range ? `<span class="dy-trip-d">${_waEsc(range)}</span>` : ''}</button>${wxLine ? `<div class="dy-trip-wx">${_DY_SVG.pin}<span>${wxLine}</span></div>` : ''}${days}</div></div>`;
         }
