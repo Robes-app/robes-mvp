@@ -153,18 +153,17 @@ check('brief carries the way prose', dailyBodies[0] && /Umbro shorts, a white ri
 // way lands LOOSE — the editable console, nothing written, Save this look
 // as the one commitment. Keeping it mints the Look with the way's name,
 // its kp frame as the photograph, and every gap as a proposal.
-check('lands in EDIT mode — the loose console, not a saved look',
-  await page.locator('#dl-result-page').isVisible());
+check('lands in the COMPOSER — a loose draft, not a saved look (rule 04, 2026-09-15)',
+  await page.locator('#sn-page .rb-lk-composer').isVisible() && !(await page.locator('#dl-result-page').isVisible()));
 const looseState = await page.evaluate(() => ({
-  eyebrow: document.querySelector('#dl-result-page .dlm-eyebrow')?.textContent,
-  title: document.querySelector('#dl-result-page .dlm-title')?.textContent,
-  cta: document.querySelector('#dl-result-page .rbc-action button')?.textContent,
-  offer: !!document.querySelector('#dl-result-page .dlm-offer'),
-  loose: !!(window.__lastDlData && window.__lastDlData._dlLoose),
+  title: document.getElementById('rb-lk-newtitle')?.value,
+  cta: document.querySelector('#sn-page .rb-lk-save')?.textContent?.trim(),
+  dayChip: !!document.querySelector('#sn-page .rb-lk-daychip'),
+  proposals: document.querySelectorAll('#sn-page .rbc-rack .rbc-row').length,
 }));
-check('the way names the offer, Save is the commitment',
-  looseState.title === 'Urbane Weekend' && looseState.eyebrow === 'Your look'
-    && looseState.cta === 'Save this look' && looseState.loose === true && looseState.offer === false);
+check('the way names the draft, Save this look is the commitment, no day attached',
+  looseState.title === 'Urbane Weekend' && looseState.cta === 'Save this look' && looseState.dayChip === false && looseState.proposals >= 1,
+  JSON.stringify(looseState));
 // (The kp artifact's own lookbook row is a different, standing write —
 // the styled key piece lives on Inspiration. The BUILD must not mint a
 // look or a day.)
@@ -172,9 +171,9 @@ check('nothing is written until she saves',
   !writes.some((w) => w.method === 'POST' && /^(looks\?|looks$|look_pieces|planned_days)/.test(w.url)),
   JSON.stringify(writes.filter((w) => w.method === 'POST').map((w) => w.url)));
 await page.evaluate(async () => {
-  window.__dlSaveAsk();
+  window.__lkSaveAsk();
   await new Promise((r) => setTimeout(r, 250));
-  document.getElementById('rb-dlsave-yes')?.click();
+  document.getElementById('rb-lksave-yes')?.click();
 });
 await page.waitForTimeout(1000);
 const keptLook = writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop();

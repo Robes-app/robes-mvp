@@ -897,7 +897,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       title: ir?.querySelector('.rb-sn-title')?.textContent,
       type: ir?.querySelector('.rb-sn-type')?.textContent,
       kpInLookbookRow: /Pink barrel-leg/.test(sn?.textContent || ''),
-      lookbookRowHasLook: /Ibiza edit/.test(sn?.textContent || ''),
+      // Saved Looks only (2026-09-15): a travel edit never rides the home row.
+      lookbookRowHasLook: !/Ibiza edit/.test(sn?.textContent || '') && !!sn?.querySelector('.rb-sn-card .rb-lk-mos'),
       // A saved Look's card draws its piece MOSAIC — photo_url is rare on a
       // Look, and the row must never show a blank cream card for one.
       lookMosaic: !!sn?.querySelector('.rb-sn-card .rb-lk-mos'),

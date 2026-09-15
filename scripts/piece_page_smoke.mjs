@@ -332,25 +332,26 @@ const SHOT = process.env.SHOT_DIR || '';
   await ctx.close();
 }
 
-// ── 3 · The daily console door + the wishlist + history ─────────────────
+// ── 3 · The daily draft lands in the composer (rule 04) — its rows are doors ──
 {
-  const { ctx, page, errs, writes } = await boot(browser);
+  const { ctx, page, errs } = await boot(browser);
   await page.evaluate(() => window.__dlSubmit('an outfit for a coffee run'));
   await page.waitForTimeout(1500);
-  const dlNames = page.locator('#dl-result-page .rbc-rack .rbc-namebtn');
+  check('daily · the fresh look opens in the composer with the day attached, not the daily console',
+    await page.locator('#sn-page .rb-lk-composer').isVisible() && !(await page.locator('#dl-result-page').isVisible())
+    && await page.locator('#sn-page .rb-lk-daychip').count() === 1);
+  const dlNames = page.locator('#sn-page .rbc-rack .rbc-namebtn');
   check('daily · only owned rows are doors (2 of 4)', await dlNames.count() === 2);
   await dlNames.first().click();
   await page.waitForTimeout(400);
   const pg = page.locator('#rb-piece-page');
   const t = (await pg.innerText()).replace(/\n/g, ' ');
-  check('daily · opens from the look with the headline as the way back', await pg.isVisible() && (await page.locator('#rb-piece-page .rb-ret-pill .lab').innerText()).trim() === 'Coffee run, elevated');
-  // The rack groups Canvas before Anchor, so the first row is the jeans.
+  check('daily · opens from the draft with its name as the way back', await pg.isVisible() && (await page.locator('#rb-piece-page .rb-ret-pill .lab').innerText()).trim() === 'Coffee run, elevated');
   check('daily · the position walks the two owned pieces', /2 of 2 in this look/i.test(await page.locator('#rb-piece-page .rb-ret-pos').innerText()) && t.includes('Barrel-leg jeans'), t.slice(0, 200));
-  check('daily · the rail holds SAVED looks only — the daily look is not in it', /In 1 look/i.test(t) && !t.includes('Coffee run, elevated.'), t.slice(0, 300));
-  check('daily · the nav lights the Diary under a day (a dated look is a diary errand)', await page.locator('#rb-tn-diary').evaluate((e) => e.classList.contains('active')));
+  check('daily · the rail holds SAVED looks only — the unsaved draft is not in it', /In 1 look/i.test(t) && !t.includes('Coffee run, elevated.'), t.slice(0, 300));
   await page.locator('#rb-piece-page .rb-ret-pill').click();
   await page.waitForTimeout(300);
-  check('daily · back lands on the console', !(await pg.isVisible()) && await page.locator('#dl-result-page').isVisible());
+  check('daily · back lands on the composer', !(await pg.isVisible()) && await page.locator('#sn-page .rb-lk-composer').isVisible());
   check('no page errors (daily door)', errs.length === 0, errs.join(' | '));
   await ctx.close();
 }

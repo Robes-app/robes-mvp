@@ -669,7 +669,7 @@ function vibeVocabLine(vibes) {
   const list = set.length ? set : LOOK_TAG_VIBE_SEEDS;
   return `HER VIBE SET (map to exactly one of these wherever the brief's mood language reaches one of them, matching on meaning not spelling — "power CEO", "powerhouse" and "boss" are all the one tag): ${list.join(', ')}.`;
 }
-const LOOK_TAGS_RULE = `- "look_tags" files the look for search — assign from the brief's intent and the pieces, never leave it generic. "climate" is thermal, not calendar, and is one of exactly three: "spring_summer" (lightweight, single-layer, warm weather), "autumn_winter" (layered, knits and coats, cold weather), "year_round" (reads correctly in any weather). "wear_for" is the lifestyle occasions the look is FOR — one or two of everyday, work, evening, occasion, travel, active, lounge; the sharpest matches only, never all of them. "vibe" is how she wants to FEEL in the look, and there is EXACTLY ONE — an array of a single short lowercase word. Read it from her own mood language in the brief ("I want to feel like a powerhouse CEO on Thursday" -> ["powerhouse"]) and map that onto her vibe set below wherever one of them carries the same meaning. Coin a new single word only when nothing in her set fits, and omit the field entirely rather than reaching. Never emit two.
+const LOOK_TAGS_RULE = `- "look_tags" files the look for search — assign from the brief's intent and the pieces, never leave it generic. "climate" is thermal, not calendar, and is one of exactly three: "spring_summer" (lightweight, single-layer, warm weather), "autumn_winter" (layered, knits and coats, cold weather), "year_round" (reads correctly in any weather). "wear_for" is the lifestyle occasions the look is FOR — one or two of everyday, work, evening, occasion, travel, active, lounge; the sharpest matches only, never all of them. "vibe" is how she wants to FEEL in the look — one or two short lowercase words, never more. Read it from her own mood language in the brief ("I want to feel like a powerhouse CEO on Thursday" -> ["powerhouse"]) and map that onto her vibe set below wherever one of them carries the same meaning. Coin a new single word only when nothing in her set fits, and omit the field entirely rather than reaching.
 ${vibeVocabLine(null)}`;
 function normLookTags(t) {
   t = t && typeof t === 'object' ? t : {};
@@ -685,12 +685,12 @@ function normLookTags(t) {
   // wear_for stays uncapped (ADR-002 §4): a cap forces a choice between a
   // functional tag and a capsule tag, which is the choice that stops capsules
   // forming. 8 is a runaway guard, not a product limit.
-  // vibe is capped at ONE (Look Rules 1e) — a look sits in one bucket or the
-  // wear data cannot answer "which vibe do you actually wear".
+  // Several vibes per look (2026-09-15 — supersedes the one-vibe cap of
+  // Look Rules 1e). 4 is a runaway guard, not a product limit.
   const vibeRaw = Array.isArray(t.vibe) ? t.vibe : (t.vibe ? [t.vibe] : []);
-  const vibe = vibeRaw
-    .map(v => String(v || '').replace(/^vibe:/i, '').trim().slice(0, 28))
-    .filter(Boolean).slice(0, 1);
+  const vibe = [];
+  vibeRaw.map(v => String(v || '').replace(/^vibe:/i, '').trim().slice(0, 28).toLowerCase())
+    .filter(Boolean).forEach(v => { if (!vibe.includes(v) && vibe.length < 4) vibe.push(v); });
   return { climate, wear_for: wear.slice(0, 8), vibe };
 }
 

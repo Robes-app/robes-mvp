@@ -2496,12 +2496,14 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     // The Diary opens on the LIST (2026-09-08): an empty future day is an
     // invitation whose + reaches the same door; the month grid's cell
     // stays wired too.
-    const cell = document.querySelector('#sn-cal .rb-dc[onclick*="__mvWear"], #sn-cal .dy-invite .dy-inv-add, #sn-cal .dy-addlook');
+    // v4 (2026-09-15): the cell's + is the door — the picker opens from
+    // `.dc-add`, never from the card body (which opens the day page).
+    const cell = document.querySelector('#sn-cal .rb-dc .dc-add[onclick*="__mvWear"], #sn-cal .rb-dc[onclick*="__mvWear"], #sn-cal .dy-invite .dy-inv-add, #sn-cal .dy-addlook');
     const nxt = new Date(t.getTime() + 86400000);
     const niso = nxt.getFullYear() + '-' + p(nxt.getMonth() + 1) + '-' + p(nxt.getDate());
     window.__mvWear(niso);
     const modal = document.getElementById('rb-mv-wear');
-    const tiles = modal ? modal.querySelectorAll('button[onclick*="__mvWearPick"]').length : 0;
+    const tiles = modal ? modal.querySelectorAll('.pk-tile[onclick*="__mvWearPick"]').length : 0;
     const head = modal ? modal.textContent : '';
     window.__mvWearPick(niso, 'lk-1');
     await new Promise((r) => setTimeout(r, 200));
@@ -2510,13 +2512,13 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       dbg: { rows: cal0.querySelectorAll('.dy-row').length, invites: cal0.querySelectorAll('.dy-invite').length, cards: cal0.querySelectorAll('.dy-card').length, trips: cal0.querySelectorAll('.dy-trip').length, tadd: cal0.querySelectorAll('.dy-tadd').length, mode: localStorage.getItem('rb_diary_mode'), head: (cal0.textContent || '').replace(/\s+/g, ' ').slice(0, 160) },
       cellWired: !!cell || isMonthTail,
       hadModal: !!modal, tiles,
-      asks: /Wear a look this day\?/.test(head),
+      asks: /What to wear\?/.test(head) && /Robes styles one/.test(head) && /Create a new look/.test(head),
       modalGone: !document.getElementById('rb-mv-wear'),
       today: iso, target: niso,
     };
   });
   check('IA · empty future days are wired to the wear-a-look door', wear.cellWired === true, JSON.stringify(wear));
-  check('IA · the door lists her looks and asks, never creates',
+  check('IA · the door lists her looks under the two make-doors, never creates',
     wear.hadModal && wear.tiles === 2 && wear.asks, JSON.stringify(wear));
   await page.waitForTimeout(1200); // the planned_days write is debounced
   const calPin = writes.find((w) => w.method === 'POST' && /^planned_days/.test(w.url) &&
@@ -2580,7 +2582,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await ctx.close();
 }
 
-// Zero looks: the empty-day door hands her to the Lookbook to make one.
+// Zero looks: the picker creates nothing — its one door is the composer, filing to the day.
 {
   const { ctx, page, errs } = await boot(browser, { seed: false });
   await page.evaluate(() => window.__rbNavGo('calendar'));
@@ -2590,8 +2592,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const t = new Date(Date.now() + 86400000);
     window.__mvWear(t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()));
     const modal = document.getElementById('rb-mv-wear');
-    const btn = modal && Array.from(modal.querySelectorAll('button')).find((b) => /Make one in the Lookbook/.test(b.textContent));
-    const copy = modal ? /looks are made there, then worn here/.test(modal.textContent) : false;
+    const btn = modal && modal.querySelector('.pk-none .pk-ink[onclick*="__mvPkNew"]');
+    const copy = modal ? /Nothing in the Lookbook/.test(modal.textContent) && /Open the composer/.test(btn ? btn.textContent : '') : false;
     if (btn) btn.click();
     return { hadDoor: !!btn, copy };
   });
@@ -2600,7 +2602,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     composer: !!document.getElementById('rb-lk-newtitle'),
     calOff: !document.getElementById('sn-page').classList.contains('rb-cal-on'),
   }));
-  check('IA zero-looks · the calendar creates nothing — it hands to the Lookbook',
+  check('IA zero-looks · the picker is honest — Nothing in the Lookbook yet + Open the composer',
     door.hadDoor && door.copy, JSON.stringify(door));
   check('IA zero-looks · the door lands in the composer', landed.composer && landed.calOff, JSON.stringify(landed));
   check('IA zero-looks · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));

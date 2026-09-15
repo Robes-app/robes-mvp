@@ -367,10 +367,13 @@ ok((await day3Card.innerText()).includes('Drive · dinner out'), 'the day card s
 ok(await day3Card.locator('.tvw-pin').count() === 1, 'the named day keeps its one Add-a-look door');
 await page.evaluate(() => window.__tvDayPick(3));
 await page.waitForTimeout(150);
-ok(await page.locator('#tv-daypick-modal').count() === 1, 'the + Look sheet opens');
-const pickTxt = await page.locator('#tv-daypick-modal').innerText();
-ok(pickTxt.includes('From your lookbook') && /Robes styles one/.test(pickTxt), 'sheet offers lookbook and Robes doors');
+ok(await page.locator('#rb-mv-wear .pk').count() === 1, 'the + Look door opens the Add-a-look picker (2026-09-15)');
+const pickTxt = await page.locator('#rb-mv-wear').innerText();
+ok(/Robes styles one/.test(pickTxt) && /Create a new look/.test(pickTxt) && /Your looks/i.test(pickTxt) && /this trip.s looks/i.test(pickTxt),
+  'the picker offers Robes, the composer, her saved looks and this trip\'s looks');
+ok(await page.locator('#rb-mv-wear .pk-triptile').count() >= 1, 'this trip\'s unpinned looks render as tiles');
 await page.evaluate(() => window.__tvDayPickApply(1, 3));
+ok(await page.locator('#rb-mv-wear').count() === 0, 'picking closes the picker');
 await page.waitForTimeout(200);
 ok(await page.evaluate(() => window.__lastTvData.looks[1].pins.indexOf(3) !== -1), 'picking a trip look pins it to the day');
 ok(await page.locator('#tv-stage .rbc-panel').count() === 1, 'the day console opens on the freshly pinned day');
