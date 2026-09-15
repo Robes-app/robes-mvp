@@ -104,6 +104,49 @@
     .modal .x { float: right; border: none; background: none; font-size: 18px; cursor: pointer; color: var(--ink-faint); }
 
     .note { font-size: 12px; color: var(--ink-faint); margin: 10px 0 0; }
+
+    /* expand / collapse on long lists */
+    .xtra[hidden] { display: none; }
+    .more-row { padding: 10px 14px; border-top: 0.5px solid var(--rule); }
+    .more-btn { font: inherit; font-size: 12px; color: var(--ink-soft); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
+
+    /* output viewer — the saved artifact, rendered */
+    .titem.open, .saved-btn { cursor: pointer; }
+    .titem.open:hover { border-color: var(--ink); }
+    .saved-btn { font: inherit; font-size: 12.5px; background: none; border: none; padding: 0; text-align: left; color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule-mid); text-underline-offset: 3px; }
+    .saved-btn:hover { text-decoration-color: var(--ink); }
+    .modal.wide { max-width: 1120px; }
+    .vw-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .vw-head h3 { margin: 0; font-size: 22px; }
+    .vw-head .meta { color: var(--ink-faint); font-size: 12px; }
+    .vw-prompt { font-family: Georgia, serif; font-style: italic; font-size: 14px; color: var(--ink-soft); margin: 0 0 16px; }
+    .vw-ed { font-size: 13px; line-height: 1.6; color: var(--ink-soft); max-width: 720px; margin: 0 0 18px; }
+    .vw-tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 16px; }
+    .vw-hero { width: 100%; max-height: 460px; object-fit: cover; border-radius: 10px; display: block; margin-bottom: 18px; background: var(--cream-100); }
+    .vw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .vw-grid.ways { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .vw-it { border: 0.5px solid var(--rule); border-radius: 8px; overflow: hidden; background: #fff; }
+    .vw-it .im { aspect-ratio: 3/4; background: var(--cream-100); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-family: Georgia, serif; font-size: 24px; position: relative; }
+    .vw-it .im img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .vw-it .im .own { position: absolute; top: 6px; left: 6px; font-size: 10px; background: rgba(255,255,255,0.92); border-radius: 100px; padding: 2px 7px; color: var(--sage); }
+    .vw-it .tx { padding: 8px 10px; }
+    .vw-it .ey { font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 3px; }
+    .vw-it .l1 { font-size: 12.5px; font-weight: 500; }
+    .vw-it .l2 { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+    .vw-it .how { font-size: 11.5px; color: var(--ink-soft); font-style: italic; margin-top: 5px; line-height: 1.45; }
+    .vw-it .tx p { font-size: 12px; line-height: 1.55; color: var(--ink-soft); margin: 6px 0 0; }
+    .vw-it.way .tx h4 { font-family: Georgia, serif; font-weight: 400; font-size: 17px; margin: 2px 0 4px; }
+    .vw-look { border: 0.5px solid var(--rule); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+    .vw-look .lh { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+    .vw-look .lh h4 { font-family: Georgia, serif; font-weight: 400; font-size: 17px; margin: 0; }
+    .vw-look .strip { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .vw-look .strip .pc { width: 84px; }
+    .vw-look .strip .pc .im { aspect-ratio: 3/4; border-radius: 6px; overflow: hidden; background: var(--cream-100); display: flex; align-items: center; justify-content: center; font-family: Georgia, serif; color: var(--ink-faint); }
+    .vw-look .strip .pc .im img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .vw-look .strip .pc .nm { font-size: 10.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .vw-piece-photo { display: flex; gap: 14px; align-items: center; margin-bottom: 18px; }
+    .vw-piece-photo img { width: 72px; height: 96px; object-fit: cover; border-radius: 8px; border: 0.5px solid var(--rule); }
+    .vw-piece-photo .cap { font-size: 12px; color: var(--ink-faint); }
     .bk { text-decoration: none; color: var(--ink-soft); font-size: 12.5px; display: inline-block; margin-bottom: 12px; }
   </style>
 </head>
@@ -333,8 +376,8 @@
     const evRows = events.data || [];
     html += '<div class="sec"><div class="sec-h"><h2>Activity</h2><span class="cnt">last ' + evRows.length + (env !== 'all' ? ' · ' + esc(env) : '') + '</span></div><div class="card">' +
       (events.error ? '<div class="err">events table unavailable — run migration 11</div>'
-        : evRows.length ? '<ul class="tl">' + evRows.map(e =>
-            '<li><span class="t">' + fmtDT(e.created_at) + '</span><span><span class="chip">' + esc(e.event_type) + '</span> <span class="m">' + esc(metaLine(e.metadata)) + '</span></span></li>').join('') + '</ul>'
+        : evRows.length ? '<ul class="tl">' + evRows.map((e, i) =>
+            '<li' + xtra(i, ACT_SHOW) + '><span class="t">' + fmtDT(e.created_at) + '</span><span><span class="chip">' + esc(e.event_type) + '</span> <span class="m">' + esc(metaLine(e.metadata)) + '</span></span></li>').join('') + '</ul>' + moreRow(evRows.length, ACT_SHOW, 'actions')
         : '<div class="empty">No tracked actions yet.</div>') + '</div></div>';
     html += '</div><div>';
     // wardrobe
@@ -356,10 +399,9 @@
     html += '<div class="sec"><div class="sec-h"><h2>Lookbook</h2><span class="cnt">' + lbRows.length + '</span></div>' +
       (lbRows.length ? '<div class="thumbgrid">' + lbRows.map(l => {
         const im = firstImg(l);
-        const inner = '<div class="titem"><div class="im">' + (im ? '<img loading="lazy" src="' + esc(im) + '">' : esc((l.title || '?')[0].toUpperCase())) + '</div>' +
+        return '<div class="titem open" data-view="' + esc(l.id) + '" title="Open the full output"><div class="im">' + (im ? '<img loading="lazy" src="' + esc(im) + '">' : esc((l.title || '?')[0].toUpperCase())) + '</div>' +
           '<div class="tx"><div class="l1" title="' + esc(l.title) + '">' + esc(l.title || '—') + '</div>' +
-          '<div class="l2">' + esc(TYPE_LABEL[l.type] || l.type) + ' · ' + fmtDate(l.created_at) + (l.share_id && l.is_public ? ' · shared ↗' : '') + '</div></div></div>';
-        return (l.share_id && l.is_public) ? '<a href="/board/' + esc(l.share_id) + '" target="_blank" style="text-decoration:none">' + inner + '</a>' : inner;
+          '<div class="l2">' + esc(TYPE_LABEL[l.type] || l.type) + ' · ' + fmtDate(l.created_at) + (l.share_id && l.is_public ? ' · shared' : '') + '</div></div></div>';
       }).join('') + '</div>'
       : '<div class="card"><div class="empty">Nothing saved yet.</div></div>') + '</div>';
     html += '</div></div>';
@@ -375,10 +417,10 @@
       if (!byGid[gid]) { byGid[gid] = { gid, rows: [] }; groups.push(byGid[gid]); }
       byGid[gid].rows.push(r);
     });
-    html += '<div class="sec"><div class="sec-h"><h2>Generations</h2><span class="cnt">' + groups.length + (env !== 'all' ? ' · ' + esc(env) : '') + ' · click a call chip for the full prompt/response</span></div><div class="card">' +
+    html += '<div class="sec"><div class="sec-h"><h2>Generations</h2><span class="cnt">' + groups.length + (env !== 'all' ? ' · ' + esc(env) : '') + ' · a call chip opens the prompt/response · the saved title opens the output</span></div><div class="card">' +
       (gens.error ? '<div class="err">generation_log unavailable — run migration 11 + set SUPABASE_SERVICE_ROLE_KEY</div>'
       : groups.length ? '<table><thead><tr><th>When</th><th>Endpoint</th><th>Her prompt</th><th>Calls</th><th>Saved as</th></tr></thead><tbody>' +
-        groups.slice(0, 40).map(g => {
+        groups.slice(0, GEN_MAX).map((g, gi) => {
           const first = g.rows[g.rows.length - 1];
           const uPrompt = g.rows.map(r => r.detail && r.detail.user_prompt).find(Boolean);
           const isRealGid = typeof g.gid === 'string' && g.gid.length < 30;
@@ -389,17 +431,128 @@
             const label = (img ? 'img' : 'text') + ' ' + (r.status === 'ok' ? '✓' : esc(r.status)) + (r.latency_ms != null ? ' · ' + (r.latency_ms / 1000).toFixed(1) + 's' : '');
             return '<button class="chip ' + cls + '" style="cursor:pointer;font-family:inherit;margin:1px 2px 1px 0" data-gen="' + esc(r.id) + '">' + label + '</button>';
           }).join('');
-          return '<tr>' +
+          return '<tr' + xtra(gi, GEN_SHOW) + '>' +
             '<td class="nowrap dim">' + fmtDT(first.created_at) + '</td>' +
             '<td class="nowrap">' + esc(first.endpoint) + '</td>' +
             '<td style="max-width:340px">' + (uPrompt ? '<em>“' + esc(uPrompt) + '”</em>' : '<span class="dim">—</span>') + '</td>' +
             '<td style="min-width:180px">' + chips + '</td>' +
-            '<td>' + (art ? esc(art.title || TYPE_LABEL[art.type] || art.type) + (art.share_id && art.is_public ? ' · <a href="/board/' + esc(art.share_id) + '" target="_blank">shared ↗</a>' : '') : '<span class="dim">—</span>') + '</td>' +
+            '<td>' + (art ? '<button class="saved-btn" data-view="' + esc(art.id) + '" title="Open the full output">' + esc(art.title || TYPE_LABEL[art.type] || art.type) + '</button>' + (art.share_id && art.is_public ? ' · <a href="/board/' + esc(art.share_id) + '" target="_blank">shared ↗</a>' : '') : '<span class="dim">—</span>') + '</td>' +
           '</tr>';
-        }).join('') + '</tbody></table>' + (groups.length > 40 ? '<div class="note" style="padding:0 14px 12px">Showing the 40 most recent generations.</div>' : '')
+        }).join('') + '</tbody></table>' + moreRow(Math.min(groups.length, GEN_MAX), GEN_SHOW, 'generations') + (groups.length > GEN_MAX ? '<div class="note" style="padding:0 14px 12px">Showing the ' + GEN_MAX + ' most recent generations.</div>' : '')
       : '<div class="empty">No generations logged yet' + (env !== 'all' ? ' in ' + esc(env) : '') + '.</div>') + '</div></div>';
     main.innerHTML = html;
     main.querySelectorAll('[data-gen]').forEach(b => b.onclick = () => inspectGen(b.dataset.gen));
+    main.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
+      const row = lbRows.find(l => String(l.id) === b.dataset.view);
+      if (row) viewOutput(row, gRows);
+    });
+    main.querySelectorAll('[data-more]').forEach(b => b.onclick = () => toggleMore(b));
+  }
+  // Long lists render collapsed: the first N rows show, the rest carry
+  // `xtra` + hidden until "Show all" flips them (and back).
+  const ACT_SHOW = 8, GEN_SHOW = 10, GEN_MAX = 100;
+  function xtra(i, n) { return i >= n ? ' class="xtra" hidden' : ''; }
+  function moreRow(total, n, noun) {
+    if (total <= n) return '';
+    return '<div class="more-row"><button class="more-btn" data-more="' + n + '" data-noun="' + esc(noun) + '" data-total="' + total + '">Show all ' + total + ' ' + esc(noun) + ' ↓</button></div>';
+  }
+  function toggleMore(b) {
+    const card = b.closest('.card');
+    if (!card) return;
+    const open = b.dataset.open === '1';
+    card.querySelectorAll('.xtra').forEach(el => { el.hidden = open; });
+    b.dataset.open = open ? '' : '1';
+    b.textContent = open ? 'Show all ' + b.dataset.total + ' ' + b.dataset.noun + ' ↓' : 'Show the latest ' + b.dataset.more + ' ↑';
+  }
+
+  /* ── output viewer: the saved artifact as she saw it ───────── */
+  // Renders the lookbook row's data blob visually — the generated frames
+  // and wardrobe photos, the pieces, the stylist copy — per type. Image
+  // resolution mirrors the app's own ladders: a piece shows its wardrobe
+  // photo first, else the generated still at its image_index.
+  function viewOutput(row, gRows) {
+    const d = row.data && typeof row.data === 'object' ? row.data : {};
+    const type = row.type || 'key-piece';
+    const http = u => (typeof u === 'string' && /^https?:/.test(u)) ? u : null;
+    const gid = (() => { try { const m = JSON.stringify(d).match(/"genId":"([^"]+)"/); return m && m[1]; } catch (_) { return null; } })();
+    const uPrompt = gid ? ((gRows || []).map(r => r.detail && r.detail.gen_id === gid && r.detail.user_prompt).find(Boolean) || null) : null;
+    const tile = (im, ey, l1, l2, how, own) =>
+      '<div class="vw-it"><div class="im">' + (im ? '<img loading="lazy" src="' + esc(im) + '">' : esc((l1 || '?')[0].toUpperCase())) + (own ? '<span class="own">✓ yours</span>' : '') + '</div>' +
+      '<div class="tx">' + (ey ? '<div class="ey">' + esc(ey) + '</div>' : '') + '<div class="l1">' + esc(l1 || '—') + '</div>' + (l2 ? '<div class="l2">' + esc(l2) + '</div>' : '') + (how ? '<div class="how">' + esc(how) + '</div>' : '') + '</div></div>';
+    const prov = it => it.wardrobe_match ? 'In her wardrobe' : [it.brand, it.retailer_hint, it.price_point].filter(Boolean).join(' · ');
+    const itemImg = (it, gen) => http(it.wardrobe_match && it.wardrobe_match.image_url) || (Number.isInteger(it.image_index) ? http(gen[it.image_index]) : null) || http(it.image_url) || http(it.img);
+
+    let body = '';
+    let subtitle = row.subtitle || '';
+    if (type === 'key-piece') {
+      const kp = d.kpData || {};
+      const gen = Array.isArray(kp.generatedImages) ? kp.generatedImages : [];
+      const ways = Array.isArray(kp.ways) ? kp.ways : [];
+      if (http(kp.photoUrl)) body += '<div class="vw-piece-photo"><img src="' + esc(kp.photoUrl) + '"><span class="cap">Her piece, as attached</span></div>';
+      body += '<div class="vw-grid ways">' + ways.map((w, i) =>
+        '<div class="vw-it way"><div class="im">' + (http(gen[i]) ? '<img loading="lazy" src="' + esc(gen[i]) + '">' : '<span style="font-size:12px">no frame landed</span>') + '</div>' +
+        '<div class="tx">' + (w.eyebrow ? '<div class="ey">' + esc(w.eyebrow) + '</div>' : '') + '<h4>' + esc(w.title || 'Look ' + (i + 1)) + '</h4>' +
+        (w.outfit ? '<p>' + esc(w.outfit) + '</p>' : '') + (w.details ? '<p>' + esc(w.details) + '</p>' : '') + (w.accessories ? '<p><span class="ey" style="display:block">Accessories</span>' + esc(w.accessories) + '</p>' : '') +
+        '</div></div>').join('') + '</div>';
+      if (!ways.length) body += '<div class="empty">No looks stored on this entry.</div>';
+    } else if (type === 'daily-look') {
+      const dl = d.dlData || {};
+      const gen = Array.isArray(dl.generatedImages) ? dl.generatedImages : [];
+      subtitle = [dl.occasion_label, dl.anchor_date, dl.context && dl.context.city].filter(Boolean).join(' · ') || subtitle;
+      if (dl.stylist_summary) body += '<p class="vw-ed">' + esc(dl.stylist_summary) + (dl.transition_tip ? ' <span class="dim">— ' + esc(dl.transition_tip) + '</span>' : '') + '</p>';
+      const items = [];
+      (Array.isArray(dl.steps) ? dl.steps : []).forEach(s => (Array.isArray(s && s.items) ? s.items : []).forEach(it => it && items.push({ it, role: s.title })));
+      body += items.length ? '<div class="vw-grid">' + items.map(x => tile(itemImg(x.it, gen), x.role, x.it.name, prov(x.it), x.it.how, !!x.it.wardrobe_match)).join('') + '</div>'
+        : '<div class="empty">No pieces stored on this entry.</div>';
+    } else if (type === 'travel-edit') {
+      const tv = d.tvData || {};
+      const gen = Array.isArray(tv.generatedImages) ? tv.generatedImages : [];
+      const cap = Array.isArray(tv.capsule) ? tv.capsule : [];
+      subtitle = [tv.destination, tv.dateLine, tv.vibe].filter(Boolean).join(' · ') || subtitle;
+      if (http(gen[0]) && !cap.some(c => c && c.image_index === 0)) body += '<img class="vw-hero" src="' + esc(gen[0]) + '">';
+      if (tv.stylist_summary) body += '<p class="vw-ed">' + esc(tv.stylist_summary) + '</p>';
+      const looks = Array.isArray(tv.looks) ? tv.looks : [];
+      if (looks.length) {
+        body += '<div class="sec-h"><h2>Looks</h2><span class="cnt">' + looks.length + '</span></div>';
+        body += looks.map(l => {
+          const pins = Array.isArray(l.pins) && l.pins.length ? 'pinned to day ' + l.pins.map(p => p + 1).join(', ') : 'unpinned';
+          const entries = Array.isArray(l.formula) ? l.formula : (Array.isArray(l.pieces) ? l.pieces : []);
+          const strip = entries.map(f => {
+            const c = Number.isInteger(f.item_index) ? cap[f.item_index] : null;
+            const nm = (c && c.name) || f.name || '—';
+            const im = c ? itemImg(c, gen) : http(f.image);
+            return '<div class="pc"><div class="im">' + (im ? '<img loading="lazy" src="' + esc(im) + '">' : esc(nm[0].toUpperCase())) + '</div><div class="nm">' + esc(nm) + '</div></div>';
+          }).join('');
+          return '<div class="vw-look"><div class="lh"><h4>' + esc(l.title || l.occasion || 'Look') + '</h4>' + (l.occasion && l.occasion !== l.title ? '<span class="chip">' + esc(l.occasion) + '</span>' : '') + '<span class="dim">' + esc(pins) + (l.imported ? ' · her own look, packed whole' : '') + '</span></div>' +
+            (l.how ? '<div class="vw-ed" style="margin:0 0 4px">' + esc(l.how) + '</div>' : '') + (strip ? '<div class="strip">' + strip + '</div>' : '') + '</div>';
+        }).join('');
+      }
+      if (cap.length) {
+        body += '<div class="sec-h" style="margin-top:16px"><h2>The capsule</h2><span class="cnt">' + cap.length + ' · ' + cap.filter(c => c && c.wardrobe_match).length + ' hers' + (cap.some(c => c && c.packed) ? ' · ' + cap.filter(c => c && c.packed).length + ' packed' : '') + '</span></div>';
+        body += '<div class="vw-grid">' + cap.map(c => c && tile(itemImg(c, gen), c.tier ? String(c.tier).replace(/_/g, ' ') : '', c.name, prov(c), c.reason || c.bridge, !!c.wardrobe_match)).filter(Boolean).join('') + '</div>';
+      }
+      if (!looks.length && !cap.length) body += '<div class="empty">Nothing stored on this trip yet.</div>';
+    } else if (type === 'moodboard') {
+      const imgs = [http(d.hero_image)].concat((Array.isArray(d.grid_images) ? d.grid_images : []).map(g => http(g && g.url))).filter(Boolean);
+      if (Array.isArray(d.aesthetic_tags) && d.aesthetic_tags.length) body += '<div class="vw-tags">' + d.aesthetic_tags.map(t => '<span class="chip">' + esc(t) + '</span>').join('') + '</div>';
+      if (d.editorial_direction) body += '<p class="vw-ed">' + esc(d.editorial_direction) + '</p>';
+      if (imgs.length) body += '<div class="vw-grid">' + imgs.map(u => '<div class="vw-it"><div class="im"><img loading="lazy" src="' + esc(u) + '"></div></div>').join('') + '</div>';
+      const look = Array.isArray(d.the_look) ? d.the_look : [];
+      if (look.length) body += '<div class="sec-h"><h2>The rack</h2></div><div class="vw-grid">' + look.map(i => i && tile(http(i.wardrobe_match && i.wardrobe_match.image_url), i.category, i.name, i.wardrobe_match ? 'In her wardrobe' : [i.brand_name || i.retailer_hint, i.price_point].filter(Boolean).join(' · '), '', !!i.wardrobe_match)).filter(Boolean).join('') + '</div>';
+    } else {
+      body += '<div class="note" style="margin:0 0 10px">No visual renderer for this type — raw data below.</div>';
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-wrap';
+    wrap.innerHTML = '<div class="modal wide"><button class="x">✕</button>' +
+      '<div class="vw-head"><h3>' + esc(row.title || TYPE_LABEL[type] || type) + '</h3><span class="meta">' + esc(TYPE_LABEL[type] || type) + ' · ' + fmtDT(row.created_at) + (subtitle ? ' · ' + esc(subtitle) : '') +
+      (row.share_id && row.is_public ? ' · <a href="/board/' + esc(row.share_id) + '" target="_blank">public page ↗</a>' : '') + '</span></div>' +
+      (uPrompt ? '<p class="vw-prompt">“' + esc(uPrompt) + '”</p>' : '') +
+      body +
+      '<details style="margin-top:14px"><summary class="dim" style="cursor:pointer;font-size:12px">Raw data</summary><pre>' + esc(JSON.stringify(d, null, 2).slice(0, 60000)) + '</pre></details>' +
+      '</div>';
+    wrap.onclick = e => { if (e.target === wrap || e.target.classList.contains('x')) wrap.remove(); };
+    document.body.appendChild(wrap);
   }
   function metaLine(m) {
     if (!m || typeof m !== 'object') return '';
