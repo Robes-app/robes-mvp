@@ -3490,6 +3490,37 @@
           else console.error('wishlist load:', e);
         }
         _waV2Sync();
+        _wlBackfillImages();
+      }
+
+      // One-time repair for the rows written before the still was carried
+      // (2026-09-16): they hold image_url null and can NEVER fill
+      // themselves — _wlSaveFromItem early-returns on a piece already
+      // wishlisted, so nothing would ever write the picture. A saved look's
+      // proposals are where those pieces came from and still hold their
+      // stills, so the picture is recoverable by name. Runs once a session,
+      // only over null images, never overwrites one, capped.
+      var _wlBackfilled = false;
+      function _wlBackfillImages() {
+        if (_wlBackfilled || !_wlLoaded || !_wlItems.length) return;
+        if (typeof _lkLooks === 'undefined' || !_lkLoaded) return;
+        const byName = {};
+        (_lkLooks || []).forEach(l => ((l && l.proposals) || []).forEach(row => {
+          const url = (row.img_oi == null || row.img_oi === (row.oi || 0)) ? _pdHttp(row.image_url) : null;
+          const nm = ((row.opts && row.opts[row.oi || 0]) || {}).name;
+          if (url && nm) { const k = String(nm).toLowerCase(); if (!byName[k]) byName[k] = url; }
+        }));
+        _wlBackfilled = true;
+        const fix = _wlItems
+          .filter(w => w && !w.image_url && byName[String(w.label || '').toLowerCase()])
+          .slice(0, 40);
+        if (!fix.length) return;
+        Promise.all(fix.map(w => {
+          const url = byName[String(w.label).toLowerCase()];
+          return _waFetch('PATCH', 'wishlist_items?id=eq.' + w.id, { image_url: url })
+            .then(() => { w.image_url = url; })
+            .catch(() => {});
+        })).then(() => _waV2Sync()).catch(() => {});
       }
 
       const _WL_SRC = {
@@ -3526,7 +3557,18 @@
             color: it.color || null,
             brand: it.brand || null,
             price: priceRaw ? Number(priceRaw) : null,
-            image_url: null,
+            // The piece keeps the picture it was saved from (Annie,
+            // 2026-09-16 — the rack showed the still, the wishlist card
+            // showed a monogram). opts.imageUrl is how a surface hands over
+            // a still that lives in ITS blob: image_index is an index into
+            // one generation's generatedImages, so resolving it here
+            // against the wrong surface's blob would show the wrong
+            // garment. Only the item's own unambiguous fields are read
+            // without one.
+            image_url: _pdHttp(opts.imageUrl)
+              || _pdHttp(it.image_url)
+              || (it.wardrobe_match && _pdHttp(it.wardrobe_match.image_url))
+              || null,
             source_type: 'robes',
             source_label: _WL_SRC.robes.label,
           });
@@ -9710,6 +9752,9 @@
           _lkLooks = cloud.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
           _lkCacheWrite();
           _lkLoaded = true;
+          // The looks cache lands after the wishlist as often as not — the
+          // repair tries again the moment the stills are in hand.
+          _wlBackfillImages();
           _lkPaint();
           _waV2Sync();
         } catch (e) {
@@ -12617,7 +12662,9 @@ button.rb-lk-live{cursor:pointer}
           // Unowned pieces go to the wishlist, as every keep does
           props.forEach(p => {
             const it = Number.isInteger(p._ci) ? data.capsule[p._ci] : null;
-            if (it && !it.wishlisted && typeof _wlSaveFromItem === 'function') _wlSaveFromItem(it, { silent: true });
+            if (it && !it.wishlisted && typeof _wlSaveFromItem === 'function') {
+              _wlSaveFromItem(it, { silent: true, imageUrl: _pdItemThumb(it, data.generatedImages) });
+            }
           });
           _tvPatchSaved();
         }
@@ -13566,7 +13613,8 @@ button.rb-lk-live{cursor:pointer}
         _lkPaint();
         if (a.name && typeof _wlSaveFromItem === 'function') {
           _wlSaveFromItem({ name: a.name, brand: a.brand, price_point: a.price_point,
-            retailer_hint: a.retailer_hint, category: (row.cats || [])[0] });
+            retailer_hint: a.retailer_hint, category: (row.cats || [])[0] },
+            { imageUrl: (row.img_oi == null || row.img_oi === (row.oi || 0)) ? row.image_url : null });
         }
       };
       // Save keeps it — the wishlist is where a piece she doesn't own lives.
@@ -13578,7 +13626,7 @@ button.rb-lk-live{cursor:pointer}
         _lkPaint();
         if (typeof _wlSaveFromItem === 'function') {
           _wlSaveFromItem({ name: a.name, brand: a.brand, price_point: a.price_point,
-            retailer_hint: a.retailer_hint, category: row.cats[0] });
+            retailer_hint: a.retailer_hint, category: row.cats[0] }, { imageUrl: _lkShopImgs[i] });
         }
       };
       // A proposed piece has no wardrobe photograph, so Robes shoots one —
@@ -14536,11 +14584,12 @@ button.rb-lk-live{cursor:pointer}
         // Proposals travel to the wishlist on save — nothing Robes offered
         // is lost, and the look grows as she acquires them.
         if (_lkShop.length && typeof _wlSaveFromItem === 'function') {
-          _lkShop.forEach(row => {
+          _lkShop.forEach((row, i) => {
             if (row.saved) return;
             const a = row.opts[row.oi] || {};
             if (a.name) _wlSaveFromItem({ name: a.name, brand: a.brand, price_point: a.price_point,
-              retailer_hint: a.retailer_hint, category: row.cats[0] }, { silent: true });
+              retailer_hint: a.retailer_hint, category: row.cats[0] },
+              { silent: true, imageUrl: _lkShopImgs[i] });
           });
         }
         _lkBuilt = false; _lkBuilding = false; _lkAspirational = false;
@@ -14957,7 +15006,7 @@ button.rb-lk-live{cursor:pointer}
       window.__dlSaveWishlist = async function(fi) {
         const it = window.__dlCurrentItems && window.__dlCurrentItems[fi];
         if (!it || it.wardrobe_match) return;
-        await _wlSaveFromItem(it);
+        await _wlSaveFromItem(it, { imageUrl: _pdItemThumb(it, (window.__lastDlData || {}).generatedImages) });
         _dlRerender();
       };
 
@@ -15025,7 +15074,7 @@ button.rb-lk-live{cursor:pointer}
           opts: [{ name: it.name, brand: it.brand || '', retailer_hint: it.retailer_hint || '', price_point: it.price_point || '', how: it.how || '' }]
             .concat((Array.isArray(it.alternates) ? it.alternates : []).map(a => ({ name: a.name, brand: a.brand || '', retailer_hint: a.retailer_hint || '', price_point: a.price_point || '', how: a.how || '' }))),
           oi: 0, img_oi: 0, saved: true,
-          image_url: (typeof it._kpPhotoUrl === 'string' && it._kpPhotoUrl.indexOf('http') === 0) ? it._kpPhotoUrl : null,
+          image_url: _pdHttp(it._kpPhotoUrl) || _pdItemThumb(it, persistable) || null,
         }));
         const dlLooseSave = !!data._dlLoose && !data.anchor_date;
         const l = _lkCreate({
@@ -15052,7 +15101,9 @@ button.rb-lk-live{cursor:pointer}
           if (saved && saved.dlData) snUpdate(_dlActiveSaveId, { dlData: { ...saved.dlData, look_id: String(l.id) } });
         }
         unowned.forEach(it => {
-          if (!it.wishlisted && typeof _wlSaveFromItem === 'function') _wlSaveFromItem(it, { silent: true });
+          if (!it.wishlisted && typeof _wlSaveFromItem === 'function') {
+            _wlSaveFromItem(it, { silent: true, imageUrl: _pdItemThumb(it, persistable) });
+          }
         });
         _rbTrack('look_saved_from_day', { pieces: ownedIds.length, unowned: unowned.length });
         _waShowToast(name + ' saved to your Lookbook ✓');
@@ -19341,7 +19392,7 @@ body>*:not(#tv-result-page){display:none !important}
         if (tvResultPage) tvResultPage.scrollTo({ top: scroll });
         _tvPatchSaved();
         _waShowToast(it.name + ' added to the pack');
-        _wlSaveFromItem(it, { silent: true }).then(() => _tvPatchSaved());
+        _wlSaveFromItem(it, { silent: true, imageUrl: _tvImgOf(it) }).then(() => _tvPatchSaved());
       };
       function _tvShowOwnPrompt(ci) {
         const data = window.__lastTvData;

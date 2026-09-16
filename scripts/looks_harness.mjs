@@ -2622,15 +2622,17 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
 // ─────────────────────────────────────────────────────────────────────────
 {
   const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 0 });
+  await page.route('**img.test/**', (r) => r.abort());
   const DL = {
     headline: 'A Dublin office look.',
     occasion_label: 'Office day',
     stylist_summary: 'Soft tailoring for a working day; flat leather keeps it moving.',
     look_tags: { climate: 'year_round', wear_for: ['work'], vibe: ['powerhouse'] },
+    generatedImages: ['https://img.test/still-0.jpg', 'https://img.test/still-1.jpg', 'https://img.test/still-2.jpg'],
     steps: [
-      { title: 'The Canvas', items: [{ name: 'Fine merino knit', category: 'Tops', brand: 'COS', retailer_hint: 'COS', price_point: '€69' }] },
-      { title: 'The Anchor', items: [{ name: 'Wide linen trousers', category: 'Bottoms', brand: 'Arket', retailer_hint: 'Arket', price_point: '€120' }] },
-      { title: 'The Exclamation Point', items: [{ name: 'Leather loafers', category: 'Shoes', brand: 'Gucci', retailer_hint: 'Net-a-Porter', price_point: '€790' }] },
+      { title: 'The Canvas', items: [{ name: 'Fine merino knit', category: 'Tops', brand: 'COS', retailer_hint: 'COS', price_point: '€69', image_index: 0 }] },
+      { title: 'The Anchor', items: [{ name: 'Wide linen trousers', category: 'Bottoms', brand: 'Arket', retailer_hint: 'Arket', price_point: '€120', image_index: 1 }] },
+      { title: 'The Exclamation Point', items: [{ name: 'Leather loafers', category: 'Shoes', brand: 'Gucci', retailer_hint: 'Net-a-Porter', price_point: '€790', image_index: 2 }] },
     ],
   };
   const rendered = await page.evaluate(async (data) => {
@@ -2705,6 +2707,17 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     writes.some((w) => w.method === 'POST' && /^looks/.test(w.url))
       && writes.filter((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)).length === 3,
     JSON.stringify(writes.map((w) => w.method + ' ' + w.url).slice(-8)));
+  // A piece keeps the picture it was saved from (Annie, 2026-09-16): the
+  // wishlist card has always rendered image_url — the INSERT was writing
+  // null, so every Robes-suggested piece landed as a monogram.
+  const wished = writes.filter((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)).map((w) => w.body);
+  check('the wishlist row keeps the still the rack showed',
+    wished.length === 3 && wished.every((b) => /^https:\/\/img\.test\/still-\d\.jpg$/.test(String(b && b.image_url))),
+    JSON.stringify(wished.map((b) => [b && b.label, b && b.image_url])));
+  check('the saved look\u2019s proposals keep their stills too',
+    (writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop()?.body?.proposals || [])
+      .every((pr) => /^https:\/\/img\.test\/still-\d\.jpg$/.test(String(pr.image_url))),
+    JSON.stringify((writes.filter((w) => w.method === 'POST' && /^looks/.test(w.url)).pop()?.body?.proposals || []).map((pr) => pr.image_url)));
   check('daily zero-owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
 
   // ── Made LOOSE (1a) — a look built around a piece, not for a day. It
@@ -3246,9 +3259,13 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     body: JSON.stringify({ images: ['https://img.test/render.jpg'], done: true }),
   }));
   await page.route('**img.test/**', (r) => r.abort());
-  // The proposals' own still-life job — quiet here; the canvas describes a
-  // piece with no still rather than waiting for one.
-  await page.route('**/api/lookbuild/images', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+  // The proposals' own still-life job — one frame, so the save can be
+  // checked for carrying it.
+  await page.route('**/api/lookbuild/images', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'sj1' }) }));
+  await page.route('**/api/images/sj*', (r) => r.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ images: ['https://img.test/prop-0.jpg'], done: true }),
+  }));
   const own = (id, label, category) => ({
     name: label, category, wardrobe_match: { id, label, image_url: null, color: '' },
   });
@@ -3351,6 +3368,20 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('rule 04 · her model is asked to wear the proposal by name, alongside the piece she owns',
     renders.length === 2 && renders[1].slice().sort().join('|') === ['Ribbed white tank', 'Wool shacket'].sort().join('|'),
     JSON.stringify(renders));
+  // The piece keeps the picture it was saved from: the composer's Save
+  // sends the gap to the wishlist, and the still it has been showing on
+  // the rack goes with it (the write used to hardcode image_url null).
+  await page.evaluate(async () => {
+    await new Promise((r) => setTimeout(r, 4600));   // the stills poller's first tick
+    window.__lkSaveAsk();
+    await new Promise((r) => setTimeout(r, 250));
+    document.getElementById('rb-lksave-yes')?.click();
+    await new Promise((r) => setTimeout(r, 900));
+  });
+  const wl = writes.filter((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)).map((w) => w.body);
+  check('the wishlist row keeps the still the proposal was showing',
+    wl.length === 1 && wl[0].label === 'Wool shacket' && wl[0].image_url === 'https://img.test/prop-0.jpg',
+    JSON.stringify(wl));
   check('rule 04 dressed · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   void today;
   await ctx.close();
