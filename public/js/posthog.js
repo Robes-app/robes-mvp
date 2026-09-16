@@ -94,10 +94,15 @@
         person_profiles: 'identified_only',
         capture_pageview: false,
         session_recording: {
-          // Her wardrobe photos and typed prompts are her own content —
-          // inputs and textareas are masked in replay by default. Add
-          // class="ph-no-capture" to mask anything else.
-          maskAllInputs: true
+          // FREE LOVE (2026-09-16, Annie's call): every field records as
+          // typed, so replay can be read for what she actually asks Robes
+          // for — the prompt box is the point. Passwords stay masked, and
+          // BOTH password inputs also carry class="ph-no-capture" because
+          // their Show toggle flips type to "text", which would otherwise
+          // defeat maskInputOptions at exactly the wrong moment.
+          // Add class="ph-no-capture" to mask anything else.
+          maskAllInputs: false,
+          maskInputOptions: { password: true }
         }
       });
       window.posthog.register({ environment: ENV });
