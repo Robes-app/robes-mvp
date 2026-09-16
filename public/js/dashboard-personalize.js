@@ -9958,14 +9958,9 @@
           // A Robes build's proposals render too — their generated stills
           // ride as references, so an aspirational look (1 yours, 3 to
           // find) still gets her photograph.
-          const props = (l.proposals || []).map(pr => {
-            const o = (pr && pr.opts && pr.opts[pr.oi || 0]) || {};
-            if (!o.name) return null;
-            const still = (pr.img_oi == null || pr.img_oi === (pr.oi || 0)) ? _pdHttp(pr.image_url) : null;
-            return { name: o.name, category: (pr.cats && pr.cats[0]) || pr.chip || '', color: '', brand: o.brand || '', image_url: still };
-          }).filter(Boolean);
+          const props = _lkLookPropGarments(l);
           const key = avatarId + '|' + (l.pieces || []).map(p => String(p.id)).sort().join(',') +
-            (props.length ? '|p:' + props.map(o => o.name).sort().join('~') : '');
+            (props.length ? '|p:' + _lkmPKey(props) : '');
           if (l.render_key === key && l.render_url) return;
           const garments = (l.pieces || []).map(p => {
             const wi = (_waItems || []).find(w => String(w.id) === String(p.id));
@@ -9992,8 +9987,8 @@
                   // The editor's canvas shares the frame (same key) — an
                   // open-time render never doubles with a live one.
                   try {
-                    if (!props.length && _lkModel && String(_lkModel.id) === String(avatarId)) {
-                      _lkmRenders[_lkmKey((l.pieces || []).map(p => p.id))] = url;
+                    if (_lkModel && String(_lkModel.id) === String(avatarId)) {
+                      _lkmRenders[_lkmKey((l.pieces || []).map(p => p.id), props)] = url;
                       _lkmPaintStage();
                     }
                   } catch (_) {}
@@ -11879,12 +11874,40 @@ button.rb-lk-live{cursor:pointer}
       var _LKM_DEBOUNCE = 1800; // ms of quiet after the last rack change before she is re-rendered
       // The SAME key _avRenderKick writes onto the saved look — so a look
       // rendered on the canvas saves with its frame and never renders twice.
-      function _lkmKey(ids) { return (_lkModel ? _lkModel.id : '') + '|' + ids.map(String).sort().join(','); }
+      // A proposal she does not own yet still rides the render — the server
+      // describes a piece with no photograph and uses its generated still as
+      // a reference where one exists, so an aspirational look ("3 yours, 3
+      // to find") is worn, not tiled. The key is _avRenderKick's byte for
+      // byte: the composer's frame IS the saved look's frame.
+      function _lkmPKey(props) { return (props && props.length) ? props.map(o => o.name).sort().join('~') : ''; }
+      function _lkmKey(ids, props) {
+        const pk = _lkmPKey(props);
+        return (_lkModel ? _lkModel.id : '') + '|' + ids.map(String).sort().join(',') + (pk ? '|p:' + pk : '');
+      }
+      // One reader of a proposal row, whatever holds it — the composer's
+      // _lkShop (stills in _lkShopImgs) or a saved look's looks.proposals
+      // (still on the row, valid only for the suggestion it was shot for).
+      function _lkPropGarments(rows, stillAt) {
+        return (rows || []).map(function(row, i) {
+          const o = (row && row.opts && row.opts[row.oi || 0]) || {};
+          if (!o.name) return null;
+          return {
+            name: o.name, category: (row.cats && row.cats[0]) || row.chip || '',
+            color: '', brand: o.brand || '', image_url: _pdHttp(stillAt(row, i)) || null,
+          };
+        }).filter(Boolean);
+      }
+      // The composer's proposals; a saved look's.
+      function _lkShopGarments() { return _lkPropGarments(_lkShop, (row, i) => _lkShopImgs[i]); }
+      function _lkLookPropGarments(l) {
+        return _lkPropGarments((l && l.proposals) || [],
+          pr => (pr.img_oi == null || pr.img_oi === (pr.oi || 0)) ? pr.image_url : null);
+      }
       // A saved look's own photograph seeds the canvas cache, so editing it
       // opens on the frame she already has and only a CHANGE asks for one.
       function _lkmSeedFromLook(l) {
         if (!l || !_lkModel) return;
-        const key = _lkmKey(_lkPieceIds(l));
+        const key = _lkmKey(_lkPieceIds(l), _lkLookPropGarments(l));
         const url = _pdHttp(l.render_url);
         if (!url) {
           // A render already on its way from the detail open (_avRenderKick)
@@ -11926,61 +11949,69 @@ button.rb-lk-live{cursor:pointer}
             done(null);
           }).catch(() => done(null));
       }
-      function _lkmRender(key, items) {
+      function _lkmRender(key, garments) {
         _lkmBusy = key;
         const finish = url => { _lkmRenders[key] = url || false; if (_lkmBusy === key) _lkmBusy = null; _lkmPaintStage(); };
         fetch('/api/avatar/render', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ avatarId: _lkModel.id, pieces: _lkmGarments(items), userId: _waUid(), genId: _rbGenId(), gender: _rbGender() }),
+          body: JSON.stringify({ avatarId: _lkModel.id, pieces: garments, userId: _waUid(), genId: _rbGenId(), gender: _rbGender() }),
         }).then(r => r.ok ? r.json() : null).then(function(out) {
           if (!out || !out.jobId) return finish(null);
-          _rbTrack('avatar_render', { pieces: items.length, surface: 'composer' });
+          _rbTrack('avatar_render', { pieces: garments.length, surface: 'composer' });
           _lkmPoll(out.jobId, finish);
         }).catch(() => finish(null));
       }
       // What the canvas shows for this composition right now, and whether
       // a photograph is still coming.
-      function _lkmStageState(ids) {
+      function _lkmStageState(ids, props) {
         const pro = _lkModelPro();
         const cell = _lkModel ? _lkmCell[_lkModel.id] : undefined;
-        const key = _lkmKey(ids);
-        const target = ids.length ? _lkmRenders[key] : cell;
+        const key = _lkmKey(ids, props);
+        const target = (ids.length || (props && props.length)) ? _lkmRenders[key] : cell;
         const url = target || _lkmShown || cell || null;
         if (url) _lkmShown = url;
         // false = tried and failed: the previous photograph stands, no chip
         const busy = !!_lkModel && !target && target !== false;
-        return { url, busy, label: ids.length ? 'Dressing ' + pro.her + '…' : 'Creating your model…', key };
+        return { url, busy, label: (ids.length || (props && props.length)) ? 'Dressing ' + pro.her + '…' : 'Creating your model…', key };
       }
       // Schedule whatever this composition still needs — the cell at once,
       // a render after a beat of quiet (flicking through options asks for
       // one render, not one per flick). Never paints synchronously.
-      function _lkmSync(ids) {
+      function _lkmSync(ids, props) {
         if (!_lkModel) return;
+        const pKey = _lkmPKey(props);
         // Deferred a tick so the stage is in the DOM, then only for a stage
         // that is actually on screen — the Lookbook paints its composer
         // while hidden (boot, the early empty-lookbook arming), and a
         // hidden canvas must never spend a render or a cell.
         setTimeout(function() {
-          const el = document.querySelector('.rb-lkm-stage[data-ids="' + ids.join(',') + '"]');
+          const el = Array.prototype.slice.call(document.querySelectorAll('.rb-lkm-stage')).find(function(x) {
+            return String(x.getAttribute('data-ids') || '') === ids.join(',') && String(x.getAttribute('data-pn') || '') === pKey;
+          });
           if (!el || !el.getClientRects().length || !_lkModel) return;
           const id = _lkModel.id;
           if (_lkmCell[id] === false && Date.now() - (_lkmCellFail[id] || 0) > 30000) _lkmCell[id] = undefined;
           if (_lkmCell[id] === undefined) _lkmCellFetch();
-          if (!ids.length || ids.length > 12) return;
-          const key = _lkmKey(ids);
+          const total = ids.length + (props ? props.length : 0);
+          if (!total || total > 12) return;
+          const key = _lkmKey(ids, props);
           if (_lkmRenders[key] !== undefined || _lkmBusy === key) return;
           clearTimeout(_lkmTimer);
           _lkmTimer = setTimeout(function() {
             _lkmTimer = null;
             const items = ids.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean);
-            if (!items.length || _lkmRenders[key] !== undefined) return;
-            _lkmRender(key, items);
+            const garments = _lkmGarments(items).concat(props || []);
+            if (!garments.length || _lkmRenders[key] !== undefined) return;
+            _lkmRender(key, garments);
           }, _LKM_DEBOUNCE);
         }, 0);
       }
-      function _lkmStageHtml(ids) {
-        const st = _lkmStageState(ids);
-        return '<div class="rb-lkm-stage' + (st.busy ? ' busy' : '') + '" data-ids="' + _waEsc(ids.join(',')) + '">' +
+      function _lkmStageHtml(ids, props) {
+        const st = _lkmStageState(ids, props);
+        // data-pn carries the proposal names so a repaint can recompute the
+        // key from the DOM alone (the names are all the key needs).
+        return '<div class="rb-lkm-stage' + (st.busy ? ' busy' : '') + '" data-ids="' + _waEsc(ids.join(',')) +
+          '" data-pn="' + _waEsc(_lkmPKey(props)) + '">' +
           (st.url ? '<img class="rb-lkm-img" src="' + _waEsc(st.url) + '" alt="Your model wearing this look" onload="window.__lkmFit(this)">' : '') +
           (st.busy ? '<div class="rb-lkm-busy">' + st.label + '</div>' : '') +
           '</div>';
@@ -11996,7 +12027,8 @@ button.rb-lk-live{cursor:pointer}
       function _lkmPaintStage() {
         document.querySelectorAll('.rb-lkm-stage').forEach(function(el) {
           const ids = String(el.getAttribute('data-ids') || '').split(',').filter(Boolean);
-          const st = _lkmStageState(ids);
+          const props = String(el.getAttribute('data-pn') || '').split('~').filter(Boolean).map(n => ({ name: n }));
+          const st = _lkmStageState(ids, props);
           let img = el.querySelector('.rb-lkm-img');
           if (st.url) {
             if (!img) { img = document.createElement('img'); img.className = 'rb-lkm-img'; img.alt = 'Your model wearing this look'; img.onload = function() { window.__lkmFit(img); }; el.insertBefore(img, el.firstChild); }
@@ -12039,8 +12071,8 @@ button.rb-lk-live{cursor:pointer}
             '</div>';
         } else {
           const ids = (o.items || []).map(wi => String(wi.id));
-          inner = _lkmStageHtml(ids);
-          _lkmSync(ids);
+          inner = _lkmStageHtml(ids, o.props);
+          _lkmSync(ids, o.props);
         }
         // o.canvasExtraHtml: controls that sit ON the canvas (the composer's
         // photograph pill, the saved look's diary icon). The no-model prompt
@@ -12194,18 +12226,23 @@ button.rb-lk-live{cursor:pointer}
           // A Robes build speaks: the fetched stylist note leads the panel
           // (the hand-built composer keeps its quiet derived line).
           const note = (_lkBuilt && _lkBuildNote) || _lkStyleNote(used);
-          // A look she owns EVERY piece of is WORN, not tiled (Annie,
-          // 2026-09-16): a generated day opened on the mosaic + colour and
-          // fabric swatches while the look it saves shows her model wearing
-          // it — the composer read as an older, different screen than its
-          // own result. It takes the canvas the hand-built composer, the
-          // look editor and the day console already use, and keeps their
-          // rule: a proposal she does not own cannot be rendered on her, so
-          // a build carrying one keeps the board. _lkModel undefined is
-          // "not asked yet" — _lkModelEnsure repaints the composer the beat
-          // its id lands.
+          // A Robes build is WORN, not tiled (Annie, 2026-09-16): a
+          // generated look opened on the mosaic + colour and fabric
+          // swatches while the look it saves shows her model wearing it, so
+          // the composer read as an older, different screen than its own
+          // result. It takes the canvas the hand-built composer, the look
+          // editor and the day console already use — and the PROPOSALS come
+          // with it, exactly as they already ride _avRenderKick's render on
+          // the saved look: the server describes a piece she does not own
+          // and uses its generated still as a reference, so "3 yours, 3 to
+          // find" is worn too. Same render key, so saving costs nothing.
+          // _lkModel undefined is "not asked yet" — _lkModelEnsure repaints
+          // the composer the beat its id lands; null (no model on file)
+          // keeps the board for good.
           const modelIds = used.map(String);
-          lkOnModel = !_lkShop.length && !!_lkModel && modelIds.length > 0 && modelIds.length <= 12;
+          const modelProps = _lkShopGarments();
+          lkOnModel = !!_lkModel && modelIds.length + modelProps.length > 0
+            && modelIds.length + modelProps.length <= 12;
           if (lkOnModel) {
             _lkEnsureCss();
             // The photograph door is the pill ON the canvas here, exactly as
@@ -12214,6 +12251,7 @@ button.rb-lk-live{cursor:pointer}
             lookHtml = _lkModelPanelHtml({
               headLabel, robesLabel,
               items: modelIds.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean),
+              props: modelProps,
               quoteHtml: note ? _waEsc(note) : '',
               canvasExtraHtml: _lkImgActsHtml({ camera: 'add', label: true, fn: '__lkPhotoToggle' }),
             });
@@ -13124,7 +13162,7 @@ button.rb-lk-live{cursor:pointer}
         _lkCacheWrite();
         _lkPatchCloud(l, { note: l.note });
         _lkPiecesCloud(l);
-        const key = _lkModel ? _lkmKey(l.pieces.map(p => p.id)) : null;
+        const key = _lkModel ? _lkmKey(l.pieces.map(p => p.id), _lkLookPropGarments(l)) : null;
         const live = key && typeof _lkmRenders[key] === 'string' ? _lkmRenders[key] : null;
         if (live) _lkPatch(l.id, { render_url: live, render_key: key });
         else _avRenderKick(l);
@@ -14471,8 +14509,9 @@ button.rb-lk-live{cursor:pointer}
             image_url: _pdHttp(_lkShopImgs[i]) || null,
           })) : null;
           // The photograph already on the canvas is the saved look's render
-          // (same key as _avRenderKick) — Save never renders her twice.
-          const canvasKey = (_lkModel && !proposals) ? _lkmKey(used.map(String)) : null;
+          // (same key as _avRenderKick, proposals included) — Save never
+          // renders her twice.
+          const canvasKey = _lkModel ? _lkmKey(used.map(String), _lkShopGarments()) : null;
           const canvasUrl = canvasKey ? _pdHttp(_lkmRenders[canvasKey]) : null;
           l = _lkCreate({
             // Robes' name left as offered stays provisional (rule 01) — a

@@ -3246,6 +3246,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     body: JSON.stringify({ images: ['https://img.test/render.jpg'], done: true }),
   }));
   await page.route('**img.test/**', (r) => r.abort());
+  // The proposals' own still-life job — quiet here; the canvas describes a
+  // piece with no still rather than waiting for one.
+  await page.route('**/api/lookbuild/images', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   const own = (id, label, category) => ({
     name: label, category, wardrobe_match: { id, label, image_url: null, color: '' },
   });
@@ -3323,23 +3326,31 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('rule 04 · nothing is written until she saves',
     !writes.some((w) => w.method === 'POST' && /^(looks|look_pieces|planned_days)/.test(w.url)),
     JSON.stringify(writes.filter((w) => w.method === 'POST').map((w) => w.url)));
-  // A gap she does not own cannot be rendered on her — that build keeps
-  // the board (the same rule the look editor and the day console keep).
+  // An aspirational look is WORN too (Annie, 2026-09-16 — "3 yours, 3 to
+  // find" still opened on the mosaic): the render already carries
+  // proposals, described by name with their stills as references, which is
+  // how _avRenderKick has rendered a saved build since 2026-08-25.
   await page.evaluate(async () => {
     window.__dlSubmit('Style me for the office');
-    await new Promise((r) => setTimeout(r, 2600));
+    await new Promise((r) => setTimeout(r, 2800));
   });
   const gapped = await page.evaluate(() => {
-    const panel = document.querySelector('#sn-page .rb-lk-composer .rbc-panel');
+    const con = document.querySelector('#sn-page .rb-lk-composer');
+    const panel = con?.querySelector('.rbc-panel');
     return {
       board: !!panel?.querySelector('.rbc-board'),
-      canvas: !!panel?.querySelector('.rb-lkm-canvas'),
-      yours: panel?.querySelector('.rbc-yours')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+      canvas: !!panel?.querySelector('.rb-lkm-canvas .rb-lkm-stage'),
+      head: panel?.querySelector('.rbc-lhead .lab')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+      prop: !!con?.querySelector('.rb-lk-prop, .rbc-rack .rbc-act.save'),
     };
   });
-  check('rule 04 · a build carrying a piece she does not own keeps the board',
-    gapped.board && !gapped.canvas && /1.*of.*2/.test(gapped.yours), JSON.stringify(gapped));
-  check('rule 04 · her model is never asked to wear an unowned piece', renders.length === 1, JSON.stringify(renders));
+  check('rule 04 · a build carrying a piece she does not own is worn too, not tiled',
+    gapped.canvas && !gapped.board, JSON.stringify(gapped));
+  check('rule 04 · the head still counts what is hers, and the gap stays a proposal on the rack',
+    /1 yours, 1 to find/.test(gapped.head) && gapped.prop, JSON.stringify(gapped));
+  check('rule 04 · her model is asked to wear the proposal by name, alongside the piece she owns',
+    renders.length === 2 && renders[1].slice().sort().join('|') === ['Ribbed white tank', 'Wool shacket'].sort().join('|'),
+    JSON.stringify(renders));
   check('rule 04 dressed · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   void today;
   await ctx.close();
