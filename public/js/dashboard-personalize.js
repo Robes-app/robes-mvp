@@ -6631,7 +6631,14 @@
         // `headline` — it takes over the editorial H1 so a rename sticks
         // visibly here and on every reopen.
         const kpHeadline = (data.headline || '').trim();
-        const pieceName = kpHeadline || (fallback ? 'Balmain waistcoat' : (promptText || 'Your piece'));
+        // The piece leads the title (design Key_Piece_Reveal: "Your pink
+        // barrel-legs, three ways."): a "Style my X three ways" ask reads
+        // as "Your X, worn three ways." — any other words stay her own. The
+        // saved entry and the Yours label take the same piece words.
+        const kpAsk = String(promptText || '').trim();
+        const kpIsPiece = /^(please\s+)?(style|dress|wear)\s+(my|the|these|this)\b/i.test(kpAsk);
+        const kpPiece = _kpPieceWords(kpAsk);
+        const pieceName = kpHeadline || (fallback ? 'Balmain waistcoat' : (kpPiece || kpAsk || 'Your piece'));
         const serif = "'Cormorant',Georgia,serif";
         const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
 
@@ -6649,7 +6656,41 @@
             // box (min-height) — a cover-fit portrait image loses head + feet
             // to the crop. Let the image flow at its natural ratio instead;
             // min-height only backstops the pending-placeholder state.
-            '@media(max-width:700px){.kp-look-card{grid-template-columns:1fr !important}.kp-look-card>div:last-child{padding:20px 22px 26px !important}.kp-look-imgwrap{min-height:300px !important}.kp-look-imgwrap img{position:static !important;height:auto !important}}' +
+            // The three-up reveal (design Key_Piece_Reveal, 2026-09-16): three
+            // image-led cards on the web, a scroll-snap row on the phone; the
+            // prose lives behind "More detail".
+            '.kp-headrow{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap}' +
+            '.kp-headrow .kp-head{flex:1 1 320px;min-width:0}' +
+            '.kp-yours{display:flex;align-items:flex-end;gap:14px;margin-bottom:12px}' +
+            '.kp-yours-t{text-align:right;padding-bottom:4px}' +
+            '.kp-yours .ey{font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink,#202021)}' +
+            '.kp-yours .n{font-size:12px;color:var(--ink-soft,#55524E);margin-top:6px;max-width:200px}' +
+            '.kp-yours-img{width:104px;height:132px;object-fit:cover;border-radius:3px;background:var(--cream-200,#EDE9E2);display:block;flex:none}' +
+            '.kp-ways{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:36px}' +
+            '.kp-look-card{display:flex;flex-direction:column;gap:14px;min-width:0}' +
+            '.kp-look-imgwrap{position:relative;aspect-ratio:3/4;border-radius:3px;overflow:hidden;background:#EDE9E2;cursor:pointer}' +
+            '.kp-look-imgwrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 12%;display:block}' +
+            '.kp-look-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--rule,rgba(32,32,33,0.1))}' +
+            '.kp-look-ey{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint,#9C9891)}' +
+            '.kp-look-title{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:26px;line-height:1.15;margin:8px 0 0;color:var(--ink,#202021);cursor:pointer}' +
+            '.kp-look-line{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-weight:300;font-size:14px;line-height:1.5;color:var(--ink-soft,#55524E);margin:-4px 0 0}' +
+            '.kp-look-acts{display:flex;align-items:center;gap:16px;flex-wrap:wrap}' +
+            '.kp-look-more{background:none;border:0;padding:0 0 2px;font-family:inherit;font-size:12px;font-weight:300;color:var(--ink-faint,#9C9891);border-bottom:1px solid var(--rule-mid,rgba(32,32,33,0.14));cursor:pointer}' +
+            '.kp-look-more:hover{color:var(--ink,#202021)}' +
+            '.kp-look-detail{display:flex;flex-direction:column;gap:12px;padding-top:2px}' +
+            '.kp-look-detail[hidden]{display:none}' +
+            '.kp-look-detail .lab{font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px}' +
+            '.kp-look-detail p{font-size:13px;line-height:1.6;color:#6E6A64;margin:0}' +
+            '@media(max-width:700px){' +
+              '.kp-headrow{flex-wrap:nowrap;gap:16px}' +
+              '.kp-yours{flex-direction:column;align-items:center;gap:8px;margin-bottom:12px}' +
+              '.kp-yours-t{text-align:center;order:2;padding:0}.kp-yours .n{display:none}' +
+              '.kp-yours-img{width:66px;height:84px}' +
+              '.kp-ways{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;margin:26px -32px 0;padding:0 32px 6px;scrollbar-width:none}' +
+              '.kp-ways::-webkit-scrollbar{display:none}' +
+              '.kp-look-card{flex:none;width:250px;scroll-snap-align:start}' +
+              '.kp-look-title{font-size:22px}' +
+            '}' +
             // <=767px the glass header share circle covers kp — hide the in-page one
             '.kp-shareRow{margin-top:16px}.kp-head{margin-bottom:12px;padding-top:34px}' +
             '@media(max-width:767px){.rb-kp-share{display:none !important}.kp-shareRow{display:none}}' +
@@ -6681,6 +6722,8 @@
           next: function() { if (kpAt > -1 && kpAt < kpSet.length - 1) window.__snOpenItem(kpSet[kpAt + 1]); },
         });
         const kpBand = _rbRetHtml({ key: 'kp', label: kpDaily ? _rbOriginLabel() : 'Inspiration', pos: (!kpDaily && kpAt > -1 && kpSet.length > 1) ? { i: kpAt + 1, n: kpSet.length } : null });
+        const kpLead = kpHeadline || (fallback ? 'Your piece'
+          : (kpIsPiece && kpPiece ? 'Your ' + kpPiece : (kpPiece || kpAsk || 'Your piece')));
         const kpTitleBlock = _rbTitleHtml({
           bare: true, cls: 'kp-head',
           eyebrow: kpDaily ? 'Your day' : 'Key piece',
@@ -6688,7 +6731,7 @@
           // the prompt), so the italic wink still lands (design 11).
           titleHtml: kpDaily
             ? (kpHeadline ? _waEsc(kpHeadline) : 'Your day,<br><em>dressed three ways.</em>')
-            : _waEsc(kpHeadline || (fallback ? 'Your piece' : String(promptText || '').trim() || 'Your piece')) + ',<br><em>worn three ways.</em>',
+            : _waEsc(kpLead) + ',<br><em>worn three ways.</em>',
           titleId: 'kp-headline',
           afterTitleHtml: _rbTbBtn({ cls: 'kp-pen', title: 'Rename', onclick: "window.__rbRename&&window.__rbRename('kp')", svg: _RB_PENCIL_SVG }),
           belowHtml: '<div class="kp-shareRow"><button class="rb-pill rb-kp-share" title="Share this look" onclick="window.__rbShare&&window.__rbShare()">Share this look</button></div>',
@@ -6697,7 +6740,7 @@
           ${kpBand}
           ${kpGuide ? `
           <div id="kp-guide-band" style="background:#F2EEE7;border-bottom:1px solid #E1DACB;padding:16px 32px;box-sizing:border-box">
-            <div style="max-width:900px;margin:0 auto;display:flex;align-items:center;gap:22px;flex-wrap:wrap">
+            <div style="max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:22px;flex-wrap:wrap">
               <span style="font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:#9A9082;flex-shrink:0">Start here</span>
               <div style="flex:1;min-width:230px">
                 <div style="font-size:14.5px;color:#202021;line-height:1.45">Pick one of the three looks below and build it around what’s yours — Robes borrows the rest.</div>
@@ -6710,9 +6753,12 @@
               </div>
             </div>
           </div>` : ''}
-          <div style="width:100%;max-width:900px;margin:0 auto;padding:0 32px 80px;box-sizing:border-box">
-            ${kpTitleBlock}
-            <p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : kpDaily ? 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.' : 'Three distinct looks — different moods, occasions, and ways of dressing.'}</p>
+          <div style="width:100%;max-width:1100px;margin:0 auto;padding:0 32px 80px;box-sizing:border-box">
+            <div class="kp-headrow">
+              ${kpTitleBlock}
+              ${(!kpDaily && photoUrl) ? `<div class="kp-yours"><div class="kp-yours-t"><div class="ey">Yours</div><div class="n">${_waEsc(kpPiece || pieceName)}</div></div><img class="kp-yours-img" src="${_waEsc(photoUrl)}" alt=""></div>` : ''}
+            </div>
+            ${(fallback || kpDaily) ? `<p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.'}</p>` : ''}
 
             ${kpDaily && kpCtx && (kpCtx.city || kpCtx.tempRange) ? `
             <div style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#6E6A64;letter-spacing:.04em;border:0.5px solid rgba(32,32,33,0.12);border-radius:40px;padding:9px 18px;margin:0 0 28px;background:#fff">
@@ -6722,7 +6768,7 @@
               ${kpCtx.hint ? `<span style="color:rgba(32,32,33,0.2)">|</span><span style="font-style:italic">${_waEsc(kpCtx.hint)}</span>` : ''}
             </div>` : ''}
 
-            ${(kpDaily || photoUrl) ? `<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:var(--rad);background:#fff;max-width:400px;margin-bottom:40px">
+            ${kpDaily ? `<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:var(--rad);background:#fff;max-width:400px;margin-bottom:40px">
               ${photoUrl ? `<img src="${_waEsc(photoUrl)}" style="width:64px;height:80px;border-radius:4px;object-fit:cover;flex-shrink:0" alt="">` : ''}
               <div>
                 <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px">${kpDaily ? "Today's brief" : 'Your piece'}</div>
@@ -6731,32 +6777,34 @@
               </div>
             </div>` : ''}
 
-            <div id="kp-ways" style="display:flex;flex-direction:column;gap:32px">
+            <div id="kp-ways" class="kp-ways">
               ${ways.map((w, i) => {
                 const genImg = generatedImages && generatedImages[i];
                 const phInner = imagesPending
                   ? `<span style="font-family:${serif};font-style:italic;font-size:15px;color:var(--ink-faint);text-align:center;padding:0 24px">Creating your editorial image…</span>`
                   : `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
                 return `
-                <div class="kp-look-card" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:24px;background:#fff;border-radius:var(--rad);overflow:hidden;border:0.5px solid rgba(32,32,33,0.08)">
-                  <div class="kp-look-imgwrap" id="kp-look-imgwrap-${i}" style="position:relative;background:#EDE9E2;min-height:340px">
+                <div class="kp-look-card">
+                  <div class="kp-look-imgwrap" id="kp-look-imgwrap-${i}" role="button" aria-label="Build ${_waEsc(w.title || 'this look')}" onclick="window.__kpBuildLook(${i})">
                     ${genImg
-                      ? `<img src="${_waEsc(genImg)}" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0" alt="">`
+                      ? `<img src="${_waEsc(genImg)}" alt="">`
                       : `<div class="kp-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${imagesPending ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${phInner}</div>`}
-                    <span style="position:absolute;top:14px;left:16px;font-family:${serif};font-weight:300;font-size:20px;color:${genImg ? 'rgba(255,255,255,0.85);text-shadow:0 1px 8px rgba(32,32,33,0.35)' : 'rgba(32,32,33,0.35)'}">${String(i+1).padStart(2,'0')}</span>
                   </div>
-                  <div style="padding:28px 28px 28px 4px;display:flex;flex-direction:column;gap:16px">
-                    <div style="font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:#B8A898">${_waEsc(w.eyebrow || '')}</div>
-                    <div style="font-family:${serif};font-weight:300;font-size:28px;color:#202021;line-height:1.08">${_waEsc(w.title || '')}</div>
-                    <div style="display:flex;flex-direction:column;gap:14px;margin-top:4px">
-                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">The Outfit</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${_waEsc(w.outfit || '')}</p></div>
-                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Key Details</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${_waEsc(w.details || '')}</p></div>
-                      <div><div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px">Accessories</div><p style="font-size:13px;line-height:1.65;color:#6E6A64;margin:0">${_waEsc(w.accessories || '')}</p></div>
+                  <div class="kp-look-head">
+                    <div style="min-width:0">
+                      <div class="kp-look-ey">${_waEsc(w.eyebrow || '')}</div>
+                      <h3 class="kp-look-title" onclick="window.__kpBuildLook(${i})">${_waEsc(w.title || '')}</h3>
                     </div>
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:auto;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.08)">
-                      <span style="font-size:12px;color:var(--ink-faint);font-style:italic">See it piece by piece — what's yours, what would finish it.</span>
-                      <button id="kp-build-btn-${i}" class="kp-build-btn${i === 0 ? ' kp-build-first' : ''}" onclick="window.__kpBuildLook(${i})" style="flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Build this look<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
-                    </div>
+                  </div>
+                  <p class="kp-look-line">See it piece by piece — what's yours, what would finish it.</p>
+                  <div class="kp-look-acts">
+                    <button id="kp-build-btn-${i}" class="kp-build-btn${i === 0 ? ' kp-build-first' : ''}" onclick="window.__kpBuildLook(${i})" style="flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Build this look<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+                    <button type="button" class="kp-look-more" id="kp-look-more-${i}" aria-expanded="false" onclick="window.__kpMore(${i})">More detail</button>
+                  </div>
+                  <div class="kp-look-detail" id="kp-look-detail-${i}" hidden>
+                    <div><div class="lab">The outfit</div><p>${_waEsc(w.outfit || '')}</p></div>
+                    <div><div class="lab">Key details</div><p>${_waEsc(w.details || '')}</p></div>
+                    <div><div class="lab">Accessories</div><p>${_waEsc(w.accessories || '')}</p></div>
                   </div>
                 </div>`;
               }).join('')}
@@ -6873,6 +6921,22 @@
       // The look is NAMED after the way, its photograph is the way's
       // original kp frame, and her uploaded product photo lands on the key
       // piece's own proposal card. She lands on the editable Look detail.
+      // "Style my pink barrel-leg jeans three ways (worn 4 times)" → "pink
+      // barrel-leg jeans" — the piece the title and the Yours label name.
+      function _kpPieceWords(p) {
+        let t = String(p || '').trim();
+        t = t.replace(/\s*\(worn \d+ times?\)/i, '');
+        t = t.replace(/^(please\s+)?(style|dress|wear)\s+(my|the|these|this)\s+/i, '');
+        t = t.replace(/\s*,?\s*(three|3)\s+ways\b.*$/i, '');
+        return t.replace(/[.\s]+$/, '').trim();
+      }
+      window.__kpMore = function(i) {
+        const d = document.getElementById('kp-look-detail-' + i);
+        const b = document.getElementById('kp-look-more-' + i);
+        if (!d) return;
+        d.hidden = !d.hidden;
+        if (b) { b.textContent = d.hidden ? 'More detail' : 'Less detail'; b.setAttribute('aria-expanded', d.hidden ? 'false' : 'true'); }
+      };
       function _kpBuildToks(s) {
         return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
           .filter(t => t.length > 2 && ['the', 'and', 'with', 'style', 'three', 'ways', 'for', 'piece', 'look'].indexOf(t) < 0);
