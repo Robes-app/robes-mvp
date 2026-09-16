@@ -17243,6 +17243,7 @@ button.rb-lk-live{cursor:pointer}
       let _tvDayLookIdx = 0;      // which of a day's pinned looks the console shows
       let _tvCapOpen = null;      // capsule drawer; null = breakpoint default
       let _tvLooksOpen = false;   // looks grid; collapsed to one row by default
+      let _tvWeekOpen = false;    // travel diary; collapsed to 3 trailing empty days by default
       let _tvEditingDayI = null;  // day whose plan title is being typed
 
       function _tvCapIsOpen() {
@@ -17331,6 +17332,8 @@ button.rb-lk-live{cursor:pointer}
 #tv-result-page .tvw-card:hover{background:var(--cream-100)}
 #tv-result-page .tvw-card.bare .tvw-g .n{color:var(--ink-faint)}
 #tv-result-page .tvw-card.sel{background:var(--cream-100);box-shadow:inset 3px 0 0 var(--ink)}
+#tv-result-page .tvw-more{display:flex;align-items:center;justify-content:center;width:100%;box-sizing:border-box;border:none;background:transparent;padding:12px 14px;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);cursor:pointer;font-family:inherit;transition:background .15s,color .15s}
+#tv-result-page .tvw-more:hover{background:var(--cream-100);color:var(--ink)}
 #tv-result-page .tvw-g{width:34px;flex:none;display:flex;flex-direction:column;align-items:center;text-align:center}
 #tv-result-page .tvw-g .wd{font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);line-height:1}
 #tv-result-page .tvw-g .n{font-family:var(--font-serif);font-size:24px;font-weight:300;line-height:1.05;margin:3px 0;color:var(--ink)}
@@ -17929,6 +17932,28 @@ body>*:not(#tv-result-page){display:none !important}
         _tvPaintLooks();
       };
 
+      // A day counts as "dressed" for the strip's default-visibility rule
+      // below whenever it carries her words or a pinned look — a bare day
+      // with neither is the trailing filler a long trip drowns in.
+      function _tvDayHasContent(data, di) {
+        const titles = data.dayTitles || {};
+        if (typeof titles[di] === 'string' && titles[di]) return true;
+        return (data.looks || []).some(l => (l.pins || []).indexOf(di) !== -1);
+      }
+      const _TV_WEEK_EMPTY_TAIL = 3;
+      // The strip shows every dressed day plus three empty ones after the
+      // last of them — a 10-day trip with two looks planned no longer
+      // scrolls eight blank rows to reach the bottom (Annie, 2026-09-16).
+      function _tvWeekDefaultVisible() {
+        const data = window.__lastTvData;
+        if (!data) return 0;
+        const nDays = data.tripDays || 7;
+        let lastContentDi = -1;
+        for (let di = nDays - 1; di >= 0; di--) {
+          if (_tvDayHasContent(data, di)) { lastContentDi = di; break; }
+        }
+        return Math.min(nDays, Math.max(lastContentDi + 1, 0) + _TV_WEEK_EMPTY_TAIL);
+      }
       // THE WEEK — the hifi's own day cards (2026-08-10): date eyebrow,
       // an editable plan title (her words — they flow to the home rail
       // and the Diary through planned_days), then the pinned look's name
@@ -17943,7 +17968,11 @@ body>*:not(#tv-result-page){display:none !important}
         const titles = data.dayTitles || {};
         const mos = (window._rbLookTile && window._rbLookTile.mosaic) || _ltMosaicHtml;
         const lookName = x => String((x.l.title || x.l.occasion || '')).replace(/\.\s*$/, '').trim();
-        el.innerHTML = Array.from({ length: nDays }, (_, di) => {
+        const defaultVisible = _tvWeekDefaultVisible();
+        if (_tvSelDayI != null && _tvSelDayI >= defaultVisible) _tvWeekOpen = true;
+        const visible = _tvWeekOpen ? nDays : defaultVisible;
+        const hidden = nDays - visible;
+        const cards = Array.from({ length: visible }, (_, di) => {
           const title = typeof titles[di] === 'string' ? titles[di] : '';
           const editing = _tvEditingDayI === di;
           const pinned = (data.looks || []).map((l, li) => ({ l, li })).filter(x => (x.l.pins || []).indexOf(di) !== -1);
@@ -18000,11 +18029,27 @@ body>*:not(#tv-result-page){display:none !important}
             ${addHtml}</span>
           </div>`;
         }).join('');
+        // hidden is always 0 once open (visible === nDays), so whether
+        // there's anything to fold back rides defaultVisible < nDays.
+        const moreHtml = defaultVisible < nDays
+          ? `<button type="button" class="tvw-more tv-noprint" onclick="window.__tvWeekToggle()">${_tvWeekOpen ? 'Show fewer days ▴' : 'Show ' + hidden + ' more day' + (hidden === 1 ? '' : 's') + ' ▾'}</button>`
+          : '';
+        el.innerHTML = cards + moreHtml;
         if (_tvEditingDayI != null) {
           const inp = document.getElementById('tv-daytitle-in');
           if (inp) { inp.focus(); try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (_) {} }
         }
       }
+      // Toggle the diary between its default (dressed days + 3 empty) and
+      // the full trip — mirrors __tvLooksToggle's collapse discipline.
+      window.__tvWeekToggle = function() {
+        _tvWeekOpen = !_tvWeekOpen;
+        if (!_tvWeekOpen && _tvSelDayI != null && _tvSelDayI >= _tvWeekDefaultVisible()) {
+          window.__tvStageClose();
+          return;
+        }
+        _tvPaintWeek();
+      };
 
       // ── Day-plan titles — the text header on a day (redesign
       // 2026-08-10). Her words become the day's activity in planned_days
@@ -18792,7 +18837,7 @@ body>*:not(#tv-result-page){display:none !important}
         _tvSelected = null;
         _tvEditingDayI = null;
         window.__lastTvData = data;
-        if (!opts || !opts.skipSave) { _tvSelDayI = null; _tvSelLookI = null; _tvDayLookIdx = 0; _tvCapOpen = null; _tvLooksOpen = false; }
+        if (!opts || !opts.skipSave) { _tvSelDayI = null; _tvSelLookI = null; _tvDayLookIdx = 0; _tvCapOpen = null; _tvLooksOpen = false; _tvWeekOpen = false; }
         const nDays = data.tripDays || 7;
         if (_tvSelDayI != null && _tvSelDayI >= nDays) _tvSelDayI = null;
         if (_tvSelLookI != null && _tvSelLookI >= data.looks.length) _tvSelLookI = null;

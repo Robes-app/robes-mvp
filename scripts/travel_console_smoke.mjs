@@ -479,7 +479,17 @@ await page.waitForTimeout(400);
 // ── 8. Empty canvas trip ──
 await page.evaluate((fx) => window.__tvRenderResult(fx), EMPTY_TRIP);
 await page.waitForTimeout(250);
-ok(await page.locator('#tv-weekstrip .tvw-card').count() === 5, 'canvas trip renders its week from the dates alone');
+// The diary defaults to the last dressed day + 3 empty ones — an empty
+// 5-day trip has no dressed day at all, so it opens on the 3 empty
+// filler days behind a "Show N more days" toggle (2026-09-16).
+ok(await page.locator('#tv-weekstrip .tvw-card').count() === 3, 'canvas trip renders its week from the dates alone, collapsed to 3 empty days');
+ok(/show 2 more days/i.test(await page.locator('#tv-weekstrip .tvw-more').innerText()), 'the fold names how many days it is hiding');
+await page.evaluate(() => document.querySelector('#tv-weekstrip .tvw-more').click());
+await page.waitForTimeout(150);
+ok(await page.locator('#tv-weekstrip .tvw-card').count() === 5 && /show fewer days/i.test(await page.locator('#tv-weekstrip .tvw-more').innerText()), 'the toggle expands to every day and offers to fold back');
+await page.evaluate(() => document.querySelector('#tv-weekstrip .tvw-more').click());
+await page.waitForTimeout(150);
+ok(await page.locator('#tv-weekstrip .tvw-card').count() === 3, 'a second tap collapses the diary back to 3');
 const emptyTxt = await page.locator('#tv-looks-empty').innerText();
 ok(/No looks yet/.test(emptyTxt) && /Robes styles the trip/.test(emptyTxt), 'empty looks state offers the Robes door');
 ok((await page.locator('#tv-capbody').innerText()).includes('Nothing in the case yet'), 'empty capsule reads as an invitation');
