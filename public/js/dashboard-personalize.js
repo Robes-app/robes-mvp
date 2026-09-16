@@ -12045,9 +12045,12 @@ button.rb-lk-live{cursor:pointer}
         // o.canvasExtraHtml: controls that sit ON the canvas (the composer's
         // photograph pill, the saved look's diary icon). The no-model prompt
         // already carries its own photograph door, so nothing stacks on it.
+        // o.quoteHtml: the stylist note, in the saved look's own register —
+        // it sits under the canvas exactly as the render branch prints it.
         return '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
           '<span class="lab">' + o.headLabel + '</span><span class="robes">' + (o.robesLabel || 'Robes') + '</span></div>' +
           '<div class="rb-lkm-canvas' + (noModel ? ' prompt' : '') + (showPhoto ? ' photo' : '') + '">' + inner + (noModel ? '' : (o.canvasExtraHtml || '')) + '</div>' +
+          (o.quoteHtml ? '<div class="rbc-quote">' + o.quoteHtml + '</div>' : '') +
           (o.tailHtml || '') +
           '</div>';
       }
@@ -12148,6 +12151,9 @@ button.rb-lk-live{cursor:pointer}
         // The Look — the console panel. Zero pieces and the photo case get a
         // quiet stand-in with the same chrome (states no generated console has).
         let lookHtml;
+        // Set when the build is drawn on her model rather than as a mosaic —
+        // the photograph row follows the canvas the composer actually drew.
+        let lkOnModel = false;
         if (!_lkBuilt && !_lkBuilding) {
           // The model on the canvas (2026-09-03): she stands in her basics
           // from the first second and the rack dresses her as it fills.
@@ -12188,30 +12194,55 @@ button.rb-lk-live{cursor:pointer}
           // A Robes build speaks: the fetched stylist note leads the panel
           // (the hand-built composer keeps its quiet derived line).
           const note = (_lkBuilt && _lkBuildNote) || _lkStyleNote(used);
-          const board = items.concat(_lkShopBoardItems(items.length));
-          const tones = used.map(id => _ltToneOf(_waItems.find(w => String(w.id) === String(id)))).filter(Boolean);
-          // Colour + texture under the mosaic (daily-console parity): fabric
-          // chips read off every piece on the board, proposals included.
-          const fabItems = used.map(id => {
-            const w = _waItems.find(x => String(x.id) === String(id));
-            return w ? { name: w.label, wardrobe_match: { color: _ltToneOf(w) || '' } } : null;
-          }).filter(Boolean).concat(_lkShop.map(row => {
-            const a = row.opts[row.oi] || {};
-            return a.name ? { name: a.name } : null;
-          }).filter(Boolean));
-          lookHtml = _rbConsole({
-            boardOnlyItems: board,
-            headLabel: headLabel,
-            robesLabel: robesLabel,
-            quoteHtml: note ? _waEsc(note) : '',
-            fabricsHtml: _lkBuilt && !_lkBuilding ? _rbcFabricsHtml(fabItems, tones) : '',
-            // Owned tones lead; a build whose pieces are all proposals reads
-            // its colour story from the stylist instead of showing nothing.
-            paletteHtml: (tones.length || !_lkBuilt ? tones : _lkBuildPalette)
-              .map(t => '<span style="background:' + _waEsc(t) + '"></span>').join(''),
-            rackLabel: 'The Rack',
-            onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove',
-          }, items).lookHtml;
+          // A look she owns EVERY piece of is WORN, not tiled (Annie,
+          // 2026-09-16): a generated day opened on the mosaic + colour and
+          // fabric swatches while the look it saves shows her model wearing
+          // it — the composer read as an older, different screen than its
+          // own result. It takes the canvas the hand-built composer, the
+          // look editor and the day console already use, and keeps their
+          // rule: a proposal she does not own cannot be rendered on her, so
+          // a build carrying one keeps the board. _lkModel undefined is
+          // "not asked yet" — _lkModelEnsure repaints the composer the beat
+          // its id lands.
+          const modelIds = used.map(String);
+          lkOnModel = !_lkShop.length && !!_lkModel && modelIds.length > 0 && modelIds.length <= 12;
+          if (lkOnModel) {
+            _lkEnsureCss();
+            // The photograph door is the pill ON the canvas here, exactly as
+            // on a new look — never the build's "Replace the photo" text
+            // door, which named a photograph this look does not have.
+            lookHtml = _lkModelPanelHtml({
+              headLabel, robesLabel,
+              items: modelIds.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean),
+              quoteHtml: note ? _waEsc(note) : '',
+              canvasExtraHtml: _lkImgActsHtml({ camera: 'add', label: true, fn: '__lkPhotoToggle' }),
+            });
+          } else {
+            const board = items.concat(_lkShopBoardItems(items.length));
+            const tones = used.map(id => _ltToneOf(_waItems.find(w => String(w.id) === String(id)))).filter(Boolean);
+            // Colour + texture under the mosaic (daily-console parity): fabric
+            // chips read off every piece on the board, proposals included.
+            const fabItems = used.map(id => {
+              const w = _waItems.find(x => String(x.id) === String(id));
+              return w ? { name: w.label, wardrobe_match: { color: _ltToneOf(w) || '' } } : null;
+            }).filter(Boolean).concat(_lkShop.map(row => {
+              const a = row.opts[row.oi] || {};
+              return a.name ? { name: a.name } : null;
+            }).filter(Boolean));
+            lookHtml = _rbConsole({
+              boardOnlyItems: board,
+              headLabel: headLabel,
+              robesLabel: robesLabel,
+              quoteHtml: note ? _waEsc(note) : '',
+              fabricsHtml: _lkBuilt && !_lkBuilding ? _rbcFabricsHtml(fabItems, tones) : '',
+              // Owned tones lead; a build whose pieces are all proposals reads
+              // its colour story from the stylist instead of showing nothing.
+              paletteHtml: (tones.length || !_lkBuilt ? tones : _lkBuildPalette)
+                .map(t => '<span style="background:' + _waEsc(t) + '"></span>').join(''),
+              rackLabel: 'The Rack',
+              onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove',
+            }, items).lookHtml;
+          }
         }
         // The pieces' overlap seeds the tags (spec F3) — shown live, hers
         // to refine with a tap, stored only at save.
@@ -12221,10 +12252,14 @@ button.rb-lk-live{cursor:pointer}
           ? '<div style="margin-top:2px">' + _rbTagsRowHtml(_lkNewTags || _rbInheritLookTags(used), '__lkNewTagsEdit') + '</div>'
           : '';
         // Under the canvas: the photograph door, or the You / Model switch
-        // once one exists. (A Robes build keeps its quiet text door.)
-        const photoRow = (_lkBuilt
+        // once one exists. A build drawn ON HER MODEL follows the new look's
+        // anatomy — the door is the pill on the canvas, this row is the
+        // switch. A build keeps its quiet text door, which now names what it
+        // does: "Replace" only ever reads on a look that HAS a photograph.
+        const photoRow = ((_lkBuilt && !lkOnModel)
           ? '<div style="display:flex;align-items:baseline;gap:14px;margin-top:12px">' +
-            '<button type="button" class="rb-lk-quiet" onclick="window.__lkPhotoToggle()">Replace the photo</button>' +
+            '<button type="button" class="rb-lk-quiet" onclick="window.__lkPhotoToggle()">' +
+              ((_lkPhoto && _lkPhoto.url) ? 'Replace the photo' : 'Add your photograph') + '</button>' +
             (_lkPhoto && _lkPhoto.pending ? '<span style="font-size:11px;color:var(--ink-faint)">Uploading…</span>' : '') +
             '</div>'
           : _lkModelRowHtml()) + tagsRow;

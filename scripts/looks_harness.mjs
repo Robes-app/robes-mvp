@@ -1682,7 +1682,10 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     /Jacket/.test(b.slotEye || '') && !!b.hownote, JSON.stringify([b.slotEye, b.hownote]));
   check('build · the proposal carries the same Swap (icon) and Save components as every rack card',
     b.swapIcon === true && b.saveCls === true, JSON.stringify([b.swapIcon, b.saveCls]));
-  check('build · the photo door reads Replace the photo', b.photo === 'Replace the photo', b.photo);
+  // The door names what it does (2026-09-16): a build with no photograph
+  // on it cannot offer to REPLACE one.
+  check('build · the photo door reads Add your photograph while the look has none',
+    b.photo === 'Add your photograph', b.photo);
   check('build · Save leads; Try another and Wear it today follow',
     b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today']),
     JSON.stringify([b.saveDisabled, b.foot]));
@@ -3219,6 +3222,126 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/day-page-390.png' }).catch(() => {});
   check('day page 390px · two cards to a row, no horizontal overflow', m.cards === 2 && m.twoUp && !m.overflow, JSON.stringify(m));
   check('day page 390px · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 12 · RULE 04, DRESSED — a generated day opens in the composer, and the
+// composer shows her MODEL WEARING IT (Annie, 2026-09-16: the first screen
+// was the mosaic with colour and fabric swatches, so a prompted look read
+// as an older, different product than the saved look it files). A build
+// carrying a piece she does not own keeps the board — her model can only
+// wear what is hers.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs, writes } = await boot(browser, { avatar: 'w-s5-h2-hg', pics: 10 });
+  const renders = [];
+  await page.route('**/api/avatar/cell', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/cell.jpg' }) }));
+  await page.route('**/api/avatar/render', (r) => {
+    renders.push(r.request().postDataJSON().pieces.map((x) => x.name));
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'rj' + renders.length }) });
+  });
+  await page.route('**/api/images/rj*', (r) => r.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ images: ['https://img.test/render.jpg'], done: true }),
+  }));
+  await page.route('**img.test/**', (r) => r.abort());
+  const own = (id, label, category) => ({
+    name: label, category, wardrobe_match: { id, label, image_url: null, color: '' },
+  });
+  // Call one: every piece is hers. Call two: one gap she has to shop.
+  const bodies = [
+    { headline: 'A Dublin school-run look.', occasion_label: 'School run',
+      stylist_summary: 'Ease with polish: a structured anchor over fluid staples.',
+      look_tags: { climate: 'year_round', wear_for: ['everyday'], vibe: ['easy'] },
+      steps: [
+        { title: 'The Canvas', items: [own('w-top1', 'Cream silk shirt', 'Tops'), own('w-bot1', 'Barrel-leg jeans', 'Bottoms')] },
+        { title: 'The Exclamation Point', items: [own('w-sho1', 'Flat leather sandals', 'Shoes'), own('w-bag1', 'Woven straw tote', 'Bags')] },
+      ] },
+    { headline: 'A look with one gap.', occasion_label: 'Office day',
+      stylist_summary: 'One piece to find.',
+      steps: [
+        { title: 'The Canvas', items: [own('w-top2', 'Ribbed white tank', 'Tops')] },
+        { title: 'The Anchor', items: [{ name: 'Wool shacket', category: 'Outerwear', brand: 'Arket', retailer_hint: 'Arket', price_point: '€150' }] },
+      ] },
+  ];
+  let daily = 0;
+  await page.route('**/api/daily', (r) => r.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(bodies[Math.min(daily++, 1)]),
+  }));
+  await openLooks(page);
+  const today = await page.evaluate(async () => {
+    // The weather ask is already answered — __dlSubmit only waits on it
+    // when the context is empty.
+    window.__rbCtx = { city: 'Dublin', tempRange: '12–16°C', condition: 'cloudy', hint: 'A light layer' };
+    const p = (n) => String(n).padStart(2, '0'); const t = new Date();
+    const iso = t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
+    window.__dlSubmit('An outfit for the school run', { anchorDate: iso });
+    await new Promise((r) => setTimeout(r, 2800));
+    return iso;
+  });
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/composer-dressed-1280.png', fullPage: true }).catch(() => {});
+  const dressed = await page.evaluate(() => {
+    const con = document.querySelector('#sn-page .rb-lk-composer');
+    const panel = con && con.querySelector('.rbc-panel');
+    return {
+      composer: !!con && !document.getElementById('dl-result-page')?.offsetParent,
+      canvas: !!panel?.querySelector('.rb-lkm-canvas .rb-lkm-stage'),
+      img: panel?.querySelector('.rb-lkm-img')?.getAttribute('src') || null,
+      board: !!panel?.querySelector('.rbc-board'),
+      swatches: panel?.querySelectorAll('.rbc-palette span').length || 0,
+      fabrics: !!panel?.querySelector('.rbc-fabrics'),
+      yours: !!panel?.querySelector('.rbc-yours'),
+      note: panel?.querySelector('.rbc-quote')?.textContent?.trim() || '',
+      photoDoor: con?.querySelector('.rb-lkm-canvas .rb-lk-photobtn span')?.textContent?.trim() || '',
+      replaceDoor: /replace the photo/i.test(con?.innerText || ''),
+      // The masthead (return band, day chip, name) leads the composer from
+      // OUTSIDE the card — never scope the chip to .rb-lk-composer.
+      dayChip: document.querySelector('#sn-page .rb-lk-daychip')?.textContent?.trim() || '',
+      back: document.querySelector('#sn-page .rb-ret .rb-ret-back')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+      save: con?.querySelector('.rb-lk-save')?.textContent?.trim() || '',
+      rack: Array.from(con?.querySelectorAll('.rbc-rack .rbc-name') || []).map((x) => x.textContent.trim()),
+      tags: !!con?.querySelector('.rbc-tags'),
+    };
+  });
+  check('rule 04 · a prompted day lands in the composer, not the daily console', dressed.composer, JSON.stringify(dressed));
+  check('rule 04 · the look is on her MODEL — the canvas, wearing the day’s frame',
+    dressed.canvas && dressed.img === 'https://img.test/render.jpg', JSON.stringify([dressed.canvas, dressed.img]));
+  check('rule 04 · her model was asked for exactly the day’s pieces',
+    renders.length === 1 && renders[0].slice().sort().join('|') === ['Cream silk shirt', 'Barrel-leg jeans', 'Flat leather sandals', 'Woven straw tote'].sort().join('|'),
+    JSON.stringify(renders));
+  check('rule 04 · no mosaic, no colour or fabric swatches, no ownership count',
+    !dressed.board && dressed.swatches === 0 && !dressed.fabrics && !dressed.yours, JSON.stringify(dressed));
+  check('rule 04 · the stylist note and the tag row survive the canvas',
+    /Ease with polish/.test(dressed.note) && dressed.tags, JSON.stringify([dressed.note, dressed.tags]));
+  check('rule 04 · the photograph door is the pill on the canvas — never "Replace the photo" on a look with none',
+    dressed.photoDoor === 'Add your photograph' && !dressed.replaceDoor, JSON.stringify([dressed.photoDoor, dressed.replaceDoor]));
+  check('rule 04 · the day is the context — the chip files it, Save names the weekday, every piece hangs on the rack',
+    /Filing to/.test(dressed.dayChip) && /^Save to /.test(dressed.save)
+      && ['Cream silk shirt', 'Barrel-leg jeans', 'Flat leather sandals', 'Woven straw tote'].every((n) => dressed.rack.includes(n)),
+    JSON.stringify([dressed.dayChip, dressed.save, dressed.rack]));
+  check('rule 04 · nothing is written until she saves',
+    !writes.some((w) => w.method === 'POST' && /^(looks|look_pieces|planned_days)/.test(w.url)),
+    JSON.stringify(writes.filter((w) => w.method === 'POST').map((w) => w.url)));
+  // A gap she does not own cannot be rendered on her — that build keeps
+  // the board (the same rule the look editor and the day console keep).
+  await page.evaluate(async () => {
+    window.__dlSubmit('Style me for the office');
+    await new Promise((r) => setTimeout(r, 2600));
+  });
+  const gapped = await page.evaluate(() => {
+    const panel = document.querySelector('#sn-page .rb-lk-composer .rbc-panel');
+    return {
+      board: !!panel?.querySelector('.rbc-board'),
+      canvas: !!panel?.querySelector('.rb-lkm-canvas'),
+      yours: panel?.querySelector('.rbc-yours')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+    };
+  });
+  check('rule 04 · a build carrying a piece she does not own keeps the board',
+    gapped.board && !gapped.canvas && /1.*of.*2/.test(gapped.yours), JSON.stringify(gapped));
+  check('rule 04 · her model is never asked to wear an unowned piece', renders.length === 1, JSON.stringify(renders));
+  check('rule 04 dressed · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  void today;
   await ctx.close();
 }
 
