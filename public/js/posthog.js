@@ -14,7 +14,7 @@
    capture plane follows: analytics never surfaces to the user and never
    blocks a flow. */
 (function () {
-  var KEY = 'phc_REPLACE_WITH_YOUR_PROJECT_API_KEY';
+  var KEY = 'phc_Bs8KY64rq6xr7g63sdFJr2y8H6QNyMoqtxUuPbJRJavU';
   var API_HOST = 'https://eu.i.posthog.com';
   var UI_HOST = 'https://eu.posthog.com';
 
