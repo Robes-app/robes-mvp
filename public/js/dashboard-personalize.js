@@ -4370,7 +4370,12 @@
         sessionStorage.removeItem('rb_model_return');
         if (rawDraft) _lkDraftBack = JSON.parse(rawDraft);
       } catch (_) {}
-      if (window.location.pathname === '/lookbook') {
+      if (_lkDraftBack && _lkDraftBack.kp) {
+        // Parked from the key piece page (2026-09-16): /inspiration opens
+        // below (its own deep link), then the kp result reopens over it
+        // once the cloud pull lands — with the draft where she left it.
+        setTimeout(() => { if (typeof _kpBuildReturn === 'function') _kpBuildReturn(_lkDraftBack); }, 600);
+      } else if (window.location.pathname === '/lookbook') {
         setTimeout(() => {
           window.__snOpen && window.__snOpen();
           if (_lkDraftBack && window.__lkDraftRestore) window.__lkDraftRestore(_lkDraftBack, 'lookbook');
@@ -6480,6 +6485,7 @@
       }
 
       window.__kpGoBack = function() {
+        _kpBuildDrop();
         if (kpResultPage) kpResultPage.style.display = 'none';
         window.rbClearCrumb && window.rbClearCrumb();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -6614,6 +6620,7 @@
           return;
         }
         _kpStopPolling();
+        _kpBuildDrop();
         _rbHideResultPages('kp');
         window.__lastKpData = data;
         const { ways, generatedImages, fallback, photoUrl } = data;
@@ -6724,7 +6731,7 @@
               </div>
             </div>` : ''}
 
-            <div style="display:flex;flex-direction:column;gap:32px">
+            <div id="kp-ways" style="display:flex;flex-direction:column;gap:32px">
               ${ways.map((w, i) => {
                 const genImg = generatedImages && generatedImages[i];
                 const phInner = imagesPending
@@ -6754,6 +6761,8 @@
                 </div>`;
               }).join('')}
             </div>
+            <div id="kp-build" class="kp-build" hidden></div>
+            <div id="kp-model-band"></div>
 
             <div style="margin-top:48px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:var(--rad);text-align:center">
               <div style="font-family:${serif};font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How were these looks?</div>
@@ -6778,6 +6787,11 @@
         kpResultPage.classList.toggle('kp-guide-on', kpGuide);
         kpResultPage.style.display = 'block';
         kpResultPage.scrollTo({ top: 0 });
+        // What "Build this look" needs to open the composer IN SITU, and
+        // the no-model band at the foot of the page (design Key_Piece_Reveal,
+        // 2026-09-16).
+        _kpBuildCtx = { ways, pieceName, promptText: promptText || '', photoUrl: photoUrl || null, daily: kpDaily };
+        _kpModelBandSync();
 
         // Images generate in the background on the server — poll and slot them in
         if (imagesPending) _kpPollImages(data.jobId, ways.length);
@@ -6820,6 +6834,7 @@
             pieceName: pieceName,
             photoUrl: (typeof photoUrl === 'string' && photoUrl.indexOf('http') === 0) ? photoUrl : null,
             wayImage: wayImg,
+            wayIdx: i,
           });
         };
 
@@ -6864,29 +6879,29 @@
       }
       async function _kpBuildLookRun(w, kp) {
         if (typeof _lkCreate !== 'function' || typeof window.__lkOpen !== 'function') return;
-        let overlay = document.getElementById('kp-loading-overlay');
-        if (!overlay) {
-          overlay = document.createElement('div');
-          overlay.id = 'kp-loading-overlay';
-          overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(250,248,245,0.92);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px';
-          overlay.innerHTML = `
-            <div id="kp-load-title" style="font-family:'Cormorant',Georgia,serif;font-size:28px;font-weight:300;color:#202021;text-align:center"></div>
-            <div style="font-size:12px;color:var(--ink-faint);letter-spacing:.06em" id="kp-load-msg">Composing your looks</div>
-            <div style="width:120px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden;margin-top:8px">
-              <div id="kp-load-bar" style="position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite"></div>
-            </div>`;
-          document.body.appendChild(overlay);
-        }
-        const loadTitle = document.getElementById('kp-load-title');
-        if (loadTitle) loadTitle.innerHTML = 'Building your look,<br><em>piece by piece…</em>';
-        overlay.style.display = 'flex';
+        // IN SITU (design Key_Piece_Reveal, 2026-09-16): the three cards
+        // give way to the build strip + the composer's own "building" state
+        // on THIS page — no full-screen takeover, no new page. The wait
+        // line under the strip carries the guard's Cancel after 15s.
+        const wayIdx = Number.isInteger(kp.wayIdx) ? kp.wayIdx : (_kpBuildCtx ? _kpBuildCtx.ways.indexOf(w) : -1);
+        _kpBuildShow(wayIdx);
+        _lkResetComposer();
+        _lkKpHost = true;
+        _lkBuilt = true; _lkBuilding = true; _lkBuildSeq++;
+        _lkDraftSrc = { kind: 'kp', eyebrow: String(w.eyebrow || '').trim(), again: null };
+        _lkNewTitleDraft = String(w.title || '').replace(/\.$/, '').trim() || null;
+        _lkPaint();
+        const overlay = document.getElementById('kp-build-wait');
+        // A stale Cancel left by an earlier full-screen generation would be
+        // the one the guard reuses — and it lives in a hidden overlay.
+        document.getElementById('kp-load-cancel')?.remove();
         const msgs = ['Reading the look', 'Checking your wardrobe…', 'Naming the gaps…', 'Almost ready…'];
         let mi = 0;
-        const msgEl0 = document.getElementById('kp-load-msg');
+        const msgEl0 = document.getElementById('kp-build-msg');
         if (msgEl0) msgEl0.textContent = msgs[0];
         const msgInterval = setInterval(() => {
           mi = Math.min(mi + 1, msgs.length - 1);
-          const el = document.getElementById('kp-load-msg');
+          const el = document.getElementById('kp-build-msg');
           if (el) el.textContent = msgs[mi];
         }, 8000);
         const guard = _rbOverlayGuard(overlay);
@@ -6951,27 +6966,229 @@
           data.genId = genId;
           guard.done();
           clearInterval(msgInterval);
-          overlay.style.display = 'none';
-          if (kpResultPage) kpResultPage.style.display = 'none';
-          window.rbClearCrumb && window.rbClearCrumb();
-          // The loose look lands in the composer (2026-09-15) — named after
-          // the way, its editorial frame as the photograph, her product
-          // photo on the key piece's proposal; Save this look is the one
-          // commitment.
+          if (overlay) overlay.remove();
+          // The kp page may have closed under the wait (she navigated
+          // away) — the draft dies with it, nothing renders behind her.
+          const kpEl = document.getElementById('kp-result-page');
+          if (!kpEl || kpEl.style.display === 'none' || !document.getElementById('kp-build-host')) return;
+          // The loose look lands in the composer (2026-09-15), IN SITU on
+          // this page (2026-09-16) — named after the way, its editorial
+          // frame as the photograph, her product photo on the key piece's
+          // proposal; Save this look is the one commitment.
           _lkDraftFromDaily(data, {
-            kind: 'kp', headline: data.headline, photoUrl: data._dlPhotoUrl || null,
+            kind: 'kp', host: 'kp', headline: data.headline, photoUrl: data._dlPhotoUrl || null,
+            eyebrow: String(w.eyebrow || '').trim(),
             again: () => _kpBuildLookRun(w, kp),
           });
+          _kpBuildScroll();
         } catch (err) {
           guard.done();
           clearInterval(msgInterval);
-          overlay.style.display = 'none';
+          if (overlay) overlay.remove();
           console.error('[Robes] kp build-look error:', err.message);
+          // Back to the three ways — the building skeleton must not stand
+          // over a failed call.
+          window.__kpBuildBack();
           if (guard.userCancelled) return;
           _waShowToast(guard.timedOut
             ? 'That took longer than it should — please try again.'
             : 'Robes couldn’t build that look — please try again in a moment.');
         }
+      }
+
+      // ── The composer IN SITU on the key piece page (design
+      // Key_Piece_Reveal, 2026-09-16) ──────────────────────────────────────
+      // "Build this look" never leaves the page: the three cards fold away,
+      // a strip keeps the other two looks one tap away, and the SAME
+      // composer the Lookbook and the prompt use paints into #kp-build-host
+      // (_lkPaint routes there while _lkKpHost stands). Save files to the
+      // Lookbook exactly as it does everywhere else, then the host reads
+      // Filed with the look one tap away. With no model on file the
+      // NO MODEL YET band closes the page; Build your model parks the
+      // draft and comes back here.
+      var _kpBuildCtx = null;   // {ways, pieceName, promptText, photoUrl, daily} for the page on screen
+      var _kpBuildWay = null;   // which of the three is being built
+      function _kpBuildCss() {
+        if (document.getElementById('kp-build-style')) return;
+        const st = document.createElement('style');
+        st.id = 'kp-build-style';
+        st.textContent =
+          '.kp-build[hidden]{display:none}' +
+          '.kp-build-strip{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding-bottom:14px;border-bottom:0.5px solid var(--rule,rgba(32,32,33,0.1));margin-bottom:22px}' +
+          '.kp-build-back{background:none;border:0;padding:0;font-family:inherit;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#9C9891);cursor:pointer}' +
+          '.kp-build-back:hover{color:var(--ink,#202021)}' +
+          '.kp-build-others{display:flex;align-items:center;gap:14px;flex-wrap:wrap}' +
+          '.kp-build-other{display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;font-family:inherit;cursor:pointer;text-align:left}' +
+          '.kp-build-other .th{width:34px;height:44px;border-radius:2px;background:var(--cream-200,#EDE9E2) center/cover no-repeat;border:0.5px solid var(--rule,rgba(32,32,33,0.1));flex:none}' +
+          '.kp-build-other .t{font-size:12px;color:var(--ink-soft,#55524E)}' +
+          '.kp-build-other:hover .t{color:var(--ink,#202021)}' +
+          '.kp-build-wait{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:-8px 0 18px;font-size:12px;color:var(--ink-faint,#9C9891);letter-spacing:.04em}' +
+          '.kp-build-wait .bar{width:90px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden}' +
+          '.kp-build-wait .bar i{position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite}' +
+          '.kp-build-wait #kp-load-cancel{margin-top:0!important}' +
+          // The composer at the reading measure: 392px canvas | the rack.
+          '#kp-build-host .rb-lk-con{grid-template-columns:392px minmax(0,1fr);gap:28px}' +
+          '#kp-build-host .rb-lk-kpmast{margin-top:4px}' +
+          '#kp-build-host .rb-lk-kpmast .ey{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint,#9C9891)}' +
+          '@media(max-width:1080px){#kp-build-host .rb-lk-con{grid-template-columns:minmax(0,1fr);gap:24px}}' +
+          // Filed: the look is in the Lookbook, one tap away.
+          '.kp-build-filed{background:#fff;border:0.5px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:var(--rad-lg,12px);padding:28px 26px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}' +
+          '.kp-build-filed .ey{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
+          '.kp-build-filed h3{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:26px;line-height:1.15;margin:8px 0 0;color:var(--ink,#202021)}' +
+          '.kp-build-filed h3 em{font-style:italic}' +
+          '.kp-build-filed .sub{font-size:12.5px;color:var(--ink-soft,#55524E);margin-top:8px}' +
+          '.kp-build-filed .acts{display:flex;align-items:center;gap:18px;flex-wrap:wrap}' +
+          // The NO MODEL YET band — the page's foot when no model is on file.
+          '.kp-model-band{margin-top:36px;border:1px dashed var(--cream-400,#D8CFBE);border-radius:var(--rad,6px);padding:22px 28px;display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap}' +
+          '.kp-model-band .l{display:flex;align-items:center;gap:20px}' +
+          '.kp-model-band .fig{width:40px;height:56px;border:1px dashed var(--cream-400,#D8CFBE);border-radius:20px 20px 3px 3px;flex:none}' +
+          '.kp-model-band .ey{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
+          '.kp-model-band h3{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:24px;line-height:1.2;margin:8px 0 0;color:var(--ink,#202021)}' +
+          '.kp-model-band h3 em{font-style:italic}' +
+          '.kp-model-band .rb-lkm-build{flex:none;margin:0}' +
+          '@media(max-width:700px){.kp-model-band{flex-direction:column;align-items:stretch;padding:20px 18px;gap:14px}.kp-model-band .rb-lkm-build{width:100%}.kp-build-filed{padding:20px 18px}.kp-build-strip .kp-build-other .t{display:none}}';
+        document.head.appendChild(st);
+      }
+      function _kpBuildStripHtml(i) {
+        const c = _kpBuildCtx;
+        if (!c) return '';
+        const imgs = (window.__lastKpData && window.__lastKpData.generatedImages) || [];
+        const others = c.ways.map((w, j) => ({ w, j })).filter(x => x.j !== i).map(x => {
+          const img = (typeof imgs[x.j] === 'string' && imgs[x.j].indexOf('http') === 0) ? imgs[x.j] : null;
+          return '<button type="button" class="kp-build-other" onclick="window.__kpBuildLook(' + x.j + ')" title="Build ' + _waEsc(x.w.title || '') + '">' +
+            '<span class="th"' + (img ? ' style="background-image:url(\'' + _waEsc(img) + '\')"' : '') + '></span>' +
+            '<span class="t">' + _waEsc(x.w.title || '') + '</span></button>';
+        }).join('');
+        return '<div class="kp-build-strip">' +
+          '<button type="button" class="kp-build-back" onclick="window.__kpBuildBack()">← All three looks</button>' +
+          '<div class="kp-build-others">' + others + '</div></div>';
+      }
+      // The build section takes the cards' place: the strip, the wait line
+      // (removed the moment the composer lands), the composer host.
+      function _kpBuildShow(i) {
+        _kpBuildCss();
+        _kpBuildWay = i;
+        const ways = document.getElementById('kp-ways');
+        const build = document.getElementById('kp-build');
+        if (!build) return;
+        if (ways) ways.style.display = 'none';
+        build.innerHTML = _kpBuildStripHtml(i) +
+          '<div id="kp-build-wait" class="kp-build-wait"><span id="kp-build-msg">Reading the look</span><span class="bar"><i></i></span></div>' +
+          '<div id="kp-build-host"></div>';
+        build.hidden = false;
+        _kpBuildScroll();
+      }
+      function _kpBuildScroll() {
+        const build = document.getElementById('kp-build');
+        const pg = document.getElementById('kp-result-page');
+        if (!build || !pg) return;
+        try {
+          const top = build.getBoundingClientRect().top - pg.getBoundingClientRect().top + pg.scrollTop - 16;
+          pg.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+        } catch (_) {}
+      }
+      // ← All three looks: the draft goes (nothing was written), the cards
+      // return.
+      window.__kpBuildBack = function() {
+        _kpBuildDrop();
+        const ways = document.getElementById('kp-ways');
+        const build = document.getElementById('kp-build');
+        if (build) { build.hidden = true; build.innerHTML = ''; }
+        if (ways) ways.style.display = '';
+        _kpBuildWay = null;
+        _kpModelBandSync();
+      };
+      // A kp draft dies with its page: every re-render and close drops it,
+      // so the Lookbook can never inherit a half-built kp look.
+      function _kpBuildDrop() {
+        if (!_lkKpHost) return;
+        _lkKpHost = false;
+        _lkResetComposer();
+        _lkView = 'grid';
+      }
+      // Save (through __lkSave, the one write) lands here: the host reads
+      // Filed, the look one tap away, the other two looks still in the
+      // strip. The look page's way back is this kp result.
+      function _kpBuildSaved(l) {
+        const host = document.getElementById('kp-build-host');
+        if (!host || !l) return;
+        _kpBuildFiledId = l.id;
+        host.innerHTML = '<div class="kp-build-filed">' +
+          '<div><div class="ey">Filed</div>' +
+            '<h3>' + _waEsc(l.name || 'Your look') + ' <em>is in your Lookbook.</em></h3>' +
+            '<div class="sub">' + (Array.isArray(l.proposals) && l.proposals.length
+              ? 'The pieces you don’t own yet are on your wishlist.'
+              : 'Wear it, plan it, or build the next one.') + '</div></div>' +
+          '<div class="acts">' +
+            '<button type="button" class="rb-pill" onclick="window.__kpBuildOpenLook()">Open the look</button>' +
+          '</div></div>';
+        _kpModelBandSync();
+      }
+      var _kpBuildFiledId = null;
+      window.__kpBuildOpenLook = function() {
+        const id = _kpBuildFiledId;
+        if (id == null || !window.__lkOpen) return;
+        const savedId = _kpActiveSaveId;
+        window.__lkOpen(id, { from: { label: 'Key piece', go: function() {
+          if (savedId != null && window.__snOpenItem && snLoad().some(i => i.id === savedId)) { window.__snOpenItem(savedId); return; }
+          const kp = document.getElementById('kp-result-page');
+          const sn = document.getElementById('sn-page');
+          if (sn) sn.style.display = 'none';
+          if (kp && kp.innerHTML) { kp.style.display = 'block'; window.rbSetCrumb && window.rbSetCrumb([{ label: 'Style a piece' }]); }
+        } } });
+      };
+      // NO MODEL YET — the page's foot while no model is on file (the same
+      // door the composer's canvas carries, worded for the three looks).
+      function _kpModelBandSync() {
+        const slot = document.getElementById('kp-model-band');
+        if (!slot) return;
+        if (typeof _lkModelEnsure === 'function') _lkModelEnsure();
+        const daily = !!(_kpBuildCtx && _kpBuildCtx.daily);
+        if (_lkModel !== null || daily) { slot.innerHTML = ''; return; }
+        _kpBuildCss();
+        const pro = _lkModelPro();
+        slot.innerHTML = '<div class="kp-model-band">' +
+          '<div class="l"><div class="fig"></div><div>' +
+            '<div class="ey">No model yet</div>' +
+            '<h3>Build ' + pro.her + ' once, ' + pro.shell + ' model <em>all three.</em></h3>' +
+          '</div></div>' +
+          '<button type="button" class="rb-lkm-build" onclick="window.__lkBuildModel()">Build your model</button>' +
+          '</div>';
+      }
+      // What "Build your model" parks when the kp page is the surface on
+      // top: the result to come back to and, mid-build, the draft itself
+      // (the rack rides the common park; this carries the build's
+      // proposals, stills and note so nothing is re-generated).
+      function _kpBuildPark() {
+        const kp = document.getElementById('kp-result-page');
+        if (!kp || kp.style.display === 'none') return null;
+        const park = { savedId: _kpActiveSaveId != null ? _kpActiveSaveId : null };
+        if (_lkKpHost && _lkBuilt && !_lkBuilding && Number.isInteger(_kpBuildWay)) {
+          park.wayIdx = _kpBuildWay;
+          park.shop = _lkShop; park.shopImgs = _lkShopImgs;
+          park.note = _lkBuildNote; park.palette = _lkBuildPalette;
+          park.eyebrow = _lkDraftSrc && _lkDraftSrc.eyebrow || '';
+        }
+        return park;
+      }
+      // Back from the model builder: reopen the kp result (the cloud pull
+      // has to land first), then the draft where she left it.
+      function _kpBuildReturn(d) {
+        const id = d && d.kp && d.kp.savedId;
+        if (id == null) return;
+        const t0 = Date.now();
+        (function tick() {
+          const item = (typeof snLoad === 'function' ? snLoad() : []).find(i => i.id === id && i.type === 'key-piece');
+          if (!item) { if (Date.now() - t0 < 12000) setTimeout(tick, 300); return; }
+          window.__snOpenItem(id);
+          if (Number.isInteger(d.kp.wayIdx) && Array.isArray(d.rows)) {
+            setTimeout(function() {
+              _kpBuildShow(d.kp.wayIdx);
+              const wait = document.getElementById('kp-build-wait'); if (wait) wait.remove();
+              window.__lkDraftRestore(d, 'kp');
+            }, 120);
+          }
+        })();
       }
 
       // ── Daily Look — Context-to-Core page (PRD: systematic daily dressing) ──
@@ -10743,6 +10960,21 @@ button.rb-lk-live{cursor:pointer}
         const grid = document.getElementById('rb-lk-grid');
         const body = document.getElementById('rb-lk-body');
         if (!bar || !grid || !body) return;
+        // The key piece page hosts the draft (2026-09-16): the composer
+        // paints into its host and the Lookbook body stays empty — ONE
+        // composer in the DOM. The page closing under its draft (any
+        // closer, any route) drops the draft here, lazily, so the Lookbook
+        // never inherits a half-built kp look.
+        if (_lkKpHost) {
+          const kpEl = document.getElementById('kp-result-page');
+          const host = document.getElementById('kp-build-host');
+          if (_lkView === 'new' && kpEl && kpEl.style.display !== 'none' && host) {
+            host.innerHTML = _lkNewHtml({ kp: true });
+            body.innerHTML = '';
+            return;
+          }
+          _lkKpHost = false; _lkResetComposer(); _lkView = 'grid'; _lkActive = null;
+        }
         const allHead = document.getElementById('rb-lk-allhead');
         const detail = _lkView !== 'grid';
         bar.style.display = detail || !any ? 'none' : 'block';
@@ -11235,6 +11467,12 @@ button.rb-lk-live{cursor:pointer}
       var _lkDay = null;
       // Where a Robes-drafted composer came from — Try another re-runs it.
       var _lkDraftSrc = null;
+      // The key piece page hosts the draft (design Key_Piece_Reveal,
+      // 2026-09-16): while this stands, _lkPaint paints the composer into
+      // #kp-build-host and the Lookbook body stays empty — ONE composer in
+      // the DOM, as with the home module. Cleared by every composer reset;
+      // a kp draft dies with its page.
+      var _lkKpHost = false;
       // The trip a saved look was opened FROM (Annie, 2026-09-09: an imported
       // look on a trip is the SAME look — its own page, no changes aside from
       // being pinned to a day, whose pieces can then be packed). {li, di}
@@ -11890,6 +12128,7 @@ button.rb-lk-live{cursor:pointer}
           // Deferred: a cached id answers synchronously, mid-paint.
           setTimeout(function() {
             if (document.querySelector('.rb-lk-composer, .rb-lkm-stage, .rb-lk-editing')) _lkRepaint();
+            if (document.getElementById('kp-model-band') && typeof _kpModelBandSync === 'function') _kpModelBandSync();
             // A day editing its saved look dresses her model too.
             try {
               const d = window.__lastDlData;
@@ -12141,6 +12380,8 @@ button.rb-lk-live{cursor:pointer}
         const photo = _lkPhoto && _lkPhoto.url;
         const pending = _lkPhoto && _lkPhoto.pending;
         if (!photo && !pending) return '';
+        // A kp way's frame is not her photograph — no You / Model switch.
+        if (photo && _lkPhoto.frame && !pending) return '';
         let left = '';
         if (photo) {
           const on = _lkShowPhoto || _lkModel === null;
@@ -12155,14 +12396,17 @@ button.rb-lk-live{cursor:pointer}
       // page; the dashboard restores it on the way back (__lkDraftRestore).
       window.__lkBuildModel = function() {
         const home = !!document.querySelector('.rb-lkh-composer');
+        // The key piece page on top (2026-09-16): she comes back to the
+        // result — and to the draft, mid-build — not to the Lookbook.
+        const kp = (typeof _kpBuildPark === 'function') ? _kpBuildPark() : null;
         try {
           sessionStorage.setItem('rb_lk_draft', JSON.stringify({
             rows: _lkRows, seq: _lkRowSeq, name: _lkNewTitleDraft, tags: _lkNewTags, roles: _lkNewRoles,
-            photo: (_lkPhoto && _lkPhoto.url) ? { url: _lkPhoto.url } : null, home,
+            photo: (_lkPhoto && _lkPhoto.url) ? { url: _lkPhoto.url, frame: !!_lkPhoto.frame } : null, home, kp: kp || undefined,
           }));
-          sessionStorage.setItem('rb_model_return', home ? 'home' : 'lookbook');
+          sessionStorage.setItem('rb_model_return', kp ? 'inspiration' : home ? 'home' : 'lookbook');
         } catch (_) {}
-        _rbTrack('look_model_build', { home });
+        _rbTrack('look_model_build', { home, kp: !!kp });
         window.location.href = '/stylenotes';
       };
       window.__lkDraftRestore = function(d, where) {
@@ -12174,8 +12418,23 @@ button.rb-lk-live{cursor:pointer}
         _lkNewTitleTouched = !!(d.name && String(d.name).trim());
         _lkNewTags = d.tags || null;
         _lkNewRoles = (d.roles && typeof d.roles === 'object') ? d.roles : {};
-        _lkPhoto = (d.photo && d.photo.url) ? { url: d.photo.url } : null;
+        _lkPhoto = (d.photo && d.photo.url) ? { url: d.photo.url, frame: !!d.photo.frame } : null;
         _lkShowPhoto = false;
+        if (where === 'kp' && d.kp) {
+          // The kp build comes back whole — proposals, their stills and the
+          // note ride the park, so nothing is generated twice.
+          _lkKpHost = true; _lkView = 'new';
+          _lkBuilt = true; _lkBuilding = false; _lkBuildSeq++;
+          _lkShop = Array.isArray(d.kp.shop) ? d.kp.shop : [];
+          _lkShopImgs = Array.isArray(d.kp.shopImgs) ? d.kp.shopImgs : [];
+          _lkBuildNote = d.kp.note || null;
+          _lkBuildPalette = Array.isArray(d.kp.palette) ? d.kp.palette : [];
+          _lkNewTitleTouched = false;
+          const wi = d.kp.wayIdx;
+          _lkDraftSrc = { kind: 'kp', eyebrow: String(d.kp.eyebrow || ''), again: function() { if (window.__kpBuildLook) window.__kpBuildLook(wi); } };
+          _lkPaint();
+          return;
+        }
         if (where === 'lookbook') { _lkView = 'new'; _lkPaint(); return; }
         // Home: open the Build-your-own row so the rack is on screen.
         if (document.getElementById('rb-ftu-row-build') && !_rbFtuOpen.build && window.__rbFtuToggle) window.__rbFtuToggle('build');
@@ -12191,6 +12450,10 @@ button.rb-lk-live{cursor:pointer}
 
       function _lkNewHtml(opts) {
         const home = !!(opts && opts.home);
+        // kp: hosted on the key piece page (2026-09-16) — that page carries
+        // the return band, so the composer's masthead is the way's eyebrow
+        // over the name alone.
+        const kp = !!(opts && opts.kp);
         _lkModelEnsure();
         // The composer is rbc-markup throughout, and on the zero-piece and
         // photo paths _rbConsole (which injects the stylesheet) never runs —
@@ -12243,7 +12506,7 @@ button.rb-lk-live{cursor:pointer}
             items: used.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean),
             canvasExtraHtml: (_lkPhoto && _lkPhoto.url) ? '' : _lkImgActsHtml({ camera: 'add', label: true, fn: '__lkPhotoToggle' }),
           });
-        } else if (_lkPhoto && _lkPhoto.url) {
+        } else if (_lkPhoto && _lkPhoto.url && !(_lkPhoto.frame && _lkModel)) {
           lookHtml = '<div class="rbc-panel"><div class="rbc-lhead">' +
             '<span class="lab">' + headLabel + '</span><span class="robes">' + robesLabel + '</span></div>' +
             '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
@@ -12366,10 +12629,13 @@ button.rb-lk-live{cursor:pointer}
           : '';
         // The thread back to the day she came from (design C, 2026-09-15):
         // the band reads the date, a warm chip says where the look files.
-        if (!home) _rbRetReg('look', { back: function() { if (_lkDay) window.__lkDayBack(); else window.__lkBack(); } });
+        if (!home && !kp) _rbRetReg('look', { back: function() { if (_lkDay) window.__lkDayBack(); else window.__lkBack(); } });
         const dayChip = (!home && _lkDay)
           ? '<div class="rb-lk-dayrow"><span class="rb-lk-daychip">✓ Filing to ' + _waEsc(_lkDay.date ? _lkFmtDay(_lkDay.date) : 'this trip') + '</span></div>' : '';
-        const mastHtml = home ? '' : _rbRetHtml({ key: 'look', label: _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast">' + dayChip + titleHtml + nameNote + '</div>';
+        const kpEyebrow = kp && _lkDraftSrc && _lkDraftSrc.eyebrow ? '<div class="ey">' + _waEsc(_lkDraftSrc.eyebrow) + '</div>' : '';
+        const mastHtml = home ? ''
+          : kp ? '<div class="rb-lk-mast rb-lk-newmast rb-lk-kpmast">' + kpEyebrow + titleHtml + nameNote + '</div>'
+          : _rbRetHtml({ key: 'look', label: _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast">' + dayChip + titleHtml + nameNote + '</div>';
 
         // The Rack — the formula strips name themselves, so no second
         // header sits above them (the masthead already names the look).
@@ -12431,10 +12697,9 @@ button.rb-lk-live{cursor:pointer}
         const foot = _lkBuilt && !_lkBuilding
           ? '<div class="rb-lk-buildfoot">' +
               '<button type="button" class="rb-lk-quiet" onclick="window.__lkTryAnother()">Try another</button>' +
-              '<span class="sep"></span>' +
               (_lkAspirational
-                ? '<button type="button" class="rb-lk-quiet" onclick="window.__lkBuildMineOnly()">Build from mine only</button>'
-                : (_lkDay || _lkDraftSrc ? '' : '<button type="button" class="rb-lk-quiet" onclick="window.__lkSaveAndWear()">Wear it today</button>')) +
+                ? '<span class="sep"></span><button type="button" class="rb-lk-quiet" onclick="window.__lkBuildMineOnly()">Build from mine only</button>'
+                : (_lkDay || _lkDraftSrc ? '' : '<span class="sep"></span><button type="button" class="rb-lk-quiet" onclick="window.__lkSaveAndWear()">Wear it today</button>')) +
             '</div>'
           : '';
         // The save note says what the pill cannot (a title attribute is
@@ -12453,7 +12718,7 @@ button.rb-lk-live{cursor:pointer}
         // The zero-piece stand-in stretches to the rack's height; the model
         // canvas keeps its own 4:5 frame.
         const stretchLeft = _lkBuilt && !items.length && !(_lkPhoto && _lkPhoto.url);
-        return mastHtml + '<div class="rb-lk-composer' + (home ? ' rb-lkh-composer' : '') + '"><div class="rb-lk-con"><div' + (stretchLeft ? ' style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div></div>';
+        return mastHtml + '<div class="rb-lk-composer' + (home ? ' rb-lkh-composer' : '') + (kp ? ' rb-lk-kpcomposer' : '') + '"><div class="rb-lk-con"><div' + (stretchLeft ? ' style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div></div>';
       }
       function _lkRowOptions(r) {
         const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
@@ -13355,7 +13620,7 @@ button.rb-lk-live{cursor:pointer}
         _lkmShown = null;
         _lkNewTitleDraft = null; _lkNewTitleTouched = false;
         _lkNewTags = null; _lkNewRoles = {};
-        _lkDay = null; _lkDraftSrc = null;
+        _lkDay = null; _lkDraftSrc = null; _lkKpHost = false;
       }
       // opts.day (ISO) attaches a day: the return band reads the date, the
       // filing chip says where it lands, Save reads "Save to {weekday}",
@@ -14203,11 +14468,15 @@ button.rb-lk-live{cursor:pointer}
         o = o || {};
         const flat = [];
         (data.steps || []).forEach(st => (st.items || []).forEach(it => { if (!it.role) it.role = st.title; flat.push(it); }));
-        _lkShelfOpen();
+        // o.host === 'kp': the draft is hosted IN SITU on the key piece page
+        // (2026-09-16) — no Lookbook page opens; _lkPaint routes there.
+        const kpHost = o.host === 'kp';
+        if (!kpHost) _lkShelfOpen();
         _lkResetComposer();
+        _lkKpHost = kpHost;
         if (o.day) _lkDay = { date: o.day, trip: null };
         _lkBuilt = true; _lkBuilding = false; _lkBuildSeq++;
-        _lkDraftSrc = { kind: o.kind || 'daily', again: typeof o.again === 'function' ? o.again : null };
+        _lkDraftSrc = { kind: o.kind || 'daily', eyebrow: String(o.eyebrow || '').trim(), again: typeof o.again === 'function' ? o.again : null };
         flat.filter(it => it.wardrobe_match).forEach(it => {
           const id = it.wardrobe_match.id;
           if (_lkPlaceQuiet(id) && it.role) _lkNewRoles[String(id)] = _rbRoleNorm(it.role) || null;
@@ -14228,7 +14497,12 @@ button.rb-lk-live{cursor:pointer}
         _lkNewTags = data.look_tags ? _rbTagsParse(data.look_tags) : null;
         _lkNewTitleDraft = String(o.headline || data.headline || '').replace(/\.$/, '').trim() || null;
         _lkNewTitleTouched = false;
-        if (o.photoUrl && _pdHttp(o.photoUrl)) _lkPhoto = { url: o.photoUrl };
+        // A kp way's editorial frame is a FRAME, not her photograph
+        // (2026-09-16): it saves as the look's photo_url as before, but on
+        // the canvas her model outranks it once one is on file — a built
+        // look opens dressed, as a prompt look does — and it never earns
+        // the You / Model switch (it is not her).
+        if (o.photoUrl && _pdHttp(o.photoUrl)) _lkPhoto = { url: o.photoUrl, frame: o.kind === 'kp' };
         _lkPaint();
         // Proposed pieces get their stills (the same job the Robes build
         // uses); a key piece she photographed keeps her photograph.
@@ -14400,7 +14674,7 @@ button.rb-lk-live{cursor:pointer}
         // rather than repainting, which would take the caret out of the
         // field she is typing into.
         const named = String(v || '').trim().length > 0;
-        const btn = document.querySelector('.rb-lk-composer .rb-lk-save, .rb-lkh-composer .rb-lk-save');
+        const btn = document.querySelector('#kp-build-host .rb-lk-save') || document.querySelector('.rb-lk-composer .rb-lk-save, .rb-lkh-composer .rb-lk-save');
         if (btn) btn.classList.toggle('unnamed', !named);
         const gate = document.getElementById('rb-lk-namegate');
         if (gate) gate.textContent = named ? 'Filed under ' + String(v).trim() + '.' : 'Name your look and it is yours to keep.';
@@ -14597,6 +14871,10 @@ button.rb-lk-live{cursor:pointer}
         _lkBuildNote = null; _lkBuildPalette = []; _lkBuildSeq++;
         _lkShopImgs = []; if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
         const day = _lkDay; _lkDay = null; _lkDraftSrc = null;
+        // A draft hosted on the key piece page (2026-09-16) lands there —
+        // the host reads Filed, the look one tap away; the Lookbook grid
+        // repaints underneath as ever.
+        const kpHosted = _lkKpHost; _lkKpHost = false;
         // Save lands her back on the grid, new look visible — no interstitial
         // (Annie, 2026-07-30: the confirmation page read as a broken landing).
         _lkView = 'grid';
@@ -14625,6 +14903,7 @@ button.rb-lk-live{cursor:pointer}
         }
         _lkPaint();
         _waV2Sync();
+        if (kpHosted && typeof _kpBuildSaved === 'function') _kpBuildSaved(l);
         _waShowToast(l.name + ' saved to Looks ✓');
       };
 
