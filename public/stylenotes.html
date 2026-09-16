@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="/js/posthog.js"></script>
   <title>Style Notes — Robes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1680,6 +1681,7 @@
       const { data: { session } } = await sbClient.auth.getSession();
       if (!session) { window.location.href = '/signup.html?mode=signin'; return; }
       st.uid = session.user.id;
+      if (window.__rbPHUser) window.__rbPHUser(session);
 
       const { data: profile, error } = await sbClient
         .from('profiles').select('*').eq('id', st.uid).single();
@@ -1748,6 +1750,7 @@
     document.getElementById('sn-logout').addEventListener('click', async function() {
       this.textContent = 'Signing out…';
       try { await sbClient.auth.signOut(); } catch (e) {}
+      if (window.__rbPHReset) window.__rbPHReset();
       window.location.href = '/signup.html?mode=signin';
     });
 

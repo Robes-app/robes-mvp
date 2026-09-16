@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="/js/posthog.js"></script>
   <title>Welcome — Robes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1298,6 +1299,7 @@
     });
     if (!session) { window.location.href = '/signup.html?mode=signin'; return; }
     st.uid = session.user.id;
+    if (window.__rbPHUser) window.__rbPHUser(session);
 
     // Already-onboarded users land here directly now (OAuth + email-confirm
     // redirects target /onboarding) — pass them straight through to the

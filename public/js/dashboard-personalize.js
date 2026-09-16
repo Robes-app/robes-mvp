@@ -603,6 +603,12 @@
       // prompt → calls → artifact for one generation.
       function _rbGenId() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
       function _rbTrack(type, meta) {
+        // One event, both planes: the Supabase table stays the per-user
+        // record /admin reads, PostHog is where funnels and replay live
+        // (ADR-3). PostHog is mirrored BEFORE the uid guard — it carries its
+        // own identity, so a momentarily missing JWT must not lose it there
+        // too.
+        if (window.__rbPH) window.__rbPH(function (p) { p.capture(type, meta || {}); });
         try {
           const uid = _waUid();
           if (!uid || !_waToken()) return;
@@ -6257,6 +6263,7 @@
             } catch (e) {
               console.error('Sign out failed:', e);
             }
+            if (window.__rbPHReset) window.__rbPHReset();
             window.location.href = '/signup.html?mode=signin';
           };
           avMenu.appendChild(loBtn);
