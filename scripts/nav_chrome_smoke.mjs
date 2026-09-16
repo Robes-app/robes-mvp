@@ -314,9 +314,9 @@ const titleTop = (page) => page.evaluate(() => {
 
   await page.evaluate((r) => window.__kpRenderResult(r, 'Style my black dress for a ball', { intent: 'style' }), STYLE_RESP); await page.waitForTimeout(900);
   const kb = await band(page);
-  const kt = await page.evaluate(() => ({ ey: document.querySelector('#kp-result-page .rb-tb-ey')?.textContent, title: (document.getElementById('kp-headline')?.textContent || '').replace(/\s+/g, ' '), pen: !!document.querySelector('#kp-result-page .rb-tb-trow .kp-pen'), share: getComputedStyle(document.querySelector('#kp-result-page .rb-kp-share')).backgroundColor }));
-  check('key piece · the result gains the return band it lacked: ‹ Inspiration; eyebrow Key piece; the italic wink still lands; Share is a hairline pill; Inspiration lit',
-    !!kb && kb.label === 'Inspiration' && kt.ey === 'Key piece' && /worn three ways\./.test(kt.title) && kt.pen && kt.share === 'rgb(255, 255, 255)' && JSON.stringify(await lit(page)) === '["inspiration"]', JSON.stringify([kb, kt]));
+  const kt = await page.evaluate(() => ({ ey: document.querySelector('#kp-result-page .rb-tb-ey')?.textContent, title: (document.getElementById('kp-headline')?.textContent || '').replace(/\s+/g, ' '), pen: document.querySelectorAll('#kp-result-page .kp-pen, #kp-result-page .rb-tb-trow .rb-tb-btn').length, share: document.querySelectorAll('#kp-result-page .rb-kp-share').length }));
+  check('key piece · one header for the Choose step: ‹ Inspiration with NO pager; eyebrow Key piece; the italic wink still lands; no pencil, no Share pill (2026-09-16); Inspiration lit',
+    !!kb && kb.label === 'Inspiration' && kb.pos === '' && kb.extras === 0 && kt.ey === 'Key piece' && /worn three ways\./.test(kt.title) && kt.pen === 0 && kt.share === 0 && JSON.stringify(await lit(page)) === '["inspiration"]', JSON.stringify([kb, kt]));
   await page.locator('#kp-result-page .rb-ret-pill').click(); await page.waitForTimeout(600);
   check('key piece · ‹ lands on Inspiration', await page.locator('#rb-insp-page').isVisible() && !(await page.locator('#kp-result-page').isVisible()));
   check('no page errors (kp, day, trip)', errs.length === 0, errs.join(' | '));

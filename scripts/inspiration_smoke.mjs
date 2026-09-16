@@ -166,7 +166,13 @@ check('lands in the COMPOSER on the kp page — a loose draft, not a saved look,
   && !(await page.locator('#dl-result-page').isVisible()) && await page.locator('#kp-build-wait').count() === 0);
 const looseState = await page.evaluate(() => ({
   title: document.getElementById('rb-lk-newtitle')?.value,
-  eyebrow: document.querySelector('#kp-build-host .rb-lk-kpmast .ey')?.textContent?.trim(),
+  eyebrow: document.querySelector('#kp-build .kp-build-ey')?.textContent?.trim(),
+  strips: document.querySelectorAll('#kp-build .kp-build-strip').length,
+  titleInStrip: !!document.querySelector('#kp-build .kp-build-strip #rb-lk-newtitle'),
+  hostMast: document.querySelectorAll('#kp-build-host .rb-lk-mast, #kp-build-host .rb-lk-kpmast, #kp-build-host input#rb-lk-newtitle').length,
+  chooseHead: getComputedStyle(document.getElementById('kp-choose-head')).display,
+  panelOpens: (document.querySelector('#kp-build-host .rb-lk-composer .rbc-panel')?.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60),
+  panelNote: document.querySelector('#kp-build-host .rbc-panel .rbc-quote')?.textContent?.trim() || '',
   cta: document.querySelector('#kp-build-host .rb-lk-save')?.textContent?.trim(),
   dayChip: !!document.querySelector('#kp-build-host .rb-lk-daychip'),
   band: !!document.querySelector('#kp-build-host .rb-ret'),
@@ -174,13 +180,20 @@ const looseState = await page.evaluate(() => ({
   swaps: document.querySelectorAll('#kp-build-host .rbc-rack .rbc-row .rbc-act').length,
   frame: !!document.querySelector('#kp-build-host img[alt="This look"]'),
   youModel: document.querySelectorAll('#kp-build-host .rb-lkm-row').length,
-  others: Array.from(document.querySelectorAll('#kp-build .kp-build-other .t')).map((x) => x.textContent.trim()),
+  others: Array.from(document.querySelectorAll('#kp-build .kp-build-other')).map((x) => (x.getAttribute('title') || '').replace(/^Build /, '')),
+  otherLabels: document.querySelectorAll('#kp-build .kp-build-other .t').length,
+  allThree: document.querySelector('#kp-build .kp-build-all')?.textContent?.trim(),
   bandBelow: !!document.querySelector('#kp-model-band .kp-model-band'),
   lookbookBody: (document.getElementById('rb-lk-body')?.innerHTML || '').length,
 }));
 check('the way names the draft under its own eyebrow, Save this look is the commitment, no day, no second return band',
   looseState.title === 'Urbane Weekend' && looseState.eyebrow === 'Sporty cool' && looseState.cta === 'Save this look'
   && looseState.dayChip === false && looseState.band === false && looseState.proposals === 4 && looseState.swaps >= 4,
+  JSON.stringify(looseState));
+check('one header per step (2026-09-16): the Build step is ONE rule line — eyebrow + the name field left, All three + two bare thumbs right; the key-piece masthead and the Yours thumb stand down; the composer paints no masthead of its own, so the panel opens on the style note',
+  looseState.strips === 1 && looseState.titleInStrip && looseState.hostMast === 0 && looseState.chooseHead === 'none'
+  && looseState.allThree === 'All three' && looseState.otherLabels === 0 && !/Urbane Weekend/.test(looseState.panelOpens)
+  && /The shorts lead; everything else stays quiet/.test((looseState.panelNote || '')),
   JSON.stringify(looseState));
 check('no model: the way’s frame holds the canvas (no You / Model switch — it is not her), the band stays at the foot',
   looseState.frame && looseState.youModel === 0 && looseState.bandBelow, JSON.stringify(looseState));
@@ -193,10 +206,10 @@ check('nothing is written until she saves',
   !writes.some((w) => w.method === 'POST' && /^(looks\?|looks$|look_pieces|planned_days)/.test(w.url)),
   JSON.stringify(writes.filter((w) => w.method === 'POST').map((w) => w.url)));
 // ← All three looks: the draft goes, the cards return.
-await page.locator('#kp-build .kp-build-back').click();
+await page.locator('#kp-build .kp-build-all').click();
 await page.waitForTimeout(200);
-check('← All three looks: the cards return, the draft is gone, the band stands',
-  await page.locator('#kp-ways').isVisible() && !(await page.locator('#kp-build').isVisible())
+check('All three: the cards return with the Choose header, the draft is gone, the band stands',
+  await page.locator('#kp-ways').isVisible() && !(await page.locator('#kp-build').isVisible()) && await page.locator('#kp-choose-head').isVisible()
   && await page.locator('#kp-result-page .rb-lk-composer').count() === 0 && await page.locator('#kp-model-band .kp-model-band').count() === 1);
 // The strip hands her the next look in place; Try another re-runs it.
 await buildBtns.first().click();
@@ -205,7 +218,7 @@ await page.locator('#kp-build .kp-build-other[title="Build Park Hangout"]').clic
 await page.waitForTimeout(1500);
 check('the strip builds the next look in place (a fresh call, the strip re-pointed)',
   dailyCalls === 3 && (await page.evaluate(() => document.getElementById('rb-lk-newtitle')?.value)) === 'Park Hangout'
-  && (await page.locator('#kp-build .kp-build-other .t').allInnerTexts()).join('|') === 'Urbane Weekend|Coffee Run');
+  && (await page.evaluate(() => Array.from(document.querySelectorAll('#kp-build .kp-build-other')).map((x) => x.title.replace(/^Build /, '')).join('|'))) === 'Urbane Weekend|Coffee Run');
 await page.evaluate(() => window.__lkTryAnother());
 await page.waitForTimeout(1500);
 check('Try another re-runs the same way in place', dailyCalls === 4 && await page.locator('#kp-build-host .rb-lk-composer').isVisible()
@@ -229,7 +242,7 @@ check('back from the builder: the kp result reopens over Inspiration with the dr
   await page.locator('#kp-result-page').isVisible() && await page.locator('#kp-build-host .rb-lk-composer').isVisible()
   && (await page.evaluate(() => document.getElementById('rb-lk-newtitle')?.value)) === 'Park Hangout'
   && await page.locator('#kp-build-host .rbc-rack .rbc-row').count() === 4 && dailyCalls === dailyBefore
-  && (await page.locator('#kp-build .kp-build-other .t').allInnerTexts()).join('|') === 'Urbane Weekend|Coffee Run',
+  && (await page.evaluate(() => Array.from(document.querySelectorAll('#kp-build .kp-build-other')).map((x) => x.title.replace(/^Build /, '')).join('|'))) === 'Urbane Weekend|Coffee Run',
   JSON.stringify({ kp: await page.locator('#kp-result-page').isVisible(), host: await page.locator('#kp-build-host .rb-lk-composer').count(), calls: dailyCalls - dailyBefore }));
 
 // 5c · Save files it to the Lookbook (the one write), and the host reads Filed.
@@ -250,8 +263,9 @@ check('gaps ride the kept look as proposals, her product photo on the key piece 
 check('look card photograph is the way’s original kp frame',
   keptLook && keptLook.body.photo_url === 'https://res.cloudinary.com/demo/way3.jpg',
   JSON.stringify(keptLook && keptLook.body.photo_url || null));
-check('filed IN PLACE: the host reads Filed with the look one tap away, the kp page still on top',
+check('filed IN PLACE: the host reads Filed with the look one tap away, the kp page still on top; the strip’s name field settles to text',
   await page.locator('#kp-result-page').isVisible() && await page.locator('#kp-build-host .kp-build-filed').isVisible()
+  && await page.locator('#kp-build .kp-build-title-set').count() === 1 && await page.locator('#kp-build input#rb-lk-newtitle').count() === 0
   && /Park Hangout/.test(await page.locator('#kp-build-host .kp-build-filed').innerText())
   && !(await page.locator('#sn-page').isVisible()) && await page.locator('#kp-build .kp-build-other').count() === 2);
 await page.locator('#kp-build-host button:has-text("Open the look")').click();

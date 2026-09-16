@@ -6691,9 +6691,8 @@
               '.kp-look-card{flex:none;width:250px;scroll-snap-align:start}' +
               '.kp-look-title{font-size:22px}' +
             '}' +
-            // <=767px the glass header share circle covers kp — hide the in-page one
-            '.kp-shareRow{margin-top:16px}.kp-head{margin-bottom:12px;padding-top:34px}' +
-            '@media(max-width:767px){.rb-kp-share{display:none !important}.kp-shareRow{display:none}}' +
+            '.kp-head{margin-bottom:12px;padding-top:34px}' +
+            '#kp-choose-head[hidden]{display:none}' +
             // 2B guide band: while it stands, card 01's Build this look is
             // the one filled button on the page (inline styles keep the
             // outline register, so the fill needs !important to win).
@@ -6713,15 +6712,12 @@
         // this is (Key piece), the request's own words lead the title so
         // the italic wink still lands, the pencil sits after it, Share is a
         // hairline pill in the block.
-        const kpSavedId = (opts && opts.savedId != null) ? opts.savedId : null;
-        const kpSet = (typeof _inItems === 'function' ? _inItems() : []).map(i => i.id);
-        const kpAt = kpSavedId != null ? kpSet.indexOf(kpSavedId) : -1;
-        _rbRetReg('kp', {
-          back: function() { window.__rbNavGo('inspiration'); },
-          prev: function() { if (kpAt > 0) window.__snOpenItem(kpSet[kpAt - 1]); },
-          next: function() { if (kpAt > -1 && kpAt < kpSet.length - 1) window.__snOpenItem(kpSet[kpAt + 1]); },
-        });
-        const kpBand = _rbRetHtml({ key: 'kp', label: kpDaily ? _rbOriginLabel() : 'Inspiration', pos: (!kpDaily && kpAt > -1 && kpSet.length > 1) ? { i: kpAt + 1, n: kpSet.length } : null });
+        // One header per step (Annie, 2026-09-16): the band carries the
+        // back pill alone — no "n of N" pager over Inspiration's set — and
+        // the title block is the eyebrow + the piece's words, no pencil, no
+        // Share (share belongs on a look once she has built one).
+        _rbRetReg('kp', { back: function() { window.__rbNavGo('inspiration'); } });
+        const kpBand = _rbRetHtml({ key: 'kp', label: kpDaily ? _rbOriginLabel() : 'Inspiration', pos: null });
         const kpLead = kpHeadline || (fallback ? 'Your piece'
           : (kpIsPiece && kpPiece ? 'Your ' + kpPiece : (kpPiece || kpAsk || 'Your piece')));
         const kpTitleBlock = _rbTitleHtml({
@@ -6733,8 +6729,6 @@
             ? (kpHeadline ? _waEsc(kpHeadline) : 'Your day,<br><em>dressed three ways.</em>')
             : _waEsc(kpLead) + ',<br><em>worn three ways.</em>',
           titleId: 'kp-headline',
-          afterTitleHtml: _rbTbBtn({ cls: 'kp-pen', title: 'Rename', onclick: "window.__rbRename&&window.__rbRename('kp')", svg: _RB_PENCIL_SVG }),
-          belowHtml: '<div class="kp-shareRow"><button class="rb-pill rb-kp-share" title="Share this look" onclick="window.__rbShare&&window.__rbShare()">Share this look</button></div>',
         });
         try { kpResultPage.innerHTML = `
           ${kpBand}
@@ -6754,6 +6748,7 @@
             </div>
           </div>` : ''}
           <div style="width:100%;max-width:1100px;margin:0 auto;padding:0 32px 80px;box-sizing:border-box">
+            <div id="kp-choose-head">
             <div class="kp-headrow">
               ${kpTitleBlock}
               ${(!kpDaily && photoUrl) ? `<div class="kp-yours"><div class="kp-yours-t"><div class="ey">Yours</div><div class="n">${_waEsc(kpPiece || pieceName)}</div></div><img class="kp-yours-img" src="${_waEsc(photoUrl)}" alt=""></div>` : ''}
@@ -6776,6 +6771,7 @@
                 ${photoUrl ? '<div style="font-size:12px;color:var(--ink-faint);margin-top:4px">✓ The one you uploaded</div>' : ''}
               </div>
             </div>` : ''}
+            </div>
 
             <div id="kp-ways" class="kp-ways">
               ${ways.map((w, i) => {
@@ -7078,22 +7074,22 @@
         st.id = 'kp-build-style';
         st.textContent =
           '.kp-build[hidden]{display:none}' +
-          '.kp-build-strip{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding-bottom:14px;border-bottom:0.5px solid var(--rule,rgba(32,32,33,0.1));margin-bottom:22px}' +
-          '.kp-build-back{background:none;border:0;padding:0;font-family:inherit;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#9C9891);cursor:pointer}' +
-          '.kp-build-back:hover{color:var(--ink,#202021)}' +
-          '.kp-build-others{display:flex;align-items:center;gap:14px;flex-wrap:wrap}' +
-          '.kp-build-other{display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;font-family:inherit;cursor:pointer;text-align:left}' +
-          '.kp-build-other .th{width:34px;height:44px;border-radius:2px;background:var(--cream-200,#EDE9E2) center/cover no-repeat;border:0.5px solid var(--rule,rgba(32,32,33,0.1));flex:none}' +
-          '.kp-build-other .t{font-size:12px;color:var(--ink-soft,#55524E)}' +
-          '.kp-build-other:hover .t{color:var(--ink,#202021)}' +
+          '.kp-build-strip{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:30px 0 16px;border-bottom:1px solid var(--rule,rgba(32,32,33,0.1));margin-bottom:24px}' +
+          '.kp-build-l{flex:1 1 auto;min-width:0}' +
+          '.kp-build-ey{font-size:9px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077);margin-bottom:6px}' +
+          '#kp-build .kp-build-title{display:block;width:100%;max-width:560px;margin:0;padding:0;border:0;background:none;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:31px;line-height:1.1;color:var(--ink,#202021);outline:none}' +
+          '#kp-build .kp-build-title::placeholder{color:var(--ink-faint,#9C9891);font-style:italic}' +
+          '.kp-build-r{display:flex;align-items:center;gap:16px;flex:none;padding-bottom:2px}' +
+          '.kp-build-others{display:flex;align-items:center;gap:10px}' +
+          '.kp-build-other{display:block;background:none;border:0;padding:0;font-family:inherit;cursor:pointer}' +
+          '.kp-build-other .th{display:block;width:34px;height:44px;border-radius:2px;background:var(--cream-200,#EDE9E2) center/cover no-repeat;border:0.5px solid var(--rule,rgba(32,32,33,0.1));transition:transform .15s ease}' +
+          '.kp-build-other:hover .th{transform:translateY(-2px)}' +
           '.kp-build-wait{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:-8px 0 18px;font-size:12px;color:var(--ink-faint,#9C9891);letter-spacing:.04em}' +
           '.kp-build-wait .bar{width:90px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden}' +
           '.kp-build-wait .bar i{position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite}' +
           '.kp-build-wait #kp-load-cancel{margin-top:0!important}' +
           // The composer at the reading measure: 392px canvas | the rack.
           '#kp-build-host .rb-lk-con{grid-template-columns:392px minmax(0,1fr);gap:28px}' +
-          '#kp-build-host .rb-lk-kpmast{margin-top:4px}' +
-          '#kp-build-host .rb-lk-kpmast .ey{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint,#9C9891)}' +
           '@media(max-width:1080px){#kp-build-host .rb-lk-con{grid-template-columns:minmax(0,1fr);gap:24px}}' +
           // Filed: the look is in the Lookbook, one tap away.
           '.kp-build-filed{background:#fff;border:0.5px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:var(--rad-lg,12px);padding:28px 26px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}' +
@@ -7110,22 +7106,47 @@
           '.kp-model-band h3{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:24px;line-height:1.2;margin:8px 0 0;color:var(--ink,#202021)}' +
           '.kp-model-band h3 em{font-style:italic}' +
           '.kp-model-band .rb-lkm-build{flex:none;margin:0}' +
-          '@media(max-width:700px){.kp-model-band{flex-direction:column;align-items:stretch;padding:20px 18px;gap:14px}.kp-model-band .rb-lkm-build{width:100%}.kp-build-filed{padding:20px 18px}.kp-build-strip .kp-build-other .t{display:none}}';
+          '@media(max-width:700px){.kp-model-band{flex-direction:column;align-items:stretch;padding:20px 18px;gap:14px}.kp-model-band .rb-lkm-build{width:100%}.kp-build-filed{padding:20px 18px}.kp-build-strip{flex-wrap:wrap;align-items:flex-start;padding-top:22px}.kp-build-r{width:100%;justify-content:space-between}#kp-build .kp-build-title{font-size:26px}}';
         document.head.appendChild(st);
       }
+      // The Build step's ONE header (Annie, 2026-09-16 — "one header per
+      // step"): a single rule line — the way's eyebrow over the look's name
+      // (the composer's title input, editable in place) on the left, "All
+      // three" + the other two looks as bare thumbs on the right. The big
+      // key-piece masthead and the Yours thumb stand down for this step (the
+      // jeans are already on the rack as Yours), and the composer paints no
+      // masthead of its own, so the panel opens on the style note.
       function _kpBuildStripHtml(i) {
         const c = _kpBuildCtx;
         if (!c) return '';
+        const w = c.ways[i] || {};
         const imgs = (window.__lastKpData && window.__lastKpData.generatedImages) || [];
         const others = c.ways.map((w, j) => ({ w, j })).filter(x => x.j !== i).map(x => {
           const img = (typeof imgs[x.j] === 'string' && imgs[x.j].indexOf('http') === 0) ? imgs[x.j] : null;
-          return '<button type="button" class="kp-build-other" onclick="window.__kpBuildLook(' + x.j + ')" title="Build ' + _waEsc(x.w.title || '') + '">' +
-            '<span class="th"' + (img ? ' style="background-image:url(\'' + _waEsc(img) + '\')"' : '') + '></span>' +
-            '<span class="t">' + _waEsc(x.w.title || '') + '</span></button>';
+          return '<button type="button" class="kp-build-other" onclick="window.__kpBuildLook(' + x.j + ')" title="Build ' + _waEsc(x.w.title || '') + '" aria-label="Build ' + _waEsc(x.w.title || '') + '">' +
+            '<span class="th"' + (img ? ' style="background-image:url(\'' + _waEsc(img) + '\')"' : '') + '></span></button>';
         }).join('');
+        const title = String(w.title || '').replace(/\.$/, '').trim();
+        const namePh = (typeof _lkLooks !== 'undefined' && _lkLooks && _lkLooks.length) ? 'Name your Look' : 'Name your first look';
         return '<div class="kp-build-strip">' +
-          '<button type="button" class="kp-build-back" onclick="window.__kpBuildBack()">← All three looks</button>' +
-          '<div class="kp-build-others">' + others + '</div></div>';
+          '<div class="kp-build-l">' +
+            (w.eyebrow ? '<div class="kp-build-ey">' + _waEsc(w.eyebrow) + '</div>' : '') +
+            '<input id="rb-lk-newtitle" class="rb-lk-title-in kp-build-title" value="' + _waEsc(title) + '" placeholder="' + namePh + '" aria-label="Name your look" oninput="window.__lkNewTitleInput(this.value)">' +
+          '</div>' +
+          '<div class="kp-build-r">' +
+            '<button type="button" class="rb-pill kp-build-all" onclick="window.__kpBuildBack()">All three</button>' +
+            '<div class="kp-build-others">' + others + '</div>' +
+          '</div></div>';
+      }
+      // The strip's title IS the draft's name field: repaints of the host
+      // leave it alone (it lives outside the host), so only a draft landing
+      // with a different name — the restore path — writes into it, and
+      // never under her caret.
+      function _kpBuildTitleSync() {
+        const inp = document.querySelector('#kp-build .kp-build-title');
+        if (!inp || inp.tagName !== 'INPUT' || document.activeElement === inp) return;
+        const v = _lkNewTitleDraft != null ? String(_lkNewTitleDraft) : '';
+        if (inp.value !== v) inp.value = v;
       }
       // The build section takes the cards' place: the strip, the wait line
       // (removed the moment the composer lands), the composer host.
@@ -7136,6 +7157,8 @@
         const build = document.getElementById('kp-build');
         if (!build) return;
         if (ways) ways.style.display = 'none';
+        const head = document.getElementById('kp-choose-head');
+        if (head) head.hidden = true;
         build.innerHTML = _kpBuildStripHtml(i) +
           '<div id="kp-build-wait" class="kp-build-wait"><span id="kp-build-msg">Reading the look</span><span class="bar"><i></i></span></div>' +
           '<div id="kp-build-host"></div>';
@@ -7159,6 +7182,8 @@
         const build = document.getElementById('kp-build');
         if (build) { build.hidden = true; build.innerHTML = ''; }
         if (ways) ways.style.display = '';
+        const head = document.getElementById('kp-choose-head');
+        if (head) head.hidden = false;
         _kpBuildWay = null;
         _kpModelBandSync();
       };
@@ -7177,6 +7202,13 @@
         const host = document.getElementById('kp-build-host');
         if (!host || !l) return;
         _kpBuildFiledId = l.id;
+        const inp = document.querySelector('#kp-build .kp-build-title');
+        if (inp && inp.tagName === 'INPUT') {
+          const t = document.createElement('div');
+          t.className = 'kp-build-title kp-build-title-set';
+          t.textContent = l.name || 'Your look';
+          inp.replaceWith(t);
+        }
         host.innerHTML = '<div class="kp-build-filed">' +
           '<div><div class="ey">Filed</div>' +
             '<h3>' + _waEsc(l.name || 'Your look') + ' <em>is in your Lookbook.</em></h3>' +
@@ -11035,6 +11067,7 @@ button.rb-lk-live{cursor:pointer}
           if (_lkView === 'new' && kpEl && kpEl.style.display !== 'none' && host) {
             host.innerHTML = _lkNewHtml({ kp: true });
             body.innerHTML = '';
+            if (typeof _kpBuildTitleSync === 'function') _kpBuildTitleSync();
             return;
           }
           _lkKpHost = false; _lkResetComposer(); _lkView = 'grid'; _lkActive = null;
@@ -12575,6 +12608,11 @@ button.rb-lk-live{cursor:pointer}
             '<span class="lab">' + headLabel + '</span><span class="robes">' + robesLabel + '</span></div>' +
             '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
               '<img src="' + _waEsc(_lkPhoto.url) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="This look"></div>' +
+            // A Robes build's frame (a kp way with no model on file) still
+            // carries the stylist note under it — with no masthead above the
+            // card (one header per step, 2026-09-16) the panel is where the
+            // look speaks first.
+            (_lkBuilt && !_lkBuilding && _lkBuildNote ? '<div class="rbc-quote" style="margin:14px 0 0;padding-left:0;border-left:none;font-size:15px;line-height:1.62">' + _waEsc(_lkBuildNote) + '</div>' : '') +
             (nPlaced ? '<div class="rbc-lfoot"><span class="rbc-palette"></span><span class="rbc-yours"><b>' + nPlaced + '</b>&thinsp;of&thinsp;' + nPlaced + ' from your wardrobe</span></div>' : '') +
             '</div>';
         } else if (_lkBuilding) {
@@ -12696,9 +12734,10 @@ button.rb-lk-live{cursor:pointer}
         if (!home && !kp) _rbRetReg('look', { back: function() { if (_lkDay) window.__lkDayBack(); else window.__lkBack(); } });
         const dayChip = (!home && _lkDay)
           ? '<div class="rb-lk-dayrow"><span class="rb-lk-daychip">✓ Filing to ' + _waEsc(_lkDay.date ? _lkFmtDay(_lkDay.date) : 'this trip') + '</span></div>' : '';
-        const kpEyebrow = kp && _lkDraftSrc && _lkDraftSrc.eyebrow ? '<div class="ey">' + _waEsc(_lkDraftSrc.eyebrow) + '</div>' : '';
-        const mastHtml = home ? ''
-          : kp ? '<div class="rb-lk-mast rb-lk-newmast rb-lk-kpmast">' + kpEyebrow + titleHtml + nameNote + '</div>'
+        // On the kp page the strip above the host IS the header (eyebrow +
+        // the name field) — the composer paints none of its own, so the
+        // panel opens on the style note.
+        const mastHtml = (home || kp) ? ''
           : _rbRetHtml({ key: 'look', label: _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast">' + dayChip + titleHtml + nameNote + '</div>';
 
         // The Rack — the formula strips name themselves, so no second
@@ -20847,12 +20886,11 @@ body>*:not(#tv-result-page){display:none !important}
           }
           const shareBtn = document.getElementById('rb-share-btn');
           if (shareBtn) {
-            // The key-piece result has no Share of its own on a phone (its
-            // in-page button hides ≤767px) — the header circle stays as its
-            // one share door. The consoles carry "Share this look" in The
-            // Look, and every other depth holds the pill + position alone.
-            const kpOn = !!(kpResultPage && kpResultPage.style.display !== 'none');
-            shareBtn.style.display = (depth && kpOn) ? 'inline-flex' : 'none';
+            // No depth carries the header share circle now — the key-piece
+            // result lost its Share with the one-header-per-step pass
+            // (2026-09-16: share belongs on a look once she has built one);
+            // the consoles carry "Share this look" in The Look.
+            shareBtn.style.display = 'none';
           }
           const wm = document.getElementById('nav-wordmark');
           if (wm) {
