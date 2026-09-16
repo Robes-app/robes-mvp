@@ -273,10 +273,32 @@ await page.waitForTimeout(600);
 check('Open the look lands on the saved look page, Key piece as its way back',
   await page.locator('#sn-page').isVisible() && (await page.locator('#sn-page .rb-ret-pill .lab').first().innerText()).trim() === 'Key piece'
   && /Park Hangout/.test(await page.locator('#sn-page').innerText()));
+const savedNoModel = await page.evaluate(() => ({
+  frame: document.querySelector('#sn-page .rb-lkm-photo img')?.getAttribute('src'),
+  mosaic: document.querySelectorAll('#sn-page .rbc-board .rbc-tile').length,
+  switchRow: document.querySelectorAll('#sn-page .rb-lk-viewrow').length,
+  head: document.querySelector('#sn-page .rbc-lhead .lab')?.textContent,
+  props: document.querySelectorAll('#sn-page .rbc-rack .rb-lk-prop').length,
+}));
+check('the saved look opens on the way’s FRAME, not the mosaic (Annie, 2026-09-16); no model → no You / Model switch; the proposals still hang on the rack',
+  savedNoModel.frame === 'https://res.cloudinary.com/demo/way3.jpg' && savedNoModel.mosaic === 0 && savedNoModel.switchRow === 0
+  && /0 yours, 4 to find/.test(savedNoModel.head || '') && savedNoModel.props === 4, JSON.stringify(savedNoModel));
 await page.locator('#sn-page .rb-ret-pill').first().click();
 await page.waitForTimeout(600);
 check('…and the way back is the three ways', await page.locator('#kp-result-page').isVisible() && !(await page.locator('#sn-page').isVisible())
   && await page.locator('#kp-ways').isVisible());
+// A built way opens its saved look on the next tap — never a second build.
+const dailyBeforeReopen = dailyCalls;
+const builtBtn = await page.evaluate(() => ({ text: document.getElementById('kp-build-btn-2')?.textContent?.trim(), first: document.getElementById('kp-build-btn-0')?.textContent?.trim(), persisted: (JSON.parse(localStorage.getItem('robes_style_notes__u-test') || '[]').find((i) => i.type === 'key-piece')?.kpData?.builtLooks) || null }));
+check('the built way’s card reads Open the look (the others still Build this look), and the link is persisted on the kp entry',
+  builtBtn.text === 'Open the look' && builtBtn.first === 'Build this look' && builtBtn.persisted && Object.keys(builtBtn.persisted).join('') === '2', JSON.stringify(builtBtn));
+await page.locator('#kp-build-btn-2').click();
+await page.waitForTimeout(600);
+check('tapping the built way opens the SAVED look — no new build, no /api/daily call',
+  await page.locator('#sn-page').isVisible() && /Park Hangout/.test(await page.locator('#sn-page').innerText())
+  && dailyCalls === dailyBeforeReopen && await page.locator('#kp-build-host .rb-lk-composer').count() === 0);
+await page.locator('#sn-page .rb-ret-pill').first().click();
+await page.waitForTimeout(600);
 
 // 6 · The kp result survives — reopening from Inspiration still shows the three ways
 await page.evaluate(() => window.__rbInspOpen());
@@ -328,6 +350,30 @@ check('the build opens DRESSED — her model on the canvas, the way’s frame yi
   modelState.stage === 1 && !modelState.frame && modelState.youModel === 0 && modelState.band === 0 && modelState.proposals === 4, JSON.stringify(modelState));
 check('one render of the four proposals (the same key the saved look keeps)',
   renders.length === 1 && renders[0].length === 4 && renders[0].includes('Umbro shorts'), JSON.stringify(renders));
+// Saved with a model: the frame sits on the You side, her render on Model.
+await page.evaluate(async () => {
+  window.__lkSaveAsk();
+  await new Promise((r) => setTimeout(r, 250));
+  document.getElementById('rb-lksave-yes')?.click();
+});
+await page.waitForTimeout(1000);
+await page.locator('#kp-build-host button:has-text("Open the look")').click();
+await page.waitForTimeout(700);
+const savedWithModel = await page.evaluate(() => ({
+  frame: document.querySelector('#sn-page .rb-lkm-photo img')?.getAttribute('src'),
+  seg: Array.from(document.querySelectorAll('#sn-page .rb-lk-viewrow .rb-lkm-seg button')).map((b) => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')).join('|'),
+  note: document.querySelector('#sn-page .rb-lk-viewrow .note')?.textContent?.trim(),
+}));
+check('with a model: the saved look opens on the way’s frame under a You / Model switch, You lit',
+  savedWithModel.frame === 'https://res.cloudinary.com/demo/way1.jpg' && savedWithModel.seg === 'You*|Model' && /frame/i.test(savedWithModel.note || ''), JSON.stringify(savedWithModel));
+await page.locator('#sn-page .rb-lk-viewrow .rb-lkm-seg button:has-text("Model")').click();
+await page.waitForTimeout(400);
+const modelSide = await page.evaluate(() => ({
+  render: document.querySelector('#sn-page .rb-lkm-canvas img.rb-lkm-img')?.getAttribute('src'),
+  frame: document.querySelectorAll('#sn-page .rb-lkm-photo').length,
+}));
+check('Model shows her render of the look (the canvas frame the save kept), the frame steps aside',
+  modelSide.render === 'https://img.test/render.jpg' && modelSide.frame === 0, JSON.stringify(modelSide));
 
 check('no page errors', errs.length === 0, errs.join(' | '));
 

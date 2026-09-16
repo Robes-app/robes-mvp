@@ -6794,7 +6794,7 @@
                   </div>
                   <p class="kp-look-line">See it piece by piece — what's yours, what would finish it.</p>
                   <div class="kp-look-acts">
-                    <button id="kp-build-btn-${i}" class="kp-build-btn${i === 0 ? ' kp-build-first' : ''}" onclick="window.__kpBuildLook(${i})" style="flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Build this look<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+                    <button id="kp-build-btn-${i}" class="kp-build-btn${i === 0 ? ' kp-build-first' : ''}${_kpBuiltLookId(i) != null ? ' kp-built' : ''}" onclick="window.__kpBuildLook(${i})" style="flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">${_kpBuiltLookId(i) != null ? 'Open the look' : 'Build this look'}<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
                     <button type="button" class="kp-look-more" id="kp-look-more-${i}" aria-expanded="false" onclick="window.__kpMore(${i})">More detail</button>
                   </div>
                   <div class="kp-look-detail" id="kp-look-detail-${i}" hidden>
@@ -6871,6 +6871,16 @@
           if (!w) return;
           // Opening a look IS the guidance taken — the band never returns.
           _kpGuideDismiss();
+          // A way she has already built opens ITS SAVED LOOK (Annie,
+          // 2026-09-16: "clicking on that again should load the saved look,
+          // rather than another edit mode") — a deleted look falls back to
+          // a fresh build.
+          const builtId = _kpBuiltLookId(i);
+          if (builtId != null) {
+            _kpBuildFiledId = builtId;
+            window.__kpBuildOpenLook();
+            return;
+          }
           _rbTrack('kp_build_look', { item: String(_kpActiveSaveId || ''), way: String(i) });
           const imgs = (window.__lastKpData && window.__lastKpData.generatedImages) || generatedImages || [];
           const wayImg = (typeof imgs[i] === 'string' && imgs[i].indexOf('http') === 0) ? imgs[i] : null;
@@ -7198,10 +7208,30 @@
       // Save (through __lkSave, the one write) lands here: the host reads
       // Filed, the look one tap away, the other two looks still in the
       // strip. The look page's way back is this kp result.
+      // The look a way was built into, if it still exists: read off the live
+      // render data (the saved kp entry's kpData.builtLooks, written at save).
+      function _kpBuiltLookId(i) {
+        const d = window.__lastKpData;
+        const bl = d && d.builtLooks;
+        const id = bl && bl[i];
+        if (id == null) return null;
+        return (typeof _lkFind === 'function' && _lkFind(id)) ? id : null;
+      }
       function _kpBuildSaved(l) {
         const host = document.getElementById('kp-build-host');
         if (!host || !l) return;
         _kpBuildFiledId = l.id;
+        // The way remembers its look on the kp entry, so the next tap on
+        // this way opens the saved look rather than building it again.
+        if (_kpActiveSaveId != null && Number.isInteger(_kpBuildWay)) {
+          const it = snLoad().find(x => x.id === _kpActiveSaveId);
+          const bl = Object.assign({}, (it && it.kpData && it.kpData.builtLooks) || (window.__lastKpData && window.__lastKpData.builtLooks) || {});
+          bl[_kpBuildWay] = l.id;
+          if (window.__lastKpData) window.__lastKpData.builtLooks = bl;
+          if (it) snUpdate(_kpActiveSaveId, { kpData: Object.assign({}, it.kpData || {}, { builtLooks: bl }) });
+          const btn = document.getElementById('kp-build-btn-' + _kpBuildWay);
+          if (btn) { btn.classList.add('kp-built'); btn.firstChild && btn.firstChild.nodeType === 3 && (btn.firstChild.textContent = 'Open the look'); }
+        }
         const inp = document.querySelector('#kp-build .kp-build-title');
         if (inp && inp.tagName === 'INPUT') {
           const t = document.createElement('div');
@@ -11651,6 +11681,18 @@ button.rb-lk-live{cursor:pointer}
         }).join('');
         // The count belongs to the rack alone (Annie, 2026-09-09).
         const headLabel = 'The look';
+        // The photograph of the look — hers, or Robes' frame — outranks the
+        // proposals mosaic (the mosaic is the Model side's stand-in until
+        // a render lands, and the whole panel when there is no photograph).
+        if (o.dPhoto && o.dView === 'photo' && !o.dirty && !o.editing) {
+          return '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
+            '<span class="lab">' + (props.length ? 'The look · ' + ids.length + ' yours, ' + props.length + ' to find' : headLabel) + '</span><span class="robes">Robes</span></div>' +
+            (o.occHtml || '') +
+            '<div class="rb-lkm-canvas photo"><div class="rb-lkm-photo"><img src="' + _waEsc(o.dPhoto) + '" alt="' + (o.dFrame ? '' : 'Your photograph of ') + _waEsc(l.name) + '"></div>' + acts + shareBadge + '</div>' +
+            (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
+            tail + actionHtml +
+            '</div>';
+        }
         if (props.length && !_pdHttp(l.render_url)) {
           const propBoard = props.map((row, i) => {
             const a = row.opts[row.oi] || {};
@@ -11768,29 +11810,39 @@ button.rb-lk-live{cursor:pointer}
         // the same after being saved").
         const props = Array.isArray(l.proposals) ? l.proposals : [];
         const lkTagsRow = _rbTagsRowHtml(_lkTagsOf(l), '__lkTagsEdit');
-        // Her own photograph of the look (never a build's lead still, which
-        // rides photo_url on a zero-owned build). Photo first when one
-        // exists; the You / Model switch INSIDE the card picks the view.
-        const dPhoto = props.length ? null : _pdHttp(l.photo_url);
+        // The look's photograph leads: her own, or ROBES' FRAME of the whole
+        // look (a kp way's editorial frame, a daily anchor shot — Annie,
+        // 2026-09-16: "the llm generated image should appear by default").
+        // The one photo_url that is NOT a picture of the look is a
+        // zero-owned build's lead still — one proposal's still-life standing
+        // in for a look with no imagery — which stays on the mosaic.
+        const propStills = props.map(r => _pdHttp(r.image_url)).filter(Boolean);
+        const rawPhoto = _pdHttp(l.photo_url);
+        const dPhoto = (rawPhoto && propStills.indexOf(rawPhoto) < 0) ? rawPhoto : null;
+        // A frame is not her: it earns the You / Model switch only once a
+        // model exists to stand on the other side (the composer's rule).
+        const dFrame = !!dPhoto && (l.source === 'robes' || props.length > 0);
+        if (dFrame) _lkModelEnsure();
+        const dSwitch = !!dPhoto && (!dFrame || !!_lkModel);
         const dView = _lkDetailView || (dPhoto ? 'photo' : 'model');
         // Controls on the image (reading only): the diary — never on a look
         // she owns nothing of — and the camera (add, or replace on the You
-        // view). Editing carries neither: the photograph lives on the look
-        // page (design note: "replacing it lives on the look page").
+        // view — her photograph may replace a frame). Editing carries
+        // neither: the photograph lives on the look page.
         const acts = editing ? '' : _lkImgActsHtml({
           diary: !ownedNone,
-          camera: props.length ? null : (dPhoto ? (dView === 'photo' ? 'replace' : null) : 'add'),
+          camera: dPhoto ? (dView === 'photo' ? 'replace' : null) : (props.length ? null : 'add'),
           fn: '__lkDetailPhotoAdd',
         });
-        const viewRow = (!editing && dPhoto)
+        const viewRow = (!editing && dSwitch)
           ? '<div class="rb-lk-viewrow"><div class="rb-lkm-seg" role="group" aria-label="Look view">' +
               '<button type="button"' + (dView === 'photo' ? ' class="on"' : '') + ' onclick="window.__lkDetailPhotoView(\'photo\')">You</button>' +
               '<button type="button"' + (dView === 'photo' ? '' : ' class="on"') + ' onclick="window.__lkDetailPhotoView(\'model\')">Model</button></div>' +
-              '<span class="note">' + (_lkDetailPhotoPending ? 'Uploading…' : 'Kept as the record of this look') + '</span></div>'
+              '<span class="note">' + (_lkDetailPhotoPending ? 'Uploading…' : (dFrame ? 'Robes’ frame · your model wears it too' : 'Kept as the record of this look')) + '</span></div>'
           : '';
         const panelTail = lkTagsRow + viewRow;
         if (editing) _lkModelEnsure();
-        const lookPanel = _lkLookPanelHtml(l, { items, ids, props, dirty, editing, dPhoto, dView, acts, tail: panelTail });
+        const lookPanel = _lkLookPanelHtml(l, { items, ids, props, dirty, editing, dPhoto, dView, dFrame, acts, tail: panelTail });
 
         // The masthead: back to the door she came through (the chevron
         // names the previous step — Lookbook, the day, the travel edit,
@@ -12224,7 +12276,7 @@ button.rb-lk-live{cursor:pointer}
           _lkModel = _lkModelFromId(id);
           // Deferred: a cached id answers synchronously, mid-paint.
           setTimeout(function() {
-            if (document.querySelector('.rb-lk-composer, .rb-lkm-stage, .rb-lk-editing')) _lkRepaint();
+            if (document.querySelector('.rb-lk-composer, .rb-lkm-stage, .rb-lk-editing, .rb-lkm-panel')) _lkRepaint();
             if (document.getElementById('kp-model-band') && typeof _kpModelBandSync === 'function') _kpModelBandSync();
             // A day editing its saved look dresses her model too.
             try {
@@ -14942,7 +14994,10 @@ button.rb-lk-live{cursor:pointer}
             // Robes' name left as offered stays provisional (rule 01) — a
             // name she typed or touched is hers.
             pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed || (_lkBuilt && !_lkNewTitleTouched),
-            source: 'manual',
+            // 'robes' = the photograph is Robes' frame of the look (a kp
+            // way, a daily anchor shot), not her own — the look page reads
+            // the difference (the You / Model switch waits for a model).
+            source: (_lkPhoto && _lkPhoto.frame) ? 'robes' : 'manual',
             proposals: proposals,
             render_url: canvasUrl || null, render_key: canvasUrl ? canvasKey : null,
             // A Robes build carries its stylist note onto the saved look —
