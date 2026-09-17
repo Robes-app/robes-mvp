@@ -1,6 +1,7 @@
 # Four-session funnel — build brief for Claude Code
 
 **Date**: 2026-09-17 · **Branch**: `beta` · **Status**: brief, nothing built
+**Visuals**: `docs/four-session-funnel-brief.html` renders this brief with a wireframe set under every slice (dashed rose = what the slice adds) — read it alongside the text; a build session validates against those frames.
 **Companion**: the review this brief implements — https://claude.ai/artifact/6PERswqbBrmbboNLYBTQmn — and the 19 Aug first-session audit (`docs/beta-ftue-ux-audit-2026-08-19.md`).
 
 ## What this is
