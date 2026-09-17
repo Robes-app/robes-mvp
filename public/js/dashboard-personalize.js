@@ -5724,8 +5724,9 @@
       // ═══ Inspiration — the undated shelf (IA refinement 2026-08-10) ═════
       // Key pieces styled live here, out of the Lookbook: nothing on this
       // page carries a date. Opening an entry shows the full three-way
-      // styling; Restyle re-arms the home prompt with the original ask.
-      // (Save-as-look is deliberately deferred — Annie, 2026-08-10.)
+      // styling. The card carries NO action (Annie, 2026-09-17: the
+      // Restyle pill served no purpose — the card itself is the door;
+      // __inRestyle survives doorless). Save-as-look is deferred.
       const inPage = document.createElement('div');
       inPage.id = 'rb-insp-page';
       inPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:var(--nav-h,64px);z-index:45;background:#FAF8F5;overflow-y:auto';
@@ -5787,9 +5788,6 @@
             '<div class="rb-in-pad">' +
               '<div class="rb-in-title">' + _waEsc(i.title || 'A piece, styled') + '</div>' +
               '<div class="rb-in-sub">Styled three ways by Robes</div>' +
-              '<div class="rb-in-acts">' +
-                '<button type="button" class="rb-pill sm rb-in-act" onclick="event.stopPropagation();window.__inRestyle(' + Number(i.id) + ')">Restyle</button>' +
-              '</div>' +
             '</div></div>';
         }).join('');
       }
@@ -5806,6 +5804,7 @@
       };
       // Restyle lands on the home prompt with the original ask re-armed —
       // every route lands on the prompt box (the app's standing rule).
+      // Doorless since 2026-09-17 (kept programmatically).
       window.__inRestyle = function(id) {
         const it = snLoad().find(i => i.id === id);
         if (!it) return;
@@ -5832,7 +5831,14 @@
       var _inStText = '';     // survives an error's return to step 1
       var _inStTimer = null;  // scan-stage cycler
       var _inStAbort = null;  // in-flight AbortController
-      var _inStPiece = null;  // a wardrobe piece attached from its own page (Robes_Piece_IA)
+      var _inStPiece = null;  // a wardrobe piece attached from its own page (Robes_Piece_IA), the picker, or the scan
+      // The upload-to-wardrobe scan (Annie, 2026-09-17: a NEW piece she
+      // uploads here is scanned into the wardrobe, as the add flow would):
+      // {seq, status: 'filing'|'filed'|'none'|'failed'} — seq guards a
+      // photo changed under an in-flight scan; the scan itself outlives
+      // the modal (a cancelled brief still leaves the piece filed).
+      var _inStScan = null;
+      var _inStScanSeq = 0;
       var _IN_SCAN_STAGES = [
         { h: 'Reading your piece…', s: 'One moment — Robes is looking at the photo.', c: 'Reading the silhouette…' },
         { h: 'Reading your piece…', s: 'One moment — Robes is looking at the photo.', c: 'Noting the colour and fabric…' },
@@ -5843,8 +5849,10 @@
         if (_inStTimer) { clearInterval(_inStTimer); _inStTimer = null; }
         if (_inStAbort) { try { _inStAbort.abort(); } catch (_) {} _inStAbort = null; }
         if (_inStM) { _inStM.remove(); _inStM = null; }
+        document.getElementById('rb-inst-pick')?.remove();
         _inStPhoto = null;
         _inStPiece = null;
+        _inStScan = null;
         _inStText = '';
         _inStStep = 1;
       }
@@ -5862,7 +5870,7 @@
         }
         return '<span style="width:38px;height:38px;border-radius:50%;background:#EDE7DE;display:flex;align-items:center;justify-content:center">' +
           '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"></path><circle cx="12" cy="13" r="3.2"></circle></svg></span>' +
-          '<span style="font-size:12px;line-height:1.6;color:#5C574F;text-align:center">Snap or attach<br>your key piece</span>';
+          '<span style="font-size:12px;line-height:1.6;color:#5C574F;text-align:center">Snap or attach<br>a new piece</span>';
       }
       function _inStPaint() {
         if (!_inStM) return;
@@ -5875,16 +5883,15 @@
         if (_inStStep === 1) {
           card.innerHTML = head +
             '<div style="font-family:' + serif + ';font-weight:300;font-size:clamp(32px,6vw,44px);line-height:1.04;color:#202021;margin-top:34px">Style a key piece,<br><span style="font-style:italic;color:#B09A94">three ways.</span></div>' +
-            '<div id="rb-inst-grid" style="display:grid;grid-template-columns:200px 1fr;gap:20px;margin-top:32px">' +
-              (_inStPiece ? _inStPieceHtml() :
-              '<div onclick="window.__inStPick()" role="button" style="position:relative;overflow:hidden;border:1px dashed #D8CFC0;border-radius:8px;background:#F7F4EF;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;min-height:172px;cursor:pointer;box-sizing:border-box">' + _inStTileHtml() + '</div>') +
+            '<div id="rb-inst-grid" style="display:grid;grid-template-columns:200px 1fr;gap:20px;margin-top:32px;align-items:start">' +
+              '<div id="rb-inst-left">' + _inStLeftHtml() + '</div>' +
               '<div style="display:flex;flex-direction:column;justify-content:space-between;border:1px solid #D8CFC0;border-radius:8px;background:#FFFDFB;padding:18px 20px;min-height:172px;box-sizing:border-box">' +
-                '<textarea id="rb-inst-ta" oninput="window.__inStSync(this)" placeholder="' + (_inStPiece ? 'The occasion, the weather, how you want to feel in it…' : 'The piece, the occasion, how you like to feel in it...') + '" style="border:none;background:none;outline:none;resize:none;width:100%;flex:1;font-family:inherit;font-size:14px;line-height:1.6;color:#202021"></textarea>' +
+                '<textarea id="rb-inst-ta" oninput="window.__inStSync(this)" placeholder="' + _inStPlaceholder() + '" style="border:none;background:none;outline:none;resize:none;width:100%;flex:1;font-family:inherit;font-size:14px;line-height:1.6;color:#202021"></textarea>' +
                 '<div style="display:flex;flex-direction:column;gap:12px">' +
                   '<div style="height:1px;background:#E7E0CF"></div>' +
                   '<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#A89880">' +
                     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.6 6 .7-4.4 4.1 1.2 6-5.4-3-5.4 3 1.2-6L3.4 9.8l6-.7Z"></path></svg>' +
-                    '<span>' + (_inStPiece ? 'Robes already knows the ' + _waEsc(_dlShort(_inStPiece.label || 'piece')) + ' and how you have worn it. A few words is plenty.' : 'A photo makes it sharper — but a few words is plenty.') + '</span></div></div></div></div>' +
+                    '<span id="rb-inst-hint">' + _inStHint() + '</span></div></div></div></div>' +
             '<button onclick="window.__inStGo()" class="rb-inst-cta" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;margin-top:24px;padding:20px;background:#EDE7DE;border:none;border-radius:8px;font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#5C574F;cursor:pointer;font-family:inherit;transition:all .2s"><span>Style it three ways</span><span>→</span></button>' +
             '<input type="file" id="rb-inst-file" accept="image/*" hidden onchange="window.__inStFile(event)">';
           var ta = card.querySelector('#rb-inst-ta');
@@ -5934,23 +5941,222 @@
         if (!f) return;
         _rbDownscale(f).then(function(dataUrl) {
           _inStPhoto = dataUrl;
-          if (_inStM && _inStStep === 1) _inStPaint();
+          _inStPiece = null;
+          _inStScanStart(dataUrl);
+          _inStLeftPaint();
         }).catch(function() { _waShowToast('Robes couldn’t read that photo — try another'); });
+      };
+      // ── The left column: the tile (or the attached piece), the two
+      // doors beneath it (her wardrobe · her wishlist), the scan's one
+      // status line. Repainted IN PLACE so a scan landing mid-sentence
+      // never takes the caret out of the brief.
+      function _inStPlaceholder() {
+        return _inStPiece ? 'The occasion, the weather, how you want to feel in it…' : 'The piece, the occasion, how you like to feel in it...';
+      }
+      function _inStHint() {
+        if (!_inStPiece) return 'A photo makes it sharper — but a few words is plenty.';
+        var short = _waEsc(_dlShort(_inStPiece.label || 'piece'));
+        if (_inStPiece._src === 'wishlist') return 'Robes knows the ' + short + ' from your wishlist. A few words is plenty.';
+        return 'Robes already knows the ' + short + ' and how you have worn it. A few words is plenty.';
+      }
+      function _inStDoorsHtml() {
+        var wa = _waItems.length ? '<button type="button" class="rb-inst-door" onclick="window.__inStPickFrom(\'wardrobe\')">From your wardrobe</button>' : '';
+        var wl = _wlItems.length ? '<button type="button" class="rb-inst-door" onclick="window.__inStPickFrom(\'wishlist\')">From your wishlist</button>' : '';
+        if (!wa && !wl) return '';
+        return '<div class="rb-inst-doors">' + wa + wl + '</div>';
+      }
+      function _inStScanHtml() {
+        var sc = _inStScan;
+        if (!sc || !_inStPhoto) return '';
+        if (sc.status === 'filing') return '<div class="rb-inst-scan filing">Filing it to your wardrobe…</div>';
+        if (sc.status === 'filed') return '<div class="rb-inst-scan filed">✓ Filed to your wardrobe</div>';
+        if (sc.status === 'none') return '<div class="rb-inst-scan">Robes couldn’t see a piece to file — the looks still run.</div>';
+        if (sc.status === 'failed') return '<div class="rb-inst-scan">Couldn’t file it to your wardrobe just now — the looks still run.</div>';
+        return '';
+      }
+      function _inStLeftHtml() {
+        return (_inStPiece ? _inStPieceHtml() :
+          '<div onclick="window.__inStPick()" role="button" style="position:relative;overflow:hidden;border:1px dashed #D8CFC0;border-radius:8px;background:#F7F4EF;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;min-height:172px;cursor:pointer;box-sizing:border-box">' + _inStTileHtml() + '</div>') +
+          _inStScanHtml() + (_inStPiece ? '' : _inStDoorsHtml());
+      }
+      function _inStLeftPaint() {
+        if (!_inStM || _inStStep !== 1) return;
+        var left = document.getElementById('rb-inst-left');
+        if (left) left.innerHTML = _inStLeftHtml();
+        var ta = document.getElementById('rb-inst-ta');
+        if (ta) ta.placeholder = _inStPlaceholder();
+        var hint = document.getElementById('rb-inst-hint');
+        if (hint) hint.innerHTML = _inStHint();
+      }
+      // A NEW photo is scanned into the wardrobe the way the add flow
+      // files a piece — analyse + upload in parallel, one analyse retry,
+      // then the row (the taxonomy columns stripped on a pre-migration-15
+      // project). The filed row ATTACHES as the key piece, so the brief
+      // leads with its name and the result titles itself after it. A
+      // face or a room (noItemDetected) files nothing and says so; a
+      // failure files nothing and the looks still run on the photo.
+      function _inStScanStart(dataUrl) {
+        var m = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/);
+        if (!m) { _inStScan = null; return; }
+        var seq = ++_inStScanSeq;
+        _inStScan = { seq: seq, status: 'filing' };
+        var live = function() { return _inStScan && _inStScan.seq === seq; };
+        var set = function(status) { if (live()) { _inStScan.status = status; _inStLeftPaint(); } };
+        (async function() {
+          try {
+            var analyse = function() {
+              return fetch('/api/wardrobe/analyse', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: m[2], mimeType: m[1], userId: _waUid() || undefined }),
+              }).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
+            };
+            var pair = await Promise.all([
+              analyse(),
+              fetch('/api/wardrobe/upload', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: m[2], mimeType: m[1] }),
+              }).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; }),
+            ]);
+            var tag = pair[0], up = pair[1];
+            if (!tag || tag.analysisFailed || (!tag.noItemDetected && !tag.label)) {
+              await new Promise(function(r) { setTimeout(r, 1500); });
+              tag = (await analyse()) || tag;
+            }
+            if (tag && tag.noItemDetected) { set('none'); return; }
+            if (!tag || !tag.label || !_waUid()) { set('failed'); return; }
+            var row = {
+              user_id: _waUid(),
+              label: tag.label,
+              category: tag.category || 'Other',
+              category_l2: tag.category_l2 || null,
+              category_l3: tag.category_l3 || null,
+              color: tag.color || null,
+              brand: tag.brand || null,
+              notes: tag.notes || null,
+              image_url: (up && up.url) || null,
+              item_dna: tag.item_dna || undefined,
+            };
+            if (!_waTaxCols) { delete row.category_l2; delete row.category_l3; }
+            var saved;
+            try {
+              saved = await _waFetch('POST', 'wardrobe_items', row);
+            } catch (err) {
+              if (!/PGRST204|column/i.test(String(err && err.message || err))) throw err;
+              _waTaxCols = false;
+              delete row.category_l2;
+              delete row.category_l3;
+              saved = await _waFetch('POST', 'wardrobe_items', row);
+            }
+            var it = Array.isArray(saved) ? saved[0] : saved;
+            if (!it || it.id == null) it = Object.assign({ id: null }, row);
+            it.times_worn = it.times_worn || 0;
+            _rbTrack('wardrobe_added', { source: 'inspiration_modal', category: it.category || '' });
+            try { await _waLoad(); } catch (_) {}
+            if (live()) {
+              _inStScan.status = 'filed';
+              _inStPiece = it;
+              _inStLeftPaint();
+            } else {
+              _waShowToast(it.label + ' filed to your wardrobe');
+            }
+          } catch (e) {
+            console.warn('[robes] inspiration scan failed:', e);
+            set('failed');
+          }
+        })();
+      }
+      // ── The picker behind the two doors: her wardrobe or her wishlist,
+      // one grid, a search line; a pick attaches the piece (its photo
+      // fetched into the brief) and no scan runs — it is filed already.
+      var _inStPickQ = '';
+      window.__inStPickFrom = function(kind) {
+        _inStPickQ = '';
+        _inStPickPaint(kind === 'wishlist' ? 'wishlist' : 'wardrobe');
+      };
+      window.__inStPickClose = function() { document.getElementById('rb-inst-pick')?.remove(); };
+      window.__inStPickQ = function(kind, v) { _inStPickQ = String(v || ''); _inStPickGrid(kind); };
+      function _inStPickItems(kind) {
+        var q = _inStPickQ.trim().toLowerCase();
+        var src = kind === 'wishlist' ? _wlItems : _waItems;
+        return src.filter(function(x) {
+          if (!q) return true;
+          return [x.label, x.brand, x.category, x.color].filter(Boolean).join(' ').toLowerCase().indexOf(q) > -1;
+        });
+      }
+      function _inStPickGrid(kind) {
+        var grid = document.getElementById('rb-inst-pick-grid');
+        if (!grid) return;
+        var serif = "'Cormorant',Georgia,serif";
+        var items = _inStPickItems(kind).slice(0, 80);
+        if (!items.length) {
+          grid.innerHTML = '<div style="grid-column:1/-1;padding:28px 0;text-align:center;font-family:' + serif + ';font-style:italic;font-size:15px;color:#A89880">' +
+            (_inStPickQ.trim() ? 'Nothing called that.' : (kind === 'wishlist' ? 'Nothing on your wishlist yet.' : 'Nothing in your wardrobe yet.')) + '</div>';
+          return;
+        }
+        grid.innerHTML = items.map(function(wi) {
+          return '<button type="button" onclick="window.__inStPickApply(\'' + kind + '\',\'' + _waEsc(String(wi.id)) + '\')" style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:8px;padding:0;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit">' +
+            '<div style="aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center;overflow:hidden">' + (_pdHttp(wi.image_url)
+              ? '<img src="' + _waEsc(wi.image_url) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="" loading="lazy">'
+              : '<span style="font-family:' + serif + ';font-size:22px;color:#C8B8A2">' + _waEsc((wi.label || '?').charAt(0).toUpperCase()) + '</span>') + '</div>' +
+            '<div style="padding:7px 9px 9px;font-size:11px;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _waEsc(wi.label || '') + '</div></button>';
+        }).join('');
+      }
+      function _inStPickPaint(kind) {
+        document.getElementById('rb-inst-pick')?.remove();
+        var serif = "'Cormorant',Georgia,serif";
+        var m = document.createElement('div');
+        m.id = 'rb-inst-pick';
+        m.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(32,32,33,0.42);display:flex;align-items:center;justify-content:center;padding:24px';
+        m.onclick = function(e) { if (e.target === m) m.remove(); };
+        var seg = function(k, label) {
+          return '<button type="button" class="rb-inst-seg' + (k === kind ? ' on' : '') + '" onclick="window.__inStPickFrom(\'' + k + '\')">' + label + '</button>';
+        };
+        m.innerHTML = '<div style="background:#FAF8F5;border-radius:14px;width:100%;max-width:560px;max-height:82vh;display:flex;flex-direction:column;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 24px 20px">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">' +
+            '<div><div style="font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880">Your key piece</div>' +
+              '<div style="font-family:' + serif + ';font-size:26px;font-weight:300;color:#202021;line-height:1.15;margin-top:8px">Which piece are we styling?</div></div>' +
+            '<button type="button" onclick="window.__inStPickClose()" style="border:none;background:none;font-size:18px;color:#A89880;cursor:pointer;line-height:1;padding:2px 4px;font-family:inherit">×</button></div>' +
+          '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:16px 0 14px">' +
+            '<div class="rb-inst-segs">' + seg('wardrobe', 'Wardrobe') + seg('wishlist', 'Wishlist') + '</div>' +
+            '<input type="search" id="rb-inst-pick-q" placeholder="Search by name, brand or colour" value="' + _waEsc(_inStPickQ) + '" oninput="window.__inStPickQ(\'' + kind + '\',this.value)" style="flex:1;min-width:160px;border:0;border-bottom:1px solid #D8CFC0;border-radius:0;background:transparent;padding:6px 0;font-family:inherit;font-size:13px;color:#202021;outline:none;box-shadow:none"></div>' +
+          '<div id="rb-inst-pick-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;align-content:start"></div></div>';
+        document.body.appendChild(m);
+        _inStPickGrid(kind);
+      }
+      window.__inStPickApply = function(kind, id) {
+        var src = kind === 'wishlist' ? _wlItems : _waItems;
+        var it = src.find(function(x) { return String(x.id) === String(id); });
+        window.__inStPickClose();
+        if (!it) return;
+        _inStScanSeq++;            // a scan in flight belongs to a photo she just replaced
+        _inStScan = null;
+        _inStPhoto = null;
+        _inStPiece = Object.assign({}, it, { _src: kind });
+        _inStLeftPaint();
+        _rbTrack('inspiration_piece_pick', { source: kind, item: String(it.id) });
+        if (_pdHttp(it.image_url)) {
+          var pid = it.id;
+          _rbUrlToDataUrl(it.image_url).then(function(dataUrl) {
+            if (_inStPiece && String(_inStPiece.id) === String(pid)) { _inStPhoto = dataUrl; }
+          }).catch(function() {});
+        }
       };
       window.__inStGo = async function() {
         if (!_inStM || _inStStep !== 1) return;
         var prompt = (_inStText || '').trim();
         if (_inStPiece) {
           // The prompt arrives written from what Robes knows — her words
-          // refine it, they never have to start it.
-          var worn = Number(_inStPiece.times_worn) || 0;
-          var lead = 'Style my ' + String(_inStPiece.label || 'piece').trim() + ' three ways' + (worn ? ' (worn ' + worn + ' time' + (worn === 1 ? '' : 's') + ')' : '');
+          // refine it, they never have to start it. A wishlist piece is
+          // not hers yet: no wear count, "the" rather than "my".
+          var wish = _inStPiece._src === 'wishlist';
+          var worn = wish ? 0 : (Number(_inStPiece.times_worn) || 0);
+          var lead = 'Style ' + (wish ? 'the ' : 'my ') + String(_inStPiece.label || 'piece').trim() + ' three ways' + (worn ? ' (worn ' + worn + ' time' + (worn === 1 ? '' : 's') + ')' : '');
           prompt = prompt ? lead + '. ' + prompt : lead;
         }
         if (!prompt && !_inStPhoto) { _waShowToast('Add a photo or a few words first'); return; }
         _inStStep = 2;
         _inStPaint();
-        _rbTrack('inspiration_style_modal', { photo: String(!!_inStPhoto), piece: String(!!_inStPiece) });
+        _rbTrack('inspiration_style_modal', { photo: String(!!_inStPhoto), piece: String(!!_inStPiece), source: (_inStPiece && _inStPiece._src) || (_inStPhoto ? 'upload' : 'words') });
         var genId = _rbGenId();
         _inStAbort = new AbortController();
         var abortTimer = setTimeout(function() { if (_inStAbort) _inStAbort.abort(); }, 90000);
@@ -6000,6 +6206,15 @@
             '@keyframes rbInstScan{0%{top:6%;opacity:0}15%{opacity:1}85%{opacity:1}100%{top:94%;opacity:0}}' +
             '@keyframes rbInstBreathe{0%,100%{opacity:.55}50%{opacity:1}}' +
             '.rb-inst-cta:hover{background:#202021 !important;color:#FAF8F5 !important}' +
+            '.rb-inst-doors{display:flex;flex-direction:column;align-items:center;gap:7px;margin-top:12px}' +
+            '.rb-inst-door{background:none;border:none;padding:0 0 2px;font-family:inherit;font-size:11.5px;color:#5C574F;border-bottom:1px solid #D8CFC0;cursor:pointer}' +
+            '.rb-inst-door:hover{color:#202021;border-bottom-color:#202021}' +
+            '.rb-inst-scan{margin-top:10px;font-size:11px;line-height:1.5;color:#A89880;text-align:center}' +
+            '.rb-inst-scan.filing{animation:rbInstBreathe 2.4s ease-in-out infinite}' +
+            '.rb-inst-scan.filed{color:#7E7C5A}' +
+            '.rb-inst-segs{display:inline-flex;background:#EDE7DE;border-radius:100px;padding:3px}' +
+            '.rb-inst-seg{border:none;background:transparent;border-radius:100px;padding:6px 14px;font-family:inherit;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#5C574F;cursor:pointer}' +
+            '.rb-inst-seg.on{background:#fff;color:#202021;box-shadow:0 1px 2px rgba(32,32,33,0.08)}' +
             '@media(max-width:640px){#rb-inst-grid{grid-template-columns:1fr !important}#rb-inst-wrap{padding:16px !important}#rb-inst-wrap>div{padding:26px 22px 30px !important}}';
           document.head.appendChild(st);
         }
@@ -6021,7 +6236,9 @@
       window.__inStPieceClear = function() {
         _inStPiece = null;
         _inStPhoto = null;
-        if (_inStM && _inStStep === 1) _inStPaint();
+        _inStScanSeq++;
+        _inStScan = null;
+        _inStLeftPaint();
       };
       function _inStPieceHtml() {
         var p = _inStPiece;
@@ -6031,7 +6248,7 @@
           '<div style="width:78px;height:96px;flex:none;border-radius:3px;background:#EDE7DE;border:1px solid #E7E0CF;overflow:hidden">' +
             (img ? '<img src="' + _waEsc(img) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' : '') + '</div>' +
           '<div style="flex:1;min-width:0">' +
-            '<div style="font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#7E7C5A">Your key piece</div>' +
+            '<div style="font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#7E7C5A">' + (p._src === 'wishlist' ? 'From your wishlist' : 'Your key piece') + '</div>' +
             '<div style="font-family:\'Cormorant\',Georgia,serif;font-weight:300;font-size:20px;line-height:1.15;color:#202021;margin-top:8px">' + _waEsc(p.label || 'A piece') + '</div>' +
             (meta ? '<div style="font-size:11px;color:#A89880;margin-top:6px">' + _waEsc(meta) + '</div>' : '') + '</div>' +
           '<button type="button" onclick="window.__inStPieceClear()" style="align-self:flex-start;background:none;border:none;border-bottom:1px solid #D8CFC0;padding:0 0 2px;font-size:11px;color:#5C574F;cursor:pointer;font-family:inherit">Change</button></div>';
@@ -6674,8 +6891,15 @@
             '.kp-look-ey{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint,#9C9891)}' +
             '.kp-look-title{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:26px;line-height:1.15;margin:8px 0 0;color:var(--ink,#202021);cursor:pointer}' +
             '.kp-look-line{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-weight:300;font-size:14px;line-height:1.5;color:var(--ink-soft,#55524E);margin:-4px 0 0}' +
-            '.kp-look-acts{display:flex;align-items:center;gap:16px;flex-wrap:wrap}' +
-            '.kp-look-more{background:none;border:0;padding:0 0 2px;font-family:inherit;font-size:12px;font-weight:300;color:var(--ink-faint,#9C9891);border-bottom:1px solid var(--rule-mid,rgba(32,32,33,0.14));cursor:pointer}' +
+            // Build this look (design Look_Feedback 2b, 2026-09-17): a
+            // full-width hairline pill — 9.5px/.2em uppercase ink label,
+            // the arrow ink-faint at the right edge, the border going ink
+            // on hover; More detail centred beneath it as a quiet link.
+            '.kp-look-acts{display:flex;flex-direction:column;align-items:stretch;gap:10px}' +
+            '.kp-build-btn{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;box-sizing:border-box;background:transparent;border:1px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:100px;padding:13px 18px;cursor:pointer;font-family:inherit;font-size:9.5px;font-weight:500;line-height:1;letter-spacing:.2em;text-transform:uppercase;color:var(--ink,#202021);transition:border-color .18s}' +
+            '.kp-build-btn:hover{border-color:var(--ink,#202021)}' +
+            '.kp-build-btn .arr{flex:none;color:var(--ink-faint,#9C9891)}' +
+            '.kp-look-more{align-self:center;background:none;border:0;padding:0 0 2px;font-family:inherit;font-size:11px;font-weight:300;color:var(--ink-faint,#9C9891);border-bottom:1px solid var(--rule-mid,rgba(32,32,33,0.14));cursor:pointer}' +
             '.kp-look-more:hover{color:var(--ink,#202021)}' +
             '.kp-look-detail{display:flex;flex-direction:column;gap:12px;padding-top:2px}' +
             '.kp-look-detail[hidden]{display:none}' +
@@ -6697,6 +6921,7 @@
             // the one filled button on the page (inline styles keep the
             // outline register, so the fill needs !important to win).
             '#kp-result-page.kp-guide-on .kp-build-first{background:#202021 !important;color:#fff !important;border-color:#202021 !important}' +
+            '#kp-result-page.kp-guide-on .kp-build-first .arr{color:#fff}' +
             '@media(max-width:700px){#kp-guide-band{padding:14px 20px !important}}';
           document.head.appendChild(kis);
         }
@@ -6718,6 +6943,24 @@
         // Share (share belongs on a look once she has built one).
         _rbRetReg('kp', { back: function() { window.__rbNavGo('inspiration'); } });
         const kpBand = _rbRetHtml({ key: 'kp', label: kpDaily ? _rbOriginLabel() : 'Inspiration', pos: null });
+        // Feedback is PER LOOK (design Look_Feedback 2b, 2026-09-17): each
+        // of the three ways carries its own hairline line, never one verdict
+        // across the three. Armed before the template paints so a reopen
+        // of the same data keeps a pick or a sent line; the cloud row's
+        // note leads with the way's title so a bare rating still says
+        // which look it was about.
+        ways.forEach((w, i) => {
+          _rbFeedbackArm('kp' + i, () => {
+            const st = _rbFbState['kp' + i] || {};
+            const note = String(st.text || '').trim();
+            const title = String(w.title || 'Look ' + (i + 1)).trim();
+            return {
+              prompt: promptText || '',
+              looksOutput: JSON.stringify({ surface: kpDaily ? 'daily-look' : 'key-piece', intent: kpIntent, context: kpCtx, way: i, title: w.title || '', ts: new Date().toISOString() }),
+              note: note ? title + ' — ' + note : title,
+            };
+          }, { key: data, track: kpDaily ? 'daily' : 'key-piece', itemId: () => _kpActiveSaveId });
+        });
         const kpLead = kpHeadline || (fallback ? 'Your piece'
           : (kpIsPiece && kpPiece ? 'Your ' + kpPiece : (kpPiece || kpAsk || 'Your piece')));
         const kpTitleBlock = _rbTitleHtml({
@@ -6794,7 +7037,7 @@
                   </div>
                   <p class="kp-look-line">See it piece by piece — what's yours, what would finish it.</p>
                   <div class="kp-look-acts">
-                    <button id="kp-build-btn-${i}" class="kp-build-btn${i === 0 ? ' kp-build-first' : ''}${_kpBuiltLookId(i) != null ? ' kp-built' : ''}" onclick="window.__kpBuildLook(${i})" style="flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border:1px solid rgba(32,32,33,0.18);border-radius:100px;background:#fff;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">${_kpBuiltLookId(i) != null ? 'Open the look' : 'Build this look'}<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+                    <button id="kp-build-btn-${i}" class="kp-build-btn${i === 0 ? ' kp-build-first' : ''}${_kpBuiltLookId(i) != null ? ' kp-built' : ''}" onclick="window.__kpBuildLook(${i})">${_kpBuiltLookId(i) != null ? 'Open the look' : 'Build this look'}<svg class="arr" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
                     <button type="button" class="kp-look-more" id="kp-look-more-${i}" aria-expanded="false" onclick="window.__kpMore(${i})">More detail</button>
                   </div>
                   <div class="kp-look-detail" id="kp-look-detail-${i}" hidden>
@@ -6802,27 +7045,12 @@
                     <div><div class="lab">Key details</div><p>${_waEsc(w.details || '')}</p></div>
                     <div><div class="lab">Accessories</div><p>${_waEsc(w.accessories || '')}</p></div>
                   </div>
+                  ${_rbFeedbackBlock('kp' + i, { title: 'How was this one?', stack: true })}
                 </div>`;
               }).join('')}
             </div>
             <div id="kp-build" class="kp-build" hidden></div>
             <div id="kp-model-band"></div>
-
-            <div style="margin-top:48px;padding:28px 24px;background:rgba(32,32,33,0.03);border-radius:var(--rad);text-align:center">
-              <div style="font-family:${serif};font-size:22px;font-weight:300;color:#202021;margin-bottom:6px">How were these looks?</div>
-              <div id="kp-fb-prompt">
-                <div style="font-size:13px;color:var(--ink-faint);margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
-                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-                  <button id="kp-fb-up" onclick="window.__kpFbRate(1)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">👍 Loved them</button>
-                  <button id="kp-fb-dn" onclick="window.__kpFbRate(0)" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border:1px solid rgba(32,32,33,0.15);border-radius:40px;background:#fff;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;color:#202021;font-family:${sans}">Not quite</button>
-                </div>
-              </div>
-              <div id="kp-fb-expand" hidden style="margin-top:16px">
-                <textarea id="kp-fb-text" placeholder="What would have made them better?" rows="3" style="width:100%;border:1px solid rgba(32,32,33,0.15);border-radius:var(--rad-sm);padding:12px 14px;font-size:13px;color:#202021;resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
-                <button onclick="window.__kpFbSubmit()" style="margin-top:10px;padding:10px 28px;background:#202021;color:#fff;border:none;border-radius:40px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:${sans}">Send feedback</button>
-              </div>
-              <div id="kp-fb-done" hidden style="font-size:13px;color:#7E7C5A;margin-top:12px">Thank you — noted.</div>
-            </div>
           </div>`; } catch(e) {
           console.error('[Robes] kpResultPage render error:', e);
           kpResultPage.innerHTML = `<div style="padding:80px 24px;text-align:center;font-family:${sans};color:#6E6A64">Something went wrong rendering your looks — please try again.</div>`;
@@ -6892,29 +7120,6 @@
           });
         };
 
-        let kpFbRating = null;
-        window.__kpFbRate = function(val) {
-          kpFbRating = val;
-          document.getElementById('kp-fb-up').style.background = val === 1 ? '#F0EDE8' : '#fff';
-          document.getElementById('kp-fb-dn').style.background = val === 0 ? '#F0EDE8' : '#fff';
-          document.getElementById('kp-fb-expand').hidden = false;
-          setTimeout(() => { const t = document.getElementById('kp-fb-text'); if (t) t.focus(); }, 60);
-        };
-        window.__kpFbSubmit = function() {
-          const comment = (document.getElementById('kp-fb-text').value || '').trim();
-          // PRD §4: feedback maps to user, prompt, timestamp + active payload vars
-          fetch('/api/feedback', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
-            email: (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '',
-            rating: kpFbRating,
-            comment,
-            prompt: promptText || '',
-            looksOutput: JSON.stringify({ surface: kpDaily ? 'daily-look' : 'key-piece', intent: kpIntent, context: kpCtx, titles: ways.map(w => w.title), ts: new Date().toISOString() }),
-          }) }).catch(()=>{});
-          _rbFbCloud(kpDaily ? 'daily' : 'key-piece', _kpActiveSaveId, kpFbRating, comment);
-          document.getElementById('kp-fb-prompt').hidden = true;
-          document.getElementById('kp-fb-expand').hidden = true;
-          document.getElementById('kp-fb-done').hidden = false;
-        };
       };
 
       // ── "Build this look" — kp way → Look entity (Annie, 2026-08-17) ────
@@ -12922,6 +13127,19 @@ button.rb-lk-live{cursor:pointer}
             (canSave ? '' : ' disabled') + '>' + (_lkDay ? 'Save to ' + _waEsc(_lkDay.date ? _lkDayWeekday(_lkDay.date) : 'the trip') : 'Save this look') + '</button>' +
           foot +
           '</div>';
+        // A look Robes generated carries the feedback line under its foot
+        // (design Look_Feedback 2a, 2026-09-17) — a prompted /api/daily
+        // draft, a key piece's way built in situ, a Robes build. Keyed on
+        // the build, so the composer's every-flick repaint keeps her pick
+        // and her note; a hand-built look asks nothing.
+        if (_lkBuilt && !_lkBuilding) {
+          const kind = (_lkDraftSrc && _lkDraftSrc.kind) || 'robes';
+          _rbFeedbackArm('lk', () => ({
+            prompt: String(_lkNewTitleDraft || '').trim(),
+            looksOutput: JSON.stringify({ surface: 'composer', kind, headline: _lkNewTitleDraft || '', owned: _lkUsed().length, proposed: _lkShop.length, day: !!_lkDay, ts: new Date().toISOString() }),
+          }), { key: _lkBuildSeq, track: kind === 'kp' ? 'key-piece' : kind === 'daily' ? 'daily' : 'look', itemId: () => (kind === 'kp' ? _kpActiveSaveId : null) });
+          rackHtml += _rbFeedbackBlock('lk', { title: 'How was this look?' });
+        }
 
         // The zero-piece stand-in stretches to the rack's height; the model
         // canvas keeps its own 4:5 frame.
@@ -15220,62 +15438,136 @@ button.rb-lk-live{cursor:pointer}
         document.body.appendChild(modal);
       };
 
-      // ── Shared feedback block (PRD §4 — every output) — one markup +
-      // one handler pair for the daily / weekly / travel consoles. Render
-      // _rbFeedbackBlock(prefix, copy), then arm _rbFeedbackArm(prefix, fn)
-      // where fn() returns { prompt, looksOutput } at submit time.
-      const _rbFbState = {};
-      function _rbFeedbackArm(prefix, payloadFn) {
-        _rbFbState[prefix] = { rating: null, payload: payloadFn };
+      // ── Shared feedback block (PRD §4 — every output; design
+      // Look_Feedback, 2026-09-17: "the hairline line, built out"). ONE
+      // markup + one handler set for every LLM-generated look: the
+      // composer's foot (a prompted or Robes-built draft), each of a key
+      // piece's three ways (per look, never across the three), the day
+      // console and the trip page. Send is a hairline pill, never ink —
+      // Save this look stays the one ink fill on the screen. Four states:
+      // resting · Loved it (warm fill, a note optional) · Not quite (the
+      // note is the point) · sent (the row collapses to one italic line).
+      // The block RENDERS FROM _rbFbState[prefix], so a surface that
+      // repaints on every flick (the composer, the day console) keeps the
+      // pick, the typed note and the sent line; a pick repaints the block
+      // alone, in place. _rbFeedbackArm(prefix, fn, opts) resets the state
+      // only when opts.key changes — a new look, not a re-render.
+      var _rbFbState = {};
+      var _RB_FB_CSS =
+        '.rb-fb{border-top:1px solid var(--rule,rgba(32,32,33,.1));padding-top:16px;margin-top:18px;display:flex;flex-direction:column;gap:14px;text-align:left}' +
+        '.rb-fb-head{display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap}' +
+        '.rb-fb-q{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}' +
+        '.rb-fb-title{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:300;font-size:19px;line-height:1.3;margin:0;color:var(--ink,#202021)}' +
+        '.rb-fb-sub{font-size:11px;color:var(--ink-faint,#9C9891)}' +
+        '.rb-fb-pills{display:flex;align-items:center;gap:8px;flex-wrap:wrap}' +
+        '.rb-fb-pill{border-radius:100px;padding:10px 18px;font-family:inherit;font-size:9.5px;font-weight:500;line-height:1;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;background:transparent;border:1px solid var(--rule-mid,rgba(32,32,33,.14));color:var(--ink,#202021);transition:all .18s;white-space:nowrap}' +
+        '.rb-fb-pill:hover{border-color:var(--ink,#202021)}' +
+        '.rb-fb-pill.on{background:#F3EFE6;border-color:#C9BCA6}' +
+        '.rb-fb-pill.off{color:var(--ink-soft,#55524E)}' +
+        '.rb-fb-note{display:flex;align-items:center;gap:14px;flex-wrap:wrap}' +
+        '.rb-fb-in{flex:1;min-width:220px;border:0;border-bottom:1px solid var(--rule-mid,rgba(32,32,33,.14));border-radius:0;background:transparent;padding:8px 0;font-family:inherit;font-size:13px;color:var(--ink,#202021);outline:none;box-shadow:none}' +
+        '.rb-fb-in:focus{border-bottom-color:var(--ink,#202021)}' +
+        '.rb-fb-in::placeholder{color:var(--ink-faint,#9C9891)}' +
+        '.rb-fb-send{background:transparent;color:var(--ink,#202021);border:1px solid var(--rule-mid,rgba(32,32,33,.14));border-radius:100px;padding:10px 20px;font-family:inherit;font-size:9.5px;font-weight:500;line-height:1;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;transition:border-color .18s}' +
+        '.rb-fb-send:hover{border-color:var(--ink,#202021)}' +
+        '.rb-fb-sent{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-weight:300;font-size:15px;line-height:1.4;color:var(--ink-soft,#55524E);margin:0}' +
+        // 2b — stacked inside a key piece card (one column, the pills under
+        // the question, the note under the pills).
+        '.rb-fb.stack{gap:10px;padding-top:12px;margin-top:8px}' +
+        '.rb-fb.stack .rb-fb-head{flex-direction:column;align-items:flex-start;gap:10px}' +
+        '.rb-fb.stack .rb-fb-title{font-size:15px;color:var(--ink-soft,#55524E)}' +
+        '.rb-fb.stack .rb-fb-pills{gap:6px}' +
+        '.rb-fb.stack .rb-fb-note{flex-direction:column;align-items:flex-start;gap:10px}' +
+        '.rb-fb.stack .rb-fb-in{width:100%;min-width:0;padding:6px 0;font-size:12px}' +
+        '.rb-fb.stack .rb-fb-send{padding:9px 18px;font-size:9px}' +
+        '.rb-fb.stack .rb-fb-sent{font-size:13px}';
+      function _rbFbCssEnsure() {
+        if (document.getElementById('rb-fb-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-fb-style';
+        st.textContent = _RB_FB_CSS;
+        document.head.appendChild(st);
       }
+      // opts: { key (identity of the look — same key keeps the state across
+      // repaints), track (feedback.track), itemId (value or fn → the
+      // lookbook row the rating is about) }
+      function _rbFeedbackArm(prefix, payloadFn, opts) {
+        opts = opts || {};
+        const prev = _rbFbState[prefix];
+        const same = !!prev && opts.key !== undefined && prev.key === opts.key;
+        _rbFbState[prefix] = {
+          key: opts.key, payload: payloadFn, track: opts.track || null, itemId: opts.itemId != null ? opts.itemId : null,
+          copy: prev ? prev.copy : null,
+          rating: same ? prev.rating : null, text: same ? prev.text : '', sent: same ? prev.sent : false,
+        };
+      }
+      // copy: { title, sub ('' = none), up, down, stack }
       function _rbFeedbackBlock(prefix, copy) {
-        const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif";
-        return `
-          <div style="margin-top:42px;padding:28px 24px;background:var(--cream-100);border:0.5px solid var(--rule);border-radius:var(--rad-lg);text-align:center">
-            <div style="font-family:var(--font-serif);font-size:22px;font-weight:300;font-style:italic;color:var(--ink);margin-bottom:6px">${copy.title}</div>
-            <div id="${prefix}-fb-prompt">
-              <div style="font-size:13px;color:var(--ink-faint);margin-bottom:18px;font-style:italic">Tell us — your taste shapes what comes next.</div>
-              <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-                <button id="${prefix}-fb-up" onclick="window.__rbFbRate('${prefix}',1)" style="display:flex;align-items:center;gap:8px;padding:10px 20px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;font-size:12px;cursor:pointer;color:var(--ink-soft);font-family:${sans}">${copy.up}</button>
-                <button id="${prefix}-fb-dn" onclick="window.__rbFbRate('${prefix}',0)" style="display:flex;align-items:center;gap:8px;padding:10px 20px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;font-size:12px;cursor:pointer;color:var(--ink-soft);font-family:${sans}">${copy.down}</button>
-              </div>
-            </div>
-            <div id="${prefix}-fb-expand" hidden style="margin-top:16px">
-              <textarea id="${prefix}-fb-text" placeholder="What would have made it better?" rows="3" style="width:100%;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);padding:12px 14px;font-size:13px;color:var(--ink);resize:none;outline:none;box-sizing:border-box;font-family:${sans}"></textarea>
-              <button onclick="window.__rbFbSubmit('${prefix}')" style="margin-top:10px;padding:11px 26px;background:var(--ink);color:#fff;border:none;border-radius:100px;font-size:12px;cursor:pointer;font-family:${sans}">Send feedback</button>
-            </div>
-            <div id="${prefix}-fb-done" hidden style="font-size:13px;color:var(--sage);margin-top:12px">Thank you — noted.</div>
-          </div>`;
+        copy = copy || {};
+        _rbFbCssEnsure();
+        if (!_rbFbState[prefix]) _rbFbState[prefix] = { rating: null, text: '', sent: false };
+        const st = _rbFbState[prefix];
+        st.copy = copy;
+        const stack = !!copy.stack;
+        const cls = 'rb-fb' + (stack ? ' stack' : '');
+        if (st.sent) return '<div class="' + cls + '" id="' + prefix + '-fb"><p class="rb-fb-sent" id="' + prefix + '-fb-done">Noted — filed for next time.</p></div>';
+        const picked = st.rating === 0 || st.rating === 1;
+        const pill = (v, label) => '<button type="button" class="rb-fb-pill' + (st.rating === v ? ' on' : (picked ? ' off' : '')) + '" id="' + prefix + '-fb-' + (v ? 'up' : 'dn') + '" onclick="window.__rbFbRate(\'' + prefix + '\',' + v + ')">' + (st.rating === v ? '✓ ' : '') + label + '</button>';
+        const sub = copy.sub !== undefined ? copy.sub : (stack ? '' : 'Your taste shapes what comes next');
+        const ph = st.rating === 0 ? 'What would have made it better?' : 'Anything you want more of?';
+        return '<div class="' + cls + '" id="' + prefix + '-fb">' +
+          '<div class="rb-fb-head">' +
+            '<div class="rb-fb-q"><p class="rb-fb-title">' + (copy.title || 'How was this look?') + '</p>' + (sub ? '<span class="rb-fb-sub">' + sub + '</span>' : '') + '</div>' +
+            '<div class="rb-fb-pills" id="' + prefix + '-fb-prompt">' + pill(1, copy.up || 'Loved it') + pill(0, copy.down || 'Not quite') + '</div>' +
+          '</div>' +
+          (picked ? '<div class="rb-fb-note" id="' + prefix + '-fb-expand">' +
+            '<input type="text" id="' + prefix + '-fb-text" class="rb-fb-in" placeholder="' + ph + '" value="' + _waEsc(st.text || '') + '" oninput="window.__rbFbNote(\'' + prefix + '\',this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();window.__rbFbSubmit(\'' + prefix + '\')}">' +
+            '<button type="button" class="rb-fb-send" onclick="window.__rbFbSubmit(\'' + prefix + '\')">Send</button></div>' : '') +
+          '</div>';
+      }
+      function _rbFbRepaint(prefix, focus) {
+        const el = document.getElementById(prefix + '-fb');
+        if (!el) return;
+        const st = _rbFbState[prefix] || {};
+        el.outerHTML = _rbFeedbackBlock(prefix, st.copy || {});
+        if (focus) setTimeout(() => {
+          const t = document.getElementById(prefix + '-fb-text');
+          if (!t) return;
+          t.focus();
+          try { t.setSelectionRange(t.value.length, t.value.length); } catch (_) {}
+        }, 40);
       }
       window.__rbFbRate = function(prefix, val) {
+        if (!_rbFbState[prefix]) _rbFbState[prefix] = { rating: null, text: '', sent: false };
         const st = _rbFbState[prefix];
-        if (st) st.rating = val;
-        const up = document.getElementById(prefix + '-fb-up'), dn = document.getElementById(prefix + '-fb-dn');
-        if (up) up.style.background = val === 1 ? '#F0EDE8' : '#fff';
-        if (dn) dn.style.background = val === 0 ? '#F0EDE8' : '#fff';
-        const ex = document.getElementById(prefix + '-fb-expand');
-        if (ex) ex.hidden = false;
-        setTimeout(() => { const t = document.getElementById(prefix + '-fb-text'); if (t) t.focus(); }, 60);
+        st.rating = val;
+        st.sent = false;
+        _rbFbRepaint(prefix, true);
+      };
+      window.__rbFbNote = function(prefix, v) {
+        const st = _rbFbState[prefix];
+        if (st) st.text = String(v || '');
       };
       window.__rbFbSubmit = function(prefix) {
         const st = _rbFbState[prefix] || {};
-        const comment = ((document.getElementById(prefix + '-fb-text') || {}).value || '').trim();
+        if (st.rating !== 0 && st.rating !== 1) return;
+        const comment = String(st.text || '').trim();
         const p = (typeof st.payload === 'function' ? st.payload() : {}) || {};
         fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
           email: (window.__robes_session && window.__robes_session.user && window.__robes_session.user.email) || '',
-          rating: st.rating != null ? st.rating : null,
+          rating: st.rating,
           comment,
           prompt: p.prompt || '',
           looksOutput: p.looksOutput || '',
         }) }).catch(() => {});
-        _rbFbCloud(
-          prefix === 'dl' ? 'daily' : 'travel',
-          prefix === 'dl' ? _dlActiveSaveId : _tvActiveSaveId,
-          st.rating, comment);
-        const pr = document.getElementById(prefix + '-fb-prompt'), ex = document.getElementById(prefix + '-fb-expand'), dn = document.getElementById(prefix + '-fb-done');
-        if (pr) pr.hidden = true;
-        if (ex) ex.hidden = true;
-        if (dn) dn.hidden = false;
+        const itemId = typeof st.itemId === 'function' ? st.itemId() : st.itemId;
+        const track = st.track || (prefix === 'dl' ? 'daily' : prefix === 'tv' ? 'travel' : 'look');
+        // p.note lets a surface shape the cloud row's note (the key piece
+        // prefixes the way's title so a rating without words still says
+        // which of the three it was about).
+        _rbFbCloud(track, itemId != null ? itemId : null, st.rating, typeof p.note === 'string' ? p.note : comment);
+        st.sent = true;
+        _rbFbRepaint(prefix);
       };
 
       // ── Shared surgical-fetch guard — one abort/timeout policy for the
@@ -16549,7 +16841,7 @@ button.rb-lk-live{cursor:pointer}
               <div>${view.rackHtml}</div>
             </div>
 
-            ${_rbFeedbackBlock('dl', { title: 'How is today’s look?', up: '👍 I’d wear it', down: 'Not quite' })}
+            ${_rbFeedbackBlock('dl', { title: 'How was this look?' })}
           </div>`; } catch (e) {
           console.error('[Robes] dlResultPage render error:', e);
           dlResultPage.innerHTML = `<div style="padding:80px 24px;text-align:center;font-family:${sans};color:#6E6A64">Something went wrong rendering today’s look — please try again.</div>`;
@@ -16591,7 +16883,7 @@ button.rb-lk-live{cursor:pointer}
         _rbFeedbackArm('dl', () => ({
           prompt: promptText || '',
           looksOutput: JSON.stringify({ surface: 'daily-look', origin: data.origin || '', occasion: data.occasion_label || '', headline: data.headline || '', owned, total, context: ctx, ts: new Date().toISOString() }),
-        }));
+        }), { key: data, track: 'daily', itemId: () => _dlActiveSaveId });
       };
 
       // ═══ THE DAY PAGE (Annie, 2026-09-09) ═══════════════════════════════
@@ -19492,7 +19784,7 @@ body>*:not(#tv-result-page){display:none !important}
               <div class="tvm-capbody" id="tv-capbody" style="display:${capOpen ? 'block' : 'none'}">${capBodyHtml}</div>
             </section>
 
-            <div>${_rbFeedbackBlock('tv', { title: 'How is this edit?', up: '👍 I’d pack it', down: 'Not quite' })}</div>
+            <div>${_rbFeedbackBlock('tv', { title: 'How was this edit?' })}</div>
           </div>
           <div id="tv-look-page" style="display:none">
             <div class="tvm-wrap tvl-wrap">
@@ -19535,7 +19827,7 @@ body>*:not(#tv-result-page){display:none !important}
         _rbFeedbackArm('tv', () => ({
           prompt: [data.destination, data.dateLine, data.brief].filter(Boolean).join(' · '),
           looksOutput: JSON.stringify({ surface: 'travel-edit', destination: data.destination || '', trip_label: data.trip_label || '', owned: data.capsule.filter(c => c.wardrobe_match).length, total, packed: data.capsule.filter(c => c.packed).length, looks: lookCount, pinned: data.looks.filter(l => (l.pins || []).length).length, ts: new Date().toISOString() }),
-        }));
+        }), { key: data, track: 'travel', itemId: () => _tvActiveSaveId });
       };
 
       // Every travel mutation persists through here — capsule, looks (with

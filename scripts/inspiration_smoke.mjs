@@ -1,5 +1,6 @@
 // Inspiration smoke — the "Style a key piece" modal journey: Inspiration "Style a key piece" modal → kp result →
-// "Build this look" → the composer IN SITU on the kp page → save → Filed; the model park/return; the dressed canvas.
+// "Build this look" → the composer IN SITU on the kp page → save → Filed; the model park/return; the dressed canvas;
+// per-look feedback (the hairline line) + the build pill; the modal's wardrobe / wishlist doors + the upload scan.
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 
@@ -375,7 +376,263 @@ const modelSide = await page.evaluate(() => ({
 check('Model shows her render of the look (the canvas frame the save kept), the frame steps aside',
   modelSide.render === 'https://img.test/render.jpg' && modelSide.frame === 0, JSON.stringify(modelSide));
 
+// 9 · Look feedback (design Look_Feedback, 2026-09-17): per look, the
+// hairline line — never one verdict across the three; Build this look is
+// the design's hairline pill.
+await page.route('**/api/feedback', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+await page.evaluate(() => {
+  const it = JSON.parse(localStorage.getItem('robes_style_notes__u-test') || '[]').find((i) => i.type === 'key-piece');
+  window.__snOpenItem(it.id);
+});
+await page.waitForTimeout(600);
+const fbShape = await page.evaluate(() => {
+  const pg = document.getElementById('kp-result-page');
+  const b = document.getElementById('kp-build-btn-1');
+  const cs = getComputedStyle(b);
+  const card = b.closest('.kp-look-card');
+  const more = getComputedStyle(document.getElementById('kp-look-more-1'));
+  return {
+    blocks: ['kp0', 'kp1', 'kp2'].map((p) => !!document.getElementById(p + '-fb')),
+    perLook: (pg.textContent.match(/How was this one\?/g) || []).length,
+    pageLevel: /How were these looks\?/.test(pg.textContent),
+    emoji: /👍/.test(pg.textContent),
+    resting: ['kp0', 'kp1', 'kp2'].every((p) => document.getElementById(p + '-fb-up') && document.getElementById(p + '-fb-dn') && !document.getElementById(p + '-fb-text')),
+    pillFont: cs.fontSize, pillTracking: cs.letterSpacing, pillCase: cs.textTransform, pillBg: cs.backgroundColor,
+    pillBorder: cs.borderTopWidth, pillRadius: cs.borderTopLeftRadius, pillWidth: b.getBoundingClientRect().width, cardWidth: card.getBoundingClientRect().width,
+    arrow: !!b.querySelector('.arr'), moreCentred: more.alignSelf,
+    firstFilled: getComputedStyle(document.getElementById('kp-build-btn-0')).backgroundColor,
+  };
+});
+check('feedback · one hairline line PER look, the page-level block and its emoji gone',
+  fbShape.blocks.every(Boolean) && fbShape.perLook === 3 && !fbShape.pageLevel && !fbShape.emoji && fbShape.resting, JSON.stringify(fbShape));
+check('build this look · the design’s hairline pill (9.5px, .2em, uppercase, transparent, full card width, arrow, More detail centred)',
+  fbShape.pillFont === '9.5px' && /^1\.9/.test(fbShape.pillTracking) && fbShape.pillCase === 'uppercase'
+    && fbShape.pillBg === 'rgba(0, 0, 0, 0)' && fbShape.pillBorder === '1px' && Math.abs(fbShape.pillWidth - fbShape.cardWidth) < 1
+    && fbShape.arrow && fbShape.moreCentred === 'center' && fbShape.firstFilled === 'rgba(0, 0, 0, 0)', JSON.stringify(fbShape));
+const fbBefore = writes.filter((w) => w.url === 'feedback').length;
+await page.locator('#kp1-fb-dn').click();
+await page.waitForTimeout(200);
+const fbPicked = await page.evaluate(() => ({
+  on: document.getElementById('kp1-fb-dn')?.classList.contains('on') && /✓/.test(document.getElementById('kp1-fb-dn').textContent),
+  onBg: getComputedStyle(document.getElementById('kp1-fb-dn')).backgroundColor,
+  offOther: !document.getElementById('kp1-fb-up')?.classList.contains('on'),
+  input: document.getElementById('kp1-fb-text')?.placeholder,
+  focused: document.activeElement?.id,
+  send: document.querySelector('#kp1-fb .rb-fb-send')?.textContent.trim(),
+  sendBg: getComputedStyle(document.querySelector('#kp1-fb .rb-fb-send')).backgroundColor,
+  othersStill: !document.getElementById('kp0-fb-text') && !document.getElementById('kp2-fb-text'),
+}));
+check('feedback · Not quite: warm fill + ✓, the note opens focused ("the note is the point"), Send is a hairline pill, the other two looks untouched',
+  fbPicked.on && fbPicked.onBg === 'rgb(243, 239, 230)' && fbPicked.offOther && fbPicked.input === 'What would have made it better?'
+    && fbPicked.focused === 'kp1-fb-text' && fbPicked.send === 'Send' && fbPicked.sendBg === 'rgba(0, 0, 0, 0)' && fbPicked.othersStill, JSON.stringify(fbPicked));
+await page.locator('#kp1-fb-up').click();
+await page.waitForTimeout(150);
+check('feedback · Loved it flips the placeholder (a note optional)', await page.locator('#kp1-fb-text').getAttribute('placeholder') === 'Anything you want more of?');
+await page.fill('#kp1-fb-text', 'more of the olive');
+await page.locator('#kp1-fb .rb-fb-send').click();
+await page.waitForTimeout(400);
+const fbSent = await page.evaluate(() => ({
+  line: document.getElementById('kp1-fb-done')?.textContent.trim(),
+  pillsGone: !document.getElementById('kp1-fb-up'),
+  others: !!document.getElementById('kp0-fb-up') && !!document.getElementById('kp2-fb-up'),
+}));
+const fbRows = writes.filter((w) => w.url === 'feedback').slice(fbBefore);
+check('feedback · sent collapses to one line; the other looks still ask',
+  fbSent.line === 'Noted — filed for next time.' && fbSent.pillsGone && fbSent.others, JSON.stringify(fbSent));
+check('feedback · ONE feedback row, at look level: the way’s title leads the note, the kp entry is the item',
+  fbRows.length === 1 && fbRows[0].body.track === 'key-piece' && fbRows[0].body.rating === 1
+    && fbRows[0].body.note === 'Coffee Run — more of the olive' && fbRows[0].body.lookbook_item_id != null, JSON.stringify(fbRows));
+// A reopen of the same result keeps the sent line (state keyed on the data).
+await page.evaluate(() => window.__kpRenderResult(window.__lastKpData, 'Umbro shorts', { intent: 'style', skipSave: true, savedId: null }));
+await page.waitForTimeout(300);
+check('feedback · a re-render of the same result keeps the sent line, the others still resting',
+  (await page.locator('#kp1-fb-done').count()) === 1 && (await page.locator('#kp0-fb-up').count()) === 1);
+// The composer (a way built in situ) carries the same line under Save / Try another
+// (way 1 — ways 0 and 2 were built in earlier sections, so their buttons open saved looks).
+await page.locator('#kp-build-btn-1').click();
+await page.waitForTimeout(3200);
+const lkFb = await page.evaluate(() => {
+  const host = document.getElementById('kp-build-host');
+  const fb = host?.querySelector('#lk-fb');
+  const save = host?.querySelector('.rb-lk-saverow');
+  return {
+    present: !!fb, afterSave: !!(fb && save && (save.compareDocumentPosition(fb) & Node.DOCUMENT_POSITION_FOLLOWING)),
+    title: fb?.querySelector('.rb-fb-title')?.textContent.trim(), sub: fb?.querySelector('.rb-fb-sub')?.textContent.trim(),
+    // (a proposal row's own Save-to-wishlist pill is ink by the 2026-08-13
+    // rule — the feedback line itself must add no ink fill)
+    inkFills: Array.from(host.querySelectorAll('button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.textContent.trim()).filter((t) => t !== 'Save'),
+    fbInk: Array.from(fb.querySelectorAll('button')).some((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)'),
+  };
+});
+check('feedback · the in-situ composer carries the line under its foot; Save this look stays the one ink fill (the line adds none)',
+  lkFb.present && lkFb.afterSave && lkFb.title === 'How was this look?' && lkFb.sub === 'Your taste shapes what comes next'
+    && lkFb.inkFills.length === 1 && /Save this look/.test(lkFb.inkFills[0]) && !lkFb.fbInk, JSON.stringify(lkFb));
+const lkBefore = writes.filter((w) => w.url === 'feedback').length;
+await page.locator('#lk-fb-up').click();
+await page.waitForTimeout(150);
+await page.locator('#lk-fb .rb-fb-send').click();
+await page.waitForTimeout(300);
+const lkRows = writes.filter((w) => w.url === 'feedback').slice(lkBefore);
+check('feedback · the composer’s line files against the key piece with no note required',
+  (await page.locator('#lk-fb-done').count()) === 1 && lkRows.length === 1 && lkRows[0].body.track === 'key-piece' && lkRows[0].body.rating === 1 && lkRows[0].body.note === null, JSON.stringify(lkRows));
+
 check('no page errors', errs.length === 0, errs.join(' | '));
+
+// 10 · The modal's doors (Annie, 2026-09-17): a key piece pulled from the
+// wardrobe or the wishlist, and a NEW upload scanned into the wardrobe.
+{
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 1200 } });
+  const p2 = await ctx2.newPage();
+  const errs2 = [];
+  p2.on('pageerror', (e) => errs2.push(String(e)));
+  const wardrobe = [
+    { id: 'w1', user_id: 'u-test', label: 'Cream silk shirt', category: 'Tops', color: 'Cream', brand: 'Equipment', image_url: 'https://res.cloudinary.com/demo/w1.jpg', times_worn: 4, created_at: '2026-09-01' },
+    { id: 'w2', user_id: 'u-test', label: 'Black wool trousers', category: 'Bottoms', color: 'Black', brand: 'COS', image_url: null, times_worn: 0, created_at: '2026-09-02' },
+  ];
+  const wishlist = [
+    { id: 'wl1', user_id: 'u-test', label: 'Gold hoop earrings', category: 'Accessories', color: 'Gold', brand: 'Missoma', image_url: null, source_type: 'robes', created_at: '2026-09-03' },
+  ];
+  const writes2 = [];
+  await p2.route('**cdn.jsdelivr.net/**', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: SUPA_STUB }));
+  await p2.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => {
+    const req = r.request(); const u = req.url().split('/rest/v1/')[1] || req.url();
+    if (req.method() === 'GET') {
+      const body = u.startsWith('wardrobe_items?') ? wardrobe : u.startsWith('wishlist_items?') ? wishlist : [];
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    }
+    let body = null; try { body = req.postDataJSON(); } catch (_) {}
+    writes2.push({ method: req.method(), url: u, body });
+    if (req.method() === 'POST' && u.startsWith('wardrobe_items')) {
+      const row = Object.assign({ id: 'w-new', times_worn: 0, created_at: '2026-09-17' }, body);
+      wardrobe.unshift(row);
+      return r.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify([row]) });
+    }
+    return r.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
+  });
+  await p2.route('**nominatim**', (r) => r.abort());
+  await p2.route('**open-meteo**', (r) => r.abort());
+  await p2.route('**res.cloudinary.com/**', (r) => r.abort());
+  let analyseMode = 'ok';
+  await p2.route('**/api/wardrobe/analyse', async (r) => {
+    await new Promise((res) => setTimeout(res, 350));
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(analyseMode === 'none'
+      ? { noItemDetected: true, label: '', category: '', color: '', brand: '', notes: '', item_dna: {} }
+      : { label: 'Red tweed jacket', category: 'Outerwear', category_l2: 'Jackets', category_l3: 'Tweed jacket', color: 'Red', brand: 'Chanel', notes: '', item_dna: { display: { title: 'Red tweed jacket' } } }) });
+  });
+  await p2.route('**/api/wardrobe/upload', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://res.cloudinary.com/demo/up.jpg' }) }));
+  const stylePrompts = [];
+  await p2.route('**/api/style', (r) => { try { stylePrompts.push(r.request().postDataJSON()); } catch (_) { stylePrompts.push(null); } r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(STYLE_RESP) }); });
+  await p2.route('**/api/feedback', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+  await p2.addInitScript(() => {
+    window.__TEST_PROFILE = { first_name: 'Annie', last_name: '', mobile: '', style_icons: [], budget: null, wardrobe_description: '', style_dna: {}, wardrobe_items_count: 2, onboarded_at: '2026-07-01', gender_identity: 'woman' };
+    Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
+  });
+  await p2.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await p2.waitForTimeout(2800);
+  await p2.evaluate(() => window.__rbInspOpen());
+  await p2.waitForTimeout(300);
+  await p2.locator('#rb-insp-page button:has-text("Style a key piece")').first().click();
+  await p2.waitForTimeout(300);
+  const doors = await p2.evaluate(() => ({
+    wardrobe: !!document.querySelector('#rb-inst-left .rb-inst-door[onclick*="wardrobe"]'),
+    wishlist: !!document.querySelector('#rb-inst-left .rb-inst-door[onclick*="wishlist"]'),
+    tile: /Snap or attach/.test(document.getElementById('rb-inst-left')?.textContent || ''),
+  }));
+  check('doors · the modal offers her wardrobe and her wishlist beneath the snap tile', doors.wardrobe && doors.wishlist && doors.tile, JSON.stringify(doors));
+  await p2.locator('#rb-inst-left .rb-inst-door[onclick*="wardrobe"]').click();
+  await p2.waitForTimeout(200);
+  const pick = await p2.evaluate(() => ({
+    open: !!document.getElementById('rb-inst-pick'),
+    tiles: document.querySelectorAll('#rb-inst-pick-grid button').length,
+    seg: Array.from(document.querySelectorAll('#rb-inst-pick .rb-inst-seg')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')).join('|'),
+  }));
+  check('doors · the wardrobe picker lists her pieces, Wardrobe segment lit', pick.open && pick.tiles === 2 && pick.seg === 'Wardrobe*|Wishlist', JSON.stringify(pick));
+  await p2.fill('#rb-inst-pick-q', 'silk');
+  await p2.waitForTimeout(100);
+  check('doors · search narrows by name', (await p2.locator('#rb-inst-pick-grid button').count()) === 1);
+  await p2.locator('#rb-inst-pick-grid button').first().click();
+  await p2.waitForTimeout(300);
+  const attached = await p2.evaluate(() => ({
+    pickerGone: !document.getElementById('rb-inst-pick'),
+    piece: document.getElementById('rb-inst-piece')?.textContent.replace(/\s+/g, ' ').trim(),
+    doorsGone: !document.querySelector('#rb-inst-left .rb-inst-door'),
+    ph: document.getElementById('rb-inst-ta')?.placeholder,
+    hint: document.getElementById('rb-inst-hint')?.textContent,
+  }));
+  check('doors · a wardrobe pick attaches as the key piece (eyebrow, name, Change), the brief asks for the occasion',
+    attached.pickerGone && /Your key piece/i.test(attached.piece) && /Cream silk shirt/.test(attached.piece) && attached.doorsGone
+      && attached.ph.startsWith('The occasion') && /how you have worn it/.test(attached.hint), JSON.stringify(attached));
+  await p2.locator('#rb-inst-piece button:has-text("Change")').click();
+  await p2.waitForTimeout(150);
+  check('doors · Change returns the tile and the doors', (await p2.locator('#rb-inst-piece').count()) === 0 && (await p2.locator('#rb-inst-left .rb-inst-door').count()) === 2);
+  await p2.locator('#rb-inst-left .rb-inst-door[onclick*="wishlist"]').click();
+  await p2.waitForTimeout(200);
+  const wl = await p2.evaluate(() => ({
+    seg: Array.from(document.querySelectorAll('#rb-inst-pick .rb-inst-seg')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')).join('|'),
+    tiles: Array.from(document.querySelectorAll('#rb-inst-pick-grid button')).map((b) => b.lastElementChild.textContent.trim()),
+  }));
+  check('doors · the wishlist picker lists her wanted pieces', wl.seg === 'Wardrobe|Wishlist*' && wl.tiles.join() === 'Gold hoop earrings', JSON.stringify(wl));
+  await p2.locator('#rb-inst-pick-grid button').first().click();
+  await p2.waitForTimeout(200);
+  const wlAttached = await p2.evaluate(() => ({
+    piece: document.getElementById('rb-inst-piece')?.textContent.replace(/\s+/g, ' ').trim(),
+    hint: document.getElementById('rb-inst-hint')?.textContent,
+  }));
+  check('doors · a wishlist pick attaches under its own eyebrow', /From your wishlist/i.test(wlAttached.piece) && /Gold hoop earrings/.test(wlAttached.piece) && /from your wishlist/.test(wlAttached.hint), JSON.stringify(wlAttached));
+  await p2.fill('#rb-inst-ta', 'dinner, a little glamour');
+  await p2.locator('.rb-inst-cta').click();
+  await p2.waitForTimeout(700);
+  check('doors · the brief leads with the wishlist piece — "the", never "my", no wear count',
+    stylePrompts.length === 1 && stylePrompts[0].prompt === 'Style the Gold hoop earrings three ways. dinner, a little glamour', JSON.stringify(stylePrompts.map((b) => b && b.prompt)));
+  check('doors · no wardrobe row was written for a pick', writes2.filter((w) => w.url.startsWith('wardrobe_items')).length === 0);
+
+  // A NEW upload is scanned into the wardrobe and attaches itself.
+  await p2.evaluate(() => window.__rbInspOpen());
+  await p2.waitForTimeout(300);
+  await p2.locator('#rb-insp-page button:has-text("Style a key piece")').first().click();
+  await p2.waitForTimeout(300);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR4nGP8z8DwnwEKGBkYAB1IA/wSCV0LAAAAAElFTkSuQmCC', 'base64');
+  await p2.setInputFiles('#rb-inst-file', { name: 'jacket.png', mimeType: 'image/png', buffer: png });
+  await p2.waitForTimeout(150);
+  const filing = await p2.evaluate(() => ({
+    line: document.querySelector('#rb-inst-left .rb-inst-scan')?.textContent.trim(),
+    photo: !!document.querySelector('#rb-inst-left img'),
+  }));
+  check('scan · the upload says it is filing to the wardrobe while it reads', filing.line === 'Filing it to your wardrobe…' && filing.photo, JSON.stringify(filing));
+  await p2.waitForTimeout(1500);
+  const filed = await p2.evaluate(() => ({
+    line: document.querySelector('#rb-inst-left .rb-inst-scan')?.textContent.trim(),
+    piece: document.getElementById('rb-inst-piece')?.textContent.replace(/\s+/g, ' ').trim(),
+    ph: document.getElementById('rb-inst-ta')?.placeholder,
+  }));
+  const rows = writes2.filter((w) => w.method === 'POST' && w.url.startsWith('wardrobe_items'));
+  check('scan · the piece is filed (one wardrobe row, analysed + hosted) and attaches as the key piece',
+    filed.line === '✓ Filed to your wardrobe' && /Red tweed jacket/.test(filed.piece) && filed.ph.startsWith('The occasion')
+      && rows.length === 1 && rows[0].body.label === 'Red tweed jacket' && rows[0].body.category === 'Outerwear' && rows[0].body.category_l2 === 'Jackets'
+      && rows[0].body.image_url === 'https://res.cloudinary.com/demo/up.jpg' && rows[0].body.brand === 'Chanel', JSON.stringify({ filed, rows: rows.map((r) => r.body) }));
+  await p2.locator('.rb-inst-cta').click();
+  await p2.waitForTimeout(700);
+  check('scan · the brief leads with the filed piece and carries the photo',
+    stylePrompts.length === 2 && stylePrompts[1].prompt === 'Style my Red tweed jacket three ways' && /^data:image/.test(stylePrompts[1].photo || ''), JSON.stringify(stylePrompts[1] && stylePrompts[1].prompt));
+
+  // A face or a room files nothing, and says so.
+  analyseMode = 'none';
+  await p2.evaluate(() => window.__rbInspOpen());
+  await p2.waitForTimeout(300);
+  await p2.locator('#rb-insp-page button:has-text("Style a key piece")').first().click();
+  await p2.waitForTimeout(300);
+  await p2.setInputFiles('#rb-inst-file', { name: 'me.png', mimeType: 'image/png', buffer: png });
+  await p2.waitForTimeout(1800);
+  const none = await p2.evaluate(() => ({
+    line: document.querySelector('#rb-inst-left .rb-inst-scan')?.textContent.trim(),
+    piece: !!document.getElementById('rb-inst-piece'),
+    photo: !!document.querySelector('#rb-inst-left img'),
+  }));
+  check('scan · nothing to file says so, keeps the photo for the looks, writes no row',
+    /couldn’t see a piece/.test(none.line || '') && !none.piece && none.photo && writes2.filter((w) => w.method === 'POST' && w.url.startsWith('wardrobe_items')).length === 1, JSON.stringify(none));
+  check('doors · no page errors', errs2.length === 0, errs2.join(' | '));
+  await ctx2.close();
+}
 
 let pass = 0, fail = 0;
 for (const r of results) { console.log((r.pass ? '  ok  ' : '  FAIL ') + r.name + (r.pass ? '' : '  — ' + r.detail)); r.pass ? pass++ : fail++; }

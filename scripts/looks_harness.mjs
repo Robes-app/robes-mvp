@@ -2553,7 +2553,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     bridged.modalClosed && bridged.wrapShown, JSON.stringify(bridged));
 
   // Inspiration — the undated shelf. The key piece seeded above lives
-  // there; Restyle re-arms the home prompt with the original ask.
+  // there; the card is the door (no Restyle pill since 2026-09-17).
   await page.evaluate(() => window.__rbNavGo('inspiration'));
   await page.waitForTimeout(500);
   const insp = await page.evaluate(() => ({
@@ -2571,16 +2571,21 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       && insp.cards === 1 && insp.title === 'Umbro shorts' && /Styled three ways by Robes/.test(insp.sub || ''),
     JSON.stringify(insp));
   check('IA · no Save-as-look yet (deferred — Annie 2026-08-10)', insp.saveAsLook === false);
-  const restyled = await page.evaluate(async () => {
-    document.querySelector('#rb-in-grid .rb-in-act').click();
+  // The card carries no Restyle pill (Annie, 2026-09-17: it served no
+  // purpose) — the card itself is the door to the three ways.
+  const opened = await page.evaluate(async () => {
+    const noPill = !document.querySelector('#rb-in-grid .rb-in-act') && !/Restyle/.test(document.getElementById('rb-in-grid')?.textContent || '');
+    document.querySelector('#rb-in-grid .rb-in-card').click();
     await new Promise((r) => setTimeout(r, 600));
+    // (the fixture row carries no kpData, so the three ways themselves do
+    // not render here — the door closing Inspiration is the pin)
     return {
+      noPill,
       inspClosed: document.getElementById('rb-insp-page').style.display === 'none',
-      prompt: document.getElementById('cb-ta')?.value || '',
     };
   });
-  check('IA · Restyle lands on the home prompt with the ask re-armed',
-    restyled.inspClosed && /Style my Umbro shorts three ways/.test(restyled.prompt), JSON.stringify(restyled));
+  check('IA · no Restyle pill; the card is the door out to the three ways',
+    opened.noPill && opened.inspClosed, JSON.stringify(opened));
   check('IA · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
