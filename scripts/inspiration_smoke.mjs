@@ -478,8 +478,9 @@ check('feedback · the composer’s line files against the key piece with no not
 
 check('no page errors', errs.length === 0, errs.join(' | '));
 
-// 10 · The modal's doors (Annie, 2026-09-17): a key piece pulled from the
-// wardrobe or the wishlist, and a NEW upload scanned into the wardrobe.
+// 10 · The modal's + menu (Annie, 2026-09-17): the prompt's own + reused — a key
+// piece pulled from the wardrobe or the wishlist through the EXISTING picker, and a
+// NEW upload scanned into the wardrobe.
 {
   const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 1200 } });
   const p2 = await ctx2.newPage();
@@ -533,58 +534,73 @@ check('no page errors', errs.length === 0, errs.join(' | '));
   await p2.waitForTimeout(300);
   await p2.locator('#rb-insp-page button:has-text("Style a key piece")').first().click();
   await p2.waitForTimeout(300);
-  const doors = await p2.evaluate(() => ({
-    wardrobe: !!document.querySelector('#rb-inst-left .rb-inst-door[onclick*="wardrobe"]'),
-    wishlist: !!document.querySelector('#rb-inst-left .rb-inst-door[onclick*="wishlist"]'),
+  const menu = await p2.evaluate(() => ({
+    add: !!document.querySelector('#rb-inst-left .hp-add#rb-inst-add'),
+    closed: !document.getElementById('rb-inst-addmenu')?.classList.contains('open'),
+    opts: Array.from(document.querySelectorAll('#rb-inst-addmenu .hp-addopt')).map((b) => b.textContent.trim()),
     tile: /Snap or attach/.test(document.getElementById('rb-inst-left')?.textContent || ''),
+    cam: document.getElementById('rb-inst-cam')?.getAttribute('capture'), file: document.getElementById('rb-inst-file')?.hasAttribute('capture'),
   }));
-  check('doors · the modal offers her wardrobe and her wishlist beneath the snap tile', doors.wardrobe && doors.wishlist && doors.tile, JSON.stringify(doors));
-  await p2.locator('#rb-inst-left .rb-inst-door[onclick*="wardrobe"]').click();
-  await p2.waitForTimeout(200);
+  check('+ menu · the modal reuses the prompt’s + (Upload · Take a picture · From wardrobe · From wishlist), capture only on the camera row',
+    menu.add && menu.closed && menu.opts.join('|') === 'Upload|Take a picture|From wardrobe|From wishlist' && menu.tile && menu.cam === 'environment' && menu.file === false, JSON.stringify(menu));
+  await p2.locator('#rb-inst-add').click();
+  await p2.waitForTimeout(150);
+  check('+ menu · opens on tap', await p2.evaluate(() => document.getElementById('rb-inst-addmenu').classList.contains('open')));
+  await p2.locator('#rb-inst-addmenu .hp-addopt:has-text("From wardrobe")').click();
+  await p2.waitForTimeout(250);
   const pick = await p2.evaluate(() => ({
-    open: !!document.getElementById('rb-inst-pick'),
-    tiles: document.querySelectorAll('#rb-inst-pick-grid button').length,
-    seg: Array.from(document.querySelectorAll('#rb-inst-pick .rb-inst-seg')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')).join('|'),
+    open: !!document.getElementById('cb-wa-pick'),
+    menuClosed: !document.getElementById('rb-inst-addmenu')?.classList.contains('open'),
+    eyebrow: document.querySelector('#cb-wa-pick p')?.textContent.trim(),
+    tiles: document.querySelectorAll('#cb-wa-pick button[onclick*="__cbPickApply"]').length,
+    seg: Array.from(document.querySelectorAll('#cb-wa-pick .cb-pick-seg')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')).join('|'),
   }));
-  check('doors · the wardrobe picker lists her pieces, Wardrobe segment lit', pick.open && pick.tiles === 2 && pick.seg === 'Wardrobe*|Wishlist', JSON.stringify(pick));
-  await p2.fill('#rb-inst-pick-q', 'silk');
-  await p2.waitForTimeout(100);
-  check('doors · search narrows by name', (await p2.locator('#rb-inst-pick-grid button').count()) === 1);
-  await p2.locator('#rb-inst-pick-grid button').first().click();
+  check('+ menu · From wardrobe opens the EXISTING picker (#cb-wa-pick) with her pieces and a Wardrobe | Wishlist switch, Wardrobe lit',
+    pick.open && pick.menuClosed && pick.eyebrow === 'From your wardrobe' && pick.tiles === 2 && pick.seg === 'Wardrobe*|Wishlist', JSON.stringify(pick));
+  await p2.locator('#cb-wa-pick button[onclick*="__cbPickApply"]').first().click();
   await p2.waitForTimeout(300);
   const attached = await p2.evaluate(() => ({
-    pickerGone: !document.getElementById('rb-inst-pick'),
+    pickerGone: !document.getElementById('cb-wa-pick'),
     piece: document.getElementById('rb-inst-piece')?.textContent.replace(/\s+/g, ' ').trim(),
-    doorsGone: !document.querySelector('#rb-inst-left .rb-inst-door'),
+    addGone: !document.querySelector('#rb-inst-left .hp-add'),
     ph: document.getElementById('rb-inst-ta')?.placeholder,
     hint: document.getElementById('rb-inst-hint')?.textContent,
+    prompt: document.getElementById('cb-ta')?.value || '',
   }));
-  check('doors · a wardrobe pick attaches as the key piece (eyebrow, name, Change), the brief asks for the occasion',
-    attached.pickerGone && /Your key piece/i.test(attached.piece) && /Cream silk shirt/.test(attached.piece) && attached.doorsGone
-      && attached.ph.startsWith('The occasion') && /how you have worn it/.test(attached.hint), JSON.stringify(attached));
+  check('+ menu · a wardrobe pick attaches as the key piece (eyebrow, name, Change), the brief asks for the occasion, the home prompt is untouched',
+    attached.pickerGone && /Your key piece/i.test(attached.piece) && /Cream silk shirt/.test(attached.piece) && attached.addGone
+      && attached.ph.startsWith('The occasion') && /how you have worn it/.test(attached.hint) && attached.prompt === '', JSON.stringify(attached));
   await p2.locator('#rb-inst-piece button:has-text("Change")').click();
   await p2.waitForTimeout(150);
-  check('doors · Change returns the tile and the doors', (await p2.locator('#rb-inst-piece').count()) === 0 && (await p2.locator('#rb-inst-left .rb-inst-door').count()) === 2);
-  await p2.locator('#rb-inst-left .rb-inst-door[onclick*="wishlist"]').click();
-  await p2.waitForTimeout(200);
+  check('+ menu · Change returns the tile and the +', (await p2.locator('#rb-inst-piece').count()) === 0 && (await p2.locator('#rb-inst-left .hp-add').count()) === 1);
+  await p2.locator('#rb-inst-add').click();
+  await p2.locator('#rb-inst-addmenu .hp-addopt:has-text("From wishlist")').click();
+  await p2.waitForTimeout(250);
   const wl = await p2.evaluate(() => ({
-    seg: Array.from(document.querySelectorAll('#rb-inst-pick .rb-inst-seg')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')).join('|'),
-    tiles: Array.from(document.querySelectorAll('#rb-inst-pick-grid button')).map((b) => b.lastElementChild.textContent.trim()),
+    eyebrow: document.querySelector('#cb-wa-pick p')?.textContent.trim(),
+    seg: Array.from(document.querySelectorAll('#cb-wa-pick .cb-pick-seg')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')).join('|'),
+    tiles: Array.from(document.querySelectorAll('#cb-wa-pick button[onclick*="__cbPickApply"]')).map((b) => b.lastElementChild.textContent.trim()),
   }));
-  check('doors · the wishlist picker lists her wanted pieces', wl.seg === 'Wardrobe|Wishlist*' && wl.tiles.join() === 'Gold hoop earrings', JSON.stringify(wl));
-  await p2.locator('#rb-inst-pick-grid button').first().click();
+  check('+ menu · From wishlist lists her wanted pieces in the same picker', wl.eyebrow === 'From your wishlist' && wl.seg === 'Wardrobe|Wishlist*' && wl.tiles.join() === 'Gold hoop earrings', JSON.stringify(wl));
+  // The segment inside the picker walks to the other source and keeps the callback.
+  await p2.locator('#cb-wa-pick .cb-pick-seg:has-text("Wardrobe")').click();
+  await p2.waitForTimeout(150);
+  check('+ menu · the picker’s segment switches source in place', (await p2.locator('#cb-wa-pick button[onclick*="__cbPickApply"]').count()) === 2);
+  await p2.locator('#cb-wa-pick .cb-pick-seg:has-text("Wishlist")').click();
+  await p2.waitForTimeout(150);
+  await p2.locator('#cb-wa-pick button[onclick*="__cbPickApply"]').first().click();
   await p2.waitForTimeout(200);
   const wlAttached = await p2.evaluate(() => ({
     piece: document.getElementById('rb-inst-piece')?.textContent.replace(/\s+/g, ' ').trim(),
     hint: document.getElementById('rb-inst-hint')?.textContent,
   }));
-  check('doors · a wishlist pick attaches under its own eyebrow', /From your wishlist/i.test(wlAttached.piece) && /Gold hoop earrings/.test(wlAttached.piece) && /from your wishlist/.test(wlAttached.hint), JSON.stringify(wlAttached));
+  check('+ menu · a wishlist pick attaches under its own eyebrow', /From your wishlist/i.test(wlAttached.piece) && /Gold hoop earrings/.test(wlAttached.piece) && /from your wishlist/.test(wlAttached.hint), JSON.stringify(wlAttached));
   await p2.fill('#rb-inst-ta', 'dinner, a little glamour');
   await p2.locator('.rb-inst-cta').click();
   await p2.waitForTimeout(700);
-  check('doors · the brief leads with the wishlist piece — "the", never "my", no wear count',
+  check('+ menu · the brief leads with the wishlist piece — "the", never "my", no wear count',
     stylePrompts.length === 1 && stylePrompts[0].prompt === 'Style the Gold hoop earrings three ways. dinner, a little glamour', JSON.stringify(stylePrompts.map((b) => b && b.prompt)));
-  check('doors · no wardrobe row was written for a pick', writes2.filter((w) => w.url.startsWith('wardrobe_items')).length === 0);
+  check('+ menu · no wardrobe row was written for a pick', writes2.filter((w) => w.url.startsWith('wardrobe_items')).length === 0);
 
   // A NEW upload is scanned into the wardrobe and attaches itself.
   await p2.evaluate(() => window.__rbInspOpen());
@@ -630,7 +646,7 @@ check('no page errors', errs.length === 0, errs.join(' | '));
   }));
   check('scan · nothing to file says so, keeps the photo for the looks, writes no row',
     /couldn’t see a piece/.test(none.line || '') && !none.piece && none.photo && writes2.filter((w) => w.method === 'POST' && w.url.startsWith('wardrobe_items')).length === 1, JSON.stringify(none));
-  check('doors · no page errors', errs2.length === 0, errs2.join(' | '));
+  check('+ menu · no page errors', errs2.length === 0, errs2.join(' | '));
   await ctx2.close();
 }
 

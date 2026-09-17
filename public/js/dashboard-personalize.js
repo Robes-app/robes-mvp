@@ -5849,7 +5849,7 @@
         if (_inStTimer) { clearInterval(_inStTimer); _inStTimer = null; }
         if (_inStAbort) { try { _inStAbort.abort(); } catch (_) {} _inStAbort = null; }
         if (_inStM) { _inStM.remove(); _inStM = null; }
-        document.getElementById('rb-inst-pick')?.remove();
+        document.getElementById('cb-wa-pick')?.remove();
         _inStPhoto = null;
         _inStPiece = null;
         _inStScan = null;
@@ -5893,7 +5893,8 @@
                     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.6 6 .7-4.4 4.1 1.2 6-5.4-3-5.4 3 1.2-6L3.4 9.8l6-.7Z"></path></svg>' +
                     '<span id="rb-inst-hint">' + _inStHint() + '</span></div></div></div></div>' +
             '<button onclick="window.__inStGo()" class="rb-inst-cta" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;margin-top:24px;padding:20px;background:#EDE7DE;border:none;border-radius:8px;font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#5C574F;cursor:pointer;font-family:inherit;transition:all .2s"><span>Style it three ways</span><span>→</span></button>' +
-            '<input type="file" id="rb-inst-file" accept="image/*" hidden onchange="window.__inStFile(event)">';
+            '<input type="file" id="rb-inst-file" accept="image/*" hidden onchange="window.__inStFile(event)">' +
+            '<input type="file" id="rb-inst-cam" accept="image/*" capture="environment" hidden onchange="window.__inStFile(event)">';
           var ta = card.querySelector('#rb-inst-ta');
           if (ta && _inStText) ta.value = _inStText;
           setTimeout(function() { if (ta) ta.focus(); }, 120);
@@ -5959,12 +5960,45 @@
         if (_inStPiece._src === 'wishlist') return 'Robes knows the ' + short + ' from your wishlist. A few words is plenty.';
         return 'Robes already knows the ' + short + ' and how you have worn it. A few words is plenty.';
       }
-      function _inStDoorsHtml() {
-        var wa = _waItems.length ? '<button type="button" class="rb-inst-door" onclick="window.__inStPickFrom(\'wardrobe\')">From your wardrobe</button>' : '';
-        var wl = _wlItems.length ? '<button type="button" class="rb-inst-door" onclick="window.__inStPickFrom(\'wishlist\')">From your wishlist</button>' : '';
-        if (!wa && !wl) return '';
-        return '<div class="rb-inst-doors">' + wa + wl + '</div>';
+      // The prompt's own + menu, reused (Annie, 2026-09-17: "we already
+      // have a + in the main prompt … reuse that composer functionality
+      // here"): the same .hp-add circle + .hp-addmenu / .hp-addopt rows —
+      // Upload · Take a picture · From wardrobe · From wishlist. The first
+      // two feed __inStFile (the camera row is the one legitimate capture
+      // input — a dedicated button, never the picker); the last two open
+      // the existing wardrobe picker (__cbWardrobePick) with a pick
+      // callback instead of the prompt's apply.
+      function _inStAddHtml() {
+        var opt = function(fn, svg, label) {
+          return '<button type="button" class="hp-addopt" onclick="' + fn + '">' + svg + label + '</button>';
+        };
+        return '<div class="hp-add-wrap rb-inst-addwrap" id="rb-inst-addwrap">' +
+          '<button type="button" class="hp-add" id="rb-inst-add" onclick="window.__inStAddToggle(event)" aria-label="Add a piece" aria-haspopup="true"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>' +
+          '<div class="hp-addmenu" id="rb-inst-addmenu">' +
+            opt('window.__inStAddGo(\'upload\')', '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>', 'Upload') +
+            opt('window.__inStAddGo(\'camera\')', '<svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>', 'Take a picture') +
+            opt('window.__inStAddGo(\'wardrobe\')', '<svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>', 'From wardrobe') +
+            opt('window.__inStAddGo(\'wishlist\')', '<svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"></path></svg>', 'From wishlist') +
+          '</div></div>';
       }
+      window.__inStAddToggle = function(e) {
+        if (e) e.stopPropagation();
+        var m = document.getElementById('rb-inst-addmenu');
+        if (m) m.classList.toggle('open');
+      };
+      document.addEventListener('click', function(e) {
+        var m = document.getElementById('rb-inst-addmenu');
+        if (!m || !m.classList.contains('open')) return;
+        if (e.target && e.target.closest && e.target.closest('#rb-inst-addwrap')) return;
+        m.classList.remove('open');
+      });
+      window.__inStAddGo = function(what) {
+        var m = document.getElementById('rb-inst-addmenu');
+        if (m) m.classList.remove('open');
+        if (what === 'upload') { var f = document.getElementById('rb-inst-file'); if (f) f.click(); return; }
+        if (what === 'camera') { var c = document.getElementById('rb-inst-cam'); if (c) c.click(); return; }
+        window.__inStPickFrom(what);
+      };
       function _inStScanHtml() {
         var sc = _inStScan;
         if (!sc || !_inStPhoto) return '';
@@ -5977,7 +6011,7 @@
       function _inStLeftHtml() {
         return (_inStPiece ? _inStPieceHtml() :
           '<div onclick="window.__inStPick()" role="button" style="position:relative;overflow:hidden;border:1px dashed #D8CFC0;border-radius:8px;background:#F7F4EF;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;min-height:172px;cursor:pointer;box-sizing:border-box">' + _inStTileHtml() + '</div>') +
-          _inStScanHtml() + (_inStPiece ? '' : _inStDoorsHtml());
+          _inStScanHtml() + (_inStPiece ? '' : _inStAddHtml());
       }
       function _inStLeftPaint() {
         if (!_inStM || _inStStep !== 1) return;
@@ -6065,68 +6099,18 @@
           }
         })();
       }
-      // ── The picker behind the two doors: her wardrobe or her wishlist,
-      // one grid, a search line; a pick attaches the piece (its photo
-      // fetched into the brief) and no scan runs — it is filed already.
-      var _inStPickQ = '';
+      // From wardrobe / From wishlist open the EXISTING wardrobe picker
+      // (the one behind the prompt's + menu) with a pick callback — never
+      // a second picker. A pick attaches the piece (its photo fetched
+      // into the brief) and no scan runs: it is filed already.
       window.__inStPickFrom = function(kind) {
-        _inStPickQ = '';
-        _inStPickPaint(kind === 'wishlist' ? 'wishlist' : 'wardrobe');
-      };
-      window.__inStPickClose = function() { document.getElementById('rb-inst-pick')?.remove(); };
-      window.__inStPickQ = function(kind, v) { _inStPickQ = String(v || ''); _inStPickGrid(kind); };
-      function _inStPickItems(kind) {
-        var q = _inStPickQ.trim().toLowerCase();
-        var src = kind === 'wishlist' ? _wlItems : _waItems;
-        return src.filter(function(x) {
-          if (!q) return true;
-          return [x.label, x.brand, x.category, x.color].filter(Boolean).join(' ').toLowerCase().indexOf(q) > -1;
+        kind = kind === 'wishlist' ? 'wishlist' : 'wardrobe';
+        window.__cbWardrobePick({
+          source: kind, segments: true,
+          onPick: function(it, src) { window.__inStPickApply(src, it); },
         });
-      }
-      function _inStPickGrid(kind) {
-        var grid = document.getElementById('rb-inst-pick-grid');
-        if (!grid) return;
-        var serif = "'Cormorant',Georgia,serif";
-        var items = _inStPickItems(kind).slice(0, 80);
-        if (!items.length) {
-          grid.innerHTML = '<div style="grid-column:1/-1;padding:28px 0;text-align:center;font-family:' + serif + ';font-style:italic;font-size:15px;color:#A89880">' +
-            (_inStPickQ.trim() ? 'Nothing called that.' : (kind === 'wishlist' ? 'Nothing on your wishlist yet.' : 'Nothing in your wardrobe yet.')) + '</div>';
-          return;
-        }
-        grid.innerHTML = items.map(function(wi) {
-          return '<button type="button" onclick="window.__inStPickApply(\'' + kind + '\',\'' + _waEsc(String(wi.id)) + '\')" style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:8px;padding:0;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit">' +
-            '<div style="aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center;overflow:hidden">' + (_pdHttp(wi.image_url)
-              ? '<img src="' + _waEsc(wi.image_url) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="" loading="lazy">'
-              : '<span style="font-family:' + serif + ';font-size:22px;color:#C8B8A2">' + _waEsc((wi.label || '?').charAt(0).toUpperCase()) + '</span>') + '</div>' +
-            '<div style="padding:7px 9px 9px;font-size:11px;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _waEsc(wi.label || '') + '</div></button>';
-        }).join('');
-      }
-      function _inStPickPaint(kind) {
-        document.getElementById('rb-inst-pick')?.remove();
-        var serif = "'Cormorant',Georgia,serif";
-        var m = document.createElement('div');
-        m.id = 'rb-inst-pick';
-        m.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(32,32,33,0.42);display:flex;align-items:center;justify-content:center;padding:24px';
-        m.onclick = function(e) { if (e.target === m) m.remove(); };
-        var seg = function(k, label) {
-          return '<button type="button" class="rb-inst-seg' + (k === kind ? ' on' : '') + '" onclick="window.__inStPickFrom(\'' + k + '\')">' + label + '</button>';
-        };
-        m.innerHTML = '<div style="background:#FAF8F5;border-radius:14px;width:100%;max-width:560px;max-height:82vh;display:flex;flex-direction:column;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px 24px 20px">' +
-          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">' +
-            '<div><div style="font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#A89880">Your key piece</div>' +
-              '<div style="font-family:' + serif + ';font-size:26px;font-weight:300;color:#202021;line-height:1.15;margin-top:8px">Which piece are we styling?</div></div>' +
-            '<button type="button" onclick="window.__inStPickClose()" style="border:none;background:none;font-size:18px;color:#A89880;cursor:pointer;line-height:1;padding:2px 4px;font-family:inherit">×</button></div>' +
-          '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:16px 0 14px">' +
-            '<div class="rb-inst-segs">' + seg('wardrobe', 'Wardrobe') + seg('wishlist', 'Wishlist') + '</div>' +
-            '<input type="search" id="rb-inst-pick-q" placeholder="Search by name, brand or colour" value="' + _waEsc(_inStPickQ) + '" oninput="window.__inStPickQ(\'' + kind + '\',this.value)" style="flex:1;min-width:160px;border:0;border-bottom:1px solid #D8CFC0;border-radius:0;background:transparent;padding:6px 0;font-family:inherit;font-size:13px;color:#202021;outline:none;box-shadow:none"></div>' +
-          '<div id="rb-inst-pick-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;align-content:start"></div></div>';
-        document.body.appendChild(m);
-        _inStPickGrid(kind);
-      }
-      window.__inStPickApply = function(kind, id) {
-        var src = kind === 'wishlist' ? _wlItems : _waItems;
-        var it = src.find(function(x) { return String(x.id) === String(id); });
-        window.__inStPickClose();
+      };
+      window.__inStPickApply = function(kind, it) {
         if (!it) return;
         _inStScanSeq++;            // a scan in flight belongs to a photo she just replaced
         _inStScan = null;
@@ -6206,15 +6190,12 @@
             '@keyframes rbInstScan{0%{top:6%;opacity:0}15%{opacity:1}85%{opacity:1}100%{top:94%;opacity:0}}' +
             '@keyframes rbInstBreathe{0%,100%{opacity:.55}50%{opacity:1}}' +
             '.rb-inst-cta:hover{background:#202021 !important;color:#FAF8F5 !important}' +
-            '.rb-inst-doors{display:flex;flex-direction:column;align-items:center;gap:7px;margin-top:12px}' +
-            '.rb-inst-door{background:none;border:none;padding:0 0 2px;font-family:inherit;font-size:11.5px;color:#5C574F;border-bottom:1px solid #D8CFC0;cursor:pointer}' +
-            '.rb-inst-door:hover{color:#202021;border-bottom-color:#202021}' +
+            '.rb-inst-addwrap{margin-top:12px;display:inline-block}' +
+            '#rb-inst-addmenu{top:calc(100% + 8px);bottom:auto}' +
             '.rb-inst-scan{margin-top:10px;font-size:11px;line-height:1.5;color:#A89880;text-align:center}' +
             '.rb-inst-scan.filing{animation:rbInstBreathe 2.4s ease-in-out infinite}' +
             '.rb-inst-scan.filed{color:#7E7C5A}' +
-            '.rb-inst-segs{display:inline-flex;background:#EDE7DE;border-radius:100px;padding:3px}' +
-            '.rb-inst-seg{border:none;background:transparent;border-radius:100px;padding:6px 14px;font-family:inherit;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#5C574F;cursor:pointer}' +
-            '.rb-inst-seg.on{background:#fff;color:#202021;box-shadow:0 1px 2px rgba(32,32,33,0.08)}' +
+
             '@media(max-width:640px){#rb-inst-grid{grid-template-columns:1fr !important}#rb-inst-wrap{padding:16px !important}#rb-inst-wrap>div{padding:26px 22px 30px !important}}';
           document.head.appendChild(st);
         }
@@ -21765,16 +21746,36 @@ body>*:not(#tv-result-page){display:none !important}
       // piece she already owns. Picking an item injects its exact label into
       // the prompt and attaches its wardrobe photo (as the same dataURL the
       // photo path uses, so /api/style sees it identically).
-      window.__cbWardrobePick = function() {
+      // opts (all optional — the prompt's + menu passes none): source
+      // 'wardrobe' | 'wishlist'; segments: true renders the Wardrobe |
+      // Wishlist switch in the header; onPick(item, source) replaces the
+      // prompt apply (the key piece modal uses it — one picker, two doors).
+      var _cbPickOpts = null;
+      window.__cbWardrobePick = function(opts) {
+        opts = opts || {};
+        _cbPickOpts = opts.onPick ? opts : null;
+        const source = opts.source === 'wishlist' ? 'wishlist' : 'wardrobe';
+        const items = source === 'wishlist' ? _wlItems : _waItems;
         document.getElementById('cb-wa-pick')?.remove();
-        if (!_waItems.length) { _waShowToast('Nothing catalogued yet — add a piece to your wardrobe first'); return; }
+        if (!items.length && !opts.segments) {
+          _waShowToast(source === 'wishlist' ? 'Nothing on your wishlist yet' : 'Nothing catalogued yet — add a piece to your wardrobe first');
+          return;
+        }
         const serif = "'Cormorant',Georgia,serif";
         const modal = document.createElement('div');
         modal.id = 'cb-wa-pick';
-        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
         modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-        const tiles = _waItems.slice(0, 60).map(wi => `
-          <button onclick="window.__cbWardrobeApply('${_waEsc(String(wi.id))}')" style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:10px;padding:0;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit">
+        const pick = wi => opts.onPick
+          ? `window.__cbPickApply('${source}','${_waEsc(String(wi.id))}')`
+          : `window.__cbWardrobeApply('${_waEsc(String(wi.id))}')`;
+        const seg = (k, label) => `<button type="button" class="cb-pick-seg${k === source ? ' on' : ''}" onclick="window.__cbPickSwitch('${k}')">${label}</button>`;
+        const segs = opts.segments ? `<div class="cb-pick-segs">${seg('wardrobe', 'Wardrobe')}${seg('wishlist', 'Wishlist')}</div>` : '';
+        const empty = !items.length
+          ? `<p style="grid-column:1/-1;margin:20px 0;text-align:center;font-family:${serif};font-style:italic;font-size:15px;color:var(--ink-faint)">${source === 'wishlist' ? 'Nothing on your wishlist yet.' : 'Nothing in your wardrobe yet.'}</p>`
+          : '';
+        const tiles = empty + items.slice(0, 60).map(wi => `
+          <button onclick="${pick(wi)}" style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:10px;padding:0;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit">
             <div style="aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center;overflow:hidden">${wi.image_url
               ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`
               : `<span style="font-family:${serif};font-size:22px;color:#C8B8A2">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</span>`}</div>
@@ -21783,13 +21784,32 @@ body>*:not(#tv-result-page){display:none !important}
         modal.innerHTML = `
           <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">From your wardrobe</p>
+              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">${source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe'}</p>
               <button onclick="document.getElementById('cb-wa-pick').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);font-size:16px;line-height:1">×</button>
             </div>
             <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 16px;line-height:1.2">Which piece are we styling?</p>
+            ${segs}
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px">${tiles}</div>
           </div>`;
+        if (!document.getElementById('cb-pick-style')) {
+          const st = document.createElement('style');
+          st.id = 'cb-pick-style';
+          st.textContent = '.cb-pick-segs{display:inline-flex;background:var(--cream-200,#EDE7DE);border-radius:100px;padding:3px;margin:0 0 14px}' +
+            '.cb-pick-seg{border:none;background:transparent;border-radius:100px;padding:6px 14px;font-family:inherit;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft,#5C574F);cursor:pointer}' +
+            '.cb-pick-seg.on{background:#fff;color:var(--ink,#202021);box-shadow:0 1px 2px rgba(32,32,33,0.08)}';
+          document.head.appendChild(st);
+        }
         document.body.appendChild(modal);
+      };
+      // The segment buttons re-open the picker on the other source with
+      // the SAME options (and callback); a tile hands the item to it and closes.
+      window.__cbPickSwitch = function(k) { window.__cbWardrobePick(Object.assign({ segments: true }, _cbPickOpts || {}, { source: k })); };
+      window.__cbPickApply = function(source, id) {
+        const items = source === 'wishlist' ? _wlItems : _waItems;
+        const it = items.find(w => String(w.id) === String(id));
+        document.getElementById('cb-wa-pick')?.remove();
+        const o = _cbPickOpts; _cbPickOpts = null;
+        if (it && o && o.onPick) o.onPick(it, source);
       };
       window.__cbWardrobeApply = async function(id) {
         document.getElementById('cb-wa-pick')?.remove();
