@@ -9287,15 +9287,56 @@
 .rb-dc.dc-v4 .dc-ring:hover{opacity:.95}
 .rb-dc.dc-v4.has-ring .dc-ey{padding-right:0}
 .rb-dc.dc-v4 .dc-name-in{margin-top:0;font-size:14px;font-style:italic}
+/* v5.1 (2026-09-17, Month_View_Fixes) — the month cell's own vocabulary:
+   the today dot and the filed dots. Both ride every compact card and are
+   revealed only in the phone's month grid, where names and swatches come
+   out of the cell. */
+.rb-dc .dc-nowdot,.rb-dc .dc-dots{display:none}
 @media(max-width:767px){
-.rb-mcells .rb-dc.dc-v4.dc-compact{min-height:0;aspect-ratio:1;padding:5px;gap:3px}
+/* ── The phone's month cell (2026-09-17, design Month_View_Fixes) ──
+   Seven columns of a 393px screen give each day about 46px, which holds
+   eight characters — so the cell stops trying to say what it cannot.
+   Fix 01: the title comes OUT (it was clipping mid-word); the cell
+   carries the numeral and a mark for what is filed, and a tap opens the
+   day, where the names live. Fix 02: one square, nothing exceeding it.
+   Fix 05: the swatches go — they needed a legend nobody has. */
+.rb-mcells .rb-dc.dc-v4.dc-compact{min-height:0;aspect-ratio:1;padding:5px;gap:3px;overflow:hidden}
 .rb-mcells .rb-dc.dc-v4.dc-compact .dc-ey{font-size:13px}
-.rb-mcells .rb-dc.dc-v4.dc-compact .dc-todaytag{display:none}
-.rb-mcells .rb-dc.dc-v4.dc-compact .dc-name,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-rows,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-add,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-filed,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-pen-btn,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-foot,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-name-in,.rb-mcells .rb-dc.dc-v4.dc-compact .dc-chip{display:none}
-.rb-mcells .rb-dc.dc-v4.dc-compact .dc-h{margin-top:0}
-.rb-mcells .rb-dc.dc-v4.dc-compact .dc-h .dc-title{font-size:8.5px;line-height:1.3;letter-spacing:.01em;font-style:normal;-webkit-line-clamp:2;word-break:normal;overflow-wrap:normal;hyphens:none}
-.rb-mcells .rb-dc.dc-v4.dc-compact .dc-sw{display:flex;margin-top:0;gap:3px}
-.rb-mcells .rb-dc.dc-v4.dc-compact .dc-sw i{width:7px;height:7px}
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-h,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-name,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-name-in,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-rows,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-filed,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-pen-btn,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-foot,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-chip,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-todaytag,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-invite,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-empty,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-sw,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-worn,
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-wearq{display:none}
+/* Fix 05 — one dot for a filed day, two when it holds more than one look.
+   Rose, the darker end of the trip ribbon's family: --mauve proper all but
+   vanishes at 6px on white. That is the whole vocabulary. */
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-dots{display:flex;flex:none;gap:4px;margin-top:auto}
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-dots i{width:6px;height:6px;border-radius:50%;background:var(--rose,#8E7077)}
+/* Fix 06 — today is a small ink dot beside the numeral. The rose hairline
+   is a card-scale treatment: at cell scale it read as a third undefined
+   state and fought the rose dots right beneath it. */
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-now,
+.rb-mcells .rb-dc.dc-v4.dc-compact.is-today{border-color:var(--rule,#EDE6D8);box-shadow:none}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-now.is-empty{border-color:var(--cream-400,#D8CFC0)}
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-nowdot{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--ink,#202021);margin-left:4px;vertical-align:1px}
+/* Fix 06 — the empty day keeps its dash and gains the faint + that is its
+   door (it had none: the name input and the + were both hidden here, so the
+   invitation was inert). A filed day carries no +; the cell opens the day. */
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-add{display:none}
+.rb-mcells .rb-dc.dc-v4.dc-compact.is-empty .dc-add{display:flex;position:absolute;left:5px;bottom:2px;width:auto;min-width:0;height:auto;border:0;background:none;color:var(--cream-400,#D8CFC0);font-size:14px;font-weight:300;line-height:1}
+.rb-mcells .rb-dc.dc-v4.dc-compact.is-empty .dc-add:hover{border:0;color:var(--ink-faint,#9A9082)}
+/* Today's numeral is ink whatever the cell's condition — the dot marks the
+   day, so the date it sits beside must not read as a faint empty one. */
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-now .dc-ey{color:var(--ink,#202021)}
 }
 #rb-dpk{position:fixed;inset:0;z-index:940;display:flex;align-items:center;justify-content:center;padding:24px}
 #rb-dpk .dpk-veil{position:absolute;inset:0;background:rgba(32,32,33,0.38)}
@@ -9578,7 +9619,14 @@
         if (ring) cls.push('has-ring');
         const addBtn = (!past && !isVoid && opts.add)
           ? `<button type="button" class="dc-add" onclick="${stop}${opts.add}" title="Add a look" aria-label="Add a look">+</button>` : '';
-        let inner = `<div class="dc-ey"><span>${eyTxt}</span>${(state === 'today' && compact) ? '<span class="dc-todaytag">Today</span>' : ''}${ring}${addBtn}</div>`;
+        // v5.1 (2026-09-17, Month_View_Fixes 06): at month-cell scale today
+        // is a DOT beside the numeral, not a rose hairline — the ring read as
+        // a third undefined state and competed with the rose filed dots. It
+        // renders on every compact card and only SHOWS in the phone's month
+        // grid (CSS-gated); every other surface keeps the hairline.
+        const nowDot = (compact && !isVoid && (d.when === 'today' || state === 'today'))
+          ? '<i class="dc-nowdot" title="Today"></i>' : '';
+        let inner = `<div class="dc-ey"><span>${eyTxt}${nowDot}</span>${(state === 'today' && compact) ? '<span class="dc-todaytag">Today</span>' : ''}${ring}${addBtn}</div>`;
         const chipHtml = (!compact && d.chip && !looks.length) ? `<div class="dc-chip"><span><i></i>${_waEsc(d.chip)}</span></div>` : '';
         const nameBox = (n, cur) => `<label class="dc-name" onclick="event.stopPropagation()"><span class="dc-pen">${_DC_PEN_SVG}</span>` +
           `<input id="${_waEsc(n.id || 'rb-dc-name-in')}" value="${_waEsc(cur || n.value || '')}" placeholder="Name the day" maxlength="60" autocomplete="off"` +
@@ -9599,6 +9647,11 @@
         };
         const swHtml = d.pieces && d.pieces.length
           ? `<div class="dc-sw">${d.pieces.slice(0, 3).map(h => `<i style="background:${_waEsc(h)}"></i>`).join('')}</div>` : '';
+        // Fix 05 — a month cell says HOW MANY looks, never which colours: the
+        // swatches needed a legend nobody has. One rose dot for a filed day,
+        // two for a day holding more than one. Compact only, shown ≤767px.
+        const dotsHtml = (compact && !isVoid && looks.length)
+          ? `<span class="dc-dots" title="${looks.length > 1 ? looks.length + ' looks filed' : 'One look filed'}">${looks.length > 1 ? '<i></i><i></i>' : '<i></i>'}</span>` : '';
         if (isVoid) {
           // outside the month — a numeral and nothing else
         } else if (stage === 'naming') {
@@ -9638,7 +9691,7 @@
           inner += chipHtml + rowsBlock();
           if (d.modifier === 'packed') inner += `<div class="dc-sp"></div><div class="dc-foot"><span class="dc-status">Packed ✓</span></div>`;
         }
-        return `<div class="${cls.join(' ')}"${body}>${inner}</div>`;
+        return `<div class="${cls.join(' ')}"${body}>${inner}${dotsHtml}</div>`;
       }
 
       // ── The ring's shared handler (§2.3): what the strip body USED to
@@ -23545,7 +23598,24 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-mv-pop .card button i{flex:none;width:8px;height:8px;border-radius:50%}
 .rb-mcells .rb-dc.dc-compact{min-height:132px}
 @media(max-width:1000px){.rb-mc-strip{display:none}}
-@media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:var(--rad-sm)}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}.rb-mcells{grid-auto-rows:auto}.rb-mband{padding:0 8px;height:20px}.rb-mband .bt{font-size:11px}.rb-mband .bd{display:none}}
+/* ── The phone's column grid (2026-09-17, design Month_View_Fixes) ──
+   Fix 03: the weekday label belongs to its COLUMN, not to the gutter, so
+   it centres and shares the cells' 4px gutter — 8px gutters cost a
+   seventh of the row at 393px. Fix 04: the trip ribbon is --mauve, not
+   the sage/cream it shared with the toggle track, so a stretch of days
+   cannot read as another piece of chrome; and it takes the height it
+   actually occupies, which closes the dead band the 32px lane reserve
+   left under a 20px ribbon (fix 07). */
+@media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:var(--rad-sm)}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}
+.rb-mcells{grid-auto-rows:auto;gap:4px}
+.rb-mv-dow{gap:4px;margin-bottom:6px}
+.rb-mv-dow div{text-align:center;padding-left:0;letter-spacing:.1em}
+.rb-mv-cal{gap:5px}
+.rb-mband{padding:0 9px;height:24px;gap:6px}
+.rb-mband .bt{font-size:11px}
+.rb-mband .bd,.rb-mband .bc{display:none}
+.rb-mband.week,.rb-mband.trip{background:var(--mauve,#D4C8C4);border-color:transparent;color:var(--ink,#202021)}
+}
 /* ── Diary list view (phase 3) ── */
 .rb-mv-seg{display:inline-flex;gap:3px;padding:3px;background:var(--cream-100,#F5F0E8);border-radius:100px;margin-right:4px}
 .rb-mv-seg button{border:1px solid transparent;border-radius:100px;background:transparent;color:var(--ink-soft,#6E6A64);font:400 9px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.16em;text-transform:uppercase;height:24px;padding:0 13px;cursor:pointer;font-family:var(--font-sans,Inter,sans-serif)}
@@ -23891,7 +23961,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
               // First VISIBLE segment carries the label only when the band
               // genuinely starts there; anything else is a continuation.
               const cont = !(p.si === 0 && p.sg.is_start);
-              const label = cont ? '↳ ' + _waEsc(p.band.title) + ', continued' : _waEsc(p.band.title);
+              const label = cont ? '↳ ' + _waEsc(p.band.title) + '<span class="bc">, continued</span>' : _waEsc(p.band.title);
               const range = (!cont && p.band.range) ? `<span class="bd">${_waEsc(p.band.range)}</span>` : '';
               html += `<button class="rb-mband ${p.band.type === 'travel' ? 'trip' : 'week'}${cont ? ' cont' : ''}" style="left:${(p.sg.start_col / 7 * 100).toFixed(4)}%;width:${(p.sg.span / 7 * 100).toFixed(4)}%;top:${2 + p.lane * _MV_LANE_H}px" onclick="window.__mvBand('${String(p.band.sid).replace(/'/g, '')}','${p.band.type}')" title="${_waEsc(p.band.title + (p.band.range ? ' · ' + p.band.range : ''))}"><span class="bt">${label}</span>${range}</button>`;
             });
