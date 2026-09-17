@@ -397,6 +397,7 @@ const fbShape = await page.evaluate(() => {
     pageLevel: /How were these looks\?/.test(pg.textContent),
     emoji: /👍/.test(pg.textContent),
     resting: ['kp0', 'kp1', 'kp2'].every((p) => document.getElementById(p + '-fb-up') && document.getElementById(p + '-fb-dn') && !document.getElementById(p + '-fb-text')),
+    thumbs: (() => { const u = document.getElementById('kp0-fb-up'), t = document.querySelector('#kp0-fb .rb-fb-title'); const cs = getComputedStyle(u); return { round: cs.borderRadius, w: u.getBoundingClientRect().width, svg: !!u.querySelector('svg'), noWords: u.textContent.trim() === '', sameLine: Math.abs(u.getBoundingClientRect().top + u.getBoundingClientRect().height / 2 - (t.getBoundingClientRect().top + t.getBoundingClientRect().height / 2)) < 6 }; })(),
     pillFont: cs.fontSize, pillTracking: cs.letterSpacing, pillCase: cs.textTransform, pillBg: cs.backgroundColor,
     pillBorder: cs.borderTopWidth, pillRadius: cs.borderTopLeftRadius, pillWidth: b.getBoundingClientRect().width, cardWidth: card.getBoundingClientRect().width,
     arrow: !!b.querySelector('.arr'), moreCentred: more.alignSelf,
@@ -405,6 +406,8 @@ const fbShape = await page.evaluate(() => {
 });
 check('feedback · one hairline line PER look, the page-level block and its emoji gone',
   fbShape.blocks.every(Boolean) && fbShape.perLook === 3 && !fbShape.pageLevel && !fbShape.emoji && fbShape.resting, JSON.stringify(fbShape));
+check('feedback · the verdict is two thumb circles on the question’s own line, no words (Annie’s iteration)',
+  fbShape.thumbs.svg && fbShape.thumbs.noWords && fbShape.thumbs.round === '50%' && fbShape.thumbs.w === 28 && fbShape.thumbs.sameLine, JSON.stringify(fbShape.thumbs));
 check('build this look · the design’s hairline pill (9.5px, .2em, uppercase, transparent, full card width, arrow, More detail centred)',
   fbShape.pillFont === '9.5px' && /^1\.9/.test(fbShape.pillTracking) && fbShape.pillCase === 'uppercase'
     && fbShape.pillBg === 'rgba(0, 0, 0, 0)' && fbShape.pillBorder === '1px' && Math.abs(fbShape.pillWidth - fbShape.cardWidth) < 1
@@ -413,7 +416,7 @@ const fbBefore = writes.filter((w) => w.url === 'feedback').length;
 await page.locator('#kp1-fb-dn').click();
 await page.waitForTimeout(200);
 const fbPicked = await page.evaluate(() => ({
-  on: document.getElementById('kp1-fb-dn')?.classList.contains('on') && /✓/.test(document.getElementById('kp1-fb-dn').textContent),
+  on: document.getElementById('kp1-fb-dn')?.classList.contains('on') && document.getElementById('kp1-fb-dn').getAttribute('aria-pressed') === 'true' && !!document.getElementById('kp1-fb-dn').querySelector('svg'),
   onBg: getComputedStyle(document.getElementById('kp1-fb-dn')).backgroundColor,
   offOther: !document.getElementById('kp1-fb-up')?.classList.contains('on'),
   input: document.getElementById('kp1-fb-text')?.placeholder,
@@ -422,7 +425,7 @@ const fbPicked = await page.evaluate(() => ({
   sendBg: getComputedStyle(document.querySelector('#kp1-fb .rb-fb-send')).backgroundColor,
   othersStill: !document.getElementById('kp0-fb-text') && !document.getElementById('kp2-fb-text'),
 }));
-check('feedback · Not quite: warm fill + ✓, the note opens focused ("the note is the point"), Send is a hairline pill, the other two looks untouched',
+check('feedback · thumbs down: warm fill, the note opens focused ("the note is the point"), Send is a hairline pill, the other two looks untouched',
   fbPicked.on && fbPicked.onBg === 'rgb(243, 239, 230)' && fbPicked.offOther && fbPicked.input === 'What would have made it better?'
     && fbPicked.focused === 'kp1-fb-text' && fbPicked.send === 'Send' && fbPicked.sendBg === 'rgba(0, 0, 0, 0)' && fbPicked.othersStill, JSON.stringify(fbPicked));
 await page.locator('#kp1-fb-up').click();

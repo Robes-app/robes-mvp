@@ -15441,10 +15441,13 @@ button.rb-lk-live{cursor:pointer}
         '.rb-fb-title{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:300;font-size:19px;line-height:1.3;margin:0;color:var(--ink,#202021)}' +
         '.rb-fb-sub{font-size:11px;color:var(--ink-faint,#9C9891)}' +
         '.rb-fb-pills{display:flex;align-items:center;gap:8px;flex-wrap:wrap}' +
-        '.rb-fb-pill{border-radius:100px;padding:10px 18px;font-family:inherit;font-size:9.5px;font-weight:500;line-height:1;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;background:transparent;border:1px solid var(--rule-mid,rgba(32,32,33,.14));color:var(--ink,#202021);transition:all .18s;white-space:nowrap}' +
+        // Thumbs, not words (Annie's iteration, 2026-09-17): two hairline
+        // circles, the picked one on the warm fill.
+        '.rb-fb-pill{width:30px;height:30px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;background:transparent;border:1px solid var(--rule-mid,rgba(32,32,33,.14));color:var(--ink,#202021);transition:all .18s;font-family:inherit}' +
+        '.rb-fb-pill svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;display:block}' +
         '.rb-fb-pill:hover{border-color:var(--ink,#202021)}' +
         '.rb-fb-pill.on{background:#F3EFE6;border-color:#C9BCA6}' +
-        '.rb-fb-pill.off{color:var(--ink-soft,#55524E)}' +
+        '.rb-fb-pill.off{color:var(--ink-soft,#55524E);opacity:.6}' +
         '.rb-fb-note{display:flex;align-items:center;gap:14px;flex-wrap:wrap}' +
         '.rb-fb-in{flex:1;min-width:220px;border:0;border-bottom:1px solid var(--rule-mid,rgba(32,32,33,.14));border-radius:0;background:transparent;padding:8px 0;font-family:inherit;font-size:13px;color:var(--ink,#202021);outline:none;box-shadow:none}' +
         '.rb-fb-in:focus{border-bottom-color:var(--ink,#202021)}' +
@@ -15455,9 +15458,10 @@ button.rb-lk-live{cursor:pointer}
         // 2b — stacked inside a key piece card (one column, the pills under
         // the question, the note under the pills).
         '.rb-fb.stack{gap:10px;padding-top:12px;margin-top:8px}' +
-        '.rb-fb.stack .rb-fb-head{flex-direction:column;align-items:flex-start;gap:10px}' +
+        '.rb-fb.stack .rb-fb-head{align-items:center;flex-wrap:nowrap;gap:12px}' +
         '.rb-fb.stack .rb-fb-title{font-size:15px;color:var(--ink-soft,#55524E)}' +
-        '.rb-fb.stack .rb-fb-pills{gap:6px}' +
+        '.rb-fb.stack .rb-fb-pills{gap:6px;flex:none}' +
+        '.rb-fb.stack .rb-fb-pill{width:28px;height:28px}' +
         '.rb-fb.stack .rb-fb-note{flex-direction:column;align-items:flex-start;gap:10px}' +
         '.rb-fb.stack .rb-fb-in{width:100%;min-width:0;padding:6px 0;font-size:12px}' +
         '.rb-fb.stack .rb-fb-send{padding:9px 18px;font-size:9px}' +
@@ -15493,7 +15497,9 @@ button.rb-lk-live{cursor:pointer}
         const cls = 'rb-fb' + (stack ? ' stack' : '');
         if (st.sent) return '<div class="' + cls + '" id="' + prefix + '-fb"><p class="rb-fb-sent" id="' + prefix + '-fb-done">Noted — filed for next time.</p></div>';
         const picked = st.rating === 0 || st.rating === 1;
-        const pill = (v, label) => '<button type="button" class="rb-fb-pill' + (st.rating === v ? ' on' : (picked ? ' off' : '')) + '" id="' + prefix + '-fb-' + (v ? 'up' : 'dn') + '" onclick="window.__rbFbRate(\'' + prefix + '\',' + v + ')">' + (st.rating === v ? '✓ ' : '') + label + '</button>';
+        const THUMB_UP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v12"></path><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"></path></svg>';
+        const THUMB_DN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 14V2"></path><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"></path></svg>';
+        const pill = (v, label) => '<button type="button" class="rb-fb-pill' + (st.rating === v ? ' on' : (picked ? ' off' : '')) + '" id="' + prefix + '-fb-' + (v ? 'up' : 'dn') + '" aria-label="' + label + '" title="' + label + '" aria-pressed="' + (st.rating === v ? 'true' : 'false') + '" onclick="window.__rbFbRate(\'' + prefix + '\',' + v + ')">' + (v ? THUMB_UP : THUMB_DN) + '</button>';
         const sub = copy.sub !== undefined ? copy.sub : (stack ? '' : 'Your taste shapes what comes next');
         const ph = st.rating === 0 ? 'What would have made it better?' : 'Anything you want more of?';
         return '<div class="' + cls + '" id="' + prefix + '-fb">' +
