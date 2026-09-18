@@ -165,17 +165,45 @@
       // the prompt box opens with her in it — reveal + focus the concierge
       // prompt once boot settles (the app's late-wiring beat). The model
       // itself needs no loading: every generation already reads avatar_id.
+      // Slice 2 (four-session funnel, 2026-09-18): filed with a look
+      // waiting to be dressed, she lands ON that look — the newest saved
+      // look with something on it and no frame yet — and watches her
+      // model render into it ("Creating her frame…"); the look-open kick
+      // does the rendering. No such look → the prompt, as before.
       try {
         if (sessionStorage.getItem('rb_model_build')) {
           sessionStorage.removeItem('rb_model_build');
-          setTimeout(function() {
+          var openLook = !!sessionStorage.getItem('rb_model_open_look');
+          sessionStorage.removeItem('rb_model_open_look');
+          var revealPrompt = function() {
             try { if (typeof _rbFtuRevealPrompt === 'function') _rbFtuRevealPrompt(); } catch (e) {}
             var ta = document.getElementById('cb-ta');
             if (ta) {
               try { ta.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
               ta.focus();
             }
-          }, 1700);
+          };
+          if (!openLook) setTimeout(revealPrompt, 1700);
+          else {
+            var lkTries = 0;
+            var lkTick = function() {
+              lkTries++;
+              var ready = !!_lkLoaded && !!_waLoaded;
+              if (!ready && lkTries < 40) { setTimeout(lkTick, 200); return; }
+              var cand = (_lkLooks || []).find(function(l) {
+                return l && !l._draft && !l.render_url &&
+                  ((l.pieces || []).length + (Array.isArray(l.proposals) ? l.proposals.length : 0)) >= 1;
+              });
+              if (cand && typeof window.__lkOpen === 'function') {
+                window.__lkOpen(cand.id, { from: { label: 'Home', go: function() { if (window.__rbNavGo) window.__rbNavGo('home'); } } });
+                _rbTrack('model_build_landed', { on: 'look' });
+                return;
+              }
+              _rbTrack('model_build_landed', { on: 'prompt' });
+              revealPrompt();
+            };
+            setTimeout(lkTick, 1700);
+          }
         }
       } catch (e) { /* storage blocked — the prompt still leads home */ }
 
@@ -888,6 +916,10 @@
         if (!dash || !mast || !conc || !trk) return;
         const rail = document.getElementById('rb-rail');
         const styled = document.getElementById('rb-styled');
+        // The model door (slice 2, 2026-09-18) sits after the prompt + rail
+        // (after "Your looks" in the first-look posture) and before the
+        // concierge band.
+        const door = document.getElementById('rb-model-door');
         // FTU simplification (2026-08-18): while the quiet index rows carry
         // home, the modules they demote live INSIDE the rows and are never
         // resequenced at dash level. Zero looks (W01/O1) → styled card +
@@ -904,7 +936,7 @@
           // hidden in 'zero' anyway, while the styled card is the hero).
           const seq0 = (ftuRows.getAttribute('data-mode') === 'zero'
             ? [styled, ftuRows, svc0]
-            : [conc, firstlook, ftuRows, svc0]).filter(Boolean);
+            : [conc, firstlook, door, ftuRows, svc0]).filter(Boolean);
           seq0.forEach((el, i) => {
             const prev = i === 0 ? mast : seq0[i - 1];
             if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
@@ -916,8 +948,8 @@
         // ahead of the Lookbook and Inspiration rows.
         const svc = dash.querySelector('.services');
         const seq = (n < _MS_UNLOCKS[0].at
-          ? [styled, conc, rail, svc]
-          : [conc, rail, styled, svc]).filter(Boolean);
+          ? [styled, conc, rail, door, svc]
+          : [conc, rail, door, styled, svc]).filter(Boolean);
         seq.forEach((el, i) => {
           const prev = i === 0 ? mast : seq[i - 1];
           if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
@@ -8770,6 +8802,7 @@
    dock. Every action holds 44px touch height. ══ */
 .rbc-mslot{display:none}
 .rbc-board{position:relative}
+.rb-lk-framebusy{position:absolute;left:10px;bottom:10px;z-index:3;padding:5px 9px;border-radius:100px;background:rgba(255,255,255,0.9);font-size:9.5px;letter-spacing:.06em;color:var(--ink-soft);pointer-events:none}
 .rbc-share-m{display:none}
 @media(max-width:767px){
 /* 01 · one header — the look head carries eyebrow + name; the rack's
@@ -10555,7 +10588,10 @@
           .catch(() => { _avId = _avLocalId(); cb(_avId); });   // column missing pre-migration-20
       }
       function _avRenderKick(l) {
-        if (!l || l._draft || ((l.pieces || []).length + (l.proposals || []).length) < 2) return;
+        // ONE piece is enough (slice 2, 2026-09-18): /api/avatar/render
+        // takes 1–12 pieces since 2026-09-03, and a Session-1 look holds
+        // one piece of hers and Robes' proposals — it must render too.
+        if (!l || l._draft || ((l.pieces || []).length + (l.proposals || []).length) < 1) return;
         if (_avBusy[l.id]) return;
         // The men's catalog is live (2026-09-01): a kept 'm-…' model renders
         // exactly like a 'w-…' one — the server's prefix gate handles any
@@ -10573,8 +10609,14 @@
             const wi = (_waItems || []).find(w => String(w.id) === String(p.id));
             return wi ? { name: wi.label, category: wi.category, color: wi.color, brand: wi.brand, image_url: _pdHttp(wi.image_url) } : null;
           }).filter(Boolean).concat(props);
-          if (garments.length < 2 || garments.length > 12) return;
+          if (garments.length < 1 || garments.length > 12) return;
           _avBusy[l.id] = true;
+          // The id answered async with the look page already open on this
+          // look → the busy chip lands now, not on the next repaint.
+          try {
+            if (_lkView === 'detail' && String(_lkActive) === String(l.id) && !_lkEditMode && !_lkDraft &&
+                document.querySelector('#rb-lk-body .rbc-board') && !document.querySelector('#rb-lk-body .rb-lk-framebusy')) _lkPaint();
+          } catch (_) {}
           fetch('/api/avatar/render', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -11887,9 +11929,16 @@ button.rb-lk-live{cursor:pointer}
       // o: {items, ids, props, dirty, dPhoto, dView, acts, tail,
       //     occHtml?, actionHtml?} — occHtml sits under the head (a day's
       // Day/Evening switcher), actionHtml closes the panel (a day's Share).
+      // "Creating her frame…" over the mosaic while her model's render of
+      // this look is in flight (slice 2, 2026-09-18 — the day page's chip,
+      // on the look page). The landing frame repaints it away.
+      function _lkFrameBusyHtml(l) {
+        if (!l || !_lkModel || !_avBusy[l.id]) return '';
+        return '<span class="rb-lk-framebusy">Creating ' + _waEsc(_lkModelPro().her) + ' frame…</span>';
+      }
       function _lkLookPanelHtml(l, o) {
         const ids = o.ids, items = o.items, props = o.props || [];
-        const acts = o.acts || '', tail = o.tail || '';
+        const acts = (o.acts || '') + _lkFrameBusyHtml(l), tail = o.tail || '';
         const shareBadge = o.actionHtml
           ? '<button class="rbc-share-m" onclick="window.__rbShare&&window.__rbShare()" aria-label="Share this look"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></button>'
           : '';
@@ -12498,6 +12547,12 @@ button.rb-lk-live{cursor:pointer}
             if (document.querySelector('.rb-lk-composer, .rb-lkm-stage, .rb-lk-editing, .rb-lkm-panel')) _lkRepaint();
             if (document.getElementById('kp-model-band') && typeof _kpModelBandSync === 'function') _kpModelBandSync();
             if (typeof _rbNextPaint === 'function') _rbNextPaint();
+            // The home model door (slice 2) stands or retires on the id —
+            // then takes its slot in the sequence.
+            if (document.getElementById('dash') && typeof _rbModelDoorSync === 'function') {
+              _rbModelDoorSync();
+              if (typeof _rbFtueOrder === 'function') _rbFtueOrder((_waItems || []).length);
+            }
             // A day editing its saved look dresses her model too.
             try {
               const d = window.__lastDlData;
@@ -12776,6 +12831,19 @@ button.rb-lk-live{cursor:pointer}
           sessionStorage.setItem('rb_model_return', kp ? 'inspiration' : home ? 'home' : 'lookbook');
         } catch (_) {}
         _rbTrack('look_model_build', { home, kp: !!kp });
+        window.location.href = '/stylenotes';
+      };
+      // The model door with no draft to park (slice 2, 2026-09-18): home's
+      // band and the masthead's next line. rb_model_return = 'home' with NO
+      // rb_lk_draft reads on Style notes as the plain page — ‹ Home, Build a
+      // look — and filing there lands her on the look, dressed (the boot's
+      // rb_model_open_look handler).
+      window.__rbModelGo = function(from) {
+        try {
+          sessionStorage.removeItem('rb_lk_draft');
+          sessionStorage.setItem('rb_model_return', 'home');
+        } catch (_) {}
+        _rbTrack('model_door_tapped', { from: from || 'door' });
         window.location.href = '/stylenotes';
       };
       window.__lkDraftRestore = function(d, where) {
@@ -13378,12 +13446,14 @@ button.rb-lk-live{cursor:pointer}
         _lkPending = null; _lkDone = null; _lkActNote = null; _lkDraft = null;
         _lkTitleDraft = null; _lkTitleTouched = false; _lkTitleEditing = false; _lkRetro = false;
         _lkEditMode = false;   // every look opens READING (1c)
-        _lkPaint();
         // Looks saved before the render pipeline (or before her model was
         // kept) render on their next open — bounded backfill: only looks she
         // actually opens, once per composition (the render_key cache no-ops
-        // the rest). The hero swaps in live when the photograph lands.
+        // the rest). The hero swaps in live when the photograph lands. The
+        // kick runs BEFORE the paint so a cached id's synchronous busy mark
+        // puts "Creating her frame…" on the first frame.
         _avRenderKick(_lkFind(id));
+        _lkPaint();
         _rbTrack('look_opened', {});
       };
       window.__lkBack = function() {
@@ -14788,7 +14858,7 @@ button.rb-lk-live{cursor:pointer}
         if (!nx) return;
         _rbTrack('next_line_tapped', { rule: nx.key });
         if (nx.door === 'model') {
-          if (window.__rbModelGo) { window.__rbModelGo('home'); return; }        // slice 2's door
+          if (window.__rbModelGo) { window.__rbModelGo('next'); return; }        // slice 2's door
           window.location.assign('/stylenotes');
         } else if (nx.door === 'finish') {
           if (window.__rbFillOpen) { window.__rbFillOpen(nx.id); return; }        // slice 4's door
@@ -14799,6 +14869,87 @@ button.rb-lk-live{cursor:pointer}
           if (window.__rbDayOpen) window.__rbDayOpen(nx.date, { from: 'home' });
         }
       };
+      // ── The model door on home (four-session funnel, slice 2 · 2026-09-18)
+      // Session 2's headline act had no door on the home she returns to.
+      // A slim WHITE band on a hairline (one tinted band per screen — the
+      // concierge keeps the tint), full-bleed like it, sequenced after the
+      // prompt + rail and before the concierge by _rbFtueOrder. Renders
+      // only at _lkModel === null (asked, none on file — never undefined)
+      // with a saved look and no styled card holding the screen; the ✕ is
+      // "not now" (7 days, per user), never "never"; it retires the beat a
+      // model id lands (_lkModelEnsure's deferred callback re-syncs).
+      var _rbModelDoorShown = false;
+      var _RB_MODEL_DOOR_SNOOZE = 7 * 24 * 60 * 60 * 1000;
+      function _rbModelDoorCss() {
+        if (document.getElementById('rb-model-door-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-model-door-style';
+        st.textContent =
+          '#rb-model-door{--rb-bleed:var(--s6,80px);margin:6px calc(var(--rb-bleed) * -1) 40px;padding:26px var(--rb-bleed);background:#fff;border-top:1px solid var(--rule,#E7E0CF);border-bottom:1px solid var(--rule,#E7E0CF)}' +
+          'body[data-density="compact"] #rb-model-door{--rb-bleed:36px}' +
+          '@media(max-width:920px){#rb-model-door{--rb-bleed:26px}}' +
+          '@media(max-width:560px){#rb-model-door{--rb-bleed:20px}}' +
+          '#rb-model-door .rb-md-in{position:relative;display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap}' +
+          '#rb-model-door .l{display:flex;align-items:center;gap:20px;min-width:0}' +
+          '#rb-model-door .fig{width:40px;height:56px;border:1px dashed var(--cream-400,#D8CFBE);border-radius:20px 20px 3px 3px;flex:none}' +
+          '#rb-model-door .ey{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
+          '#rb-model-door h3{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:24px;line-height:1.2;margin:6px 0 0;color:var(--ink,#202021)}' +
+          '#rb-model-door h3 em{font-style:italic}' +
+          '#rb-model-door .sub{font-size:12.5px;line-height:1.5;color:var(--ink-soft,#5E5E60);margin-top:6px}' +
+          '#rb-model-door .r{display:flex;align-items:center;gap:14px;flex:none}' +
+          '#rb-model-door .rb-pill{padding:13px 22px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink,#202021);border-color:rgba(32,32,33,0.28);margin:0}' +
+          '#rb-model-door .x{background:none;border:0;padding:6px 8px;cursor:pointer;color:var(--ink-faint,#9A9A9C);font-size:15px;line-height:1}' +
+          '#rb-model-door .x:hover{color:var(--ink,#202021)}' +
+          '@media(max-width:700px){#rb-model-door .rb-md-in{flex-direction:column;align-items:stretch;gap:14px}#rb-model-door .r{width:100%}#rb-model-door .rb-pill{flex:1;justify-content:center}#rb-model-door .x{position:absolute;top:-8px;right:-8px}}';
+        document.head.appendChild(st);
+      }
+      function _rbModelDoorSnoozed() {
+        try {
+          const u = _waUid(); if (!u) return false;
+          const t = Number(localStorage.getItem('rb_model_door_off__' + u) || 0);
+          return t > 0 && (Date.now() - t) < _RB_MODEL_DOOR_SNOOZE;
+        } catch (_) { return false; }
+      }
+      function _rbModelDoorWants() {
+        if (_lkModel === undefined) { _lkModelEnsure(); return false; }   // not asked yet — never guess
+        if (_lkModel !== null) return false;
+        if (!(_lkLooks || []).some(l => l && !l._draft)) return false;
+        if (document.getElementById('rb-styled')) return false;
+        return !_rbModelDoorSnoozed();
+      }
+      function _rbModelDoorSync() {
+        const dash = document.getElementById('dash');
+        let el = document.getElementById('rb-model-door');
+        if (!dash) return;
+        if (!_rbModelDoorWants()) { if (el) el.remove(); return; }
+        _rbModelDoorCss();
+        const pro = _lkModelPro();
+        if (!el) {
+          el = document.createElement('section');
+          el.id = 'rb-model-door';
+          const mast = dash.querySelector('.dash-mast');
+          if (mast && mast.nextSibling) dash.insertBefore(el, mast.nextSibling); else dash.appendChild(el);
+        }
+        el.innerHTML = '<div class="rb-md-in">' +
+          '<div class="l"><span class="fig" aria-hidden="true"></span><div>' +
+            '<div class="ey">Your model</div>' +
+            '<h3>Build ' + pro.her + ' once, ' + pro.shell + ' wear <em>every look you keep.</em></h3>' +
+            '<div class="sub">Thirty seconds by hand, or two photographs.</div>' +
+          '</div></div>' +
+          '<div class="r">' +
+            '<button type="button" class="rb-pill" onclick="window.__rbModelGo(\'door\')">Build your model</button>' +
+            '<button type="button" class="x" aria-label="Not now" title="Not now" onclick="window.__rbModelDoorDismiss()">✕</button>' +
+          '</div></div>';
+        if (!_rbModelDoorShown) { _rbModelDoorShown = true; _rbTrack('model_door_shown', {}); }
+      }
+      window.__rbModelDoorDismiss = function() {
+        try { const u = _waUid(); if (u) localStorage.setItem('rb_model_door_off__' + u, String(Date.now())); } catch (_) {}
+        _rbTrack('model_door_dismissed', {});
+        const el = document.getElementById('rb-model-door');
+        if (el) el.remove();
+      };
+      window._rbModelDoorSync = _rbModelDoorSync;
+
       function _lkHomeSync() {
         const dash = document.getElementById('dash');
         if (!dash) return;
@@ -14830,6 +14981,7 @@ button.rb-lk-live{cursor:pointer}
         if (trk) trk.style.display = 'none';
         if (typeof _rbRenderStyleNotes === 'function') _rbRenderStyleNotes();
         if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow();
+        _rbModelDoorSync();
         if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length);
         _rbNextPaint();
       }

@@ -124,6 +124,8 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 
 **Why**: the model is Session 2's headline act and has no door on the home she returns to. The only home introduction (`_rbSilPrompt`) is gated at 15 pieces and points at colour/silhouette.
 
+**Status: 2.1 + 2.2 built 2026-09-18** (`beta`). The band, its 7-day ✕, `__rbModelGo`, the `'home'` return on Style notes, `rb_model_open_look`, the landing on the newest undressed look with ‹ Home, and the render kick's floor lowered to one piece. 2.3 (the by-hand head line) and 2.4 (Session-1 planting) are NOT built — both are founder copy decisions (open decisions 2 and 6 below); the band and slice 6's email carry Session 2 without them. Slice 1's `model` next-line door now goes through `__rbModelGo('next')`.
+
 ### 2.1 `#rb-model-door` — a slim band on home
 
 - **Condition**: `_lkModel === null` (asked, none on file — never `undefined`) AND `_lkLooks.length ≥ 1` AND the styled card is not the hero. Retires the moment `_lkModel` resolves to an object (the `_lkModelEnsure` deferred callback re-syncs).

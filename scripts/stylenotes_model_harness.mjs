@@ -293,6 +293,44 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await ctx.close();
   }
 
+  console.log(`\n\x1b[1m== ${label} · home's model door (funnel slice 2): ‹ Home, Build a look, lands on the look ==\x1b[0m`);
+  {
+    const { ctx, p, errs } = await open(vp, 'kept');
+    // The dashboard must not boot under the click — a blank page keeps the
+    // flags it would otherwise read and clear.
+    await p.route('**/dashboard', r => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>dash</title>' }));
+    await p.evaluate(() => { sessionStorage.setItem('rb_model_return', 'home'); sessionStorage.removeItem('rb_lk_draft'); });
+    await p.reload(); await p.waitForTimeout(800);
+    ok(/home/i.test(await p.locator('.sn-back').innerText()), 'rb_model_return=home with NO parked draft → the back pill reads ‹ Home');
+    ok(/build a look/i.test(await p.locator('#mv-build').innerText()), '…and the CTA stays Build a look, not Back to your look');
+    await p.locator('#mv-build').click(); await p.waitForTimeout(600);
+    const flags = await p.evaluate(() => ({ path: location.pathname, build: sessionStorage.getItem('rb_model_build'), open: sessionStorage.getItem('rb_model_open_look') }));
+    ok(flags.path === '/dashboard' && flags.build === '1' && flags.open === '1',
+      'Build a look on a FILED model writes rb_model_build + rb_model_open_look and lands on /dashboard, got ' + JSON.stringify(flags));
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+  {
+    const { ctx, p, errs } = await open(vp, 'kept');
+    await p.evaluate(() => { sessionStorage.setItem('rb_model_return', 'home'); sessionStorage.setItem('rb_lk_draft', JSON.stringify({ rows: [], home: true })); });
+    await p.reload(); await p.waitForTimeout(800);
+    ok(/back to your look/i.test(await p.locator('#mv-build').innerText()), 'a PARKED composer draft still reads Back to your look');
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+  {
+    const { ctx, p, errs } = await open(vp);
+    await p.route('**/dashboard', r => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>dash</title>' }));
+    // Nothing read, nothing filed → shape by hand, then Build a look
+    await p.locator('#mv-shape .mvr-dot[data-axis="skin"]').nth(2).click(); await p.waitForTimeout(300);
+    const kept = await p.evaluate(() => { try { return JSON.parse(localStorage.getItem('rb_model__u1') || '{}').kept === true; } catch (e) { return false; } });
+    await p.locator('#mv-build').click(); await p.waitForTimeout(600);
+    const flags = await p.evaluate(() => ({ path: location.pathname, open: sessionStorage.getItem('rb_model_open_look') }));
+    ok(kept && flags.path === '/dashboard' && flags.open === '1', 'a hand-shaped model files itself, so Build a look carries rb_model_open_look too, got ' + JSON.stringify([kept, flags]));
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+
   console.log(`\n\x1b[1m== ${label} · the analyse flow lands on the page ==\x1b[0m`);
   {
     const { ctx, p, errs } = await open(vp);

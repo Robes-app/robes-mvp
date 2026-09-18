@@ -1312,8 +1312,17 @@
     // (rb_model_return, 2026-09-03): the draft is parked in sessionStorage
     // and the dashboard restores it onto the rack — so the pill reads
     // "Back to your look" and lands where she left off.
-    let mvReturnTo = null;
-    try { mvReturnTo = sessionStorage.getItem('rb_model_return'); } catch (e) {}
+    let mvReturnTo = null, mvDraftParked = false;
+    try {
+      mvReturnTo = sessionStorage.getItem('rb_model_return');
+      mvDraftParked = !!sessionStorage.getItem('rb_lk_draft');
+    } catch (e) {}
+    // Home's model door (funnel slice 2, 2026-09-18) sends 'home' with NO
+    // draft parked: that is the plain page — ‹ Home, Build a look — and
+    // filing here lands her on the look, dressed (rb_model_open_look,
+    // read by the dashboard boot). Only a parked composer draft earns
+    // "Back to your look".
+    if (mvReturnTo === 'home' && !mvDraftParked) mvReturnTo = null;
     if (mvReturnTo === 'lookbook' || mvReturnTo === 'home' || mvReturnTo === 'inspiration') {
       document.getElementById('mv-build').textContent = 'Back to your look';
       const back = document.querySelector('.sn-back');
@@ -1326,7 +1335,12 @@
       if (mvReturnTo === 'lookbook') { window.location.href = '/lookbook'; return; }
       if (mvReturnTo === 'home') { window.location.href = '/dashboard'; return; }
       if (mvReturnTo === 'inspiration') { window.location.href = '/inspiration'; return; }
-      try { sessionStorage.setItem('rb_model_build', '1'); } catch (e) {}
+      try {
+        sessionStorage.setItem('rb_model_build', '1');
+        // Filed → the dashboard opens her newest undressed look and her
+        // model renders into it, instead of an empty prompt.
+        if (st.model && st.model.kept) sessionStorage.setItem('rb_model_open_look', '1');
+      } catch (e) {}
       window.location.href = '/dashboard';
     });
 

@@ -102,7 +102,7 @@ const SEED_WEARS = [
 // Every write the module makes is captured so the harness can assert on the
 // payloads — that a wear is INSERTed and undone by DELETE (never updated), and
 // that a promotion writes a new look rather than mutating the old one.
-async function boot(browser, { width = 1280, looksTable = true, seed = true, dropCat = null, pics = 0, avatar = null } = {}) {
+async function boot(browser, { width = 1280, looksTable = true, seed = true, dropCat = null, pics = 0, avatar = null, init = null, pre = null } = {}) {
   WARDROBE_PICS = pics;
   const ctx = await browser.newContext({ viewport: { width, height: 1200 } });
   const page = await ctx.newPage();
@@ -190,6 +190,12 @@ async function boot(browser, { width = 1280, looksTable = true, seed = true, dro
     };
     Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
   });
+
+  // A section that needs storage seeded or routes armed BEFORE the boot
+  // (the model-build landing reads sessionStorage at boot; the render kick
+  // fires from the look it opens).
+  if (init) await page.addInitScript(init);
+  if (pre) await pre(page);
 
   const errs = [];
   page.on('pageerror', (e) => errs.push(String(e)));
@@ -3389,6 +3395,90 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     JSON.stringify(wl));
   check('rule 04 dressed · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   void today;
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Funnel slice 2.2 (2026-09-18): filed on Style notes, the dashboard lands
+// ON the newest undressed look — ‹ Home, her model rendering into it — and
+// a ONE-piece Session-1 look renders (the kick's floor is the endpoint's:
+// 1–12). No candidate look → the prompt, as before.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const renders = [];
+  const { ctx, page, errs, writes } = await boot(browser, {
+    avatar: 'w-s5-h2-hg', pics: 6,
+    init: () => {
+      sessionStorage.setItem('rb_model_build', '1');
+      sessionStorage.setItem('rb_model_open_look', '1');
+      // A Session-1 look: ONE piece of hers, no frame yet, newest of all.
+      localStorage.setItem('rb_looks__u-test', JSON.stringify([
+        { id: 'lk-one', name: 'The first one', name_provisional: false, note: '', photo_url: null, render_url: null, render_key: null,
+          proposals: null, source: 'manual', origin_look_id: null, created_at: '2026-09-01T10:00:00.000Z',
+          pieces: [{ id: 'w-top1', slot: 'Top', position: 0, role: null }], wears: [] }]));
+    },
+    pre: async (page) => {
+      await page.route('**/api/avatar/cell', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/cell.jpg' }) }));
+      await page.route('**/api/avatar/render', (r) => {
+        const b = r.request().postDataJSON();
+        renders.push(b.pieces.map((p) => p.name));
+        r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'rj' + renders.length }) });
+      });
+      await page.route('**/api/images/rj*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [], done: false }) }));
+      await page.route('**img.test/**', (r) => r.abort());
+    },
+  });
+  await page.waitForTimeout(1200);
+  const land = await page.evaluate(() => {
+    const sn = document.getElementById('sn-page');
+    return {
+      open: !!sn && getComputedStyle(sn).display !== 'none',
+      title: document.getElementById('rb-lk-title')?.textContent.trim() || null,
+      back: document.querySelector('#rb-lk-body .rb-ret-pill .lab')?.textContent.trim() || null,
+      creating: /creating her frame/i.test(document.getElementById('rb-lk-body')?.textContent || ''),
+      promptFocused: document.activeElement?.id === 'cb-ta',
+    };
+  });
+  check('model-build landing · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  check('model-build landing · the dashboard opens the newest undressed look, ‹ Home, not the prompt',
+    land.open && land.title === 'The first one' && land.back === 'Home' && !land.promptFocused, JSON.stringify(land));
+  check('model-build landing · a ONE-piece look renders — the kick asked for exactly her piece',
+    renders.length === 1 && renders[0].length === 1 && renders[0][0] === 'Cream silk shirt', JSON.stringify(renders));
+  check('model-build landing · the page says her frame is coming', land.creating, String(land.creating));
+  await page.evaluate(() => document.querySelector('#rb-lk-body .rb-ret-pill').click());
+  await page.waitForTimeout(500);
+  const back = await page.evaluate(() => {
+    const sn = document.getElementById('sn-page');
+    return { snOpen: !!sn && getComputedStyle(sn).display !== 'none', origin: window._rbNavOrigin };
+  });
+  check('model-build landing · ‹ Home walks back to home', !back.snOpen && back.origin === 'home', JSON.stringify(back));
+  void writes;
+  await ctx.close();
+}
+{
+  // Every look already dressed → nothing to land on → the prompt, focused.
+  const { ctx, page, errs } = await boot(browser, {
+    avatar: 'w-s5-h2-hg', seed: false,
+    init: () => {
+      sessionStorage.setItem('rb_model_build', '1');
+      sessionStorage.setItem('rb_model_open_look', '1');
+      localStorage.setItem('rb_looks__u-test', JSON.stringify([
+        { id: 'lk-done', name: 'Dressed already', name_provisional: false, note: '', photo_url: null,
+          render_url: 'https://img.test/render-done.jpg', render_key: 'w-s5-h2-hg|w-top1', proposals: null, source: 'manual',
+          origin_look_id: null, created_at: '2026-09-01T10:00:00.000Z',
+          pieces: [{ id: 'w-top1', slot: 'Top', position: 0, role: null }], wears: [] }]));
+    },
+    pre: async (page) => {
+      await page.route('**/api/avatar/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+      await page.route('**img.test/**', (r) => r.abort());
+    },
+  });
+  await page.waitForTimeout(1200);
+  const fall = await page.evaluate(() => {
+    const sn = document.getElementById('sn-page');
+    return { snOpen: !!sn && getComputedStyle(sn).display !== 'none', promptFocused: document.activeElement?.id === 'cb-ta' };
+  });
+  check('model-build landing · no undressed look → the prompt leads, focused', !fall.snOpen && fall.promptFocused && errs.length === 0, JSON.stringify([fall, errs.slice(0, 1)]));
   await ctx.close();
 }
 

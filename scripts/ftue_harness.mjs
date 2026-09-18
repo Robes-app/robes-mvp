@@ -1108,6 +1108,87 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// The model door on home (four-session funnel brief, slice 2.1 · 2026-09-18):
+// no model on file + a saved look → a slim WHITE band on a hairline after
+// the rail and before the concierge band; ✕ is "not now" (7 days); a model
+// id retires it; no saved look → no door; in the first-look posture it
+// follows "Your looks".
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs } = await boot(browser, 4);
+  const read = () => page.evaluate(() => {
+    const d = document.getElementById('rb-model-door');
+    const dash = document.getElementById('dash');
+    const pill = d?.querySelector('.rb-pill');
+    return {
+      door: !!d,
+      text: d?.textContent.replace(/\s+/g, ' ').trim() || '',
+      bg: d ? getComputedStyle(d).backgroundColor : null,
+      bleed: d ? getComputedStyle(d).marginLeft : null,
+      pill: pill?.textContent.trim() || null,
+      pillBg: pill ? getComputedStyle(pill).backgroundColor : null,
+      x: !!d?.querySelector('.x'),
+      order: Array.from(dash.children).map((e) => e.id || e.className.split(' ')[0]),
+      inkOnHome: Array.from(dash.querySelectorAll('button')).filter((b) => b.offsetParent !== null && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
+      snooze: localStorage.getItem('rb_model_door_off__u-test'),
+    };
+  });
+  const a = await read();
+  check('model door · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('model door · no model + saved looks → the band: eyebrow, the serif line, the sub',
+    a.door && /Your model/i.test(a.text) && /Build her once, she’ll wear every look you keep\./.test(a.text) && /Thirty seconds by hand, or two photographs\./.test(a.text),
+    a.text);
+  check('model door · white on a hairline, full-bleed, a hairline Build your model pill + a ✕ — Style me stays the one ink on home',
+    a.bg === 'rgb(255, 255, 255)' && a.bleed === '-80px' && a.pill === 'Build your model' && a.pillBg !== 'rgb(32, 32, 33)' && a.x && a.inkOnHome === 1,
+    JSON.stringify([a.bg, a.bleed, a.pill, a.pillBg, a.x, a.inkOnHome]));
+  const iRail = a.order.indexOf('rb-rail'), iDoor = a.order.indexOf('rb-model-door'), iSvc = a.order.indexOf('services');
+  check('model door · sits after the rail and before the concierge band', iRail >= 0 && iDoor === iRail + 1 && iSvc === iDoor + 1, JSON.stringify(a.order));
+  await page.click('#rb-model-door .x');
+  await page.waitForTimeout(250);
+  const b = await read();
+  check('model door · ✕ takes it off and files a timestamp, nothing else moves', !b.door && Number(b.snooze) > 0 && b.order.indexOf('services') === b.order.indexOf('rb-rail') + 1, JSON.stringify([b.door, b.snooze]));
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const c = await read();
+  check('model door · stays down on the next load inside the seven days', !c.door, String(c.door));
+  await page.evaluate(() => localStorage.setItem('rb_model_door_off__u-test', String(Date.now() - 8 * 24 * 3600 * 1000)));
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const d = await read();
+  check('model door · returns after seven days while the condition holds (✕ is "not now", never "never")', d.door, String(d.door));
+  await page.evaluate(() => localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 })));
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const e = await read();
+  check('model door · a model on file retires it', !e.door && errs.length === 0, JSON.stringify([e.door, errs.slice(0, 1)]));
+  await ctx.close();
+}
+{
+  const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
+  const z = await page.evaluate(() => ({ door: !!document.getElementById('rb-model-door'), mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode') }));
+  check('model door · no saved look → no door (the styled card / prompt lead)', !z.door && z.mode === 'zero-lead', JSON.stringify(z));
+  await page.evaluate(() => {
+    localStorage.setItem('rb_looks__u-test', JSON.stringify([
+      { id: 'lk-only', name: 'The first one', name_provisional: false, note: '', photo_url: null, tags: null, source: 'manual',
+        origin_look_id: null, created_at: '2026-08-05T10:00:00.000Z',
+        pieces: [{ id: 'w0', slot: 'Top', position: 0, role: null }], wears: [] }]));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const o = await page.evaluate(() => ({
+    door: !!document.getElementById('rb-model-door'),
+    mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
+    order: Array.from(document.getElementById('dash').children).map((e) => e.id || e.className.split(' ')[0])
+      .filter((id) => ['concierge', 'rb-firstlook', 'rb-model-door', 'rb-ftu-rows', 'services'].includes(id)),
+  }));
+  check('model door · first-look posture: after "Your looks", before the hairline rows',
+    o.door && o.mode === 'look' && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-model-door', 'rb-ftu-rows', 'services']),
+    JSON.stringify(o));
+  check('model door · no page errors (postures)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
 await browser.close();
 server.kill();
 
