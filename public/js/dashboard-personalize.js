@@ -7423,7 +7423,7 @@
         const props = Array.isArray(l.proposals) ? l.proposals.length : 0;
         const pro = _lkModelPro();
         const next = _lkModel === null
-          ? ('Build your model and ' + pro.shell + ' wear it.' + (props ? ' Photograph the ' + props + ' piece' + (props === 1 ? '' : 's') + ' that ' + (props === 1 ? 'isn’t' : 'aren’t') + ' yours yet and it’s all yours.' : ''))
+          ? ('Build your model and ' + pro.shell + ' wear it.' + (props ? ' Photograph the ' + props + ' piece' + (props === 1 ? '' : 's') + ' that ' + (props === 1 ? 'isn’t' : 'aren’t') + ' yours yet and swap them in.' : ''))
           : (props ? props + ' of these ' + (props === 1 ? 'isn’t' : 'aren’t') + ' yours yet — photograph yours and Robes swaps ' + (props === 1 ? 'it' : 'them') + ' in.' : '');
         host.innerHTML = '<div class="kp-build-filed">' +
           '<div><div class="ey">Filed</div>' +

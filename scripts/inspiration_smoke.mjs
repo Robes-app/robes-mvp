@@ -293,7 +293,7 @@ const filedNext = await page.evaluate(() => ({
   firstUnfilled: getComputedStyle(document.getElementById('kp-build-btn-0')).backgroundColor !== 'rgb(32, 32, 33)',
 }));
 check('filed · the forward line names the model and the borrowed pieces; Open the look stays the one door; card 01 stands down',
-  /^Build your model and she’ll wear it\. Photograph the \d+ pieces? that (aren’t|isn’t) yours yet and it’s all yours\.$/.test(filedNext.line)
+  /^Build your model and she’ll wear it\. Photograph the \d+ pieces? that (aren’t|isn’t) yours yet and swap them in\.$/.test(filedNext.line)
     && filedNext.doors === 1 && filedNext.firstUnfilled === true, JSON.stringify(filedNext));
 await page.locator('#kp-build-host button:has-text("Open the look")').click();
 await page.waitForTimeout(600);

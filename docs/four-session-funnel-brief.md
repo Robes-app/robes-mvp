@@ -82,7 +82,7 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 
 - **Where it lands**: the **key-piece page** (`#kp-result-page` — the "{piece}, worn three ways" three-up, reached from Inspiration's card or the styled card's See the full looks). Not the homepage, not the Inspiration index. Specifically the Filed card that replaces the in-situ composer once she saves a built way: `_kpBuildSaved(l)` (~line 7291 CSS, the `.kp-build-filed` card), which currently prints name · "is in your Lookbook" · the wishlist line when proposals travelled.
 - **Add one `.sub` line after the wishlist line**, derived:
-  - no model, proposals ≥1: "Build your model and she'll wear it. Photograph the {n} pieces that aren't yours yet and it's all yours."
+  - no model, proposals ≥1: "Build your model and she'll wear it. Photograph the {n} pieces that aren't yours yet and swap them in."
   - no model, no proposals: "Build your model and she'll wear it."
   - model, proposals ≥1: "{n} of these aren't yours yet — photograph yours and Robes swaps them in."
   - model, no proposals: nothing.
@@ -315,7 +315,7 @@ All strings in one place, in the Robes register (no "AI", declarative, warm; loa
 | Next line · robes | Five pieces filed. Robes can build from yours now. — **Let Robes build one →** |
 | Next line · week | Nothing planned this week. Name a day and Robes dresses it. — **Open the diary →** |
 | Next line · wear | Today is dressed. Tap the day when you've worn it. — **Open today →** |
-| Filed card · no model, gaps | Build your model and she'll wear it. Photograph the {n} pieces that aren't yours yet and it's all yours. |
+| Filed card · no model, gaps | Build your model and she'll wear it. Photograph the {n} pieces that aren't yours yet and swap them in. |
 | Filed card · model, gaps | {n} of these aren't yours yet — photograph yours and Robes swaps them in. |
 | Model door | YOUR MODEL · Build her once, she'll wear *every look you keep.* · Thirty seconds by hand, or two photographs. · **Build your model** |
 | Model page · nothing read | Shape her by hand in thirty seconds. Add photographs whenever you like. |
