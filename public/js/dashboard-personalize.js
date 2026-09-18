@@ -12092,7 +12092,11 @@ button.rb-lk-live{cursor:pointer}
         const dFrame = !!dPhoto && (l.source === 'robes' || props.length > 0);
         if (dFrame) _lkModelEnsure();
         const dSwitch = !!dPhoto && (!dFrame || !!_lkModel);
-        const dView = _lkDetailView || (dPhoto ? 'photo' : 'model');
+        // Her own photograph leads; ROBES' frame yields to her model the
+        // moment one is on file (Annie, 2026-09-18: filing the model lands
+        // on the look and it must land on HER — the render, or the mosaic
+        // with "Creating her frame…" until it comes; You keeps the frame).
+        const dView = _lkDetailView || ((dPhoto && !(dFrame && _lkModel)) ? 'photo' : 'model');
         // Controls on the image (reading only): the diary — never on a look
         // she owns nothing of — and the camera (add, or replace on the You
         // view — her photograph may replace a frame). Editing carries
@@ -14481,7 +14485,6 @@ button.rb-lk-live{cursor:pointer}
           '#rb-styled.rb-styled-compact #rb-styled-tiles,#rb-styled.rb-styled-compact #rb-styled-foot{display:none!important}' +
           '@media(max-width:767px){.rb-ftu-txt{flex-direction:column;gap:4px}.rb-ftu-ey{width:auto}}' +
           // O7: the prompt-as-card gets its section eyebrow back
-          '.rb-ftu-conc-ey{font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077);margin:0 0 12px}' +
           // "Your looks" — the O7 card: the look she owns, Finish it, and
           // the wardrobe's progress as a caption (never a CTA).
           '#rb-firstlook{margin:0 0 40px}' +
@@ -14597,16 +14600,12 @@ button.rb-lk-live{cursor:pointer}
                 if (ta) { try { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } catch (_) {} }
               }
             }
-            if (!document.getElementById('rb-conc-ey')) {
-              const ey = document.createElement('div');
-              ey.id = 'rb-conc-ey';
-              ey.className = 'rb-ftu-conc-ey';
-              ey.textContent = 'Style something';
-              conc.insertBefore(ey, conc.firstChild);
-            }
           }
         }
-        if (mode === 'zero' && concEy) concEy.remove();
+        // The "Style something" eyebrow over the prompt is gone (Annie,
+        // 2026-09-18: noise — and on a phone it sat where the weather strip
+        // reads). A stale one from an earlier paint is removed.
+        if (concEy) concEy.remove();
         if (rail && weekBody && rail.parentNode !== weekBody) weekBody.appendChild(rail);
         // Masthead echo answers the state: "Your first piece is filed."
         // belongs to the styled card alone — everywhere else the standing

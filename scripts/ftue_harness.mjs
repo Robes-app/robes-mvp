@@ -448,7 +448,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check('ftu rows · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   check('ftu rows · without the styled card the prompt leads, the concierge band closes the page',
     h.mode === 'zero-lead' && JSON.stringify(h.order) === JSON.stringify(['concierge', 'rb-ftu-rows', 'services'])
-      && h.concEy === 'Style something' && h.promptVisible === true
+      && h.concEy === undefined && h.promptVisible === true
       && h.echo === 'What are you dressing for today?',
     JSON.stringify([h.mode, h.order, h.concEy, h.echo, h.promptVisible]));
   check('ftu rows · two hairlines beneath it, closed, the rail inside its row',
@@ -568,7 +568,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       && JSON.stringify(saved.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-ftu-rows']),
     JSON.stringify(saved));
   check('ftu rows · the saved look is the card, all hers',
-    saved.flName === 'Terrace mornings' && saved.flCta === 'Open →' && saved.concEy === 'Style something',
+    saved.flName === 'Terrace mornings' && saved.flCta === 'Open →' && saved.concEy === undefined,
     JSON.stringify(saved));
   check('ftu rows · the week ahead stays a hairline until a second look',
     saved.weekSub === 'One look, unplanned.' && saved.trkHidden === true, JSON.stringify(saved));
@@ -714,7 +714,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       styledGone: !document.getElementById('rb-styled'),
       mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
       concLeads: document.querySelector('.concierge')?.parentNode?.id === 'dash'
-        && !!document.getElementById('rb-conc-ey'),
+        && !document.getElementById('rb-conc-ey'),
       // Load rules (2026-08-19): the click through brings the concierge in
       servicesShown: document.querySelector('.services')?.offsetParent !== null,
       // The first landing (slice 1.3, 2026-09-18): no guide band; card 01
@@ -814,7 +814,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     o.inspShown === true, String(o.inspShown));
   check('O7 · the prompt leads as a card, then Your looks, then the hairlines',
     o.mode === 'look' && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-ftu-rows'])
-      && o.concEy === 'Style something' && o.styleRowGone === true, JSON.stringify(o));
+      && o.concEy === undefined && o.styleRowGone === true, JSON.stringify(o));
   check('O7 · the look she owns is the card, Finish it the only nudge',
     o.flEy === 'Your looks' && o.flName === 'Effortless Parisian Polish'
       && o.flMeta === '3 pieces yours · 1 borrowed' && o.flCta === 'Finish it'

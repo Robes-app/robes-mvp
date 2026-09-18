@@ -386,21 +386,24 @@ await page.evaluate(async () => {
 await page.waitForTimeout(1000);
 await page.locator('#kp-build-host button:has-text("Open the look")').click();
 await page.waitForTimeout(700);
+// With a model on file the frame YIELDS to her (Annie, 2026-09-18): the
+// look opens on Model — her render — with You holding Robes' frame.
 const savedWithModel = await page.evaluate(() => ({
-  frame: document.querySelector('#sn-page .rb-lkm-photo img')?.getAttribute('src'),
+  render: document.querySelector('#sn-page .rb-lkm-canvas img.rb-lkm-img')?.getAttribute('src'),
+  frameShown: document.querySelectorAll('#sn-page .rb-lkm-photo').length,
   seg: Array.from(document.querySelectorAll('#sn-page .rb-lk-viewrow .rb-lkm-seg button')).map((b) => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')).join('|'),
   note: document.querySelector('#sn-page .rb-lk-viewrow .note')?.textContent?.trim(),
 }));
-check('with a model: the saved look opens on the way’s frame under a You / Model switch, You lit',
-  savedWithModel.frame === 'https://res.cloudinary.com/demo/way1.jpg' && savedWithModel.seg === 'You*|Model' && /frame/i.test(savedWithModel.note || ''), JSON.stringify(savedWithModel));
-await page.locator('#sn-page .rb-lk-viewrow .rb-lkm-seg button:has-text("Model")').click();
+check('with a model: the saved look opens on MODEL — her render (the canvas frame the save kept) under a You / Model switch, Model lit',
+  savedWithModel.render === 'https://img.test/render.jpg' && savedWithModel.frameShown === 0 && savedWithModel.seg === 'You|Model*' && /frame/i.test(savedWithModel.note || ''), JSON.stringify(savedWithModel));
+await page.locator('#sn-page .rb-lk-viewrow .rb-lkm-seg button:has-text("You")').click();
 await page.waitForTimeout(400);
-const modelSide = await page.evaluate(() => ({
-  render: document.querySelector('#sn-page .rb-lkm-canvas img.rb-lkm-img')?.getAttribute('src'),
-  frame: document.querySelectorAll('#sn-page .rb-lkm-photo').length,
+const youSide = await page.evaluate(() => ({
+  frame: document.querySelector('#sn-page .rb-lkm-photo img')?.getAttribute('src'),
+  render: document.querySelectorAll('#sn-page .rb-lkm-canvas img.rb-lkm-img').length,
 }));
-check('Model shows her render of the look (the canvas frame the save kept), the frame steps aside',
-  modelSide.render === 'https://img.test/render.jpg' && modelSide.frame === 0, JSON.stringify(modelSide));
+check('You shows the way’s frame, her render steps aside',
+  youSide.frame === 'https://res.cloudinary.com/demo/way1.jpg' && youSide.render === 0, JSON.stringify(youSide));
 
 // 9 · Look feedback (design Look_Feedback, 2026-09-17): per look, the
 // hairline line — never one verdict across the three; Build this look is
