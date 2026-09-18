@@ -1069,7 +1069,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await page.waitForTimeout(2600);
   const b = await read();
   check('next line · a model + a look borrowing two pieces → the finish rule, "Photograph them"',
-    b.name === 'The Thursday one' && /borrows 2 pieces\. Photograph yours and it’s all yours\./.test(b.text) && b.door === 'Photograph them →',
+    b.name === 'The Thursday one' && /borrows 2 pieces\. Photograph yours and swap them in\./.test(b.text) && b.door === 'Photograph them →',
     JSON.stringify(b));
   // Its door opens the look (slice 4 will re-point it at the briefed add).
   const opened = await page.evaluate(async () => {

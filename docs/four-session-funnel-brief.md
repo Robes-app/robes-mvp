@@ -66,7 +66,7 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 |---|---|---|---|
 | `styled` | `zero` mode with the styled card present | (leave the mode's own echo) | — |
 | `model` | `_lkModel === null` and `_lkLooks.length ≥ 1` | "Build your model and she'll wear *{first look name}*." | "Build your model" → slice 2's `__rbModelGo('home')` |
-| `finish` | a look has ≥2 unowned proposals and pieces-with-photos < 5 | "*{look}* borrows {n} pieces. Photograph yours and it's all yours." | "Photograph them" → slice 4's `__rbFillOpen(lookId)` (until slice 4 lands: `__lkCardOpen(id,'home')`) |
+| `finish` | a look has ≥2 unowned proposals and pieces-with-photos < 5 | "*{look}* borrows {n} pieces. Photograph yours and swap them in." | "Photograph them" → slice 4's `__rbFillOpen(lookId)` (until slice 4 lands: `__lkCardOpen(id,'home')`) |
 | `five` *(ships with slice 3 — its promise needs the door)* | pieces-with-photos < 5 and `_lkLooks.length ≥ 1` | "{n} more piece{s} and Robes builds a look from yours alone." | "Add pieces" → `_wtrkOpenAdd()` |
 | `robes` *(ships with slice 3)* | pieces-with-photos ≥ 5 and no look with `source:'robes-build'` | "Five pieces filed. Robes can build from yours now." | "Let Robes build one" → slice 3's door (until then: `__lkNew()`) |
 | `week` | no moment on any of the next 7 days | "Nothing planned this week. Name a day and Robes dresses it." | "Open the diary" → `__rbDiaryOpen()` |
@@ -310,7 +310,7 @@ All strings in one place, in the Robes register (no "AI", declarative, warm; loa
 | Surface | String |
 |---|---|
 | Next line · model | Build your model and she'll wear *{look}*. — **Build your model →** |
-| Next line · finish | *{look}* borrows {n} pieces. Photograph yours and it's all yours. — **Photograph them →** |
+| Next line · finish | *{look}* borrows {n} pieces. Photograph yours and swap them in. — **Photograph them →** |
 | Next line · five | {n} more piece{s} and Robes builds a look from yours alone. — **Add pieces →** |
 | Next line · robes | Five pieces filed. Robes can build from yours now. — **Let Robes build one →** |
 | Next line · week | Nothing planned this week. Name a day and Robes dresses it. — **Open the diary →** |

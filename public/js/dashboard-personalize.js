@@ -12110,7 +12110,7 @@ button.rb-lk-live{cursor:pointer}
           ? '<div class="rb-lk-viewrow"><div class="rb-lkm-seg" role="group" aria-label="Look view">' +
               '<button type="button"' + (dView === 'photo' ? ' class="on"' : '') + ' onclick="window.__lkDetailPhotoView(\'photo\')">You</button>' +
               '<button type="button"' + (dView === 'photo' ? '' : ' class="on"') + ' onclick="window.__lkDetailPhotoView(\'model\')">Model</button></div>' +
-              '<span class="note">' + (_lkDetailPhotoPending ? 'Uploading…' : (dFrame ? 'Robes’ frame · your model wears it too' : 'Kept as the record of this look')) + '</span></div>'
+              '<span class="note">' + (_lkDetailPhotoPending ? 'Uploading…' : (dFrame ? '' : 'Kept as the record of this look')) + '</span></div>'
           : '';
         const panelTail = lkTagsRow + viewRow;
         if (editing) _lkModelEnsure();
@@ -14814,7 +14814,7 @@ button.rb-lk-live{cursor:pointer}
         }
         const borrowing = looks.find(l => Array.isArray(l.proposals) && l.proposals.length >= 2);
         if (borrowing && pics < 5) {
-          return { key: 'finish', text: nm(borrowing) + ' borrows ' + borrowing.proposals.length + ' pieces. Photograph yours and it’s all yours.',
+          return { key: 'finish', text: nm(borrowing) + ' borrows ' + borrowing.proposals.length + ' pieces. Photograph yours and swap them in.',
             doorLabel: 'Photograph them', door: 'finish', id: borrowing.id };
         }
         if (_rbNextSlots && looks.length) {

@@ -394,8 +394,8 @@ const savedWithModel = await page.evaluate(() => ({
   seg: Array.from(document.querySelectorAll('#sn-page .rb-lk-viewrow .rb-lkm-seg button')).map((b) => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')).join('|'),
   note: document.querySelector('#sn-page .rb-lk-viewrow .note')?.textContent?.trim(),
 }));
-check('with a model: the saved look opens on MODEL — her render (the canvas frame the save kept) under a You / Model switch, Model lit',
-  savedWithModel.render === 'https://img.test/render.jpg' && savedWithModel.frameShown === 0 && savedWithModel.seg === 'You|Model*' && /frame/i.test(savedWithModel.note || ''), JSON.stringify(savedWithModel));
+check('with a model: the saved look opens on MODEL — her render (the canvas frame the save kept) under a You / Model switch, Model lit, no note beside it',
+  savedWithModel.render === 'https://img.test/render.jpg' && savedWithModel.frameShown === 0 && savedWithModel.seg === 'You|Model*' && (savedWithModel.note || '') === '', JSON.stringify(savedWithModel));
 await page.locator('#sn-page .rb-lk-viewrow .rb-lkm-seg button:has-text("You")').click();
 await page.waitForTimeout(400);
 const youSide = await page.evaluate(() => ({
