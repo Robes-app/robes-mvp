@@ -776,11 +776,18 @@
       // what Robes can DO from that count — the bar columns render `cap`,
       // never `label` (capability, not a feature to unlock); `pos` is the
       // tick's % position on the endless track (see _msBarHtml).
+      // The ladder is 5 / 10 / 15 (Annie, 2026-09-18 — funnel slice 3):
+      // five pieces and Robes builds a daily look, ten and it plans a week
+      // of outfits, fifteen and it knows her taste. `pos` = at / _MS_SCALE,
+      // except the last, nudged to 78 so the track never reads full.
       const _MS_UNLOCKS = [
-        { at: 3,  key: 'daily',      label: 'Daily look',     cap: 'Dresses today',    pos: 15 },
-        { at: 10, key: 'travel',     label: 'Travel edit',    cap: 'Packs your trips', pos: 50 },
-        { at: 15, key: 'styleNotes', label: 'Style notes',    cap: 'Knows your taste', pos: 78 },
+        { at: 5,  key: 'daily',      label: 'Daily look',     cap: 'Builds a daily look',     pos: 25 },
+        { at: 10, key: 'weekly',     label: 'Weekly plan',    cap: 'Plans a week of outfits', pos: 50 },
+        { at: 15, key: 'styleNotes', label: 'Style notes',    cap: 'Knows your taste',        pos: 78 },
       ];
+      // What Robes does from each count, as the clause of a sentence —
+      // the headline and the concierge card captions read it.
+      const _MS_DOES = { daily: 'builds a daily look', weekly: 'plans a week of outfits', styleNotes: 'knows your taste' };
       function _msUnlocked(key, n) {
         const u = _MS_UNLOCKS.find(x => x.key === key);
         return !!u && (n == null ? _waItems.length : n) >= u.at;
@@ -819,12 +826,10 @@
         if (!next) return 'Your wardrobe is there —<br>every look is built from it.';
         const left = next.at - n;
         const pieces = left === 1 ? 'more piece' : 'more pieces';
-        const reach = next.key === 'daily'
-          ? _msWord(left) + ' ' + pieces + ' and Robes<br>dresses you every morning.'
-          : _msWord(left) + ' ' + pieces + ' and the<br>' + next.label.toLowerCase() + ' opens.';
-        if (n === 0) return 'Three pieces and Robes<br>dresses you every morning.';
+        const reach = _msWord(left) + ' ' + pieces + ' and Robes<br>' + (_MS_DOES[next.key] || 'knows you better') + '.';
+        if (n === 0) return _msWord(next.at) + ' pieces and Robes<br>' + _MS_DOES[next.key] + '.';
         const earned = _MS_UNLOCKS.filter(u => u.at <= n && _msCrossed[u.key]).pop();
-        if (earned) return earned.label + ' just opened.<br>' + _msWord(left) + ' ' + pieces + ' for the ' + next.label.toLowerCase() + '.';
+        if (earned) return 'Robes ' + _MS_DOES[earned.key] + ' now.<br>' + _msWord(left) + ' ' + pieces + ' and it ' + _MS_DOES[next.key] + '.';
         return reach;
       }
 
@@ -853,6 +858,7 @@
           '.rb-ms-lbl{font-size:10px;line-height:1.3;color:var(--ink-soft)}' +
           '.rb-ms-col.on .rb-ms-lbl{color:var(--ink)}' +
           '@media(max-width:520px){.rb-ms-col{flex-direction:column;align-items:flex-start;gap:1px}}' +
+          '.rb-ms.still .rb-ms-fill{transition:none}' +
           '@media(prefers-reduced-motion:reduce){.rb-ms-fill{transition:none}}';
         document.head.appendChild(st);
       }
@@ -882,8 +888,9 @@
         }
         return 100;
       }
-      function _msBarHtml(n) {
+      function _msBarHtml(n, opts) {
         _msEnsureCss();
+        const still = !!(opts && opts.still);
         const pct = Math.min(100, _msFillPct(n));
         const ticks = _MS_UNLOCKS.map(u =>
           '<div class="rb-ms-tick' + (n >= u.at ? ' on' : '') + '" style="left:' + u.pos + '%"></div>'
@@ -896,7 +903,7 @@
             '<span class="rb-ms-lbl">' + u.cap + '</span>' +
           '</div>';
         }).join('');
-        return '<div class="rb-ms">' +
+        return '<div class="rb-ms' + (still ? ' still' : '') + '">' +
           '<div class="rb-ms-track"><div class="rb-ms-fill" style="width:' + pct + '%"></div>' + ticks + '</div>' +
           '<div class="rb-ms-cols">' + cols + '</div>' +
         '</div>';
@@ -1028,13 +1035,16 @@
             // hairline under the pair. No title line.
             '.services .sec-head{align-items:baseline;flex-wrap:wrap;row-gap:10px;padding-bottom:14px;border-bottom:1px solid var(--rule-mid,#D8CFC0);margin-bottom:24px}' +
             '.services .sec-ey{font-weight:400;color:var(--ink,#202021)}' +
-            '#rb-svc-learn{margin-left:auto;display:flex;align-items:center;gap:14px}' +
+            // The ladder sits right of the eyebrow: count line over the
+            // shared milestone bar (ticks 5 / 10 / 15 + the capability
+            // columns), 440px on the web, the row on a phone.
+            '#rb-svc-learn{margin-left:auto;display:flex;flex-direction:column;gap:10px;width:min(440px,100%)}' +
+            '#rb-svc-learn .row{display:flex;align-items:baseline;justify-content:space-between;gap:14px}' +
             '#rb-svc-learn .ey{font-size:10px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A9082);white-space:nowrap}' +
-            // R6: linear fill, and the rail never animates in place.
-            '#rb-svc-learn .bar{width:96px;height:2px;background:#E1DACB;overflow:hidden}' +
-            '#rb-svc-learn .bar i{display:block;height:100%;background:var(--ink,#202021)}' +
             '#rb-svc-learn .n{font-size:11px;font-weight:300;color:var(--ink-soft,#6E665C);white-space:nowrap}' +
             '#rb-svc-learn .n b{font-weight:400;color:var(--ink,#202021)}' +
+            '#rb-svc-learn .rb-ms-track{background:#E1DACB}' +
+            '#rb-svc-learn .rb-ms-tick{background:#C4B8A4}#rb-svc-learn .rb-ms-tick.on{background:var(--ink-soft,#6E665C)}' +
             // Cards on the band (4a): white, 4px, 160px photography with a
             // quiet serif ordinal; status caption over its own hairline;
             // text CTA only — never a filled button (R3).
@@ -1070,7 +1080,7 @@
             '#rb-sn .rb-sec-ey,#rb-insp-row .rb-sec-ey{font-weight:400;letter-spacing:.24em;color:var(--ink-faint,#9A9082)}' +
             '@media(max-width:767px){' +
               '.services .sec-head{flex-direction:column;align-items:stretch}' +
-              '#rb-svc-learn{margin-left:0}#rb-svc-learn .bar{flex:1;width:auto}' +
+              '#rb-svc-learn{margin-left:0;width:100%}' +
               '#rb-svc-filed .note{display:none}#rb-svc-filed .cta{flex:1 1 100%;min-height:48px;text-align:center}}';
           document.head.appendChild(st);
         }
@@ -1086,12 +1096,16 @@
             learn.id = 'rb-svc-learn';
             head.appendChild(learn);
           }
-          // R6: fill = min(pieces / 15, 1) — the milestone ladder described
-          // gates, and there are none. Bare count, never a denominator.
-          const pct = Math.min(100, Math.round((n / _WA_TARGET) * 1000) / 10);
-          learn.innerHTML = '<span class="ey">Robes is learning</span>' +
-            '<span class="bar"><i style="width:' + pct + '%"></i></span>' +
-            '<span class="n"><b>' + n + '</b> piece' + (n === 1 ? '' : 's') + ' filed</span>';
+          // The meter IS the ladder (Annie, 2026-09-18 — funnel slice 3:
+          // "5 builds a daily look, 10 plans a week of outfits, 15 knows
+          // your taste"): the shared milestone bar, ticks at 5 / 10 / 15,
+          // its three capability columns beneath, the bare count beside
+          // the eyebrow. Never a denominator, never a lock; the fill walks
+          // the ticks and never reads full (15 → 78%). `still`: the band
+          // never animates in place (R6's one surviving clause).
+          learn.innerHTML = '<span class="row"><span class="ey">Robes is learning</span>' +
+            '<span class="n"><b>' + n + '</b> piece' + (n === 1 ? '' : 's') + ' filed</span></span>' +
+            _msBarHtml(n, { still: true });
         }
         // The filed-piece row — a receipt, not a wardrobe: one thumbnail,
         // fixed height, the CTA never pushed off the row.
@@ -7583,7 +7597,9 @@
         // the day. The tags row edits the LOOK, never the day.
         const acts = _lkImgActsHtml({
           diary: false,
-          camera: props.length ? null : (dPhoto ? (dView === 'photo' ? 'replace' : null) : 'add'),
+          // The camera stands until her own photograph exists — a look
+          // carrying proposals included (2026-09-18, the camera fix).
+          camera: dPhoto ? (dView === 'photo' ? 'replace' : null) : 'add',
           fn: '__dlLookPhotoAdd',
         });
         const viewRow = dPhoto
@@ -7593,7 +7609,7 @@
               '<span class="note">' + (_dlLookPhotoPending ? 'Uploading…' : 'Kept as the record of this look') + '</span></div>'
           : '';
         const dPro = _lkModelPro();
-        const photoNote = (!props.length && !dPhoto && ids.length)
+        const photoNote = (!dPhoto && ids.length)
           ? '<div class="rb-lk-photonote">' + (_dlLookPhotoPending ? 'Uploading…' : 'Wore this look? Add your photograph and it is kept alongside ' + dPro.her + '.') + '</div>'
           : '';
         const lookHtml = _lkLookPanelHtml(l, {
@@ -7643,7 +7659,7 @@
           _dlRerender();
         }, function(url) {
           _dlLookPhotoPending = false;
-          if (url) { _lkPatch(l.id, { photo_url: url }); _dlLookView = 'photo'; _rbTrack('look_photo_added', { surface: 'day' }); }
+          if (url) { _lkPatch(l.id, _lkHerPhotoPatch(l, url)); _dlLookView = 'photo'; _rbTrack('look_photo_added', { surface: 'day' }); }
           else _waShowToast('That photo would not upload — try again shortly');
           _dlRerender();
         });
@@ -12097,7 +12113,11 @@ button.rb-lk-live{cursor:pointer}
         const dPhoto = (rawPhoto && propStills.indexOf(rawPhoto) < 0) ? rawPhoto : null;
         // A frame is not her: it earns the You / Model switch only once a
         // model exists to stand on the other side (the composer's rule).
-        const dFrame = !!dPhoto && (l.source === 'robes' || props.length > 0);
+        // 'manual' is the one source that says the photograph is HERS —
+        // adding her photograph on this page writes it (2026-09-18, the
+        // camera fix), so a frame she has since replaced stops reading as
+        // Robes' the moment it is replaced.
+        const dFrame = !!dPhoto && l.source !== 'manual' && (l.source === 'robes' || props.length > 0);
         if (dFrame) _lkModelEnsure();
         const dSwitch = !!dPhoto && (!dFrame || !!_lkModel);
         // Her own photograph leads; ROBES' frame yields to her model the
@@ -12106,12 +12126,16 @@ button.rb-lk-live{cursor:pointer}
         // with "Creating her frame…" until it comes; You keeps the frame).
         const dView = _lkDetailView || ((dPhoto && !(dFrame && _lkModel)) ? 'photo' : 'model');
         // Controls on the image (reading only): the diary — never on a look
-        // she owns nothing of — and the camera (add, or replace on the You
-        // view — her photograph may replace a frame). Editing carries
-        // neither: the photograph lives on the look page.
+        // she owns nothing of — and the camera. The camera is ALWAYS there
+        // until her own photograph exists (Annie, 2026-09-18 — "A Parisian
+        // Night Out", two of hers + three proposals, had no camera): a look
+        // carrying proposals takes her photograph like any other, and a
+        // Robes frame on the Model view still offers ADD (her photograph
+        // takes the frame's place). Her own photograph → replace on the You
+        // view, nothing on Model. Editing carries neither.
         const acts = editing ? '' : _lkImgActsHtml({
           diary: !ownedNone,
-          camera: dPhoto ? (dView === 'photo' ? 'replace' : null) : (props.length ? null : 'add'),
+          camera: !dPhoto ? 'add' : (dView === 'photo' ? 'replace' : (dFrame ? 'add' : null)),
           fn: '__lkDetailPhotoAdd',
         });
         const viewRow = (!editing && dSwitch)
@@ -14847,7 +14871,7 @@ button.rb-lk-live{cursor:pointer}
         const borrowing = looks.find(l => Array.isArray(l.proposals) && l.proposals.length >= 2);
         if (borrowing && pics < 5) {
           return { key: 'finish', text: nm(borrowing) + ' borrows ' + borrowing.proposals.length + ' pieces. Photograph yours and swap them in.',
-            doorLabel: 'Photograph them', door: 'finish', id: borrowing.id };
+            doorLabel: 'Swap pieces', door: 'finish', id: borrowing.id };
         }
         if (_rbNextSlots && looks.length) {
           const today = _pdLocalISO();
@@ -15395,6 +15419,16 @@ button.rb-lk-live{cursor:pointer}
           _lkRepaint();
         });
       };
+      // Her photograph on a saved look: photo_url takes it, and a look that
+      // was reading its photograph as ROBES' FRAME (source 'robes', or the
+      // proposals heuristic on a 'daily'/'variant' row) becomes 'manual' —
+      // the one source value that says the photograph is hers. Only the
+      // look page's dFrame reads source, so nothing else moves.
+      function _lkHerPhotoPatch(l, url) {
+        const props = Array.isArray(l.proposals) ? l.proposals : [];
+        const wasFrame = l.source === 'robes' || props.length > 0;
+        return wasFrame ? { photo_url: url, source: 'manual' } : { photo_url: url };
+      }
       // The SAVED look's photograph door — the same one-way door on the
       // detail page: add or replace her photograph of the look, kept on
       // looks.photo_url beside the render; then You / Model switch views.
@@ -15406,7 +15440,7 @@ button.rb-lk-live{cursor:pointer}
           _lkPaint();
         }, function(url) {
           _lkDetailPhotoPending = false;
-          if (url) { _lkPatch(l.id, { photo_url: url }); _lkDetailView = 'photo'; _rbTrack('look_photo_added', { surface: 'detail' }); }
+          if (url) { _lkPatch(l.id, _lkHerPhotoPatch(l, url)); _lkDetailView = 'photo'; _rbTrack('look_photo_added', { surface: 'detail' }); }
           else _waShowToast('That photo would not upload — try again shortly');
           _lkPaint();
         });
@@ -21857,16 +21891,24 @@ body>*:not(#tv-result-page){display:none !important}
         const pill = svcImg.querySelector('.rb-lock-wrap');
         if (pill) pill.remove();
         const n = _waItems.length;
+        // The captions read the ladder (Annie, 2026-09-18 — slice 3): the
+        // Daily card names the five-piece rung, the Weekly card the ten.
+        // "N more pieces" is the headline's own register — a distance,
+        // never a denominator.
+        const rung = key => _MS_UNLOCKS.find(u => u.key === key);
+        const more = k => _msWord(k) + ' more piece' + (k === 1 ? '' : 's');
+        const dailyAt = rung('daily').at, weeklyAt = rung('weekly').at;
         const dailyNote = n >= _WA_TARGET
-          ? 'Today’s look: styled entirely from your closet.'
-          : n >= 4
-            ? 'Today’s look: your pieces first, gaps borrowed.'
-            : n >= 1
-              ? 'Today’s look: ' + n + ' piece' + (n === 1 ? '' : 's') + ' yours, ' + (4 - n) + ' borrowed.'
-              : 'Today’s look: borrowed until you file a piece.';
+          ? 'Today’s look: styled entirely from your wardrobe.'
+          : n >= dailyAt
+            ? 'Today’s look: built from your pieces first, gaps borrowed.'
+            : more(dailyAt - n) + ' and Robes builds a daily look from yours.';
+        const weeklyNote = n >= weeklyAt
+          ? 'A week of outfits, each day from your own wardrobe.'
+          : more(weeklyAt - n) + ' and Robes plans a week of outfits.';
         const notes = {
           'Daily outfit': dailyNote,
-          'Weekly planner': 'Each day styled from your own wardrobe.',
+          'Weekly planner': weeklyNote,
           'Travel edit': 'Tell Robes where and how long.',
         };
         grid.querySelectorAll('.svc').forEach(card => {

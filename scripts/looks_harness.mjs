@@ -3482,6 +3482,108 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await ctx.close();
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// The camera on the look image (Annie, 2026-09-18 — "A Parisian Night
+// Out": two of hers + three proposals, a model on file, her frame still
+// coming, the diary bottom-left and NO camera). The camera stands until
+// her OWN photograph exists — proposals or not, frame or not: a Robes
+// frame on the Model view offers Add, the You view Replace. Her upload
+// lands on photo_url and flips source to 'manual' (the photograph is hers
+// now), so the page opens on You with "Kept as the record of this look".
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+  const { ctx, page, errs, writes } = await boot(browser, {
+    avatar: 'w-s5-h2-hg', pics: 6, seed: false,
+    init: () => {
+      localStorage.setItem('rb_looks__u-test', JSON.stringify([
+        { id: 'lk-paris', name: 'A Parisian Night Out', name_provisional: true, note: 'Sheer over sharp.', photo_url: 'https://img.test/frame-paris.jpg',
+          render_url: null, render_key: null, source: 'daily', origin_look_id: null, created_at: '2026-09-02T10:00:00.000Z',
+          proposals: [
+            { role: 'The Canvas', chip: 'Top', cats: ['Tops'], opts: [{ name: 'Sheer olive silk-blend shirt', brand: 'Robes' }], oi: 0, saved: false, image_url: 'https://img.test/still-top.jpg' },
+            { role: 'The Anchor', chip: 'Layer', cats: ['Outerwear'], opts: [{ name: 'Balmain waistcoat', brand: 'Balmain' }], oi: 0, saved: false, image_url: 'https://img.test/still-layer.jpg' },
+            { role: 'The Exclamation Point', chip: 'Bag', cats: ['Bags'], opts: [{ name: 'Camel leather clutch', brand: 'Robes' }], oi: 0, saved: false, image_url: 'https://img.test/still-bag.jpg' },
+          ],
+          pieces: [{ id: 'w-top1', slot: 'Top', position: 0, role: null }, { id: 'w-bot1', slot: 'Bottom', position: 1, role: null }], wears: [] },
+        { id: 'lk-nophoto', name: 'Borrowed, no frame', name_provisional: false, note: '', photo_url: null,
+          render_url: null, render_key: null, source: 'daily', origin_look_id: null, created_at: '2026-09-01T10:00:00.000Z',
+          proposals: [
+            { role: 'The Texture', chip: 'Top', cats: ['Tops'], opts: [{ name: 'A borrowed top', brand: 'Robes' }], oi: 0, saved: false, image_url: 'https://img.test/still-top2.jpg' },
+            { role: 'The Exclamation Point', chip: 'Bag', cats: ['Bags'], opts: [{ name: 'A borrowed bag', brand: 'Robes' }], oi: 0, saved: false, image_url: 'https://img.test/still-bag2.jpg' },
+          ],
+          pieces: [{ id: 'w-top1', slot: 'Top', position: 0, role: null }], wears: [] }]));
+    },
+    pre: async (page) => {
+      await page.route('**/api/avatar/cell', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/cell.jpg' }) }));
+      await page.route('**/api/avatar/render', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'rj-paris' }) }));
+      await page.route('**/api/images/rj-paris', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [], done: false }) }));
+      await page.route('**/api/wardrobe/upload', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/hers-paris.jpg' }) }));
+      await page.route('**img.test/**', (r) => r.abort());
+    },
+  });
+  await page.evaluate(() => window.__lkOpen('lk-paris'));
+  await page.waitForTimeout(900);
+  const read = () => page.evaluate(() => {
+    const con = document.querySelector('#rb-lk-body .rb-lk-con');
+    const cam = con?.querySelector('.rb-lk-photobtn');
+    const seg = con?.querySelector('.rb-lk-viewrow .rb-lkm-seg');
+    return {
+      title: document.getElementById('rb-lk-title')?.textContent.trim(),
+      diary: !!con?.querySelector('.rb-lk-diarybtn'),
+      camera: cam ? cam.getAttribute('aria-label') : null,
+      switcher: !!seg,
+      on: seg?.querySelector('button.on')?.textContent.trim() || null,
+      note: con?.querySelector('.rb-lk-viewrow .note')?.textContent.trim() ?? null,
+      creating: /creating her frame/i.test(con?.textContent || ''),
+      proposals: con ? Array.from(con.querySelectorAll('.rbc-act')).filter((b) => /Swap/.test(b.textContent)).length : -1,
+    };
+  });
+  const a = await read();
+  check('camera · a proposals look with a Robes frame and a model opens on Model, her frame coming, the diary bottom-left',
+    a.title === 'A Parisian Night Out' && a.diary && a.switcher && a.on === 'Model' && a.creating && a.proposals === 3, JSON.stringify(a));
+  check('camera · …and the CAMERA is there — Add your photograph (it was missing on every proposals look)',
+    a.camera === 'Add your photograph', JSON.stringify(a));
+  await page.evaluate(() => window.__lkDetailPhotoView('photo'));
+  await page.waitForTimeout(300);
+  const b = await read();
+  check('camera · on the You view a Robes frame offers Replace — her photograph takes its place', b.on === 'You' && b.camera === 'Replace your photograph', JSON.stringify(b));
+  // Her upload: the camera opens the picker (a dynamically created input,
+  // so the file chooser is the seam), the upload lands photo_url and
+  // source 'manual', and the page reads the photograph as hers.
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser', { timeout: 5000 }),
+    page.evaluate(() => document.querySelector('#rb-lk-body .rb-lk-con .rb-lk-photobtn').click()),
+  ]);
+  await chooser.setFiles({ name: 'hers.png', mimeType: 'image/png', buffer: PNG });
+  await page.waitForTimeout(1500);
+  const c = await read();
+  const patch = writes.filter((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && /lk-paris/.test(w.url)).pop();
+  check('camera · her upload lands on the look — photo_url hers, source manual (the frame reading ends)',
+    patch && patch.body && patch.body.photo_url === 'https://img.test/hers-paris.jpg' && patch.body.source === 'manual', JSON.stringify(patch && patch.body));
+  check('camera · the page now reads her photograph as the record — You on, Kept as the record, Replace on the image',
+    c.on === 'You' && c.note === 'Kept as the record of this look' && c.camera === 'Replace your photograph', JSON.stringify(c));
+  await page.evaluate(() => window.__lkDetailPhotoView('model'));
+  await page.waitForTimeout(300);
+  const d = await read();
+  check('camera · her own photograph on file → no camera on the Model view (replace lives on You)', d.on === 'Model' && d.camera === null, JSON.stringify(d));
+  // Reopened cold, a look whose photograph is hers opens on You.
+  await page.evaluate(() => { window.__lkBack(); });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.__lkOpen('lk-paris'));
+  await page.waitForTimeout(600);
+  const e = await read();
+  check('camera · reopened, her photograph leads (You), no frame reading on a look she has photographed', e.on === 'You' && e.note === 'Kept as the record of this look', JSON.stringify(e));
+  // A proposals look with NO photograph at all: the camera adds.
+  await page.evaluate(() => { window.__lkBack(); });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.__lkOpen('lk-nophoto'));
+  await page.waitForTimeout(900);
+  const f = await read();
+  check('camera · a proposals look with no photograph carries Add your photograph over the mosaic', f.title === 'Borrowed, no frame' && f.camera === 'Add your photograph' && f.diary, JSON.stringify(f));
+  check('camera · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
 await browser.close();
 
 server.kill();

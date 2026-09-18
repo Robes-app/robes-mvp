@@ -40,7 +40,7 @@ The review found that Session 1 is built, Sessions 2–4 are mostly built but un
 |---|---|---|---|---|---|
 | 1 | The derived "next" line + the Filed card's forward line + retire the START HERE band + instrumentation | all | no | S | — |
 | 2 | The model door on home + landing on the look dressed | 2 | no | S–M | 1 (the next line points at it) |
-| 3 | Robes builds from yours at five + the ladder retune | 3 | no | M | 1 |
+| 3 | ~~Robes builds from yours at five~~ + the ladder retune — **built 2026-09-18 as the ladder retune alone** (Annie: "reluctant to make any changes to the Look IA"; 3.1 not built) | 3 | no | S | 1 |
 | 4 | Gap-led batch: the add flow takes a brief | 2–3 | no | M | 1 |
 | 5 | Plan the week walk + the four-looks arrival | 4 | no | M | 1 |
 | 6 | The re-engagement channel (email, sequence, morning cue) | all | **migration 22** | L | 1 (events), 2–5 (deep-link targets) |
@@ -66,7 +66,7 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 |---|---|---|---|
 | `styled` | `zero` mode with the styled card present | (leave the mode's own echo) | — |
 | `model` | `_lkModel === null` and `_lkLooks.length ≥ 1` | "Build your model and she'll wear *{first look name}*." | "Build your model" → slice 2's `__rbModelGo('home')` |
-| `finish` | a look has ≥2 unowned proposals and pieces-with-photos < 5 | "*{look}* borrows {n} pieces. Photograph yours and swap them in." | "Photograph them" → slice 4's `__rbFillOpen(lookId)` (until slice 4 lands: `__lkCardOpen(id,'home')`) |
+| `finish` | a look has ≥2 unowned proposals and pieces-with-photos < 5 | "*{look}* borrows {n} pieces. Photograph yours and swap them in." | "Swap pieces" (Annie, 18 Sep — was "Photograph them") → slice 4's `__rbFillOpen(lookId)` (until slice 4 lands: `__lkCardOpen(id,'home')`) |
 | `five` *(ships with slice 3 — its promise needs the door)* | pieces-with-photos < 5 and `_lkLooks.length ≥ 1` | "{n} more piece{s} and Robes builds a look from yours alone." | "Add pieces" → `_wtrkOpenAdd()` |
 | `robes` *(ships with slice 3)* | pieces-with-photos ≥ 5 and no look with `source:'robes-build'` | "Five pieces filed. Robes can build from yours now." | "Let Robes build one" → slice 3's door (until then: `__lkNew()`) |
 | `week` | no moment on any of the next 7 days | "Nothing planned this week. Name a day and Robes dresses it." | "Open the diary" → `__rbDiaryOpen()` |
@@ -160,6 +160,8 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 Off the live first-look home (one key piece, one look, four pieces): fourteen doors and three cataloguing asks on one screen. The next line's door and FINISH IT opened the same look; the band's three cards were the prompt's three pills again (and the Weekly card repeated THE WEEK AHEAD row); cataloguing was asked by the next line, the band's filed-row button and the card caption; the piece count printed twice. **The `look` posture now renders**: greeting + next line · the prompt + its three pills · Your looks (no progress bar, no caption) · the model door · the Inspiration row. **Gone in this posture only**: the concierge band (`_rbGateConcierge` reads `_rbHomeMode`), both hairline rows (BUILD YOUR OWN and THE WEEK AHEAD — `_rbFtuRows('look')` renders none), and the rail until a day is planned (`_rbLookRailSync`: the week ahead IS the rail, and the next line's `week` rule is the diary door until then). Zero / zero-lead / the standard home are untouched. Slices 3 and 4 amended below where they assumed the row or the caption.
 
 ## Slice 3 · Robes builds from yours at five + the ladder retune
+
+> **Built 2026-09-18 — the ladder retune ONLY (3.2, with Annie's copy).** Annie, off the live home: "The styling concierge should be more focused on 5 builds a daily look, 10 can plan a week of outfits, 15 knows your taste. I am not clear what 3.1 is, and reluctant to make any changes to the Look IA." So: **3.1 is NOT built** — no composer pill, no `robes` next-line rule, no `source:'robes-build'`, no 5-piece toast, no `_LK_ROBES_AT`; the Look IA is untouched. 3.2 shipped with the caps **Builds a daily look · Plans a week of outfits · Knows your taste** (keys `daily` / `weekly` / `styleNotes`, `pos` 25 / 50 / 78) — not the "Builds from yours · Packs your trips" pair below — and the concierge band's header meter now renders that ladder (the shared `_msBarHtml`, ticks + capability columns, no transition) in place of the linear 96px fill, with the Daily and Weekly card captions reading their rung ("Three more pieces and Robes builds a daily look from yours." → "Today’s look: built from your pieces first, gaps borrowed."; "…plans a week of outfits." → "A week of outfits, each day from your own wardrobe."). 3.3 (the meter's retirement at 15) was not built — the band still retires on `_rbConciergeDone()` alone. The text below is kept as the original brief for the record.
 
 **Why**: the Session-3 "Auto-Look Generator" is `__lkRobesBuild` (line ~14100): a deterministic pick of her photographed pieces, gaps proposed via `/api/alternates` with stills, a note via `/api/lookbuild/note`, nothing saved until she does. It lost its door on 3 Sep at zero pieces. The roadmap wants it as the arrival at five.
 
@@ -314,7 +316,7 @@ All strings in one place, in the Robes register (no "AI", declarative, warm; loa
 | Surface | String |
 |---|---|
 | Next line · model | Build your model and she'll wear *{look}*. — **Build your model →** |
-| Next line · finish | *{look}* borrows {n} pieces. Photograph yours and swap them in. — **Photograph them →** |
+| Next line · finish | *{look}* borrows {n} pieces. Photograph yours and swap them in. — **Swap pieces →** (was Photograph them, Annie 18 Sep) |
 | Next line · five | {n} more piece{s} and Robes builds a look from yours alone. — **Add pieces →** |
 | Next line · robes | Five pieces filed. Robes can build from yours now. — **Let Robes build one →** |
 | Next line · week | Nothing planned this week. Name a day and Robes dresses it. — **Open the diary →** |
@@ -327,7 +329,7 @@ All strings in one place, in the Robes register (no "AI", declarative, warm; loa
 | Composer door · model | Robes dresses her from what you've filed |
 | Composer door · no model | Robes builds one from what you've filed |
 | Toast · fifth photographed piece | Five pieces filed. Robes can build a look from yours now. |
-| Ladder caps | Builds from yours · Packs your trips · Knows your taste |
+| Ladder caps | Builds a daily look · Plans a week of outfits · Knows your taste (Annie, 18 Sep — shipped; the draft read Builds from yours · Packs your trips) |
 | Meter caption · gaps | Your looks keep borrowing {shoes and a coat}. Five photos and Robes stops borrowing. |
 | Add step 1 · briefed | Make *{look}* yours. · Looking for: {a jacket · shoes · a bag} |
 | Toast · piece swapped in | {Piece} is in *{look}* now. |
