@@ -155,6 +155,10 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 
 ---
 
+## Home cut · the first-look posture (Annie, 2026-09-18 — built before slice 3)
+
+Off the live first-look home (one key piece, one look, four pieces): fourteen doors and three cataloguing asks on one screen. The next line's door and FINISH IT opened the same look; the band's three cards were the prompt's three pills again (and the Weekly card repeated THE WEEK AHEAD row); cataloguing was asked by the next line, the band's filed-row button and the card caption; the piece count printed twice. **The `look` posture now renders**: greeting + next line · the prompt + its three pills · Your looks (no progress bar, no caption) · the model door · the Inspiration row. **Gone in this posture only**: the concierge band (`_rbGateConcierge` reads `_rbHomeMode`), both hairline rows (BUILD YOUR OWN and THE WEEK AHEAD — `_rbFtuRows('look')` renders none), and the rail until a day is planned (`_rbLookRailSync`: the week ahead IS the rail, and the next line's `week` rule is the diary door until then). Zero / zero-lead / the standard home are untouched. Slices 3 and 4 amended below where they assumed the row or the caption.
+
 ## Slice 3 · Robes builds from yours at five + the ladder retune
 
 **Why**: the Session-3 "Auto-Look Generator" is `__lkRobesBuild` (line ~14100): a deterministic pick of her photographed pieces, gaps proposed via `/api/alternates` with stills, a note via `/api/lookbuild/note`, nothing saved until she does. It lost its door on 3 Sep at zero pieces. The roadmap wants it as the arrival at five.
@@ -165,7 +169,7 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 - **Condition**: `_waItems.filter(w => _pdHttp(w.image_url)).length ≥ _LK_ROBES_AT` (the same filter `_lkBuildCandidates` applies — Robes never hangs a piece she hasn't photographed).
 - **Where it renders**:
   - the composer footer (`_lkNewHtml`, the retired `.rb-lk-robesdoor` slot — CSS survives) as a `.rb-pill`: with a model "Robes dresses her from what you've filed", without "Robes builds one from what you've filed" → `window.__lkRobesBuild({door:'composer'})`;
-  - the home BUILD YOUR OWN row head (`#rb-ftu-rows`, the `build` row) as the same pill beside the arrow, opening the row and running the build;
+  - ~~the home BUILD YOUR OWN row head~~ — **retired 2026-09-18 (the home cut)**: the first-look posture carries no hairline rows and no concierge band, so this door does not exist; the composer pill and the `robes` next line are the two doors, and the Your looks card may carry the pill as a third if the review after slice 3 wants one;
   - slice 1's `robes` next line.
 - Below the threshold nothing renders anywhere — the 3 Sep call ("the prompt is where Robes builds, with more to go on") still holds at zero.
 - `__lkRobesBuild` gains `opts.door` for telemetry (`robes_build_opened {door, pics}`); the existing `look_robes_door` event is superseded — remove it.
@@ -206,7 +210,7 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 
 - `_rbGapCategories(n)`: the top `n` categories by count across every open proposal in `_lkLooks`, as plain names ("shoes", "a coat").
 - The learning-meter caption (`#rb-svc-learn`'s one line, today "Every piece you file replaces a borrowed one in the looks below.") reads, when gaps exist and pics < 5: "Your looks keep borrowing {shoes and a coat}. Five photos and Robes stops borrowing." Otherwise today's line. Tapping the filed row's CTA (`_wtrkOpenAdd`) with gaps present opens `WA.open({brief})` for the newest look with gaps.
-- The O7 first-look row's cap (~14698) gets the same treatment when the look has proposals.
+- ~~The O7 first-look row's cap~~ — **gone 2026-09-18 (the home cut)**: the Your looks card carries no caption and no progress bar; the meter caption below is only ever seen on the standard home (the band stands down in the first-look posture).
 
 **Acceptance**: `addflow_harness` — step 1 with a brief shows the chips and the look name, a filed piece in a briefed category lands on the look (the harness seeds a look with proposals) and strikes its chip, an unbriefed category files normally, `WA.close` clears the brief; `looks_harness` — the rack-head pill renders only with open proposals and opens the add modal briefed; `ftue_harness` — the meter caption reads the gap sentence at pics < 5 with proposals seeded.
 

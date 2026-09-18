@@ -947,9 +947,13 @@
         // order (Annie, 2026-08-18): it follows the prompt and the rail,
         // ahead of the Lookbook and Inspiration rows.
         const svc = dash.querySelector('.services');
+        // The first-look posture (no rows since the 2026-09-18 cut) rides
+        // this sequence too: "Your looks" follows the prompt, the rail
+        // (only while a day is planned) and the model door after it.
+        const firstlook = document.getElementById('rb-firstlook');
         const seq = (n < _MS_UNLOCKS[0].at
-          ? [styled, conc, rail, door, svc]
-          : [conc, rail, door, styled, svc]).filter(Boolean);
+          ? [styled, conc, firstlook, rail, door, svc]
+          : [conc, firstlook, rail, door, styled, svc]).filter(Boolean);
         seq.forEach((el, i) => {
           const prev = i === 0 ? mast : seq[i - 1];
           if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
@@ -1121,7 +1125,11 @@
         // click through to the full looks retires the card, which is what
         // brings the band in). Once she has made one of each live edit
         // the module retires for good (2a).
-        const show = !document.getElementById('rb-styled') && !_rbConciergeDone();
+        // The first-look posture carries no band (Annie, 2026-09-18 — the
+        // home cut): its three cards are the prompt's three pills again,
+        // its meter the look card's caption, its filed-row CTA the next
+        // line. The band returns with the standard home.
+        const show = !document.getElementById('rb-styled') && !_rbConciergeDone() && _rbHomeMode !== 'look';
         svc.style.display = show ? '' : 'none';
         if (show) {
           _rbConciergeSync(n);
@@ -12877,8 +12885,11 @@ button.rb-lk-live{cursor:pointer}
           return;
         }
         if (where === 'lookbook') { _lkView = 'new'; _lkPaint(); return; }
-        // Home: open the Build-your-own row so the rack is on screen.
-        if (document.getElementById('rb-ftu-row-build') && !_rbFtuOpen.build && window.__rbFtuToggle) window.__rbFtuToggle('build');
+        // Home: open the Build-your-own row so the rack is on screen. A
+        // posture without the row (the first-look home, since the
+        // 2026-09-18 cut) lands the draft in the Lookbook's composer.
+        if (document.getElementById('rb-ftu-row-build')) { if (!_rbFtuOpen.build && window.__rbFtuToggle) window.__rbFtuToggle('build'); else _lkRepaint(); }
+        else if (typeof _lkShelfOpen === 'function') { _lkView = 'new'; _lkShelfOpen(); _lkPaint(); }
         else _lkRepaint();
       };
       window.__lkPhotoView = function(which) {
@@ -14456,6 +14467,11 @@ button.rb-lk-live{cursor:pointer}
       // CAPTION on that card, never a CTA — and Build your own + The week
       // ahead stay hairlines until a second look (or a planned day) exists.
       var _rbFtuOpen = {};            // open rows, key -> true (they stay open together — Annie, 2026-08-18)
+      // The home posture, for readers that live far from _rbFtuRows (the
+      // concierge gate, the rail): 'zero' | 'zero-lead' | 'look' | null
+      // (standard). Mirrored on #dash as data-home.
+      var _rbHomeMode = null;
+      var _rbLookRailPlanned = 0;     // planned days the rail last painted (look posture)
       var _RB_FTU_ECHO = 'What are you dressing for today?';
       function _rbFtuCss() {
         if (document.getElementById('rb-ftu-style')) return;
@@ -14499,9 +14515,6 @@ button.rb-lk-live{cursor:pointer}
           '.rb-fl-name{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:300;font-size:clamp(21px,2.2vw,25px);line-height:1.14;color:var(--ink,#202021)}' +
           '.rb-fl-meta{font-size:12px;color:var(--ink-soft,#55524E)}' +
           '.rb-fl-cta{flex:none;padding:10px 20px;border:0.5px solid rgba(32,32,33,0.25);border-radius:100px;background:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink,#202021);pointer-events:none}' +
-          '.rb-fl-progress{height:2px;border-radius:2px;background:var(--cream-200,#EDE9E2);margin:18px 0 0;overflow:hidden}' +
-          '.rb-fl-progress i{display:block;height:100%;background:var(--rose,#8E7077);opacity:.55;transition:width .65s cubic-bezier(0.4,0,0.2,1)}' +
-          '.rb-fl-cap{font-size:12.5px;line-height:1.5;color:var(--ink-soft,#55524E);margin-top:10px}' +
           '@media(max-width:560px){.rb-fl-row{flex-wrap:wrap}.rb-fl-cta{margin-left:auto}}';
         document.head.appendChild(st);
       }
@@ -14532,7 +14545,16 @@ button.rb-lk-live{cursor:pointer}
         let el = document.getElementById('rb-ftu-rows');
         const echo = dash.querySelector('.dash-echo');
         const concEy = document.getElementById('rb-conc-ey');
-        if (!mode) {
+        _rbHomeMode = mode || null;
+        dash.setAttribute('data-home', mode || 'standard');
+        // The first-look posture carries NO rows (Annie, 2026-09-18 — the
+        // home cut: fourteen doors on a page with one look). Build your
+        // own goes (the prompt and the Lookbook's composer cover it); the
+        // week ahead IS the rail, shown only once a day is planned; the
+        // concierge band stands down (_rbGateConcierge). What stays: the
+        // greeting + next line, the prompt + its three pills, Your looks,
+        // the model door, the Inspiration row.
+        if (!mode || mode === 'look') {
           if (el) {
             // Hand the demoted modules back to the dash flow before the
             // rows go — _rbFtueOrder re-sequences them as cards.
@@ -14545,6 +14567,7 @@ button.rb-lk-live{cursor:pointer}
           }
           if (concEy) concEy.remove();
           _rbGateConcierge(_waItems.length);
+          _rbLookRailSync();
           return;
         }
         _rbFtuCss();
@@ -14687,7 +14710,21 @@ button.rb-lk-live{cursor:pointer}
       // either way, and the auto-open fires once per row set so a fold she
       // makes afterwards stands.
       var _rbFtuWeekAutoDone = false;
+      // The first-look posture's week ahead IS the rail, and only once a
+      // day is planned — an empty seven-card strip under one look is the
+      // clutter the cut removes; the next line's week rule carries the
+      // diary door until then. Every other posture leaves the rail alone.
+      function _rbLookRailSync(slots) {
+        const rail = document.getElementById('rb-rail');
+        if (!rail) return;
+        if (Array.isArray(slots)) {
+          const today = _pdLocalISO();
+          _rbLookRailPlanned = slots.filter(sl => sl.date >= today && (sl.moments || []).length).length;
+        }
+        rail.style.display = (_rbHomeMode === 'look' && !_rbLookRailPlanned) ? 'none' : '';
+      }
       function _rbFtuWeekAuto(slots) {
+        _rbLookRailSync(slots);
         const row = document.getElementById('rb-ftu-row-week');
         if (!row) return;
         const today = _pdLocalISO();
@@ -14744,12 +14781,9 @@ button.rb-lk-live{cursor:pointer}
         const img = photo
           ? '<img src="' + _waEsc(photo) + '" alt="">'
           : _ltMosaicHtml(_ltCells(_lkPieceIds(l)), { alt: l.name || 'Your look' });
-        const n = _waItems.length;
-        const cap = n >= _WA_TARGET
-          ? 'Your wardrobe’s there — Robes styles you head to toe from what you own.'
-          : _lkN(n, 'piece') + ' filed. At ' + _WA_TARGET + ', Robes builds every look entirely from your own closet.';
-        const bar = n >= _WA_TARGET ? '' :
-          '<div class="rb-fl-progress"><i style="width:' + (typeof _msFillPct === 'function' ? _msFillPct(n) : Math.min(100, Math.round(n / _WA_TARGET * 100))) + '%"></i></div>';
+        // No progress bar and no piece-count caption (Annie, 2026-09-18 —
+        // the home cut): the meta line already carries the gap, and the
+        // learning line belongs in one place.
         el.innerHTML =
           '<div class="rb-fl-head"><span class="rb-fl-ey">Your looks</span></div>' +
           '<div class="rb-fl-card">' +
@@ -14761,8 +14795,6 @@ button.rb-lk-live{cursor:pointer}
               '</span>' +
               '<span class="rb-fl-cta">' + (props ? 'Finish it' : 'Open →') + '</span>' +
             '</button>' +
-            bar +
-            '<div class="rb-fl-cap">' + cap + '</div>' +
           '</div>';
       }
 
@@ -23525,6 +23557,8 @@ body>*:not(#tv-result-page){display:none !important}
             const ftuWeek = document.getElementById('rb-ftu-body-week');
             if (ftuWeek) ftuWeek.appendChild(el);
             else conc.parentNode.insertBefore(el, conc.nextSibling);
+            // The first-look posture hides the rail until a day is planned.
+            if (typeof _rbLookRailSync === 'function') _rbLookRailSync();
           }
           return true;
         }

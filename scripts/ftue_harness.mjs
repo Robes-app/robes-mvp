@@ -540,8 +540,9 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     shared.inLookbook === 'Piece 1' && shared.homeGone === true && shared.composers === 1,
     JSON.stringify(shared));
 
-  // Saving the first look flips home to O7: the prompt leads as a card,
-  // "Your looks" takes the hero slot, the rows shrink to build + week.
+  // Saving the first look flips home to the first-look posture (the home
+  // cut, 2026-09-18): the prompt leads, "Your looks" takes the hero slot,
+  // and the hairline rows are GONE — no Build your own, no week row.
   const saved = await page.evaluate(async () => {
     window.__lkApplyNew('w1');
     window.__lkNewTitleInput('Terrace mornings');   // rule 02: the name is the gate
@@ -551,27 +552,27 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     await new Promise((r) => setTimeout(r, 500));
     const dash = document.getElementById('dash');
     return {
-      mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
-      rowIds: Array.from(document.querySelectorAll('.rb-ftu-row')).map((r) => r.id),
+      mode: dash.getAttribute('data-home'),
+      rows: !!document.getElementById('rb-ftu-rows'),
       order: Array.from(dash.children).map((e) => e.id || e.className.split(' ')[0])
         .filter((id) => ['concierge', 'rb-firstlook', 'rb-ftu-rows'].includes(id)),
       concEy: document.getElementById('rb-conc-ey')?.textContent,
       flName: document.querySelector('.rb-fl-name')?.textContent,
       flCta: document.querySelector('.rb-fl-cta')?.textContent,
-      weekSub: document.querySelector('#rb-ftu-row-week .rb-ftu-sub')?.textContent,
+      railHidden: document.getElementById('rb-rail')?.style.display === 'none',
+      servicesHidden: document.querySelector('.services')?.style.display === 'none',
       trkHidden: document.getElementById('wtrk')?.style.display === 'none',
     };
   });
-  check('ftu rows · the first save lands O7: prompt card, Your looks, two hairlines',
-    saved.mode === 'look'
-      && JSON.stringify(saved.rowIds) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-week'])
-      && JSON.stringify(saved.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-ftu-rows']),
+  check('ftu rows · the first save lands the first-look posture: prompt, Your looks, no rows',
+    saved.mode === 'look' && saved.rows === false
+      && JSON.stringify(saved.order) === JSON.stringify(['concierge', 'rb-firstlook']),
     JSON.stringify(saved));
   check('ftu rows · the saved look is the card, all hers',
     saved.flName === 'Terrace mornings' && saved.flCta === 'Open →' && saved.concEy === undefined,
     JSON.stringify(saved));
-  check('ftu rows · the week ahead stays a hairline until a second look',
-    saved.weekSub === 'One look, unplanned.' && saved.trkHidden === true, JSON.stringify(saved));
+  check('ftu rows · the rail and the concierge band stand down under one unplanned look',
+    saved.railHidden === true && saved.servicesHidden === true && saved.trkHidden === true, JSON.stringify(saved));
   await ctx.close();
 }
 
@@ -787,19 +788,21 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   const o = await page.evaluate(() => {
     const dash = document.getElementById('dash');
     return {
-      mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
+      mode: dash.getAttribute('data-home'),
       order: Array.from(dash.children).map((e) => e.id || e.className.split(' ')[0])
-        .filter((id) => ['concierge', 'rb-firstlook', 'rb-ftu-rows'].includes(id)),
+        .filter((id) => ['concierge', 'rb-firstlook', 'rb-ftu-rows', 'rb-rail', 'services', 'rb-insp-row'].includes(id)),
       concEy: document.getElementById('rb-conc-ey')?.textContent,
-      styleRowGone: !document.getElementById('rb-ftu-row-style'),
+      rowsGone: !document.getElementById('rb-ftu-rows'),
       flEy: document.querySelector('.rb-fl-ey')?.textContent,
       flName: document.querySelector('.rb-fl-name')?.textContent,
       flMeta: document.querySelector('.rb-fl-meta')?.textContent,
       flCta: document.querySelector('.rb-fl-cta')?.textContent,
-      flCap: document.querySelector('.rb-fl-cap')?.textContent,
-      flBar: !!document.querySelector('.rb-fl-progress i'),
+      flCap: !!document.querySelector('.rb-fl-cap'),
+      flBar: !!document.querySelector('.rb-fl-progress'),
       flOpen: document.querySelector('.rb-fl-row')?.getAttribute('onclick'),
-      weekSub: document.querySelector('#rb-ftu-row-week .rb-ftu-sub')?.textContent,
+      railHidden: document.getElementById('rb-rail')?.style.display === 'none',
+      inkFills: Array.from(document.querySelectorAll('#dash button')).filter((b) => b.offsetParent !== null
+        && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
       trkHidden: document.getElementById('wtrk')?.style.display === 'none',
       snRowHidden: (document.getElementById('rb-sn')?.style.display === 'none')
         || !document.getElementById('rb-sn')?.textContent.trim(),
@@ -812,26 +815,27 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check('O7 · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   check('O7 · a saved key piece surfaces in the home Inspiration row',
     o.inspShown === true, String(o.inspShown));
-  check('O7 · the prompt leads as a card, then Your looks, then the hairlines',
-    o.mode === 'look' && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-ftu-rows'])
-      && o.concEy === undefined && o.styleRowGone === true, JSON.stringify(o));
+  // The home cut (Annie, 2026-09-18): prompt, Your looks, the Inspiration
+  // row — no hairline rows, no rail until a day is planned, no band.
+  check('O7 · the prompt leads, then Your looks, then Inspiration — no rows, no band',
+    o.mode === 'look' && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-rail', 'services', 'rb-insp-row'])
+      && o.concEy === undefined && o.rowsGone === true && o.railHidden === true && o.servicesHidden === true,
+    JSON.stringify(o));
   check('O7 · the look she owns is the card, Finish it the only nudge',
     o.flEy === 'Your looks' && o.flName === 'Effortless Parisian Polish'
       && o.flMeta === '3 pieces yours · 1 borrowed' && o.flCta === 'Finish it'
       && /__lkCardOpen/.test(o.flOpen || ''), JSON.stringify(o));
-  check('O7 · wardrobe progress is a caption on the look card, never a CTA',
-    o.flCap === '4 pieces filed. At 15, Robes builds every look entirely from your own closet.'
-      && o.flBar === true && o.trkHidden === true, JSON.stringify([o.flCap, o.flBar, o.trkHidden]));
-  check('O7 · the week ahead stays a hairline, honestly whispered',
-    o.weekSub === 'One look, unplanned.', o.weekSub);
-  // Load rules (2026-08-19): the concierge stands on O7 too — only the
-  // styled card ever delays it, and that card has retired here.
-  check('O7 · Lookbook row + styled card stand down; the concierge stands',
-    o.snRowHidden === true && o.servicesHidden === false && o.styled === false,
-    JSON.stringify([o.snRowHidden, o.servicesHidden, o.styled]));
+  check('O7 · the look card carries no progress bar and no piece-count caption',
+    o.flCap === false && o.flBar === false && o.trkHidden === true, JSON.stringify([o.flCap, o.flBar, o.trkHidden]));
+  check('O7 · Style me is the one ink fill on the page',
+    o.inkFills === 1, String(o.inkFills));
+  check('O7 · Lookbook row + styled card stand down',
+    o.snRowHidden === true && o.styled === false,
+    JSON.stringify([o.snRowHidden, o.styled]));
 
-  // A planned day EXPOSES the week ahead by default (Annie, 2026-08-18):
-  // pin the look to tomorrow and the row unfurls itself, whisper updated.
+  // A planned day brings the rail in (Annie, 2026-09-18 — the week ahead
+  // IS the rail in this posture): pin the look to tomorrow and the rail
+  // paints at dash level with its own head and the diary door.
   const tomorrow = new Date(Date.now() + 86400000);
   const tomorrowISO = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
   await page.route('**planned_days**', (r) => {
@@ -848,16 +852,17 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   const wk = await page.evaluate(async () => {
     window._rbRailPaint();
     await new Promise((r) => setTimeout(r, 900));
-    const row = document.getElementById('rb-ftu-row-week');
+    const rail = document.getElementById('rb-rail');
     return {
-      open: row?.classList.contains('open'),
-      sub: row?.querySelector('.rb-ftu-sub')?.textContent,
-      quiet: row?.classList.contains('rb-quiet'),
-      railVisible: document.querySelector('#rb-ftu-body-week #rb-rail')?.offsetParent !== null,
+      railVisible: !!rail && rail.style.display !== 'none' && rail.offsetParent !== null,
+      atDash: rail?.parentNode?.id === 'dash',
+      head: rail?.querySelector('.rb-rail-ey')?.textContent,
+      door: rail?.querySelector('.rb-rail-open')?.textContent,
+      planned: !!rail?.querySelector('.rb-dc .dc-title'),
     };
   });
-  check('O7 · a planned day exposes The week ahead by default',
-    wk.open === true && wk.sub === 'One day planned.' && wk.quiet === false && wk.railVisible === true,
+  check('O7 · a planned day brings the week-ahead rail in, with the diary door',
+    wk.railVisible === true && wk.atDash === true && wk.head === 'The week ahead' && wk.door === 'Open the diary →' && wk.planned === true,
     JSON.stringify(wk));
   await ctx.close();
 }
@@ -1166,7 +1171,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
 }
 {
   const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
-  const z = await page.evaluate(() => ({ door: !!document.getElementById('rb-model-door'), mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode') }));
+  const z = await page.evaluate(() => ({ door: !!document.getElementById('rb-model-door'), mode: document.getElementById('dash').getAttribute('data-home') }));
   check('model door · no saved look → no door (the styled card / prompt lead)', !z.door && z.mode === 'zero-lead', JSON.stringify(z));
   await page.evaluate(() => {
     localStorage.setItem('rb_looks__u-test', JSON.stringify([
@@ -1178,12 +1183,15 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await page.waitForTimeout(2600);
   const o = await page.evaluate(() => ({
     door: !!document.getElementById('rb-model-door'),
-    mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
+    mode: document.getElementById('dash').getAttribute('data-home'),
+    rows: !!document.getElementById('rb-ftu-rows'),
+    servicesHidden: document.querySelector('.services')?.style.display === 'none',
     order: Array.from(document.getElementById('dash').children).map((e) => e.id || e.className.split(' ')[0])
-      .filter((id) => ['concierge', 'rb-firstlook', 'rb-model-door', 'rb-ftu-rows', 'services'].includes(id)),
+      .filter((id) => ['concierge', 'rb-firstlook', 'rb-model-door', 'rb-ftu-rows'].includes(id)),
   }));
-  check('model door · first-look posture: after "Your looks", before the hairline rows',
-    o.door && o.mode === 'look' && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-model-door', 'rb-ftu-rows', 'services']),
+  check('model door · first-look posture: after "Your looks", no rows, no band beneath',
+    o.door && o.mode === 'look' && o.rows === false && o.servicesHidden === true
+      && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-model-door']),
     JSON.stringify(o));
   check('model door · no page errors (postures)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
