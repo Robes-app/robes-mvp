@@ -2845,7 +2845,7 @@
               }
             } catch (e) { console.warn('[tags] link write:', e && e.message); }
 
-            if (!editId) _rbTrack('wardrobe_added', { label: payload.label || '', category: payload.category || '' });
+            if (!editId) _rbTrack('wardrobe_added', { label: payload.label || '', category: payload.category || '', source: 'app', batch_n: Math.max(1, _waBatchTotal || 1), batch_i: (_waBatchDone || 0) + 1 });
             _waEditId = null;
             // Batch mode: keep the modal open and roll the next queued photo
             // into step 2 — closing between pieces made 15 photos feel like
@@ -6084,7 +6084,7 @@
             var it = Array.isArray(saved) ? saved[0] : saved;
             if (!it || it.id == null) it = Object.assign({ id: null }, row);
             it.times_worn = it.times_worn || 0;
-            _rbTrack('wardrobe_added', { source: 'inspiration_modal', category: it.category || '' });
+            _rbTrack('wardrobe_added', { source: 'inspiration_modal', category: it.category || '', batch_n: 1, batch_i: 1 });
             try { await _waLoad(); } catch (_) {}
             if (live()) {
               _inStScan.status = 'filed';
@@ -6771,35 +6771,13 @@
         _kpPollTimer = setTimeout(tick, 2500);
       }
 
-      // ── First-landing guide band (2B "Guidance without a gate", Annie's
-      // FTUE testing 2026-08-19): sits between the nav and the kp result in
-      // the band cream, so it reads as page furniture rather than a
-      // warning. "Build a look" scrolls to card 01 and fills its button —
-      // the only filled Build this look on the page while the band is up.
-      // Dismisses on × or on the first look opened; never returns (per-user
-      // flag). Because it doesn't gate, it survives a reload within the
-      // first session — which a modal shouldn't.
-      function _kpGuideDone() {
-        try { const u = _waUid(); return !!(u && localStorage.getItem('rb_kp_guide_done__' + u)); } catch (_) { return false; }
-      }
-      function _kpGuideDismiss() {
-        try { const u = _waUid(); if (u) localStorage.setItem('rb_kp_guide_done__' + u, '1'); } catch (_) {}
-        const band = document.getElementById('kp-guide-band');
-        if (band) band.remove();
-        if (kpResultPage) kpResultPage.classList.remove('kp-guide-on');
-      }
-      window.__kpGuideClose = function() {
-        _kpGuideDismiss();
-        _rbTrack('kp_guide_dismissed', { via: 'close' });
-      };
-      window.__kpGuideBuild = function() {
-        const card = kpResultPage && kpResultPage.querySelector('.kp-look-card');
-        if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      };
-      window.__kpGuideHome = function() {
-        // Heading home doesn't dismiss — she may come back to the looks.
-        if (window.__kpGoBack) window.__kpGoBack();
-      };
+      // ── The first landing carries no guide band (four-session funnel brief,
+      // slice 1.3 · 2026-09-18): the 2B START HERE band ("Pick one of the three
+      // looks below…", Build a look ↓, Home dashboard, ×) duplicated card 01's
+      // own filled Build this look and the return band, and made the page
+      // carry three ink fills with the NO MODEL YET button. Card 01 is filled
+      // by default while nothing is built (`.kp-build-first`, below); the
+      // model band's button is a hairline on a first-session account.
 
       window.__kpRenderResult = function(data, promptText, opts) {
         // A key-piece result is Inspiration's, whichever door raised it
@@ -6898,21 +6876,16 @@
             '}' +
             '.kp-head{margin-bottom:12px;padding-top:34px}' +
             '#kp-choose-head[hidden]{display:none}' +
-            // 2B guide band: while it stands, card 01's Build this look is
-            // the one filled button on the page (inline styles keep the
-            // outline register, so the fill needs !important to win).
-            '#kp-result-page.kp-guide-on .kp-build-first{background:#202021 !important;color:#fff !important;border-color:#202021 !important}' +
-            '#kp-result-page.kp-guide-on .kp-build-first .arr{color:#fff}' +
-            '@media(max-width:700px){#kp-guide-band{padding:14px 20px !important}}';
+            // Card 01's Build this look is the page's ONE filled button until a
+            // way is built (slice 1.3, 2026-09-18 — the guide band that used to
+            // switch this on is gone; the fill is the default now).
+            '.kp-build-btn.kp-build-first{background:#202021;color:#fff;border-color:#202021}' +
+            '.kp-build-btn.kp-build-first .arr{color:#fff}';
           document.head.appendChild(kis);
         }
         const imagesPending = !!data.jobId;
 
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Style a piece' }]);
-        // Guidance without a gate (2B): the first landing on the styled
-        // result carries the band — never on the dress-me variant, and
-        // never again once she has opened a look or waved it away.
-        const kpGuide = !kpDaily && !_kpGuideDone();
         // Band two + three (nav architecture 2026-09-10): the result climbs
         // back to Inspiration and walks its set; the eyebrow says what
         // this is (Key piece), the request's own words lead the title so
@@ -6956,21 +6929,6 @@
         });
         try { kpResultPage.innerHTML = `
           ${kpBand}
-          ${kpGuide ? `
-          <div id="kp-guide-band" style="background:#F2EEE7;border-bottom:1px solid #E1DACB;padding:16px 32px;box-sizing:border-box">
-            <div style="max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:22px;flex-wrap:wrap">
-              <span style="font-size:10px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:#9A9082;flex-shrink:0">Start here</span>
-              <div style="flex:1;min-width:230px">
-                <div style="font-size:14.5px;color:#202021;line-height:1.45">Pick one of the three looks below and build it around what’s yours — Robes borrows the rest.</div>
-                <div style="font-family:${serif};font-style:italic;font-size:15px;color:#8A8072;margin-top:2px">Or head home to catalogue your wardrobe and start a look of your own.</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;flex-wrap:wrap">
-                <button onclick="window.__kpGuideBuild()" style="border:none;background:#202021;color:#FAF8F5;border-radius:100px;padding:13px 24px;font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;font-family:${sans}">Build a look ↓</button>
-                <button onclick="window.__kpGuideHome()" style="border:none;background:none;padding:2px 0;font-size:13px;color:#5F5A4E;border-bottom:1px solid #B8AF9E;cursor:pointer;font-family:${sans}">Home dashboard</button>
-                <button id="kp-guide-close" aria-label="Dismiss" onclick="window.__kpGuideClose()" style="border:none;background:none;padding:6px 8px;font-size:17px;line-height:1;color:#9A9082;cursor:pointer;font-family:${sans}">×</button>
-              </div>
-            </div>
-          </div>` : ''}
           <div style="width:100%;max-width:1100px;margin:0 auto;padding:0 32px 80px;box-sizing:border-box">
             <div id="kp-choose-head">
             <div class="kp-headrow">
@@ -7018,7 +6976,7 @@
                   </div>
                   <p class="kp-look-line">See it piece by piece — what's yours, what would finish it.</p>
                   <div class="kp-look-acts">
-                    <button id="kp-build-btn-${i}" class="kp-build-btn${i === 0 ? ' kp-build-first' : ''}${_kpBuiltLookId(i) != null ? ' kp-built' : ''}" onclick="window.__kpBuildLook(${i})">${_kpBuiltLookId(i) != null ? 'Open the look' : 'Build this look'}<svg class="arr" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+                    <button id="kp-build-btn-${i}" class="kp-build-btn${i === 0 && !kpDaily && !ways.some((_, j) => _kpBuiltLookId(j) != null) ? ' kp-build-first' : ''}${_kpBuiltLookId(i) != null ? ' kp-built' : ''}" onclick="window.__kpBuildLook(${i})">${_kpBuiltLookId(i) != null ? 'Open the look' : 'Build this look'}<svg class="arr" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
                     <button type="button" class="kp-look-more" id="kp-look-more-${i}" aria-expanded="false" onclick="window.__kpMore(${i})">More detail</button>
                   </div>
                   <div class="kp-look-detail" id="kp-look-detail-${i}" hidden>
@@ -7037,7 +6995,6 @@
           kpResultPage.innerHTML = `<div style="padding:80px 24px;text-align:center;font-family:${sans};color:#6E6A64">Something went wrong rendering your looks — please try again.</div>`;
         }
 
-        kpResultPage.classList.toggle('kp-guide-on', kpGuide);
         kpResultPage.style.display = 'block';
         kpResultPage.scrollTo({ top: 0 });
         // What "Build this look" needs to open the composer IN SITU, and
@@ -7078,8 +7035,6 @@
         window.__kpBuildLook = function(i) {
           const w = ways[i];
           if (!w) return;
-          // Opening a look IS the guidance taken — the band never returns.
-          _kpGuideDismiss();
           // A way she has already built opens ITS SAVED LOOK (Annie,
           // 2026-09-16: "clicking on that again should load the saved look,
           // rather than another edit mode") — a deleted look falls back to
@@ -7301,8 +7256,9 @@
           '.kp-model-band .ey{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
           '.kp-model-band h3{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:24px;line-height:1.2;margin:8px 0 0;color:var(--ink,#202021)}' +
           '.kp-model-band h3 em{font-style:italic}' +
-          '.kp-model-band .rb-lkm-build{flex:none;margin:0}' +
-          '@media(max-width:700px){.kp-model-band{flex-direction:column;align-items:stretch;padding:20px 18px;gap:14px}.kp-model-band .rb-lkm-build{width:100%}.kp-build-filed{padding:20px 18px}.kp-build-strip{flex-wrap:wrap;align-items:flex-start;padding-top:22px}.kp-build-r{width:100%;justify-content:space-between}#kp-build .kp-build-title{font-size:26px}}';
+          '.kp-model-band .rb-lkm-build,.kp-model-band .rb-pill{flex:none;margin:0}' +
+          '.kp-model-band .rb-pill{padding:13px 22px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink,#202021);border-color:rgba(32,32,33,0.28)}' +
+          '@media(max-width:700px){.kp-model-band{flex-direction:column;align-items:stretch;padding:20px 18px;gap:14px}.kp-model-band .rb-lkm-build,.kp-model-band .rb-pill{width:100%;justify-content:center}.kp-build-filed{padding:20px 18px}.kp-build-strip{flex-wrap:wrap;align-items:flex-start;padding-top:22px}.kp-build-r{width:100%;justify-content:space-between}#kp-build .kp-build-title{font-size:26px}}';
         document.head.appendChild(st);
       }
       // The Build step's ONE header (Annie, 2026-09-16 — "one header per
@@ -7417,6 +7373,9 @@
           if (it) snUpdate(_kpActiveSaveId, { kpData: Object.assign({}, it.kpData || {}, { builtLooks: bl }) });
           const btn = document.getElementById('kp-build-btn-' + _kpBuildWay);
           if (btn) { btn.classList.add('kp-built'); btn.firstChild && btn.firstChild.nodeType === 3 && (btn.firstChild.textContent = 'Open the look'); }
+          // Something is built now — card 01's default fill stands down.
+          const b0 = document.getElementById('kp-build-btn-0');
+          if (b0) b0.classList.remove('kp-build-first');
         }
         const inp = document.querySelector('#kp-build .kp-build-title');
         if (inp && inp.tagName === 'INPUT') {
@@ -7425,12 +7384,22 @@
           t.textContent = l.name || 'Your look';
           inp.replaceWith(t);
         }
+        // The forward line (four-session funnel brief, slice 1.2 · 2026-09-18):
+        // one derived sentence that names Session 2 — the model, and the
+        // pieces this look borrows — written by this look's own outcome. No
+        // new door: Open the look stays the one.
+        const props = Array.isArray(l.proposals) ? l.proposals.length : 0;
+        const pro = _lkModelPro();
+        const next = _lkModel === null
+          ? ('Build your model and ' + pro.shell + ' wear it.' + (props ? ' Photograph the ' + props + ' piece' + (props === 1 ? '' : 's') + ' that ' + (props === 1 ? 'isn’t' : 'aren’t') + ' yours yet and it’s all yours.' : ''))
+          : (props ? props + ' of these ' + (props === 1 ? 'isn’t' : 'aren’t') + ' yours yet — photograph yours and Robes swaps ' + (props === 1 ? 'it' : 'them') + ' in.' : '');
         host.innerHTML = '<div class="kp-build-filed">' +
           '<div><div class="ey">Filed</div>' +
             '<h3>' + _waEsc(l.name || 'Your look') + ' <em>is in your Lookbook.</em></h3>' +
-            '<div class="sub">' + (Array.isArray(l.proposals) && l.proposals.length
+            '<div class="sub">' + (props
               ? 'The pieces you don’t own yet are on your wishlist.'
-              : 'Wear it, plan it, or build the next one.') + '</div></div>' +
+              : 'Wear it, plan it, or build the next one.') + '</div>' +
+            (next ? '<div class="sub kp-filed-next">' + next + '</div>' : '') + '</div>' +
           '<div class="acts">' +
             '<button type="button" class="rb-pill" onclick="window.__kpBuildOpenLook()">Open the look</button>' +
           '</div></div>';
@@ -7451,6 +7420,13 @@
       };
       // NO MODEL YET — the page's foot while no model is on file (the same
       // door the composer's canvas carries, worded for the three looks).
+      // One piece or none = a first-session account. The wardrobe loads
+      // async, so until it has, the profile's trigger-kept count decides.
+      function _kpFirstSession() {
+        const n = _waLoaded ? (_waItems || []).length
+          : Math.max((_waItems || []).length, Number((window.__robes_profile || {}).wardrobe_items_count) || 0);
+        return n <= 1;
+      }
       function _kpModelBandSync() {
         const slot = document.getElementById('kp-model-band');
         if (!slot) return;
@@ -7464,7 +7440,11 @@
             '<div class="ey">No model yet</div>' +
             '<h3>Build ' + pro.her + ' once, ' + pro.shell + ' model <em>all three.</em></h3>' +
           '</div></div>' +
-          '<button type="button" class="rb-lkm-build" onclick="window.__lkBuildModel()">Build your model</button>' +
+          // A first-session account (one piece, no model) has just met the
+          // three-up — card 01 keeps the page's one ink fill, so this button
+          // is a hairline there (slice 1.3, 2026-09-18). From the second
+          // piece on, the model is the ask and the fill returns.
+          '<button type="button" id="kp-model-build" class="' + (_kpFirstSession() ? 'rb-pill' : 'rb-lkm-build') + '" onclick="window.__lkBuildModel()">Build your model</button>' +
           '</div>';
       }
       // What "Build your model" parks when the kp page is the surface on
@@ -12517,6 +12497,7 @@ button.rb-lk-live{cursor:pointer}
           setTimeout(function() {
             if (document.querySelector('.rb-lk-composer, .rb-lkm-stage, .rb-lk-editing, .rb-lkm-panel')) _lkRepaint();
             if (document.getElementById('kp-model-band') && typeof _kpModelBandSync === 'function') _kpModelBandSync();
+            if (typeof _rbNextPaint === 'function') _rbNextPaint();
             // A day editing its saved look dresses her model too.
             try {
               const d = window.__lastDlData;
@@ -14722,6 +14703,102 @@ button.rb-lk-live{cursor:pointer}
       // home's FTU state — the index rows, the first-look card, the
       // learning card and the Lookbook/Inspiration rows all follow it, so
       // they can't drift.
+      // ── The next line (four-session funnel brief, slice 1.1 · 2026-09-18) ──
+      // Home knows what she has (the mode machine); this is the ONE sentence
+      // that says what to do next, derived from the same facts the modes
+      // read and painted into the masthead echo with a text door. First
+      // matching rule wins; nothing matching leaves the standing question.
+      // Never a filled button — the prompt's Style me stays the one ink fill.
+      // `five` and `robes` (Robes builds from yours at five pieces) arrive
+      // with slice 3 — a promise the page cannot keep yet is not made.
+      var _rbNextKey = null;
+      var _rbNextSlots = null;    // the rail's last painted slots (week / wear rules)
+      var _rbNextDoor = null;
+      function _rbNextCss() {
+        if (document.getElementById('rb-next-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-next-style';
+        st.textContent =
+          '.dash-echo .rb-echo-name{font-style:normal;color:var(--ink-soft,#55524E)}' +
+          '.dash-echo .rb-echo-door{display:inline-block;margin-left:12px;padding:0 0 1px;background:none;border:0;border-bottom:1px solid var(--rule-mid,rgba(32,32,33,0.2));font-family:var(--font-sans,Inter,sans-serif);font-style:normal;font-size:12.5px;letter-spacing:.02em;line-height:1.3;color:var(--ink-soft,#55524E);cursor:pointer;vertical-align:middle;white-space:nowrap}' +
+          '.dash-echo .rb-echo-door:hover{color:var(--ink,#202021);border-bottom-color:var(--ink,#202021)}' +
+          '@media(max-width:640px){.dash-echo .rb-echo-door{display:block;margin:6px 0 0;width:max-content}}';
+        document.head.appendChild(st);
+      }
+      function _rbNextRailSlots(slots) {
+        _rbNextSlots = Array.isArray(slots) ? slots : null;
+        _rbNextPaint();
+      }
+      function _rbNextLine() {
+        const rows = document.getElementById('rb-ftu-rows');
+        if (rows && rows.getAttribute('data-mode') === 'zero') return { key: 'styled' };
+        const looks = (_lkLooks || []).filter(l => l && !l._draft);
+        const pics = (_waItems || []).filter(w => _pdHttp(w.image_url)).length;
+        // The model id lands late — ask, and _lkModelEnsure's deferred
+        // callback repaints; `undefined` (not asked) never fires a rule.
+        if (_lkModel === undefined && typeof _lkModelEnsure === 'function') _lkModelEnsure();
+        const nm = l => '<em class="rb-echo-name">' + _waEsc(l.name || 'your look') + '</em>';
+        if (_lkModel === null && looks.length) {
+          const pro = _lkModelPro();
+          return { key: 'model', text: 'Build your model and ' + pro.shell + ' wear ' + nm(looks[0]) + '.',
+            doorLabel: 'Build your model', door: 'model' };
+        }
+        const borrowing = looks.find(l => Array.isArray(l.proposals) && l.proposals.length >= 2);
+        if (borrowing && pics < 5) {
+          return { key: 'finish', text: nm(borrowing) + ' borrows ' + borrowing.proposals.length + ' pieces. Photograph yours and it’s all yours.',
+            doorLabel: 'Photograph them', door: 'finish', id: borrowing.id };
+        }
+        if (_rbNextSlots && looks.length) {
+          const today = _pdLocalISO();
+          const ahead = _rbNextSlots.filter(sl => sl && sl.date >= today);
+          const todaySlot = ahead.find(sl => sl.date === today);
+          if (todaySlot && (todaySlot.moments || []).length) {
+            if (!todaySlot.moments.some(m => m && m.status === 'worn')) {
+              return { key: 'wear', text: 'Today is dressed. Tap the day when you’ve worn it.',
+                doorLabel: 'Open today', door: 'wear', date: today };
+            }
+          } else if (ahead.length && !ahead.some(sl => (sl.moments || []).length)) {
+            return { key: 'week', text: 'Nothing planned this week. Name a day and Robes dresses it.',
+              doorLabel: 'Open the diary', door: 'week' };
+          }
+        }
+        return null;
+      }
+      function _rbNextPaint() {
+        const dash = document.getElementById('dash');
+        const echo = dash && dash.querySelector('.dash-echo');
+        if (!echo) return;
+        let nx = null;
+        try { nx = _rbNextLine(); } catch (e) { console.warn('[robes] next line:', e && e.message); nx = null; }
+        if (nx && nx.key === 'styled') { _rbNextKey = 'styled'; _rbNextDoor = null; return; }   // the styled card's own echo stands
+        if (!nx) {
+          if (echo.textContent !== _RB_FTU_ECHO) echo.textContent = _RB_FTU_ECHO;
+          _rbNextKey = null; _rbNextDoor = null;
+          return;
+        }
+        _rbNextCss();
+        _rbNextDoor = nx;
+        echo.innerHTML = nx.text +
+          '<button type="button" class="rb-echo-door" onclick="window.__rbNextGo()">' + _waEsc(nx.doorLabel) + ' →</button>';
+        if (nx.key !== _rbNextKey) { _rbNextKey = nx.key; _rbTrack('next_line_shown', { rule: nx.key }); }
+      }
+      window._rbNextPaint = _rbNextPaint;
+      window.__rbNextGo = function() {
+        const nx = _rbNextDoor;
+        if (!nx) return;
+        _rbTrack('next_line_tapped', { rule: nx.key });
+        if (nx.door === 'model') {
+          if (window.__rbModelGo) { window.__rbModelGo('home'); return; }        // slice 2's door
+          window.location.assign('/stylenotes');
+        } else if (nx.door === 'finish') {
+          if (window.__rbFillOpen) { window.__rbFillOpen(nx.id); return; }        // slice 4's door
+          if (window.__lkCardOpen) window.__lkCardOpen(nx.id, 'home');
+        } else if (nx.door === 'week') {
+          if (window.__rbDiaryOpen) window.__rbDiaryOpen();
+        } else if (nx.door === 'wear') {
+          if (window.__rbDayOpen) window.__rbDayOpen(nx.date, { from: 'home' });
+        }
+      };
       function _lkHomeSync() {
         const dash = document.getElementById('dash');
         if (!dash) return;
@@ -14754,6 +14831,7 @@ button.rb-lk-live{cursor:pointer}
         if (typeof _rbRenderStyleNotes === 'function') _rbRenderStyleNotes();
         if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow();
         if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length);
+        _rbNextPaint();
       }
       window._lkHomeSync = _lkHomeSync;
       window.__lkRowOpen = function(key) { _lkOpenRow = _lkOpenRow === key ? null : key; _lkPaint(); };
@@ -23478,6 +23556,7 @@ body>*:not(#tv-result-page){display:none !important}
           comingUp();
           // FTU rows: a planned day exposes The week ahead by default.
           if (typeof _rbFtuWeekAuto === 'function') _rbFtuWeekAuto(slots);
+          if (typeof _rbNextRailSlots === 'function') _rbNextRailSlots(slots);
         }
 
         // "Coming up" — the next plan starting OUTSIDE the rail window.

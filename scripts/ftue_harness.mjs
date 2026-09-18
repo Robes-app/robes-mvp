@@ -717,12 +717,17 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
         && !!document.getElementById('rb-conc-ey'),
       // Load rules (2026-08-19): the click through brings the concierge in
       servicesShown: document.querySelector('.services')?.offsetParent !== null,
-      // 2B guide band on the first landing
+      // The first landing (slice 1.3, 2026-09-18): no guide band; card 01
+      // filled by default; the model band's button a hairline at one piece.
       kpOpen: document.getElementById('kp-result-page')?.style.display === 'block',
       band: !!document.getElementById('kp-guide-band'),
-      bandText: (document.getElementById('kp-guide-band')?.textContent || '').replace(/\s+/g, ' '),
       firstFilled: filled('kp-build-btn-0'),
       secondFilled: filled('kp-build-btn-1'),
+      thirdFilled: filled('kp-build-btn-2'),
+      modelBtnClass: document.getElementById('kp-model-build')?.className,
+      modelBtnFilled: filled('kp-model-build'),
+      inkFills: Array.from(document.querySelectorAll('#kp-result-page button'))
+        .filter((b) => b.offsetParent !== null && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
     };
   });
   check('styled card · once it retires the prompt steps out to lead',
@@ -730,34 +735,29 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     JSON.stringify([after.styledGone, after.mode, after.concLeads]));
   check('styled card · the concierge loads the moment she clicks through',
     after.servicesShown === true, String(after.servicesShown));
-  check('kp guide band · stands on the first landing, in the band cream register',
-    after.kpOpen === true && after.band === true
-      && /Start here/i.test(after.bandText)
-      && /Pick one of the three looks below and build it around what’s yours — Robes borrows the rest\./.test(after.bandText)
-      && /Or head home to catalogue your wardrobe and start a look of your own\./.test(after.bandText)
-      && /Build a look/i.test(after.bandText) && /Home dashboard/.test(after.bandText),
-    after.bandText.slice(0, 220));
-  check('kp guide band · card 01 carries the ONE filled Build this look while the band is up',
-    after.firstFilled === true && after.secondFilled === false,
-    JSON.stringify([after.firstFilled, after.secondFilled]));
+  check('kp first landing · no guide band; card 01 carries the ONE filled Build this look',
+    after.kpOpen === true && after.band === false && after.firstFilled === true
+      && after.secondFilled === false && after.thirdFilled === false,
+    JSON.stringify([after.kpOpen, after.band, after.firstFilled, after.secondFilled, after.thirdFilled]));
+  check('kp first landing · the model band’s button is a hairline on a one-piece account — one ink fill on the page',
+    after.modelBtnClass === 'rb-pill' && after.modelBtnFilled === false && after.inkFills === 1,
+    JSON.stringify([after.modelBtnClass, after.modelBtnFilled, after.inkFills]));
 
-  // × dismisses — the fill reverts, the flag persists, and a reopen never
-  // brings the band back (it survives a reload only UNTIL dismissed).
-  const bandB = await page.evaluate(async () => {
-    document.getElementById('kp-guide-close')?.click();
-    await new Promise((r) => setTimeout(r, 120));
-    const b0 = document.getElementById('kp-build-btn-0');
-    const goneNow = !document.getElementById('kp-guide-band');
-    const unfilled = b0 ? getComputedStyle(b0).backgroundColor !== 'rgb(32, 32, 33)' : null;
-    const flag = !!localStorage.getItem('rb_kp_guide_done__u-test');
+  // A re-render keeps the same landing: nothing to dismiss, nothing to
+  // remember — no per-user flag is written.
+  const again = await page.evaluate(async () => {
     window.__kpRenderResult(window.__lastKpData, 'Acid green cropped jumper',
       { intent: 'style', skipSave: true, savedId: null });
     await new Promise((r) => setTimeout(r, 200));
-    return { goneNow, unfilled, flag, backAgain: !!document.getElementById('kp-guide-band') };
+    const b0 = document.getElementById('kp-build-btn-0');
+    return {
+      band: !!document.getElementById('kp-guide-band'),
+      firstFilled: b0 ? getComputedStyle(b0).backgroundColor === 'rgb(32, 32, 33)' : null,
+      flag: !!localStorage.getItem('rb_kp_guide_done__u-test'),
+    };
   });
-  check('kp guide band · × dismisses, reverts the fill, and it never returns',
-    bandB.goneNow === true && bandB.unfilled === true && bandB.flag === true && bandB.backAgain === false,
-    JSON.stringify(bandB));
+  check('kp first landing · a re-render is the same landing, no flag written',
+    again.band === false && again.firstFilled === true && again.flag === false, JSON.stringify(again));
   await ctx.close();
 }
 
@@ -1010,6 +1010,101 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check('390px · no horizontal overflow', m.overflow);
   check('390px · the prompt leads under the masthead', m.concFirst === true, String(m.concFirst));
   check('390px · no standalone learning card', m.trackerGone === true);
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// The next line (four-session funnel brief, slice 1.1 · 2026-09-18): the
+// masthead echo becomes ONE derived sentence with a text door — never a
+// filled button. Rules in order: model (none on file, ≥1 look) → finish (a
+// look borrows ≥2 pieces, <5 photographed) → week (nothing planned ahead)
+// → the standing question.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  // Two saved looks, no model on file → the model rule. (looks:false so the
+  // boot's init script does not re-seed the looks on the reload below.)
+  const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
+  await page.evaluate(() => {
+    localStorage.setItem('rb_looks__u-test', JSON.stringify([
+      { id: 'lk-a', name: 'A look', name_provisional: false, note: '', photo_url: null, tags: null, source: 'manual',
+        origin_look_id: null, created_at: '2026-08-05T10:00:00.000Z',
+        pieces: [{ id: 'w0', slot: 'Top', position: 0, role: null }, { id: 'w1', slot: 'Bottom', position: 1, role: null }], wears: [] },
+      { id: 'lk-a2', name: 'A second look', name_provisional: false, note: '', photo_url: null, tags: null, source: 'manual',
+        origin_look_id: null, created_at: '2026-08-04T10:00:00.000Z',
+        pieces: [{ id: 'w2', slot: 'Top', position: 0, role: null }, { id: 'w3', slot: 'Bottom', position: 1, role: null }], wears: [] }]));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const read = () => page.evaluate(() => {
+    const echo = document.querySelector('.dash-echo');
+    const mast = document.querySelector('.dash-mast');
+    return {
+      text: echo?.textContent.replace(/\s+/g, ' ').trim(),
+      name: echo?.querySelector('.rb-echo-name')?.textContent,
+      door: echo?.querySelector('.rb-echo-door')?.textContent,
+      doorInk: echo?.querySelector('.rb-echo-door') ? getComputedStyle(echo.querySelector('.rb-echo-door')).backgroundColor : null,
+      mastFills: Array.from(mast?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
+    };
+  });
+  const a = await read();
+  check('next line · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('next line · no model + a look → "Build your model and she’ll wear …", a text door, no ink in the masthead',
+    a.name === 'A look' && /^Build your model and she’ll wear A look\./.test(a.text) && a.door === 'Build your model →'
+      && a.doorInk !== 'rgb(32, 32, 33)' && a.mastFills === 0, JSON.stringify(a));
+
+  // A model on file (the pre-migration-20 local prefs make an id) and a
+  // look that borrows two pieces at three photographed → the finish rule.
+  await page.evaluate(() => {
+    localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
+    localStorage.setItem('rb_looks__u-test', JSON.stringify([
+      { id: 'lk-b', name: 'The Thursday one', name_provisional: false, note: '', photo_url: null, tags: null, source: 'robes',
+        origin_look_id: null, created_at: '2026-09-10T10:00:00.000Z',
+        pieces: [{ id: 'w0', slot: 'Top', position: 0, role: null }],
+        proposals: [
+          { role: null, chip: 'Jacket', cats: ['Outerwear'], opts: [{ name: 'A jacket' }], oi: 0, saved: false, image_url: null },
+          { role: null, chip: 'Shoes', cats: ['Shoes'], opts: [{ name: 'Loafers' }], oi: 0, saved: false, image_url: null }],
+        wears: [] }]));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const b = await read();
+  check('next line · a model + a look borrowing two pieces → the finish rule, "Photograph them"',
+    b.name === 'The Thursday one' && /borrows 2 pieces\. Photograph yours and it’s all yours\./.test(b.text) && b.door === 'Photograph them →',
+    JSON.stringify(b));
+  // Its door opens the look (slice 4 will re-point it at the briefed add).
+  const opened = await page.evaluate(async () => {
+    document.querySelector('.dash-echo .rb-echo-door')?.click();
+    await new Promise((r) => setTimeout(r, 700));
+    const sn = document.getElementById('sn-page');
+    return { sn: !!sn && getComputedStyle(sn).display !== 'none',
+      title: document.getElementById('sn-page')?.textContent.includes('The Thursday one') };
+  });
+  check('next line · the finish door opens the look', opened.sn === true && opened.title === true, JSON.stringify(opened));
+  await ctx.close();
+}
+{
+  // A model on file, two owned-only looks, nothing in the diary → the week
+  // rule, whose door opens the Diary.
+  const { ctx, page, errs } = await boot(browser, 6);
+  await page.evaluate(() => {
+    localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const c = await page.evaluate(() => {
+    const echo = document.querySelector('.dash-echo');
+    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: echo?.querySelector('.rb-echo-door')?.textContent };
+  });
+  check('next line · no page errors (week)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('next line · a model, looks, nothing planned → the week rule, "Open the diary"',
+    /^Nothing planned this week\. Name a day and Robes dresses it\./.test(c.text) && c.door === 'Open the diary →', JSON.stringify(c));
+  const diary = await page.evaluate(async () => {
+    document.querySelector('.dash-echo .rb-echo-door')?.click();
+    await new Promise((r) => setTimeout(r, 700));
+    const sn = document.getElementById('sn-page');
+    return { open: !!sn && sn.style.display !== 'none', cal: !!sn?.classList.contains('rb-cal-on') };
+  });
+  check('next line · the week door opens the Diary', diary.open === true && diary.cal === true, JSON.stringify(diary));
   await ctx.close();
 }
 

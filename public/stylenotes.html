@@ -1281,10 +1281,26 @@
     }
     // Auto-file: every change files the model (kept is now "filed") —
     // the ✓ status line flashes as the brief affirmation, never a button.
+    // Product events (four-session funnel brief, slice 1.4 · 2026-09-18): the
+    // page has PostHog but no _rbTrack — mirror the dashboard's two planes.
+    function snTrack(type, meta) {
+      try { if (window.__rbPH) window.__rbPH(function (ph) { ph.capture(type, meta || {}); }); } catch (e) {}
+      try {
+        if (!st.uid) return;
+        const h = location.hostname;
+        const env = (h === 'www.byrobes.com' || h === 'byrobes.com') ? 'production' : 'beta';
+        sbClient.from('events').insert({ user_id: st.uid, event_type: type, metadata: meta || {}, environment: env })
+          .then(function () {}, function () {});
+      } catch (e) {}
+    }
     function mvFile() {
+      // model_filed fires ONCE per model — the first filing, not every
+      // hand pick after it (kept is already true on those).
+      const firstFiling = !st.model.kept;
       st.model.kept = true;
       mvPersist();
       renderModel();
+      if (firstFiling) snTrack('model_filed', { by: (st.colour || st.color || st.sil) ? 'photo' : 'hand', gender: st.model.gender || st.gender || null });
       const filed = document.getElementById('mv-filed');
       filed.classList.remove('flash');
       void filed.offsetWidth;   // restart the animation

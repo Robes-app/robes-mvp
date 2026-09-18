@@ -149,6 +149,22 @@ check('three ways rendered', kpTxt.includes('Urbane Weekend') && kpTxt.includes(
 const buildBtns = page.locator('#kp-result-page button:has-text("Build this look")');
 check('Build this look on every look card', await buildBtns.count() === 3);
 const bandBefore = await page.locator('#kp-model-band .kp-model-band').count();
+// Slice 1.3 (2026-09-18): no START HERE band; card 01's Build this look is the
+// page's one filled button until a way is built; the model band's button is a
+// hairline on a first-session account (this fixture's profile counts 0).
+const landing = await page.evaluate(() => {
+  const bg = (id) => { const b = document.getElementById(id); return b ? getComputedStyle(b).backgroundColor : null; };
+  const mb = document.getElementById('kp-model-build');
+  return { band: !!document.getElementById('kp-guide-band'), first: bg('kp-build-btn-0'), second: bg('kp-build-btn-1'), third: bg('kp-build-btn-2'),
+    modelBtnClass: mb ? mb.className : null, modelBtnBg: mb ? getComputedStyle(mb).backgroundColor : null };
+});
+check('first landing · no guide band; card 01 carries the ONE filled Build this look',
+  landing.band === false && landing.first === 'rgb(32, 32, 33)' && landing.second !== 'rgb(32, 32, 33)' && landing.third !== 'rgb(32, 32, 33)',
+  JSON.stringify(landing));
+// This fixture's profile counts 0 pieces (a first-session account), so the
+// model band's button is the hairline — card 01 keeps the page's one ink.
+check('first landing · the model band’s button is a hairline on a first-session account',
+  landing.modelBtnClass === 'rb-pill' && landing.modelBtnBg !== 'rgb(32, 32, 33)', JSON.stringify(landing));
 check('no model on file: the NO MODEL YET band closes the three-up page',
   bandBefore === 1 && /No model yet/i.test(await page.locator('#kp-model-band').innerText()) && /all three/.test(await page.locator('#kp-model-band').innerText()));
 await buildBtns.first().click();
@@ -228,7 +244,7 @@ check('Try another re-runs the same way in place', dailyCalls === 4 && await pag
 // 5b · Build your model from the band parks the draft and comes back to it
 // — the result AND the composer, nothing generated twice.
 await page.route('**/stylenotes', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stub</title>' }));
-await page.locator('#kp-model-band .rb-lkm-build').click();
+await page.locator('#kp-model-band #kp-model-build').click();
 await page.waitForURL('**/stylenotes', { timeout: 4000 }).catch(() => {});
 const parked = await page.evaluate(() => {
   let d = null; try { d = JSON.parse(sessionStorage.getItem('rb_lk_draft') || 'null'); } catch (_) {}
@@ -269,6 +285,16 @@ check('filed IN PLACE: the host reads Filed with the look one tap away, the kp p
   && await page.locator('#kp-build .kp-build-title-set').count() === 1 && await page.locator('#kp-build input#rb-lk-newtitle').count() === 0
   && /Park Hangout/.test(await page.locator('#kp-build-host .kp-build-filed').innerText())
   && !(await page.locator('#sn-page').isVisible()) && await page.locator('#kp-build .kp-build-other').count() === 2);
+// Slice 1.2 (2026-09-18): the Filed card's forward line — no model on file and
+// proposals travelled, so it names the model and the pieces to photograph.
+const filedNext = await page.evaluate(() => ({
+  line: document.querySelector('#kp-build-host .kp-filed-next')?.textContent || '',
+  doors: document.querySelectorAll('#kp-build-host .kp-build-filed button').length,
+  firstUnfilled: getComputedStyle(document.getElementById('kp-build-btn-0')).backgroundColor !== 'rgb(32, 32, 33)',
+}));
+check('filed · the forward line names the model and the borrowed pieces; Open the look stays the one door; card 01 stands down',
+  /^Build your model and she’ll wear it\. Photograph the \d+ pieces? that (aren’t|isn’t) yours yet and it’s all yours\.$/.test(filedNext.line)
+    && filedNext.doors === 1 && filedNext.firstUnfilled === true, JSON.stringify(filedNext));
 await page.locator('#kp-build-host button:has-text("Open the look")').click();
 await page.waitForTimeout(600);
 check('Open the look lands on the saved look page, Key piece as its way back',

@@ -52,6 +52,8 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 
 ## Slice 1 · The derived "next" line, the Filed card's forward line, instrumentation
 
+**Status: built 2026-09-18** (`beta`). 1.1 ships the `model`, `finish`, `week` and `wear` rules; `five` and `robes` wait for slice 3's door. 1.2, 1.3 and 1.4 shipped whole. Until slice 2 lands, the `model` door goes straight to `/stylenotes`; until slice 4, the `finish` door opens the look.
+
 **Why**: home knows what she has (the mode machine) but never says what she should do next. The roadmap made visible without a new surface.
 
 ### 1.1 `_rbNextLine()` → the masthead echo
@@ -65,8 +67,8 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 | `styled` | `zero` mode with the styled card present | (leave the mode's own echo) | — |
 | `model` | `_lkModel === null` and `_lkLooks.length ≥ 1` | "Build your model and she'll wear *{first look name}*." | "Build your model" → slice 2's `__rbModelGo('home')` |
 | `finish` | a look has ≥2 unowned proposals and pieces-with-photos < 5 | "*{look}* borrows {n} pieces. Photograph yours and it's all yours." | "Photograph them" → slice 4's `__rbFillOpen(lookId)` (until slice 4 lands: `__lkCardOpen(id,'home')`) |
-| `five` | pieces-with-photos < 5 and `_lkLooks.length ≥ 1` | "{n} more piece{s} and Robes builds a look from yours alone." | "Add pieces" → `_wtrkOpenAdd()` |
-| `robes` | pieces-with-photos ≥ 5 and no look with `source:'robes-build'` | "Five pieces filed. Robes can build from yours now." | "Let Robes build one" → slice 3's door (until then: `__lkNew()`) |
+| `five` *(ships with slice 3 — its promise needs the door)* | pieces-with-photos < 5 and `_lkLooks.length ≥ 1` | "{n} more piece{s} and Robes builds a look from yours alone." | "Add pieces" → `_wtrkOpenAdd()` |
+| `robes` *(ships with slice 3)* | pieces-with-photos ≥ 5 and no look with `source:'robes-build'` | "Five pieces filed. Robes can build from yours now." | "Let Robes build one" → slice 3's door (until then: `__lkNew()`) |
 | `week` | no moment on any of the next 7 days | "Nothing planned this week. Name a day and Robes dresses it." | "Open the diary" → `__rbDiaryOpen()` |
 | `wear` | a moment today, not yet worn | "Today is dressed. Tap the day when you've worn it." | "Open today" → `__rbDayOpen(todayISO, {from:'home'})` |
 | — | nothing matches | static `_RB_FTU_ECHO` | — |
