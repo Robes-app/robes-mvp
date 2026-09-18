@@ -38,7 +38,7 @@ The review found that Session 1 is built, Sessions 2–4 are mostly built but un
 
 | # | Slice | Session it serves | Schema? | Size | Depends on |
 |---|---|---|---|---|---|
-| 1 | The derived "next" line + the Filed card's forward line + instrumentation | all | no | S | — |
+| 1 | The derived "next" line + the Filed card's forward line + retire the START HERE band + instrumentation | all | no | S | — |
 | 2 | The model door on home + landing on the look dressed | 2 | no | S–M | 1 (the next line points at it) |
 | 3 | Robes builds from yours at five + the ladder retune | 3 | no | M | 1 |
 | 4 | Gap-led batch: the add flow takes a brief | 2–3 | no | M | 1 |
@@ -78,7 +78,7 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 
 ### 1.2 The Filed card's forward line
 
-- **Where**: `_kpBuildSaved(l)` (~line 7291 CSS, the `.kp-build-filed` card) — the card currently prints name · "is in your Lookbook" · the wishlist line when proposals travelled.
+- **Where it lands**: the **key-piece page** (`#kp-result-page` — the "{piece}, worn three ways" three-up, reached from Inspiration's card or the styled card's See the full looks). Not the homepage, not the Inspiration index. Specifically the Filed card that replaces the in-situ composer once she saves a built way: `_kpBuildSaved(l)` (~line 7291 CSS, the `.kp-build-filed` card), which currently prints name · "is in your Lookbook" · the wishlist line when proposals travelled.
 - **Add one `.sub` line after the wishlist line**, derived:
   - no model, proposals ≥1: "Build your model and she'll wear it. Photograph the {n} pieces that aren't yours yet and it's all yours."
   - no model, no proposals: "Build your model and she'll wear it."
@@ -86,7 +86,15 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
   - model, no proposals: nothing.
 - No new CTA on the card (Open the look stays the one door). The line plants Session 2; slice 2's home door and slice 6's email do the pulling. `inspiration_smoke` pins the line's presence per state (the smoke already renders the Filed state).
 
-### 1.3 Instrumentation (PostHog + the `events` table)
+### 1.3 Retire the START HERE guide band (Annie, 18 Sep)
+
+- **Why**: on the first landing the kp page carries three ink fills — the band's BUILD A LOOK ↓ (which only scrolls to card 01), card 01's own BUILD THIS LOOK (filled by `kp-guide-on .kp-build-first`), and the NO MODEL YET band's BUILD YOUR MODEL. The page's rule is one commitment. Since the 16 Sep three-up (image-led cards, each with "See it piece by piece — what's yours, what would finish it." under the title) the page explains itself; the band's sentence and its Home dashboard link duplicate the cards and the `‹ Inspiration` return band.
+- **Remove**: `#kp-guide-band` and its render branch in `__kpRenderResult` (`kpGuide = !kpDaily && !_kpGuideDone()`, ~6915), `__kpGuideClose` / `__kpGuideBuild` / `__kpGuideHome`, the band's CSS (~6900–6906), and the `rb_kp_guide_done__<uid>` flag (`_kpGuideDone` / `_kpGuideDismiss` — nothing else reads it; leave the stale localStorage keys alone).
+- **Keep, re-homed**: card 01 filled while nothing is built. Today that treatment rides `#kp-result-page.kp-guide-on .kp-build-first`; make it the default — `.kp-build-first` is ink whenever `_kpBuiltLookId(i)` resolves for no way and the page is the style track (never dress-me), and drops to the outline the moment any way is built. No class toggle, no flag.
+- **Demote the model band's button on a first-session account** (`_kpModelBandSync`, ~7467): when `_waItems.length ≤ 1` and no model, `.rb-lkm-build` renders as a `.rb-pill` hairline instead of the ink fill, so card 01 is the page's one ink. From the second piece on, the band keeps its fill (she has seen the three-up before; the model is now the ask). This is the same state slice 2.4 keys its "Next time, build your model" copy on — do 2.4's copy here too if slice 2 has not shipped first.
+- **Harness**: `ftue_harness`'s guide-band block and `inspiration_smoke`'s band pins are rewritten to assert the band is absent, card 01 is the one ink fill on a fresh account, and the model band's button is a hairline at ≤1 piece.
+
+### 1.4 Instrumentation (PostHog + the `events` table)
 
 | Event | Where | Props |
 |---|---|---|
@@ -106,7 +114,7 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 3. `wardrobe_added{batch_n≥2}` → pieces with photos ≥5 (person prop, set in `_waSyncCounts` via `__rbPHUser`) → `robes_build_opened`
 4. `look_pinned` or `diary_day_named` → `look_created` ×4 → `wear_confirmed`
 
-**Acceptance**: `ftue_harness` gains a section booting at each rule's state and asserting the echo text + door label + that no filled button was added to the masthead; `inspiration_smoke` pins 1.2's four variants; a throwaway PostHog stub smoke asserts the new events fire with the props above.
+**Acceptance**: `ftue_harness` gains a section booting at each rule's state and asserting the echo text + door label + that no filled button was added to the masthead; `inspiration_smoke` pins 1.2's four variants on the kp page's Filed card, the absence of the guide band, and one ink fill on the fresh three-up; a throwaway PostHog stub smoke asserts the new events fire with the props above.
 
 ---
 
@@ -346,6 +354,7 @@ Voice checks applied: every mail repeats only what she gave Robes (her piece, he
 4. **Consent scope** (6.3) — one tap on the styled card covers the looks-ready mail AND the four nudges (stated in the sub-line), the morning cue is a separate opt-in in Account details. Confirm this reading of GDPR is acceptable for the beta; the privacy page is updated either way.
 5. **`EMAIL_FROM` and the Resend domain** — `hello@byrobes.com` needs SPF/DKIM on the domain before slice 6 can send from beta.
 6. **The model page's head line** (2.3) — keep "Two photographs. One model." or lead by hand when nothing is read.
+7. **The START HERE band** (1.3) — retired in slice 1 as recommended on 18 Sep; strike 1.3 if it should stay.
 
 ---
 
