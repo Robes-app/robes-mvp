@@ -337,9 +337,12 @@ const SHOT = process.env.SHOT_DIR || '';
   const { ctx, page, errs } = await boot(browser);
   await page.evaluate(() => window.__dlSubmit('an outfit for a coffee run'));
   await page.waitForTimeout(1500);
+  // The day is carried by the return band and by Save ("Save to Monday") —
+  // the "✓ Filing to …" chip is gone (Annie, 2026-09-21).
   check('daily · the fresh look opens in the composer with the day attached, not the daily console',
     await page.locator('#sn-page .rb-lk-composer').isVisible() && !(await page.locator('#dl-result-page').isVisible())
-    && await page.locator('#sn-page .rb-lk-daychip').count() === 1);
+    && await page.locator('#sn-page .rb-lk-daychip').count() === 0
+    && /^save to /i.test(await page.locator('#sn-page .rb-lk-save').innerText()));
   const dlNames = page.locator('#sn-page .rbc-rack .rbc-namebtn');
   check('daily · only owned rows are doors (2 of 4)', await dlNames.count() === 2);
   await dlNames.first().click();

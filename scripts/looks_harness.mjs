@@ -577,13 +577,18 @@ const browser = await chromium.launch(
     const mast = document.querySelector('.rb-lk-mast');
     const con = document.querySelector('.rb-lk-con');
     const rack = con?.querySelector('.rbc-rack');
-    const worn = con?.querySelector('.rb-lk-worn');
+    // 2A (2026-09-21): the wear log is its OWN card after the held card —
+    // a wear is a record of the look, not part of its composition.
+    const held = document.querySelector('.rb-lk-held');
+    const wornBox = document.querySelector('.rb-lk-wornbox');
+    const worn = wornBox?.querySelector('.rb-lk-worn');
     return {
       mastFirst: !!(mast && con) && !!(mast.compareDocumentPosition(con) & Node.DOCUMENT_POSITION_FOLLOWING),
       titleInMast: !!mast?.querySelector('#rb-lk-title'),
       pencil: !!mast?.querySelector('.rb-tb-trow .rb-tb-btn'),
       rackLabel: con?.querySelector('.rb-lk-sec')?.textContent,
       wornBelowRack: !!(rack && worn) && !!(rack.compareDocumentPosition(worn) & Node.DOCUMENT_POSITION_FOLLOWING),
+      wornStandsAlone: !!wornBox && !!held && !held.contains(wornBox) && !con?.contains(wornBox),
     };
   });
   check('detail · the name leads the page (masthead above the console)', layout.mastFirst && layout.titleInMast, JSON.stringify(layout));
@@ -591,7 +596,8 @@ const browser = await chromium.launch(
   check('detail · the card list is The Rack, and offers Edit & resave',
     /^The rack · 4 pieces/.test(layout.rackLabel || '') && /Edit & resave/.test(layout.rackLabel || ''),
     String(layout.rackLabel));
-  check('detail · the wear record lives below the Rack', layout.wornBelowRack === true);
+  check('detail · the rack ends and the wear log STANDS ALONE — its own card below the held one, never inside the rack\'s column',
+    layout.wornBelowRack === true && layout.wornStandsAlone === true, JSON.stringify(layout));
   const renamed = await page.evaluate(async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     window.__lkTitleEdit();
@@ -1685,8 +1691,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // No image carousel until the look is saved — it belongs to the saved card
   check('build · no carousel and no remove on an unsaved build',
     b.flicks === 0 && b.removes === 0, JSON.stringify([b.flicks, b.removes]));
-  check('build · the name lands last, offered not applied',
-    !!b.title && /Yours to change/.test(b.note || ''), JSON.stringify([b.title, b.note]));
+  // The name lands last, and it lands IN THE FIELD — the "Robes' name for
+  // it. Yours to change." line is gone (Annie, 2026-09-21); the only note
+  // under the composer is the name gate beside Save.
+  check('build · the name lands last, in the field, with no second line explaining it',
+    !!b.title && !/Yours to change/.test(b.note || ''), JSON.stringify([b.title, b.note]));
   check('build · the stylist note reads on the panel',
     b.quote === BUILD_NOTE.note, JSON.stringify(b.quote));
   check('build · the look arrives filed — tags on the row, texture under the mosaic',
@@ -3333,9 +3342,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       note: panel?.querySelector('.rbc-quote')?.textContent?.trim() || '',
       photoDoor: con?.querySelector('.rb-lkm-canvas .rb-lk-photobtn span')?.textContent?.trim() || '',
       replaceDoor: /replace the photo/i.test(con?.innerText || ''),
-      // The masthead (return band, day chip, name) leads the composer from
-      // OUTSIDE the card — never scope the chip to .rb-lk-composer.
-      dayChip: document.querySelector('#sn-page .rb-lk-daychip')?.textContent?.trim() || '',
+      // The masthead (return band + name) leads the composer from OUTSIDE
+      // the card — never scope it to .rb-lk-composer. The "✓ Filing to …"
+      // chip is gone (Annie, 2026-09-21): the band reads the date and Save
+      // names the weekday.
+      dayChip: document.querySelectorAll('#sn-page .rb-lk-daychip, #sn-page .rb-lk-dayrow').length,
       back: document.querySelector('#sn-page .rb-ret .rb-ret-back')?.textContent?.replace(/\s+/g, ' ').trim() || '',
       save: con?.querySelector('.rb-lk-save')?.textContent?.trim() || '',
       rack: Array.from(con?.querySelectorAll('.rbc-rack .rbc-name') || []).map((x) => x.textContent.trim()),
@@ -3354,8 +3365,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     /Ease with polish/.test(dressed.note) && dressed.tags, JSON.stringify([dressed.note, dressed.tags]));
   check('rule 04 · the photograph door is the pill on the canvas — never "Replace the photo" on a look with none',
     dressed.photoDoor === 'Add your photograph' && !dressed.replaceDoor, JSON.stringify([dressed.photoDoor, dressed.replaceDoor]));
-  check('rule 04 · the day is the context — the chip files it, Save names the weekday, every piece hangs on the rack',
-    /Filing to/.test(dressed.dayChip) && /^Save to /.test(dressed.save)
+  check('rule 04 · the day is the context — the return band reads it and Save names the weekday, with no filing chip repeating it; every piece hangs on the rack',
+    dressed.dayChip === 0 && /^Save to /.test(dressed.save)
       && ['Cream silk shirt', 'Barrel-leg jeans', 'Flat leather sandals', 'Woven straw tote'].every((n) => dressed.rack.includes(n)),
     JSON.stringify([dressed.dayChip, dressed.save, dressed.rack]));
   check('rule 04 · nothing is written until she saves',
@@ -3587,21 +3598,29 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await page.waitForTimeout(900);
   const f = await read();
   check('camera · a proposals look with no photograph carries Add your photograph over the mosaic', f.title === 'Borrowed, no frame' && f.camera === 'Add your photograph' && f.diary, JSON.stringify(f));
-  // Slice 4: the rack head of a look still borrowing carries the batch
-  // door — "Swap in yours · N" beside Edit & resave — and it opens the add
-  // flow BRIEFED for the look: its name over step 1, a chip per gap. The
-  // per-row Swap stays the one-gap door beside it.
+  // Slice 4: a look still borrowing carries the batch door, and since
+  // 2026-09-21 it has a DEDICATED SPACE of its own between the rack head
+  // and the rack — what is not hers yet, and the one door that fixes it.
+  // The head keeps Edit & resave alone; the per-row Swap stays the one-gap
+  // door beside each proposal.
   const g = await page.evaluate(() => {
     const head = document.querySelector('#rb-lk-body .rb-lk-rackhead');
+    const zone = document.querySelector('#rb-lk-body .rb-lk-swapzone');
+    const rack = document.querySelector('#rb-lk-body .rbc-rack');
     return {
-      door: head?.querySelector('.rb-lk-filldoor')?.textContent || null,
+      door: zone?.querySelector('.rb-lk-filldoor')?.textContent || null,
+      doorInHead: !!head?.querySelector('.rb-lk-filldoor'),
+      zoneTitle: zone?.querySelector('b')?.textContent || null,
+      zoneSub: zone?.querySelector('span')?.textContent || null,
+      zoneBeforeRack: !!(zone && rack) && !!(zone.compareDocumentPosition(rack) & Node.DOCUMENT_POSITION_FOLLOWING),
       edit: !!head?.querySelector('.rb-lk-editbtn:not(.rb-lk-filldoor)'),
-      doorIsPill: head?.querySelector('.rb-lk-filldoor')?.classList.contains('rb-lk-sort') === true,
       rowSwaps: Array.from(document.querySelectorAll('#rb-lk-body .rbc-act')).filter((b) => /Swap/.test(b.textContent)).length,
     };
   });
-  check('fill door · a look borrowing two pieces reads "Swap in yours · 2" beside Edit & resave, the row Swaps still there',
-    g.door === 'Swap in yours · 2' && g.edit && g.doorIsPill && g.rowSwaps === 2, JSON.stringify(g));
+  check('fill door · a look borrowing two pieces gets its own swap zone between the head and the rack — "Two aren\'t yours yet" + Swap; the head keeps Edit & resave alone, the row Swaps still there',
+    g.door === 'Swap' && g.doorInHead === false && g.zoneTitle === 'Two aren’t yours yet'
+    && /Swap them for something you own/.test(g.zoneSub || '') && g.zoneBeforeRack && g.edit && g.rowSwaps === 2,
+    JSON.stringify(g));
   await page.evaluate(() => document.querySelector('#rb-lk-body .rb-lk-filldoor').click());
   await page.waitForTimeout(500);
   const h = await page.evaluate(() => {

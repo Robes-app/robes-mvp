@@ -8608,7 +8608,7 @@
         const inner = chips.length
           ? chips.map(c => `<span class="tg">${_waEsc(c)}</span>`).join('')
           : `<span class="tnone">Untagged — season, agenda, vibe</span>`;
-        return `<div class="rbc-tags"><div class="tgs">${inner}</div><button class="tedit" onclick="window.${editFn}(${editArg == null ? '' : editArg})">${chips.length ? 'Edit' : '＋ Tags'}</button></div>`;
+        return `<div class="rbc-tags"><div class="tgs">${inner}</div><button class="tedit" onclick="window.${editFn}(${editArg == null ? '' : editArg})">${chips.length ? 'Edit tags' : '＋ Tags'}</button></div>`;
       }
       // ADR-002 §2 · deriveLookClimate, with the [C7] floor.
       //
@@ -8844,7 +8844,7 @@
 .rbc-tags .tgs{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
 .rbc-tags .tg{background:var(--secondary,#E3E1CC);border-radius:100px;padding:4px 11px;font-size:10.5px;color:var(--ink);white-space:nowrap}
 .rbc-tags .tnone{font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint)}
-.rbc-tags .tedit{flex:none;background:none;border:none;cursor:pointer;font-family:inherit;font-size:10.5px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;padding:2px}
+.rbc-tags .tedit{flex:none;background:none;border:none;cursor:pointer;font-family:inherit;font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);padding:2px}
 .rbc-tags .tedit:hover{color:var(--ink)}
 .rbc-read{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:var(--cream-100);padding:15px 16px;margin-top:13px}
 .rbc-read .rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
@@ -11260,11 +11260,28 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-held .rb-lk-rackhead,.dlm-saved .rb-lk-rackhead{margin-top:0;min-height:30px}
 /* The rack head reads in the look head's register (.rbc-lhead .lab). */
 .rb-lk-sec.rb-lk-rackhead{font-size:9px;letter-spacing:.22em;color:var(--ink-faint)}
-.rb-lk-held .rb-lk-worn{margin-top:26px;padding-top:20px;border-top:1px solid var(--rule)}
+/* Reading: the head is a TITLE — its label and Edit & resave over a
+   hairline, the way every other section head on this page reads
+   (Annie's design, 2026-09-21). Edit & resave keeps its own sentence
+   case there: the caps register belongs to the label beside it. */
+.rb-lk-rackhead-read{border-bottom:1px solid var(--rule);padding-bottom:10px;margin-bottom:16px}
+.rb-lk-rackhead-read .rb-lk-editbtn{text-transform:none;letter-spacing:.01em;font-size:12px;color:var(--ink)}
+/* Swap has a space of its own, between the head and the rack: what is not
+   hers yet, and the one door that fixes it. */
+.rb-lk-swapzone{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  border:1px dashed var(--cream-400);border-radius:var(--rad);padding:16px 18px;margin:0 0 18px}
+.rb-lk-swapzone .l{display:flex;flex-direction:column;gap:3px;min-width:0}
+.rb-lk-swapzone b{font-family:var(--font-serif);font-weight:400;font-size:18px;line-height:1.2;color:var(--ink)}
+.rb-lk-swapzone span{font-size:12px;color:var(--ink-soft)}
+.rb-lk-swapzone .rb-lk-filldoor{flex:none;text-transform:uppercase;letter-spacing:.16em;font-size:9.5px;padding:11px 20px}
+/* 2A — the rack ENDS, and the wear log stands alone: a card of its own
+   after the held card, because a wear is a record of the look, never part
+   of its composition. */
+.rb-lk-wornbox{background:#fff;border:0.5px solid var(--rule-mid);border-radius:var(--rad-lg);
+  padding:22px 26px;box-shadow:0 1px 2px rgba(32,32,33,0.025);margin-top:14px}
+.rb-lk-wornbox .rb-lk-worn{margin-top:0}
 .rb-lk-foot{border-top:none;padding-top:0;margin-top:18px}
 .rb-lk-newmast{max-width:560px}
-.rb-lk-dayrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px}
-.rb-lk-daychip{display:inline-flex;align-items:center;gap:6px;background:#F3EFE6;border:1px solid #C9BCA6;border-radius:100px;padding:6px 12px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink,#202021)}
 .rb-lk-saverow{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:22px;padding-top:18px;border-top:0.5px solid var(--rule)}
 .rb-lk-robesdoor{margin-left:auto}
 .rb-lk-save{margin:0;padding:15px 34px;border:none;border-radius:100px;background:var(--ink);color:#fff;font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:opacity .15s}
@@ -11402,6 +11419,9 @@ button.rb-lk-live{cursor:pointer}
 @media(max-width:767px){
 .rb-lk-stats{gap:20px}
 .rb-lk-composer,.rb-lk-held{padding:18px 16px 20px;border-radius:var(--rad-card)}
+.rb-lk-wornbox{padding:18px 16px;border-radius:var(--rad-card)}
+.rb-lk-swapzone{padding:14px 15px}
+.rb-lk-swapzone .rb-lk-filldoor{width:100%;justify-content:center}
 .rb-lk-saverow{flex-direction:column;align-items:stretch;gap:15px;margin-top:20px}
 .rb-lk-robesdoor{margin-left:0;align-self:center}
 .rb-lk-save{width:100%;min-height:52px;order:-1}
@@ -12292,7 +12312,11 @@ button.rb-lk-live{cursor:pointer}
         if (!draft && lastW) metaBits.push('last worn ' + _lkFmt(lastW));
         if (lkSet.meta) metaBits.push(lkSet.meta);
         else if (!draft && pins.length) metaBits.push('pinned for ' + _lkFmtLong(pins[0]));
-        const eyebrowText = draft ? 'Draft look · Robes styled it for the trip' : (prov && !editing ? 'Saved look · Robes named it' : 'Saved look');
+        // "· Robes named it" is GONE (Annie, 2026-09-21) — the name is hers
+        // to change from the pencil beside it; who offered it is not a fact
+        // the page needs to carry. `prov` still italicises the title and
+        // still earns the rename hint while she is editing it.
+        const eyebrowText = draft ? 'Draft look · Robes styled it for the trip' : 'Saved look';
         const titleInput = _lkTitleEditing
           ? '<input id="rb-lk-title" class="rb-tb-title-in rb-lk-title-in' + (prov ? ' prov' : '') + '" value="' + _waEsc(title) + '"' +
             ' oninput="window.__lkTitleInput(this.value)" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="window.__lkTitleCommit(this.value)">'
@@ -12432,30 +12456,43 @@ button.rb-lk-live{cursor:pointer}
         // Slice 4: a look still borrowing carries the batch door — every
         // borrowed piece in one pass, each landing on its proposal. The
         // per-row Swap stays the one-gap door.
+        // Swap has a dedicated space (Annie's design, 2026-09-21): the
+        // borrowed pieces were a pill competing with Edit & resave on the
+        // head. It is now a dashed zone of its own between the head and the
+        // rack — what is not hers yet, and the one door that fixes it.
         const fillDoor = (!draft && props.length)
-          ? '<button type="button" class="rb-lk-sort rb-lk-editbtn rb-lk-filldoor" onclick="window.__rbFillOpen(\'' + _waEsc(String(l.id)) + '\', \'rack\')">Swap in yours · ' + props.length + '</button>'
+          ? '<div class="rb-lk-swapzone"><div class="l">' +
+              '<b>' + _waEsc(_msWord(props.length)) + (props.length === 1 ? ' isn’t' : ' aren’t') + ' yours yet</b>' +
+              '<span>Swap ' + (props.length === 1 ? 'it' : 'them') + ' for something you own</span></div>' +
+              '<button type="button" class="rb-pill rb-lk-filldoor" onclick="window.__rbFillOpen(\'' + _waEsc(String(l.id)) + '\', \'rack\')">Swap</button>' +
+            '</div>'
           : '';
-        h += '<div class="rb-lk-sec rb-lk-rackhead"><span>The rack · ' + _lkN(ids.length, 'piece') + '</span><span style="flex:1"></span>' +
-          fillDoor +
+        h += '<div class="rb-lk-sec rb-lk-rackhead rb-lk-rackhead-read"><span>The rack · ' + _lkN(ids.length, 'piece') + '</span><span style="flex:1"></span>' +
           (trip && !rackEmpty ? '<button type="button" class="rb-lk-sort rb-lk-editbtn rb-lk-packall" onclick="window.__lkTripPackAll()">Pack this look</button>' : '') +
           (rackEmpty ? '' :
             '<button type="button" class="rb-lk-sort rb-lk-editbtn" onclick="window.__lkEditToggle()">Edit &amp; resave</button>') +
           '</div>' +
+          fillDoor +
           '<div class="rbc-rack">' +
           (rackEmpty
             ? '<div class="rb-lk-wornempty" style="margin-top:0">Nothing hangs here yet.</div>'
             : _rbRackRolesHtml(rackItems, { onRoleDrop: '__lkDRoleDrop', onPiece: '__lkPieceOpen' }, propEmpties)) +
           '</div>';
 
-        // The wear record, AFTER the rack, in the piece page's register:
-        // "Worn ——— three times" over a hairline, then the dated rows (what
-        // was actually on the body, the difference named in the line), then
-        // Worn today / Add a date. The wear IS the tap, with a quiet undo
-        // (A4/C1) — no confirm, no toast. A look she owns nothing of has
-        // nothing to wear; the wishlist panel above tells the true story.
+        // The wear record, in the piece page's register: "Worn ——— three
+        // times" over a hairline, then the dated rows (what was actually on
+        // the body, the difference named in the line), then Add a date. The
+        // wear IS the tap, with a quiet undo (A4/C1) — no confirm, no toast.
+        // A look she owns nothing of has nothing to wear; the wishlist panel
+        // above tells the true story.
+        // IT STANDS ALONE (Annie's design 2A, 2026-09-21: "the rack ends,
+        // worn stands alone") — a wear log is not part of the look's
+        // composition, so it is built here and appended as its OWN card
+        // AFTER the held card closes, never inside the rack's column.
+        let wornHtml = '';
         if (!ownedNone) {
           const wears = (l.wears || []).slice().sort((a, b) => String(b.worn_on).localeCompare(String(a.worn_on)));
-          h += '<div class="rb-lk-worn">' +
+          wornHtml = '<div class="rb-lk-worn">' +
             '<div class="rb-lk-rule"><span class="lab">Worn</span><i></i><span class="val">' + _lkTimes(n) + (cpw ? ' · ' + cpw + ' a wear' : '') + '</span></div>' +
             (n
               ? '<div class="rb-lk-wears">' + wears.map(w => {
@@ -12494,6 +12531,7 @@ button.rb-lk-live{cursor:pointer}
             '<button type="button" class="rb-lk-lin" onclick="window.__lkOpen(\'' + k.id + '\')">' + _waEsc(k.name) + '</button>').join(', ')] : []);
 
         h += '</div></div></div>';
+        if (wornHtml) h += '<div class="rb-lk-wornbox">' + wornHtml + '</div>';
         h += '<div class="rb-lk-foot">' +
           (lineage.length ? '<span style="font-size:12px;color:var(--ink-faint)">' + lineage.join(' · ') + '</span><span style="flex:1"></span>' : '') +
           '<button type="button" class="rb-lk-quiet rose" onclick="window.__lkDeleteAsk(\'' + l.id + '\')">Delete this look</button></div>';
@@ -13234,21 +13272,21 @@ button.rb-lk-live{cursor:pointer}
         const titleHtml = '<input id="' + (home ? 'rb-lk-hometitle' : 'rb-lk-newtitle') + '" class="rb-lk-title-in"' +
           ' value="' + _waEsc(_lkNewTitleDraft != null ? _lkNewTitleDraft : '') + '"' +
           ' placeholder="' + namePh + '" oninput="window.__lkNewTitleInput(this.value)">';
-        // Robes' name is an offer, and says so. (The name gate's own note
-        // lives beside Save now — see saveNote below.)
-        const nameNote = _lkBuilt && !_lkBuilding && !_lkNewTitleTouched && _lkNewTitleDraft
-          ? '<div class="rb-lk-namenote">Robes\u2019 name for it. Yours to change.</div>'
-          : '';
+        // "Robes' name for it. Yours to change." is GONE (Annie, 2026-09-21)
+        // — the name sits in an editable field with a pencil-free caret;
+        // saying so in a second line was noise on the screen she lands on.
+        // The name gate's own note lives beside Save (saveNote, below).
         // The thread back to the day she came from (design C, 2026-09-15):
         // the band reads the date, a warm chip says where the look files.
         if (!home && !kp) _rbRetReg('look', { back: function() { if (_lkDay) window.__lkDayBack(); else window.__lkBack(); } });
-        const dayChip = (!home && _lkDay)
-          ? '<div class="rb-lk-dayrow"><span class="rb-lk-daychip">✓ Filing to ' + _waEsc(_lkDay.date ? _lkFmtDay(_lkDay.date) : 'this trip') + '</span></div>' : '';
+        // The "✓ FILING TO MON 21 SEP" chip is GONE (Annie, 2026-09-21): the
+        // return band already reads the date and Save reads "Save to
+        // Monday" — three statements of the same fact on one screen.
         // On the kp page the strip above the host IS the header (eyebrow +
         // the name field) — the composer paints none of its own, so the
         // panel opens on the style note.
         const mastHtml = (home || kp) ? ''
-          : _rbRetHtml({ key: 'look', label: _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast">' + dayChip + titleHtml + nameNote + '</div>';
+          : _rbRetHtml({ key: 'look', label: _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast">' + titleHtml + '</div>';
 
         // The Rack — the formula strips name themselves, so no second
         // header sits above them (the masthead already names the look).
@@ -13263,7 +13301,7 @@ button.rb-lk-live{cursor:pointer}
         const modelNotice = (!home && !_lkBuilt && _lkModel === null && !(_lkPhoto && _lkPhoto.url))
           ? '<div class="rb-lkm-notice"><span class="dot"></span>Add pieces now if you like. They stay on the rack, and your model wears them the moment ' + _lkModelPro().she + ' exists.</div>'
           : '';
-        let rackHtml = (home ? '<div class="rb-lkh-name">' + titleHtml + nameNote + '</div>' : '') + modelNotice +
+        let rackHtml = (home ? '<div class="rb-lkh-name">' + titleHtml + '</div>' : '') + modelNotice +
           '<div class="rbc-rack' + (home && !homeOpen ? ' rb-lkh-collapsed' : '') + '">';
         // Every empty slot on home opens the camera and comes back with the
         // piece hung in the slot it was opened from — cataloguing is a
