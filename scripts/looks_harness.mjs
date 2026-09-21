@@ -1083,7 +1083,12 @@ const browser = await chromium.launch(
       stage: !!document.querySelector('.rb-lk-con .rb-lkm-stage'),
       img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'),
       busy: !!document.querySelector('.rb-lk-con .rb-lkm-busy'),
-      photoDoor: document.querySelector('.rb-lk-con .rb-lkm-canvas .rb-lk-photobtn.lbl span')?.textContent.trim(),
+      photoDoor: document.querySelector('.rb-lk-con .rb-lkm-canvas .rb-lk-photobtn span')?.textContent.trim(),
+      photoDoorIcon: (() => {
+        const b = document.querySelector('.rb-lk-con .rb-lkm-canvas .rb-lk-photobtn');
+        const sp = b && b.querySelector('span');
+        return !!b && !!b.querySelector('svg') && !!sp && getComputedStyle(sp).display === 'none';
+      })(),
       photoRow: !!document.querySelector('.rb-lk-con .rb-lkm-row'),
       // The composer is one held card, with the name leading it from
       // outside (FTUE pass 2026-08-12)
@@ -1156,11 +1161,13 @@ const browser = await chromium.launch(
   check('composer · her photographed model stands on the canvas from the first second',
     c0.stage === true && c0.img === 'https://img.test/cell.jpg' && c0.busy === false,
     JSON.stringify([c0.stage, c0.img, c0.busy]));
-  // "Add your photograph" is a pill ON the canvas while the look is new
+  // The photograph door sits ON the canvas while the look is new
   // (Robes_Create_Edit_Look_IA); nothing sits under it until one exists.
-  check('composer · the photograph door is a pill on the canvas, nothing beneath',
-    c0.photoDoor === 'Add your photograph' && c0.photoRow === false,
-    JSON.stringify([c0.photoDoor, c0.photoRow]));
+  // It is an ICON, named on hover (Annie, 2026-09-21) — the always-on label
+  // ran across the model and over the "Dressing her…" chip.
+  check('composer · the photograph door is an icon on the canvas, named on hover, nothing beneath',
+    c0.photoDoor === 'Add your photograph' && c0.photoDoorIcon === true && c0.photoRow === false,
+    JSON.stringify([c0.photoDoor, c0.photoDoorIcon, c0.photoRow]));
   // B1 amendment (2026-08-07): the empty state teaches the formula — every
   // empty row sits under a GHOSTED strip forecast from its slot. Education
   // only: the forecast never binds what she adds where.

@@ -7395,7 +7395,6 @@
           '.kp-build-ey{font-size:9px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077);margin-bottom:6px}' +
           '#kp-build .kp-build-title{display:block;width:100%;max-width:560px;margin:0;padding:0;border:0;background:none;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:31px;line-height:1.1;color:var(--ink,#202021);outline:none}' +
           '#kp-build .kp-build-title::placeholder{color:var(--ink-faint,#9C9891);font-style:italic}' +
-          '.kp-build-r{display:flex;align-items:center;gap:16px;flex:none;padding-bottom:2px}' +
           '.kp-build-wait{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:-8px 0 18px;font-size:12px;color:var(--ink-faint,#9C9891);letter-spacing:.04em}' +
           '.kp-build-wait .bar{width:90px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden}' +
           '.kp-build-wait .bar i{position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite}' +
@@ -7419,21 +7418,22 @@
           '.kp-model-band h3 em{font-style:italic}' +
           '.kp-model-band .rb-lkm-build,.kp-model-band .rb-pill{flex:none;margin:0}' +
           '.kp-model-band .rb-pill{padding:13px 22px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink,#202021);border-color:rgba(32,32,33,0.28)}' +
-          '@media(max-width:700px){.kp-model-band{flex-direction:column;align-items:stretch;padding:20px 18px;gap:14px}.kp-model-band .rb-lkm-build,.kp-model-band .rb-pill{width:100%;justify-content:center}.kp-build-filed{padding:20px 18px}.kp-build-strip{flex-wrap:wrap;align-items:flex-start;padding-top:22px}.kp-build-r{width:100%;justify-content:flex-start}#kp-build .kp-build-title{font-size:26px}}';
+          '@media(max-width:700px){.kp-model-band{flex-direction:column;align-items:stretch;padding:20px 18px;gap:14px}.kp-model-band .rb-lkm-build,.kp-model-band .rb-pill{width:100%;justify-content:center}.kp-build-filed{padding:20px 18px}.kp-build-strip{padding-top:22px}#kp-build .kp-build-title{font-size:26px}}';
         document.head.appendChild(st);
       }
       // The Build step's ONE header (Annie, 2026-09-16 — "one header per
       // step"): a single rule line — the way's eyebrow over the look's name
-      // (the composer's title input, editable in place) on the left, "All
-      // three" on the right. The big key-piece masthead and the Yours thumb
-      // stand down for this step (the jeans are already on the rack as
-      // Yours), and the composer paints no masthead of its own, so the panel
-      // opens on the style note.
-      // The other two looks as bare thumbs are GONE (Annie, 2026-09-21: "the
-      // option to flick through all 3 from the look builder view … is
-      // confusing") — they silently dropped the draft she was building for
-      // another one. "All three" is the one way back to the choose step, and
-      // she picks the next look there.
+      // (the composer's title input, editable in place), and nothing else.
+      // The big key-piece masthead and the Yours thumb stand down for this
+      // step (the jeans are already on the rack as Yours), and the composer
+      // paints no masthead of its own, so the panel opens on the style note.
+      // The other two looks as bare thumbs went first (Annie, 2026-09-21:
+      // "the option to flick through all 3 from the look builder view … is
+      // confusing" — a tap silently dropped the draft she was building), and
+      // the "All three" pill went with them the same day. The return band's
+      // ‹ Inspiration is the one way out of the build step now;
+      // __kpBuildBack survives as the failed-build recovery and the
+      // programmatic way back to the cards.
       function _kpBuildStripHtml(i) {
         const c = _kpBuildCtx;
         if (!c) return '';
@@ -7444,9 +7444,6 @@
           '<div class="kp-build-l">' +
             (w.eyebrow ? '<div class="kp-build-ey">' + _waEsc(w.eyebrow) + '</div>' : '') +
             '<input id="rb-lk-newtitle" class="rb-lk-title-in kp-build-title" value="' + _waEsc(title) + '" placeholder="' + namePh + '" aria-label="Name your look" oninput="window.__lkNewTitleInput(this.value)">' +
-          '</div>' +
-          '<div class="kp-build-r">' +
-            '<button type="button" class="rb-pill kp-build-all" onclick="window.__kpBuildBack()">All three</button>' +
           '</div></div>';
       }
       // The strip's title IS the draft's name field: repaints of the host
@@ -11125,8 +11122,8 @@
 .rb-lk-back span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rb-lk-back:hover{border-color:var(--cream-400)}
 /* The controls ON the image: the diary bottom-left, the camera bottom-
-   right. The camera names itself on hover; .lbl prints the label always
-   (the composer's pill). White circles, a whisper of shadow — never ink. */
+   right. Icons, named on hover. White circles, a whisper of shadow —
+   never ink. */
 .rb-lk-imgacts{position:absolute;inset:0;z-index:4;pointer-events:none}
 .rb-lk-diarybtn,.rb-lk-photobtn{pointer-events:auto;position:absolute;bottom:10px;height:38px;min-width:38px;border-radius:100px;background:#fff;border:none;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:0;cursor:pointer;color:var(--ink);box-shadow:0 2px 10px rgba(32,32,33,0.10);font-family:inherit;transition:background .15s}
 .rb-lk-diarybtn{left:10px}
@@ -11134,7 +11131,7 @@
 .rb-lk-diarybtn:hover,.rb-lk-photobtn:hover{background:var(--cream-100)}
 .rb-lk-diarybtn svg,.rb-lk-photobtn svg{width:16px;height:16px;flex:none}
 .rb-lk-photobtn span{display:none;font-size:9px;letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;color:var(--ink)}
-.rb-lk-photobtn:hover span,.rb-lk-photobtn:focus-visible span,.rb-lk-photobtn.lbl span{display:inline}
+.rb-lk-photobtn:hover span,.rb-lk-photobtn:focus-visible span{display:inline}
 /* Once her photograph exists: the You / Model switch inside the card,
    with what it is for beside it. */
 .rb-lk-viewrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--rule)}
@@ -11289,7 +11286,7 @@ button.rb-lk-live{cursor:pointer}
 .rb-lkm-img.tall{object-fit:contain}
 @keyframes rbLkmIn{from{opacity:0}to{opacity:1}}
 .rb-lkm-stage.busy .rb-lkm-img{opacity:.72;transition:opacity .3s}
-.rb-lkm-busy{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);white-space:nowrap;padding:8px 14px;border-radius:100px;background:rgba(250,248,245,.9);border:1px solid rgba(32,32,33,.10);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);animation:rbLkFill 1.5s ease-in-out infinite}
+.rb-lkm-busy{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);white-space:nowrap;padding:8px 14px;border-radius:100px;background:rgba(250,248,245,.9);border:1px solid rgba(32,32,33,.10);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);animation:rbLkFill 1.5s ease-in-out infinite}
 @media(prefers-reduced-motion:reduce){.rb-lkm-img,.rb-lkm-busy{animation:none}}
 .rb-lkm-prompt{display:flex;flex-direction:column;align-items:center;gap:16px;padding:28px 26px;text-align:center;max-width:364px}
 .rb-lkm-outline{width:66px;height:118px;box-sizing:border-box;border:1px dashed #D3C9B6;border-radius:33px 33px 8px 8px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:12px}
@@ -12009,8 +12006,9 @@ button.rb-lk-live{cursor:pointer}
       // against window.__lastTvData while the trip's data is still live.
       var _lkTrip = null;
       // The controls that sit ON the image: the diary bottom-left, the
-      // camera bottom-right. The camera names itself on hover ("Add your
-      // photograph"; o.label prints it always — the composer's pill); once
+      // camera bottom-right. The camera is an ICON and names itself on
+      // hover ("Add your photograph") — its always-on label ran across the
+      // model and over the "Dressing her…" chip (Annie, 2026-09-21). Once
       // her photograph exists the slot is replace, on the You view only.
       function _lkImgActsHtml(o) {
         const diary = o.diary
@@ -12018,7 +12016,7 @@ button.rb-lk-live{cursor:pointer}
           : '';
         let right = '';
         if (o.camera === 'add') {
-          right = '<button type="button" class="rb-lk-photobtn' + (o.label ? ' lbl' : '') + '" title="Add your photograph" aria-label="Add your photograph" onclick="window.' + o.fn + '()">' +
+          right = '<button type="button" class="rb-lk-photobtn" title="Add your photograph" aria-label="Add your photograph" onclick="window.' + o.fn + '()">' +
             _LKM_CAMERA_SVG + '<span>Add your photograph</span></button>';
         } else if (o.camera === 'replace') {
           right = '<button type="button" class="rb-lk-photobtn" title="Replace your photograph" aria-label="Replace your photograph" onclick="window.' + o.fn + '()">' + _LKM_REFRESH_SVG + '</button>';
@@ -13105,7 +13103,7 @@ button.rb-lk-live{cursor:pointer}
           lookHtml = _lkModelPanelHtml({
             headLabel, robesLabel,
             items: used.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean),
-            canvasExtraHtml: (_lkPhoto && _lkPhoto.url) ? '' : _lkImgActsHtml({ camera: 'add', label: true, fn: '__lkPhotoToggle' }),
+            canvasExtraHtml: (_lkPhoto && _lkPhoto.url) ? '' : _lkImgActsHtml({ camera: 'add', fn: '__lkPhotoToggle' }),
           });
         } else if (_lkPhoto && _lkPhoto.url && !(_lkPhoto.frame && _lkModel)) {
           lookHtml = '<div class="rbc-panel"><div class="rbc-lhead">' +
@@ -13175,7 +13173,7 @@ button.rb-lk-live{cursor:pointer}
               items: modelIds.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean),
               props: modelProps,
               quoteHtml: note ? _waEsc(note) : '',
-              canvasExtraHtml: _lkImgActsHtml({ camera: 'add', label: true, fn: '__lkPhotoToggle' }),
+              canvasExtraHtml: _lkImgActsHtml({ camera: 'add', fn: '__lkPhotoToggle' }),
             });
           } else {
             const board = items.concat(_lkShopBoardItems(items.length));
