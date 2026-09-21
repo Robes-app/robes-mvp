@@ -7259,6 +7259,11 @@
         _lkResetComposer();
         _lkKpHost = true;
         _lkBuilt = true; _lkBuilding = true; _lkBuildSeq++;
+        // She has already chosen a look, and it is already a photograph —
+        // the canvas opens on it rather than on an empty block (Annie,
+        // 2026-09-21). _lkDraftFromDaily's reset clears it when the itemised
+        // draft lands and _lkPhoto takes the same frame on for the keep.
+        _lkBuildFrame = (typeof kp.wayImage === 'string' && kp.wayImage.indexOf('http') === 0) ? kp.wayImage : null;
         _lkDraftSrc = { kind: 'kp', eyebrow: String(w.eyebrow || '').trim(), again: null };
         _lkNewTitleDraft = String(w.title || '').replace(/\.$/, '').trim() || null;
         _lkPaint();
@@ -7391,10 +7396,6 @@
           '#kp-build .kp-build-title{display:block;width:100%;max-width:560px;margin:0;padding:0;border:0;background:none;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:31px;line-height:1.1;color:var(--ink,#202021);outline:none}' +
           '#kp-build .kp-build-title::placeholder{color:var(--ink-faint,#9C9891);font-style:italic}' +
           '.kp-build-r{display:flex;align-items:center;gap:16px;flex:none;padding-bottom:2px}' +
-          '.kp-build-others{display:flex;align-items:center;gap:10px}' +
-          '.kp-build-other{display:block;background:none;border:0;padding:0;font-family:inherit;cursor:pointer}' +
-          '.kp-build-other .th{display:block;width:34px;height:44px;border-radius:2px;background:var(--cream-200,#EDE9E2) center/cover no-repeat;border:0.5px solid var(--rule,rgba(32,32,33,0.1));transition:transform .15s ease}' +
-          '.kp-build-other:hover .th{transform:translateY(-2px)}' +
           '.kp-build-wait{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:-8px 0 18px;font-size:12px;color:var(--ink-faint,#9C9891);letter-spacing:.04em}' +
           '.kp-build-wait .bar{width:90px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden}' +
           '.kp-build-wait .bar i{position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite}' +
@@ -7418,26 +7419,25 @@
           '.kp-model-band h3 em{font-style:italic}' +
           '.kp-model-band .rb-lkm-build,.kp-model-band .rb-pill{flex:none;margin:0}' +
           '.kp-model-band .rb-pill{padding:13px 22px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink,#202021);border-color:rgba(32,32,33,0.28)}' +
-          '@media(max-width:700px){.kp-model-band{flex-direction:column;align-items:stretch;padding:20px 18px;gap:14px}.kp-model-band .rb-lkm-build,.kp-model-band .rb-pill{width:100%;justify-content:center}.kp-build-filed{padding:20px 18px}.kp-build-strip{flex-wrap:wrap;align-items:flex-start;padding-top:22px}.kp-build-r{width:100%;justify-content:space-between}#kp-build .kp-build-title{font-size:26px}}';
+          '@media(max-width:700px){.kp-model-band{flex-direction:column;align-items:stretch;padding:20px 18px;gap:14px}.kp-model-band .rb-lkm-build,.kp-model-band .rb-pill{width:100%;justify-content:center}.kp-build-filed{padding:20px 18px}.kp-build-strip{flex-wrap:wrap;align-items:flex-start;padding-top:22px}.kp-build-r{width:100%;justify-content:flex-start}#kp-build .kp-build-title{font-size:26px}}';
         document.head.appendChild(st);
       }
       // The Build step's ONE header (Annie, 2026-09-16 — "one header per
       // step"): a single rule line — the way's eyebrow over the look's name
       // (the composer's title input, editable in place) on the left, "All
-      // three" + the other two looks as bare thumbs on the right. The big
-      // key-piece masthead and the Yours thumb stand down for this step (the
-      // jeans are already on the rack as Yours), and the composer paints no
-      // masthead of its own, so the panel opens on the style note.
+      // three" on the right. The big key-piece masthead and the Yours thumb
+      // stand down for this step (the jeans are already on the rack as
+      // Yours), and the composer paints no masthead of its own, so the panel
+      // opens on the style note.
+      // The other two looks as bare thumbs are GONE (Annie, 2026-09-21: "the
+      // option to flick through all 3 from the look builder view … is
+      // confusing") — they silently dropped the draft she was building for
+      // another one. "All three" is the one way back to the choose step, and
+      // she picks the next look there.
       function _kpBuildStripHtml(i) {
         const c = _kpBuildCtx;
         if (!c) return '';
         const w = c.ways[i] || {};
-        const imgs = (window.__lastKpData && window.__lastKpData.generatedImages) || [];
-        const others = c.ways.map((w, j) => ({ w, j })).filter(x => x.j !== i).map(x => {
-          const img = (typeof imgs[x.j] === 'string' && imgs[x.j].indexOf('http') === 0) ? imgs[x.j] : null;
-          return '<button type="button" class="kp-build-other" onclick="window.__kpBuildLook(' + x.j + ')" title="Build ' + _waEsc(x.w.title || '') + '" aria-label="Build ' + _waEsc(x.w.title || '') + '">' +
-            '<span class="th"' + (img ? ' style="background-image:url(\'' + _waEsc(img) + '\')"' : '') + '></span></button>';
-        }).join('');
         const title = String(w.title || '').replace(/\.$/, '').trim();
         const namePh = (typeof _lkLooks !== 'undefined' && _lkLooks && _lkLooks.length) ? 'Name your Look' : 'Name your first look';
         return '<div class="kp-build-strip">' +
@@ -7447,7 +7447,6 @@
           '</div>' +
           '<div class="kp-build-r">' +
             '<button type="button" class="rb-pill kp-build-all" onclick="window.__kpBuildBack()">All three</button>' +
-            '<div class="kp-build-others">' + others + '</div>' +
           '</div></div>';
       }
       // The strip's title IS the draft's name field: repaints of the host
@@ -10384,6 +10383,11 @@
       // "Let Robes build the first one": the rack, filled — nothing saved
       // until she saves. Session state only.
       var _lkBuilt = false, _lkBuilding = false, _lkAspirational = false;
+      // The frame a build stands on WHILE it composes (2026-09-21): the key
+      // piece's own way image, so the composer opens on the look she just
+      // chose instead of an empty cream block. Cleared the moment the draft
+      // lands (_lkPhoto takes over) and by every composer reset.
+      var _lkBuildFrame = null;
       // The model on the canvas (2026-09-03, "Look Builder · dressing your
       // model"): undefined = not asked yet, null = nothing on file, else
       // {id, man, skin, hair} read off profiles.avatar_id (the same id every
@@ -11354,6 +11358,12 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-fill{background:var(--cream-200);animation:rbLkFill 1.5s ease-in-out infinite}
 @keyframes rbLkFill{0%,100%{opacity:1}50%{opacity:.62}}
 @media(prefers-reduced-motion:reduce){.rb-lk-fill{animation:none}}
+/* The stretched left column is a flex COLUMN, and the stacked-layout rule
+   below 1080px centres the panel with auto side margins — a flex item with
+   auto cross-axis margins is sized to its own content, never stretched, so
+   the panel collapsed to the width of its eyebrow (Annie's screenshot,
+   2026-09-21). Inside this wrapper the column IS the measure. */
+.rb-lk-con > .rb-lk-stretch > .rbc-panel{max-width:none;margin-left:0;margin-right:0;width:100%}
 .rb-lk-namenote{margin-top:9px;font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:14px;color:var(--ink-faint)}
 /* A piece she doesn't own yet: the full card — category chip, brand,
    retailer, price — and TWO actions only, Swap and Save. */
@@ -13110,11 +13120,19 @@ button.rb-lk-live{cursor:pointer}
             (nPlaced ? '<div class="rbc-lfoot"><span class="rbc-palette"></span><span class="rbc-yours"><b>' + nPlaced + '</b>&thinsp;of&thinsp;' + nPlaced + ' from your wardrobe</span></div>' : '') +
             '</div>';
         } else if (_lkBuilding) {
-          // In place, no new screen: the slots are flat cream blocks for a
-          // beat. No spinner, no full-screen loader, no navigation.
+          // In place, no new screen. The look she chose is ALREADY a
+          // photograph — the key piece's own way frame — so the canvas opens
+          // on it while Robes itemises it (Annie, 2026-09-21: the empty
+          // block read as a strange loader). With no frame to stand on (a
+          // Robes build from the rack) the slot breathes as a flat cream
+          // block for the beat. No spinner, no full-screen loader, no
+          // navigation.
           lookHtml = '<div class="rbc-panel" style="flex:1"><div class="rbc-lhead">' +
             '<span class="lab">The look</span><span class="robes">' + robesLabel + '</span></div>' +
-            '<div class="rb-lk-fill" style="flex:1;min-height:280px;border-radius:var(--rad-sm)"></div>' +
+            (_lkBuildFrame
+              ? '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
+                  '<img src="' + _waEsc(_lkBuildFrame) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="This look"></div>'
+              : '<div class="rb-lk-fill" style="flex:1;min-height:280px;border-radius:var(--rad-sm)"></div>') +
             '</div>';
         } else if (!items.length && !_lkShop.length) {
           // No 4:5 aspect on the zero-piece placeholder — the panel
@@ -13337,8 +13355,8 @@ button.rb-lk-live{cursor:pointer}
 
         // The zero-piece stand-in stretches to the rack's height; the model
         // canvas keeps its own 4:5 frame.
-        const stretchLeft = _lkBuilt && !items.length && !(_lkPhoto && _lkPhoto.url);
-        return mastHtml + '<div class="rb-lk-composer' + (home ? ' rb-lkh-composer' : '') + (kp ? ' rb-lk-kpcomposer' : '') + '"><div class="rb-lk-con"><div' + (stretchLeft ? ' style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div></div>';
+        const stretchLeft = _lkBuilt && !items.length && !(_lkPhoto && _lkPhoto.url) && !_lkBuildFrame;
+        return mastHtml + '<div class="rb-lk-composer' + (home ? ' rb-lkh-composer' : '') + (kp ? ' rb-lk-kpcomposer' : '') + '"><div class="rb-lk-con"><div' + (stretchLeft ? ' class="rb-lk-stretch" style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div></div>';
       }
       function _lkRowOptions(r) {
         const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
@@ -14233,7 +14251,7 @@ button.rb-lk-live{cursor:pointer}
         _lkView = 'new';
         _lkBuilt = false; _lkBuilding = false; _lkAspirational = false;
         _lkShop = []; _lkBuildGaps = []; _lkBuildMine = false;
-        _lkBuildNote = null; _lkBuildPalette = []; _lkBuildSeq++;
+        _lkBuildFrame = null; _lkBuildNote = null; _lkBuildPalette = []; _lkBuildSeq++;
         _lkShopImgs = []; if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
         _lkRows = _LK_START_ROWS.map(r => Object.assign({}, r));
         _lkOpenRow = null; _lkRowSeq = 4; _lkPhoto = null;
@@ -15789,7 +15807,7 @@ button.rb-lk-live{cursor:pointer}
         }
         _lkBuilt = false; _lkBuilding = false; _lkAspirational = false;
         _lkShop = []; _lkBuildGaps = []; _lkBuildMine = false;
-        _lkBuildNote = null; _lkBuildPalette = []; _lkBuildSeq++;
+        _lkBuildFrame = null; _lkBuildNote = null; _lkBuildPalette = []; _lkBuildSeq++;
         _lkShopImgs = []; if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
         const day = _lkDay; _lkDay = null; _lkDraftSrc = null;
         // A draft hosted on the key piece page (2026-09-16) lands there —
