@@ -293,6 +293,8 @@ Templates: one shared HTML shell (cream ground, Cormorant heading via a web-safe
 
 ## Slice 7 · Onboarding re-sequence (founder call first)
 
+> **As built (2026-09-21, Annie: "jump straight to slice 7 now running option A"; slices 5 and 6 held)**: Option A. `STEPS = ['keypiece', 'style']` — Step 01 · Wardrobe, Step 02 · Style. 7.1 as specified: a known name (the profile row, else the auth metadata) folds the name stage into the intro — CTA "Let’s go, {Name}", a quiet "Not {Name}?" under it opens the field prefilled; no name → Begin → the name stage as ever. The intro's promise reads "One piece. Three ways to wear it." The Style step's title reads "While Robes composes your three looks — where does your style sit?" only when a piece was filed (a double skip on the piece lands on the plain question — nothing is composing); the prefire still fires the moment the piece files, before Style. The filed piece's CTA reads Continue (Style is next); the last step's reads Continue to your dashboard and gives its writes a capped beat before navigating. Back from step 01 returns to the stage she came through (intro or name). The Cut ledger row falls back to "—". `onboarding_harness` rewritten: 146/146 at both breakpoints.
+
 **Why**: the spark sits five screens deep (splash → intro → name → Style → piece). The August audit's 1.1 (three dark screens) is still open; the Style step (1 Sep) added a taste question before any value.
 
 ### 7.1 Fold the name into the intro
@@ -360,7 +362,7 @@ Voice checks applied: every mail repeats only what she gave Robes (her piece, he
 
 ## Open decisions (before a session starts)
 
-1. **Slice 7's order** — Option A (Style fills the imagery wait) or B (Style moves to the model page). A is recommended; both undo the 1 Sep archetype-first placement, which was a deliberate design.
+1. **Slice 7's order** — ~~Option A (Style fills the imagery wait) or B (Style moves to the model page). A is recommended~~ **Decided: A, built 2026-09-21.** Both undo the 1 Sep archetype-first placement, which was a deliberate design.
 2. **The model door's form** — the slim white band (specified) versus a fourth concierge card. The band is recommended: the band's grid is three cards and its retire condition is unrelated to the model.
 3. **Progression's owner** (3.3) — the meter retires at 15 pieces regardless of the band. Default to yes.
 4. **Consent scope** (6.3) — one tap on the styled card covers the looks-ready mail AND the four nudges (stated in the sub-line), the morning cue is a separate opt-in in Account details. Confirm this reading of GDPR is acceptable for the beta; the privacy page is updated either way.

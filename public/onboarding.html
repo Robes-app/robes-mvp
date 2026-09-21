@@ -81,6 +81,10 @@
     }
     .dk-btn:hover { background: rgba(250,248,245,0.16); }
     .dk-btn:disabled { opacity: 0.28; cursor: not-allowed; }
+    .dk-alt { display: block; margin: 18px auto 0; background: none; border: none; cursor: pointer; padding: 0;
+      font-weight: 400; font-size: 12px; letter-spacing: 0.04em; color: rgba(250,248,245,0.4);
+      border-bottom: 1px solid rgba(250,248,245,0.18); transition: color .2s var(--ease-default); }
+    .dk-alt:hover { color: var(--cream-30); }
     .dk-back {
       background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 40px;
       display: inline-flex; align-items: center; gap: 10px; align-self: flex-start;
@@ -469,11 +473,17 @@
   // bail point) and the colour face scan followed (beta feedback) — both
   // now live in Style Notes, invited by the dashboard's quiet Style Note
   // prompt card (_rbSilPrompt in __robes_personalize).
-  const STEPS = ['icons', 'keypiece'];
+  // Slice 7 (option A, 2026-09-21): the piece comes FIRST — the spark
+  // arrives before any taste question — and the Style step fills the wait
+  // while the three looks compose (the prefire fires the moment the piece
+  // files). The cost, accepted: the very first three ways are steered by
+  // DNA and the piece, not by icons; everything after is.
+  const STEPS = ['keypiece', 'style'];
 
   const st = {
     uid: null,
-    stage: 'splash',       // 'splash' | 'intro' | 'name' | 0..2 | 'done'
+    stage: 'splash',       // 'splash' | 'intro' | 'name' | 0..1 | 'done'
+    nameShown: false,      // the name stage was rendered (a known name skips it)
     name: '',
     savedName: '',
     archetypes: [],
@@ -565,22 +575,33 @@
 
   /* ── Intro ──────────────────────────────────────────────────────── */
   function renderIntro() {
+    const first = introName();
     root.innerHTML = `
       <div class="flow-anim"><div class="dk">
         ${GRAIN}<div class="dk-glow"></div>
         <div class="dk-inner">
           <p class="dk-eyebrow">An introduction</p>
-          <h1 class="dk-heading">A few questions.<em>Robes builds<br>your style notes.</em></h1>
-          <p class="dk-body">Your style has a signature. Robes gathers it, then builds every outfit around it — so getting dressed always feels intentional.</p>
+          <h1 class="dk-heading">One piece.<em>Three ways<br>to wear it.</em></h1>
+          <p class="dk-body">Give Robes one piece you love and it comes back worn three ways — then every look builds around what is yours.</p>
           <div class="dk-spacer"></div>
-          <div class="dk-cta"><button class="dk-btn" id="ob-begin">Begin</button></div>
+          <div class="dk-cta">
+            <button class="dk-btn" id="ob-begin">${first ? 'Let’s go, ' + esc(first) : 'Begin'}</button>
+            ${first ? `<button class="dk-alt" id="ob-notme">Not ${esc(first)}?</button>` : ''}
+          </div>
         </div>
       </div></div>`;
-    document.getElementById('ob-begin').onclick = () => go('name');
+    // A known name (the profile row, else the auth metadata) folds the name
+    // stage into the intro (slice 7.1): the CTA greets her and "Not {Name}?"
+    // is the one door back to the field. No name on file → the stage as ever.
+    document.getElementById('ob-begin').onclick = () => { if (first) go(0); else go('name'); };
+    const notMe = document.getElementById('ob-notme');
+    if (notMe) notMe.onclick = () => go('name');
   }
+  function introName() { return (st.name || st.savedName || '').trim().split(/\s+/)[0] || ''; }
 
   /* ── Name ───────────────────────────────────────────────────────── */
   function renderName() {
+    st.nameShown = true;
     root.innerHTML = `
       <div class="flow-anim"><div class="dk">
         ${GRAIN}<div class="dk-glow"></div>
@@ -632,24 +653,37 @@
           <button class="ob-skip" id="ob-skip">Skip for now</button>
         </footer>
       </div></div>`;
-    document.getElementById('ob-back').onclick = () => go(i > 0 ? i - 1 : 'name');
+    document.getElementById('ob-back').onclick = () => go(i > 0 ? i - 1 : (st.nameShown ? 'name' : 'intro'));
   }
 
   function nextStage(i) { return i < STEPS.length - 1 ? i + 1 : 'done'; }
+  // The last step goes straight onto the dashboard — the "Welcome in" done
+  // screen is retired (2026-08-18); renderDone survives unreached.
+  function advance(i) {
+    const n = nextStage(i);
+    if (n === 'done') return finishToDashboard();
+    go(n);
+  }
 
   function renderStep(i) {
-    if (i === 0) return renderStyle(i);
+    if (STEPS[i] === 'style') return renderStyle(i);
     return renderKeyPiece(i);
   }
 
-  /* ── Step 01 · Style (archetype first) ──────────────────────────── */
-  // The archetypes are the first decision; icons and brands stay below as a
-  // refinement behind a hairline. A card prints its descriptor only once
-  // selected, and a skip never survives an answer on EITHER axis.
+  /* ── Step 02 · Style (while the looks compose) ──────────────────── */
+  // The archetypes lead; icons and brands stay below as a refinement behind
+  // a hairline. A card prints its descriptor only once selected, and a skip
+  // never survives an answer on EITHER axis. Since slice 7 (option A) the
+  // step follows the piece and fills the imagery wait — the title says so
+  // whenever a piece has been filed and its looks are composing.
   function renderStyle(i) {
+    const n = i + 1;
     stepChrome(i, {
-      step: 'Step 01 · Style', eyebrow: 'Style',
-      title: 'Where does your<br><em>style sit?</em>',
+      step: 'Step 0' + n + ' · Style', eyebrow: 'Style',
+      title: st.pieceStyled
+        ? 'While Robes composes your three looks — where does your<br><em>style sit?</em>'
+        : 'Where does your<br><em>style sit?</em>',
+      continueLabel: nextStage(i) === 'done' ? 'Continue to your dashboard' : 'Continue',
     });
 
     const zone = document.getElementById('ob-zone');
@@ -819,20 +853,28 @@
     paintSelected();
     paintPool();
 
-    const proceed = () => {
-      if (st.icons.length) save({ style_icons: st.icons });
+    const proceed = async () => {
+      const writes = [];
+      if (st.icons.length) writes.push(save({ style_icons: st.icons }));
       // Archetypes ride profiles.style_dna (jsonb — no migration needed);
       // only write when there is something to record or clear, and merge so
       // an analysis-derived DNA fragment is never dropped.
       const prev = (st.styleDna && st.styleDna.style_archetypes) || [];
       if (st.archetypes.length || prev.length) {
         st.styleDna = Object.assign({}, st.styleDna, { style_archetypes: st.archetypes.slice() });
-        save({ style_dna: st.styleDna });
+        writes.push(save({ style_dna: st.styleDna }));
       }
-      go(nextStage(i));
+      // The last step navigates away — give the writes a capped beat so the
+      // dashboard's navigation cannot kill them mid-flight.
+      if (writes.length && nextStage(i) === 'done') {
+        const cta = document.getElementById('ob-next');
+        if (cta) { cta.disabled = true; cta.textContent = 'Opening your dashboard…'; }
+        try { await Promise.race([Promise.all(writes), new Promise(r => setTimeout(r, 1500))]); } catch (e) {}
+      }
+      advance(i);
     };
     document.getElementById('ob-next').onclick = proceed;
-    document.getElementById('ob-skip').onclick = () => go(nextStage(i));
+    document.getElementById('ob-skip').onclick = () => advance(i);
   }
 
   /* ── Steps 02/03 · Photo capture ────────────────────────────────── */
@@ -918,11 +960,13 @@
     // Header mirrors step 01's archetype-first register: the eyebrow repeats
     // the step label's section word, the headline closes on the serif-italic
     // accent — no style deviation across the two steps.
+    const last = nextStage(i) === 'done';
+    const filedLabel = last ? 'Continue to your dashboard' : 'Continue';
     stepChrome(i, {
-      step: 'Step 02 · Wardrobe', eyebrow: 'Wardrobe',
+      step: 'Step 0' + (i + 1) + ' · Wardrobe', eyebrow: 'Wardrobe',
       title: 'Add your <em>first piece.</em>',
       sub: 'Give Robes one piece you love — from your wardrobe, or you might be wearing it right now. This is where your wardrobe starts.',
-      continueLabel: P.tag ? 'Continue to your dashboard' : 'Style my first piece',
+      continueLabel: P.tag ? filedLabel : 'Style my first piece',
     });
 
     function kpChips() {
@@ -947,7 +991,7 @@
         { txt: P.tag.category || 'Read', cls: ' is-done' },
         { txt: P.tag.brand || (dna.display && dna.display.brand_raw) || 'Unlabelled', cls: ' is-done' },
         { txt: (dna.display && dna.display.editorial_color_name) || P.tag.color || 'Read', cls: ' is-done' },
-        { txt: fit.slice(0, 2).join(' · ') || 'Read', cls: ' is-done' },
+        { txt: fit.slice(0, 2).join(' · ') || '—', cls: ' is-done' },
       ];
     }
 
@@ -1094,10 +1138,10 @@
         }
         writeHandoff();
         // No done screen — the dashboard's "Your piece, styled" card is the
-        // arrival moment now.
+        // arrival moment; the Style step (option A) fills the wait first.
         const goCta = document.getElementById('ob-next');
-        if (goCta) { goCta.disabled = true; goCta.textContent = 'Opening your dashboard…'; }
-        finishToDashboard(); return;
+        if (goCta && last) { goCta.disabled = true; goCta.textContent = 'Opening your dashboard…'; }
+        advance(i); return;
       }
       if (!P.img || !P.data) {
         const nudge = document.getElementById('kp-nudge');
@@ -1176,7 +1220,7 @@
         return true;
       }).catch(() => false);
 
-      if (nx) { nx.disabled = false; nx.textContent = 'Continue to your dashboard'; }
+      if (nx) { nx.disabled = false; nx.textContent = filedLabel; }
       if (st.stage !== i) return;
       // The wow moment moved onto the dashboard (wardrobe-first PRD): styling
       // fires in the background NOW and the handoff payload is written, so the
@@ -1262,7 +1306,7 @@
     const skip = document.getElementById('ob-skip');
     skip.onclick = () => {
       if (P.busy) return; // a mid-read skip would abandon the piece being filed
-      if (skipArmed) { skip.style.pointerEvents = 'none'; finishToDashboard(); return; }
+      if (skipArmed) { skip.style.pointerEvents = 'none'; advance(i); return; }
       skipArmed = true;
       skip.textContent = 'Skip anyway — Robes styles only what you add';
     };
@@ -1346,7 +1390,9 @@
     }
     if (!st.name) st.name = st.savedName || metaName;
 
-    if (st.stage === 'name') render();
+    // The name lands after the splash as often as not — the intro (or the
+    // name stage) repaints so the folded-name CTA reads it.
+    if (st.stage === 'name' || (st.stage === 'intro' && introName())) render();
   })();
 </script>
 
