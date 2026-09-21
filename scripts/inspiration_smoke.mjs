@@ -456,6 +456,47 @@ check('feedback · one hairline line PER look, the page-level block and its emoj
   fbShape.blocks.every(Boolean) && fbShape.perLook === 3 && !fbShape.pageLevel && !fbShape.emoji && fbShape.resting, JSON.stringify(fbShape));
 check('feedback · the verdict is two thumb circles on the question’s own line, no words (Annie’s iteration)',
   fbShape.thumbs.svg && fbShape.thumbs.noWords && fbShape.thumbs.round === '50%' && fbShape.thumbs.w === 28 && fbShape.thumbs.sameLine, JSON.stringify(fbShape.thumbs));
+// Both the prose and the verdict are HELD cards inside the way's card
+// (Annie, 2026-09-21: "the text is missing a border … put How was this one
+// in its own card") — the verdict is about the look, never part of it.
+const heldCards = await page.evaluate(() => {
+  window.__kpMore(0);
+  const d = document.getElementById('kp-look-detail-0');
+  const f = document.getElementById('kp0-fb');
+  const pick = (el) => { const c = getComputedStyle(el); return { bg: c.backgroundColor, border: c.borderTopWidth, style: c.borderTopStyle, radius: c.borderTopLeftRadius, pad: c.paddingTop }; };
+  return {
+    open: d.hidden === false,
+    detail: pick(d),
+    fb: pick(f),
+    // the three sections are ruled apart inside the card, not merely gapped
+    ruled: getComputedStyle(d.children[1]).borderTopWidth,
+    // a CARD is bordered all round — the retired treatment was a lone
+    // border-top with nothing beneath it
+    fbBottomRule: getComputedStyle(f).borderBottomWidth,
+  };
+});
+check('key piece · the expanded prose is a held white card on a hairline, its sections ruled apart',
+  heldCards.open && heldCards.detail.bg === 'rgb(255, 255, 255)' && heldCards.detail.border === '1px'
+    && heldCards.detail.style === 'solid' && parseFloat(heldCards.detail.radius) >= 6
+    && parseFloat(heldCards.detail.pad) >= 14 && heldCards.ruled === '1px',
+  JSON.stringify(heldCards));
+if (process.env.SHOT_DIR) {
+  await page.screenshot({ path: process.env.SHOT_DIR + '/kp-open-1280.png' }).catch(() => {});
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { const d = document.getElementById('kp-look-detail-0'); if (d && d.hidden) window.__kpMore(0); });
+  await page.waitForTimeout(500);
+  await page.evaluate(() => { const d = document.getElementById('kp-look-detail-0'); if (d) d.scrollIntoView({ block: 'center' }); });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: process.env.SHOT_DIR + '/kp-open-390.png' }).catch(() => {});
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForTimeout(400);
+}
+check('key piece · "How was this one?" is its OWN card, not a line hanging off a hairline',
+  heldCards.fb.bg === 'rgb(255, 255, 255)' && heldCards.fb.border === '1px'
+    && parseFloat(heldCards.fb.radius) >= 6 && parseFloat(heldCards.fb.pad) >= 12
+    && heldCards.fbBottomRule === '1px',
+  JSON.stringify(heldCards.fb));
 check('build this look · the design’s hairline pill (9.5px, .2em, uppercase, transparent, full card width, arrow, More detail centred)',
   fbShape.pillFont === '9.5px' && /^1\.9/.test(fbShape.pillTracking) && fbShape.pillCase === 'uppercase'
     && fbShape.pillBg === 'rgba(0, 0, 0, 0)' && fbShape.pillBorder === '1px' && Math.abs(fbShape.pillWidth - fbShape.cardWidth) < 1

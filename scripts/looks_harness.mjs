@@ -994,11 +994,13 @@ const browser = await chromium.launch(
     window.__lkDiaryPick(tomorrow);
     out.pickAfter = document.querySelector('#rb-lkdy .pick')?.textContent;
     window.__lkDiaryGo();
-    const strip = document.querySelector('.rb-lk-pinstrip');
     out.sheetGone = !document.getElementById('rb-lkdy');
-    out.strip = (strip?.textContent || '').replace(/\s+/g, ' ');
-    out.door = strip?.querySelector('button')?.textContent;
-    out.x = !!strip?.querySelector('button.x');
+    // ONE pinned day lives in the meta line, which is also its door — the
+    // strip beneath would say it a second time (Annie, 2026-09-21).
+    out.strip = document.querySelectorAll('.rb-lk-pinstrip').length;
+    const mp = document.querySelector('.rb-lk-metapin');
+    out.metaPin = (mp?.textContent || '').replace(/\s+/g, ' ');
+    out.meta = (document.querySelector('#rb-lk-wrap .rb-tb-meta')?.textContent || '').replace(/\s+/g, ' ');
     // Reopened, the pinned day carries its dot and reads as already filed.
     window.__lkDiaryOpen();
     if (tomorrow.slice(0, 7) !== today.slice(0, 7)) window.__lkDiaryNav(1);
@@ -1019,10 +1021,12 @@ const browser = await chromium.launch(
   check('pin · reopened, the pinned day carries its dot and the pill opens the day',
     pinned.dots >= 1 && /Already in the diary/.test(pinned.ctaPinned || ''), JSON.stringify([pinned.dots, pinned.ctaPinned]));
   check('pin · the sheet closes on the pin', pinned.sheetGone === true);
-  // The reminder STRIP appearing is the confirmation (C1) — no second panel.
-  check('pin · the reminder strip names the day, opens it, and carries a ✕',
-    /^Pinned for [A-Z][a-z]+day \d+ [A-Z]/.test(pinned.strip) && pinned.door === 'Open the day →' && pinned.x === true,
-    JSON.stringify([pinned.strip, pinned.door, pinned.x]));
+  // The META names the pinned day and IS its door — the strip that used to
+  // repeat it beneath is gone (Annie, 2026-09-21).
+  check('pin · one pinned day reads in the meta line, as a door, with NO strip repeating it — and the month prints by table, never ICU\'s "Sept"',
+    pinned.strip === 0 && /^pinned for [A-Z][a-z]+day \d+ (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/.test(pinned.metaPin)
+      && pinned.meta.indexOf(pinned.metaPin) > -1,
+    JSON.stringify([pinned.strip, pinned.metaPin, pinned.meta]));
   await page.waitForTimeout(1200);   // the planned_days write is debounced
   const pinWrite = writes.find((w) => w.method === 'POST' && /^planned_days/.test(w.url));
   check('pin · writes a planned_days row of source_type look',
@@ -1030,8 +1034,35 @@ const browser = await chromium.launch(
     JSON.stringify(pinWrite?.body?.[0] || null));
   check('pin · the day carries the look\'s pieces', (pinWrite?.body?.[0]?.item_ids || []).length === 4,
     JSON.stringify(pinWrite?.body?.[0]?.item_ids || null));
-  // The ✕ closes the strip and NOTHING else (Annie, 2026-09-09: closing the
-  // banner had unpinned the day) — the pin stays in the diary.
+  // A SECOND pinned day is news the meta cannot carry, so it earns a strip —
+  // and that strip keeps its ✕, which closes it and NOTHING else (Annie,
+  // 2026-09-09: closing the banner had unpinned the day).
+  const second = await page.evaluate(async () => {
+    const d = new Date(); d.setDate(d.getDate() + 2);
+    const iso = d.toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+    window.__lkDiaryOpen();
+    await new Promise((r) => setTimeout(r, 200));
+    if (iso.slice(0, 7) !== today.slice(0, 7)) window.__lkDiaryNav(1);
+    window.__lkDiaryPick(iso);
+    window.__lkDiaryGo();
+    await new Promise((r) => setTimeout(r, 400));
+    const strip = document.querySelector('.rb-lk-pinstrip');
+    return {
+      iso,
+      strips: document.querySelectorAll('.rb-lk-pinstrip').length,
+      text: (strip?.textContent || '').replace(/\s+/g, ' '),
+      door: strip?.querySelector('button')?.textContent,
+      x: !!strip?.querySelector('button.x'),
+      metaPin: (document.querySelector('.rb-lk-metapin')?.textContent || '').replace(/\s+/g, ' '),
+    };
+  });
+  check('pin · a second day earns a strip — the meta still names the FIRST, so neither repeats the other',
+    second.strips === 1 && second.door === 'Open the day →' && second.x === true
+      && /^Pinned for /.test(second.text)
+      && second.text.indexOf(second.metaPin.replace(/^pinned for /, '')) === -1,
+    JSON.stringify(second));
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/pin-meta.png' }).catch(() => {});
   const wBeforeX = writes.length;
   const dismissed = await page.evaluate(async () => {
     document.querySelector('.rb-lk-pinstrip button.x')?.click();

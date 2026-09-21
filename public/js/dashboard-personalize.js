@@ -7151,10 +7151,15 @@
             '.kp-build-btn .arr{flex:none;color:var(--ink-faint,#9C9891)}' +
             '.kp-look-more{align-self:center;background:none;border:0;padding:0 0 2px;font-family:inherit;font-size:11px;font-weight:300;color:var(--ink-faint,#9C9891);border-bottom:1px solid var(--rule-mid,rgba(32,32,33,0.14));cursor:pointer}' +
             '.kp-look-more:hover{color:var(--ink,#202021)}' +
-            '.kp-look-detail{display:flex;flex-direction:column;gap:12px;padding-top:2px}' +
+            // The prose is HELD (Annie, 2026-09-21: "missing a border, and the
+            // content feels very compressed") — a white card on a hairline in
+            // the app's own card register, with room to read: the three
+            // sections separated by their own rules rather than a bare gap.
+            '.kp-look-detail{display:flex;flex-direction:column;gap:16px;background:#fff;border:1px solid var(--rule-mid,rgba(32,32,33,.12));border-radius:var(--rad-sm,8px);padding:18px}' +
             '.kp-look-detail[hidden]{display:none}' +
-            '.kp-look-detail .lab{font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:5px}' +
-            '.kp-look-detail p{font-size:13px;line-height:1.6;color:#6E6A64;margin:0}' +
+            '.kp-look-detail>div+div{border-top:1px solid var(--rule,rgba(32,32,33,.075));padding-top:16px}' +
+            '.kp-look-detail .lab{font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:7px}' +
+            '.kp-look-detail p{font-size:13.5px;line-height:1.72;color:var(--ink-soft,#55524E);margin:0}' +
             '@media(max-width:700px){' +
               '.kp-headrow{flex-wrap:nowrap;gap:16px}' +
               '.kp-yours{flex-direction:column;align-items:center;gap:8px;margin-bottom:12px}' +
@@ -7162,7 +7167,11 @@
               '.kp-yours-img{width:66px;height:84px}' +
               '.kp-ways{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;margin:26px -32px 0;padding:0 32px 6px;scrollbar-width:none}' +
               '.kp-ways::-webkit-scrollbar{display:none}' +
-              '.kp-look-card{flex:none;width:250px;scroll-snap-align:start}' +
+              '.kp-look-card{flex:none;width:250px;scroll-snap-align:start;transition:width .22s ease}' +
+              '.kp-look-card.kp-open{width:min(84vw,340px)}' +
+              '.kp-look-detail{padding:15px;gap:14px}' +
+              '.kp-look-detail>div+div{padding-top:14px}' +
+              '.rb-fb.stack{padding:14px}' +
               '.kp-look-title{font-size:22px}' +
             '}' +
             '.kp-head{margin-bottom:12px;padding-top:34px}' +
@@ -7374,6 +7383,19 @@
         if (!d) return;
         d.hidden = !d.hidden;
         if (b) { b.textContent = d.hidden ? 'More detail' : 'Less detail'; b.setAttribute('aria-expanded', d.hidden ? 'false' : 'true'); }
+        // 250px is the width for CHOOSING between three ways, not for
+        // reading three paragraphs (Annie, 2026-09-21: "very compressed").
+        // The open card takes the room it needs on the phone and scrolls
+        // itself back into view; the CSS that widens it is mobile-only, so
+        // this class does nothing on the web.
+        const card = d.closest ? d.closest('.kp-look-card') : null;
+        if (card) {
+          card.classList.toggle('kp-open', !d.hidden);
+          if (!d.hidden && card.scrollIntoView) {
+            const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            try { card.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'nearest', inline: 'center' }); } catch (_) {}
+          }
+        }
       };
       function _kpBuildToks(s) {
         return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
@@ -11313,6 +11335,11 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-pinstrip button.x{border-bottom:none;font-size:17px;line-height:1;padding:0 2px;color:#4F4B3C;opacity:.7}
 .rb-lk-pinstrip button.x:hover{opacity:1}
 .rb-lk-pinstrip+.rb-lk-pinstrip{margin-top:8px}
+/* The meta line's pin clause IS the door to that day (2026-09-21) — it
+   reads as the rest of the meta, underlined on hover like every other
+   quiet text door. */
+.rb-lk-metapin{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;border-bottom:1px solid transparent}
+.rb-lk-metapin:hover,.rb-lk-metapin:focus-visible{color:var(--ink);border-bottom-color:var(--rule-mid)}
 /* The edit strip — the day banner's register (D1): one quiet line naming
    the changes as unsaved, with the three ways out. */
 .rb-lk-editbar{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-top:14px;padding:14px 18px;background:#fff;border:0.5px solid var(--rule);border-radius:var(--rad-sm);font-size:12px;color:var(--ink-soft);line-height:1.6}
@@ -12448,7 +12475,12 @@ button.rb-lk-live{cursor:pointer}
         const metaBits = draft ? [] : [_lkN(ids.length, 'piece'), n ? _lkN(n, 'wear') : 'not yet worn'];
         if (!draft && lastW) metaBits.push('last worn ' + _lkFmt(lastW));
         if (lkSet.meta) metaBits.push(lkSet.meta);
-        else if (!draft && pins.length) metaBits.push('pinned for ' + _lkFmtLong(pins[0]));
+        // The meta line NAMES the first pinned day, so the strip below must
+        // not say it again (Annie, 2026-09-21 — the same duplicate the trip
+        // strip lost on 2026-09-10, in its general form). The clause is the
+        // door too: "pinned for Tuesday 22 Sep" opens that day, which is the
+        // one thing the strip carried that the meta could not.
+        const metaPin = (!draft && !lkSet.meta && pins.length) ? pins[0] : null;
         // "· Robes named it" is GONE (Annie, 2026-09-21) — the name is hers
         // to change from the pencil beside it; who offered it is not a fact
         // the page needs to carry. `prov` still italicises the title and
@@ -12464,7 +12496,8 @@ button.rb-lk-live{cursor:pointer}
           titleHtml: _waEsc(title), titleId: 'rb-lk-title', titleCls: 'rb-lk-title' + (prov ? ' prov' : ''),
           titleInputHtml: titleInput,
           afterTitleHtml: _lkTitleEditing ? '' : _rbTbBtn({ cls: 'rb-lk-pencil', title: 'Rename', onclick: 'window.__lkTitleEdit()', svg: _RB_PENCIL_SVG }),
-          metaHtml: (_lkTitleEditing && prov ? '<span class="rb-lk-hint" id="rb-lk-hint">Leave it and it keeps this name.</span>' + (metaBits.length ? ' · ' : '') : '') + _waEsc(metaBits.join(' · ')),
+          metaHtml: (_lkTitleEditing && prov ? '<span class="rb-lk-hint" id="rb-lk-hint">Leave it and it keeps this name.</span>' + (metaBits.length ? ' · ' : '') : '') + _waEsc(metaBits.join(' · ')) +
+            (metaPin ? (metaBits.length ? ' · ' : '') + '<button type="button" class="rb-lk-metapin" onclick="window.__lkSeeDay(\'' + metaPin + '\')">pinned for ' + _waEsc(_lkFmtLong(metaPin)) + '</button>' : ''),
         });
         let h = '<div class="rb-lk-page' + (editing ? ' editing' : '') + '">' + lkBand + tbHtml;
 
@@ -12486,12 +12519,13 @@ button.rb-lk-live{cursor:pointer}
               '<button type="button" class="rb-lk-act primary" onclick="window.__lkOpenWishlist()">Open your wishlist</button>' +
             '</div></div>';
         }
-        if (!editing && pins.length) {
+        const stripPins = pins.filter(d => d !== metaPin);
+        if (!editing && stripPins.length) {
           // A subtle reminder STRIP per pinned day, not a panel (C1) — the
           // one line on this page that points OUT of it; the ✕ closes the
           // strip and NOTHING else (Annie, 2026-09-09: the pin stays — the
           // day peek and Where it lives are where a pin comes off).
-          h += pins.map(d =>
+          h += stripPins.map(d =>
             '<div class="rb-lk-pinstrip"><span>Pinned for ' + _lkFmtLong(d) + '.</span><span class="acts">' +
             '<button type="button" onclick="window.__lkSeeDay(\'' + d + '\')">Open the day →</button>' +
             '<button type="button" class="x" title="Dismiss" aria-label="Dismiss this reminder" onclick="window.__lkStripHide(\'' + d + '\')">×</button>' +
@@ -13846,10 +13880,6 @@ button.rb-lk-live{cursor:pointer}
         const iso = _pdAddISO(data.dateFrom, di);
         const t = (data.dayTitles || {})[di] || '';
         return 'pinned for ' + _lkFmtLong(iso) + (t ? ', ' + t : '');
-      }
-      function _lkFmtLong(iso) {
-        const d = new Date(String(iso).slice(0, 10) + 'T00:00:00');
-        return isNaN(d) ? '' : d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }).replace(',', '');
       }
       // Role re-cast on a saved look — presentational like a rename, so it
       // applies silently (no promotion gate: composition is untouched).
@@ -16157,9 +16187,11 @@ button.rb-lk-live{cursor:pointer}
         '.rb-fb-send{background:transparent;color:var(--ink,#202021);border:1px solid var(--rule-mid,rgba(32,32,33,.14));border-radius:100px;padding:10px 20px;font-family:inherit;font-size:9.5px;font-weight:500;line-height:1;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;transition:border-color .18s}' +
         '.rb-fb-send:hover{border-color:var(--ink,#202021)}' +
         '.rb-fb-sent{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-weight:300;font-size:15px;line-height:1.4;color:var(--ink-soft,#55524E);margin:0}' +
-        // 2b — stacked inside a key piece card (one column, the pills under
-        // the question, the note under the pills).
-        '.rb-fb.stack{gap:10px;padding-top:12px;margin-top:8px}' +
+        // 2b — its OWN card inside a key piece card (Annie, 2026-09-21): the
+        // verdict is about the look, not part of it, so it sits on its own
+        // white surface rather than hanging off a hairline. One column: the
+        // pills beside the question, the note under both.
+        '.rb-fb.stack{gap:12px;border-top:0;background:#fff;border:1px solid var(--rule-mid,rgba(32,32,33,.12));border-radius:var(--rad-sm,8px);padding:16px;margin-top:2px}' +
         '.rb-fb.stack .rb-fb-head{align-items:center;flex-wrap:nowrap;gap:12px}' +
         '.rb-fb.stack .rb-fb-title{font-size:15px;color:var(--ink-soft,#55524E)}' +
         '.rb-fb.stack .rb-fb-pills{gap:6px;flex:none}' +
