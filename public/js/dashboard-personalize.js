@@ -11265,7 +11265,8 @@ button.rb-lk-live{cursor:pointer}
    (Annie's design, 2026-09-21). Edit & resave keeps its own sentence
    case there: the caps register belongs to the label beside it. */
 .rb-lk-rackhead-read{border-bottom:1px solid var(--rule);padding-bottom:10px;margin-bottom:16px}
-.rb-lk-rackhead-read .rb-lk-editbtn{text-transform:none;letter-spacing:.01em;font-size:12px;color:var(--ink)}
+.rb-lk-rackhead-read .rb-lk-editbtn{text-transform:none;letter-spacing:.01em;font-size:11.5px;font-weight:400;color:var(--ink-soft)}
+.rb-lk-rackhead-read .rb-lk-editbtn:hover{color:var(--ink)}
 /* Swap has a space of its own, between the head and the rack: what is not
    hers yet, and the one door that fixes it. */
 .rb-lk-swapzone{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
@@ -12226,7 +12227,12 @@ button.rb-lk-live{cursor:pointer}
         const wornToday = (l.wears || []).some(w => String(w.worn_on).slice(0, 10) === today);
         const prov = !!l.name_provisional;
         const title = _lkTitleDraft != null ? _lkTitleDraft : l.name;
-        const pins = _lkPins(l.id).filter(d => d >= today && !_lkStripHidden[l.id + '|' + d]);
+        // Opened FROM a day, the strip for THAT day says nothing she does not
+        // already know — the band reads ‹ Mon 21 Sep and its one door IS the
+        // strip's "Open the day →" (Annie, 2026-09-21). Every OTHER pinned day
+        // still earns its strip: that one is news.
+        const fromDay = (_lkFrom && _lkFrom.day) ? String(_lkFrom.day).slice(0, 10) : null;
+        const pins = _lkPins(l.id).filter(d => d >= today && String(d).slice(0, 10) !== fromDay && !_lkStripHidden[l.id + '|' + d]);
         const items = _lkDetailItems(l);
         const ownedNone = !ids.length;
 
@@ -13446,7 +13452,7 @@ button.rb-lk-live{cursor:pointer}
           : (date && lookId) ? function() { window.__lkOpenAsDay && window.__lkOpenAsDay({ source_id: lookId, day_date: date, activity: d.occasion_label || null }); }
           : null;
         if (window.__rbCloseResultOverlays) window.__rbCloseResultOverlays();
-        window.__lkOpen(id, go ? { from: { label: date ? _lkFmtDay(date) : 'The day', go } } : null);
+        window.__lkOpen(id, go ? { from: { label: date ? _lkFmtDay(date) : 'The day', day: date || null, go } } : null);
       };
       // The trip's door — an imported look on the stage names its saved
       // look; back reopens the travel edit.
@@ -24271,7 +24277,7 @@ body>*:not(#tv-result-page){display:none !important}
           if (m.source_type === 'look') {
             if (o.fromDay && window.__lkOpen && _lkFind(m.source_id)) {
               const date = o.fromDay, from = o.from;
-              window.__lkOpen(m.source_id, { from: { label: _lkFmtDay(date), go: function() { window.__rbDayOpen(date, { from }); } } });
+              window.__lkOpen(m.source_id, { from: { label: _lkFmtDay(date), day: date, go: function() { window.__rbDayOpen(date, { from }); } } });
               return;
             }
             // A look on a day is the SAVED LOOK, opened as its page with the
@@ -24280,7 +24286,7 @@ body>*:not(#tv-result-page){display:none !important}
             // gone from the Lookbook).
             if (window.__lkOpen && _lkFind(m.source_id)) {
               const date = m.day_date || _pdLocalISO();
-              window.__lkOpen(m.source_id, { from: { label: _lkFmtDay(date), go: function() { window.__rbDayOpen(date, { from: o.from }); } } });
+              window.__lkOpen(m.source_id, { from: { label: _lkFmtDay(date), day: date, go: function() { window.__rbDayOpen(date, { from: o.from }); } } });
               return;
             }
             if (window.__lkOpenAsDay && window.__lkOpenAsDay(m)) return;

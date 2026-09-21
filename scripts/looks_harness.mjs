@@ -3200,6 +3200,17 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       back: document.querySelector('#rb-lk-wrap .rb-ret-pill .lab')?.textContent.trim(),
       dayHeader: !!document.querySelector('#rb-lk-wrap .dlm-eyebrow, #rb-lk-wrap .dlm-wx'),
       dlHidden: document.getElementById('dl-result-page')?.style.display === 'none',
+      // Opened FROM a day, the strip for THAT day is gone (Annie,
+      // 2026-09-21) — the band's ‹ date IS its "Open the day →".
+      pinStrip: document.querySelectorAll('#rb-lk-wrap .rb-lk-pinstrip').length,
+      // The head's own type register, so the lighter Edit & resave can't
+      // silently go back to the uppercase pill (Annie, 2026-09-21).
+      editBtn: (function () {
+        const b = document.querySelector('#rb-lk-wrap .rb-lk-rackhead-read .rb-lk-editbtn');
+        if (!b) return null;
+        const c = getComputedStyle(b);
+        return { t: b.textContent.trim(), tt: c.textTransform, fw: c.fontWeight, fs: c.fontSize };
+      })(),
     };
   });
   check('day page · a card opens the LOOK itself (the look page: Saved look, its name) — no day header on the look',
@@ -3207,6 +3218,12 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     JSON.stringify(look));
   check('day page · the look carries a door back to the day, reading the date',
     /^‹?\s*[A-Z][a-z]{2} \d+ [A-Z][a-z]{2}$/.test(look.back || ''), look.back);
+  check('day page · no pinned-for banner on the day she came through — the band\'s ‹ date IS that strip\'s one door',
+    look.pinStrip === 0, JSON.stringify([look.pinStrip]));
+  check('day page · Edit & resave is the head\'s quiet sentence-case link, never the uppercase pill',
+    !!look.editBtn && look.editBtn.t === 'Edit & resave' && look.editBtn.tt === 'none'
+      && Number(look.editBtn.fw) <= 400 && parseFloat(look.editBtn.fs) <= 12,
+    JSON.stringify(look.editBtn));
   if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/day-look.png' }).catch(() => {});
   await page.evaluate(async () => {
     document.querySelector('#rb-lk-wrap .rb-ret-pill').click();
