@@ -77,6 +77,7 @@ async function boot(browser, n, width = 1280, { looks = true, pics = 0 } = {}) {
       first_name: 'Annie', last_name: '', mobile: '', style_icons: [], budget: null,
       wardrobe_description: '', style_dna: {}, wardrobe_items_count: count,
       onboarded_at: '2026-07-01', gender_identity: 'woman',
+      notification_prefs: window.__TEST_PREFS || {},
     };
     Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
   }, n);
@@ -1304,6 +1305,135 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-model-door']),
     JSON.stringify(o));
   check('model door · no page errors (postures)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
+// ── The re-engagement channel (funnel slice 6) ────────────────────────
+// The Session-1 ask under the styled card's loading tiles: one line, one
+// text door, one consent (looks_ready + nudges), retires when the frames
+// land. The Account details Emails section writes the prefs shape; the
+// boot writes her timezone once when empty.
+{
+  const { ctx, page, errs } = await boot(browser, 1, 1280, { looks: false });
+  const patches = [];
+  await page.route('**ayowpaknssulsqqvwpqx.supabase.co/rest/v1/profiles**', (r) => {
+    const req = r.request();
+    if (req.method() === 'PATCH') { try { patches.push(JSON.parse(req.postData() || '{}')); } catch (_) { patches.push({}); } }
+    return r.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
+  let framesIn = false;
+  await page.route('**/api/images/**', (r) => r.fulfill({ status: 200, contentType: 'application/json',
+    body: JSON.stringify(framesIn ? { images: ['https://img.test/1.jpg', 'https://img.test/2.jpg', 'https://img.test/3.jpg'], done: true } : { images: [], done: false }) }));
+  await page.evaluate(() => {
+    sessionStorage.setItem('rb_onboard_piece', JSON.stringify({ prompt: 'Acid green cropped jumper', photo: null, cataloged: true }));
+    sessionStorage.setItem('rb_onboard_styled', JSON.stringify({
+      prompt: 'Acid green cropped jumper', ts: Date.now(),
+      data: { ways: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }], generatedImages: [], jobId: 'job-1', fallback: false, photoUrl: null } }));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const a = await page.evaluate(() => {
+    const ask = document.getElementById('rb-styled-mail');
+    const btn = document.getElementById('rb-styled-mail-btn');
+    const filled = Array.from(document.querySelectorAll('#dash button')).filter((b) => b.offsetParent !== null)
+      .filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.textContent.trim());
+    return {
+      ask: !!ask, inCard: !!ask && !!ask.closest('#rb-styled'),
+      line: ask ? ask.textContent.replace(/\s+/g, ' ').trim() : '',
+      btn: btn ? btn.textContent.trim() : '', btnBg: btn ? getComputedStyle(btn).backgroundColor : '',
+      filled,
+      afterFoot: !!ask && ask.previousElementSibling?.id === 'rb-styled-foot',
+      pulsing: /rbStyPulse/.test(document.getElementById('rb-styled-img-0')?.style.animation || ''),
+    };
+  });
+  check('email ask · renders under the pulsing tiles, after the piece-count caption', a.ask && a.inCard && a.afterFoot && a.pulsing, JSON.stringify(a));
+  check('email ask · the line, the text door and the consent sub-line',
+    /^Robes is composing your three looks\. Email me when they’re ready →\s*and the odd note when your wardrobe’s ready for more$/.test(a.line) && a.btn === 'Email me when they’re ready →', a.line);
+  check('email ask · the door is text, never a fill — See the full looks stays the one ink button',
+    a.btnBg !== 'rgb(32, 32, 33)' && a.filled.length === 1 && /See the full looks/.test(a.filled[0] || ''), JSON.stringify([a.btnBg, a.filled]));
+  const tzPatch = patches.find((p) => p.notification_prefs && p.notification_prefs.timezone);
+  check('email · the boot writes her timezone once when empty', !!tzPatch && typeof tzPatch.notification_prefs.timezone === 'string' && tzPatch.notification_prefs.timezone.length > 2, JSON.stringify(patches));
+  const before = patches.length;
+  await page.click('#rb-styled-mail-btn');
+  await page.waitForTimeout(500);
+  const tapped = await page.evaluate(() => ({
+    line: document.getElementById('rb-styled-mail')?.textContent.trim(),
+    prefs: window.__robes_profile && window.__robes_profile.notification_prefs,
+  }));
+  const optin = patches.slice(before).find((p) => p.notification_prefs);
+  check('email ask · the tap writes looks_ready + nudges in ONE merge (the timezone kept) and settles to the tick',
+    tapped.line === '✓ Robes will email you.' && optin && optin.notification_prefs.looks_ready === true && optin.notification_prefs.nudges === true
+      && typeof optin.notification_prefs.timezone === 'string' && tapped.prefs && tapped.prefs.nudges === true,
+    JSON.stringify([tapped, optin]));
+  framesIn = true;
+  await page.waitForTimeout(5200);   // the card's poll ticks at 4s
+  const landed = await page.evaluate(() => ({
+    ask: !!document.getElementById('rb-styled-mail'),
+    imgs: document.querySelectorAll('#rb-styled-tiles img').length,
+  }));
+  check('email ask · retires with the loading state once the frames land', landed.ask === false && landed.imgs === 3, JSON.stringify(landed));
+
+  // Account details · Emails: defaults from the brief, the save's own merge-write
+  const acct = await page.evaluate(() => {
+    window.__rbAcctEmailsSync();
+    return {
+      shown: document.getElementById('acct-emails')?.style.display !== 'none',
+      ready: document.getElementById('acct-em-ready').checked,
+      nudges: document.getElementById('acct-em-nudges').checked,
+      morning: document.getElementById('acct-em-morning').checked,
+      hour: document.getElementById('acct-em-hour').value,
+      labels: Array.from(document.querySelectorAll('#acct-emails label')).map((l) => l.textContent.replace(/\s+/g, ' ').trim()),
+      hours: Array.from(document.querySelectorAll('#acct-em-hour option')).map((o) => o.value).join(','),
+    };
+  });
+  check('account · Emails: three switches, the hour select 6–10, defaults reading the prefs (nudges on after the tap, morning off)',
+    acct.shown && acct.ready === true && acct.nudges === true && acct.morning === false && acct.hour === '7' && acct.hours === '6,7,8,9,10'
+      && /^When my looks are ready$/.test(acct.labels[0]) && /^Notes from Robes$/.test(acct.labels[1]) && /^A morning line on days I’ve planned at/.test(acct.labels[2]),
+    JSON.stringify(acct));
+  const before2 = patches.length;
+  await page.evaluate(() => {
+    document.getElementById('acct-em-morning').checked = true;
+    document.getElementById('acct-em-hour').value = '8';
+    return window.__saveAcctDetails();
+  });
+  await page.waitForTimeout(400);
+  const saved = patches.slice(before2);
+  const prefsPatch = saved.find((p) => p.notification_prefs);
+  check('account · Save writes the names AND a separate prefs merge {looks_ready, nudges, morning, morning_hour}',
+    saved.some((p) => 'first_name' in p && !('notification_prefs' in p)) && prefsPatch
+      && prefsPatch.notification_prefs.morning === true && prefsPatch.notification_prefs.morning_hour === 8
+      && prefsPatch.notification_prefs.nudges === true && prefsPatch.notification_prefs.looks_ready === true && typeof prefsPatch.notification_prefs.timezone === 'string',
+    JSON.stringify(saved));
+  check('email · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+// Already opted in (nudges true) → no ask; the column missing (migration
+// 22 not run) → no ask and the Emails section stands down.
+for (const prefs of [{ nudges: true }, null]) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 1100 } });
+  const page = await ctx.newPage();
+  await page.route('**img.test/**', (r) => r.abort());
+  await page.route('**cdn.jsdelivr.net/**', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: SUPA_STUB }));
+  await page.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: r.request().url().includes('wardrobe_items') ? JSON.stringify(wardrobe(1)) : '[]' }));
+  await page.route('**nominatim**', (r) => r.abort());
+  await page.route('**open-meteo**', (r) => r.abort());
+  await page.route('**/api/images/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [], done: false }) }));
+  await page.addInitScript((p) => {
+    window.__TEST_PROFILE = { first_name: 'Annie', last_name: '', mobile: '', style_icons: [], budget: null, wardrobe_description: '', style_dna: {},
+      wardrobe_items_count: 1, onboarded_at: '2026-07-01', gender_identity: 'woman', ...(p ? { notification_prefs: p } : {}) };
+    Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
+    sessionStorage.setItem('rb_onboard_piece', JSON.stringify({ prompt: 'Acid green cropped jumper', photo: null, cataloged: true }));
+    sessionStorage.setItem('rb_onboard_styled', JSON.stringify({ prompt: 'Acid green cropped jumper', ts: Date.now(),
+      data: { ways: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }], generatedImages: [], jobId: 'job-1', fallback: false, photoUrl: null } }));
+  }, prefs);
+  await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const q = await page.evaluate(() => {
+    window.__rbAcctEmailsSync();
+    return { card: !!document.getElementById('rb-styled'), ask: !!document.getElementById('rb-styled-mail'), emails: document.getElementById('acct-emails')?.style.display };
+  });
+  if (prefs) check('email ask · never renders for someone who already said yes', q.card && q.ask === false && q.emails !== 'none', JSON.stringify(q));
+  else check('email · migration 22 not run: no ask, the Emails section stands down', q.card && q.ask === false && q.emails === 'none', JSON.stringify(q));
   await ctx.close();
 }
 

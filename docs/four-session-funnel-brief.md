@@ -243,6 +243,8 @@ Off the live first-look home (one key piece, one look, four pieces): fourteen do
 
 ## Slice 6 · The re-engagement channel
 
+> **As built (2026-09-21)**: 6.1–6.6 whole, on Resend over REST (`notify.js` + migration 22 + `scripts/notify_smoke.mjs` 38/38). Two things stay Annie's: verify `byrobes.com` in Resend and set `RESEND_API_KEY` / `EMAIL_FROM` / `NOTIFY_SECRET` on Railway, and run migration 22 — until both, the ask stands down and nothing sends. One deviation: `looks_ready` only ever mails a key piece created in the last 48h (a first deploy must not mail every old key piece). Consent scope built as 6.3 reads (open decision 4). The full delta is in CLAUDE.md under 2026-09-21.
+
 **Why**: verified across server and every page — no product email, no push, no service worker, no A2HS nudge, no time-aware home state. A four-session funnel with one session of pull. This is the one genuine build in the brief.
 
 ### 6.1 Provider and plumbing (server)

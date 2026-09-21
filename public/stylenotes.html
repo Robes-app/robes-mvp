@@ -1313,6 +1313,19 @@
     // and the dashboard restores it onto the rack — so the pill reads
     // "Back to your look" and lands where she left off.
     let mvReturnTo = null, mvDraftParked = false;
+    // The look_waiting email (funnel slice 6) lands here with ?from=email:
+    // the plain page, ‹ Home, and filing lands her on the look, dressed —
+    // exactly the home door's 'home' return, so set it on land.
+    try {
+      const _u = new URL(window.location.href);
+      if (_u.searchParams.get('from') === 'email') {
+        sessionStorage.removeItem('rb_lk_draft');
+        sessionStorage.setItem('rb_model_return', 'home');
+        _u.searchParams.delete('from');
+        history.replaceState(null, '', _u.pathname + (_u.search || '') + _u.hash);
+        if (window.__rbPH) window.__rbPH(function (p) { p.register({ from_email: true }); p.capture('email_landed', { path: '/stylenotes' }); });
+      }
+    } catch (e) {}
     try {
       mvReturnTo = sessionStorage.getItem('rb_model_return');
       mvDraftParked = !!sessionStorage.getItem('rb_lk_draft');

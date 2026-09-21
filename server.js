@@ -8,6 +8,7 @@ import { readFileSync } from 'fs';
 import { GoogleGenAI } from '@google/genai';
 import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock } from './style_dna.js';
 import { TAXONOMY_GROUPS, resolveTaxonomy, taxonomyPromptBlock, tagDefaultRows, WEAR_SEEDS } from './wardrobe_taxonomy.js';
+import { createNotifier } from './notify.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -157,6 +158,35 @@ if (SUPA_SERVICE_KEY) {
   console.log('generation_log: SUPABASE_SERVICE_ROLE_KEY not set — LLM call trail disabled');
 }
 
+/* ── the re-engagement channel — email (funnel slice 6, migration 22) ──
+   Resend over REST, the sequence + the morning cue in notify.js. Absent
+   RESEND_API_KEY (or the service key) → every send is a silent no-op and
+   /api/health reports email: false — the generation_log pattern.
+   NOTIFY_SECRET signs the one-click unsub tokens (falls back to the
+   Resend key so a missing var never mails an unsignable link).
+   NOTIFY_TICK=off disables the scheduler on one service when beta and
+   production ever both point at the shared project — the ledger already
+   stops a double send, this only stops the double query. */
+const notifier = createNotifier({
+  supaUrl: SUPA_URL, serviceKey: SUPA_SERVICE_KEY,
+  resendKey: process.env.RESEND_API_KEY || '',
+  from: process.env.EMAIL_FROM || 'Robes <hello@byrobes.com>',
+  publicUrl: process.env.PUBLIC_URL || 'https://www.byrobes.com',
+  secret: process.env.NOTIFY_SECRET || process.env.RESEND_API_KEY || '',
+  env: APP_ENV,
+  resendUrl: process.env.RESEND_API_URL || 'https://api.resend.com/emails',
+});
+if (notifier.on && process.env.NOTIFY_TICK !== 'off') {
+  const tick = () => notifier.notifyTick().then((r) => {
+    if (r.error) console.warn('[notify] tick:', r.error);
+    else if (r.sent.length) console.log('[notify] tick: sent', r.sent.length, 'of', r.considered, 'considered');
+  });
+  setTimeout(tick, 60 * 1000);
+  setInterval(tick, 10 * 60 * 1000);
+} else {
+  console.log('email: ' + (notifier.on ? 'scheduler off (NOTIFY_TICK=off)' : 'RESEND_API_KEY / SUPABASE_SERVICE_ROLE_KEY not set — re-engagement mail disabled'));
+}
+
 /* ── Airtable ────────────────────────────────────────────────────── */
 const AT_TOKEN = process.env.AIRTABLE_TOKEN;
 const AT_BASE  = process.env.AIRTABLE_BASE_ID;
@@ -247,8 +277,34 @@ app.get('/api/health', (req, res) => {
     cloudinary: !!process.env.CLOUDINARY_API_KEY,
     supabase: !!process.env.SUPABASE_ANON_KEY,
     generation_log: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    email: notifier.on,
   });
 });
+
+/* ── unsubscribe — one link, one pref, no login ──────────────────── */
+// GET is the footer link (lands on a one-line page); POST is the mail
+// client's one-click List-Unsubscribe. The token names ONE pref key
+// (looks_ready | nudges | morning) — that key flips off, nothing else.
+const UNSUB_PAGE = (title, line) => `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEsc(title)} — Robes</title>
+<style>body{margin:0;background:#FAF8F5;color:#202021;font-family:Inter,Helvetica,Arial,sans-serif;font-weight:300}.w{max-width:520px;margin:0 auto;padding:72px 24px}.l{font-family:Cormorant,Georgia,serif;font-size:15px;letter-spacing:.28em;text-transform:uppercase;text-decoration:none;color:#202021}h1{font-family:Cormorant,Georgia,serif;font-weight:300;font-size:30px;margin:40px 0 10px}p{font-size:14px;line-height:1.7;color:#4A463F}a{color:#202021}</style></head>
+<body><div class="w"><a class="l" href="/">Robes</a><h1>${htmlEsc(line)}</h1><p>${title === 'Done' ? 'You can turn any of these back on under Account details in the app.' : 'That link has expired or was already used. The Emails section under Account details has the same switches.'}</p><p><a href="/dashboard">Back to Robes</a></p></div></body></html>`;
+async function unsubHandler(req, res) {
+  const tok = notifier.verifyUnsub(req.query && req.query.t);
+  if (!tok) return res.status(400).type('html').send(UNSUB_PAGE('Not quite', 'That link didn’t work.'));
+  const ok = await notifier.applyUnsub(tok.uid, tok.key);
+  if (!ok) return res.status(400).type('html').send(UNSUB_PAGE('Not quite', 'That link didn’t work.'));
+  res.type('html').send(UNSUB_PAGE('Done', 'Done — Robes won’t email you about this.'));
+}
+app.get('/api/notify/unsub', rateLimit({ windowMs: 60_000, max: 30 }), unsubHandler);
+app.post('/api/notify/unsub', rateLimit({ windowMs: 60_000, max: 30 }), unsubHandler);
+// The smoke's door: run one tick at a given instant. Only ever mounted
+// under NOTIFY_DEBUG=1 — never on a deployed service.
+if (process.env.NOTIFY_DEBUG === '1') {
+  app.post('/api/notify/tick', async (req, res) => {
+    const now = req.body && req.body.now ? new Date(req.body.now) : new Date();
+    res.json(await notifier.notifyTick(isNaN(now) ? new Date() : now));
+  });
+}
 
 app.post('/api/waitlist', async (req, res) => {
   const { email, name } = req.body;

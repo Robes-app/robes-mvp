@@ -333,7 +333,7 @@
     const evQuery = sbClient.from('events').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(100);
     let glQuery = sbClient.from('generation_log').select('id,endpoint,model,status,latency_ms,tokens_used,environment,created_at,detail').eq('user_id', uid).order('created_at', { ascending: false }).limit(300);
     if (env !== 'all') glQuery = glQuery.eq('environment', env);
-    const [ov, prof, wardrobe, wishlist, lookbook, fb, events, gens] = await Promise.all([
+    const [ov, prof, wardrobe, wishlist, lookbook, fb, events, gens, mails] = await Promise.all([
       sbClient.rpc('admin_user_overview', { p_limit: 1, p_offset: 0, p_user: uid }),
       sbClient.from('profiles').select('*').eq('id', uid).single(),
       sbClient.from('wardrobe_items').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(200),
@@ -342,6 +342,7 @@
       sbClient.from('feedback').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(100),
       env === 'all' ? evQuery : evQuery.eq('environment', env),
       glQuery,
+      sbClient.from('notifications').select('kind,ref,sent_at').eq('user_id', uid).order('sent_at', { ascending: false }).limit(100),
     ]);
     const o = (ov.data && ov.data[0]) || {};
     const p = prof.data || {};
@@ -379,6 +380,13 @@
         : evRows.length ? '<ul class="tl">' + evRows.map((e, i) =>
             '<li' + xtra(i, ACT_SHOW) + '><span class="t">' + fmtDT(e.created_at) + '</span><span><span class="chip">' + esc(e.event_type) + '</span> <span class="m">' + esc(metaLine(e.metadata)) + '</span></span></li>').join('') + '</ul>' + moreRow(evRows.length, ACT_SHOW, 'actions')
         : '<div class="empty">No tracked actions yet.</div>') + '</div></div>';
+    // emails — the notifications ledger (slice 6): kind · sent_at · ref
+    const mRows = mails.data || [];
+    html += '<div class="sec"><div class="sec-h"><h2>Emails</h2><span class="cnt">' + mRows.length + '</span></div><div class="card">' +
+      (mails.error ? '<div class="err">notifications table unavailable — run migration 22</div>'
+        : mRows.length ? '<ul class="tl">' + mRows.map((m, i) =>
+            '<li' + xtra(i, ACT_SHOW) + '><span class="t">' + fmtDT(m.sent_at) + '</span><span><span class="chip">' + esc(m.kind) + '</span> <span class="m dim">' + esc(m.ref || '') + '</span></span></li>').join('') + '</ul>' + moreRow(mRows.length, ACT_SHOW, 'emails')
+        : '<div class="empty">No emails sent yet.</div>') + '</div></div>';
     html += '</div><div>';
     // wardrobe
     const wRows = wardrobe.data || [];
@@ -611,8 +619,25 @@
           '<td class="dim">' + (f.user_id ? '<a href="#user/' + esc(f.user_id) + '" onclick="event.stopPropagation()">' + esc(f.user_id.slice(0, 8)) + '…</a>' : '—') + '</td>' +
           '<td class="dim">' + esc((f.detail && f.detail.error) || '') + '</td></tr>').join('') + '</tbody></table>'
       : '<div class="empty">Everything green — no failed calls in the window.</div>') + '</div></div>';
-    body.innerHTML = html;
+    body.innerHTML = html + '<div id="h-mail"></div>';
     body.querySelectorAll('tr.row').forEach(tr => tr.onclick = () => inspectGen(tr.dataset.id));
+    renderMailHealth(since);
+  }
+  // Emails · last 7 days — one row per kind from the notifications ledger
+  // (slice 6). No environment filter: the ledger is per user, not per
+  // service, which is what stops beta and production mailing twice.
+  async function renderMailHealth(since) {
+    const host = document.getElementById('h-mail');
+    if (!host) return;
+    const { data, error } = await sbClient.from('notifications').select('user_id,kind,sent_at').gte('sent_at', since).order('sent_at', { ascending: false }).limit(2000);
+    if (error) { host.innerHTML = '<div class="sec"><div class="sec-h"><h2>Emails</h2></div><div class="card"><div class="err">notifications unavailable — run migration 22. (' + esc(error.message) + ')</div></div></div>'; return; }
+    const rows = data || [];
+    const agg = {};
+    rows.forEach(r => { const a = agg[r.kind] || (agg[r.kind] = { n: 0, users: new Set(), last: null }); a.n++; a.users.add(r.user_id); if (!a.last || r.sent_at > a.last) a.last = r.sent_at; });
+    host.innerHTML = '<div class="sec"><div class="sec-h"><h2>Emails</h2><span class="cnt">' + rows.length + ' sent · last 7 days</span></div><div class="card">' +
+      (rows.length ? '<table><thead><tr><th>Kind</th><th>Sent</th><th>People</th><th>Last</th></tr></thead><tbody>' +
+        Object.keys(agg).sort((a, b) => agg[b].n - agg[a].n).map(k => '<tr><td>' + esc(k) + '</td><td class="num">' + agg[k].n + '</td><td class="num">' + agg[k].users.size + '</td><td class="nowrap dim">' + fmtDT(agg[k].last) + '</td></tr>').join('') + '</tbody></table>'
+      : '<div class="empty">No emails in the window.<div class="note">Sending needs migration 22 run in Supabase AND <code>RESEND_API_KEY</code> set on the Railway service (check <code>/api/health</code> → <code>email: true</code>).</div></div>') + '</div></div>';
   }
   async function inspectGen(id) {
     const { data, error } = await sbClient.from('generation_log').select('*').eq('id', id).single();

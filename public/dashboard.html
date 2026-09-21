@@ -2614,8 +2614,17 @@ worn three ways</div>
     window.__robes_profile = {};
     if (_sess2.user) {
       let { data: _profile, error: _pErr } = await _sb.from('profiles')
-        .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description, style_dna, wardrobe_items_count, onboarded_at, gender_identity')
+        .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description, style_dna, wardrobe_items_count, onboarded_at, gender_identity, notification_prefs')
         .eq('id', _sess2.user.id).single();
+      if (_pErr) {
+        // notifications_migration.sql (22) not run yet — retry without the
+        // prefs column; its absence on the profile is what stands the
+        // email ask + the Emails switches down client-side.
+        const nRetry = await _sb.from('profiles')
+          .select('first_name, last_name, mobile, style_icons, budget, wardrobe_description, style_dna, wardrobe_items_count, onboarded_at, gender_identity')
+          .eq('id', _sess2.user.id).single();
+        if (nRetry.data) { _profile = nRetry.data; _pErr = null; }
+      }
       if (_pErr) {
         // gender_identity_migration.sql not run yet — retry without it
         // (missing column defaults to 'woman' everywhere it's read)

@@ -69,7 +69,11 @@
         const acctBtn = document.createElement('button');
         acctBtn.className = 'av-item';
         acctBtn.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path></svg>Account details';
-        acctBtn.onclick = () => { document.getElementById('av-menu').classList.remove('open'); document.getElementById('acct-modal').style.display = 'flex'; };
+        acctBtn.onclick = () => {
+          document.getElementById('av-menu').classList.remove('open');
+          if (window.__rbAcctEmailsSync) window.__rbAcctEmailsSync();
+          document.getElementById('acct-modal').style.display = 'flex';
+        };
         avMenu.insertBefore(acctBtn, firstBtn);
       }
 
@@ -98,12 +102,35 @@
             <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">Mobile number</span>
             <input id="acct-mobile" type="tel" value="${_acctEsc(prof.mobile)}" placeholder="+353..." style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:var(--rad-sm);padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
           </label>
-          <p style="font-size:12px;color:#6E6A64;margin:0 0 28px;line-height:1.5">How you identify now lives with your model — <a href="/stylenotes" style="color:#8E6A7C;text-decoration:underline">Style notes</a>.</p>
+          <p style="font-size:12px;color:#6E6A64;margin:0 0 20px;line-height:1.5">How you identify now lives with your model — <a href="/stylenotes" style="color:#8E6A7C;text-decoration:underline">Style notes</a>.</p>
+          <div id="acct-emails" style="margin:0 0 26px;padding-top:18px;border-top:0.5px solid rgba(32,32,33,0.10)">
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:10px">Emails</div>
+            <label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:#202021;margin-bottom:9px;cursor:pointer"><input type="checkbox" id="acct-em-ready" style="width:16px;height:16px;margin:0;accent-color:#202021">When my looks are ready</label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:#202021;margin-bottom:9px;cursor:pointer"><input type="checkbox" id="acct-em-nudges" style="width:16px;height:16px;margin:0;accent-color:#202021">Notes from Robes</label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:#202021;flex-wrap:wrap;cursor:pointer"><input type="checkbox" id="acct-em-morning" style="width:16px;height:16px;margin:0;accent-color:#202021">A morning line on days I’ve planned
+              <span style="display:inline-flex;align-items:center;gap:6px;color:#6E6A64;font-size:12.5px">at <select id="acct-em-hour" style="height:30px;border:1px solid rgba(32,32,33,0.12);border-radius:var(--rad-sm);background:#fff;color:#202021;font-size:13px;padding:0 6px">${[6, 7, 8, 9, 10].map(h => '<option value="' + h + '">' + h + ':00</option>').join('')}</select></span></label>
+          </div>
           <button onclick="window.__saveAcctDetails()" style="width:100%;height:48px;background:#202021;color:#fff;border:none;border-radius:var(--rad-sm);font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;font-weight:500">Save changes</button>
         </div>`;
       document.body.appendChild(acctModal);
       acctModal.addEventListener('click', (e) => { if (e.target === acctModal) acctModal.style.display = 'none'; });
 
+      // The Emails switches read the profile's prefs on every open (the
+      // styled card's ask may have flipped them since boot). Missing keys
+      // read as the brief's defaults: looks_ready true, nudges off (not
+      // asked), morning off. The section stands down until migration 22.
+      window.__rbAcctEmailsSync = function() {
+        const sec = document.getElementById('acct-emails');
+        if (!sec) return;
+        if (typeof _rbNotifyDown !== 'undefined' && _rbNotifyDown) { sec.style.display = 'none'; return; }
+        sec.style.display = '';
+        const p = (typeof _rbNotifyPrefs === 'function') ? _rbNotifyPrefs() : {};
+        document.getElementById('acct-em-ready').checked = p.looks_ready !== false;
+        document.getElementById('acct-em-nudges').checked = p.nudges === true;
+        document.getElementById('acct-em-morning').checked = p.morning === true;
+        const hour = Math.min(10, Math.max(6, Number(p.morning_hour) || 7));
+        document.getElementById('acct-em-hour').value = String(hour);
+      };
       // "How do you identify?" moved OUT of this modal onto the Style notes
       // model page (2026-09-01) — presence belongs with the model it shapes.
       // The modal keeps a quiet pointer; _rbGender() stays the one reader.
@@ -131,6 +158,20 @@
           };
           const res = await patch(fields);
           if (res.ok) {
+            // The Emails switches ride their own merge-write (a separate
+            // PATCH: the names must save even where migration 22 hasn't run).
+            const sec = document.getElementById('acct-emails');
+            if (sec && sec.style.display !== 'none' && typeof _rbNotifyPatch === 'function' && !_rbNotifyDown) {
+              const before = _rbNotifyPrefs();
+              const next = {
+                looks_ready: document.getElementById('acct-em-ready').checked,
+                nudges: document.getElementById('acct-em-nudges').checked,
+                morning: document.getElementById('acct-em-morning').checked,
+                morning_hour: Number(document.getElementById('acct-em-hour').value) || 7,
+              };
+              ['looks_ready', 'nudges', 'morning'].forEach(k => { if (next[k] && before[k] !== true) _rbTrack('email_optin', { kind: k }); });
+              _rbNotifyPatch(next);
+            }
             msgEl.style.color = '#7E7C5A';
             msgEl.textContent = 'Saved.';
             setTimeout(() => { msgEl.textContent = ''; acctModal.style.display = 'none'; }, 900);
@@ -651,6 +692,70 @@
         } catch (_) {}
       }
       window._rbTrack = _rbTrack;
+
+      // ── Email preferences (funnel slice 6, migration 22) ────────────────
+      // profiles.notification_prefs is ONE jsonb: {looks_ready, nudges,
+      // morning, morning_hour, timezone}. A jsonb PATCH replaces the column,
+      // so every write merges over the profile's copy. The column missing
+      // from the boot select (migration not run) stands the whole slice
+      // down client-side — no ask, no Emails section, no timezone write.
+      var _rbNotifyDown = !(window.__robes_profile && window.__robes_profile.notification_prefs
+        && typeof window.__robes_profile.notification_prefs === 'object');
+      function _rbNotifyPrefs() {
+        const p = window.__robes_profile && window.__robes_profile.notification_prefs;
+        return p && typeof p === 'object' ? p : {};
+      }
+      // Writes are serialised: each merges over the previous write's result,
+      // so the boot's timezone write and the ask's tap can never replace
+      // each other's keys however they interleave.
+      var _rbNotifyChain = Promise.resolve();
+      function _rbNotifyPatch(partial) {
+        const run = () => {
+          if (_rbNotifyDown) return false;
+          const uid = _waUid();
+          if (!uid || !_waToken()) return false;
+          const merged = Object.assign({}, _rbNotifyPrefs(), partial || {});
+          return _waFetch('PATCH', 'profiles?id=eq.' + uid, { notification_prefs: merged })
+            .then(() => { if (window.__robes_profile) window.__robes_profile.notification_prefs = merged; return true; })
+            .catch((e) => {
+              if (/notification_prefs|PGRST204/i.test(String(e && e.message || e))) _rbNotifyDown = true;
+              console.warn('[robes] notification_prefs write failed:', String(e && e.message || e).slice(0, 120));
+              return false;
+            });
+        };
+        const p = _rbNotifyChain.then(run, run);
+        _rbNotifyChain = p.then(() => {}, () => {});
+        return p;
+      }
+      window._rbNotifyPrefs = _rbNotifyPrefs;
+      window._rbNotifyPatch = _rbNotifyPatch;
+      // Her timezone, written once when empty — the morning cue compares
+      // against HER clock, and the server has no other way to learn it.
+      (function _rbNotifyTzInit() {
+        let tries = 0;
+        const t = setInterval(() => {
+          if (_rbNotifyDown) { clearInterval(t); return; }
+          if (!_waUid() || !_waToken()) { if (++tries > 80) clearInterval(t); return; }
+          clearInterval(t);
+          if (_rbNotifyPrefs().timezone) return;
+          let tz = null;
+          try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (_) {}
+          if (tz) _rbNotifyPatch({ timezone: tz });
+        }, 250);
+      })();
+      // A mail's deep link carries ?from=email — captured once on land as a
+      // PostHog super property + one event (no pixels in the mail itself),
+      // then stripped so it never rides a later push.
+      (function _rbEmailLand() {
+        try {
+          const u = new URL(window.location.href);
+          if (u.searchParams.get('from') !== 'email') return;
+          u.searchParams.delete('from');
+          history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);
+          if (window.__rbPH) window.__rbPH(function (p) { p.register({ from_email: true }); });
+          _rbTrack('email_landed', { path: u.pathname });
+        } catch (_) {}
+      })();
       function _rbFbCloud(track, itemId, rating, note) {
         try {
           const uid = _waUid();
@@ -4492,7 +4597,22 @@
         setTimeout(() => window.__rbDiaryOpen && window.__rbDiaryOpen(), 400);
       }
       if (window.location.pathname === '/inspiration') {
-        setTimeout(() => window.__rbInspOpen && window.__rbInspOpen(), 400);
+        // /inspiration?open=<id> (slice 6): the looks_ready email lands on
+        // its key piece — open the index, then the entry once the cloud
+        // pull has it.
+        let inspOpen = null;
+        try { inspOpen = new URL(window.location.href).searchParams.get('open'); } catch (_) {}
+        setTimeout(() => {
+          window.__rbInspOpen && window.__rbInspOpen();
+          if (!inspOpen) return;
+          let tries = 0;
+          const tick = () => {
+            const it = snLoad().find(i => String(i.id) === String(inspOpen));
+            if (it && window.__snOpenItem) { window.__snOpenItem(it.id); return; }
+            if (++tries < 40) setTimeout(tick, 300);
+          };
+          tick();
+        }, 400);
       }
       if (window.location.pathname === '/wishlist' && window.App && App.showWardrobe) {
         // Wishlist nests under the wardrobe panel — open it, then switch view
@@ -4521,11 +4641,22 @@
         // /lookbook?open=<id>[&fill=1] (slice 4): open that look once the
         // looks land, briefed into the add flow when fill is set — slice
         // 6's "borrowing" email lands here.
-        let openId = null, fill = false;
-        try { const u = new URL(window.location.href); openId = u.searchParams.get('open'); fill = u.searchParams.get('fill') === '1'; } catch (_) {}
+        // /lookbook?new=1&robes=1 (slice 6): the `five` email lands in the
+        // composer with the Robes build armed — the next line's own door.
+        let openId = null, fill = false, newRobes = false;
+        try { const u = new URL(window.location.href); openId = u.searchParams.get('open'); fill = u.searchParams.get('fill') === '1'; newRobes = u.searchParams.get('new') === '1' && u.searchParams.get('robes') === '1'; } catch (_) {}
         setTimeout(() => {
           window.__snOpen && window.__snOpen();
           if (_lkDraftBack && window.__lkDraftRestore) window.__lkDraftRestore(_lkDraftBack, 'lookbook');
+          if (newRobes && !_lkDraftBack) {
+            let tries = 0;
+            const tick = () => {
+              if (_lkLoaded && _waLoaded && window.__lkNew && window.__lkRobesBuild) { window.__lkNew(); window.__lkRobesBuild({ door: 'email' }); return; }
+              if (++tries < 40) setTimeout(tick, 300);
+            };
+            tick();
+            return;
+          }
           if (!openId) return;
           let tries = 0;
           const tick = () => {
@@ -26545,6 +26676,37 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             '</div>';
         }
 
+        // The Session-1 ask (funnel slice 6): the frames take 30–90s and she
+        // may leave — under the loading tiles, one line and one text door.
+        // The tap is ONE consent for the looks-ready mail AND the sequence
+        // (the sub-line says so); the line retires with the loading state.
+        // Nothing renders when she has already said yes, or before
+        // migration 22 has run.
+        let mailAskDone = false;
+        function mailAskHtml() {
+          if (mailAskDone || (typeof _rbNotifyDown !== 'undefined' && _rbNotifyDown)) return '';
+          if (typeof _rbNotifyPrefs === 'function' && _rbNotifyPrefs().nudges === true) return '';
+          return '<div id="rb-styled-mail" style="margin-top:16px;padding-top:14px;border-top:0.5px solid rgba(32,32,33,0.10);font-size:12.5px;color:#6E6A64;line-height:1.5">' +
+            'Robes is composing your three looks. <button type="button" id="rb-styled-mail-btn" onclick="window.__rbMailAsk()" style="background:none;border:none;border-bottom:1px solid #202021;padding:0 0 1px;margin:0;font:inherit;font-weight:500;color:#202021;cursor:pointer">Email me when they’re ready →</button>' +
+            '<div style="font-size:11.5px;color:var(--ink-faint);margin-top:3px">and the odd note when your wardrobe’s ready for more</div></div>';
+        }
+        window.__rbMailAsk = function() {
+          const el = document.getElementById('rb-styled-mail');
+          if (!el || typeof _rbNotifyPatch !== 'function') return;
+          const btn = document.getElementById('rb-styled-mail-btn');
+          if (btn) btn.disabled = true;
+          _rbNotifyPatch({ looks_ready: true, nudges: true }).then(function(ok) {
+            if (!ok) { el.remove(); return; }
+            el.innerHTML = '✓ Robes will email you.';
+            _rbTrack('email_optin', { kind: 'looks_ready' });
+          });
+        };
+        function mailAskRetire() {
+          mailAskDone = true;
+          const el = document.getElementById('rb-styled-mail');
+          if (el) el.remove();
+        }
+
         function paintLoading() {
           const tiles = [0, 1, 2].map(() =>
             '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);background:#EDE9E2;animation:rbStyPulse 1.8s ease-in-out infinite"></div>'
@@ -26552,7 +26714,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           card.innerHTML = shell(
             'Styling your ' + _waEsc(pieceName.toLowerCase()) + '<em>…</em>',
             'Three editorial looks are composing — they’ll appear right here.',
-            tiles, '');
+            tiles, '', mailAskHtml());
           mount();
         }
 
@@ -26611,8 +26773,11 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const nudge = nCat >= _WA_TARGET
             ? 'Your wardrobe’s there — Robes now styles you head to toe from what you own.'
             : (nCat === 1 ? 'One piece' : nCat + ' pieces') + ' filed. Every look borrows the rest until you photograph your own.';
+          const allIn = imgs.filter(s => typeof s === 'string' && s.indexOf('http') === 0).length >= 3;
+          if (allIn || !pending) mailAskDone = true;
           const footer =
-            '<div id="rb-styled-foot" style="margin-top:18px;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.10);font-size:12.5px;color:#6E6A64;line-height:1.4">' + nudge + '</div>';
+            '<div id="rb-styled-foot" style="margin-top:18px;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.10);font-size:12.5px;color:#6E6A64;line-height:1.4">' + nudge + '</div>' +
+            mailAskHtml();
           card.innerHTML = shell(
             'Your ' + _waEsc(pieceName.toLowerCase()) + ', <em>worn three ways.</em>',
             'Three complete looks, built and waiting.',
@@ -26672,6 +26837,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
               const wrap = document.getElementById('rb-styled-img-' + i);
               if (wrap) wrap.style.animation = 'none';
             });
+            mailAskRetire();
           }
         }
 
