@@ -3584,6 +3584,79 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await ctx.close();
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Slice 3.1 (2026-09-21): the Robes-builds door in the composer — a
+// hairline pill beside Save from FIVE photographed pieces, worded for the
+// model on file; below the rung nothing renders anywhere. The tap fills the
+// same rack (nothing saved), and the saved build carries source
+// 'robes-build' — the next line's robes rule reads it.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs } = await boot(browser, { pics: 4, seed: false });
+  const under = await page.evaluate(() => {
+    window.__lkNew();
+    return { composer: !!document.querySelector('.rb-lk-composer'), door: document.querySelector('.rb-lk-robesdoor')?.textContent ?? null };
+  });
+  check('robes door · four photographed pieces → no door in the composer', under.composer && under.door === null, JSON.stringify(under));
+  check('robes door · no page errors (under)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+{
+  const { ctx, page, errs, writes } = await boot(browser, {
+    pics: 5, seed: false, avatar: 'w-s5-h2-hg',
+    pre: async (page) => {
+      await page.route('**/api/avatar/cell', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/cell.jpg' }) }));
+      await page.route('**/api/avatar/render', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'rj-rb' }) }));
+      await page.route('**/api/images/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [], done: false }) }));
+      await page.route('**/api/alternates', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ alternates: [{ name: 'A found piece', brand: 'Robes', retailer_hint: 'Net-a-Porter', price_point: '€90', how: 'Worn open.' }, { name: 'Another', brand: 'Robes', retailer_hint: 'ASOS', price_point: '€40', how: 'Tucked.' }] }) }));
+      await page.route('**/api/lookbuild/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: null, note: 'A quiet build.', look_tags: null, palette: [] }) }));
+      await page.route('**img.test/**', (r) => r.abort());
+    },
+  });
+  const at = await page.evaluate(() => {
+    window.__lkNew();
+    const d = document.querySelector('.rb-lk-robesdoor');
+    return {
+      door: d?.textContent ?? null,
+      pill: !!d && d.classList.contains('rb-pill') && getComputedStyle(d).backgroundColor !== 'rgb(32, 32, 33)',
+      inSaveRow: !!d && !!d.closest('.rb-lk-saverow'),
+      inks: Array.from(document.querySelectorAll('.rb-lk-composer button, .rb-lk-saverow button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
+    };
+  });
+  check('robes door · five photographed pieces + a model → the pill beside Save, "Robes dresses her from what you’ve filed", hairline',
+    at.door === 'Robes dresses her from what you’ve filed' && at.pill && at.inSaveRow, JSON.stringify(at));
+  const built = await page.evaluate(async () => {
+    document.querySelector('.rb-lk-robesdoor').click();
+    await new Promise((r) => setTimeout(r, 2200));
+    return {
+      built: !!document.querySelector('.rb-lk-saverow.built'),
+      pieces: document.querySelectorAll('.rbc-rack .rbc-name').length,
+      door: !!document.querySelector('.rb-lk-robesdoor'),
+      name: document.getElementById('rb-lk-newtitle')?.value || '',
+    };
+  });
+  check('robes door · the tap fills the same rack (a build stands, the door retires)', built.built && built.pieces >= 2 && !built.door, JSON.stringify(built));
+  check('robes door · nothing written until she saves', !writes.some((w) => w.method === 'POST' && /^looks\b/.test(w.url)), JSON.stringify(writes.filter((w) => /^looks\b/.test(w.url)).length));
+  await page.evaluate(async () => {
+    const inp = document.getElementById('rb-lk-newtitle');
+    inp.value = 'Built by Robes'; inp.dispatchEvent(new Event('input', { bubbles: true }));
+    window.__lkSave();
+    await new Promise((r) => setTimeout(r, 900));
+  });
+  const post = writes.find((w) => w.method === 'POST' && /^looks\b/.test(w.url));
+  check('robes door · the saved build carries source robes-build', !!post && post.body?.source === 'robes-build' && post.body?.name === 'Built by Robes', JSON.stringify(post && post.body && [post.body.source, post.body.name]));
+  check('robes door · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+{
+  // No model on file → the door's other wording.
+  const { ctx, page, errs } = await boot(browser, { pics: 5, seed: false, pre: async (page) => { await page.route('**/api/avatar/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })); } });
+  const nm = await page.evaluate(() => { window.__lkNew(); return document.querySelector('.rb-lk-robesdoor')?.textContent ?? null; });
+  check('robes door · no model → "Robes builds one from what you’ve filed"', nm === 'Robes builds one from what you’ve filed', String(nm));
+  check('robes door · no page errors (no model)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
 await browser.close();
 
 server.kill();

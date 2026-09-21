@@ -788,6 +788,12 @@
       // What Robes does from each count, as the clause of a sentence —
       // the headline and the concierge card captions read it.
       const _MS_DOES = { daily: 'builds a daily look', weekly: 'plans a week of outfits', styleNotes: 'knows your taste' };
+      // Robes builds a look from HER pieces from the first rung (funnel
+      // slice 3.1, 2026-09-21) — one ladder, so the door, the next line and
+      // the five-piece toast all read the same number. Counted on
+      // PHOTOGRAPHED pieces: Robes never hangs a piece it has not seen.
+      const _LK_ROBES_AT = _MS_UNLOCKS[0].at;
+      function _lkRobesPics() { return (_waItems || []).filter(w => w && _pdHttp(w.image_url)).length; }
       function _msUnlocked(key, n) {
         const u = _MS_UNLOCKS.find(x => x.key === key);
         return !!u && (n == null ? _waItems.length : n) >= u.at;
@@ -1091,6 +1097,9 @@
           const meta = head.querySelector('.sec-meta');
           if (meta) meta.remove();
           let learn = document.getElementById('rb-svc-learn');
+          // The meter stops at the last rung (3.3) — a ladder she has
+          // climbed has nothing left to say, whatever else keeps the band.
+          if (n >= _WA_TARGET) { if (learn) learn.remove(); return; }
           if (!learn) {
             learn = document.createElement('div');
             learn.id = 'rb-svc-learn';
@@ -1143,7 +1152,10 @@
         // home cut): its three cards are the prompt's three pills again,
         // its meter the look card's caption, its filed-row CTA the next
         // line. The band returns with the standard home.
-        const show = !document.getElementById('rb-styled') && !_rbConciergeDone() && _rbHomeMode !== 'look';
+        // 3.3 (2026-09-21): at the ladder's last rung the module has said
+        // everything it can — the band retires at fifteen filed pieces as
+        // it does once she has made one of each edit.
+        const show = !document.getElementById('rb-styled') && !_rbConciergeDone() && _rbHomeMode !== 'look' && n < _WA_TARGET;
         svc.style.display = show ? '' : 'none';
         if (show) {
           _rbConciergeSync(n);
@@ -2919,7 +2931,11 @@
               // first-session users back into a "style it 3 ways" loop
               // they hadn't asked for).
               const nNow = _waItems.length;
+              const picsNow = _lkRobesPics();
+              // The fifth photographed piece names what it just bought
+              // (funnel slice 3.1) — once, on the piece that crossed it.
               _waShowToast(nNow >= 15 ? 'Added to wardrobe'
+                : (picsNow === _LK_ROBES_AT && _pdHttp(imageUrl)) ? _msWord(_LK_ROBES_AT) + ' pieces filed. Robes can build a look from yours now.'
                 : 'Added — ' + nNow + (nNow === 1 ? ' piece' : ' pieces') + ' filed. Each one replaces a borrowed piece in your looks.');
             }
 
@@ -11159,6 +11175,7 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-dayrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px}
 .rb-lk-daychip{display:inline-flex;align-items:center;gap:6px;background:#F3EFE6;border:1px solid #C9BCA6;border-radius:100px;padding:6px 12px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink,#202021)}
 .rb-lk-saverow{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:22px;padding-top:18px;border-top:0.5px solid var(--rule)}
+.rb-lk-robesdoor{margin-left:auto}
 .rb-lk-save{margin:0;padding:15px 34px;border:none;border-radius:100px;background:var(--ink);color:#fff;font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:opacity .15s}
 .rb-lk-save:hover{opacity:.85}
 /* Withheld, not hidden — the door stays on screen so the two-piece floor
@@ -11289,6 +11306,7 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-stats{gap:20px}
 .rb-lk-composer,.rb-lk-held{padding:18px 16px 20px;border-radius:var(--rad-card)}
 .rb-lk-saverow{flex-direction:column;align-items:stretch;gap:15px;margin-top:20px}
+.rb-lk-robesdoor{margin-left:0;align-self:center}
 .rb-lk-save{width:100%;min-height:52px;order:-1}
 .rb-lk-savenote{text-align:center}
 .rb-lkm-note{text-align:left}
@@ -12117,7 +12135,7 @@ button.rb-lk-live{cursor:pointer}
         // adding her photograph on this page writes it (2026-09-18, the
         // camera fix), so a frame she has since replaced stops reading as
         // Robes' the moment it is replaced.
-        const dFrame = !!dPhoto && l.source !== 'manual' && (l.source === 'robes' || props.length > 0);
+        const dFrame = !!dPhoto && l.source !== 'manual' && l.source !== 'robes-build' && (l.source === 'robes' || props.length > 0);
         if (dFrame) _lkModelEnsure();
         const dSwitch = !!dPhoto && (!dFrame || !!_lkModel);
         // Her own photograph leads; ROBES' frame yields to her model the
@@ -13190,11 +13208,21 @@ button.rb-lk-live{cursor:pointer}
         const saveNote = '<div class="rb-lk-namenote rb-lk-savenote" id="rb-lk-namegate">' +
           (named ? 'Filed under ' + _waEsc(String(_lkNewTitleDraft).trim()) + '.' : 'Name your look and it is yours to keep.') +
           '</div>';
+        // The Robes-builds door (funnel slice 3.1, 2026-09-21): from five
+        // PHOTOGRAPHED pieces a hairline pill beside Save lets Robes fill
+        // the same rack from what she has filed — never on a build already
+        // standing, never on a kp / prompted draft (those are Robes' own),
+        // never below the rung (the 3 Sep call holds: the prompt is where
+        // Robes builds with more to go on). Copy follows the model on file.
+        const robesDoor = (!_lkBuilt && !kp && !_lkDraftSrc && _lkRobesPics() >= _LK_ROBES_AT)
+          ? '<button type="button" class="rb-pill rb-lk-robesdoor" onclick="window.__lkRobesBuild({door:\'composer\'})">' +
+              (_lkModel ? 'Robes dresses ' + _lkModelPro().her + ' from what you’ve filed' : 'Robes builds one from what you’ve filed') + '</button>'
+          : '';
         rackHtml += '<div class="rb-lk-saverow' + (_lkBuilt && !_lkBuilding ? ' built' : '') + '">' +
           saveNote +
           '<button type="button" class="rb-lk-save' + (named ? '' : ' unnamed') + '" onclick="window.__lkSaveAsk()"' +
             (canSave ? '' : ' disabled') + '>' + (_lkDay ? 'Save to ' + _waEsc(_lkDay.date ? _lkDayWeekday(_lkDay.date) : 'the trip') : 'Save this look') + '</button>' +
-          foot +
+          foot + robesDoor +
           '</div>';
         // A look Robes generated carries the feedback line under its foot
         // (design Look_Feedback 2a, 2026-09-17) — a prompted /api/daily
@@ -14190,7 +14218,8 @@ button.rb-lk-live{cursor:pointer}
       window.__lkRobesBuild = function(opts) {
         if (_lkBuilding) return;
         const mineOnly = !!(opts && opts.mineOnly);
-        _rbTrack('look_robes_door', { first: !_lkLooks.length, mineOnly });
+        // robes_build_opened {door, pics} supersedes look_robes_door (3.1).
+        _rbTrack('robes_build_opened', { door: (opts && opts.door) || 'again', pics: _lkRobesPics(), first: !_lkLooks.length, mineOnly });
         _lkBuilding = true;
         _lkBuilt = true;
         _lkBuildNote = null; _lkBuildPalette = [];
@@ -14410,7 +14439,7 @@ button.rb-lk-live{cursor:pointer}
       }
       window.__lkTryAnother = function() {
         if (_lkDraftSrc && typeof _lkDraftSrc.again === 'function') { const f = _lkDraftSrc.again; f(); return; }
-        window.__lkRobesBuild({ mineOnly: !!_lkBuildMine });
+        window.__lkRobesBuild({ mineOnly: !!_lkBuildMine, door: 'again' });
       };
       // Nothing is saved until she saves — and then everything is: the look,
       // plus any proposed piece she hasn't already kept, into the wishlist.
@@ -14427,7 +14456,7 @@ button.rb-lk-live{cursor:pointer}
         }
       };
       // The exit back to a wardrobe-only build — she can only wear what she owns.
-      window.__lkBuildMineOnly = function() { _lkBuildMine = true; window.__lkRobesBuild({ mineOnly: true }); };
+      window.__lkBuildMineOnly = function() { _lkBuildMine = true; window.__lkRobesBuild({ mineOnly: true, door: 'mine' }); };
       // ── The look, inline on home (FTUE step 3, 2026-08-12) ──────────────
       // At zero looks the builder itself sits on home: the rack replaces
       // both the learning card and the Lookbook row, so home never shows a
@@ -14834,8 +14863,9 @@ button.rb-lk-live{cursor:pointer}
       // read and painted into the masthead echo with a text door. First
       // matching rule wins; nothing matching leaves the standing question.
       // Never a filled button — the prompt's Style me stays the one ink fill.
-      // `five` and `robes` (Robes builds from yours at five pieces) arrive
-      // with slice 3 — a promise the page cannot keep yet is not made.
+      // `five` and `robes` (Robes builds from yours at five photographed
+      // pieces) landed with slice 3.1 (2026-09-21), between finish and the
+      // diary rules — the brief's order.
       var _rbNextKey = null;
       var _rbNextSlots = null;    // the rail's last painted slots (week / wear rules)
       var _rbNextDoor = null;
@@ -14872,6 +14902,18 @@ button.rb-lk-live{cursor:pointer}
         if (borrowing && pics < 5) {
           return { key: 'finish', text: nm(borrowing) + ' borrows ' + borrowing.proposals.length + ' pieces. Photograph yours and swap them in.',
             doorLabel: 'Swap pieces', door: 'finish', id: borrowing.id };
+        }
+        // Slice 3.1: below the rung the line counts the distance (a look
+        // exists, so the promise has somewhere to land); at the rung, until
+        // one build is saved, it opens the door.
+        if (looks.length && pics < _LK_ROBES_AT) {
+          const left = _LK_ROBES_AT - pics;
+          return { key: 'five', text: _msWord(left) + ' more piece' + (left === 1 ? '' : 's') + ' and Robes builds a look from yours alone.',
+            doorLabel: 'Add pieces', door: 'five' };
+        }
+        if (pics >= _LK_ROBES_AT && !looks.some(l => l.source === 'robes-build')) {
+          return { key: 'robes', text: _msWord(_LK_ROBES_AT) + ' pieces filed. Robes can build from yours now.',
+            doorLabel: 'Let Robes build one', door: 'robes' };
         }
         if (_rbNextSlots && looks.length) {
           const today = _pdLocalISO();
@@ -14918,6 +14960,13 @@ button.rb-lk-live{cursor:pointer}
         } else if (nx.door === 'finish') {
           if (window.__rbFillOpen) { window.__rbFillOpen(nx.id); return; }        // slice 4's door
           if (window.__lkCardOpen) window.__lkCardOpen(nx.id, 'home');
+        } else if (nx.door === 'five') {
+          _wtrkOpenAdd();
+        } else if (nx.door === 'robes') {
+          // The composer, filled by Robes — the same rack, nothing saved
+          // until she does.
+          if (window.__lkNew) window.__lkNew();
+          if (window.__lkRobesBuild) window.__lkRobesBuild({ door: 'next' });
         } else if (nx.door === 'week') {
           if (window.__rbDiaryOpen) window.__rbDiaryOpen();
         } else if (nx.door === 'wear') {
@@ -15426,7 +15475,9 @@ button.rb-lk-live{cursor:pointer}
       // look page's dFrame reads source, so nothing else moves.
       function _lkHerPhotoPatch(l, url) {
         const props = Array.isArray(l.proposals) ? l.proposals : [];
-        const wasFrame = l.source === 'robes' || props.length > 0;
+        // A Robes build keeps its source (the `robes` next line reads it;
+        // its photograph never reads as a frame anyway).
+        const wasFrame = l.source !== 'robes-build' && (l.source === 'robes' || props.length > 0);
         return wasFrame ? { photo_url: url, source: 'manual' } : { photo_url: url };
       }
       // The SAVED look's photograph door — the same one-way door on the
@@ -15544,7 +15595,10 @@ button.rb-lk-live{cursor:pointer}
             // 'robes' = the photograph is Robes' frame of the look (a kp
             // way, a daily anchor shot), not her own — the look page reads
             // the difference (the You / Model switch waits for a model).
-            source: (_lkPhoto && _lkPhoto.frame) ? 'robes' : 'manual',
+            // 'robes-build' = Robes filled the rack from her wardrobe (3.1,
+            // the door) — the next line's `robes` rule reads it; a prompted
+            // or kp draft keeps its frame rule.
+            source: (_lkBuilt && !_lkDraftSrc) ? 'robes-build' : (_lkPhoto && _lkPhoto.frame) ? 'robes' : 'manual',
             proposals: proposals,
             render_url: canvasUrl || null, render_key: canvasUrl ? canvasKey : null,
             // A Robes build carries its stylist note onto the saved look —

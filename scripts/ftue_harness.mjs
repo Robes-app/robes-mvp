@@ -40,12 +40,13 @@ window.supabase = {
   }
 };`;
 
+let WARDROBE_PICS = 0;   // the first N fixture pieces carry a photograph (slice 3.1 counts those)
 function wardrobe(n) {
   const cats = ['Tops', 'Bottoms', 'Shoes', 'Outerwear'];
   return Array.from({ length: n }, (_, i) => ({
     id: 'w' + i, user_id: 'u-test', label: 'Piece ' + (i + 1),
     category: cats[i % 4], color: 'Black', brand: '', notes: '',
-    image_url: null, times_worn: 0, item_dna: {}, hero_position: null,
+    image_url: i < WARDROBE_PICS ? 'https://img.test/w' + i + '.jpg' : null, times_worn: 0, item_dna: {}, hero_position: null,
     created_at: new Date().toISOString(),
   }));
 }
@@ -55,9 +56,11 @@ function wardrobe(n) {
 // exactly ONE look shows the O7 "Your looks" page (FTU simplification
 // 2026-08-18). Seed TWO saved looks by default so the milestone rules below
 // still have a card to assert against; pass looks:false for the zero state.
-async function boot(browser, n, width = 1280, { looks = true } = {}) {
+async function boot(browser, n, width = 1280, { looks = true, pics = 0 } = {}) {
+  WARDROBE_PICS = pics;
   const ctx = await browser.newContext({ viewport: { width, height: 1100 } });
   const page = await ctx.newPage();
+  await page.route('**img.test/**', (r) => r.abort());
 
   await page.route('**cdn.jsdelivr.net/**', (r) =>
     r.fulfill({ status: 200, contentType: 'application/javascript', body: SUPA_STUB }));
@@ -127,6 +130,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       order,
       trackerVisible: vis(document.getElementById('wtrk')),
       servicesVisible: vis(document.querySelector('.services')),
+      learnVisible: vis(document.getElementById('rb-svc-learn')),
+      cardsVisible: Array.from(document.querySelectorAll('.services-grid .svc')).filter(vis).length,
       styleNotes: !!document.getElementById('rb-sil-prompt'),
       // The merged header meter (2a): eyebrow + count + line + one caption
       learnEy: document.querySelector('#rb-svc-learn .ey')?.textContent || '',
@@ -179,8 +184,10 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   // Load rules (2026-08-19): the concierge stands from the FIRST session,
   // at any piece count — only "Your piece, styled" holding the screen
   // delays it, and none of these boots carries the styled card.
-  check(`n=${n} · concierge shown at every count (no piece floor)`,
-    state.servicesVisible === true);
+  // …and retires at the ladder's last rung (3.3, 2026-09-21): fifteen
+  // filed pieces and the band has said everything it can.
+  check(`n=${n} · concierge ${n < 15 ? 'shown (no piece floor)' : 'retired at fifteen'}`,
+    state.servicesVisible === (n < 15), String(state.servicesVisible));
   if (n === 0) {
     check('n=0 · the band paints with an empty receipt (CTA only, no thumb)',
       !!state.filed && state.filed.thumbs === 0 && state.filed.nm === ''
@@ -200,13 +207,19 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     const iCon = state.order.findIndex((x) => x === 'concierge');
     const iSvc = state.order.indexOf('services');
     const iSn = state.order.indexOf('rb-sn');
-    check(`n=${n} · prompt leads, concierge after the rail, before the Lookbook row`,
-      iCon >= 0 && iSvc > iCon && (iSn === -1 || iSvc < iSn), JSON.stringify(state.order));
+    check(`n=${n} · prompt leads, ${n < 15 ? 'concierge after the rail, before the Lookbook row' : 'no concierge on the page'}`,
+      iCon >= 0 && (n < 15 ? (iSvc > iCon && (iSn === -1 || iSvc < iSn)) : iSvc === -1), JSON.stringify(state.order));
   }
 
   // The merged header meter: bare count, no denominator, the one honest
   // reason to catalogue, and the fill still walks the milestone curve.
-  if (n >= 3) {
+  // (At fifteen the whole band is gone — nothing to read.)
+  if (n >= 15) {
+    check(`n=${n} · no meter and no cards on the page once the band retires`,
+      state.learnVisible === false && state.cardsVisible === 0,
+      JSON.stringify([state.learnVisible, state.cardsVisible]));
+  }
+  if (n >= 3 && n < 15) {
     check(`n=${n} · header meter reads "Robes is learning · N pieces filed"`,
       state.learnEy === 'Robes is learning'
         && new RegExp(`^${n}\\s*pieces? filed$`, 'i').test(state.learnN.trim())
@@ -1107,11 +1120,20 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 {
-  // A model on file, two owned-only looks, nothing in the diary → the week
-  // rule, whose door opens the Diary.
-  const { ctx, page, errs } = await boot(browser, 6);
+  // A model on file, two owned-only looks (one a saved Robes build), six
+  // photographed pieces, nothing in the diary → the week rule, whose door
+  // opens the Diary. (five / robes stand down: at the rung with a build
+  // already saved.)
+  const { ctx, page, errs } = await boot(browser, 6, 1280, { looks: false, pics: 6 });
   await page.evaluate(() => {
     localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
+    localStorage.setItem('rb_looks__u-test', JSON.stringify([
+      { id: 'lk-w1', name: 'A look', name_provisional: false, note: '', photo_url: null, tags: null, source: 'manual',
+        origin_look_id: null, created_at: '2026-08-05T10:00:00.000Z',
+        pieces: [{ id: 'w0', slot: 'Top', position: 0, role: null }, { id: 'w1', slot: 'Bottom', position: 1, role: null }], wears: [] },
+      { id: 'lk-w2', name: 'Robes built this', name_provisional: true, note: '', photo_url: null, tags: null, source: 'robes-build',
+        origin_look_id: null, created_at: '2026-08-04T10:00:00.000Z',
+        pieces: [{ id: 'w2', slot: 'Top', position: 0, role: null }, { id: 'w3', slot: 'Bottom', position: 1, role: null }], wears: [] }]));
   });
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
@@ -1129,6 +1151,71 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     return { open: !!sn && sn.style.display !== 'none', cal: !!sn?.classList.contains('rb-cal-on') };
   });
   check('next line · the week door opens the Diary', diary.open === true && diary.cal === true, JSON.stringify(diary));
+  await ctx.close();
+}
+{
+  // Slice 3.1 (2026-09-21): below the rung, a model and looks that borrow
+  // nothing → the five rule counts the distance and its door opens the add
+  // flow. Three of four pieces photographed → "Two more pieces".
+  const { ctx, page, errs } = await boot(browser, 4, 1280, { pics: 3 });
+  await page.evaluate(() => {
+    localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const f = await page.evaluate(() => {
+    const echo = document.querySelector('.dash-echo');
+    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: echo?.querySelector('.rb-echo-door')?.textContent };
+  });
+  check('next line · no page errors (five)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('next line · under five photographed pieces → the five rule counts the distance, "Add pieces"',
+    /^Two more pieces and Robes builds a look from yours alone\./.test(f.text) && f.door === 'Add pieces →', JSON.stringify(f));
+  const add = await page.evaluate(async () => {
+    document.querySelector('.dash-echo .rb-echo-door')?.click();
+    await new Promise((r) => setTimeout(r, 700));
+    const m = document.getElementById('wa-modal');
+    return { open: !!m && getComputedStyle(m).display !== 'none', step1: /Add your pieces/i.test(m?.textContent || '') };
+  });
+  check('next line · the five door opens the add flow', add.open === true && add.step1 === true, JSON.stringify(add));
+  await ctx.close();
+}
+{
+  // At the rung with no Robes build saved yet → the robes rule; its door
+  // opens the composer and Robes fills the rack (nothing saved).
+  const { ctx, page, errs } = await boot(browser, 6, 1280, { pics: 5 });
+  await page.route('**/api/alternates', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ alternates: [{ name: 'A found piece', brand: 'Robes', retailer_hint: 'Net-a-Porter', price_point: '€90', how: 'Worn open.' }, { name: 'Another', brand: 'Robes', retailer_hint: 'ASOS', price_point: '€40', how: 'Tucked.' }] }) }));
+  await page.route('**/api/lookbuild/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: null, note: 'A quiet build.', look_tags: null, palette: [] }) }));
+  await page.route('**/api/avatar/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+  await page.evaluate(() => {
+    localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const r = await page.evaluate(() => {
+    const echo = document.querySelector('.dash-echo');
+    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: echo?.querySelector('.rb-echo-door')?.textContent };
+  });
+  check('next line · no page errors (robes)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('next line · five photographed pieces and no build saved → the robes rule, "Let Robes build one"',
+    /^Five pieces filed\. Robes can build from yours now\./.test(r.text) && r.door === 'Let Robes build one →', JSON.stringify(r));
+  const built = await page.evaluate(async () => {
+    const writes0 = performance.getEntriesByType('resource').length;
+    document.querySelector('.dash-echo .rb-echo-door')?.click();
+    await new Promise((r) => setTimeout(r, 2200));
+    const sn = document.getElementById('sn-page');
+    const comp = document.querySelector('#rb-lk-body .rb-lk-composer');
+    return {
+      open: !!sn && getComputedStyle(sn).display !== 'none',
+      composer: !!comp,
+      built: !!document.querySelector('#rb-lk-body .rb-lk-saverow.built'),
+      pieces: document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name').length,
+      tryAnother: !!Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-quiet')).find((b) => /Try another/.test(b.textContent)),
+      door: !!document.querySelector('#rb-lk-body .rb-lk-robesdoor'),
+      _w: writes0,
+    };
+  });
+  check('next line · the robes door opens the composer with the rack filled by Robes, nothing saved, no second door',
+    built.open && built.composer && built.built && built.pieces >= 2 && built.tryAnother && !built.door, JSON.stringify(built));
   await ctx.close();
 }
 
