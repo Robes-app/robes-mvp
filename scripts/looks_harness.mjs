@@ -3580,6 +3580,37 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await page.waitForTimeout(900);
   const f = await read();
   check('camera · a proposals look with no photograph carries Add your photograph over the mosaic', f.title === 'Borrowed, no frame' && f.camera === 'Add your photograph' && f.diary, JSON.stringify(f));
+  // Slice 4: the rack head of a look still borrowing carries the batch
+  // door — "Swap in yours · N" beside Edit & resave — and it opens the add
+  // flow BRIEFED for the look: its name over step 1, a chip per gap. The
+  // per-row Swap stays the one-gap door beside it.
+  const g = await page.evaluate(() => {
+    const head = document.querySelector('#rb-lk-body .rb-lk-rackhead');
+    return {
+      door: head?.querySelector('.rb-lk-filldoor')?.textContent || null,
+      edit: !!head?.querySelector('.rb-lk-editbtn:not(.rb-lk-filldoor)'),
+      doorIsPill: head?.querySelector('.rb-lk-filldoor')?.classList.contains('rb-lk-sort') === true,
+      rowSwaps: Array.from(document.querySelectorAll('#rb-lk-body .rbc-act')).filter((b) => /Swap/.test(b.textContent)).length,
+    };
+  });
+  check('fill door · a look borrowing two pieces reads "Swap in yours · 2" beside Edit & resave, the row Swaps still there',
+    g.door === 'Swap in yours · 2' && g.edit && g.doorIsPill && g.rowSwaps === 2, JSON.stringify(g));
+  await page.evaluate(() => document.querySelector('#rb-lk-body .rb-lk-filldoor').click());
+  await page.waitForTimeout(500);
+  const h = await page.evaluate(() => {
+    const step = document.querySelector('#wa-modal .fm-step');
+    return {
+      open: !!document.querySelector('#wa-modal.open'),
+      h: step?.querySelector('.fm-h')?.textContent.trim() || '',
+      chips: Array.from(step?.querySelectorAll('.rb-wf-gap') || []).map((c) => c.textContent),
+      pillClass: step?.querySelector('.rb-wf-gap')?.classList.contains('rb-pill'),
+      zone: !!step?.querySelector('#wa-rb-zone'),
+    };
+  });
+  check('fill door · the tap opens the add flow briefed — "Make Borrowed, no frame yours." + the two gaps as hairline chips, the zone unchanged',
+    h.open && h.h === 'Make Borrowed, no frame yours.' && h.chips.join('·') === 'a top·a bag' && h.pillClass === true && h.zone, JSON.stringify(h));
+  await page.evaluate(() => window.WA && WA.close());
+  await page.waitForTimeout(300);
   check('camera · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }

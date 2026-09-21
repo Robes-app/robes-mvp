@@ -537,6 +537,13 @@
       // never closes between pieces). `var` on purpose — early readers must
       // see undefined/empty, never throw (see the TDZ gotcha in CLAUDE.md).
       var _waBatchQueue = [], _waBatchTotal = 0, _waBatchDone = 0, _waBatchAdvance = null;
+      // Slice 4 (funnel brief): the add flow can take a BRIEF — the look
+      // she is filling and the categories it still borrows. Step 1 reads
+      // it as chips, and every filed piece whose category matches an open
+      // proposal on that look lands on the look. `var`: WA.submit lives
+      // outside the closure that opens the modal, and early readers must
+      // see null, never throw.
+      var _waBrief = null;   // {lookId, lookName, gaps: [{name, cats, chip, done}], landed, door}
 
       function _waEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -1172,7 +1179,11 @@
       function _wtrkOpenAdd() {
         _waEditId = null;
         _waAfterAdd = null;
-        if (window.WA && WA.open) WA.open();
+        // 4.2: the home add door opens BRIEFED whenever a saved look still
+        // borrows — the pieces she files land on the newest such look.
+        const brief = typeof _rbLookGapsNewest === 'function' ? _rbLookGapsNewest() : null;
+        if (brief && brief.gaps.length) { brief.door = 'filed'; _rbTrack('fill_opened', { door: 'filed', gaps: brief.gaps.length }); }
+        if (window.WA && WA.open) WA.open(brief && brief.gaps.length ? { brief: brief } : undefined);
       }
       function _waSyncCounts() {
         const n = _waItems.length;
@@ -1829,6 +1840,18 @@
           });
         };
 
+        // The brief's line: "Looking for:" + one hairline chip per gap, a
+        // landed gap struck through. Renders on every step while a brief
+        // stands (a batch rolls straight from a save into the next scan,
+        // so the strike has to show wherever she is).
+        function _waBriefHtml() {
+          const b = _waBrief;
+          if (!b || !b.gaps || !b.gaps.length) return '';
+          return '<div class="rb-wf-brief" id="rb-wf-brief"><span class="rb-wf-brief-l">Looking for:</span>' +
+            b.gaps.map(function(g) { return '<span class="rb-pill sm rb-wf-gap' + (g.done ? ' done' : '') + '">' + _waEsc(g.name) + '</span>'; }).join('') +
+            '</div>';
+        }
+        window._waBriefHtml = _waBriefHtml;
         function _waBatchTag() {
           return _waBatchTotal > 1
             ? `<div style="font-size:10px;letter-spacing:0.14em;color:#9A8070;margin:0 0 6px;">PIECE ${_waBatchDone + 1} OF ${_waBatchTotal}</div>`
@@ -1845,10 +1868,14 @@
           // glyph. Desktop leads with Choose photos + a quiet take-a-photo
           // link; ≤767px stacks Attach photos over an outlined Take a photo
           // (the capture input — never `capture` on the picker, see gotchas).
+          const brief = _waBrief;
           step.innerHTML = `
-            <h2 class="fm-h">Add your pieces.</h2>
+            ${brief
+              ? '<h2 class="fm-h">Make <em>' + _waEsc(brief.lookName) + '</em> yours.</h2>'
+              : '<h2 class="fm-h">Add your pieces.</h2>'}
             <p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">One or twenty. Robes reads the colour, the cut and the label — and fills in the rest.</p>
             <div id="wa-rb-zone" class="rb-wf-drop">
+              ${_waBriefHtml()}
               <span class="rb-wf-glyph" aria-hidden="true"><svg width="46" height="46" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="22" height="28" rx="2" stroke="#C9BCA6" stroke-width="1.4" transform="rotate(-6 8 12)"/><rect x="14" y="10" width="22" height="28" rx="2" stroke="#B8AA92" stroke-width="1.4" transform="rotate(-2 14 10)"/><rect x="21" y="9" width="22" height="28" rx="2" fill="#FAF8F5" stroke="#2A2520" stroke-width="1.5"/></svg></span>
               <span class="rb-wf-drop-h rb-wf-dt">Drop in as many as you like</span>
               <span class="rb-wf-drop-h rb-wf-mb">Add as many as you like</span>
@@ -1958,7 +1985,7 @@
           const bracketW = 18, bracketT = 2, bracketC = 'rgba(255,255,255,0.9)';
           const bStyle = `position:absolute;width:${bracketW}px;height:${bracketW}px;`;
           step.innerHTML = `
-            ${_waBatchTag()}
+            ${_waBatchTag()}${_waBriefHtml()}
             <h2 class="fm-h" style="margin-bottom:4px;">Reading your piece…</h2>
             <p style="font-size:14px;color:var(--ink-faint);margin:0 0 16px;">One moment — Robes is looking at the photo.</p>
             <div style="position:relative;height:280px;border-radius:var(--rad);overflow:hidden;background:#1A1410;">
@@ -2036,6 +2063,11 @@
             // step 1 — the image
             '.rb-wf-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border:1.5px dashed #D8CFC0;border-radius:var(--rad);background:#FAF8F5;cursor:pointer;text-align:center;padding:34px 22px 30px;box-sizing:border-box;position:relative}',
             '.rb-wf-glyph{display:block;line-height:0;margin-bottom:2px}',
+            '.rb-wf-brief{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;margin:0 0 6px}',
+            '.rb-wf-brief-l{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-right:4px}',
+            '.rb-wf-brief .rb-wf-gap{cursor:default}',
+            '.rb-wf-brief .rb-wf-gap.done{text-decoration:line-through;color:var(--ink-faint);border-color:var(--rule)}',
+            '#rb-saw-panel .rb-wf-brief,.rb-saw-head .rb-wf-brief{justify-content:flex-start}',
             '.rb-wf-drop-h{font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:26px;color:#2A2520}',
             '.rb-wf-drop-s{font-size:13px;color:var(--ink-faint);margin-top:-8px}',
             '.rb-wf-orcam{font-size:13px;color:var(--ink-faint);margin-top:-2px}',
@@ -2200,7 +2232,7 @@
           const label = window.__waSawLabel || '';
           const colour = window.__waSawColor || '';
           const isEdit = f.mode === 'edit';
-          const batch = f.mode === 'add' ? _waBatchTag() : '';
+          const batch = f.mode === 'add' ? _waBatchTag() + _waBriefHtml() : '';
 
           function tog(view, text, car, hint) {
             return '<button type="button" class="rb-saw-toggle" onclick="window.__waFormView(\'' + view + '\')">' +
@@ -2667,8 +2699,13 @@
             if (step0 && step0.querySelector('.wa-grid')) _origStepHTML = step0.innerHTML;
           }
           const _origOpen = WA.open;
-          WA.open = function() {
+          WA.open = function(opts) {
             _photoDataUrl = '';
+            // A brief rides in as an option and never reaches the bundle's
+            // open(); a bare open clears any brief left standing.
+            const briefIn = opts && typeof opts === 'object' && opts.brief ? opts.brief : null;
+            _waBrief = briefIn && !_waEditId ? briefIn : null;
+            const openArgs = briefIn ? [] : arguments;
             // The bundle's open() does $('wa-label-in').value = '' etc. — it
             // needs the bundle form present in .fm-step. If a prior flow left
             // our custom step content there (e.g. a swap → Snap Mine, or the
@@ -2702,7 +2739,7 @@
               }
             }
             try {
-              _origOpen.apply(this, arguments);
+              _origOpen.apply(this, openArgs);
             } catch (e) {
               // Absolute backstop — the bundle open() must never break Snap Mine.
               console.warn('[robes] bundle WA.open threw, opening modal directly:', e);
@@ -2736,6 +2773,7 @@
             WA.close = function() {
               _photoDataUrl = '';
               _waBatchQueue = []; _waBatchTotal = 0; _waBatchDone = 0;
+              _waBrief = null;
               // Form + tag-axis + taxonomy state must not leak into the next open
               _waForm = null;
               _waPopClose();
@@ -2918,6 +2956,9 @@
             // 15 chores. (Snapshot the total: closing clears the counters.)
             const batchNext = !editId && _waBatchQueue.length ? _waBatchQueue.shift() : null;
             const batchTotal = _waBatchTotal;
+            // The brief, snapshotted: the close on the last piece runs the
+            // patched WA.close, which clears it before the landing below.
+            const briefNow = (!editId && typeof _waAfterAdd !== 'function') ? _waBrief : null;
             if (batchNext) _waBatchDone++;
             else _origWAClose();
             await _waLoad();
@@ -2937,6 +2978,37 @@
               _waShowToast(nNow >= 15 ? 'Added to wardrobe'
                 : (picsNow === _LK_ROBES_AT && _pdHttp(imageUrl)) ? _msWord(_LK_ROBES_AT) + ' pieces filed. Robes can build a look from yours now.'
                 : 'Added — ' + nNow + (nNow === 1 ? ' piece' : ' pieces') + ' filed. Each one replaces a borrowed piece in your looks.');
+            }
+
+            // A brief stands (slice 4): the piece lands on the look it was
+            // photographed for when its category matches an open proposal
+            // — the proposal comes off the rack, her piece takes its slot
+            // with the proposal's role, the chip is struck. A piece that
+            // matches nothing files normally. The after-add hook (Snap
+            // mine) owns the piece when one is armed, so the brief yields.
+            if (briefNow) {
+              const newRowId = (Array.isArray(created) && created[0] && created[0].id != null) ? created[0].id : (_waItems[0] && _waItems[0].id);
+              const newRow = _waItems.find(w => String(w.id) === String(newRowId)) || (Array.isArray(created) && created[0]) || null;
+              try {
+                const hit = newRow && typeof _lkFillLand === 'function' ? _lkFillLand(briefNow, newRow) : null;
+                if (hit) {
+                  briefNow.landed = (briefNow.landed || 0) + 1;
+                  _waShowToast((newRow.label || 'Your piece') + ' is in ' + briefNow.lookName + ' now.');
+                  const strip = document.getElementById('rb-wf-brief');
+                  if (strip && _waBrief === briefNow) strip.outerHTML = window._waBriefHtml ? window._waBriefHtml() : '';
+                }
+              } catch (e) { console.warn('[robes] brief landing:', e && e.message); }
+              if (!batchNext) {
+                // The batch is done: she sees the look she just dressed
+                // unless it is already the page under the modal.
+                const b = briefNow; _waBrief = null;
+                const sn = document.getElementById('sn-page');
+                const onIt = sn && getComputedStyle(sn).display !== 'none' && _lkView === 'detail' && String(_lkActive) === String(b.lookId);
+                if (b.landed && !onIt && window.__lkOpen && _lkFind(b.lookId)) {
+                  window.__lkOpen(b.lookId, { from: { label: 'Home', go: function() { window.__rbNavGo && window.__rbNavGo('home'); } } });
+                } else if (onIt) _lkPaint();
+                _rbTrack('fill_closed', { landed: b.landed || 0, gaps: (b.gaps || []).length });
+              }
             }
 
             // A pending "Snap mine" swap is waiting on this new piece —
@@ -4446,9 +4518,27 @@
         // once the cloud pull lands — with the draft where she left it.
         setTimeout(() => { if (typeof _kpBuildReturn === 'function') _kpBuildReturn(_lkDraftBack); }, 600);
       } else if (window.location.pathname === '/lookbook') {
+        // /lookbook?open=<id>[&fill=1] (slice 4): open that look once the
+        // looks land, briefed into the add flow when fill is set — slice
+        // 6's "borrowing" email lands here.
+        let openId = null, fill = false;
+        try { const u = new URL(window.location.href); openId = u.searchParams.get('open'); fill = u.searchParams.get('fill') === '1'; } catch (_) {}
         setTimeout(() => {
           window.__snOpen && window.__snOpen();
           if (_lkDraftBack && window.__lkDraftRestore) window.__lkDraftRestore(_lkDraftBack, 'lookbook');
+          if (!openId) return;
+          let tries = 0;
+          const tick = () => {
+            tries++;
+            if (_lkFind(openId)) {
+              window.__lkOpen && window.__lkOpen(openId);
+              if (fill && window.__rbFillOpen) setTimeout(() => window.__rbFillOpen(openId, 'link'), 250);
+              return;
+            }
+            if (_lkLoaded && tries > 3 || tries > 40) return;
+            setTimeout(tick, 300);
+          };
+          tick();
         }, 400);
       } else if (_lkDraftBack) {
         setTimeout(() => window.__lkDraftRestore && window.__lkDraftRestore(_lkDraftBack, 'home'), 1700);
@@ -12331,7 +12421,14 @@ button.rb-lk-live{cursor:pointer}
               (cap ? '<button type="button" class="rbc-act rb-lk-packbtn' + (cap.packed ? ' on' : '') + '" onclick="window.__lkTripPack(' + ci + ')">' + (cap.packed ? _rbcCheckSvg + ' Packed' : 'Pack') + '</button>' : ''),
           });
         });
+        // Slice 4: a look still borrowing carries the batch door — every
+        // borrowed piece in one pass, each landing on its proposal. The
+        // per-row Swap stays the one-gap door.
+        const fillDoor = (!draft && props.length)
+          ? '<button type="button" class="rb-lk-sort rb-lk-editbtn rb-lk-filldoor" onclick="window.__rbFillOpen(\'' + _waEsc(String(l.id)) + '\', \'rack\')">Swap in yours · ' + props.length + '</button>'
+          : '';
         h += '<div class="rb-lk-sec rb-lk-rackhead"><span>The rack · ' + _lkN(ids.length, 'piece') + '</span><span style="flex:1"></span>' +
+          fillDoor +
           (trip && !rackEmpty ? '<button type="button" class="rb-lk-sort rb-lk-editbtn rb-lk-packall" onclick="window.__lkTripPackAll()">Pack this look</button>' : '') +
           (rackEmpty ? '' :
             '<button type="button" class="rb-lk-sort rb-lk-editbtn" onclick="window.__lkEditToggle()">Edit &amp; resave</button>') +
@@ -14367,12 +14464,13 @@ button.rb-lk-live{cursor:pointer}
           retailer_hint: a.retailer_hint || '', price_point: a.price_point || '',
         }, { id: 'rb-lkprop-swap', applyName: '__lkPropSwapApply', snapName: '__lkPropSnap', idx: i });
       };
-      window.__lkPropSwapApply = function(i, wid) {
-        const l = _lkFind(_lkActive);
+      // The ONE adoption path: her piece takes the proposal's slot (and
+      // its role), the proposal comes off the rack, the composition
+      // persists. The per-row Swap (one gap, one piece) and slice 4's
+      // briefed batch (every gap, one pass) both land here.
+      function _lkPropAdopt(l, i, wi) {
         const row = l && Array.isArray(l.proposals) ? l.proposals[i] : null;
-        const wi = _waItems.find(w => String(w.id) === String(wid));
-        if (!row || !wi) return;
-        document.getElementById('rb-lkprop-swap')?.remove();
+        if (!row || !wi) return false;
         l.proposals.splice(i, 1);
         if (!l.proposals.length) l.proposals = null;
         l.pieces = (l.pieces || []).concat([{
@@ -14382,9 +14480,73 @@ button.rb-lk-live{cursor:pointer}
         // A standing edit draft follows — the rack draws the draft while one stands
         if (_lkDraft && String(_lkDraft.lookId) === String(l.id)) _lkDraft.pieces.push({ id: wi.id, slot: row.chip || wi.category || null, role: row.role || null });
         _lkPatch(l.id, { proposals: l.proposals }, true);
+        return true;
+      }
+      window.__lkPropSwapApply = function(i, wid) {
+        const l = _lkFind(_lkActive);
+        const wi = _waItems.find(w => String(w.id) === String(wid));
+        if (!l || !wi) return;
+        document.getElementById('rb-lkprop-swap')?.remove();
+        if (!_lkPropAdopt(l, i, wi)) return;
         _lkPaint();
         _waShowToast(wi.label + ' takes its place ✓');
         _rbTrack('piece_swapped', { surface: 'look-proposal' });
+      };
+
+      // ── Slice 4: the add flow takes a brief ─────────────────────────────
+      // A saved look knows exactly which categories it borrows (each
+      // proposal row carries chip/cats and a role). _rbLookGaps reads them
+      // as the brief the add flow opens with; _lkFillLand is the landing —
+      // a filed piece whose legacy category matches an open proposal
+      // adopts through the same path the per-row Swap uses.
+      function _rbGapName(row) {
+        const a = row && row.opts && row.opts[row.oi || 0] || {};
+        let w = a.name ? _dlShort(a.name) : String(row && row.chip || 'piece').toLowerCase();
+        w = w.replace(/[^a-z\s-]/g, '').trim() || 'piece';
+        if (/s$/.test(w) && !/ss$/.test(w)) return w;            // shoes, trousers, jeans
+        return (/^[aeiou]/.test(w) ? 'an ' : 'a ') + w;
+      }
+      function _rbLookGaps(l) {
+        const rows = l && Array.isArray(l.proposals) ? l.proposals : [];
+        return {
+          lookId: l ? l.id : null, lookName: (l && l.name) || 'your look', landed: 0,
+          gaps: rows.map(row => ({ name: _rbGapName(row), cats: (row.cats || []).slice(), chip: row.chip || '', done: false })),
+        };
+      }
+      // The newest look still borrowing — the briefed default for the
+      // home add door when gaps exist (4.2's surviving half).
+      function _rbLookGapsNewest() {
+        const looks = (_lkLooks || []).filter(l => l && !l._draft && Array.isArray(l.proposals) && l.proposals.length)
+          .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+        return looks.length ? _rbLookGaps(looks[0]) : null;
+      }
+      function _lkFillLand(brief, row) {
+        const l = brief && _lkFind(brief.lookId);
+        if (!l || !Array.isArray(l.proposals) || !l.proposals.length || !row) return null;
+        const cat = String(row.category || '');
+        const slot = _dlSlot(row).l;
+        const i = l.proposals.findIndex(p => (p.cats || []).indexOf(cat) !== -1 || (p.chip && p.chip === slot));
+        if (i < 0) return null;
+        const chip = l.proposals[i].chip || '';
+        const cats = (l.proposals[i].cats || []).slice();
+        if (!_lkPropAdopt(l, i, row)) return null;
+        const g = (brief.gaps || []).find(g => !g.done && ((g.chip && g.chip === chip) || g.cats.some(c => cats.indexOf(c) !== -1)));
+        if (g) g.done = true;
+        _rbTrack('piece_swapped', { surface: 'look-fill' });
+        return l;
+      }
+      // The door: a saved look's rack head (every borrowed piece in one
+      // pass), the finish next line, the /lookbook?open=<id>&fill=1 deep
+      // link. Opens the add flow briefed; nothing to fill → the look.
+      window.__rbFillOpen = function(lookId, door) {
+        const l = _lkFind(lookId);
+        const brief = l ? _rbLookGaps(l) : null;
+        if (!brief || !brief.gaps.length) { if (l && window.__lkOpen) window.__lkOpen(lookId); return; }
+        brief.door = door || 'rack';
+        _waEditId = null;
+        _waAfterAdd = null;
+        _rbTrack('fill_opened', { door: brief.door, gaps: brief.gaps.length });
+        if (window.WA && WA.open) WA.open({ brief: brief });
       };
       window.__lkPropSnap = function() {
         const i = _lkPropSwapIdx;
@@ -14958,7 +15120,7 @@ button.rb-lk-live{cursor:pointer}
           if (window.__rbModelGo) { window.__rbModelGo('next'); return; }        // slice 2's door
           window.location.assign('/stylenotes');
         } else if (nx.door === 'finish') {
-          if (window.__rbFillOpen) { window.__rbFillOpen(nx.id); return; }        // slice 4's door
+          if (window.__rbFillOpen) { window.__rbFillOpen(nx.id, 'next'); return; }   // slice 4's door: the briefed add
           if (window.__lkCardOpen) window.__lkCardOpen(nx.id, 'home');
         } else if (nx.door === 'five') {
           _wtrkOpenAdd();

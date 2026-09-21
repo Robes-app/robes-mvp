@@ -52,7 +52,7 @@ Slices 2–5 are independent of each other and can run in parallel sessions. Sli
 
 ## Slice 1 · The derived "next" line, the Filed card's forward line, instrumentation
 
-**Status: built 2026-09-18** (`beta`). 1.1 ships the `model`, `finish`, `week` and `wear` rules; `five` and `robes` wait for slice 3's door. 1.2, 1.3 and 1.4 shipped whole. Until slice 2 lands, the `model` door goes straight to `/stylenotes`; until slice 4, the `finish` door opens the look.
+**Status: built 2026-09-18** (`beta`). 1.1 ships the `model`, `finish`, `week` and `wear` rules; `five` and `robes` wait for slice 3's door. 1.2, 1.3 and 1.4 shipped whole. Until slice 2 lands, the `model` door goes straight to `/stylenotes`; until slice 4 (built 2026-09-21), the `finish` door opened the look — it opens the briefed add now.
 
 **Why**: home knows what she has (the mode machine) but never says what she should do next. The roadmap made visible without a new surface.
 
@@ -195,6 +195,8 @@ Off the live first-look home (one key piece, one look, four pieces): fourteen do
 
 ## Slice 4 · Gap-led batch: the add flow takes a brief
 
+> **As built (2026-09-21, Annie: "lets go with your recommendation")**: 4.1 in full, with the rack-head pill labelled **Swap in yours · N** (not "Photograph yours" — beside rows that each already say Swap, the head pill names the batch and its count, in the next line's own register); the per-row Swap → Snap mine stays the one-gap door and both land through the same adoption path. 4.2 survives only as the briefed home add door (`_wtrkOpenAdd` opens for the newest borrowing look when gaps exist) — the meter caption it targeted no longer exists (slice 3 made the band's meter the ladder, no caption, retired at fifteen) and the Daily card keeps its rung copy. Gap names come off the proposal's own suggestion ("a blazer", "loafers"), not the slot. The batch done, the look she dressed opens (unless it was already the page under the modal). A wishlisted (`saved`) proposal is still an open gap — it is borrowed until her piece takes the slot.
+
 **Why**: "upload 3 staples" and "upload 5 items" are numbers without reasons. Her saved looks already know exactly which categories she borrows (each proposal row carries `chip`/`cats` and a role). Ask for those.
 
 ### 4.1 `WA.open({ brief })`
@@ -203,7 +205,7 @@ Off the live first-look home (one key piece, one look, four pieces): fourteen do
 - **Step 1** (`_showStep1`, ~1772): when a brief is set, the dropzone header line reads "Looking for: a jacket · shoes · a bag" as `.rb-pill` chips above "Drop in as many as you like"; the h reads "Make *{look name}* yours." Nothing else changes — batch, camera, library inputs all as today.
 - **After each filed piece** (`WA.submit`'s success tail, before `_waBatchAdvance`): if `_waForm.brief` and the new row's legacy `category` matches an open proposal's category on the look → swap it in through the saved-look path (`__lkPropSwapApply`'s internals: proposal off the rack, piece into `look_pieces` with the proposal's role, `_lkPatch`), toast "{label} is in *{look}* now.", and strike the chip. A piece matching no open proposal files normally.
 - **Doors**:
-  - the saved look page's rack head, when ≥1 proposal is open: a `.rb-pill` **Photograph yours** (beside Edit & resave) → `window.__rbFillOpen(lookId)` → `WA.open({brief})`;
+  - the saved look page's rack head, when ≥1 proposal is open: a `.rb-pill` ~~**Photograph yours**~~ **Swap in yours · N** (as built — beside Edit & resave) → `window.__rbFillOpen(lookId)` → `WA.open({brief})`;
   - slice 1's `finish` next line;
   - the deep link `/lookbook?open=<id>&fill=1` (the boot already resolves `?d=` and `/piece/:id`; add this one) — slice 6's `borrowing` email lands here.
 - `_waForm.brief` clears on `WA.close` like the batch queue.

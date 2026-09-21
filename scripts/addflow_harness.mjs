@@ -527,6 +527,110 @@ const browser = await chromium.launch(
   await ctx.close();
 }
 
+// ── Briefed add (funnel slice 4): the flow opens for a look that borrows ─
+// A saved look knows which categories it borrows; opened FROM it the same
+// step 1 carries the look's name and a chip per gap, and every filed piece
+// whose category matches an open proposal lands ON the look (the proposal
+// off the rack, her piece in its slot with the role) and strikes its chip.
+// A piece matching nothing files normally; the batch done, the look opens.
+{
+  const { ctx, page, errs, supaPosts } = await boot(browser, TAG, { rows: ROWS });
+  await page.evaluate(() => {
+    localStorage.setItem('rb_looks__u-test', JSON.stringify([
+      { id: 'lk-fill', name: 'A Parisian Night Out', name_provisional: false, note: '', photo_url: null, tags: null, source: 'daily',
+        origin_look_id: null, created_at: '2026-09-10T10:00:00.000Z',
+        pieces: [{ id: 'row-3', slot: 'Top', position: 0, role: 'The Canvas' }],
+        proposals: [
+          { role: 'The Texture', chip: 'Layer', cats: ['Outerwear'], opts: [{ name: 'Wool blazer', brand: 'Robes' }], oi: 0, saved: false, image_url: null },
+          { role: 'The Exclamation Point', chip: 'Shoes', cats: ['Shoes'], opts: [{ name: 'Leather loafers', brand: 'Robes' }], oi: 0, saved: false, image_url: null }],
+        wears: [] }]));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const readStep1 = () => page.evaluate(() => {
+    const step = document.querySelector('#wa-modal .fm-step');
+    return {
+      open: !!document.querySelector('#wa-modal.open'),
+      h: step?.querySelector('.fm-h')?.textContent.trim() || '',
+      em: step?.querySelector('.fm-h em')?.textContent || '',
+      chips: Array.from(step?.querySelectorAll('.rb-wf-gap') || []).map((c) => c.textContent + (c.classList.contains('done') ? '*' : '')),
+      label: step?.querySelector('.rb-wf-brief-l')?.textContent || '',
+      zone: !!step?.querySelector('#wa-rb-zone'),
+      cam: !!step?.querySelector('#wa-rb-cam'), lib: !!step?.querySelector('#wa-rb-lib'), multi: step?.querySelector('#wa-rb-file')?.multiple,
+    };
+  });
+  // A bare open carries no brief.
+  await page.evaluate(() => window.WA && WA.open());
+  await page.waitForTimeout(400);
+  const bare = await readStep1();
+  check('brief · a bare open is "Add your pieces." with no chips', bare.open && bare.h === 'Add your pieces.' && bare.chips.length === 0, JSON.stringify(bare));
+  await page.evaluate(() => window.WA && WA.close());
+  await page.waitForTimeout(300);
+  // The door: briefed for the look.
+  await page.evaluate(() => window.__rbFillOpen('lk-fill', 'rack'));
+  await page.waitForTimeout(400);
+  const s1 = await readStep1();
+  check('brief · step 1 reads "Make A Parisian Night Out yours." with the look name in italics',
+    s1.open && s1.h === 'Make A Parisian Night Out yours.' && s1.em === 'A Parisian Night Out', JSON.stringify(s1));
+  check('brief · "Looking for:" + one hairline chip per gap, named off the proposal ("a blazer · loafers")',
+    s1.label === 'Looking for:' && s1.chips.join(' · ') === 'a blazer · loafers', JSON.stringify(s1.chips));
+  check('brief · nothing else changes — the zone, batch, camera and library inputs stand', s1.zone && s1.cam && s1.lib && s1.multi === true, JSON.stringify(s1));
+  // Two photos; both analyse as the Outerwear blazer. The first lands on
+  // the look (the Layer proposal); the second matches nothing open and
+  // files normally.
+  await page.setInputFiles('#wa-rb-file', [
+    { name: 'one.png', mimeType: 'image/png', buffer: PNG_OK },
+    { name: 'two.png', mimeType: 'image/png', buffer: PNG_OK },
+  ]);
+  await page.waitForSelector('#rb-saw-panel', { timeout: 8000 });
+  const s3 = await page.evaluate(() => ({
+    tag: (document.querySelector('#wa-modal .fm-step').textContent.match(/PIECE 1 OF 2/) || [])[0] || '',
+    chips: Array.from(document.querySelectorAll('#wa-modal .rb-wf-gap')).map((c) => c.textContent + (c.classList.contains('done') ? '*' : '')),
+  }));
+  check('brief · the chips ride the confirm screen with the n-of-m tag', s3.tag === 'PIECE 1 OF 2' && s3.chips.join('·') === 'a blazer·loafers', JSON.stringify(s3));
+  await page.click('#wa-saw-cta');
+  await page.waitForSelector('#wa-read-txt', { timeout: 8000 });
+  const mid = await page.evaluate(() => ({
+    toast: document.getElementById('toast-msg')?.textContent || document.getElementById('toast')?.textContent || '',
+    chips: Array.from(document.querySelectorAll('#wa-modal .rb-wf-gap')).map((c) => c.textContent + (c.classList.contains('done') ? '*' : '')),
+    look: JSON.parse(localStorage.getItem('rb_looks__u-test') || '[]')[0],
+  }));
+  check('brief · the filed blazer lands on the look — the Outerwear proposal is off the rack, her piece in its slot with the role',
+    mid.look && Array.isArray(mid.look.proposals) && mid.look.proposals.length === 1 && mid.look.proposals[0].chip === 'Shoes'
+      && mid.look.pieces.some((p) => p.id === 'new-1' && p.role === 'The Texture' && p.slot === 'Layer'),
+    JSON.stringify({ props: mid.look?.proposals?.length, pieces: mid.look?.pieces }));
+  check('brief · the toast says where it went: "Cream wool blazer is in A Parisian Night Out now."', mid.toast === 'Cream wool blazer is in A Parisian Night Out now.', mid.toast);
+  check('brief · the blazer chip is struck on the next scan, loafers still open', mid.chips.join('·') === 'a blazer*·loafers', JSON.stringify(mid.chips));
+  await page.waitForSelector('#rb-saw-panel', { timeout: 8000 });
+  await page.click('#wa-saw-cta');
+  await page.waitForTimeout(1500);
+  const end = await page.evaluate(() => {
+    const sn = document.getElementById('sn-page');
+    const look = JSON.parse(localStorage.getItem('rb_looks__u-test') || '[]')[0];
+    return {
+      modal: !!document.querySelector('#wa-modal.open'),
+      sn: !!sn && getComputedStyle(sn).display !== 'none',
+      title: !!sn && sn.textContent.includes('A Parisian Night Out'),
+      props: look?.proposals?.length, pieces: look?.pieces?.length,
+      door: sn?.querySelector('.rb-lk-filldoor')?.textContent || null,
+    };
+  });
+  check('brief · the second blazer matched nothing open and filed normally (two inserts, the shoes still borrowed)', supaPosts.length === 2 && end.props === 1 && end.pieces === 2, JSON.stringify(end));
+  check('brief · the batch done, the modal closes and the look she dressed opens, its rack head reading "Swap in yours · 1"', end.modal === false && end.sn && end.title && end.door === 'Swap in yours · 1', JSON.stringify(end));
+  // WA.close clears the brief like the batch queue.
+  await page.evaluate(() => { window.__rbFillOpen('lk-fill', 'rack'); });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.WA && WA.close());
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.WA && WA.open());
+  await page.waitForTimeout(400);
+  const after = await readStep1();
+  check('brief · WA.close clears the brief — the next bare open carries no chips', after.h === 'Add your pieces.' && after.chips.length === 0, JSON.stringify(after));
+  await page.evaluate(() => window.WA && WA.close());
+  check('no page errors (brief)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
 // ── Edit modal rides the same form ─────────────────────────────────────
 {
   const { ctx, page, errs, supaPatches } = await boot(browser, TAG, { rows: ROWS });
