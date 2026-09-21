@@ -81,10 +81,6 @@
     }
     .dk-btn:hover { background: rgba(250,248,245,0.16); }
     .dk-btn:disabled { opacity: 0.28; cursor: not-allowed; }
-    .dk-alt { display: block; margin: 18px auto 0; background: none; border: none; cursor: pointer; padding: 0;
-      font-weight: 400; font-size: 12px; letter-spacing: 0.04em; color: rgba(250,248,245,0.4);
-      border-bottom: 1px solid rgba(250,248,245,0.18); transition: color .2s var(--ease-default); }
-    .dk-alt:hover { color: var(--cream-30); }
     .dk-back {
       background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 40px;
       display: inline-flex; align-items: center; gap: 10px; align-self: flex-start;
@@ -483,7 +479,6 @@
   const st = {
     uid: null,
     stage: 'splash',       // 'splash' | 'intro' | 'name' | 0..1 | 'done'
-    nameShown: false,      // the name stage was rendered (a known name skips it)
     name: '',
     savedName: '',
     archetypes: [],
@@ -575,7 +570,6 @@
 
   /* ── Intro ──────────────────────────────────────────────────────── */
   function renderIntro() {
-    const first = introName();
     root.innerHTML = `
       <div class="flow-anim"><div class="dk">
         ${GRAIN}<div class="dk-glow"></div>
@@ -584,24 +578,17 @@
           <h1 class="dk-heading">One piece.<em>Three ways<br>to wear it.</em></h1>
           <p class="dk-body">Give Robes one piece you love and it comes back worn three ways — then every look builds around what is yours.</p>
           <div class="dk-spacer"></div>
-          <div class="dk-cta">
-            <button class="dk-btn" id="ob-begin">${first ? 'Let’s go, ' + esc(first) : 'Begin'}</button>
-            ${first ? `<button class="dk-alt" id="ob-notme">Not ${esc(first)}?</button>` : ''}
-          </div>
+          <div class="dk-cta"><button class="dk-btn" id="ob-begin">Begin</button></div>
         </div>
       </div></div>`;
-    // A known name (the profile row, else the auth metadata) folds the name
-    // stage into the intro (slice 7.1): the CTA greets her and "Not {Name}?"
-    // is the one door back to the field. No name on file → the stage as ever.
-    document.getElementById('ob-begin').onclick = () => { if (first) go(0); else go('name'); };
-    const notMe = document.getElementById('ob-notme');
-    if (notMe) notMe.onclick = () => go('name');
+    // Splash → intro → name, always (Annie, 2026-09-21 — the folded-name
+    // intro of slice 7.1 was reverted the same day): the name stage stands
+    // for everyone, prefilled when a name is on file.
+    document.getElementById('ob-begin').onclick = () => go('name');
   }
-  function introName() { return (st.name || st.savedName || '').trim().split(/\s+/)[0] || ''; }
 
   /* ── Name ───────────────────────────────────────────────────────── */
   function renderName() {
-    st.nameShown = true;
     root.innerHTML = `
       <div class="flow-anim"><div class="dk">
         ${GRAIN}<div class="dk-glow"></div>
@@ -653,7 +640,7 @@
           <button class="ob-skip" id="ob-skip">Skip for now</button>
         </footer>
       </div></div>`;
-    document.getElementById('ob-back').onclick = () => go(i > 0 ? i - 1 : (st.nameShown ? 'name' : 'intro'));
+    document.getElementById('ob-back').onclick = () => go(i > 0 ? i - 1 : 'name');
   }
 
   function nextStage(i) { return i < STEPS.length - 1 ? i + 1 : 'done'; }
@@ -1390,9 +1377,7 @@
     }
     if (!st.name) st.name = st.savedName || metaName;
 
-    // The name lands after the splash as often as not — the intro (or the
-    // name stage) repaints so the folded-name CTA reads it.
-    if (st.stage === 'name' || (st.stage === 'intro' && introName())) render();
+    if (st.stage === 'name') render();
   })();
 </script>
 
