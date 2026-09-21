@@ -2,7 +2,7 @@
 /*
  * Onboarding harness — boots the real /onboarding page against a Supabase
  * stub and stubbed generation routes, and asserts the slice 7 order (the
- * folded-name intro → step 01 Wardrobe → step 02 Style, while the looks
+ * splash → name → step 01 Wardrobe → step 02 Style, while the looks
  * compose) at 1280px and 390px.
  *
  *   npm i --no-save playwright && node scripts/onboarding_harness.mjs
@@ -45,7 +45,7 @@ const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH 
 
 // analyse: 'ok' | 'noitem' | 'nocut'  ·  name: a first name on the profile row
 // (prefills the name stage), or null (the field opens empty). Lands on the
-// intro; `toStep0()` walks Begin → the name stage → step 01.
+// name stage; `toStep0()` walks it onto step 01.
 async function open(vp, analyse = 'ok', name = 'Annie') {
   const ctx = await browser.newContext({ viewport: vp });
   const p = await ctx.newPage();
@@ -79,28 +79,25 @@ async function open(vp, analyse = 'ok', name = 'Annie') {
 
   await p.goto(`http://localhost:${PORT}/onboarding`);
   await p.waitForTimeout(900);
-  await p.click('body'); await p.waitForTimeout(450);          // splash → intro
+  await p.click('body'); await p.waitForTimeout(450);          // splash → name
   return { ctx, p, errs, styleCalls };
 }
-// From the intro onto step 01 — Begin, then the name stage for everyone
-// (Splash → Intro → Name, restored 2026-09-21). A known name is prefilled,
-// so Continue is live without typing; `typeName` overrides it.
+// From the name stage onto step 01 (Splash → Name, the intro gone
+// 2026-09-21). A known name is prefilled, so Continue is live without
+// typing; `typeName` overrides it.
 async function toStep0(p, typeName) {
-  await p.click('#ob-begin'); await p.waitForTimeout(350);
   if (typeName) await p.fill('#ob-name-input', typeName);
   await p.click('#ob-name-next'); await p.waitForTimeout(450);
 }
 const stepChip = async p => (await p.locator('.ob-step').innerText()).trim().toLowerCase();
 
 for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
-  console.log(`\n\x1b[1m== ${label} · splash → intro → name ==\x1b[0m`);
+  console.log(`\n\x1b[1m== ${label} · splash → name ==\x1b[0m`);
   const { ctx, p, errs, styleCalls } = await open(vp);
   const skip = p.locator('#ob-skip');
-  ok(/One piece\./.test(await p.locator('.dk-heading').innerText()) && /Three ways/.test(await p.locator('.dk-heading em').innerText()), 'the promise reads "One piece. Three ways to wear it."');
-  ok((await p.locator('#ob-begin').textContent()).trim() === 'Begin', 'the intro CTA reads Begin — no name on it');
-  ok(await p.locator('#ob-notme').count() === 0, 'no "Not …?" door on the intro');
-  await p.click('#ob-begin'); await p.waitForTimeout(350);
-  ok(await p.locator('#ob-name-input').count() === 1, 'Begin opens the name stage for everyone');
+  ok(await p.locator('#ob-begin').count() === 0 && await p.locator('.dk-heading').count() === 1 && /we call you/.test(await p.locator('.dk-heading').innerText()), 'the splash lands on the name stage — no intro screen');
+  ok(await p.locator('#ob-name-input').count() === 1, 'the name stage stands for everyone');
+  ok(await p.locator('#ob-name-back').count() === 0, 'no Back on the name stage — nothing behind it');
   ok((await p.inputValue('#ob-name-input')) === 'Annie', 'a known name is prefilled');
   ok(!(await p.locator('#ob-name-next').isDisabled()), 'Continue is live on the prefilled name');
   await p.click('#ob-name-next'); await p.waitForTimeout(450);
@@ -208,9 +205,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
 console.log('\n\x1b[1m== the name stage · no name on file ==\x1b[0m');
 {
   const { ctx, p, errs } = await open({ width: 1280, height: 900 }, 'ok', null);
-  ok((await p.locator('#ob-begin').textContent()).trim() === 'Begin', 'no name on file → Begin');
-  await p.click('#ob-begin'); await p.waitForTimeout(350);
-  ok(await p.locator('#ob-name-input').count() === 1 && (await p.inputValue('#ob-name-input')) === '', 'Begin opens the name stage, empty');
+  ok(await p.locator('#ob-name-input').count() === 1 && (await p.inputValue('#ob-name-input')) === '', 'the splash lands on the name stage, empty'); 
   ok(await p.locator('#ob-name-next').isDisabled(), 'Continue waits for a name');
   await p.fill('#ob-name-input', 'Mary'); await p.click('#ob-name-next'); await p.waitForTimeout(450);
   ok(await stepChip(p) === 'step 01 · wardrobe', 'the name lands on step 01 · Wardrobe');

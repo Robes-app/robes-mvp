@@ -40,7 +40,7 @@
     .flow-anim { animation: flowFade .44s var(--ease-default) both; }
     @keyframes flowFade { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 
-    /* ── Dark intro shell (splash · intro · name · done) ─────────── */
+    /* ── Dark intro shell (splash · name · done) ─────────── */
     .dk {
       position: relative; min-height: 100vh; min-height: 100dvh;
       display: flex; flex-direction: column;
@@ -81,13 +81,6 @@
     }
     .dk-btn:hover { background: rgba(250,248,245,0.16); }
     .dk-btn:disabled { opacity: 0.28; cursor: not-allowed; }
-    .dk-back {
-      background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 40px;
-      display: inline-flex; align-items: center; gap: 10px; align-self: flex-start;
-      font-weight: 500; font-size: 11px; letter-spacing: 0.18em;
-      text-transform: uppercase; color: rgba(250,248,245,0.4); transition: color .2s var(--ease-default);
-    }
-    .dk-back:hover { color: var(--cream-30); }
 
     /* ── Completion ──────────────────────────────────────────────── */
     .done-screen {
@@ -478,7 +471,7 @@
 
   const st = {
     uid: null,
-    stage: 'splash',       // 'splash' | 'intro' | 'name' | 0..1 | 'done'
+    stage: 'splash',       // 'splash' | 'name' | 0..1 | 'done'
     name: '',
     savedName: '',
     archetypes: [],
@@ -547,7 +540,6 @@
 
   function render() {
     if (st.stage === 'splash') return renderSplash();
-    if (st.stage === 'intro') return renderIntro();
     if (st.stage === 'name') return renderName();
     if (st.stage === 'done') return renderDone();
     renderStep(st.stage);
@@ -560,31 +552,15 @@
         ${GRAIN}<div class="dk-glow"></div>
         <div class="dk-inner"><div style="text-align:center"><div class="dk-wordmark">Robes</div></div></div>
       </div>`;
-    splashTimer = setTimeout(() => go('intro'), 2000);
+    // Splash → name, straight in (Annie, 2026-09-21 — the intro screen is
+    // gone): the name stage stands for everyone, prefilled when a name is on
+    // file.
+    splashTimer = setTimeout(() => go('name'), 2000);
     // Tap anywhere to skip the splash — never make her wait for chrome.
     root.querySelector('.dk-splash').addEventListener('click', () => {
       clearTimeout(splashTimer);
-      if (st.stage === 'splash') go('intro');
+      if (st.stage === 'splash') go('name');
     });
-  }
-
-  /* ── Intro ──────────────────────────────────────────────────────── */
-  function renderIntro() {
-    root.innerHTML = `
-      <div class="flow-anim"><div class="dk">
-        ${GRAIN}<div class="dk-glow"></div>
-        <div class="dk-inner">
-          <p class="dk-eyebrow">An introduction</p>
-          <h1 class="dk-heading">One piece.<em>Three ways<br>to wear it.</em></h1>
-          <p class="dk-body">Give Robes one piece you love and it comes back worn three ways — then every look builds around what is yours.</p>
-          <div class="dk-spacer"></div>
-          <div class="dk-cta"><button class="dk-btn" id="ob-begin">Begin</button></div>
-        </div>
-      </div></div>`;
-    // Splash → intro → name, always (Annie, 2026-09-21 — the folded-name
-    // intro of slice 7.1 was reverted the same day): the name stage stands
-    // for everyone, prefilled when a name is on file.
-    document.getElementById('ob-begin').onclick = () => go('name');
   }
 
   /* ── Name ───────────────────────────────────────────────────────── */
@@ -593,7 +569,6 @@
       <div class="flow-anim"><div class="dk">
         ${GRAIN}<div class="dk-glow"></div>
         <div class="dk-inner">
-          <button class="dk-back" id="ob-name-back"><span>←</span> Back</button>
           <p class="dk-eyebrow">First things first</p>
           <h1 class="dk-heading">What should<br><em>we call you?</em></h1>
           <p class="dk-sub">A name for your style notes.</p>
@@ -615,7 +590,6 @@
     input.oninput = () => { st.name = input.value; next.disabled = !input.value.trim(); };
     input.onkeydown = e => { if (e.key === 'Enter') submit(); };
     next.onclick = submit;
-    document.getElementById('ob-name-back').onclick = () => go('intro');
     setTimeout(() => input.focus(), 360);
   }
 
