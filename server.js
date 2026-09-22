@@ -198,12 +198,25 @@ async function inboxGenerate({ prompt, schema, maxOutputTokens }) {
   });
   return deEscDeep(JSON.parse(r.candidates?.[0]?.content?.parts?.[0]?.text || '{}'));
 }
+// The receipt's vision pass: one product photograph in, what the piece IS
+// out. Raced at 30s so a slow frame leaves the text read standing rather
+// than holding the webhook; the module bounds concurrency to three.
+async function inboxGenerateVision({ prompt, schema, image, maxOutputTokens }) {
+  const call = ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: [{ role: 'user', parts: [{ inlineData: { mimeType: image.mimeType, data: image.data } }, { text: prompt }] }],
+    config: { responseMimeType: 'application/json', responseSchema: schema, maxOutputTokens: maxOutputTokens || 700, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
+  });
+  const r = await Promise.race([call, new Promise((_, rej) => setTimeout(() => rej(new Error('inbox vision timeout')), 30000))]);
+  return deEscDeep(JSON.parse(r.candidates?.[0]?.content?.parts?.[0]?.text || '{}'));
+}
 const inbox = createInbox({
   supaUrl: SUPA_URL, serviceKey: SUPA_SERVICE_KEY,
   resendKey: process.env.RESEND_API_KEY || '',
   resendApiUrl: process.env.RESEND_API_URL ? process.env.RESEND_API_URL.replace(/\/emails\/?$/, '') : 'https://api.resend.com',
   domain: INBOX_DOMAIN,
   generate: process.env.GEMINI_API_KEY ? inboxGenerate : null,
+  generateVision: process.env.GEMINI_API_KEY ? inboxGenerateVision : null,
   hostImage: cloudinaryUploadFile,
   allowPrivate: process.env.INBOX_ALLOW_PRIVATE === '1',   // the smoke's door only — never on a deployed service
 });

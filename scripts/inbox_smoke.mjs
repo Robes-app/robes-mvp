@@ -19,9 +19,9 @@ const PAGE = `<html><head><title>Leather trainers | Example</title>
 <meta property="og:image" content="/img/trainers.jpg"><meta property="og:site_name" content="Example Shop">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Original Achilles leather trainers","brand":{"@type":"Brand","name":"Common Projects"},"image":["https://cdn.example.com/trainers-1.jpg"],"offers":{"@type":"Offer","price":"340.00","priceCurrency":"GBP"}}</script>
 </head><body><h1>Original Achilles leather trainers</h1><p>White leather. Size 38.</p><script>track()</script></body></html>`;
-const RECEIPT_HTML = `<html><body><img src="https://t.nap.com/open.gif" width="1" height="1"><img src="https://cdn.nap.com/logo.png" alt="NET-A-PORTER"><h1>Thank you for your order 12345</h1>
-<table><tr><td><img src="https://cdn.nap.com/p/trainers.jpg" alt="Common Projects trainers"></td><td>Common Projects<br>Original Achilles leather trainers<br>Size 38 &middot; White</td><td>&pound;340.00</td></tr>
-<tr><td></td><td>Pol&egrave;ne<br>Numéro Un tote<br>One size</td><td>&pound;320.00</td></tr></table><p>Delivery &pound;0.00 · Total &pound;660.00</p></body></html>`;
+// A 1×1 PNG stands in for every product photograph the fake serves.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==', 'base64');
+let RECEIPT_HTML = '';
 const fake = createServer((req, res) => {
   let body = '';
   req.on('data', (c) => { body += c; });
@@ -41,19 +41,34 @@ const fake = createServer((req, res) => {
     if (url.pathname === '/p/1') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end(PAGE); }
     if (url.pathname === '/listing') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html><body><h1>New in</h1><a>a</a><a>b</a></body></html>'); }
     if (url.pathname === '/gone') { res.writeHead(403); return res.end('no'); }
+    if (url.pathname === '/img/broken.jpg') { res.writeHead(500); return res.end(''); }
+    if (url.pathname.startsWith('/img/')) { res.writeHead(200, { 'Content-Type': 'image/png' }); return res.end(PNG); }
     res.writeHead(404); res.end('');
   });
 });
 await new Promise((r) => fake.listen(0, '127.0.0.1', r));
 const FAKE = 'http://127.0.0.1:' + fake.address().port;
+// The receipt: a named row with a photograph, a named row without one, a
+// Zara-style nameless row (photograph + reference code + size + price)
+// printed twice, and a row whose photograph 500s.
+RECEIPT_HTML = `<html><body><img src="https://t.nap.com/open.gif" width="1" height="1"><img src="https://cdn.nap.com/logo.png" alt="NET-A-PORTER"><h1>Thank you for your order 12345</h1>
+<table><tr><td><img src="${FAKE}/img/trainers.jpg" alt="Common Projects trainers"></td><td>Common Projects<br>Original Achilles leather trainers<br>Size 38 &middot; White</td><td>&pound;340.00</td></tr>
+<tr><td></td><td>Pol&egrave;ne<br>Numéro Un tote<br>One size</td><td>&pound;320.00</td></tr>
+<tr><td><img src="${FAKE}/img/4387.jpg"></td><td>REF 4387/223<br>M</td><td>&pound;25.95</td></tr>
+<tr><td><img src="${FAKE}/img/broken.jpg"></td><td>REF 9001/100<br>L</td><td>&pound;12.95</td></tr></table>
+<h2>Shipped</h2><table><tr><td><img src="${FAKE}/img/4387.jpg"></td><td>REF 4387/223<br>M</td><td>&pound;25.95</td></tr></table><p>Delivery &pound;0.00 · Total &pound;660.00</p></body></html>`;
 
 // Gemini from fixtures: a receipt prompt → the two pieces; a page prompt → the trainers.
 const generate = async ({ prompt, schema }) => {
   store.gens.push(prompt);
   if (/ORDER CONFIRMATION/.test(prompt)) {
     return { is_receipt: true, retailer: 'NET-A-PORTER', order_ref: '12345', items: [
-      { label: 'Leather trainers', category: 'Shoes', category_l2: 'Trainers', category_l3: 'Leather trainer', color: 'White', editorial_color_name: 'Chalk', brand: 'Common Projects', price: '340.00', currency: 'GBP', size: '38', image_url: 'https://cdn.nap.com/p/trainers.jpg', ai_generated_notes: 'Clean white leather trainers.', quantity: 1, returned: false },
+      { label: 'Leather trainers', category: 'Shoes', category_l2: 'Trainers', category_l3: 'Leather trainer', color: 'White', editorial_color_name: 'Chalk', brand: 'Common Projects', price: '340.00', currency: 'GBP', size: '38', image_url: FAKE + '/img/trainers.jpg', ai_generated_notes: 'Clean white leather trainers.', quantity: 1, returned: false },
       { label: 'Numéro Un tote', category: 'Bags', category_l2: 'Everyday bags', category_l3: 'Nonsense type', color: 'Camel', editorial_color_name: 'Tan', brand: 'Polène', price: '320', currency: 'GBP', size: 'One size', image_url: '', ai_generated_notes: 'A structured leather tote.', quantity: 1, returned: false },
+      // the Zara-style rows: no name printed, the grounded read hands back the reference code — twice, once per block
+      { label: 'REF 4387/223', category: 'Other', category_l2: '', category_l3: '', color: '', editorial_color_name: '', brand: '', price: '25.95', currency: 'GBP', size: 'M', image_url: FAKE + '/img/4387.jpg', ai_generated_notes: '', quantity: 1, returned: false },
+      { label: 'REF 9001/100', category: 'Other', category_l2: '', category_l3: '', color: '', editorial_color_name: '', brand: '', price: '12.95', currency: 'GBP', size: 'L', image_url: FAKE + '/img/broken.jpg', ai_generated_notes: '', quantity: 1, returned: false },
+      { label: 'REF 4387/223', category: 'Other', category_l2: '', category_l3: '', color: '', editorial_color_name: '', brand: '', price: '25.95', currency: 'GBP', size: 'M', image_url: FAKE + '/img/4387.jpg', ai_generated_notes: '', quantity: 1, returned: false },
     ] };
   }
   if (/product page/.test(prompt)) {
@@ -64,16 +79,24 @@ const generate = async ({ prompt, schema }) => {
 };
 const hosted = [];
 const hostImage = async (u) => { hosted.push(u); return 'https://res.cloudinary.com/robes/' + u.split('/').pop(); };
+// Gemini vision from fixtures: the photograph decides — the trainers read as trainers, the nameless 4387 is a pink tracksuit top.
+const visions = [];
+const generateVision = async ({ prompt, schema, image }) => {
+  visions.push({ prompt, image });
+  if (/name: Original Achilles|name: Leather trainers/.test(prompt)) return { no_item_detected: false, label: 'White leather trainers', category: 'Shoes', category_l2: 'Trainers', category_l3: 'Leather trainer', color: 'White', editorial_color_name: 'Chalk', brand: '', ai_generated_notes: 'Clean white leather trainers.' };
+  if (/name: REF 4387/.test(prompt)) return { no_item_detected: false, label: 'Pink velour tracksuit top', category: 'Tops', category_l2: 'Sweatshirts & hoodies', category_l3: 'Zip-up hoodie', color: 'Blush', editorial_color_name: 'Candy Pink', brand: 'Zara', ai_generated_notes: 'A soft pink zip-through in velour.' };
+  return { no_item_detected: true, label: '' };
+};
 
 // ── Part 1: the module ──────────────────────────────────────────────
 {
-  const inbox = createInbox({ supaUrl: FAKE, serviceKey: 'svc', resendKey: 'rk', resendApiUrl: FAKE, domain: 'in.byrobes.com', generate, hostImage, log: () => {}, allowPrivate: true });
+  const inbox = createInbox({ supaUrl: FAKE, serviceKey: 'svc', resendKey: 'rk', resendApiUrl: FAKE, domain: 'in.byrobes.com', generate, generateVision, hostImage, log: () => {}, allowPrivate: true });
   check('module · on with a service key and a generator', inbox.on === true);
 
   // Pure helpers
   const t = htmlToText(RECEIPT_HTML);
   check('htmlToText · the pixel and the logo are dropped, the product image survives with its alt, the cells read on one line, entities decode',
-    !/open\.gif/.test(t) && !/logo\.png/.test(t) && /\[image: https:\/\/cdn\.nap\.com\/p\/trainers\.jpg \| Common Projects trainers\]/.test(t) && /Size 38 · White/.test(t) && /£340\.00/.test(t) && /Polène/.test(t) && !/track\(\)/.test(t), JSON.stringify(t).slice(0, 300));
+    !/open\.gif/.test(t) && !/logo\.png/.test(t) && t.includes('[image: ' + FAKE + '/img/trainers.jpg | Common Projects trainers]') && /Size 38 · White/.test(t) && /£340\.00/.test(t) && /Polène/.test(t) && !/track\(\)/.test(t), JSON.stringify(t).slice(0, 300));
   check('normalizeInbound · Resend / Postmark / Mailgun / generic all land on one shape',
     normalizeInbound({ type: 'email.received', data: { email_id: 'e-1', from: 'a@b.c', to: ['x@in.byrobes.com'], subject: 'S' } }).provider === 'resend'
     && normalizeInbound({ FromFull: { Email: 'a@b.c' }, ToFull: [{ Email: 'x@in.byrobes.com' }], Subject: 'S', HtmlBody: '<p>x</p>' }).to[0] === 'x@in.byrobes.com'
@@ -94,12 +117,23 @@ const hostImage = async (u) => { hosted.push(u); return 'https://res.cloudinary.
   // The receipt path: a Resend event → the body fetched → read → held.
   const out = await inbox.ingest({ type: 'email.received', data: { email_id: 'e-1', from: 'Annie <annie@gmail.com>', to: ['Annie <annie-4f2k@in.byrobes.com>'], subject: 'Fwd: Your NET-A-PORTER order' } });
   const row = store.inbox[0];
-  check('ingest · a Resend event lands a held row for the right user with two pieces', out.ok && out.reason === 'held' && out.items === 2 && row && row.user_id === 'u-1' && row.status === 'held' && row.retailer === 'NET-A-PORTER' && row.order_ref === '12345' && row.provider_id === 'e-1', JSON.stringify(out));
+  check('ingest · a Resend event lands a held row for the right user with four pieces (the twice-printed row read once)', out.ok && out.reason === 'held' && out.items === 4 && row && row.user_id === 'u-1' && row.status === 'held' && row.retailer === 'NET-A-PORTER' && row.order_ref === '12345' && row.provider_id === 'e-1', JSON.stringify(out));
   check('ingest · the pieces are normalised: price a number, currency a code, the (l2,l3) pair validated (a made-up type degrades to the subcategory alone), image hosted at read time',
     row && row.items[0].price === 340 && row.items[0].currency === 'GBP' && row.items[0].size === '38' && row.items[0].category === 'Shoes' && row.items[0].category_l2 === 'Trainers' && row.items[0].category_l3 === 'Leather trainer'
-    && row.items[0].image_url === 'https://res.cloudinary.com/robes/trainers.jpg' && hosted.includes('https://cdn.nap.com/p/trainers.jpg')
+    && row.items[0].image_url === 'https://res.cloudinary.com/robes/trainers.jpg' && hosted.includes(FAKE + '/img/trainers.jpg')
     && row.items[1].category === 'Bags' && row.items[1].category_l2 === 'Everyday bags' && row.items[1].category_l3 === null && row.items[1].image_url === null && row.items[1].quantity === 1, JSON.stringify(row && row.items.map((i) => [i.label, i.price, i.currency, i.category_l2, i.category_l3, i.image_url])));
-  check('ingest · the email text (not the HTML) reached the reader, subject and sender named', /\[image: https:\/\/cdn\.nap\.com\/p\/trainers\.jpg/.test(store.gens[0]) && /EMAIL SUBJECT: Fwd: Your NET-A-PORTER order/.test(store.gens[0]) && !/<table>/.test(store.gens[0]));
+  check('ingest · the email text (not the HTML) reached the reader, subject and sender named, the grounding rules in the prompt', new RegExp('\\[image: ' + FAKE.replace(/[.\/]/g, '\\$&') + '/img/trainers\\.jpg').test(store.gens[0]) && /EMAIL SUBJECT: Fwd: Your NET-A-PORTER order/.test(store.gens[0]) && !/<table>/.test(store.gens[0]) && /NEVER compose a name/.test(store.gens[0]));
+  // The vision pass: the photograph decides what a piece IS
+  const v4387 = row && row.items.find((i) => i.size === 'M');
+  const v9001 = row && row.items.find((i) => i.size === 'L');
+  check('vision · every piece with a photograph that fetches is read from it (two — the nameless row once, the 500ing photograph never reaches the model), the bytes reach the model, the text row rides in as context',
+    visions.length === 2 && visions.every((v) => v.image && v.image.mimeType === 'image/png' && v.image.data.length > 10) && visions.some((v) => /name: REF 4387\/223\nbrand: \nsize: M/.test(v.prompt)) && visions.some((v) => /from NET-A-PORTER/.test(v.prompt)), JSON.stringify(visions.map((v) => v.prompt.slice(-160))));
+  check('vision · the nameless Zara-style row becomes what its photograph shows — label, category, taxonomy, colour, brand from the photograph; price, currency, size, quantity from the text; printed twice → one piece, quantity 2',
+    v4387 && v4387.label === 'Pink velour tracksuit top' && v4387.category === 'Tops' && v4387.category_l2 === 'Sweatshirts & hoodies' && v4387.category_l3 === 'Zip-up hoodie' && v4387.color === 'Blush' && v4387.brand === 'Zara'
+    && v4387.price === 25.95 && v4387.currency === 'GBP' && v4387.size === 'M' && v4387.quantity === 2 && v4387.read_from === 'photo' && v4387.item_dna.display.editorial_color_name === 'Candy Pink' && v4387.image_url === 'https://res.cloudinary.com/robes/4387.jpg', JSON.stringify(v4387));
+  check('vision · the photograph outranks the text on a named row too (the text brand stands), a photograph that fails to fetch leaves the text read as it was, a row without a photograph is never sent',
+    row && row.items[0].label === 'White leather trainers' && row.items[0].brand === 'Common Projects' && row.items[0].read_from === 'photo'
+    && v9001 && v9001.label === 'REF 9001/100' && v9001.category === 'Other' && !v9001.read_from && row.items[1].label === 'Numéro Un tote' && !row.items[1].read_from, JSON.stringify([row && row.items[0].label, v9001 && v9001.label]));
   const unknown = await inbox.ingest({ from: 'a@b.c', to: ['nobody-zzzz@in.byrobes.com'], subject: 'x', html: '<p>hi</p>' });
   const wrongDomain = await inbox.ingest({ from: 'a@b.c', to: ['annie-4f2k@gmail.com'], subject: 'x', html: '<p>hi</p>' });
   check('ingest · an unknown address and a foreign domain are refused as decided outcomes, nothing stored', unknown.ok === false && unknown.reason === 'unknown_address' && wrongDomain.ok === false && wrongDomain.reason === 'no_robes_address' && store.inbox.length === 1, JSON.stringify([unknown, wrongDomain]));

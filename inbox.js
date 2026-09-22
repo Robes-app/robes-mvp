@@ -62,6 +62,29 @@ export const RECEIPT_SCHEMA = {
   required: ['is_receipt', 'retailer', 'order_ref', 'items'],
 };
 
+// What the photograph says about a piece (2026-09-22, off Annie's Zara
+// receipt: a pink tracksuit filed as "Blue denim jeans"). A retailer's
+// order mail often prints NO product name — a photograph, a reference
+// code, a size and a price — and a text model asked for a label then
+// composes one. The photograph is the one source that cannot lie about a
+// pink tracksuit, so it decides the piece's identity; the text keeps what
+// only the text knows (price, currency, size, quantity, returned).
+export const VISION_SCHEMA = {
+  type: 'object',
+  properties: {
+    no_item_detected:     { type: 'boolean' },
+    label:                { type: 'string' },
+    category:             { type: 'string', enum: LEGACY_CATEGORIES },
+    category_l2:          { type: 'string' },
+    category_l3:          { type: 'string' },
+    color:                { type: 'string' },
+    editorial_color_name: { type: 'string' },
+    brand:                { type: 'string' },
+    ai_generated_notes:   { type: 'string' },
+  },
+  required: ['no_item_detected', 'label', 'category', 'category_l2', 'category_l3', 'color', 'editorial_color_name', 'brand', 'ai_generated_notes'],
+};
+
 const PIECE_RULES = `"label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans")
 "category": one of — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other
 "category_l2" and "category_l3": file the piece in the Robes taxonomy below. Each line reads Category › Subcategory: item types. Pick the ONE line whose subcategory fits best, copy the subcategory name EXACTLY into category_l2, then copy the best-fitting item type from that line EXACTLY into category_l3. If no item type on the line fits, set category_l3 to "". If no subcategory fits at all, set both to "".
@@ -270,6 +293,9 @@ export function createInbox(cfg) {
   const domain = String(c.domain || 'in.byrobes.com').toLowerCase();
   const generate = c.generate;               // ({prompt, schema, maxOutputTokens}) → parsed JSON
   const hostImage = c.hostImage || (async () => null);   // remote url → hosted url | null
+  const generateVision = c.generateVision || null;       // ({prompt, schema, image:{mimeType,data}}) → parsed JSON
+  const visionLimit = c.visionLimit || 3;                // photographs read at once
+  const visionMax = c.visionMax || 24;                   // photographs read per receipt
   const svc = (extra) => ({ apikey: c.serviceKey, Authorization: 'Bearer ' + c.serviceKey, 'Content-Type': 'application/json', ...(extra || {}) });
   const on = !!(c.serviceKey && generate);
 
@@ -297,6 +323,75 @@ export function createInbox(cfg) {
     return rows[0] || null;
   }
 
+  // The photograph's bytes, for Gemini's inlineData — a public http(s)
+  // image only (the smoke's door opens private hosts), 10s, 8MB.
+  async function fetchImageBytes(url) {
+    const safe = safeHttpUrl(url, !!c.allowPrivate);
+    if (!safe) return null;
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), c.imageTimeoutMs || 10000);
+    try {
+      const r = await fetchFn(safe, { headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 RobesBot/1.0', Accept: 'image/*' }, redirect: 'follow', signal: ctl.signal });
+      if (!r.ok) return null;
+      const ct = (r.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+      if (!/^image\/(jpeg|jpg|png|webp|gif|heic|heif|avif)$/.test(ct)) return null;
+      const buf = Buffer.from(await r.arrayBuffer());
+      if (!buf.length || buf.length > 8 * 1024 * 1024) return null;
+      return { mimeType: ct === 'image/jpg' ? 'image/jpeg' : ct, data: buf.toString('base64') };
+    } catch (_) { return null; }
+    finally { clearTimeout(t); }
+  }
+
+  // One piece's photograph → what it IS. The text read's row rides in as
+  // context (a name when the mail printed one, the brand, the size) but the
+  // photograph decides label / category / taxonomy / colour; only a
+  // photograph that shows no garment leaves the text read standing.
+  async function readPieceImage(it, ctx) {
+    if (!generateVision || !it.image_url) return null;
+    const image = await fetchImageBytes(it.image_url);
+    if (!image) return null;
+    const prompt = `You are a fashion intelligence engine for a luxury wardrobe app. This is the product photograph of ONE piece on an order confirmation${ctx && ctx.retailer ? ' from ' + ctx.retailer : ''}. Describe the piece IN THE PHOTOGRAPH — never the text below when they disagree; the photograph is the truth.
+
+If the image shows no garment, shoe, bag or accessory (a logo, a banner, a lifestyle scene with no product, a blank frame), set "no_item_detected": true and every other field to "".
+
+Otherwise set "no_item_detected": false and fill:
+${PIECE_RULES.split('\n').filter((l) => !/^"(price|currency|size|image_url)"/.test(l)).join('\n')}
+For "label", name the piece as a stylist would file it — what it is and its colour or standout detail (e.g. "Pink velour tracksuit top", "Black tailored trousers"), never a size, a price or a reference code. When the photograph shows a full look, the piece is the ONE garment this row bought: the text below says which slot (a top, trousers, shoes); if it does not, name the most prominent garment.
+
+WHAT THE EMAIL PRINTED FOR THIS ROW (may be a bare reference code):
+name: ${it.label || ''}
+brand: ${it.brand || ''}
+size: ${it.size || ''}
+category the text guessed: ${it.category || ''}`;
+    const out = await generateVision({ prompt, schema: VISION_SCHEMA, image, maxOutputTokens: 700 });
+    if (!out || out.no_item_detected || !str(out.label, 120)) return null;
+    return out;
+  }
+
+  // A bounded-concurrency map — three photographs at once, never a
+  // thirteen-piece receipt fanning thirteen Gemini calls.
+  async function mapLimit(items, limit, fn) {
+    const out = new Array(items.length);
+    let i = 0;
+    const worker = async () => { while (i < items.length) { const k = i++; out[k] = await fn(items[k], k); } };
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+    return out;
+  }
+
+  // Two rows with one photograph, size and price are one piece printed
+  // twice (order summary + shipment block); without a photograph the
+  // label stands in. Quantities add up, capped where the schema caps them.
+  function dedupeItems(items) {
+    const seen = new Map();
+    for (const it of items) {
+      const key = [it.image_url || it.label.toLowerCase(), it.size || '', it.price == null ? '' : it.price].join('|');
+      const prev = seen.get(key);
+      if (prev) { prev.quantity = Math.min(9, prev.quantity + it.quantity); prev.returned = prev.returned || it.returned; }
+      else seen.set(key, it);
+    }
+    return Array.from(seen.values());
+  }
+
   async function readReceipt(text, ctx) {
     const prompt = `You are a fashion intelligence engine for a luxury wardrobe app. Below is an email a customer forwarded to us. Decide whether it is an ORDER CONFIRMATION, shipping notice or receipt for clothing, shoes, bags or accessories.
 
@@ -307,18 +402,48 @@ For every item fill:
 ${PIECE_RULES}
 "quantity": how many of this exact piece, 1 unless stated
 
+GROUNDING — this outranks completeness. Every piece's photograph is read separately afterwards, so a bare row is better than an invented one:
+- "label" is the product name AS PRINTED beside the piece in the email, or the alt text of its photograph. NEVER compose a name from the category, the price, the size or a guess. When the email prints no name for a piece (a photograph, a reference code, a size and a price only — Zara, Mango and COS do this), set "label" to the reference code as printed (e.g. "REF 4387/223"), "category" to "Other" and "category_l2"/"category_l3" to "".
+- "color" only when the email names the colour beside the piece; otherwise "".
+- "image_url" is the [image: …] line that sits WITH this piece's row — never a neighbour's. Two rows that share one photograph, size and price are the same piece listed twice (order summary + shipment): return it once.
+- Read every row of the order; do not stop at the first block.
+
 EMAIL SUBJECT: ${ctx && ctx.subject ? ctx.subject : ''}
 EMAIL FROM: ${ctx && ctx.from ? ctx.from : ''}
 EMAIL:
 ${text}`;
-    const out = await generate({ prompt, schema: RECEIPT_SCHEMA, maxOutputTokens: 6000 });
-    const items = (Array.isArray(out && out.items) ? out.items : []).map((it) => {
+    const out = await generate({ prompt, schema: RECEIPT_SCHEMA, maxOutputTokens: 8000 });
+    const raw = (Array.isArray(out && out.items) ? out.items : []).map((it) => {
       const n = normalisePiece(it);
       n.quantity = Math.max(1, Math.min(9, parseInt(it.quantity, 10) || 1));
       n.returned = !!it.returned;
       return n;
-    }).filter((n) => n.label);
+    }).filter((n) => n.label || n.image_url);   // a bare photograph still reads — the vision pass names it
+    const items = dedupeItems(raw);
     return { is_receipt: !!(out && out.is_receipt) && items.length > 0, retailer: str(out && out.retailer, 120), order_ref: str(out && out.order_ref, 80), items };
+  }
+
+  // The vision pass over a receipt's pieces: every piece with a photograph
+  // is re-read from the photograph, which decides its identity; the text
+  // keeps price / currency / size / quantity / returned, and the brand it
+  // printed. A photograph that fails to fetch, times out or shows no
+  // garment leaves the text read exactly as it was.
+  async function visionPass(read) {
+    if (!generateVision) return { seen: 0 };
+    const targets = read.items.filter((it) => it.image_url).slice(0, visionMax);
+    let seen = 0;
+    await mapLimit(targets, visionLimit, async (it) => {
+      let v = null;
+      try { v = await readPieceImage(it, read); } catch (e) { log('vision', e && e.message); }
+      if (!v) return;
+      const p = normalisePiece({ ...v, brand: it.brand || v.brand, price: it.price == null ? '' : String(it.price), currency: it.currency || '', size: it.size || '', image_url: it.image_url });
+      it.label = p.label; it.category = p.category; it.category_l2 = p.category_l2; it.category_l3 = p.category_l3; it.color = p.color; it.brand = p.brand;
+      it.item_dna = p.item_dna;
+      it.read_from = 'photo';
+      seen++;
+    });
+    read.items = read.items.filter((it) => it.label);   // a photograph nobody could read, with no name printed, is dropped
+    return { seen };
   }
 
   // The webhook body → a held wardrobe_inbox row. Every outcome is a
@@ -337,12 +462,16 @@ ${text}`;
       const b = await fetchResendBody(mail.emailId);
       if (b) { mail.html = b.html; mail.text = b.text; }
     }
-    const text = mail.html ? htmlToText(mail.html) : str(mail.text, 24000);
+    // 60k characters: a Zara order mail runs past 24k of text before its
+    // last row, and a cut receipt reads as a short one.
+    const text = mail.html ? htmlToText(mail.html, { maxLen: 60000 }) : str(mail.text, 60000);
     if (!text) return { ok: false, reason: 'empty' };
     let read;
     try { read = await readReceipt(text, mail); }
     catch (e) { log('read', e && e.message); return { ok: false, reason: 'read_failed' }; }
     if (!read.is_receipt) return { ok: true, reason: 'not_a_receipt', items: 0 };
+    const vision = await visionPass(read);
+    if (!read.items.length) return { ok: true, reason: 'not_a_receipt', items: 0 };
     // Product images are hosted NOW, at read time: a retailer's CDN link
     // in a month-old email is the one thing that goes stale before she
     // looks the receipt over.
@@ -364,7 +493,7 @@ ${text}`;
     const r = await fetchFn(c.supaUrl + '/rest/v1/wardrobe_inbox', { method: 'POST', headers: svc({ Prefer: 'return=representation' }), body: JSON.stringify(row) });
     if (!r.ok) { log('insert', r.status, (await r.text()).slice(0, 200)); return { ok: false, reason: 'insert_failed' }; }
     const saved = await r.json();
-    return { ok: true, reason: 'held', items: read.items.length, id: saved[0] && saved[0].id, user_id: profile.id };
+    return { ok: true, reason: 'held', items: read.items.length, seen: vision.seen, id: saved[0] && saved[0].id, user_id: profile.id };
   }
 
   // A product page → the analyse shape (+ image_url), or {error}.
