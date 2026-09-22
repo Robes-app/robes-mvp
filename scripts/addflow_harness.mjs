@@ -1065,14 +1065,14 @@ const browser = await chromium.launch(
     const trail = document.getElementById('rb-wg-trail');
     return { on: !!el, h: el?.querySelector('.h')?.textContent || '', s: el?.querySelector('.s')?.textContent || '', go: el?.querySelector('.rb-wg-inbox-go')?.textContent || '', afterTrail: !!el && trail?.nextElementSibling === el, addCard: document.querySelector('#wg-grid .rb-add-card .rb-add-hint')?.textContent || '' };
   });
-  check('receipts · the wardrobe notice under the trail: "Robes read two receipts · 4 pieces are waiting for you to look over · Review them →"',
-    n1.on && n1.h === 'Robes read two receipts' && n1.s === '4 pieces are waiting for you to look over' && n1.go === 'Review them →' && n1.afterTrail, JSON.stringify(n1));
+  check('receipts · the wardrobe strip under the trail: "Robes read two receipts · 4 pieces waiting · Review them →"',
+    n1.on && n1.h === 'Robes read two receipts' && n1.s === '4 pieces waiting' && n1.go === 'Review them →' && n1.afterTrail, JSON.stringify(n1));
   check('receipts · the add card names the three doors', n1.addCard === 'Photograph · Receipt · Link', n1.addCard);
   await page.click('#rb-wg-inbox .rb-wg-inbox-go');
   await page.waitForTimeout(500);
-  const l1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', rows: Array.from(document.querySelectorAll('.rb-wf-rcpt')).map((b) => b.querySelector('.t').textContent + ' / ' + b.querySelector('.s').textContent) }));
-  check('receipts · Review them opens the held list, newest first, each dated with its count',
-    l1.h === 'Four pieces read.' && l1.rows.length === 2 && /^NET-A-PORTER \/ (This morning|Today) · 3 pieces read$/.test(l1.rows[0]) && l1.rows[1] === 'Sézane / Yesterday · 1 piece read', JSON.stringify(l1));
+  const l1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', ey: document.querySelector('.rb-wf-eyebrow')?.textContent || '', rows: Array.from(document.querySelectorAll('.rb-wf-rcpt')).map((b) => b.querySelector('.t').textContent + ' / ' + b.querySelector('.s').textContent), other: Array.from(document.querySelectorAll('#wa-modal .rb-wf-back')).some((b) => /Other ways in/.test(b.textContent)), subs: document.querySelectorAll('#wa-modal .fm-step > p:not(.rb-wf-note)').length }));
+  check('receipts · Review them opens the held list — eyebrow, "4 pieces read", the rows newest first with their day and count, the one note, nothing else',
+    l1.ey === 'Waiting for you' && l1.h === '4 pieces read' && l1.rows.length === 2 && /^NET-A-PORTER \/ (This morning|Today) · 3 pieces read$/.test(l1.rows[0]) && l1.rows[1] === 'Sézane / Yesterday · 1 piece read' && !l1.other && l1.subs === 0, JSON.stringify(l1));
   await page.click('.rb-wf-rcpt[data-id="rc-1"]');
   await page.waitForTimeout(300);
   const r1 = await page.evaluate(() => ({
@@ -1082,7 +1082,7 @@ const browser = await chromium.launch(
     chosen: document.getElementById('rb-wf-chosen')?.textContent || '', file: document.getElementById('rb-wf-file')?.textContent || '',
   }));
   check('receipts · the review: three rows, price · size, the returned tank unticked, the image on the first, a monogram on the second, "File 2 pieces"',
-    r1.ey === 'From NET-A-PORTER' && r1.h === 'Three pieces read.' && r1.rows.join('|') === '✓Leather trainers / £340 · Size 38|✓Leather tote / £320 · Size One size|·Ribbed cotton tank / £39 · Size S · × 2'
+    /^From NET-A-PORTER · (This morning|Today)$/.test(r1.ey) && r1.h === '3 pieces read' && r1.rows.join('|') === '✓Leather trainers / £340 · Size 38|✓Leather tote / £320 · Size One size|·Ribbed cotton tank / £39 · Size S · × 2'
       && r1.thumb && r1.mono === 'L' && /^2 pieces chosen/.test(r1.chosen) && r1.file === 'File 2 pieces', JSON.stringify(r1));
   await page.click('.rb-wf-rev[data-i="1"]');
   await page.waitForTimeout(200);
@@ -1090,21 +1090,41 @@ const browser = await chromium.launch(
   await page.click('.rb-wf-rev[data-i="1"]');
   await page.click('#rb-wf-file');
   await page.waitForTimeout(1500);
-  const f1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', open: !!document.querySelector('#wa-modal.open'), rows: document.querySelectorAll('.rb-wf-rcpt').length, notice: document.getElementById('rb-wg-inbox')?.querySelector('.h')?.textContent || '' }));
+  const f1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', ey: document.querySelector('.rb-wf-eyebrow')?.textContent || '', open: !!document.querySelector('#wa-modal.open'), rows: document.querySelectorAll('.rb-wf-rcpt').length, revs: document.querySelectorAll('.rb-wf-rev').length, back: Array.from(document.querySelectorAll('#wa-modal .rb-wf-back')).some((b) => /All receipts/.test(b.textContent)), notice: document.getElementById('rb-wg-inbox')?.querySelector('.h')?.textContent || '', noticeS: document.getElementById('rb-wg-inbox')?.querySelector('.s')?.textContent || '', toast: document.getElementById('toast-msg')?.textContent || document.getElementById('toast')?.textContent || '' }));
   check('receipts · File 2 pieces inserts the two ticked rows with their price, size and source, and moves the receipt to filed',
     supaPosts.length === 2 && supaPosts[0].label === 'Leather trainers' && supaPosts[0].price === 340 && supaPosts[0].size === '38' && supaPosts[0].currency === 'GBP' && supaPosts[0].image_url === 'https://res.cloudinary.com/robes/trainers.jpg' && supaPosts[0].item_dna?.source?.kind === 'receipt'
       && supaPosts[1].label === 'Leather tote' && supaPosts[1].category_l2 === 'Everyday bags' && supaPosts[1].image_url === null
       && inboxPatches.length === 1 && /rc-1/.test(inboxPatches[0].url) && inboxPatches[0].body.status === 'filed' && Array.isArray(inboxPatches[0].body.filed_ids),
     JSON.stringify([supaPosts.map((p) => [p.label, p.price, p.size]), inboxPatches]));
-  check('receipts · with one receipt still waiting the modal lands back on the list, and the notice counts down', f1.open && f1.h === 'One piece read.' && f1.rows === 1 && f1.notice === 'Robes read one receipt', JSON.stringify(f1));
-  await page.click('.rb-wf-rcpt[data-id="rc-2"]');
-  await page.waitForTimeout(200);
+  check('receipts · one receipt left → the modal steps straight into ITS review (no list, no "All receipts" back), the strip counts down to "Robes read one receipt · 1 piece waiting", and nothing toasts',
+    f1.open && f1.h === '1 piece read' && /^From Sézane · Yesterday$/.test(f1.ey) && f1.rows === 0 && f1.revs === 1 && !f1.back && f1.notice === 'Robes read one receipt' && f1.noticeS === '1 piece waiting' && !/piece/.test(f1.toast), JSON.stringify(f1));
   await page.click('#rb-wf-chosen .rb-wf-back');
   await page.waitForTimeout(600);
   const d1 = await page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), notice: !!document.getElementById('rb-wg-inbox') }));
-  check('receipts · Nothing to keep dismisses the last receipt, closes the modal and takes the notice down',
+  check('receipts · Nothing to keep dismisses the last receipt, closes the modal and takes the strip down — no caught-up state in its place',
     !d1.open && !d1.notice && inboxPatches.length === 2 && inboxPatches[1].body.status === 'dismissed' && supaPosts.length === 2, JSON.stringify([d1, inboxPatches[1]]));
   check('no page errors (receipts)', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  // The quiet way back: pieces filed from a receipt stay findable under Refine → Added from · Receipts.
+  const RECEIPT_ROW = { id: 'row-r', user_id: 'u-test', label: 'Pink velour tracksuit top', category: 'Tops', category_l2: 'Sweatshirts & hoodies', category_l3: 'Zip-up hoodie', color: 'Blush', brand: 'Zara', notes: '', image_url: null, times_worn: 0, item_dna: { source: { kind: 'receipt', retailer: 'Zara', order_ref: '1', inbox_id: 'rc-9' } }, seasons: [], occasions: [], season_band: 'year_round', season_source: 'inferred', hero_position: null, created_at: '2026-09-22' };
+  const { ctx, page, errs } = await boot(browser, TAG, { rows: ROWS.concat([RECEIPT_ROW]) });
+  await page.evaluate(() => window.App && App.showWardrobe());
+  await page.waitForTimeout(700);
+  await page.click('#rb-refine-pill');
+  await page.waitForTimeout(250);
+  const rf1 = await page.evaluate(() => ({ lbl: document.querySelector('#rb-refine .rb-ref-sec.src .rb-ref-lbl')?.textContent || '', chip: document.querySelector('#rb-refine .rb-ref-sec.src .rb-ref-chip')?.textContent || '', on: !!document.querySelector('#rb-refine .rb-ref-sec.src .rb-ref-chip.on'), grid: document.querySelectorAll('#wg-grid .wg-item:not(.rb-add-card):not(.rb-ghost-card)').length }));
+  check('refine · "Added from · Receipts" renders once a receipt-filed piece exists, off by default', rf1.lbl === 'Added from' && rf1.chip === 'Receipts' && !rf1.on && rf1.grid === 4, JSON.stringify(rf1));
+  await page.click('#rb-refine .rb-ref-sec.src .rb-ref-chip');
+  await page.waitForTimeout(250);
+  const rf2 = await page.evaluate(() => ({ on: !!document.querySelector('#rb-refine .rb-ref-sec.src .rb-ref-chip.on'), cards: document.querySelectorAll('#wg-grid .wg-item:not(.rb-add-card):not(.rb-ghost-card)').length, badge: document.querySelector('#rb-refine-pill .rb-refine-badge')?.textContent || '' }));
+  check('refine · the Receipts pick narrows the grid to the receipt-filed piece and counts on the pill', rf2.on && rf2.cards === 1 && rf2.badge === '1', JSON.stringify(rf2));
+  await page.evaluate(() => window.__waRefClear());
+  await page.waitForTimeout(200);
+  check('refine · Clear all drops the pick', (await page.evaluate(() => document.querySelectorAll('#wg-grid .wg-item:not(.rb-add-card):not(.rb-ghost-card)').length)) === 4);
+  await page.evaluate(() => window.__waRefToggle());
+  check('no page errors (refine · receipts)', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 

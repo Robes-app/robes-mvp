@@ -2152,15 +2152,15 @@
             : '<span class="rb-wf-addr-v" id="rb-wf-addr">' + (_wiAddr ? _sawEsc(_wiAddr + '@' + _WI_DOMAIN) : 'Setting up your address…') + '</span>' +
               '<button type="button" class="rb-pill sm" id="rb-wf-copy" onclick="window.__waMailCopy()"' + (_wiAddr ? '' : ' disabled') + '>Copy</button>';
           step.innerHTML =
+            '<span class="rb-wf-eyebrow">Forward a receipt</span>' +
             '<h2 class="fm-h">Your own address.</h2>' +
-            '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 18px;">Order emails become filed pieces. You look them over before anything lands.</p>' +
             '<div class="rb-wf-addr"><span class="rb-wf-eyebrow">Your Robes address</span><div class="rb-wf-addr-row">' + addrHtml + '</div></div>' +
             '<div class="rb-wf-steps">' +
-              '<div class="rb-wf-step"><span class="n">01</span><span class="t">Forward any order confirmation to that address, from the inbox it arrived in.</span></div>' +
-              '<div class="rb-wf-step"><span class="n">02</span><span class="t">Robes reads the pieces out of it and finds the images where the retailer has them.</span></div>' +
-              '<div class="rb-wf-step"><span class="n">03</span><span class="t">They wait on your wardrobe page until you look them over. Nothing is filed without you.</span></div>' +
+              '<div class="rb-wf-step"><span class="n">01</span><span class="t">Forward the order email.</span></div>' +
+              '<div class="rb-wf-step"><span class="n">02</span><span class="t">Robes reads each piece’s colour, cut, label, price and sizing.</span></div>' +
+              '<div class="rb-wf-step"><span class="n">03</span><span class="t">You review and verify before anything gets filed.</span></div>' +
             '</div>' +
-            (held ? '<p class="rb-wf-note">' + pieces + (pieces === 1 ? ' piece is' : ' pieces are') + ' waiting from ' + held + (held === 1 ? ' receipt' : ' receipts') + '. <button type="button" class="rb-wf-back" onclick="window.__waWay(\'receipts\')">Review them →</button></p>' : '') +
+            (held ? '<p class="rb-wf-note">' + pieces + (pieces === 1 ? ' piece' : ' pieces') + ' waiting · <button type="button" class="rb-wf-back" onclick="window.__waWay(\'receipts\')">Review them →</button></p>' : '') +
             '<div class="rb-wf-foot">' +
               '<button type="button" class="rb-wf-back" onclick="window.__waWay(\'choose\')">← Other ways in</button>' +
               '<button type="button" class="rb-wf-cta sm" onclick="window.WA&&WA.close()">Got it</button>' +
@@ -2255,7 +2255,10 @@
           if (!step) return;
           const rows = _wiRows;
           const pieces = _wiHeldCount();
-          const word = function(k) { return typeof _msWord === 'function' ? _msWord(k) : String(k); };
+          // One receipt waiting is one receipt to review — the list would
+          // be a screen with a single row on it, so it steps straight
+          // through (2026-09-22, Annie).
+          if (rows.length === 1) { window.__waRcptOpen(rows[0].id); return; }
           if (!rows.length) {
             step.innerHTML =
               '<h2 class="fm-h">Nothing waiting.</h2>' +
@@ -2265,8 +2268,7 @@
           } else {
             step.innerHTML =
               '<span class="rb-wf-eyebrow">Waiting for you</span>' +
-              '<h2 class="fm-h">' + word(pieces) + (pieces === 1 ? ' piece' : ' pieces') + ' read.</h2>' +
-              '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 18px;">' + word(rows.length) + (rows.length === 1 ? ' receipt' : ' receipts') + ', read and held. Open one when you have a minute.</p>' +
+              '<h2 class="fm-h" style="margin-bottom:16px">' + pieces + (pieces === 1 ? ' piece' : ' pieces') + ' read</h2>' +
               '<div class="rb-wf-rcpts">' + rows.map(function(r) {
                 const n = Array.isArray(r.items) ? r.items.length : 0;
                 return '<button type="button" class="rb-wf-rcpt" data-id="' + _sawEsc(r.id) + '" onclick="window.__waRcptOpen(\'' + _sawEsc(r.id) + '\')">' +
@@ -2274,8 +2276,7 @@
                   '<span class="s">' + _sawEsc(_wiWhen(r.received_at)) + ' · ' + n + (n === 1 ? ' piece read' : ' pieces read') + '</span></span>' +
                   '<span class="rb-wf-way-ar" aria-hidden="true">→</span></button>';
               }).join('') + '</div>' +
-              '<p class="rb-wf-note">Nothing is filed until you have been through it. Receipts wait as long as they need to.</p>' +
-              '<div class="rb-wf-foot"><button type="button" class="rb-wf-back" onclick="window.__waWay(\'choose\')">← Other ways in</button></div>';
+              '<p class="rb-wf-note">Nothing is filed until you have been through it. Receipts wait as long as they need to.</p>';
           }
           _setDot(1);
           _dummyLabel(step);
@@ -2297,14 +2298,13 @@
           if (!step || !_wiRev) return;
           const row = _wiRev.row, picks = _wiRev.picks;
           const items = Array.isArray(row.items) ? row.items : [];
-          const word = function(k) { return typeof _msWord === 'function' ? _msWord(k) : String(k); };
           const n = picks.length;
           const toWl = _wiRev.target === 'wishlist';
           step.innerHTML =
-            '<button type="button" class="rb-wf-back" style="margin:0 0 16px" onclick="window.__waWay(\'receipts\')">← All receipts</button>' +
-            '<span class="rb-wf-eyebrow">From ' + _sawEsc(row.retailer || 'a receipt') + '</span>' +
-            '<h2 class="fm-h">' + word(items.length) + (items.length === 1 ? ' piece' : ' pieces') + ' read.</h2>' +
-            '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 18px;">Keep what you kept. Untick anything that went back.</p>' +
+            (_wiRows.length > 1 ? '<button type="button" class="rb-wf-back" style="margin:0 0 16px" onclick="window.__waWay(\'receipts\')">← All receipts</button>' : '') +
+            '<span class="rb-wf-eyebrow">From ' + _sawEsc(row.retailer || 'a receipt') + ' · ' + _sawEsc(_wiWhen(row.received_at)) + '</span>' +
+            '<h2 class="fm-h">' + items.length + (items.length === 1 ? ' piece' : ' pieces') + ' read</h2>' +
+            '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 18px;">Untick anything that went back.</p>' +
             '<div class="rb-wf-revs" id="rb-wf-revs">' + items.map(function(it, i) {
               const on = picks.indexOf(i) !== -1;
               const detail = [_waPriceFmt(it.price, it.currency), it.size ? 'Size ' + it.size : '', it.quantity > 1 ? '× ' + it.quantity : ''].filter(Boolean).join(' · ');
@@ -2345,13 +2345,13 @@
               if (open) { _wiRev = rev; _showReview(); }
               return;
             }
+            // No toast, no "all caught up": the receipt leaves the queue,
+            // the pieces are in the grid and its count has gone up.
             if (rev.target === 'wishlist') {
               _wlLoad();
               if (_waView !== 'wishlist' && window.__waSetView) window.__waSetView('wishlist');
-              _waShowToast(out.filed === 1 ? '1 piece on your wishlist' : out.filed + ' pieces on your wishlist');
             } else {
               _waLoad();
-              _waShowToast(out.filed === 1 ? '1 piece in your wardrobe' : out.filed + ' pieces in your wardrobe');
             }
             if (!open) return;
             if (_wiRows.length) _showReceipts(); else _origWAClose();
@@ -3722,7 +3722,7 @@
         const word = function(k) { const w = typeof _msWord === 'function' ? _msWord(k) : String(k); return w.charAt(0).toLowerCase() + w.slice(1); };
         el.innerHTML = '<span class="rb-wg-inbox-ic" aria-hidden="true">✦</span>' +
           '<span class="rb-wg-inbox-t"><span class="h">Robes read ' + word(n) + ' receipt' + (n === 1 ? '' : 's') + '</span>' +
-          '<span class="s">' + pieces + (pieces === 1 ? ' piece is' : ' pieces are') + ' waiting for you to look over</span></span>' +
+          '<span class="s">' + pieces + (pieces === 1 ? ' piece' : ' pieces') + ' waiting</span></span>' +
           '<button type="button" class="rb-pill rb-wg-inbox-go" onclick="window.__waInboxOpen()">Review them →</button>';
       }
       // Her Robes address, minted the first time she asks for it: the
@@ -3824,6 +3824,7 @@
           try { await _waFetch('PATCH', 'wardrobe_inbox?id=eq.' + row.id, { status: 'filed', filed_ids: ids, filed_to: toWl ? 'wishlist' : 'wardrobe', decided_at: new Date().toISOString() }); }
           catch (e) { console.warn('[inbox] patch:', e && e.message); }
           _wiRows = _wiRows.filter(function(r) { return r.id !== row.id; });
+          _wiSync();
           _rbTrack('inbox_reviewed', { filed: ids.length, skipped: items.length - picks.length, retailer: row.retailer || '', to: toWl ? 'wishlist' : 'wardrobe' });
         }
         return { filed: ids.length, ids: ids, failed: failed };
@@ -3842,7 +3843,7 @@
       // subcategory / item type live in the tab cascade (_waDrill),
       // silhouette & fit is cut, worn/never retired (the Never-worn badge
       // on the card carries that signal).
-      var _waRefine = { seasons: [], colors: [], wear: [], brand: '' };
+      var _waRefine = { seasons: [], colors: [], wear: [], brand: '', src: '' };
       var _waRefineOpen = false;
       // The browse drill — Subcategory › Item type picked through the
       // category tabs' cascade, scoped to the active sheet-L1 tab.
@@ -4182,11 +4183,18 @@
           if (o.indexOf('everyday') === -1 && !r.wear.some(x => o.indexOf(x) !== -1)) return false;
         }
         if (r.brand && (it.brand || '') !== r.brand) return false;
+        // Added from · Receipts — a forwarded receipt leaves the queue for
+        // good once filed, so this is the one way back to those pieces.
+        if (r.src && _waItemSrc(it) !== r.src) return false;
         return true;
+      }
+      function _waItemSrc(it) {
+        const src = it && it.item_dna && it.item_dna.source;
+        return src && typeof src === 'object' && src.kind === 'receipt' ? 'receipt' : '';
       }
       function _waRefineCount() {
         const r = _waRefine;
-        return r.seasons.length + r.colors.length + r.wear.length + (r.brand ? 1 : 0);
+        return r.seasons.length + r.colors.length + r.wear.length + (r.brand ? 1 : 0) + (r.src ? 1 : 0);
       }
       function _waFilteredItems() {
         // Category tab, then the cascade drill (Subcategory › Item type —
@@ -4301,6 +4309,7 @@
         _waRefineRender();
       };
       window.__waRefBrand = function(el) { _waRefine.brand = el.value; _waRender(); _waRefineRender(); };
+      window.__waRefSrc = function(v) { _waRefine.src = _waRefine.src === v ? '' : v; _waRender(); _waRefineRender(); };
       // One clear for every filter tier — category tab back to All, the
       // cascade drill dropped, the Refine panel wiped.
       window.__waFiltersClear = function() {
@@ -4310,7 +4319,7 @@
         document.querySelectorAll('#wg-filters .wg-tab').forEach(p => p.classList.toggle('active', (p.dataset.cat || p.textContent) === 'All'));
       };
       window.__waRefClear = function() {
-        _waRefine = { seasons: [], colors: [], wear: [], brand: '' };
+        _waRefine = { seasons: [], colors: [], wear: [], brand: '', src: '' };
         _waRender();
         _waRefineRender();
       };
@@ -4369,6 +4378,12 @@
         brands.sort();
         const brandOpts = '<option value="">All brands</option>' + brands.map(b =>
           '<option value="' + _waEsc(b) + '"' + (r.brand === b ? ' selected' : '') + '>' + _waEsc(b) + '</option>').join('');
+        // Added from — renders only once a piece came in from a receipt
+        // (or the pick is live, so it stays deselectable).
+        const anyReceipt = r.src === 'receipt' || _waItems.some(function(i) { return _waItemSrc(i) === 'receipt'; });
+        const srcHtml = anyReceipt
+          ? '<div class="rb-ref-sec src"><div class="rb-ref-lbl">Added from</div><div class="rb-ref-chips"><button class="rb-ref-chip' + (r.src === 'receipt' ? ' on' : '') + '" onclick="window.__waRefSrc(\'receipt\')">Receipts</button></div></div>'
+          : '';
         const n = _waFilteredItems().length;
         // DOM order is the MOBILE order (Season, Wear it for, Colour,
         // Brand — the sheet stacks it); desktop re-places the sections via
@@ -4381,6 +4396,7 @@
           '<div class="rb-ref-sec wear"><div class="rb-ref-lbl">Wear it for</div><div class="rb-ref-chips">' + wearChips + '</div></div>' +
           '<div class="rb-ref-sec col"><div class="rb-ref-lbl">Colour' + colNote + '</div><div class="rb-ref-chips" style="gap:11px;max-width:300px">' + colorHtml + '</div></div>' +
           (brands.length ? '<div class="rb-ref-sec brand"><div class="rb-ref-lbl">Brand</div><select class="rb-ref-select" onchange="window.__waRefBrand(this)">' + brandOpts + '</select></div>' : '') +
+          srcHtml +
           '</div>' +
           '<div class="rb-ref-foot">' +
             '<button onclick="window.__waRefClear()" style="border:none;background:none;color:var(--ink-faint);font-size:11.5px;cursor:pointer;font-family:inherit;letter-spacing:.03em;padding:0">Clear all</button>' +
@@ -4956,8 +4972,9 @@
             '#rb-refine{border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:18px 20px;margin:0 0 24px}',
             '.rb-ref-mhead{display:none}',
             '.rb-ref-note{font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint);text-transform:none;letter-spacing:0;font-weight:300;margin-left:8px}',
-            '.rb-ref-grid{display:grid;grid-template-columns:1fr 1.4fr 1fr;grid-template-areas:"sea col brand" "wear wear wear";gap:20px 28px}',
-            '.rb-ref-grid.nobrand{grid-template-columns:1fr 1.4fr;grid-template-areas:"sea col" "wear wear"}',
+            '.rb-ref-grid{display:grid;grid-template-columns:1fr 1.4fr 1fr;grid-template-areas:"sea col brand" "wear wear wear" "src src src";gap:20px 28px}',
+            '.rb-ref-grid.nobrand{grid-template-columns:1fr 1.4fr;grid-template-areas:"sea col" "wear wear" "src src"}',
+            '.rb-ref-sec.src{grid-area:src;border-top:0.5px solid var(--rule);padding-top:18px}',
             '.rb-ref-sec.sea{grid-area:sea}',
             '.rb-ref-sec.col{grid-area:col}',
             '.rb-ref-sec.brand{grid-area:brand}',
