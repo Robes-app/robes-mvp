@@ -105,11 +105,20 @@ async function boot(browser, tagBody, opts = {}) {
   const inboxPatches = [];
   const profilePatches = [];
   const urlReads = [];
+  const wlPosts = [];
   let inboxRows = (opts.inbox || []).map((r) => ({ ...r }));
   await page.route('**cdn.jsdelivr.net/**', (r) =>
     r.fulfill({ status: 200, contentType: 'application/javascript', body: SUPA_STUB }));
   await page.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => {
     const req = r.request();
+    if (req.url().includes('wishlist_items')) {
+      if (req.method() === 'POST') {
+        const body = JSON.parse(req.postData() || '{}');
+        wlPosts.push(body);
+        return r.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify([{ id: 'wl-' + wlPosts.length, ...body }]) });
+      }
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(wlPosts.map((b, i) => ({ id: 'wl-' + (i + 1), created_at: '2026-09-22', ...b }))) });
+    }
     if (req.url().includes('wardrobe_inbox')) {
       if (req.method() === 'PATCH') {
         const body = JSON.parse(req.postData() || '{}');
@@ -168,7 +177,7 @@ async function boot(browser, tagBody, opts = {}) {
   page.on('pageerror', (e) => errs.push(String(e)));
   await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
-  return { ctx, page, errs, supaPosts, supaPatches, inboxPatches, profilePatches, urlReads };
+  return { ctx, page, errs, supaPosts, supaPatches, inboxPatches, profilePatches, urlReads, wlPosts };
 }
 
 const browser = await chromium.launch(
@@ -1096,6 +1105,79 @@ const browser = await chromium.launch(
   check('receipts · Nothing to keep dismisses the last receipt, closes the modal and takes the notice down',
     !d1.open && !d1.notice && inboxPatches.length === 2 && inboxPatches[1].body.status === 'dismissed' && supaPosts.length === 2, JSON.stringify([d1, inboxPatches[1]]));
   check('no page errors (receipts)', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+// ── The wishlist takes the same ways in (2026-09-22) ─────────────────
+{
+  const { ctx, page, errs, supaPosts, wlPosts, inboxPatches } = await boot(browser, TAG, { rows: ROWS, inbox: INBOX, inboxAddress: 'annie-4f2k' });
+  await page.evaluate(() => window.App && App.showWardrobe());
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.__waSetView('wishlist'));
+  await page.waitForTimeout(400);
+  const w0 = await page.evaluate(() => ({ pill: document.getElementById('rb-add-pill')?.textContent, soon: !!document.querySelector('.rb-soon-tag'), modal: !!document.getElementById('rb-wl-modal'), notice: !!document.getElementById('rb-wg-inbox'), empty: document.querySelector('.rb-wl-empty')?.textContent || '' }));
+  check('wishlist · the empty state offers Save a piece + a live Paste a link (no Coming soon), no bespoke modal, no receipt notice on this view', w0.pill === '+ Save a piece' && !w0.soon && !w0.modal && !w0.notice && /Paste a link/.test(w0.empty), JSON.stringify(w0));
+  await page.click('#rb-add-pill');
+  await page.waitForTimeout(400);
+  const w1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', sub: document.querySelector('#wa-modal .fm-step > p')?.textContent || '', ways: Array.from(document.querySelectorAll('.rb-wf-way')).map((b) => b.dataset.way), photoSub: document.querySelector('.rb-wf-way[data-way="photo"] .rb-wf-way-s')?.textContent || '' }));
+  check('wishlist · + Save a piece opens the same chooser in the wishlist register: "Save a piece." / the four ways', w1.h === 'Save a piece.' && /wishlist/.test(w1.sub) && w1.ways.join('|') === 'photo|mail|url|manual' && /screenshot/i.test(w1.photoSub), JSON.stringify(w1));
+  await page.click('.rb-wf-way[data-way="photo"]');
+  await page.waitForTimeout(300);
+  check('wishlist · the photo step reads "Save what catches your eye."', await page.evaluate(() => document.querySelector('#wa-modal .fm-h')?.textContent) === 'Save what catches your eye.');
+  await page.setInputFiles('#wa-rb-file', { name: 'blazer.png', mimeType: 'image/png', buffer: PNG_OK });
+  await page.waitForTimeout(1200);
+  const w2 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', sub: document.querySelector('#wa-modal .fm-step > p')?.textContent || '', cta: document.getElementById('wa-saw-cta')?.textContent || '' }));
+  check('wishlist · the scan lands on the same confirm screen, CTA "Save to wishlist →"', /what Robes/.test(w2.h) && /Read from your image/.test(w2.sub) && w2.cta === 'Save to wishlist →', JSON.stringify(w2));
+  await page.waitForTimeout(2200);
+  await page.click('button.rb-saw-toggle:has-text("Edit the details")');
+  await page.waitForTimeout(300);
+  const w3 = await page.evaluate(() => ({ srcs: Array.from(document.querySelectorAll('#rb-wf-srcs .rb-wf-chip')).map((c) => c.textContent + (c.classList.contains('on') ? '*' : '')), hint: document.querySelector('.rb-saw-toggle .hint')?.textContent || '' }));
+  check('wishlist · the editor carries "Where did you spot it?" (Screenshot on by default); the tags hint reads price, size, notes', w3.srcs.join('|') === 'Screenshot*|Instagram|Substack|In person|A link' && w3.hint === 'price, size, notes', JSON.stringify(w3));
+  await page.click('#rb-wf-srcs .rb-wf-chip:has-text("Instagram")');
+  await page.click('button.rb-saw-toggle:has-text("Add tags and notes")');
+  await page.waitForTimeout(300);
+  const w4 = await page.evaluate(() => ({ labels: Array.from(document.querySelectorAll('#wa-modal .rb-wf-lbl')).map((l) => l.textContent), sea: document.querySelectorAll('.rb-wf-chip.sea').length }));
+  check('wishlist · tags and notes holds Price / Size / Notes only — no Season, no Wear it for', w4.labels.join('|') === 'Price|Size|Notes' && w4.sea === 0, JSON.stringify(w4));
+  await page.fill('#wa-saw-price', '€245');
+  await page.fill('#wa-saw-size', 'M');
+  await page.click('#wa-saw-cta');
+  await page.waitForTimeout(1200);
+  const wp = wlPosts[0] || {};
+  check('wishlist · the save is a wishlist_items row: label, Instagram provenance, price 245 EUR, size, the taxonomy pair, the hosted photo — and nothing reached wardrobe_items',
+    wlPosts.length === 1 && supaPosts.length === 0 && wp.label === 'Cream wool blazer' && wp.source_type === 'instagram' && wp.source_label === 'Saved from Instagram' && wp.price === 245 && wp.currency === 'EUR' && wp.size === 'M' && wp.image_url === 'https://res.cloudinary.com/robes/test.jpg' && wp.category === 'Outerwear' && 'category_l2' in wp && !('season_band' in wp) && !('notes' in wp) && 'note' in wp,
+    JSON.stringify(wp));
+  const w5 = await page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), view: document.getElementById('rb-wl-grid')?.style.display, card: document.querySelector('#rb-wl-grid .wg-metar')?.textContent || '' }));
+  check('wishlist · the modal closes, the wishlist repaints with the piece (price with its currency, the size)', !w5.open && w5.view === 'grid' && w5.card === 'Zara · €245 · Size M', JSON.stringify(w5));
+
+  // A link, saved to the wishlist: provenance A link + the page URL kept.
+  await page.evaluate(() => window.__wlSoonLink());
+  await page.waitForTimeout(400);
+  await page.fill('#rb-wf-url', 'https://shop.example.com/p/1');
+  await page.click('#rb-wf-urlgo');
+  await page.waitForTimeout(1000);
+  await page.waitForTimeout(2200);
+  await page.click('#wa-saw-cta');
+  await page.waitForTimeout(1200);
+  const wl2 = wlPosts[1] || {};
+  check('wishlist · Paste a link (the old coming-soon door) reads the page and saves it with source A link + the URL, price 340 GBP, size 38', wlPosts.length === 2 && wl2.source_type === 'url' && wl2.source_url === 'https://shop.example.com/p/1' && wl2.price === 340 && wl2.currency === 'GBP' && wl2.size === '38' && wl2.image_url === URL_PIECE.image_url, JSON.stringify(wl2));
+
+  // A receipt reviewed from the wishlist saves there — with a way to the wardrobe on the screen.
+  await page.evaluate(() => window.WA && WA.open({ way: 'receipts', target: 'wishlist' }));
+  await page.waitForTimeout(400);
+  await page.click('.rb-wf-rcpt[data-id="rc-2"]');
+  await page.waitForTimeout(300);
+  const r0 = await page.evaluate(() => ({ to: document.getElementById('rb-wf-revto')?.textContent || '', file: document.getElementById('rb-wf-file')?.textContent || '' }));
+  check('wishlist · the review says "Saving to your wishlist · To the wardrobe instead →", the CTA reads Save', /^Saving to your wishlist/.test(r0.to) && /To the wardrobe instead/.test(r0.to) && r0.file === 'Save 1 piece', JSON.stringify(r0));
+  await page.click('#rb-wf-revto .rb-wf-back');
+  await page.waitForTimeout(200);
+  const r1 = await page.evaluate(() => ({ to: document.getElementById('rb-wf-revto')?.textContent || '', file: document.getElementById('rb-wf-file')?.textContent || '' }));
+  check('wishlist · the toggle flips the landing to the wardrobe and back', /^Filing to your wardrobe/.test(r1.to) && r1.file === 'File 1 piece');
+  await page.click('#rb-wf-revto .rb-wf-back');
+  await page.click('#rb-wf-file');
+  await page.waitForTimeout(1200);
+  const wl3 = wlPosts[2] || {};
+  check('wishlist · Save 1 piece writes the wishlist row from the receipt (From Sézane, 95 EUR) and marks the receipt filed to the wishlist', wlPosts.length === 3 && supaPosts.length === 0 && wl3.source_type === 'receipt' && wl3.source_label === 'From Sézane' && wl3.price === 95 && wl3.currency === 'EUR' && inboxPatches.some((p) => /rc-2/.test(p.url) && p.body.status === 'filed' && p.body.filed_to === 'wishlist'), JSON.stringify([wl3, inboxPatches]));
+  check('no page errors (wishlist)', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 

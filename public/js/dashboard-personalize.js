@@ -1980,8 +1980,9 @@
           step.innerHTML = `
             ${brief
               ? '<h2 class="fm-h">Make <em>' + _waEsc(brief.lookName) + '</em> yours.</h2>'
+              : _waTarget === 'wishlist' ? '<h2 class="fm-h">Save what catches your eye.</h2>'
               : '<h2 class="fm-h">Add your pieces.</h2>'}
-            <p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">One or twenty. Robes reads the colour, the cut and the label — and fills in the rest.</p>
+            <p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">${_waTarget === 'wishlist' ? 'A screenshot, a photo, a saved image — Robes reads what it can, one or several at once.' : 'One or twenty. Robes reads the colour, the cut and the label — and fills in the rest.'}</p>
             <div id="wa-rb-zone" class="rb-wf-drop">
               ${_waBriefHtml()}
               <span class="rb-wf-glyph" aria-hidden="true"><svg width="46" height="46" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="22" height="28" rx="2" stroke="#C9BCA6" stroke-width="1.4" transform="rotate(-6 8 12)"/><rect x="14" y="10" width="22" height="28" rx="2" stroke="#B8AA92" stroke-width="1.4" transform="rotate(-2 14 10)"/><rect x="21" y="9" width="22" height="28" rx="2" fill="#FAF8F5" stroke="#2A2520" stroke-width="1.5"/></svg></span>
@@ -2114,11 +2115,12 @@
           const step = document.querySelector('#wa-modal .fm-step');
           if (!step) return;
           const held = _wiRows.length;
+          const wl = _waTarget === 'wishlist';
           step.innerHTML =
-            '<h2 class="fm-h">Add a piece.</h2>' +
-            '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">However it reaches you.</p>' +
+            '<h2 class="fm-h">' + (wl ? 'Save a piece.' : 'Add a piece.') + '</h2>' +
+            '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">' + (wl ? 'To your wishlist — however it catches your eye.' : 'However it reaches you.') + '</p>' +
             '<div class="rb-wf-ways" id="rb-wf-ways">' +
-              _wayRow('photo', 'Photograph it', 'One photo. Robes reads the rest.') +
+              _wayRow('photo', 'Photograph it', wl ? 'A screenshot, a photo — Robes reads what it can.' : 'One photo. Robes reads the rest.') +
               _wayRow('mail', 'Forward a receipt', held
                 ? held + (held === 1 ? ' receipt is' : ' receipts are') + ' waiting for you to look over.'
                 : 'Send the order email. Robes files what’s in it.') +
@@ -2285,7 +2287,7 @@
           const items = Array.isArray(row.items) ? row.items : [];
           // Everything she kept is ticked; a piece the email says went
           // back starts unticked.
-          _wiRev = { row: row, picks: items.map(function(it, i) { return it && it.returned ? -1 : i; }).filter(function(i) { return i >= 0; }) };
+          _wiRev = { row: row, target: _waTarget, picks: items.map(function(it, i) { return it && it.returned ? -1 : i; }).filter(function(i) { return i >= 0; }) };
           _showReview();
         };
         function _showReview() {
@@ -2297,6 +2299,7 @@
           const items = Array.isArray(row.items) ? row.items : [];
           const word = function(k) { return typeof _msWord === 'function' ? _msWord(k) : String(k); };
           const n = picks.length;
+          const toWl = _wiRev.target === 'wishlist';
           step.innerHTML =
             '<button type="button" class="rb-wf-back" style="margin:0 0 16px" onclick="window.__waWay(\'receipts\')">← All receipts</button>' +
             '<span class="rb-wf-eyebrow">From ' + _sawEsc(row.retailer || 'a receipt') + '</span>' +
@@ -2311,13 +2314,17 @@
                 '<span class="tx"><span class="b">' + _sawEsc(it.brand || row.retailer || '') + '</span><span class="t">' + _sawEsc(it.label || 'A piece') + '</span>' +
                 '<span class="s">' + _sawEsc(detail || (it.returned ? 'Returned' : (it.category || ''))) + '</span></span></button>';
             }).join('') + '</div>' +
+            // Where they land is a choice on the screen, whichever door she
+            // came through — a receipt is usually a purchase, not a wish.
+            '<p class="rb-wf-note" id="rb-wf-revto">' + (toWl ? 'Saving to your wishlist' : 'Filing to your wardrobe') + ' · <button type="button" class="rb-wf-back" onclick="window.__waRevTarget(\'' + (toWl ? 'wardrobe' : 'wishlist') + '\')">' + (toWl ? 'To the wardrobe instead' : 'To the wishlist instead') + ' →</button></p>' +
             '<div class="rb-wf-foot">' +
               '<span class="rb-wf-chosen" id="rb-wf-chosen">' + (n === 1 ? '1 piece chosen' : n + ' pieces chosen') + ' · <button type="button" class="rb-wf-back" onclick="window.__waRevDismiss()">Nothing to keep</button></span>' +
-              '<button type="button" class="rb-wf-cta sm" id="rb-wf-file" onclick="window.__waRevFile()"' + (n ? '' : ' disabled') + '>File ' + (n === 1 ? '1 piece' : n + ' pieces') + '</button>' +
+              '<button type="button" class="rb-wf-cta sm" id="rb-wf-file" onclick="window.__waRevFile()"' + (n ? '' : ' disabled') + '>' + (toWl ? 'Save ' : 'File ') + (n === 1 ? '1 piece' : n + ' pieces') + '</button>' +
             '</div>';
           _setDot(3);
           _dummyLabel(step);
         }
+        window.__waRevTarget = function(t) { if (_wiRev) { _wiRev.target = t === 'wishlist' ? 'wishlist' : 'wardrobe'; _showReview(); } };
         window.__waRevTog = function(i) {
           if (!_wiRev) return;
           const at = _wiRev.picks.indexOf(i);
@@ -2330,7 +2337,7 @@
           const rev = _wiRev; _wiRev = null;
           const btn = document.getElementById('rb-wf-file');
           if (btn) { btn.disabled = true; btn.textContent = 'Filing…'; }
-          _wiFile(rev.row, rev.picks).then(function(out) {
+          _wiFile(rev.row, rev.picks, rev.target).then(function(out) {
             const m = document.getElementById('wa-modal');
             const open = m && m.classList.contains('open');
             if (out.failed) {
@@ -2338,8 +2345,14 @@
               if (open) { _wiRev = rev; _showReview(); }
               return;
             }
-            _waLoad();
-            _waShowToast(out.filed === 1 ? '1 piece in your wardrobe' : out.filed + ' pieces in your wardrobe');
+            if (rev.target === 'wishlist') {
+              _wlLoad();
+              if (_waView !== 'wishlist' && window.__waSetView) window.__waSetView('wishlist');
+              _waShowToast(out.filed === 1 ? '1 piece on your wishlist' : out.filed + ' pieces on your wishlist');
+            } else {
+              _waLoad();
+              _waShowToast(out.filed === 1 ? '1 piece in your wardrobe' : out.filed + ' pieces in your wardrobe');
+            }
             if (!open) return;
             if (_wiRows.length) _showReceipts(); else _origWAClose();
           });
@@ -2678,20 +2691,21 @@
               (hint ? '<span class="hint">' + hint + '</span>' : '') +
               '<span class="car">' + car + '</span></button>';
           }
-          const nTags = (d.band && d.band !== 'year_round' ? 1 : 0) +
-            d.wear.filter(function(w) { return w !== 'everyday'; }).length +
+          const wlTags = _waTarget === 'wishlist' && f.mode !== 'edit';
+          const nTags = (wlTags ? 0 : (d.band && d.band !== 'year_round' ? 1 : 0) + d.wear.filter(function(w) { return w !== 'everyday'; }).length) +
             (window.__waSawPrice ? 1 : 0) + (window.__waSawSize ? 1 : 0);
           const tagsToggle = tog('tags',
             '<span style="color:var(--ink-faint);margin-right:8px">+</span>Add tags and notes', '',
-            nTags ? nTags + ' set' : 'season, wear it for, price, size, notes');
+            nTags ? nTags + ' set' : (_waTarget === 'wishlist' && !isEdit ? 'price, size, notes' : 'season, wear it for, price, size, notes'));
           // Bridge, not a duplicate (IA 2026-08-08): the piece links into
           // the Lookbook where its looks live — the cross-link that
           // replaced the wardrobe's Looks tab.
           const styledIn = isEdit && typeof _lkLooks !== 'undefined' && Array.isArray(_lkLooks)
             ? _lkLooks.filter(function(l) { return _lkPieceIds(l).map(String).indexOf(String(_waEditId)) > -1; }).length
             : 0;
+          const wl = _waTarget === 'wishlist' && !isEdit;
           const cta = '<button id="wa-saw-cta" class="rb-wf-cta" onclick="window.__waSawSubmit&&window.__waSawSubmit()">' +
-              (isEdit ? 'Update piece →' : 'Add to wardrobe →') + '</button>' +
+              (isEdit ? 'Update piece →' : wl ? 'Save to wishlist →' : 'Add to wardrobe →') + '</button>' +
             (styledIn ? '<button type="button" class="rb-wf-del" style="color:var(--ink-soft)" onclick="window.__waFormLooks()">Styled in ' + styledIn + ' look' + (styledIn === 1 ? '' : 's') + ' →</button>' : '') +
             (isEdit ? '<button type="button" class="rb-wf-del" onclick="window.__waFormDelete()">Remove from wardrobe</button>' : '');
           const photoIn = (f.mode !== 'add' || (f.src === 'url' && !f.photo))
@@ -2743,7 +2757,7 @@
             }).join('') + '</ul>';
             html = batch +
               '<h2 class="fm-h" style="margin-bottom:4px;">Here’s what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>' +
-              '<p style="font-size:13px;color:var(--ink-faint);margin:0 0 16px;">' + (f.src === 'url' ? 'Read from the page — adjust the details only if something isn’t quite right.' : 'Filed from your photo — adjust the details only if something isn’t quite right.') + '</p>' +
+              '<p style="font-size:13px;color:var(--ink-faint);margin:0 0 16px;">' + (f.src === 'url' ? 'Read from the page — adjust the details only if something isn’t quite right.' : (wl ? 'Read from your image' : 'Filed from your photo') + ' — adjust the details only if something isn’t quite right.') + '</p>' +
               '<div class="rb-saw-panel" id="rb-saw-panel"><img id="wa-saw-photo" alt="">' + tagsHtml +
               '<button type="button" class="rb-saw-retake" onclick="window.__waRetake&&window.__waRetake()">' + (f.src === 'url' ? '↺ Another link' : '↺ Retake') + '</button></div>' +
               ledger +
@@ -2759,7 +2773,7 @@
               const sub = f.mode === 'add' && !f.readable
                 ? '<p style="font-size:13px;color:var(--ink-faint);margin:0 0 14px;">Robes couldn’t quite read this one — give it a name and it files all the same.</p>'
                 : '';
-              head = '<h2 class="fm-h" style="margin-bottom:' + (sub ? '4px' : '14px') + ';">Add a piece.</h2>' + sub +
+              head = '<h2 class="fm-h" style="margin-bottom:' + (sub ? '4px' : '14px') + ';">' + (wl ? 'Save a piece.' : 'Add a piece.') + '</h2>' + sub +
                 (f.photo
                   ? '<div class="rb-wf-photo"><img id="rb-wf-photoimg" alt=""><button type="button" class="rb-saw-retake" onclick="window.__waFormPhoto()">↺ Retake</button></div>'
                   : '<div class="rb-wf-slot"><span class="rb-wf-btn line" onclick="window.__waFormPhoto()">Add a photo</span></div>');
@@ -2792,7 +2806,12 @@
                   '<span class="rb-wf-colname' + (colour ? '' : ' ph') + '">' + _sawEsc(colour || 'Pick a colour') + '</span>' +
                   '<button type="button" class="rb-wf-change" onclick="window.__waColourPop(this)">Change</button>' +
                 '</div>' +
-              '</div>';
+              '</div>' +
+              (wl
+                ? '<div style="margin-bottom:14px"><label class="rb-wf-lbl" style="margin-bottom:10px">Where did you spot it?</label><div class="rb-wf-chips" id="rb-wf-srcs">' +
+                  _WL_PICK.map(function(d) { return '<button type="button" class="rb-wf-chip ctx' + (window.__waSawSrc === d[0] ? ' on' : '') + '" onclick="window.__waSrcPick(\'' + d[0] + '\')">' + d[1] + '</button>'; }).join('') +
+                  '</div></div>'
+                : '');
             html = batch + head + fields + tagsToggle + cta + photoIn;
           } else {
             // f.view === 'tags' — screen 06: two axes held apart, notes last.
@@ -2827,13 +2846,16 @@
             }).join('') + (d.addingTag
               ? '<input id="rb-wf-tagin" class="rb-wf-input" placeholder="Type &amp; press Enter" onkeydown="window.__waTagKey(event,this)" onblur="window.__waTagKey(event,this)" style="width:150px;border-radius:100px;padding:8px 15px;font-size:13px">'
               : '<button type="button" class="rb-wf-chip ctx add" onclick="window.__waTagStart()">+ tag</button>');
+            // A wishlist piece is not hers yet — no season, no wear-it-for
+            // (the tag namespace links pieces she owns); price, size, notes.
             html = batch + compactHead(editAct) +
               tog('details', 'Hide tags and notes', '▴') +
+              (wl ? '' :
               '<div class="rb-wf-taghd first"><label class="rb-wf-lbl" style="margin-bottom:10px">Season</label><div class="rb-wf-chips">' + seaChips + '</div></div>' +
-              '<div class="rb-wf-taghd"><label class="rb-wf-lbl" style="margin-bottom:10px">Wear it for</label><div class="rb-wf-chips">' + ctxChips + '</div></div>' +
+              '<div class="rb-wf-taghd"><label class="rb-wf-lbl" style="margin-bottom:10px">Wear it for</label><div class="rb-wf-chips">' + ctxChips + '</div></div>') +
               // Price and size (2026-09-22): both optional, filled in by a
               // receipt or a link when they carry them, hers to correct.
-              '<div class="rb-wf-price"><div class="rb-wf-grid2">' +
+              '<div class="rb-wf-price' + (wl ? '" style="margin-top:0;padding-top:0;border-top:none' : '') + '"><div class="rb-wf-grid2">' +
                 '<div><label class="rb-wf-lbl">Price</label><input id="wa-saw-price" class="rb-wf-input" inputmode="decimal" placeholder="—" value="' + _sawEsc(window.__waSawPrice || '') + '" oninput="window.__waSawPrice=this.value"></div>' +
                 '<div><label class="rb-wf-lbl">Size</label><input id="wa-saw-size" class="rb-wf-input" placeholder="—" value="' + _sawEsc(window.__waSawSize || '') + '" oninput="window.__waSawSize=this.value"></div>' +
               '</div><p class="note">Both optional. Robes fills them in when a receipt or a link carries them.</p></div>' +
@@ -2904,6 +2926,7 @@
           }
         }
         window.__waFormRepaint = function() { if (_waForm) _waFormPaint(); };
+        window.__waSrcPick = function(v) { window.__waSawSrc = v; _waFormPaint(); };
 
         window.__waFormView = function(v, focusIdx) {
           if (!_waForm) return;
@@ -2997,6 +3020,8 @@
           window.__waSawColor = '';
           window.__waSawPrice = '';
           window.__waSawSize = '';
+          window.__waSawSrc = 'photo';
+          window.__waSawSrcUrl = '';
           window.__waSawItemDna = {};
           window.__waSawCat = '';
           window.__waSawL2 = '';
@@ -3056,6 +3081,8 @@
           window.__waSawBrand = tag.brand || '';
           window.__waSawPrice = _waPriceFmt(tag.price, tag.currency);
           window.__waSawSize = tag.size || '';
+          window.__waSawSrc = src === 'url' ? 'url' : 'screenshot';
+          window.__waSawSrcUrl = src === 'url' && tag.item_dna && tag.item_dna.source ? tag.item_dna.source.url || '' : '';
           window.__waSawNotes = dna.ai_generated_notes || tag.notes || '';
           window.__waSawColor = initColor;
           window.__waSawItemDna = dna;
@@ -3168,7 +3195,10 @@
             // 'photo', 'mail', 'url', 'receipts' — a bare open is 'photo'.
             const way = (opts && typeof opts === 'object' && opts.way && !_waEditId) ? String(opts.way) : '';
             _waFromChooser = way === 'choose';
-            const openArgs = (briefIn || way) ? [] : arguments;
+            // `target` picks the table the modal files to; the wishlist
+            // never edits (its piece page has no editor yet).
+            _waTarget = (opts && typeof opts === 'object' && opts.target === 'wishlist' && !_waEditId) ? 'wishlist' : 'wardrobe';
+            const openArgs = (briefIn || way || _waTarget === 'wishlist') ? [] : arguments;
             // The bundle's open() does $('wa-label-in').value = '' etc. — it
             // needs the bundle form present in .fm-step. If a prior flow left
             // our custom step content there (e.g. a swap → Snap Mine, or the
@@ -3242,6 +3272,7 @@
               _waBatchQueue = []; _waBatchTotal = 0; _waBatchDone = 0;
               _waBrief = null;
               _waFromChooser = false;
+              _waTarget = 'wardrobe';
               // Form + tag-axis + taxonomy state must not leak into the next open
               _waForm = null;
               _waPopClose();
@@ -3330,6 +3361,46 @@
               image_url: imageUrl,
               item_dna:  Object.keys(savedDna).length ? savedDna : undefined,
             };
+
+            // ── The wishlist target (2026-09-22) ─────────────────────────
+            // Same form, same reads, a wishlist_items row: provenance from
+            // the "Where did you spot it?" chips (a link keeps its URL),
+            // price / size / currency + the taxonomy pair on the one
+            // migration-23 tier, no tag links (she does not own it yet).
+            if (_waTarget === 'wishlist' && !editId) {
+              const wlPriced = _waPriceParse(window.__waSawPrice);
+              const wlSrc = _WL_SRC[window.__waSawSrc] ? window.__waSawSrc : 'photo';
+              const wlSel = window.__waSawTaxSel;
+              const wlPayload = {
+                user_id: payload.user_id, label: payload.label,
+                category: wlSel ? _waTaxLegacy(wlSel.sheet, wlSel.l2, wlSel.l3) : payload.category,
+                color: payload.color, brand: payload.brand, note: payload.notes,
+                image_url: payload.image_url,
+                price: wlPriced.amount,
+                source_type: wlSrc,
+                source_label: _WL_SRC[wlSrc].label,
+                source_url: wlSrc === 'url' ? (window.__waSawSrcUrl || null) : null,
+                item_dna: payload.item_dna || {},
+              };
+              if (_wlV23Cols) {
+                wlPayload.size = String(window.__waSawSize || '').trim().slice(0, 40) || null;
+                wlPayload.currency = wlPriced.amount != null ? wlPriced.currency : null;
+                wlPayload.category_l2 = (wlSel ? wlSel.l2 : window.__waSawL2) || null;
+                wlPayload.category_l3 = wlPayload.category_l2 ? ((wlSel ? wlSel.l3 : window.__waSawL3) || null) : null;
+              }
+              await _waRowWrite(null, wlPayload, false, 'wishlist_items');
+              _rbTrack('wishlist_added', { label: wlPayload.label, source: wlSrc, batch_n: Math.max(1, _waBatchTotal || 1), batch_i: (_waBatchDone || 0) + 1 });
+              const wlNext = _waBatchQueue.length ? _waBatchQueue.shift() : null;
+              const wlTotal = _waBatchTotal;
+              if (wlNext) _waBatchDone++; else _origWAClose();
+              await _wlLoad();
+              if (_waView !== 'wishlist' && window.__waSetView) window.__waSetView('wishlist');
+              _waShowToast(wlNext ? 'Piece ' + _waBatchDone + ' of ' + wlTotal + ' saved'
+                : wlTotal > 1 ? 'All ' + wlTotal + ' pieces on your wishlist'
+                : 'Saved to your wishlist');
+              if (wlNext && typeof _waBatchAdvance === 'function') _waBatchAdvance(wlNext);
+              return;
+            }
 
             // ADR-002: Season -> wardrobe_items.season_band (+ season_source),
             // Wear it for -> the shared tag namespace, written after the row
@@ -3522,6 +3593,8 @@
       var _waTaxCols = true;               // migration 15 (category_l2/l3) present? flipped off on PGRST204
       var _waV3Cols = true;                // migration 23 (size/currency) present? flipped off on PGRST204
       var _waFromChooser = false;          // the add modal was opened through the ways chooser (2026-09-22)
+      var _waTarget = 'wardrobe';          // where the add modal files: 'wardrobe' | 'wishlist' (2026-09-22, the same ways in for both)
+      var _wlV23Cols = true;               // migration 23 on wishlist_items (size/currency/category_l2/l3)? flipped off on PGRST204
       // The receipt inbox (2026-09-22): held wardrobe_inbox rows, the
       // migration-23 stand-down flag, her minted address (local part).
       var _wiRows = [], _wiDown = false, _wiAddr = null, _wiLoaded = false;
@@ -3537,13 +3610,24 @@
       const _WA_V2_KEYS = ['season_band', 'season_source', 'price'];
       const _WA_V3_KEYS = ['size', 'currency'];
       const _WA_TAX_KEYS = ['category_l2', 'category_l3'];
-      async function _waRowWrite(editId, payload, hasDet) {
+      const _WL_V23_KEYS = ['size', 'currency', 'category_l2', 'category_l3'];
+      async function _waRowWrite(editId, payload, hasDet, table) {
+        table = table || 'wardrobe_items';
         for (;;) {
           try {
-            if (editId) return await _waFetch('PATCH', 'wardrobe_items?id=eq.' + editId, payload);
-            return await _waFetch('POST', 'wardrobe_items', payload);
+            if (editId) return await _waFetch('PATCH', table + '?id=eq.' + editId, payload);
+            return await _waFetch('POST', table, payload);
           } catch (err) {
             const msg = String(err && err.message || err);
+            if (table === 'wishlist_items') {
+              // The wishlist's one tier: everything migration 23 added there.
+              if (/PGRST204|column/i.test(msg) && _wlV23Cols && /\b(size|currency|category_l[23])\b/.test(msg)) {
+                _wlV23Cols = false;
+                _WL_V23_KEYS.forEach(k => delete payload[k]);
+                continue;
+              }
+              throw err;
+            }
             if (/PGRST204|column/i.test(msg)) {
               if (_waV3Cols && /\b(size|currency)\b/.test(msg)) {
                 _waV3Cols = false;
@@ -3681,15 +3765,36 @@
       // shared ladder (the migration-18 trigger pre-fills the tags), an
       // image hosted at read time kept as it is, the receipt row moved to
       // `filed` with the ids it produced. Untouched pieces just aren't filed.
-      async function _wiFile(row, picks) {
+      async function _wiFile(row, picks, target) {
         const uid = _waUid();
         if (!uid || !row) return { filed: 0, ids: [] };
         const items = Array.isArray(row.items) ? row.items : [];
         const ids = [];
+        const toWl = target === 'wishlist';
         let failed = 0;
         for (let i = 0; i < items.length; i++) {
           if (picks.indexOf(i) === -1) continue;
           const it = items[i] || {};
+          if (toWl) {
+            const wlDna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : {};
+            wlDna.source = { kind: 'receipt', retailer: row.retailer || '', order_ref: row.order_ref || '', inbox_id: row.id };
+            const wlPayload = {
+              user_id: uid, label: String(it.label || '').slice(0, 120) || 'A piece',
+              category: it.category || 'Other', color: it.color || null, brand: it.brand || null, note: null,
+              image_url: _pdHttp(it.image_url) ? it.image_url : null,
+              price: (it.price != null && it.price !== '') ? Number(it.price) : null,
+              source_type: 'receipt', source_label: row.retailer ? 'From ' + row.retailer : _WL_SRC.receipt.label, source_url: null,
+              item_dna: wlDna,
+            };
+            if (_wlV23Cols) { wlPayload.size = it.size || null; wlPayload.currency = it.currency || null; wlPayload.category_l2 = it.category_l2 || null; wlPayload.category_l3 = wlPayload.category_l2 ? (it.category_l3 || null) : null; }
+            try {
+              const created = await _waRowWrite(null, wlPayload, false, 'wishlist_items');
+              const id = Array.isArray(created) && created[0] && created[0].id;
+              if (id != null) ids.push(id);
+              _rbTrack('wishlist_added', { label: wlPayload.label, source: 'receipt', batch_n: picks.length, batch_i: ids.length });
+            } catch (e) { failed++; console.warn('[inbox] wishlist file:', e && e.message); }
+            continue;
+          }
           const dna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' };
           dna.source = { kind: 'receipt', retailer: row.retailer || '', order_ref: row.order_ref || '', inbox_id: row.id };
           const payload = {
@@ -3716,10 +3821,10 @@
           } catch (e) { failed++; console.warn('[inbox] file:', e && e.message); }
         }
         if (!failed) {
-          try { await _waFetch('PATCH', 'wardrobe_inbox?id=eq.' + row.id, { status: 'filed', filed_ids: ids, decided_at: new Date().toISOString() }); }
+          try { await _waFetch('PATCH', 'wardrobe_inbox?id=eq.' + row.id, { status: 'filed', filed_ids: ids, filed_to: toWl ? 'wishlist' : 'wardrobe', decided_at: new Date().toISOString() }); }
           catch (e) { console.warn('[inbox] patch:', e && e.message); }
           _wiRows = _wiRows.filter(function(r) { return r.id !== row.id; });
-          _rbTrack('inbox_reviewed', { filed: ids.length, skipped: items.length - picks.length, retailer: row.retailer || '' });
+          _rbTrack('inbox_reviewed', { filed: ids.length, skipped: items.length - picks.length, retailer: row.retailer || '', to: toWl ? 'wishlist' : 'wardrobe' });
         }
         return { filed: ids.length, ids: ids, failed: failed };
       }
@@ -4336,6 +4441,7 @@
         instagram: { label: 'Saved from Instagram',     dot: '#8E7077' },
         substack:  { label: 'Saved from Substack',      dot: '#C6A24A' },
         screenshot:{ label: 'Saved from a screenshot',  dot: '#A89880' },
+        receipt:   { label: 'From a receipt',           dot: '#A89880' },
         photo:     { label: 'Saved by you',             dot: '#A89880' }
       };
 
@@ -4394,7 +4500,7 @@
         const img = w.image_url
           ? '<img src="' + _waEsc(w.image_url) + '" alt="' + _waEsc(w.label) + '" loading="lazy">'
           : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="font-family:var(--font-serif);font-size:30px;color:var(--cream-400)">' + _waEsc((w.label || '?').charAt(0).toUpperCase()) + '</span></div>';
-        const meta = [w.brand, w.price > 0 ? '€' + Math.round(w.price) : null].filter(Boolean).join(' \xb7 ');
+        const meta = [w.brand, w.price > 0 ? _waPriceFmt(w.price, w.currency || 'EUR') : null, w.size ? 'Size ' + w.size : null].filter(Boolean).join(' \xb7 ');
         return '<div class="rb-wl-item" style="cursor:pointer" onclick="window.__rbPieceOpen(\'' + _waEsc(String(w.id)) + '\',{from:\'wishlist\'})">' +
           '<div class="rb-wl-tile' + (w.source_type === 'robes' ? ' rb-wl-robes' : '') + '">' + img +
             '<span class="rb-wl-chip' + (src.sage ? ' sage' : '') + '">' +
@@ -4421,20 +4527,23 @@
             '<div style="font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:clamp(18px,3vw,24px);line-height:1.3;color:var(--ink-faint);margin-bottom:22px">Robes will tell you if it earns a place<br>next to what you already own.</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:9px;justify-content:center">' +
               '<button class="rb-wg-cta" onclick="window.__wlOpenAdd()">Save a piece</button>' +
-              '<button onclick="window.__wlSoonLink()" style="display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;color:var(--ink-soft);font-size:11.5px;cursor:pointer;font-family:inherit">Paste a link <span class="rb-soon-tag">Coming soon</span></button>' +
+              '<button onclick="window.__wlSoonLink()" style="display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;color:var(--ink-soft);font-size:11.5px;cursor:pointer;font-family:inherit">Paste a link</button>' +
             '</div>' +
-            '<div style="margin-top:12px;font-size:11px;color:var(--ink-faint)">A screenshot, a photo, an influencer sighting — Robes reads what it can.</div></div>';
+            '<div style="margin-top:12px;font-size:11px;color:var(--ink-faint)">A screenshot, a photo, a link, a forwarded receipt — Robes reads what it can.</div></div>';
           return;
         }
         grid.innerHTML = _wlItems.map(_wlCard).join('') +
           '<div class="rb-wl-item"><button class="rb-add-card" style="width:100%" onclick="window.__wlOpenAdd()">' +
             '<span class="rb-add-plus">+</span>' +
             '<span class="rb-add-serif">Save something</span>' +
-            '<span class="rb-add-hint">Screenshot \xb7 Photo \xb7 Link</span></button></div>';
+            '<span class="rb-add-hint">Photograph \xb7 Receipt \xb7 Link</span></button></div>';
       }
 
+      // The link door is live (2026-09-22) — the name survives for its callers.
       window.__wlSoonLink = function() {
-        _waSoon('Paste a link', 'Drop a product link and Robes saves the piece — photo, brand and price included.');
+        _waEditId = null;
+        _waAfterAdd = null;
+        if (window.WA && WA.open) WA.open({ way: 'url', target: 'wishlist' });
       };
 
       window.__wlBought = async function(id) {
@@ -4447,7 +4556,12 @@
             image_url: w.image_url || null,
             item_dna: (w.item_dna && typeof w.item_dna === 'object' && Object.keys(w.item_dna).length) ? w.item_dna : undefined
           };
-          await _waFetch('POST', 'wardrobe_items', payload);
+          // What the wishlist knew travels with the piece (2026-09-22) —
+          // each on its tier, stripped where a migration hasn't run.
+          if (_waV2Cols && w.price > 0) payload.price = Number(w.price);
+          if (_waV3Cols) { if (w.size) payload.size = w.size; if (w.currency) payload.currency = w.currency; }
+          if (_waTaxCols && w.category_l2) { payload.category_l2 = w.category_l2; payload.category_l3 = w.category_l3 || null; }
+          await _waRowWrite(null, payload, false);
           await _waFetch('DELETE', 'wishlist_items?id=eq.' + id, undefined);
           _wlItems = _wlItems.filter(x => String(x.id) !== String(id));
           await _waLoad();
@@ -4470,136 +4584,15 @@
         });
       };
 
-      // Save-to-wishlist modal: screenshot/photo now; link + receipt later
+      // Save to wishlist (2026-09-22): the SAME add modal, the same four
+      // ways in, filing to wishlist_items — the bespoke capture modal it
+      // replaced (#rb-wl-modal) is gone. The name survives for every door.
       window.__wlOpenAdd = function() {
-        document.getElementById('rb-wl-modal')?.remove();
-        const serif = "'Cormorant',Georgia,serif";
-        const modal = document.createElement('div');
-        modal.id = 'rb-wl-modal';
-        modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(32,32,33,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
-        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-        const card = document.createElement('div');
-        card.style.cssText = 'background:#FAF8F5;border-radius:20px;width:100%;max-width:440px;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:26px;max-height:86vh;overflow-y:auto';
-        modal.appendChild(card);
-        document.body.appendChild(modal);
-        let photo = '';
-
-        function stepPick() {
-          card.innerHTML = '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px">The Wishlist</div>' +
-            '<div style="font-family:' + serif + ';font-size:26px;font-weight:300;color:#202021;line-height:1.15;margin-bottom:6px">Save what catches your eye.</div>' +
-            '<div style="font-size:12px;color:#6E6A64;margin-bottom:18px">A screenshot, a photo, a saved image — Robes reads what it can.</div>' +
-            '<label id="rb-wl-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:168px;border:1.5px dashed #C8B8A2;border-radius:var(--rad);background:#fff;cursor:pointer;text-align:center;padding:16px;box-sizing:border-box">' +
-              '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#C8B8A2" stroke-width="1.4"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>' +
-              '<span style="font-size:14px;color:#6A5E54">Screenshot or photo</span>' +
-              '<span style="font-size:11.5px;color:var(--ink-faint)">From Instagram, Substack, or your camera roll</span>' +
-              '<input id="rb-wl-file" type="file" accept="image/*" style="display:none"></label>' +
-            '<button id="rb-wl-link" style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad);background:#fff;color:var(--ink-faint);font-size:12px;cursor:pointer;font-family:inherit">Paste a link <span class="rb-soon-tag">Coming soon</span></button>' +
-            '<button id="rb-wl-cancel" style="display:block;margin:12px auto 0;background:none;border:none;color:var(--ink-faint);font-size:11.5px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:4px">Cancel</button>';
-          card.querySelector('#rb-wl-file').addEventListener('change', function() {
-            if (this.files && this.files[0]) {
-              _rbDownscale(this.files[0]).then(stepRead).catch(function() { _waShowToast('Could not read that image'); });
-            }
-          });
-          card.querySelector('#rb-wl-link').onclick = function() { modal.remove(); window.__wlSoonLink(); };
-          card.querySelector('#rb-wl-cancel').onclick = function() { modal.remove(); };
-        }
-
-        function stepRead(dataUrl) {
-          photo = dataUrl;
-          card.innerHTML = '<div style="text-align:center;padding:34px 10px">' +
-            '<div style="width:26px;height:26px;border:2px solid #E7E0CF;border-top-color:#202021;border-radius:100px;margin:0 auto 16px;animation:wa-spin 0.9s linear infinite"></div>' +
-            '<div style="font-family:' + serif + ';font-style:italic;font-weight:300;font-size:19px;color:#202021">Reading the piece…</div>' +
-            '<div style="font-size:12px;color:var(--ink-faint);margin-top:6px">Robes is looking at the image.</div></div>';
-          const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-          if (!m) { stepConfirm({}); return; }
-          fetch('/api/wardrobe/analyse', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: m[2], mimeType: m[1], userId: _waUid() || undefined })
-          }).then(r => r.ok ? r.json() : {}).catch(() => ({})).then(tag => stepConfirm(tag || {}));
-        }
-
-        function stepConfirm(tag) {
-          let src = 'screenshot';
-          const srcDefs = [['screenshot', 'Screenshot'], ['instagram', 'Instagram'], ['substack', 'Substack'], ['photo', 'In person']];
-          card.innerHTML = '<div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px">The Wishlist</div>' +
-            '<div style="font-family:' + serif + ';font-size:26px;font-weight:300;color:#202021;line-height:1.15;margin-bottom:16px">' + (tag.label ? 'Here’s what Robes <em style="font-style:italic;color:#9A7060">saw.</em>' : 'Name the piece.') + '</div>' +
-            '<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px">' +
-              '<img id="rb-wl-thumb" style="width:74px;height:96px;object-fit:cover;border-radius:var(--rad-sm);flex-shrink:0" alt="">' +
-              '<div style="flex:1;min-width:0">' +
-                '<label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px">PIECE</label>' +
-                '<input id="rb-wl-label" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520;margin-bottom:9px">' +
-                '<label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px">BRAND</label>' +
-                '<input id="rb-wl-brand" placeholder="Unknown" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520">' +
-              '</div></div>' +
-            '<div style="display:flex;gap:10px;margin-bottom:14px">' +
-              '<div style="flex:1"><label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:5px">PRICE <span style="color:var(--ink-faint);letter-spacing:0;text-transform:none">optional</span></label>' +
-              '<div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-size:13px">€</span>' +
-              '<input id="rb-wl-price" inputmode="decimal" placeholder="0" style="width:100%;box-sizing:border-box;padding:10px 12px 10px 26px;border:1px solid #D8CEBC;border-radius:var(--rad-sm);font-size:14px;font-family:inherit;background:#fff;color:#2A2520"></div></div></div>' +
-            '<label style="font-size:10px;letter-spacing:0.1em;color:var(--ink-faint);display:block;margin-bottom:7px">WHERE DID YOU SPOT IT?</label>' +
-            '<div id="rb-wl-src" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:20px">' +
-              srcDefs.map(d => '<button data-src="' + d[0] + '" style="padding:7px 13px;border-radius:100px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;border:1px solid ' + (d[0] === src ? '#2A2520;background:#2A2520;color:#F8F5F0' : '#D8CEBC;background:#fff;color:#6A5E54') + '">' + d[1] + '</button>').join('') + '</div>' +
-            '<button id="rb-wl-save" style="width:100%;padding:14px;background:#2A2520;color:#F8F5F0;border:none;border-radius:var(--rad-sm);font-size:13px;letter-spacing:0.08em;cursor:pointer;font-family:inherit">SAVE TO WISHLIST →</button>';
-          const thumb = card.querySelector('#rb-wl-thumb');
-          if (thumb && photo) thumb.src = photo;
-          const lblEl = card.querySelector('#rb-wl-label');
-          lblEl.value = tag.label || '';
-          card.querySelector('#rb-wl-brand').value = tag.brand || '';
-          card.querySelector('#rb-wl-src').addEventListener('click', function(e) {
-            const b = e.target.closest('button[data-src]');
-            if (!b) return;
-            src = b.dataset.src;
-            this.querySelectorAll('button[data-src]').forEach(function(x) {
-              const on = x.dataset.src === src;
-              x.style.border = '1px solid ' + (on ? '#2A2520' : '#D8CEBC');
-              x.style.background = on ? '#2A2520' : '#fff';
-              x.style.color = on ? '#F8F5F0' : '#6A5E54';
-            });
-          });
-          card.querySelector('#rb-wl-save').onclick = async function() {
-            const label = lblEl.value.trim();
-            if (!label) { lblEl.style.borderColor = '#B0533B'; lblEl.focus(); return; }
-            this.disabled = true; this.style.opacity = '0.65'; this.textContent = 'Saving…';
-            const btn = this;
-            try {
-              let url = null;
-              const m = photo.match(/^data:([^;]+);base64,(.+)$/);
-              if (m) {
-                try {
-                  const r = await fetch('/api/wardrobe/upload', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ data: m[2], mimeType: m[1] })
-                  });
-                  const j = await r.json();
-                  if (j.url) url = j.url;
-                } catch (upErr) { console.warn('wishlist photo upload failed:', upErr); }
-              }
-              const priceRaw = (card.querySelector('#rb-wl-price').value || '').replace(/[^0-9.]/g, '');
-              await _waFetch('POST', 'wishlist_items', {
-                user_id: _waUid(), label,
-                category: tag.category || 'Other',
-                color: tag.color || null,
-                brand: (card.querySelector('#rb-wl-brand').value || '').trim() || null,
-                price: priceRaw ? Number(priceRaw) : null,
-                image_url: url,
-                source_type: src,
-                source_label: (_WL_SRC[src] || _WL_SRC.photo).label,
-                item_dna: (tag.item_dna && typeof tag.item_dna === 'object') ? tag.item_dna : {}
-              });
-              _rbTrack('wishlist_added', { label: label || '', source: src || '' });
-              modal.remove();
-              await _wlLoad();
-              if (_waView !== 'wishlist' && window.__waSetView) window.__waSetView('wishlist');
-              _waShowToast('Saved to your wishlist');
-            } catch (e) {
-              console.error('wishlist save:', e);
-              const missing = /relation|does not exist|PGRST205|schema cache/i.test(String(e && e.message || e));
-              _waShowToast(missing ? 'Robes couldn’t save that just now — try again shortly' : 'Could not save — try again');
-              btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'SAVE TO WISHLIST →';
-            }
-          };
-        }
-        stepPick();
+        _waEditId = null;
+        _waAfterAdd = null;
+        if (window.WA && WA.open) WA.open({ way: 'choose', target: 'wishlist' });
       };
+      const _WL_PICK = [['screenshot', 'Screenshot'], ['instagram', 'Instagram'], ['substack', 'Substack'], ['photo', 'In person'], ['url', 'A link']];
 
       // ── Add entry — straight to the flow ──────────────────────────────
       // The chooser modal retired (redesign 2026-08-05): step 1 of the add
@@ -6362,7 +6355,8 @@
       function _pcWishTagsHtml(w) {
         const src = _WL_SRC[w.source_type] || _WL_SRC.photo;
         const tags = [w.source_label || src.label];
-        if (w.price > 0) tags.push('€' + Math.round(w.price));
+        if (w.price > 0) tags.push(_waPriceFmt(w.price, w.currency || 'EUR'));
+        if (w.size) tags.push('Size ' + w.size);
         if (w.category) tags.push(w.category);
         return tags.map((t, i) => '<span class="rb-pc-tag' + (i === 0 && src.sage ? ' sage' : '') + '">' + _waEsc(t) + '</span>').join('');
       }
