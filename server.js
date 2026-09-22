@@ -9,6 +9,7 @@ import { GoogleGenAI } from '@google/genai';
 import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock } from './style_dna.js';
 import { TAXONOMY_GROUPS, resolveTaxonomy, taxonomyPromptBlock, tagDefaultRows, WEAR_SEEDS } from './wardrobe_taxonomy.js';
 import { createNotifier } from './notify.js';
+import { createInbox } from './inbox.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -32,7 +33,9 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-app.use(express.json({ limit: '20mb' }));
+// rawBody is kept for the one route that verifies a provider signature
+// over the exact bytes (the inbound-receipt webhook, /api/inbox/receipt).
+app.use(express.json({ limit: '20mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
 app.use(express.static(join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
@@ -176,6 +179,36 @@ const notifier = createNotifier({
   env: APP_ENV,
   resendUrl: process.env.RESEND_API_URL || 'https://api.resend.com/emails',
 });
+/* ── the inbound-receipt door + the product-page reader (2026-09-22) ──
+   Her Robes address is <inbox_address>@INBOX_DOMAIN (profiles.inbox_address,
+   minted by the client — migration 23). The mail provider delivers a
+   forwarded order confirmation to POST /api/inbox/receipt; the module reads
+   the pieces out of it and HOLDS them in wardrobe_inbox for her review.
+   The webhook is gated by INBOX_WEBHOOK_SECRET (?key= or x-inbox-key) or,
+   for Resend, RESEND_WEBHOOK_SECRET (a svix signature over the raw body).
+   Neither set → 503, never an open door. /api/health reports inbox. */
+const INBOX_DOMAIN = process.env.INBOX_DOMAIN || 'in.byrobes.com';
+const INBOX_WEBHOOK_SECRET = process.env.INBOX_WEBHOOK_SECRET || '';
+const RESEND_WEBHOOK_SECRET = process.env.RESEND_WEBHOOK_SECRET || '';
+async function inboxGenerate({ prompt, schema, maxOutputTokens }) {
+  const r = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: { responseMimeType: 'application/json', responseSchema: schema, maxOutputTokens: maxOutputTokens || 2000, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
+  });
+  return deEscDeep(JSON.parse(r.candidates?.[0]?.content?.parts?.[0]?.text || '{}'));
+}
+const inbox = createInbox({
+  supaUrl: SUPA_URL, serviceKey: SUPA_SERVICE_KEY,
+  resendKey: process.env.RESEND_API_KEY || '',
+  resendApiUrl: process.env.RESEND_API_URL ? process.env.RESEND_API_URL.replace(/\/emails\/?$/, '') : 'https://api.resend.com',
+  domain: INBOX_DOMAIN,
+  generate: process.env.GEMINI_API_KEY ? inboxGenerate : null,
+  hostImage: cloudinaryUploadFile,
+  allowPrivate: process.env.INBOX_ALLOW_PRIVATE === '1',   // the smoke's door only — never on a deployed service
+});
+const inboxOn = inbox.on && !!(INBOX_WEBHOOK_SECRET || RESEND_WEBHOOK_SECRET);
+
 if (notifier.on && process.env.NOTIFY_TICK !== 'off') {
   const tick = () => notifier.notifyTick().then((r) => {
     if (r.error) console.warn('[notify] tick:', r.error);
@@ -229,6 +262,12 @@ const CLD_SECRET = process.env.CLOUDINARY_API_SECRET;
 console.log('Cloudinary config — cloud:', CLD_CLOUD || 'MISSING');
 
 async function cloudinaryUpload(base64Data, mimeType) {
+  return cloudinaryUploadFile(`data:${mimeType};base64,${base64Data}`);
+}
+// The `file` field takes a data URL OR a public http(s) URL — Cloudinary
+// fetches a remote image itself, which is how a receipt's or a product
+// page's photograph is hosted without the bytes passing through here.
+async function cloudinaryUploadFile(fileValue) {
   if (!CLD_CLOUD || !CLD_KEY || !CLD_SECRET) {
     console.warn('Cloudinary: missing config, skipping upload');
     return null;
@@ -241,7 +280,7 @@ async function cloudinaryUpload(base64Data, mimeType) {
       .digest('hex');
 
     const form = new FormData();
-    form.append('file', `data:${mimeType};base64,${base64Data}`);
+    form.append('file', fileValue);
     form.append('api_key', CLD_KEY);
     form.append('timestamp', String(timestamp));
     form.append('signature', signature);
@@ -278,7 +317,39 @@ app.get('/api/health', (req, res) => {
     supabase: !!process.env.SUPABASE_ANON_KEY,
     generation_log: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     email: notifier.on,
+    inbox: inboxOn,
+    inbox_domain: INBOX_DOMAIN,
   });
+});
+
+// A forwarded receipt lands here from the mail provider. Auth first, then
+// the module decides; every decided outcome answers 200 so the provider
+// never retries a mail we have already read (or refused).
+app.post('/api/inbox/receipt', rateLimit({ windowMs: 60_000, max: 60 }), async (req, res) => {
+  if (!inboxOn) return res.status(503).json({ error: 'inbox_off' });
+  const key = req.query.key || req.get('x-inbox-key') || '';
+  const keyOk = INBOX_WEBHOOK_SECRET && key && key.length === INBOX_WEBHOOK_SECRET.length && key === INBOX_WEBHOOK_SECRET;
+  const sigOk = RESEND_WEBHOOK_SECRET && inbox.verifySvix(req.rawBody, req.headers, RESEND_WEBHOOK_SECRET);
+  if (!keyOk && !sigOk) return res.status(401).json({ error: 'unauthorised' });
+  try {
+    const out = await inbox.ingest(req.body);
+    logAI({ feature: 'inbox_receipt', ok: out.ok, reason: out.reason, items: out.items || 0 });
+    res.json(out);
+  } catch (e) {
+    console.warn('[inbox] receipt:', e && e.message);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// A product page, read into the analyse shape — the client lands it on
+// the confirm screen exactly like a photograph. Errors are named so the
+// modal can say why ("that page wouldn't open" vs "no piece on it").
+app.post('/api/wardrobe/read-url', rateLimit({ windowMs: 60_000, max: 20 }), async (req, res) => {
+  const t0 = Date.now();
+  const out = await inbox.readProductPage(req.body && req.body.url);
+  logAI({ feature: 'wardrobe_read_url', ms: Date.now() - t0, success: !out.error, reason: out.error || undefined });
+  if (out.error) return res.status(out.error === 'bad_url' ? 400 : 422).json({ error: out.error });
+  res.json(out);
 });
 
 /* ── unsubscribe — one link, one pref, no login ──────────────────── */
@@ -2377,9 +2448,15 @@ const ANALYSE_SCHEMA = {
     // adds no tapping; it goes to the styling model only. If beta shows she
     // wants to filter on it, promote it out of item_dna to a column then.
     formality:            { type: 'string', enum: ['casual', 'smart', 'formal', 'black_tie'] },
+    // 2026-09-22: price / size / currency are form fields now. A photograph
+    // rarely shows them — a care label or a swing tag does — so they are
+    // read when visible and "" otherwise, never guessed.
+    price:                { type: 'string' },
+    currency:             { type: 'string' },
+    size:                 { type: 'string' },
     ai_generated_notes:   { type: 'string' },
   },
-  required: ['no_item_detected', 'label', 'category', 'category_l2', 'category_l3', 'color', 'primary_color_hex', 'editorial_color_name', 'brand', 'silhouette_fit', 'formality', 'ai_generated_notes'],
+  required: ['no_item_detected', 'label', 'category', 'category_l2', 'category_l3', 'color', 'primary_color_hex', 'editorial_color_name', 'brand', 'silhouette_fit', 'formality', 'price', 'currency', 'size', 'ai_generated_notes'],
 };
 
 // The full taxonomy tree for the client's Category / Subcategory / Item type
@@ -2425,6 +2502,9 @@ ${taxonomyPromptBlock()}
 "editorial_color_name": evocative color name (e.g. "Warm Caramel", "Washed Slate")
 "brand": brand if visible, else ""
 "silhouette_fit": array of 2-4 short descriptors (e.g. ["Blazer", "Single-breasted", "Relaxed"])
+"price": ONLY if a price is legibly printed in the photo (a swing tag, a receipt), digits only, else ""
+"currency": the ISO code of that printed price (EUR, GBP, USD…), else ""
+"size": ONLY if a size is legibly printed in the photo (a care label, a swing tag — "S", "38", "UK 10"), else ""
 "ai_generated_notes": one editorial sentence under 15 words` }
         ]
       }],
@@ -2471,6 +2551,9 @@ ${taxonomyPromptBlock()}
       category_l3: tax ? tax.category_l3 : null,
       color: parsed.color || '',
       brand: parsed.brand || '',
+      price: (() => { const n = parseFloat(String(parsed.price || '').replace(/[^0-9.]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; })(),
+      currency: String(parsed.currency || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) || null,
+      size: String(parsed.size || '').trim().slice(0, 40) || null,
       notes: parsed.ai_generated_notes || '',
       item_dna,
     });
@@ -3275,12 +3358,15 @@ Rules:
 });
 
 app.post('/api/wardrobe/upload', async (req, res) => {
-  const { data, mimeType } = req.body;
-  if (!data || !mimeType) return res.status(400).json({ error: 'Missing data or mimeType' });
+  const { data, mimeType, url: remote } = req.body;
+  // Two shapes: base64 bytes (a photograph) or a public http(s) URL (a
+  // receipt's or a product page's image) — Cloudinary fetches the latter.
+  const safeRemote = remote ? inbox.safeUrl(remote) : null;
+  if (!safeRemote && (!data || !mimeType)) return res.status(400).json({ error: 'Missing data or mimeType' });
   if (!CLD_CLOUD || !CLD_KEY || !CLD_SECRET) {
     return res.status(500).json({ error: 'Cloudinary env vars not set on this deployment' });
   }
-  const url = await cloudinaryUpload(data, mimeType);
+  const url = safeRemote ? await cloudinaryUploadFile(safeRemote) : await cloudinaryUpload(data, mimeType);
   if (!url) return res.status(500).json({ error: 'Cloudinary upload failed — check server logs' });
   res.json({ url });
 });

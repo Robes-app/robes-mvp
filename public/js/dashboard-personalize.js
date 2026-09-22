@@ -796,6 +796,9 @@
         // Wishlist refresh rides along (fire-and-forget; degrades silently
         // until the wardrobe_v2 migration has run)
         _wlLoad();
+        // The receipt inbox too (migration 23) — held receipts surface on
+        // the wardrobe page and in the ways chooser.
+        _wiLoad();
       }
 
       let _waLoaded = false;
@@ -1526,7 +1529,7 @@
         div.className = 'wg-item rb-add-card';
         div.innerHTML = '<span class="rb-add-plus">+</span>' +
           '<span class="rb-add-serif">Add a piece</span>' +
-          '<span class="rb-add-hint">Photograph \xb7 Link \xb7 Without a photo</span>';
+          '<span class="rb-add-hint">Photograph \xb7 Receipt \xb7 Link</span>';
         div.addEventListener('click', () => window.__waAddChooser());
         return div;
       }
@@ -2001,7 +2004,9 @@
               <input id="wa-rb-cam" type="file" accept="image/*" capture="environment"
                 style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
             </div>
-            <button type="button" class="rb-wf-nophoto" onclick="window.__waManualStart&&__waManualStart()">Add without a photo</button>`;
+            ${_waFromChooser
+              ? '<div class="rb-wf-foot"><button type="button" class="rb-wf-back" onclick="window.__waWay(\'choose\')">← Other ways in</button></div>'
+              : '<button type="button" class="rb-wf-nophoto" onclick="window.__waManualStart&&__waManualStart()">Add without a photo</button>'}`;
           _setDot(1);
 
           // Bundle's validate() calls #wa-label-in.focus() via closure — keep a hidden one so it never throws
@@ -2078,6 +2083,276 @@
             });
           }
         }
+
+        // ══ The ways in (2026-09-22) ═══════════════════════════════════
+        // The chooser is the first screen behind every user-facing add
+        // door: Photograph it / Forward a receipt / Paste a link / Add
+        // without a photo. The photo step, the address panel, the link
+        // reader and the held receipts each carry "← Other ways in".
+        const _WAY_ICONS = {
+          photo: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M8 5l1.2-2h5.6L16 5"/></svg>',
+          mail: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
+          url: '<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1.3 1.3"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1.3-1.3"/></svg>',
+          manual: '<svg viewBox="0 0 24 24"><path d="M4 20l4-1 10.5-10.5a2 2 0 00-3-3L5 16z"/><path d="M13.5 6.5l3 3"/></svg>',
+        };
+        function _wayRow(way, title, sub, dashed) {
+          return '<button type="button" class="rb-wf-way' + (dashed ? ' dashed' : '') + '" data-way="' + way + '" onclick="window.__waWay(\'' + way + '\')">' +
+            '<span class="rb-wf-way-ic" aria-hidden="true">' + _WAY_ICONS[way] + '</span>' +
+            '<span class="rb-wf-way-tx"><span class="rb-wf-way-t">' + title + '</span><span class="rb-wf-way-s">' + sub + '</span></span>' +
+            '<span class="rb-wf-way-ar" aria-hidden="true">→</span></button>';
+        }
+        function _dummyLabel(step) {
+          if (document.getElementById('wa-label-in')) return;
+          const d = document.createElement('input');
+          d.id = 'wa-label-in'; d.type = 'text'; d.style.display = 'none';
+          step.appendChild(d);
+        }
+        function _showChooser() {
+          _waFormCss();
+          _waForm = null;
+          _waFromChooser = true;
+          const step = document.querySelector('#wa-modal .fm-step');
+          if (!step) return;
+          const held = _wiRows.length;
+          step.innerHTML =
+            '<h2 class="fm-h">Add a piece.</h2>' +
+            '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">However it reaches you.</p>' +
+            '<div class="rb-wf-ways" id="rb-wf-ways">' +
+              _wayRow('photo', 'Photograph it', 'One photo. Robes reads the rest.') +
+              _wayRow('mail', 'Forward a receipt', held
+                ? held + (held === 1 ? ' receipt is' : ' receipts are') + ' waiting for you to look over.'
+                : 'Send the order email. Robes files what’s in it.') +
+              _wayRow('url', 'Paste a link', 'A product page from anywhere.') +
+            '</div>' +
+            _wayRow('manual', 'Add without a photo', 'Name it yourself. The photograph can come later.', true);
+          _setDot(1);
+          _dummyLabel(step);
+        }
+        window.__waWay = function(way) {
+          if (_waEditId) return;
+          if (way === 'choose') { _showChooser(); return; }
+          if (way === 'photo') { _waFromChooser = true; _showStep1(); return; }
+          if (way === 'mail') { _showMailStep(); return; }
+          if (way === 'url') { _showUrlStep(); return; }
+          if (way === 'receipts') { _showReceipts(); return; }
+          if (way === 'manual') { window.__waManualStart(); return; }
+        };
+
+        // ── Forward a receipt: her address, and what happens next ──────
+        function _showMailStep() {
+          _waFormCss();
+          _waForm = null;
+          const step = document.querySelector('#wa-modal .fm-step');
+          if (!step) return;
+          const held = _wiRows.length, pieces = _wiHeldCount();
+          const addrHtml = _wiDown
+            ? '<span class="rb-wf-addr-v off">Robes’ inbox isn’t switched on for this account yet.</span>'
+            : '<span class="rb-wf-addr-v" id="rb-wf-addr">' + (_wiAddr ? _sawEsc(_wiAddr + '@' + _WI_DOMAIN) : 'Setting up your address…') + '</span>' +
+              '<button type="button" class="rb-pill sm" id="rb-wf-copy" onclick="window.__waMailCopy()"' + (_wiAddr ? '' : ' disabled') + '>Copy</button>';
+          step.innerHTML =
+            '<h2 class="fm-h">Your own address.</h2>' +
+            '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 18px;">Order emails become filed pieces. You look them over before anything lands.</p>' +
+            '<div class="rb-wf-addr"><span class="rb-wf-eyebrow">Your Robes address</span><div class="rb-wf-addr-row">' + addrHtml + '</div></div>' +
+            '<div class="rb-wf-steps">' +
+              '<div class="rb-wf-step"><span class="n">01</span><span class="t">Forward any order confirmation to that address, from the inbox it arrived in.</span></div>' +
+              '<div class="rb-wf-step"><span class="n">02</span><span class="t">Robes reads the pieces out of it and finds the images where the retailer has them.</span></div>' +
+              '<div class="rb-wf-step"><span class="n">03</span><span class="t">They wait on your wardrobe page until you look them over. Nothing is filed without you.</span></div>' +
+            '</div>' +
+            (held ? '<p class="rb-wf-note">' + pieces + (pieces === 1 ? ' piece is' : ' pieces are') + ' waiting from ' + held + (held === 1 ? ' receipt' : ' receipts') + '. <button type="button" class="rb-wf-back" onclick="window.__waWay(\'receipts\')">Review them →</button></p>' : '') +
+            '<div class="rb-wf-foot">' +
+              '<button type="button" class="rb-wf-back" onclick="window.__waWay(\'choose\')">← Other ways in</button>' +
+              '<button type="button" class="rb-wf-cta sm" onclick="window.WA&&WA.close()">Got it</button>' +
+            '</div>';
+          _setDot(1);
+          _dummyLabel(step);
+          if (!_wiDown && !_wiAddr) {
+            _wiAddress().then(function(local) {
+              const el = document.getElementById('rb-wf-addr');
+              const cp = document.getElementById('rb-wf-copy');
+              if (!el) return;
+              if (local) { el.textContent = local + '@' + _WI_DOMAIN; if (cp) cp.disabled = false; }
+              else if (_wiDown) _showMailStep();
+              else el.textContent = 'Robes couldn’t set up your address just now — try again in a moment.';
+            });
+          }
+        }
+        window.__waMailCopy = function() {
+          if (!_wiAddr) return;
+          const addr = _wiAddr + '@' + _WI_DOMAIN;
+          const done = function() { const b = document.getElementById('rb-wf-copy'); if (b) { b.textContent = 'Copied'; setTimeout(function() { if (b.isConnected) b.textContent = 'Copy'; }, 1800); } };
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(addr).then(done, function() { _waShowToast(addr); });
+          else _waShowToast(addr);
+          _rbTrack('inbox_address_copied', {});
+        };
+
+        // ── Paste a link: the page is read like a photograph ───────────
+        function _showUrlStep(errText, keepUrl) {
+          _waFormCss();
+          _waForm = null;
+          const step = document.querySelector('#wa-modal .fm-step');
+          if (!step) return;
+          step.innerHTML =
+            '<h2 class="fm-h">From a link.</h2>' +
+            '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 18px;">Paste the product page and Robes reads the piece out of it.</p>' +
+            '<div class="rb-wf-urlrow"><input id="rb-wf-url" class="rb-wf-input" type="url" inputmode="url" placeholder="https://" value="' + _sawEsc(keepUrl || '') + '" onkeydown="if(event.key===\'Enter\'){event.preventDefault();window.__waUrlRead();}">' +
+            '<button type="button" class="rb-wf-cta sm" id="rb-wf-urlgo" onclick="window.__waUrlRead()">Read it</button></div>' +
+            (errText ? '<p class="rb-wf-err" id="rb-wf-urlerr">' + _sawEsc(errText) + '</p>' : '') +
+            '<p class="rb-wf-note">Any retailer product page. Robes takes the name, brand, colour, price and size, and leaves the rest.</p>' +
+            '<div class="rb-wf-foot"><button type="button" class="rb-wf-back" onclick="window.__waWay(\'choose\')">← Other ways in</button>' +
+            (errText ? '<button type="button" class="rb-wf-back" onclick="window.__waWay(\'manual\')">Add it without a photo instead →</button>' : '') + '</div>';
+          _setDot(1);
+          _dummyLabel(step);
+          const inp = document.getElementById('rb-wf-url');
+          if (inp && !keepUrl) inp.focus();
+        }
+        function _showReading(h, sub) {
+          const step = document.querySelector('#wa-modal .fm-step');
+          if (!step) return;
+          step.innerHTML = '<div class="rb-wf-reading"><span class="sp" aria-hidden="true">✦</span><div class="h">' + h + '</div><div class="s">' + sub + '</div></div>';
+          _setDot(2);
+          _dummyLabel(step);
+        }
+        const _URL_ERRS = {
+          bad_url: 'That doesn’t look like a link — paste the full address, starting https://',
+          unreachable: 'That page wouldn’t open for Robes. Some shops close the door to anything but a browser.',
+          not_a_page: 'That link isn’t a page Robes can read.',
+          no_item: 'Robes couldn’t find one piece on that page — a product page works best.',
+          read_failed: 'Robes couldn’t read that page just now — try again in a moment.',
+          off: 'Reading links isn’t switched on for this deployment yet.',
+        };
+        window.__waUrlRead = function() {
+          const inp = document.getElementById('rb-wf-url');
+          const url = inp ? inp.value.trim() : '';
+          if (!url) { if (inp) inp.focus(); return; }
+          if (!/^https?:\/\/\S+\.\S+/i.test(url)) { _showUrlStep(_URL_ERRS.bad_url, url); return; }
+          _showReading('Robes is reading it.', 'A moment.');
+          const ctl = new AbortController();
+          const timer = setTimeout(function() { ctl.abort(); }, 45000);
+          fetch('/api/wardrobe/read-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: url, userId: _waUid() || undefined }), signal: ctl.signal })
+            .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
+            .then(function(res) {
+              clearTimeout(timer);
+              const m = document.getElementById('wa-modal');
+              if (!m || !m.classList.contains('open')) return;
+              if (!res.ok || !res.j || res.j.error) { _showUrlStep(_URL_ERRS[res.j && res.j.error] || _URL_ERRS.read_failed, url); return; }
+              _rbTrack('wardrobe_url_read', { host: (url.match(/^https?:\/\/([^/]+)/i) || [])[1] || '' });
+              _runStep3(res.j.image_url || '', res.j, 'url');
+            })
+            .catch(function() {
+              clearTimeout(timer);
+              const m = document.getElementById('wa-modal');
+              if (m && m.classList.contains('open')) _showUrlStep(_URL_ERRS.read_failed, url);
+            });
+        };
+
+        // ── The held receipts, and one receipt's pieces ────────────────
+        function _showReceipts() {
+          _waFormCss();
+          _waForm = null;
+          const step = document.querySelector('#wa-modal .fm-step');
+          if (!step) return;
+          const rows = _wiRows;
+          const pieces = _wiHeldCount();
+          const word = function(k) { return typeof _msWord === 'function' ? _msWord(k) : String(k); };
+          if (!rows.length) {
+            step.innerHTML =
+              '<h2 class="fm-h">Nothing waiting.</h2>' +
+              '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 18px;">Forward an order confirmation to your Robes address and its pieces appear here.</p>' +
+              '<div class="rb-wf-foot"><button type="button" class="rb-wf-back" onclick="window.__waWay(\'choose\')">← Other ways in</button>' +
+              '<button type="button" class="rb-wf-back" onclick="window.__waWay(\'mail\')">Your Robes address →</button></div>';
+          } else {
+            step.innerHTML =
+              '<span class="rb-wf-eyebrow">Waiting for you</span>' +
+              '<h2 class="fm-h">' + word(pieces) + (pieces === 1 ? ' piece' : ' pieces') + ' read.</h2>' +
+              '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 18px;">' + word(rows.length) + (rows.length === 1 ? ' receipt' : ' receipts') + ', read and held. Open one when you have a minute.</p>' +
+              '<div class="rb-wf-rcpts">' + rows.map(function(r) {
+                const n = Array.isArray(r.items) ? r.items.length : 0;
+                return '<button type="button" class="rb-wf-rcpt" data-id="' + _sawEsc(r.id) + '" onclick="window.__waRcptOpen(\'' + _sawEsc(r.id) + '\')">' +
+                  '<span class="ic" aria-hidden="true">✉</span><span class="tx"><span class="t">' + _sawEsc(r.retailer || 'A receipt') + '</span>' +
+                  '<span class="s">' + _sawEsc(_wiWhen(r.received_at)) + ' · ' + n + (n === 1 ? ' piece read' : ' pieces read') + '</span></span>' +
+                  '<span class="rb-wf-way-ar" aria-hidden="true">→</span></button>';
+              }).join('') + '</div>' +
+              '<p class="rb-wf-note">Nothing is filed until you have been through it. Receipts wait as long as they need to.</p>' +
+              '<div class="rb-wf-foot"><button type="button" class="rb-wf-back" onclick="window.__waWay(\'choose\')">← Other ways in</button></div>';
+          }
+          _setDot(1);
+          _dummyLabel(step);
+        }
+        var _wiRev = null; // {row, picks:[i…]}
+        window.__waRcptOpen = function(id) {
+          const row = _wiRows.find(function(r) { return String(r.id) === String(id); });
+          if (!row) { _showReceipts(); return; }
+          const items = Array.isArray(row.items) ? row.items : [];
+          // Everything she kept is ticked; a piece the email says went
+          // back starts unticked.
+          _wiRev = { row: row, picks: items.map(function(it, i) { return it && it.returned ? -1 : i; }).filter(function(i) { return i >= 0; }) };
+          _showReview();
+        };
+        function _showReview() {
+          _waFormCss();
+          _waForm = null;
+          const step = document.querySelector('#wa-modal .fm-step');
+          if (!step || !_wiRev) return;
+          const row = _wiRev.row, picks = _wiRev.picks;
+          const items = Array.isArray(row.items) ? row.items : [];
+          const word = function(k) { return typeof _msWord === 'function' ? _msWord(k) : String(k); };
+          const n = picks.length;
+          step.innerHTML =
+            '<button type="button" class="rb-wf-back" style="margin:0 0 16px" onclick="window.__waWay(\'receipts\')">← All receipts</button>' +
+            '<span class="rb-wf-eyebrow">From ' + _sawEsc(row.retailer || 'a receipt') + '</span>' +
+            '<h2 class="fm-h">' + word(items.length) + (items.length === 1 ? ' piece' : ' pieces') + ' read.</h2>' +
+            '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 18px;">Keep what you kept. Untick anything that went back.</p>' +
+            '<div class="rb-wf-revs" id="rb-wf-revs">' + items.map(function(it, i) {
+              const on = picks.indexOf(i) !== -1;
+              const detail = [_waPriceFmt(it.price, it.currency), it.size ? 'Size ' + it.size : '', it.quantity > 1 ? '× ' + it.quantity : ''].filter(Boolean).join(' · ');
+              return '<button type="button" class="rb-wf-rev' + (on ? ' on' : '') + (it.returned ? ' ret' : '') + '" data-i="' + i + '" aria-pressed="' + (on ? 'true' : 'false') + '" onclick="window.__waRevTog(' + i + ')">' +
+                '<span class="tk" aria-hidden="true">' + (on ? '✓' : '') + '</span>' +
+                '<span class="th">' + (_pdHttp(it.image_url) ? '<img alt="" src="' + _sawEsc(it.image_url) + '">' : _sawEsc(String(it.label || '?').charAt(0))) + '</span>' +
+                '<span class="tx"><span class="b">' + _sawEsc(it.brand || row.retailer || '') + '</span><span class="t">' + _sawEsc(it.label || 'A piece') + '</span>' +
+                '<span class="s">' + _sawEsc(detail || (it.returned ? 'Returned' : (it.category || ''))) + '</span></span></button>';
+            }).join('') + '</div>' +
+            '<div class="rb-wf-foot">' +
+              '<span class="rb-wf-chosen" id="rb-wf-chosen">' + (n === 1 ? '1 piece chosen' : n + ' pieces chosen') + ' · <button type="button" class="rb-wf-back" onclick="window.__waRevDismiss()">Nothing to keep</button></span>' +
+              '<button type="button" class="rb-wf-cta sm" id="rb-wf-file" onclick="window.__waRevFile()"' + (n ? '' : ' disabled') + '>File ' + (n === 1 ? '1 piece' : n + ' pieces') + '</button>' +
+            '</div>';
+          _setDot(3);
+          _dummyLabel(step);
+        }
+        window.__waRevTog = function(i) {
+          if (!_wiRev) return;
+          const at = _wiRev.picks.indexOf(i);
+          if (at === -1) _wiRev.picks.push(i); else _wiRev.picks.splice(at, 1);
+          _wiRev.picks.sort(function(a, b) { return a - b; });
+          _showReview();
+        };
+        window.__waRevFile = function() {
+          if (!_wiRev || !_wiRev.picks.length) return;
+          const rev = _wiRev; _wiRev = null;
+          const btn = document.getElementById('rb-wf-file');
+          if (btn) { btn.disabled = true; btn.textContent = 'Filing…'; }
+          _wiFile(rev.row, rev.picks).then(function(out) {
+            const m = document.getElementById('wa-modal');
+            const open = m && m.classList.contains('open');
+            if (out.failed) {
+              _waShowToast('Something went wrong filing those — try again');
+              if (open) { _wiRev = rev; _showReview(); }
+              return;
+            }
+            _waLoad();
+            _waShowToast(out.filed === 1 ? '1 piece in your wardrobe' : out.filed + ' pieces in your wardrobe');
+            if (!open) return;
+            if (_wiRows.length) _showReceipts(); else _origWAClose();
+          });
+        };
+        window.__waRevDismiss = function() {
+          if (!_wiRev) return;
+          const rev = _wiRev; _wiRev = null;
+          _wiDismiss(rev.row).then(function() {
+            const m = document.getElementById('wa-modal');
+            if (!m || !m.classList.contains('open')) return;
+            if (_wiRows.length) _showReceipts(); else _origWAClose();
+          });
+        };
 
         function _runStep2(dataUrl) {
           _photoDataUrl = dataUrl;
@@ -2188,6 +2463,64 @@
             '.rb-wf-linkrow input{flex:1;min-width:0;border:1px solid #E7E0CF;background:#fff;padding:12px 14px;font-size:14px;font-family:inherit;color:#2A2520;border-radius:var(--rad-sm);cursor:pointer}',
             '.rb-wf-nophoto{display:block;width:100%;margin-top:18px;padding:16px 0 2px;border:none;border-top:1px solid #EFE9DC;background:none;text-align:center;font-size:13px;color:var(--ink-faint);cursor:pointer;font-family:inherit}',
             '.rb-wf-nophoto:hover{color:var(--ink)}',
+            // the ways chooser + the two text doors (2026-09-22)
+            '.rb-wf-ways{display:flex;flex-direction:column;gap:10px}',
+            '.rb-wf-way{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:15px 16px;border:1px solid var(--rule-mid,#E7E0CF);background:#fff;border-radius:var(--rad-sm);cursor:pointer;font-family:inherit;color:#2A2520;transition:border-color .15s,background .15s;box-sizing:border-box}',
+            '.rb-wf-way:hover{border-color:rgba(142,112,119,.45);background:rgba(212,200,196,.22)}',
+            '.rb-wf-way.dashed{border:1.5px dashed #D8CFC0;background:transparent;margin-top:2px}',
+            '.rb-wf-way.dashed:hover{border-color:#8E7077;background:transparent}',
+            '.rb-wf-way-ic{flex:0 0 38px;width:38px;height:38px;border-radius:8px;background:rgba(212,200,196,.6);color:#8E7077;display:flex;align-items:center;justify-content:center}',
+            '.rb-wf-way.dashed .rb-wf-way-ic{background:transparent;border:1px dashed #D8CFC0;color:var(--ink-faint)}',
+            '.rb-wf-way-ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}',
+            '.rb-wf-way-tx{flex:1;min-width:0}',
+            '.rb-wf-way-t{display:block;font-size:13.5px;font-weight:500;color:#2A2520}',
+            '.rb-wf-way-s{display:block;font-size:11.5px;color:var(--ink-faint);margin-top:3px;line-height:1.45}',
+            '.rb-wf-way-ar{color:var(--ink-faint);font-size:13px;flex:none}',
+            '.rb-wf-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:22px;padding-top:16px;border-top:1px solid #EFE9DC}',
+            '.rb-wf-back{background:none;border:none;padding:0;font-size:12px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-family:inherit}',
+            '.rb-wf-back:hover{color:var(--ink)}',
+            '.rb-wf-note{margin:14px 0 0;font-size:12px;line-height:1.55;color:var(--ink-faint)}',
+            '.rb-wf-addr{background:#fff;border:1px solid var(--rule-mid,#E7E0CF);border-radius:var(--rad-sm);padding:16px 18px}',
+            '.rb-wf-addr-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}',
+            '.rb-wf-addr-v{font-size:14.5px;color:#2A2520;word-break:break-all}',
+            '.rb-wf-addr-v.off{font-family:var(--font-serif,Georgia,serif);font-style:italic;font-weight:300;font-size:15px;color:var(--ink-faint)}',
+            '.rb-wf-steps{display:flex;flex-direction:column;gap:13px;margin-top:22px}',
+            '.rb-wf-step{display:flex;gap:12px;align-items:flex-start}',
+            '.rb-wf-step .n{flex:0 0 18px;font-size:10px;font-weight:500;line-height:19px;color:#9A8070}',
+            '.rb-wf-step .t{font-size:12.5px;line-height:1.6;color:var(--ink-soft)}',
+            '.rb-wf-urlrow{display:flex;gap:8px;flex-wrap:wrap}',
+            '.rb-wf-urlrow .rb-wf-input{flex:1;min-width:180px;width:auto}',
+            '.rb-wf-err{margin:10px 0 0;font-size:12px;color:#B0533B}',
+            '.rb-wf-reading{display:flex;flex-direction:column;align-items:center;gap:12px;padding:54px 20px;text-align:center}',
+            '.rb-wf-reading .sp{font-size:20px;color:#8E7077;animation:rbSawPulse 1.6s ease-in-out infinite}',
+            '.rb-wf-reading .h{font-family:var(--font-serif,Georgia,serif);font-weight:300;font-style:italic;font-size:23px;color:#2A2520}',
+            '.rb-wf-reading .s{font-size:12px;color:var(--ink-faint)}',
+            '.rb-wf-rcpts{display:flex;flex-direction:column;gap:8px}',
+            '.rb-wf-rcpt{display:flex;align-items:center;gap:13px;width:100%;padding:13px 16px;border:1px solid var(--rule,#EFE9DC);background:#fff;border-radius:var(--rad-sm);text-align:left;cursor:pointer;font-family:inherit;color:#2A2520;box-sizing:border-box}',
+            '.rb-wf-rcpt:hover{border-color:rgba(32,32,33,.24)}',
+            '.rb-wf-rcpt .ic{flex:0 0 30px;width:30px;height:30px;border-radius:100px;background:rgba(212,200,196,.6);color:#8E7077;display:flex;align-items:center;justify-content:center;font-size:12px}',
+            '.rb-wf-rcpt .tx{flex:1;min-width:0}',
+            '.rb-wf-rcpt .t{display:block;font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+            '.rb-wf-rcpt .s{display:block;font-size:11.5px;color:var(--ink-faint);margin-top:3px}',
+            '.rb-wf-revs{display:flex;flex-direction:column;gap:8px}',
+            '.rb-wf-rev{display:flex;align-items:center;gap:13px;width:100%;padding:11px 14px;border-radius:var(--rad-sm);text-align:left;border:1px solid var(--rule,#EFE9DC);background:#fff;cursor:pointer;font-family:inherit;color:#2A2520;box-sizing:border-box}',
+            '.rb-wf-rev.on{border-color:#C9BCA6;background:#F3EFE6}',
+            '.rb-wf-rev .tk{flex:0 0 18px;width:18px;height:18px;border-radius:4px;border:1px solid rgba(32,32,33,.18);background:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;color:#2A2520}',
+            '.rb-wf-rev.on .tk{border-color:#C9BCA6;background:#fff}',
+            '.rb-wf-rev .th{flex:0 0 46px;width:46px;height:60px;border-radius:6px;background:#EFE9DC;border:1px solid var(--rule,#EFE9DC);display:flex;align-items:center;justify-content:center;font-family:var(--font-serif,Georgia,serif);font-weight:300;font-size:20px;color:#9A8070;overflow:hidden}',
+            '.rb-wf-rev .th img{width:100%;height:100%;object-fit:cover;display:block}',
+            '.rb-wf-rev .tx{flex:1;min-width:0}',
+            '.rb-wf-rev .b{display:block;font-size:9px;letter-spacing:.18em;text-transform:uppercase;font-weight:500;color:#9A8070}',
+            '.rb-wf-rev .t{display:block;font-size:13.5px;font-weight:500;margin-top:4px}',
+            '.rb-wf-rev .s{display:block;font-size:11.5px;color:var(--ink-faint);margin-top:3px}',
+            '.rb-wf-rev.ret .t{text-decoration:line-through;color:var(--ink-faint)}',
+            '.rb-wf-chosen{font-size:12px;color:var(--ink-faint)}',
+            '.rb-wf-cta.sm{width:auto;margin-top:0;padding:13px 24px}',
+            '.rb-wf-cta[disabled]{opacity:.45;cursor:default}',
+            '.rb-wf-eyebrow{display:block;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;font-weight:500;color:#9A8070;margin-bottom:8px}',
+            '.rb-wf-price{margin-top:16px;padding-top:16px;border-top:1px solid #EFE9DC}',
+            '.rb-wf-price .rb-wf-grid2{margin-top:0}',
+            '.rb-wf-price .note{margin:8px 0 0;font-size:11px;color:var(--ink-faint)}',
             '@media(max-width:767px){.rb-wf-dt{display:none}.rb-wf-mb{display:block}.rb-wf-drop-btns.rb-wf-mb{display:flex;flex-direction:column;align-self:stretch}.rb-wf-drop-btns .rb-wf-btn{width:100%}}',
             // the reveal — photo panel, tag pops, banner (contain, never
             // cover: a portrait garment photo must not crop top/bottom)
@@ -2312,7 +2645,7 @@
         }
         function _waFormMeta() {
           const s = window.__waSawTaxSel;
-          return [window.__waSawBrand, _waFormSheet(), s && s.l3, window.__waSawColor]
+          return [window.__waSawBrand, _waFormSheet(), s && s.l3, window.__waSawColor, window.__waSawPrice, window.__waSawSize ? 'Size ' + window.__waSawSize : '']
             .filter(Boolean).join(' · ');
         }
         function _waLedgerVals() {
@@ -2346,10 +2679,11 @@
               '<span class="car">' + car + '</span></button>';
           }
           const nTags = (d.band && d.band !== 'year_round' ? 1 : 0) +
-            d.wear.filter(function(w) { return w !== 'everyday'; }).length;
+            d.wear.filter(function(w) { return w !== 'everyday'; }).length +
+            (window.__waSawPrice ? 1 : 0) + (window.__waSawSize ? 1 : 0);
           const tagsToggle = tog('tags',
             '<span style="color:var(--ink-faint);margin-right:8px">+</span>Add tags and notes', '',
-            nTags ? nTags + ' set' : 'season, wear it for, notes');
+            nTags ? nTags + ' set' : 'season, wear it for, price, size, notes');
           // Bridge, not a duplicate (IA 2026-08-08): the piece links into
           // the Lookbook where its looks live — the cross-link that
           // replaced the wardrobe's Looks tab.
@@ -2360,7 +2694,7 @@
               (isEdit ? 'Update piece →' : 'Add to wardrobe →') + '</button>' +
             (styledIn ? '<button type="button" class="rb-wf-del" style="color:var(--ink-soft)" onclick="window.__waFormLooks()">Styled in ' + styledIn + ' look' + (styledIn === 1 ? '' : 's') + ' →</button>' : '') +
             (isEdit ? '<button type="button" class="rb-wf-del" onclick="window.__waFormDelete()">Remove from wardrobe</button>' : '');
-          const photoIn = f.mode !== 'add'
+          const photoIn = (f.mode !== 'add' || (f.src === 'url' && !f.photo))
             ? '<input id="rb-wf-photoin" type="file" accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">'
             : '';
 
@@ -2409,9 +2743,9 @@
             }).join('') + '</ul>';
             html = batch +
               '<h2 class="fm-h" style="margin-bottom:4px;">Here’s what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>' +
-              '<p style="font-size:13px;color:var(--ink-faint);margin:0 0 16px;">Filed from your photo — adjust the details only if something isn’t quite right.</p>' +
+              '<p style="font-size:13px;color:var(--ink-faint);margin:0 0 16px;">' + (f.src === 'url' ? 'Read from the page — adjust the details only if something isn’t quite right.' : 'Filed from your photo — adjust the details only if something isn’t quite right.') + '</p>' +
               '<div class="rb-saw-panel" id="rb-saw-panel"><img id="wa-saw-photo" alt="">' + tagsHtml +
-              '<button type="button" class="rb-saw-retake" onclick="window.__waRetake&&window.__waRetake()">↺ Retake</button></div>' +
+              '<button type="button" class="rb-saw-retake" onclick="window.__waRetake&&window.__waRetake()">' + (f.src === 'url' ? '↺ Another link' : '↺ Retake') + '</button></div>' +
               ledger +
               tog('details', 'Edit the details', '▾') +
               cta;
@@ -2419,7 +2753,7 @@
             // Screens 04/05/11 — the editable fields, core set only.
             let head;
             if (isEdit || (f.mode === 'add' && f.readable)) {
-              head = compactHead(photoAct) + (f.mode === 'add' && f.readable ? tog('summary', 'Hide the details', '▴') : '');
+              head = compactHead(photoAct) + (f.mode === 'add' && f.readable && f.photo ? tog('summary', 'Hide the details', '▴') : '');
             } else {
               // Manual add / unreadable photo — full headline, empty slot.
               const sub = f.mode === 'add' && !f.readable
@@ -2497,6 +2831,12 @@
               tog('details', 'Hide tags and notes', '▴') +
               '<div class="rb-wf-taghd first"><label class="rb-wf-lbl" style="margin-bottom:10px">Season</label><div class="rb-wf-chips">' + seaChips + '</div></div>' +
               '<div class="rb-wf-taghd"><label class="rb-wf-lbl" style="margin-bottom:10px">Wear it for</label><div class="rb-wf-chips">' + ctxChips + '</div></div>' +
+              // Price and size (2026-09-22): both optional, filled in by a
+              // receipt or a link when they carry them, hers to correct.
+              '<div class="rb-wf-price"><div class="rb-wf-grid2">' +
+                '<div><label class="rb-wf-lbl">Price</label><input id="wa-saw-price" class="rb-wf-input" inputmode="decimal" placeholder="—" value="' + _sawEsc(window.__waSawPrice || '') + '" oninput="window.__waSawPrice=this.value"></div>' +
+                '<div><label class="rb-wf-lbl">Size</label><input id="wa-saw-size" class="rb-wf-input" placeholder="—" value="' + _sawEsc(window.__waSawSize || '') + '" oninput="window.__waSawSize=this.value"></div>' +
+              '</div><p class="note">Both optional. Robes fills them in when a receipt or a link carries them.</p></div>' +
               '<div class="rb-wf-taghd"><label class="rb-wf-lbl">Notes</label>' +
                 '<textarea id="wa-saw-notes" class="rb-wf-input" placeholder="Fit, fabric, how you like to wear it." style="resize:none;height:72px" oninput="window.__waSawNotes=this.value">' + String(window.__waSawNotes || '').replace(/</g, '&lt;') + '</textarea></div>' +
               cta + photoIn;
@@ -2627,9 +2967,14 @@
         };
 
         window.__waFormPhoto = function() {
-          // Add flow: Retake returns to the image step (batch queue kept).
+          // Add flow: Retake returns to the image step (batch queue kept);
+          // a piece read from a link goes back to the link.
           // Manual/edit: poke the hidden input — a straight photo replace.
-          if (_waForm && _waForm.mode === 'add') { _showStep1(); return; }
+          if (_waForm && _waForm.mode === 'add') {
+            if (_waForm.src === 'url' && !_waForm.photo) { const pi = document.getElementById('rb-wf-photoin'); if (pi) pi.click(); return; }
+            if (_waForm.src === 'url') _showUrlStep(); else _showStep1();
+            return;
+          }
           const inp = document.getElementById('rb-wf-photoin');
           if (inp) inp.click();
         };
@@ -2642,7 +2987,7 @@
         window.__waLinkSoon = function() {
           _waSoon('Paste a link', 'Drop a product link and Robes files the piece — photo, brand and price included.');
         };
-        window.__waRetake = function() { _showStep1(); };
+        window.__waRetake = function() { if (_waForm && _waForm.src === 'url') _showUrlStep(); else _showStep1(); };
 
         function _waFormSeedEmpty() {
           _photoDataUrl = '';
@@ -2650,6 +2995,8 @@
           window.__waSawBrand = '';
           window.__waSawNotes = '';
           window.__waSawColor = '';
+          window.__waSawPrice = '';
+          window.__waSawSize = '';
           window.__waSawItemDna = {};
           window.__waSawCat = '';
           window.__waSawL2 = '';
@@ -2676,6 +3023,8 @@
           window.__waSawBrand = it.brand || '';
           window.__waSawNotes = it.notes || '';
           window.__waSawColor = it.color || '';
+          window.__waSawPrice = _waPriceFmt(it.price, it.currency);
+          window.__waSawSize = it.size || '';
           window.__waSawItemDna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : {};
           window.__waSawCat = it.category || '';
           window.__waSawL2 = it.category_l2 || '';
@@ -2698,12 +3047,15 @@
           _waFormPaint();
         }
 
-        function _runStep3(dataUrl, tag) {
+        function _runStep3(dataUrl, tag, src) {
           _setDot(3);
+          _photoDataUrl = dataUrl || '';
           const dna = tag.item_dna || {};
           const initColor = GEMINI_MAP[tag.color] || tag.color || '';
           window.__waSawLabel = tag.label || '';
           window.__waSawBrand = tag.brand || '';
+          window.__waSawPrice = _waPriceFmt(tag.price, tag.currency);
+          window.__waSawSize = tag.size || '';
           window.__waSawNotes = dna.ai_generated_notes || tag.notes || '';
           window.__waSawColor = initColor;
           window.__waSawItemDna = dna;
@@ -2719,7 +3071,9 @@
           // A readable piece gets the summary + reveal; an unreadable one
           // goes straight to the open editor — nothing to celebrate yet.
           const readable = !!tag.label;
-          _waForm = { mode: 'add', view: readable ? 'summary' : 'details', photo: dataUrl, readable: readable, revealed: false };
+          // A page with no image has nothing to reveal over — the editor,
+          // with "Add a photo" in the head, is the honest landing.
+          _waForm = { mode: 'add', view: readable && dataUrl ? 'summary' : 'details', photo: dataUrl || '', readable: readable, revealed: false, src: src || 'photo' };
           _waFormPaint(readable ? null : '#wa-saw-label');
         }
 
@@ -2810,7 +3164,11 @@
             // open(); a bare open clears any brief left standing.
             const briefIn = opts && typeof opts === 'object' && opts.brief ? opts.brief : null;
             _waBrief = briefIn && !_waEditId ? briefIn : null;
-            const openArgs = briefIn ? [] : arguments;
+            // `way` picks the first screen: 'choose' (the ways chooser),
+            // 'photo', 'mail', 'url', 'receipts' — a bare open is 'photo'.
+            const way = (opts && typeof opts === 'object' && opts.way && !_waEditId) ? String(opts.way) : '';
+            _waFromChooser = way === 'choose';
+            const openArgs = (briefIn || way) ? [] : arguments;
             // The bundle's open() does $('wa-label-in').value = '' etc. — it
             // needs the bundle form present in .fm-step. If a prior flow left
             // our custom step content there (e.g. a swap → Snap Mine, or the
@@ -2858,7 +3216,11 @@
                 const step = document.querySelector('#wa-modal .fm-step');
                 // Only capture the real bundle form (.wa-grid), never a step state
                 if (step && !_origStepHTML && step.querySelector('.wa-grid')) _origStepHTML = step.innerHTML;
-                _showStep1();
+                if (way === 'choose') _showChooser();
+                else if (way === 'mail') _showMailStep();
+                else if (way === 'url') _showUrlStep();
+                else if (way === 'receipts') _showReceipts();
+                else _showStep1();
               }, 150);
             } else {
               // Edit mode: the SAME confirm form, details open, prefilled
@@ -2879,6 +3241,7 @@
               _photoDataUrl = '';
               _waBatchQueue = []; _waBatchTotal = 0; _waBatchDone = 0;
               _waBrief = null;
+              _waFromChooser = false;
               // Form + tag-axis + taxonomy state must not leak into the next open
               _waForm = null;
               _waPopClose();
@@ -2929,6 +3292,9 @@
             const isFilled = (tileEl && tileEl.classList.contains('filled')) ||
                              (tileFill && tileFill.style.display === 'block');
             const isDataUrl = tileSrc && tileSrc.startsWith('data:');
+            // A piece read from a link arrives with its page image already
+            // hosted — the tile carries the http URL, nothing to upload.
+            if (isFilled && !isDataUrl && /^https?:\/\//.test(tileSrc)) imageUrl = tileSrc;
             if (isFilled && isDataUrl) {
               const match = tileSrc.match(/^data:([^;]+);base64,(.+)$/);
               if (match) {
@@ -2975,11 +3341,21 @@
             // chip. Stamping it on every save would erase the inferred/user
             // split the correction-rate signal is made of — a save is not a
             // correction (ADR-002 [C6]).
-            const _V2_KEYS = ['season_band', 'season_source'];
             const det = window.__rbWaDetail;
             if (det && _waV2Cols && det.band) {
               payload.season_band = det.band;
               if (det.bandTouched) payload.season_source = 'user';
+            }
+            // Price / size / currency (2026-09-22): the form carries them
+            // now, so they are written on every save — a value or null —
+            // price on the v2 tier (migration 10), size + currency on the
+            // migration-23 tier. Fit confidence / sentiment / hero stay
+            // omitted.
+            const priced = _waPriceParse(window.__waSawPrice);
+            if (_waV2Cols) payload.price = priced.amount;
+            if (_waV3Cols) {
+              payload.size = String(window.__waSawSize || '').trim().slice(0, 40) || null;
+              payload.currency = priced.amount != null ? priced.currency : null;
             }
 
             // 3-level taxonomy (migration 15). When the cascade UI mounted
@@ -2987,7 +3363,6 @@
             // filing: the stored legacy `category` is DERIVED from the picks
             // (the fold), so it can never disagree with the pair — and the
             // sheet-L1 names the selects display never reach the column.
-            const _TAX_KEYS = ['category_l2', 'category_l3'];
             const taxSel = window.__waSawTaxSel;
             if (taxSel) payload.category = _waTaxLegacy(taxSel.sheet, taxSel.l2, taxSel.l3);
             if (_waTaxCols) {
@@ -3011,37 +3386,11 @@
               if (!payload.category_l2) payload.category_l3 = null;
             }
 
-            // Pre-migration Supabase rejects unknown columns (PGRST204) —
-            // strip the tier the error names (taxonomy cols are named in the
-            // message; otherwise the v2 fields), remember, and retry so the
-            // core save never fails on a schema that hasn't caught up yet.
-            // Each pass flips a flag off, so the loop is bounded at 2 retries.
+            // The one strip-and-retry ladder (_waRowWrite) — a schema that
+            // hasn't caught up never fails the core save.
             let created = null;
-            for (;;) {
-              try {
-                if (editId) {
-                  await _waFetch('PATCH', 'wardrobe_items?id=eq.' + editId, payload);
-                } else {
-                  created = await _waFetch('POST', 'wardrobe_items', payload);
-                }
-                break;
-              } catch (err) {
-                const msg = String(err && err.message || err);
-                if (/PGRST204|column/i.test(msg)) {
-                  if (_waTaxCols && /category_l[23]/.test(msg)) {
-                    _waTaxCols = false;
-                    _TAX_KEYS.forEach(k => delete payload[k]);
-                    continue;
-                  }
-                  if (det && _waV2Cols) {
-                    _waV2Cols = false;
-                    _V2_KEYS.forEach(k => delete payload[k]);
-                    continue;
-                  }
-                }
-                throw err;
-              }
-            }
+            const written = await _waRowWrite(editId, payload, !!det);
+            if (!editId) created = written;
 
             // Tag links, once the row exists. Only when she touched the
             // axis: an untouched add leaves the DB trigger's pre-fill alone
@@ -3171,6 +3520,217 @@
       var _waView = 'all';                 // 'all' | 'wishlist'
       var _waV2Cols = true;                // v2 columns present? flipped off on PGRST204
       var _waTaxCols = true;               // migration 15 (category_l2/l3) present? flipped off on PGRST204
+      var _waV3Cols = true;                // migration 23 (size/currency) present? flipped off on PGRST204
+      var _waFromChooser = false;          // the add modal was opened through the ways chooser (2026-09-22)
+      // The receipt inbox (2026-09-22): held wardrobe_inbox rows, the
+      // migration-23 stand-down flag, her minted address (local part).
+      var _wiRows = [], _wiDown = false, _wiAddr = null, _wiLoaded = false;
+      var _WI_DOMAIN = 'in.byrobes.com';
+
+      // ── One row write, one strip-and-retry ladder ─────────────────────
+      // Pre-migration Supabase rejects unknown columns (PGRST204) — strip
+      // the tier the error names (size/currency → migration 23, the
+      // taxonomy pair → 15, else the v2 fields → 10), remember, and retry
+      // so the core save never fails on a schema that hasn't caught up.
+      // Every wardrobe_items write — the form's save, a receipt's filing —
+      // goes through here, so the ladder can never drift between them.
+      const _WA_V2_KEYS = ['season_band', 'season_source', 'price'];
+      const _WA_V3_KEYS = ['size', 'currency'];
+      const _WA_TAX_KEYS = ['category_l2', 'category_l3'];
+      async function _waRowWrite(editId, payload, hasDet) {
+        for (;;) {
+          try {
+            if (editId) return await _waFetch('PATCH', 'wardrobe_items?id=eq.' + editId, payload);
+            return await _waFetch('POST', 'wardrobe_items', payload);
+          } catch (err) {
+            const msg = String(err && err.message || err);
+            if (/PGRST204|column/i.test(msg)) {
+              if (_waV3Cols && /\b(size|currency)\b/.test(msg)) {
+                _waV3Cols = false;
+                _WA_V3_KEYS.forEach(k => delete payload[k]);
+                continue;
+              }
+              if (_waTaxCols && /category_l[23]/.test(msg)) {
+                _waTaxCols = false;
+                _WA_TAX_KEYS.forEach(k => delete payload[k]);
+                continue;
+              }
+              if (_waV2Cols && (hasDet || _WA_V2_KEYS.some(k => k in payload))) {
+                _waV2Cols = false;
+                _WA_V2_KEYS.forEach(k => delete payload[k]);
+                continue;
+              }
+            }
+            throw err;
+          }
+        }
+      }
+
+      // Price is typed as she reads it ("£340", "89.99 EUR") and stored as
+      // a number + an ISO code; the form prints it back the same way.
+      const _WA_CUR_SYM = { GBP: '£', EUR: '€', USD: '$', AUD: 'A$', CAD: 'C$', CHF: 'CHF ', JPY: '¥', SEK: 'kr ', DKK: 'kr ', NOK: 'kr ' };
+      function _waPriceParse(str) {
+        const t = String(str || '').trim();
+        if (!t) return { amount: null, currency: null };
+        let cur = null;
+        const code = t.match(/\b(GBP|EUR|USD|AUD|CAD|CHF|JPY|SEK|DKK|NOK)\b/i);
+        if (code) cur = code[1].toUpperCase();
+        else if (/£/.test(t)) cur = 'GBP';
+        else if (/€/.test(t)) cur = 'EUR';
+        else if (/\$/.test(t)) cur = 'USD';
+        const num = parseFloat(t.replace(/[^0-9.,]/g, '').replace(/,(?=\d{3}\b)/g, '').replace(',', '.'));
+        return { amount: Number.isFinite(num) && num > 0 ? Math.round(num * 100) / 100 : null, currency: cur };
+      }
+      function _waPriceFmt(amount, currency) {
+        if (amount == null || amount === '') return '';
+        const n = Number(amount);
+        if (!Number.isFinite(n)) return '';
+        const sym = currency ? (_WA_CUR_SYM[String(currency).toUpperCase()] || (String(currency).toUpperCase() + ' ')) : '';
+        return sym + (Number.isInteger(n) ? String(n) : n.toFixed(2));
+      }
+
+      // ── The receipt inbox ─────────────────────────────────────────────
+      // Held rows load beside the wardrobe (fire-and-forget, like the
+      // wishlist); the wardrobe page carries a quiet notice while any wait.
+      // Everything degrades silently until migration 23 has run.
+      async function _wiLoad() {
+        const uid = _waUid();
+        if (!uid || _wiDown) return;
+        try {
+          const rows = await _waFetch('GET', 'wardrobe_inbox?user_id=eq.' + uid + '&status=eq.held&order=received_at.desc&select=*');
+          _wiRows = Array.isArray(rows) ? rows : [];
+          _wiLoaded = true;
+        } catch (e) {
+          const msg = String(e && e.message || e);
+          if (/PGRST205|42P01|relation|does not exist|wardrobe_inbox/i.test(msg)) { _wiDown = true; _wiRows = []; }
+          else console.warn('[inbox] load:', msg.slice(0, 160));
+        }
+        _wiSync();
+      }
+      function _wiHeldCount() { return _wiRows.reduce(function(t, r) { return t + (Array.isArray(r.items) ? r.items.length : 0); }, 0); }
+      function _wiWhen(iso) {
+        if (!iso) return '';
+        const d = new Date(iso); if (isNaN(d)) return '';
+        const now = new Date();
+        const dayMs = 86400000;
+        const midnight = function(x) { return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+        const diff = Math.round((midnight(now) - midnight(d)) / dayMs);
+        if (diff <= 0) return d.getHours() < 12 ? 'This morning' : 'Today';
+        if (diff === 1) return 'Yesterday';
+        if (diff < 7) return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getDay()];
+        return d.getDate() + ' ' + (typeof _rbMon3 === 'function' ? _rbMon3(d.toISOString().slice(0, 10)) : '');
+      }
+      // The notice on the wardrobe page: "Robes read five receipts · N
+      // pieces are waiting for you to look over · Review them →". Sits
+      // between the trail row and the grid, never on the wishlist.
+      function _wiSync() {
+        const trail = document.getElementById('rb-wg-trail');
+        if (!trail) return;
+        let el = document.getElementById('rb-wg-inbox');
+        const n = _wiRows.length, pieces = _wiHeldCount();
+        if (!n || _waView === 'wishlist') { if (el) el.remove(); return; }
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'rb-wg-inbox';
+          el.className = 'rb-wg-inbox';
+          trail.parentNode.insertBefore(el, trail.nextSibling);
+        }
+        const word = function(k) { const w = typeof _msWord === 'function' ? _msWord(k) : String(k); return w.charAt(0).toLowerCase() + w.slice(1); };
+        el.innerHTML = '<span class="rb-wg-inbox-ic" aria-hidden="true">✦</span>' +
+          '<span class="rb-wg-inbox-t"><span class="h">Robes read ' + word(n) + ' receipt' + (n === 1 ? '' : 's') + '</span>' +
+          '<span class="s">' + pieces + (pieces === 1 ? ' piece is' : ' pieces are') + ' waiting for you to look over</span></span>' +
+          '<button type="button" class="rb-pill rb-wg-inbox-go" onclick="window.__waInboxOpen()">Review them →</button>';
+      }
+      // Her Robes address, minted the first time she asks for it: the
+      // first name's letters + four characters, unique across the project
+      // (a collision retries), written onto her own profile row.
+      async function _wiAddress() {
+        const uid = _waUid();
+        if (!uid || _wiDown) return null;
+        if (_wiAddr) return _wiAddr;
+        try {
+          const rows = await _waFetch('GET', 'profiles?id=eq.' + uid + '&select=inbox_address');
+          const cur = rows && rows[0] && rows[0].inbox_address;
+          if (cur) { _wiAddr = cur; return cur; }
+        } catch (e) {
+          if (/inbox_address|42703|PGRST204/i.test(String(e && e.message || e))) _wiDown = true;
+          return null;
+        }
+        const prof = window.__robes_profile || {};
+        const stem = String(prof.first_name || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 12) || 'robes';
+        const ALPHA = 'abcdefghjkmnpqrstuvwxyz23456789';
+        for (let attempt = 0; attempt < 4; attempt++) {
+          let tok = '';
+          for (let i = 0; i < 4; i++) tok += ALPHA[Math.floor(Math.random() * ALPHA.length)];
+          const local = stem + '-' + tok;
+          try {
+            await _waFetch('PATCH', 'profiles?id=eq.' + uid, { inbox_address: local });
+            _wiAddr = local;
+            if (window.__robes_profile) window.__robes_profile.inbox_address = local;
+            _rbTrack('inbox_address_minted', {});
+            return local;
+          } catch (e) {
+            const msg = String(e && e.message || e);
+            if (/inbox_address.*(does not exist|schema)|42703|PGRST204/i.test(msg)) { _wiDown = true; return null; }
+            if (!/23505|duplicate|unique/i.test(msg)) { console.warn('[inbox] mint:', msg.slice(0, 160)); return null; }
+          }
+        }
+        return null;
+      }
+      // Filing the pieces she ticked: one wardrobe row each through the
+      // shared ladder (the migration-18 trigger pre-fills the tags), an
+      // image hosted at read time kept as it is, the receipt row moved to
+      // `filed` with the ids it produced. Untouched pieces just aren't filed.
+      async function _wiFile(row, picks) {
+        const uid = _waUid();
+        if (!uid || !row) return { filed: 0, ids: [] };
+        const items = Array.isArray(row.items) ? row.items : [];
+        const ids = [];
+        let failed = 0;
+        for (let i = 0; i < items.length; i++) {
+          if (picks.indexOf(i) === -1) continue;
+          const it = items[i] || {};
+          const dna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' };
+          dna.source = { kind: 'receipt', retailer: row.retailer || '', order_ref: row.order_ref || '', inbox_id: row.id };
+          const payload = {
+            user_id: uid,
+            label: String(it.label || '').slice(0, 120) || 'A piece',
+            category: it.category || 'Other',
+            color: it.color || null,
+            brand: it.brand || null,
+            notes: null,
+            image_url: _pdHttp(it.image_url) ? it.image_url : null,
+            item_dna: dna,
+            price: (it.price != null && it.price !== '') ? Number(it.price) : null,
+            currency: it.currency || null,
+            size: it.size || null,
+          };
+          if (_waTaxCols) { payload.category_l2 = it.category_l2 || null; payload.category_l3 = payload.category_l2 ? (it.category_l3 || null) : null; }
+          if (!_waV2Cols) delete payload.price;
+          if (!_waV3Cols) { delete payload.size; delete payload.currency; }
+          try {
+            const created = await _waRowWrite(null, payload, false);
+            const id = Array.isArray(created) && created[0] && created[0].id;
+            if (id != null) ids.push(id);
+            _rbTrack('wardrobe_added', { label: payload.label, category: payload.category, source: 'receipt', batch_n: picks.length, batch_i: ids.length });
+          } catch (e) { failed++; console.warn('[inbox] file:', e && e.message); }
+        }
+        if (!failed) {
+          try { await _waFetch('PATCH', 'wardrobe_inbox?id=eq.' + row.id, { status: 'filed', filed_ids: ids, decided_at: new Date().toISOString() }); }
+          catch (e) { console.warn('[inbox] patch:', e && e.message); }
+          _wiRows = _wiRows.filter(function(r) { return r.id !== row.id; });
+          _rbTrack('inbox_reviewed', { filed: ids.length, skipped: items.length - picks.length, retailer: row.retailer || '' });
+        }
+        return { filed: ids.length, ids: ids, failed: failed };
+      }
+      async function _wiDismiss(row) {
+        if (!row) return;
+        try { await _waFetch('PATCH', 'wardrobe_inbox?id=eq.' + row.id, { status: 'dismissed', decided_at: new Date().toISOString() }); }
+        catch (e) { console.warn('[inbox] dismiss:', e && e.message); }
+        _wiRows = _wiRows.filter(function(r) { return r.id !== row.id; });
+        _rbTrack('inbox_reviewed', { filed: 0, skipped: (row.items || []).length, retailer: row.retailer || '' });
+        _wiSync();
+      }
       var _wlItems = [], _wlLoaded = false, _wlTableMissing = false;
       // Refine holds four things (redesign 2026-08-05 + same-day design
       // follow-up): season, wear-it-for, colour, brand. Category /
@@ -4046,11 +4606,21 @@
       // flow IS the chooser now — photograph / paste a link (coming soon) /
       // add without a photo. The name survives because every entry point
       // (add card, trail button, suggestion pill) calls it.
+      // 2026-09-22: the ways chooser is back as the FIRST screen of every
+      // user-facing add door (the add card, the masthead pill, the tracker)
+      // — Photograph it / Forward a receipt / Paste a link / Add without a
+      // photo. A programmatic open (a snap door, a brief) still lands on
+      // the photo step: it already knows it wants a photograph.
+      window.__waInboxOpen = function() {
+        _waEditId = null;
+        _waAfterAdd = null;
+        if (window.WA && WA.open) WA.open({ way: 'receipts' });
+      };
       window.__waAddChooser = function() {
         if (_waView === 'wishlist') { window.__wlOpenAdd(); return; }
         _waEditId = null;
         _waAfterAdd = null;
-        if (window.WA && WA.open) WA.open();
+        if (window.WA && WA.open) WA.open({ way: 'choose' });
       };
 
       // ── Tag-axis state (Season / Wear it for + notes) ─────────────────
@@ -4106,6 +4676,7 @@
         if (filters) filters.style.display = wish ? 'none' : '';
         const trail = document.getElementById('rb-wg-trail');
         if (trail) trail.style.display = wish ? 'none' : '';
+        _wiSync();
         if (wish) _waCascadeClose();
         const grid = document.getElementById('wg-grid');
         if (grid) grid.style.display = wish ? 'none' : '';
@@ -4419,6 +4990,16 @@
             '.wg-pill.rb-add-pill:hover{opacity:.85}',
             // Trail row — breadcrumb + count left, Add piece + Refine right
             '#rb-wg-trail{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border-top:0.5px solid var(--rule-mid);padding:14px 0;margin:-10px 0 18px}',
+            // The receipt notice (2026-09-22) — under the trail, above the grid;
+            // lives here, not in the modal's sheet, because it paints on the
+            // wardrobe page before the add modal has ever opened.
+            '.rb-wg-inbox{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:space-between;padding:14px 16px;margin:-6px 0 22px;background:#F5F0E8;border:1px solid var(--rule-mid,#E7E0CF);border-radius:var(--rad-sm)}',
+            '.rb-wg-inbox-ic{width:30px;height:30px;border-radius:100px;background:rgba(212,200,196,.6);color:#8E7077;display:flex;align-items:center;justify-content:center;font-size:13px;flex:0 0 30px}',
+            '.rb-wg-inbox-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}',
+            '.rb-wg-inbox-t .h{font-size:12.5px;font-weight:500;color:#2A2520}',
+            '.rb-wg-inbox-t .s{font-size:11.5px;color:var(--ink-faint)}',
+            '.rb-wg-inbox-go{white-space:nowrap}',
+            '@media(max-width:767px){.rb-wg-inbox-go{width:100%;justify-content:center}}',
             '.rb-wg-crumbs{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:13px;color:var(--ink-faint);min-width:0}',
             '.rb-wg-crumb-mark{font-family:var(--font-serif);font-size:15px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink)}',
             '.rb-wg-crumb-sep{color:var(--ink-faint)}',

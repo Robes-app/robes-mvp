@@ -69,6 +69,25 @@ const TAG_TAX = {
   },
 };
 
+// A product page read into the analyse shape (+ the hosted page image).
+const URL_PIECE = {
+  label: 'Leather trainers', category: 'Shoes', category_l2: 'Trainers', category_l3: 'Leather trainer',
+  color: 'White', brand: 'Common Projects', price: 340, currency: 'GBP', size: '38', notes: '',
+  image_url: 'https://res.cloudinary.com/robes/trainers.jpg',
+  item_dna: { display: { title: 'Leather trainers', editorial_color_name: 'Chalk', primary_color_hex: '', brand_raw: 'Common Projects' }, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: 'Clean white leather trainers.', source: { kind: 'url', url: 'https://shop.example.com/p/1', site: 'Example' } },
+};
+// Two held receipts, read and waiting.
+const INBOX = [
+  { id: 'rc-1', user_id: 'u-test', source: 'receipt', retailer: 'NET-A-PORTER', order_ref: 'NAP123', subject: 'Fwd: Your order', status: 'held', received_at: new Date().toISOString(),
+    items: [
+      { label: 'Leather trainers', category: 'Shoes', category_l2: 'Trainers', category_l3: 'Leather trainer', color: 'White', brand: 'Common Projects', price: 340, currency: 'GBP', size: '38', image_url: 'https://res.cloudinary.com/robes/trainers.jpg', quantity: 1, returned: false, item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } },
+      { label: 'Leather tote', category: 'Bags', category_l2: 'Everyday bags', category_l3: '', color: 'Camel', brand: 'Polène', price: 320, currency: 'GBP', size: 'One size', image_url: null, quantity: 1, returned: false, item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } },
+      { label: 'Ribbed cotton tank', category: 'Tops', category_l2: '', category_l3: '', color: 'Black', brand: 'Arket', price: 39, currency: 'GBP', size: 'S', image_url: null, quantity: 2, returned: true, item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } },
+    ] },
+  { id: 'rc-2', user_id: 'u-test', source: 'receipt', retailer: 'Sézane', order_ref: null, subject: 'Fwd: Merci', status: 'held', received_at: new Date(Date.now() - 86400000).toISOString(),
+    items: [ { label: 'Silk twill scarf', category: 'Accessories', category_l2: 'Scarves', category_l3: '', color: 'Print', brand: 'Sézane', price: 95, currency: 'EUR', size: 'One size', image_url: null, quantity: 1, returned: false, item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } } ] },
+];
+
 const ROWS = [
   { id: 'row-1', user_id: 'u-test', label: 'Blue skinny jeans', category: 'Bottoms', category_l2: 'Jeans', category_l3: 'Skinny jeans', color: 'Navy', brand: 'Levi’s', notes: '', image_url: null, times_worn: 2, item_dna: {}, seasons: ['Summer'], occasions: ['Everyday', 'Travel'], season_band: 'spring_summer', season_source: 'user', hero_position: 1, created_at: '2026-08-01' },
   { id: 'row-2', user_id: 'u-test', label: 'Wide-leg jeans', category: 'Bottoms', category_l2: 'Jeans', category_l3: 'Wide-leg jeans', color: 'Black', brand: 'Arket', notes: '', image_url: null, times_worn: 0, item_dna: {}, seasons: [], occasions: [], season_band: 'year_round', season_source: 'inferred', hero_position: null, created_at: '2026-08-02' },
@@ -83,10 +102,31 @@ async function boot(browser, tagBody, opts = {}) {
   const page = await ctx.newPage();
   const supaPosts = [];
   const supaPatches = [];
+  const inboxPatches = [];
+  const profilePatches = [];
+  const urlReads = [];
+  let inboxRows = (opts.inbox || []).map((r) => ({ ...r }));
   await page.route('**cdn.jsdelivr.net/**', (r) =>
     r.fulfill({ status: 200, contentType: 'application/javascript', body: SUPA_STUB }));
   await page.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => {
     const req = r.request();
+    if (req.url().includes('wardrobe_inbox')) {
+      if (req.method() === 'PATCH') {
+        const body = JSON.parse(req.postData() || '{}');
+        inboxPatches.push({ url: req.url(), body });
+        const id = (req.url().match(/id=eq\.([^&]+)/) || [])[1];
+        inboxRows = inboxRows.map((r) => (String(r.id) === String(id) ? { ...r, ...body } : r));
+        return r.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+      }
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(inboxRows.filter((x) => x.status === 'held')) });
+    }
+    if (req.url().includes('/profiles')) {
+      if (req.method() === 'PATCH') {
+        profilePatches.push(JSON.parse(req.postData() || '{}'));
+        return r.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+      }
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ inbox_address: opts.inboxAddress || null }]) });
+    }
     if (req.url().includes('wardrobe_items')) {
       if (req.method() === 'POST') {
         supaPosts.push(JSON.parse(req.postData() || '{}'));
@@ -108,6 +148,12 @@ async function boot(browser, tagBody, opts = {}) {
     await new Promise((res) => setTimeout(res, 600));
     return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tagBody) });
   });
+  await page.route('**/api/wardrobe/read-url', async (r) => {
+    urlReads.push(JSON.parse(r.request().postData() || '{}'));
+    await new Promise((res) => setTimeout(res, 300));
+    if (opts.urlError) return r.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ error: opts.urlError }) });
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(opts.urlPiece || URL_PIECE) });
+  });
   await page.route('**/api/wardrobe/upload', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://res.cloudinary.com/robes/test.jpg' }) }));
   await page.route('**nominatim**', (r) => r.abort());
@@ -122,7 +168,7 @@ async function boot(browser, tagBody, opts = {}) {
   page.on('pageerror', (e) => errs.push(String(e)));
   await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
-  return { ctx, page, errs, supaPosts, supaPatches };
+  return { ctx, page, errs, supaPosts, supaPatches, inboxPatches, profilePatches, urlReads };
 }
 
 const browser = await chromium.launch(
@@ -275,8 +321,11 @@ const browser = await chromium.launch(
   check('save · edited label + picked colour persisted', supaPosts[0] && supaPosts[0].label === 'Ivory wool blazer' && supaPosts[0].color === 'Navy',
     supaPosts[0] && `${supaPosts[0].label}|${supaPosts[0].color}`);
   check('save · legacy category carried', supaPosts[0] && supaPosts[0].category === 'Outerwear', supaPosts[0] && supaPosts[0].category);
-  check('save · retired columns left off the payload',
-    supaPosts[0] && !('price' in supaPosts[0]) && !('fit_confidence' in supaPosts[0]) && !('sentiment' in supaPosts[0]) && !('hero_position' in supaPosts[0]));
+  // 2026-09-22: price / size / currency are form fields now and ride every
+  // save (null when empty); fit confidence / sentiment / hero stay off.
+  check('save · price, size and currency ride the payload (null when empty); the retired columns stay off',
+    supaPosts[0] && 'price' in supaPosts[0] && supaPosts[0].price === null && 'size' in supaPosts[0] && supaPosts[0].size === null && 'currency' in supaPosts[0]
+      && !('fit_confidence' in supaPosts[0]) && !('sentiment' in supaPosts[0]) && !('hero_position' in supaPosts[0]), JSON.stringify(supaPosts[0] && [supaPosts[0].price, supaPosts[0].size, supaPosts[0].currency]));
   // ADR-002: the band is STORED (not-null), and season_source is omitted
   // when she never touched the chip — a save is not a correction, and
   // stamping 'user' on every save would erase the signal the pre-fill's
@@ -616,7 +665,8 @@ const browser = await chromium.launch(
     };
   });
   check('brief · the second blazer matched nothing open and filed normally (two inserts, the shoes still borrowed)', supaPosts.length === 2 && end.props === 1 && end.pieces === 2, JSON.stringify(end));
-  check('brief · the batch done, the modal closes and the look she dressed opens, its rack head reading "Swap in yours · 1"', end.modal === false && end.sn && end.title && end.door === 'Swap in yours · 1', JSON.stringify(end));
+  // The batch door on the look is the swap zone's Swap pill since 2026-09-21.
+  check('brief · the batch done, the modal closes and the look she dressed opens, its swap zone offering Swap', end.modal === false && end.sn && end.title && end.door === 'Swap', JSON.stringify(end));
   // WA.close clears the brief like the batch queue.
   await page.evaluate(() => { window.__rbFillOpen('lk-fill', 'rack'); });
   await page.waitForTimeout(400);
@@ -676,8 +726,8 @@ const browser = await chromium.launch(
       && !('season_source' in patch.body)
       && !('seasons' in patch.body) && !('occasions' in patch.body),
     JSON.stringify(patch.body && [patch.body.season_band, patch.body.season_source]));
-  check('edit · pass-through columns untouched by the PATCH',
-    patch.body && !('price' in patch.body) && !('hero_position' in patch.body) && !('sentiment' in patch.body));
+  check('edit · price re-filed as the row holds it; the pass-through columns untouched by the PATCH',
+    patch.body && 'price' in patch.body && patch.body.price === null && !('hero_position' in patch.body) && !('sentiment' in patch.body), JSON.stringify(patch.body && [patch.body.price, patch.body.size]));
 
   // An untagged piece shows both defaults selected — the Refine behaviour
   // reads back from the piece level.
@@ -895,6 +945,157 @@ const browser = await chromium.launch(
   check('mobile · step 1 stacks Attach photos over Take a photo (3.3 mock)', ms1.dropH.join('|') === 'Add as many as you like'
     && ms1.btns.join('|') === 'Attach photos|Take a photo', `${ms1.dropH.join('|')} / ${ms1.btns.join('|')}`);
   check('no page errors (mobile)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
+// ── The ways in (2026-09-22): chooser · link · receipt · price/size ────
+{
+  const { ctx, page, errs, supaPosts, profilePatches, urlReads } = await boot(browser, TAG, { rows: ROWS });
+  // A bare open is unchanged — the photo step, straight in.
+  await page.evaluate(() => window.WA && WA.open());
+  await page.waitForTimeout(400);
+  const bare = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', ways: document.querySelectorAll('.rb-wf-way').length, nophoto: !!document.querySelector('.rb-wf-nophoto'), back: !!document.querySelector('.rb-wf-back') }));
+  check('ways · a bare WA.open still lands on the photo step (snap doors, briefs)', bare.h === 'Add your pieces.' && bare.ways === 0 && bare.nophoto && !bare.back, JSON.stringify(bare));
+  await page.evaluate(() => window.WA && WA.close());
+  await page.waitForTimeout(300);
+  // The add card / masthead pill open the chooser: four ways, one dashed.
+  await page.evaluate(() => window.__waAddChooser());
+  await page.waitForTimeout(400);
+  const ch = await page.evaluate(() => ({
+    h: document.querySelector('#wa-modal .fm-h')?.textContent || '',
+    ways: Array.from(document.querySelectorAll('.rb-wf-way')).map((b) => b.dataset.way + ':' + b.querySelector('.rb-wf-way-t').textContent + (b.classList.contains('dashed') ? '*' : '')),
+    file: !!document.getElementById('wa-rb-file'),
+    fills: Array.from(document.querySelectorAll('#wa-modal .fm-step button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
+  }));
+  check('ways · __waAddChooser opens the chooser: Photograph it / Forward a receipt / Paste a link + the dashed Add without a photo, no ink fill',
+    ch.h === 'Add a piece.' && ch.ways.join('|') === 'photo:Photograph it|mail:Forward a receipt|url:Paste a link|manual:Add without a photo*' && ch.fills === 0, JSON.stringify(ch));
+  await page.click('.rb-wf-way[data-way="photo"]');
+  await page.waitForTimeout(300);
+  const ph = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', file: !!document.getElementById('wa-rb-file'), cam: !!document.getElementById('wa-rb-cam'), back: document.querySelector('.rb-wf-back')?.textContent || '', nophoto: !!document.querySelector('.rb-wf-nophoto') }));
+  check('ways · Photograph it is the photo step with "← Other ways in" in place of the no-photo link', ph.h === 'Add your pieces.' && ph.file && ph.cam && ph.back === '← Other ways in' && !ph.nophoto, JSON.stringify(ph));
+  await page.click('.rb-wf-back');
+  await page.waitForTimeout(300);
+  check('ways · Other ways in returns to the chooser', (await page.evaluate(() => document.querySelectorAll('.rb-wf-way').length)) === 4);
+  await page.click('.rb-wf-way[data-way="manual"]');
+  await page.waitForTimeout(300);
+  check('ways · Add without a photo opens the empty editor', await page.evaluate(() => /Add a piece/.test(document.querySelector('#wa-modal .fm-h')?.textContent || '') && !!document.querySelector('.rb-wf-slot') && !!document.getElementById('wa-saw-label')));
+
+  // Paste a link → reading → the confirm screen, filled from the page.
+  await page.evaluate(() => window.__waWay('choose'));
+  await page.click('.rb-wf-way[data-way="url"]');
+  await page.waitForTimeout(300);
+  const u0 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', input: !!document.getElementById('rb-wf-url'), go: document.getElementById('rb-wf-urlgo')?.textContent || '', focused: document.activeElement?.id }));
+  check('link · the step is an input + Read it, focused', u0.h === 'From a link.' && u0.input && u0.go === 'Read it' && u0.focused === 'rb-wf-url', JSON.stringify(u0));
+  await page.fill('#rb-wf-url', 'not a link');
+  await page.click('#rb-wf-urlgo');
+  await page.waitForTimeout(200);
+  check('link · a non-link is named inline, nothing posted', await page.evaluate(() => /doesn’t look like a link/.test(document.getElementById('rb-wf-urlerr')?.textContent || '')) && urlReads.length === 0);
+  await page.fill('#rb-wf-url', 'https://shop.example.com/p/1');
+  await page.press('#rb-wf-url', 'Enter');
+  await page.waitForTimeout(120);
+  check('link · Enter reads it; the reading state stands while it does', await page.evaluate(() => /Robes is reading it/.test(document.querySelector('.rb-wf-reading .h')?.textContent || '')));
+  await page.waitForTimeout(700);
+  const u1 = await page.evaluate(() => ({
+    h: document.querySelector('#wa-modal .fm-h')?.textContent || '',
+    sub: document.querySelector('#wa-modal .fm-step > p')?.textContent || '',
+    photo: document.getElementById('wa-saw-photo')?.getAttribute('src') || '',
+    retake: document.querySelector('.rb-saw-retake')?.textContent || '',
+    vals: Array.from(document.querySelectorAll('#rb-saw-read .rb-saw-val')).map((v) => v.textContent),
+  }));
+  check('link · lands on "Here’s what Robes saw." read from the page, the page image on the panel, the retake reading Another link',
+    /what Robes/.test(u1.h) && /Read from the page/.test(u1.sub) && u1.photo === URL_PIECE.image_url && u1.retake === '↺ Another link' && urlReads[0]?.url === 'https://shop.example.com/p/1', JSON.stringify(u1));
+  await page.waitForTimeout(2200);
+  await page.click('button.rb-saw-toggle:has-text("Edit the details")');
+  await page.waitForTimeout(300);
+  const u2 = await page.evaluate(() => ({ meta: document.querySelector('.rb-wf-meta')?.textContent || '', hint: document.querySelector('.rb-saw-toggle .hint')?.textContent || '' }));
+  check('link · the header meta carries the price and size; the tags hint counts them', /£340/.test(u2.meta) && /Size 38/.test(u2.meta) && /2 set/.test(u2.hint), JSON.stringify(u2));
+  await page.click('button.rb-saw-toggle:has-text("Add tags and notes")');
+  await page.waitForTimeout(300);
+  const u3 = await page.evaluate(() => ({ price: document.getElementById('wa-saw-price')?.value, size: document.getElementById('wa-saw-size')?.value, note: document.querySelector('.rb-wf-price .note')?.textContent || '', order: Array.from(document.querySelectorAll('#wa-modal .rb-wf-lbl')).map((l) => l.textContent) }));
+  check('link · Price and Size sit under Tags, before Notes, prefilled', u3.price === '£340' && u3.size === '38' && /Both optional/.test(u3.note) && u3.order.join('|') === 'Season|Wear it for|Price|Size|Notes', JSON.stringify(u3));
+  await page.fill('#wa-saw-size', 'UK 5');
+  await page.click('#wa-saw-cta');
+  await page.waitForTimeout(1200);
+  const post = supaPosts[0] || {};
+  check('link · the save carries the hosted image, price 340 GBP and the corrected size', post.image_url === URL_PIECE.image_url && post.price === 340 && post.currency === 'GBP' && post.size === 'UK 5' && post.category_l2 === 'Trainers' && post.item_dna?.source?.kind === 'url', JSON.stringify([post.image_url, post.price, post.currency, post.size, post.category_l2]));
+
+  // Forward a receipt: her address is minted on first open, copyable.
+  await page.evaluate(() => window.WA && WA.open({ way: 'mail' }));
+  await page.waitForTimeout(700);
+  const m1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', addr: document.getElementById('rb-wf-addr')?.textContent || '', copy: document.getElementById('rb-wf-copy')?.disabled, steps: document.querySelectorAll('.rb-wf-step').length, got: !!document.querySelector('.rb-wf-cta.sm') }));
+  check('mail · the address panel: annie-xxxx@in.byrobes.com minted onto her profile, Copy live, three steps, Got it',
+    m1.h === 'Your own address.' && /^annie-[a-z2-9]{4}@in\.byrobes\.com$/.test(m1.addr) && m1.copy === false && m1.steps === 3 && m1.got
+      && profilePatches.length === 1 && /^annie-[a-z2-9]{4}$/.test(profilePatches[0].inbox_address || ''), JSON.stringify([m1, profilePatches]));
+  await page.evaluate(() => window.WA && WA.close());
+  check('no page errors (ways)', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  // A page that carried no image lands on the editor, a photo slot in its head.
+  const { ctx, page, errs } = await boot(browser, TAG, { rows: ROWS, urlPiece: { ...URL_PIECE, image_url: null } });
+  await page.evaluate(() => window.WA && WA.open({ way: 'url' }));
+  await page.waitForTimeout(400);
+  await page.fill('#rb-wf-url', 'https://shop.example.com/p/2');
+  await page.click('#rb-wf-urlgo');
+  await page.waitForTimeout(900);
+  const n = await page.evaluate(() => ({ label: document.getElementById('wa-saw-label')?.value, head: document.querySelector('.rb-wf-headact')?.textContent || '', thumbEmpty: !!document.querySelector('.rb-wf-thumb.empty'), hide: Array.from(document.querySelectorAll("button.rb-saw-toggle")).some((b) => /Hide the details/.test(b.textContent)), photoIn: !!document.getElementById('rb-wf-photoin'), panel: !!document.getElementById('rb-saw-panel') }));
+  check('link · no page image → the editor, prefilled, "Add a photo" in the head, no reveal panel', n.label === 'Leather trainers' && n.head === 'Add a photo' && n.thumbEmpty && !n.panel && n.photoIn, JSON.stringify(n));
+  await page.setInputFiles('#rb-wf-photoin', { name: 'p.png', mimeType: 'image/png', buffer: PNG_OK });
+  await page.waitForTimeout(500);
+  check('link · Add a photo attaches straight in (no re-scan)', await page.evaluate(() => !!document.querySelector('.rb-wf-thumb img')?.src && !document.querySelector('.rb-wf-thumb.empty')));
+  check('no page errors (link, no image)', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  // Held receipts: the wardrobe notice, the list, the review, the filing.
+  const { ctx, page, errs, supaPosts, inboxPatches } = await boot(browser, TAG, { rows: ROWS, inbox: INBOX, inboxAddress: 'annie-4f2k' });
+  await page.evaluate(() => window.App && App.showWardrobe());
+  await page.waitForTimeout(700);
+  const n1 = await page.evaluate(() => {
+    const el = document.getElementById('rb-wg-inbox');
+    const trail = document.getElementById('rb-wg-trail');
+    return { on: !!el, h: el?.querySelector('.h')?.textContent || '', s: el?.querySelector('.s')?.textContent || '', go: el?.querySelector('.rb-wg-inbox-go')?.textContent || '', afterTrail: !!el && trail?.nextElementSibling === el, addCard: document.querySelector('#wg-grid .rb-add-card .rb-add-hint')?.textContent || '' };
+  });
+  check('receipts · the wardrobe notice under the trail: "Robes read two receipts · 4 pieces are waiting for you to look over · Review them →"',
+    n1.on && n1.h === 'Robes read two receipts' && n1.s === '4 pieces are waiting for you to look over' && n1.go === 'Review them →' && n1.afterTrail, JSON.stringify(n1));
+  check('receipts · the add card names the three doors', n1.addCard === 'Photograph · Receipt · Link', n1.addCard);
+  await page.click('#rb-wg-inbox .rb-wg-inbox-go');
+  await page.waitForTimeout(500);
+  const l1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', rows: Array.from(document.querySelectorAll('.rb-wf-rcpt')).map((b) => b.querySelector('.t').textContent + ' / ' + b.querySelector('.s').textContent) }));
+  check('receipts · Review them opens the held list, newest first, each dated with its count',
+    l1.h === 'Four pieces read.' && l1.rows.length === 2 && /^NET-A-PORTER \/ (This morning|Today) · 3 pieces read$/.test(l1.rows[0]) && l1.rows[1] === 'Sézane / Yesterday · 1 piece read', JSON.stringify(l1));
+  await page.click('.rb-wf-rcpt[data-id="rc-1"]');
+  await page.waitForTimeout(300);
+  const r1 = await page.evaluate(() => ({
+    ey: document.querySelector('.rb-wf-eyebrow')?.textContent || '', h: document.querySelector('#wa-modal .fm-h')?.textContent || '',
+    rows: Array.from(document.querySelectorAll('.rb-wf-rev')).map((b) => (b.classList.contains('on') ? '✓' : '·') + b.querySelector('.t').textContent + ' / ' + b.querySelector('.s').textContent),
+    thumb: !!document.querySelector('.rb-wf-rev[data-i="0"] .th img'), mono: document.querySelector('.rb-wf-rev[data-i="1"] .th')?.textContent || '',
+    chosen: document.getElementById('rb-wf-chosen')?.textContent || '', file: document.getElementById('rb-wf-file')?.textContent || '',
+  }));
+  check('receipts · the review: three rows, price · size, the returned tank unticked, the image on the first, a monogram on the second, "File 2 pieces"',
+    r1.ey === 'From NET-A-PORTER' && r1.h === 'Three pieces read.' && r1.rows.join('|') === '✓Leather trainers / £340 · Size 38|✓Leather tote / £320 · Size One size|·Ribbed cotton tank / £39 · Size S · × 2'
+      && r1.thumb && r1.mono === 'L' && /^2 pieces chosen/.test(r1.chosen) && r1.file === 'File 2 pieces', JSON.stringify(r1));
+  await page.click('.rb-wf-rev[data-i="1"]');
+  await page.waitForTimeout(200);
+  check('receipts · unticking a row moves the count', (await page.evaluate(() => document.getElementById('rb-wf-file')?.textContent)) === 'File 1 piece');
+  await page.click('.rb-wf-rev[data-i="1"]');
+  await page.click('#rb-wf-file');
+  await page.waitForTimeout(1500);
+  const f1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', open: !!document.querySelector('#wa-modal.open'), rows: document.querySelectorAll('.rb-wf-rcpt').length, notice: document.getElementById('rb-wg-inbox')?.querySelector('.h')?.textContent || '' }));
+  check('receipts · File 2 pieces inserts the two ticked rows with their price, size and source, and moves the receipt to filed',
+    supaPosts.length === 2 && supaPosts[0].label === 'Leather trainers' && supaPosts[0].price === 340 && supaPosts[0].size === '38' && supaPosts[0].currency === 'GBP' && supaPosts[0].image_url === 'https://res.cloudinary.com/robes/trainers.jpg' && supaPosts[0].item_dna?.source?.kind === 'receipt'
+      && supaPosts[1].label === 'Leather tote' && supaPosts[1].category_l2 === 'Everyday bags' && supaPosts[1].image_url === null
+      && inboxPatches.length === 1 && /rc-1/.test(inboxPatches[0].url) && inboxPatches[0].body.status === 'filed' && Array.isArray(inboxPatches[0].body.filed_ids),
+    JSON.stringify([supaPosts.map((p) => [p.label, p.price, p.size]), inboxPatches]));
+  check('receipts · with one receipt still waiting the modal lands back on the list, and the notice counts down', f1.open && f1.h === 'One piece read.' && f1.rows === 1 && f1.notice === 'Robes read one receipt', JSON.stringify(f1));
+  await page.click('.rb-wf-rcpt[data-id="rc-2"]');
+  await page.waitForTimeout(200);
+  await page.click('#rb-wf-chosen .rb-wf-back');
+  await page.waitForTimeout(600);
+  const d1 = await page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), notice: !!document.getElementById('rb-wg-inbox') }));
+  check('receipts · Nothing to keep dismisses the last receipt, closes the modal and takes the notice down',
+    !d1.open && !d1.notice && inboxPatches.length === 2 && inboxPatches[1].body.status === 'dismissed' && supaPosts.length === 2, JSON.stringify([d1, inboxPatches[1]]));
+  check('no page errors (receipts)', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 
