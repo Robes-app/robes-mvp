@@ -109,9 +109,16 @@ const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('  [pageerror]', e.message));
 
 await page.route('**cdn.jsdelivr.net/**', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: SUPA_STUB }));
+const pdWrites = [];
 await page.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => {
   const u = r.request().url(); const m = r.request().method();
-  if (m !== 'GET') return r.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
+  if (m !== 'GET') {
+    if (m === 'POST' && u.includes('planned_days')) {
+      let b = null; try { b = r.request().postDataJSON(); } catch (_) {}
+      if (Array.isArray(b)) pdWrites.push(...b);
+    }
+    return r.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
+  }
   let body = '[]';
   if (u.includes('wardrobe_items')) body = JSON.stringify(WARDROBE);
   else if (/\/looks\b/.test(u)) body = JSON.stringify(TRIP_LOOKS);
@@ -494,6 +501,34 @@ const emptyTxt = await page.locator('#tv-looks-empty').innerText();
 ok(/No looks yet/.test(emptyTxt) && /Robes styles the trip/.test(emptyTxt), 'empty looks state offers the Robes door');
 ok((await page.locator('#tv-capbody').innerText()).includes('Nothing in the case yet'), 'empty capsule reads as an invitation');
 ok((await page.locator('#tv-mastmeta').innerText()).includes('Paula’s Ibiza'), 'canvas vibe pill renders');
+
+// ── 8b. Packing a saved look: it opens as ITSELF, and the index takes it ──
+// The two live bugs of 2026-09-22. A look composed on the trip lands
+// through __tvAddSavedLookPick, which used to select it and paint the
+// trip's own stage — a mosaic under a "Saved in your Lookbook" line, on a
+// page no tap is meant to reach. And the index rows a pinned trip day
+// emits carry _pdTvDayLooks' read-time `_li`/`_n`, which PostgREST 400s
+// as unknown columns, freezing that trip's whole index: the travel diary
+// read the pin, the Diary read a bare day.
+await page.evaluate(() => window.__tvAddSavedLookPick('lk-9', null));
+await page.waitForTimeout(700);
+ok(!(await page.locator('#tv-look-page').isVisible()) && await page.locator('#tv-stage .rbc-board').count() === 0,
+  'a packed saved look never lands on the trip’s own stage');
+ok(await page.locator('#sn-page').isVisible() && /^saved look/i.test((await page.locator('#sn-page .rb-lk-eyebrow').innerText()).trim())
+  && (await page.locator('#sn-page #rb-lk-title').innerText()).includes('The Thursday one'),
+  'it opens as the saved look’s own page');
+ok(await page.locator('#sn-page .rb-lk-tripstrip').count() === 1 && await page.locator('.tvm-lksrc').count() === 0,
+  'the trip strip carries the context — no "Saved in your Lookbook" line anywhere');
+await page.evaluate(() => window.__lkBackDoor());
+await page.waitForTimeout(500);
+pdWrites.length = 0;
+await page.evaluate(() => window.__tvPinToggle(0, 2));
+await page.waitForTimeout(1400);
+const pinnedRow = pdWrites.find((r) => r.day_index === 2 && (r.slot || 'day') === 'day');
+ok(!!pinnedRow && pinnedRow.status === 'planned' && pinnedRow.headline === 'The Thursday one',
+  'pinning a trip day writes that day to the index, carrying the look');
+ok(pdWrites.length > 0 && !pdWrites.some((r) => Object.keys(r).some((k) => k.charAt(0) === '_')),
+  'no read-time-only field reaches the index — the upsert cannot 400 on an unknown column');
 
 // ── 9. Legacy save migrates ──
 await page.evaluate((fx) => window.__tvRenderResult(fx, { skipSave: true, savedId: null }), LEGACY);

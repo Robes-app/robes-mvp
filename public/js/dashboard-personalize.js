@@ -5045,6 +5045,19 @@
       // evenings that no longer exist. An evening that survives in the
       // index but not the blob paints a ghost moment on the rail — the
       // same bug class as orphaned rows on delete.
+      // A row builder doubles as the day card's reader (_pdTvDayLooks feeds
+      // both), so its rows carry read-time-only fields — `_li`, `_n` — that
+      // are NOT columns. PostgREST 400s the WHOLE batch on an unknown
+      // column (PGRST204), so one pinned trip look used to freeze that
+      // trip's entire index at whatever it last said: the travel diary
+      // (blob) showed the look, the Diary (index) showed a bare day.
+      // The leading underscore is the convention for such a field — no
+      // column has one — so stripping it here is the one safe seam.
+      function _pdCols(row) {
+        const out = {};
+        Object.keys(row).forEach(k => { if (k.charAt(0) !== '_') out[k] = row[k]; });
+        return out;
+      }
       function _pdWrite(built, sourceId) {
         const url = _SUPA_URL + '/rest/v1/planned_days';
         const headers = {
@@ -5052,7 +5065,7 @@
           'Content-Type': 'application/json',
           'Prefer': 'resolution=merge-duplicates,return=minimal',
         };
-        fetch(url + '?on_conflict=user_id,source_id,day_index,slot', { method: 'POST', headers, body: JSON.stringify(built.rows) })
+        fetch(url + '?on_conflict=user_id,source_id,day_index,slot', { method: 'POST', headers, body: JSON.stringify(built.rows.map(_pdCols)) })
           .then(r => {
             if (!r.ok) return r.text().then(t => { if (_pdMissing(t)) { _pdDown = true; _pdWarn('table missing'); } else console.warn('[robes] planned_days upsert failed:', r.status, String(t).slice(0, 160)); });
             const base = url + '?user_id=eq.' + _waUid() + '&source_id=eq.' + encodeURIComponent(String(sourceId));
@@ -9917,6 +9930,12 @@
             const l = typeof _lkFind === 'function' ? _lkFind(m.source_id) : null;
             return l ? _lkPieceIds(l).length : (m.item_ids || []).length;
           }
+          // A looks-first trip moment counts itself (_pdTvDayLooks' `_n`).
+          // The branch below reads the LEGACY days/slots blob, which such a
+          // trip has not got — and `item_ids` is empty until an imported
+          // look's pieces resolve into capsule formula entries, so without
+          // this a freshly packed look reads "a look" instead of its count.
+          if (Number.isInteger(m._n) && m._n > 0) return m._n;
           let blob = liveBlob;
           if (!blob) {
             const it = snLoad().find(x => String(x.id) === String(m.source_id));
@@ -19727,14 +19746,14 @@ body>*:not(#tv-result-page){display:none !important}
           _waShowToast('“' + (lk.name || 'That look') + '” is already in this trip');
           return;
         }
-        if (Number.isInteger(pinTo)) {
-          _tvSelDayI = pinTo;
-          _tvSelLookI = null;
-          _tvDayLookIdx = Math.max(0, data.looks.filter(o => (o.pins || []).indexOf(pinTo) !== -1).length - 1);
-        } else {
-          _tvSelLookI = data.looks.length - 1;
-          _tvSelDayI = null;
-        }
+        // A saved look opens as ITSELF, never the trip's own stage (the
+        // 2026-09-09 third round: #tv-look-page is programmatic only).
+        // The trip renders first — _tvMigrate resolves the import's pieces
+        // into capsule formula entries, which is what the look page's Pack
+        // toggles read — then the look page opens over it, back reading
+        // ‹ Travel edit.
+        const li = data.looks.length - 1;
+        _tvSelDayI = null; _tvSelLookI = null; _tvDayLookIdx = 0;
         const savedId = _tvActiveSaveId;
         const scroll = tvResultPage ? tvResultPage.scrollTop : 0;
         window.__tvRenderResult(data, { skipSave: true, savedId });
@@ -19742,6 +19761,7 @@ body>*:not(#tv-result-page){display:none !important}
         _tvPatchSaved();
         _rbTrack('travel_look_added', { from: 'lookbook', pinned: Number.isInteger(pinTo) });
         _waShowToast('“' + (lk.name || 'Your look') + '” joined the trip — its pieces are in the capsule');
+        if (window.__lkFromTripLook) window.__lkFromTripLook(li, Number.isInteger(pinTo) ? pinTo : null);
       };
 
       // An imported look (packed whole from her saved Looks) is read-only —
@@ -20543,6 +20563,13 @@ body>*:not(#tv-result-page){display:none !important}
           _pdSync('travel', _tvActiveSaveId, saveCopy);
         } else {
           _tvActiveSaveId = (opts && opts.savedId) || null;
+          // Re-index from the blob on every open of a saved trip. The index
+          // is derived, so the blob is always the truth to reconcile back
+          // to — this heals a trip whose rows were frozen by the `_li`/`_n`
+          // rejection above, and any other write that never landed. The
+          // per-source 600ms debounce collapses this into the mutation
+          // sync that follows a repaint, so it costs one upsert per open.
+          if (_tvActiveSaveId) _pdSync('travel', _tvActiveSaveId, data);
         }
 
         _rbFeedbackArm('tv', () => ({
