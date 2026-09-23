@@ -14,7 +14,7 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 
 const SEQ_KINDS = ['looks_ready', 'look_waiting', 'borrowing', 'five', 'week_empty'];
-const PREF_OF_KIND = { looks_ready: 'looks_ready', morning: 'morning' }; // every other kind → 'nudges'
+const PREF_OF_KIND = { looks_ready: 'looks_ready', morning: 'morning', receipt_held: 'receipts' }; // every other kind → 'nudges'
 const NUM_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
 const HOUR = 3600 * 1000, DAY = 24 * HOUR;
 const LOOKS_READY_WINDOW = 48 * HOUR;   // never mail "ready" for a piece older than this (a first deploy must not mail every old key piece)
@@ -65,7 +65,7 @@ export function listWords(items) {
 
 // ── The shared shell: cream ground, one serif heading, at most one image
 // block, one ink CTA, the footer. Table layout — mail clients. ──────────
-export function mailShell({ heading, body, images, cta, footer, unsubUrl, preheader }) {
+export function mailShell({ heading, body, images, cta, footer, unsubUrl, preheader, notice }) {
   const imgs = (images || []).filter(isHttp).slice(0, 3);
   const imgBlock = imgs.length
     ? `<tr><td style="padding:0 0 22px"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>${imgs.map((u) =>
@@ -85,7 +85,7 @@ ${imgBlock}
 ${cta ? `<tr><td style="padding:0"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="background:#202021;border-radius:100px"><a href="${esc(cta.url)}" style="display:inline-block;padding:13px 26px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#FFFFFF;text-decoration:none">${esc(cta.label)}</a></td></tr></table></td></tr>` : ''}
 ${footer ? `<tr><td style="padding:18px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#8E8A83">${footer}</td></tr>` : ''}
 </table></td></tr>
-<tr><td style="padding:22px 6px 0;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.6;color:#A89880">You’re getting this because you asked Robes to keep in touch. <a href="${esc(unsubUrl)}" style="color:#A89880">Stop these emails</a> · <a href="https://www.byrobes.com/privacy" style="color:#A89880">Privacy</a></td></tr>
+<tr><td style="padding:22px 6px 0;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.6;color:#A89880">${esc(notice || 'You’re getting this because you asked Robes to keep in touch.')} <a href="${esc(unsubUrl)}" style="color:#A89880">Stop these emails</a> · <a href="https://www.byrobes.com/privacy" style="color:#A89880">Privacy</a></td></tr>
 </table></td></tr></table></body></html>`;
 }
 export function mailText({ heading, bodyText, cta, footerText, unsubUrl }) {
@@ -139,7 +139,7 @@ export function createNotifier(cfg) {
   const sign = (uid, key) => createHmac('sha256', String(secret || 'unset')).update(uid + ':' + key).digest('hex').slice(0, 40);
   function unsubToken(uid, key) { return `${uid}.${key}.${sign(uid, key)}`; }
   function verifyUnsub(t) {
-    const m = /^([0-9a-f-]{36})\.(looks_ready|nudges|morning)\.([0-9a-f]{40})$/i.exec(String(t || ''));
+    const m = /^([0-9a-f-]{36})\.(looks_ready|nudges|morning|receipts)\.([0-9a-f]{40})$/i.exec(String(t || ''));
     if (!m || !secret) return null;
     const a = Buffer.from(m[3]), b = Buffer.from(sign(m[1], m[2]));
     if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
@@ -203,11 +203,46 @@ export function createNotifier(cfg) {
     const unsubUrl = unsubUrlFor(u.id, kind);
     return {
       to: u.email, userId: u.id, kind, ref: m.ref, subject: m.subject,
-      html: mailShell({ heading: m.heading, body: m.bodyHtml, images: m.images, cta: m.cta, footer: m.footerHtml, unsubUrl, preheader: m.bodyText }),
+      html: mailShell({ heading: m.heading, body: m.bodyHtml, images: m.images, cta: m.cta, footer: m.footerHtml, unsubUrl, preheader: m.bodyText, notice: m.notice }),
       text: mailText({ heading: m.heading, bodyText: m.bodyText, cta: m.cta, footerText: m.footerText, unsubUrl }),
     };
   }
   const link = (path) => publicUrl + path + (path.includes('?') ? '&' : '?') + 'from=email';
+
+  // ── the receipt confirmation (2026-09-23): transactional, sent the
+  // moment a forwarded receipt is read and held. Her email comes from the
+  // auth admin API (profiles has none); `receipts: false` in her prefs
+  // stands it down (the mail's own Stop link flips that key); the ledger
+  // dedupes on the inbox row's id. Never throws — the webhook's answer
+  // must not depend on the mail. ─────────────────────────────────────
+  async function userEmail(uid) {
+    try {
+      const r = await fetchFn(`${supaUrl}/auth/v1/admin/users/${encodeURIComponent(uid)}`, { headers: svcHeaders() });
+      if (!r.ok) return null;
+      const j = await r.json().catch(() => null);
+      return j && j.email ? j.email : null;
+    } catch (_) { return null; }
+  }
+  async function sendReceiptMail({ userId, retailer, count, seen, images, ref }) {
+    if (!on) return { ok: false, skipped: 'off' };
+    if (!userId || ref == null) return { ok: false, skipped: 'args' };
+    const prefs = (await readPrefs(userId)) || {};
+    if (prefs.receipts === false) return { ok: false, skipped: 'pref' };
+    const email = await userEmail(userId);
+    if (!email) return { ok: false, skipped: 'no_email' };
+    const shop = String(retailer || 'your receipt').trim();
+    const n = Math.max(1, Number(count) || 1);
+    const pieces = n === 1 ? 'one piece' : `${numWord(n)} pieces`;
+    const m = {
+      kind: 'receipt_held', ref, subject: `Robes read your ${shop} receipt.`, heading: `Your ${shop} receipt is read.`,
+      bodyHtml: `Robes read <strong>${esc(pieces)}</strong> out of it${seen ? ', each one from its photograph' : ''}. Untick anything that went back and the rest file straight to your wardrobe.`,
+      bodyText: `Robes read ${pieces} out of it${seen ? ', each one from its photograph' : ''}. Untick anything that went back and the rest file straight to your wardrobe.`,
+      images: (images || []).filter(isHttp).slice(0, 3),
+      cta: { label: n === 1 ? 'Review it' : 'Review them', url: link('/wardrobe?receipts=1') },
+      notice: 'You’re getting this because you forwarded a receipt to your Robes address.',
+    };
+    return sendMail(compose({ id: userId, email }, m.kind, m));
+  }
 
   // ── the data the tick reads, in a handful of service-key calls ───────
   async function loadUsers() {
@@ -372,5 +407,5 @@ export function createNotifier(cfg) {
     return out;
   }
 
-  return { on, sendMail, notifyTick, unsubToken, verifyUnsub, applyUnsub, unsubUrlFor, SEQ_KINDS };
+  return { on, sendMail, sendReceiptMail, notifyTick, unsubToken, verifyUnsub, applyUnsub, unsubUrlFor, SEQ_KINDS };
 }

@@ -218,6 +218,8 @@ const inbox = createInbox({
   generate: process.env.GEMINI_API_KEY ? inboxGenerate : null,
   generateVision: process.env.GEMINI_API_KEY ? inboxGenerateVision : null,
   hostImage: cloudinaryUploadFile,
+  notifyReceipt: notifier.sendReceiptMail,   // the "Robes read your receipt" mail — a silent no-op until RESEND_API_KEY is set
+  env: APP_ENV,
   allowPrivate: process.env.INBOX_ALLOW_PRIVATE === '1',   // the smoke's door only — never on a deployed service
 });
 const inboxOn = inbox.on && !!(INBOX_WEBHOOK_SECRET || RESEND_WEBHOOK_SECRET);
@@ -346,7 +348,7 @@ app.post('/api/inbox/receipt', rateLimit({ windowMs: 60_000, max: 60 }), async (
   if (!keyOk && !sigOk) return res.status(401).json({ error: 'unauthorised' });
   try {
     const out = await inbox.ingest(req.body);
-    logAI({ feature: 'inbox_receipt', ok: out.ok, reason: out.reason, items: out.items || 0 });
+    logAI({ feature: 'inbox_receipt', ok: out.ok, reason: out.reason, items: out.items || 0, seen: out.seen || 0, mailed: !!out.mailed });
     res.json(out);
   } catch (e) {
     console.warn('[inbox] receipt:', e && e.message);

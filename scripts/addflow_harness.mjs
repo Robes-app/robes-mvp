@@ -175,7 +175,7 @@ async function boot(browser, tagBody, opts = {}) {
   });
   const errs = [];
   page.on('pageerror', (e) => errs.push(String(e)));
-  await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}${opts.path || '/dashboard'}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
   return { ctx, page, errs, supaPosts, supaPatches, inboxPatches, profilePatches, urlReads, wlPosts };
 }
@@ -1199,6 +1199,33 @@ const browser = await chromium.launch(
   check('wishlist · Save 1 piece writes the wishlist row from the receipt (From Sézane, 95 EUR) and marks the receipt filed to the wishlist', wlPosts.length === 3 && supaPosts.length === 0 && wl3.source_type === 'receipt' && wl3.source_label === 'From Sézane' && wl3.price === 95 && wl3.currency === 'EUR' && inboxPatches.some((p) => /rc-2/.test(p.url) && p.body.status === 'filed' && p.body.filed_to === 'wishlist'), JSON.stringify([wl3, inboxPatches]));
   check('no page errors (wishlist)', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
+}
+{
+  // ── The mail's deep link (2026-09-23): /wardrobe?receipts=1&from=email ──
+  // One receipt waiting → the wardrobe opens and steps straight into its
+  // review; the params are stripped off the address.
+  const { ctx, page, errs } = await boot(browser, TAG, { rows: ROWS, inbox: [INBOX[0]], inboxAddress: 'annie-4f2k', path: '/wardrobe?receipts=1&from=email' });
+  await page.waitForTimeout(800);
+  const d1 = await page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), revs: document.querySelectorAll('.rb-wf-rev').length, rcpts: document.querySelectorAll('.rb-wf-rcpt').length, ey: document.querySelector('.rb-wf-eyebrow')?.textContent || '', back: Array.from(document.querySelectorAll('#wa-modal .rb-wf-back')).some((b) => /All receipts/.test(b.textContent)), wp: !!document.querySelector('.wardrobe-panel.visible'), url: location.pathname + location.search }));
+  check('deep link · /wardrobe?receipts=1&from=email with one receipt waiting opens the wardrobe and lands straight on ITS review, the params stripped',
+    d1.open && d1.revs === 3 && d1.rcpts === 0 && /From NET-A-PORTER/.test(d1.ey) && !d1.back && d1.wp && d1.url === '/wardrobe', JSON.stringify(d1));
+  check('no page errors (deep link · one)', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  // Two waiting → the held list; nothing waiting → the wardrobe alone.
+  const a = await boot(browser, TAG, { rows: ROWS, inbox: INBOX, inboxAddress: 'annie-4f2k', path: '/wardrobe?receipts=1' });
+  await a.page.waitForTimeout(800);
+  const d2 = await a.page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), rcpts: document.querySelectorAll('.rb-wf-rcpt').length, url: location.pathname + location.search }));
+  check('deep link · two receipts waiting → the held list', d2.open && d2.rcpts === 2 && d2.url === '/wardrobe', JSON.stringify(d2));
+  await a.ctx.close();
+  const b = await boot(browser, TAG, { rows: ROWS, inbox: [], inboxAddress: 'annie-4f2k', path: '/wardrobe?receipts=1' });
+  await b.page.waitForTimeout(800);
+  const d3 = await b.page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), wp: !!document.querySelector('.wardrobe-panel.visible'), url: location.pathname + location.search }));
+  check('deep link · nothing waiting (filed elsewhere) → the wardrobe, no modal', !d3.open && d3.wp && d3.url === '/wardrobe', JSON.stringify(d3));
+  check('no page errors (deep link · list / none)', a.errs.length === 0 && b.errs.length === 0, a.errs.concat(b.errs).join(' | ').slice(0, 240));
+  await a.ctx.close().catch(() => {});
+  await b.ctx.close();
 }
 
 await browser.close();

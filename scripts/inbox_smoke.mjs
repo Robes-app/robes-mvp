@@ -8,13 +8,14 @@
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { createInbox, htmlToText, normalizeInbound, verifySvix, safeHttpUrl } from '../inbox.js';
+import { createNotifier } from '../notify.js';
 import { createHmac } from 'node:crypto';
 
 const results = [];
 const check = (name, pass, detail = '') => results.push({ name, pass, detail });
 
 // ── the fakes ───────────────────────────────────────────────────────
-const store = { profiles: [{ id: 'u-1', first_name: 'Annie', inbox_address: 'annie-4f2k' }], inbox: [], gens: [] };
+const store = { profiles: [{ id: 'u-1', first_name: 'Annie', inbox_address: 'annie-4f2k', notification_prefs: {} }], inbox: [], gens: [], events: [], ledger: [], mails: [] };
 const PAGE = `<html><head><title>Leather trainers | Example</title>
 <meta property="og:image" content="/img/trainers.jpg"><meta property="og:site_name" content="Example Shop">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Original Achilles leather trainers","brand":{"@type":"Brand","name":"Common Projects"},"image":["https://cdn.example.com/trainers-1.jpg"],"offers":{"@type":"Offer","price":"340.00","priceCurrency":"GBP"}}</script>
@@ -29,9 +30,22 @@ const fake = createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
     const json = (code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
     if (url.pathname === '/rest/v1/profiles') {
+      const id = (url.searchParams.get('id') || '').replace('eq.', '');
+      if (id) return json(200, store.profiles.filter((p) => p.id === id));
       const m = (url.searchParams.get('inbox_address') || '').replace('eq.', '');
       return json(200, store.profiles.filter((p) => p.inbox_address === m));
     }
+    if (url.pathname.startsWith('/auth/v1/admin/users/')) {
+      const p = store.profiles.find((x) => x.id === url.pathname.split('/').pop());
+      return p ? json(200, { id: p.id, email: p.id + '@example.com' }) : json(404, { message: 'not found' });
+    }
+    if (url.pathname === '/rest/v1/events' && req.method === 'POST') { store.events.push(JSON.parse(body)); res.writeHead(201); return res.end(''); }
+    if (url.pathname === '/rest/v1/notifications' && req.method === 'POST') {
+      const row = JSON.parse(body);
+      if (store.ledger.some((l) => l.user_id === row.user_id && l.kind === row.kind && l.ref === row.ref)) return json(409, { code: '23505' });
+      store.ledger.push(row); res.writeHead(201); return res.end('');
+    }
+    if (url.pathname === '/emails' && req.method === 'POST') { store.mails.push(JSON.parse(body)); return json(200, { id: 'm-' + store.mails.length }); }
     if (url.pathname === '/rest/v1/wardrobe_inbox' && req.method === 'POST') {
       const row = JSON.parse(body); row.id = 'rc-' + (store.inbox.length + 1); store.inbox.push(row); return json(201, [row]);
     }
@@ -90,7 +104,8 @@ const generateVision = async ({ prompt, schema, image }) => {
 
 // ── Part 1: the module ──────────────────────────────────────────────
 {
-  const inbox = createInbox({ supaUrl: FAKE, serviceKey: 'svc', resendKey: 'rk', resendApiUrl: FAKE, domain: 'in.byrobes.com', generate, generateVision, hostImage, log: () => {}, allowPrivate: true });
+  const notifier = createNotifier({ supaUrl: FAKE, serviceKey: 'svc', resendKey: 'rk', secret: 'shh', publicUrl: 'https://beta.byrobes.com', resendUrl: FAKE + '/emails', env: 'beta', log: { warn() {} } });
+  const inbox = createInbox({ supaUrl: FAKE, serviceKey: 'svc', resendKey: 'rk', resendApiUrl: FAKE, domain: 'in.byrobes.com', generate, generateVision, hostImage, log: () => {}, allowPrivate: true, notifyReceipt: notifier.sendReceiptMail, env: 'beta' });
   check('module · on with a service key and a generator', inbox.on === true);
 
   // Pure helpers
@@ -134,13 +149,30 @@ const generateVision = async ({ prompt, schema, image }) => {
   check('vision · the photograph outranks the text on a named row too (the text brand stands), a photograph that fails to fetch leaves the text read as it was, a row without a photograph is never sent',
     row && row.items[0].label === 'White leather trainers' && row.items[0].brand === 'Common Projects' && row.items[0].read_from === 'photo'
     && v9001 && v9001.label === 'REF 9001/100' && v9001.category === 'Other' && !v9001.read_from && row.items[1].label === 'Numéro Un tote' && !row.items[1].read_from, JSON.stringify([row && row.items[0].label, v9001 && v9001.label]));
+  // The record and the mail (2026-09-23): one events row for /admin, one
+  // "Robes read your receipt" mail with the deep link into the review.
+  const rcEvents = () => store.events.filter((e) => e.event_type === 'receipt_received');
+  const ev = rcEvents()[0];
+  check('ingest · the receipt is recorded for the admin: one receipt_received event with the retailer, the count, the photographs read and the inbox row, on the service\'s environment',
+    rcEvents().length === 1 && ev && ev.user_id === 'u-1' && ev.event_type === 'receipt_received' && ev.environment === 'beta' && ev.metadata.retailer === 'NET-A-PORTER' && ev.metadata.items === 4 && ev.metadata.seen === 2 && ev.metadata.inbox_id === 'rc-1' && ev.metadata.order_ref === '12345', JSON.stringify(ev));
+  const mail = store.mails[0];
+  check('ingest · the confirmation mail goes to the address the auth admin API holds, names the retailer and the count, carries the hosted photographs and a CTA that deep-links into the review',
+    out.mailed === true && store.mails.length === 1 && mail && mail.to[0] === 'u-1@example.com' && mail.subject === 'Robes read your NET-A-PORTER receipt.'
+    && /four pieces/.test(mail.text) && /each one from its photograph/.test(mail.text) && /Review them: https:\/\/beta\.byrobes\.com\/wardrobe\?receipts=1&from=email/.test(mail.text)
+    && mail.html.includes('href="https://beta.byrobes.com/wardrobe?receipts=1&amp;from=email"') && (mail.html.match(/res\.cloudinary\.com\/robes\//g) || []).length === 3 && /forwarded a receipt to your Robes address/.test(mail.html), JSON.stringify(mail && { to: mail.to, subject: mail.subject, text: mail.text }));
+  check('ingest · the mail is ledgered as receipt_held on the inbox row, its Stop link names the receipts pref and verifies',
+    store.ledger.length === 1 && store.ledger[0].kind === 'receipt_held' && store.ledger[0].ref === 'rc-1' && mail && mail.headers['List-Unsubscribe'].includes(encodeURIComponent(notifier.unsubToken('u-1', 'receipts')))
+    && (notifier.verifyUnsub(notifier.unsubToken('00000000-0000-4000-8000-000000000000', 'receipts')) || {}).key === 'receipts', JSON.stringify([store.ledger, mail && mail.headers]));
   const unknown = await inbox.ingest({ from: 'a@b.c', to: ['nobody-zzzz@in.byrobes.com'], subject: 'x', html: '<p>hi</p>' });
   const wrongDomain = await inbox.ingest({ from: 'a@b.c', to: ['annie-4f2k@gmail.com'], subject: 'x', html: '<p>hi</p>' });
   check('ingest · an unknown address and a foreign domain are refused as decided outcomes, nothing stored', unknown.ok === false && unknown.reason === 'unknown_address' && wrongDomain.ok === false && wrongDomain.reason === 'no_robes_address' && store.inbox.length === 1, JSON.stringify([unknown, wrongDomain]));
   const empty = await inbox.ingest({ from: 'a@b.c', to: ['annie-4f2k@in.byrobes.com'], subject: 'x', html: '', text: '' });
   check('ingest · an empty mail reads nothing', empty.ok === false && empty.reason === 'empty');
+  store.profiles[0].notification_prefs = { receipts: false };
   const genericOut = await inbox.ingest({ from: 'a@b.c', to: 'annie-4f2k@in.byrobes.com', subject: 'Order', html: RECEIPT_HTML });
   check('ingest · a generic inline-body relay holds a row too', genericOut.ok && genericOut.reason === 'held' && store.inbox.length === 2);
+  check('ingest · receipts: false in her prefs stands the mail down — the receipt is still held and recorded, nothing sent', genericOut.mailed === false && store.mails.length === 1 && store.ledger.length === 1 && rcEvents().length === 2, JSON.stringify([genericOut, store.mails.length, store.events.length]));
+  store.profiles[0].notification_prefs = {};
 
   // The product-page reader
   hosted.length = 0;

@@ -333,7 +333,7 @@
     const evQuery = sbClient.from('events').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(100);
     let glQuery = sbClient.from('generation_log').select('id,endpoint,model,status,latency_ms,tokens_used,environment,created_at,detail').eq('user_id', uid).order('created_at', { ascending: false }).limit(300);
     if (env !== 'all') glQuery = glQuery.eq('environment', env);
-    const [ov, prof, wardrobe, wishlist, lookbook, fb, events, gens, mails] = await Promise.all([
+    const [ov, prof, wardrobe, wishlist, lookbook, fb, events, gens, mails, inbox] = await Promise.all([
       sbClient.rpc('admin_user_overview', { p_limit: 1, p_offset: 0, p_user: uid }),
       sbClient.from('profiles').select('*').eq('id', uid).single(),
       sbClient.from('wardrobe_items').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(200),
@@ -343,6 +343,7 @@
       env === 'all' ? evQuery : evQuery.eq('environment', env),
       glQuery,
       sbClient.from('notifications').select('kind,ref,sent_at').eq('user_id', uid).order('sent_at', { ascending: false }).limit(100),
+      sbClient.from('wardrobe_inbox').select('id,retailer,order_ref,subject,status,items,filed_ids,filed_to,received_at,decided_at').eq('user_id', uid).order('received_at', { ascending: false }).limit(100),
     ]);
     const o = (ov.data && ov.data[0]) || {};
     const p = prof.data || {};
@@ -387,6 +388,20 @@
         : mRows.length ? '<ul class="tl">' + mRows.map((m, i) =>
             '<li' + xtra(i, ACT_SHOW) + '><span class="t">' + fmtDT(m.sent_at) + '</span><span><span class="chip">' + esc(m.kind) + '</span> <span class="m dim">' + esc(m.ref || '') + '</span></span></li>').join('') + '</ul>' + moreRow(mRows.length, ACT_SHOW, 'emails')
         : '<div class="empty">No emails sent yet.</div>') + '</div></div>';
+    // receipts — every mail forwarded to her Robes address (2026-09-23):
+    // retailer · when · pieces read · held / filed / dismissed
+    const rcRows = inbox.data || [];
+    html += '<div class="sec"><div class="sec-h"><h2>Receipts</h2><span class="cnt">' + rcRows.length + '</span></div><div class="card">' +
+      (inbox.error ? '<div class="err">wardrobe_inbox unavailable — run migration 23</div>'
+        : rcRows.length ? '<ul class="tl">' + rcRows.map((r, i) => {
+            const items = Array.isArray(r.items) ? r.items : [];
+            const seen = items.filter(it => it && it.read_from === 'photo').length;
+            const filed = Array.isArray(r.filed_ids) ? r.filed_ids.length : null;
+            return '<li' + xtra(i, ACT_SHOW) + '><span class="t">' + fmtDT(r.received_at) + '</span><span><span class="chip">' + esc(r.status) + '</span> <strong>' + esc(r.retailer || 'A receipt') + '</strong> <span class="m dim">' +
+              esc(items.length + (items.length === 1 ? ' piece' : ' pieces') + (seen ? ' · ' + seen + ' from photographs' : '') + (r.order_ref ? ' · #' + r.order_ref : '') +
+                (r.status === 'filed' ? ' · ' + (filed == null ? 'filed' : filed + ' filed') + ' to ' + (r.filed_to || 'wardrobe') + (r.decided_at ? ' ' + fmtDT(r.decided_at) : '') : r.status === 'dismissed' ? ' · nothing kept' : ' · waiting for her')) + '</span></span></li>';
+          }).join('') + '</ul>' + moreRow(rcRows.length, ACT_SHOW, 'receipts')
+        : '<div class="empty">No receipts forwarded yet.</div>') + '</div></div>';
     html += '</div><div>';
     // wardrobe
     const wRows = wardrobe.data || [];
@@ -619,9 +634,25 @@
           '<td class="dim">' + (f.user_id ? '<a href="#user/' + esc(f.user_id) + '" onclick="event.stopPropagation()">' + esc(f.user_id.slice(0, 8)) + '…</a>' : '—') + '</td>' +
           '<td class="dim">' + esc((f.detail && f.detail.error) || '') + '</td></tr>').join('') + '</tbody></table>'
       : '<div class="empty">Everything green — no failed calls in the window.</div>') + '</div></div>';
-    body.innerHTML = html + '<div id="h-mail"></div>';
+    body.innerHTML = html + '<div id="h-mail"></div><div id="h-inbox"></div>';
     body.querySelectorAll('tr.row').forEach(tr => tr.onclick = () => inspectGen(tr.dataset.id));
     renderMailHealth(since);
+    renderInboxHealth(since);
+  }
+  // Receipts · last 7 days — every mail forwarded to a Robes address, newest
+  // first, across users (2026-09-23). The row links to the user; no
+  // environment filter — a receipt is per user, whichever service read it.
+  async function renderInboxHealth(since) {
+    const host = document.getElementById('h-inbox');
+    if (!host) return;
+    const { data, error } = await sbClient.from('wardrobe_inbox').select('id,user_id,retailer,order_ref,status,items,filed_to,received_at').gte('received_at', since).order('received_at', { ascending: false }).limit(200);
+    if (error) { host.innerHTML = '<div class="sec"><div class="sec-h"><h2>Receipts</h2></div><div class="card"><div class="err">wardrobe_inbox unavailable — run migration 23. (' + esc(error.message) + ')</div></div></div>'; return; }
+    const rows = data || [];
+    const held = rows.filter(r => r.status === 'held').length;
+    host.innerHTML = '<div class="sec"><div class="sec-h"><h2>Receipts</h2><span class="cnt">' + rows.length + ' forwarded · last 7 days' + (held ? ' · ' + held + ' waiting' : '') + '</span></div><div class="card">' +
+      (rows.length ? '<table><thead><tr><th>When</th><th>User</th><th>Retailer</th><th>Pieces</th><th>Status</th></tr></thead><tbody>' +
+        rows.map(r => { const n = Array.isArray(r.items) ? r.items.length : 0; return '<tr><td class="nowrap dim">' + fmtDT(r.received_at) + '</td><td><a href="#user/' + esc(r.user_id) + '">' + esc(String(r.user_id).slice(0, 8)) + '</a></td><td>' + esc(r.retailer || '—') + (r.order_ref ? ' <span class="dim">#' + esc(r.order_ref) + '</span>' : '') + '</td><td class="num">' + n + '</td><td><span class="chip">' + esc(r.status) + '</span>' + (r.status === 'filed' && r.filed_to ? ' <span class="dim">→ ' + esc(r.filed_to) + '</span>' : '') + '</td></tr>'; }).join('') + '</tbody></table>'
+      : '<div class="empty">No receipts in the window.<div class="note">A forwarded receipt lands here the moment the webhook reads it (needs migration 23 and the inbound mail provider pointed at <code>/api/inbox/receipt</code>; check <code>/api/health</code> → <code>inbox: true</code>).</div></div>') + '</div></div>';
   }
   // Emails · last 7 days — one row per kind from the notifications ledger
   // (slice 6). No environment filter: the ledger is per user, not per

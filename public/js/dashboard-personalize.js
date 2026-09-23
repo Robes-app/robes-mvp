@@ -5179,6 +5179,27 @@
       // and auto-open the matching page
       if (window.location.pathname === '/wardrobe' && window.App && App.showWardrobe) {
         setTimeout(() => App.showWardrobe(), 100);
+        // /wardrobe?receipts=1 (2026-09-23): the "Robes read your receipt"
+        // mail lands on the review itself — once the held rows have loaded
+        // the receipts door opens (one receipt waiting steps straight into
+        // its review). The param is stripped so a later push never carries
+        // it; nothing waiting (already filed from another tab) leaves her on
+        // the wardrobe, where the pieces are.
+        try {
+          const u = new URL(window.location.href);
+          if (u.searchParams.get('receipts') === '1') {
+            u.searchParams.delete('receipts');
+            history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);
+            let tries = 0;
+            const t = setInterval(() => {
+              tries++;
+              const ready = typeof _wiLoaded !== 'undefined' && (_wiLoaded || _wiDown);
+              if (!ready && tries < 40) return;
+              clearInterval(t);
+              if (ready && _wiRows.length && window.__waInboxOpen) window.__waInboxOpen();
+            }, 250);
+          }
+        } catch (_) {}
       }
       if (window.location.pathname === '/looks') {
         // Legacy deep link — looks live in the Lookbook now (IA 2026-08-08)

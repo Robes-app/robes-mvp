@@ -296,6 +296,8 @@ export function createInbox(cfg) {
   const generateVision = c.generateVision || null;       // ({prompt, schema, image:{mimeType,data}}) → parsed JSON
   const visionLimit = c.visionLimit || 3;                // photographs read at once
   const visionMax = c.visionMax || 24;                   // photographs read per receipt
+  const notifyReceipt = c.notifyReceipt || null;         // ({userId, retailer, count, seen, images, ref}) → {ok} — the confirmation mail
+  const env = c.env || 'production';                     // stamps the admin's events row
   const svc = (extra) => ({ apikey: c.serviceKey, Authorization: 'Bearer ' + c.serviceKey, 'Content-Type': 'application/json', ...(extra || {}) });
   const on = !!(c.serviceKey && generate);
 
@@ -493,7 +495,28 @@ ${text}`;
     const r = await fetchFn(c.supaUrl + '/rest/v1/wardrobe_inbox', { method: 'POST', headers: svc({ Prefer: 'return=representation' }), body: JSON.stringify(row) });
     if (!r.ok) { log('insert', r.status, (await r.text()).slice(0, 200)); return { ok: false, reason: 'insert_failed' }; }
     const saved = await r.json();
-    return { ok: true, reason: 'held', items: read.items.length, seen: vision.seen, id: saved[0] && saved[0].id, user_id: profile.id };
+    const id = saved[0] && saved[0].id;
+    // The record for /admin (2026-09-23): one `events` row per receipt
+    // held, written with the service key so it lands whoever is signed in
+    // — the user detail's Activity timeline and the Receipts section both
+    // read it. Fire-and-forget: the row is a record, never a gate.
+    fetchFn(c.supaUrl + '/rest/v1/events', { method: 'POST', headers: svc({ Prefer: 'return=minimal' }), body: JSON.stringify({
+      user_id: profile.id, event_type: 'receipt_received', environment: env,
+      metadata: { retailer: row.retailer, items: read.items.length, seen: vision.seen, inbox_id: id || null, order_ref: row.order_ref },
+    }) }).then((er) => { if (!er.ok) log('event', er.status); }).catch((e) => log('event', e && e.message));
+    // Then the confirmation mail — "Robes read your Zara receipt" with a
+    // deep link into the review. Awaited so the log line can say whether it
+    // went, but never a reason for the webhook to fail: a mail that cannot
+    // send leaves the receipt held exactly as it is.
+    let mailed = false;
+    if (notifyReceipt && id) {
+      try {
+        const m = await notifyReceipt({ userId: profile.id, retailer: row.retailer, count: read.items.length, seen: vision.seen, images: read.items.map((it) => it.image_url).filter(Boolean), ref: id });
+        mailed = !!(m && m.ok);
+        if (!mailed) log('mail', (m && m.skipped) || 'failed', m && m.error ? m.error : '');
+      } catch (e) { log('mail', e && e.message); }
+    }
+    return { ok: true, reason: 'held', items: read.items.length, seen: vision.seen, id, user_id: profile.id, mailed };
   }
 
   // A product page → the analyse shape (+ image_url), or {error}.
