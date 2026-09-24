@@ -22,7 +22,9 @@
     "./segmented-control": "./src/segmented-control.tsx",
     "./skeleton": "./src/skeleton.tsx",
     "./text": "./src/text.tsx",
-    "./toast": "./src/toast.tsx"
+    "./toast": "./src/toast.tsx",
+    "./command-bar": "./src/command-bar.tsx",
+    "./switch": "./src/switch.tsx"
   },
   "scripts": {
     "test": "vitest run",
