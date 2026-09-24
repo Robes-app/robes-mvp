@@ -59,6 +59,12 @@ export function TodayView({ initial }: { initial: Today }) {
         </div>
       </header>
 
+      {data.inboxCount > 0 ? (
+        <Link href="/wardrobe/inbox" className="self-start underline underline-offset-4">
+          {copy.inbox(data.inboxCount)}
+        </Link>
+      ) : null}
+
       {data.today.length > 0 ? (
         <section aria-labelledby="today-looks" className="flex flex-col gap-3">
           <Heading id="today-looks" level={2} size="md">
