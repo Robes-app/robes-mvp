@@ -8,6 +8,8 @@ Read first: `reference/legacy-data-model.md` §5 (security findings) — every o
 
 ## 1. Rules (apply to every migration)
 
+> **Superseded in part by ADR-019 (API-only data access).** Tables live in schema `app` with no RLS and no client grants; the API/workers use role `robes_app`; ownership is enforced by `@robes/db` repositories. Rules 2, 3, 5 (RLS/grants parts) and 7 (per-table RLS pgTAP) are replaced by `platform/CLAUDE.md` "Data access and security". Rules 1, 4, 6, 8 still apply (with `app.` instead of `public.`), and pgTAP now tests constraints, triggers and composite FKs.
+
 1. **Migrations only** via Supabase CLI in `platform/supabase/migrations/` (timestamped). No SQL editor changes in staging/production — ever. Seeds in `platform/supabase/seed.sql` (dev) and reference-data migrations (all envs).
 2. **Three ownership classes** per table, declared in a header comment of the migration that creates it: `-- ownership: user-writable | server-owned | reference`.
    - user-writable: RLS own-row with `(select auth.uid())`, `TO authenticated`, UPDATE has USING + WITH CHECK, **column-level grants** exposing only editable columns; no DELETE policy (soft delete via `deleted_at`).

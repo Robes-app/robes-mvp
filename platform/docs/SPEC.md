@@ -77,6 +77,7 @@ The production readiness review that motivated this work: https://claude.ai/arti
 | 016 | Identifiers: server-minted UUIDs; share tokens ≥128-bit; legacy share ids honoured read-only for 180 days | security SEC-13; data-model §5 |
 | 017 | Emails via Resend + React Email (`packages/emails`) using `tokens.js`; inbound receipts via Resend inbound webhook (Svix-verified) | security SEC-61 |
 | 018 | Mobile dev runs through Expo: `expo start` + **Expo Go** by default; every native dependency via `expo install` and must pass `expo-doctor`. Switch to a dev client (`expo run:ios` / EAS `development` profile, still `expo start`) only when a feature needs a module Expo Go lacks (e.g. RevenueCat) — record it here when it happens. No hand-edited `ios/`/`android/` (CNG) | mobile.md; stack-versions |
+| 019 | **API-only data access.** Supabase provides Auth + Realtime transport; Postgres is private behind the API. App tables in schema `app` (not exposed by PostgREST), no RLS on app data, client roles have no privileges; API/workers connect as `robes_app` via Kysely; ownership enforced by `@robes/db` repositories scoped by the verified user id, with cross-user tests. Supersedes the RLS/column-grant rules in `data-model.md` §1 and SEC-10/11/12/14 enforcement (their intent is kept — see `CLAUDE.md` "Data access and security") | Product decision 2026-09-24: one enforcement layer (the API), simpler schema and queries |
 
 ## 5. Architecture summary
 

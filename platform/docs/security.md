@@ -51,6 +51,8 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 
 ### Data access and RLS (closes C1, H1, A2, A3 findings)
 
+> **ADR-019 changes the enforcement of SEC-10..15** from Postgres RLS to the API: client roles have no database access at all, and ownership is enforced by `@robes/db` repositories with cross-user tests. The intent of each requirement stands. Tests: `supabase/tests/database/000_meta.test.sql` (no client access, no public tables) + repository cross-user tests. Rules: `platform/CLAUDE.md` "Data access and security".
+
 **SEC-10 — Ownership model: user-writable vs server-owned tables.**
 - User-writable columns are granted explicitly with column-level `GRANT UPDATE (...)`; everything else is server-owned and written only by the API (service role) or workers.
 - Server-owned examples: `style_dna`, `colour_analysis`, `silhouette_analysis`, `wardrobe_items_count`, `onboarded_at`, `plan`, any counters, anything used for quotas, analytics or routing.
