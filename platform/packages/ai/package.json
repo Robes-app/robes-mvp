@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./prompts/wardrobe-analyse": "./src/prompts/wardrobe-analyse/v1.ts"
+    "./prompts/wardrobe-analyse": "./src/prompts/wardrobe-analyse/v1.ts",
+    "./prompts/style-piece": "./src/prompts/style-piece/v1.ts"
   },
   "scripts": {
     "test": "vitest run",

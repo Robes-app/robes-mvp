@@ -2,11 +2,13 @@ import type { Db } from '../client';
 import { adminRepo } from './admin';
 import { assetProcessingRepo, assetsRepo } from './assets';
 import { flagsRepo } from './flags';
+import { ideasRepo } from './ideas';
 import { jobRunnerRepo, jobsRepo } from './jobs';
 import { ledgerRepo } from './ledger';
 import { maintenanceRepo } from './maintenance';
 import { pieceAnalysisRepo } from './piece-analysis';
 import { profilesRepo } from './profiles';
+import { stylingRepo } from './styling';
 import { usageRepo } from './usage';
 import { wardrobeRepo } from './wardrobe';
 
@@ -16,6 +18,7 @@ export function createRepositories(db: Db) {
     admin: adminRepo(db),
     assets: assetsRepo(db),
     flags: flagsRepo(db),
+    ideas: ideasRepo(db),
     jobs: jobsRepo(db),
     // Global capacity check only; holds no per-user data.
     capacity: { isExhausted: ledgerRepo(db).isExhausted },
@@ -33,6 +36,7 @@ export function createSystemRepositories(db: Db) {
     ledger: ledgerRepo(db),
     maintenance: maintenanceRepo(db),
     pieces: pieceAnalysisRepo(db),
+    styling: stylingRepo(db),
   };
 }
 
