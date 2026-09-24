@@ -13,6 +13,7 @@ import { profilesRepo } from './profiles';
 import { stylingRepo } from './styling';
 import { usageRepo } from './usage';
 import { wardrobeRepo } from './wardrobe';
+import { wishlistRepo } from './wishlist';
 
 // User-scoped repositories: every method takes the verified UserId first (CLAUDE.md rule 7).
 export function createRepositories(db: Db) {
@@ -29,6 +30,7 @@ export function createRepositories(db: Db) {
     profiles: profilesRepo(db),
     usage: usageRepo(db),
     wardrobe: wardrobeRepo(db),
+    wishlist: wishlistRepo(db),
   };
 }
 
@@ -50,6 +52,8 @@ export type { AssetKind } from './assets';
 export type { ConsentAnswers } from './consents';
 export type { CreateJobInput, QuotaCost } from './jobs';
 export type { CallRecord } from './ledger';
+export { encodeCursor, type Page } from './paging';
 export type { PieceAnalysis } from './piece-analysis';
 export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';
-export { encodeCursor, type ListPiecesQuery, type PieceFields } from './wardrobe';
+export type { ListPiecesQuery, PieceFields } from './wardrobe';
+export type { WishFields } from './wishlist';
