@@ -94,6 +94,20 @@ export function notifierRepo(db: Db) {
       return { ledger, ideas, pieces, looks, plan: planRows };
     },
 
+    // One person's address and prefs for a transactional mail; nothing when she can't be mailed.
+    recipient(userId: string) {
+      return db
+        .selectFrom('users as u')
+        .innerJoin('profiles as p', 'p.id', 'u.id')
+        .leftJoin('emailSuppressions as s', (j) =>
+          j.on(sql<boolean>`s.email = u.email::extensions.citext`),
+        )
+        .select(['u.id', 'u.email', 'p.notificationPrefs'])
+        .where('u.id', '=', userId)
+        .where('s.email', 'is', null)
+        .executeTakeFirst();
+    },
+
     // The ledger is written before sending, so a re-run or a second worker can never mail twice.
     async claim(
       userId: string,

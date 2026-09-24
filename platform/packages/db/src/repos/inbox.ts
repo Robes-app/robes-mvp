@@ -1,6 +1,7 @@
 import { sql } from 'kysely';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
+import { usageRepo } from './usage';
 import { wardrobeRepo } from './wardrobe';
 import { wishlistRepo } from './wishlist';
 
@@ -132,6 +133,65 @@ export function inboxRepo(db: Db) {
 // Worker side: a fetched link lands as one held row per import job (provider id dedupes retries).
 export function inboxIntakeRepo(db: Db) {
   return {
+    // Receipts: the owner of an active forwarding address, if any.
+    async userForAddress(address: string): Promise<UserId | undefined> {
+      const row = await db
+        .selectFrom('inboxAddresses')
+        .select('userId')
+        .where('address', '=', address.toLowerCase())
+        .where('revokedAt', 'is', null)
+        .executeTakeFirst();
+      return row?.userId as UserId | undefined;
+    },
+
+    async hasProvider(providerId: string): Promise<boolean> {
+      const row = await db
+        .selectFrom('wardrobeInbox')
+        .select('id')
+        .where('providerId', '=', providerId)
+        .executeTakeFirst();
+      return row !== undefined;
+    },
+
+    // One held row per inbound message (the SES message id dedupes redelivery). The
+    // `inbox.receipt` quota is charged in the same transaction; QuotaExceeded propagates.
+    async fromReceipt(
+      userId: UserId,
+      entry: {
+        providerId: string;
+        retailer: string;
+        orderRef: string | null;
+        subject: string | null;
+        fromEmail: string | null;
+        items: InboxItem[];
+      },
+    ): Promise<{ id: string; created: boolean }> {
+      return db.transaction().execute(async (trx) => {
+        const existing = await trx
+          .selectFrom('wardrobeInbox')
+          .select('id')
+          .where('providerId', '=', entry.providerId)
+          .executeTakeFirst();
+        if (existing) return { id: existing.id, created: false };
+        await usageRepo(trx).consume(userId, 'inbox.receipt', 1, { executor: trx });
+        const row = await trx
+          .insertInto('wardrobeInbox')
+          .values({
+            userId,
+            source: 'receipt',
+            retailer: entry.retailer.slice(0, 120),
+            orderRef: entry.orderRef?.slice(0, 80) ?? null,
+            subject: entry.subject?.slice(0, 300) ?? null,
+            fromEmail: entry.fromEmail?.slice(0, 300) ?? null,
+            providerId: entry.providerId,
+            items: JSON.stringify(entry.items),
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow();
+        return { id: row.id, created: true };
+      });
+    },
+
     async fromLink(
       userId: UserId,
       entry: { jobId: string; retailer: string | null; subject: string | null; item: InboxItem },

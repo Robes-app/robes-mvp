@@ -698,6 +698,15 @@ export const notify = {
     done: 'Done. You can turn them back on in You › Notifications.',
     invalid: 'This link doesn’t work any more. Change emails in You › Notifications.',
   },
+  // Forwarded receipts (legacy sendReceiptMail): transactional, stood down by the receipts pref.
+  receipt: {
+    subject: (shop: string): string => `Robes read your ${shop} receipt.`,
+    heading: (shop: string): string => `Your ${shop} receipt is read.`,
+    body: (count: number): string =>
+      `Robes read ${count === 1 ? 'one piece' : `${count} pieces`} out of it. Untick anything that went back and the rest file straight to your wardrobe.`,
+    cta: (count: number): string => (count === 1 ? 'Review it' : 'Review them'),
+    notice: 'You’re getting this because you forwarded a receipt to your Robes address.',
+  },
 } as const;
 
 // Admin area (staff only; every read is audited).
