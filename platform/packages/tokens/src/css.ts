@@ -1,4 +1,3 @@
-import { hexToRgb } from './contrast';
 import {
   type ColorRef,
   dark,
@@ -9,15 +8,10 @@ import {
   type Semantic,
   semanticNames,
 } from './tokens';
-
-function value(ref: ColorRef): string {
-  if (typeof ref === 'string') return palette[ref];
-  const [r, g, b] = hexToRgb(palette[ref.base]);
-  return `rgba(${r}, ${g}, ${b}, ${ref.alpha})`;
-}
+import { colorValue } from './value';
 
 function modeVars(map: Record<Semantic, ColorRef>, indent: string): string {
-  return semanticNames.map((name) => `${indent}--${name}: ${value(map[name])};`).join('\n');
+  return semanticNames.map((name) => `${indent}--${name}: ${colorValue(map[name])};`).join('\n');
 }
 
 export function buildThemeCss(): string {

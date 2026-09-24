@@ -168,6 +168,7 @@ export const ui = {
   dismiss: 'Dismiss',
   undo: 'Undo',
   notifications: 'Notifications ({hotkey})',
+  imagesReady: (done: number, total: number): string => `${done} of ${total} images ready`,
   progress: {
     reading: 'Reading your pieces…',
     styling: 'Styling your pieces…',

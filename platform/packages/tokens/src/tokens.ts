@@ -108,3 +108,5 @@ export const font = {
 } as const;
 
 export const radius = { crisp: '4px', soft: '12px', pill: '999px' } as const;
+
+export { colorValue, semanticColor } from './value';
