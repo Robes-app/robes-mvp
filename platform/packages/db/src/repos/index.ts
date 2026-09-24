@@ -2,6 +2,7 @@ import type { Db } from '../client';
 import { adminRepo } from './admin';
 import { adminReadsRepo } from './admin-reads';
 import { assetProcessingRepo, assetsRepo } from './assets';
+import { avatarCellsRepo } from './avatar-cells';
 import { consentsRepo } from './consents';
 import { dailyLooksRepo } from './daily-looks';
 import { accountDeletionRepo, deletionRepo } from './deletion';
@@ -15,6 +16,8 @@ import { jobRunnerRepo, jobsRepo } from './jobs';
 import { ledgerRepo } from './ledger';
 import { looksRepo } from './looks';
 import { maintenanceRepo } from './maintenance';
+import { modelRepo } from './model';
+import { modelRenderRepo } from './model-render';
 import { notifierRepo } from './notifier';
 import { overnightRepo } from './overnight';
 import { pieceAnalysisRepo } from './piece-analysis';
@@ -37,6 +40,8 @@ export function createRepositories(db: Db) {
     // Admin-only; every method re-checks the actor and audits (SEC-11).
     adminReads: adminReadsRepo(db),
     assets: assetsRepo(db),
+    // The shared model catalog: keyed by picks, holds no user data (SEC-22).
+    avatarCells: avatarCellsRepo(db),
     consents: consentsRepo(db),
     dailyLooks: dailyLooksRepo(db),
     deletion: deletionRepo(db),
@@ -47,6 +52,7 @@ export function createRepositories(db: Db) {
     inbox: inboxRepo(db),
     inboxAddress: inboxAddressRepo(db),
     looks: looksRepo(db),
+    model: modelRepo(db),
     jobs: jobsRepo(db),
     // Global capacity check only; holds no per-user data.
     capacity: { isExhausted: ledgerRepo(db).isExhausted },
@@ -76,6 +82,8 @@ export function createSystemRepositories(db: Db) {
     ledger: ledgerRepo(db),
     inboxIntake: inboxIntakeRepo(db),
     maintenance: maintenanceRepo(db),
+    avatarCells: avatarCellsRepo(db),
+    modelRender: modelRenderRepo(db),
     notifier: notifierRepo(db),
     overnight: overnightRepo(db),
     pushDelivery: pushDeliveryRepo(db),
@@ -96,6 +104,7 @@ export { heldItems, type InboxAction, type InboxItem } from './inbox';
 export type { CreateJobInput, QuotaCost } from './jobs';
 export type { CallRecord } from './ledger';
 export { type LookFields, type LookPieceInput, LookPiecesNotFound, type LookRole } from './looks';
+export type { StoredModelPicks } from './model';
 export { OVERNIGHT_LEASE_HOURS, OVERNIGHT_LOCAL_HOUR, overnightKey } from './overnight';
 export { encodeCursor, type Page } from './paging';
 export type { PieceAnalysis } from './piece-analysis';

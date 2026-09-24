@@ -13,7 +13,8 @@
     "./style-dna": "./src/style-dna/index.ts",
     "./next-step": "./src/next-step/index.ts",
     "./calendar": "./src/calendar/index.ts",
-    "./trips": "./src/trips/index.ts"
+    "./trips": "./src/trips/index.ts",
+    "./avatar": "./src/avatar/index.ts"
   },
   "scripts": {
     "test": "vitest run",

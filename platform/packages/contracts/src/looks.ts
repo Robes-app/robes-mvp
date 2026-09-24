@@ -89,6 +89,8 @@ export const Look = z.object({
   climateBand: SeasonBand,
   // Robes' render of the look (from an idea's frame), when there is one.
   image: PieceImage.nullable(),
+  // "See it on me": where the render on her model stands (absent when never asked).
+  onModel: z.enum(['pending', 'ready', 'failed']).nullable().optional(),
   pieces: z.array(
     z.object({ piece: Piece, slot: z.string().nullable(), role: LookRole.nullable() }),
   ),
@@ -153,6 +155,12 @@ export const LookRenderInput = z.discriminatedUnion('target', [
     target: z.literal('daily'),
     dailyLookId: z.uuid(),
     itemIdx: z.number().int().min(0).max(20),
+  }),
+  // A saved look on her model; renderKey pins which model and rack the render is for.
+  z.object({
+    target: z.literal('look'),
+    lookId: z.uuid(),
+    renderKey: z.string().min(1).max(400),
   }),
 ]);
 export type LookRenderInput = z.infer<typeof LookRenderInput>;

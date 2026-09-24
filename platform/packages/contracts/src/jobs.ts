@@ -32,6 +32,8 @@ export const JobOutput = z.object({
   dailyLookId: z.uuid().optional(),
   // travel
   tripId: z.uuid().optional(),
+  // look_render on her model
+  lookId: z.uuid().optional(),
   // stylenotes_analyse
   styleKind: z.enum(['colour', 'silhouette']).optional(),
   archetype: z.string().optional(),

@@ -51,6 +51,7 @@ import {
   DeletionRequest,
   DeletionStatus,
   Me,
+  Model,
   OnboardingComplete,
   PushTokenParams,
   RegisterPushTokenInput,
@@ -58,6 +59,7 @@ import {
   StyleOverrides,
   StyleProfile,
   UpdateMeInput,
+  UpdateModelInput,
 } from './me';
 import { Asset, AssetParams, CreateUploadInput, CreateUploadOutput, MediaSession } from './media';
 import { JoinWaitlistInput, Ok, OneClickUnsubInput, UnsubParams } from './notify';
@@ -161,6 +163,30 @@ export const routes = {
     auth: 'user',
     input: RequestDeletionInput,
     output: DeletionRequest,
+  },
+  'me.model.get': {
+    method: 'GET',
+    path: '/me/model',
+    auth: 'user',
+    input: EmptyInput,
+    output: Model,
+  },
+  // Files the model she sees and starts drawing its portrait if nobody has yet.
+  'me.model.update': {
+    method: 'PATCH',
+    path: '/me/model',
+    auth: 'user',
+    input: UpdateModelInput,
+    output: Model,
+  },
+  // "See it on me": naturally idempotent per model and rack.
+  'looks.renderOnModel': {
+    method: 'POST',
+    path: '/looks/:id/render',
+    auth: 'user',
+    params: LookParams,
+    input: EmptyInput,
+    output: StartJobOutput,
   },
   'me.style.get': {
     method: 'GET',

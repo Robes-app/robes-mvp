@@ -56,9 +56,10 @@ export class WorkersStack extends RobesStack {
         },
         sendTo: ['notify'],
         s3: [
-          { actions: ['s3:GetObject'], prefixes: ['media/'] },
+          // catalog/: the shared model portraits, read as the render reference and drawn once.
+          { actions: ['s3:GetObject'], prefixes: ['media/', 'catalog/'] },
           // uploads/: generated frames go through the same S3 event → RenditionFn path as photos.
-          { actions: ['s3:PutObject'], prefixes: ['generated/', 'media/', 'uploads/'] },
+          { actions: ['s3:PutObject'], prefixes: ['generated/', 'media/', 'uploads/', 'catalog/'] },
         ],
       },
       batch: {

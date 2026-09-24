@@ -1,4 +1,5 @@
 import { AiError, type AiProvider, type ImageCapability } from '@robes/ai';
+import { buildRenderPrompt, MAX_PIECE_REFERENCES, RENDER_FEATURE } from '@robes/ai/prompts/avatar';
 import {
   buildAnchorPrompt,
   buildStillLifePrompt,
@@ -8,6 +9,7 @@ import {
 } from '@robes/ai/prompts/daily';
 import { buildImagePrompt, FEATURE as STYLE_FEATURE, Way } from '@robes/ai/prompts/style-piece';
 import { LookRenderInput } from '@robes/contracts';
+import { cellKey, parseCellId } from '@robes/core/avatar';
 import type { StoredFrame, SystemRepositories } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -23,6 +25,8 @@ export interface LookRenderDeps {
   >;
   frames: Pick<SystemRepositories['frames'], 'get' | 'set'>;
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
+  // "See it on me": her look on her model. Absent where the runtime doesn't render on models.
+  model?: Pick<SystemRepositories['modelRender'], 'look' | 'cell' | 'setRender' | 'failRender'>;
   // Frames are stored as uploads; AWS renders them from the S3 event, dev renders here.
   onGenerated?(key: string): Promise<void>;
 }
@@ -131,12 +135,109 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
     };
   }
 
+  // Her saved look on her filed model (legacy /api/avatar/render): IMAGE 1 is the model cell,
+  // then up to nine of her piece photos; the render becomes the look's image.
+  async function renderLook(
+    ctx: Parameters<JobHandler['run']>[0],
+    lookId: string,
+    renderKey: string,
+  ) {
+    const model = deps.model;
+    if (!model) throw new JobError('unsupported');
+    const found = await model.look(ctx.userId, lookId);
+    if (!found || !found.cellId) throw new JobError('not_found');
+    // She changed her model or the rack since asking: this render is no longer wanted.
+    if (found.look.renderKey !== renderKey) throw new JobError('superseded');
+    const cell = await model.cell(cellKey(found.cellId));
+    const parsedCell = parseCellId(found.cellId);
+    const cellImage =
+      cell?.status === 'ready' && cell.bucketKey
+        ? await deps.storage.getObject(cell.bucketKey)
+        : null;
+    if (!cellImage || !parsedCell) {
+      await model.failRender(ctx.userId, lookId, renderKey);
+      throw new JobError('model_not_ready');
+    }
+    const references: { mimeType: 'image/jpeg' | 'image/png' | 'image/webp'; data: Uint8Array }[] =
+      [
+        {
+          mimeType: (cell?.contentType as 'image/jpeg' | 'image/png' | 'image/webp') ?? 'image/png',
+          data: cellImage,
+        },
+      ];
+    const pieces = [];
+    for (const p of found.pieces) {
+      let photo: Uint8Array | null = null;
+      if (
+        references.length <= MAX_PIECE_REFERENCES &&
+        p.imageAssetId &&
+        p.assetStatus === 'ready'
+      ) {
+        photo = await deps.storage.getObject(mediaKeys.master(ctx.userId, p.imageAssetId));
+      }
+      if (photo) references.push({ mimeType: 'image/jpeg', data: photo });
+      pieces.push({
+        name: p.label,
+        category: p.category,
+        color: p.color,
+        brand: p.brand,
+        hasImage: Boolean(photo),
+      });
+    }
+    if (pieces.length === 0) {
+      await model.failRender(ctx.userId, lookId, renderKey);
+      throw new JobError('empty_look');
+    }
+    const feature = RENDER_FEATURE;
+    try {
+      const { image, usage } = await deps.ai.generateImage({
+        feature,
+        capability: 'image.hero',
+        prompt: buildRenderPrompt(parsedCell.gender, pieces),
+        references,
+        aspectRatio: '4:5',
+        signal: ctx.signal,
+      });
+      await deps.ledger.record({
+        ...usage,
+        jobId: ctx.jobId,
+        userId: ctx.userId,
+        feature,
+        status: 'ok',
+      });
+      const assetId = await deps.styling.createGeneratedAsset(ctx.userId);
+      const key = mediaKeys.original(ctx.userId, assetId);
+      await deps.storage.putObject(key, image.data, { contentType: image.mimeType });
+      await deps.onGenerated?.(key);
+      await model.setRender(ctx.userId, lookId, renderKey, assetId);
+      await ctx.writeStage('images', { images: [{ idx: 0, status: 'ready', assetId }] });
+      return { status: 'succeeded' as const };
+    } catch (err) {
+      if (err instanceof AiError && err.usage) {
+        await deps.ledger.record({
+          ...err.usage,
+          jobId: ctx.jobId,
+          userId: ctx.userId,
+          feature,
+          status: err.code === 'timeout' ? 'timeout' : 'error',
+        });
+      }
+      await model.failRender(ctx.userId, lookId, renderKey);
+      if (ctx.signal.aborted || (err instanceof AiError && err.code === 'cancelled')) throw err;
+      throw new JobError(err instanceof AiError ? `ai_${err.code}` : 'render_failed');
+    }
+  }
+
   return {
     budgetMs: 90_000,
     async run(ctx) {
       const parsed = LookRenderInput.safeParse(ctx.input);
       if (!parsed.success) throw new JobError('invalid_input');
       const input = parsed.data;
+      if (input.target === 'look') {
+        await ctx.writeStage('text', { lookId: input.lookId });
+        return renderLook(ctx, input.lookId, input.renderKey);
+      }
       // Written first so the Today tray can link the job to what it renders.
       await ctx.writeStage(
         'text',

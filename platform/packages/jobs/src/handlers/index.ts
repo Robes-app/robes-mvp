@@ -1,4 +1,5 @@
 import type { JobHandlers } from '../runtime';
+import { type AvatarCellDeps, createAvatarCellHandler } from './avatar-cell';
 import { createDailyHandler, type DailyDeps } from './daily';
 import { createFakeHandler } from './fake';
 import { createLinkImportHandler, type LinkImportDeps } from './link-import';
@@ -18,6 +19,7 @@ export interface HandlerDeps {
   styleAnalyse?: StyleAnalyseDeps;
   lookRender?: LookRenderDeps;
   travel?: TravelDeps;
+  avatarCell?: AvatarCellDeps;
 }
 
 // One registry for SQS workers and the inline dev transport, keyed by job kind.
@@ -32,6 +34,7 @@ export function createHandlers(opts: HandlerDeps = {}): JobHandlers {
     ...(opts.daily ? { daily: createDailyHandler(opts.daily) } : {}),
     ...(opts.lookRender ? { look_render: createLookRenderHandler(opts.lookRender) } : {}),
     ...(opts.travel ? { travel: createTravelHandler(opts.travel) } : {}),
+    ...(opts.avatarCell ? { avatar_cell: createAvatarCellHandler(opts.avatarCell) } : {}),
     ...(opts.styleAnalyse
       ? { stylenotes_analyse: createStyleAnalyseHandler(opts.styleAnalyse) }
       : {}),
