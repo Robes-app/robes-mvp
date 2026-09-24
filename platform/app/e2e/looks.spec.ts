@@ -30,17 +30,24 @@ test('styling a piece produces an idea she can save and delete', async ({ page }
   expect(idea).toMatchObject({ anchor: { type: 'piece', pieceId: piece.id }, savedAt: null });
   expect(idea.ways).toHaveLength(3);
 
-  // Frames render after the job (S3 event in AWS, in-process here).
+  // Only the hero renders up front (UX-09); it lands after the job (S3 event in AWS,
+  // in-process here). The other two wait until she asks.
   const ideaUrl = `/api/v1/looks/ideas/${idea.id}`;
-  await expect
-    .poll(
-      async () =>
-        (await (await api.get(ideaUrl)).json()).frames.map((f: { status: string }) => f.status),
-      { timeout: 30_000 },
-    )
-    .toEqual(['ready', 'ready', 'ready']);
+  const statuses = async () =>
+    (await (await api.get(ideaUrl)).json()).frames.map((f: { status: string }) => f.status);
+  await expect.poll(statuses, { timeout: 30_000 }).toEqual(['ready', 'deferred', 'deferred']);
   const ready = await (await api.get(ideaUrl)).json();
   expect(ready.frames[0].image.renditions.length).toBeGreaterThan(0);
+
+  // "Show this look" renders one frame; asking again returns the same job, spending nothing.
+  const render = await api.post(`${ideaUrl}/frames/1`);
+  expect(render.status()).toBe(202);
+  const { jobId: renderJob } = await render.json();
+  const again = await (await api.post(`${ideaUrl}/frames/1`)).json();
+  expect(again.jobId).toBe(renderJob);
+  await expect.poll(statuses, { timeout: 30_000 }).toEqual(['ready', 'ready', 'deferred']);
+  expect((await (await api.post(`${ideaUrl}/frames/1`)).json()).jobId).toBe(renderJob);
+  expect((await api.post(`${ideaUrl}/frames/3`)).status()).toBe(400);
 
   // One way becomes a real Look with its frame as the render and the piece as its anchor.
   const asLook = await api.post(`${ideaUrl}/looks`, { data: { wayIdx: 1 } });
@@ -85,6 +92,7 @@ test('a piece described in words can be styled; others cannot see the idea', asy
   expect((await otherPage.request.get(url)).status()).toBe(404);
   expect((await otherPage.request.post(`${url}/save`)).status()).toBe(404);
   expect((await otherPage.request.delete(url)).status()).toBe(404);
+  expect((await otherPage.request.post(`${url}/frames/1`)).status()).toBe(404);
   // Styling someone else's piece is indistinguishable from a missing one.
   const theirs = await otherPage.request.post('/api/v1/looks/generate', {
     data: { anchor: { type: 'piece', pieceId: crypto.randomUUID() } },

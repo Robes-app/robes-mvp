@@ -105,6 +105,13 @@ async function createWorkerContext(): Promise<WorkerContext> {
       ? {
           wardrobeAnalyse: { ai, storage, pieces: system.pieces, ledger: system.ledger },
           stylePiece: { ai, storage, styling: system.styling, ledger: system.ledger },
+          lookRender: {
+            ai,
+            storage,
+            styling: system.styling,
+            frames: system.frames,
+            ledger: system.ledger,
+          },
           styleAnalyse: { ai, storage, profiles: system.styleAnalysis, ledger: system.ledger },
           // Frames land as uploads, so the S3 event renders them (no onGenerated).
           daily: {

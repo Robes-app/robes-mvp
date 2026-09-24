@@ -2,6 +2,7 @@ import 'server-only';
 import { ApiError } from '@robes/api';
 import {
   DailyLook,
+  type FrameStatus,
   type Look,
   type StartJobOutput,
   type TodayGenerateInput,
@@ -13,6 +14,7 @@ import { repos } from './db';
 import { startJob } from './jobs';
 import { toLook } from './looks-entity';
 import { mediaDelivery } from './media';
+import { requestRender } from './renders';
 import { toPieces } from './wardrobe';
 
 // What the daily job stores in artifacts.data (packages/jobs handlers/daily.ts, NormalLook).
@@ -57,7 +59,8 @@ const StoredDaily = z.object({
       z.object({
         idx: z.number().int(),
         assetId: z.uuid().nullable(),
-        status: z.enum(['ready', 'failed']),
+        status: z.enum(['ready', 'failed', 'pending', 'deferred']),
+        jobId: z.uuid().nullable().optional(),
       }),
     )
     .default([]),
@@ -104,9 +107,12 @@ export async function toDailyLook(userId: UserId, row: Row): Promise<DailyLook> 
     (await repos.assets.getManyForUser(userId, frameAssets)).map((a) => [a.id, a]),
   );
   const frames = new Map<number, Awaited<ReturnType<typeof toImage>>>();
+  const statuses = new Map<number, FrameStatus>();
   for (const f of stored.images) {
     const asset = f.assetId ? assets.get(f.assetId) : undefined;
     if (asset) frames.set(f.idx, await toImage(mediaDelivery, userId, asset));
+    // A stored frame renders asynchronously after its job; pending until the asset is ready.
+    statuses.set(f.idx, f.status === 'ready' && asset?.status !== 'ready' ? 'pending' : f.status);
   }
   // Rows never leave as-is (CLAUDE.md rule 8): parse through the contract.
   return DailyLook.parse({
@@ -127,6 +133,9 @@ export async function toDailyLook(userId: UserId, row: Row): Promise<DailyLook> 
         pricePoint: i.pricePoint,
         alternates: i.alternates,
         image: frames.get(i.imageIndex) ?? null,
+        imageIndex: i.imageIndex,
+        // Items without a frame yet are rendered when she asks.
+        imageStatus: statuses.get(i.imageIndex) ?? 'deferred',
       })),
     })),
     savedAt: row.savedAt?.toISOString() ?? null,
@@ -172,4 +181,22 @@ export async function saveDailyLook(userId: UserId, id: string, name: string): P
   });
   await repos.dailyLooks.markSaved(userId, id);
   return toLook(userId, look);
+}
+
+export async function requestDailyItemRender(
+  userId: UserId,
+  req: Request,
+  dailyLookId: string,
+  itemIdx: number,
+): Promise<StartJobOutput> {
+  const row = await repos.dailyLooks.get(userId, dailyLookId);
+  if (!row) throw new ApiError('not_found');
+  const items = StoredDaily.parse(row.data).look.steps.flatMap((s) => s.items);
+  if (!items.some((i) => i.imageIndex === itemIdx)) throw new ApiError('not_found');
+  return requestRender(userId, req, {
+    type: 'daily_look',
+    id: dailyLookId,
+    idx: itemIdx,
+    input: { target: 'daily', dailyLookId, itemIdx },
+  });
 }

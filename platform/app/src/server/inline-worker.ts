@@ -26,6 +26,14 @@ const handlers = createHandlers({
     // Stand-in for the S3 event → RenditionFn, as for uploads.
     onGenerated: renderLocally,
   },
+  lookRender: {
+    ai,
+    storage: mediaStorage,
+    styling: system.styling,
+    frames: system.frames,
+    ledger: system.ledger,
+    onGenerated: renderLocally,
+  },
   daily: {
     ai,
     storage: mediaStorage,

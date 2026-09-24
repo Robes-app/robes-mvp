@@ -21,6 +21,7 @@ import {
   CreateLookInput,
   GenerateLookInput,
   Idea,
+  IdeaFrameParams,
   IdeaList,
   IdeaParams,
   ListIdeasInput,
@@ -61,7 +62,14 @@ import {
   UpdatePlanEntryInput,
 } from './plan';
 import { CreateShareInput, Share, SharedLook, ShareParams } from './shares';
-import { DailyLook, DailyLookParams, SaveDailyLookInput, Today, TodayGenerateInput } from './today';
+import {
+  DailyItemParams,
+  DailyLook,
+  DailyLookParams,
+  SaveDailyLookInput,
+  Today,
+  TodayGenerateInput,
+} from './today';
 import {
   BatchPiecesInput,
   BatchPiecesOutput,
@@ -424,6 +432,15 @@ export const routes = {
     input: EmptyInput,
     output: Idea,
   },
+  // Render one deferred frame on demand; naturally idempotent like today.looks.render.
+  'looks.ideas.render': {
+    method: 'POST',
+    path: '/looks/ideas/:id/frames/:idx',
+    auth: 'user',
+    params: IdeaFrameParams,
+    input: EmptyInput,
+    output: StartJobOutput,
+  },
   'looks.ideas.saveWay': {
     method: 'POST',
     path: '/looks/ideas/:id/looks',
@@ -457,6 +474,16 @@ export const routes = {
     params: DailyLookParams,
     input: EmptyInput,
     output: DailyLook,
+  },
+  // Render one deferred item frame on demand; naturally idempotent (a ready or rendering frame
+  // returns its job instead of spending again).
+  'today.looks.render': {
+    method: 'POST',
+    path: '/today/looks/:id/items/:idx/render',
+    auth: 'user',
+    params: DailyItemParams,
+    input: EmptyInput,
+    output: StartJobOutput,
   },
   'today.looks.save': {
     method: 'POST',

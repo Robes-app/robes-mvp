@@ -24,6 +24,8 @@ const item = (over: object = {}) => ({
   pricePoint: '€89',
   alternates: [{ name: 'Pleated trousers', brand: 'Arket', retailerHint: '', pricePoint: '€79' }],
   image: null,
+  imageIndex: 1,
+  imageStatus: 'deferred',
   ...over,
 });
 const dailyLook = (over: object = {}) => ({
@@ -38,10 +40,13 @@ const dailyLook = (over: object = {}) => ({
   lookTags: { climate: 'year_round', wearFor: [], vibe: [] },
   weather: { city: 'Dublin', tempRange: '9–14°C', condition: 'Light rain' },
   steps: [
-    { title: 'The Anchor', items: [item({ piece: piece(), name: 'Camel coat' })] },
+    {
+      title: 'The Anchor',
+      items: [item({ piece: piece(), name: 'Camel coat', imageIndex: 0, imageStatus: 'pending' })],
+    },
     { title: 'The Canvas', items: [item()] },
-    { title: 'The Texture', items: [item({ name: 'Cream knit' })] },
-    { title: 'The Accents', items: [item({ name: 'Loafers' })] },
+    { title: 'The Texture', items: [item({ name: 'Cream knit', imageIndex: 2 })] },
+    { title: 'The Accents', items: [item({ name: 'Loafers', imageIndex: 3 })] },
   ],
   savedAt: null,
   expiresAt: '2026-10-24T10:00:00.000Z',

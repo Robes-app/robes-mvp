@@ -40,6 +40,26 @@ test('today is styled from her pieces, and naming it saves a Look', async ({ pag
   expect(owned.length).toBeGreaterThan(0);
   expect(look.expiresAt).not.toBeNull();
 
+  // Only the anchor renders up front; any other item renders when she asks (UX-09).
+  const lookItems = look.steps.flatMap(
+    (s: { items: { imageIndex: number; imageStatus: string }[] }) => s.items,
+  );
+  expect(lookItems[0].imageIndex).toBe(0);
+  const other = lookItems.find((i: { imageIndex: number }) => i.imageIndex > 0);
+  expect(other.imageStatus).toBe('deferred');
+  const render = await api.post(`${url}/items/${other.imageIndex}/render`);
+  expect(render.status()).toBe(202);
+  const { jobId: renderJob } = await render.json();
+  expect((await (await api.post(`${url}/items/${other.imageIndex}/render`)).json()).jobId).toBe(
+    renderJob,
+  );
+  const itemStatus = async () =>
+    (await (await api.get(url)).json()).steps
+      .flatMap((s: { items: { imageIndex: number; imageStatus: string }[] }) => s.items)
+      .find((i: { imageIndex: number }) => i.imageIndex === other.imageIndex).imageStatus;
+  await expect.poll(itemStatus, { timeout: 30_000 }).toBe('ready');
+  expect((await api.post(`${url}/items/19/render`)).status()).toBe(404);
+
   const saved = await api.post(`${url}/save`, { data: { name: 'Studio to dinner' } });
   expect(saved.status()).toBe(201);
   const created = await saved.json();
@@ -76,6 +96,7 @@ test('daily looks and locked pieces stay private', async ({ page, browser }) => 
   expect((await otherPage.request.post(`${url}/save`, { data: { name: 'Taken' } })).status()).toBe(
     404,
   );
+  expect((await otherPage.request.post(`${url}/items/1/render`)).status()).toBe(404);
   const locked = await otherPage.request.post('/api/v1/today/generate', {
     data: { lockedPieceIds: [piece.id] },
   });

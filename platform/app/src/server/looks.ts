@@ -7,6 +7,7 @@ import { toImage } from './asset-urls';
 import { repos } from './db';
 import { startJob } from './jobs';
 import { mediaDelivery } from './media';
+import { requestRender } from './renders';
 
 type IdeaRow = NonNullable<Awaited<ReturnType<typeof repos.ideas.get>>>;
 
@@ -21,16 +22,18 @@ const IdeaData = z.object({
       z.object({
         idx: z.number().int(),
         assetId: z.uuid().nullable(),
-        status: z.enum(['ready', 'failed']),
+        status: z.enum(['ready', 'failed', 'pending', 'deferred']),
+        jobId: z.uuid().nullable().optional(),
       }),
     )
     .default([]),
 });
 
-// Text first, then three frames: one text call and three image calls, spent together.
+// Text first, then the hero frame: one text and one image call, spent together. The other two
+// frames are charged only if she asks for them (requestRender).
 const STYLE_QUOTA = [
   { metric: 'generation.text', cost: 1 },
-  { metric: 'generation.image', cost: 3 },
+  { metric: 'generation.image', cost: 1 },
 ] as const;
 const STYLE_FAMILIES = ['gemini-flash-lite', 'gemini-image', 'gemini-image-lite'];
 
@@ -117,4 +120,21 @@ export async function loadIdea(userId: UserId, id: string): Promise<Idea> {
   const [idea] = await toIdeas(userId, [row]);
   if (!idea) throw new ApiError('not_found');
   return idea;
+}
+
+export async function requestIdeaFrame(
+  userId: UserId,
+  req: Request,
+  ideaId: string,
+  idx: number,
+): Promise<StartJobOutput> {
+  const row = await repos.ideas.get(userId, ideaId);
+  if (!row) throw new ApiError('not_found');
+  if (!IdeaData.parse(row.data).ways[idx]) throw new ApiError('not_found');
+  return requestRender(userId, req, {
+    type: 'idea',
+    id: ideaId,
+    idx,
+    input: { target: 'idea', ideaId, idx },
+  });
 }
