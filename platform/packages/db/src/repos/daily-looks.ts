@@ -26,6 +26,17 @@ export function dailyLooksRepo(db: Db) {
         .executeTakeFirst();
     },
 
+    // The look Robes made overnight for her calendar date (M5 task 3), if any.
+    overnightFor(userId: UserId, date: string) {
+      return active()
+        .select(['id', 'title', 'subtitle'])
+        .where('userId', '=', userId)
+        .where(sql<boolean>`data->>'overnight' = 'true'`)
+        .where(sql<boolean>`data->>'date' = ${date}`)
+        .orderBy('createdAt', 'desc')
+        .executeTakeFirst();
+    },
+
     // Naming it keeps it: no expiry. Returns false when it isn't hers.
     async markSaved(userId: UserId, id: string): Promise<boolean> {
       const res = await db

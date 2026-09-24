@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { composePush, createExpoPushSender, EXPO_PUSH_URL } from './push';
+import { composeEmail } from './tick';
 
 const msg = (to: string) => ({ to, title: 't', body: 'b', data: { url: 'robes://plan' } });
 
@@ -66,5 +67,30 @@ describe('Expo push sender', () => {
       body: 'Wearing Gallery.',
       data: { url: 'robes://plan' },
     });
+  });
+});
+
+describe('overnight morning cue', () => {
+  const mail = {
+    kind: 'morning' as const,
+    ref: '2026-09-24',
+    pref: 'morningCue' as const,
+    date: '2026-09-24',
+    weekday: 'Thursday',
+    title: 'Linen and loafers',
+    look: null,
+    dailyLookId: '11111111-1111-4111-8111-111111111111',
+  };
+
+  it('opens the overnight look from push and email', () => {
+    expect(composePush(mail).data.url).toBe(`robes://today/looks/${mail.dailyLookId}`);
+    const email = composeEmail(
+      { appUrl: 'https://app.test', unsubSecret: 'x'.repeat(40) },
+      { id: '22222222-2222-4222-8222-222222222222', email: 'niall@test.dev' },
+      mail,
+    );
+    expect(email.subject).toBe('Thursday · Linen and loafers');
+    expect(email.text).toContain(`https://app.test/today/looks/${mail.dailyLookId}?from=email`);
+    expect(email.text).toContain('Robes dressed you for today.');
   });
 });

@@ -132,6 +132,11 @@ export const today = {
   },
   inbox: (n: number): string =>
     n === 1 ? 'One piece is waiting in your Inbox.' : `${n} pieces are waiting in your Inbox.`,
+  // The look Robes made overnight for her date (M5 task 3).
+  overnight: {
+    title: 'Your look for today',
+    open: 'Open it',
+  },
 } as const;
 
 // Next step → sentence and door, shared by web and native (each maps `target` to its own route).
@@ -684,6 +689,8 @@ export const notify = {
     cta: 'Open the day',
     footer: 'Wore it? The look page takes it.',
     untitled: 'Your day',
+    // The cue for a look Robes made overnight (no day planned).
+    overnightBody: 'Robes dressed you for today. Open it to see the look.',
   },
   unsubscribe: {
     eyebrow: 'Emails',

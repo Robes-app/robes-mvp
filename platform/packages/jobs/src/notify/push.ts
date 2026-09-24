@@ -29,8 +29,12 @@ export function composePush(mail: Planned): Omit<PushMessage, 'to'> {
     case 'morning':
       return {
         title: copy.morning.subject(mail.weekday, mail.title),
-        body: copy.morning.body(mail.look ?? mail.title),
-        data: { url: 'robes://plan' },
+        body: mail.dailyLookId
+          ? copy.morning.overnightBody
+          : copy.morning.body(mail.look ?? mail.title),
+        data: {
+          url: mail.dailyLookId ? `robes://today/looks/${mail.dailyLookId}` : 'robes://plan',
+        },
       };
     default:
       return { title: '', body: '', data: { url: 'robes://' } };

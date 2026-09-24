@@ -36,6 +36,7 @@ const todayWith = (over: object = {}) => ({
   tray: [],
   ideas: [],
   inboxCount: 0,
+  overnight: null,
   ...over,
 });
 
@@ -72,4 +73,19 @@ test('points her at waiting Inbox pieces', async () => {
     pathname: '/wardrobe',
     params: { segment: 'inbox' },
   });
+});
+
+test('the look Robes made overnight opens its daily look page', async () => {
+  const id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  mockFetch({
+    'GET /today': todayWith({
+      overnight: { id, title: 'Studio', headline: 'Linen and loafers' },
+    }),
+  });
+  await renderWithApi(<TodayView />);
+  expect(await screen.findByText(copy.overnight.title)).toBeTruthy();
+  await fireEvent.press(
+    screen.getByRole('link', { name: `${copy.overnight.open}: Linen and loafers` }),
+  );
+  expect(mockRouter.push).toHaveBeenCalledWith(`/today/look/${id}`);
 });

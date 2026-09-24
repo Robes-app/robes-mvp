@@ -21,6 +21,8 @@ export interface Recipient {
 
 export interface NotifyState {
   ledger: { kind: string; ref: string; sentAt: Date }[];
+  // Looks Robes made overnight, by her local date (M5 task 3).
+  overnight?: { id: string; date: string; headline: string }[];
   // Her newest idea from the last 48 h, with how many frames rendered.
   latestIdea: { id: string; title: string; readyFrames: number; createdAt: Date } | null;
   readyPieces: number;
@@ -42,6 +44,8 @@ export type Planned =
       weekday: string;
       title: string;
       look: string | null;
+      // Set when the cue opens the overnight look rather than a planned day.
+      dailyLookId?: string;
     };
 
 // Her calendar reading of an instant; an unknown zone falls back rather than throwing.
@@ -140,6 +144,7 @@ export function decide(user: Recipient, state: NotifyState, now: Date): Planned[
   if (user.prefs.morningCue && local.hour === MORNING_HOUR && !has('morning', local.date)) {
     const today = state.plan.filter((p) => p.date === local.date);
     const first = today.find((p) => p.slot === 'day') ?? today[0];
+    const overnight = state.overnight?.find((o) => o.date === local.date);
     if (first) {
       out.push({
         kind: 'morning',
@@ -149,6 +154,18 @@ export function decide(user: Recipient, state: NotifyState, now: Date): Planned[
         weekday: local.weekday,
         title: first.activity ?? first.lookName,
         look: first.activity ? first.lookName : null,
+      });
+    } else if (overnight) {
+      // No planned day, but Robes dressed her overnight: the cue opens that look.
+      out.push({
+        kind: 'morning',
+        ref: local.date,
+        pref: 'morningCue',
+        date: local.date,
+        weekday: local.weekday,
+        title: overnight.headline,
+        look: null,
+        dailyLookId: overnight.id,
       });
     }
   }

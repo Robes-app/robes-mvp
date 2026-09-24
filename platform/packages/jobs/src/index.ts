@@ -1,4 +1,4 @@
-export { createJobAi } from './ai';
+export { createJobAi, createJobBatch } from './ai';
 export { type DeletionDeps, processAccountDeletions } from './deletion';
 export { type ExportDeps, processDataExports } from './export';
 export { createHandlers, type HandlerDeps } from './handlers';
@@ -27,6 +27,13 @@ export {
 } from './notify/push';
 export { composeEmail, type NotifyDeps, notifyTick } from './notify/tick';
 export { enqueueJob, SWEEP_AFTER_SECONDS, sweep } from './outbox';
+export {
+  createAnchorRenderer,
+  OVERNIGHT_TICK_LIMIT,
+  type OvernightDeps,
+  overnightTick,
+  pollOvernight,
+} from './overnight';
 export {
   JobCancelled,
   type JobContext,

@@ -74,6 +74,7 @@ test('notification links open the matching native screen', () => {
   const id = '55555555-5555-4555-8555-555555555555';
   expect(nativePath(`robes://looks/ideas/${id}`)).toBe(`/idea/${id}`);
   expect(nativePath('robes://plan')).toBe('/plan');
+  expect(nativePath(`robes://today/looks/${id}`)).toBe(`/today/look/${id}`);
   expect(nativePath(`/looks/ideas/${id}?from=email`)).toBe(`/idea/${id}`);
   expect(nativePath('/you/notifications')).toBe('/you/notifications');
   expect(nativePath('exp://192.168.1.20:8090/--/you')).toBe('/you');

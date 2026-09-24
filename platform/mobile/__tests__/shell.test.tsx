@@ -70,6 +70,7 @@ const ROUTES = {
     tray: [],
     ideas: [],
     inboxCount: 0,
+    overnight: null,
   },
   'GET /wardrobe/items': { items: [], nextCursor: null },
   'GET /looks/ideas': { items: [] },

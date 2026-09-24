@@ -100,4 +100,24 @@ describe('notify rules', () => {
     expect(decide(nudgesOff, state({ plan, ledger: sent }), NOW)).toEqual([]);
     expect(decide(nudgesOff, state(), NOW)).toEqual([]);
   });
+
+  it('an overnight look is enough for the morning cue, and opens that look', () => {
+    const nudgesOff = user({ prefs: { ...user().prefs, nudges: false } });
+    const overnight = [{ id: 'daily-1', date: '2026-09-24', headline: 'Linen and loafers' }];
+    expect(decide(nudgesOff, state({ overnight }), NOW)).toEqual([
+      expect.objectContaining({
+        kind: 'morning',
+        ref: '2026-09-24',
+        title: 'Linen and loafers',
+        dailyLookId: 'daily-1',
+      }),
+    ]);
+    // A planned day still wins; yesterday's overnight look doesn't count; the pref is respected.
+    const plan = [{ date: '2026-09-24', lookName: 'Office', activity: null, slot: 'day' }];
+    expect(decide(nudgesOff, state({ overnight, plan }), NOW)[0]).not.toHaveProperty('dailyLookId');
+    const old = [{ id: 'daily-0', date: '2026-09-23', headline: 'x' }];
+    expect(decide(nudgesOff, state({ overnight: old }), NOW)).toEqual([]);
+    const off = user({ prefs: { ...user().prefs, nudges: false, morningCue: false } });
+    expect(decide(off, state({ overnight }), NOW)).toEqual([]);
+  });
 });

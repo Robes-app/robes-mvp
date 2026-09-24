@@ -57,7 +57,8 @@ export class WorkersStack extends RobesStack {
       },
       batch: {
         secrets: { ...db, GEMINI_API_KEY_SECRET_ARN: secrets.geminiApiKey },
-        sendTo: ['notify'],
+        // jobs-interactive: overnight fallbacks and the anchor look_render (M5 task 3).
+        sendTo: ['notify', 'jobs-interactive'],
         s3: [
           { actions: ['s3:GetObject'], prefixes: ['media/'] },
           { actions: ['s3:PutObject'], prefixes: ['generated/'] },

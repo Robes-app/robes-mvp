@@ -1,4 +1,10 @@
-import { type AiProvider, createAiProvider, type FakeFixture } from '@robes/ai';
+import {
+  type AiProvider,
+  type BatchProvider,
+  createAiProvider,
+  createBatchProvider,
+  type FakeFixture,
+} from '@robes/ai';
 import * as daily from '@robes/ai/prompts/daily';
 import * as styleAnalyse from '@robes/ai/prompts/style-analyse';
 import * as stylePiece from '@robes/ai/prompts/style-piece';
@@ -31,4 +37,12 @@ export function createJobAi(opts: {
   geminiApiKey?: string | undefined;
 }): AiProvider {
   return createAiProvider({ ...opts, fixtures: FAKE_FIXTURES });
+}
+
+// The Batch API counterpart (overnight Today look); the same offline fixtures in dev.
+export function createJobBatch(opts: {
+  appEnv: 'dev' | 'staging' | 'production';
+  geminiApiKey?: string | undefined;
+}): BatchProvider {
+  return createBatchProvider({ ...opts, fixtures: FAKE_FIXTURES });
 }

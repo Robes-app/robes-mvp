@@ -90,6 +90,20 @@ export function TodayView() {
         </Pressable>
       ) : null}
 
+      {data?.overnight ? (
+        <View className="gap-2">
+          <Heading size="md">{copy.overnight.title}</Heading>
+          <Text>{data.overnight.headline || data.overnight.title}</Text>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={`${copy.overnight.open}: ${data.overnight.headline || data.overnight.title}`}
+            onPress={() => router.push(`/today/look/${data.overnight?.id}`)}
+          >
+            <Text className="underline">{`${copy.overnight.open} →`}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       {data && data.today.length > 0 ? (
         <View className="gap-3">
           <Heading size="md">{copy.todayLooks}</Heading>

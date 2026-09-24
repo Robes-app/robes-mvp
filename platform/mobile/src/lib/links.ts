@@ -5,6 +5,7 @@ const RULES: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^\/look\/([0-9a-f-]{36})\/?$/i, (m) => `/look/${m[1]}`],
   [/^\/piece\/([0-9a-f-]{36})\/?$/i, (m) => `/piece/${m[1]}`],
   [/^\/plan\/?$/, () => '/plan'],
+  [/^\/today\/looks\/([0-9a-f-]{36})\/?$/i, (m) => `/today/look/${m[1]}`],
 ];
 
 // A full URL → its app path: Expo Go dev links (exp://host:port/--/you), universal links
