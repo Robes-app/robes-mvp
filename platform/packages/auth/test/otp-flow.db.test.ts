@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createMemoryMailer } from '@robes/mailer';
 import pg from 'pg';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createAuth, sessionUser } from '../src/index';
 
 const DATABASE_URL =
@@ -87,6 +87,18 @@ describe('email OTP sign-in', () => {
     ]);
     expect(rows.rowCount).toBeGreaterThan(0);
     for (const row of rows.rows) expect(String(row.value)).not.toContain(code);
+  });
+
+  it('rate limits code requests per IP', async () => {
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const email = `otp-${randomUUID()}@test.dev`;
+      emails.push(email);
+      statuses.push(
+        (await post('/email-otp/send-verification-otp', { email, type: 'sign-in' })).status,
+      );
+    }
+    expect(statuses).toEqual([200, 200, 200, 429]);
   });
 
   it('returns no session without a cookie', async () => {
