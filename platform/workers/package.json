@@ -1,0 +1,22 @@
+{
+  "name": "@robes/workers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "maintenance": "tsx --env-file-if-exists=../app/.env.local src/cli/maintenance.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "3.1138.0",
+    "@aws-sdk/client-sqs": "3.1138.0",
+    "@robes/config": "workspace:*",
+    "@robes/db": "workspace:*",
+    "@robes/jobs": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
