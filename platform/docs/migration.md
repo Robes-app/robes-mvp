@@ -18,16 +18,36 @@ The platform takes months. These legacy fixes are tiny and should ship on `beta`
 
 ## 3. Rehearsal (repeatable, scripted)
 
-`platform/scripts/migrate/` (TypeScript, run from a trusted machine or a one-off Lambda):
+Built as `@robes/migrate` (`platform/scripts/migrate/`, TypeScript run with tsx). Every command writes only to **local** databases (the same guard as `db:reset`); the legacy source is read with `SELECT` only.
 
-1. `introspect.ts` — `supabase db pull` against `Robes_p0` (read-only role) → record which legacy migrations actually exist (12, 16–23 may not have run).
-2. `extract.ts` — `pg_dump --data-only` of legacy public schema into a `legacy` schema on the **staging** project; Airtable `Contacts` + `Feedback` exported via API to JSON → staging tables.
-3. `transform.sql` — the mapping in `reference/legacy-data-model.md` §6.10 amended by `data-model.md` §5, as `insert … select` from `legacy.*` into the target tables inside one transaction per domain.
-4. `assert.ts` — per-user row counts per domain, orphan report, JSON-shape census per artifact type validated against `packages/contracts` schemas, share-token continuity check, sample visual diff of 20 random users' wardrobes.
-5. `rehost.ts` — enqueue `maintenance` jobs to copy Cloudinary assets to S3 and build renditions (idempotent; resumable).
-6. Auth users: Supabase auth migration into the new project (preserves user ids + password hashes; OAuth identities re-link by email on first sign-in). Re-register Google OAuth client redirect URIs for the new project; add Apple.
+| Command (from `platform/`) | Does |
+|---|---|
+| `pnpm migrate:fixture` | Builds `robes_legacy_fixture` locally from the legacy `supabase/*.sql` (order per `reference/legacy-data-model.md` §1, Supabase `auth`/roles stubbed, pgvector skipped) and seeds deterministic rows: 3 people, pieces with taxonomy/season/occasion data, wishlist, looks with pieces/tags/wears, every lookbook type, planned days, a public share, notifications, inbox rows, style DNA — plus the defects the reference records (cross-owner look pieces and wears, orphan plan days, empty `look` stubs, bad handles/categories/hero positions, base64 images). |
+| `pnpm migrate:target` | Recreates `robes_migrate` from `db/migrations`. |
+| `pnpm migrate:extract` | Copies `LEGACY_DATABASE_URL` (default: the fixture) into the target's `legacy` schema: only the catalogued columns (`src/catalog.ts`; never auth password hashes), one repeatable-read cursor per table. Columns or tables a real legacy database lacks (migrations 12–23 may not have run) are created empty, so transform always sees one shape; the report lists them. |
+| `pnpm migrate:transform` | `legacy.*` → `app.*`, one transaction per domain (identity, wardrobe, looks, artifacts, plan, comms). Ids are kept; rows legacy had no uuid for (assets, artifacts) get name-based RFC v3 ids, so everything is `insert … on conflict do nothing` and a second run inserts nothing. |
+| `pnpm migrate:assert` | The gate; exits 1 on any failure: per-user expected vs actual rows per domain (with transform's drop rules applied to the legacy side), orphans, a census of every migrated artifact against the shapes the app reads (`@robes/contracts`), and share-token continuity. Warnings list legacy admins for manual review and pieces whose `times_worn` exceeds their recorded wears. |
+| `pnpm migrate:rehost -- --dry-run` | Lists each `cloudinary_legacy` asset and its target `uploads/{userId}/{assetId}/original` key. |
+| `pnpm migrate:reverse-delta -- --since=<ISO> [--out=f.json]` | Rollback export (§5): profiles updated and pieces, looks and artifacts created on the platform since cutover. |
+| `pnpm migrate:rehearse` | Fixture (unless `LEGACY_DATABASE_URL` is set) → fresh target → extract → transform → assert. |
 
-Rehearse on staging until `assert.ts` is clean twice in a row.
+The tests (`scripts/migrate/test`, part of `pnpm db:test`) rehearse the fixture end to end, re-run transform, simulate a legacy database missing later migrations, and prove assert fails on lost or corrupted data.
+
+**Mapping decisions** (reference §6.10 as amended by `data-model.md` §5):
+- **Auth (ADR-020):** there is no Supabase auth migration. `auth.users` becomes `app.users` (id, lower-cased email, name from the profile, `email_verified` from `email_confirmed_at`). Sign-in is passwordless, so no hashes move; Google/Apple identities re-link by email on first sign-in (`accountLinking`). Two legacy accounts with one email (case-insensitively) can't both exist: the later one is dropped and assert fails on it, for a human to merge.
+- **Profiles:** values are held to the target's checks (names ≤60, handles must match the pattern after stripping `@`, arrays ≤20). Notification prefs map `looks_ready/morning/nudges/receipts` → `looksReady/morningCue/nudges/receipts`, and `prefs.timezone` becomes `profiles.timezone` when it's a real zone. Style DNA splits into `style_profiles`. `is_admin` is **not** carried (warning only). `inbox_address` is not carried (re-minted later).
+- **Images:** every http(s) Cloudinary URL becomes an `assets` row (`provider='cloudinary_legacy'`, `status='pending'`, headshots/full-length `sensitive`); `data:` URLs are dropped.
+- **Wardrobe/wishlist:** unknown categories → `Other`; L2/L3 kept only where the target taxonomy has them; duplicate hero positions keep the oldest; season band from the stored band, else from `seasons[]` (the legacy migration-17 rule). Tags come from legacy tags plus `occasions`/`looks.tags`, matched by slug; links keep their legacy `source`. `times_worn` is not carried (derived from wears).
+- **Looks:** pieces and wears only where owners match; unknown `source`/`role` values fall back to defaults.
+- **Lookbook → artifacts:** a key piece whose three ways parse becomes a **saved idea** (shows in Looks › Ideas); otherwise it's kept as a `key_piece` archive. Daily looks are reshaped to the stored daily shape (canonical steps, ≤2 items, only her own pieces matched, valid palette). Travel edits, moodboards and weekly plans are unwrapped and archived. `look` stubs are dropped. Base64 and client job ids are scrubbed. Legacy lookbook rows were saved, so `saved_at = created_at` and nothing expires.
+- **Shares:** a public row's `share_id` stays the token (`legacy_token = true`, expiring 180 days after migration) with a whitelisted snapshot.
+- **Plan:** `look` rows resolve to looks, others through the lookbook's `legacy_id`; weekly rows and orphans are dropped.
+- **Comms:** the notification ledger copies (keeps idempotency; `receipt_held` → `receipt`). Held inbox rows copy whole; decided ones keep only their outcome.
+- **Not migrated:** `events`, `generation_log`, `prompt_history`, `feedback`, `avatar_cells`, the Airtable exports. They are extracted, so they can be added as domains later.
+
+**Needs the real legacy database to verify:** which of migrations 12–23 actually ran and the real JSON heterogeneity (run extract and read its missing-column report, then assert's census); duplicate emails; volumes (extract batches through a cursor, transform is set-based except artifacts, which loop per row); Cloudinary URL shapes. **Not built yet:** the real rehost copy (a maintenance task that PUTs each legacy image to its upload key so `RenditionFn` builds renditions, then flips `provider` to `s3`), the Airtable export, the legacy redirect map, and a public renderer for legacy artifact shares (`/share/[token]` currently renders look snapshots only).
+
+Rehearse against a copy of legacy on staging until `migrate:assert` is clean twice in a row.
 
 ## 4. Cutover (production), target end of M6
 
