@@ -75,3 +75,18 @@ export function useRemoveIdea(onRemoved: () => void) {
     },
   });
 }
+
+// One of the three ways kept as a Look; keeping it also saves the idea.
+export function useSaveWay(onSaved: (lookId: string) => void) {
+  const queryClient = useQueryClient();
+  return useApiMutation('looks.ideas.saveWay', {
+    onSuccess: async (look) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.ideas.list') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.ideas.get') }),
+      ]);
+      onSaved(look.id);
+    },
+  });
+}

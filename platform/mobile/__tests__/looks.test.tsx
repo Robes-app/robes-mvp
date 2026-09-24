@@ -151,3 +151,22 @@ test('a saved look can be worn today (her local date) and removed with Undo', as
 test('localDate is the device calendar day, not UTC', () => {
   expect(localDate(new Date(2026, 0, 5, 23, 30))).toBe('2026-01-05');
 });
+
+test('one of the three ways can be kept as a look, which then opens', async () => {
+  const calls = mockFetch({
+    [`GET /looks/ideas/${IDEA_ID}`]: idea(),
+    [`POST /looks/ideas/${IDEA_ID}/looks`]: look({ name: 'Look 2' }),
+    'GET /looks': { items: [], nextCursor: null },
+    'GET /looks/ideas': { items: [] },
+  });
+  await renderWithApi(<IdeaScreen id={IDEA_ID} />);
+  await screen.findByText('Look 2');
+  const buttons = screen.getAllByRole('button', { name: looks.saveWay });
+  expect(buttons).toHaveLength(3);
+  await fireEvent.press(buttons[1] as never);
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}`));
+  expect(calls.find((c) => c.path.endsWith('/looks') && c.method === 'POST')?.body).toEqual({
+    wayIdx: 1,
+  });
+  expect(await screen.findByText(looks.savedWay)).toBeTruthy();
+});

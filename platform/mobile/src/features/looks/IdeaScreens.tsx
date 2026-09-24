@@ -6,7 +6,14 @@ import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { IdeaView } from './IdeaView';
-import { framesSettled, JOB_REFRESH_MS, useJobIdea, useRemoveIdea, useSaveIdea } from './ideas';
+import {
+  framesSettled,
+  JOB_REFRESH_MS,
+  useJobIdea,
+  useRemoveIdea,
+  useSaveIdea,
+  useSaveWay,
+} from './ideas';
 
 function stageLabel(job: JobSnapshot | undefined): string {
   if (!job || job.stage === 'queued' || job.stage === 'text') return ui.progress.styling;
@@ -18,6 +25,10 @@ function WithActions({ idea, progress }: { idea: Idea; progress?: React.ReactNod
   const router = useRouter();
   const toast = useToast();
   const save = useSaveIdea();
+  const saveWay = useSaveWay((lookId) => {
+    toast.show({ message: copy.savedWay });
+    router.push(`/look/${lookId}`);
+  });
   const remove = useRemoveIdea(() => {
     toast.show({ message: copy.result.removed });
     router.back();
@@ -30,6 +41,8 @@ function WithActions({ idea, progress }: { idea: Idea; progress?: React.ReactNod
       saving={save.isPending}
       onRemove={() => remove.mutate({ params: { id: idea.id } })}
       removing={remove.isPending}
+      onSaveWay={(wayIdx) => saveWay.mutate({ params: { id: idea.id }, input: { wayIdx } })}
+      savingWay={saveWay.isPending ? (saveWay.variables?.input.wayIdx ?? null) : null}
     />
   );
 }
