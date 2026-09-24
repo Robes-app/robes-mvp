@@ -15,6 +15,9 @@
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
+    },
+    "test:db": {
+      "cache": false
     }
   },
   "globalPassThroughEnv": ["DATABASE_URL", "DATABASE_ADMIN_URL", "TEST_DATABASE_URL", "CI"]

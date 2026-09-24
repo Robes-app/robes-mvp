@@ -17,7 +17,6 @@ allowBuilds:
   dbmate: true
   esbuild: true
   sharp: true
-  supabase: set this to true or false
 
 minimumReleaseAgeExclude:
   - '@upstash/ratelimit@2.2.0'

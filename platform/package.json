@@ -24,7 +24,7 @@
     "db:new": "dbmate --migrations-dir db/migrations new",
     "db:reset": "node scripts/db-reset.mjs",
     "db:types": "pnpm --filter @robes/db gen:types",
-    "db:test": "pnpm --filter @robes/db test:db"
+    "db:test": "turbo run test:db --concurrency=1"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

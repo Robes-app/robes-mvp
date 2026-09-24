@@ -1,7 +1,7 @@
 -- migrate:up
 -- Better Auth tables (ADR-020). Column names are mapped to snake_case in packages/auth.
 create table app.users (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   name text not null default '' check (char_length(name) <= 120),
   email extensions.citext not null unique check (char_length(email) <= 254),
   email_verified boolean not null default false,
@@ -12,7 +12,7 @@ create table app.users (
 select private.track_updates('app.users');
 
 create table app.sessions (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references app.users (id) on delete cascade,
   token text not null unique,
   expires_at timestamptz not null,
@@ -25,7 +25,7 @@ select private.track_updates('app.sessions');
 create index sessions_user_idx on app.sessions (user_id);
 
 create table app.accounts (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references app.users (id) on delete cascade,
   account_id text not null,
   provider_id text not null,
@@ -44,7 +44,7 @@ select private.track_updates('app.accounts');
 create index accounts_user_idx on app.accounts (user_id);
 
 create table app.verifications (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   identifier text not null,
   value text not null,
   expires_at timestamptz not null,
@@ -56,7 +56,7 @@ create index verifications_identifier_idx on app.verifications (identifier);
 
 -- Shared store for Better Auth's rate limiter (SEC-33: no per-process state).
 create table app.rate_limits (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   key text not null unique,
   count int not null,
   last_request bigint not null
