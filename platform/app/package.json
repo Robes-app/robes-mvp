@@ -19,6 +19,7 @@
     "@robes/core": "workspace:*",
     "@robes/db": "workspace:*",
     "@robes/jobs": "workspace:*",
+    "@robes/logger": "workspace:*",
     "@robes/mailer": "workspace:*",
     "@robes/tokens": "workspace:*",
     "better-auth": "1.7.5",

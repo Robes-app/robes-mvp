@@ -3,7 +3,6 @@ import { ApiError, isUuid } from '@robes/api';
 import { JobSnapshot, JobStatus, type StartJobOutput } from '@robes/contracts';
 import { type CreateJobInput, QuotaExceeded, type UserId } from '@robes/db';
 import {
-  consoleJobLogger,
   createInlineTransport,
   createSqsTransport,
   enqueueJob,
@@ -12,6 +11,7 @@ import {
 import { after } from 'next/server';
 import { repos } from './db';
 import { env } from './env';
+import { logger } from './logger';
 
 // SQS when configured; otherwise run in this process after the response (dev, or staging with
 // JOBS_TRANSPORT_INLINE). The inline runner is loaded lazily so deployed builds never touch it.
@@ -20,7 +20,7 @@ const transport: JobTransport = env.JOBS_INTERACTIVE_QUEUE_URL
   : createInlineTransport({
       run: async (jobId) => (await import('./inline-worker')).runInline(jobId),
       schedule: after,
-      logger: consoleJobLogger,
+      logger: logger,
     });
 
 export async function startJob(
@@ -50,8 +50,7 @@ export async function startJob(
   }
   const { id, status } = created.job;
   // A replay re-sends a still-queued job; the worker's claim makes duplicates harmless.
-  if (status === 'queued')
-    await enqueueJob(transport, { jobId: id, traceparent }, consoleJobLogger);
+  if (status === 'queued') await enqueueJob(transport, { jobId: id, traceparent }, logger);
   return { jobId: id, status: JobStatus.parse(status) };
 }
 

@@ -2,7 +2,6 @@ import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-sec
 import { parseEnv, type WorkerEnv, workerEnv } from '@robes/config';
 import { createDb, createSystemRepositories, type SystemRepositories } from '@robes/db';
 import {
-  consoleJobLogger,
   createHandlers,
   createInlineTransport,
   createSqsTransport,
@@ -11,6 +10,7 @@ import {
   type RunOutcome,
   runJob,
 } from '@robes/jobs';
+import { createLogger } from '@robes/logger';
 
 export interface WorkerContext {
   system: SystemRepositories;
@@ -39,7 +39,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
     applicationName: 'robes-worker',
   });
   const system = createSystemRepositories(db);
-  const logger = consoleJobLogger;
+  const logger = createLogger({ service: 'robes-workers' });
   const handlers = createHandlers();
   const run = (jobId: string): Promise<RunOutcome> =>
     runJob(jobId, { jobs: system.jobs, handlers, logger });

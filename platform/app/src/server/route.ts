@@ -13,6 +13,7 @@ import { clientIp } from './client-ip';
 import { repos } from './db';
 import { env } from './env';
 import { isFlagEnabled } from './flags';
+import { logger } from './logger';
 
 const rateLimiter =
   env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
@@ -26,7 +27,7 @@ const deps: RouteDeps = {
   ...(env.MIN_APP_VERSION ? { minAppVersion: env.MIN_APP_VERSION } : {}),
   rateLimiter,
   clientIp,
-  logger: { error: (obj, msg) => console.error(JSON.stringify({ level: 'error', msg, ...obj })) },
+  logger,
 };
 
 export const route = createRouteFactory(deps);
