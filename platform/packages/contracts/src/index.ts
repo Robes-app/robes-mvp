@@ -1,3 +1,4 @@
+export * from './admin';
 export * from './common';
 export * from './consents';
 export * from './jobs';

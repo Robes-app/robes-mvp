@@ -13,3 +13,8 @@ export async function isFlagEnabled(key: string): Promise<boolean> {
   cache.set(key, { value, at: Date.now() });
   return value;
 }
+
+// After an admin toggle, so this instance doesn't serve the old value for the rest of the TTL.
+export function invalidateFlag(key: string): void {
+  cache.delete(key);
+}

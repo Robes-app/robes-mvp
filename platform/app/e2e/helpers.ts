@@ -42,8 +42,19 @@ export async function signIn(
 }
 
 // Zero serious/critical axe violations (ux-opportunities.md §4.4).
+// Scans the settled page: data loaded and no transition mid-way, so colour contrast is measured
+// on final colours rather than a skeleton or a fading element.
 export async function seriousViolations(page: Page): Promise<string[]> {
   const { default: AxeBuilder } = await import('@axe-core/playwright');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForLoadState('networkidle');
+  // Infinite animations (loading pulses) never finish, so the wait is capped.
+  await page.evaluate(() =>
+    Promise.race([
+      Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+      new Promise((resolve) => setTimeout(resolve, 2_000)),
+    ]),
+  );
   const result = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
     .analyze();

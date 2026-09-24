@@ -1,4 +1,19 @@
 import type { z } from 'zod';
+import {
+  AdminCosts,
+  AdminCostsInput,
+  AdminFlag,
+  AdminFlagParams,
+  AdminFlags,
+  AdminHealth,
+  AdminUserDetail,
+  AdminUserPage,
+  AdminUserParams,
+  AuditPage,
+  ListAdminUsersInput,
+  ListAuditInput,
+  SetAdminFlagInput,
+} from './admin';
 import { EmptyInput, HealthOutput } from './common';
 import { Consents, UpdateConsentsInput } from './consents';
 import { JOB_EVENT, JobIdParams, JobSnapshot, StartJobOutput } from './jobs';
@@ -455,6 +470,57 @@ export const routes = {
     params: UnsubParams,
     input: OneClickUnsubInput,
     output: Ok,
+  },
+  'admin.users.list': {
+    method: 'GET',
+    path: '/admin/users',
+    auth: 'admin',
+    input: ListAdminUsersInput,
+    output: AdminUserPage,
+  },
+  'admin.users.get': {
+    method: 'GET',
+    path: '/admin/users/:id',
+    auth: 'admin',
+    params: AdminUserParams,
+    input: EmptyInput,
+    output: AdminUserDetail,
+  },
+  'admin.health': {
+    method: 'GET',
+    path: '/admin/health',
+    auth: 'admin',
+    input: EmptyInput,
+    output: AdminHealth,
+  },
+  'admin.costs': {
+    method: 'GET',
+    path: '/admin/costs',
+    auth: 'admin',
+    input: AdminCostsInput,
+    output: AdminCosts,
+  },
+  'admin.flags.list': {
+    method: 'GET',
+    path: '/admin/flags',
+    auth: 'admin',
+    input: EmptyInput,
+    output: AdminFlags,
+  },
+  'admin.flags.set': {
+    method: 'PATCH',
+    path: '/admin/flags/:key',
+    auth: 'admin',
+    params: AdminFlagParams,
+    input: SetAdminFlagInput,
+    output: AdminFlag,
+  },
+  'admin.audit': {
+    method: 'GET',
+    path: '/admin/audit',
+    auth: 'admin',
+    input: ListAuditInput,
+    output: AuditPage,
   },
   'jobs.fake': {
     method: 'POST',

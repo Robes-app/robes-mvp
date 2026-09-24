@@ -1,5 +1,6 @@
 import type { Db } from '../client';
 import { adminRepo } from './admin';
+import { adminReadsRepo } from './admin-reads';
 import { assetProcessingRepo, assetsRepo } from './assets';
 import { consentsRepo } from './consents';
 import { accountDeletionRepo, deletionRepo } from './deletion';
@@ -24,6 +25,8 @@ import { wishlistRepo } from './wishlist';
 export function createRepositories(db: Db) {
   return {
     admin: adminRepo(db),
+    // Admin-only; every method re-checks the actor and audits (SEC-11).
+    adminReads: adminReadsRepo(db),
     assets: assetsRepo(db),
     consents: consentsRepo(db),
     deletion: deletionRepo(db),
@@ -62,6 +65,7 @@ export function createSystemRepositories(db: Db) {
 
 export type Repositories = ReturnType<typeof createRepositories>;
 export type SystemRepositories = ReturnType<typeof createSystemRepositories>;
+export type { AdminActor } from './admin-reads';
 export type { AssetKind } from './assets';
 export type { ConsentAnswers } from './consents';
 export type { CreateJobInput, QuotaCost } from './jobs';

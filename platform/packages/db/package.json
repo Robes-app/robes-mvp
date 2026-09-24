@@ -9,7 +9,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test:db": "vitest run",
-    "gen:types": "kysely-codegen --dialect postgres --url postgres://postgres:postgres@127.0.0.1:55432/robes --include-pattern 'app.*' --default-schema app --camel-case --out-file src/database.types.ts"
+    "gen:types": "kysely-codegen --dialect postgres --url postgres://postgres:postgres@127.0.0.1:55432/robes --include-pattern 'app.*' --default-schema app --camel-case --out-file src/database.types.ts",
+    "admin:grant": "tsx --env-file-if-exists=../../app/.env.local scripts/admin-grant.ts"
   },
   "dependencies": {
     "@robes/core": "workspace:*",
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@types/pg": "8.23.1",
     "kysely-codegen": "0.20.0",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
