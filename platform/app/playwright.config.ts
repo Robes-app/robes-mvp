@@ -14,6 +14,8 @@ export default defineConfig({
       DATABASE_URL: 'postgres://robes_app:robes_app_local@127.0.0.1:55432/robes',
       BETTER_AUTH_URL: baseURL,
       UNSUB_HMAC_KEY: E2E_UNSUB_KEY,
+      // Specs assert the offline fake's outputs; never spend on real Gemini from a dev key.
+      GEMINI_API_KEY: '',
       // Dev-only SEC-40 escape hatch so inbox.spec can import from its local fixture page.
       ALLOW_PRIVATE_FETCH: '1',
       // Dummy key: consent.spec intercepts the PostHog host and proves nothing loads before consent.

@@ -357,4 +357,8 @@ describe('parseEnv(workerEnv)', () => {
       }),
     ).toThrow(/JOBS_INTERACTIVE_QUEUE_URL/);
   });
+
+  it('treats empty values as unset', () => {
+    expect(parseEnv(appServerEnv, { ...base, GEMINI_API_KEY: '' }).GEMINI_API_KEY).toBeUndefined();
+  });
 });

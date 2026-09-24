@@ -424,7 +424,9 @@ export function parseEnv<T extends z.ZodType>(
   schema: T,
   source: Record<string, string | undefined>,
 ): z.infer<T> {
-  const result = schema.safeParse(source);
+  // `KEY=` in an env file (or an empty override) means unset, never an empty value.
+  const cleaned = Object.fromEntries(Object.entries(source).filter(([, v]) => v !== ''));
+  const result = schema.safeParse(cleaned);
   if (!result.success) {
     const problems = result.error.issues.map((i) => `${i.path.join('.')} (${i.message})`);
     throw new Error(`Invalid environment: ${problems.join(', ')}`);

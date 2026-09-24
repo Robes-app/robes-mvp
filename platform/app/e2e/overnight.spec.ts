@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { CLI_ENV } from './env';
 import { declineConsent, isolateClientIp, signIn } from './helpers';
 
 test.beforeEach(async ({ context }) => isolateClientIp(context));
@@ -15,6 +16,7 @@ function batchTick(now: string, userId: string): void {
     ['--filter', '@robes/workers', 'batch:tick', `--now=${now}`, `--user=${userId}`],
     {
       cwd: PLATFORM,
+      env: CLI_ENV,
       stdio: 'pipe',
       timeout: 60_000,
     },

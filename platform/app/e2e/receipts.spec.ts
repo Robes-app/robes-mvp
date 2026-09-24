@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { expect, test } from '@playwright/test';
+import { CLI_ENV } from './env';
 import { declineConsent, isolateClientIp, signIn } from './helpers';
 
 const run = promisify(execFile);
@@ -14,6 +15,7 @@ const FIXTURE = fileURLToPath(
 async function forward(to: string): Promise<{ status: string; items?: number }> {
   const { stdout } = await run('pnpm', ['--silent', 'receipt:ingest', FIXTURE, '--to', to], {
     cwd: PLATFORM,
+    env: CLI_ENV,
     timeout: 60_000,
   });
   const line = stdout.split('\n').find((l) => l.startsWith('RESULT ')) ?? 'RESULT {}';
