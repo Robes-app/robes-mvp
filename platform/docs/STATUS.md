@@ -39,7 +39,10 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 259887029472 (eu-west-1) on 2026-09-24.
 
 **Pending in the sandbox** (needs fresh admin credentials; review `pnpm cdk diff 'Staging/*'` first):
-1. ~~Redeploy~~ done 2026-09-24 (schedules `account-deletion`/`data-export`, notify env, exports lifecycle and grants).
+1. Redeploy for the receipts `InboundStack` (SES receipt rule set, inbound queue, `inboundFn`), the
+   overnight batch grants and the latest worker code (last deployed 2026-09-24 before receipts).
+   Then MX `in.<domain>` → `10 inbound-smtp.eu-west-1.amazonaws.com` and activate the rule set by hand
+   (`runbooks/environments.md` §9 step 7; one active set per account/region).
 2. Put the CloudFront private key matching `infra/config/keys/staging.cloudfront.pub.pem` into
    `robes-staging/cloudfront/signing-key`; if the private half is lost, rotate
    (`runbooks/key-rotation.md` §CloudFront).
