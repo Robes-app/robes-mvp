@@ -1,16 +1,22 @@
 {
-  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "env": { "EXPO_PUBLIC_APP_ENV": "dev" }
+      "env": {
+        "APP_VARIANT": "development",
+        "EXPO_PUBLIC_APP_ENV": "dev"
+      }
     },
-    "beta": {
+    "staging": {
       "distribution": "store",
       "autoIncrement": true,
-      "ios": { "resourceClass": "m-medium" },
       "env": {
+        "APP_VARIANT": "staging",
         "EXPO_PUBLIC_APP_ENV": "staging",
         "EXPO_PUBLIC_API_URL": "https://robes-app-two.vercel.app"
       }
@@ -19,13 +25,22 @@
       "distribution": "store",
       "autoIncrement": true,
       "env": {
+        "APP_VARIANT": "production",
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://app.byrobes.com"
       }
     }
   },
   "submit": {
-    "beta": { "ios": { "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_APP_ID" } },
-    "production": { "ios": { "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_APP_ID" } }
+    "staging": {
+      "ios": {
+        "ascAppId": "REPLACE_WITH_ROBES_STAGING_ASC_APP_ID"
+      }
+    },
+    "production": {
+      "ios": {
+        "ascAppId": "REPLACE_WITH_ROBES_ASC_APP_ID"
+      }
+    }
   }
 }

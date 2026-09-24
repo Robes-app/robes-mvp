@@ -37,3 +37,25 @@ Flows live in `e2e/` and drive the real app in Expo Go against the local API and
 1. Install Maestro 2.10 (needs Java): `mkdir -p ~/.maestro && cd ~/.maestro && curl -fsSL -o m.zip https://github.com/mobile-dev-inc/maestro/releases/download/cli-2.10.0/maestro.zip && unzip -qo m.zip && rm m.zip`.
 2. Boot an iOS simulator, run `pnpm dev:web` and `pnpm dev:mobile` (from `platform/`).
 3. `pnpm --filter @robes/mobile e2e` (set `EXPO_PORT` if Metro isn't on 8081). Each run uses a fresh email and clears the keychain first.
+
+## Builds and variants
+
+`app.config.ts` turns one codebase into three installable apps, chosen by `APP_VARIANT` (set per
+profile in `eas.json`):
+
+| Profile | App | Bundle id | Scheme | API |
+|---|---|---|---|---|
+| `development` | Robes Dev (dev client) | `com.byrobes.app.dev` | `robes-dev` | your machine |
+| `staging` | Robes Staging | `com.byrobes.app.staging` | `robes-staging` | `https://robes-app-two.vercel.app` |
+| `production` | Robes | `com.byrobes.app` (store) | `robes` | `https://app.byrobes.com` |
+
+Each variant needs its own App Store Connect app (put its Apple id in `eas.json` → `submit.<profile>.ios.ascAppId`).
+Share a staging build through TestFlight internal testing on the "Robes Staging" app:
+
+```bash
+npx eas-cli build --profile staging --platform ios
+npx eas-cli submit --profile staging --platform ios --latest
+```
+
+The API trusts each variant's scheme via `AUTH_TRUSTED_ORIGINS` (e.g. `robes://,robes-staging://`).
+Expo Go ignores the variant (it always uses `exp://`), so `pnpm dev:mobile` is unchanged.

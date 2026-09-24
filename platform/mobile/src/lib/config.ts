@@ -11,3 +11,7 @@ export const POSTHOG = posthogKey
   : null;
 export const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? null;
 export const APP_ENV = process.env.EXPO_PUBLIC_APP_ENV ?? 'dev';
+
+// The build variant's URL scheme (app.config.ts): robes, robes-staging or robes-dev.
+const scheme = Constants.expoConfig?.scheme;
+export const APP_SCHEME = (Array.isArray(scheme) ? scheme[0] : scheme) ?? 'robes';
