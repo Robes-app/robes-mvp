@@ -38,8 +38,7 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 259887029472 (eu-west-1) on 2026-09-24.
 
 **Pending in the sandbox** (needs fresh admin credentials; review `pnpm cdk diff 'Staging/*'` first):
-1. Redeploy for everything since the first deploy: `account-deletion` and `data-export` schedules,
-   notify env (`APP_URL`, `EXPO_ACCESS_TOKEN_SECRET_ARN`), the exports lifecycle rule and grants.
+1. ~~Redeploy~~ done 2026-09-24 (schedules `account-deletion`/`data-export`, notify env, exports lifecycle and grants).
 2. Put the CloudFront private key matching `infra/config/keys/staging.cloudfront.pub.pem` into
    `robes-staging/cloudfront/signing-key`; if the private half is lost, rotate
    (`runbooks/key-rotation.md` §CloudFront).
