@@ -19,6 +19,11 @@ export function anchorPending(look: DailyLook, now = Date.now()): boolean {
   return now - Date.parse(look.createdAt) < 3 * 60_000;
 }
 
+// An item she asked to see is rendering (or its picture is still being made).
+export function itemsPending(look: DailyLook): boolean {
+  return look.steps.some((s) => s.items.some((i) => i.imageStatus === 'pending'));
+}
+
 export function useStartDaily() {
   const router = useRouter();
   return useApiMutation('today.generate', {
@@ -46,7 +51,9 @@ export function useDailyLook(id: string) {
     { params: { id } },
     {
       refetchInterval: (q) =>
-        q.state.data && anchorPending(q.state.data) ? JOB_REFRESH_MS : false,
+        q.state.data && (anchorPending(q.state.data) || itemsPending(q.state.data))
+          ? JOB_REFRESH_MS
+          : false,
     },
   );
 }

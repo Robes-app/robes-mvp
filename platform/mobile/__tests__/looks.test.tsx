@@ -170,3 +170,29 @@ test('one of the three ways can be kept as a look, which then opens', async () =
   });
   expect(await screen.findByText(looks.savedWay)).toBeTruthy();
 });
+
+test('the looks beyond the first are pictured when she asks', async () => {
+  let asked = false;
+  const frames = (second: 'deferred' | 'pending') => [
+    { idx: 0, status: 'ready' as const, image: piece().image },
+    { idx: 1, status: second, image: null },
+    { idx: 2, status: 'deferred' as const, image: null },
+  ];
+  const calls = mockFetch({
+    [`GET /looks/ideas/${IDEA_ID}`]: () => idea({ frames: frames(asked ? 'pending' : 'deferred') }),
+    [`POST /looks/ideas/${IDEA_ID}/frames/1`]: () => {
+      asked = true;
+      return { jobId: JOB_ID, status: 'queued' };
+    },
+  });
+  await renderWithApi(<IdeaScreen id={IDEA_ID} />);
+  const show = await screen.findAllByRole('button', { name: looks.result.showLook });
+  expect(show).toHaveLength(2);
+  await fireEvent.press(show[0] as never);
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/frames/1'))).toBe(true),
+  );
+  await waitFor(() =>
+    expect(screen.queryAllByRole('button', { name: looks.result.showLook })).toHaveLength(1),
+  );
+});

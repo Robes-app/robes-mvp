@@ -122,3 +122,35 @@ test('home city saves with the account', async () => {
     expect(calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({ homeCity: 'Dublin' }),
   );
 });
+
+test('a suggested item is pictured when she asks, and the look refreshes while it renders', async () => {
+  let rendered = false;
+  const calls = mockFetch({
+    [`GET /today/looks/${DAILY_ID}`]: () =>
+      dailyLook(
+        rendered
+          ? {
+              steps: dailyLook().steps.map((s: { title: string; items: object[] }) => ({
+                ...s,
+                items: s.items.map((i) => ({ ...i, imageStatus: 'pending' })),
+              })),
+            }
+          : {},
+      ),
+    [`POST /today/looks/${DAILY_ID}/items/1/render`]: () => {
+      rendered = true;
+      return { jobId: JOB_ID, status: 'queued' };
+    },
+  });
+  await renderWithApi(<DailyLookView id={DAILY_ID} />);
+  const buttons = await screen.findAllByRole('button', { name: today.daily.showItem });
+  // Her own piece and the anchor never offer it: three suggested items do.
+  expect(buttons).toHaveLength(3);
+  await fireEvent.press(buttons[0] as never);
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/items/1/render'))).toBe(true),
+  );
+  await waitFor(() =>
+    expect(screen.queryAllByRole('button', { name: today.daily.showItem })).toHaveLength(0),
+  );
+});

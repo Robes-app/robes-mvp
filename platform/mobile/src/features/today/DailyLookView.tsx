@@ -15,15 +15,61 @@ import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { useRenderDailyItem } from '../looks/frame-render';
 import { useDailyLook, useJobDaily, useSaveDaily, weatherLine } from './daily';
 
 const copy = today.daily;
 
-function ItemRow({ item }: { item: DailyItem }) {
+// Robes' picture of a suggested item, rendered when she asks (UX-09); the anchor shows above.
+function ItemFrame({
+  item,
+  onShow,
+  showing,
+}: {
+  item: DailyItem;
+  onShow: () => void;
+  showing: boolean;
+}) {
+  const uri = item.imageStatus === 'ready' ? renditionUri(item.image, 80) : null;
+  if (uri) {
+    return <Image source={uri} alt={copy.itemAlt(item.name)} blurhash={item.image?.blurhash} />;
+  }
+  if (item.imageStatus === 'deferred' || item.imageStatus === 'failed') {
+    return (
+      <Button
+        variant="quiet"
+        onPress={onShow}
+        loading={showing}
+        loadingLabel={copy.showItem}
+        accessibilityHint={item.name}
+      >
+        {copy.showItem}
+      </Button>
+    );
+  }
+  return <Skeleton width="100%" aspectRatio={4 / 5} />;
+}
+
+function ItemRow({
+  item,
+  isAnchor,
+  onShow,
+  showing,
+}: {
+  item: DailyItem;
+  isAnchor: boolean;
+  onShow: () => void;
+  showing: boolean;
+}) {
   const uri = item.piece ? renditionUri(item.piece.image, 80) : null;
   const shop = [item.brand, item.pricePoint].filter(Boolean).join(' · ');
   return (
     <View className="flex-row gap-3 border-b border-hairline py-3">
+      {!item.piece && !isAnchor ? (
+        <View style={{ width: 64 }}>
+          <ItemFrame item={item} onShow={onShow} showing={showing} />
+        </View>
+      ) : null}
       {uri ? (
         <View style={{ width: 64 }}>
           <Image
@@ -64,6 +110,7 @@ function DailySkeleton() {
 export function DailyLookView({ id }: { id: string }) {
   const query = useDailyLook(id);
   const save = useSaveDaily();
+  const frames = useRenderDailyItem(id);
   const [name, setName] = useState<string | null>(null);
   if (query.isError) {
     return (
@@ -98,9 +145,14 @@ export function DailyLookView({ id }: { id: string }) {
       {look.steps.map((step) => (
         <View key={step.title} className="gap-1">
           <Heading size="md">{copy.steps[step.title]}</Heading>
-          {step.items.map((item, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: fixed model output order
-            <ItemRow key={i} item={item} />
+          {step.items.map((item) => (
+            <ItemRow
+              key={item.imageIndex}
+              item={item}
+              isAnchor={item.imageIndex === anchor?.imageIndex}
+              onShow={() => frames.start(item.imageIndex)}
+              showing={frames.renderingIdx === item.imageIndex}
+            />
           ))}
         </View>
       ))}

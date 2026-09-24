@@ -4,15 +4,39 @@ import { Button, Eyebrow, Heading, Image, PrimaryScope, Skeleton, Text } from '@
 import { ScrollView, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
 
-function Frame({ frame, title }: { frame: IdeaFrame | undefined; title: string }) {
+function Frame({
+  frame,
+  title,
+  onShow,
+  showing,
+}: {
+  frame: IdeaFrame | undefined;
+  title: string;
+  onShow: () => void;
+  showing: boolean;
+}) {
   const uri = frame?.status === 'ready' ? renditionUri(frame.image, 360) : null;
   if (uri) {
     return (
       <Image source={uri} alt={copy.result.frameAlt(title)} blurhash={frame?.image?.blurhash} />
     );
   }
-  // Failed frames stay a quiet blank; one missing image never sinks the look (UX-08).
-  if (frame?.status === 'failed') return null;
+  // Only the first look is pictured up front; the rest (or a failed one) when she asks (UX-09).
+  if (frame?.status === 'deferred' || frame?.status === 'failed') {
+    return (
+      <View className="aspect-[4/5] w-full items-center justify-center rounded-crisp border border-hairline">
+        <Button
+          variant="quiet"
+          onPress={onShow}
+          loading={showing}
+          loadingLabel={copy.result.showLook}
+          accessibilityHint={title}
+        >
+          {copy.result.showLook}
+        </Button>
+      </View>
+    );
+  }
   return <Skeleton width="100%" aspectRatio={4 / 5} />;
 }
 
@@ -21,15 +45,19 @@ function Way({
   frame,
   onSave,
   saving,
+  onShow,
+  showing,
 }: {
   way: IdeaWay;
   frame: IdeaFrame | undefined;
   onSave: () => void;
   saving: boolean;
+  onShow: () => void;
+  showing: boolean;
 }) {
   return (
     <View className="gap-3">
-      <Frame frame={frame} title={way.title} />
+      <Frame frame={frame} title={way.title} onShow={onShow} showing={showing} />
       <Eyebrow>{way.eyebrow}</Eyebrow>
       <Heading size="md">{way.title}</Heading>
       <Text>{way.outfit}</Text>
@@ -73,6 +101,8 @@ export interface IdeaViewProps {
   onSaveWay: (wayIdx: number) => void;
   // The way being saved as a look, if any.
   savingWay: number | null;
+  onShowFrame: (idx: number) => void;
+  showingFrame: number | null;
 }
 
 export function IdeaView({
@@ -84,6 +114,8 @@ export function IdeaView({
   removing,
   onSaveWay,
   savingWay,
+  onShowFrame,
+  showingFrame,
 }: IdeaViewProps) {
   const saved = idea.savedAt !== null;
   return (
@@ -101,6 +133,8 @@ export function IdeaView({
           frame={idea.frames.find((f) => f.idx === idx)}
           onSave={() => onSaveWay(idx)}
           saving={savingWay === idx}
+          onShow={() => onShowFrame(idx)}
+          showing={showingFrame === idx}
         />
       ))}
       <PrimaryScope>
