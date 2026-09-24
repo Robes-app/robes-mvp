@@ -1,8 +1,8 @@
 import { onboarding as copy } from '@robes/copy';
+import { Button, Eyebrow, Field, Heading, PrimaryScope } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
-import { Field, PrimaryButton } from '@/components/form';
+import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { api } from '@/lib/api';
 
 export default function Onboarding() {
@@ -26,29 +26,34 @@ export default function Onboarding() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 justify-center gap-8 bg-bg px-6"
-    >
-      <View className="gap-2">
-        <Text className="text-xs uppercase tracking-widest text-ink-muted">{copy.eyebrow}</Text>
-        <Text className="text-4xl text-ink" style={{ fontFamily: 'Cormorant_300Light' }}>
-          {copy.title}
-        </Text>
-      </View>
-      <Field
-        label={copy.firstNameLabel}
-        autoComplete="given-name"
-        textContentType="givenName"
-        maxLength={60}
-        value={firstName}
-        onChangeText={setFirstName}
-        onSubmitEditing={submit}
-        error={error}
-      />
-      <PrimaryButton onPress={submit} disabled={busy || firstName.trim().length === 0}>
-        {busy ? copy.saving : copy.continue}
-      </PrimaryButton>
-    </KeyboardAvoidingView>
+    <PrimaryScope>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1 justify-center gap-8 bg-bg px-6"
+      >
+        <View className="gap-2">
+          <Eyebrow>{copy.eyebrow}</Eyebrow>
+          <Heading>{copy.title}</Heading>
+        </View>
+        <Field
+          label={copy.firstNameLabel}
+          autoComplete="given-name"
+          textContentType="givenName"
+          maxLength={60}
+          value={firstName}
+          onChangeText={setFirstName}
+          onSubmitEditing={submit}
+          error={error}
+        />
+        <Button
+          onPress={submit}
+          disabled={firstName.trim().length === 0}
+          loading={busy}
+          loadingLabel={copy.saving}
+        >
+          {copy.continue}
+        </Button>
+      </KeyboardAvoidingView>
+    </PrimaryScope>
   );
 }

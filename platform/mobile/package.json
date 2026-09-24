@@ -10,6 +10,7 @@
     "@robes/copy": "workspace:*",
     "@robes/icons": "workspace:*",
     "@robes/tokens": "workspace:*",
+    "@robes/ui-native": "workspace:*",
     "better-auth": "1.7.5",
     "expo": "~57.0.24",
     "expo-constants": "~57.0.19",
@@ -61,8 +62,16 @@
   "private": true,
   "jest": {
     "preset": "jest-expo",
+    "transformIgnorePatterns": [
+      "/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|standard-navigation|uniwind))",
+      "/node_modules/react-native-reanimated/plugin/",
+      "/node_modules/@react-native/babel-preset/"
+    ],
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/src/$1"
+      "^@/(.*)$": "<rootDir>/src/$1",
+      "^react$": "<rootDir>/node_modules/react",
+      "^react/(.*)$": "<rootDir>/node_modules/react/$1",
+      "^react-native-svg$": "<rootDir>/node_modules/react-native-svg"
     }
   }
 }
