@@ -177,6 +177,118 @@ export const ui = {
   },
 } as const;
 
+// App shell (IA §3.2): nav, Create sheet, command bar, placeholder routes.
+export const shell = {
+  primaryNav: 'Main',
+  openYou: 'You',
+  create: {
+    title: 'Create',
+    photograph: 'Photograph pieces',
+    cameraRoll: 'From camera roll',
+    link: 'Paste a link',
+    receipt: 'Forward a receipt',
+    newLook: 'New look',
+    askRobes: 'Ask Robes',
+    stylePiece: 'Style a piece',
+    planTrip: 'Plan a trip',
+  },
+  command: {
+    label: 'Search Robes',
+    placeholder: 'Go to, or ask Robes…',
+    empty: 'No matches.',
+    groupGo: 'Go to',
+    groupCreate: 'Create',
+    hint: '⌘K',
+  },
+  soon: {
+    title: 'On its way.',
+    body: 'This part of Robes is being built. Everything you add now will be here when it lands.',
+    back: 'Back to Today',
+  },
+  segments: {
+    saved: 'Saved',
+    ideas: 'Ideas',
+  },
+} as const;
+
+// Looks › Ideas and the Style a piece flow.
+export const looks = {
+  title: 'Looks',
+  stylePiece: {
+    eyebrow: 'Style a piece',
+    title: 'Which piece?',
+    fromWardrobe: 'From your wardrobe',
+    describe: 'Or describe it',
+    describePlaceholder: 'A white linen shirt',
+    occasionLabel: 'Where to? (optional)',
+    occasionPlaceholder: 'Dinner, the office, a wedding',
+    start: 'Style it',
+    starting: 'Starting…',
+  },
+  result: {
+    eyebrow: 'Three ways',
+    frameAlt: (title: string): string => `A look: ${title}`,
+    save: 'Save',
+    saved: 'Saved',
+    remove: 'Remove',
+    removed: 'Idea removed.',
+    fallback: 'Robes couldn’t see that piece clearly, so here’s a close match.',
+    outfit: 'The look',
+    details: 'Details',
+    accessories: 'Finish with',
+  },
+  ideas: {
+    empty: {
+      title: 'Your ideas land here.',
+      body: 'Style a piece and Robes will dress it three ways.',
+      action: 'Style a piece',
+    },
+    expires: (days: number): string => `Keeps for ${days} more ${days === 1 ? 'day' : 'days'}`,
+  },
+  saved: {
+    empty: {
+      title: 'Looks you keep live here.',
+      body: 'Save an idea to keep it.',
+    },
+  },
+} as const;
+
+// You area.
+export const you = {
+  title: 'You',
+  account: {
+    title: 'Account',
+    firstName: 'First name',
+    lastName: 'Last name',
+    email: 'Email',
+    emailHint: 'Your email signs you in, so it can’t be changed here.',
+    save: 'Save',
+    saving: 'Saving…',
+    saved: 'Saved.',
+  },
+  notifications: {
+    title: 'Notifications',
+    looksReady: 'When your looks are ready',
+    morningCue: 'A morning cue with today’s look',
+    nudges: 'Gentle nudges to add pieces',
+    receipts: 'When a receipt becomes a piece',
+  },
+  privacy: 'Privacy',
+  legal: {
+    title: 'Legal',
+    terms: 'Terms',
+    privacyNotice: 'Privacy notice',
+  },
+  signOut: 'Sign out',
+  deletion: {
+    title: 'Delete account',
+    body: 'Robes will delete your pieces, looks, photos and account. This can’t be undone.',
+    confirmLabel: 'Type DELETE to confirm',
+    confirm: 'Delete my account',
+    requested: 'Your account is being deleted. Robes will email you when it’s done.',
+  },
+} as const;
+
 export const copy = {
   wardrobe,
   errors,
@@ -190,4 +302,7 @@ export const copy = {
   devUpload,
   consent,
   ui,
+  shell,
+  looks,
+  you,
 } as const;
