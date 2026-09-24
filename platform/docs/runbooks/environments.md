@@ -54,6 +54,7 @@ Fill in as resources are created. IDs are not secrets; keys and passwords are.
 
 1. In the management account: AWS Organizations → create accounts `robes-staging` and `robes-prod` (distinct root emails). Enable IAM Identity Center; give engineers `AdministratorAccess` on staging and a break-glass-only permission set on production.
 2. Per account, enable: CloudTrail (org trail from management), Cost Explorer, IAM Access Analyzer, S3 Block Public Access at account level.
+   Service Quotas → Lambda → **Concurrent executions**: request 1000. New accounts start at 10, and the reserved concurrency on `generateFn` (`workers.generateReservedConcurrency`) fails to deploy until the quota leaves 10 unreserved.
 3. Bootstrap CDK once per account (admin credentials via Identity Center):
    ```bash
    aws sso login --profile robes-staging
