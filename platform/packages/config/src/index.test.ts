@@ -11,6 +11,7 @@ const base = {
   BETTER_AUTH_SECRET: 'x'.repeat(40),
   UNSUB_HMAC_KEY: 'u'.repeat(40),
   TURNSTILE_SECRET_KEY: 'turnstile-secret',
+  INBOUND_MAIL_DOMAIN: 'in.staging.mail.byrobes.com',
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'turnstile-site',
   BETTER_AUTH_URL: 'https://staging.byrobes.com',
   AWS_REGION: 'eu-west-1',
@@ -62,6 +63,12 @@ describe('parseEnv(appServerEnv)', () => {
   it('parses a valid environment and derives trusted origins', () => {
     const env = parseEnv(appServerEnv, { ...base, AUTH_TRUSTED_ORIGINS: 'robes://, exp://x' });
     expect(env.authTrustedOrigins).toEqual(['https://staging.byrobes.com', 'robes://', 'exp://x']);
+  });
+
+  it('needs a real inbound mail domain outside dev', () => {
+    const { INBOUND_MAIL_DOMAIN: _d, ...none } = base;
+    expect(() => parseEnv(appServerEnv, none)).toThrow(/INBOUND_MAIL_DOMAIN/);
+    expect(parseEnv(appServerEnv, base).INBOUND_MAIL_DOMAIN).toBe('in.staging.mail.byrobes.com');
   });
 
   it('requires Turnstile outside dev, as a pair', () => {

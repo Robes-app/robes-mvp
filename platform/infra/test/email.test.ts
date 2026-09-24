@@ -40,7 +40,7 @@ describe.each(['staging', 'production'] as const)('%s email (ADR-021)', (stageNa
 
     const policy = s
       .resources('AWS::SNS::TopicPolicy')
-      .find((p) => JSON.stringify(p.properties).includes('ses.amazonaws.com'));
+      .find((p) => JSON.stringify(p.properties).includes('configuration-set/'));
     const text = JSON.stringify(policy?.properties);
     expect(text).toContain('configuration-set/');
     expect(text).toContain(`{"Ref":"${set.logicalId}"}`);

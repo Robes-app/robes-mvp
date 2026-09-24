@@ -6,10 +6,12 @@ export const QUEUE_NAMES = [
   'fetch',
   'notify',
   'maintenance',
+  // SES inbound receipt notifications (via SNS); consumed by inboundFn.
+  'inbound',
 ] as const;
 export type QueueName = (typeof QUEUE_NAMES)[number];
 
-export type QueueWorkerName = 'generate' | 'batch' | 'fetch' | 'notify' | 'maintenance';
+export type QueueWorkerName = 'generate' | 'batch' | 'fetch' | 'notify' | 'maintenance' | 'inbound';
 export type WorkerName = QueueWorkerName | 'rendition';
 
 export interface WorkerSpec {
@@ -39,6 +41,7 @@ export const QUEUE_WORKERS: Record<QueueWorkerName, QueueWorkerSpec> = {
     memorySize: 512,
     batchSize: 1,
   },
+  inbound: { queue: 'inbound', timeout: Duration.minutes(2), memorySize: 512, batchSize: 1 },
 };
 
 export const RENDITION_WORKER: WorkerSpec = { timeout: Duration.minutes(1), memorySize: 2048 };

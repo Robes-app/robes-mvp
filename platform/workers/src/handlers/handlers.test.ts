@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { WorkerContext } from '../context';
 import { createFetchHandler } from './fetch';
 import { createGenerateHandler } from './generate';
+import { createInboundHandler } from './inbound';
 import { createMaintenanceHandler } from './maintenance';
 import { createNotifyHandler } from './notify';
 
@@ -183,5 +184,52 @@ describe('notify handler', () => {
       Records: [record('n', { kind: 'notify-tick' }), record('x', { kind: 'nope' })],
     });
     expect(notify).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('inbound handler', () => {
+  const pass = { status: 'PASS' };
+  const notification = {
+    notificationType: 'Received',
+    mail: { messageId: 'ses-1' },
+    receipt: {
+      recipients: ['nobody@in.robes.local'],
+      spfVerdict: pass,
+      dkimVerdict: pass,
+      spamVerdict: pass,
+      virusVerdict: pass,
+      action: { type: 'S3', objectKey: 'inbound/ses-1' },
+    },
+  };
+
+  function context(userForAddress = vi.fn(async () => undefined)) {
+    const inbound = vi.fn(async () => ({
+      ai: {} as never,
+      storage: { getObject: vi.fn() },
+      intake: { userForAddress, hasProvider: vi.fn(), fromReceipt: vi.fn() } as never,
+      ledger: { record: vi.fn() },
+      domain: 'in.robes.local',
+      logger: logger(),
+    }));
+    return { inbound, logger: logger() };
+  }
+
+  it('acknowledges mail for no one without retrying, and never retries a malformed message', async () => {
+    const ctx = context();
+    const handler = createInboundHandler(async () => ctx);
+    const res = await handler({
+      Records: [record('ok', notification), { messageId: 'bad', body: 'not json' }],
+    });
+    expect(res).toEqual({ batchItemFailures: [] });
+    expect(ctx.inbound).toHaveBeenCalledTimes(1);
+    expect(ctx.logger.warn).toHaveBeenCalledWith({ messageId: 'bad' }, 'inbound_message_invalid');
+  });
+
+  it('retries when the database is unreachable', async () => {
+    const ctx = context(vi.fn(async () => Promise.reject(new Error('db down'))));
+    const res = await createInboundHandler(async () => ctx)({
+      Records: [record('m', notification)],
+    });
+    expect(res).toEqual({ batchItemFailures: [{ itemIdentifier: 'm' }] });
   });
 });

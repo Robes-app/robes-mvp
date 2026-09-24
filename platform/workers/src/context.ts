@@ -13,8 +13,10 @@ import {
   type JobLogger,
   type JobTransport,
   type NotifyDeps,
+  type ReceiptDeps,
   type RunOutcome,
   runJob,
+  sendReceiptMail,
 } from '@robes/jobs';
 import { createLogger } from '@robes/logger';
 import { createMailer, type Mailer } from '@robes/mailer';
@@ -30,6 +32,8 @@ export interface WorkerContext {
   transport(): JobTransport;
   // Everything notifyFn needs to send the email sequence; throws where mail isn't configured.
   notify(): Promise<NotifyDeps>;
+  // Everything inboundFn needs to turn a forwarded receipt into a held Inbox row.
+  inbound(): Promise<ReceiptDeps>;
   // Waits for in-process runs started by the dev transport, then closes the pool.
   close(): Promise<void>;
 }
@@ -173,6 +177,31 @@ async function createWorkerContext(): Promise<WorkerContext> {
           sender: createExpoPushSender({ accessToken: await resolveExpoToken(env) }),
           tokens: system.pushDelivery,
         },
+      };
+    },
+    async inbound() {
+      if (!storage || !ai) throw new Error('inbound needs MEDIA_BUCKET');
+      const domain =
+        env.INBOUND_MAIL_DOMAIN ?? (env.APP_ENV === 'dev' ? 'in.robes.local' : undefined);
+      if (!domain) throw new Error('inbound needs INBOUND_MAIL_DOMAIN');
+      const unsubSecret = await resolveUnsubKey(env);
+      const mail =
+        env.APP_URL && unsubSecret
+          ? {
+              notifier: system.notifier,
+              mailer: workerMailer(env),
+              appUrl: env.APP_URL,
+              unsubSecret,
+            }
+          : null;
+      return {
+        ai,
+        storage,
+        intake: system.inboxIntake,
+        ledger: system.ledger,
+        domain,
+        logger,
+        ...(mail ? { onHeld: async (held) => void (await sendReceiptMail(mail, held)) } : {}),
       };
     },
     async close() {

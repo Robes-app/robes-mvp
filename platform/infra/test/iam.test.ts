@@ -66,7 +66,7 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
   it('creates no custom-resource Lambdas', () => {
     const names = s.resources('AWS::Lambda::Function').map((f) => f.properties.FunctionName);
     expect(names.sort()).toEqual(
-      ['batch', 'fetch', 'generate', 'maintenance', 'notify', 'rendition'].map(
+      ['batch', 'fetch', 'generate', 'inbound', 'maintenance', 'notify', 'rendition'].map(
         (n) => `${s.stage.config.namePrefix}-${n}`,
       ),
     );
@@ -120,6 +120,15 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
     expect(puts.some((r) => r.includes('/uploads/*'))).toBe(true);
   });
 
+  it('inbound can only read stored mail and send from the stage domain', () => {
+    const fn = functionNamed(s, 'inbound');
+    const sts = roleStatements(s, roleOf(s, fn));
+    const s3 = sts.filter((st) => list(st.Action).some((a) => a.startsWith('s3:')));
+    expect(s3.flatMap((st) => list(st.Action))).toEqual(['s3:GetObject']);
+    expect(JSON.stringify(s3.flatMap((st) => list(st.Resource)))).toContain('/inbound/*');
+    expect(actionsOf(sts).filter((a) => a.startsWith('sqs:SendMessage'))).toEqual([]);
+  });
+
   it('workers get exactly the secrets they need', () => {
     const expected: Record<string, string[]> = {
       generate: ['database/url', 'fal/api-key', 'gemini/api-key'],
@@ -128,6 +137,7 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
       maintenance: ['database/url'],
       rendition: ['database/url'],
       fetch: [],
+      inbound: ['database/url', 'gemini/api-key', 'unsub/hmac-key'],
     };
     for (const [name, secrets] of Object.entries(expected)) {
       const fn = functionNamed(s, name);

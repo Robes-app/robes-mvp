@@ -41,11 +41,18 @@ describe.each(['staging', 'production'] as const)('%s operations', (stageName) =
     const dlqs = s
       .resources('AWS::SQS::Queue')
       .filter((q) => String(q.properties.QueueName).endsWith('-dlq'));
-    expect(dlqs).toHaveLength(6);
+    expect(dlqs).toHaveLength(7);
     for (const q of dlqs) {
       expect(alarms).toContain(`${String(q.properties.QueueName)}-depth`);
     }
-    for (const name of ['jobs-interactive', 'jobs-batch', 'fetch', 'notify', 'maintenance']) {
+    for (const name of [
+      'jobs-interactive',
+      'jobs-batch',
+      'fetch',
+      'notify',
+      'maintenance',
+      'inbound',
+    ]) {
       expect(alarms).toContain(`${prefix}-${name}-age`);
     }
   });

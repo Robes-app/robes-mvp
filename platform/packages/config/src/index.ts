@@ -187,6 +187,11 @@ export const appServerEnv = z
     SES_CONFIGURATION_SET: optionalSecret,
     // Signs one-click unsubscribe links; the same value as the notify worker's unsub/hmac-key.
     UNSUB_HMAC_KEY: z.string().min(32),
+    // Forwarded receipts land at <address>@<this> (SES inbound, ADR-021), e.g. in.mail.byrobes.com.
+    INBOUND_MAIL_DOMAIN: z
+      .string()
+      .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/)
+      .default('in.robes.local'),
     // Cloudflare Turnstile on the public waitlist (SEC-60); optional in dev only.
     TURNSTILE_SECRET_KEY: optionalSecret,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
@@ -249,6 +254,13 @@ export const appServerEnv = z
         code: 'custom',
         path: ['SMTP_URL'],
         message: 'set SMTP_URL (local mail catcher) in dev',
+      });
+    }
+    if (deployed && env.INBOUND_MAIL_DOMAIN.endsWith('.local')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['INBOUND_MAIL_DOMAIN'],
+        message: 'set the stage inbound domain outside dev',
       });
     }
     if (Boolean(env.TURNSTILE_SECRET_KEY) !== Boolean(env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)) {
@@ -338,6 +350,11 @@ export const workerEnv = z
     SES_CONFIGURATION_SET: optionalSecret,
     SMTP_URL: z.url().optional(),
     UNSUB_HMAC_KEY: z.string().min(32).optional(),
+    // inboundFn only; set by infra (dev falls back to the app's default).
+    INBOUND_MAIL_DOMAIN: z
+      .string()
+      .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/)
+      .optional(),
     UNSUB_HMAC_KEY_SECRET_ARN: z.string().startsWith('arn:').optional(),
     // Expo push access token (enhanced push security): an ARN in AWS, plain or absent in dev.
     EXPO_ACCESS_TOKEN: z.string().min(1).optional(),

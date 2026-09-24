@@ -47,3 +47,12 @@ export const ImportLinkInput = z.object({
   as: z.enum(['wardrobe', 'wishlist']).default('wardrobe'),
 });
 export type ImportLinkInput = z.infer<typeof ImportLinkInput>;
+
+// Forwarded receipts (M3 task 10): her private forwarding address. Anyone who has it can put a
+// receipt in her Inbox for review, so she can regenerate or turn it off.
+export const InboxAddress = z.object({
+  address: z.email(),
+  createdAt: z.iso.datetime(),
+});
+export type InboxAddress = z.infer<typeof InboxAddress>;
+export const InboxAddressStatus = z.object({ address: InboxAddress.nullable() });

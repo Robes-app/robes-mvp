@@ -2,7 +2,12 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import type { ISecret } from 'aws-cdk-lib/aws-secretsmanager';
 import type { Construct } from 'constructs';
-import { configurationSetName, sesSendStatement } from '../lib/email';
+import {
+  configurationSetName,
+  INBOUND_PREFIX,
+  inboundDomain,
+  sesSendStatement,
+} from '../lib/email';
 import { keysOf, recordOf } from '../lib/record';
 import { RobesStack, type RobesStackProps } from '../lib/robes-stack';
 import { bucketArn, objectArns } from '../lib/s3-arns';
@@ -31,6 +36,7 @@ const QUEUE_ENV: Record<QueueName, string> = {
   fetch: 'FETCH_QUEUE_URL',
   notify: 'NOTIFY_QUEUE_URL',
   maintenance: 'MAINTENANCE_QUEUE_URL',
+  inbound: 'INBOUND_QUEUE_URL',
 };
 
 export class WorkersStack extends RobesStack {
@@ -87,6 +93,18 @@ export class WorkersStack extends RobesStack {
         ],
         listBucket: true,
       },
+      // Forwarded receipts: reads the raw mail SES stored, reads it with Gemini, files it to
+      // the Inbox and sends the "receipt read" email. No links in the mail are followed.
+      inbound: {
+        secrets: {
+          ...db,
+          GEMINI_API_KEY_SECRET_ARN: secrets.geminiApiKey,
+          UNSUB_HMAC_KEY_SECRET_ARN: secrets.unsubHmacKey,
+        },
+        sendTo: [],
+        s3: [{ actions: ['s3:GetObject'], prefixes: [INBOUND_PREFIX] }],
+        sendEmail: true,
+      },
     };
 
     this.functions = recordOf(keysOf(QUEUE_WORKERS), (name) => {
@@ -111,6 +129,7 @@ export class WorkersStack extends RobesStack {
                 APP_URL: config.appOrigins[0] ?? '',
               }
             : {}),
+          ...(name === 'inbound' ? { INBOUND_MAIL_DOMAIN: inboundDomain(config) } : {}),
         },
       });
 
