@@ -1,0 +1,67 @@
+name: platform-deploy-staging
+
+# Needs the GitHub environment `staging` with the vars/secrets listed in
+# platform/docs/runbooks/environments.md §GitHub.
+on:
+  push:
+    branches: [platform]
+    paths: ['platform/**', '.github/workflows/platform-deploy-*.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: platform-deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+defaults:
+  run:
+    working-directory: platform
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      ROBES_STAGING_AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      ROBES_VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
+      ROBES_STAGING_CF_PUBLIC_KEY: ${{ vars.CLOUDFRONT_PUBLIC_KEY }}
+      ROBES_STAGING_MEDIA_DOMAIN: ${{ vars.MEDIA_DOMAIN }}
+      ROBES_STAGING_MEDIA_CERT_ARN: ${{ vars.MEDIA_CERT_ARN }}
+      ROBES_STAGING_ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
+      ROBES_STAGING_BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with: { package_json_file: platform/package.json }
+      - uses: actions/setup-node@v5
+        with: { node-version-file: platform/.nvmrc, cache: pnpm, cache-dependency-path: platform/pnpm-lock.yaml }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @robes/infra test
+
+      - name: supabase db push
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+        run: |
+          pnpm supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          pnpm supabase db push
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-west-1
+          role-session-name: robes-deploy-staging-${{ github.run_id }}
+
+      - name: cdk deploy (Staging)
+        working-directory: platform/infra
+        run: pnpm exec cdk deploy --all -c stage=staging --require-approval never --ci
+
+      - name: smoke
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          curl -fsS --retry 10 --retry-delay 15 --retry-all-errors "$APP_URL/api/v1/health" | tee /dev/stderr | grep -q '"ok":true'
