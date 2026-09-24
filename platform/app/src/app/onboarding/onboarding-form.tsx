@@ -1,5 +1,6 @@
 'use client';
 
+import { useApiClient } from '@robes/api-client/react';
 import { onboarding as copy } from '@robes/copy';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
@@ -7,6 +8,7 @@ import { Field, PrimaryButton } from '@/components/field';
 
 export function OnboardingForm({ initialFirstName }: { initialFirstName: string }) {
   const router = useRouter();
+  const api = useApiClient();
   const [firstName, setFirstName] = useState(initialFirstName);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -15,17 +17,14 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
     event.preventDefault();
     setBusy(true);
     setError(null);
-    const json = { 'content-type': 'application/json' };
-    const saved = await fetch('/api/v1/me', {
-      method: 'PATCH',
-      headers: json,
-      body: JSON.stringify({ firstName: firstName.trim() }),
-    });
-    const done = saved.ok
-      ? await fetch('/api/v1/me/onboarding/complete', { method: 'POST' })
-      : saved;
+    try {
+      await api.call('me.update', { input: { firstName: firstName.trim() } });
+      await api.call('me.onboarding.complete');
+    } catch {
+      setBusy(false);
+      return setError(copy.failed);
+    }
     setBusy(false);
-    if (!done.ok) return setError(copy.failed);
     router.replace('/');
     router.refresh();
   }

@@ -165,7 +165,8 @@ export async function toApiClientError(res: Response): Promise<ApiClientError> {
 const defaultSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
-  const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+  // Looked up per call so polyfills or test doubles installed later are honoured.
+  const doFetch: typeof fetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
   const baseUrl = options.baseUrl.replace(/\/$/, '');
   const retries = options.retries ?? 2;
   const retryDelay = options.retryDelayMs ?? ((attempt: number) => 250 * 2 ** attempt);

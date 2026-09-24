@@ -6,10 +6,12 @@
     "@expo-google-fonts/cormorant": "^0.4.2",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/ui": "~57.0.19",
+    "@robes/api-client": "workspace:*",
     "@robes/contracts": "workspace:*",
     "@robes/copy": "workspace:*",
     "@robes/icons": "workspace:*",
     "@robes/tokens": "workspace:*",
+    "@tanstack/react-query": "5.103.2",
     "better-auth": "1.7.5",
     "expo": "~57.0.24",
     "expo-constants": "~57.0.19",
@@ -61,7 +63,10 @@
   "jest": {
     "preset": "jest-expo",
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/src/$1"
+      "^@/(.*)$": "<rootDir>/src/$1",
+      "^react$": "<rootDir>/node_modules/react",
+      "^react/(.*)$": "<rootDir>/node_modules/react/$1",
+      "^@tanstack/react-query$": "<rootDir>/node_modules/@tanstack/react-query"
     }
   }
 }

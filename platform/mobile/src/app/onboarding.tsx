@@ -1,12 +1,15 @@
+import { queryKeys, useApiClient } from '@robes/api-client/react';
 import { onboarding as copy } from '@robes/copy';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
 import { Field, PrimaryButton } from '@/components/form';
-import { api } from '@/lib/api';
 
 export default function Onboarding() {
   const router = useRouter();
+  const api = useApiClient();
+  const queryClient = useQueryClient();
   const [firstName, setFirstName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -15,8 +18,9 @@ export default function Onboarding() {
     setBusy(true);
     setError(null);
     try {
-      await api('/me', { method: 'PATCH', body: JSON.stringify({ firstName: firstName.trim() }) });
-      await api('/me/onboarding/complete', { method: 'POST' });
+      await api.call('me.update', { input: { firstName: firstName.trim() } });
+      await api.call('me.onboarding.complete');
+      await queryClient.invalidateQueries({ queryKey: queryKeys.route('me.get') });
       router.replace('/');
     } catch {
       setError(copy.failed);

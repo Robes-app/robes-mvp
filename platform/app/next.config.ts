@@ -13,6 +13,7 @@ const config: NextConfig = {
   poweredByHeader: false,
   transpilePackages: [
     '@robes/api',
+    '@robes/api-client',
     '@robes/auth',
     '@robes/config',
     '@robes/contracts',

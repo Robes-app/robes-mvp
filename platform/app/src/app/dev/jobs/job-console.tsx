@@ -1,6 +1,6 @@
 'use client';
 
-import { StartJobOutput } from '@robes/contracts';
+import { useApiMutation } from '@robes/api-client/react';
 import { jobs as copy } from '@robes/copy';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { useState } from 'react';
@@ -9,28 +9,25 @@ import { useJob } from '@/lib/use-job';
 
 export function JobConsole({ initialJobId }: { initialJobId: string | null }) {
   const [jobId, setJobId] = useState(initialJobId);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { job, connection } = useJob(jobId);
   const active = job !== null && !isTerminalJobStatus(job.status);
+  const startJob = useApiMutation('jobs.fake', {
+    onSuccess: ({ jobId: id }) => {
+      setJobId(id);
+      // Keeps the job in the URL so a refresh resumes it.
+      window.history.replaceState(null, '', `?job=${id}`);
+    },
+  });
+  const cancelJob = useApiMutation('jobs.cancel');
+  const busy = startJob.isPending;
+  const error = startJob.isError ? copy.dev.startFailed : null;
 
-  async function start() {
-    setBusy(true);
-    setError(null);
-    const res = await fetch('/api/v1/jobs/fake', {
-      method: 'POST',
-      headers: { 'idempotency-key': crypto.randomUUID() },
-    });
-    setBusy(false);
-    const started = res.ok ? StartJobOutput.safeParse(await res.json()) : null;
-    if (!started?.success) return setError(copy.dev.startFailed);
-    setJobId(started.data.jobId);
-    // Keeps the job in the URL so a refresh resumes it.
-    window.history.replaceState(null, '', `?job=${started.data.jobId}`);
+  function start() {
+    startJob.mutate();
   }
 
-  async function cancel() {
-    if (jobId) await fetch(`/api/v1/jobs/${jobId}/cancel`, { method: 'POST' });
+  function cancel() {
+    if (jobId) cancelJob.mutate({ params: { id: jobId } });
   }
 
   return (

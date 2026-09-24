@@ -1,6 +1,8 @@
 'use client';
 
-import { JOB_EVENT, JobSnapshot } from '@robes/contracts';
+import { useApiClient } from '@robes/api-client/react';
+import { openEvents } from '@robes/api-client/sse';
+import { JOB_EVENT, type JobSnapshot } from '@robes/contracts';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { useEffect, useState } from 'react';
 
@@ -18,17 +20,10 @@ export interface JobState {
   connection: JobConnection;
 }
 
-function parseSnapshot(data: string): JobSnapshot | null {
-  try {
-    return JobSnapshot.parse(JSON.parse(data));
-  } catch {
-    return null;
-  }
-}
-
 // Live job progress over SSE (UX-05/UX-10: no polling). Every event is a full snapshot, so a
 // reconnect or a page refresh resumes from the row's latest stage.
 export function useJob(jobId: string | null): JobState {
+  const api = useApiClient();
   const [state, setState] = useState<JobState>({ job: null, connection: 'idle' });
 
   useEffect(() => {
@@ -37,23 +32,22 @@ export function useJob(jobId: string | null): JobState {
       return;
     }
     setState({ job: null, connection: 'connecting' });
-    const source = new EventSource(`/api/v1/jobs/${encodeURIComponent(jobId)}/events`);
-    source.addEventListener(JOB_EVENT, (event) => {
-      const job = parseSnapshot((event as MessageEvent<string>).data);
-      if (!job) return;
-      const done = isTerminalJobStatus(job.status);
-      // Close before the server ends the stream, or EventSource would reconnect.
-      if (done) source.close();
-      setState({ job, connection: done ? 'closed' : 'open' });
+    const stream = openEvents(api, 'jobs.events', {
+      params: { id: jobId },
+      on: {
+        [JOB_EVENT]: (job) => {
+          const done = isTerminalJobStatus(job.status);
+          // Close before the server ends the stream, or EventSource would reconnect.
+          if (done) stream.close();
+          setState({ job, connection: done ? 'closed' : 'open' });
+        },
+      },
+      // EventSource retries dropped streams itself; closed means the server answered with an error.
+      onError: ({ closed }) =>
+        setState((s) => ({ ...s, connection: closed ? 'unavailable' : 'reconnecting' })),
     });
-    // EventSource retries dropped streams itself; CLOSED means the server answered with an error.
-    source.onerror = () =>
-      setState((s) => ({
-        ...s,
-        connection: source.readyState === EventSource.CLOSED ? 'unavailable' : 'reconnecting',
-      }));
-    return () => source.close();
-  }, [jobId]);
+    return () => stream.close();
+  }, [api, jobId]);
 
   return state;
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Cormorant, Inter } from 'next/font/google';
 import { connection } from 'next/server';
+import { Providers } from '@/components/providers';
 import './globals.css';
 
 const cormorant = Cormorant({
@@ -22,7 +23,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   await connection();
   return (
     <html lang="en" className={`${cormorant.variable} ${inter.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

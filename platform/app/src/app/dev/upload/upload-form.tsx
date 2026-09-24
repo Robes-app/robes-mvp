@@ -1,32 +1,29 @@
 'use client';
 
-import type { Asset, CreateUploadOutput } from '@robes/contracts';
+import type { ApiClient } from '@robes/api-client';
+import { useApiClient } from '@robes/api-client/react';
+import { type Asset, UploadContentType } from '@robes/contracts';
 import { devUpload as copy } from '@robes/copy';
 import { type ChangeEvent, useState } from 'react';
 import { Field, SecondaryButton } from '@/components/field';
 
-const JSON_HEADERS = { 'content-type': 'application/json' };
-
-async function uploadPhoto(file: File): Promise<Asset> {
-  const created = await fetch('/api/v1/uploads', {
-    method: 'POST',
-    headers: JSON_HEADERS,
-    body: JSON.stringify({ kind: 'wardrobe', contentType: file.type, bytes: file.size }),
+async function uploadPhoto(api: ApiClient, file: File): Promise<Asset> {
+  const contentType = UploadContentType.parse(file.type);
+  const { assetId, upload } = await api.call('uploads.create', {
+    input: { kind: 'wardrobe', contentType, bytes: file.size },
   });
-  if (!created.ok) throw new Error('create');
-  const { assetId, upload } = (await created.json()) as CreateUploadOutput;
+  // The bytes go straight to storage on the presigned URL, never through the API (SEC-20).
   const put = await fetch(upload.url, {
     method: upload.method,
     headers: upload.headers,
     body: file,
   });
   if (!put.ok) throw new Error('put');
-  const completed = await fetch(`/api/v1/uploads/${assetId}/complete`, { method: 'POST' });
-  if (!completed.ok) throw new Error('complete');
-  return (await completed.json()) as Asset;
+  return api.call('uploads.complete', { params: { id: assetId } });
 }
 
 export function UploadForm() {
+  const api = useApiClient();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +35,7 @@ export function UploadForm() {
     setError(null);
     setAsset(null);
     try {
-      setAsset(await uploadPhoto(file));
+      setAsset(await uploadPhoto(api, file));
     } catch {
       setError(copy.uploadFailed);
     } finally {
@@ -48,8 +45,8 @@ export function UploadForm() {
 
   async function refresh() {
     if (!asset) return;
-    const res = await fetch(`/api/v1/assets/${asset.id}`);
-    if (res.ok) setAsset((await res.json()) as Asset);
+    const next = await api.call('assets.get', { params: { id: asset.id } }).catch(() => null);
+    if (next) setAsset(next);
   }
 
   const largest = asset?.renditions.at(-1);
