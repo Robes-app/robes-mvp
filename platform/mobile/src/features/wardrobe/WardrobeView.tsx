@@ -1,4 +1,4 @@
-import { wardrobe as copy, nav, shell, ui } from '@robes/copy';
+import { wardrobe as copy, nav, ui } from '@robes/copy';
 import {
   Button,
   CardSkeleton,

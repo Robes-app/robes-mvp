@@ -1,6 +1,6 @@
 import { queryKeys } from '@robes/api-client/react';
 import type { Me } from '@robes/contracts';
-import { looks, onboarding } from '@robes/copy';
+import { onboarding } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import NameScreen from '../src/app/onboarding/index';
 import FirstPiece from '../src/app/onboarding/piece';

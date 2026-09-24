@@ -1,7 +1,7 @@
 import { queryKeys, useApiClient } from '@robes/api-client/react';
 import type { Me } from '@robes/contracts';
 import { onboarding as copy, errors, looks } from '@robes/copy';
-import { Button, Eyebrow, Field, Heading, PrimaryScope, Text } from '@robes/ui-native';
+import { Button, Eyebrow, Field, Heading, PrimaryScope } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
