@@ -299,6 +299,14 @@ export const looks = {
   // Robes' suggested name for an unnamed look; provisional until she names it.
   suggestedName: (firstPiece: string | null): string =>
     firstPiece ? `${firstPiece}, styled` : 'A new look',
+  look: {
+    worn: (times: number): string =>
+      times === 0 ? 'Not worn yet' : `Worn ${times} ${times === 1 ? 'time' : 'times'}`,
+    wearToday: 'Wear it today',
+    woreToday: 'Worn today.',
+    removed: 'Look removed.',
+    pieces: 'Pieces',
+  },
 } as const;
 
 // You area.

@@ -1,10 +1,12 @@
 import { looks, ui } from '@robes/copy';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { IdeaScreen, JobIdeaScreen } from '../src/features/looks/IdeaScreens';
+import { LookDetail } from '../src/features/looks/LookDetail';
 import { LooksView } from '../src/features/looks/LooksView';
 import { StylePiece } from '../src/features/looks/StylePiece';
+import { localDate } from '../src/features/looks/saved-looks';
 import { ME, mockFetch, renderWithApi } from './support/api';
-import { IDEA_ID, idea, JOB_ID, PIECE_ID, piece } from './support/fixtures';
+import { IDEA_ID, idea, JOB_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -90,9 +92,10 @@ test('an idea can be saved, and removing it goes back', async () => {
   expect(calls.some((c) => c.method === 'DELETE')).toBe(true);
 });
 
-test('Looks splits ideas from saved ones', async () => {
+test('Looks splits ideas from saved ones; Saved also lists her built looks', async () => {
   mockFetch({
     'GET /me': ME,
+    'GET /looks': { items: [look()], nextCursor: null },
     'GET /looks/ideas': {
       items: [
         idea({ title: 'Unsaved idea' }),
@@ -110,5 +113,42 @@ test('Looks splits ideas from saved ones', async () => {
   expect(screen.queryByText('Kept look')).toBeNull();
   await fireEvent.press(screen.getByRole('radio', { name: 'Saved' }));
   expect(await screen.findByText('Kept look')).toBeTruthy();
+  expect(screen.getByText('Weekend navy')).toBeTruthy();
   expect(screen.queryByText('Unsaved idea')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Weekend navy' }));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}`);
+});
+
+test('a saved look can be worn today (her local date) and removed with Undo', async () => {
+  const today = localDate();
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look(),
+    [`POST /looks/${LOOK_ID}/wears`]: {
+      id: JOB_ID,
+      lookId: LOOK_ID,
+      wornOn: today,
+      pieceIds: [PIECE_ID],
+    },
+    [`DELETE /looks/${LOOK_ID}`]: { ok: true },
+    [`POST /looks/${LOOK_ID}/restore`]: look(),
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  expect(await screen.findByText(looks.look.worn(2))).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: looks.look.wearToday }));
+  expect(await screen.findByText(looks.look.woreToday)).toBeTruthy();
+  expect(calls.find((c) => c.path.endsWith('/wears'))?.body).toEqual({ wornOn: today });
+
+  await fireEvent.press(screen.getByRole('button', { name: looks.result.remove }));
+  expect(mockRouter.back).toHaveBeenCalled();
+  expect(await screen.findByText(looks.look.removed)).toBeTruthy();
+  await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
+  await act(async () => {
+    await fireEvent.press(screen.getAllByRole('button', { name: ui.undo }).at(-1) as never);
+  });
+  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/restore'))).toBe(true));
+});
+
+test('localDate is the device calendar day, not UTC', () => {
+  expect(localDate(new Date(2026, 0, 5, 23, 30))).toBe('2026-01-05');
 });

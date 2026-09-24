@@ -1,4 +1,4 @@
-import type { Idea } from '@robes/contracts';
+import type { Idea, Look } from '@robes/contracts';
 import { looks as copy, nav, shell, ui } from '@robes/copy';
 import { Card, CardSkeleton, EmptyState, Image, SegmentedControl, Text } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import { TabScreen } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { useIdeas } from './ideas';
+import { useSavedLooks } from './saved-looks';
 
 type Segment = 'saved' | 'ideas';
 const SEGMENTS = [
@@ -16,6 +17,26 @@ const SEGMENTS = [
 ] as const;
 
 const DAY_MS = 86_400_000;
+
+type Entry = { kind: 'look'; look: Look } | { kind: 'idea'; idea: Idea };
+
+function LookCard({ look, onPress }: { look: Look; onPress: () => void }) {
+  const first = look.pieces.find((p) => p.piece.image)?.piece.image;
+  const uri = renditionUri(first, 180);
+  return (
+    <Card onPress={onPress} accessibilityLabel={look.name} className="flex-1">
+      {uri ? <Image source={uri} alt="" blurhash={first?.blurhash} recyclingKey={look.id} /> : null}
+      <View className="gap-1 p-2">
+        <Text size="small" numberOfLines={1}>
+          {look.name}
+        </Text>
+        <Text size="caption" tone="muted">
+          {copy.look.worn(look.timesWorn)}
+        </Text>
+      </View>
+    </Card>
+  );
+}
 
 function IdeaCard({ idea, onPress }: { idea: Idea; onPress: () => void }) {
   const hero = idea.frames.find((f) => f.status === 'ready');
@@ -46,7 +67,15 @@ export function LooksView() {
   const router = useRouter();
   const [segment, setSegment] = useState<Segment>('ideas');
   const { data, isPending, isError, error, refetch, isRefetching } = useIdeas();
-  const items = (data?.items ?? []).filter((i) => (segment === 'saved') === (i.savedAt !== null));
+  const saved = useSavedLooks();
+  const ideas: Entry[] = (data?.items ?? [])
+    .filter((i) => (segment === 'saved') === (i.savedAt !== null))
+    .map((idea) => ({ kind: 'idea', idea }));
+  // Saved: her built looks first, then ideas she kept.
+  const items: Entry[] =
+    segment === 'saved'
+      ? [...(saved.data?.items ?? []).map((look): Entry => ({ kind: 'look', look })), ...ideas]
+      : ideas;
   const empty =
     segment === 'ideas'
       ? {
@@ -79,17 +108,24 @@ export function LooksView() {
       ) : (
         <FlatList
           data={items}
-          keyExtractor={(i) => i.id}
+          keyExtractor={(e) => (e.kind === 'look' ? e.look.id : e.idea.id)}
           numColumns={2}
           columnWrapperClassName="gap-3"
           contentContainerClassName="gap-3 px-6 pb-8"
           renderItem={({ item }) => (
             <View className="flex-1">
-              <IdeaCard idea={item} onPress={() => router.push(`/idea/${item.id}`)} />
+              {item.kind === 'look' ? (
+                <LookCard look={item.look} onPress={() => router.push(`/look/${item.look.id}`)} />
+              ) : (
+                <IdeaCard idea={item.idea} onPress={() => router.push(`/idea/${item.idea.id}`)} />
+              )}
             </View>
           )}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => void Promise.all([refetch(), saved.refetch()])}
+            />
           }
           ListEmptyComponent={<EmptyState {...empty} />}
         />
