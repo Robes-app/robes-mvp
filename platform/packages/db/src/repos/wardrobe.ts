@@ -3,6 +3,7 @@ import { type Insertable, sql, type Updateable } from 'kysely';
 import type { Db } from '../client';
 import type { WardrobeItems } from '../database.types';
 import type { UserId } from '../ids';
+import { afterCursor, createdMs, toPage } from './paging';
 
 export const PIECE_COLUMNS = [
   'id',
@@ -50,16 +51,6 @@ export interface ListPiecesQuery {
   seasonBand?: SeasonBand | undefined;
 }
 
-function decodeCursor(cursor: string | undefined): { at: string; id: string } | null {
-  if (!cursor) return null;
-  const [at, id] = Buffer.from(cursor, 'base64url').toString().split('|');
-  return at && id ? { at, id } : null;
-}
-
-export function encodeCursor(row: { createdAt: Date; id: string }): string {
-  return Buffer.from(`${row.createdAt.toISOString()}|${row.id}`).toString('base64url');
-}
-
 // The taxonomy decides the legacy category so category and L2 can never disagree.
 type PieceColumns = Updateable<WardrobeItems>;
 
@@ -80,10 +71,6 @@ export function wardrobeRepo(db: Db) {
 
   return {
     async list(userId: UserId, q: ListPiecesQuery) {
-      const cursor = decodeCursor(q.cursor);
-      // Postgres keeps microseconds but the cursor round-trips through a JS Date (milliseconds),
-      // so order and compare at millisecond precision or same-millisecond rows skip or repeat.
-      const createdMs = sql<Date>`date_trunc('milliseconds', created_at)`;
       let query = active()
         .select(PIECE_COLUMNS)
         .where('userId', '=', userId)
@@ -93,15 +80,9 @@ export function wardrobeRepo(db: Db) {
       if (q.category) query = query.where('category', '=', q.category);
       if (q.categoryL2) query = query.where('categoryL2', '=', q.categoryL2);
       if (q.seasonBand) query = query.where('seasonBand', '=', q.seasonBand);
-      if (cursor) {
-        query = query.where(
-          sql<boolean>`(date_trunc('milliseconds', created_at), id) < (${cursor.at}::timestamptz, ${cursor.id}::uuid)`,
-        );
-      }
-      const rows = await query.execute();
-      const page = rows.slice(0, q.limit);
-      const last = page.at(-1);
-      return { items: page, nextCursor: rows.length > q.limit && last ? encodeCursor(last) : null };
+      const after = afterCursor(q.cursor);
+      if (after) query = query.where(after);
+      return toPage(await query.execute(), q.limit);
     },
 
     get(userId: UserId, id: string) {

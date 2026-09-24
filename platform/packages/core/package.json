@@ -9,7 +9,8 @@
     "./flags": "./src/flags/index.ts",
     "./jobs": "./src/jobs/index.ts",
     "./budget": "./src/budget/index.ts",
-    "./consents": "./src/consents/index.ts"
+    "./consents": "./src/consents/index.ts",
+    "./style-dna": "./src/style-dna/index.ts"
   },
   "scripts": {
     "test": "vitest run",

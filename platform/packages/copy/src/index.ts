@@ -54,9 +54,11 @@ export const onboarding = {
   continue: 'Continue',
   saving: 'Saving…',
   failed: 'Robes couldn’t save that. Try again in a moment.',
-  pieceEyebrow: 'One more thing',
-  pieceTitle: 'Add your first piece.',
-  pieceBody: 'Describe a piece you love and Robes will dress it three ways.',
+  pieceEyebrow: 'Your first piece',
+  pieceTitle: 'Tell Robes about a piece you love.',
+  pieceLabel: 'Describe it',
+  piecePlaceholder: 'A camel wool coat',
+  pieceStart: 'Style it',
   skip: 'Skip for now',
 } as const;
 
@@ -143,23 +145,43 @@ export const wardrobe = {
   deleted: 'Piece removed.',
   undo: 'Undo',
   segments: { pieces: 'Pieces', wishlist: 'Wishlist', inbox: 'Inbox' },
-  remove: 'Remove',
+  removePiece: (label: string): string => `Remove ${label}`,
+  photoAlt: (label: string): string => `Photo of ${label}`,
+  wishlistEmpty: {
+    title: 'Pieces you’re after live here.',
+    body: 'Keep a list of what you want, then tell Robes when you buy it.',
+  },
+  inboxEmpty: {
+    title: 'Pieces to check land here.',
+    body: 'When Robes isn’t sure about a photo, it waits here for you.',
+  },
+  piece: {
+    back: 'Wardrobe',
+    label: 'Name',
+    brand: 'Brand',
+    color: 'Colour',
+    size: 'Size',
+    notes: 'Notes',
+    save: 'Save changes',
+    saving: 'Saving…',
+    saved: 'Saved.',
+    remove: 'Remove',
+    stylePiece: 'Style this piece',
+  },
+  wishlist: {
+    addLabel: 'A piece you want',
+    addPlaceholder: 'Black leather loafers',
+    add: 'Add to wishlist',
+    bought: 'I bought this',
+    boughtToast: (label: string): string => `${label} is in your wardrobe now.`,
+    removed: 'Removed from your wishlist.',
+    remove: (label: string): string => `Remove ${label}`,
+  },
   edit: 'Edit',
-  save: 'Save',
-  saving: 'Saving…',
-  styleThis: 'Style this piece',
   addFailed: 'Robes couldn’t add those photos. Try again in a moment.',
   photosDenied: 'Allow Robes to see your photos in Settings to add pieces.',
   cameraDenied: 'Allow Robes to use the camera in Settings to photograph pieces.',
-  fields: {
-    label: 'Name',
-    category: 'Category',
-    colour: 'Colour',
-    brand: 'Brand',
-    size: 'Size',
-    notes: 'Notes',
-  },
-  pieceAlt: (label: string): string => `Photo of ${label}`,
+  category: 'Category',
 } as const;
 
 // SEC-84: two equal choices, asked once analytics is unanswered; changeable in You › Privacy.
@@ -274,6 +296,9 @@ export const looks = {
       body: 'Save an idea to keep it.',
     },
   },
+  // Robes' suggested name for an unnamed look; provisional until she names it.
+  suggestedName: (firstPiece: string | null): string =>
+    firstPiece ? `${firstPiece}, styled` : 'A new look',
 } as const;
 
 // You area.

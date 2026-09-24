@@ -41,7 +41,8 @@ test('a reading piece says so and offers no styling yet', async () => {
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
   expect(await screen.findByText(wardrobe.reading)).toBeTruthy();
   expect(
-    screen.getByRole('button', { name: wardrobe.styleThis }).props.accessibilityState.disabled,
+    screen.getByRole('button', { name: wardrobe.piece.stylePiece }).props.accessibilityState
+      .disabled,
   ).toBe(true);
 });
 
@@ -53,9 +54,9 @@ test('editing saves only the edited fields, blanks as null', async () => {
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
   await fireEvent.press(await screen.findByRole('button', { name: wardrobe.edit }));
-  await fireEvent.changeText(screen.getByLabelText(wardrobe.fields.brand), 'Toteme');
-  await fireEvent.changeText(screen.getByLabelText(wardrobe.fields.colour), '  ');
-  await fireEvent.press(screen.getByRole('button', { name: wardrobe.save }));
+  await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.brand), 'Toteme');
+  await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.color), '  ');
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.save }));
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({
     label: 'Camel wool coat',
@@ -73,7 +74,7 @@ test('removing a piece goes back and offers Undo, which restores it', async () =
     'GET /wardrobe/items': { items: [piece()], nextCursor: null },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.remove }));
+  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.piece.remove }));
   expect(mockRouter.back).toHaveBeenCalled();
   expect(await screen.findByText(wardrobe.deleted)).toBeTruthy();
   await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));

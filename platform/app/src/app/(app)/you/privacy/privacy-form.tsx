@@ -2,46 +2,11 @@
 
 import type { UpdateConsentsInput } from '@robes/contracts';
 import { consent as copy } from '@robes/copy';
-import { useId, useState } from 'react';
+import { Switch } from '@robes/ui';
+import { useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 
 type Change = UpdateConsentsInput['consents'];
-
-function Toggle({
-  label,
-  hint,
-  checked,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  hint: string;
-  checked: boolean;
-  disabled: boolean;
-  onChange(next: boolean): void;
-}) {
-  const hintId = useId();
-  return (
-    <label className="flex items-start justify-between gap-6">
-      <span className="flex flex-col gap-1">
-        <span className="text-base text-ink">{label}</span>
-        <span id={hintId} className="text-sm text-ink-muted">
-          {hint}
-        </span>
-      </span>
-      <input
-        type="checkbox"
-        role="switch"
-        aria-checked={checked}
-        aria-describedby={hintId}
-        className="mt-1 size-5 accent-ink"
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-    </label>
-  );
-}
 
 export function PrivacyForm() {
   const { consents, updateConsents } = useAnalytics();
@@ -61,14 +26,14 @@ export function PrivacyForm() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Toggle
+      <Switch
         label={copy.analyticsLabel}
         hint={copy.analyticsHint}
         checked={analytics}
         disabled={status === 'saving'}
         onChange={(on) => save({ analytics: on })}
       />
-      <Toggle
+      <Switch
         label={copy.replayLabel}
         hint={copy.replayHint}
         checked={analytics && shown.replay === true}

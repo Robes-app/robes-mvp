@@ -78,18 +78,22 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
    ```bash
    export ROBES_STAGING_AWS_ACCOUNT_ID=<stg-account-id>
    export ROBES_STAGING_MEDIA_DOMAIN=media.staging.byrobes.com ROBES_STAGING_MEDIA_CERT_ARN=<arn>
-   pnpm cdk deploy --all -c stage=staging --profile robes-staging
+   pnpm cdk deploy 'Staging/*' -c stage=staging --profile robes-staging
    ```
+   Select stacks by Stage path (`'Staging/*'`); `--all` only matches top-level stacks and deploys nothing here. Review first with `pnpm cdk diff 'Staging/*' -c stage=staging`.
    If the account already has a GitHub OIDC provider, set `ROBES_<STAGE>_GITHUB_OIDC_PROVIDER_ARN` to import it instead.
 7. Set every secret value (`key-rotation.md` §Set a value). Secrets are created with random placeholders, all under `robes-<env>/`: `database/url`, `auth/better-auth-secret`, `auth/apple`, `auth/google`, `gemini/api-key`, `cloudfront/signing-key`, `fal/api-key`, `expo/access-token`, `unsub/hmac-key`. The exception is `api/aws-access-key`, which CDK fills with the API user's access key (§6 step 8).
 8. `sharp` for RenditionFn needs no setup: CDK installs the linux-arm64 build (version pinned in `packages/media/package.json`) into the function asset during bundling (`infra/src/lib/native-modules.ts`). Prebuilt sharp can't decode HEIC; see README → Media.
 9. DNS: `media.staging` CNAME → the `MediaDistributionDomain` stack output.
-10. Confirm the SNS email subscription for alerts/budgets (`ROBES_<STAGE>_ALERT_EMAIL`). Optional: AWS Chatbot → Slack `#robes-alerts` subscribed to `robes-<env>-alerts`.
+10. **Sharing one account** (sandbox, or staging and production side by side): stack names (`Stg-*` / `Prod-*`) and resource names (`robes-staging-*` / `robes-prod-*`) are stage-prefixed and the media bucket is suffixed with the account id, so both stages deploy into one account. Pick a stage with `-c stage=` or `ROBES_STAGE`. Per-stage overrides for small or member accounts:
+    - `ROBES_<STAGE>_GENERATE_RESERVED_CONCURRENCY=0`: no reserved concurrency (needed while the account's Lambda limit is 10).
+    - `ROBES_<STAGE>_BUDGETS=off`: skip the Budgets stack. An Organizations member account can't create budgets; set them from the payer account instead.
+11. Confirm the SNS email subscription for alerts/budgets (`ROBES_<STAGE>_ALERT_EMAIL`). Optional: AWS Chatbot → Slack `#robes-alerts` subscribed to `robes-<env>-alerts`.
 
 ## 5. GitHub
 
 1. Settings → Environments: create `staging` and `production`. Production: required reviewer, deployment branches limited to `platform` (later the trunk).
-2. Per environment **variables**: `AWS_ACCOUNT_ID`, `AWS_DEPLOY_ROLE_ARN`, `APP_URL` (`https://staging.byrobes.com` / `https://app.byrobes.com`), `MEDIA_DOMAIN`, `MEDIA_CERT_ARN`, `CLOUDFRONT_PUBLIC_KEY` (optional if committed), `ALERT_EMAIL`, `BUDGET_EMAIL`.
+2. Per environment **variables**: `AWS_ACCOUNT_ID`, `AWS_DEPLOY_ROLE_ARN`, `APP_URL` (`https://staging.byrobes.com` / `https://app.byrobes.com`), `MEDIA_DOMAIN`, `MEDIA_CERT_ARN`, `CLOUDFRONT_PUBLIC_KEY` (optional if committed), `ALERT_EMAIL`, `BUDGET_EMAIL`, and optionally `BUDGETS` (`off` in a member account) and `GENERATE_RESERVED_CONCURRENCY` (§4 step 10).
 3. Per environment **secrets**: `MIGRATION_DATABASE_URL` (§2 step 4; migration role, never `robes_app`).
 4. Renovate: install the Renovate app and add a root `renovate.json` containing `{ "extends": ["local>Robes-app/robes-mvp//platform/renovate.json"] }` (Renovate only reads config at the repo root).
 

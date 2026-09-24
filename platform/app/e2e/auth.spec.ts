@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { isolateClientIp, signIn, uniqueEmail } from './helpers';
+import { declineConsent, isolateClientIp, signIn, uniqueEmail } from './helpers';
 import { latestCodeFor } from './mailpit';
 
 test.beforeEach(({ context }) => isolateClientIp(context));
@@ -9,9 +9,12 @@ test('passwordless sign-in, onboarding and sign-out', async ({ page }) => {
   await expect(page).toHaveURL(/\/auth\/sign-in\?next=%2Fwardrobe/);
 
   const email = await signIn(page);
+
+  await declineConsent(page);
   const me = await page.request.get('/api/v1/me');
   expect(await me.json()).toMatchObject({ email, firstName: 'Ann', onboarded: true });
 
+  await page.getByRole('link', { name: 'You' }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   expect((await page.request.get('/api/v1/me')).status()).toBe(401);

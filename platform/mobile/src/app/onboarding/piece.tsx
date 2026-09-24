@@ -62,11 +62,10 @@ export default function FirstPiece() {
         <View className="gap-2">
           <Eyebrow>{copy.pieceEyebrow}</Eyebrow>
           <Heading>{copy.pieceTitle}</Heading>
-          <Text tone="muted">{copy.pieceBody}</Text>
         </View>
         <Field
-          label={looks.stylePiece.describe}
-          placeholder={looks.stylePiece.describePlaceholder}
+          label={copy.pieceLabel}
+          placeholder={copy.piecePlaceholder}
           maxLength={300}
           value={text}
           onChangeText={setText}
@@ -79,7 +78,7 @@ export default function FirstPiece() {
             loading={busy === 'style'}
             loadingLabel={looks.stylePiece.starting}
           >
-            {looks.stylePiece.start}
+            {copy.pieceStart}
           </Button>
           <Button variant="quiet" onPress={skip} disabled={busy !== null} className="self-center">
             {copy.skip}

@@ -20,13 +20,14 @@
     "@robes/copy": "workspace:*",
     "@robes/core": "workspace:*",
     "@robes/db": "workspace:*",
+    "@robes/icons": "workspace:*",
     "@robes/jobs": "workspace:*",
     "@robes/logger": "workspace:*",
     "@robes/mailer": "workspace:*",
     "@robes/media": "workspace:*",
     "@robes/tokens": "workspace:*",
-    "@sentry/nextjs": "10.75.2",
     "@robes/ui": "workspace:*",
+    "@sentry/nextjs": "10.75.2",
     "@tanstack/react-query": "5.103.2",
     "better-auth": "1.7.5",
     "next": "16.3.6",
@@ -36,6 +37,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.11.1",
     "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/react": "19.3.0",

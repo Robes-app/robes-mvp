@@ -28,6 +28,8 @@ jobs:
       ROBES_PRODUCTION_MEDIA_CERT_ARN: ${{ vars.MEDIA_CERT_ARN }}
       ROBES_PRODUCTION_ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
       ROBES_PRODUCTION_BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
+      ROBES_PRODUCTION_BUDGETS: ${{ vars.BUDGETS }}
+      ROBES_PRODUCTION_GENERATE_RESERVED_CONCURRENCY: ${{ vars.GENERATE_RESERVED_CONCURRENCY }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/platform-setup
@@ -48,7 +50,8 @@ jobs:
       - name: cdk deploy (Production)
         working-directory: platform/infra
         # A script, not `pnpm exec`: exec puts a relative .bin on PATH and esbuild bundling breaks.
-        run: pnpm cdk deploy --all -c stage=production --require-approval never --ci
+        # Stacks live inside the Production Stage, so select them by path; --all only sees top-level stacks.
+        run: pnpm cdk deploy 'Production/*' -c stage=production --require-approval never --ci
 
       - name: smoke
         env:

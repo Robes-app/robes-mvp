@@ -20,6 +20,7 @@ async function signIn(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/onboarding$/);
   await page.getByLabel('First name').fill('Ann');
   await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Skip for now' }).click();
   await expect(page.getByRole('heading', { name: /, Ann\.$/ })).toBeVisible();
 }
 

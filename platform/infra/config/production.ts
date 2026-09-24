@@ -1,4 +1,4 @@
-import { fromEnv, mediaBucketName, publicKeyFor, reservedConcurrency } from './env';
+import { budgetsEnabled, fromEnv, mediaBucketName, publicKeyFor, reservedConcurrency } from './env';
 import type { StageConfig } from './types';
 
 export const production: StageConfig = {
@@ -25,5 +25,9 @@ export const production: StageConfig = {
   },
   workers: { generateReservedConcurrency: reservedConcurrency('production', 20) },
   alerts: { email: fromEnv('ROBES_PRODUCTION_ALERT_EMAIL') },
-  budget: { monthlyUsd: 1000, email: fromEnv('ROBES_PRODUCTION_BUDGET_EMAIL') },
+  budget: {
+    enabled: budgetsEnabled('production'),
+    monthlyUsd: 1000,
+    email: fromEnv('ROBES_PRODUCTION_BUDGET_EMAIL'),
+  },
 };

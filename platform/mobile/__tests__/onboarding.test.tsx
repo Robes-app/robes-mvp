@@ -29,8 +29,8 @@ test('screen 2 styles the described piece, completes onboarding and opens the re
     'POST /me/onboarding/complete': { onboardedAt: new Date().toISOString() },
   });
   await renderWithApi(<FirstPiece />);
-  await fireEvent.changeText(screen.getByLabelText(looks.stylePiece.describe), 'white linen shirt');
-  await fireEvent.press(screen.getByRole('button', { name: looks.stylePiece.start }));
+  await fireEvent.changeText(screen.getByLabelText(onboarding.pieceLabel), 'white linen shirt');
+  await fireEvent.press(screen.getByRole('button', { name: onboarding.pieceStart }));
   await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith(`/looks/job/${JOB}`));
   const generate = calls.find((c) => c.path.endsWith('/looks/generate'));
   expect(generate?.body).toEqual({ anchor: { type: 'text', text: 'white linen shirt' } });
@@ -45,8 +45,8 @@ test('screen 2 can be skipped, and a quota error stays on the screen', async () 
     'GET /me': ME,
   });
   const { queryClient } = await renderWithApi(<FirstPiece />);
-  await fireEvent.changeText(screen.getByLabelText(looks.stylePiece.describe), 'a coat');
-  await fireEvent.press(screen.getByRole('button', { name: looks.stylePiece.start }));
+  await fireEvent.changeText(screen.getByLabelText(onboarding.pieceLabel), 'a coat');
+  await fireEvent.press(screen.getByRole('button', { name: onboarding.pieceStart }));
   expect(await screen.findByText('You’ve reached today’s limit for this.')).toBeTruthy();
   expect(mockRouter.replace).not.toHaveBeenCalled();
   queryClient.setQueryData(queryKeys.call('me.get'), { ...ME, onboarded: false });

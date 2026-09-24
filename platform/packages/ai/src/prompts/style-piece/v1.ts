@@ -1,3 +1,4 @@
+import { styleDnaPromptBlock } from '@robes/core/style-dna';
 import { z } from 'zod';
 import { fenceUserText } from '../../fence';
 
@@ -38,6 +39,9 @@ export interface StyleContext {
   gender: Gender;
   styleIcons: string[];
   closet: ClosetPiece[];
+  // Stored style profile ({ color_harmony, silhouette_proportions, user_overrides }); may be empty.
+  styleDna: unknown;
+  wardrobeCount: number;
 }
 
 const FORMULA = `Every look follows the four-tier layer formula: 1) THE ANCHOR — the weather/agenda hero piece; 2) THE CANVAS — premium supporting basics; 3) THE TEXTURE — one depth-adding element; 4) THE EXCLAMATION POINT — the accessories, footwear and hardware that inject identity. Never give generic output like "jeans and a top" — name exact cuts, fabrications and styling techniques (e.g. "French-tuck a heavyweight silk button-down into high-waisted, wide-leg wool trousers").
@@ -84,8 +88,7 @@ function closetBlock(closet: ClosetPiece[]): string {
 
 export function buildSystem(ctx: StyleContext): string {
   const who = ctx.firstName ? ` The user's name is ${ctx.firstName.slice(0, 60)}.` : '';
-  const icons = ctx.styleIcons.slice(0, 12);
-  const iconLine = icons.length ? `\n\nThe user's style icons: ${icons.join(', ')}.` : '';
+  const dna = styleDnaPromptBlock(ctx.styleDna, ctx.wardrobeCount, ctx.styleIcons);
   const closet = closetBlock(ctx.closet);
   return `You are an expert fashion stylist known for elegant, directional styling advice. Your tone is warm, precise, and editorial — like a trusted stylist who truly understands clothes. ${genderBlock(ctx.gender)}${who}
 
@@ -95,7 +98,7 @@ ${FORMULA}
 
 ${FALLBACK_RULE}
 
-${wearerRule(ctx.gender)}${iconLine}${closet ? `\n\n${closet}` : ''}`;
+${wearerRule(ctx.gender)}${dna ? `\n\n${dna}` : ''}${closet ? `\n\n${closet}` : ''}`;
 }
 
 export type Anchor = { type: 'piece'; label: string } | { type: 'text'; text: string };

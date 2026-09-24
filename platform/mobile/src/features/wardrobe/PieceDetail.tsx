@@ -57,31 +57,31 @@ function EditForm({ piece, onDone }: { piece: Piece; onDone: () => void }) {
     <PrimaryScope>
       <View className="gap-4">
         <Field
-          label={copy.fields.label}
+          label={copy.piece.label}
           value={draft.label}
           onChangeText={set('label')}
           maxLength={120}
         />
         <Field
-          label={copy.fields.colour}
+          label={copy.piece.color}
           value={draft.color}
           onChangeText={set('color')}
           maxLength={60}
         />
         <Field
-          label={copy.fields.brand}
+          label={copy.piece.brand}
           value={draft.brand}
           onChangeText={set('brand')}
           maxLength={80}
         />
         <Field
-          label={copy.fields.size}
+          label={copy.piece.size}
           value={draft.size}
           onChangeText={set('size')}
           maxLength={40}
         />
         <Field
-          label={copy.fields.notes}
+          label={copy.piece.notes}
           value={draft.notes}
           onChangeText={set('notes')}
           maxLength={1000}
@@ -103,9 +103,9 @@ function EditForm({ piece, onDone }: { piece: Piece; onDone: () => void }) {
           }
           disabled={draft.label.trim() === ''}
           loading={update.isPending}
-          loadingLabel={copy.saving}
+          loadingLabel={copy.piece.saving}
         >
-          {copy.save}
+          {copy.piece.save}
         </Button>
         <Button variant="quiet" onPress={onDone} className="self-center">
           {ui.close}
@@ -149,7 +149,7 @@ export function PieceDetail({ id }: { id: string }) {
     >
       <ScrollView contentContainerClassName="gap-4 px-6 pb-10">
         {uri ? (
-          <Image source={uri} alt={copy.pieceAlt(piece.label)} blurhash={piece.image?.blurhash} />
+          <Image source={uri} alt={copy.photoAlt(piece.label)} blurhash={piece.image?.blurhash} />
         ) : null}
         <Heading size="md">{reading ? copy.newPiece : piece.label}</Heading>
         {reading ? <Text tone="muted">{copy.reading}</Text> : null}
@@ -160,13 +160,13 @@ export function PieceDetail({ id }: { id: string }) {
           <PrimaryScope>
             <View>
               <Detail
-                label={copy.fields.category}
+                label={copy.category}
                 value={[piece.category, piece.categoryL2].filter(Boolean).join(' · ')}
               />
-              <Detail label={copy.fields.colour} value={piece.color} />
-              <Detail label={copy.fields.brand} value={piece.brand} />
-              <Detail label={copy.fields.size} value={piece.size} />
-              <Detail label={copy.fields.notes} value={piece.notes} />
+              <Detail label={copy.piece.color} value={piece.color} />
+              <Detail label={copy.piece.brand} value={piece.brand} />
+              <Detail label={copy.piece.size} value={piece.size} />
+              <Detail label={copy.piece.notes} value={piece.notes} />
             </View>
             <View className="gap-3 pt-2">
               <Button
@@ -176,7 +176,7 @@ export function PieceDetail({ id }: { id: string }) {
                   router.push({ pathname: '/looks/style', params: { pieceId: piece.id } })
                 }
               >
-                {copy.styleThis}
+                {copy.piece.stylePiece}
               </Button>
               <Button variant="secondary" onPress={() => setEditing(true)}>
                 {copy.edit}
@@ -190,7 +190,7 @@ export function PieceDetail({ id }: { id: string }) {
                   router.back();
                 }}
               >
-                {copy.remove}
+                {copy.piece.remove}
               </Button>
             </View>
           </PrimaryScope>

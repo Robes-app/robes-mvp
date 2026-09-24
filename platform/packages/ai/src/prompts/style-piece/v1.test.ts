@@ -1,3 +1,4 @@
+import { buildColorHarmony } from '@robes/core/style-dna';
 import { describe, expect, it } from 'vitest';
 import { buildImagePrompt, buildSystem, buildUser, fakeOutput, Output } from './v1';
 
@@ -6,6 +7,8 @@ const ctx = {
   gender: 'woman' as const,
   styleIcons: ['Phoebe Philo'],
   closet: [],
+  styleDna: {},
+  wardrobeCount: 0,
 };
 
 describe('looks.style_piece v1', () => {
@@ -16,6 +19,16 @@ describe('looks.style_piece v1', () => {
     expect(system).toContain('"woman" unless');
     expect(system).toContain("The user's name is Ann.");
     expect(system).not.toContain('DIGITISED WARDROBE');
+  });
+
+  it('injects style icons and the stored style DNA like legacy /api/style', () => {
+    const { dna } = buildColorHarmony({ undertone: 'Warm', contrast: 'Low', chroma: 'Low' });
+    const system = buildSystem({ ...ctx, styleDna: { color_harmony: dna }, wardrobeCount: 3 });
+    expect(system).toContain(
+      'STYLE ICONS — the user named these as their taste references: Phoebe Philo.',
+    );
+    expect(system).toContain('Colour archetype: Soft Autumn');
+    expect(system).toContain('building their digital closet (3/15 items)');
   });
 
   it('adds the closet directive by size', () => {
