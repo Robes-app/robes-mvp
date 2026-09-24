@@ -8,7 +8,7 @@ Every paid or risky route declares `flag: '<key>'` in `route()` (`../api.md` §1
    ```sql
    select key, enabled, updated_at from app.feature_flags order by key;
    ```
-2. Turn it off (psql as `postgres`, or the admin screen once it exists; never the SQL editor on production unless psql is unavailable):
+2. Turn it off (the admin screen once it exists; until then `psql` as the migration/admin role):
    ```sql
    update app.feature_flags set enabled = false, updated_at = now() where key = 'looks.generate';
    ```

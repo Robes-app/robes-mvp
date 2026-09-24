@@ -1,6 +1,6 @@
 # Runbook — Budget breach
 
-Triggered by: AWS Budgets (50/80/100 % actual, 100 % forecast → SNS `robes-<env>-alerts`), GCP budget alerts, Vercel spend alerts, Supabase/Upstash usage emails, or the in-app breaker (SEC-03) returning `capacity`.
+Triggered by: AWS Budgets (50/80/100 % actual, 100 % forecast → SNS `robes-<env>-alerts`), GCP budget alerts, Vercel spend alerts, Postgres host and Upstash usage emails, or the in-app breaker (SEC-03) returning `capacity`.
 
 ## 1. Triage (15 min)
 

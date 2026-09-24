@@ -14,7 +14,7 @@ aws secretsmanager put-secret-value --secret-id robes-$ENV/<name> \
 Workers read secrets at cold start. Force new cold starts after any change:
 
 ```bash
-for fn in generate batch notify maintenance rendition; do
+for fn in generate batch notify maintenance rendition; do   # functions holding the rotated secret
   aws lambda update-function-configuration --function-name robes-$ENV-$fn \
     --description "secret rotated $(date -u +%FT%TZ)" >/dev/null
 done
@@ -25,15 +25,35 @@ Vercel values: update in Project → Settings → Environment Variables, then **
 ## Database: `robes_app` password (`DATABASE_URL`)
 
 1. Generate: `PW=$(openssl rand -base64 36 | tr -d '/+=' | cut -c1-40)`.
-2. As `postgres` (psql, not the SQL editor): `alter role robes_app with password '<PW>';`. Existing pooled connections keep working; new ones need the new password, so move fast through steps 3–4.
-3. Update Secrets Manager `robes-$ENV/database/url` with the new pooler URL, then force Lambda cold starts (above).
+2. As the host's admin user via `psql` (not a web console): `alter role robes_app with password '<PW>';`. Open pooled connections keep working; new ones need the new password, so move through steps 3–4 quickly.
+3. Update Secrets Manager `robes-$ENV/database/url` with the new URL, then force Lambda cold starts (above).
 4. Update Vercel `DATABASE_URL` and redeploy.
-5. Verify: `/api/v1/health` ok; a fake/real job completes; no `password authentication failed` in Sentry/CloudWatch for 10 min. `unset PW`.
+5. Verify: `/api/v1/health` ok; a job completes; no `password authentication failed` in Sentry/CloudWatch for 10 min. `unset PW`.
 
-## Supabase service-role / JWT signing keys
+The migration role (`MIGRATION_DATABASE_URL`, GitHub environment secret) rotates the same way: `alter role robes_migrator with password …`, then update the GitHub secret. Nothing else uses it.
 
-1. Dashboard → Settings → API keys: create a new **secret** key; update Vercel `SUPABASE_SERVICE_ROLE_KEY` + Secrets Manager `robes-$ENV/supabase/service-role`; redeploy + cold-start Lambdas; then revoke the old key.
-2. JWT signing key (asymmetric): Auth → Signing keys → **Create standby key** → wait ≥ 20 min (JWKS caches) → **Rotate** (standby becomes current) → after the longest session TTL, **Revoke** the old key. The API verifies via JWKS, so no deploy is needed.
+## Better Auth secret (`BETTER_AUTH_SECRET`)
+
+Rotating it **signs everyone out** (sessions and cookies are signed with it) and invalidates in-flight OTP codes. Do it on leak, or in a quiet window with a heads-up.
+
+1. `openssl rand -base64 48` → Vercel `BETTER_AUTH_SECRET` (sensitive) → redeploy.
+2. Update the backup of record: `robes-$ENV/auth/better-auth-secret`.
+3. Optionally clear stale rows: `delete from app.<session table>;` (sessions are unusable anyway).
+4. Verify sign-in with email OTP, Apple and Google.
+
+## Apple Sign in with Apple key
+
+Apple allows two active keys per Services ID, so rotate without downtime:
+
+1. Apple Developer → Keys → new key with Sign in with Apple, same primary App ID. Download the `.p8`; note the Key ID.
+2. Update `robes-$ENV/auth/apple` (`keyId`, `privateKey`) and Vercel `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`; redeploy.
+3. Verify Apple sign-in on web (and iOS once native uses it); then **revoke** the old key in Apple Developer. Delete the local `.p8`.
+
+## Google OAuth client secret
+
+1. Google Cloud → APIs & Services → Credentials → the web client → **Add secret** (the old one stays valid).
+2. Update `robes-$ENV/auth/google` and Vercel `GOOGLE_CLIENT_SECRET`; redeploy; verify Google sign-in.
+3. Disable, then delete, the old secret.
 
 ## Gemini API key
 
