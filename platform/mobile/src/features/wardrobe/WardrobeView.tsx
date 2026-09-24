@@ -15,6 +15,7 @@ import { errorMessage } from '@/lib/errors';
 import { useAddPieces } from './add-pieces';
 import { PieceCard } from './PieceCard';
 import { usePieces } from './pieces';
+import { WishlistView } from './WishlistView';
 
 type Segment = 'pieces' | 'wishlist' | 'inbox';
 const SEGMENTS = [
@@ -107,11 +108,11 @@ export function WardrobeView() {
           onChange={setSegment}
         />
       </View>
-      {segment === 'pieces' ? (
-        <Pieces />
-      ) : (
-        <EmptyState title={shell.soon.title} body={shell.soon.body} />
-      )}
+      {segment === 'pieces' ? <Pieces /> : null}
+      {segment === 'wishlist' ? <WishlistView /> : null}
+      {segment === 'inbox' ? (
+        <EmptyState title={copy.inboxEmpty.title} body={copy.inboxEmpty.body} />
+      ) : null}
     </TabScreen>
   );
 }
