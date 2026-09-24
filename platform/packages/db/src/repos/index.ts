@@ -3,6 +3,7 @@ import { adminRepo } from './admin';
 import { assetProcessingRepo, assetsRepo } from './assets';
 import { flagsRepo } from './flags';
 import { jobRunnerRepo, jobsRepo } from './jobs';
+import { ledgerRepo } from './ledger';
 import { maintenanceRepo } from './maintenance';
 import { profilesRepo } from './profiles';
 import { usageRepo } from './usage';
@@ -14,6 +15,8 @@ export function createRepositories(db: Db) {
     assets: assetsRepo(db),
     flags: flagsRepo(db),
     jobs: jobsRepo(db),
+    // Global capacity check only; holds no per-user data.
+    capacity: { isExhausted: ledgerRepo(db).isExhausted },
     profiles: profilesRepo(db),
     usage: usageRepo(db),
   };
@@ -24,6 +27,7 @@ export function createSystemRepositories(db: Db) {
   return {
     assets: assetProcessingRepo(db),
     jobs: jobRunnerRepo(db),
+    ledger: ledgerRepo(db),
     maintenance: maintenanceRepo(db),
   };
 }
@@ -32,4 +36,5 @@ export type Repositories = ReturnType<typeof createRepositories>;
 export type SystemRepositories = ReturnType<typeof createSystemRepositories>;
 export type { AssetKind } from './assets';
 export type { CreateJobInput } from './jobs';
+export type { CallRecord } from './ledger';
 export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';
