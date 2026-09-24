@@ -9,6 +9,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import type * as sqs from 'aws-cdk-lib/aws-sqs';
 import type { Construct } from 'constructs';
+import { INBOUND_PREFIX, receiptRuleSetName } from '../lib/email';
 import { SHARP_VERSION } from '../lib/native-modules';
 import { RobesStack, type RobesStackProps, removalPolicy } from '../lib/robes-stack';
 import { bucketArn, objectArns } from '../lib/s3-arns';
@@ -92,6 +93,8 @@ export class MediaStack extends RobesStack {
         { id: 'uploads-30d', prefix: 'uploads/', expiration: Duration.days(30) },
         // Data exports (SEC-81): the download link lives 7 days, so the file does too.
         { id: 'exports-7d', prefix: 'exports/', expiration: Duration.days(7) },
+        // Forwarded receipts (raw MIME from SES): read once, kept a week for retries.
+        { id: 'inbound-7d', prefix: INBOUND_PREFIX, expiration: Duration.days(7) },
         {
           id: 'media-intelligent-tiering',
           prefix: 'media/',
@@ -110,6 +113,22 @@ export class MediaStack extends RobesStack {
         },
       ],
     });
+    // SES stores inbound mail here for this account's receipt rule set only (SES checks this
+    // permission when the rule is created, so InboundStack depends on this stack).
+    this.bucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: 'SesInboundPut',
+        actions: ['s3:PutObject'],
+        principals: [new iam.ServicePrincipal('ses.amazonaws.com')],
+        resources: objectArns(this, bucketName, [INBOUND_PREFIX]),
+        conditions: {
+          StringEquals: { 'aws:SourceAccount': Aws.ACCOUNT_ID },
+          ArnLike: {
+            'aws:SourceArn': `arn:${Aws.PARTITION}:ses:${Aws.REGION}:${Aws.ACCOUNT_ID}:receipt-rule-set/${receiptRuleSetName(config)}:receipt-rule/*`,
+          },
+        },
+      }),
+    );
     // Native notification config: bucket.addEventNotification would add a custom-resource
     // Lambda whose role needs s3:PutBucketNotification on `*`.
     const cfnBucket = this.bucket.node.defaultChild as s3.CfnBucket;

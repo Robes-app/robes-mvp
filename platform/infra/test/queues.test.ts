@@ -14,9 +14,9 @@ describe.each(['staging', 'production'] as const)('%s queues', (stageName) => {
     dlqArns.has(q) || String(q.properties.QueueName).endsWith('-dlq');
   const sources = queues.filter((q) => !isDlq(q));
 
-  it('has the five job queues', () => {
+  it('has the six job queues', () => {
     expect(sources.map((q) => q.properties.QueueName).sort()).toEqual(
-      ['fetch', 'jobs-batch', 'jobs-interactive', 'maintenance', 'notify'].map(
+      ['fetch', 'inbound', 'jobs-batch', 'jobs-interactive', 'maintenance', 'notify'].map(
         (n) => `${s.stage.config.namePrefix}-${n}`,
       ),
     );

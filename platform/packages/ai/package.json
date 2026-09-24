@@ -8,7 +8,8 @@
     "./prompts/style-piece": "./src/prompts/style-piece/v1.ts",
     "./prompts/style-analyse": "./src/prompts/style-analyse/v1.ts",
     "./prompts/daily": "./src/prompts/daily/v1.ts",
-    "./prompts/travel": "./src/prompts/travel/v1.ts"
+    "./prompts/travel": "./src/prompts/travel/v1.ts",
+    "./prompts/receipt-read": "./src/prompts/receipt-read/v1.ts"
   },
   "scripts": {
     "test": "vitest run",

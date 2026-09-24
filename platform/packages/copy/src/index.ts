@@ -614,6 +614,21 @@ export const you = {
     expired: 'That link has expired.',
     again: 'Prepare a new file',
   },
+  // Forwarded receipts: her private Robes address (M3 task 10).
+  receipts: {
+    title: 'Forward receipts',
+    body: 'Forward an order email here and Robes holds the pieces in your Inbox for a yes or no.',
+    copy: 'Copy address',
+    copied: 'Address copied.',
+    copyFailed: (address: string): string => `Copy this address: ${address}`,
+    regenerate: 'New address',
+    regenerated: 'New address ready. The old one no longer works.',
+    turnOff: 'Turn off',
+    turnedOff: 'Forwarding is off.',
+    turnOn: 'Get an address',
+    // Native: the share sheet carries Copy.
+    share: 'Share address',
+  },
 } as const;
 
 // Plan (M5): the rolling list of days.
@@ -704,6 +719,15 @@ export const notify = {
     confirm: 'Stop them',
     done: 'Done. You can turn them back on in You › Notifications.',
     invalid: 'This link doesn’t work any more. Change emails in You › Notifications.',
+  },
+  // Forwarded receipts (legacy sendReceiptMail): transactional, stood down by the receipts pref.
+  receipt: {
+    subject: (shop: string): string => `Robes read your ${shop} receipt.`,
+    heading: (shop: string): string => `Your ${shop} receipt is read.`,
+    body: (count: number): string =>
+      `Robes read ${count === 1 ? 'one piece' : `${count} pieces`} out of it. Untick anything that went back and the rest file straight to your wardrobe.`,
+    cta: (count: number): string => (count === 1 ? 'Review it' : 'Review them'),
+    notice: 'You’re getting this because you forwarded a receipt to your Robes address.',
   },
 } as const;
 

@@ -25,6 +25,7 @@ export {
   type PushMessage,
   type PushSender,
 } from './notify/push';
+export { type ReceiptMailDeps, sendReceiptMail } from './notify/receipt';
 export { composeEmail, type NotifyDeps, notifyTick } from './notify/tick';
 export { enqueueJob, SWEEP_AFTER_SECONDS, sweep } from './outbox';
 export {
@@ -34,6 +35,19 @@ export {
   overnightTick,
   pollOvernight,
 } from './overnight';
+export {
+  type HeldReceipt,
+  type IngestOutcome,
+  ingestReceipt,
+  type ReceiptDeps,
+} from './receipts/ingest';
+export {
+  localPartOf,
+  MAX_RAW_BYTES,
+  parseMail,
+  SesNotification,
+  verdictsPass,
+} from './receipts/mail';
 export {
   JobCancelled,
   type JobContext,

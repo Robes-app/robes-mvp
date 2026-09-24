@@ -50,6 +50,7 @@ Check it's working: `http://localhost:3300` shows the Robes headline on cream, a
 | `pnpm lint` / `pnpm format` | Biome check / fix |
 | `pnpm typecheck` | `tsc` across every package (Turbo) |
 | `pnpm test` | Vitest (packages, app) + Jest (mobile) |
+| `pnpm receipt:ingest <abs path .eml> --to <address>` | Forwarded-receipt path without SES: stores the mail in MinIO `inbound/` and runs the inbound worker's pipeline (address from You › Forward receipts) |
 | `pnpm --filter @robes/app test:e2e` | Builds the app and runs Playwright against `next start` on :3310 (`E2E_PORT` to change) |
 | `pnpm maintenance` | Runs the maintenance worker once locally: retention + outbox sweep (swept jobs run in-process) |
 | `pnpm batch:tick -- --now=<ISO> [--user=<id>]` | One overnight Today run: selects people at local 04:00 (active this week), submits their daily looks as a batch (the fake answers at once without `GEMINI_API_KEY`), applies results and renders anchors locally |

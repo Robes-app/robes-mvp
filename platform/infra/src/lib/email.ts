@@ -25,3 +25,12 @@ export function sesSendStatement(scope: Construct, config: StageConfig): iam.Pol
     conditions: { StringLike: { 'ses:FromAddress': `*@${config.email.domain}` } },
   });
 }
+
+// Forwarded receipts (M3 task 10): <address>@in.<mail domain>, stored raw under inbound/.
+export const INBOUND_PREFIX = 'inbound/';
+export function inboundDomain(config: StageConfig): string {
+  return `in.${config.email.domain}`;
+}
+export function receiptRuleSetName(config: StageConfig): string {
+  return `${config.namePrefix}-inbound`;
+}

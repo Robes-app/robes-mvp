@@ -16,7 +16,15 @@ import {
 } from './admin';
 import { EmptyInput, HealthOutput } from './common';
 import { Consents, UpdateConsentsInput } from './consents';
-import { DecideInboxInput, ImportLinkInput, InboxDecision, InboxList, InboxParams } from './inbox';
+import {
+  DecideInboxInput,
+  ImportLinkInput,
+  InboxAddress,
+  InboxAddressStatus,
+  InboxDecision,
+  InboxList,
+  InboxParams,
+} from './inbox';
 import { JOB_EVENT, JobIdParams, JobSnapshot, StartJobOutput } from './jobs';
 import {
   CreateLookInput,
@@ -690,6 +698,28 @@ export const routes = {
     input: ImportLinkInput,
     output: StartJobOutput,
     idempotent: true,
+  },
+  // Minted on first read; naturally idempotent.
+  'me.inboxAddress.get': {
+    method: 'GET',
+    path: '/me/inbox-address',
+    auth: 'user',
+    input: EmptyInput,
+    output: InboxAddress,
+  },
+  'me.inboxAddress.regenerate': {
+    method: 'POST',
+    path: '/me/inbox-address/regenerate',
+    auth: 'user',
+    input: EmptyInput,
+    output: InboxAddress,
+  },
+  'me.inboxAddress.revoke': {
+    method: 'DELETE',
+    path: '/me/inbox-address',
+    auth: 'user',
+    input: EmptyInput,
+    output: InboxAddressStatus,
   },
   'jobs.fake': {
     method: 'POST',

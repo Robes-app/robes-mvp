@@ -28,7 +28,7 @@ describe('production', () => {
   });
 
   it('turns on termination protection for every stack', () => {
-    expect(s.stage.stacks).toHaveLength(9);
+    expect(s.stage.stacks).toHaveLength(10);
     for (const stack of s.stage.stacks) expect(stack.terminationProtection).toBe(true);
   });
 
@@ -98,6 +98,6 @@ describe('budgets flag', () => {
     );
     expect(stage.budgets).toBeUndefined();
     expect(stage.stacks.map((st) => st.stackName)).not.toContain('Stg-Budgets');
-    expect(stage.stacks).toHaveLength(8);
+    expect(stage.stacks).toHaveLength(9);
   });
 });

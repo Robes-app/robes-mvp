@@ -68,14 +68,22 @@ describe.each(['staging', 'production'] as const)('%s media', (stageName) => {
     expect(s.resources('Custom::S3BucketNotifications')).toHaveLength(0);
   });
 
-  it('only lets CloudFront read the bucket, and denies non-TLS', () => {
+  it('only lets CloudFront read and SES store inbound mail, and denies non-TLS', () => {
     const policy = must(s.resources('AWS::S3::BucketPolicy')[0], 'bucket policy');
     const sts = (policy.properties.PolicyDocument as { Statement: Record<string, unknown>[] })
       .Statement;
     const allows = sts.filter((st) => st.Effect === 'Allow');
-    expect(allows).toHaveLength(1);
-    expect(allows[0]?.Principal).toEqual({ Service: 'cloudfront.amazonaws.com' });
-    expect(list(allows[0]?.Action as string[])).toEqual(['s3:GetObject']);
+    expect(allows).toHaveLength(2);
+    const cf = allows.find((st) => JSON.stringify(st.Principal).includes('cloudfront'));
+    expect(list(cf?.Action as string[])).toEqual(['s3:GetObject']);
+    const ses = must(
+      allows.find((st) => JSON.stringify(st.Principal).includes('ses.amazonaws.com')),
+      'ses statement',
+    );
+    expect(list(ses.Action as string[])).toEqual(['s3:PutObject']);
+    expect(JSON.stringify(ses.Resource)).toContain('/inbound/*');
+    expect(JSON.stringify(ses.Condition)).toContain('aws:SourceAccount');
+    expect(JSON.stringify(ses.Condition)).toContain(':receipt-rule-set/');
     expect(
       sts.some((st) => st.Effect === 'Deny' && JSON.stringify(st).includes('SecureTransport')),
     ).toBe(true);

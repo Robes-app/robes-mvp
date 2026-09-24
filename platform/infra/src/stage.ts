@@ -5,6 +5,7 @@ import type { RobesStack } from './lib/robes-stack';
 import { BudgetsStack } from './stacks/budgets-stack';
 import { EmailStack } from './stacks/email-stack';
 import { IdentityStack } from './stacks/identity-stack';
+import { InboundStack } from './stacks/inbound-stack';
 import { MediaStack } from './stacks/media-stack';
 import { ObservabilityStack } from './stacks/observability-stack';
 import { QueuesStack } from './stacks/queues-stack';
@@ -22,6 +23,7 @@ export class RobesStage extends Stage {
   readonly queues: QueuesStack;
   readonly email: EmailStack;
   readonly media: MediaStack;
+  readonly inbound: InboundStack;
   readonly workers: WorkersStack;
   readonly schedules: SchedulesStack;
   readonly identity: IdentityStack;
@@ -44,6 +46,9 @@ export class RobesStage extends Stage {
       renditionDlq: this.queues.renditionDlq,
       workersEntryDir: options.workersEntryDir,
     });
+    this.inbound = new InboundStack(this, 'Inbound', { ...base, topic: this.queues.inboundTopic });
+    // SES validates the S3 write permission when the rule is created.
+    this.inbound.addDependency(this.media);
     this.workers = new WorkersStack(this, 'Workers', {
       ...base,
       secrets: this.secrets.secrets,
@@ -77,6 +82,7 @@ export class RobesStage extends Stage {
       this.queues,
       this.email,
       this.media,
+      this.inbound,
       this.workers,
       this.schedules,
       this.identity,

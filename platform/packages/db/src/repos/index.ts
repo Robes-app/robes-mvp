@@ -10,6 +10,7 @@ import { flagsRepo } from './flags';
 import { framesRepo } from './frames';
 import { ideasRepo } from './ideas';
 import { inboxIntakeRepo, inboxRepo } from './inbox';
+import { inboxAddressRepo, mintInboxAddress } from './inbox-address';
 import { jobRunnerRepo, jobsRepo } from './jobs';
 import { ledgerRepo } from './ledger';
 import { looksRepo } from './looks';
@@ -44,6 +45,7 @@ export function createRepositories(db: Db) {
     frames: framesRepo(db),
     ideas: ideasRepo(db),
     inbox: inboxRepo(db),
+    inboxAddress: inboxAddressRepo(db),
     looks: looksRepo(db),
     jobs: jobsRepo(db),
     // Global capacity check only; holds no per-user data.
@@ -105,3 +107,4 @@ export type { StyleOverrides } from './style-profile';
 export type { TripLookToPin } from './trips';
 export type { ListPiecesQuery, PieceFields } from './wardrobe';
 export type { WishFields } from './wishlist';
+export { mintInboxAddress };

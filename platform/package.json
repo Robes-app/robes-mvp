@@ -36,7 +36,8 @@
     "migrate:rehost": "pnpm --filter @robes/migrate rehost",
     "migrate:reverse-delta": "pnpm --filter @robes/migrate reverse-delta",
     "migrate:rehearse": "pnpm --filter @robes/migrate rehearse",
-    "batch:tick": "pnpm --filter @robes/workers batch:tick"
+    "batch:tick": "pnpm --filter @robes/workers batch:tick",
+    "receipt:ingest": "pnpm --filter @robes/workers receipt:ingest"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

@@ -6,6 +6,7 @@ import {
   type FakeFixture,
 } from '@robes/ai';
 import * as daily from '@robes/ai/prompts/daily';
+import * as receiptRead from '@robes/ai/prompts/receipt-read';
 import * as styleAnalyse from '@robes/ai/prompts/style-analyse';
 import * as stylePiece from '@robes/ai/prompts/style-piece';
 import * as travel from '@robes/ai/prompts/travel';
@@ -26,6 +27,7 @@ const FAKE_FIXTURES: Record<string, FakeFixture> = {
         .map((l) => l.slice(2)) ?? [],
       (req.system.match(/^\d+: /gm) ?? []).length,
     ),
+  [receiptRead.FEATURE]: () => receiptRead.fakeOutput(),
   [styleAnalyse.COLOUR_FEATURE]: () => styleAnalyse.fakeColour(),
   [styleAnalyse.SILHOUETTE_FEATURE]: () => styleAnalyse.fakeSilhouette(),
   [stylePiece.FEATURE]: (req) =>
