@@ -114,7 +114,7 @@ Upload flow: `POST /api/v1/uploads` (auth, quota, kind, contentType, size) → c
 
 Delivery:
 - Private media (default): CloudFront **signed cookies** on web (path-scoped `/media/{userId}/*`, 12 h, set by the API on session start/refresh); **signed URLs** on native (canned policy, daily-stable expiry so `expo-image` disk cache stays warm).
-- Share snapshots: `shared/{token}/*` served without signature, `Cache-Control: public, max-age=31536000, immutable`; revoking a share deletes the prefix and invalidates.
+- Share snapshots (as built, M6): the snapshot stores asset ids + rendition manifests, and the public share endpoint signs each image with a 2-hour, hour-aligned URL (`MediaDelivery.shareUrl`). No copies under `shared/`, so the API user needs no media read or `shared/` write grants; revoking stops the link at once and outstanding image URLs lapse within 2 h. `shared/*` stays reserved for a future copy-on-share if unsigned, long-cached public images are ever needed.
 - Loader: `packages/media` builds URLs `https://media.<domain>/media/{userId}/{assetId}/{w}.avif` with `srcset`; both `next/image` custom loader and `expo-image` source builder use it.
 
 Cutouts: `render` job step calls BiRefNet on fal (then self-host on serverless GPU when volume justifies; Photoroom API as quality fallback) — cost-research §3.

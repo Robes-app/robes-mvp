@@ -330,6 +330,18 @@ export const you = {
   },
 } as const;
 
+// Public share page and the share action.
+export const share = {
+  eyebrow: 'A look from Robes',
+  by: (name: string): string => `Styled by ${name}`,
+  pieces: 'The pieces',
+  cta: 'Style your own wardrobe',
+  imageAlt: (name: string): string => `The look: ${name}`,
+  pieceAlt: (label: string): string => label,
+  gone: 'This link has been turned off.',
+  metaDescription: 'A look styled with Robes.',
+} as const;
+
 export const copy = {
   wardrobe,
   errors,
@@ -346,4 +358,5 @@ export const copy = {
   shell,
   looks,
   you,
+  share,
 } as const;

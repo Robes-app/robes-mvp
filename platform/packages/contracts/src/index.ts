@@ -6,4 +6,5 @@ export * from './me';
 export * from './media';
 export * from './plan';
 export * from './routes';
+export * from './shares';
 export * from './wardrobe';

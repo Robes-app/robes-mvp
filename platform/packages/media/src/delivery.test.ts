@@ -1,6 +1,6 @@
 import { createVerify, generateKeyPairSync } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { createCloudFrontDelivery, dayStableWindow } from './delivery';
+import { createCloudFrontDelivery, dayStableWindow, hourStableWindow } from './delivery';
 import { mediaKeys } from './keys';
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -72,5 +72,18 @@ describe('CloudFront delivery', () => {
     const policy = fromCloudFrontBase64(value('CloudFront-Policy')).toString();
     expect(JSON.parse(policy).Statement[0].Resource).toBe(`${ORIGIN}/media/${USER}/*`);
     expect(verifies(policy, value('CloudFront-Signature'))).toBe(true);
+  });
+});
+
+describe('hourStableWindow', () => {
+  it('is identical within the hour and expires two hours after it starts', () => {
+    const early = hourStableWindow(new Date('2026-09-24T10:00:01Z'));
+    expect(hourStableWindow(new Date('2026-09-24T10:59:59Z'))).toEqual(early);
+    expect(early.expiresAt.toISOString()).toBe('2026-09-24T12:00:00.000Z');
+  });
+
+  it('signs share URLs that expire at the end of the window', async () => {
+    const url = new URL(await delivery.shareUrl(KEY, new Date('2026-09-24T10:30:00Z')));
+    expect(url.searchParams.get('Expires')).toBe(String(Date.parse('2026-09-24T12:00:00Z') / 1000));
   });
 });

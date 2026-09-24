@@ -53,6 +53,7 @@ function fakes(owned: Row | undefined = row(), stored = true) {
     delivery: {
       mode: 'local' as const,
       url: vi.fn(async (key: string) => `http://s3.test/${key}?signed`),
+      shareUrl: vi.fn(async (key: string) => `https://media.test/${key}?share`),
       sessionCookies: vi.fn((): SessionCookie[] => []),
     },
     onUploaded: vi.fn(),
