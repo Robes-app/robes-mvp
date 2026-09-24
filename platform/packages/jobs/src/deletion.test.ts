@@ -25,8 +25,9 @@ describe('processAccountDeletions', () => {
       `uploads/${A}/`,
       `media/${A}/`,
       `generated/${A}/`,
+      `exports/${A}/`,
     ]);
-    expect(d.deletions.complete).toHaveBeenCalledWith(A, { objects: 6 });
+    expect(d.deletions.complete).toHaveBeenCalledWith(A, { objects: 8 });
   });
 
   it('keeps the account when files fail, and carries on with the next request', async () => {

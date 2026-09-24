@@ -1,5 +1,6 @@
 export { createJobAi } from './ai';
 export { type DeletionDeps, processAccountDeletions } from './deletion';
+export { type ExportDeps, processDataExports } from './export';
 export { createHandlers, type HandlerDeps } from './handlers';
 export { createFakeHandler } from './handlers/fake';
 export { StyleAnalyseInput } from './handlers/style-analyse';

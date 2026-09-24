@@ -29,7 +29,12 @@ export const mediaKeys = {
   userMediaPrefix: (userId: string): string => `media/${segment(userId, 'userId')}/`,
   // Every prefix holding her files; account deletion (SEC-80) empties all of them.
   userPrefixes: (userId: string): string[] =>
-    ['uploads', 'media', 'generated'].map((root) => `${root}/${segment(userId, 'userId')}/`),
+    ['uploads', 'media', 'generated', 'exports'].map(
+      (root) => `${root}/${segment(userId, 'userId')}/`,
+    ),
+  // Her data export (SEC-81); the exports/ prefix expires after 7 days.
+  dataExport: (userId: string, requestId: string): string =>
+    `exports/${segment(userId, 'userId')}/${segment(requestId, 'requestId')}.json`,
 };
 
 const ORIGINAL = /^uploads\/([0-9a-f-]{36})\/([0-9a-f-]{36})\/original$/;

@@ -88,3 +88,19 @@ describe('deletePrefix', () => {
     await expect(storage.deletePrefix('/')).rejects.toThrow(/invalid prefix/);
   });
 });
+
+describe('presignDownload', () => {
+  it('downloads as an attachment and expires', async () => {
+    const k = `test/${crypto.randomUUID()}/export.json`;
+    await storage.putObject(k, new TextEncoder().encode('{"ok":true}'), {
+      contentType: 'application/json',
+    });
+    const url = await storage.presignDownload(k, { filename: 'robes-data.json', expiresIn: 3600 });
+    expect(new URL(url).searchParams.get('X-Amz-Expires')).toBe('3600');
+    const res = await fetch(url);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-disposition')).toBe('attachment; filename="robes-data.json"');
+    expect(await res.json()).toEqual({ ok: true });
+    await expect(storage.presignDownload(k, { filename: 'a"b', expiresIn: 60 })).rejects.toThrow();
+  });
+});
