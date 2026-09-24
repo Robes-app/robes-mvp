@@ -69,12 +69,19 @@ jobs:
   secrets:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: . } }
-    env:
-      # Scan only this change's commits; legacy history is triaged separately.
-      RANGE: ${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || format('{0}..{1}', github.event.before, github.sha) }}
     steps:
       - uses: actions/checkout@v5
         with: { fetch-depth: 0 }
-      - run: >-
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1
-          git /repo --no-banner --redact --log-opts="$RANGE"
+      # Scan only this change's commits; legacy history is triaged separately.
+      - name: gitleaks
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            RANGE="-1 $HEAD"
+          else
+            RANGE="$BASE..$HEAD"
+          fi
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 \
+            git /repo --no-banner --redact --log-opts="$RANGE"

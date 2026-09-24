@@ -6,6 +6,7 @@ import {
   createUpstashRateLimiter,
   remoteJwks,
 } from '@robes/api';
+import { clientIp } from './client-ip';
 import { env } from './env';
 
 const rateLimiter =
@@ -21,6 +22,6 @@ export const route = createRouteFactory({
   // M1 replaces this with a service-role lookup of private.admin_users.
   isAdmin: async () => false,
   rateLimiter,
-  clientIp: (req) => req.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown',
+  clientIp,
   logger: { error: (obj, msg) => console.error(JSON.stringify({ level: 'error', msg, ...obj })) },
 });
