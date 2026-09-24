@@ -644,6 +644,36 @@ export const you = {
     // Native: the share sheet carries Copy.
     share: 'Share address',
   },
+  // You › Your model (legacy stylenotes): never "avatar", always "your model".
+  model: {
+    link: 'Your model',
+    title: 'Your model.',
+    subtitle: 'Build her once and she’ll wear every look you keep.',
+    empty: 'Your model starts the moment your first photograph reads — or shape her by hand.',
+    source: {
+      read: 'Read from your photographs',
+      mixed: 'Part read, part chosen',
+      hand: 'Chosen by hand',
+    },
+    photos: 'Read from a photo',
+    presence: 'Presence',
+    presenceOptions: { woman: 'Woman', man: 'Man', unspecified: 'Prefer not to say' },
+    skin: 'Skin',
+    skinNames: ['Espresso', 'Mahogany', 'Chestnut', 'Tan', 'Honey', 'Sand', 'Peach', 'Porcelain'],
+    hair: 'Hair',
+    hairNames: ['Jet black', 'Espresso', 'Chestnut', 'Caramel', 'Ash blonde'],
+    line: 'The line',
+    lineOptions: { soft: 'Softer', none: 'As she is', straight: 'Straighter' },
+    frame: 'The frame',
+    frameOptions: { fuller: 'Fuller', none: 'As she is', narrower: 'Narrower' },
+    build: 'Build your model',
+    creating: 'Creating your model…',
+    failed: 'Robes couldn’t draw your model just now. Change a pick to try again.',
+    imageAlt: 'Your model',
+    seeOnMe: 'See it on me',
+    dressing: 'Dressing your model…',
+    onMeFailed: 'Robes couldn’t dress your model just now. Try again in a moment.',
+  },
 } as const;
 
 // Plan (M5): the rolling list of days.
