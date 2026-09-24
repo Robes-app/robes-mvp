@@ -70,6 +70,11 @@ export class IdentityStack extends RobesStack {
           actions: ['s3:PutObject', 's3:GetObject'],
           resources: objectArns(this, config.media.bucketName, ['uploads/']),
         }),
+        // Presigning her data-export download (SEC-81); the maintenance worker writes it.
+        new iam.PolicyStatement({
+          actions: ['s3:GetObject'],
+          resources: objectArns(this, config.media.bucketName, ['exports/']),
+        }),
         sesSendStatement(this, config),
         new iam.PolicyStatement({
           actions: ['secretsmanager:GetSecretValue'],

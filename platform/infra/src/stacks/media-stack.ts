@@ -90,6 +90,8 @@ export class MediaStack extends RobesStack {
       lifecycleRules: [
         { id: 'generated-7d', prefix: 'generated/', expiration: Duration.days(7) },
         { id: 'uploads-30d', prefix: 'uploads/', expiration: Duration.days(30) },
+        // Data exports (SEC-81): the download link lives 7 days, so the file does too.
+        { id: 'exports-7d', prefix: 'exports/', expiration: Duration.days(7) },
         {
           id: 'media-intelligent-tiering',
           prefix: 'media/',

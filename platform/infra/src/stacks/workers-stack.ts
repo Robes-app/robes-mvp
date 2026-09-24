@@ -80,8 +80,10 @@ export class WorkersStack extends RobesStack {
         s3: [
           {
             actions: ['s3:DeleteObject', 's3:DeleteObjectVersion'],
-            prefixes: ['uploads/', 'media/', 'generated/', 'shared/'],
+            prefixes: ['uploads/', 'media/', 'generated/', 'shared/', 'exports/'],
           },
+          // Data exports (SEC-81): reads nothing from S3; writes one JSON file per request.
+          { actions: ['s3:PutObject'], prefixes: ['exports/'] },
         ],
         listBucket: true,
       },

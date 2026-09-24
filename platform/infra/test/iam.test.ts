@@ -99,6 +99,18 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
     );
   });
 
+  it('maintenance writes data exports and nothing else new', () => {
+    const fn = functionNamed(s, 'maintenance');
+    const sts = roleStatements(s, roleOf(s, fn));
+    const puts = sts
+      .filter((st) => list(st.Action).includes('s3:PutObject'))
+      .flatMap((st) => list(st.Resource))
+      .map((r) => JSON.stringify(r));
+    expect(puts).toHaveLength(1);
+    expect(puts[0]).toContain('/exports/*');
+    expect(sts.some((st) => list(st.Action).includes('s3:GetObject'))).toBe(false);
+  });
+
   it('generate can write uploads/ so styled frames reach RenditionFn', () => {
     const fn = functionNamed(s, 'generate');
     const puts = roleStatements(s, roleOf(s, fn))
@@ -142,6 +154,7 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
     const sts = roleStatements(s, user);
     expect(actionsOf(sts).sort()).toEqual([
       's3:GetObject',
+      's3:GetObject',
       's3:PutObject',
       'secretsmanager:GetSecretValue',
       'ses:SendEmail',
@@ -152,7 +165,8 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
       sts.filter((st) => list(st.Action).includes(action)).flatMap((st) => list(st.Resource));
     const uploads = `arn:aws:s3:::${s.stage.config.media.bucketName}/uploads/*`;
     expect(resources('s3:PutObject')).toEqual([uploads]);
-    expect(resources('s3:GetObject')).toEqual([uploads]);
+    const exportsArn = `arn:aws:s3:::${s.stage.config.media.bucketName}/exports/*`;
+    expect(resources('s3:GetObject').sort()).toEqual([exportsArn, uploads].sort());
     const queues = resources('sqs:SendMessage').map(
       (r) => s.resolve(user.stack, r)?.properties.QueueName,
     );
