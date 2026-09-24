@@ -49,7 +49,7 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 
 ## Known gaps (not built yet)
 
-- Wardrobe Inbox, forwarded receipts (SES inbound) and link import (isolated fetch worker, SEC-40).
+- Forwarded receipts (SES inbound) into the Inbox. (The Inbox and link import via the isolated fetcher are built; product images are kept as metadata only, not proxied or shown.)
 - Alternates rail and swapping pieces in a daily draft (secondary frames now render on demand via `look_render`).
 - Avatar/model (`look_waiting`, `borrowing` emails, `model`/`finish` next-step rules depend on it).
 - Plan month view, trips (M5 task 6), overnight daily batch (M5 task 3).
