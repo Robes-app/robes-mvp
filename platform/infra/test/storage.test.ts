@@ -1,4 +1,4 @@
-import { Match } from 'aws-cdk-lib/assertions';
+import { Annotations, Match } from 'aws-cdk-lib/assertions';
 import { describe, expect, it } from 'vitest';
 import { list, must, synth } from './synth';
 
@@ -115,5 +115,13 @@ describe.each(['staging', 'production'] as const)('%s media', (stageName) => {
     expect(params?.QueryStringsConfig).toEqual({ QueryStringBehavior: 'none' });
     expect(params?.HeadersConfig).toEqual({ HeaderBehavior: 'none' });
     expect(params?.CookiesConfig).toEqual({ CookieBehavior: 'none' });
+  });
+
+  it('warns (and fails closed) when no signing public key is configured', () => {
+    if (s.stage.config.media.signingPublicKeyPem) return;
+    Annotations.fromStack(s.stage.media).hasWarning(
+      '*',
+      Match.stringLikeRegexp('No CloudFront public key'),
+    );
   });
 });
