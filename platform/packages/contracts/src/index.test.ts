@@ -64,6 +64,29 @@ describe('job contracts', async () => {
     expect(parsed.output).toEqual({ text: { title: 'T', lines: ['a'] } });
   });
 
+  it('keeps a partial key_piece result, including a frame that failed without an asset', () => {
+    const way = {
+      eyebrow: 'Day',
+      title: 'Off duty',
+      outfit: 'o',
+      details: 'd',
+      accessories: 'a',
+      tags: [],
+    };
+    const output = {
+      ideaId: '1b8f6a0e-3c1f-4d9b-8a57-2d2b6f9e4c11',
+      fallback: false,
+      wearer: 'woman',
+      ways: [way, way, way],
+      images: [
+        { idx: 0, status: 'ready', assetId: '2b8f6a0e-3c1f-4d9b-8a57-2d2b6f9e4c11' },
+        { idx: 1, status: 'failed', assetId: null },
+      ],
+    };
+    const parsed = JobSnapshot.parse({ ...snapshot, kind: 'key_piece', status: 'partial', output });
+    expect(parsed.output).toEqual(output);
+  });
+
   it('rejects unknown statuses and kinds', () => {
     expect(() => JobSnapshot.parse({ ...snapshot, status: 'paused' })).toThrow();
     expect(() => JobSnapshot.parse({ ...snapshot, kind: 'mystery' })).toThrow();

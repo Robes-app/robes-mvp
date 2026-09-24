@@ -11,6 +11,12 @@ const system = createSystemRepositories(db);
 const ai = createJobAi({ appEnv: env.APP_ENV, geminiApiKey: env.GEMINI_API_KEY });
 const handlers = createHandlers({
   wardrobeAnalyse: { ai, storage: mediaStorage, pieces: system.pieces, ledger: system.ledger },
+  styleAnalyse: {
+    ai,
+    storage: mediaStorage,
+    profiles: system.styleAnalysis,
+    ledger: system.ledger,
+  },
   stylePiece: {
     ai,
     storage: mediaStorage,

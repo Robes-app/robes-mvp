@@ -11,6 +11,7 @@ import { looksRepo } from './looks';
 import { maintenanceRepo } from './maintenance';
 import { pieceAnalysisRepo } from './piece-analysis';
 import { profilesRepo } from './profiles';
+import { styleAnalysisRepo, styleProfileRepo } from './style-profile';
 import { stylingRepo } from './styling';
 import { usageRepo } from './usage';
 import { wardrobeRepo } from './wardrobe';
@@ -30,6 +31,7 @@ export function createRepositories(db: Db) {
     // Global capacity check only; holds no per-user data.
     capacity: { isExhausted: ledgerRepo(db).isExhausted },
     profiles: profilesRepo(db),
+    styleProfile: styleProfileRepo(db),
     usage: usageRepo(db),
     wardrobe: wardrobeRepo(db),
     wishlist: wishlistRepo(db),
@@ -44,6 +46,7 @@ export function createSystemRepositories(db: Db) {
     ledger: ledgerRepo(db),
     maintenance: maintenanceRepo(db),
     pieces: pieceAnalysisRepo(db),
+    styleAnalysis: styleAnalysisRepo(db),
     styling: stylingRepo(db),
   };
 }
@@ -58,5 +61,6 @@ export { type LookFields, type LookPieceInput, LookPiecesNotFound, type LookRole
 export { encodeCursor, type Page } from './paging';
 export type { PieceAnalysis } from './piece-analysis';
 export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';
+export type { StyleOverrides } from './style-profile';
 export type { ListPiecesQuery, PieceFields } from './wardrobe';
 export type { WishFields } from './wishlist';

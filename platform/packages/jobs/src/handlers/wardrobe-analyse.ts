@@ -5,6 +5,7 @@ import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
 import { z } from 'zod';
 import { JobError, type JobHandler } from '../runtime';
+import { waitFor } from '../wait';
 
 export interface WardrobeAnalyseDeps {
   ai: AiProvider;
@@ -17,16 +18,6 @@ export interface WardrobeAnalyseDeps {
 }
 
 const Input = z.object({ pieceId: z.uuid() });
-
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const t = setTimeout(resolve, ms);
-    signal.addEventListener('abort', () => {
-      clearTimeout(t);
-      reject(signal.reason);
-    });
-  });
-}
 
 // Reads a wardrobe photo and files the piece (legacy /api/wardrobe/analyse, now a job).
 export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHandler {
@@ -41,12 +32,11 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
       const { pieceId } = input.data;
 
       // The batch can start before renditions exist; wait for them server-side.
-      const deadline = Date.now() + assetWaitMs;
-      let piece = await deps.pieces.forAnalysis(ctx.userId, pieceId);
-      while (piece?.assetStatus === 'pending' && Date.now() < deadline) {
-        await sleep(pollMs, ctx.signal);
-        piece = await deps.pieces.forAnalysis(ctx.userId, pieceId);
-      }
+      const piece = await waitFor(
+        () => deps.pieces.forAnalysis(ctx.userId, pieceId),
+        (p) => p?.assetStatus === 'pending',
+        { timeoutMs: assetWaitMs, pollMs, signal: ctx.signal },
+      );
       if (!piece || !piece.imageAssetId) throw new JobError('not_found');
       if (piece.assetStatus !== 'ready') {
         await deps.pieces.markFailed(ctx.userId, pieceId);

@@ -61,6 +61,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
       ? {
           wardrobeAnalyse: { ai, storage, pieces: system.pieces, ledger: system.ledger },
           stylePiece: { ai, storage, styling: system.styling, ledger: system.ledger },
+          styleAnalyse: { ai, storage, profiles: system.styleAnalysis, ledger: system.ledger },
         }
       : {},
   );

@@ -19,11 +19,14 @@ import {
   WearParams,
 } from './looks';
 import {
+  AnalyseStyleInput,
   DeletionRequest,
   DeletionStatus,
   Me,
   OnboardingComplete,
   RequestDeletionInput,
+  StyleOverrides,
+  StyleProfile,
   UpdateMeInput,
 } from './me';
 import { Asset, AssetParams, CreateUploadInput, CreateUploadOutput, MediaSession } from './media';
@@ -108,6 +111,28 @@ export const routes = {
     auth: 'user',
     input: RequestDeletionInput,
     output: DeletionRequest,
+  },
+  'me.style.get': {
+    method: 'GET',
+    path: '/me/style',
+    auth: 'user',
+    input: EmptyInput,
+    output: StyleProfile,
+  },
+  'me.style.analyse': {
+    method: 'POST',
+    path: '/me/style/analyse',
+    auth: 'user',
+    input: AnalyseStyleInput,
+    output: StartJobOutput,
+    idempotent: true,
+  },
+  'me.style.overrides': {
+    method: 'PATCH',
+    path: '/me/style/overrides',
+    auth: 'user',
+    input: StyleOverrides,
+    output: StyleProfile,
   },
   'me.consents.get': {
     method: 'GET',

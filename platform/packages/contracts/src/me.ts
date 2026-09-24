@@ -53,3 +53,58 @@ export type DeletionStatus = z.infer<typeof DeletionStatus>;
 
 // Typed confirmation so a stray tap can't request deletion.
 export const RequestDeletionInput = z.object({ confirm: z.literal('DELETE') });
+
+// You › Style: her colour and silhouette reads (render shapes come from @robes/core/style-dna).
+const Swatch = z.object({ name: z.string(), hex: z.string() });
+export const ColourProfile = z.object({
+  season: z.string(),
+  undertone: z.string(),
+  contrast: z.string(),
+  summary: z.string(),
+  undertone_note: z.string(),
+  palette: z.array(z.string()),
+  neutrals: z.array(Swatch),
+  best_colours: z.array(Swatch),
+  avoid_colours: z.array(Swatch),
+  avoid_note: z.string(),
+  proof_best: z.string(),
+  proof_less: z.string(),
+  seen_on_you: z.array(z.object({ lifts: z.string(), flattens: z.string() })),
+  metals: z.array(z.object({ name: z.string(), hexes: z.array(z.string()) })),
+  metals_note: z.string(),
+});
+export const SilhouetteProfile = z.object({
+  body_type: z.string(),
+  summary: z.string(),
+  traits: z.array(z.string()),
+  dress_silhouettes: z.array(z.object({ name: z.string(), note: z.string() })),
+  neckline_recommendations: z.array(z.string()),
+  styling_tips: z.array(z.string()),
+});
+
+const colourList = z.array(z.string().trim().min(1).max(40)).max(30);
+export const StyleOverrides = z.object({
+  lovedColors: colourList.optional(),
+  rejectedColors: colourList.optional(),
+  measurements: z.record(z.string().max(30), z.string().trim().max(30)).optional(),
+});
+export type StyleOverrides = z.infer<typeof StyleOverrides>;
+
+export const StyleProfile = z.object({
+  colour: ColourProfile.nullable(),
+  silhouette: SilhouetteProfile.nullable(),
+  overrides: z.object({
+    lovedColors: z.array(z.string()),
+    rejectedColors: z.array(z.string()),
+    measurements: z.record(z.string(), z.string()),
+  }),
+  updatedAt: z.iso.datetime().nullable(),
+});
+export type StyleProfile = z.infer<typeof StyleProfile>;
+
+export const AnalyseStyleInput = z.object({
+  kind: z.enum(['colour', 'silhouette']),
+  // A `headshot` upload for colour, a `full_length` upload for silhouette.
+  assetId: z.uuid(),
+});
+export type AnalyseStyleInput = z.infer<typeof AnalyseStyleInput>;
