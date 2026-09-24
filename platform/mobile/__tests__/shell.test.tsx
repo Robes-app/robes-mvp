@@ -105,7 +105,7 @@ test('tabs in IA order; [+] opens Create; unbuilt options land on the shared scr
   await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
   expect(screen.getByText(shell.create.photograph)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: shell.create.planTrip }));
+  await fireEvent.press(screen.getByRole('button', { name: shell.create.askRobes }));
   await waitFor(() => expect(router.getPathname()).toBe('/soon'));
   expect(screen.getByText(shell.soon.title)).toBeTruthy();
 });

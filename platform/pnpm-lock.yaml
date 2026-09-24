@@ -199,6 +199,9 @@ importers:
       '@robes/copy':
         specifier: workspace:*
         version: link:../packages/copy
+      '@robes/core':
+        specifier: workspace:*
+        version: link:../packages/core
       '@robes/icons':
         specifier: workspace:*
         version: link:../packages/icons
