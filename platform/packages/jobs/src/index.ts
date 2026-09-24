@@ -1,4 +1,4 @@
-export { createJobAi } from './ai';
+export { createJobAi, createJobBatch } from './ai';
 export { type DeletionDeps, processAccountDeletions } from './deletion';
 export { type ExportDeps, processDataExports } from './export';
 export { createHandlers, type HandlerDeps } from './handlers';

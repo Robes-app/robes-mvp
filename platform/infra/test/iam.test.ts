@@ -120,6 +120,15 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
     expect(puts.some((r) => r.includes('/uploads/*'))).toBe(true);
   });
 
+  it('batch sends only to notify and jobs-interactive (overnight fallbacks and anchor renders)', () => {
+    const fn = functionNamed(s, 'batch');
+    const queues = roleStatements(s, roleOf(s, fn))
+      .filter((st) => list(st.Action).includes('sqs:SendMessage'))
+      .flatMap((st) => list(st.Resource))
+      .map((r) => String(s.resolve(fn.stack, r)?.properties.QueueName));
+    expect(queues.sort()).toEqual([`${prefix}-jobs-interactive`, `${prefix}-notify`]);
+  });
+
   it('workers get exactly the secrets they need', () => {
     const expected: Record<string, string[]> = {
       generate: ['database/url', 'fal/api-key', 'gemini/api-key'],

@@ -6,7 +6,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
     "maintenance": "tsx --env-file-if-exists=../app/.env.local src/cli/maintenance.ts",
-    "notify": "tsx --env-file-if-exists=../app/.env.local src/cli/notify.ts"
+    "notify": "tsx --env-file-if-exists=../app/.env.local src/cli/notify.ts",
+    "batch:tick": "tsx --env-file-if-exists=../app/.env.local src/cli/batch-tick.ts"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "3.1138.0",

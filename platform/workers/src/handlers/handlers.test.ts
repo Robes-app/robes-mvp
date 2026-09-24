@@ -1,6 +1,7 @@
 import type { JobTransport } from '@robes/jobs';
 import { describe, expect, it, vi } from 'vitest';
 import type { WorkerContext } from '../context';
+import { createBatchHandler } from './batch';
 import { createFetchHandler } from './fetch';
 import { createGenerateHandler } from './generate';
 import { createMaintenanceHandler } from './maintenance';
@@ -183,5 +184,30 @@ describe('notify handler', () => {
       Records: [record('n', { kind: 'notify-tick' }), record('x', { kind: 'nope' })],
     });
     expect(notify).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('batch handler', () => {
+  it('routes the hourly selection and the poll to the overnight path', async () => {
+    const overnight = {
+      candidates: vi.fn(async () => []),
+      open: vi.fn(async () => []),
+    };
+    const deps = {
+      overnight,
+      capacity: { isExhausted: vi.fn(async () => false) },
+      logger: logger(),
+    };
+    const ctx = { overnight: vi.fn(async () => deps), logger: logger() } as never;
+    const handler = createBatchHandler(async () => ctx);
+    await handler({
+      Records: [
+        record('s', { kind: 'daily-look-batch' }),
+        record('p', { kind: 'batch-poll' }),
+        record('x', { kind: 'nope' }),
+      ],
+    });
+    expect(overnight.candidates).toHaveBeenCalledTimes(1);
+    expect(overnight.open).toHaveBeenCalledTimes(1);
   });
 });

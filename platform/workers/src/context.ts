@@ -1,11 +1,18 @@
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { parseEnv, type WorkerEnv, workerEnv } from '@robes/config';
-import { createDb, createSystemRepositories, type SystemRepositories } from '@robes/db';
 import {
+  createDb,
+  createRepositories,
+  createSystemRepositories,
+  type SystemRepositories,
+} from '@robes/db';
+import {
+  createAnchorRenderer,
   createExpoPushSender,
   createHandlers,
   createInlineTransport,
   createJobAi,
+  createJobBatch,
   createSqsTransport,
   createTripWeather,
   createWeather,
@@ -13,6 +20,7 @@ import {
   type JobLogger,
   type JobTransport,
   type NotifyDeps,
+  type OvernightDeps,
   type RunOutcome,
   runJob,
 } from '@robes/jobs';
@@ -30,6 +38,8 @@ export interface WorkerContext {
   transport(): JobTransport;
   // Everything notifyFn needs to send the email sequence; throws where mail isn't configured.
   notify(): Promise<NotifyDeps>;
+  // The overnight Today look (batchFn): selection, Batch API, and the interactive fallback.
+  overnight(): Promise<OvernightDeps>;
   // Waits for in-process runs started by the dev transport, then closes the pool.
   close(): Promise<void>;
 }
@@ -98,6 +108,12 @@ async function createWorkerContext(): Promise<WorkerContext> {
         }),
       )
     : null;
+  // Dev only: no S3 event locally, so frames the worker draws are rendered in-process when a CLI
+  // registered a renderer; in AWS RenditionFn does this from the ObjectCreated event.
+  const onGenerated =
+    env.APP_ENV === 'dev' && storage && localRenderer
+      ? localRenderer({ storage, assets: system.assets })
+      : undefined;
   const ai = storage
     ? createJobAi({ appEnv: env.APP_ENV, geminiApiKey: await resolveGeminiKey(env) })
     : null;
@@ -120,6 +136,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
             styling: system.styling,
             frames: system.frames,
             ledger: system.ledger,
+            ...(onGenerated ? { onGenerated } : {}),
           },
           styleAnalyse: { ai, storage, profiles: system.styleAnalysis, ledger: system.ledger },
           // Frames land as uploads, so the S3 event renders them (no onGenerated).
@@ -175,11 +192,44 @@ async function createWorkerContext(): Promise<WorkerContext> {
         },
       };
     },
+    async overnight() {
+      if (!storage || !ai || !transport) {
+        throw new Error('overnight needs the media bucket, AI and the interactive queue');
+      }
+      return {
+        overnight: system.overnight,
+        jobs: system.jobs,
+        capacity: { isExhausted: system.ledger.isExhausted },
+        daily: {
+          ai,
+          storage,
+          styling: system.styling,
+          ledger: system.ledger,
+          weather: createWeather(),
+        },
+        batch: createJobBatch({ appEnv: env.APP_ENV, geminiApiKey: await resolveGeminiKey(env) }),
+        transport,
+        renderAnchor: createAnchorRenderer({ repos: createRepositories(db), transport, logger }),
+        logger,
+      };
+    },
     async close() {
       await Promise.all(inline);
       await db.destroy();
     },
   };
+}
+
+type LocalRenderer = (deps: {
+  storage: MediaStorage;
+  assets: SystemRepositories['assets'];
+}) => (key: string) => Promise<void>;
+let localRenderer: LocalRenderer | undefined;
+
+// Local CLIs only (never a Lambda entry): sharp must stay out of every worker bundle but
+// RenditionFn's, so the renderer is injected by the caller rather than imported here.
+export function setLocalRenditions(renderer: LocalRenderer): void {
+  localRenderer = renderer;
 }
 
 let current: Promise<WorkerContext> | undefined;
