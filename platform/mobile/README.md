@@ -21,3 +21,11 @@ pnpm --filter @robes/mobile expo:doctor   # SDK/dependency health (also runs in 
 - **Add native packages with `pnpm exec expo install <pkg>`** (from `mobile/`), so the version matches SDK 57, then run `expo:doctor`.
 - **Only move to a dev client when you have to.** If a feature needs a module Expo Go doesn't ship (e.g. RevenueCat), switch to a development build (`pnpm exec expo run:ios` or EAS `development`), still started with `expo start`, and record it in `docs/SPEC.md` §4.
 - **Tests:** `pnpm --filter @robes/mobile test` (jest-expo + React Native Testing Library; `render` is async in RNTL 14, so `await render(...)`).
+
+## End-to-end tests (Maestro)
+
+Flows live in `e2e/` and drive the real app in Expo Go against the local API and Mailpit.
+
+1. Install Maestro 2.10 (needs Java): `mkdir -p ~/.maestro && cd ~/.maestro && curl -fsSL -o m.zip https://github.com/mobile-dev-inc/maestro/releases/download/cli-2.10.0/maestro.zip && unzip -qo m.zip && rm m.zip`.
+2. Boot an iOS simulator, run `pnpm dev:web` and `pnpm dev:mobile` (from `platform/`).
+3. `pnpm --filter @robes/mobile e2e` (set `EXPO_PORT` if Metro isn't on 8081). Each run uses a fresh email and clears the keychain first.

@@ -2,10 +2,14 @@
   "name": "@robes/mobile",
   "main": "expo-router/entry",
   "dependencies": {
+    "@better-auth/expo": "1.7.5",
     "@expo-google-fonts/cormorant": "^0.4.2",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/ui": "~57.0.19",
+    "@robes/contracts": "workspace:*",
+    "@robes/copy": "workspace:*",
     "@robes/tokens": "workspace:*",
+    "better-auth": "1.7.5",
     "expo": "~57.0.24",
     "expo-constants": "~57.0.19",
     "expo-device": "~57.0.2",
@@ -14,6 +18,7 @@
     "expo-image": "~57.0.5",
     "expo-linking": "~57.0.10",
     "expo-router": "~57.0.22",
+    "expo-secure-store": "~57.0.4",
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
@@ -47,10 +52,14 @@
     "web": "expo start --web",
     "expo:doctor": "expo-doctor",
     "test": "jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "e2e": "./e2e/run.sh"
   },
   "private": true,
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1"
+    }
   }
 }

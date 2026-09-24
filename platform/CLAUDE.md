@@ -51,10 +51,11 @@ Postgres is a private database behind the API: no RLS, no client-side queries, n
 
 **Web surface**
 20. Pages render dynamically (root layout awaits `connection()`) so Next can stamp the per-request CSP nonce; a static page's scripts are blocked by `'strict-dynamic'`. The e2e suite fails on any CSP violation — add new third-party origins to `server/security-headers.ts` deliberately.
-21. `proxy.ts` fails closed if required env is missing; don't add silent fallbacks to localhost/defaults in production code paths.
+21. Env is parsed once at boot by `@robes/config` (server) and fails closed; don't add silent fallbacks to localhost/defaults in production code paths. `proxy.ts` does only the optimistic session-cookie redirect — real checks happen in pages and `route()`.
+22. Native clients must use the same `cookiePrefix` as the server (`robes`) or Better Auth's Expo client silently drops the session.
 
 **Secrets**
-22. Nothing secret in the repo (gitleaks runs in CI on each change's commits). Publishable/anon keys are not secrets but still come from env. The legacy app has keys in its git history; they are being rotated and scrubbed after merge — never copy values from legacy files.
+23. Nothing secret in the repo (gitleaks runs in CI on each change's commits). Publishable/anon keys are not secrets but still come from env. The legacy app has keys in its git history; they are being rotated and scrubbed after merge — never copy values from legacy files.
 
 ## Toolchain
 Node 24 · pnpm 11.27.1 · Turborepo · TypeScript 6.0.3 · Biome · zod 4 · Vitest · Playwright · Next.js 16.3 (React 19.3) · Tailwind 4.3 · Expo SDK 57 (RN 0.86, React 19.2.3) · Uniwind 1.12 · Postgres 17 (Docker) · Kysely · dbmate · Better Auth · AWS CDK v2. Versions and rationale: `docs/reference/stack-versions.md`. Shared packages declare React as a **peer** dependency.
