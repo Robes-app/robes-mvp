@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PieceImage } from './wardrobe';
+import { Piece, PieceImage, SeasonBand } from './wardrobe';
 
 // Style a piece: one of her pieces, or a piece described in words.
 export const LookAnchorInput = z.discriminatedUnion('type', [
@@ -61,3 +61,74 @@ export type ListIdeasInput = z.infer<typeof ListIdeasInput>;
 
 export const IdeaList = z.object({ items: z.array(Idea) });
 export type IdeaList = z.infer<typeof IdeaList>;
+
+// Saved looks (M4 task 6): pieces in order, named by her, worn on days.
+export const LookRole = z.enum(['canvas', 'anchor', 'texture', 'exclamation']);
+
+export const LookPieceInput = z.object({
+  pieceId: z.uuid(),
+  slot: z.string().trim().max(40).nullable().optional(),
+  role: LookRole.nullable().optional(),
+});
+
+const lookName = z.string().trim().min(1).max(120);
+const wornOn = z.iso.date();
+
+export const Look = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  // True while the name is Robes' suggestion; naming it makes it hers.
+  nameProvisional: z.boolean(),
+  note: z.string().nullable(),
+  source: z.string(),
+  originLookId: z.uuid().nullable(),
+  climateBand: SeasonBand,
+  pieces: z.array(
+    z.object({ piece: Piece, slot: z.string().nullable(), role: LookRole.nullable() }),
+  ),
+  timesWorn: z.number().int().min(0),
+  lastWornOn: wornOn.nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+export type Look = z.infer<typeof Look>;
+
+export const LookParams = z.object({ id: z.uuid() });
+export const WearParams = z.object({ id: z.uuid(), date: wornOn });
+
+export const ListLooksInput = z.object({
+  limit: z.coerce.number().int().min(1).max(60).default(30),
+  cursor: z.string().max(200).optional(),
+});
+export type ListLooksInput = z.infer<typeof ListLooksInput>;
+
+export const LookPage = z.object({ items: z.array(Look), nextCursor: z.string().nullable() });
+export type LookPage = z.infer<typeof LookPage>;
+
+export const CreateLookInput = z.object({
+  name: lookName.optional(),
+  note: z.string().trim().max(2000).nullable().optional(),
+  climateBand: SeasonBand.optional(),
+  pieces: z.array(LookPieceInput).max(50),
+});
+export type CreateLookInput = z.infer<typeof CreateLookInput>;
+
+// "Update" edits in place; "Save as new" is POST /looks/:id/variants (UX-28).
+export const UpdateLookInput = z
+  .object({
+    name: lookName,
+    note: z.string().trim().max(2000).nullable(),
+    climateBand: SeasonBand,
+    pieces: z.array(LookPieceInput).max(50),
+  })
+  .partial();
+export type UpdateLookInput = z.infer<typeof UpdateLookInput>;
+
+export const WearInput = z.object({ wornOn });
+export const Wear = z.object({
+  id: z.uuid(),
+  lookId: z.uuid(),
+  wornOn,
+  pieceIds: z.array(z.uuid()),
+});
+export type Wear = z.infer<typeof Wear>;

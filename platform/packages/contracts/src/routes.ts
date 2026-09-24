@@ -2,7 +2,22 @@ import type { z } from 'zod';
 import { EmptyInput, HealthOutput } from './common';
 import { Consents, UpdateConsentsInput } from './consents';
 import { JOB_EVENT, JobIdParams, JobSnapshot, StartJobOutput } from './jobs';
-import { GenerateLookInput, Idea, IdeaList, IdeaParams, ListIdeasInput } from './looks';
+import {
+  CreateLookInput,
+  GenerateLookInput,
+  Idea,
+  IdeaList,
+  IdeaParams,
+  ListIdeasInput,
+  ListLooksInput,
+  Look,
+  LookPage,
+  LookParams,
+  UpdateLookInput,
+  Wear,
+  WearInput,
+  WearParams,
+} from './looks';
 import {
   DeletionRequest,
   DeletionStatus,
@@ -216,6 +231,79 @@ export const routes = {
     params: WishParams,
     input: EmptyInput,
     output: Piece,
+  },
+  'looks.list': {
+    method: 'GET',
+    path: '/looks',
+    auth: 'user',
+    input: ListLooksInput,
+    output: LookPage,
+  },
+  'looks.create': {
+    method: 'POST',
+    path: '/looks',
+    auth: 'user',
+    input: CreateLookInput,
+    output: Look,
+  },
+  'looks.get': {
+    method: 'GET',
+    path: '/looks/:id',
+    auth: 'user',
+    params: LookParams,
+    input: EmptyInput,
+    output: Look,
+  },
+  'looks.update': {
+    method: 'PATCH',
+    path: '/looks/:id',
+    auth: 'user',
+    params: LookParams,
+    input: UpdateLookInput,
+    output: Look,
+  },
+  'looks.delete': {
+    method: 'DELETE',
+    path: '/looks/:id',
+    auth: 'user',
+    params: LookParams,
+    input: EmptyInput,
+    output: Deleted,
+  },
+  'looks.restore': {
+    method: 'POST',
+    path: '/looks/:id/restore',
+    auth: 'user',
+    params: LookParams,
+    input: EmptyInput,
+    output: Look,
+  },
+  // "Save as new": a copy with her edits, linked to its origin.
+  'looks.variant': {
+    method: 'POST',
+    path: '/looks/:id/variants',
+    auth: 'user',
+    params: LookParams,
+    input: UpdateLookInput,
+    output: Look,
+    idempotent: true,
+  },
+  // Naturally idempotent: one wear per look per day.
+  'looks.wear': {
+    method: 'POST',
+    path: '/looks/:id/wears',
+    auth: 'user',
+    params: LookParams,
+    input: WearInput,
+    output: Wear,
+  },
+  'looks.unwear': {
+    method: 'DELETE',
+    path: '/looks/:id/wears/:date',
+    auth: 'user',
+    params: WearParams,
+    input: EmptyInput,
+    output: Deleted,
   },
   'looks.generate': {
     method: 'POST',
