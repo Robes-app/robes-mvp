@@ -15,7 +15,8 @@ The next-generation Robes: a secure, scalable platform with a Next.js web app an
 | `packages/tokens` | Design tokens → generated Tailwind v4 (web) and Uniwind (native) CSS, with a WCAG contrast gate |
 | `packages/contracts` | zod schemas shared by server and clients (error body, health) |
 | `packages/api` | `route()` wrapper: auth (Supabase JWT via JWKS), validation, body limits, rate limits, safe errors |
-| `workers/`, `infra/` | Lambda workers and AWS CDK, from M1 |
+| `workers/` | Lambda workers, from M1 |
+| `infra/` | AWS CDK app (`@robes/infra`): stages `Staging`/`Production` from `infra/config/*.ts`, one file per stack in `src/stacks/`, assertion tests in `test/`. Runbooks: `docs/runbooks/` |
 | `docs/` | Spec, requirements, reference and plans |
 
 Internal packages are "just-in-time" TypeScript: `exports` point at `src/*.ts` and are compiled by the consumer (Next, Metro, Vitest). The exception is `@robes/tokens`, which has a build step that writes `dist/*.css`.
@@ -49,6 +50,9 @@ Check it's working: `http://localhost:3000` shows the Robes headline on cream, a
 | `pnpm db:reset` | Recreate the local DB from `supabase/migrations` |
 | `pnpm db:test` | pgTAP tests in `supabase/tests/database` |
 | `pnpm --filter @robes/tokens build` | Regenerate token CSS after editing `packages/tokens/src/tokens.ts` |
+| `pnpm --filter @robes/infra test` | CDK assertion tests (both stages, stub handlers, no AWS needed) |
+| `pnpm --filter @robes/infra synth` | `cdk synth` of both stages with stub worker handlers, offline |
+| `cd infra && pnpm exec cdk diff -c stage=staging` | Diff against the staging account (needs AWS credentials; see `docs/runbooks/environments.md`) |
 
 ## How the pieces fit
 
@@ -89,4 +93,4 @@ The identity comes from the verified JWT (`user.id`), never from the body. `rout
 
 ## CI
 
-`.github/workflows/platform-ci.yml` runs on PRs touching `platform/**`. It has four jobs: checks (lint, typecheck, unit, expo-doctor, build), database (Supabase + `db lint` + pgTAP), e2e (Playwright) and secrets (gitleaks over the change's commits).
+`.github/workflows/platform-ci.yml` runs on PRs touching `platform/**`. It has four jobs: checks (lint, typecheck, unit, expo-doctor, build), database (Supabase + `db lint` + pgTAP), e2e (Playwright) and secrets (gitleaks over the change's commits). A `cdk-diff` job runs the infra assertion tests and an offline `cdk synth`; the checks job also runs `pnpm audit --prod --audit-level high`. Deploys: `platform-deploy-staging.yml` (push to `platform`) and `platform-deploy-prod.yml` (manual, `production` environment approval), both via GitHub OIDC; setup in `docs/runbooks/environments.md`.
