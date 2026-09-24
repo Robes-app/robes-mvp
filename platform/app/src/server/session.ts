@@ -35,3 +35,14 @@ export async function currentConsents(): Promise<{ userId: UserId; consents: Con
   if (!userId) return null;
   return { userId, consents: await getConsents(repos, userId) };
 }
+
+// Signed-in pages inside the shell: onboarding comes first.
+export async function requireOnboardedProfile() {
+  const profile = await requireProfile();
+  if (!profile.onboardedAt) redirect('/onboarding');
+  return profile;
+}
+
+export function displayName(profile: { firstName: string | null; email: string }): string {
+  return profile.firstName ?? profile.email;
+}

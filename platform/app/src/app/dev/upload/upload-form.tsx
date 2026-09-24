@@ -1,26 +1,11 @@
 'use client';
 
-import type { ApiClient } from '@robes/api-client';
 import { useApiClient } from '@robes/api-client/react';
-import { type Asset, UploadContentType } from '@robes/contracts';
+import type { Asset } from '@robes/contracts';
 import { devUpload as copy } from '@robes/copy';
 import { Button, Field, Heading, Text } from '@robes/ui';
 import { type ChangeEvent, useState } from 'react';
-
-async function uploadPhoto(api: ApiClient, file: File): Promise<Asset> {
-  const contentType = UploadContentType.parse(file.type);
-  const { assetId, upload } = await api.call('uploads.create', {
-    input: { kind: 'wardrobe', contentType, bytes: file.size },
-  });
-  // The bytes go straight to storage on the presigned URL, never through the API (SEC-20).
-  const put = await fetch(upload.url, {
-    method: upload.method,
-    headers: upload.headers,
-    body: file,
-  });
-  if (!put.ok) throw new Error('put');
-  return api.call('uploads.complete', { params: { id: assetId } });
-}
+import { uploadPhoto } from '@/lib/upload';
 
 export function UploadForm() {
   const api = useApiClient();

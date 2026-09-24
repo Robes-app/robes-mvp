@@ -54,6 +54,12 @@ export const onboarding = {
   continue: 'Continue',
   saving: 'Saving…',
   failed: 'Robes couldn’t save that. Try again in a moment.',
+  pieceEyebrow: 'Your first piece',
+  pieceTitle: 'Tell Robes about a piece you love.',
+  pieceLabel: 'Describe it',
+  piecePlaceholder: 'A camel wool coat',
+  pieceStart: 'Style it',
+  skip: 'Skip for now',
 } as const;
 
 export const today = {
@@ -139,6 +145,29 @@ export const wardrobe = {
   deleted: 'Piece removed.',
   undo: 'Undo',
   segments: { pieces: 'Pieces', wishlist: 'Wishlist', inbox: 'Inbox' },
+  removePiece: (label: string): string => `Remove ${label}`,
+  photoAlt: (label: string): string => `Photo of ${label}`,
+  wishlistEmpty: {
+    title: 'Pieces you’re after live here.',
+    body: 'Keep a list of what you want, then tell Robes when you buy it.',
+  },
+  inboxEmpty: {
+    title: 'Pieces to check land here.',
+    body: 'When Robes isn’t sure about a photo, it waits here for you.',
+  },
+  piece: {
+    back: 'Wardrobe',
+    label: 'Name',
+    brand: 'Brand',
+    color: 'Colour',
+    size: 'Size',
+    notes: 'Notes',
+    save: 'Save changes',
+    saving: 'Saving…',
+    saved: 'Saved.',
+    remove: 'Remove',
+    stylePiece: 'Style this piece',
+  },
 } as const;
 
 // SEC-84: two equal choices, asked once analytics is unanswered; changeable in You › Privacy.
