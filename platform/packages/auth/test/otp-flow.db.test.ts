@@ -26,15 +26,18 @@ afterAll(async () => {
   await pool.end();
 });
 
-function post(
-  path: string,
-  body: unknown,
-  headers: Record<string, string> = {},
-): Promise<Response> {
+// Rate limits persist in Postgres, so each test gets its own client IP.
+let ip = '';
+beforeEach(() => {
+  const octet = (): number => Math.floor(Math.random() * 250);
+  ip = `10.${octet()}.${octet()}.${octet()}`;
+});
+
+function post(path: string, body: unknown): Promise<Response> {
   return auth.handler(
     new Request(`${BASE}/api/auth${path}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', origin: BASE, ...headers },
+      headers: { 'content-type': 'application/json', origin: BASE, 'x-forwarded-for': ip },
       body: JSON.stringify(body),
     }),
   );
