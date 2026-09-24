@@ -161,7 +161,7 @@ export function looksRepo(db: Db) {
         name: string;
         nameProvisional: boolean;
         pieces: readonly LookPieceInput[];
-        source?: 'manual' | 'variant' | 'generated';
+        source?: 'manual' | 'variant' | 'generated' | 'today';
         originLookId?: string | null;
         renderAssetId?: string | null;
       },

@@ -1,4 +1,5 @@
 import type { JobHandlers } from '../runtime';
+import { createDailyHandler, type DailyDeps } from './daily';
 import { createFakeHandler } from './fake';
 import { createStyleAnalyseHandler, type StyleAnalyseDeps } from './style-analyse';
 import { createStylePieceHandler, type StylePieceDeps } from './style-piece';
@@ -9,6 +10,7 @@ export interface HandlerDeps {
   // Present when the runtime has AI + media wiring (workers, the dev inline transport).
   wardrobeAnalyse?: WardrobeAnalyseDeps;
   stylePiece?: StylePieceDeps;
+  daily?: DailyDeps;
   styleAnalyse?: StyleAnalyseDeps;
 }
 
@@ -20,6 +22,7 @@ export function createHandlers(opts: HandlerDeps = {}): JobHandlers {
       ? { wardrobe_analyse: createWardrobeAnalyseHandler(opts.wardrobeAnalyse) }
       : {}),
     ...(opts.stylePiece ? { key_piece: createStylePieceHandler(opts.stylePiece) } : {}),
+    ...(opts.daily ? { daily: createDailyHandler(opts.daily) } : {}),
     ...(opts.styleAnalyse
       ? { stylenotes_analyse: createStyleAnalyseHandler(opts.styleAnalyse) }
       : {}),

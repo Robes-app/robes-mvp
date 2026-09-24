@@ -55,6 +55,80 @@ export function stylingRepo(db: Db) {
       };
     },
 
+    // The daily styler's view of her: closet by index with ids, heroes and season bands, plus
+    // where she is (for the weather) and when (her timezone).
+    async dailyContext(userId: UserId) {
+      const base = await this.context(userId);
+      const [profile, closet] = await Promise.all([
+        db
+          .selectFrom('profiles')
+          .select(['homeCity', 'homeLat', 'homeLon', 'timezone'])
+          .where('id', '=', userId)
+          .executeTakeFirst(),
+        db
+          .selectFrom('wardrobeItems as w')
+          .leftJoin('wardrobeItemStats as s', 's.wardrobeItemId', 'w.id')
+          .select([
+            'w.id',
+            'w.label',
+            'w.category',
+            'w.color',
+            'w.brand',
+            'w.heroPosition',
+            'w.seasonBand',
+            's.timesWorn',
+          ])
+          .where('w.userId', '=', userId)
+          .where('w.deletedAt', 'is', null)
+          .where('w.status', '=', 'ready')
+          .orderBy('w.heroPosition', 'asc')
+          .orderBy('w.createdAt', 'desc')
+          .limit(60)
+          .execute(),
+      ]);
+      return {
+        firstName: base.firstName,
+        gender: base.gender,
+        styleIcons: base.styleIcons,
+        styleDna: base.styleDna,
+        homeCity: profile?.homeCity ?? null,
+        homeLat: profile?.homeLat == null ? null : Number(profile.homeLat),
+        homeLon: profile?.homeLon == null ? null : Number(profile.homeLon),
+        timezone: profile?.timezone ?? 'Europe/Dublin',
+        closet: closet.map((c) => ({
+          id: c.id,
+          label: c.label,
+          category: c.category,
+          color: c.color,
+          brand: c.brand,
+          timesWorn: c.timesWorn ?? 0,
+          hero: c.heroPosition !== null,
+          seasonBand: c.seasonBand,
+        })),
+      };
+    },
+
+    // A daily look is a draft: kept 30 days unless she names it (legacy "nothing saved until named").
+    async createDailyLook(
+      userId: UserId,
+      look: { jobId: string; title: string; subtitle: string; data: Record<string, unknown> },
+    ): Promise<string> {
+      const row = await db
+        .insertInto('artifacts')
+        .values({
+          userId,
+          type: 'daily_look',
+          title: look.title.slice(0, 160),
+          subtitle: look.subtitle.slice(0, 240),
+          data: JSON.stringify(look.data),
+          generationJobId: look.jobId,
+          expiresAt: IDEA_TTL,
+        })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      return row.id;
+    },
+
     anchorPiece(userId: UserId, pieceId: string) {
       return db
         .selectFrom('wardrobeItems')

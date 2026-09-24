@@ -28,6 +28,8 @@ export const JobOutput = z.object({
   label: z.string().optional(),
   category: z.string().optional(),
   noItemDetected: z.boolean().optional(),
+  // daily
+  dailyLookId: z.uuid().optional(),
   // stylenotes_analyse
   styleKind: z.enum(['colour', 'silhouette']).optional(),
   archetype: z.string().optional(),

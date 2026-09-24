@@ -6,7 +6,8 @@
     ".": "./src/index.ts",
     "./prompts/wardrobe-analyse": "./src/prompts/wardrobe-analyse/v1.ts",
     "./prompts/style-piece": "./src/prompts/style-piece/v1.ts",
-    "./prompts/style-analyse": "./src/prompts/style-analyse/v1.ts"
+    "./prompts/style-analyse": "./src/prompts/style-analyse/v1.ts",
+    "./prompts/daily": "./src/prompts/daily/v1.ts"
   },
   "scripts": {
     "test": "vitest run",
