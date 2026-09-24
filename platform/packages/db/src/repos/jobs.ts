@@ -1,28 +1,8 @@
-import type { UsageMetric } from '@robes/core';
+import type { JobKind, JobStage, UsageMetric } from '@robes/core';
 import { sql } from 'kysely';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
 import { usageRepo } from './usage';
-
-export const JOB_KINDS = [
-  'fake',
-  'key_piece',
-  'daily',
-  'travel',
-  'travel_looks',
-  'look_render',
-  'avatar_cell',
-  'wardrobe_analyse',
-  'stylenotes_analyse',
-  'receipt_read',
-  'alternates',
-  'lookbuild_note',
-  'link_import',
-  'cutout',
-] as const;
-export type JobKind = (typeof JOB_KINDS)[number];
-export type JobStatus = 'queued' | 'running' | 'succeeded' | 'partial' | 'failed' | 'cancelled';
-export type JobStage = 'queued' | 'text' | 'images' | 'done';
 
 export interface CreateJobInput {
   kind: JobKind;
@@ -94,10 +74,17 @@ export function jobsRepo(db: Db) {
         .executeTakeFirst();
     },
 
+    // A queued job is cancelled outright; a running one is flagged and its worker stops.
     async requestCancel(userId: UserId, jobId: string): Promise<boolean> {
+      const queued = sql<boolean>`status = 'queued'`;
       const res = await db
         .updateTable('generationJobs')
-        .set({ cancelRequestedAt: sql`coalesce(cancel_requested_at, now())` })
+        .set({
+          cancelRequestedAt: sql`coalesce(cancel_requested_at, now())`,
+          status: sql`case when ${queued} then 'cancelled' else status end`,
+          stage: sql`case when ${queued} then 'done' else stage end`,
+          finishedAt: sql`case when ${queued} then now() else finished_at end`,
+        })
         .where('id', '=', jobId)
         .where('userId', '=', userId)
         .where('status', 'in', ['queued', 'running'])
@@ -165,6 +152,7 @@ export function jobRunnerRepo(db: Db) {
           leaseUntil: null,
         })
         .where('id', '=', jobId)
+        .where('status', '=', 'running')
         .execute();
     },
 
@@ -177,13 +165,21 @@ export function jobRunnerRepo(db: Db) {
       return row?.cancelRequestedAt != null;
     },
 
-    // Outbox recovery: queued jobs the transport never delivered (infrastructure.md §4.2).
-    async staleQueued(olderThanSeconds: number, limit: number): Promise<string[]> {
+    // Outbox recovery (infrastructure.md §4.2): queued jobs the transport never delivered, and
+    // running jobs whose worker died (lease expired).
+    async stale(olderThanSeconds: number, limit: number): Promise<string[]> {
       const rows = await db
         .selectFrom('generationJobs')
         .select('id')
-        .where('status', '=', 'queued')
-        .where('createdAt', '<', sql<Date>`now() - make_interval(secs => ${olderThanSeconds})`)
+        .where((eb) =>
+          eb.or([
+            eb.and([
+              eb('status', '=', 'queued'),
+              eb('createdAt', '<', sql<Date>`now() - make_interval(secs => ${olderThanSeconds})`),
+            ]),
+            eb.and([eb('status', '=', 'running'), eb('leaseUntil', '<', sql<Date>`now()`)]),
+          ]),
+        )
         .orderBy('createdAt')
         .limit(limit)
         .execute();

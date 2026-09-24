@@ -80,4 +80,33 @@ export const nav = {
   you: 'You',
 } as const;
 
-export const copy = { errors, auth, emails, onboarding, today, marketing, nav } as const;
+export const jobs = {
+  status: {
+    queued: 'Waiting to start…',
+    running: 'Working on it…',
+    succeeded: 'Done.',
+    partial: 'Mostly done. Some images didn’t make it.',
+    failed: 'Robes couldn’t finish that. Please try again.',
+    cancelled: 'Cancelled.',
+  },
+  cancel: 'Cancel',
+  connectionLost: 'Reconnecting…',
+  imagePending: 'Image on its way',
+  fake: {
+    title: 'A test look, three ways.',
+    lines: [
+      'Start with the piece you reach for most.',
+      'Add one thing that changes its mood.',
+      'Finish with shoes you can walk in.',
+    ],
+  },
+  dev: {
+    eyebrow: 'Platform',
+    title: 'Job smoke test.',
+    start: 'Start a fake job',
+    starting: 'Starting…',
+    startFailed: 'Robes couldn’t start that. Try again in a moment.',
+  },
+} as const;
+
+export const copy = { errors, auth, emails, onboarding, today, marketing, nav, jobs } as const;

@@ -1,0 +1,23 @@
+{
+  "name": "@robes/jobs",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:db": "vitest run --config vitest.db.config.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sqs": "3.1138.0",
+    "@robes/copy": "workspace:*",
+    "@robes/core": "workspace:*",
+    "@robes/db": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

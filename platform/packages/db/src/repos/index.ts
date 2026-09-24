@@ -3,6 +3,7 @@ import { adminRepo } from './admin';
 import { assetProcessingRepo, assetsRepo } from './assets';
 import { flagsRepo } from './flags';
 import { jobRunnerRepo, jobsRepo } from './jobs';
+import { maintenanceRepo } from './maintenance';
 import { profilesRepo } from './profiles';
 import { usageRepo } from './usage';
 
@@ -23,17 +24,12 @@ export function createSystemRepositories(db: Db) {
   return {
     assets: assetProcessingRepo(db),
     jobs: jobRunnerRepo(db),
+    maintenance: maintenanceRepo(db),
   };
 }
 
 export type Repositories = ReturnType<typeof createRepositories>;
 export type SystemRepositories = ReturnType<typeof createSystemRepositories>;
 export type { AssetKind } from './assets';
-export {
-  type CreateJobInput,
-  JOB_KINDS,
-  type JobKind,
-  type JobStage,
-  type JobStatus,
-} from './jobs';
+export type { CreateJobInput } from './jobs';
 export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';
