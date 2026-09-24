@@ -63,7 +63,7 @@ export class IdentityStack extends RobesStack {
     );
     this.vercelApiRole = new iam.Role(this, 'VercelApiRole', {
       roleName: `${config.namePrefix}-vercel-api`,
-      description: `Vercel ${project} (${environment}) → enqueue, presign uploads, sign media`,
+      description: `Vercel ${project} (${environment}): enqueue, presign uploads, sign media`,
       maxSessionDuration: Duration.hours(1),
       assumedBy: new iam.WebIdentityPrincipal(vercel.openIdConnectProviderArn, {
         StringEquals: {

@@ -205,10 +205,10 @@ export class MediaStack extends RobesStack {
       additionalBehaviors: Object.fromEntries(PUBLIC_PREFIXES.map((p) => [p, publicBehavior])),
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
-      minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
       ...(domainName && certificateArn
         ? {
             domainNames: [domainName],
+            minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
             certificate: acm.Certificate.fromCertificateArn(this, 'MediaCert', certificateArn),
           }
         : {}),

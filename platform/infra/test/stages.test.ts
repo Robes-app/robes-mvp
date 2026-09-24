@@ -1,3 +1,4 @@
+import { Annotations, Match } from 'aws-cdk-lib/assertions';
 import { describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app';
 import { synth, testApp } from './synth';
@@ -56,6 +57,14 @@ describe('staging', () => {
         .filter((n): n is string => typeof n === 'string');
     const prod = new Set(names(synth('production')));
     expect(names(s).filter((n) => prod.has(n))).toEqual([]);
+  });
+});
+
+describe.each(['staging', 'production'] as const)('%s validation', (stageName) => {
+  it('has no synth or CloudFormation validation errors', () => {
+    for (const stack of synth(stageName).stage.stacks) {
+      Annotations.fromStack(stack).hasNoError('*', Match.anyValue());
+    }
   });
 });
 
