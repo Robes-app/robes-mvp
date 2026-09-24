@@ -21,6 +21,8 @@ export interface RouteDeps {
   rateLimiter: RateLimiter;
   clientIp(req: Request): string;
   logger: { error(obj: Record<string, unknown>, msg: string): void };
+  // Error monitoring (Sentry in the app), injected so this package stays vendor-free.
+  captureError?(err: unknown, context: { requestId: string }): void;
 }
 
 export type UserFor<A extends AuthMode> = A extends 'public' ? AuthUser | null : AuthUser;
@@ -213,6 +215,7 @@ export function createGuards(deps: RouteDeps) {
       { requestId, err: err instanceof Error ? err.message : String(err) },
       'route_error',
     );
+    deps.captureError?.(err, { requestId });
     return errorResponse(new ApiError('internal'), requestId);
   }
 
