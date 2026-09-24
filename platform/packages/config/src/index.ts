@@ -128,8 +128,16 @@ type ObservabilityFields = z.infer<typeof observabilityEnv>;
 
 function checkObservability(env: ObservabilityFields & { APP_ENV: string }, ctx: Issues): void {
   if (env.APP_ENV === 'dev') return;
-  for (const key of ['SENTRY_DSN', 'NEXT_PUBLIC_SENTRY_DSN', 'NEXT_PUBLIC_POSTHOG_KEY'] as const) {
-    if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: 'required outside dev' });
+  // Staging may run without them (beta before the accounts exist); production never does.
+  if (env.APP_ENV === 'production') {
+    for (const key of [
+      'SENTRY_DSN',
+      'NEXT_PUBLIC_SENTRY_DSN',
+      'NEXT_PUBLIC_POSTHOG_KEY',
+    ] as const) {
+      if (!env[key])
+        ctx.addIssue({ code: 'custom', path: [key], message: 'required in production' });
+    }
   }
   if (!env.NEXT_PUBLIC_POSTHOG_HOST.startsWith('https://')) {
     ctx.addIssue({
@@ -269,11 +277,12 @@ export const appServerEnv = z
         path: ['TURNSTILE_SECRET_KEY'],
         message: 'Turnstile needs the site key and the secret',
       });
-    } else if (deployed && !env.TURNSTILE_SECRET_KEY) {
+    } else if (env.APP_ENV === 'production' && !env.TURNSTILE_SECRET_KEY) {
+      // Staging without Turnstile relies on the waitlist's per-IP limit and the signups flag.
       ctx.addIssue({
         code: 'custom',
         path: ['TURNSTILE_SECRET_KEY'],
-        message: 'required outside dev',
+        message: 'required in production',
       });
     }
     if (Boolean(env.APPLE_CLIENT_ID) !== Boolean(env.APPLE_CLIENT_SECRET)) {

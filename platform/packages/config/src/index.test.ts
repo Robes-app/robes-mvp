@@ -71,9 +71,12 @@ describe('parseEnv(appServerEnv)', () => {
     expect(parseEnv(appServerEnv, base).INBOUND_MAIL_DOMAIN).toBe('in.staging.mail.byrobes.com');
   });
 
-  it('requires Turnstile outside dev, as a pair', () => {
+  it('requires Turnstile in production, optional in staging, always as a pair', () => {
     const { TURNSTILE_SECRET_KEY: _s, NEXT_PUBLIC_TURNSTILE_SITE_KEY: _k, ...none } = base;
-    expect(() => parseEnv(appServerEnv, none)).toThrow(/TURNSTILE_SECRET_KEY/);
+    expect(() => parseEnv(appServerEnv, none)).not.toThrow();
+    expect(() => parseEnv(appServerEnv, { ...none, APP_ENV: 'production' })).toThrow(
+      /TURNSTILE_SECRET_KEY/,
+    );
     expect(() => parseEnv(appServerEnv, { ...none, TURNSTILE_SECRET_KEY: 'x' })).toThrow(
       /TURNSTILE/,
     );
@@ -260,9 +263,12 @@ describe('observability env', () => {
     expect(proxied.observability.connectOrigins).toEqual(['https://ph.byrobes.com']);
   });
 
-  it('requires Sentry and PostHog outside dev, over https, with a sane sample rate', () => {
+  it('requires Sentry and PostHog in production (optional in staging), over https, sane sample rate', () => {
     const { SENTRY_DSN: _s, NEXT_PUBLIC_POSTHOG_KEY: _k, ...rest } = base;
-    expect(() => parseEnv(appServerEnv, rest)).toThrow(/SENTRY_DSN.*NEXT_PUBLIC_POSTHOG_KEY/);
+    expect(() => parseEnv(appServerEnv, rest)).not.toThrow();
+    expect(() => parseEnv(appServerEnv, { ...rest, APP_ENV: 'production' })).toThrow(
+      /SENTRY_DSN.*NEXT_PUBLIC_POSTHOG_KEY/,
+    );
     expect(() =>
       parseEnv(appServerEnv, { ...base, NEXT_PUBLIC_POSTHOG_HOST: 'http://ph.example.com' }),
     ).toThrow(/NEXT_PUBLIC_POSTHOG_HOST/);
