@@ -1,0 +1,33 @@
+{
+  "name": "@robes/media",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./storage": "./src/storage.ts",
+    "./delivery": "./src/delivery.ts",
+    "./process": "./src/process.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:db": "vitest run --config vitest.db.config.ts",
+    "setup:local": "tsx scripts/setup-local-bucket.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1137.0",
+    "@aws-sdk/cloudfront-signer": "3.1125.0",
+    "@aws-sdk/s3-request-presigner": "3.1137.0",
+    "@robes/contracts": "workspace:*",
+    "blurhash": "2.0.5",
+    "sharp": "0.35.4",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@robes/db": "workspace:*",
+    "exif-reader": "2.0.3",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

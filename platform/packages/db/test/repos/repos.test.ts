@@ -1,3 +1,4 @@
+import { DEFAULT_PLAN, PLAN_LIMITS } from '@robes/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { QuotaExceeded } from '../../src/errors';
 import type { UserId } from '../../src/ids';
@@ -114,5 +115,19 @@ describe('assets', () => {
       .where('id', '=', asset.id)
       .executeTakeFirst();
     expect(row?.sensitive).toBe(true);
+  });
+
+  it('consumes upload quota atomically with the pending row', async () => {
+    const quota = {
+      metric: 'upload.image' as const,
+      cost: PLAN_LIMITS[DEFAULT_PLAN]['upload.image'].limit,
+    };
+    const pending = { kind: 'wardrobe' as const, contentType: 'image/png', bytes: 10 };
+    await repos.assets.createPending(bob, pending, { quota });
+    await expect(
+      repos.assets.createPending(bob, pending, { quota: { ...quota, cost: 1 } }),
+    ).rejects.toBeInstanceOf(QuotaExceeded);
+    const rows = await db.selectFrom('assets').select('id').where('userId', '=', bob).execute();
+    expect(rows).toHaveLength(1);
   });
 });

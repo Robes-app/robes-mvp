@@ -4,6 +4,87 @@ const DEV_ONLY_FLAGS = ['ALLOW_PRIVATE_FETCH', 'NOTIFY_DEBUG', 'JOBS_TRANSPORT_I
 
 const optionalSecret = z.string().min(1).optional();
 
+type Issues = z.RefinementCtx;
+
+const mediaEnv = z.object({
+  MEDIA_BUCKET: z.string().regex(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/),
+  MEDIA_S3_REGION: z.string().min(1).default('eu-west-1'),
+  // MinIO locally; unset in AWS (the SDK picks the regional endpoint).
+  MEDIA_S3_ENDPOINT: z.url().optional(),
+  // Local MinIO only: deployed envs use the Vercel OIDC role, never long-lived keys (SEC-73).
+  MEDIA_S3_ACCESS_KEY_ID: optionalSecret,
+  MEDIA_S3_SECRET_ACCESS_KEY: optionalSecret,
+  // Origin images are served from (CloudFront, e.g. https://media.byrobes.com); CSP img-src.
+  MEDIA_PUBLIC_ORIGIN: z.url().optional(),
+  MEDIA_CLOUDFRONT_KEY_PAIR_ID: optionalSecret,
+  // PEM; `\n` escapes are accepted for single-line env stores.
+  MEDIA_CLOUDFRONT_PRIVATE_KEY: optionalSecret,
+  // Parent domain shared by app and media host (e.g. byrobes.com) so web signed cookies reach it.
+  MEDIA_COOKIE_DOMAIN: z.string().min(3).optional(),
+});
+
+type MediaFields = z.infer<typeof mediaEnv>;
+
+function checkMedia(env: MediaFields & { APP_ENV: string }, ctx: Issues): void {
+  const issue = (path: keyof MediaFields, message: string): void =>
+    ctx.addIssue({ code: 'custom', path: [path], message });
+  const signing = [env.MEDIA_CLOUDFRONT_KEY_PAIR_ID, env.MEDIA_CLOUDFRONT_PRIVATE_KEY];
+  if (signing.some(Boolean) && !signing.every(Boolean)) {
+    issue('MEDIA_CLOUDFRONT_PRIVATE_KEY', 'CloudFront signing needs key pair id and private key');
+  }
+  if (signing.some(Boolean) && !env.MEDIA_PUBLIC_ORIGIN) {
+    issue('MEDIA_PUBLIC_ORIGIN', 'required with CloudFront signing');
+  }
+  if (Boolean(env.MEDIA_S3_ACCESS_KEY_ID) !== Boolean(env.MEDIA_S3_SECRET_ACCESS_KEY)) {
+    issue('MEDIA_S3_SECRET_ACCESS_KEY', 'S3 credentials need id and secret');
+  }
+  if (env.APP_ENV === 'dev') {
+    if (!env.MEDIA_S3_ENDPOINT) issue('MEDIA_S3_ENDPOINT', 'set the MinIO endpoint in dev');
+    return;
+  }
+  if (!signing.every(Boolean)) {
+    issue('MEDIA_CLOUDFRONT_KEY_PAIR_ID', 'CloudFront signing is required outside dev');
+  }
+  if (env.MEDIA_PUBLIC_ORIGIN && !env.MEDIA_PUBLIC_ORIGIN.startsWith('https://')) {
+    issue('MEDIA_PUBLIC_ORIGIN', 'must be https outside dev');
+  }
+  if (env.MEDIA_S3_ACCESS_KEY_ID) issue('MEDIA_S3_ACCESS_KEY_ID', 'not allowed outside dev');
+}
+
+function mediaConfig(env: MediaFields) {
+  const endpointOrigin = env.MEDIA_S3_ENDPOINT && new URL(env.MEDIA_S3_ENDPOINT).origin;
+  const cloudfront =
+    env.MEDIA_PUBLIC_ORIGIN && env.MEDIA_CLOUDFRONT_KEY_PAIR_ID && env.MEDIA_CLOUDFRONT_PRIVATE_KEY
+      ? {
+          origin: new URL(env.MEDIA_PUBLIC_ORIGIN).origin,
+          keyPairId: env.MEDIA_CLOUDFRONT_KEY_PAIR_ID,
+          privateKey: env.MEDIA_CLOUDFRONT_PRIVATE_KEY.replace(/\\n/g, '\n'),
+          cookieDomain: env.MEDIA_COOKIE_DOMAIN,
+        }
+      : undefined;
+  return {
+    s3: {
+      bucket: env.MEDIA_BUCKET,
+      region: env.MEDIA_S3_REGION,
+      endpoint: env.MEDIA_S3_ENDPOINT,
+      credentials:
+        env.MEDIA_S3_ACCESS_KEY_ID && env.MEDIA_S3_SECRET_ACCESS_KEY
+          ? {
+              accessKeyId: env.MEDIA_S3_ACCESS_KEY_ID,
+              secretAccessKey: env.MEDIA_S3_SECRET_ACCESS_KEY,
+            }
+          : undefined,
+    },
+    cloudfront,
+    // CSP: where images load from, and where the browser PUTs uploads.
+    deliveryOrigin: cloudfront?.origin ?? endpointOrigin ?? '',
+    uploadOrigin:
+      endpointOrigin ?? `https://${env.MEDIA_BUCKET}.s3.${env.MEDIA_S3_REGION}.amazonaws.com`,
+  };
+}
+
+export type MediaConfig = ReturnType<typeof mediaConfig>;
+
 export const appServerEnv = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']),
@@ -30,8 +111,10 @@ export const appServerEnv = z
     ALLOW_PRIVATE_FETCH: z.string().optional(),
     NOTIFY_DEBUG: z.string().optional(),
     JOBS_TRANSPORT_INLINE: z.string().optional(),
+    ...mediaEnv.shape,
   })
   .superRefine((env, ctx) => {
+    checkMedia(env, ctx);
     const deployed = env.APP_ENV !== 'dev';
     if (deployed && !(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN)) {
       ctx.addIssue({
@@ -87,6 +170,7 @@ export const appServerEnv = z
         .map((o) => o.trim())
         .filter(Boolean) ?? []),
     ],
+    media: mediaConfig(env),
   }));
 
 export type AppServerEnv = z.infer<typeof appServerEnv>;
