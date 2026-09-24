@@ -1,37 +1,20 @@
 import type { Today } from '@robes/contracts';
-import { today as copy } from '@robes/copy';
+import { type NextDoorTarget, nextLine } from '@robes/copy';
 
-// The next-step rule → sentence + door (legacy _rbNextLine). Pure, so it's unit-tested.
+// The shared next-step line with web routes for its door.
 export function nextStepCopy(t: Pick<Today, 'nextStep' | 'today'>): {
   text: string;
   door: { label: string; href: string } | null;
 } {
-  const step = t.nextStep;
-  if (!step) return { text: copy.next.none, door: null };
-  switch (step.rule) {
-    case 'start':
-      return {
-        text: copy.next.start.text,
-        door: { label: copy.next.start.door, href: '/wardrobe/add' },
-      };
-    case 'five':
-      return {
-        text: copy.next.five.text(step.remaining ?? 1),
-        door: { label: copy.next.five.door, href: '/wardrobe/add' },
-      };
-    case 'build':
-      return {
-        text: copy.next.build.text,
-        door: { label: copy.next.build.door, href: '/looks/new' },
-      };
-    case 'wear': {
-      const look = t.today.find((e) => !e.worn)?.entry.look;
-      return {
-        text: copy.next.wear.text,
-        door: look ? { label: copy.next.wear.door, href: `/look/${look.id}` } : null,
-      };
-    }
-    case 'week':
-      return { text: copy.next.week.text, door: { label: copy.next.week.door, href: '/plan' } };
-  }
+  const { text, door } = nextLine(t.nextStep);
+  if (!door) return { text, door: null };
+  const look = t.today.find((e) => !e.worn)?.entry.look;
+  const routes: Record<NextDoorTarget, string | null> = {
+    addPieces: '/wardrobe/add',
+    newLook: '/looks/new',
+    todayLook: look ? `/look/${look.id}` : null,
+    plan: '/plan',
+  };
+  const href = routes[door.target];
+  return { text, door: href ? { label: door.label, href } : null };
 }

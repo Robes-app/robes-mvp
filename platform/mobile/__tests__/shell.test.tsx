@@ -60,6 +60,16 @@ async function app() {
 
 const ROUTES = {
   'GET /me': ME,
+  'GET /today': {
+    date: '2026-10-01',
+    hour: 9,
+    firstName: 'Ann',
+    nextStep: { rule: 'start' },
+    today: [],
+    week: Array.from({ length: 7 }, (_, i) => ({ date: `2026-10-0${i + 1}`, looks: 0 })),
+    tray: [],
+    ideas: [],
+  },
   'GET /wardrobe/items': { items: [], nextCursor: null },
   'GET /looks/ideas': { items: [] },
 };

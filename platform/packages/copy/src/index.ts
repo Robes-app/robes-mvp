@@ -101,6 +101,30 @@ export const today = {
   seeAll: 'See all',
 } as const;
 
+// Next step → sentence and door, shared by web and native (each maps `target` to its own route).
+export type NextDoorTarget = 'addPieces' | 'newLook' | 'todayLook' | 'plan';
+export function nextLine(
+  step: { rule: 'start' | 'five' | 'build' | 'wear' | 'week'; remaining?: number } | null,
+): { text: string; door: { label: string; target: NextDoorTarget } | null } {
+  const n = today.next;
+  if (!step) return { text: n.none, door: null };
+  switch (step.rule) {
+    case 'start':
+      return { text: n.start.text, door: { label: n.start.door, target: 'addPieces' } };
+    case 'five':
+      return {
+        text: n.five.text(step.remaining ?? 1),
+        door: { label: n.five.door, target: 'addPieces' },
+      };
+    case 'build':
+      return { text: n.build.text, door: { label: n.build.door, target: 'newLook' } };
+    case 'wear':
+      return { text: n.wear.text, door: { label: n.wear.door, target: 'todayLook' } };
+    case 'week':
+      return { text: n.week.text, door: { label: n.week.door, target: 'plan' } };
+  }
+}
+
 export const marketing = {
   eyebrow: 'Robes',
   title: 'Your wardrobe, styled.',
