@@ -63,3 +63,13 @@ test('an empty wardrobe starts with Add pieces', async () => {
   await fireEvent.press(await screen.findByRole('link', { name: `${copy.next.start.door} →` }));
   expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe');
 });
+
+test('points her at waiting Inbox pieces', async () => {
+  mockFetch({ 'GET /today': todayWith({ inboxCount: 2 }) });
+  await renderWithApi(<TodayView />);
+  await fireEvent.press(await screen.findByRole('link', { name: copy.inbox(2) }));
+  expect(mockRouter.push).toHaveBeenCalledWith({
+    pathname: '/wardrobe',
+    params: { segment: 'inbox' },
+  });
+});

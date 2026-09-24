@@ -14,7 +14,7 @@ const OPTIONS: Option[] = [
   { label: shell.create.photograph, icon: 'camera', add: 'camera' },
   { label: shell.create.cameraRoll, icon: 'image', add: 'library' },
   { label: shell.create.stylePiece, icon: 'looks', href: '/looks/style' },
-  { label: shell.create.link, icon: 'link', href: '/soon' },
+  { label: shell.create.link, icon: 'link', href: '/wardrobe/link' },
   { label: shell.create.receipt, icon: 'mail', href: '/soon' },
   { label: shell.create.newLook, icon: 'plus', href: '/looks/new' },
   { label: shell.create.askRobes, icon: 'ask', href: '/soon' },

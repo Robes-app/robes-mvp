@@ -78,6 +78,15 @@ export function TodayView() {
         </View>
       </PrimaryScope>
 
+      {data && data.inboxCount > 0 ? (
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => router.push({ pathname: '/wardrobe', params: { segment: 'inbox' } })}
+        >
+          <Text className="underline">{copy.inbox(data.inboxCount)}</Text>
+        </Pressable>
+      ) : null}
+
       {data && data.today.length > 0 ? (
         <View className="gap-3">
           <Heading size="md">{copy.todayLooks}</Heading>
