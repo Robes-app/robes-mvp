@@ -14,6 +14,7 @@ const LOOK_COLUMNS = [
   'originLookId',
   'climateBand',
   'renderAssetId',
+  'renderStatus',
   'createdAt',
   'updatedAt',
 ] as const;
@@ -110,6 +111,69 @@ export function looksRepo(db: Db) {
         .where('userId', '=', userId)
         .executeTakeFirst();
       return Number(row?.n ?? 0);
+    },
+
+    // Rendered on her model: where it stands, for the look page and idempotent asks.
+    renderState(userId: UserId, id: string) {
+      return active()
+        .select([
+          'id',
+          'renderKey',
+          'renderStatus',
+          'renderJobId',
+          'renderAssetId',
+          'renderClaimedAt',
+        ])
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .executeTakeFirst();
+    },
+
+    // True when this call should start a render for `renderKey`: not already ready for that exact
+    // model and rack, and not rendering right now (a claim older than 10 minutes is abandoned).
+    async claimRender(userId: UserId, id: string, renderKey: string): Promise<boolean> {
+      const res = await db
+        .updateTable('looks')
+        .set({
+          renderStatus: 'pending',
+          renderKey,
+          renderJobId: null,
+          renderClaimedAt: sql`now()`,
+        })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('deletedAt', 'is', null)
+        // coalesce: a look never rendered has NULL status, and NOT (NULL) would match nothing.
+        .where(
+          sql<boolean>`not coalesce(
+            (render_status = 'ready' and render_key = ${renderKey})
+            or (render_status = 'pending' and render_claimed_at > now() - interval '10 minutes'),
+            false
+          )`,
+        )
+        .executeTakeFirst();
+      return res.numUpdatedRows > 0n;
+    },
+
+    async setRenderJob(userId: UserId, id: string, jobId: string): Promise<void> {
+      await db
+        .updateTable('looks')
+        .set({ renderJobId: jobId })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('renderStatus', '=', 'pending')
+        .execute();
+    },
+
+    // Nothing started: give the claim back so she can ask again.
+    async releaseRender(userId: UserId, id: string): Promise<void> {
+      await db
+        .updateTable('looks')
+        .set({ renderStatus: 'failed' })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('renderStatus', '=', 'pending')
+        .execute();
     },
 
     getMany(userId: UserId, ids: readonly string[]) {

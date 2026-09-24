@@ -83,6 +83,11 @@ export const today = {
     },
     week: { text: 'Nothing planned this week. Pin a look to a day.', door: 'Open the plan' },
     none: 'What are we dressing for today?',
+    model: {
+      text: (look: string, presence: 'woman' | 'man' | 'unspecified'): string =>
+        `Build your model and ${presence === 'man' ? 'he’ll' : presence === 'unspecified' ? 'they’ll' : 'she’ll'} wear ${look}.`,
+      door: 'Build your model',
+    },
   },
   todayLooks: 'Today',
   worn: 'Worn',
@@ -140,15 +145,25 @@ export const today = {
 } as const;
 
 // Next step → sentence and door, shared by web and native (each maps `target` to its own route).
-export type NextDoorTarget = 'addPieces' | 'newLook' | 'todayLook' | 'plan';
+export type NextDoorTarget = 'addPieces' | 'newLook' | 'todayLook' | 'plan' | 'model';
 export function nextLine(
-  step: { rule: 'start' | 'five' | 'build' | 'wear' | 'week'; remaining?: number } | null,
+  step: {
+    rule: 'start' | 'model' | 'five' | 'build' | 'wear' | 'week';
+    remaining?: number;
+    lookName?: string;
+    presence?: 'woman' | 'man' | 'unspecified';
+  } | null,
 ): { text: string; door: { label: string; target: NextDoorTarget } | null } {
   const n = today.next;
   if (!step) return { text: n.none, door: null };
   switch (step.rule) {
     case 'start':
       return { text: n.start.text, door: { label: n.start.door, target: 'addPieces' } };
+    case 'model':
+      return {
+        text: n.model.text(step.lookName ?? 'your look', step.presence ?? 'woman'),
+        door: { label: n.model.door, target: 'model' },
+      };
     case 'five':
       return {
         text: n.five.text(step.remaining ?? 1),
@@ -629,6 +644,36 @@ export const you = {
     // Native: the share sheet carries Copy.
     share: 'Share address',
   },
+  // You › Your model (legacy stylenotes): never "avatar", always "your model".
+  model: {
+    link: 'Your model',
+    title: 'Your model.',
+    subtitle: 'Build her once and she’ll wear every look you keep.',
+    empty: 'Your model starts the moment your first photograph reads — or shape her by hand.',
+    source: {
+      read: 'Read from your photographs',
+      mixed: 'Part read, part chosen',
+      hand: 'Chosen by hand',
+    },
+    photos: 'Read from a photo',
+    presence: 'Presence',
+    presenceOptions: { woman: 'Woman', man: 'Man', unspecified: 'Prefer not to say' },
+    skin: 'Skin',
+    skinNames: ['Espresso', 'Mahogany', 'Chestnut', 'Tan', 'Honey', 'Sand', 'Peach', 'Porcelain'],
+    hair: 'Hair',
+    hairNames: ['Jet black', 'Espresso', 'Chestnut', 'Caramel', 'Ash blonde'],
+    line: 'The line',
+    lineOptions: { soft: 'Softer', none: 'As she is', straight: 'Straighter' },
+    frame: 'The frame',
+    frameOptions: { fuller: 'Fuller', none: 'As she is', narrower: 'Narrower' },
+    build: 'Build your model',
+    creating: 'Creating your model…',
+    failed: 'Robes couldn’t draw your model just now. Change a pick to try again.',
+    imageAlt: 'Your model',
+    seeOnMe: 'See it on me',
+    dressing: 'Dressing your model…',
+    onMeFailed: 'Robes couldn’t dress your model just now. Try again in a moment.',
+  },
 } as const;
 
 // Plan (M5): the rolling list of days.
@@ -728,6 +773,12 @@ export const notify = {
       `Robes read ${count === 1 ? 'one piece' : `${count} pieces`} out of it. Untick anything that went back and the rest file straight to your wardrobe.`,
     cta: (count: number): string => (count === 1 ? 'Review it' : 'Review them'),
     notice: 'You’re getting this because you forwarded a receipt to your Robes address.',
+  },
+  lookWaiting: {
+    subject: 'She’d wear it.',
+    body: (look: string): string =>
+      `${look} is saved. Build your model once and she wears every look you keep.`,
+    cta: 'Build your model',
   },
 } as const;
 

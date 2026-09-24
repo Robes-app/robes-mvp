@@ -24,10 +24,18 @@ export function notifierRepo(db: Db) {
 
     async state(userIds: readonly string[], plan: { from: string; to: string }) {
       if (userIds.length === 0) {
-        return { ledger: [], ideas: [], pieces: [], looks: [], plan: [], overnight: [] };
+        return {
+          ledger: [],
+          ideas: [],
+          pieces: [],
+          looks: [],
+          plan: [],
+          overnight: [],
+          models: [],
+        };
       }
       const ids = [...userIds];
-      const [ledger, ideas, pieces, looks, planRows, overnight] = await Promise.all([
+      const [ledger, ideas, pieces, looks, planRows, overnight, models] = await Promise.all([
         db
           .selectFrom('notifications')
           .select(['userId', 'kind', 'ref', 'sentAt'])
@@ -67,7 +75,12 @@ export function notifierRepo(db: Db) {
           .execute(),
         db
           .selectFrom('looks')
-          .select(['userId', sql<number>`count(*)::int`.as('n')])
+          .select([
+            'userId',
+            sql<number>`count(*)::int`.as('n'),
+            sql<string>`(array_agg(id::text order by created_at desc))[1]`.as('newestId'),
+            sql<string>`(array_agg(name order by created_at desc))[1]`.as('newestName'),
+          ])
           .where('userId', 'in', ids)
           .where('deletedAt', 'is', null)
           .groupBy('userId')
@@ -100,8 +113,10 @@ export function notifierRepo(db: Db) {
           .where(sql<boolean>`data->>'overnight' = 'true'`)
           .where(sql<boolean>`data->>'date' between ${plan.from} and ${plan.to}`)
           .execute(),
+        // Who has filed a model (the look_waiting nudge is for those who haven't).
+        db.selectFrom('avatars').select('userId').where('userId', 'in', ids).execute(),
       ]);
-      return { ledger, ideas, pieces, looks, plan: planRows, overnight };
+      return { ledger, ideas, pieces, looks, plan: planRows, overnight, models };
     },
 
     // One person's address and prefs for a transactional mail; nothing when she can't be mailed.

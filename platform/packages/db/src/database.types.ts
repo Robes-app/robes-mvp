@@ -111,6 +111,17 @@ export interface AuditLog {
   subjectUserId: string | null;
 }
 
+export interface AvatarCells {
+  bucketKey: string | null;
+  claimedAt: Timestamp | null;
+  contentType: string | null;
+  createdAt: Generated<Timestamp>;
+  id: string;
+  jobId: string | null;
+  status: Generated<string>;
+  updatedAt: Generated<Timestamp>;
+}
+
 export interface Avatars {
   avatarId: string;
   derivedFrom: Generated<Json>;
@@ -291,7 +302,10 @@ export interface Looks {
   photoAssetId: string | null;
   proposals: Json | null;
   renderAssetId: string | null;
+  renderClaimedAt: Timestamp | null;
+  renderJobId: string | null;
   renderKey: string | null;
+  renderStatus: string | null;
   source: Generated<string>;
   updatedAt: Generated<Timestamp>;
   userId: string;
@@ -619,6 +633,7 @@ export interface DB {
   artifacts: Artifacts;
   assets: Assets;
   auditLog: AuditLog;
+  avatarCells: AvatarCells;
   avatars: Avatars;
   batchSubmissions: BatchSubmissions;
   consents: Consents;

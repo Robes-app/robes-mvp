@@ -45,6 +45,7 @@ test('every shell route renders its heading', async ({ page }) => {
     ['/you/notifications', 'Notifications'],
     ['/you/privacy', 'Privacy.'],
     ['/you/style', 'Your colours and shape'],
+    ['/you/model', 'Your model.'],
     ['/looks/new', 'Pick the pieces.'],
     ['/trip/new', 'Where to?'],
     ['/legal/terms', 'Terms'],
@@ -103,6 +104,7 @@ test('P0 routes have no serious accessibility violations', async ({ page }) => {
     '/you/notifications',
     '/you/account',
     '/you/style',
+    '/you/model',
     '/looks/new',
     '/wardrobe/wishlist',
   ]) {

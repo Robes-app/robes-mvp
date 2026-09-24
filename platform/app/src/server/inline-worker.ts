@@ -44,9 +44,11 @@ const handlers = createHandlers({
     storage: mediaStorage,
     styling: system.styling,
     frames: system.frames,
+    model: system.modelRender,
     ledger: system.ledger,
     onGenerated: renderLocally,
   },
+  avatarCell: { ai, storage: mediaStorage, cells: system.avatarCells, ledger: system.ledger },
   daily: {
     ai,
     storage: mediaStorage,

@@ -20,6 +20,9 @@ test('Today reads her day in her timezone and walks the next-step rules', async 
   const look = await (
     await api.post('/api/v1/looks', { data: { name: 'Office', pieces: [{ pieceId: coat.id }] } })
   ).json();
+  // With a look and no model, the model line comes first (legacy order); once filed, the ladder.
+  expect((await get()).nextStep).toEqual({ rule: 'model', lookName: 'Office', presence: 'woman' });
+  await api.patch('/api/v1/me/model', { data: {} });
   expect((await get()).nextStep).toEqual({ rule: 'five', remaining: 4 });
 
   for (const label of ['Jeans', 'Loafers', 'Shirt', 'Scarf']) {

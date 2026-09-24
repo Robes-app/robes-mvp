@@ -44,6 +44,7 @@ export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> 
       originLookId: row.originLookId,
       climateBand: row.climateBand,
       image: (row.renderAssetId && images.get(row.renderAssetId)) || null,
+      onModel: row.renderStatus ?? null,
       pieces: byLook.get(row.id) ?? [],
       timesWorn: Number(wears.get(row.id)?.timesWorn ?? 0),
       lastWornOn: wears.get(row.id)?.lastWornOn ?? null,

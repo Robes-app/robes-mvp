@@ -21,6 +21,7 @@ import { ScrollView, View } from 'react-native';
 import { dayLabel, usePinLook } from '@/features/plan/plan';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { SeeOnMe } from './SeeOnMe';
 import {
   localDate,
   nextDays,
@@ -108,7 +109,17 @@ function WearOnDay({ look, open, onClose }: { look: Look; open: boolean; onClose
 
 export function LookDetail({ id }: { id: string }) {
   const router = useRouter();
-  const { data: look, isPending, isError, error } = useApi('looks.get', { params: { id } });
+  // Follows a render on her model until it lands.
+  const {
+    data: look,
+    isPending,
+    isError,
+    error,
+  } = useApi(
+    'looks.get',
+    { params: { id } },
+    { refetchInterval: (q) => (q.state.data?.onModel === 'pending' ? 3_000 : false) },
+  );
   const wear = useWearToday();
   const remove = useRemoveLook();
   const saveAsNew = useSaveAsNew((newId) => router.push(`/look/${newId}`));
@@ -162,6 +173,7 @@ export function LookDetail({ id }: { id: string }) {
           <Button variant="secondary" onPress={() => setChoosingDay(true)}>
             {copy.look.wearOnDay}
           </Button>
+          <SeeOnMe look={look} />
           <Button
             variant="secondary"
             loading={shareLook.isPending}

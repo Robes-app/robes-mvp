@@ -19,12 +19,18 @@ import { PieceImage } from '@/components/wardrobe/piece-image';
 import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { withoutId } from '@/lib/wardrobe';
+import { SeeOnMe } from './see-on-me';
 import { ShareLook } from './share-look';
 
 const copy = looks.page;
 
 export function LookView({ id }: { id: string }) {
-  const query = useApi('looks.get', { params: { id } });
+  // Follows a render on her model until it lands.
+  const query = useApi(
+    'looks.get',
+    { params: { id } },
+    { refetchInterval: (q) => (q.state.data?.onModel === 'pending' ? 3_000 : false) },
+  );
   if (query.isError) {
     return (
       <Text role="alert" tone="danger">
@@ -158,6 +164,7 @@ function LookBody({ look }: { look: Look }) {
             {copy.remove}
           </Button>
         </div>
+        <SeeOnMe look={look} />
         <ShareLook lookId={look.id} />
         <form onSubmit={onPin} className="flex flex-wrap items-end gap-2">
           <Field

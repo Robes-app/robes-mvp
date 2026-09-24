@@ -18,7 +18,10 @@
     "production": {
       "distribution": "store",
       "autoIncrement": true,
-      "env": { "EXPO_PUBLIC_APP_ENV": "production", "EXPO_PUBLIC_API_URL": "https://app.byrobes.com" }
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://app.byrobes.com"
+      }
     }
   },
   "submit": {

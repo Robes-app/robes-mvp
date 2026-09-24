@@ -138,3 +138,37 @@ export const RegisterPushTokenInput = z.object({
     .optional(),
 });
 export const PushTokenParams = z.object({ token: ExpoPushToken });
+
+// You › Your model (M6 task 1): her picks over what her photo reads say. The swatches are data for
+// the pickers; the cell is the shared reference portrait her looks are rendered on.
+export const ModelPresence = z.enum(['woman', 'man', 'unspecified']);
+export const Model = z.object({
+  filed: z.boolean(),
+  presence: ModelPresence,
+  skin: z.number().int().min(0).max(7),
+  hair: z.number().int().min(0).max(4),
+  line: z.enum(['soft', 'straight']).nullable(),
+  frame: z.enum(['fuller', 'narrower']).nullable(),
+  source: z.enum(['read', 'mixed', 'hand']),
+  reads: z.object({ colour: z.boolean(), silhouette: z.boolean() }),
+  cellId: z.string(),
+  cell: z.object({
+    status: z.enum(['none', 'pending', 'ready', 'failed']),
+    // Signed for the caller; null until the portrait exists.
+    imageUrl: z.url().nullable(),
+  }),
+  swatches: z.object({ skin: z.array(z.string()), hair: z.array(z.string()) }),
+});
+export type Model = z.infer<typeof Model>;
+
+export const UpdateModelInput = z
+  .object({
+    presence: ModelPresence,
+    skin: z.number().int().min(0).max(7),
+    hair: z.number().int().min(0).max(4),
+    line: z.enum(['soft', 'straight']).nullable(),
+    frame: z.enum(['fuller', 'narrower']).nullable(),
+  })
+  .partial()
+  .strict();
+export type UpdateModelInput = z.infer<typeof UpdateModelInput>;

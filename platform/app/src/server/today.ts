@@ -25,8 +25,8 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
   const profile = await repos.profiles.get(userId);
   if (!profile) throw new ApiError('not_found');
   const date = todayIn(profile.timezone, now);
-  const [plan, readyPieces, looks, worn, jobs, ideaRows, inboxCount, overnight] = await Promise.all(
-    [
+  const [plan, readyPieces, looks, worn, jobs, ideaRows, inboxCount, overnight, hasModel, newest] =
+    await Promise.all([
       loadPlan(userId, date, 7),
       repos.wardrobe.countReady(userId),
       repos.looks.count(userId),
@@ -41,8 +41,9 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
       repos.ideas.list(userId, 3),
       repos.inbox.countHeld(userId),
       repos.dailyLooks.overnightFor(userId, date),
-    ],
-  );
+      repos.model.hasModel(userId),
+      repos.looks.list(userId, { limit: 1 }),
+    ]);
   const todayEntries = (plan.days[0]?.entries ?? []).map((entry) => ({
     entry,
     worn: worn.includes(entry.look.id),
@@ -57,6 +58,12 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
       looks,
       todayPinnedUnworn: todayEntries.some((e) => !e.worn),
       weekPlanned: plan.days.some((d) => d.entries.length > 0),
+      hasModel,
+      newestLook: newest.items[0]?.name ?? null,
+      presence:
+        profile.genderIdentity === 'man' || profile.genderIdentity === 'unspecified'
+          ? profile.genderIdentity
+          : 'woman',
     }),
     today: todayEntries,
     week: plan.days.map((d) => ({ date: d.date, looks: d.entries.length })),

@@ -52,4 +52,9 @@ describe('media key layout (infrastructure.md §5)', () => {
       },
     ]);
   });
+
+  it('keeps model portraits in the shared catalog, keyed by picks only', () => {
+    expect(mediaKeys.avatarCell('w-s3-h1-nt@v2', 'png')).toBe('catalog/avatar/w-s3-h1-nt@v2.png');
+    expect(() => mediaKeys.avatarCell('../media/x@v2', 'png')).toThrow('invalid cellKey');
+  });
 });

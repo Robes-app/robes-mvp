@@ -29,4 +29,17 @@ describe('nextStep (legacy _rbNextLine order)', () => {
     // five outranks wear, as in legacy.
     expect(nextStep(s({ looks: 1, readyPieces: 1, todayPinnedUnworn: true }))?.rule).toBe('five');
   });
+
+  it('asks her to build her model before the ladder once she has a look (legacy order)', () => {
+    const noModel = { looks: 2, readyPieces: 1, hasModel: false, newestLook: 'Gallery opening' };
+    expect(nextStep(s(noModel))).toEqual({
+      rule: 'model',
+      lookName: 'Gallery opening',
+      presence: 'woman',
+    });
+    expect(nextStep(s({ ...noModel, presence: 'man' }))?.presence).toBe('man');
+    expect(nextStep(s({ ...noModel, hasModel: true }))?.rule).toBe('five');
+    // Unknown model state (older callers) never shows the line.
+    expect(nextStep(s({ looks: 2, readyPieces: 1 }))?.rule).toBe('five');
+  });
 });

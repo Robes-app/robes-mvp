@@ -120,6 +120,18 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
     expect(puts.some((r) => r.includes('/uploads/*'))).toBe(true);
   });
 
+  it('generate reads and draws the shared model portraits under catalog/ only', () => {
+    const fn = functionNamed(s, 'generate');
+    const sts = roleStatements(s, roleOf(s, fn));
+    const on = (action: string) =>
+      sts
+        .filter((st) => list(st.Action).includes(action))
+        .flatMap((st) => list(st.Resource))
+        .map((r) => JSON.stringify(r));
+    expect(on('s3:GetObject').some((r) => r.includes('/catalog/*'))).toBe(true);
+    expect(on('s3:PutObject').some((r) => r.includes('/catalog/*'))).toBe(true);
+  });
+
   it('batch sends only to notify and jobs-interactive (overnight fallbacks and anchor renders)', () => {
     const fn = functionNamed(s, 'batch');
     const queues = roleStatements(s, roleOf(s, fn))
