@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { isolateClientIp, signIn } from './helpers';
+import { declineConsent, isolateClientIp, signIn } from './helpers';
 
 test.beforeEach(async ({ context }) => isolateClientIp(context));
 
@@ -51,4 +51,28 @@ test('the tray shows a styling job while it runs and just after', async ({ page 
   ).json();
   const today = await (await page.request.get('/api/v1/today')).json();
   expect(today.tray.map((j: { id: string }) => j.id)).toContain(jobId);
+});
+
+test('the Today screen shows the next step, the week and her looks for today', async ({ page }) => {
+  await signIn(page);
+  await declineConsent(page);
+  await page.goto('/');
+  await expect(page.getByText('Add a piece and Robes will dress it three ways.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Add pieces →' })).toHaveAttribute(
+    'href',
+    '/wardrobe/add',
+  );
+  await expect(page.getByRole('link', { name: 'Style a piece' })).toBeVisible();
+  const week = page.getByRole('region', { name: 'This week' });
+  await expect(week.getByRole('link')).toHaveCount(7);
+
+  const api = page.request;
+  const look = await (
+    await api.post('/api/v1/looks', { data: { name: 'Office', pieces: [] } })
+  ).json();
+  const { date } = await (await api.get('/api/v1/today')).json();
+  await api.post(`/api/v1/plan/looks/${look.id}/days`, { data: { dates: [date] } });
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Today' }).getByText('Office')).toBeVisible();
+  await expect(week.getByRole('link', { name: 'Today, one look' })).toBeVisible();
 });

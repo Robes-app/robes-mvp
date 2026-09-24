@@ -68,6 +68,37 @@ export const today = {
     return firstName ? `${part}, ${firstName}.` : `${part}.`;
   },
   nextStep: 'Add a piece and Robes will dress it three ways.',
+  // The one next step (legacy _rbNextLine): a sentence and a quiet door.
+  next: {
+    start: { text: 'Add a piece and Robes will dress it three ways.', door: 'Add pieces' },
+    five: {
+      text: (n: number): string =>
+        `${n === 1 ? 'One more piece' : `${n} more pieces`} and Robes builds a look from yours alone.`,
+      door: 'Add pieces',
+    },
+    build: { text: 'Five pieces filed. Build a look from what you own.', door: 'Build a look' },
+    wear: {
+      text: 'Today is dressed. Open the look when you’ve worn it.',
+      door: 'Open today’s look',
+    },
+    week: { text: 'Nothing planned this week. Pin a look to a day.', door: 'Open the plan' },
+    none: 'What are we dressing for today?',
+  },
+  todayLooks: 'Today',
+  worn: 'Worn',
+  week: 'This week',
+  weekDay: (label: string, looks: number): string =>
+    looks === 0 ? `${label}, free` : `${label}, ${looks === 1 ? 'one look' : `${looks} looks`}`,
+  tray: {
+    title: 'In the studio',
+    running: 'Styling…',
+    ready: 'Ready',
+    failed: 'Didn’t finish',
+    stylePiece: 'Style a piece',
+    styleColour: 'Reading your colours',
+  },
+  ideas: 'Recent ideas',
+  seeAll: 'See all',
 } as const;
 
 export const marketing = {
