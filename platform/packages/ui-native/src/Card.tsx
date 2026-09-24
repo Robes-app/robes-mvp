@@ -1,0 +1,67 @@
+import { ui } from '@robes/copy';
+import type { ReactNode } from 'react';
+import { type GestureResponderEvent, Pressable, View } from 'react-native';
+import { cx } from './cx';
+import { ASPECTS, type Aspect } from './Image';
+import { Skeleton } from './Skeleton';
+
+export interface CardProps {
+  children: ReactNode;
+  onPress?: (event: GestureResponderEvent) => void;
+  accessibilityLabel?: string;
+  className?: string;
+  testID?: string;
+}
+
+const base = 'overflow-hidden rounded-soft bg-surface';
+
+export function Card({ children, onPress, accessibilityLabel, className, testID }: CardProps) {
+  if (!onPress) {
+    return (
+      <View testID={testID} className={cx(base, className)}>
+        {children}
+      </View>
+    );
+  }
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      testID={testID}
+      className={cx(base, className)}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
+// Skeleton twin: same frame as a loaded Card with an image and two lines of text.
+export function CardSkeleton({
+  aspect = '4:5',
+  lines = 2,
+  className,
+  testID,
+}: {
+  aspect?: Aspect;
+  lines?: number;
+  className?: string;
+  testID?: string;
+}) {
+  return (
+    <View
+      testID={testID}
+      accessible
+      accessibilityLabel={ui.loading}
+      accessibilityState={{ busy: true }}
+      className={cx(base, className)}
+    >
+      <Skeleton aspectRatio={ASPECTS[aspect]} className="rounded-none" />
+      <View className="gap-2 p-3">
+        {Array.from({ length: lines }, (_, i) => `line-${i}`).map((id, i) => (
+          <Skeleton key={id} shape="text" width={i === 0 ? '70%' : '45%'} />
+        ))}
+      </View>
+    </View>
+  );
+}

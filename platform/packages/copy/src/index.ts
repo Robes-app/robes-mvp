@@ -123,7 +123,20 @@ export const devUpload = {
   imageAlt: 'Your uploaded photo',
 } as const;
 
+// Shared primitives (@robes/ui, @robes/ui-native).
+export const ui = {
+  loading: 'One moment…',
+  close: 'Close',
+  undo: 'Undo',
+  dismiss: 'Dismiss',
+  progress: {
+    styling: 'Styling your pieces…',
+    images: (done: number, total: number): string => `${done} of ${total} images ready`,
+  },
+} as const;
+
 export const copy = {
+  ui,
   errors,
   auth,
   emails,
