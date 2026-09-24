@@ -3,9 +3,7 @@ import { createAuth } from '@robes/auth';
 import { createMailer } from '@robes/mailer';
 import { env } from './env';
 
-const mailer = env.RESEND_API_KEY
-  ? createMailer({ transport: 'resend', apiKey: env.RESEND_API_KEY, from: env.MAIL_FROM })
-  : createMailer({ transport: 'smtp', url: env.SMTP_URL ?? '', from: env.MAIL_FROM });
+const mailer = createMailer(env.mail);
 
 export const auth = createAuth({
   databaseUrl: env.DATABASE_URL,

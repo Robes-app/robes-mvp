@@ -7,7 +7,9 @@ const base = {
   DATABASE_URL: 'postgres://robes_app:pw@db.example.com:5432/robes',
   BETTER_AUTH_SECRET: 'x'.repeat(40),
   BETTER_AUTH_URL: 'https://staging.byrobes.com',
-  RESEND_API_KEY: 're_test',
+  AWS_REGION: 'eu-west-1',
+  AWS_ACCESS_KEY_ID: 'AKIAEXAMPLE',
+  AWS_SECRET_ACCESS_KEY: 'secret-value',
   UPSTASH_REDIS_REST_URL: 'https://example.upstash.io',
   UPSTASH_REDIS_REST_TOKEN: 'token-value',
 };
@@ -18,21 +20,34 @@ describe('parseEnv(appServerEnv)', () => {
     expect(env.authTrustedOrigins).toEqual(['https://staging.byrobes.com', 'robes://', 'exp://x']);
   });
 
-  it('requires Upstash and Resend outside dev', () => {
-    const { UPSTASH_REDIS_REST_URL: _u, RESEND_API_KEY: _r, ...rest } = base;
-    expect(() => parseEnv(appServerEnv, rest)).toThrow(/UPSTASH_REDIS_REST_URL.*RESEND_API_KEY/);
+  it('requires Upstash and SES credentials outside dev, and sends via SES there', () => {
+    const { UPSTASH_REDIS_REST_URL: _u, AWS_ACCESS_KEY_ID: _k, ...rest } = base;
+    expect(() => parseEnv(appServerEnv, rest)).toThrow(/UPSTASH_REDIS_REST_URL.*AWS_ACCESS_KEY_ID/);
+    expect(parseEnv(appServerEnv, base).mail).toMatchObject({
+      transport: 'ses',
+      region: 'eu-west-1',
+    });
+    expect(() => parseEnv(appServerEnv, { ...base, SMTP_URL: 'smtp://x:25' })).toThrow(/SES/);
   });
 
   it('allows local services in dev', () => {
     const {
       UPSTASH_REDIS_REST_URL: _u,
       UPSTASH_REDIS_REST_TOKEN: _t,
-      RESEND_API_KEY: _r,
+      AWS_ACCESS_KEY_ID: _k,
+      AWS_SECRET_ACCESS_KEY: _s,
       ...rest
     } = base;
-    expect(() =>
-      parseEnv(appServerEnv, { ...rest, APP_ENV: 'dev', SMTP_URL: 'smtp://127.0.0.1:51025' }),
-    ).not.toThrow();
+    const env = parseEnv(appServerEnv, {
+      ...rest,
+      APP_ENV: 'dev',
+      SMTP_URL: 'smtp://127.0.0.1:51025',
+    });
+    expect(env.mail).toEqual({
+      transport: 'smtp',
+      url: 'smtp://127.0.0.1:51025',
+      from: 'Robes <hello@byrobes.com>',
+    });
   });
 
   it('rejects a short auth secret and half-configured OAuth', () => {

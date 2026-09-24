@@ -1,28 +1,41 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createMailer, createMemoryMailer } from './index';
+import { SendEmailCommand } from '@aws-sdk/client-sesv2';
+import { describe, expect, it, vi } from 'vitest';
+import { createMemoryMailer, createSesMailer } from './index';
 
 describe('mailer', () => {
-  afterEach(() => vi.unstubAllGlobals());
-
   it('records mail in memory', async () => {
     const mailer = createMemoryMailer();
     await mailer.send({ to: 'a@b.co', subject: 'Hi', text: 'Hello' });
     expect(mailer.sent).toEqual([{ to: 'a@b.co', subject: 'Hi', text: 'Hello' }]);
   });
 
-  it('sends through Resend without leaking the provider response', async () => {
-    const fetchMock = vi.fn(
-      async () => new Response('{"message":"secret detail"}', { status: 422 }),
+  it('sends through SES with the configuration set', async () => {
+    const send = vi.fn(async () => ({}));
+    const mailer = createSesMailer(
+      { region: 'eu-west-1', from: 'Robes <hello@mail.byrobes.com>', configurationSet: 'robes' },
+      { send } as never,
     );
-    vi.stubGlobal('fetch', fetchMock);
-    const mailer = createMailer({
-      transport: 'resend',
-      apiKey: 'k',
-      from: 'Robes <hi@byrobes.com>',
+    await mailer.send({ to: 'a@b.co', subject: '123456 is your Robes code', text: 'x' });
+    const command = (send.mock.calls[0] as unknown[] | undefined)?.[0] as SendEmailCommand;
+    expect(command).toBeInstanceOf(SendEmailCommand);
+    expect(command.input).toMatchObject({
+      FromEmailAddress: 'Robes <hello@mail.byrobes.com>',
+      Destination: { ToAddresses: ['a@b.co'] },
+      ConfigurationSetName: 'robes',
     });
-    await expect(mailer.send({ to: 'a@b.co', subject: 'Hi', text: 'x' })).rejects.toThrow(
-      'email send failed (422)',
+  });
+
+  it('never leaks the provider message', async () => {
+    const failure = Object.assign(new Error('Email address is not verified: a@b.co'), {
+      name: 'MessageRejected',
+    });
+    const mailer = createSesMailer({ region: 'eu-west-1', from: 'x@y.z' }, {
+      send: vi.fn(async () => {
+        throw failure;
+      }),
+    } as never);
+    await expect(mailer.send({ to: 'a@b.co', subject: 's', text: 't' })).rejects.toThrow(
+      'email send failed (MessageRejected)',
     );
-    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

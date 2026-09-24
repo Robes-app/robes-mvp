@@ -1,3 +1,4 @@
+import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import nodemailer from 'nodemailer';
 
 export interface Email {
@@ -11,9 +12,10 @@ export interface Mailer {
   send(email: Email): Promise<void>;
 }
 
+// SES in deployed environments (ADR-021); SMTP to the local mail catcher in dev.
 export type MailerConfig =
   | { transport: 'smtp'; url: string; from: string }
-  | { transport: 'resend'; apiKey: string; from: string }
+  | { transport: 'ses'; region: string; from: string; configurationSet?: string | undefined }
   | { transport: 'memory'; from: string };
 
 // Test double that records mail instead of sending it.
@@ -36,17 +38,36 @@ function createSmtpMailer(url: string, from: string): Mailer {
   };
 }
 
-function createResendMailer(apiKey: string, from: string): Mailer {
+// Credentials come from the standard AWS chain (env access keys on Vercel, the role in Lambda).
+export function createSesMailer(
+  config: { region: string; from: string; configurationSet?: string | undefined },
+  client: Pick<SESv2Client, 'send'> = new SESv2Client({ region: config.region }),
+): Mailer {
   return {
     async send(email) {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ from, ...email }),
-        signal: AbortSignal.timeout(10_000),
-      });
-      // Provider detail stays out of errors and logs (SEC-31/83).
-      if (!res.ok) throw new Error(`email send failed (${res.status})`);
+      try {
+        await client.send(
+          new SendEmailCommand({
+            FromEmailAddress: config.from,
+            Destination: { ToAddresses: [email.to] },
+            ConfigurationSetName: config.configurationSet,
+            Content: {
+              Simple: {
+                Subject: { Data: email.subject, Charset: 'UTF-8' },
+                Body: {
+                  Text: { Data: email.text, Charset: 'UTF-8' },
+                  ...(email.html ? { Html: { Data: email.html, Charset: 'UTF-8' } } : {}),
+                },
+              },
+            },
+          }),
+          { abortSignal: AbortSignal.timeout(10_000) },
+        );
+      } catch (err) {
+        // Provider detail stays out of errors and logs (SEC-31/83).
+        const name = err instanceof Error ? err.name : 'unknown';
+        throw new Error(`email send failed (${name})`);
+      }
     },
   };
 }
@@ -55,8 +76,8 @@ export function createMailer(config: MailerConfig): Mailer {
   switch (config.transport) {
     case 'smtp':
       return createSmtpMailer(config.url, config.from);
-    case 'resend':
-      return createResendMailer(config.apiKey, config.from);
+    case 'ses':
+      return createSesMailer(config);
     case 'memory':
       return createMemoryMailer();
   }

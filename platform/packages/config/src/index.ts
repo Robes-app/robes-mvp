@@ -19,8 +19,15 @@ export const appServerEnv = z
     GOOGLE_CLIENT_ID: optionalSecret,
     GOOGLE_CLIENT_SECRET: optionalSecret,
     MAIL_FROM: z.string().min(3).default('Robes <hello@byrobes.com>'),
+    // Local mail catcher; deployed environments send through SES (ADR-021).
     SMTP_URL: z.url().optional(),
-    RESEND_API_KEY: optionalSecret,
+    SES_CONFIGURATION_SET: optionalSecret,
+    AWS_REGION: z
+      .string()
+      .regex(/^[a-z]{2}-[a-z]+-\d$/)
+      .optional(),
+    AWS_ACCESS_KEY_ID: optionalSecret,
+    AWS_SECRET_ACCESS_KEY: optionalSecret,
     MIN_APP_VERSION: z
       .string()
       .regex(/^\d+(\.\d+)*$/)
@@ -40,14 +47,23 @@ export const appServerEnv = z
         message: 'required outside dev',
       });
     }
-    if (deployed && !env.RESEND_API_KEY) {
-      ctx.addIssue({ code: 'custom', path: ['RESEND_API_KEY'], message: 'required outside dev' });
-    }
-    if (!deployed && !env.SMTP_URL && !env.RESEND_API_KEY) {
+    if (deployed) {
+      for (const key of ['AWS_REGION', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'] as const) {
+        if (!env[key])
+          ctx.addIssue({ code: 'custom', path: [key], message: 'required outside dev' });
+      }
+      if (env.SMTP_URL) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['SMTP_URL'],
+          message: 'deployed environments send via SES',
+        });
+      }
+    } else if (!env.SMTP_URL) {
       ctx.addIssue({
         code: 'custom',
         path: ['SMTP_URL'],
-        message: 'set SMTP_URL (Mailpit) in dev',
+        message: 'set SMTP_URL (local mail catcher) in dev',
       });
     }
     if (Boolean(env.APPLE_CLIENT_ID) !== Boolean(env.APPLE_CLIENT_SECRET)) {
@@ -81,6 +97,15 @@ export const appServerEnv = z
   })
   .transform((env) => ({
     ...env,
+    mail:
+      env.APP_ENV === 'dev'
+        ? { transport: 'smtp' as const, url: env.SMTP_URL ?? '', from: env.MAIL_FROM }
+        : {
+            transport: 'ses' as const,
+            region: env.AWS_REGION ?? '',
+            from: env.MAIL_FROM,
+            configurationSet: env.SES_CONFIGURATION_SET,
+          },
     authTrustedOrigins: [
       new URL(env.BETTER_AUTH_URL).origin,
       ...(env.AUTH_TRUSTED_ORIGINS?.split(',')
