@@ -57,7 +57,10 @@ stable
 security definer
 set search_path = ''
 as $$
-  select exists (select 1 from private.admin_users a where a.user_id = (select auth.uid()));
+  select exists (
+    select 1 from private.admin_users a
+    where a.user_id = (select auth.uid()) and a.role = 'admin'
+  );
 $$;
 revoke execute on function private.is_admin() from public, anon;
 grant execute on function private.is_admin() to authenticated;
