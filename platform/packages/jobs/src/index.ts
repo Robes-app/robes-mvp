@@ -28,6 +28,13 @@ export {
 export { composeEmail, type NotifyDeps, notifyTick } from './notify/tick';
 export { enqueueJob, SWEEP_AFTER_SECONDS, sweep } from './outbox';
 export {
+  createAnchorRenderer,
+  OVERNIGHT_TICK_LIMIT,
+  type OvernightDeps,
+  overnightTick,
+  pollOvernight,
+} from './overnight';
+export {
   JobCancelled,
   type JobContext,
   JobError,

@@ -15,6 +15,7 @@ import { ledgerRepo } from './ledger';
 import { looksRepo } from './looks';
 import { maintenanceRepo } from './maintenance';
 import { notifierRepo } from './notifier';
+import { overnightRepo } from './overnight';
 import { pieceAnalysisRepo } from './piece-analysis';
 import { planRepo } from './plan';
 import { profilesRepo } from './profiles';
@@ -74,6 +75,7 @@ export function createSystemRepositories(db: Db) {
     inboxIntake: inboxIntakeRepo(db),
     maintenance: maintenanceRepo(db),
     notifier: notifierRepo(db),
+    overnight: overnightRepo(db),
     pushDelivery: pushDeliveryRepo(db),
     pieces: pieceAnalysisRepo(db),
     styleAnalysis: styleAnalysisRepo(db),
@@ -92,6 +94,7 @@ export { heldItems, type InboxAction, type InboxItem } from './inbox';
 export type { CreateJobInput, QuotaCost } from './jobs';
 export type { CallRecord } from './ledger';
 export { type LookFields, type LookPieceInput, LookPiecesNotFound, type LookRole } from './looks';
+export { OVERNIGHT_LEASE_HOURS, OVERNIGHT_LOCAL_HOUR, overnightKey } from './overnight';
 export { encodeCursor, type Page } from './paging';
 export type { PieceAnalysis } from './piece-analysis';
 export type { PlanSlot } from './plan';

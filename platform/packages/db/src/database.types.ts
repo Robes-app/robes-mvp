@@ -118,6 +118,18 @@ export interface Avatars {
   userId: string;
 }
 
+export interface BatchSubmissions {
+  feature: string;
+  finishedAt: Timestamp | null;
+  id: Generated<string>;
+  jobIds: string[];
+  provider: string;
+  providerBatchId: string;
+  status: Generated<string>;
+  submittedAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+}
+
 export interface Consents {
   createdAt: Generated<Timestamp>;
   granted: boolean;
@@ -608,6 +620,7 @@ export interface DB {
   assets: Assets;
   auditLog: AuditLog;
   avatars: Avatars;
+  batchSubmissions: BatchSubmissions;
   consents: Consents;
   dataExportRequests: DataExportRequests;
   emailSuppressions: EmailSuppressions;
