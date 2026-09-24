@@ -14,7 +14,7 @@ async function expectThreeWays(page: Page, title: string): Promise<void> {
 }
 
 test('onboarding’s first piece lands on its styled result', async ({ page }) => {
-  await signIn(page, uniqueEmail('e2e-onb'), 'Ann', 'white linen shirt');
+  await signIn(page, uniqueEmail('e2e-onb'), 'Niall', 'white linen shirt');
   await declineConsent(page);
   await expectThreeWays(page, 'white linen shirt');
 });

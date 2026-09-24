@@ -4,7 +4,7 @@ import { copy } from './index';
 function strings(value: unknown): string[] {
   if (typeof value === 'string') return [value];
   if (typeof value === 'function')
-    return [String((value as (...a: unknown[]) => unknown)('Ann', 9))];
+    return [String((value as (...a: unknown[]) => unknown)('Niall', 9))];
   if (value && typeof value === 'object') return Object.values(value).flatMap(strings);
   return [];
 }

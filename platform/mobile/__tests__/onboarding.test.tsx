@@ -17,7 +17,7 @@ beforeEach(() => jest.clearAllMocks());
 test('screen 1 saves the name and moves to the first piece without finishing onboarding', async () => {
   const calls = mockFetch({ 'PATCH /me': { ...ME, onboarded: false } });
   await renderWithApi(<NameScreen />);
-  await fireEvent.changeText(screen.getByLabelText(onboarding.firstNameLabel), 'Ann');
+  await fireEvent.changeText(screen.getByLabelText(onboarding.firstNameLabel), 'Niall');
   await fireEvent.press(screen.getByRole('button', { name: onboarding.continue }));
   await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/piece'));
   expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual(['PATCH /api/v1/me']);

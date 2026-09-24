@@ -19,16 +19,17 @@ describe('logger (SEC-83)', () => {
     logger.info(
       {
         userId: 'u1',
-        email: 'ann@example.com',
-        profile: { firstName: 'Ann', prompt: 'a red dress for my wedding' },
-        err: new Error('duplicate key for ann@example.com'),
+        email: 'niall@example.com',
+        profile: { firstName: 'Niall', prompt: 'a red dress for my wedding' },
+        err: new Error('duplicate key for niall@example.com'),
       },
-      'signup failed for ann@example.com',
+      'signup failed for niall@example.com',
     );
     const out = lines.join('');
     expect(out).toContain('"userId":"u1"');
     expect(out).toContain('"service":"test"');
-    for (const secret of ['ann@example.com', 'Ann', 'red dress']) expect(out).not.toContain(secret);
+    for (const secret of ['niall@example.com', 'Niall', 'red dress'])
+      expect(out).not.toContain(secret);
   });
 
   it('keeps structure while scrubbing', () => {

@@ -4,8 +4,8 @@ import { Field } from './Field';
 test('labels the input and forwards typing', async () => {
   const onChangeText = jest.fn();
   await render(<Field label="Email" value="" onChangeText={onChangeText} />);
-  await fireEvent.changeText(screen.getByLabelText('Email'), 'ann@test.dev');
-  expect(onChangeText).toHaveBeenCalledWith('ann@test.dev');
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'niall@test.dev');
+  expect(onChangeText).toHaveBeenCalledWith('niall@test.dev');
   expect(screen.getByLabelText('Email').props.className).toContain('border-border-control');
 });
 

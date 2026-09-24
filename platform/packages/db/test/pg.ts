@@ -46,7 +46,7 @@ export async function insertUsers(q: Query, ...ids: string[]): Promise<void> {
   for (const id of ids) {
     await q('insert into app.users (id, name, email) values ($1, $2, $3)', [
       id,
-      'Ann Lee',
+      'Niall Maher',
       `${id}@test.dev`,
     ]);
   }

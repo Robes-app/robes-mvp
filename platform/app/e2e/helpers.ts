@@ -16,7 +16,7 @@ export function uniqueEmail(tag = 'e2e'): string {
 export async function signIn(
   page: Page,
   email = uniqueEmail(),
-  firstName = 'Ann',
+  firstName = 'Niall',
   firstPiece?: string,
 ): Promise<string> {
   await page.goto('/auth/sign-in');

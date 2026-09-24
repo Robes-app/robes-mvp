@@ -27,14 +27,14 @@ appId: host.exp.Exponent
     timeout: 15000
 - tapOn:
     below: 'First name'
-- inputText: 'Ann'
+- inputText: 'Niall'
 - tapOn: 'Continue'
 - extendedWaitUntil:
     visible: 'Tell Robes about a piece you love.'
     timeout: 15000
 - tapOn: 'Skip for now'
 - extendedWaitUntil:
-    visible: '.*, Ann\.'
+    visible: '.*, Niall\.'
     timeout: 15000
 - runFlow: shell.yaml
 - runFlow: looks-plan.yaml

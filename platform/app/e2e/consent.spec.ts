@@ -37,7 +37,7 @@ test('declining hides the banner for good and nothing reaches PostHog', async ({
   await expect(banner(page)).toBeHidden();
 
   await page.reload();
-  await expect(page.getByRole('heading', { name: /, Ann\.$/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
   await expect(banner(page)).toBeHidden();
   await page.waitForLoadState('networkidle');
   expect(hits).toEqual([]);
@@ -61,7 +61,7 @@ test('accepting starts PostHog only then, persists, and can be withdrawn', async
   await expect.poll(() => hits.length).toBeGreaterThan(0);
 
   await page.reload();
-  await expect(page.getByRole('heading', { name: /, Ann\.$/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
   await expect(banner(page)).toBeHidden();
   expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
     analytics: true,
@@ -76,7 +76,7 @@ test('accepting starts PostHog only then, persists, and can be withdrawn', async
   await expect(page.getByRole('switch', { name: /Screen recordings/ })).toBeDisabled();
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /, Ann\.$/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
   await page.waitForLoadState('networkidle');
   const afterWithdrawal = hits.length;
   await page.reload();

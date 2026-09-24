@@ -5,7 +5,7 @@ const DAY = 86_400_000;
 const NOW = new Date('2026-09-24T06:10:00Z'); // 07:10 in Dublin (IST)
 const user = (over: Partial<Recipient> = {}): Recipient => ({
   id: 'u1',
-  email: 'ann@test.dev',
+  email: 'niall@test.dev',
   timezone: 'Europe/Dublin',
   prefs: { looksReady: true, morningCue: true, nudges: true, receipts: true },
   createdAt: new Date(NOW.getTime() - 30 * DAY),

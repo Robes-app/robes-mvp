@@ -18,10 +18,10 @@ async function signIn(page: Page): Promise<void> {
   await page.getByLabel('Code').fill(await latestCodeFor(email));
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page).toHaveURL(/\/onboarding$/);
-  await page.getByLabel('First name').fill('Ann');
+  await page.getByLabel('First name').fill('Niall');
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: 'Skip for now' }).click();
-  await expect(page.getByRole('heading', { name: /, Ann\.$/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
 }
 
 test('a photo uploads straight to storage and comes back as a signed rendition', async ({

@@ -10,7 +10,7 @@ let ann: UserId;
 let bea: UserId;
 
 beforeAll(async () => {
-  ann = await createTestUser(db, 'Ann Export');
+  ann = await createTestUser(db, 'Niall Export');
   bea = await createTestUser(db, 'Bea Export');
   // This suite owns the global queue while it runs (files run serially).
   await db.deleteFrom('dataExportRequests').execute();
@@ -47,7 +47,7 @@ describe('data export (SEC-81)', () => {
   });
 
   it('collects only her own data, with calendar days as text and no session tokens', async () => {
-    await repos.wardrobe.create(ann, { label: 'Ann coat' });
+    await repos.wardrobe.create(ann, { label: 'Niall coat' });
     await repos.wardrobe.create(bea, { label: 'Bea coat' });
     const look = await repos.looks.create(ann, {
       name: 'Office',
@@ -58,7 +58,7 @@ describe('data export (SEC-81)', () => {
     await repos.plan.pin(ann, look.id, ['2026-10-01'], { slot: 'day' });
     const doc = await dataExport.collect(ann);
     expect(doc.user?.email).toBe(`${ann}@test.dev`);
-    expect(doc.pieces.map((p) => p.label)).toEqual(['Ann coat']);
+    expect(doc.pieces.map((p) => p.label)).toEqual(['Niall coat']);
     expect(doc.wears[0]?.wornOn).toBe('2026-09-24');
     expect(doc.plan[0]?.dayDate).toBe('2026-10-01');
     const json = JSON.stringify(doc);

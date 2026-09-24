@@ -141,17 +141,17 @@ describe('EmptyState', () => {
 
 describe('Avatar', () => {
   test('falls back to initials and is labelled with her name', async () => {
-    await render(<Avatar name="Ann Byrne" />);
-    expect(screen.getByRole('image', { name: 'Ann Byrne' })).toBeTruthy();
-    expect(screen.getByText('AB')).toBeTruthy();
+    await render(<Avatar name="Niall Byrne" />);
+    expect(screen.getByRole('image', { name: 'Niall Byrne' })).toBeTruthy();
+    expect(screen.getByText('NB')).toBeTruthy();
   });
 
   test('renders a photo when given one', async () => {
-    await render(<Avatar name="Ann" source="https://cdn.test/a.jpg" />);
+    await render(<Avatar name="Niall" source="https://cdn.test/a.jpg" />);
     expect(screen.getByTestId('expo-image').props.source).toEqual({
       uri: 'https://cdn.test/a.jpg',
     });
-    expect(screen.queryByText('A')).toBeNull();
+    expect(screen.queryByText('N')).toBeNull();
   });
 
   test('initials handles empty and single names', () => {

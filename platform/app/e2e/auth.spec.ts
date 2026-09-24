@@ -12,7 +12,7 @@ test('passwordless sign-in, onboarding and sign-out', async ({ page }) => {
 
   await declineConsent(page);
   const me = await page.request.get('/api/v1/me');
-  expect(await me.json()).toMatchObject({ email, firstName: 'Ann', onboarded: true });
+  expect(await me.json()).toMatchObject({ email, firstName: 'Niall', onboarded: true });
 
   await page.getByRole('link', { name: 'You' }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();

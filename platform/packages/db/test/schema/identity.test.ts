@@ -6,7 +6,7 @@ describe('identity schema', () => {
     inTx(async (q) => {
       await insertUsers(q, USER_A);
       const [profile] = await q('select first_name from app.profiles where id = $1', [USER_A]);
-      expect(profile?.first_name).toBe('Ann');
+      expect(profile?.first_name).toBe('Niall');
       const [state] = await q(
         'select count(*)::int as n from app.user_ui_state where user_id = $1',
         [USER_A],

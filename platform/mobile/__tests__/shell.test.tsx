@@ -63,7 +63,7 @@ const ROUTES = {
   'GET /today': {
     date: '2026-10-01',
     hour: 9,
-    firstName: 'Ann',
+    firstName: 'Niall',
     nextStep: { rule: 'start' },
     today: [],
     week: Array.from({ length: 7 }, (_, i) => ({ date: `2026-10-0${i + 1}`, looks: 0 })),
@@ -94,7 +94,7 @@ test('tabs in IA order; [+] opens Create; unbuilt options land on the shared scr
   mockSession = { data: { user: { id: ME.id } }, isPending: false };
   mockFetch(ROUTES);
   const router = await app();
-  expect(await screen.findByText(/, Ann\.$/)).toBeTruthy();
+  expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
   const tabs = screen.getAllByRole('button').map((b) => b.props.accessibilityLabel ?? '');
   const order = [nav.today, nav.wardrobe, nav.create, nav.looks, nav.plan].map((label) =>
     tabs.findIndex((t: string) => t.startsWith(label)),
@@ -114,7 +114,7 @@ test('the avatar opens You', async () => {
   mockSession = { data: { user: { id: ME.id } }, isPending: false };
   mockFetch(ROUTES);
   const router = await app();
-  await screen.findByText(/, Ann\.$/);
+  await screen.findByText(/, Niall\.$/);
   await fireEvent.press(screen.getByTestId('open-you'));
   await waitFor(() => expect(router.getPathname()).toBe('/you'));
   expect(screen.getByText(you.account.title)).toBeTruthy();

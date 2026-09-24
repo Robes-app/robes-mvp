@@ -15,8 +15,8 @@ describe('server analytics', () => {
     const { client, analytics } = setup(true);
     await analytics.capture('u1', 'job_started', { kind: 'fake' });
     const smuggle = analytics.capture as (u: string, e: string, p: unknown) => Promise<void>;
-    await smuggle('u1', 'job_started', { kind: 'fake', email: 'ann@example.com', name: 'Ann' });
-    await smuggle('u1', 'onboarding_completed', { $set: { email: 'ann@example.com' } });
+    await smuggle('u1', 'job_started', { kind: 'fake', email: 'niall@example.com', name: 'Niall' });
+    await smuggle('u1', 'onboarding_completed', { $set: { email: 'niall@example.com' } });
     expect(client.captureImmediate).toHaveBeenCalledTimes(1);
     expect(client.captureImmediate).toHaveBeenCalledWith({
       distinctId: 'u1',
@@ -24,7 +24,7 @@ describe('server analytics', () => {
       properties: { kind: 'fake', $process_person_profile: false },
       disableGeoip: true,
     });
-    expect(JSON.stringify(client.captureImmediate.mock.calls)).not.toMatch(/ann|Ann/);
+    expect(JSON.stringify(client.captureImmediate.mock.calls)).not.toMatch(/ann|Niall/);
   });
 
   it('sends nothing for a user without analytics consent', async () => {

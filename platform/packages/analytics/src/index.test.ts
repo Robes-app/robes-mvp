@@ -14,7 +14,7 @@ describe('event catalogue', () => {
     // @ts-expect-error unknown event
     analytics.track('look_shared_everywhere');
     // @ts-expect-error props outside the catalogue (PII) are a type error
-    analytics.track('job_started', { kind: 'fake', email: 'ann@example.com' });
+    analytics.track('job_started', { kind: 'fake', email: 'niall@example.com' });
     // @ts-expect-error required props can't be omitted
     analytics.track('job_started');
     // @ts-expect-error enum values are checked
@@ -30,7 +30,7 @@ describe('event catalogue', () => {
     const s = sink();
     const track = createAnalytics(s, onInvalid).track as (e: string, p?: unknown) => void;
     track('nope');
-    track('job_started', { kind: 'fake', firstName: 'Ann' });
+    track('job_started', { kind: 'fake', firstName: 'Niall' });
     track('onboarding_completed', { prompt: 'a red dress' });
     expect(s.capture).not.toHaveBeenCalled();
     expect(onInvalid.mock.calls).toEqual([

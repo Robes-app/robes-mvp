@@ -12,7 +12,7 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fakeOutput('
   let n = 0;
   const styling = {
     context: vi.fn(async () => ({
-      firstName: 'Ann',
+      firstName: 'Niall',
       gender: 'woman' as const,
       styleIcons: [],
       closet: [],

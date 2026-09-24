@@ -35,7 +35,7 @@ function setup(opts: { output?: Output; ai?: AiProvider; weather?: unknown } = {
   const ai = opts.ai ?? createFakeProvider({ [FEATURE]: () => opts.output ?? fakeOutput(2) });
   const styling = {
     dailyContext: vi.fn(async () => ({
-      firstName: 'Ann',
+      firstName: 'Niall',
       gender: 'woman' as const,
       styleIcons: [],
       styleDna: {},

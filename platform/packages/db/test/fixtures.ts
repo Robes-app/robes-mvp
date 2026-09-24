@@ -11,7 +11,7 @@ export function createTestDb(): Db {
 }
 
 // Creates a real user (profile rows come from the signup trigger); delete it to clean up.
-export async function createTestUser(db: Db, name = 'Ann Lee'): Promise<UserId> {
+export async function createTestUser(db: Db, name = 'Niall Maher'): Promise<UserId> {
   const id = randomUUID();
   await db
     .insertInto('users')

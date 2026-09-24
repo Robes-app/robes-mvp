@@ -18,7 +18,7 @@ const week = Array.from({ length: 7 }, (_, i) => ({
 const todayWith = (over: object = {}) => ({
   date: DATE,
   hour: 8,
-  firstName: 'Ann',
+  firstName: 'Niall',
   nextStep: { rule: 'wear' },
   today: [
     {
@@ -41,7 +41,7 @@ const todayWith = (over: object = {}) => ({
 test('greets her by her hour and sends the next step’s door to today’s look', async () => {
   mockFetch({ 'GET /today': todayWith() });
   await renderWithApi(<TodayView />);
-  expect(await screen.findByText('Good morning, Ann.')).toBeTruthy();
+  expect(await screen.findByText('Good morning, Niall.')).toBeTruthy();
   expect(screen.getByText(copy.next.wear.text)).toBeTruthy();
   await fireEvent.press(screen.getByRole('link', { name: `${copy.next.wear.door} →` }));
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}`);

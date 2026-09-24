@@ -6,8 +6,8 @@ import { Providers } from './providers';
 
 export const ME: Me = {
   id: '11111111-1111-4111-8111-111111111111',
-  email: 'ann@test.dev',
-  firstName: 'Ann',
+  email: 'niall@test.dev',
+  firstName: 'Niall',
   lastName: null,
   instagramHandle: null,
   locale: 'en-IE',

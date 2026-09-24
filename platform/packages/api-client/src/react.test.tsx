@@ -16,8 +16,8 @@ import {
 
 const me: Me = {
   id: '11111111-1111-4111-8111-111111111111',
-  email: 'ann@test.dev',
-  firstName: 'Ann',
+  email: 'niall@test.dev',
+  firstName: 'Niall',
   lastName: null,
   instagramHandle: null,
   locale: 'en-IE',
@@ -149,7 +149,7 @@ describe('useUndoableMutation', () => {
 
     await act(async () => fail());
     await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
-    expect(queryClient.getQueryData<Me>(meKey)?.firstName).toBe('Ann');
+    expect(queryClient.getQueryData<Me>(meKey)?.firstName).toBe('Niall');
     expect(onError.mock.calls[0]?.[0]).toMatchObject({ code: 'internal', status: 500 });
   });
 
@@ -190,7 +190,7 @@ describe('useUndoableMutation', () => {
     expect(queryClient.getQueryData<Me>(meKey)?.firstName).toBe('Bea');
 
     await act(async () => expect(await handle?.undo()).toBe(true));
-    expect(queryClient.getQueryData<Me>(meKey)?.firstName).toBe('Ann');
+    expect(queryClient.getQueryData<Me>(meKey)?.firstName).toBe('Niall');
     expect(compensate).toHaveBeenCalledWith(
       renameTo('Bea'),
       expect.objectContaining({ firstName: 'Bea' }),
@@ -221,7 +221,7 @@ describe('useUndoableMutation', () => {
     expect(fetch).not.toHaveBeenCalled();
 
     await act(async () => expect(await handle?.undo()).toBe(true));
-    expect(queryClient.getQueryData<Me>(meKey)?.firstName).toBe('Ann');
+    expect(queryClient.getQueryData<Me>(meKey)?.firstName).toBe('Niall');
     await act(() => vi.advanceTimersByTimeAsync(5000));
     expect(fetch).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();

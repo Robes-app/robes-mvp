@@ -20,12 +20,12 @@ describe('sentryOptions', () => {
 
   it('redacts emails and prompts in beforeSend', () => {
     const event = options.beforeSend({
-      message: 'failed for ann@example.com',
+      message: 'failed for niall@example.com',
       extra: { prompt: 'a red dress for my wedding' },
-      user: { id: 'u1', email: 'ann@example.com' },
+      user: { id: 'u1', email: 'niall@example.com' },
     });
     const json = JSON.stringify(event);
-    expect(json).not.toContain('ann@example.com');
+    expect(json).not.toContain('niall@example.com');
     expect(json).not.toContain('red dress');
     expect(event.user).toEqual({ id: 'u1' });
   });

@@ -12,8 +12,8 @@ import {
 const JOB_ID = '6f1d7e38-5a55-4f43-9d6b-6f0c4d7f2a10';
 const me = {
   id: '11111111-1111-4111-8111-111111111111',
-  email: 'ann@test.dev',
-  firstName: 'Ann',
+  email: 'niall@test.dev',
+  firstName: 'Niall',
   lastName: null,
   instagramHandle: null,
   locale: 'en-IE',
@@ -66,11 +66,11 @@ describe('call', () => {
       credentials: 'omit',
       headers: async () => ({ cookie: 'robes.session=abc' }),
     });
-    await client.call('me.update', { input: { firstName: 'Ann' } });
+    await client.call('me.update', { input: { firstName: 'Niall' } });
     const init = fetch.mock.calls[0]?.[1];
     expect(fetch.mock.calls[0]?.[0]).toBe('https://api.test/api/v1/me');
     expect(init?.method).toBe('PATCH');
-    expect(init?.body).toBe('{"firstName":"Ann"}');
+    expect(init?.body).toBe('{"firstName":"Niall"}');
     expect(init?.credentials).toBe('omit');
     expect(headersOf(0)).toMatchObject({
       'content-type': 'application/json',

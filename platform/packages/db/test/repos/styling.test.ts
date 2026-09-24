@@ -10,7 +10,7 @@ let ann: UserId;
 let bea: UserId;
 
 beforeAll(async () => {
-  ann = await createTestUser(db, 'Ann Lee');
+  ann = await createTestUser(db, 'Niall Maher');
   bea = await createTestUser(db, 'Bea Ray');
 });
 afterAll(async () => {
@@ -24,7 +24,7 @@ describe('styling + ideas', () => {
     await repos.wardrobe.create(ann, { label: 'Reading', status: 'reading' });
     await repos.wardrobe.create(bea, { label: 'Bea coat' });
     const ctx = await styling.context(ann);
-    expect(ctx.firstName).toBe('Ann');
+    expect(ctx.firstName).toBe('Niall');
     expect(ctx.gender).toBe('woman');
     expect(ctx.closet.map((c) => c.label)).toEqual(['Camel coat']);
     expect(ctx.wardrobeCount).toBe(1);

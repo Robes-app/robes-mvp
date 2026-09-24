@@ -9,7 +9,7 @@ test('she downloads her data as one JSON file with only her things (SEC-81)', as
 }) => {
   await signIn(page);
   const api = page.request;
-  await api.post('/api/v1/wardrobe/items', { data: { label: 'Ann export coat' } });
+  await api.post('/api/v1/wardrobe/items', { data: { label: 'Niall export coat' } });
 
   const other = await browser.newContext();
   await isolateClientIp(other);
@@ -35,7 +35,7 @@ test('she downloads her data as one JSON file with only her things (SEC-81)', as
   const doc = await file.json();
   expect(doc.format).toBe('robes-data-export');
   const text = JSON.stringify(doc);
-  expect(text).toContain('Ann export coat');
+  expect(text).toContain('Niall export coat');
   expect(text).not.toContain('Bea export coat');
 
   // The other person sees nothing of hers.

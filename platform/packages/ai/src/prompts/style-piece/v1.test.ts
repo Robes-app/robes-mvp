@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildImagePrompt, buildSystem, buildUser, fakeOutput, Output } from './v1';
 
 const ctx = {
-  firstName: 'Ann',
+  firstName: 'Niall',
   gender: 'woman' as const,
   styleIcons: ['Phoebe Philo'],
   closet: [],
@@ -17,7 +17,7 @@ describe('looks.style_piece v1', () => {
     expect(system).toContain('four-tier layer formula');
     expect(system).toContain('Balmain waistcoat');
     expect(system).toContain('"woman" unless');
-    expect(system).toContain("The user's name is Ann.");
+    expect(system).toContain("The user's name is Niall.");
     expect(system).not.toContain('DIGITISED WARDROBE');
   });
 

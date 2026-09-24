@@ -104,7 +104,7 @@ describe('runJob', () => {
 
   it('stores a generic code when a handler throws, never the message', async () => {
     const { row, jobs } = memoryJobs();
-    const secret = 'upstream said: prompt was "blue dress for Ann"';
+    const secret = 'upstream said: prompt was "blue dress for Niall"';
     const handler = { budgetMs: 1000, run: vi.fn().mockRejectedValue(new Error(secret)) };
     expect(await runJob(JOB_ID, deps(jobs, handler))).toBe('failed');
     expect(row.finished).toEqual({ status: 'failed', error: 'internal' });

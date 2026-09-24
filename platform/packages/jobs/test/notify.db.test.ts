@@ -38,7 +38,7 @@ const tick = (mailer = createMemoryMailer()) =>
 const to = (sent: Email[], email: string) => sent.filter((m) => m.to === email);
 
 beforeAll(async () => {
-  ann = await createTestUser(db, 'Ann Notify');
+  ann = await createTestUser(db, 'Niall Notify');
   bea = await createTestUser(db, 'Bea Notify');
   for (const u of [ann, bea]) await repos.profiles.completeOnboarding(u);
   annEmail = `${ann}@test.dev`;

@@ -34,8 +34,8 @@ describe('contracts', () => {
 describe('me contracts', async () => {
   const { UpdateMeInput } = await import('./me');
   it('only accepts editable fields and trims names', () => {
-    expect(UpdateMeInput.parse({ firstName: '  Ann ', onboardedAt: 'x' })).toEqual({
-      firstName: 'Ann',
+    expect(UpdateMeInput.parse({ firstName: '  Niall ', onboardedAt: 'x' })).toEqual({
+      firstName: 'Niall',
     });
     expect(() => UpdateMeInput.parse({ firstName: '' })).toThrow();
     expect(() => UpdateMeInput.parse({ instagramHandle: 'bad handle' })).toThrow();

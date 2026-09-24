@@ -22,7 +22,7 @@ const piece = (i: number, over: Partial<DailyClosetPiece> = {}): DailyClosetPiec
   ...over,
 });
 const ctx = {
-  firstName: 'Ann',
+  firstName: 'Niall',
   gender: 'woman' as const,
   styleIcons: [],
   styleDna: {},

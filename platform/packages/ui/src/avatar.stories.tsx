@@ -4,10 +4,10 @@ import { Avatar } from './avatar';
 function Sizes() {
   return (
     <div className="flex items-center gap-4">
-      <Avatar name="Ann Byrne" size="sm" />
-      <Avatar name="Ann Byrne" />
-      <Avatar name="Ann Byrne" size="lg" />
-      <Avatar name="Ann Byrne" src="/story-missing.webp" />
+      <Avatar name="Niall Byrne" size="sm" />
+      <Avatar name="Niall Byrne" />
+      <Avatar name="Niall Byrne" size="lg" />
+      <Avatar name="Niall Byrne" src="/story-missing.webp" />
     </div>
   );
 }
