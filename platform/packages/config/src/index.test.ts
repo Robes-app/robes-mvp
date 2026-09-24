@@ -83,9 +83,13 @@ describe('parseEnv(appServerEnv)', () => {
     });
   });
 
-  it('requires Upstash and SES credentials outside dev, and sends via SES there', () => {
-    const { UPSTASH_REDIS_REST_URL: _u, AWS_ACCESS_KEY_ID: _k, ...rest } = base;
-    expect(() => parseEnv(appServerEnv, rest)).toThrow(/UPSTASH_REDIS_REST_URL.*AWS_ACCESS_KEY_ID/);
+  it('requires SES credentials outside dev and sends via SES there; Upstash is optional but paired', () => {
+    const { AWS_ACCESS_KEY_ID: _k, ...rest } = base;
+    expect(() => parseEnv(appServerEnv, rest)).toThrow(/AWS_ACCESS_KEY_ID/);
+    const { UPSTASH_REDIS_REST_URL: _u, UPSTASH_REDIS_REST_TOKEN: _t, ...noRedis } = base;
+    expect(() => parseEnv(appServerEnv, noRedis)).not.toThrow();
+    const { UPSTASH_REDIS_REST_TOKEN: _only, ...halfRedis } = base;
+    expect(() => parseEnv(appServerEnv, halfRedis)).toThrow(/UPSTASH_REDIS_REST_URL/);
     expect(parseEnv(appServerEnv, base).mail).toMatchObject({
       transport: 'ses',
       region: 'eu-west-1',

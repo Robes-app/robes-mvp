@@ -55,3 +55,20 @@ export function createUpstashRateLimiter(url: string, token: string): RateLimite
     },
   };
 }
+
+// Shared store without Redis: a fixed-window counter the caller keeps (Postgres in the app).
+export function createCounterRateLimiter(
+  hit: (key: string, windowSeconds: number) => Promise<{ count: number; resetAt: Date }>,
+  now: () => number = Date.now,
+): RateLimiter {
+  return {
+    async limit(key, limit, windowSeconds) {
+      const { count, resetAt } = await hit(`${limit}/${windowSeconds}:${key}`, windowSeconds);
+      if (count <= limit) return { success: true, retryAfterSeconds: 0 };
+      return {
+        success: false,
+        retryAfterSeconds: Math.max(1, Math.ceil((resetAt.getTime() - now()) / 1000)),
+      };
+    },
+  };
+}

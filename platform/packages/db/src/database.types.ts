@@ -391,6 +391,13 @@ export interface PushTokens {
   userId: string;
 }
 
+export interface RateLimitCounters {
+  count: Generated<number>;
+  expiresAt: Timestamp;
+  key: string;
+  windowStart: Timestamp;
+}
+
 export interface RateLimits {
   count: number;
   id: Generated<string>;
@@ -656,6 +663,7 @@ export interface DB {
   platformBudget: PlatformBudget;
   profiles: Profiles;
   pushTokens: PushTokens;
+  rateLimitCounters: RateLimitCounters;
   rateLimits: RateLimits;
   sessions: Sessions;
   shares: Shares;

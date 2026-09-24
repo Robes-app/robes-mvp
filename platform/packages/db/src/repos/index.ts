@@ -24,6 +24,7 @@ import { pieceAnalysisRepo } from './piece-analysis';
 import { planRepo } from './plan';
 import { profilesRepo } from './profiles';
 import { pushDeliveryRepo, pushTokensRepo } from './push-tokens';
+import { rateLimitRepo } from './rate-limits';
 import { publicSharesRepo, sharesRepo } from './shares';
 import { styleAnalysisRepo, styleProfileRepo } from './style-profile';
 import { stylingRepo } from './styling';
@@ -54,6 +55,8 @@ export function createRepositories(db: Db) {
     looks: looksRepo(db),
     model: modelRepo(db),
     jobs: jobsRepo(db),
+    // API rate-limit counters (SEC-33); keyed by route + user or IP, no user rows.
+    rateLimits: rateLimitRepo(db),
     // Global capacity check only; holds no per-user data.
     capacity: { isExhausted: ledgerRepo(db).isExhausted },
     plan: planRepo(db),

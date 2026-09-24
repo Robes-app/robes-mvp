@@ -6,6 +6,7 @@ export function maintenanceRepo(db: Db) {
     // SEC-82 retention sweep; the function is security definer and granted to robes_app only.
     async run(): Promise<void> {
       await sql`select private.run_maintenance()`.execute(db);
+      await db.deleteFrom('rateLimitCounters').where('expiresAt', '<', sql<Date>`now()`).execute();
     },
   };
 }

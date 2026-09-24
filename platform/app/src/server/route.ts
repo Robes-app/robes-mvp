@@ -1,5 +1,6 @@
 import 'server-only';
 import {
+  createCounterRateLimiter,
   createMemoryRateLimiter,
   createRouteFactory,
   createSseRouteFactory,
@@ -16,10 +17,14 @@ import { env } from './env';
 import { isFlagEnabled } from './flags';
 import { logger } from './logger';
 
+// Deployed: Upstash when configured, else Postgres counters (shared across instances, SEC-33).
+// Dev: in-process, so local runs never wait on the limiter's store.
 const rateLimiter =
   env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
     ? createUpstashRateLimiter(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN)
-    : createMemoryRateLimiter();
+    : env.APP_ENV === 'dev'
+      ? createMemoryRateLimiter()
+      : createCounterRateLimiter((key, windowSeconds) => repos.rateLimits.hit(key, windowSeconds));
 
 const deps: RouteDeps = {
   resolveUser: (req) => sessionUser(auth, req.headers),

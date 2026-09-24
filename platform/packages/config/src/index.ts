@@ -230,11 +230,11 @@ export const appServerEnv = z
         message: 'required outside dev',
       });
     }
-    if (deployed && !(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN)) {
+    if (Boolean(env.UPSTASH_REDIS_REST_URL) !== Boolean(env.UPSTASH_REDIS_REST_TOKEN)) {
       ctx.addIssue({
         code: 'custom',
         path: ['UPSTASH_REDIS_REST_URL'],
-        message: 'required outside dev',
+        message: 'Upstash needs URL and token (or neither: Postgres counters are used)',
       });
     }
     if (deployed) {
