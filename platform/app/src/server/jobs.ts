@@ -28,6 +28,8 @@ export async function createAndEnqueueJob(
   userId: UserId,
   job: CreateJobInput,
   traceparent?: string,
+  // A different first stop for the job (link imports go to the isolated fetcher, SEC-40).
+  via: JobTransport = transport,
 ): Promise<StartJobOutput> {
   let created: Awaited<ReturnType<typeof repos.jobs.create>>;
   try {
@@ -43,7 +45,7 @@ export async function createAndEnqueueJob(
   }
   const { id, status } = created.job;
   // A replay re-sends a still-queued job; the worker's claim makes duplicates harmless.
-  if (status === 'queued') await enqueueJob(transport, { jobId: id, traceparent }, logger);
+  if (status === 'queued') await enqueueJob(via, { jobId: id, traceparent }, logger);
   return { jobId: id, status: JobStatus.parse(status) };
 }
 
@@ -52,6 +54,7 @@ export async function startJob(
   userId: UserId,
   req: Request,
   job: Omit<CreateJobInput, 'idempotencyKey' | 'traceId'>,
+  via?: JobTransport,
 ): Promise<StartJobOutput> {
   const idempotencyKey = req.headers.get('idempotency-key') ?? undefined;
   if (idempotencyKey !== undefined && !isUuid(idempotencyKey)) {
@@ -63,6 +66,7 @@ export async function startJob(
     userId,
     { ...job, idempotencyKey },
     req.headers.get('traceparent') ?? undefined,
+    via,
   );
 }
 
@@ -91,3 +95,6 @@ export async function loadJobSnapshot(
   const row = await repos.jobs.getForUser(userId, jobId);
   return row ? toJobSnapshot(row) : undefined;
 }
+
+// Dev and tests run every job, link imports included, through the default transport.
+export const defaultTransport = transport;

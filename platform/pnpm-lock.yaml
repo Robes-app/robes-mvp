@@ -47,6 +47,9 @@ importers:
 
   app:
     dependencies:
+      '@aws-sdk/client-sqs':
+        specifier: 3.1138.0
+        version: 3.1138.0
       '@robes/analytics':
         specifier: workspace:*
         version: link:../packages/analytics

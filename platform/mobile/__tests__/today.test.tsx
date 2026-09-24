@@ -35,6 +35,7 @@ const todayWith = (over: object = {}) => ({
   week,
   tray: [],
   ideas: [],
+  inboxCount: 0,
   ...over,
 });
 

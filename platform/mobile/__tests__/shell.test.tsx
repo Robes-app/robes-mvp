@@ -69,6 +69,7 @@ const ROUTES = {
     week: Array.from({ length: 7 }, (_, i) => ({ date: `2026-10-0${i + 1}`, looks: 0 })),
     tray: [],
     ideas: [],
+    inboxCount: 0,
   },
   'GET /wardrobe/items': { items: [], nextCursor: null },
   'GET /looks/ideas': { items: [] },
