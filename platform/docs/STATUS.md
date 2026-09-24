@@ -39,10 +39,8 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 259887029472 (eu-west-1) on 2026-09-24.
 
 **Pending in the sandbox** (needs fresh admin credentials; review `pnpm cdk diff 'Staging/*'` first):
-1. Redeploy for the receipts `InboundStack` (SES receipt rule set, inbound queue, `inboundFn`), the
-   overnight batch grants and the latest worker code (last deployed 2026-09-24 before receipts).
-   Then MX `in.<domain>` → `10 inbound-smtp.eu-west-1.amazonaws.com` and activate the rule set by hand
-   (`runbooks/environments.md` §9 step 7; one active set per account/region).
+1. ~~Redeploy~~ done 2026-09-24 incl. `Stg-Inbound`. Still to do by hand: MX `in.staging.mail.byrobes.com` →
+   `10 inbound-smtp.eu-west-1.amazonaws.com` and activate the rule set (`runbooks/environments.md` §9 step 7).
 2. ~~CloudFront private key~~ in `robes-staging/cloudfront/signing-key` (2026-09-24).
    Vercel project `codu/robes-app` (root `platform/app`, dub1, Node 24) is linked with non-secret env set;
    run `bash scripts/staging-bootstrap.sh` to migrate Supabase, create the robes_app login and set every
