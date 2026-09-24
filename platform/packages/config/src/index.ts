@@ -308,9 +308,20 @@ export const workerEnv = z
     GEMINI_API_KEY_SECRET_ARN: z.string().startsWith('arn:').optional(),
     MEDIA_BUCKET: z.string().min(3).optional(),
     AWS_REGION: z.string().optional(),
+    // Local MinIO only (dev), mirroring the app; AWS uses the function role.
+    MEDIA_S3_ENDPOINT: z.url().optional(),
+    MEDIA_S3_ACCESS_KEY_ID: optionalSecret,
+    MEDIA_S3_SECRET_ACCESS_KEY: optionalSecret,
     ...sentryEnv.shape,
   })
   .superRefine((env, ctx) => {
+    if (env.APP_ENV !== 'dev' && (env.MEDIA_S3_ENDPOINT || env.MEDIA_S3_ACCESS_KEY_ID)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['MEDIA_S3_ENDPOINT'],
+        message: 'MinIO settings are dev only',
+      });
+    }
     if (env.APP_ENV !== 'dev' && !env.GEMINI_API_KEY_SECRET_ARN) {
       ctx.addIssue({
         code: 'custom',

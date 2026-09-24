@@ -29,7 +29,7 @@ test('account name edits show across the shell', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /, Annie\.$/ })).toBeVisible();
 });
 
-test('deleting the account needs the typed word and then shows as requested', async ({ page }) => {
+test('deleting the account needs the typed word, then signs her out', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
   await page.goto('/you');
@@ -39,8 +39,11 @@ test('deleting the account needs the typed word and then shows as requested', as
   await expect(confirm).toBeDisabled();
   await dialog.getByLabel('Type DELETE to confirm').fill('DELETE');
   await confirm.click();
-  const requested = 'Your account is being deleted. Robes will email you when it’s done.';
+  const requested = 'Your account is being deleted. You’ll be signed out when it’s done.';
   await expect(page.getByRole('status').filter({ hasText: requested })).toBeVisible();
-  await page.reload();
-  await expect(page.getByText(requested)).toBeVisible();
+  // Dev deletes straight away (deployed: within minutes); her session goes with the account.
+  await expect(async () => {
+    await page.reload();
+    await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
 });

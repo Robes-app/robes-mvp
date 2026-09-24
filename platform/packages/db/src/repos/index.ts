@@ -2,7 +2,7 @@ import type { Db } from '../client';
 import { adminRepo } from './admin';
 import { assetProcessingRepo, assetsRepo } from './assets';
 import { consentsRepo } from './consents';
-import { deletionRepo } from './deletion';
+import { accountDeletionRepo, deletionRepo } from './deletion';
 import { flagsRepo } from './flags';
 import { ideasRepo } from './ideas';
 import { jobRunnerRepo, jobsRepo } from './jobs';
@@ -47,6 +47,7 @@ export function createRepositories(db: Db) {
 // System repositories for workers; addressed by record id, never exposed to route handlers.
 export function createSystemRepositories(db: Db) {
   return {
+    accountDeletion: accountDeletionRepo(db),
     assets: assetProcessingRepo(db),
     jobs: jobRunnerRepo(db),
     ledger: ledgerRepo(db),

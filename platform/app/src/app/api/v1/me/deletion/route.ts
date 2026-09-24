@@ -5,7 +5,9 @@ import {
   RequestDeletionInput,
 } from '@robes/contracts';
 import { verifiedUserId } from '@robes/db';
+import { after } from 'next/server';
 import { repos } from '@/server/db';
+import { env } from '@/server/env';
 import { route } from '@/server/route';
 
 type Row = { status: string; requestedAt: Date };
@@ -22,7 +24,8 @@ export const GET = route({
   },
 });
 
-// SEC-80: records the request; the deletion job that acts on it lands in M6.
+// SEC-80: records the request; maintenanceFn's account-deletion schedule acts on it within minutes
+// (in dev, straight after the response).
 export const POST = route({
   auth: 'user',
   input: RequestDeletionInput,
@@ -32,6 +35,9 @@ export const POST = route({
   handler: async ({ user }) => {
     const row = await repos.deletion.request(verifiedUserId(user.id));
     if (!row) throw new Error('deletion request not recorded');
+    if (env.APP_ENV === 'dev') {
+      after(async () => (await import('@/server/local-deletion')).runDeletionsLocally());
+    }
     return toRequest(row);
   },
 });

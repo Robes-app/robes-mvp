@@ -12,10 +12,12 @@ import {
   runJob,
 } from '@robes/jobs';
 import { createLogger } from '@robes/logger';
-import { createMediaBucket, createMediaStorage } from '@robes/media/storage';
+import { createMediaBucket, createMediaStorage, type MediaStorage } from '@robes/media/storage';
 
 export interface WorkerContext {
   system: SystemRepositories;
+  // The media bucket, when this function has one (MEDIA_BUCKET is set only where S3 is granted).
+  storage: MediaStorage | null;
   logger: JobLogger;
   run(jobId: string): Promise<RunOutcome>;
   // Where re-enqueued jobs go: SQS when configured, in-process in dev.
@@ -48,10 +50,22 @@ async function createWorkerContext(): Promise<WorkerContext> {
   });
   const system = createSystemRepositories(db);
   const logger = createLogger({ service: 'robes-workers' });
-  const storage =
-    env.MEDIA_BUCKET && env.AWS_REGION
-      ? createMediaStorage(createMediaBucket({ bucket: env.MEDIA_BUCKET, region: env.AWS_REGION }))
-      : null;
+  const storage = env.MEDIA_BUCKET
+    ? createMediaStorage(
+        createMediaBucket({
+          bucket: env.MEDIA_BUCKET,
+          region: env.AWS_REGION ?? 'eu-west-1',
+          endpoint: env.MEDIA_S3_ENDPOINT,
+          credentials:
+            env.MEDIA_S3_ACCESS_KEY_ID && env.MEDIA_S3_SECRET_ACCESS_KEY
+              ? {
+                  accessKeyId: env.MEDIA_S3_ACCESS_KEY_ID,
+                  secretAccessKey: env.MEDIA_S3_SECRET_ACCESS_KEY,
+                }
+              : undefined,
+        }),
+      )
+    : null;
   const ai = storage
     ? createJobAi({ appEnv: env.APP_ENV, geminiApiKey: await resolveGeminiKey(env) })
     : null;
@@ -77,6 +91,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
 
   return {
     system,
+    storage,
     logger,
     run,
     transport() {

@@ -68,3 +68,23 @@ describe('local delivery', () => {
     expect(await storage.getObject(k)).toBeNull();
   });
 });
+
+describe('deletePrefix', () => {
+  it('deletes everything under a prefix and nothing next to it', async () => {
+    const id = crypto.randomUUID();
+    const body = new Uint8Array([1]);
+    const opts = { contentType: 'application/octet-stream' };
+    for (const k of ['a', 'b/c', 'b/d']) await storage.putObject(`test/${id}/${k}`, body, opts);
+    await storage.putObject(`test/${id}-neighbour/keep`, body, opts);
+
+    expect(await storage.deletePrefix(`test/${id}/`)).toBe(3);
+    expect(await storage.head(`test/${id}/b/c`)).toBeNull();
+    expect(await storage.head(`test/${id}-neighbour/keep`)).not.toBeNull();
+    expect(await storage.deletePrefix(`test/${id}/`)).toBe(0);
+  });
+
+  it('refuses a prefix that could match a sibling', async () => {
+    await expect(storage.deletePrefix('test/abc')).rejects.toThrow(/invalid prefix/);
+    await expect(storage.deletePrefix('/')).rejects.toThrow(/invalid prefix/);
+  });
+});

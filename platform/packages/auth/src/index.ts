@@ -81,7 +81,9 @@ export function createAuth(config: AuthConfig) {
       ...TABLES.session,
       expiresIn: 60 * DAY,
       updateAge: DAY,
-      cookieCache: { enabled: true, maxAge: 5 * 60 },
+      // Off: a cached session outlives sign-out-everywhere and account deletion by its maxAge;
+      // one indexed session read per request buys immediate revocation.
+      cookieCache: { enabled: false },
     },
     account: {
       ...TABLES.account,

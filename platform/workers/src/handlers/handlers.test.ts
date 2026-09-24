@@ -31,19 +31,41 @@ describe('generate handler', () => {
 });
 
 describe('maintenance handler', () => {
-  function context() {
+  function context({ storage = true } = {}) {
     const sent: string[] = [];
     const transport: JobTransport = { send: async (m) => void sent.push(m.jobId) };
+    const queue = [JOB_A];
     const ctx = {
       system: {
         maintenance: { run: vi.fn(async () => {}) },
         jobs: { stale: vi.fn(async () => [JOB_A]) },
+        accountDeletion: {
+          claimNext: vi.fn(async () => queue.shift()),
+          complete: vi.fn(async () => {}),
+          fail: vi.fn(async () => {}),
+        },
       },
+      storage: storage ? { deletePrefix: vi.fn(async () => 1) } : null,
       logger: logger(),
       transport: () => transport,
-    } as unknown as Pick<WorkerContext, 'system' | 'logger' | 'transport'>;
+    } as unknown as Pick<WorkerContext, 'system' | 'storage' | 'logger' | 'transport'>;
     return { ctx, sent };
   }
+
+  it('runs account deletions, and refuses to without the bucket', async () => {
+    const { ctx } = context();
+    await createMaintenanceHandler(async () => ctx)({
+      Records: [record('d', { kind: 'account-deletion' })],
+    });
+    expect(ctx.system.accountDeletion.complete).toHaveBeenCalledWith(JOB_A, { objects: 3 });
+
+    const bare = context({ storage: false });
+    const res = await createMaintenanceHandler(async () => bare.ctx)({
+      Records: [record('d', { kind: 'account-deletion' })],
+    });
+    expect(res).toEqual({ batchItemFailures: [{ itemIdentifier: 'd' }] });
+    expect(bare.ctx.system.accountDeletion.claimNext).not.toHaveBeenCalled();
+  });
 
   it('routes scheduled kinds to retention and the outbox sweep', async () => {
     const { ctx, sent } = context();

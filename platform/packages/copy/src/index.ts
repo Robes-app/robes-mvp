@@ -386,7 +386,7 @@ export const you = {
     body: 'Robes will delete your pieces, looks, photos and account. This can’t be undone.',
     confirmLabel: 'Type DELETE to confirm',
     confirm: 'Delete my account',
-    requested: 'Your account is being deleted. Robes will email you when it’s done.',
+    requested: 'Your account is being deleted. You’ll be signed out when it’s done.',
   },
   style: {
     title: 'Your colours and shape',

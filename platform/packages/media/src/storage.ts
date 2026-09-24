@@ -1,7 +1,9 @@
 import {
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   NoSuchKey,
   NotFound,
   PutObjectCommand,
@@ -59,6 +61,8 @@ export interface MediaStorage {
     opts: { contentType: string; cacheControl?: string },
   ): Promise<void>;
   deleteObject(key: string): Promise<void>;
+  // Deletes every object under the prefix (account deletion); returns how many went.
+  deletePrefix(prefix: string): Promise<number>;
 }
 
 function isMissing(err: unknown): boolean {
@@ -121,6 +125,28 @@ export function createMediaStorage({ client, bucket }: MediaBucket): MediaStorag
 
     async deleteObject(key) {
       await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    },
+
+    async deletePrefix(prefix) {
+      // A prefix must end in "/" so `media/<id>` can never match `media/<id>-other`.
+      if (!prefix.endsWith('/') || prefix === '/') throw new Error('invalid prefix');
+      let deleted = 0;
+      let token: string | undefined;
+      do {
+        const page = await client.send(
+          new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }),
+        );
+        const keys = (page.Contents ?? []).flatMap((o) => (o.Key ? [{ Key: o.Key }] : []));
+        if (keys.length > 0) {
+          const res = await client.send(
+            new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: keys, Quiet: true } }),
+          );
+          if (res.Errors?.length) throw new Error(`delete failed for ${res.Errors.length} objects`);
+          deleted += keys.length;
+        }
+        token = page.IsTruncated ? page.NextContinuationToken : undefined;
+      } while (token);
+      return deleted;
     },
   };
 }

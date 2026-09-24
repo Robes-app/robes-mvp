@@ -46,6 +46,12 @@ export const SCHEDULES: ScheduleSpec[] = [
     description: 'Outbox recovery: re-enqueue queued jobs older than 60 s',
   },
   {
+    name: 'account-deletion',
+    expression: scheduler.ScheduleExpression.rate(Duration.minutes(5)),
+    queue: 'maintenance',
+    description: 'Self-serve account deletions (SEC-80), minutes after the request',
+  },
+  {
     name: 'batch-poll',
     expression: scheduler.ScheduleExpression.rate(Duration.minutes(5)),
     queue: 'jobs-batch',

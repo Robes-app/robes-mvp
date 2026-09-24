@@ -27,6 +27,9 @@ export const mediaKeys = {
     `generated/${segment(userId, 'userId')}/${segment(jobId, 'jobId')}/${index}.png`,
   // Path prefix covered by a user's signed cookie.
   userMediaPrefix: (userId: string): string => `media/${segment(userId, 'userId')}/`,
+  // Every prefix holding her files; account deletion (SEC-80) empties all of them.
+  userPrefixes: (userId: string): string[] =>
+    ['uploads', 'media', 'generated'].map((root) => `${root}/${segment(userId, 'userId')}/`),
 };
 
 const ORIGINAL = /^uploads\/([0-9a-f-]{36})\/([0-9a-f-]{36})\/original$/;

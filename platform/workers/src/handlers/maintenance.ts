@@ -1,13 +1,13 @@
-import { sweep } from '@robes/jobs';
+import { processAccountDeletions, sweep } from '@robes/jobs';
 import { type WorkerContext, workerContext } from '../context';
 import { withSentry } from '../sentry';
 import { processBatch, type SqsBatchResponse, type SqsEvent } from '../sqs';
 
 // Schedule names from infra SchedulesStack, delivered as `{ kind }`.
-export const MAINTENANCE_TASKS = ['retention', 'job-sweeper'] as const;
+export const MAINTENANCE_TASKS = ['retention', 'job-sweeper', 'account-deletion'] as const;
 export type MaintenanceTask = (typeof MAINTENANCE_TASKS)[number];
 
-type Context = Pick<WorkerContext, 'system' | 'logger' | 'transport'>;
+type Context = Pick<WorkerContext, 'system' | 'storage' | 'logger' | 'transport'>;
 
 export async function runMaintenance(
   ctx: Context,
@@ -15,7 +15,17 @@ export async function runMaintenance(
 ): Promise<void> {
   for (const task of tasks) {
     if (task === 'retention') await ctx.system.maintenance.run();
-    else await sweep({ jobs: ctx.system.jobs, transport: ctx.transport(), logger: ctx.logger });
+    else if (task === 'job-sweeper') {
+      await sweep({ jobs: ctx.system.jobs, transport: ctx.transport(), logger: ctx.logger });
+    } else {
+      // Without the bucket her files can't go, so her account mustn't either.
+      if (!ctx.storage) throw new Error('account-deletion needs MEDIA_BUCKET');
+      await processAccountDeletions({
+        deletions: ctx.system.accountDeletion,
+        storage: ctx.storage,
+        logger: ctx.logger,
+      });
+    }
   }
 }
 
