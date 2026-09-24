@@ -3,7 +3,7 @@ import { Heading, IconButton } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Pushed screens and modals: a back (or close) control and a title.
 export function StackScreen({
@@ -16,8 +16,10 @@ export function StackScreen({
   close?: boolean;
 }) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   return (
-    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-bg">
+    // Uniwind doesn't style third-party views, so insets go on a plain View.
+    <View className="flex-1 bg-bg" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
       <View className="flex-row items-center gap-2 px-4 pt-2">
         <IconButton
           icon={close ? 'close' : 'back'}
@@ -27,6 +29,6 @@ export function StackScreen({
         {title ? <Heading size="sm">{title}</Heading> : null}
       </View>
       <View className="flex-1">{children}</View>
-    </SafeAreaView>
+    </View>
   );
 }

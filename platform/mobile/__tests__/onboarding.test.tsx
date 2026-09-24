@@ -1,3 +1,5 @@
+import { queryKeys } from '@robes/api-client/react';
+import type { Me } from '@robes/contracts';
 import { looks, onboarding } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import NameScreen from '../src/app/onboarding/index';
@@ -40,12 +42,16 @@ test('screen 2 can be skipped, and a quota error stays on the screen', async () 
   mockFetch({
     'POST /looks/generate': errorReply(429, 'quota_exceeded'),
     'POST /me/onboarding/complete': { onboardedAt: new Date().toISOString() },
+    'GET /me': ME,
   });
-  await renderWithApi(<FirstPiece />);
+  const { queryClient } = await renderWithApi(<FirstPiece />);
   await fireEvent.changeText(screen.getByLabelText(looks.stylePiece.describe), 'a coat');
   await fireEvent.press(screen.getByRole('button', { name: looks.stylePiece.start }));
   expect(await screen.findByText('You’ve reached today’s limit for this.')).toBeTruthy();
   expect(mockRouter.replace).not.toHaveBeenCalled();
+  queryClient.setQueryData(queryKeys.call('me.get'), { ...ME, onboarded: false });
   await fireEvent.press(screen.getByRole('button', { name: onboarding.skip }));
   await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/'));
+  // The tabs gate reads this cache on arrival; it must already say onboarded.
+  expect(queryClient.getQueryData<Me>(queryKeys.call('me.get'))?.onboarded).toBe(true);
 });

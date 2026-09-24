@@ -32,15 +32,22 @@ export default function TabsLayout() {
         tabBarStyle: { backgroundColor: bg, borderTopColor: hairline },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: nav.today, tabBarIcon: icon('today') }} />
+      <Tabs.Screen
+        name="index"
+        options={{ title: nav.today, tabBarIcon: icon('today'), tabBarButtonTestID: 'today-tab' }}
+      />
       <Tabs.Screen
         name="wardrobe"
-        options={{ title: nav.wardrobe, tabBarIcon: icon('wardrobe') }}
+        options={{
+          title: nav.wardrobe,
+          tabBarIcon: icon('wardrobe'),
+          tabBarButtonTestID: 'wardrobe-tab',
+        }}
       />
       <Tabs.Screen
         // Not "create": that path belongs to the Create modal route.
         name="add"
-        options={{ title: nav.create, tabBarIcon: icon('plus') }}
+        options={{ title: nav.create, tabBarIcon: icon('plus'), tabBarButtonTestID: 'create-tab' }}
         listeners={{
           tabPress: (event) => {
             // [+] opens the Create modal over whatever tab she's on.
@@ -49,8 +56,14 @@ export default function TabsLayout() {
           },
         }}
       />
-      <Tabs.Screen name="looks" options={{ title: nav.looks, tabBarIcon: icon('looks') }} />
-      <Tabs.Screen name="plan" options={{ title: nav.plan, tabBarIcon: icon('plan') }} />
+      <Tabs.Screen
+        name="looks"
+        options={{ title: nav.looks, tabBarIcon: icon('looks'), tabBarButtonTestID: 'looks-tab' }}
+      />
+      <Tabs.Screen
+        name="plan"
+        options={{ title: nav.plan, tabBarIcon: icon('plan'), tabBarButtonTestID: 'plan-tab' }}
+      />
     </Tabs>
   );
 }

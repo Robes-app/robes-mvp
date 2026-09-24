@@ -1,4 +1,5 @@
 import { queryKeys, useApiClient } from '@robes/api-client/react';
+import type { Me } from '@robes/contracts';
 import { onboarding as copy, errors, looks } from '@robes/copy';
 import { Button, Eyebrow, Field, Heading, PrimaryScope, Text } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -18,6 +19,11 @@ export default function FirstPiece() {
 
   async function finish(): Promise<void> {
     await api.call('me.onboarding.complete');
+    // No /me observer is mounted here, so invalidating alone would leave the tabs gate reading
+    // the cached onboarded:false and bouncing her straight back.
+    queryClient.setQueryData<Me>(queryKeys.call('me.get'), (old) =>
+      old ? { ...old, onboarded: true } : old,
+    );
     await queryClient.invalidateQueries({ queryKey: queryKeys.route('me.get') });
   }
 
