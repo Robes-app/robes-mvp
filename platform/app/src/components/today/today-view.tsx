@@ -16,6 +16,11 @@ const isRunning = (t: Today | undefined) =>
 
 function trayHref(job: Today['tray'][number]): string {
   if (job.kind === 'stylenotes_analyse') return '/you/style';
+  if (job.kind === 'daily') {
+    return job.output.dailyLookId
+      ? `/today/looks/${job.output.dailyLookId}`
+      : `/today/style/${job.id}`;
+  }
   return job.output.ideaId ? `/looks/ideas/${job.output.ideaId}` : `/looks/style/${job.id}`;
 }
 
@@ -43,9 +48,14 @@ export function TodayView({ initial }: { initial: Today }) {
             </Link>
           ) : null}
         </Text>
-        <Link href="/looks/style" className={`${buttonClasses({ variant: 'primary' })} self-start`}>
-          {looks.stylePiece.eyebrow}
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/looks/style" className={buttonClasses({ variant: 'primary' })}>
+            {looks.stylePiece.eyebrow}
+          </Link>
+          <Link href="/today/style" className={buttonClasses({ variant: 'secondary' })}>
+            {copy.daily.action}
+          </Link>
+        </div>
       </header>
 
       {data.today.length > 0 ? (
@@ -109,7 +119,11 @@ export function TodayView({ initial }: { initial: Today }) {
                   ? copy.tray.failed
                   : copy.tray.ready;
               const title =
-                job.kind === 'stylenotes_analyse' ? copy.tray.styleColour : copy.tray.stylePiece;
+                job.kind === 'stylenotes_analyse'
+                  ? copy.tray.styleColour
+                  : job.kind === 'daily'
+                    ? copy.daily.trayTitle
+                    : copy.tray.stylePiece;
               return (
                 <li key={job.id}>
                   <Link
