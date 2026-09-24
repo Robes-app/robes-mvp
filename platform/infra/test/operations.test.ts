@@ -65,6 +65,16 @@ describe.each(['staging', 'production'] as const)('%s operations', (stageName) =
     }
   });
 
+  // CloudWatch rejects MAX/MIN over [series, scalar] at deploy time, not synth time.
+  it('alarm math uses only deployable functions', () => {
+    const expressions = s
+      .resources('AWS::CloudWatch::Alarm')
+      .flatMap((a) => (a.properties.Metrics as { Expression?: string }[] | undefined) ?? [])
+      .flatMap((m) => (m.Expression ? [m.Expression] : []));
+    expect(expressions.length).toBeGreaterThan(0);
+    for (const e of expressions) expect(e).not.toMatch(/\b(MAX|MIN)\(\[/);
+  });
+
   it('budgets at 50/80/100% actual and 100% forecast into SNS', () => {
     const [budget] = s.resources('AWS::Budgets::Budget');
     const props = budget?.properties as {

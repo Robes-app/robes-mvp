@@ -105,7 +105,7 @@ export class ObservabilityStack extends RobesStack {
     for (const { name, fn } of props.functions) {
       const period = Duration.minutes(5);
       const errorRate = new cloudwatch.MathExpression({
-        expression: '100 * errors / MAX([invocations, 1])',
+        expression: 'IF(invocations > 0, 100 * errors / invocations, 0)',
         usingMetrics: {
           errors: fn.metricErrors({ period, statistic: 'Sum' }),
           invocations: fn.metricInvocations({ period, statistic: 'Sum' }),
