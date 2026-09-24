@@ -1,4 +1,4 @@
-import { fromEnv, publicKeyFor } from './env';
+import { fromEnv, mediaBucketName, publicKeyFor, reservedConcurrency } from './env';
 import type { StageConfig } from './types';
 
 export const staging: StageConfig = {
@@ -21,12 +21,12 @@ export const staging: StageConfig = {
   },
   api: { accessKeys: [{ serial: 1, status: 'Active' }] },
   media: {
-    bucketName: 'robes-staging-media',
+    bucketName: mediaBucketName('robes-staging', fromEnv('ROBES_STAGING_AWS_ACCOUNT_ID')),
     domainName: fromEnv('ROBES_STAGING_MEDIA_DOMAIN'),
     certificateArn: fromEnv('ROBES_STAGING_MEDIA_CERT_ARN'),
     signingPublicKeyPem: publicKeyFor('staging'),
   },
-  workers: { generateReservedConcurrency: 5 },
+  workers: { generateReservedConcurrency: reservedConcurrency('staging', 5) },
   alerts: { email: fromEnv('ROBES_STAGING_ALERT_EMAIL') },
   budget: { monthlyUsd: 150, email: fromEnv('ROBES_STAGING_BUDGET_EMAIL') },
 };

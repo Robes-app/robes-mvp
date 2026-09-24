@@ -14,14 +14,17 @@ function flag(value: unknown): boolean {
   return value === true || value === 'true';
 }
 
-// Context: `stage` (staging|production; default both), `fixtures` (stub handlers),
+// Stage: `-c stage=…` or ROBES_STAGE (staging|production; default both). Both stages can share one
+// account: stack and resource names are stage-prefixed. Context `fixtures` (stub handlers),
 // `workersEntryDir` (explicit handler dir).
 export function buildApp(app: App): RobesStage[] {
   const ctx = (key: string): unknown => app.node.tryGetContext(key);
   const workersEntryDir =
     (ctx('workersEntryDir') as string | undefined) ??
     (flag(ctx('fixtures')) ? FIXTURE_ENTRY_DIR : WORKERS_ENTRY_DIR);
-  const selected = ctx('stage') as StageName | undefined;
+  const selected = (ctx('stage') ?? (process.env.ROBES_STAGE || undefined)) as
+    | StageName
+    | undefined;
   if (selected !== undefined && !(selected in stages)) {
     throw new Error(
       `Unknown stage "${selected}"; expected one of ${Object.keys(stages).join(', ')}`,
