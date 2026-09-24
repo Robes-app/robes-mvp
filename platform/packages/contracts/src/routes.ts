@@ -59,7 +59,7 @@ import {
   UpdatePlanEntryInput,
 } from './plan';
 import { CreateShareInput, Share, SharedLook, ShareParams } from './shares';
-import { Today } from './today';
+import { DailyLook, DailyLookParams, SaveDailyLookInput, Today, TodayGenerateInput } from './today';
 import {
   BatchPiecesInput,
   BatchPiecesOutput,
@@ -424,6 +424,30 @@ export const routes = {
     output: Deleted,
   },
   'today.get': { method: 'GET', path: '/today', auth: 'user', input: EmptyInput, output: Today },
+  'today.generate': {
+    method: 'POST',
+    path: '/today/generate',
+    auth: 'user',
+    input: TodayGenerateInput,
+    output: StartJobOutput,
+    idempotent: true,
+  },
+  'today.looks.get': {
+    method: 'GET',
+    path: '/today/looks/:id',
+    auth: 'user',
+    params: DailyLookParams,
+    input: EmptyInput,
+    output: DailyLook,
+  },
+  'today.looks.save': {
+    method: 'POST',
+    path: '/today/looks/:id/save',
+    auth: 'user',
+    params: DailyLookParams,
+    input: SaveDailyLookInput,
+    output: Look,
+  },
   'plan.get': { method: 'GET', path: '/plan', auth: 'user', input: GetPlanInput, output: Plan },
   // Naturally idempotent: a look already on a day and slot keeps its entry.
   'plan.pin': {

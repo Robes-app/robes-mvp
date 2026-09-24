@@ -23,3 +23,4 @@ export {
   runJob,
 } from './runtime';
 export { createInlineTransport, createSqsTransport, type JobTransport } from './transport';
+export { createWeather, type WeatherFor } from './weather';

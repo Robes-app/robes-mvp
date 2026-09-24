@@ -3,6 +3,7 @@ import { adminRepo } from './admin';
 import { adminReadsRepo } from './admin-reads';
 import { assetProcessingRepo, assetsRepo } from './assets';
 import { consentsRepo } from './consents';
+import { dailyLooksRepo } from './daily-looks';
 import { accountDeletionRepo, deletionRepo } from './deletion';
 import { dataExportRepo, exportsRepo } from './exports';
 import { flagsRepo } from './flags';
@@ -30,6 +31,7 @@ export function createRepositories(db: Db) {
     adminReads: adminReadsRepo(db),
     assets: assetsRepo(db),
     consents: consentsRepo(db),
+    dailyLooks: dailyLooksRepo(db),
     deletion: deletionRepo(db),
     exports: exportsRepo(db),
     flags: flagsRepo(db),
