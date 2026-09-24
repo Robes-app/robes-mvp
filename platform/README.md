@@ -13,7 +13,8 @@ The next-generation Robes: a secure, scalable platform with a Next.js web app an
 | `supabase/` | Migrations, pgTAP tests, local config |
 | `packages/config` | Validated environment (`parseEnv`, `appServerEnv`) |
 | `packages/tokens` | Design tokens → generated Tailwind v4 (web) and Uniwind (native) CSS, with a WCAG contrast gate |
-| `packages/contracts` | zod schemas shared by server and clients (error body, health) |
+| `packages/contracts` | zod schemas shared by server and clients, plus the `/api/v1` route map (`src/routes.ts`) |
+| `packages/api-client` | Typed client generated from the route map: `call()`, error mapping, automatic `Idempotency-Key`, TanStack Query hooks (`./react`), typed SSE (`./sse`) |
 | `packages/api` | `route()` wrapper: auth (Supabase JWT via JWKS), validation, body limits, rate limits, safe errors |
 | `packages/jobs` | Job runtime: transports (inline/SQS), `runJob()` lease + handler registry, outbox sweep |
 | `packages/media` | Media key layout, S3 storage (MinIO locally), CloudFront/local signed delivery, sharp rendition pipeline (`processUpload`) |
@@ -86,7 +87,7 @@ The identity comes from the verified JWT (`user.id`), never from the body. `rout
 ## Recipes
 
 - **New shared package:** copy `packages/contracts` (package.json with `exports: ./src/index.ts`, a one-line `tsconfig.json` extending `../../tsconfig.base.json`, `test`/`typecheck` scripts). Use `catalog:` for shared dependency versions (`pnpm-workspace.yaml`). If the app imports it, add it to `transpilePackages` in `app/next.config.ts`. React-using packages declare `react` as a **peer** dependency, because web and native run different React minors.
-- **New API route:** add the schemas to `@robes/contracts`, create `route.ts` with `route()`, and write a unit test for the handler logic. The manifest test picks the route up automatically.
+- **New API route:** add the schemas to `@robes/contracts`, add one entry to `routes` in `packages/contracts/src/routes.ts` (method, path, auth, params/input/output, `idempotent: true` for creating POSTs), create `route.ts` with `route()` using the same schemas, and write a unit test for the handler logic. The manifest test picks the route up automatically; `route-contract.test.ts` fails until the map entry and the handler agree. Clients then call it with `api.call('<key>', …)` or `useApi`/`useApiMutation` from `@robes/api-client/react`.
 - **New table:** `pnpm supabase migration new <name>`, write the table plus RLS, grants and ownership comment, add `supabase/tests/database/NNN_<name>.test.sql`, then `pnpm db:reset && pnpm db:test`.
 - **Native dependency:** `cd mobile && pnpm exec expo install <pkg>` (picks the SDK-compatible version), then `pnpm expo:doctor`. Prefer packages that run in Expo Go (ADR 018).
 
