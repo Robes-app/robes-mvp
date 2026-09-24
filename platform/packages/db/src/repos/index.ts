@@ -9,6 +9,7 @@ import { jobRunnerRepo, jobsRepo } from './jobs';
 import { ledgerRepo } from './ledger';
 import { looksRepo } from './looks';
 import { maintenanceRepo } from './maintenance';
+import { notifierRepo } from './notifier';
 import { pieceAnalysisRepo } from './piece-analysis';
 import { planRepo } from './plan';
 import { profilesRepo } from './profiles';
@@ -52,6 +53,7 @@ export function createSystemRepositories(db: Db) {
     jobs: jobRunnerRepo(db),
     ledger: ledgerRepo(db),
     maintenance: maintenanceRepo(db),
+    notifier: notifierRepo(db),
     pieces: pieceAnalysisRepo(db),
     styleAnalysis: styleAnalysisRepo(db),
     styling: stylingRepo(db),

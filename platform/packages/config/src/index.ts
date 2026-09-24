@@ -185,6 +185,8 @@ export const appServerEnv = z
     // Local mail catcher; deployed environments send through SES (ADR-021).
     SMTP_URL: z.url().optional(),
     SES_CONFIGURATION_SET: optionalSecret,
+    // Signs one-click unsubscribe links; the same value as the notify worker's unsub/hmac-key.
+    UNSUB_HMAC_KEY: z.string().min(32),
     AWS_REGION: z
       .string()
       .regex(/^[a-z]{2}-[a-z]+-\d$/)
@@ -308,6 +310,13 @@ export const workerEnv = z
     GEMINI_API_KEY_SECRET_ARN: z.string().startsWith('arn:').optional(),
     MEDIA_BUCKET: z.string().min(3).optional(),
     AWS_REGION: z.string().optional(),
+    // notifyFn: links, sender, and the unsubscribe signing key (ARN in AWS, plain in dev).
+    APP_URL: z.url().optional(),
+    MAIL_FROM: z.string().min(3).default('Robes <hello@byrobes.com>'),
+    SES_CONFIGURATION_SET: optionalSecret,
+    SMTP_URL: z.url().optional(),
+    UNSUB_HMAC_KEY: z.string().min(32).optional(),
+    UNSUB_HMAC_KEY_SECRET_ARN: z.string().startsWith('arn:').optional(),
     // Local MinIO only (dev), mirroring the app; AWS uses the function role.
     MEDIA_S3_ENDPOINT: z.url().optional(),
     MEDIA_S3_ACCESS_KEY_ID: optionalSecret,
@@ -315,6 +324,13 @@ export const workerEnv = z
     ...sentryEnv.shape,
   })
   .superRefine((env, ctx) => {
+    if (env.APP_ENV !== 'dev' && (env.SMTP_URL || env.UNSUB_HMAC_KEY)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SMTP_URL'],
+        message: 'SMTP and a plain unsubscribe key are dev only',
+      });
+    }
     if (env.APP_ENV !== 'dev' && (env.MEDIA_S3_ENDPOINT || env.MEDIA_S3_ACCESS_KEY_ID)) {
       ctx.addIssue({
         code: 'custom',

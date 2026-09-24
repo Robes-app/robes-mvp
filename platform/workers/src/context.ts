@@ -8,10 +8,12 @@ import {
   createSqsTransport,
   type JobLogger,
   type JobTransport,
+  type NotifyDeps,
   type RunOutcome,
   runJob,
 } from '@robes/jobs';
 import { createLogger } from '@robes/logger';
+import { createMailer, type Mailer } from '@robes/mailer';
 import { createMediaBucket, createMediaStorage, type MediaStorage } from '@robes/media/storage';
 
 export interface WorkerContext {
@@ -22,6 +24,8 @@ export interface WorkerContext {
   run(jobId: string): Promise<RunOutcome>;
   // Where re-enqueued jobs go: SQS when configured, in-process in dev.
   transport(): JobTransport;
+  // Everything notifyFn needs to send the email sequence; throws where mail isn't configured.
+  notify(): Promise<NotifyDeps>;
   // Waits for in-process runs started by the dev transport, then closes the pool.
   close(): Promise<void>;
 }
@@ -39,6 +43,23 @@ async function resolveDatabaseUrl(env: WorkerEnv): Promise<string> {
 async function resolveGeminiKey(env: WorkerEnv): Promise<string | undefined> {
   if (env.GEMINI_API_KEY) return env.GEMINI_API_KEY;
   return env.GEMINI_API_KEY_SECRET_ARN ? readSecret(env.GEMINI_API_KEY_SECRET_ARN) : undefined;
+}
+
+async function resolveUnsubKey(env: WorkerEnv): Promise<string | undefined> {
+  if (env.UNSUB_HMAC_KEY) return env.UNSUB_HMAC_KEY;
+  return env.UNSUB_HMAC_KEY_SECRET_ARN ? readSecret(env.UNSUB_HMAC_KEY_SECRET_ARN) : undefined;
+}
+
+// SMTP to the local mail catcher in dev; SES (the function role) in AWS (ADR-021).
+function workerMailer(env: WorkerEnv): Mailer {
+  return env.SMTP_URL
+    ? createMailer({ transport: 'smtp', url: env.SMTP_URL, from: env.MAIL_FROM })
+    : createMailer({
+        transport: 'ses',
+        region: env.AWS_REGION ?? 'eu-west-1',
+        from: env.MAIL_FROM,
+        configurationSet: env.SES_CONFIGURATION_SET,
+      });
 }
 
 async function createWorkerContext(): Promise<WorkerContext> {
@@ -97,6 +118,19 @@ async function createWorkerContext(): Promise<WorkerContext> {
     transport() {
       if (!transport) throw new Error('JOBS_INTERACTIVE_QUEUE_URL is required outside dev');
       return transport;
+    },
+    async notify() {
+      const unsubSecret = await resolveUnsubKey(env);
+      if (!env.APP_URL || !unsubSecret) {
+        throw new Error('notify needs APP_URL and the unsubscribe key');
+      }
+      return {
+        notifier: system.notifier,
+        mailer: workerMailer(env),
+        appUrl: env.APP_URL,
+        unsubSecret,
+        logger,
+      };
     },
     async close() {
       await Promise.all(inline);

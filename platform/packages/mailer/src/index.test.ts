@@ -25,6 +25,25 @@ describe('mailer', () => {
     });
   });
 
+  it('passes custom headers to SES (one-click unsubscribe)', async () => {
+    const send = vi.fn(async () => ({}));
+    const mailer = createSesMailer({ region: 'eu-west-1', from: 'x@y.z' }, { send } as never);
+    await mailer.send({
+      to: 'a@b.co',
+      subject: 's',
+      text: 't',
+      headers: {
+        'List-Unsubscribe': '<https://x/u>',
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+    });
+    const command = (send.mock.calls[0] as unknown[] | undefined)?.[0] as SendEmailCommand;
+    expect(command.input.Content?.Simple?.Headers).toEqual([
+      { Name: 'List-Unsubscribe', Value: '<https://x/u>' },
+      { Name: 'List-Unsubscribe-Post', Value: 'List-Unsubscribe=One-Click' },
+    ]);
+  });
+
   it('never leaks the provider message', async () => {
     const failure = Object.assign(new Error('Email address is not verified: a@b.co'), {
       name: 'MessageRejected',

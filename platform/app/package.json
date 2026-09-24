@@ -20,6 +20,7 @@
     "@robes/copy": "workspace:*",
     "@robes/core": "workspace:*",
     "@robes/db": "workspace:*",
+    "@robes/emails": "workspace:*",
     "@robes/icons": "workspace:*",
     "@robes/jobs": "workspace:*",
     "@robes/logger": "workspace:*",

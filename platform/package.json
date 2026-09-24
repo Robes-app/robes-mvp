@@ -26,7 +26,8 @@
     "db:reset": "node scripts/db-reset.mjs",
     "db:types": "pnpm --filter @robes/db gen:types",
     "db:test": "turbo run test:db --concurrency=1",
-    "maintenance": "pnpm --filter @robes/workers maintenance"
+    "maintenance": "pnpm --filter @robes/workers maintenance",
+    "notify": "pnpm --filter @robes/workers notify"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

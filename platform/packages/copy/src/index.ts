@@ -453,6 +453,49 @@ export const share = {
   stopped: 'Link turned off.',
 } as const;
 
+// Notification emails (legacy notify.js sequence) and the unsubscribe page.
+export const notify = {
+  unsubLabel: 'Stop these emails',
+  privacyLabel: 'Privacy',
+  notice: 'You’re getting this because you asked Robes to keep in touch.',
+  looksReady: {
+    subject: 'Your three looks are ready.',
+    body: (piece: string): string =>
+      `${piece}, worn three ways. Pick one and Robes builds it around what’s yours.`,
+    cta: 'See the looks',
+  },
+  five: {
+    subject: 'Robes can build from yours now.',
+    body: 'Five pieces filed. Open the composer and build a look from what you own.',
+    cta: 'Build a look',
+  },
+  weekEmpty: {
+    subject: 'Nothing planned this week.',
+    body: 'Pin a look to a day and the week is dressed.',
+    cta: 'Open the plan',
+  },
+  morning: {
+    subject: (weekday: string, title: string): string => `${weekday} · ${title}`,
+    body: (look: string): string => `Wearing ${look}.`,
+    cta: 'Open the day',
+    footer: 'Wore it? The look page takes it.',
+    untitled: 'Your day',
+  },
+  unsubscribe: {
+    eyebrow: 'Emails',
+    title: 'Stop these emails?',
+    body: {
+      looksReady: 'You won’t get an email when your looks are ready.',
+      morningCue: 'You won’t get the morning email with the day’s look.',
+      nudges: 'You won’t get the occasional nudge to add pieces or plan.',
+      receipts: 'You won’t get an email when a receipt becomes pieces.',
+    },
+    confirm: 'Stop them',
+    done: 'Done. You can turn them back on in You › Notifications.',
+    invalid: 'This link doesn’t work any more. Change emails in You › Notifications.',
+  },
+} as const;
+
 export const copy = {
   wardrobe,
   errors,
@@ -471,4 +514,5 @@ export const copy = {
   you,
   plan,
   share,
+  notify,
 } as const;

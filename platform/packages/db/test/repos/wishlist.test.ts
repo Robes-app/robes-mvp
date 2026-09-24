@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { UserId } from '../../src/ids';
 import { createRepositories } from '../../src/repos';
@@ -31,17 +32,39 @@ describe('wishlist repo', () => {
     expect(await wishlist.promote(bea, wish.id)).toBeUndefined();
   });
 
-  it('pages newest first without skipping or repeating', async () => {
+  it('pages newest first, and never skips or repeats rows created in the same instant', async () => {
     const user = await createTestUser(db);
-    for (const label of ['A', 'B', 'C', 'D', 'E']) await wishlist.create(user, { label });
-    const seen: string[] = [];
-    let cursor: string | undefined;
-    do {
-      const page = await wishlist.list(user, { limit: 2, cursor });
-      seen.push(...page.items.map((w) => w.label));
-      cursor = page.nextCursor ?? undefined;
-    } while (cursor);
-    expect(seen).toEqual(['E', 'D', 'C', 'B', 'A']);
+    const labels = ['A', 'B', 'C', 'D', 'E'];
+    for (const label of labels) await wishlist.create(user, { label });
+    const pageAll = async () => {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await wishlist.list(user, { limit: 2, cursor });
+        seen.push(...page.items.map((w) => w.label));
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      return seen;
+    };
+    // Distinct instants: strict newest-first order.
+    for (const [i, label] of labels.entries()) {
+      await db
+        .updateTable('wishlistItems')
+        .set({ createdAt: sql`now() - make_interval(secs => ${10 - i})` })
+        .where('userId', '=', user)
+        .where('label', '=', label)
+        .execute();
+    }
+    expect(await pageAll()).toEqual(['E', 'D', 'C', 'B', 'A']);
+    // One instant: the id tiebreak still yields every row exactly once.
+    await db
+      .updateTable('wishlistItems')
+      .set({ createdAt: sql`now()` })
+      .where('userId', '=', user)
+      .execute();
+    const tied = await pageAll();
+    expect(tied).toHaveLength(5);
+    expect([...tied].sort()).toEqual(labels);
     await deleteTestUsers(db, user);
   });
 

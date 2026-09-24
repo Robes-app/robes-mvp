@@ -46,9 +46,9 @@ export const POST = route({
 | `GET /api/v1/health` | returns `{ ok: true }` only |
 | `POST /api/v1/waitlist` | Turnstile + IP rate limit + double opt-in |
 | `GET /api/v1/waitlist/confirm` | signed token |
-| `GET /api/v1/shares/:token` | `get_share` RPC projection; IP rate limit |
+| `GET /api/v1/public/shares/:token` (built) | 128-bit token; whitelisted snapshot projected through `SharedLook`; images signed ≤2 h; IP rate limit |
 | `POST /api/v1/shares/:token/report` | Turnstile + IP rate limit |
-| `GET\|POST /api/v1/email/unsubscribe` | HMAC token (RFC 8058 one-click) |
+| `POST /api/v1/public/unsub/:token` (built) | HMAC token naming one user + one preference (RFC 8058 one-click, form or JSON body); IP rate limit. The `/unsubscribe?t=` page confirms before acting. |
 | `POST /api/v1/webhooks/resend-inbound` | Svix signature (no shared-secret query param) |
 | `POST /api/v1/webhooks/revenuecat` (M8) | Authorization header secret |
 

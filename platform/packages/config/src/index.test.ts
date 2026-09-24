@@ -9,6 +9,7 @@ const base = {
   APP_ENV: 'staging',
   DATABASE_URL: 'postgres://robes_app:pw@db.example.com:5432/robes',
   BETTER_AUTH_SECRET: 'x'.repeat(40),
+  UNSUB_HMAC_KEY: 'u'.repeat(40),
   BETTER_AUTH_URL: 'https://staging.byrobes.com',
   AWS_REGION: 'eu-west-1',
   AWS_ACCESS_KEY_ID: 'AKIAEXAMPLE',
@@ -276,12 +277,25 @@ describe('parseEnv(workerEnv)', () => {
       APP_ENV: 'staging',
       DATABASE_URL_SECRET_ARN: arn,
       GEMINI_API_KEY_SECRET_ARN: arn,
+      MAIL_FROM: 'Robes <hello@byrobes.com>',
       SENTRY_TRACES_SAMPLE_RATE: 0.1,
       sentry: undefined,
     });
     expect(() =>
       parseEnv(workerEnv, { APP_ENV: 'dev', DATABASE_URL: base.DATABASE_URL }),
     ).not.toThrow();
+  });
+
+  it('keeps SMTP and a plain unsubscribe key to dev', () => {
+    const aws = {
+      APP_ENV: 'staging',
+      DATABASE_URL_SECRET_ARN: arn,
+      GEMINI_API_KEY_SECRET_ARN: arn,
+    };
+    expect(() => parseEnv(workerEnv, { ...aws, SMTP_URL: 'smtp://x:25' })).toThrow(/SMTP_URL/);
+    expect(() => parseEnv(workerEnv, { ...aws, UNSUB_HMAC_KEY: 'k'.repeat(40) })).toThrow(
+      /SMTP_URL/,
+    );
   });
 
   it('needs exactly one DB source and no plain URL in production', () => {

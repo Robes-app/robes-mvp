@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { WorkerContext } from '../context';
 import { createGenerateHandler } from './generate';
 import { createMaintenanceHandler } from './maintenance';
+import { createNotifyHandler } from './notify';
 
 const JOB_A = '6f1d7e38-5a55-4f43-9d6b-6f0c4d7f2a10';
 const JOB_B = 'b0e8f0c6-1d2f-4a6b-9c3d-4e5f6a7b8c9d';
@@ -87,5 +88,32 @@ describe('maintenance handler', () => {
       Records: [record('u', { kind: 'nope' }), record('r', { kind: 'retention' })],
     });
     expect(res).toEqual({ batchItemFailures: [{ itemIdentifier: 'r' }] });
+  });
+});
+
+describe('notify handler', () => {
+  it('runs a tick for notify-tick and ignores anything else', async () => {
+    const notify = vi.fn(async () => ({
+      notifier: {
+        recipients: vi.fn(async () => []),
+        state: vi.fn(),
+        claim: vi.fn(),
+        release: vi.fn(),
+      },
+      mailer: { send: vi.fn() },
+      appUrl: 'https://app.test',
+      unsubSecret: 'x'.repeat(40),
+      logger: logger(),
+    }));
+    const ctx = { notify, logger: logger() } as unknown as Parameters<
+      typeof createNotifyHandler
+    >[0] extends () => Promise<infer C>
+      ? C
+      : never;
+    const handler = createNotifyHandler(async () => ctx);
+    await handler({
+      Records: [record('n', { kind: 'notify-tick' }), record('x', { kind: 'nope' })],
+    });
+    expect(notify).toHaveBeenCalledTimes(1);
   });
 });

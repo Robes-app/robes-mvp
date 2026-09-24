@@ -105,6 +105,8 @@ export class WorkersStack extends RobesStack {
             ? {
                 MAIL_FROM: config.email.fromAddress,
                 SES_CONFIGURATION_SET: configurationSetName(config),
+                // Links in mail point at the app's primary origin.
+                APP_URL: config.appOrigins[0] ?? '',
               }
             : {}),
         },

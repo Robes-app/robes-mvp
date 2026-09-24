@@ -44,6 +44,24 @@ const post = (body: unknown, token?: string, raw?: string) =>
   });
 
 describe('route()', async () => {
+  it('parses a form body only for routes that accept one', async () => {
+    const { route } = await setup();
+    const form = () =>
+      new Request('http://x/api/v1/t', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'List-Unsubscribe=One-Click',
+      });
+    const opts = {
+      auth: 'public' as const,
+      input: z.object({ 'List-Unsubscribe': z.literal('One-Click') }),
+      output: z.object({ ok: z.literal(true) }),
+      handler: async () => ({ ok: true as const }),
+    };
+    expect((await route({ ...opts, acceptForm: true })(form())).status).toBe(200);
+    expect((await route(opts)(form())).status).toBe(400);
+  });
+
   it('serves a public route and sets x-request-id', async () => {
     const { route } = await setup();
     const GET = route({

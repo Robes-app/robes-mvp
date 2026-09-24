@@ -6,6 +6,7 @@ export { StyleAnalyseInput } from './handlers/style-analyse';
 export { StylePieceInput } from './handlers/style-piece';
 export type { JobLogger } from './logger';
 export { type JobMessage, parseJobMessage } from './message';
+export { composeEmail, type NotifyDeps, notifyTick } from './notify/tick';
 export { enqueueJob, SWEEP_AFTER_SECONDS, sweep } from './outbox';
 export {
   JobCancelled,

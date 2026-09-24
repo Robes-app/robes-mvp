@@ -50,6 +50,8 @@ export interface RouteOptions<
   flag?: string;
   status?: number;
   rateLimit?: RateLimitRule;
+  // Also accept an application/x-www-form-urlencoded body (RFC 8058 one-click unsubscribe).
+  acceptForm?: true;
   handler(args: {
     input: z.infer<I>;
     user: UserFor<A>;
@@ -124,13 +126,17 @@ async function readBodyText(req: Request): Promise<string> {
   return new TextDecoder().decode(bytes);
 }
 
-async function readInput(req: Request): Promise<unknown> {
+async function readInput(req: Request, acceptForm = false): Promise<unknown> {
   if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'DELETE') {
     return readQuery(req.url);
   }
   const text = await readBodyText(req);
   if (text.length === 0) return {};
-  if (!(req.headers.get('content-type') ?? '').includes('application/json')) {
+  const type = req.headers.get('content-type') ?? '';
+  if (acceptForm && type.includes('application/x-www-form-urlencoded')) {
+    return Object.fromEntries(new URLSearchParams(text));
+  }
+  if (!type.includes('application/json')) {
     throw new ApiError('invalid_input');
   }
   try {
@@ -243,7 +249,7 @@ export function createRouteFactory(deps: RouteDeps) {
           rateLimit: opts.rateLimit,
           params: paramsSchema as P,
         });
-        const input = parseOrThrow(opts.input, await readInput(req));
+        const input = parseOrThrow(opts.input, await readInput(req, opts.acceptForm === true));
         const out = await opts.handler({ input, user, req, params, requestId });
         // Always parse: zod strips undeclared fields, so a whole DB row can never leak.
         return json(opts.output.parse(out), opts.status ?? 200, requestId);

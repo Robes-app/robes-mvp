@@ -6,6 +6,8 @@ export interface Email {
   subject: string;
   text: string;
   html?: string;
+  // e.g. List-Unsubscribe / List-Unsubscribe-Post (RFC 8058).
+  headers?: Record<string, string>;
 }
 
 export interface Mailer {
@@ -58,6 +60,14 @@ export function createSesMailer(
                   Text: { Data: email.text, Charset: 'UTF-8' },
                   ...(email.html ? { Html: { Data: email.html, Charset: 'UTF-8' } } : {}),
                 },
+                ...(email.headers
+                  ? {
+                      Headers: Object.entries(email.headers).map(([Name, Value]) => ({
+                        Name,
+                        Value,
+                      })),
+                    }
+                  : {}),
               },
             },
           }),

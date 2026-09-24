@@ -5,7 +5,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
-    "maintenance": "tsx --env-file-if-exists=../app/.env.local src/cli/maintenance.ts"
+    "maintenance": "tsx --env-file-if-exists=../app/.env.local src/cli/maintenance.ts",
+    "notify": "tsx --env-file-if-exists=../app/.env.local src/cli/notify.ts"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "3.1138.0",
@@ -13,6 +14,7 @@
     "@robes/db": "workspace:*",
     "@robes/jobs": "workspace:*",
     "@robes/logger": "workspace:*",
+    "@robes/mailer": "workspace:*",
     "@robes/media": "workspace:*",
     "@sentry/aws-serverless": "10.75.2"
   },

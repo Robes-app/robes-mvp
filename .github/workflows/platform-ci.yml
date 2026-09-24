@@ -20,6 +20,7 @@ env:
   # Same URLs as local dev: CI Postgres is published on 55432 like docker-compose.
   DATABASE_URL: postgres://robes_app:robes_app_local@127.0.0.1:55432/robes
   BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+  UNSUB_HMAC_KEY: ci-only-unsub-key-not-used-anywhere-else-0123456789
   BETTER_AUTH_URL: http://localhost:3100
   SMTP_URL: smtp://127.0.0.1:51025
   MEDIA_BUCKET: robes-dev-media

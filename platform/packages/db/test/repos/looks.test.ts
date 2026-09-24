@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { UserId } from '../../src/ids';
 import { createRepositories, LookPiecesNotFound } from '../../src/repos';
@@ -99,8 +100,15 @@ describe('looks repo', () => {
 
   it('pages newest first', async () => {
     const user = await createTestUser(db);
-    for (const name of ['A', 'B', 'C'])
-      await looks.create(user, { name, nameProvisional: true, pieces: [] });
+    for (const [i, name] of ['A', 'B', 'C'].entries()) {
+      const look = await looks.create(user, { name, nameProvisional: true, pieces: [] });
+      // Distinct instants, so the order under test is created_at and not the id tiebreak.
+      await db
+        .updateTable('looks')
+        .set({ createdAt: sql`now() - make_interval(secs => ${10 - i})` })
+        .where('id', '=', look.id)
+        .execute();
+    }
     const first = await looks.list(user, { limit: 2 });
     const second = await looks.list(user, { limit: 2, cursor: first.nextCursor ?? undefined });
     expect([...first.items, ...second.items].map((l) => l.name)).toEqual(['C', 'B', 'A']);

@@ -17,6 +17,8 @@
     "@robes/copy": "workspace:*",
     "@robes/core": "workspace:*",
     "@robes/db": "workspace:*",
+    "@robes/emails": "workspace:*",
+    "@robes/mailer": "workspace:*",
     "@robes/media": "workspace:*",
     "zod": "catalog:"
   },

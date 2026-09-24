@@ -31,6 +31,7 @@ import {
   UpdateMeInput,
 } from './me';
 import { Asset, AssetParams, CreateUploadInput, CreateUploadOutput, MediaSession } from './media';
+import { Ok, OneClickUnsubInput, UnsubParams } from './notify';
 import {
   GetPlanInput,
   PinLookInput,
@@ -446,6 +447,14 @@ export const routes = {
     params: ShareParams,
     input: EmptyInput,
     output: SharedLook,
+  },
+  'public.unsub': {
+    method: 'POST',
+    path: '/public/unsub/:token',
+    auth: 'public',
+    params: UnsubParams,
+    input: OneClickUnsubInput,
+    output: Ok,
   },
   'jobs.fake': {
     method: 'POST',
