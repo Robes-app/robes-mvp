@@ -7,6 +7,7 @@ import { ledgerRepo } from './ledger';
 import { maintenanceRepo } from './maintenance';
 import { profilesRepo } from './profiles';
 import { usageRepo } from './usage';
+import { wardrobeRepo } from './wardrobe';
 
 // User-scoped repositories: every method takes the verified UserId first (CLAUDE.md rule 7).
 export function createRepositories(db: Db) {
@@ -19,6 +20,7 @@ export function createRepositories(db: Db) {
     capacity: { isExhausted: ledgerRepo(db).isExhausted },
     profiles: profilesRepo(db),
     usage: usageRepo(db),
+    wardrobe: wardrobeRepo(db),
   };
 }
 
@@ -38,3 +40,4 @@ export type { AssetKind } from './assets';
 export type { CreateJobInput } from './jobs';
 export type { CallRecord } from './ledger';
 export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';
+export { encodeCursor, type ListPiecesQuery, type PieceFields } from './wardrobe';
