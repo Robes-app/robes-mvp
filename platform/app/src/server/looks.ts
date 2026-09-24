@@ -86,6 +86,31 @@ export async function toIdeas(userId: UserId, rows: IdeaRow[]): Promise<Idea[]> 
   );
 }
 
+// "Save this way as a look": a real Look from one of the idea's three ways, with its frame as the
+// render and the anchor piece (if it's hers) as the first piece. Saving it keeps the idea too.
+export async function saveWayAsLook(userId: UserId, ideaId: string, wayIdx: number) {
+  const row = await repos.ideas.get(userId, ideaId);
+  if (!row) throw new ApiError('not_found');
+  const data = IdeaData.parse(row.data);
+  const way = data.ways[wayIdx];
+  if (!way) throw new ApiError('not_found');
+  const frame = data.images.find((f) => f.idx === wayIdx && f.status === 'ready');
+  const anchor =
+    data.anchor.type === 'piece'
+      ? await repos.wardrobe.get(userId, data.anchor.pieceId)
+      : undefined;
+  const look = await repos.looks.create(userId, {
+    name: way.title,
+    nameProvisional: true,
+    note: [way.outfit, way.details, way.accessories].filter(Boolean).join('\n\n').slice(0, 2000),
+    pieces: anchor ? [{ pieceId: anchor.id, role: 'anchor' }] : [],
+    source: 'generated',
+    renderAssetId: frame?.assetId ?? null,
+  });
+  await repos.ideas.save(userId, ideaId);
+  return look;
+}
+
 export async function loadIdea(userId: UserId, id: string): Promise<Idea> {
   const row = await repos.ideas.get(userId, id);
   if (!row) throw new ApiError('not_found');

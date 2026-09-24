@@ -13,6 +13,7 @@ import {
   Look,
   LookPage,
   LookParams,
+  SaveWayInput,
   UpdateLookInput,
   Wear,
   WearInput,
@@ -369,6 +370,15 @@ export const routes = {
     params: IdeaParams,
     input: EmptyInput,
     output: Idea,
+  },
+  'looks.ideas.saveWay': {
+    method: 'POST',
+    path: '/looks/ideas/:id/looks',
+    auth: 'user',
+    params: IdeaParams,
+    input: SaveWayInput,
+    output: Look,
+    idempotent: true,
   },
   'looks.ideas.delete': {
     method: 'DELETE',

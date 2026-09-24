@@ -83,6 +83,8 @@ export const Look = z.object({
   source: z.string(),
   originLookId: z.uuid().nullable(),
   climateBand: SeasonBand,
+  // Robes' render of the look (from an idea's frame), when there is one.
+  image: PieceImage.nullable(),
   pieces: z.array(
     z.object({ piece: Piece, slot: z.string().nullable(), role: LookRole.nullable() }),
   ),
@@ -132,3 +134,5 @@ export const Wear = z.object({
   pieceIds: z.array(z.uuid()),
 });
 export type Wear = z.infer<typeof Wear>;
+
+export const SaveWayInput = z.object({ wayIdx: z.number().int().min(0).max(2) });

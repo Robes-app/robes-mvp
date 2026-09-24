@@ -42,6 +42,14 @@ test('styling a piece produces an idea she can save and delete', async ({ page }
   const ready = await (await api.get(ideaUrl)).json();
   expect(ready.frames[0].image.renditions.length).toBeGreaterThan(0);
 
+  // One way becomes a real Look with its frame as the render and the piece as its anchor.
+  const asLook = await api.post(`${ideaUrl}/looks`, { data: { wayIdx: 1 } });
+  expect(asLook.status()).toBe(201);
+  const look = await asLook.json();
+  expect(look).toMatchObject({ source: 'generated', name: idea.ways[1].title });
+  expect(look.image.renditions.length).toBeGreaterThan(0);
+  expect(look.pieces.map((p: { piece: { id: string } }) => p.piece.id)).toEqual([piece.id]);
+
   const saved = await (await api.post(`${ideaUrl}/save`)).json();
   expect(saved.savedAt).not.toBeNull();
   expect(saved.expiresAt).toBeNull();

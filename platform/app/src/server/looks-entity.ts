@@ -3,16 +3,20 @@ import { ApiError } from '@robes/api';
 import { Look, LookRole } from '@robes/contracts';
 import { looks as copy } from '@robes/copy';
 import { LookPiecesNotFound, type UserId } from '@robes/db';
+import { toImage } from './asset-urls';
 import { repos } from './db';
+import { mediaDelivery } from './media';
 import { toPieces } from './wardrobe';
 
 type LookRow = NonNullable<Awaited<ReturnType<typeof repos.looks.get>>>;
 
 export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> {
   const ids = rows.map((r) => r.id);
-  const [pieceRows, stats] = await Promise.all([
+  const renderIds = rows.flatMap((r) => (r.renderAssetId ? [r.renderAssetId] : []));
+  const [pieceRows, stats, renders] = await Promise.all([
     repos.looks.piecesFor(userId, ids),
     repos.looks.wearStats(userId, ids),
+    repos.assets.getManyForUser(userId, renderIds),
   ]);
   const pieces = await toPieces(userId, pieceRows);
   const byLook = new Map<string, Look['pieces']>();
@@ -25,6 +29,11 @@ export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> 
   });
   const wears = new Map(stats.map((s) => [s.lookId, s]));
   // Rows never leave as-is (CLAUDE.md rule 8): parse through the contract.
+  const images = new Map(
+    await Promise.all(
+      renders.map(async (a) => [a.id, await toImage(mediaDelivery, userId, a)] as const),
+    ),
+  );
   return rows.map((row) =>
     Look.parse({
       id: row.id,
@@ -34,6 +43,7 @@ export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> 
       source: row.source,
       originLookId: row.originLookId,
       climateBand: row.climateBand,
+      image: (row.renderAssetId && images.get(row.renderAssetId)) || null,
       pieces: byLook.get(row.id) ?? [],
       timesWorn: Number(wears.get(row.id)?.timesWorn ?? 0),
       lastWornOn: wears.get(row.id)?.lastWornOn ?? null,
