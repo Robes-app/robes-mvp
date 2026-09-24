@@ -80,6 +80,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 **SEC-21 — Personal photos are private.** Headshots, full-length and avatar sources use Cloudinary `type=authenticated` (or `private`) delivery; clients get signed, expiring URLs from the API. Wardrobe/piece images may be public-by-obscurity only if the user opts to share; default private.
 
 **SEC-22 — Try-on / avatar only edit the account holder's own photo.** The worker loads the source photo from the user's profile by id; request bodies cannot supply image data or third-party URLs for likeness edits. Style options are validated against enums from `packages/core` (`style_dna` catalogs).
+- As built (M6): her model is a catalog portrait chosen by picks (presence, skin, hair, figure, nudges) — no one's photo is edited. `PATCH /me/model` accepts only catalog enums; `POST /looks/:id/render` renders only her own look on her own filed model (the worker loads both by the job owner's id). The shared `avatar_cells` catalog holds no user data.
 
 **SEC-23 — Moderation.** Image prompts are built from server templates + validated fields (never raw model output to the image model). Generated images and user uploads that become public (shares) pass a moderation check; share pages have a report action.
 

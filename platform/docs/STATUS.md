@@ -55,7 +55,7 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 
 - Receipts: no photo-based re-read of receipt lines (legacy vision pass; would need image fetching); product images kept as metadata only. Activating the SES rule set and the `in.` MX record are ops steps (`runbooks/environments.md` §9).
 - Alternates rail and swapping pieces in a daily draft (secondary frames now render on demand via `look_render`).
-- Avatar/model (`look_waiting`, `borrowing` emails, `model`/`finish` next-step rules depend on it).
+- `borrowing` email and `finish` next-step rule (need look proposals). Your model: no photographed try-on from her own photos (renders use the catalog portrait for her picks, per SEC-22).
 - Trips: no images, no "more looks from this capsule", trips not drawn as Plan blocks.
 - Legal texts (pages exist, copy "On its way"), "export ready" email, push receipts polling.
 - Native Sentry crash reporting needs an EAS/dev build; push needs an EAS project id + APNs/FCM.
