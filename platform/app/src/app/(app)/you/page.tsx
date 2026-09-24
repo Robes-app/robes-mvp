@@ -37,6 +37,7 @@ export default async function YouPage() {
         </div>
       </header>
       <ul className="flex flex-col">
+        <RowLink href="/you/style" label={you.style.link} />
         <RowLink href="/you/account" label={you.account.title} />
         <RowLink href="/you/notifications" label={you.notifications.title} />
         <RowLink href="/you/privacy" label={you.privacy} />

@@ -15,7 +15,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/plan', label: nav.plan, icon: 'plan' },
 ];
 
-export const SOON_SLUGS = ['link', 'receipt', 'new-look', 'ask', 'trip'] as const;
+export const SOON_SLUGS = ['link', 'receipt', 'ask', 'trip'] as const;
 export type SoonSlug = (typeof SOON_SLUGS)[number];
 
 export interface CreateItem extends NavItem {
@@ -48,7 +48,7 @@ export const CREATE_ITEMS: readonly CreateItem[] = [
   },
   { id: 'link', href: '/soon/link', label: shell.create.link, icon: 'link' },
   { id: 'receipt', href: '/soon/receipt', label: shell.create.receipt, icon: 'mail' },
-  { id: 'new-look', href: '/soon/new-look', label: shell.create.newLook, icon: 'plus' },
+  { id: 'new-look', href: '/looks/new', label: shell.create.newLook, icon: 'plus' },
   { id: 'ask', href: '/soon/ask', label: shell.create.askRobes, icon: 'ask' },
   { id: 'trip', href: '/soon/trip', label: shell.create.planTrip, icon: 'trip' },
 ];
@@ -56,7 +56,6 @@ export const CREATE_ITEMS: readonly CreateItem[] = [
 export const SOON_TITLES: Record<SoonSlug, string> = {
   link: shell.create.link,
   receipt: shell.create.receipt,
-  'new-look': shell.create.newLook,
   ask: shell.create.askRobes,
   trip: shell.create.planTrip,
 };
@@ -71,6 +70,7 @@ export const GO_TO_ITEMS: readonly NavItem[] = [
   { href: '/you/account', label: you.account.title, icon: 'user' },
   { href: '/you/notifications', label: you.notifications.title, icon: 'user' },
   { href: '/you/privacy', label: you.privacy, icon: 'user' },
+  { href: '/you/style', label: you.style.link, icon: 'user' },
 ];
 
 // Which root owns a path, for aria-current on the nav.

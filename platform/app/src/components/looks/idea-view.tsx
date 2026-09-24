@@ -31,6 +31,17 @@ export function IdeaView({ ideaId }: { ideaId: string }) {
     },
     onError: (err) => toast({ message: errorCopy(err) }),
   });
+  const saveWay = useApiMutation('looks.ideas.saveWay', {
+    onSuccess: (look) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
+      void refreshLists();
+      toast({
+        message: looks.savedWay,
+        action: { label: looks.openLook, onAction: () => router.push(`/look/${look.id}`) },
+      });
+    },
+    onError: (err) => toast({ message: errorCopy(err) }),
+  });
   const remove = useApiMutation('looks.ideas.delete', {
     onSuccess: () => {
       void refreshLists();
@@ -54,6 +65,8 @@ export function IdeaView({ ideaId }: { ideaId: string }) {
       idea={idea}
       onSave={() => save.mutate({ params: { id: idea.id } })}
       onRemove={() => remove.mutate({ params: { id: idea.id } })}
+      onSaveWay={(wayIdx) => saveWay.mutate({ params: { id: idea.id }, input: { wayIdx } })}
+      savingWay={saveWay.isPending ? (saveWay.variables?.input.wayIdx ?? null) : null}
       saving={save.isPending}
       removing={remove.isPending}
     />
@@ -64,12 +77,16 @@ function IdeaBody({
   idea,
   onSave,
   onRemove,
+  onSaveWay,
+  savingWay,
   saving,
   removing,
 }: {
   idea: Idea;
   onSave: () => void;
   onRemove: () => void;
+  onSaveWay: (wayIdx: number) => void;
+  savingWay: number | null;
   saving: boolean;
   removing: boolean;
 }) {
@@ -117,6 +134,15 @@ function IdeaBody({
                 <Detail term={copy.details} value={way.details} />
                 <Detail term={copy.accessories} value={way.accessories} />
               </dl>
+              <Button
+                variant="secondary"
+                className="self-start"
+                loading={savingWay === idx}
+                onClick={() => onSaveWay(idx)}
+                aria-label={`${looks.saveWay}: ${way.title}`}
+              >
+                {looks.saveWay}
+              </Button>
             </div>
           </li>
         ))}

@@ -9,8 +9,8 @@ import { errorCopy } from '@/lib/error-copy';
 import { daysLeft } from '@/lib/looks';
 import { IdeaFrame } from './idea-frame';
 
-// Saved = ideas she kept; Ideas = Robes' unsaved output (auto-expires after 30 days).
-export function IdeaGrid({ show }: { show: 'saved' | 'ideas' }) {
+// Ideas: Robes' output; unsaved ones auto-expire after 30 days, saved ones stay.
+export function IdeaGrid() {
   const query = useApi('looks.ideas.list', { input: { limit: 60 } });
   if (query.isError) {
     return (
@@ -30,19 +30,16 @@ export function IdeaGrid({ show }: { show: 'saved' | 'ideas' }) {
       </ul>
     );
   }
-  const items = query.data.items.filter((i) => (show === 'saved') === (i.savedAt !== null));
+  const items = query.data.items;
   if (items.length === 0) {
-    const empty = show === 'saved' ? looks.saved.empty : looks.ideas.empty;
     return (
       <EmptyState
-        title={empty.title}
-        body={empty.body}
+        title={looks.ideas.empty.title}
+        body={looks.ideas.empty.body}
         action={
-          show === 'ideas' ? (
-            <Link href="/looks/style" className={buttonClasses({ variant: 'primary' })}>
-              {looks.ideas.empty.action}
-            </Link>
-          ) : undefined
+          <Link href="/looks/style" className={buttonClasses({ variant: 'primary' })}>
+            {looks.ideas.empty.action}
+          </Link>
         }
       />
     );

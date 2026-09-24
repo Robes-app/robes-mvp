@@ -34,8 +34,18 @@ test('style a piece from Looks, then save it', async ({ page }) => {
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Saved' })).toBeDisabled();
 
-  await page.goto('/looks');
-  await expect(page.getByRole('heading', { name: 'navy blazer' })).toBeVisible();
+  // A saved idea stays in Ideas; Saved holds Looks, so one of its ways becomes a Look.
   await page.goto('/looks/ideas');
-  await expect(page.getByRole('heading', { name: 'Your ideas land here.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'navy blazer' })).toBeVisible();
+  await page.getByRole('link', { name: 'navy blazer' }).click();
+  const firstWay = page.getByRole('list', { name: 'Three ways' }).getByRole('listitem').first();
+  const wayTitle = (await firstWay.getByRole('heading', { level: 2 }).textContent()) ?? '';
+  await firstWay.getByRole('button', { name: /^Save this look/ }).click();
+  await page.getByRole('button', { name: 'Open' }).click();
+  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole('heading', { level: 1, name: wayTitle })).toBeVisible();
+  await expect(page.getByText('Robes’ suggestion')).toBeVisible();
+
+  await page.goto('/looks');
+  await expect(page.getByRole('link', { name: wayTitle })).toBeVisible();
 });
