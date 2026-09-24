@@ -24,10 +24,10 @@ export function notifierRepo(db: Db) {
 
     async state(userIds: readonly string[], plan: { from: string; to: string }) {
       if (userIds.length === 0) {
-        return { ledger: [], ideas: [], pieces: [], looks: [], plan: [] };
+        return { ledger: [], ideas: [], pieces: [], looks: [], plan: [], overnight: [] };
       }
       const ids = [...userIds];
-      const [ledger, ideas, pieces, looks, planRows] = await Promise.all([
+      const [ledger, ideas, pieces, looks, planRows, overnight] = await Promise.all([
         db
           .selectFrom('notifications')
           .select(['userId', 'kind', 'ref', 'sentAt'])
@@ -90,8 +90,18 @@ export function notifierRepo(db: Db) {
           .where('d.dayDate', '>=', sql<Date>`${plan.from}::date`)
           .where('d.dayDate', '<=', sql<Date>`${plan.to}::date`)
           .execute(),
+        // Overnight Today looks (M5 task 3) in the same date window, for the morning cue.
+        db
+          .selectFrom('artifacts')
+          .select(['userId', 'id', sql<string>`data->>'date'`.as('date'), 'subtitle as headline'])
+          .where('userId', 'in', ids)
+          .where('type', '=', 'daily_look')
+          .where('deletedAt', 'is', null)
+          .where(sql<boolean>`data->>'overnight' = 'true'`)
+          .where(sql<boolean>`data->>'date' between ${plan.from} and ${plan.to}`)
+          .execute(),
       ]);
-      return { ledger, ideas, pieces, looks, plan: planRows };
+      return { ledger, ideas, pieces, looks, plan: planRows, overnight };
     },
 
     // The ledger is written before sending, so a re-run or a second worker can never mail twice.

@@ -25,21 +25,24 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
   const profile = await repos.profiles.get(userId);
   if (!profile) throw new ApiError('not_found');
   const date = todayIn(profile.timezone, now);
-  const [plan, readyPieces, looks, worn, jobs, ideaRows, inboxCount] = await Promise.all([
-    loadPlan(userId, date, 7),
-    repos.wardrobe.countReady(userId),
-    repos.looks.count(userId),
-    repos.looks.wornOn(userId, date),
-    repos.jobs.recent(userId, [
-      'key_piece',
-      'daily',
-      'look_render',
-      'stylenotes_analyse',
-      'travel',
-    ]),
-    repos.ideas.list(userId, 3),
-    repos.inbox.countHeld(userId),
-  ]);
+  const [plan, readyPieces, looks, worn, jobs, ideaRows, inboxCount, overnight] = await Promise.all(
+    [
+      loadPlan(userId, date, 7),
+      repos.wardrobe.countReady(userId),
+      repos.looks.count(userId),
+      repos.looks.wornOn(userId, date),
+      repos.jobs.recent(userId, [
+        'key_piece',
+        'daily',
+        'look_render',
+        'stylenotes_analyse',
+        'travel',
+      ]),
+      repos.ideas.list(userId, 3),
+      repos.inbox.countHeld(userId),
+      repos.dailyLooks.overnightFor(userId, date),
+    ],
+  );
   const todayEntries = (plan.days[0]?.entries ?? []).map((entry) => ({
     entry,
     worn: worn.includes(entry.look.id),
@@ -60,5 +63,8 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
     tray: jobs.map(toJobSnapshot),
     ideas: await toIdeas(userId, ideaRows),
     inboxCount,
+    overnight: overnight
+      ? { id: overnight.id, title: overnight.title, headline: overnight.subtitle }
+      : null,
   });
 }

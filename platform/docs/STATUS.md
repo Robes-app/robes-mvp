@@ -13,6 +13,7 @@ pnpm verify               # lint + typecheck + unit + DB suites (what every comm
 pnpm --filter @robes/app test:e2e   # Playwright against `next start`
 pnpm notify               # one email tick → Mailpit
 pnpm maintenance          # retention, outbox sweep, account deletion, data export
+pnpm batch:tick -- --now=2026-09-24T04:30:00Z [--user=<id>]   # overnight Today look (fake batch locally)
 ```
 
 Without `GEMINI_API_KEY` every AI call uses the deterministic fake, so all flows work offline.
@@ -52,7 +53,7 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 - Forwarded receipts (SES inbound) into the Inbox. (The Inbox and link import via the isolated fetcher are built; product images are kept as metadata only, not proxied or shown.)
 - Alternates rail and swapping pieces in a daily draft (secondary frames now render on demand via `look_render`).
 - Avatar/model (`look_waiting`, `borrowing` emails, `model`/`finish` next-step rules depend on it).
-- Overnight daily batch (M5 task 3). Trips: no images, no "more looks from this capsule", trips not drawn as Plan blocks.
+- Trips: no images, no "more looks from this capsule", trips not drawn as Plan blocks.
 - Legal texts (pages exist, copy "On its way"), "export ready" email, push receipts polling.
 - Native Sentry crash reporting needs an EAS/dev build; push needs an EAS project id + APNs/FCM.
 - M8 monetisation.

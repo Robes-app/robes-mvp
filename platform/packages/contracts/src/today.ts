@@ -28,6 +28,8 @@ export const Today = z.object({
   ideas: z.array(Idea),
   // Held Inbox rows waiting for her (Wardrobe › Inbox).
   inboxCount: z.number().int().min(0),
+  // The look Robes made for her date overnight (M5 task 3); opens the daily look page.
+  overnight: z.object({ id: z.uuid(), title: z.string(), headline: z.string() }).nullable(),
 });
 export type Today = z.infer<typeof Today>;
 

@@ -52,8 +52,13 @@ export function composeEmail(
       case 'morning':
         return {
           subject: copy.morning.subject(mail.weekday, mail.title),
-          body: copy.morning.body(mail.look ?? mail.title),
-          cta: { label: copy.morning.cta, url: link('/plan') },
+          body: mail.dailyLookId
+            ? copy.morning.overnightBody
+            : copy.morning.body(mail.look ?? mail.title),
+          cta: {
+            label: copy.morning.cta,
+            url: link(mail.dailyLookId ? `/today/looks/${mail.dailyLookId}` : '/plan'),
+          },
           footer: copy.morning.footer,
         };
     }
@@ -134,6 +139,7 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
     const pieces = new Map(raw.pieces.map((p) => [p.userId, p]));
     const looks = new Map(raw.looks.map((l) => [l.userId, l.n]));
     const plan = groupBy(raw.plan);
+    const overnightByUser = groupBy(raw.overnight);
     const devicesByUser = groupBy(
       deps.push ? await deps.push.tokens.activeFor(page.map((u) => u.id)) : [],
     );
@@ -162,6 +168,7 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
         fifthPieceAt: pieces.get(row.id)?.fifthAt ?? null,
         looks: looks.get(row.id) ?? 0,
         plan: plan.get(row.id) ?? [],
+        overnight: overnightByUser.get(row.id) ?? [],
       };
       for (const mail of decide(user, state, now)) {
         if (await deps.notifier.claim(user.id, mail.kind, mail.ref)) {

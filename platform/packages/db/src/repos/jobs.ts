@@ -73,20 +73,24 @@ export function jobsRepo(db: Db) {
 
     // Today's generation tray: her running jobs plus ones that finished in the last 15 minutes.
     recent(userId: UserId, kinds: readonly JobKind[], limit = 5) {
-      return db
-        .selectFrom('generationJobs')
-        .select(JOB_COLUMNS)
-        .where('userId', '=', userId)
-        .where('kind', 'in', [...kinds])
-        .where((eb) =>
-          eb.or([
-            eb('status', 'in', ['queued', 'running']),
-            eb('finishedAt', '>', sql<Date>`now() - interval '15 minutes'`),
-          ]),
-        )
-        .orderBy('createdAt', 'desc')
-        .limit(limit)
-        .execute();
+      return (
+        db
+          .selectFrom('generationJobs')
+          .select(JOB_COLUMNS)
+          .where('userId', '=', userId)
+          .where('kind', 'in', [...kinds])
+          // Overnight looks wait hours in their batch; Today shows them as a card, not the tray.
+          .where(sql<boolean>`coalesce(input->>'overnight', 'false') <> 'true'`)
+          .where((eb) =>
+            eb.or([
+              eb('status', 'in', ['queued', 'running']),
+              eb('finishedAt', '>', sql<Date>`now() - interval '15 minutes'`),
+            ]),
+          )
+          .orderBy('createdAt', 'desc')
+          .limit(limit)
+          .execute()
+      );
     },
 
     getForUser(userId: UserId, jobId: string) {

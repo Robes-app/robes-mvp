@@ -131,4 +131,29 @@ describe('overnight selection (M5 task 3)', () => {
     await overnight.finishSubmission(id, 'applied');
     expect((await overnight.open()).map((s) => s.id)).not.toContain(id);
   });
+
+  it('finds her overnight look for her date, keeps it off the tray, and feeds the morning cue', async () => {
+    const jobId = (await overnight.createJob(dublin, '2026-09-26', {})) ?? '';
+    const lookId = await createSystemRepositories(db).styling.createDailyLook(dublin, {
+      jobId,
+      title: 'Studio',
+      subtitle: 'Linen and loafers',
+      data: { overnight: true, date: '2026-09-26', images: [] },
+    });
+    expect(await repos.dailyLooks.overnightFor(dublin, '2026-09-26')).toMatchObject({
+      id: lookId,
+      subtitle: 'Linen and loafers',
+    });
+    expect(await repos.dailyLooks.overnightFor(dublin, '2026-09-27')).toBeUndefined();
+    expect(await repos.dailyLooks.overnightFor(tokyo, '2026-09-26')).toBeUndefined();
+    expect((await repos.jobs.recent(dublin, ['daily'])).map((j) => j.id)).not.toContain(jobId);
+
+    const state = await createSystemRepositories(db).notifier.state([dublin], {
+      from: '2026-09-25',
+      to: '2026-09-27',
+    });
+    expect(state.overnight).toEqual([
+      { userId: dublin, id: lookId, date: '2026-09-26', headline: 'Linen and loafers' },
+    ]);
+  });
 });

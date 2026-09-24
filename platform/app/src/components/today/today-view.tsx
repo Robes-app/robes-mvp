@@ -62,6 +62,21 @@ export function TodayView({ initial }: { initial: Today }) {
         </div>
       </header>
 
+      {data.overnight ? (
+        <section aria-labelledby="overnight" className="flex flex-col gap-2">
+          <Heading id="overnight" level={2} size="md">
+            {copy.overnight.title}
+          </Heading>
+          <Text>{data.overnight.headline || data.overnight.title}</Text>
+          <Link
+            href={`/today/looks/${data.overnight.id}`}
+            className="self-start underline underline-offset-4"
+          >
+            {copy.overnight.open} →
+          </Link>
+        </section>
+      ) : null}
+
       {data.inboxCount > 0 ? (
         <Link href="/wardrobe/inbox" className="self-start underline underline-offset-4">
           {copy.inbox(data.inboxCount)}
