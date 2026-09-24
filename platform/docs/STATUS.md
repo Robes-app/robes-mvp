@@ -43,9 +43,10 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
    overnight batch grants and the latest worker code (last deployed 2026-09-24 before receipts).
    Then MX `in.<domain>` → `10 inbound-smtp.eu-west-1.amazonaws.com` and activate the rule set by hand
    (`runbooks/environments.md` §9 step 7; one active set per account/region).
-2. Put the CloudFront private key matching `infra/config/keys/staging.cloudfront.pub.pem` into
-   `robes-staging/cloudfront/signing-key`; if the private half is lost, rotate
-   (`runbooks/key-rotation.md` §CloudFront).
+2. ~~CloudFront private key~~ in `robes-staging/cloudfront/signing-key` (2026-09-24).
+   Vercel project `codu/robes-app` (root `platform/app`, dub1, Node 24) is linked with non-secret env set;
+   run `bash scripts/staging-bootstrap.sh` to migrate Supabase, create the robes_app login and set every
+   secret (Vercel + Secrets Manager), then `vercel deploy --prod --scope codu` from the repo root.
 3. Set real values for the placeholder secrets: `gemini/api-key`, `unsub/hmac-key` (and the same
    value as Vercel `UNSUB_HMAC_KEY`), `expo/access-token`, `database/url`, `auth/*`.
 4. SES: add the DKIM/MAIL FROM DNS records from the `Stg-Email` outputs; request production access.
