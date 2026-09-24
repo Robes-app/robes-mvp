@@ -1,6 +1,14 @@
 import { wardrobe } from '@robes/copy';
-import { WardrobePlaceholder } from '../placeholder';
+import { PageHeader } from '@/components/page-header';
+import { WardrobeSegments } from '@/components/wardrobe/wardrobe-segments';
+import { Wishlist } from '@/components/wardrobe/wishlist';
 
 export default function WishlistPage() {
-  return <WardrobePlaceholder current="/wardrobe/wishlist" empty={wardrobe.wishlistEmpty} />;
+  return (
+    <>
+      <PageHeader title={wardrobe.title} />
+      <WardrobeSegments current="/wardrobe/wishlist" />
+      <Wishlist />
+    </>
+  );
 }

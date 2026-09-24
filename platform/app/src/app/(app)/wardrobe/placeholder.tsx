@@ -3,12 +3,12 @@ import { CardSkeleton, EmptyState } from '@robes/ui';
 import { PageHeader } from '@/components/page-header';
 import { WardrobeSegments } from '@/components/wardrobe/wardrobe-segments';
 
-// Wishlist and Inbox arrive later in M3; the segment and its shape are already in place.
+// Inbox arrives later in M3; the segment and its shape are already in place.
 export function WardrobePlaceholder({
   current,
   empty,
 }: {
-  current: '/wardrobe/wishlist' | '/wardrobe/inbox';
+  current: '/wardrobe/inbox';
   empty: { title: string; body: string };
 }) {
   return (

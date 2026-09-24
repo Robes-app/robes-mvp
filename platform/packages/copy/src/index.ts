@@ -168,6 +168,15 @@ export const wardrobe = {
     remove: 'Remove',
     stylePiece: 'Style this piece',
   },
+  wishlist: {
+    addLabel: 'A piece you want',
+    addPlaceholder: 'Black leather loafers',
+    add: 'Add to wishlist',
+    bought: 'I bought this',
+    boughtToast: (label: string): string => `${label} is in your wardrobe now.`,
+    removed: 'Removed from your wishlist.',
+    remove: (label: string): string => `Remove ${label}`,
+  },
 } as const;
 
 // SEC-84: two equal choices, asked once analytics is unanswered; changeable in You › Privacy.

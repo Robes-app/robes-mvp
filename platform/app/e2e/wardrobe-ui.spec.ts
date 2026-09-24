@@ -38,3 +38,35 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await page.reload();
   await expect(page.getByText('Harbour')).toBeVisible();
 });
+
+test('a wish becomes a piece when she buys it, and removal can be undone', async ({ page }) => {
+  await signIn(page);
+  await declineConsent(page);
+  await page.goto('/wardrobe/wishlist');
+  await expect(page.getByRole('heading', { name: 'Pieces you’re after live here.' })).toBeVisible();
+  for (const label of ['Black leather loafers', 'Silk scarf']) {
+    await page.getByLabel('A piece you want').fill(label);
+    await page.getByRole('button', { name: 'Add to wishlist' }).click();
+    await expect(page.getByRole('list', { name: 'Wishlist' }).getByText(label)).toBeVisible();
+  }
+  const wishes = page.getByRole('list', { name: 'Wishlist' });
+
+  await wishes.getByRole('button', { name: 'Remove Silk scarf' }).click();
+  await expect(wishes.getByText('Silk scarf')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(wishes.getByText('Silk scarf')).toBeVisible();
+
+  await wishes
+    .getByRole('listitem')
+    .filter({ hasText: 'Black leather loafers' })
+    .getByRole('button', { name: 'I bought this' })
+    .click();
+  await expect(page.getByText('Black leather loafers is in your wardrobe now.')).toBeVisible();
+  await expect(wishes.getByText('Black leather loafers')).toHaveCount(0);
+  await page.getByRole('radio', { name: 'Pieces' }).click();
+  await expect(
+    page
+      .getByRole('list', { name: 'Pieces' })
+      .getByRole('heading', { name: 'Black leather loafers' }),
+  ).toBeVisible();
+});

@@ -1,7 +1,11 @@
 import type { Piece, PiecePage } from '@robes/contracts';
 
+interface ListPage {
+  items: { id: string }[];
+}
+
 interface InfinitePages {
-  pages: PiecePage[];
+  pages: ListPage[];
   pageParams: unknown[];
 }
 
@@ -9,14 +13,14 @@ function isInfinite(value: unknown): value is InfinitePages {
   return typeof value === 'object' && value !== null && 'pages' in value;
 }
 
-function isPage(value: unknown): value is PiecePage {
+function isPage(value: unknown): value is ListPage {
   return typeof value === 'object' && value !== null && 'items' in value;
 }
 
-// Optimistic removal across every cached wardrobe list, paged or plain.
-export function withoutPiece(id: string) {
+// Optimistic removal across every cached list (pieces, wishes), paged or plain.
+export function withoutId(id: string) {
   return (old: unknown): unknown => {
-    const drop = (page: PiecePage): PiecePage => ({
+    const drop = (page: ListPage): ListPage => ({
       ...page,
       items: page.items.filter((p) => p.id !== id),
     });
