@@ -19,6 +19,7 @@ import { PieceImage } from '@/components/wardrobe/piece-image';
 import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { withoutId } from '@/lib/wardrobe';
+import { ShareLook } from './share-look';
 
 const copy = looks.page;
 
@@ -157,6 +158,7 @@ function LookBody({ look }: { look: Look }) {
             {copy.remove}
           </Button>
         </div>
+        <ShareLook lookId={look.id} />
         <form onSubmit={onPin} className="flex flex-wrap items-end gap-2">
           <Field
             type="date"
