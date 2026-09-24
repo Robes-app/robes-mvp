@@ -177,6 +177,11 @@ export const wardrobe = {
     removed: 'Removed from your wishlist.',
     remove: (label: string): string => `Remove ${label}`,
   },
+  edit: 'Edit',
+  addFailed: 'Robes couldn’t add those photos. Try again in a moment.',
+  photosDenied: 'Allow Robes to see your photos in Settings to add pieces.',
+  cameraDenied: 'Allow Robes to use the camera in Settings to photograph pieces.',
+  category: 'Category',
 } as const;
 
 // SEC-84: two equal choices, asked once analytics is unanswered; changeable in You › Privacy.
@@ -213,6 +218,8 @@ export const ui = {
     dressing: 'Dressing each look…',
     finishing: 'Finishing touches…',
   },
+  back: 'Back',
+  retry: 'Try again',
 } as const;
 
 // App shell (IA §3.2): nav, Create sheet, command bar, placeholder routes.
@@ -292,6 +299,14 @@ export const looks = {
   // Robes' suggested name for an unnamed look; provisional until she names it.
   suggestedName: (firstPiece: string | null): string =>
     firstPiece ? `${firstPiece}, styled` : 'A new look',
+  look: {
+    worn: (times: number): string =>
+      times === 0 ? 'Not worn yet' : `Worn ${times} ${times === 1 ? 'time' : 'times'}`,
+    wearToday: 'Wear it today',
+    woreToday: 'Worn today.',
+    removed: 'Look removed.',
+    pieces: 'Pieces',
+  },
 } as const;
 
 // You area.
