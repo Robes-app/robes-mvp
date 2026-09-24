@@ -15,12 +15,11 @@ export const staging: StageConfig = {
     environment: 'staging',
     oidcProviderArn: fromEnv('ROBES_STAGING_GITHUB_OIDC_PROVIDER_ARN'),
   },
-  vercel: {
-    teamSlug: fromEnv('ROBES_VERCEL_TEAM_SLUG') ?? 'robes',
-    project: 'robes-app',
-    environment: 'preview',
-    oidcProviderArn: fromEnv('ROBES_STAGING_VERCEL_OIDC_PROVIDER_ARN'),
+  email: {
+    domain: 'staging.mail.byrobes.com',
+    fromAddress: 'Robes <hello@staging.mail.byrobes.com>',
   },
+  api: { accessKeys: [{ serial: 1, status: 'Active' }] },
   media: {
     bucketName: 'robes-staging-media',
     domainName: fromEnv('ROBES_STAGING_MEDIA_DOMAIN'),

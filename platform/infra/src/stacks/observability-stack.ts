@@ -1,6 +1,8 @@
 import { Duration } from 'aws-cdk-lib';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as actions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as eventTargets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
@@ -17,6 +19,8 @@ export interface ObservabilityStackProps extends RobesStackProps {
   queues: JobQueues;
   extraDlqs: Record<string, sqs.IQueue>;
   functions: WorkerFunction[];
+  /** IAM user whose denied calls page us (ADR-021). */
+  apiUserArn: string;
 }
 
 export class ObservabilityStack extends RobesStack {
@@ -47,6 +51,24 @@ export class ObservabilityStack extends RobesStack {
       a.addAlarmAction(notify);
       a.addOkAction(notify);
     };
+
+    // Needs CloudTrail management events (org trail); denied calls by the API keys hint at misuse.
+    new events.Rule(this, 'ApiUserAccessDenied', {
+      ruleName: `${config.namePrefix}-api-user-access-denied`,
+      description: 'AccessDenied for the Vercel API IAM user',
+      eventPattern: {
+        detailType: ['AWS API Call via CloudTrail'],
+        detail: {
+          userIdentity: { arn: [props.apiUserArn] },
+          errorCode: [
+            { prefix: 'AccessDenied' },
+            'UnauthorizedOperation',
+            'Client.UnauthorizedOperation',
+          ],
+        },
+      },
+      targets: [new eventTargets.SnsTopic(this.topic)],
+    });
 
     const dlqs: Record<string, sqs.IQueue> = { ...props.extraDlqs };
     for (const [name, { queue, dlq }] of Object.entries(props.queues)) {

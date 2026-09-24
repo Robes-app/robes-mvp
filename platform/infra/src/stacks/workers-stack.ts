@@ -2,6 +2,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import type { ISecret } from 'aws-cdk-lib/aws-secretsmanager';
 import type { Construct } from 'constructs';
+import { configurationSetName, sesSendStatement } from '../lib/email';
 import { keysOf, recordOf } from '../lib/record';
 import { RobesStack, type RobesStackProps } from '../lib/robes-stack';
 import { bucketArn, objectArns } from '../lib/s3-arns';
@@ -21,6 +22,7 @@ interface WorkerGrants {
   sendTo: QueueName[];
   s3?: { actions: string[]; prefixes: string[] }[];
   listBucket?: boolean;
+  sendEmail?: boolean;
 }
 
 const QUEUE_ENV: Record<QueueName, string> = {
@@ -65,11 +67,11 @@ export class WorkersStack extends RobesStack {
       notify: {
         secrets: {
           ...db,
-          RESEND_API_KEY_SECRET_ARN: secrets.resendApiKey,
           EXPO_ACCESS_TOKEN_SECRET_ARN: secrets.expoAccessToken,
           UNSUB_HMAC_KEY_SECRET_ARN: secrets.unsubHmacKey,
         },
         sendTo: [],
+        sendEmail: true,
       },
       maintenance: {
         secrets: db,
@@ -98,6 +100,12 @@ export class WorkersStack extends RobesStack {
         environment: {
           ...(grant.s3 || grant.listBucket ? { MEDIA_BUCKET: config.media.bucketName } : {}),
           ...Object.fromEntries(grant.sendTo.map((q) => [QUEUE_ENV[q], queues[q].queue.queueUrl])),
+          ...(grant.sendEmail
+            ? {
+                MAIL_FROM: config.email.fromAddress,
+                SES_CONFIGURATION_SET: configurationSetName(config),
+              }
+            : {}),
         },
       });
 
@@ -123,6 +131,7 @@ export class WorkersStack extends RobesStack {
           }),
         );
       }
+      if (grant.sendEmail) worker.role.addToPolicy(sesSendStatement(this, config));
       if (grant.listBucket) {
         worker.role.addToPolicy(
           new iam.PolicyStatement({

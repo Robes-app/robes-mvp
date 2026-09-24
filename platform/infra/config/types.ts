@@ -18,11 +18,15 @@ export interface StageConfig {
     /** Import an existing provider; an account can hold only one per URL. */
     oidcProviderArn?: string;
   };
-  vercel: {
-    teamSlug: string;
-    project: string;
-    environment: 'preview' | 'production';
-    oidcProviderArn?: string;
+  email: {
+    /** SES domain identity (Easy DKIM); MAIL FROM is `bounce.<domain>`. */
+    domain: string;
+    /** Default `MAIL_FROM` for the app and notify worker. */
+    fromAddress: string;
+  };
+  api: {
+    /** IAM access keys for the Vercel API user (ADR-021); the last entry is current. */
+    accessKeys: { serial: number; status: 'Active' | 'Inactive' }[];
   };
   media: {
     bucketName: string;

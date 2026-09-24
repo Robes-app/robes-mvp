@@ -26,7 +26,7 @@ describe('production', () => {
   });
 
   it('turns on termination protection for every stack', () => {
-    expect(s.stage.stacks).toHaveLength(8);
+    expect(s.stage.stacks).toHaveLength(9);
     for (const stack of s.stage.stacks) expect(stack.terminationProtection).toBe(true);
   });
 

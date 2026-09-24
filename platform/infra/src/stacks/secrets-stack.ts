@@ -9,7 +9,7 @@ interface SecretSpec {
   json?: { fields: string[]; generated: string };
 }
 
-// infrastructure.md §4.1 as amended by ADR-019/020. Values are set out of band (runbooks/key-rotation.md).
+// infrastructure.md §4.1 as amended by ADR-019/020/021. Values are set out of band (runbooks/key-rotation.md).
 export const SECRET_SPECS = {
   databaseUrl: { name: 'database/url' },
   betterAuthSecret: { name: 'auth/better-auth-secret' },
@@ -19,8 +19,6 @@ export const SECRET_SPECS = {
   },
   googleAuth: { name: 'auth/google', json: { fields: ['clientId'], generated: 'clientSecret' } },
   geminiApiKey: { name: 'gemini/api-key' },
-  resendApiKey: { name: 'resend/api-key' },
-  resendWebhookSecret: { name: 'resend/webhook-secret' },
   cloudfrontSigningKey: { name: 'cloudfront/signing-key' },
   falApiKey: { name: 'fal/api-key' },
   expoAccessToken: { name: 'expo/access-token' },

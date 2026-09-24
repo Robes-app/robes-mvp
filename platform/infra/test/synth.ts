@@ -110,6 +110,7 @@ export interface Statement {
   Resource?: unknown;
   NotResource?: unknown;
   Principal?: unknown;
+  Condition?: unknown;
 }
 
 export function list<T>(value: T | T[] | undefined): T[] {
@@ -131,14 +132,16 @@ export function statements(r: Resource): Statement[] {
   return [...(doc?.Statement ?? []), ...inline.flatMap((p) => p.PolicyDocument.Statement)];
 }
 
-/** Allow statements attached to the given role resource. */
-export function roleStatements(s: Synth, role: Resource): Statement[] {
+/** Allow statements attached to the given role or user resource. */
+export function roleStatements(s: Synth, principal: Resource): Statement[] {
   const attached = s
     .resources('AWS::IAM::Policy')
     .filter((p) =>
-      list(p.properties.Roles as unknown[]).some((ref) => s.resolve(p.stack, ref) === role),
+      [...list(p.properties.Roles as unknown[]), ...list(p.properties.Users as unknown[])].some(
+        (ref) => s.resolve(p.stack, ref) === principal,
+      ),
     );
-  return [role, ...attached].flatMap(statements).filter((st) => st.Effect === 'Allow');
+  return [principal, ...attached].flatMap(statements).filter((st) => st.Effect === 'Allow');
 }
 
 export function must<T>(value: T | undefined, what: string): T {

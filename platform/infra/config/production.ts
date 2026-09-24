@@ -15,12 +15,8 @@ export const production: StageConfig = {
     environment: 'production',
     oidcProviderArn: fromEnv('ROBES_PRODUCTION_GITHUB_OIDC_PROVIDER_ARN'),
   },
-  vercel: {
-    teamSlug: fromEnv('ROBES_VERCEL_TEAM_SLUG') ?? 'robes',
-    project: 'robes-app',
-    environment: 'production',
-    oidcProviderArn: fromEnv('ROBES_PRODUCTION_VERCEL_OIDC_PROVIDER_ARN'),
-  },
+  email: { domain: 'mail.byrobes.com', fromAddress: 'Robes <hello@mail.byrobes.com>' },
+  api: { accessKeys: [{ serial: 1, status: 'Active' }] },
   media: {
     bucketName: 'robes-prod-media',
     domainName: fromEnv('ROBES_PRODUCTION_MEDIA_DOMAIN'),

@@ -21,6 +21,21 @@ describe.each(['staging', 'production'] as const)('%s operations', (stageName) =
     }
   });
 
+  it('sends AccessDenied by the API user to the alerts topic', () => {
+    const rule = must(
+      s
+        .resources('AWS::Events::Rule')
+        .find((r) => r.properties.Name === `${prefix}-api-user-access-denied`),
+      'access-denied rule',
+    );
+    const pattern = rule.properties.EventPattern as {
+      detail: { userIdentity: { arn: unknown[] } };
+    };
+    expect(s.resolve(rule.stack, pattern.detail.userIdentity.arn[0])?.type).toBe('AWS::IAM::User');
+    const [target] = rule.properties.Targets as { Arn: unknown }[];
+    expect(s.resolve(rule.stack, target?.Arn)?.properties.TopicName).toBe(`${prefix}-alerts`);
+  });
+
   it('alarms on every DLQ and queue age', () => {
     const alarms = s.resources('AWS::CloudWatch::Alarm').map((a) => String(a.properties.AlarmName));
     const dlqs = s
@@ -70,9 +85,10 @@ describe.each(['staging', 'production'] as const)('%s operations', (stageName) =
     }
   });
 
-  it('creates every §4.1 / ADR-020 secret with no plaintext value in the template', () => {
+  it('creates every §4.1 / ADR-020 / ADR-021 secret with no plaintext value in the template', () => {
     const secrets = s.resources('AWS::SecretsManager::Secret');
     expect(secrets.map((r) => String(r.properties.Name).replace(`${prefix}/`, '')).sort()).toEqual([
+      'api/aws-access-key',
       'auth/apple',
       'auth/better-auth-secret',
       'auth/google',
@@ -81,11 +97,18 @@ describe.each(['staging', 'production'] as const)('%s operations', (stageName) =
       'expo/access-token',
       'fal/api-key',
       'gemini/api-key',
-      'resend/api-key',
-      'resend/webhook-secret',
       'unsub/hmac-key',
     ]);
-    for (const r of secrets) expect(r.properties.SecretString).toBeUndefined();
+    // Only the API key secret has a value, and it is built from AccessKey attributes, not literals.
+    for (const r of secrets.filter(
+      (x) => !String(x.properties.Name).endsWith('/api/aws-access-key'),
+    )) {
+      expect(r.properties.SecretString).toBeUndefined();
+    }
+    const apiKey = secrets.find((x) => String(x.properties.Name).endsWith('/api/aws-access-key'));
+    const value = JSON.stringify(apiKey?.properties.SecretString);
+    expect(value).toContain('SecretAccessKey');
+    expect(value).not.toMatch(/AKIA[0-9A-Z]{16}/);
     const apple = secrets.find((r) => String(r.properties.Name).endsWith('/auth/apple'));
     const gen = apple?.properties.GenerateSecretString as { SecretStringTemplate: string };
     expect(Object.keys(JSON.parse(gen.SecretStringTemplate))).toEqual([
