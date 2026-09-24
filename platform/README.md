@@ -13,6 +13,7 @@ The next-generation Robes: a secure, scalable platform with a Next.js web app an
 | `supabase/` | Migrations, pgTAP tests, local config |
 | `packages/config` | Validated environment (`parseEnv`, `appServerEnv`) |
 | `packages/tokens` | Design tokens → generated Tailwind v4 (web) and Uniwind (native) CSS, with a WCAG contrast gate |
+| `packages/ui` | Web primitives (`@robes/ui`: Button, Field, Dialog/Sheet, Toast, Image…) on the tokens, with Storybook and axe tests |
 | `packages/contracts` | zod schemas shared by server and clients (error body, health) |
 | `packages/api` | `route()` wrapper: auth (Supabase JWT via JWKS), validation, body limits, rate limits, safe errors |
 | `packages/jobs` | Job runtime: transports (inline/SQS), `runJob()` lease + handler registry, outbox sweep |
@@ -53,6 +54,7 @@ Check it's working: `http://localhost:3300` shows the Robes headline on cream, a
 | `pnpm db:reset` | Recreate the local DB from `supabase/migrations` |
 | `pnpm db:test` | pgTAP tests in `supabase/tests/database` |
 | `pnpm --filter @robes/tokens build` | Regenerate token CSS after editing `packages/tokens/src/tokens.ts` |
+| `pnpm --filter @robes/ui storybook` | Storybook for the web primitives (light/dark toolbar); `build-storybook` for a static build |
 | `pnpm --filter @robes/infra test` | CDK assertion tests (both stages, stub handlers, no AWS needed) |
 | `pnpm --filter @robes/infra synth` | `cdk synth` of both stages with stub worker handlers, offline |
 | `pnpm --filter @robes/infra cdk diff -c stage=staging` | Diff against the staging account (needs AWS credentials; see `docs/runbooks/environments.md`) |
@@ -60,6 +62,8 @@ Check it's working: `http://localhost:3300` shows the Robes headline on cream, a
 ## How the pieces fit
 
 **Tokens.** `packages/tokens/src/tokens.ts` is the only place colours, fonts and radii are defined. `tokens.test.ts` fails if any declared foreground/background pair drops below its WCAG ratio, in light or dark mode. Fix the palette, never the threshold. The build writes `theme.css` (a Tailwind `@theme` shared by both platforms) plus `web.css` and `native.css` (per-platform light/dark values), so `bg-surface text-ink` means the same thing on web and native.
+
+**UI primitives.** Web screens use `@robes/ui` rather than raw elements: one `primary` Button per screen (a second mounted primary logs a dev error; dialogs and sheets are their own scope), `IconButton` needs a `label`, `Heading` has no size below 18px, and all chrome copy comes from `@robes/copy`. `packages/ui/test/no-raw-colours.test.ts` fails `pnpm test` on hex literals, colour functions or `bg-[#…]`-style values anywhere in `app/`, `mobile/` or `packages/ui*`.
 
 **API routes.** Every handler under `app/src/app/api/v1/**/route.ts` is built with `route()` from `app/src/server/route.ts`:
 

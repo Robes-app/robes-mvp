@@ -23,6 +23,7 @@
     "@robes/mailer": "workspace:*",
     "@robes/media": "workspace:*",
     "@robes/tokens": "workspace:*",
+    "@robes/ui": "workspace:*",
     "better-auth": "1.7.5",
     "next": "16.3.6",
     "react": "19.3.0",

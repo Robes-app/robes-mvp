@@ -123,6 +123,21 @@ export const devUpload = {
   imageAlt: 'Your uploaded photo',
 } as const;
 
+// Shared component chrome (@robes/ui, @robes/ui-native).
+export const ui = {
+  loading: 'One moment…',
+  close: 'Close',
+  dismiss: 'Dismiss',
+  undo: 'Undo',
+  notifications: 'Notifications ({hotkey})',
+  progress: {
+    reading: 'Reading your pieces…',
+    styling: 'Styling your pieces…',
+    dressing: 'Dressing each look…',
+    finishing: 'Finishing touches…',
+  },
+} as const;
+
 export const copy = {
   errors,
   auth,
@@ -133,4 +148,5 @@ export const copy = {
   nav,
   jobs,
   devUpload,
+  ui,
 } as const;
