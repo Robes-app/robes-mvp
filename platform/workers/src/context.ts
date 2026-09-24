@@ -7,6 +7,7 @@ import {
   createInlineTransport,
   createJobAi,
   createSqsTransport,
+  createTripWeather,
   createWeather,
   type JobLogger,
   type JobTransport,
@@ -120,6 +121,12 @@ async function createWorkerContext(): Promise<WorkerContext> {
             styling: system.styling,
             ledger: system.ledger,
             weather: createWeather(),
+          },
+          travel: {
+            ai,
+            styling: system.styling,
+            ledger: system.ledger,
+            tripWeather: createTripWeather(),
           },
         }
       : {},

@@ -29,4 +29,4 @@ export {
   runJob,
 } from './runtime';
 export { createInlineTransport, createSqsTransport, type JobTransport } from './transport';
-export { createWeather, type WeatherFor } from './weather';
+export { createTripWeather, createWeather, type TripWeatherFor, type WeatherFor } from './weather';

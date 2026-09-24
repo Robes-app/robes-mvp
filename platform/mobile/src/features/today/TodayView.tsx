@@ -24,6 +24,9 @@ function doorHref(target: NextDoorTarget, t: Today): Href | null {
 
 function trayHref(job: Today['tray'][number]): Href {
   if (job.kind === 'stylenotes_analyse') return '/you/style';
+  if (job.kind === 'travel') {
+    return job.output.tripId ? `/trip/${job.output.tripId}` : `/trip/job/${job.id}`;
+  }
   // Daily looks and their on-demand item renders (look_render) open the daily look.
   if (job.kind === 'daily' || job.output.dailyLookId) {
     return job.output.dailyLookId
@@ -144,9 +147,11 @@ export function TodayView() {
               <Text>
                 {job.kind === 'stylenotes_analyse'
                   ? copy.tray.styleColour
-                  : job.kind === 'daily' || job.output.dailyLookId
-                    ? copy.daily.trayTitle
-                    : copy.tray.stylePiece}
+                  : job.kind === 'travel'
+                    ? copy.tray.trip
+                    : job.kind === 'daily' || job.output.dailyLookId
+                      ? copy.daily.trayTitle
+                      : copy.tray.stylePiece}
               </Text>
               <Text tone="muted">
                 {!isTerminal(job)

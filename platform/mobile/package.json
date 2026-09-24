@@ -10,6 +10,7 @@
     "@robes/api-client": "workspace:*",
     "@robes/contracts": "workspace:*",
     "@robes/copy": "workspace:*",
+    "@robes/core": "workspace:*",
     "@robes/icons": "workspace:*",
     "@robes/logger": "workspace:*",
     "@robes/tokens": "workspace:*",

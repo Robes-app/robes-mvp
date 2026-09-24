@@ -4,6 +4,7 @@ import { createFakeHandler } from './fake';
 import { createLookRenderHandler, type LookRenderDeps } from './look-render';
 import { createStyleAnalyseHandler, type StyleAnalyseDeps } from './style-analyse';
 import { createStylePieceHandler, type StylePieceDeps } from './style-piece';
+import { createTravelHandler, type TravelDeps } from './travel';
 import { createWardrobeAnalyseHandler, type WardrobeAnalyseDeps } from './wardrobe-analyse';
 
 export interface HandlerDeps {
@@ -14,6 +15,7 @@ export interface HandlerDeps {
   daily?: DailyDeps;
   styleAnalyse?: StyleAnalyseDeps;
   lookRender?: LookRenderDeps;
+  travel?: TravelDeps;
 }
 
 // One registry for SQS workers and the inline dev transport, keyed by job kind.
@@ -26,6 +28,7 @@ export function createHandlers(opts: HandlerDeps = {}): JobHandlers {
     ...(opts.stylePiece ? { key_piece: createStylePieceHandler(opts.stylePiece) } : {}),
     ...(opts.daily ? { daily: createDailyHandler(opts.daily) } : {}),
     ...(opts.lookRender ? { look_render: createLookRenderHandler(opts.lookRender) } : {}),
+    ...(opts.travel ? { travel: createTravelHandler(opts.travel) } : {}),
     ...(opts.styleAnalyse
       ? { stylenotes_analyse: createStyleAnalyseHandler(opts.styleAnalyse) }
       : {}),

@@ -18,7 +18,7 @@ const OPTIONS: Option[] = [
   { label: shell.create.receipt, icon: 'mail', href: '/soon' },
   { label: shell.create.newLook, icon: 'plus', href: '/looks/new' },
   { label: shell.create.askRobes, icon: 'ask', href: '/soon' },
-  { label: shell.create.planTrip, icon: 'trip', href: '/soon' },
+  { label: shell.create.planTrip, icon: 'trip', href: '/trip/new' },
 ];
 
 export default function Create() {

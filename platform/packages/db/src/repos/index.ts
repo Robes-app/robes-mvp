@@ -21,6 +21,7 @@ import { pushDeliveryRepo, pushTokensRepo } from './push-tokens';
 import { publicSharesRepo, sharesRepo } from './shares';
 import { styleAnalysisRepo, styleProfileRepo } from './style-profile';
 import { stylingRepo } from './styling';
+import { tripsRepo } from './trips';
 import { usageRepo } from './usage';
 import { waitlistRepo } from './waitlist';
 import { wardrobeRepo } from './wardrobe';
@@ -54,6 +55,7 @@ export function createRepositories(db: Db) {
     pushTokens: pushTokensRepo(db),
     styleProfile: styleProfileRepo(db),
     usage: usageRepo(db),
+    trips: tripsRepo(db),
     wardrobe: wardrobeRepo(db),
     wishlist: wishlistRepo(db),
   };
@@ -93,5 +95,6 @@ export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';
 export type { PushPlatform } from './push-tokens';
 export { mintShareToken, type ShareSubject } from './shares';
 export type { StyleOverrides } from './style-profile';
+export type { TripLookToPin } from './trips';
 export type { ListPiecesQuery, PieceFields } from './wardrobe';
 export type { WishFields } from './wishlist';

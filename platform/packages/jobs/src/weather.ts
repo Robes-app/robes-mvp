@@ -88,3 +88,123 @@ export function createWeather(fetchFn: Fetch = fetch as unknown as Fetch) {
   };
 }
 export type WeatherFor = ReturnType<typeof createWeather>;
+
+const ARCHIVE = 'https://archive-api.open-meteo.com/v1/archive';
+
+// A window of daily readings → min/max and the most frequent condition (legacy fetchTripWeather).
+export function parseRange(json: unknown): {
+  minC: number;
+  maxC: number;
+  tempRange: string;
+  condition: string;
+} | null {
+  const d = (json as { daily?: Record<string, unknown[]> })?.daily;
+  const nums = (xs: unknown[] | undefined) =>
+    (xs ?? []).filter((x): x is number => typeof x === 'number' && Number.isFinite(x));
+  const maxes = nums(d?.temperature_2m_max);
+  const mins = nums(d?.temperature_2m_min);
+  if (!maxes.length || !mins.length) return null;
+  const counts = new Map<number, number>();
+  for (const c of nums(d?.weather_code)) counts.set(c, (counts.get(c) ?? 0) + 1);
+  const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const minC = Math.round(Math.min(...mins));
+  const maxC = Math.round(Math.max(...maxes));
+  return {
+    minC,
+    maxC,
+    tempRange: `${minC}–${maxC}°C`,
+    condition: dominant === undefined ? '' : conditionWord(dominant),
+  };
+}
+
+const shiftYear = (date: string) => {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCFullYear(d.getUTCFullYear() - 1);
+  return d.toISOString().slice(0, 10);
+};
+
+export interface TripWeatherResult {
+  city: string;
+  country: string;
+  minC: number | null;
+  maxC: number | null;
+  tempRange: string | null;
+  condition: string | null;
+  // True when read from last year's same dates rather than a live forecast.
+  seasonal: boolean;
+}
+
+// Trip weather: the live forecast when the trip starts within Open-Meteo's 16-day horizon, else last
+// year's same dates as a seasonal read; each falls back to the other. Never throws.
+export function createTripWeather(fetchFn: Fetch = fetch as unknown as Fetch) {
+  const cache = new Map<string, TripWeatherResult | null>();
+  const get = async (url: string) => {
+    const res = await fetchFn(url, { signal: AbortSignal.timeout(TIMEOUT_MS * 2) });
+    if (!res.ok) throw new Error('weather request failed');
+    return res.json();
+  };
+  return async function tripWeather(trip: {
+    destination: string;
+    dateFrom: string;
+    dateTo: string;
+    now?: Date;
+  }): Promise<TripWeatherResult | null> {
+    const key = `${trip.destination.toLowerCase()}|${trip.dateFrom}|${trip.dateTo}`;
+    if (cache.has(key)) return cache.get(key) ?? null;
+    let result: TripWeatherResult | null = null;
+    try {
+      const geoJson = (await get(
+        `${GEOCODE}?name=${encodeURIComponent(trip.destination)}&count=1&language=en`,
+      )) as { results?: { country?: unknown }[] };
+      const geo = parseGeocode(geoJson);
+      if (geo) {
+        const country = geoJson.results?.[0]?.country;
+        const base = {
+          city: geo.name || trip.destination,
+          country: typeof country === 'string' ? country : '',
+          minC: null,
+          maxC: null,
+          tempRange: null,
+          condition: null,
+          seasonal: false,
+        };
+        const daily = 'temperature_2m_max,temperature_2m_min,weather_code';
+        const live = `${FORECAST}?latitude=${geo.lat}&longitude=${geo.lon}&daily=${daily}&start_date=${trip.dateFrom}&end_date=${trip.dateTo}&timezone=auto`;
+        const archive = `${ARCHIVE}?latitude=${geo.lat}&longitude=${geo.lon}&daily=${daily}&start_date=${shiftYear(trip.dateFrom)}&end_date=${shiftYear(trip.dateTo)}`;
+        const now = trip.now ?? new Date();
+        const daysToStart = Math.round(
+          (new Date(`${trip.dateFrom}T00:00:00Z`).getTime() - now.getTime()) / 86_400_000,
+        );
+        const useLive = daysToStart >= -1 && daysToStart <= 16;
+        const plan = useLive
+          ? [
+              { url: live, seasonal: false },
+              { url: archive, seasonal: true },
+            ]
+          : [
+              { url: archive, seasonal: true },
+              { url: live, seasonal: false },
+            ];
+        result = base;
+        for (const step of plan) {
+          let range: ReturnType<typeof parseRange> = null;
+          try {
+            range = parseRange(await get(step.url));
+          } catch {
+            range = null;
+          }
+          if (range) {
+            result = { ...base, ...range, seasonal: step.seasonal };
+            break;
+          }
+        }
+      }
+    } catch {
+      result = null;
+    }
+    if (cache.size > 500) cache.clear();
+    cache.set(key, result);
+    return result;
+  };
+}
+export type TripWeatherFor = ReturnType<typeof createTripWeather>;

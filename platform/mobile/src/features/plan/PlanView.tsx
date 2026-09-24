@@ -9,6 +9,7 @@ import {
   Field,
   IconButton,
   Image,
+  SegmentedControl,
   Text,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
@@ -16,6 +17,8 @@ import { useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { localDate } from '../looks/saved-looks';
+import { PlanMonth } from './PlanMonth';
 import { dayLabel, usePlan, useUnpin, useUpdateEntry } from './plan';
 
 function EntryCard({ entry }: { entry: PlanEntry }) {
@@ -38,6 +41,11 @@ function EntryCard({ entry }: { entry: PlanEntry }) {
           <Button variant="quiet" onPress={() => router.push(`/look/${look.id}`)}>
             {look.name}
           </Button>
+          {look.source === 'travel' ? (
+            <Text size="small" tone="muted">
+              {copy.tripBadge}
+            </Text>
+          ) : null}
         </View>
         <IconButton
           icon="trash"
@@ -80,8 +88,32 @@ function EntryCard({ entry }: { entry: PlanEntry }) {
   );
 }
 
-// The rolling 30 days (M5): a day with looks shows them; a free day stays quiet.
+type View_ = 'list' | 'month';
+
+// Plan tab: the rolling list, or the month at a glance.
 export function PlanView() {
+  const [view, setView] = useState<View_>('list');
+  const { data } = usePlan();
+  return (
+    <View className="flex-1 gap-4">
+      <View className="px-6">
+        <SegmentedControl<View_>
+          label={copy.view.label}
+          options={[
+            { value: 'list', label: copy.view.list },
+            { value: 'month', label: copy.view.month },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+      </View>
+      {view === 'list' ? <PlanList /> : <PlanMonth today={data?.from ?? localDate()} />}
+    </View>
+  );
+}
+
+// The rolling 30 days (M5): a day with looks shows them; a free day stays quiet.
+export function PlanList() {
   const { data, isPending, isError, error, refetch, isRefetching } = usePlan();
   if (isPending) {
     return (

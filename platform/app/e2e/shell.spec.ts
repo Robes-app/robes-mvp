@@ -46,7 +46,7 @@ test('every shell route renders its heading', async ({ page }) => {
     ['/you/privacy', 'Privacy.'],
     ['/you/style', 'Your colours and shape'],
     ['/looks/new', 'Pick the pieces.'],
-    ['/soon/trip', 'Plan a trip'],
+    ['/trip/new', 'Where to?'],
     ['/legal/terms', 'Terms'],
   ];
   for (const [path, heading] of routes) {
