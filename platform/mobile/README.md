@@ -22,6 +22,14 @@ pnpm --filter @robes/mobile expo:doctor   # SDK/dependency health (also runs in 
 - **Only move to a dev client when you have to.** If a feature needs a module Expo Go doesn't ship (e.g. RevenueCat), switch to a development build (`pnpm exec expo run:ios` or EAS `development`), still started with `expo start`, and record it in `docs/SPEC.md` §4.
 - **Tests:** `pnpm --filter @robes/mobile test` (jest-expo + React Native Testing Library; `render` is async in RNTL 14, so `await render(...)`).
 
+## Push, analytics and error reporting (M7)
+
+- **Push** (`expo-notifications`): she's asked once, when her first styled result finishes, never at launch. The app then registers the device (`PUT /api/v1/me/push-tokens`) on each start while permission holds, and revokes it on sign-out. Taps open the screen named by the notification's `data.url`, which uses web paths (`robes://looks/ideas/:id`, `robes://plan`); `src/lib/links.ts` maps them to native routes, and `src/app/+native-intent.tsx` does the same for deep links.
+  - **Expo Go vs a dev build:** getting a push token needs an EAS project id (`extra.eas.projectId` in app config, set by `eas init`). Without one, registration is a quiet no-op (`no-project`), so plain Expo Go runs as before. Expo Go on a phone can receive pushes once the project id is set; simulators never get tokens. Production apps need an EAS/dev build with APNs/FCM credentials.
+  - **Sending** happens in `notifyFn` alongside email for "looks ready" and the morning cue (`packages/jobs/src/notify/push.ts`). Set the `robes-<env>/expo/access-token` secret to an Expo access token if enhanced push security is on (dev: `EXPO_ACCESS_TOKEN` in `app/.env.local` for `pnpm notify`).
+- **Analytics** (`posthog-react-native`): loaded only after analytics consent (You › Privacy), stopped and forgotten when consent is withdrawn or she signs out; catalogue events only, no lifecycle events, no session replay. Needs `EXPO_PUBLIC_POSTHOG_KEY`.
+- **Sentry** (`@sentry/react-native`): scrubbed like the web (`@robes/logger/scrub`), no default PII. In Expo Go it reports JS errors only (no native module); a dev/EAS build adds native crashes — add the `@sentry/react-native/expo` config plugin and `SENTRY_AUTH_TOKEN` for source maps when the first EAS build is set up. Needs `EXPO_PUBLIC_SENTRY_DSN`.
+
 ## End-to-end tests (Maestro)
 
 Flows live in `e2e/` and drive the real app in Expo Go against the local API and Mailpit.

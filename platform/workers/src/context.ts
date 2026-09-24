@@ -2,6 +2,7 @@ import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-sec
 import { parseEnv, type WorkerEnv, workerEnv } from '@robes/config';
 import { createDb, createSystemRepositories, type SystemRepositories } from '@robes/db';
 import {
+  createExpoPushSender,
   createHandlers,
   createInlineTransport,
   createJobAi,
@@ -49,6 +50,13 @@ async function resolveGeminiKey(env: WorkerEnv): Promise<string | undefined> {
 async function resolveUnsubKey(env: WorkerEnv): Promise<string | undefined> {
   if (env.UNSUB_HMAC_KEY) return env.UNSUB_HMAC_KEY;
   return env.UNSUB_HMAC_KEY_SECRET_ARN ? readSecret(env.UNSUB_HMAC_KEY_SECRET_ARN) : undefined;
+}
+
+async function resolveExpoToken(env: WorkerEnv): Promise<string | undefined> {
+  if (env.EXPO_ACCESS_TOKEN) return env.EXPO_ACCESS_TOKEN;
+  return env.EXPO_ACCESS_TOKEN_SECRET_ARN
+    ? readSecret(env.EXPO_ACCESS_TOKEN_SECRET_ARN)
+    : undefined;
 }
 
 // SMTP to the local mail catcher in dev; SES (the function role) in AWS (ADR-021).
@@ -139,6 +147,10 @@ async function createWorkerContext(): Promise<WorkerContext> {
         appUrl: env.APP_URL,
         unsubSecret,
         logger,
+        push: {
+          sender: createExpoPushSender({ accessToken: await resolveExpoToken(env) }),
+          tokens: system.pushDelivery,
+        },
       };
     },
     async close() {

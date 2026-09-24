@@ -42,6 +42,8 @@ import {
   DeletionStatus,
   Me,
   OnboardingComplete,
+  PushTokenParams,
+  RegisterPushTokenInput,
   RequestDeletionInput,
   StyleOverrides,
   StyleProfile,
@@ -178,6 +180,22 @@ export const routes = {
     auth: 'user',
     input: EmptyInput,
     output: DataExport,
+  },
+  // Naturally idempotent: upsert by token.
+  'me.pushTokens.register': {
+    method: 'PUT',
+    path: '/me/push-tokens',
+    auth: 'user',
+    input: RegisterPushTokenInput,
+    output: Ok,
+  },
+  'me.pushTokens.revoke': {
+    method: 'DELETE',
+    path: '/me/push-tokens/:token',
+    auth: 'user',
+    params: PushTokenParams,
+    input: EmptyInput,
+    output: Deleted,
   },
   'me.consents.get': {
     method: 'GET',

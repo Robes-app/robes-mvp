@@ -3,8 +3,11 @@ import type { Idea, JobSnapshot } from '@robes/contracts';
 import { looks as copy, jobs, ui } from '@robes/copy';
 import { EmptyState, Progress, Skeleton, useToast } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { View } from 'react-native';
+import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
+import { askForPushOnce } from '@/lib/push';
 import { IdeaView } from './IdeaView';
 import {
   framesSettled,
@@ -60,6 +63,11 @@ function Waiting({ stage }: { stage: string }) {
 // The result of a styling job, filling in stage by stage (UX-02: text first, then frames).
 export function JobIdeaScreen({ jobId }: { jobId: string }) {
   const { job, idea, waiting, failed } = useJobIdea(jobId);
+  // Her first finished result is when "tell me when looks are ready" makes sense; asked once.
+  const ready = Boolean(idea) && !waiting;
+  useEffect(() => {
+    if (ready) void askForPushOnce(api).catch(() => undefined);
+  }, [ready]);
   if (job.isError) return <EmptyState title={errorMessage(job.error)} />;
   if (failed && !idea) return <EmptyState title={jobs.status.failed} />;
   if (!idea) return <Waiting stage={stageLabel(job.data)} />;
