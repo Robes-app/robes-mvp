@@ -17,3 +17,6 @@ allowBuilds:
   supabase: true
   esbuild: true
   sharp: true
+
+minimumReleaseAgeExclude:
+  - '@upstash/ratelimit@2.2.0'
