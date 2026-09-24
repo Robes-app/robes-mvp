@@ -14,9 +14,11 @@ catalog:
   tsx: 4.23.15
 
 allowBuilds:
+  '@google/genai': false
   dbmate: true
   # esbuild's postinstall swaps its JS launcher for the native binary, which breaks pnpm .bin shims.
   esbuild: false
+  protobufjs: false
   sharp: true
 
 minimumReleaseAgeExclude:
