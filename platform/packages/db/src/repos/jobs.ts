@@ -143,6 +143,21 @@ export function jobRunnerRepo(db: Db) {
         .executeTakeFirst();
     },
 
+    // The isolated link fetcher's result (SEC-40), attached to a still-queued link_import job
+    // before it runs. False when the job isn't a queued link import (dropped, never retried).
+    async attachFetched(jobId: string, fetched: Record<string, unknown>): Promise<boolean> {
+      const res = await db
+        .updateTable('generationJobs')
+        .set({
+          input: sql`input || jsonb_build_object('fetched', ${JSON.stringify(fetched)}::jsonb)`,
+        })
+        .where('id', '=', jobId)
+        .where('kind', '=', 'link_import')
+        .where('status', '=', 'queued')
+        .executeTakeFirst();
+      return res.numUpdatedRows > 0n;
+    },
+
     // Merges a stage's output into the job; the row is the durable truth clients resume from.
     async writeStage(
       jobId: string,

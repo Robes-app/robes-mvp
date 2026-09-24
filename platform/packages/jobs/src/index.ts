@@ -3,8 +3,20 @@ export { type DeletionDeps, processAccountDeletions } from './deletion';
 export { type ExportDeps, processDataExports } from './export';
 export { createHandlers, type HandlerDeps } from './handlers';
 export { createFakeHandler } from './handlers/fake';
+export { LinkImportInput } from './handlers/link-import';
 export { StyleAnalyseInput } from './handlers/style-analyse';
 export { StylePieceInput } from './handlers/style-piece';
+export {
+  checkUrl,
+  FetchRefused,
+  fetchLink,
+  isBlockedAddress,
+  LinkFetchResult,
+  parseFetchRequest,
+  parseLinkResultMessage,
+  parseProduct,
+  safeFetch,
+} from './link';
 export type { JobLogger } from './logger';
 export { type JobMessage, parseJobMessage } from './message';
 export {

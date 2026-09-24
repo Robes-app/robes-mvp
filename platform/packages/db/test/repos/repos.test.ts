@@ -158,6 +158,21 @@ describe('jobs', () => {
     expect((await repos.jobs.recent(bob, ['key_piece'])).map((j) => j.id)).not.toContain(job.id);
   });
 
+  it('attaches a fetched link result only to a queued link import', async () => {
+    const { job } = await repos.jobs.create(alice, {
+      kind: 'link_import',
+      input: { url: 'https://x.test/' },
+    });
+    expect(await system.jobs.attachFetched(job.id, { ok: false, reason: 'scheme' })).toBe(true);
+    const row = await repos.jobs.getForUser(alice, job.id);
+    expect(row?.input).toEqual({
+      url: 'https://x.test/',
+      fetched: { ok: false, reason: 'scheme' },
+    });
+    const fake = await repos.jobs.create(alice, { kind: 'fake', input: {} });
+    expect(await system.jobs.attachFetched(fake.job.id, { ok: true })).toBe(false);
+  });
+
   it('claims with a lease, once, and records stages', async () => {
     const { job } = await repos.jobs.create(alice, { kind: 'fake', input: {} });
     const claimed = await system.jobs.claim(job.id, 60);

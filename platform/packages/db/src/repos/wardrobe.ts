@@ -99,7 +99,7 @@ export function wardrobeRepo(db: Db) {
         label: string;
         imageAssetId?: string | null;
         status?: 'reading' | 'ready';
-        acquiredVia?: 'photo' | 'onboarding' | 'wishlist';
+        acquiredVia?: 'photo' | 'onboarding' | 'wishlist' | 'url' | 'receipt';
       },
     ) {
       const values: Insertable<WardrobeItems> = {
