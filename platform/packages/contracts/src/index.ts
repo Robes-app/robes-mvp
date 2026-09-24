@@ -31,3 +31,4 @@ export const HealthOutput = z.object({ ok: z.literal(true) });
 
 export * from './jobs';
 export * from './me';
+export * from './media';

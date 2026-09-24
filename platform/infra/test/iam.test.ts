@@ -107,7 +107,7 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
     }
   });
 
-  it('VercelApiRole has only the three listed actions, on the listed resources', () => {
+  it('VercelApiRole has only the listed actions, on the listed resources', () => {
     const role = s
       .resources('AWS::IAM::Role')
       .find((r) => r.properties.RoleName === `${s.stage.config.namePrefix}-vercel-api`);
@@ -115,6 +115,7 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
     if (!role) return;
     const sts = roleStatements(s, role);
     expect(actionsOf(sts).sort()).toEqual([
+      's3:GetObject',
       's3:PutObject',
       'secretsmanager:GetSecretValue',
       'sqs:SendMessage',
@@ -122,9 +123,11 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
 
     const resources = (action: string): unknown[] =>
       sts.filter((st) => list(st.Action).includes(action)).flatMap((st) => list(st.Resource));
-    expect(resources('s3:PutObject')).toEqual([
-      `arn:aws:s3:::${s.stage.config.media.bucketName}/uploads/*`,
-    ]);
+    for (const action of ['s3:PutObject', 's3:GetObject']) {
+      expect(resources(action)).toEqual([
+        `arn:aws:s3:::${s.stage.config.media.bucketName}/uploads/*`,
+      ]);
+    }
     const queues = resources('sqs:SendMessage').map(
       (r) => s.resolve(role.stack, r)?.properties.QueueName,
     );

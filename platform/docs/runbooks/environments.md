@@ -15,8 +15,8 @@ Fill in as resources are created. IDs are not secrets; keys and passwords are.
 | GithubDeployRole ARN | `arn:aws:iam::<stg>:role/robes-staging-github-deploy` | `arn:aws:iam::<prod>:role/robes-prod-github-deploy` | GitHub env var `AWS_DEPLOY_ROLE_ARN` |
 | VercelApiRole ARN | `arn:aws:iam::<stg>:role/robes-staging-vercel-api` | `arn:aws:iam::<prod>:role/robes-prod-vercel-api` | Vercel `AWS_ROLE_ARN` |
 | Media bucket | `robes-staging-media` | `robes-prod-media` | Vercel `MEDIA_BUCKET` |
-| Media domain / CloudFront ID | `media.staging.byrobes.com` / `<dist-id>` | `media.byrobes.com` / `<dist-id>` | Vercel `MEDIA_BASE_URL` |
-| CloudFront public key ID | `<K…>` | `<K…>` | Vercel `CLOUDFRONT_KEY_PAIR_ID` |
+| Media domain / CloudFront ID | `media.staging.byrobes.com` / `<dist-id>` | `media.byrobes.com` / `<dist-id>` | Vercel `MEDIA_PUBLIC_ORIGIN` (`https://` + domain) |
+| CloudFront public key ID | `<K…>` | `<K…>` | Vercel `MEDIA_CLOUDFRONT_KEY_PAIR_ID` |
 | ACM cert (us-east-1) ARN | `<arn>` | `<arn>` | GitHub env var `MEDIA_CERT_ARN` |
 | Vercel team slug / project ID | `<team>` / `<prj_…>` | same project | GitHub var `VERCEL_TEAM_SLUG` |
 | Apple Services ID / Team ID / Key ID | `<com.byrobes.web.staging>` / `<team>` / `<key>` | `<com.byrobes.web>` / `<team>` / `<key>` | Better Auth (§3) |
@@ -82,7 +82,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
    ```
    If the account already has a GitHub or Vercel OIDC provider, set `ROBES_<STAGE>_GITHUB_OIDC_PROVIDER_ARN` / `ROBES_<STAGE>_VERCEL_OIDC_PROVIDER_ARN` to import it instead.
 7. Set every secret value (`key-rotation.md` §Set a value). Secrets are created with random placeholders, all under `robes-<env>/`: `database/url`, `auth/better-auth-secret`, `auth/apple`, `auth/google`, `gemini/api-key`, `resend/api-key`, `resend/webhook-secret`, `cloudfront/signing-key`, `fal/api-key`, `expo/access-token`, `unsub/hmac-key`.
-8. `sharp` layer for RenditionFn: publish a linux-arm64 `sharp` layer and add its ARN to `workers.renditionLayerArns` in `infra/config/<stage>.ts` (unless the media task bundles it instead).
+8. `sharp` for RenditionFn needs no setup: CDK installs the linux-arm64 build (version pinned in `packages/media/package.json`) into the function asset during bundling (`infra/src/lib/native-modules.ts`). Prebuilt sharp can't decode HEIC; see README → Media.
 9. DNS: `media.staging` CNAME → the `MediaDistributionDomain` stack output.
 10. Confirm the SNS email subscription for alerts/budgets (`ROBES_<STAGE>_ALERT_EMAIL`). Optional: AWS Chatbot → Slack `#robes-alerts` subscribed to `robes-<env>-alerts`.
 
@@ -113,13 +113,18 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | token sensitive |
 | `AWS_REGION`, `AWS_ROLE_ARN` | `eu-west-1`, VercelApiRole ARN (OIDC; no access keys) |
 | `JOBS_INTERACTIVE_QUEUE_URL`, `JOBS_BATCH_QUEUE_URL`, `FETCH_QUEUE_URL` | Queues stack |
-| `MEDIA_BUCKET`, `MEDIA_BASE_URL`, `CLOUDFRONT_KEY_PAIR_ID`, `CLOUDFRONT_SIGNING_KEY_SECRET_ARN` | the private key is read from Secrets Manager at runtime |
+| `MEDIA_BUCKET`, `MEDIA_S3_REGION` | `robes-<env>-media`, `eu-west-1`. Uploads are presigned with the `AWS_ROLE_ARN` role; never set `MEDIA_S3_ACCESS_KEY_ID`/`MEDIA_S3_SECRET_ACCESS_KEY` outside dev (config refuses them) |
+| `MEDIA_PUBLIC_ORIGIN` | CloudFront origin, e.g. `https://media.byrobes.com` (https required). Added to CSP `img-src`/`connect-src`; the bucket's regional S3 origin is added to `connect-src` for browser PUTs |
+| `MEDIA_CLOUDFRONT_KEY_PAIR_ID`, `MEDIA_CLOUDFRONT_PRIVATE_KEY` | required outside dev. The private key is sensitive: copy the PEM from `cloudfront/signing-key` (single line with `\n` escapes is fine) |
+| `MEDIA_COOKIE_DOMAIN` | parent domain shared by the app and media host (`staging.byrobes.com` / `byrobes.com`) so web signed cookies reach CloudFront |
 | `GEMINI_API_KEY` | only if the API makes sub-3 s model calls; otherwise workers only |
 | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_FROM` | OTP + product email |
 | `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN` | auth token is build-time (source maps) |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | `https://eu.i.posthog.com` |
 | `MIN_APP_VERSION` | 426 gate for old native builds |
+
+Local dev (`app/.env.example`) uses MinIO instead: `MEDIA_S3_ENDPOINT=http://localhost:59000` plus the MinIO root credentials, no CloudFront variables (images are presigned MinIO GETs). `pnpm media:setup` creates the buckets.
 
 ## 7. Workers (Lambda) environment
 

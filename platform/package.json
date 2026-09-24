@@ -6,7 +6,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "bootstrap": "pnpm install && pnpm services:up && pnpm db:reset && pnpm --filter @robes/tokens build && node scripts/init-env.mjs",
+    "bootstrap": "pnpm install && pnpm services:up && pnpm db:reset && pnpm media:setup && pnpm --filter @robes/tokens build && node scripts/init-env.mjs",
     "dev": "turbo run dev",
     "dev:web": "turbo run dev --filter=@robes/app",
     "dev:mobile": "pnpm --filter @robes/mobile start",
@@ -20,6 +20,7 @@
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm db:test",
     "services:up": "docker compose up -d --wait",
     "services:down": "docker compose down",
+    "media:setup": "pnpm --filter @robes/media setup:local",
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:new": "dbmate --migrations-dir db/migrations new",
     "db:reset": "node scripts/db-reset.mjs",

@@ -1,5 +1,7 @@
+import type { UsageMetric } from '@robes/core';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
+import { usageRepo } from './usage';
 
 export type AssetKind =
   | 'wardrobe'
@@ -22,26 +24,39 @@ const ASSET_COLUMNS = [
   'width',
   'height',
   'blurhash',
+  'bytes',
   'renditions',
   'hasCutout',
   'createdAt',
 ] as const;
 
 export function assetsRepo(db: Db) {
+  const usage = usageRepo(db);
+
   return {
-    createPending(userId: UserId, asset: { kind: AssetKind; contentType: string; bytes: number }) {
-      return db
-        .insertInto('assets')
-        .values({
-          userId,
-          kind: asset.kind,
-          contentType: asset.contentType,
-          bytes: asset.bytes,
-          sensitive: SENSITIVE.has(asset.kind),
-          provider: 's3',
-        })
-        .returning(['id', 'kind', 'status'])
-        .executeTakeFirstOrThrow();
+    // Quota + insert commit together, so a refused upload never leaves a pending row.
+    createPending(
+      userId: UserId,
+      asset: { kind: AssetKind; contentType: string; bytes: number },
+      opts: { quota?: { metric: UsageMetric; cost: number } } = {},
+    ) {
+      return db.transaction().execute(async (trx) => {
+        if (opts.quota) {
+          await usage.consume(userId, opts.quota.metric, opts.quota.cost, { executor: trx });
+        }
+        return trx
+          .insertInto('assets')
+          .values({
+            userId,
+            kind: asset.kind,
+            contentType: asset.contentType,
+            bytes: asset.bytes,
+            sensitive: SENSITIVE.has(asset.kind),
+            provider: 's3',
+          })
+          .returning(['id', 'kind', 'status'])
+          .executeTakeFirstOrThrow();
+      });
     },
 
     getForUser(userId: UserId, assetId: string) {

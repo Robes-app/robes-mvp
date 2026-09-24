@@ -80,7 +80,8 @@ export class IdentityStack extends RobesStack {
     );
     this.vercelApiRole.addToPolicy(
       new iam.PolicyStatement({
-        actions: ['s3:PutObject'],
+        // GetObject authorises the HEAD that `POST /uploads/:id/complete` makes.
+        actions: ['s3:PutObject', 's3:GetObject'],
         resources: objectArns(this, config.media.bucketName, ['uploads/']),
       }),
     );

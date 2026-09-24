@@ -34,6 +34,7 @@ Postgres is a private database behind the API: no RLS, no client-side queries, n
 7. **Admin = `app.admin_users.role = 'admin'`** (`support`/`analyst` are not admins). Admin routes use `auth: 'admin'` and write `app.audit_log`.
 8. **Never return a DB row as-is.** `route()` parses every response with the `output` schema (zod strips undeclared fields) in every environment. Don't loosen outputs with `.passthrough()`/`z.any()`.
 9. **Job progress is SSE from `/api/v1/jobs/:id/events`**, scoped by the session user like any other route. Don't add a client-side subscription to the database. Job handlers (`packages/jobs`) load all context from the DB by the job row's `user_id` (`ctx.userId`); job input carries ids and intent only (SEC-16).
+9a. **User photos are private by default** and only ever delivered through signed URLs/cookies (`@robes/media/delivery`). Never make a bucket or prefix public except `shared/` (share snapshots) and `catalog/` (brand assets, no user data).
 
 **Auth (Better Auth, `packages/auth`)**
 10. Sessions are server-side rows (`app.sessions`); web uses httpOnly secure cookies, native uses the Expo plugin (SecureStore). Never store tokens in `localStorage`/AsyncStorage.

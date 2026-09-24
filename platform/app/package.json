@@ -21,6 +21,7 @@
     "@robes/jobs": "workspace:*",
     "@robes/logger": "workspace:*",
     "@robes/mailer": "workspace:*",
+    "@robes/media": "workspace:*",
     "@robes/tokens": "workspace:*",
     "better-auth": "1.7.5",
     "next": "16.3.6",
