@@ -20,10 +20,11 @@ const config: NextConfig = {
     '@robes/core',
     '@robes/db',
     '@robes/mailer',
+    '@robes/media',
     '@robes/tokens',
   ],
   // Native Node deps stay external to the server bundle.
-  serverExternalPackages: ['pg', 'nodemailer'],
+  serverExternalPackages: ['pg', 'nodemailer', 'sharp'],
   async headers() {
     return [{ source: '/:path*', headers: staticSecurityHeaders }];
   },

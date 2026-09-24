@@ -80,4 +80,26 @@ export const nav = {
   you: 'You',
 } as const;
 
-export const copy = { errors, auth, emails, onboarding, today, marketing, nav } as const;
+// Dev-only tooling page (/dev/upload); never shipped to deployed environments.
+export const devUpload = {
+  title: 'Upload a photo.',
+  fileLabel: 'Photo',
+  uploading: 'Uploading…',
+  processing: 'Processing. Refresh to check.',
+  refresh: 'Refresh',
+  ready: 'Ready.',
+  failed: 'Robes couldn’t use that photo.',
+  uploadFailed: 'Robes couldn’t upload that. Try again in a moment.',
+  imageAlt: 'Your uploaded photo',
+} as const;
+
+export const copy = {
+  errors,
+  auth,
+  emails,
+  onboarding,
+  today,
+  marketing,
+  nav,
+  devUpload,
+} as const;

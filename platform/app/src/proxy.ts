@@ -1,7 +1,10 @@
 import { getSessionCookie } from 'better-auth/cookies';
 import { type NextRequest, NextResponse } from 'next/server';
+import { env } from './server/env';
 import { isAuthPage, isProtectedPath } from './server/guards';
 import { buildCsp } from './server/security-headers';
+
+const { deliveryOrigin, uploadOrigin } = env.media;
 
 function withCsp(response: NextResponse, csp: string): NextResponse {
   response.headers.set('content-security-policy', csp);
@@ -10,7 +13,12 @@ function withCsp(response: NextResponse, csp: string): NextResponse {
 
 export function proxy(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
-  const csp = buildCsp({ nonce, isDev: process.env.NODE_ENV !== 'production' });
+  const csp = buildCsp({
+    nonce,
+    isDev: process.env.NODE_ENV !== 'production',
+    imgOrigins: [deliveryOrigin],
+    connectOrigins: [deliveryOrigin, uploadOrigin],
+  });
   const { pathname, search } = request.nextUrl;
 
   // Optimistic cookie check for fast redirects; pages and the API verify the session themselves.

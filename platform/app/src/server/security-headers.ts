@@ -1,8 +1,9 @@
-// connectOrigins: extra API/media origins the browser may call; the app itself is 'self'.
+// Extra origins beyond 'self': imgOrigins serve media, connectOrigins take fetches (e.g. upload PUTs).
 export function buildCsp(opts: {
   nonce: string;
   isDev: boolean;
   connectOrigins?: string[];
+  imgOrigins?: string[];
 }): string {
   const directives: Array<[string, string[]]> = [
     ['default-src', ["'self'"]],
@@ -17,7 +18,7 @@ export function buildCsp(opts: {
     ],
     // SSR style attributes can't carry nonces; script-src is the XSS control.
     ['style-src', ["'self'", "'unsafe-inline'"]],
-    ['img-src', ["'self'", 'data:', 'blob:']],
+    ['img-src', ["'self'", 'data:', 'blob:', ...(opts.imgOrigins ?? [])]],
     ['font-src', ["'self'"]],
     ['connect-src', ["'self'", ...(opts.connectOrigins ?? [])]],
     ['frame-ancestors', ["'none'"]],
@@ -25,6 +26,6 @@ export function buildCsp(opts: {
     ['base-uri', ["'self'"]],
     ['form-action', ["'self'"]],
   ];
-  const csp = directives.map(([k, v]) => `${k} ${v.join(' ')}`).join('; ');
+  const csp = directives.map(([k, v]) => `${k} ${[...new Set(v)].join(' ')}`).join('; ');
   return opts.isDev ? csp : `${csp}; upgrade-insecure-requests`;
 }

@@ -71,6 +71,9 @@ importers:
       '@robes/mailer':
         specifier: workspace:*
         version: link:../packages/mailer
+      '@robes/media':
+        specifier: workspace:*
+        version: link:../packages/media
       '@robes/tokens':
         specifier: workspace:*
         version: link:../packages/tokens

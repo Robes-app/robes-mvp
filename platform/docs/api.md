@@ -93,9 +93,10 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 ### Uploads & media
 | New | Legacy |
 |---|---|
-| `POST /uploads` → presigned PUT + `assetId` | `/api/wardrobe/upload` (base64 proxy) |
-| `GET /assets/:id` (status, renditions) | — |
-| `POST /media/session` → sets CloudFront signed cookies (web) / returns signed URL policy (native) | — |
+| `POST /uploads` `{ kind, contentType, bytes ≤ 20 MB }` → `201 { assetId, upload: { method: 'PUT', url, headers, expiresAt } }` (flag `uploads`, quota `upload.image` 1, 30/min). The PUT is signed for that exact key, type and length for 5 min | `/api/wardrobe/upload` (base64 proxy) |
+| `POST /uploads/:id/complete` → `Asset` (owner only). `409 conflict` until the object exists; dev renders in-process, deployed envs rely on the S3 event → `RenditionFn` | — |
+| `GET /assets/:id` → `Asset` `{ status, width, height, blurhash, master, renditions[{ width, avif, webp }] }`, URLs signed for the caller (day-stable); 404 for anyone else | — |
+| `POST /media/session` → web: sets CloudFront signed cookies for `/media/{userId}/*` (12 h) → `{ mode: 'cookies', expiresAt }`; local: `{ mode: 'local' }`. Native uses the signed URLs from `/assets/:id` | — |
 
 ### Wardrobe
 | New | Legacy |
