@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Cormorant, Inter } from 'next/font/google';
 import { connection } from 'next/server';
 import { AnalyticsProvider } from '@/components/analytics-provider';
+import { Providers } from '@/components/providers';
 import { env } from '@/server/env';
 import { currentConsents } from '@/server/session';
 import './globals.css';
@@ -27,13 +28,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={`${cormorant.variable} ${inter.variable}`}>
       <body>
-        <AnalyticsProvider
-          config={env.observability.posthog ?? null}
-          userId={state?.userId ?? null}
-          initialConsents={state?.consents ?? null}
-        >
-          {children}
-        </AnalyticsProvider>
+        <Providers>
+          <AnalyticsProvider
+            config={env.observability.posthog ?? null}
+            userId={state?.userId ?? null}
+            initialConsents={state?.consents ?? null}
+          >
+            {children}
+          </AnalyticsProvider>
+        </Providers>
       </body>
     </html>
   );

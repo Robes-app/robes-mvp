@@ -61,10 +61,12 @@ export interface RouteOptions<
 
 export type RouteContext = { params?: Promise<RawParams> };
 
-// `auth` and `builder` let the route-manifest test prove every handler went through a builder.
+// `auth`, `builder` and `schemas` let the manifest tests prove every handler went through a
+// builder and matches its entry in the @robes/contracts route map.
 export type RouteHandler = ((req: Request, ctx?: RouteContext) => Promise<Response>) & {
   auth: AuthMode;
   builder: 'route' | 'sseRoute';
+  schemas: { params?: z.ZodType | undefined; input?: z.ZodType; output?: z.ZodType };
 };
 
 function json(
@@ -84,7 +86,7 @@ function json(
   });
 }
 
-function readQuery(url: string): Record<string, string | string[]> {
+export function readQuery(url: string): Record<string, string | string[]> {
   const params = new URL(url).searchParams;
   const out: Record<string, string | string[]> = {};
   for (const key of new Set(params.keys())) {
@@ -249,6 +251,10 @@ export function createRouteFactory(deps: RouteDeps) {
         return failure(err, requestId);
       }
     };
-    return Object.assign(handler, { auth: opts.auth, builder: 'route' as const });
+    return Object.assign(handler, {
+      auth: opts.auth,
+      builder: 'route' as const,
+      schemas: { params: opts.params, input: opts.input, output: opts.output },
+    });
   };
 }

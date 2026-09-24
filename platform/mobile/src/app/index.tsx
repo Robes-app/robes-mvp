@@ -1,10 +1,10 @@
+import { useApi } from '@robes/api-client/react';
 import type { Me } from '@robes/contracts';
 import { auth as authCopy, nav, today } from '@robes/copy';
 import { Button, Eyebrow, Heading, PrimaryScope, Text } from '@robes/ui-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { Redirect } from 'expo-router';
-import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { api } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 
 export function TodayView({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
@@ -26,13 +26,9 @@ export function TodayView({ me, onSignOut }: { me: Me; onSignOut: () => void }) 
 
 export default function Home() {
   const session = authClient.useSession();
-  const [me, setMe] = useState<Me | null>(null);
+  const queryClient = useQueryClient();
   const signedIn = Boolean(session.data);
-
-  useEffect(() => {
-    if (!signedIn) return;
-    api<Me>('/me').then(setMe, () => setMe(null));
-  }, [signedIn]);
+  const { data: me } = useApi('me.get', undefined, { enabled: signedIn });
 
   if (session.isPending || (signedIn && !me)) {
     return (
@@ -48,7 +44,8 @@ export default function Home() {
       me={me}
       onSignOut={async () => {
         await authClient.signOut();
-        setMe(null);
+        // Cached responses belong to the previous user.
+        queryClient.clear();
       }}
     />
   ) : null;

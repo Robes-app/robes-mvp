@@ -13,6 +13,7 @@
   "dependencies": {
     "@robes/analytics": "workspace:*",
     "@robes/api": "workspace:*",
+    "@robes/api-client": "workspace:*",
     "@robes/auth": "workspace:*",
     "@robes/config": "workspace:*",
     "@robes/contracts": "workspace:*",
@@ -26,6 +27,7 @@
     "@robes/tokens": "workspace:*",
     "@sentry/nextjs": "10.75.2",
     "@robes/ui": "workspace:*",
+    "@tanstack/react-query": "5.103.2",
     "better-auth": "1.7.5",
     "next": "16.3.6",
     "react": "19.3.0",

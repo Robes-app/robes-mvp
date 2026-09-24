@@ -4,13 +4,16 @@ const { withUniwindConfig } = require('uniwind/metro');
 
 const config = getDefaultConfig(__dirname);
 
-// Workspace packages carry their own devDependency copies; one runtime copy of each singleton.
+// Workspace packages carry their own dev copies (web's React minor); the app must resolve exactly
+// one instance of each singleton, or hooks, contexts and TanStack Query break.
 const SINGLETONS = new Set([
   'react',
   'react-native',
   'react-native-svg',
   'expo-haptics',
   'expo-image',
+  'react-dom',
+  '@tanstack/react-query',
 ]);
 const appOrigin = path.join(__dirname, 'package.json');
 const upstream = config.resolver.resolveRequest;

@@ -22,6 +22,7 @@ const config: NextConfig = {
   transpilePackages: [
     '@robes/analytics',
     '@robes/api',
+    '@robes/api-client',
     '@robes/auth',
     '@robes/config',
     '@robes/contracts',
