@@ -1,5 +1,6 @@
+import { CONSENT_KINDS } from '@robes/core';
 import { describe, expect, it } from 'vitest';
-import { ErrorBody, ErrorCode, HealthOutput } from './index';
+import { Consents, ErrorBody, ErrorCode, HealthOutput, UpdateConsentsInput } from './index';
 
 describe('contracts', () => {
   it('accepts a well-formed error body', () => {
@@ -66,5 +67,19 @@ describe('job contracts', async () => {
   it('rejects unknown statuses and kinds', () => {
     expect(() => JobSnapshot.parse({ ...snapshot, status: 'paused' })).toThrow();
     expect(() => JobSnapshot.parse({ ...snapshot, kind: 'mystery' })).toThrow();
+  });
+
+  it('covers every consent kind and refuses empty, unknown or email-sourced updates', () => {
+    expect(Object.keys(Consents.shape)).toEqual([...CONSENT_KINDS]);
+    const ok = UpdateConsentsInput.safeParse({ source: 'web', consents: { analytics: true } });
+    expect(ok.success).toBe(true);
+    for (const bad of [
+      { source: 'web', consents: {} },
+      { source: 'web', consents: { tracking: true } },
+      { source: 'email', consents: { marketing_email: false } },
+      { source: 'web', consents: { analytics: 'yes' } },
+    ]) {
+      expect(UpdateConsentsInput.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
+    }
   });
 });

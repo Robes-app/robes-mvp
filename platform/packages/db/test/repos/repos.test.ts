@@ -40,6 +40,32 @@ describe('profiles', () => {
   });
 });
 
+describe('consents', () => {
+  it('starts unanswered and keeps each user to their own answers', async () => {
+    expect(await repos.consents.current(alice)).toEqual({});
+    await repos.consents.record(alice, { analytics: true, replay: false }, 'web');
+    expect(await repos.consents.current(alice)).toEqual({ analytics: true, replay: false });
+    expect(await repos.consents.current(bob)).toEqual({});
+  });
+
+  it('appends a row per change and the latest answer wins', async () => {
+    await repos.consents.record(bob, { analytics: true }, 'ios');
+    await repos.consents.record(bob, { analytics: false }, 'web');
+    expect(await repos.consents.current(bob)).toEqual({ analytics: false });
+    const rows = await db
+      .selectFrom('consents')
+      .select(['granted', 'source'])
+      .where('userId', '=', bob)
+      .orderBy('createdAt')
+      .execute();
+    expect(rows).toEqual([
+      { granted: true, source: 'ios' },
+      { granted: false, source: 'web' },
+    ]);
+    expect((await repos.consents.current(alice)).analytics).toBe(true);
+  });
+});
+
 describe('admin', () => {
   it('only treats role admin as an admin', async () => {
     expect(await repos.admin.isAdmin(alice)).toBe(false);

@@ -29,6 +29,7 @@ export type ErrorBody = z.infer<typeof ErrorBody>;
 export const EmptyInput = z.object({});
 export const HealthOutput = z.object({ ok: z.literal(true) });
 
+export * from './consents';
 export * from './jobs';
 export * from './me';
 export * from './media';

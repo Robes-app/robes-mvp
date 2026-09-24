@@ -88,7 +88,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | `POST /me/push-tokens`, `DELETE /me/push-tokens/:id` | — | native |
 | `POST /me/deletion` · `GET /me/deletion` | — | SEC-80 |
 | `POST /me/export` | — | SEC-81 |
-| `POST /me/consents` | — | SEC-84 |
+| `GET/POST /me/consents` | — | SEC-84; append-only, latest answer per kind wins; withdrawing analytics also withdraws replay |
 
 ### Uploads & media
 | New | Legacy |
