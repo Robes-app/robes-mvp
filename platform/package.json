@@ -27,7 +27,15 @@
     "db:types": "pnpm --filter @robes/db gen:types",
     "db:test": "turbo run test:db --concurrency=1",
     "maintenance": "pnpm --filter @robes/workers maintenance",
-    "notify": "pnpm --filter @robes/workers notify"
+    "notify": "pnpm --filter @robes/workers notify",
+    "migrate:fixture": "pnpm --filter @robes/migrate fixture",
+    "migrate:target": "pnpm --filter @robes/migrate target",
+    "migrate:extract": "pnpm --filter @robes/migrate extract",
+    "migrate:transform": "pnpm --filter @robes/migrate transform",
+    "migrate:assert": "pnpm --filter @robes/migrate assert",
+    "migrate:rehost": "pnpm --filter @robes/migrate rehost",
+    "migrate:reverse-delta": "pnpm --filter @robes/migrate reverse-delta",
+    "migrate:rehearse": "pnpm --filter @robes/migrate rehearse"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
