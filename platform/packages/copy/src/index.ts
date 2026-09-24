@@ -99,6 +99,32 @@ export const today = {
   },
   ideas: 'Recent ideas',
   seeAll: 'See all',
+  // Style it for today (legacy Dress today).
+  daily: {
+    action: 'Style it for today',
+    eyebrow: 'Today',
+    title: 'What’s today?',
+    promptLabel: 'What’s on (optional)',
+    promptPlaceholder: 'Client lunch, then drinks',
+    start: 'Style it',
+    starting: 'Starting…',
+    trayTitle: 'Style it for today',
+    steps: {
+      'The Anchor': 'The anchor',
+      'The Canvas': 'The canvas',
+      'The Texture': 'The texture',
+      'The Accents': 'The accents',
+    },
+    yours: 'Yours',
+    alternates: 'Or',
+    transition: 'Later on',
+    imageAlt: (headline: string): string => `Today’s look: ${headline}`,
+    save: 'Save this look',
+    saving: 'Saving…',
+    nameLabel: 'Name it',
+    saved: 'Look saved.',
+    failed: 'Robes couldn’t style today. Try again in a moment.',
+  },
 } as const;
 
 // Next step → sentence and door, shared by web and native (each maps `target` to its own route).
@@ -436,6 +462,8 @@ export const you = {
     save: 'Save',
     saving: 'Saving…',
     saved: 'Saved.',
+    homeCity: 'Home city',
+    homeCityHint: 'Robes checks its weather when it styles your day.',
   },
   notifications: {
     title: 'Notifications',

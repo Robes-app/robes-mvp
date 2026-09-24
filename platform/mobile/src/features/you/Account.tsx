@@ -14,6 +14,7 @@ function AccountForm({ me }: { me: Me }) {
   const queryClient = useQueryClient();
   const [firstName, setFirstName] = useState(me.firstName ?? '');
   const [lastName, setLastName] = useState(me.lastName ?? '');
+  const [homeCity, setHomeCity] = useState(me.homeCity ?? '');
   const update = useApiMutation('me.update', {
     onSuccess: (next) => queryClient.setQueryData(queryKeys.call('me.get'), next),
   });
@@ -33,13 +34,26 @@ function AccountForm({ me }: { me: Me }) {
         maxLength={60}
         autoComplete="family-name"
       />
+      <Field
+        label={copy.homeCity}
+        value={homeCity}
+        onChangeText={setHomeCity}
+        maxLength={120}
+        hint={copy.homeCityHint}
+      />
       <Field label={copy.email} value={me.email} editable={false} hint={copy.emailHint} />
       {update.isError ? <Text tone="danger">{errorMessage(update.error)}</Text> : null}
       {update.isSuccess ? <Text tone="success">{copy.saved}</Text> : null}
       <PrimaryScope>
         <Button
           onPress={() =>
-            update.mutate({ input: { firstName: firstName.trim(), lastName: lastName.trim() } })
+            update.mutate({
+              input: {
+                firstName: firstName.trim(),
+                lastName: lastName.trim(),
+                homeCity: homeCity.trim(),
+              },
+            })
           }
           disabled={firstName.trim() === ''}
           loading={update.isPending}

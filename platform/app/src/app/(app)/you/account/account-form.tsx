@@ -13,6 +13,7 @@ export function AccountForm() {
   const me = useApi('me.get');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [homeCity, setHomeCity] = useState('');
   const [saved, setSaved] = useState(false);
   const update = useApiMutation('me.update', {
     onSuccess: (data) => {
@@ -27,6 +28,7 @@ export function AccountForm() {
     if (!me.data) return;
     setFirstName(me.data.firstName ?? '');
     setLastName(me.data.lastName ?? '');
+    setHomeCity(me.data.homeCity ?? '');
   }, [me.data]);
 
   if (!me.data) {
@@ -42,7 +44,9 @@ export function AccountForm() {
   function submit(event: FormEvent) {
     event.preventDefault();
     setSaved(false);
-    update.mutate({ input: { firstName: firstName.trim(), lastName: lastName.trim() } });
+    update.mutate({
+      input: { firstName: firstName.trim(), lastName: lastName.trim(), homeCity: homeCity.trim() },
+    });
   }
 
   return (
@@ -63,6 +67,15 @@ export function AccountForm() {
         maxLength={60}
         value={lastName}
         onChange={(e) => setLastName(e.target.value)}
+      />
+      <Field
+        label={you.account.homeCity}
+        name="homeCity"
+        autoComplete="address-level2"
+        maxLength={120}
+        value={homeCity}
+        onChange={(e) => setHomeCity(e.target.value)}
+        hint={you.account.homeCityHint}
       />
       <Field
         label={you.account.email}

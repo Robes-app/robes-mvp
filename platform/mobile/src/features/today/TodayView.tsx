@@ -24,6 +24,11 @@ function doorHref(target: NextDoorTarget, t: Today): Href | null {
 
 function trayHref(job: Today['tray'][number]): Href {
   if (job.kind === 'stylenotes_analyse') return '/you/style';
+  if (job.kind === 'daily') {
+    return job.output.dailyLookId
+      ? `/today/look/${job.output.dailyLookId}`
+      : `/today/job/${job.id}`;
+  }
   return job.output.ideaId ? `/idea/${job.output.ideaId}` : `/looks/job/${job.id}`;
 }
 
@@ -61,9 +66,12 @@ export function TodayView() {
               <Text className="underline">{`${line.door.label} →`}</Text>
             </Pressable>
           ) : null}
-          <View className="mt-2 items-start">
+          <View className="mt-2 flex-row flex-wrap gap-3">
             <Button icon="ask" onPress={() => router.push('/looks/style')}>
               {looks.stylePiece.eyebrow}
+            </Button>
+            <Button variant="secondary" onPress={() => router.push('/today/style')}>
+              {copy.daily.action}
             </Button>
           </View>
         </View>
@@ -133,7 +141,11 @@ export function TodayView() {
               className="flex-row justify-between"
             >
               <Text>
-                {job.kind === 'stylenotes_analyse' ? copy.tray.styleColour : copy.tray.stylePiece}
+                {job.kind === 'stylenotes_analyse'
+                  ? copy.tray.styleColour
+                  : job.kind === 'daily'
+                    ? copy.daily.trayTitle
+                    : copy.tray.stylePiece}
               </Text>
               <Text tone="muted">
                 {!isTerminal(job)
