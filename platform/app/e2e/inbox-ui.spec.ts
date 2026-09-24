@@ -44,7 +44,8 @@ test('paste a link from Create, then file it from the Inbox', async ({ page }) =
   await expect(inbox.getByText('From Fixture Shop')).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
   await inbox.getByRole('button', { name: 'Add to wishlist' }).click();
-  await expect(page.getByText('Filed.')).toBeVisible();
+  // The toast is brief; assert the durable outcome instead: the entry leaves the Inbox.
+  await expect(inbox.getByText('Silk slip dress')).toHaveCount(0);
   await expect(
     page.getByText('When Robes isn’t sure about a photo', { exact: false }),
   ).toBeVisible();
