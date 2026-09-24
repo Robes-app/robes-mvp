@@ -76,6 +76,11 @@ test('notification links open the matching native screen', () => {
   expect(nativePath('robes://plan')).toBe('/plan');
   expect(nativePath(`/looks/ideas/${id}?from=email`)).toBe(`/idea/${id}`);
   expect(nativePath('/you/notifications')).toBe('/you/notifications');
+  expect(nativePath('exp://192.168.1.20:8090/--/you')).toBe('/you');
+  expect(nativePath(`exp://192.168.1.20:8090/--/looks/ideas/${id}`)).toBe(`/idea/${id}`);
+  expect(nativePath('exp://192.168.1.20:8090')).toBe('/');
+  expect(nativePath(`https://app.byrobes.com/looks/ideas/${id}?from=email`)).toBe(`/idea/${id}`);
+  expect(nativePath('https://app.byrobes.com')).toBe('/');
   expect(
     urlOf({ notification: { request: { content: { data: { url: 'robes://plan' } } } } } as never),
   ).toBe('robes://plan');
