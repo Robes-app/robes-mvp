@@ -1,6 +1,9 @@
-export function buildCsp(opts: { nonce: string; isDev: boolean; supabaseUrl: string }): string {
-  const supabase = new URL(opts.supabaseUrl).origin;
-  const supabaseWs = supabase.replace(/^http/, 'ws');
+// connectOrigins: extra API/media origins the browser may call; the app itself is 'self'.
+export function buildCsp(opts: {
+  nonce: string;
+  isDev: boolean;
+  connectOrigins?: string[];
+}): string {
   const directives: Array<[string, string[]]> = [
     ['default-src', ["'self'"]],
     [
@@ -16,7 +19,7 @@ export function buildCsp(opts: { nonce: string; isDev: boolean; supabaseUrl: str
     ['style-src', ["'self'", "'unsafe-inline'"]],
     ['img-src', ["'self'", 'data:', 'blob:']],
     ['font-src', ["'self'"]],
-    ['connect-src', ["'self'", supabase, supabaseWs]],
+    ['connect-src', ["'self'", ...(opts.connectOrigins ?? [])]],
     ['frame-ancestors', ["'none'"]],
     ['object-src', ["'none'"]],
     ['base-uri', ["'self'"]],

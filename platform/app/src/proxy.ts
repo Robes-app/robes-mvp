@@ -1,20 +1,35 @@
+import { getSessionCookie } from 'better-auth/cookies';
 import { type NextRequest, NextResponse } from 'next/server';
+import { isAuthPage, isProtectedPath } from './server/guards';
 import { buildCsp } from './server/security-headers';
 
-export function proxy(request: NextRequest) {
-  // Fail closed: a missing URL would silently ship a CSP pointing at the wrong backend.
-  const supabaseUrl = process.env.SUPABASE_URL;
-  if (!supabaseUrl) throw new Error('SUPABASE_URL is not set');
-  const nonce = btoa(crypto.randomUUID());
-  const csp = buildCsp({ nonce, isDev: process.env.NODE_ENV !== 'production', supabaseUrl });
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-nonce', nonce);
-  requestHeaders.set('content-security-policy', csp);
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+function withCsp(response: NextResponse, csp: string): NextResponse {
   response.headers.set('content-security-policy', csp);
   return response;
 }
 
+export function proxy(request: NextRequest) {
+  const nonce = btoa(crypto.randomUUID());
+  const csp = buildCsp({ nonce, isDev: process.env.NODE_ENV !== 'production' });
+  const { pathname, search } = request.nextUrl;
+
+  // Optimistic cookie check for fast redirects; pages and the API verify the session themselves.
+  const hasSession = Boolean(getSessionCookie(request, { cookiePrefix: 'robes' }));
+  if (!hasSession && isProtectedPath(pathname)) {
+    const url = new URL('/auth/sign-in', request.url);
+    url.searchParams.set('next', `${pathname}${search}`);
+    return withCsp(NextResponse.redirect(url), csp);
+  }
+  if (hasSession && isAuthPage(pathname)) {
+    return withCsp(NextResponse.redirect(new URL('/', request.url)), csp);
+  }
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('content-security-policy', csp);
+  return withCsp(NextResponse.next({ request: { headers: requestHeaders } }), csp);
+}
+
 export const config = {
-  matcher: [{ source: '/((?!_next/static|_next/image|favicon.ico).*)' }],
+  matcher: [{ source: '/((?!api/|_next/static|_next/image|favicon.ico).*)' }],
 };

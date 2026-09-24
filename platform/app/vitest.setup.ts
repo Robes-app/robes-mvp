@@ -3,6 +3,8 @@ import { vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 Object.assign(process.env, {
   APP_ENV: 'dev',
-  SUPABASE_URL: 'http://127.0.0.1:54321',
-  SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_local_development_key',
+  DATABASE_URL: 'postgres://robes_app:robes_app_local@127.0.0.1:55432/robes_test',
+  BETTER_AUTH_SECRET: 'test-secret-at-least-thirty-two-characters-long',
+  BETTER_AUTH_URL: 'http://localhost:3000',
+  SMTP_URL: 'smtp://127.0.0.1:51025',
 });

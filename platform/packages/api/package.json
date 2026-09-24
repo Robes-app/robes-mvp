@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@robes/contracts": "workspace:*",
+    "@robes/copy": "workspace:*",
     "@upstash/ratelimit": "2.2.0",
     "@upstash/redis": "1.39.0",
-    "jose": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

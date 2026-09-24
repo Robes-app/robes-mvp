@@ -11,7 +11,19 @@ const staticSecurityHeaders = [
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  transpilePackages: ['@robes/api', '@robes/config', '@robes/contracts', '@robes/tokens'],
+  transpilePackages: [
+    '@robes/api',
+    '@robes/auth',
+    '@robes/config',
+    '@robes/contracts',
+    '@robes/copy',
+    '@robes/core',
+    '@robes/db',
+    '@robes/mailer',
+    '@robes/tokens',
+  ],
+  // Native Node deps stay external to the server bundle.
+  serverExternalPackages: ['pg', 'nodemailer'],
   async headers() {
     return [{ source: '/:path*', headers: staticSecurityHeaders }];
   },

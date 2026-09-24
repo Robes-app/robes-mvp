@@ -1,13 +1,12 @@
 import 'server-only';
-import {
-  createJwtVerifier,
-  createMemoryRateLimiter,
-  createRouteFactory,
-  createUpstashRateLimiter,
-  remoteJwks,
-} from '@robes/api';
+import { createMemoryRateLimiter, createRouteFactory, createUpstashRateLimiter } from '@robes/api';
+import { sessionUser } from '@robes/auth';
+import { verifiedUserId } from '@robes/db';
+import { auth } from './auth';
 import { clientIp } from './client-ip';
+import { repos } from './db';
 import { env } from './env';
+import { isFlagEnabled } from './flags';
 
 const rateLimiter =
   env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
@@ -15,12 +14,10 @@ const rateLimiter =
     : createMemoryRateLimiter();
 
 export const route = createRouteFactory({
-  verifier: createJwtVerifier({
-    getKey: remoteJwks(env.SUPABASE_JWKS_URL),
-    issuer: env.SUPABASE_JWT_ISSUER,
-  }),
-  // M1 replaces this with a service-role lookup of private.admin_users.
-  isAdmin: async () => false,
+  resolveUser: (req) => sessionUser(auth, req.headers),
+  isAdmin: (userId) => repos.admin.isAdmin(verifiedUserId(userId)),
+  isFlagEnabled,
+  ...(env.MIN_APP_VERSION ? { minAppVersion: env.MIN_APP_VERSION } : {}),
   rateLimiter,
   clientIp,
   logger: { error: (obj, msg) => console.error(JSON.stringify({ level: 'error', msg, ...obj })) },

@@ -21,6 +21,7 @@ env:
   DATABASE_URL: postgres://robes_app:robes_app_local@127.0.0.1:55432/robes
   BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
   BETTER_AUTH_URL: http://localhost:3100
+  SMTP_URL: smtp://127.0.0.1:51025
 
 jobs:
   checks:
@@ -63,6 +64,9 @@ jobs:
         ports: ['55432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 3s --health-retries 30
+      mailpit:
+        image: axllent/mailpit:v1.27
+        ports: ['51025:1025', '58025:8025']
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/platform-setup

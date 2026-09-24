@@ -9,9 +9,6 @@ catalogs:
     fast-check:
       specifier: 4.10.2
       version: 4.10.2
-    jose:
-      specifier: 6.2.12
-      version: 6.2.12
     tsx:
       specifier: 4.23.15
       version: 4.23.15
@@ -53,15 +50,33 @@ importers:
       '@robes/api':
         specifier: workspace:*
         version: link:../packages/api
+      '@robes/auth':
+        specifier: workspace:*
+        version: link:../packages/auth
       '@robes/config':
         specifier: workspace:*
         version: link:../packages/config
       '@robes/contracts':
         specifier: workspace:*
         version: link:../packages/contracts
+      '@robes/copy':
+        specifier: workspace:*
+        version: link:../packages/copy
+      '@robes/core':
+        specifier: workspace:*
+        version: link:../packages/core
+      '@robes/db':
+        specifier: workspace:*
+        version: link:../packages/db
+      '@robes/mailer':
+        specifier: workspace:*
+        version: link:../packages/mailer
       '@robes/tokens':
         specifier: workspace:*
         version: link:../packages/tokens
+      better-auth:
+        specifier: 1.7.5
+        version: 1.7.5(next@16.3.6(@babel/core@7.29.7(supports-color@8.1.1))(@playwright/test@1.63.0)(@types/node@24.13.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(pg@8.23.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.1(@types/node@24.13.6)(jsdom@20.0.3(supports-color@8.1.1))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))
       next:
         specifier: 16.3.6
         version: 16.3.6(@babel/core@7.29.7(supports-color@8.1.1))(@playwright/test@1.63.0)(@types/node@24.13.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -239,15 +254,15 @@ importers:
       '@robes/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@robes/copy':
+        specifier: workspace:*
+        version: link:../copy
       '@upstash/ratelimit':
         specifier: 2.2.0
         version: 2.2.0(@upstash/redis@1.39.0)
       '@upstash/redis':
         specifier: 1.39.0
         version: 1.39.0
-      jose:
-        specifier: 'catalog:'
-        version: 6.2.12
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -267,6 +282,9 @@ importers:
       '@better-auth/expo':
         specifier: 1.7.5
         version: 1.7.5(@better-auth/core@1.7.5(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(better-call@1.4.0(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.3))(better-auth@1.7.5(next@16.3.6(@babel/core@7.29.7(supports-color@8.1.1))(@playwright/test@1.63.0)(@types/node@24.13.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(pg@8.23.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.1(@types/node@24.13.6)(jsdom@20.0.3(supports-color@8.1.1))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))))(expo-constants@57.0.19)(expo-linking@57.0.10)(expo-web-browser@57.0.3(expo@57.0.24)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.3.0)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1)))
+      '@robes/copy':
+        specifier: workspace:*
+        version: link:../copy
       '@robes/mailer':
         specifier: workspace:*
         version: link:../mailer
@@ -308,6 +326,15 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.6.5
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.1(@types/node@24.13.6)(jsdom@20.0.3(supports-color@8.1.1))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/copy:
     devDependencies:
       typescript:
         specifier: 'catalog:'

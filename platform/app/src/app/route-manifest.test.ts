@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 // Every public route must be listed here AND in docs/api.md §3.
 const PUBLIC_ROUTES = new Set(['/api/v1/health']);
+// Handlers delegated to a vetted library with its own protections; keep this list tiny.
+const DELEGATED_ROUTES = new Set(['/api/auth/[...all]']);
 const METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const;
 const here = dirname(fileURLToPath(import.meta.url));
 const files = globSync('**/route.ts', { cwd: here });
@@ -21,6 +23,7 @@ describe('route manifest (SEC-01)', () => {
 
   it.each(files)('%s is built with route() and protected unless allow-listed', async (file) => {
     const path = urlPath(file);
+    if (DELEGATED_ROUTES.has(path)) return;
     const mod = (await import(`./${file}`)) as Record<string, unknown>;
     for (const method of METHODS) {
       const handler = mod[method] as ((req: Request) => Promise<Response>) & { auth?: string };

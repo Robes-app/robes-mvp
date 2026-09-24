@@ -1,19 +1,29 @@
 import fc from 'fast-check';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { ISSUER, makeKeys } from '../test/keys';
-import { createJwtVerifier } from './auth';
+import { isUuid } from './auth';
 import { createMemoryRateLimiter } from './rate-limit';
 import { AUTH_FAILURE_LIMIT, createRouteFactory } from './route';
 
 const USER = '11111111-1111-4111-8111-111111111111';
 
-async function setup(opts: { admins?: string[] } = {}) {
-  const { getKey, sign } = await makeKeys();
+// Stand-in for the session resolver: "Bearer session:<uuid>" is a valid session.
+async function sign(sub: string): Promise<string> {
+  return `session:${sub}`;
+}
+
+async function setup(
+  opts: { admins?: string[]; flags?: Record<string, boolean>; minAppVersion?: string } = {},
+) {
   const logger = { error: vi.fn() };
   const route = createRouteFactory({
-    verifier: createJwtVerifier({ getKey, issuer: ISSUER }),
+    resolveUser: async (req) => {
+      const sub = req.headers.get('authorization')?.match(/^Bearer session:(.+)$/)?.[1];
+      return isUuid(sub) ? { id: sub } : null;
+    },
     isAdmin: async (id) => (opts.admins ?? []).includes(id),
+    isFlagEnabled: async (key) => opts.flags?.[key] ?? false,
+    ...(opts.minAppVersion ? { minAppVersion: opts.minAppVersion } : {}),
     rateLimiter: createMemoryRateLimiter(),
     clientIp: () => '203.0.113.9',
     logger,
@@ -243,5 +253,35 @@ describe('route()', async () => {
     expect(await ok.json()).toEqual({ id: USER });
     const bad = await GET(new Request('http://x'), { params: Promise.resolve({ id: 'nope' }) });
     expect(bad.status).toBe(400);
+  });
+
+  it('503s a route whose flag is off and serves it when on', async () => {
+    const off = await setup({ flags: { 'x.y': false } });
+    const on = await setup({ flags: { 'x.y': true } });
+    const opts = {
+      auth: 'public' as const,
+      flag: 'x.y',
+      input: z.object({}),
+      output: z.object({}),
+      handler: async () => ({}),
+    };
+    const offRes = await off.route(opts)(new Request('http://x'));
+    expect(offRes.status).toBe(503);
+    expect((await offRes.json()).error.code).toBe('disabled');
+    expect((await on.route(opts)(new Request('http://x'))).status).toBe(200);
+  });
+
+  it('426s native builds older than the minimum version', async () => {
+    const { route } = await setup({ minAppVersion: '1.4.0' });
+    const GET = route({
+      auth: 'public',
+      input: z.object({}),
+      output: z.object({}),
+      handler: async () => ({}),
+    });
+    const req = (v: string) => new Request('http://x', { headers: { 'x-robes-app-version': v } });
+    expect((await GET(req('1.3.9'))).status).toBe(426);
+    expect((await GET(req('1.4.0'))).status).toBe(200);
+    expect((await GET(new Request('http://x'))).status).toBe(200);
   });
 });

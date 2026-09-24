@@ -1,16 +1,23 @@
 import { z } from 'zod';
-import { type AuthUser, bearerToken, type TokenVerifier } from './auth';
+import type { AuthUser, ResolveUser } from './auth';
 import { ApiError, MESSAGES, STATUS } from './errors';
 import type { RateLimiter } from './rate-limit';
+import { compareVersions } from './version';
 
 export type AuthMode = 'public' | 'user' | 'admin';
 
 export const MAX_BODY_BYTES = 32 * 1024;
 export const AUTH_FAILURE_LIMIT = { limit: 30, windowSeconds: 60 } as const;
 
+export const APP_VERSION_HEADER = 'x-robes-app-version';
+
 export interface RouteDeps {
-  verifier: TokenVerifier;
+  resolveUser: ResolveUser;
   isAdmin(userId: string): Promise<boolean>;
+  // Kill switches; unknown flags must resolve to false.
+  isFlagEnabled?(key: string): Promise<boolean>;
+  // Native builds older than this get 426 upgrade_required.
+  minAppVersion?: string;
   rateLimiter: RateLimiter;
   clientIp(req: Request): string;
   logger: { error(obj: Record<string, unknown>, msg: string): void };
@@ -38,6 +45,7 @@ export interface RouteOptions<
   input: I;
   output: O;
   params?: P;
+  flag?: string;
   status?: number;
   rateLimit?: RateLimitRule;
   handler(args: {
@@ -154,8 +162,7 @@ export function createRouteFactory(deps: RouteDeps) {
 
   async function authenticate(req: Request, mode: AuthMode): Promise<AuthUser | null> {
     if (mode === 'public') return null;
-    const token = bearerToken(req);
-    const user = token ? await deps.verifier.verify(token) : null;
+    const user = await deps.resolveUser(req);
     if (!user) {
       // Bad-token floods never reach per-user limits, so throttle failures per IP.
       await enforceRateLimit(`auth-fail:ip:${deps.clientIp(req)}`, AUTH_FAILURE_LIMIT);
@@ -163,6 +170,16 @@ export function createRouteFactory(deps: RouteDeps) {
     }
     if (mode === 'admin' && !(await deps.isAdmin(user.id))) throw new ApiError('forbidden');
     return user;
+  }
+
+  async function checkGates(req: Request, flag: string | undefined): Promise<void> {
+    const version = req.headers.get(APP_VERSION_HEADER);
+    if (version && deps.minAppVersion && compareVersions(version, deps.minAppVersion) < 0) {
+      throw new ApiError('upgrade_required');
+    }
+    if (flag && !(await (deps.isFlagEnabled?.(flag) ?? Promise.resolve(false)))) {
+      throw new ApiError('disabled');
+    }
   }
 
   return function route<
@@ -175,6 +192,7 @@ export function createRouteFactory(deps: RouteDeps) {
     const handler = async (req: Request, ctx?: RouteContext): Promise<Response> => {
       const requestId = crypto.randomUUID();
       try {
+        await checkGates(req, opts.flag);
         const user = await authenticate(req, opts.auth);
         if (opts.rateLimit) {
           const who = user?.id ?? `ip:${deps.clientIp(req)}`;
