@@ -82,4 +82,13 @@ describe('wardrobe repo', () => {
     expect((await wardrobe.get(ann, a.id))?.heroPosition).toBeNull();
     expect((await wardrobe.get(ann, b.id))?.heroPosition).toBe(1);
   });
+
+  it('counts only pieces Robes has finished reading', async () => {
+    const user = await createTestUser(db);
+    await wardrobe.create(user, { label: 'Ready' });
+    await wardrobe.create(user, { label: 'Reading', status: 'reading' });
+    expect(await wardrobe.countReady(user)).toBe(1);
+    expect(await wardrobe.count(user)).toBe(2);
+    await deleteTestUsers(db, user);
+  });
 });

@@ -98,6 +98,19 @@ describe('looks repo', () => {
     expect(await looks.unwear(ann, look.id, '2026-09-24')).toBe(false);
   });
 
+  it('counts her looks and the looks she wore on a day', async () => {
+    const user = await createTestUser(db);
+    const a = await looks.create(user, { name: 'A', nameProvisional: false, pieces: [] });
+    await looks.create(user, { name: 'B', nameProvisional: false, pieces: [] });
+    expect(await looks.count(user)).toBe(2);
+    await looks.wear(user, a.id, '2026-10-01');
+    expect(await looks.wornOn(user, '2026-10-01')).toEqual([a.id]);
+    expect(await looks.wornOn(user, '2026-10-02')).toEqual([]);
+    expect(await looks.wornOn(bea, '2026-10-01')).toEqual([]);
+    expect(await looks.count(bea)).toBe(0);
+    await deleteTestUsers(db, user);
+  });
+
   it('pages newest first', async () => {
     const user = await createTestUser(db);
     for (const [i, name] of ['A', 'B', 'C'].entries()) {

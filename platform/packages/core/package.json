@@ -10,7 +10,8 @@
     "./jobs": "./src/jobs/index.ts",
     "./budget": "./src/budget/index.ts",
     "./consents": "./src/consents/index.ts",
-    "./style-dna": "./src/style-dna/index.ts"
+    "./style-dna": "./src/style-dna/index.ts",
+    "./next-step": "./src/next-step/index.ts"
   },
   "scripts": {
     "test": "vitest run",

@@ -149,6 +149,15 @@ describe('jobs', () => {
     ).resolves.toBeDefined();
   });
 
+  it('lists her recent jobs of the given kinds for the tray, and nobody else’s', async () => {
+    const { job } = await repos.jobs.create(alice, { kind: 'key_piece', input: {} });
+    await repos.jobs.create(alice, { kind: 'fake', input: {} });
+    const tray = await repos.jobs.recent(alice, ['key_piece']);
+    expect(tray.map((j) => j.id)).toContain(job.id);
+    expect(tray.every((j) => j.kind === 'key_piece')).toBe(true);
+    expect((await repos.jobs.recent(bob, ['key_piece'])).map((j) => j.id)).not.toContain(job.id);
+  });
+
   it('claims with a lease, once, and records stages', async () => {
     const { job } = await repos.jobs.create(alice, { kind: 'fake', input: {} });
     const claimed = await system.jobs.claim(job.id, 60);

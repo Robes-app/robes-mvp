@@ -9,4 +9,5 @@ export * from './notify';
 export * from './plan';
 export * from './routes';
 export * from './shares';
+export * from './today';
 export * from './wardrobe';

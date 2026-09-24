@@ -104,6 +104,14 @@ export function looksRepo(db: Db) {
         .executeTakeFirst();
     },
 
+    async count(userId: UserId): Promise<number> {
+      const row = await active()
+        .select((eb) => eb.fn.countAll<string>().as('n'))
+        .where('userId', '=', userId)
+        .executeTakeFirst();
+      return Number(row?.n ?? 0);
+    },
+
     getMany(userId: UserId, ids: readonly string[]) {
       if (ids.length === 0) return Promise.resolve([]);
       return active()
@@ -266,6 +274,17 @@ export function looksRepo(db: Db) {
           .where('wornOn', '=', sql<Date>`${wornOn}::date`)
           .executeTakeFirstOrThrow();
       });
+    },
+
+    // Looks she recorded wearing on a calendar day.
+    async wornOn(userId: UserId, day: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom('wears')
+        .select('lookId')
+        .where('userId', '=', userId)
+        .where('wornOn', '=', sql<Date>`${day}::date`)
+        .execute();
+      return rows.map((r) => r.lookId);
     },
 
     async unwear(userId: UserId, lookId: string, wornOn: string): Promise<boolean> {

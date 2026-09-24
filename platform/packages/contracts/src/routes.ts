@@ -57,6 +57,7 @@ import {
   UpdatePlanEntryInput,
 } from './plan';
 import { CreateShareInput, Share, SharedLook, ShareParams } from './shares';
+import { Today } from './today';
 import {
   BatchPiecesInput,
   BatchPiecesOutput,
@@ -405,6 +406,7 @@ export const routes = {
     input: EmptyInput,
     output: Deleted,
   },
+  'today.get': { method: 'GET', path: '/today', auth: 'user', input: EmptyInput, output: Today },
   'plan.get': { method: 'GET', path: '/plan', auth: 'user', input: GetPlanInput, output: Plan },
   // Naturally idempotent: a look already on a day and slot keeps its entry.
   'plan.pin': {

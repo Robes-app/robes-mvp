@@ -185,6 +185,16 @@ export function wardrobeRepo(db: Db) {
         .execute();
     },
 
+    // Pieces Robes has finished reading (the ladder counts these, not ones still "reading").
+    async countReady(userId: UserId): Promise<number> {
+      const row = await active()
+        .select((eb) => eb.fn.countAll<string>().as('n'))
+        .where('userId', '=', userId)
+        .where('status', '=', 'ready')
+        .executeTakeFirst();
+      return Number(row?.n ?? 0);
+    },
+
     async count(userId: UserId): Promise<number> {
       const row = await active()
         .select((eb) => eb.fn.countAll<string>().as('n'))
