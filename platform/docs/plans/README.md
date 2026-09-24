@@ -14,7 +14,7 @@
 | Plan | Scope | Granularity | Status |
 |---|---|---|---|
 | `2026-09-24-p0-legacy-hotfixes.md` | Immediate security fixes on the **legacy** `beta`/`main` branches (runs in parallel with M0) | bite-sized | ☐ not started |
-| `2026-09-24-m0-foundations.md` | M0 Foundations | bite-sized | ☐ not started |
+| `2026-09-24-m0-foundations.md` | M0 Foundations | bite-sized | ☑ complete 2026-09-24 (branch `feat/m0-foundations`; see the plan's execution notes) |
 | `roadmap.md` → M1 Platform core | schema, infra (CDK), jobs, uploads/media, auth, observability | brief → expand | ☐ |
 | `roadmap.md` → M2 Design system & shell | ui/ui-native/copy/icons, IA shell web+native, onboarding, You | brief → expand | ☐ |
 | `roadmap.md` → M3 Wardrobe | pieces, capture, analyse, inbox, wishlist, cutouts | brief → expand | ☐ |
