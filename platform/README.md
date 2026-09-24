@@ -1,5 +1,7 @@
 # Robes Platform
 
+**Start here:** [`docs/STATUS.md`](docs/STATUS.md): what is built, how to run it, what is pending.
+
 The next-generation Robes: a secure, scalable platform with a Next.js web app and an Expo (iOS/Android) app sharing one API, one design system and one data model. It is built here, beside the legacy app, which keeps serving www.byrobes.com and beta.byrobes.com until cutover. Nothing in `platform/` imports from or edits the legacy app.
 
 **Start here:** `docs/SPEC.md` → `docs/plans/README.md` → the current milestone plan. Agents: read `CLAUDE.md` in this folder.
