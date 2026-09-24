@@ -1,5 +1,11 @@
 import 'server-only';
-import { createMemoryRateLimiter, createRouteFactory, createUpstashRateLimiter } from '@robes/api';
+import {
+  createMemoryRateLimiter,
+  createRouteFactory,
+  createSseRouteFactory,
+  createUpstashRateLimiter,
+  type RouteDeps,
+} from '@robes/api';
 import { sessionUser } from '@robes/auth';
 import { verifiedUserId } from '@robes/db';
 import { auth } from './auth';
@@ -13,7 +19,7 @@ const rateLimiter =
     ? createUpstashRateLimiter(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN)
     : createMemoryRateLimiter();
 
-export const route = createRouteFactory({
+const deps: RouteDeps = {
   resolveUser: (req) => sessionUser(auth, req.headers),
   isAdmin: (userId) => repos.admin.isAdmin(verifiedUserId(userId)),
   isFlagEnabled,
@@ -21,4 +27,7 @@ export const route = createRouteFactory({
   rateLimiter,
   clientIp,
   logger: { error: (obj, msg) => console.error(JSON.stringify({ level: 'error', msg, ...obj })) },
-});
+};
+
+export const route = createRouteFactory(deps);
+export const sseRoute = createSseRouteFactory(deps);

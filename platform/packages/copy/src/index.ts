@@ -91,6 +91,7 @@ export const jobs = {
   },
   cancel: 'Cancel',
   connectionLost: 'Reconnecting…',
+  imagesLabel: 'Images',
   imagePending: 'Image on its way',
   fake: {
     title: 'A test look, three ways.',

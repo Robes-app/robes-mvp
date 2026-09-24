@@ -271,6 +271,26 @@ describe('route()', async () => {
     expect((await on.route(opts)(new Request('http://x'))).status).toBe(200);
   });
 
+  it('authenticates before consulting a kill switch', async () => {
+    const isFlagEnabled = vi.fn(async () => false);
+    const POST = createRouteFactory({
+      resolveUser: async () => null,
+      isAdmin: async () => false,
+      isFlagEnabled,
+      rateLimiter: createMemoryRateLimiter(),
+      clientIp: () => '203.0.113.9',
+      logger: { error: vi.fn() },
+    })({
+      auth: 'user',
+      flag: 'x.y',
+      input: z.object({}),
+      output: z.object({}),
+      handler: async () => ({}),
+    });
+    expect((await POST(post({}))).status).toBe(401);
+    expect(isFlagEnabled).not.toHaveBeenCalled();
+  });
+
   it('426s native builds older than the minimum version', async () => {
     const { route } = await setup({ minAppVersion: '1.4.0' });
     const GET = route({

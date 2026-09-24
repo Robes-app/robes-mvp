@@ -1,5 +1,4 @@
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
-import { SQSClient } from '@aws-sdk/client-sqs';
 import { parseEnv, type WorkerEnv, workerEnv } from '@robes/config';
 import { createDb, createSystemRepositories, type SystemRepositories } from '@robes/db';
 import {
@@ -47,7 +46,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
   const inline: Promise<void>[] = [];
   const queueUrl = env.JOBS_INTERACTIVE_QUEUE_URL;
   const transport = queueUrl
-    ? createSqsTransport({ client: new SQSClient({}), queueUrl })
+    ? createSqsTransport({ queueUrl })
     : env.APP_ENV === 'dev'
       ? createInlineTransport({ run, schedule: (task) => void inline.push(task()), logger })
       : null;

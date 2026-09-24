@@ -40,3 +40,31 @@ describe('me contracts', async () => {
     expect(() => UpdateMeInput.parse({ instagramHandle: 'bad handle' })).toThrow();
   });
 });
+
+describe('job contracts', async () => {
+  const { JobSnapshot } = await import('./jobs');
+  const snapshot = {
+    id: '6f1d7e38-5a55-4f43-9d6b-6f0c4d7f2a10',
+    kind: 'fake',
+    status: 'running',
+    stage: 'text',
+    output: { text: { title: 'T', lines: ['a'] }, prompt: 'never sent' },
+    error: null,
+    cancelRequested: false,
+    createdAt: '2026-09-24T10:00:00.000Z',
+    updatedAt: '2026-09-24T10:00:01.000Z',
+    finishedAt: null,
+    userId: '0b8f6a0e-3c1f-4d9b-8a57-2d2b6f9e4c11',
+  };
+
+  it('strips fields the client must not see', () => {
+    const parsed = JobSnapshot.parse(snapshot);
+    expect(parsed).not.toHaveProperty('userId');
+    expect(parsed.output).toEqual({ text: { title: 'T', lines: ['a'] } });
+  });
+
+  it('rejects unknown statuses and kinds', () => {
+    expect(() => JobSnapshot.parse({ ...snapshot, status: 'paused' })).toThrow();
+    expect(() => JobSnapshot.parse({ ...snapshot, kind: 'mystery' })).toThrow();
+  });
+});

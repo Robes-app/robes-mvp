@@ -68,6 +68,9 @@ importers:
       '@robes/db':
         specifier: workspace:*
         version: link:../packages/db
+      '@robes/jobs':
+        specifier: workspace:*
+        version: link:../packages/jobs
       '@robes/mailer':
         specifier: workspace:*
         version: link:../packages/mailer
@@ -323,6 +326,9 @@ importers:
 
   packages/contracts:
     dependencies:
+      '@robes/core':
+        specifier: workspace:*
+        version: link:../core
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -433,9 +439,6 @@ importers:
   workers:
     dependencies:
       '@aws-sdk/client-secrets-manager':
-        specifier: 3.1138.0
-        version: 3.1138.0
-      '@aws-sdk/client-sqs':
         specifier: 3.1138.0
         version: 3.1138.0
       '@robes/config':

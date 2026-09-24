@@ -1,4 +1,4 @@
-import { SendMessageCommand, type SQSClient } from '@aws-sdk/client-sqs';
+import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import type { JobLogger } from './logger';
 import type { JobMessage } from './message';
 
@@ -26,12 +26,13 @@ export function createInlineTransport(opts: {
 }
 
 export function createSqsTransport(opts: {
-  client: Pick<SQSClient, 'send'>;
   queueUrl: string;
+  client?: Pick<SQSClient, 'send'>;
 }): JobTransport {
+  const client = opts.client ?? new SQSClient({});
   return {
     async send({ jobId, traceparent }) {
-      await opts.client.send(
+      await client.send(
         new SendMessageCommand({
           QueueUrl: opts.queueUrl,
           MessageBody: JSON.stringify({ jobId }),

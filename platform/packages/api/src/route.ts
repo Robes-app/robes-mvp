@@ -23,9 +23,9 @@ export interface RouteDeps {
   logger: { error(obj: Record<string, unknown>, msg: string): void };
 }
 
-type UserFor<A extends AuthMode> = A extends 'public' ? AuthUser | null : AuthUser;
+export type UserFor<A extends AuthMode> = A extends 'public' ? AuthUser | null : AuthUser;
 
-const RawParams = z.record(z.string(), z.union([z.string(), z.array(z.string())]));
+export const RawParams = z.record(z.string(), z.union([z.string(), z.array(z.string())]));
 type RawParams = z.infer<typeof RawParams>;
 
 export interface RateLimitRule {
@@ -57,10 +57,12 @@ export interface RouteOptions<
   }): Promise<z.input<O>>;
 }
 
-type RouteContext = { params?: Promise<RawParams> };
+export type RouteContext = { params?: Promise<RawParams> };
 
+// `auth` and `builder` let the route-manifest test prove every handler went through a builder.
 export type RouteHandler = ((req: Request, ctx?: RouteContext) => Promise<Response>) & {
   auth: AuthMode;
+  builder: 'route' | 'sseRoute';
 };
 
 function json(
@@ -134,7 +136,7 @@ async function readInput(req: Request): Promise<unknown> {
   }
 }
 
-function parseOrThrow<S extends z.ZodType>(schema: S, value: unknown): z.infer<S> {
+export function parseOrThrow<S extends z.ZodType>(schema: S, value: unknown): z.infer<S> {
   const parsed = schema.safeParse(value);
   if (parsed.success) return parsed.data;
   throw new ApiError('invalid_input', {
@@ -142,7 +144,7 @@ function parseOrThrow<S extends z.ZodType>(schema: S, value: unknown): z.infer<S
   });
 }
 
-function errorResponse(err: ApiError, requestId: string): Response {
+export function errorResponse(err: ApiError, requestId: string): Response {
   const headers: Record<string, string> = {};
   if (err.extra.retryAfterSeconds) headers['retry-after'] = String(err.extra.retryAfterSeconds);
   const details = err.extra.details ? { details: err.extra.details } : {};
@@ -154,7 +156,8 @@ function errorResponse(err: ApiError, requestId: string): Response {
   );
 }
 
-export function createRouteFactory(deps: RouteDeps) {
+// Gates shared by route() and sseRoute(), so both enforce identical auth and limits.
+export function createGuards(deps: RouteDeps) {
   async function enforceRateLimit(key: string, rule: Omit<RateLimitRule, 'key'>): Promise<void> {
     const r = await deps.rateLimiter.limit(key, rule.limit, rule.windowSeconds);
     if (!r.success) throw new ApiError('rate_limited', { retryAfterSeconds: r.retryAfterSeconds });
@@ -172,15 +175,52 @@ export function createRouteFactory(deps: RouteDeps) {
     return user;
   }
 
-  async function checkGates(req: Request, flag: string | undefined): Promise<void> {
+  function checkVersion(req: Request): void {
     const version = req.headers.get(APP_VERSION_HEADER);
     if (version && deps.minAppVersion && compareVersions(version, deps.minAppVersion) < 0) {
       throw new ApiError('upgrade_required');
     }
+  }
+
+  async function checkFlag(flag: string | undefined): Promise<void> {
     if (flag && !(await (deps.isFlagEnabled?.(flag) ?? Promise.resolve(false)))) {
       throw new ApiError('disabled');
     }
   }
+
+  // Version gate, authentication, kill switch, rate limit, params. Auth precedes the flag so
+  // anonymous callers never trigger a flag lookup.
+  async function admit<A extends AuthMode, P extends z.ZodType>(
+    req: Request,
+    ctx: RouteContext | undefined,
+    opts: { auth: A; flag?: string | undefined; rateLimit?: RateLimitRule | undefined; params: P },
+  ): Promise<{ user: UserFor<A>; params: z.infer<P> }> {
+    checkVersion(req);
+    const user = await authenticate(req, opts.auth);
+    await checkFlag(opts.flag);
+    if (opts.rateLimit) {
+      const who = user?.id ?? `ip:${deps.clientIp(req)}`;
+      await enforceRateLimit(`${opts.rateLimit.key}:${who}`, opts.rateLimit);
+    }
+    const params = parseOrThrow(opts.params, (await ctx?.params) ?? {}) as z.infer<P>;
+    return { user: user as UserFor<A>, params };
+  }
+
+  // Unknown errors are logged with the request id and surface as a generic 500.
+  function failure(err: unknown, requestId: string): Response {
+    if (err instanceof ApiError) return errorResponse(err, requestId);
+    deps.logger.error(
+      { requestId, err: err instanceof Error ? err.message : String(err) },
+      'route_error',
+    );
+    return errorResponse(new ApiError('internal'), requestId);
+  }
+
+  return { admit, failure };
+}
+
+export function createRouteFactory(deps: RouteDeps) {
+  const { admit, failure } = createGuards(deps);
 
   return function route<
     A extends AuthMode,
@@ -192,32 +232,20 @@ export function createRouteFactory(deps: RouteDeps) {
     const handler = async (req: Request, ctx?: RouteContext): Promise<Response> => {
       const requestId = crypto.randomUUID();
       try {
-        await checkGates(req, opts.flag);
-        const user = await authenticate(req, opts.auth);
-        if (opts.rateLimit) {
-          const who = user?.id ?? `ip:${deps.clientIp(req)}`;
-          await enforceRateLimit(`${opts.rateLimit.key}:${who}`, opts.rateLimit);
-        }
-        const params = parseOrThrow(paramsSchema, (await ctx?.params) ?? {}) as z.infer<P>;
-        const input = parseOrThrow(opts.input, await readInput(req));
-        const out = await opts.handler({
-          input,
-          user: user as UserFor<A>,
-          req,
-          params,
-          requestId,
+        const { user, params } = await admit(req, ctx, {
+          auth: opts.auth,
+          flag: opts.flag,
+          rateLimit: opts.rateLimit,
+          params: paramsSchema as P,
         });
+        const input = parseOrThrow(opts.input, await readInput(req));
+        const out = await opts.handler({ input, user, req, params, requestId });
         // Always parse: zod strips undeclared fields, so a whole DB row can never leak.
         return json(opts.output.parse(out), opts.status ?? 200, requestId);
       } catch (err) {
-        if (err instanceof ApiError) return errorResponse(err, requestId);
-        deps.logger.error(
-          { requestId, err: err instanceof Error ? err.message : String(err) },
-          'route_error',
-        );
-        return errorResponse(new ApiError('internal'), requestId);
+        return failure(err, requestId);
       }
     };
-    return Object.assign(handler, { auth: opts.auth });
+    return Object.assign(handler, { auth: opts.auth, builder: 'route' as const });
   };
 }
