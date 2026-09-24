@@ -12,7 +12,8 @@
     "@robes/config": "workspace:*",
     "@robes/db": "workspace:*",
     "@robes/jobs": "workspace:*",
-    "@robes/logger": "workspace:*"
+    "@robes/logger": "workspace:*",
+    "@robes/media": "workspace:*"
   },
   "devDependencies": {
     "tsx": "catalog:",

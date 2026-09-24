@@ -530,6 +530,9 @@ importers:
       '@robes/logger':
         specifier: workspace:*
         version: link:../packages/logger
+      '@robes/media':
+        specifier: workspace:*
+        version: link:../packages/media
     devDependencies:
       tsx:
         specifier: 'catalog:'

@@ -15,7 +15,8 @@ catalog:
 
 allowBuilds:
   dbmate: true
-  esbuild: true
+  # esbuild's postinstall swaps its JS launcher for the native binary, which breaks pnpm .bin shims.
+  esbuild: false
   sharp: true
 
 minimumReleaseAgeExclude:
