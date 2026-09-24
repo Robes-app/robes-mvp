@@ -1,17 +1,90 @@
 # Robes Platform
 
-The next-generation Robes: a secure, scalable platform with a Next.js web app and an Expo (iOS/Android) app sharing one API, one design system and one data model. It is built here, beside the legacy app, which keeps serving www.byrobes.com and beta.byrobes.com until cutover.
+The next-generation Robes: a secure, scalable platform with a Next.js web app and an Expo (iOS/Android) app sharing one API, one design system and one data model. It is built here, beside the legacy app, which keeps serving www.byrobes.com and beta.byrobes.com until cutover. Nothing in `platform/` imports from or edits the legacy app.
+
+**Start here:** `docs/SPEC.md` → `docs/plans/README.md` → the current milestone plan. Agents: read `CLAUDE.md` in this folder.
+
+## Layout
 
 | Folder | What |
 |---|---|
 | `app/` | Next.js 16 web app + `/api/v1` route handlers (Vercel) |
-| `mobile/` | Expo SDK 57 app (EAS) |
-| `workers/` | AWS Lambda job workers (generation, renditions, fetch, notify, maintenance) — from M1 |
-| `infra/` | AWS CDK v2 app — from M1 |
-| `supabase/` | Migrations, pgTAP tests, local config — from M0 |
-| `packages/` | Shared: `config`, `tokens`, `contracts`, `api`, then `db`, `ui`, `ui-native`, `copy`, `icons`, `api-client`, `core`, `ai`, `media`, `jobs`, `analytics`, `emails` |
-| `docs/` | Spec, requirements, reference and plans — start at `docs/SPEC.md` |
+| `mobile/` | Expo SDK 57 app (EAS), Expo Router in `src/app` |
+| `supabase/` | Migrations, pgTAP tests, local config |
+| `packages/config` | Validated environment (`parseEnv`, `appServerEnv`) |
+| `packages/tokens` | Design tokens → generated Tailwind v4 (web) and Uniwind (native) CSS, with a WCAG contrast gate |
+| `packages/contracts` | zod schemas shared by server and clients (error body, health) |
+| `packages/api` | `route()` wrapper: auth (Supabase JWT via JWKS), validation, body limits, rate limits, safe errors |
+| `workers/`, `infra/` | Lambda workers and AWS CDK, from M1 |
+| `docs/` | Spec, requirements, reference and plans |
 
-**Start here:** `docs/SPEC.md` → `docs/plans/README.md` → the current milestone plan. Agents: read `CLAUDE.md` in this folder.
+Internal packages are "just-in-time" TypeScript: `exports` point at `src/*.ts` and are compiled by the consumer (Next, Metro, Vitest). The exception is `@robes/tokens`, which has a build step that writes `dist/*.css`.
 
-Local setup (after M0): Node 24 + `corepack enable`, Docker running, then from `platform/`: `pnpm install && pnpm db:start && pnpm --filter @robes/tokens build && pnpm --filter @robes/app dev`.
+## Getting started
+
+Prerequisites: Node 24 (`.nvmrc`), Docker running (for local Supabase), Xcode + an iOS simulator for mobile.
+
+```bash
+cd platform
+corepack enable            # provides the pinned pnpm (11.27.1)
+pnpm bootstrap             # install, build tokens, create app/.env.local
+pnpm db:start              # local Supabase on :54321 (API), :54322 (DB), :54323 (Studio)
+pnpm dev:web               # http://localhost:3000 (next picks another port if it's taken)
+pnpm dev:mobile            # Expo; press i for the iOS simulator
+```
+
+Check it's working: `http://localhost:3000` shows the Robes headline on cream, and `http://localhost:3000/api/v1/health` returns `{"ok":true}`. On the simulator, toggle dark mode (Cmd+Shift+A) to see the ink theme.
+
+## Everyday commands (from `platform/`)
+
+| Command | Does |
+|---|---|
+| `pnpm verify` | Everything CI's checks job runs locally except the build: lint, typecheck, unit tests, pgTAP |
+| `pnpm lint` / `pnpm format` | Biome check / fix |
+| `pnpm typecheck` | `tsc` across every package (Turbo) |
+| `pnpm test` | Vitest (packages, app) + Jest (mobile) |
+| `pnpm --filter @robes/app test:e2e` | Builds the app and runs Playwright against `next start` on :3100 |
+| `pnpm db:reset` | Recreate the local DB from `supabase/migrations` |
+| `pnpm db:test` | pgTAP tests in `supabase/tests/database` |
+| `pnpm --filter @robes/tokens build` | Regenerate token CSS after editing `packages/tokens/src/tokens.ts` |
+
+## How the pieces fit
+
+**Tokens.** `packages/tokens/src/tokens.ts` is the only place colours, fonts and radii are defined. `tokens.test.ts` fails if any declared foreground/background pair drops below its WCAG ratio, in light or dark mode. Fix the palette, never the threshold. The build writes `theme.css` (a Tailwind `@theme` shared by both platforms) plus `web.css` and `native.css` (per-platform light/dark values), so `bg-surface text-ink` means the same thing on web and native.
+
+**API routes.** Every handler under `app/src/app/api/v1/**/route.ts` is built with `route()` from `app/src/server/route.ts`:
+
+```ts
+export const POST = route({
+  auth: 'user',                       // 'public' | 'user' | 'admin'
+  input: CreateThingInput,            // zod, from @robes/contracts
+  output: Thing,
+  rateLimit: { key: 'things.create', limit: 20, windowSeconds: 60 },
+  handler: async ({ input, user }) => createThing(user.id, input),
+});
+```
+
+The identity comes from the verified JWT (`user.id`), never from the body. `route-manifest.test.ts` fails if any route skips `route()`, or is public without being allow-listed there and in `docs/api.md` §3.
+
+**Security headers.** `app/src/proxy.ts` sets a per-request nonce CSP (built by `server/security-headers.ts`), and `next.config.ts` adds the static headers. The root layout awaits `connection()`, so every page renders dynamically and Next can stamp the nonce. A statically prerendered page would have its scripts blocked. The e2e suite asserts that no page logs a CSP violation.
+
+**Database.** Schema changes are migrations only (`pnpm supabase migration new <name>`), never the Studio SQL editor. Every public table has RLS enabled, `(select auth.uid())` policies, an `ownership:` table comment, column-level grants for user-writable tables and a pgTAP test. `000_meta.test.sql` enforces the first three for every table automatically.
+
+## Recipes
+
+- **New shared package:** copy `packages/contracts` (package.json with `exports: ./src/index.ts`, a one-line `tsconfig.json` extending `../../tsconfig.base.json`, `test`/`typecheck` scripts). Use `catalog:` for shared dependency versions (`pnpm-workspace.yaml`). If the app imports it, add it to `transpilePackages` in `app/next.config.ts`. React-using packages declare `react` as a **peer** dependency, because web and native run different React minors.
+- **New API route:** add the schemas to `@robes/contracts`, create `route.ts` with `route()`, and write a unit test for the handler logic. The manifest test picks the route up automatically.
+- **New table:** `pnpm supabase migration new <name>`, write the table plus RLS, grants and ownership comment, add `supabase/tests/database/NNN_<name>.test.sql`, then `pnpm db:reset && pnpm db:test`.
+- **Native dependency:** `cd mobile && pnpm exec expo install <pkg>` (it picks the SDK-compatible version).
+
+## Troubleshooting
+
+- **`ERR_PNPM_IGNORED_BUILDS`**: pnpm 11 only runs install scripts for packages listed under `allowBuilds` in `pnpm-workspace.yaml`.
+- **Freshly published package refused**: pnpm's `minimumReleaseAge` supply-chain policy. Wait it out, or add a reviewed exact version to `minimumReleaseAgeExclude`.
+- **Mobile `className` type errors**: `mobile/src/uniwind-types.d.ts` is generated by Metro. Run `pnpm dev:mobile` once after adding themes.
+- **Styles missing on web**: rebuild tokens (`pnpm --filter @robes/tokens build`). `pnpm dev`/`build` do this automatically through Turbo's `^build`.
+- **Port clashes**: Supabase uses 54321–54329, Playwright uses 3100.
+
+## CI
+
+`.github/workflows/platform-ci.yml` runs on PRs touching `platform/**`. It has four jobs: checks (lint, typecheck, unit, build), database (Supabase + `db lint` + pgTAP), e2e (Playwright) and secrets (gitleaks over the change's commits).

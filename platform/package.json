@@ -6,7 +6,10 @@
     "node": ">=24 <25"
   },
   "scripts": {
+    "bootstrap": "pnpm install && pnpm --filter @robes/tokens build && node scripts/init-env.mjs",
     "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=@robes/app",
+    "dev:mobile": "pnpm --filter @robes/mobile start",
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
@@ -15,7 +18,8 @@
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
-    "db:types": "supabase gen types typescript --local > packages/db/src/database.types.ts"
+    "db:types": "supabase gen types typescript --local > packages/db/src/database.types.ts",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm db:test"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
