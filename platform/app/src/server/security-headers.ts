@@ -1,3 +1,5 @@
+import type { MediaConfig, ObservabilityConfig } from '@robes/config';
+
 // Extra origins beyond 'self': imgOrigins serve media, connectOrigins take fetches (e.g. upload PUTs).
 export function buildCsp(opts: {
   nonce: string;
@@ -28,4 +30,16 @@ export function buildCsp(opts: {
   ];
   const csp = directives.map(([k, v]) => `${k} ${[...new Set(v)].join(' ')}`).join('; ');
   return opts.isDev ? csp : `${csp}; upgrade-insecure-requests`;
+}
+
+// Media serves images and takes upload PUTs; Sentry/PostHog origins appear only when configured.
+export function cspSources(
+  media: Pick<MediaConfig, 'deliveryOrigin' | 'uploadOrigin'>,
+  observability: Pick<ObservabilityConfig, 'connectOrigins'>,
+): { imgOrigins: string[]; connectOrigins: string[] } {
+  const delivery = media.deliveryOrigin ? [media.deliveryOrigin] : [];
+  return {
+    imgOrigins: delivery,
+    connectOrigins: [...delivery, media.uploadOrigin, ...observability.connectOrigins],
+  };
 }

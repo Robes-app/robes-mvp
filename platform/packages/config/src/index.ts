@@ -85,6 +85,88 @@ function mediaConfig(env: MediaFields) {
 
 export type MediaConfig = ReturnType<typeof mediaConfig>;
 
+// Sentry is off unless a DSN is set; release is the git SHA (Vercel sets VERCEL_GIT_COMMIT_SHA).
+export const sentryEnv = z.object({
+  SENTRY_DSN: z.url().optional(),
+  SENTRY_ENVIRONMENT: z.string().min(1).optional(),
+  SENTRY_RELEASE: z.string().min(1).optional(),
+  VERCEL_GIT_COMMIT_SHA: z.string().min(1).optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
+});
+
+type SentryFields = z.infer<typeof sentryEnv>;
+
+export interface SentryConfig {
+  dsn: string;
+  environment: string;
+  release: string | undefined;
+  tracesSampleRate: number;
+}
+
+export function sentryConfig(
+  env: SentryFields & { APP_ENV: string },
+  dsn = env.SENTRY_DSN,
+): SentryConfig | undefined {
+  if (!dsn) return undefined;
+  return {
+    dsn,
+    environment: env.SENTRY_ENVIRONMENT ?? env.APP_ENV,
+    release: env.SENTRY_RELEASE ?? env.VERCEL_GIT_COMMIT_SHA,
+    tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE,
+  };
+}
+
+// Browser-visible settings; the key is a publishable ingest key, not a secret.
+const observabilityEnv = z.object({
+  ...sentryEnv.shape,
+  NEXT_PUBLIC_SENTRY_DSN: z.url().optional(),
+  NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_POSTHOG_HOST: z.url().default('https://eu.i.posthog.com'),
+});
+
+type ObservabilityFields = z.infer<typeof observabilityEnv>;
+
+function checkObservability(env: ObservabilityFields & { APP_ENV: string }, ctx: Issues): void {
+  if (env.APP_ENV === 'dev') return;
+  for (const key of ['SENTRY_DSN', 'NEXT_PUBLIC_SENTRY_DSN', 'NEXT_PUBLIC_POSTHOG_KEY'] as const) {
+    if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: 'required outside dev' });
+  }
+  if (!env.NEXT_PUBLIC_POSTHOG_HOST.startsWith('https://')) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['NEXT_PUBLIC_POSTHOG_HOST'],
+      message: 'must be https outside dev',
+    });
+  }
+}
+
+// PostHog Cloud serves remote config (JSON, fetched) from a sibling assets host; proxies serve it.
+function posthogAssetsOrigin(host: string): string {
+  const cloud = host.match(/^https:\/\/(eu|us)\.i\.posthog\.com$/);
+  return cloud ? `https://${cloud[1]}-assets.i.posthog.com` : host;
+}
+
+function observabilityConfig(env: ObservabilityFields & { APP_ENV: string }) {
+  const posthog = env.NEXT_PUBLIC_POSTHOG_KEY
+    ? { key: env.NEXT_PUBLIC_POSTHOG_KEY, host: new URL(env.NEXT_PUBLIC_POSTHOG_HOST).origin }
+    : undefined;
+  const browserSentry = sentryConfig(env, env.NEXT_PUBLIC_SENTRY_DSN);
+  return {
+    sentry: sentryConfig(env),
+    browserSentry,
+    posthog,
+    // CSP connect-src: only origins that are actually configured.
+    connectOrigins: [
+      ...new Set([
+        ...(browserSentry ? [new URL(browserSentry.dsn).origin] : []),
+        ...(posthog ? [posthog.host, posthogAssetsOrigin(posthog.host)] : []),
+      ]),
+    ],
+  };
+}
+
+export type ObservabilityConfig = ReturnType<typeof observabilityConfig>;
+
 export const appServerEnv = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']),
@@ -121,9 +203,11 @@ export const appServerEnv = z
     // SQS jobs-interactive queue; without it jobs run in-process after the response (dev only).
     JOBS_INTERACTIVE_QUEUE_URL: z.url().optional(),
     ...mediaEnv.shape,
+    ...observabilityEnv.shape,
   })
   .superRefine((env, ctx) => {
     checkMedia(env, ctx);
+    checkObservability(env, ctx);
     const deployed = env.APP_ENV !== 'dev';
     if (deployed && !env.JOBS_INTERACTIVE_QUEUE_URL && env.JOBS_TRANSPORT_INLINE === undefined) {
       ctx.addIssue({
@@ -205,6 +289,7 @@ export const appServerEnv = z
         .filter(Boolean) ?? []),
     ],
     media: mediaConfig(env),
+    observability: observabilityConfig(env),
   }));
 
 export type AppServerEnv = z.infer<typeof appServerEnv>;
@@ -216,6 +301,7 @@ export const workerEnv = z
     DATABASE_URL: z.url().optional(),
     DATABASE_URL_SECRET_ARN: z.string().startsWith('arn:').optional(),
     JOBS_INTERACTIVE_QUEUE_URL: z.url().optional(),
+    ...sentryEnv.shape,
   })
   .superRefine((env, ctx) => {
     if (!env.DATABASE_URL === !env.DATABASE_URL_SECRET_ARN) {
@@ -232,7 +318,13 @@ export const workerEnv = z
         message: 'use DATABASE_URL_SECRET_ARN in production',
       });
     }
-  });
+  })
+  .transform((env) => ({ ...env, sentry: sentryConfig(env) }));
+
+// Read at handler import time, before the DB-backed context exists.
+export const workerSentryEnv = z
+  .object({ APP_ENV: z.enum(['dev', 'staging', 'production']), ...sentryEnv.shape })
+  .transform((env) => sentryConfig(env));
 
 export type WorkerEnv = z.infer<typeof workerEnv>;
 
