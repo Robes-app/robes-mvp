@@ -24,8 +24,11 @@ export function createJwtVerifier(opts: {
           issuer: opts.issuer,
           audience: opts.audience ?? 'authenticated',
           algorithms: ['ES256', 'RS256'],
+          requiredClaims: ['exp', 'sub'],
         });
         if (typeof payload.sub !== 'string' || !UUID.test(payload.sub)) return null;
+        // Anonymous sign-ins are real sessions; they must never pass a 'user' route.
+        if (payload.is_anonymous === true) return null;
         return {
           id: payload.sub,
           role: typeof payload.role === 'string' ? payload.role : 'authenticated',

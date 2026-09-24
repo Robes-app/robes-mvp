@@ -11,17 +11,18 @@ export async function makeKeys() {
     opts: {
       issuer?: string;
       audience?: string;
-      exp?: string | number;
+      exp?: string | number | null;
       extra?: Record<string, unknown>;
     } = {},
-  ) =>
-    new SignJWT({ role: 'authenticated', ...opts.extra })
+  ) => {
+    const jwt = new SignJWT({ role: 'authenticated', ...opts.extra })
       .setProtectedHeader({ alg: 'ES256', kid: 'test' })
       .setSubject(sub)
       .setIssuer(opts.issuer ?? ISSUER)
       .setAudience(opts.audience ?? 'authenticated')
-      .setIssuedAt()
-      .setExpirationTime(opts.exp ?? '5m')
-      .sign(privateKey);
+      .setIssuedAt();
+    if (opts.exp !== null) jwt.setExpirationTime(opts.exp ?? '5m');
+    return jwt.sign(privateKey);
+  };
   return { getKey, sign };
 }

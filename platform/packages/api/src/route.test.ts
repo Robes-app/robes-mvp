@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { ISSUER, makeKeys } from '../test/keys';
 import { createJwtVerifier } from './auth';
 import { createMemoryRateLimiter } from './rate-limit';
-import { createRouteFactory } from './route';
+import { AUTH_FAILURE_LIMIT, createRouteFactory } from './route';
 
 const USER = '11111111-1111-4111-8111-111111111111';
 
@@ -17,7 +17,6 @@ async function setup(opts: { admins?: string[] } = {}) {
     rateLimiter: createMemoryRateLimiter(),
     clientIp: () => '203.0.113.9',
     logger,
-    validateOutput: true,
   });
   return { route, sign, logger };
 }
@@ -162,5 +161,87 @@ describe('route()', async () => {
     const res = await POST(post({}, token));
     expect(res.status).toBe(429);
     expect(res.headers.get('retry-after')).toBe('60');
+  });
+
+  it('always strips undeclared output fields (no leaks in production)', async () => {
+    const { route } = await setup();
+    const GET = route({
+      auth: 'public',
+      input: z.object({}),
+      output: z.object({ name: z.string() }),
+      handler: async () => ({ name: 'a', password_hash: 'x' }) as { name: string },
+    });
+    expect(await (await GET(new Request('http://x'))).json()).toEqual({ name: 'a' });
+  });
+
+  it('413s a chunked body without content-length before buffering it all', async () => {
+    const { route, sign } = await setup();
+    const POST = route({
+      auth: 'user',
+      input: z.object({}).passthrough(),
+      output: z.object({}),
+      handler: async () => ({}),
+    });
+    const chunk = new TextEncoder().encode('x'.repeat(8 * 1024));
+    let pulled = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        if (pulled > 100) controller.close();
+        else controller.enqueue(chunk);
+      },
+    });
+    const req = new Request('http://x', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${await sign(USER)}` },
+      body,
+      duplex: 'half',
+    } as RequestInit);
+    expect((await POST(req)).status).toBe(413);
+    expect(pulled).toBeLessThan(10);
+  });
+
+  it('throttles repeated failed authentication per IP', async () => {
+    const { route } = await setup();
+    const GET = route({
+      auth: 'user',
+      input: z.object({}),
+      output: z.object({}),
+      handler: async () => ({}),
+    });
+    const statuses: number[] = [];
+    for (let i = 0; i < AUTH_FAILURE_LIMIT.limit + 1; i++) {
+      const res = await GET(new Request('http://x', { headers: { authorization: 'Bearer nope' } }));
+      statuses.push(res.status);
+    }
+    expect(statuses.at(0)).toBe(401);
+    expect(statuses.at(-1)).toBe(429);
+  });
+
+  it('reads repeated query keys as arrays for GET routes', async () => {
+    const { route } = await setup();
+    const GET = route({
+      auth: 'public',
+      input: z.object({ tag: z.array(z.string()), limit: z.coerce.number().int() }),
+      output: z.object({ tag: z.array(z.string()), limit: z.number() }),
+      handler: async ({ input }) => input,
+    });
+    const res = await GET(new Request('http://x?tag=a&tag=b&limit=5'));
+    expect(await res.json()).toEqual({ tag: ['a', 'b'], limit: 5 });
+  });
+
+  it('validates route params and 400s bad ones', async () => {
+    const { route } = await setup();
+    const GET = route({
+      auth: 'public',
+      input: z.object({}),
+      params: z.object({ id: z.uuid() }),
+      output: z.object({ id: z.string() }),
+      handler: async ({ params }) => ({ id: params.id }),
+    });
+    const ok = await GET(new Request('http://x'), { params: Promise.resolve({ id: USER }) });
+    expect(await ok.json()).toEqual({ id: USER });
+    const bad = await GET(new Request('http://x'), { params: Promise.resolve({ id: 'nope' }) });
+    expect(bad.status).toBe(400);
   });
 });

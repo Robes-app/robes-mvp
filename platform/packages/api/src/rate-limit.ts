@@ -11,6 +11,7 @@ export interface RateLimiter {
 }
 
 // Dev/test only: per-process state is exactly what SEC-33 forbids in deployed environments.
+// Fixed window, so it is more lenient on bursts than Upstash's sliding window.
 export function createMemoryRateLimiter(now: () => number = Date.now): RateLimiter {
   const windows = new Map<string, { start: number; count: number }>();
   return {

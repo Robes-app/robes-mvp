@@ -34,4 +34,10 @@ describe('createJwtVerifier', async () => {
   it('rejects a non-uuid subject', async () => {
     expect(await verifier.verify(await sign('admin'))).toBeNull();
   });
+  it('rejects tokens without an expiry', async () => {
+    expect(await verifier.verify(await sign(USER, { exp: null }))).toBeNull();
+  });
+  it('rejects anonymous sessions', async () => {
+    expect(await verifier.verify(await sign(USER, { extra: { is_anonymous: true } }))).toBeNull();
+  });
 });

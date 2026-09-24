@@ -23,5 +23,4 @@ export const route = createRouteFactory({
   rateLimiter,
   clientIp: (req) => req.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown',
   logger: { error: (obj, msg) => console.error(JSON.stringify({ level: 'error', msg, ...obj })) },
-  validateOutput: env.APP_ENV !== 'production',
 });
