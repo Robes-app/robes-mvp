@@ -54,6 +54,10 @@ export const onboarding = {
   continue: 'Continue',
   saving: 'Saving…',
   failed: 'Robes couldn’t save that. Try again in a moment.',
+  pieceEyebrow: 'One more thing',
+  pieceTitle: 'Add your first piece.',
+  pieceBody: 'Describe a piece you love and Robes will dress it three ways.',
+  skip: 'Skip for now',
 } as const;
 
 export const today = {
@@ -139,6 +143,23 @@ export const wardrobe = {
   deleted: 'Piece removed.',
   undo: 'Undo',
   segments: { pieces: 'Pieces', wishlist: 'Wishlist', inbox: 'Inbox' },
+  remove: 'Remove',
+  edit: 'Edit',
+  save: 'Save',
+  saving: 'Saving…',
+  styleThis: 'Style this piece',
+  addFailed: 'Robes couldn’t add those photos. Try again in a moment.',
+  photosDenied: 'Allow Robes to see your photos in Settings to add pieces.',
+  cameraDenied: 'Allow Robes to use the camera in Settings to photograph pieces.',
+  fields: {
+    label: 'Name',
+    category: 'Category',
+    colour: 'Colour',
+    brand: 'Brand',
+    size: 'Size',
+    notes: 'Notes',
+  },
+  pieceAlt: (label: string): string => `Photo of ${label}`,
 } as const;
 
 // SEC-84: two equal choices, asked once analytics is unanswered; changeable in You › Privacy.
@@ -175,6 +196,8 @@ export const ui = {
     dressing: 'Dressing each look…',
     finishing: 'Finishing touches…',
   },
+  back: 'Back',
+  retry: 'Try again',
 } as const;
 
 // App shell (IA §3.2): nav, Create sheet, command bar, placeholder routes.

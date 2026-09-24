@@ -19,9 +19,9 @@ export default function Onboarding() {
     setError(null);
     try {
       await api.call('me.update', { input: { firstName: firstName.trim() } });
-      await api.call('me.onboarding.complete');
       await queryClient.invalidateQueries({ queryKey: queryKeys.route('me.get') });
-      router.replace('/');
+      // Screen 2 of 2 (UX-22); onboarding completes there.
+      router.push('/onboarding/piece');
     } catch {
       setError(copy.failed);
     } finally {

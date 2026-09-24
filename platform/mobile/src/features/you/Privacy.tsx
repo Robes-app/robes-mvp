@@ -1,0 +1,47 @@
+import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
+import type { Consents } from '@robes/contracts';
+import { consent as copy } from '@robes/copy';
+import { Text } from '@robes/ui-native';
+import { useQueryClient } from '@tanstack/react-query';
+import { Platform, ScrollView } from 'react-native';
+import { LoadingScreen } from '@/components/LoadingScreen';
+import { ToggleRow } from '@/components/ToggleRow';
+import { errorMessage } from '@/lib/errors';
+
+const SOURCE = Platform.OS === 'android' ? 'android' : 'ios';
+
+export function Privacy() {
+  const queryClient = useQueryClient();
+  const key = queryKeys.call('me.consents.get');
+  const { data: consents } = useApi('me.consents.get');
+  const update = useApiMutation('me.consents.update', {
+    onError: () => void queryClient.invalidateQueries({ queryKey: key }),
+    onSuccess: (next) => queryClient.setQueryData(key, next),
+  });
+  if (!consents) return <LoadingScreen />;
+
+  function set(answers: Partial<Record<keyof Consents, boolean>>) {
+    queryClient.setQueryData<Consents>(key, (old) => (old ? { ...old, ...answers } : old));
+    update.mutate({ input: { source: SOURCE, consents: answers } });
+  }
+
+  return (
+    <ScrollView contentContainerClassName="px-6 pb-12">
+      <ToggleRow
+        label={copy.analyticsLabel}
+        hint={copy.analyticsHint}
+        value={consents.analytics === true}
+        // Recordings need usage counts, so turning counts off withdraws both.
+        onChange={(v) => set(v ? { analytics: true } : { analytics: false, replay: false })}
+      />
+      <ToggleRow
+        label={copy.replayLabel}
+        hint={copy.replayHint}
+        value={consents.replay === true}
+        disabled={consents.analytics !== true}
+        onChange={(v) => set({ replay: v })}
+      />
+      {update.isError ? <Text tone="danger">{errorMessage(update.error)}</Text> : null}
+    </ScrollView>
+  );
+}
