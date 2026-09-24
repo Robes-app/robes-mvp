@@ -20,11 +20,15 @@ function decodeCursor(cursor: string | undefined): { at: string; id: string } | 
 // so order and compare at millisecond precision or same-millisecond rows skip or repeat.
 export const createdMs = sql<Date>`date_trunc('milliseconds', created_at)`;
 
-export function afterCursor(cursor: string | undefined): RawBuilder<boolean> | null {
+// `table` qualifies the columns when the query joins another table with the same names.
+export function afterCursor(
+  cursor: string | undefined,
+  table?: string,
+): RawBuilder<boolean> | null {
   const c = decodeCursor(cursor);
-  return c
-    ? sql<boolean>`(date_trunc('milliseconds', created_at), id) < (${c.at}::timestamptz, ${c.id}::uuid)`
-    : null;
+  if (!c) return null;
+  const col = (name: string) => (table ? sql.ref(`${table}.${name}`) : sql.ref(name));
+  return sql<boolean>`(date_trunc('milliseconds', ${col('created_at')}), ${col('id')}) < (${c.at}::timestamptz, ${c.id}::uuid)`;
 }
 
 // Rows fetched with limit + 1 → one page and the cursor for the next.
