@@ -15,7 +15,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/plan', label: nav.plan, icon: 'plan' },
 ];
 
-export const SOON_SLUGS = ['link', 'receipt', 'ask', 'trip'] as const;
+export const SOON_SLUGS = ['link', 'receipt', 'ask'] as const;
 export type SoonSlug = (typeof SOON_SLUGS)[number];
 
 export interface CreateItem extends NavItem {
@@ -50,14 +50,19 @@ export const CREATE_ITEMS: readonly CreateItem[] = [
   { id: 'receipt', href: '/soon/receipt', label: shell.create.receipt, icon: 'mail' },
   { id: 'new-look', href: '/looks/new', label: shell.create.newLook, icon: 'plus' },
   { id: 'ask', href: '/soon/ask', label: shell.create.askRobes, icon: 'ask' },
-  { id: 'trip', href: '/soon/trip', label: shell.create.planTrip, icon: 'trip' },
+  {
+    id: 'trip',
+    href: '/trip/new',
+    label: shell.create.planTrip,
+    icon: 'trip',
+    keywords: 'travel pack',
+  },
 ];
 
 export const SOON_TITLES: Record<SoonSlug, string> = {
   link: shell.create.link,
   receipt: shell.create.receipt,
   ask: shell.create.askRobes,
-  trip: shell.create.planTrip,
 };
 
 // Command bar "Go to": the roots plus the pages under them.

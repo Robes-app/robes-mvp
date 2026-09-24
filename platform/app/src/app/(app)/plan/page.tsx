@@ -1,12 +1,12 @@
 import { plan } from '@robes/copy';
 import { PageHeader } from '@/components/page-header';
-import { PlanList } from './plan-list';
+import { PlanView } from './plan-view';
 
 export default function PlanPage() {
   return (
     <>
       <PageHeader title={plan.title} />
-      <PlanList />
+      <PlanView />
     </>
   );
 }

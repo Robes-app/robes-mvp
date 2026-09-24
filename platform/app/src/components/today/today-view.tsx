@@ -16,6 +16,9 @@ const isRunning = (t: Today | undefined) =>
 
 function trayHref(job: Today['tray'][number]): string {
   if (job.kind === 'stylenotes_analyse') return '/you/style';
+  if (job.kind === 'travel') {
+    return job.output.tripId ? `/trip/${job.output.tripId}` : `/trip/job/${job.id}`;
+  }
   // Daily looks and their on-demand item renders (look_render) open the daily look.
   if (job.kind === 'daily' || job.output.dailyLookId) {
     return job.output.dailyLookId
@@ -122,9 +125,11 @@ export function TodayView({ initial }: { initial: Today }) {
               const title =
                 job.kind === 'stylenotes_analyse'
                   ? copy.tray.styleColour
-                  : job.kind === 'daily' || job.output.dailyLookId
-                    ? copy.daily.trayTitle
-                    : copy.tray.stylePiece;
+                  : job.kind === 'travel'
+                    ? copy.tray.trip
+                    : job.kind === 'daily' || job.output.dailyLookId
+                      ? copy.daily.trayTitle
+                      : copy.tray.stylePiece;
               return (
                 <li key={job.id}>
                   <Link

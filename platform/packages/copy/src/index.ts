@@ -96,6 +96,7 @@ export const today = {
     failed: 'Didn’t finish',
     stylePiece: 'Style a piece',
     styleColour: 'Reading your colours',
+    trip: 'Packing a trip',
   },
   ideas: 'Recent ideas',
   seeAll: 'See all',
@@ -604,6 +605,12 @@ export const plan = {
     action: 'Go to Looks',
   },
   monthSoon: 'Month view is on its way.',
+  // Month view (M5 task 4) and trip days.
+  view: { label: 'Plan view', list: 'List', month: 'Month' },
+  prevMonth: 'Previous month',
+  nextMonth: 'Next month',
+  moreLooks: (n: number): string => `+${n} more`,
+  tripBadge: 'Trip',
 } as const;
 
 // Public share page and the share action.
@@ -769,6 +776,45 @@ export const admin = {
   empty: '—',
 } as const;
 
+// Trips (M5 task 6): plan a trip, its capsule and its looks.
+export const trips = {
+  create: {
+    eyebrow: 'Plan a trip',
+    title: 'Where to?',
+    destinationLabel: 'Destination',
+    destinationPlaceholder: 'Lisbon',
+    fromLabel: 'From',
+    toLabel: 'To',
+    occasionsLabel: 'Your plans (one per line, optional)',
+    occasionsPlaceholder: 'Beach day\nDinner out',
+    briefLabel: 'Anything else? (optional)',
+    briefPlaceholder: 'Walking a lot, one smart dinner',
+    keyPiecesLabel: 'Pieces to pack (optional)',
+    submit: 'Plan it',
+    submitting: 'Planning…',
+    tooLong: 'Trips run up to ten days.',
+    endsBefore: 'The trip ends before it starts.',
+  },
+  progress: {
+    title: 'Packing your trip…',
+    failed: 'Robes couldn’t pack that trip. Try again in a moment.',
+  },
+  page: {
+    eyebrow: 'Trip',
+    forecast: 'Forecast',
+    seasonal: 'Usual for these dates',
+    capsule: 'The capsule',
+    looks: 'The looks',
+    suitcase: 'In the case',
+    yours: 'Yours',
+    pin: 'Add the looks to your plan',
+    pinning: 'Adding…',
+    pinned: 'On your plan.',
+    remove: 'Remove trip',
+    removed: 'Trip removed.',
+  },
+} as const;
+
 export const copy = {
   wardrobe,
   errors,
@@ -786,6 +832,7 @@ export const copy = {
   looks,
   you,
   plan,
+  trips,
   share,
   notify,
   admin,

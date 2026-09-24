@@ -104,6 +104,11 @@ function EntryRow({ entry, onUnpin }: { entry: PlanEntry; onUnpin: () => void })
         >
           {entry.look.name}
         </Link>
+        {entry.look.source === 'travel' ? (
+          <Text size="small" tone="muted">
+            {plan.tripBadge}
+          </Text>
+        ) : null}
         {entry.slot === 'evening' ? (
           <Text size="small" tone="muted">
             {plan.evening}
