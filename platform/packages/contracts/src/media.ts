@@ -45,6 +45,7 @@ export type CreateUploadOutput = z.infer<typeof CreateUploadOutput>;
 export const AssetParams = z.object({ id: z.uuid() });
 
 export const AssetRendition = z.object({ width: z.number().int(), avif: z.url(), webp: z.url() });
+export type AssetRendition = z.infer<typeof AssetRendition>;
 
 export const Asset = z.object({
   id: z.uuid(),

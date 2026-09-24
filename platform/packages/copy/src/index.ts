@@ -123,7 +123,26 @@ export const devUpload = {
   imageAlt: 'Your uploaded photo',
 } as const;
 
+export const wardrobe = {
+  title: 'Wardrobe',
+  newPiece: 'New piece',
+  reading: 'Robes is reading this piece…',
+  noPieceFound: 'Robes couldn’t see a piece in this photo.',
+  addPieces: 'Add pieces',
+  choosePhotos: 'Choose photos',
+  dropHint: 'Drop photos here, or choose them.',
+  uploading: (done: number, total: number): string => `Uploading ${done} of ${total}…`,
+  empty: {
+    title: 'Your wardrobe starts here.',
+    body: 'Add a few pieces and Robes will start styling them.',
+  },
+  deleted: 'Piece removed.',
+  undo: 'Undo',
+  segments: { pieces: 'Pieces', wishlist: 'Wishlist', inbox: 'Inbox' },
+} as const;
+
 export const copy = {
+  wardrobe,
   errors,
   auth,
   emails,

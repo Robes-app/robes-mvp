@@ -55,10 +55,10 @@ function setup(opts: { assetStatus?: string[]; output?: object; aiError?: AiErro
 }
 
 describe('wardrobe_analyse handler', () => {
-  it('reads the 1080 rendition, files the piece and records the call', async () => {
+  it('reads the master image, files the piece and records the call', async () => {
     const { run, pieces, ledger, storage, writeStage } = setup();
     await expect(run()).resolves.toEqual({ status: 'succeeded' });
-    expect(storage.getObject).toHaveBeenCalledWith(`media/${USER}/${ASSET}/1080.webp`);
+    expect(storage.getObject).toHaveBeenCalledWith(`media/${USER}/${ASSET}/master.jpg`);
     expect(pieces.apply).toHaveBeenCalledWith(
       USER,
       PIECE,

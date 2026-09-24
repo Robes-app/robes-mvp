@@ -194,6 +194,16 @@ export function wardrobeRepo(db: Db) {
       });
     },
 
+    // Batch idempotency: pieces already made from these photos.
+    byImageAssets(userId: UserId, assetIds: readonly string[]) {
+      if (assetIds.length === 0) return Promise.resolve([]);
+      return active()
+        .select(PIECE_COLUMNS)
+        .where('userId', '=', userId)
+        .where('imageAssetId', 'in', [...assetIds])
+        .execute();
+    },
+
     async count(userId: UserId): Promise<number> {
       const row = await active()
         .select((eb) => eb.fn.countAll<string>().as('n'))

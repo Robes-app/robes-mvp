@@ -53,9 +53,9 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
         throw new JobError(piece.assetStatus === 'failed' ? 'unreadable_photo' : 'asset_not_ready');
       }
 
-      const image = await deps.storage.getObject(
-        mediaKeys.rendition(ctx.userId, piece.imageAssetId, 1080, 'webp'),
-      );
+      // The master always exists (renditions never upscale small photos); media resolution fixes
+      // the token cost regardless of pixel size.
+      const image = await deps.storage.getObject(mediaKeys.master(ctx.userId, piece.imageAssetId));
       if (!image) throw new JobError('asset_missing');
 
       let result: { data: Output; usage: Usage };
@@ -65,7 +65,7 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
           capability: 'vision.analyse',
           system: SYSTEM,
           user: buildUser(),
-          images: [{ mimeType: 'image/webp', data: image }],
+          images: [{ mimeType: 'image/jpeg', data: image }],
           schema: Output,
           maxOutputTokens: 760,
           temperature: 0,

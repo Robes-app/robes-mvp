@@ -2,9 +2,10 @@ import 'server-only';
 import { ApiError } from '@robes/api';
 import type { Asset, CreateUploadInput, CreateUploadOutput, MediaSession } from '@robes/contracts';
 import { QuotaExceeded, type Repositories, type UserId } from '@robes/db';
-import { mediaKeys, RenditionManifest, renditionKeys } from '@robes/media';
+import { mediaKeys } from '@robes/media';
 import type { MediaDelivery, SessionCookie } from '@robes/media/delivery';
 import type { MediaStorage } from '@robes/media/storage';
+import { signedRenditions } from './asset-urls';
 
 export interface UploadDeps {
   assets: Pick<Repositories['assets'], 'createPending' | 'getForUser'>;
@@ -45,26 +46,16 @@ async function loadOwned(deps: UploadDeps, userId: UserId, assetId: string): Pro
 }
 
 async function toAsset(deps: UploadDeps, userId: UserId, row: AssetRow): Promise<Asset> {
-  const status = row.status as Asset['status'];
-  const manifest = status === 'ready' ? RenditionManifest.safeParse(row.renditions) : undefined;
-  const keys = manifest?.success ? renditionKeys(userId, row.id, manifest.data) : undefined;
+  const { master, renditions } = await signedRenditions(deps.delivery, userId, row);
   return {
     id: row.id,
     kind: row.kind,
-    status,
+    status: row.status as Asset['status'],
     width: row.width,
     height: row.height,
     blurhash: row.blurhash,
-    master: keys ? await deps.delivery.url(keys.master) : null,
-    renditions: keys
-      ? await Promise.all(
-          keys.renditions.map(async (r) => ({
-            width: r.width,
-            avif: await deps.delivery.url(r.avif),
-            webp: await deps.delivery.url(r.webp),
-          })),
-        )
-      : [],
+    master,
+    renditions,
   };
 }
 

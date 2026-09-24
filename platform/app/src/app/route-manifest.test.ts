@@ -20,6 +20,8 @@ function urlPath(file: string): string {
   return `/${segments.join('/')}`;
 }
 
+let probe = 0;
+
 describe('route manifest (SEC-01)', () => {
   it('finds routes', () => expect(files.length).toBeGreaterThan(0));
 
@@ -44,7 +46,12 @@ describe('route manifest (SEC-01)', () => {
         continue;
       }
       for (const authorization of [undefined, 'Bearer forged.token.value']) {
-        const headers = authorization ? { authorization } : undefined;
+        // Failed auth is throttled per IP (AUTH_FAILURE_LIMIT), so each probe is its own client.
+        probe += 1;
+        const headers: Record<string, string> = {
+          'x-forwarded-for': `10.0.${Math.floor(probe / 250)}.${probe % 250}`,
+          ...(authorization ? { authorization } : {}),
+        };
         const res = await handler(new Request(`http://x${path}`, { method, headers }));
         expect(res.status, `${method} ${path} with ${authorization ?? 'no token'}`).toBe(401);
       }

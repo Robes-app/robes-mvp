@@ -35,7 +35,7 @@ export function pieceAnalysisRepo(db: Db) {
     async apply(userId: UserId, pieceId: string, a: PieceAnalysis): Promise<void> {
       const current = await db
         .selectFrom('wardrobeItems')
-        .select(['label', 'brand', 'price', 'currency', 'size', 'notes'])
+        .select(['status', 'label', 'brand', 'price', 'currency', 'size', 'notes'])
         .where('userId', '=', userId)
         .where('id', '=', pieceId)
         .executeTakeFirst();
@@ -43,7 +43,11 @@ export function pieceAnalysisRepo(db: Db) {
       await db
         .updateTable('wardrobeItems')
         .set({
-          label: current.label.trim() ? current.label : a.label,
+          // A reading piece carries a placeholder label; one she typed is kept.
+          label:
+            current.status === 'reading' || !current.label.trim()
+              ? a.label || current.label
+              : current.label,
           category: a.category,
           categoryL2: a.categoryL2,
           categoryL3: a.categoryL3,

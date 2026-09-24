@@ -59,6 +59,17 @@ export function assetsRepo(db: Db) {
       });
     },
 
+    async getManyForUser(userId: UserId, assetIds: readonly string[]) {
+      if (assetIds.length === 0) return [];
+      return db
+        .selectFrom('assets')
+        .select(ASSET_COLUMNS)
+        .where('id', 'in', [...assetIds])
+        .where('userId', '=', userId)
+        .where('deletedAt', 'is', null)
+        .execute();
+    },
+
     getForUser(userId: UserId, assetId: string) {
       return db
         .selectFrom('assets')

@@ -23,23 +23,16 @@ const transport: JobTransport = env.JOBS_INTERACTIVE_QUEUE_URL
       logger: logger,
     });
 
-export async function startJob(
+// Creates the job row (quota checked in the same transaction) and hands it to the transport.
+export async function createAndEnqueueJob(
   userId: UserId,
-  req: Request,
-  job: Omit<CreateJobInput, 'idempotencyKey' | 'traceId'>,
+  job: CreateJobInput,
+  traceparent?: string,
 ): Promise<StartJobOutput> {
-  const idempotencyKey = req.headers.get('idempotency-key') ?? undefined;
-  if (idempotencyKey !== undefined && !isUuid(idempotencyKey)) {
-    throw new ApiError('invalid_input', {
-      details: [{ path: 'Idempotency-Key', message: 'must be a UUID' }],
-    });
-  }
-  const traceparent = req.headers.get('traceparent') ?? undefined;
   let created: Awaited<ReturnType<typeof repos.jobs.create>>;
   try {
     created = await repos.jobs.create(userId, {
       ...job,
-      idempotencyKey,
       ...(traceparent ? { traceId: traceparent } : {}),
     });
   } catch (err) {
@@ -52,6 +45,25 @@ export async function startJob(
   // A replay re-sends a still-queued job; the worker's claim makes duplicates harmless.
   if (status === 'queued') await enqueueJob(transport, { jobId: id, traceparent }, logger);
   return { jobId: id, status: JobStatus.parse(status) };
+}
+
+// One job per request, idempotent on the client's Idempotency-Key header.
+export async function startJob(
+  userId: UserId,
+  req: Request,
+  job: Omit<CreateJobInput, 'idempotencyKey' | 'traceId'>,
+): Promise<StartJobOutput> {
+  const idempotencyKey = req.headers.get('idempotency-key') ?? undefined;
+  if (idempotencyKey !== undefined && !isUuid(idempotencyKey)) {
+    throw new ApiError('invalid_input', {
+      details: [{ path: 'Idempotency-Key', message: 'must be a UUID' }],
+    });
+  }
+  return createAndEnqueueJob(
+    userId,
+    { ...job, idempotencyKey },
+    req.headers.get('traceparent') ?? undefined,
+  );
 }
 
 type JobRow = NonNullable<Awaited<ReturnType<typeof repos.jobs.getForUser>>>;
