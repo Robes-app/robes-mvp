@@ -70,6 +70,7 @@ import {
   Today,
   TodayGenerateInput,
 } from './today';
+import { PinnedTrip, PlanTripInput, Trip, TripList, TripParams } from './travel';
 import {
   BatchPiecesInput,
   BatchPiecesOutput,
@@ -492,6 +493,54 @@ export const routes = {
     params: DailyLookParams,
     input: SaveDailyLookInput,
     output: Look,
+  },
+  'travel.plan': {
+    method: 'POST',
+    path: '/travel/plan',
+    auth: 'user',
+    input: PlanTripInput,
+    output: StartJobOutput,
+    idempotent: true,
+  },
+  'trips.list': {
+    method: 'GET',
+    path: '/trips',
+    auth: 'user',
+    input: EmptyInput,
+    output: TripList,
+  },
+  'trips.get': {
+    method: 'GET',
+    path: '/trips/:id',
+    auth: 'user',
+    params: TripParams,
+    input: EmptyInput,
+    output: Trip,
+  },
+  // Naturally idempotent: a pinned trip returns the looks it already pinned.
+  'trips.pin': {
+    method: 'POST',
+    path: '/trips/:id/pin',
+    auth: 'user',
+    params: TripParams,
+    input: EmptyInput,
+    output: PinnedTrip,
+  },
+  'trips.delete': {
+    method: 'DELETE',
+    path: '/trips/:id',
+    auth: 'user',
+    params: TripParams,
+    input: EmptyInput,
+    output: Deleted,
+  },
+  'trips.restore': {
+    method: 'POST',
+    path: '/trips/:id/restore',
+    auth: 'user',
+    params: TripParams,
+    input: EmptyInput,
+    output: Deleted,
   },
   'plan.get': { method: 'GET', path: '/plan', auth: 'user', input: GetPlanInput, output: Plan },
   // Naturally idempotent: a look already on a day and slot keeps its entry.

@@ -1,6 +1,13 @@
 import 'server-only';
 import { createSystemRepositories } from '@robes/db';
-import { createHandlers, createJobAi, createWeather, type RunOutcome, runJob } from '@robes/jobs';
+import {
+  createHandlers,
+  createJobAi,
+  createTripWeather,
+  createWeather,
+  type RunOutcome,
+  runJob,
+} from '@robes/jobs';
 import { db } from './db';
 import { env } from './env';
 import { logger } from './logger';
@@ -42,6 +49,7 @@ const handlers = createHandlers({
     weather: createWeather(),
     onGenerated: renderLocally,
   },
+  travel: { ai, styling: system.styling, ledger: system.ledger, tripWeather: createTripWeather() },
 });
 
 export function runInline(jobId: string): Promise<RunOutcome> {

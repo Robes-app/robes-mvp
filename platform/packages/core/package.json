@@ -11,7 +11,9 @@
     "./budget": "./src/budget/index.ts",
     "./consents": "./src/consents/index.ts",
     "./style-dna": "./src/style-dna/index.ts",
-    "./next-step": "./src/next-step/index.ts"
+    "./next-step": "./src/next-step/index.ts",
+    "./calendar": "./src/calendar/index.ts",
+    "./trips": "./src/trips/index.ts"
   },
   "scripts": {
     "test": "vitest run",

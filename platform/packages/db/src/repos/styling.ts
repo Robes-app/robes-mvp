@@ -129,6 +129,28 @@ export function stylingRepo(db: Db) {
       return row.id;
     },
 
+    // A trip is hers from the start: saved, never expiring (unlike ideas and daily drafts).
+    async createTrip(
+      userId: UserId,
+      trip: { jobId: string; title: string; subtitle: string; data: Record<string, unknown> },
+    ): Promise<string> {
+      const row = await db
+        .insertInto('artifacts')
+        .values({
+          userId,
+          type: 'travel_edit',
+          title: trip.title.slice(0, 160),
+          subtitle: trip.subtitle.slice(0, 240),
+          data: JSON.stringify(trip.data),
+          generationJobId: trip.jobId,
+          savedAt: sql`now()`,
+          expiresAt: null,
+        })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      return row.id;
+    },
+
     anchorPiece(userId: UserId, pieceId: string) {
       return db
         .selectFrom('wardrobeItems')

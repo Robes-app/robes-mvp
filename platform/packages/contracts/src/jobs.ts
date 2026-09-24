@@ -30,6 +30,8 @@ export const JobOutput = z.object({
   noItemDetected: z.boolean().optional(),
   // daily
   dailyLookId: z.uuid().optional(),
+  // travel
+  tripId: z.uuid().optional(),
   // stylenotes_analyse
   styleKind: z.enum(['colour', 'silhouette']).optional(),
   archetype: z.string().optional(),

@@ -30,7 +30,13 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
     repos.wardrobe.countReady(userId),
     repos.looks.count(userId),
     repos.looks.wornOn(userId, date),
-    repos.jobs.recent(userId, ['key_piece', 'daily', 'look_render', 'stylenotes_analyse']),
+    repos.jobs.recent(userId, [
+      'key_piece',
+      'daily',
+      'look_render',
+      'stylenotes_analyse',
+      'travel',
+    ]),
     repos.ideas.list(userId, 3),
   ]);
   const todayEntries = (plan.days[0]?.entries ?? []).map((entry) => ({

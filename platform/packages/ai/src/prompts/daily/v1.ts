@@ -79,7 +79,7 @@ const FIELD_RULES = `FIELD RULES:
 `;
 const FALLBACK_RULE = `- "fallback": true ONLY if the brief is gibberish or random characters — then dress her for a pleasant, unremarkable day in the given context instead. A plain occasion, agenda or mood is a valid daily brief.`;
 
-const GENDER_DIRECTIVE: Record<Gender, string> = {
+export const GENDER_DIRECTIVE: Record<Gender, string> = {
   man: 'The user identifies as a man. Every piece, look and recommendation must be menswear — male cuts, sizing and styling codes, menswear brands and male style references throughout. Never suggest womenswear. Where these instructions use "she"/"her" generically, they refer to this male client — read them as "he"/"him".',
   unspecified:
     'The user has not said how they identify. Use your best judgement from their words, their pieces and their wardrobe to decide whose clothing to recommend; when nothing points a direction, keep pieces and styling gender-neutral. Where these instructions use "she"/"her" generically, they simply refer to this client.',
@@ -121,12 +121,12 @@ export interface Weather {
   condition: string | null;
 }
 
-function heroMark(p: DailyClosetPiece): string {
+export function heroMark(p: Pick<DailyClosetPiece, 'hero' | 'seasonBand'>): string {
   if (!p.hero) return '';
   return `, ★ HERO (${SEASON_BAND_LABELS[p.seasonBand ?? ''] ?? 'Year-round'})`;
 }
 
-const HERO_DIRECTIVE = `HERO PIECES: the wardrobe items marked ★ HERO are her Hero Rack — the pieces she reaches for first, the spine of her wardrobe. Whenever a hero piece genuinely suits the occasion AND the season/climate in play, PRIORITISE it over any other comparable owned piece and let it lead the look. The bracket names the season band each hero belongs to — Spring/Summer, Autumn/Winter, or Year-round. Its priority only applies when the look's season or climate matches that band (Year-round always matches); never force an off-season hero into a look.`;
+export const HERO_DIRECTIVE = `HERO PIECES: the wardrobe items marked ★ HERO are her Hero Rack — the pieces she reaches for first, the spine of her wardrobe. Whenever a hero piece genuinely suits the occasion AND the season/climate in play, PRIORITISE it over any other comparable owned piece and let it lead the look. The bracket names the season band each hero belongs to — Spring/Summer, Autumn/Winter, or Year-round. Its priority only applies when the look's season or climate matches that band (Year-round always matches); never force an off-season hero into a look.`;
 
 function stateDirective(n: number): string {
   if (n === 0) {
