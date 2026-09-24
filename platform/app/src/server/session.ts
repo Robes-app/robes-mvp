@@ -3,9 +3,10 @@ import { sessionUser } from '@robes/auth';
 import type { Consents } from '@robes/contracts';
 import { type UserId, verifiedUserId } from '@robes/db';
 import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
 import { auth } from './auth';
+import { clientIpFrom } from './client-ip';
 import { getConsents } from './consents';
 import { repos } from './db';
 
@@ -46,3 +47,10 @@ export async function requireOnboardedProfile() {
 export function displayName(profile: { firstName: string | null; email: string }): string {
   return profile.firstName ?? profile.email;
 }
+
+// Admin pages: anyone who isn't an admin gets a plain 404, so the area isn't discoverable.
+export const requireAdmin = cache(async (): Promise<{ admin: UserId; ip: string }> => {
+  const id = await currentUserId();
+  if (!id || !(await repos.admin.isAdmin(id))) notFound();
+  return { admin: id, ip: clientIpFrom(await headers()) };
+});
