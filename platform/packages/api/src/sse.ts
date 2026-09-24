@@ -120,6 +120,10 @@ export function createSseRouteFactory(deps: RouteDeps) {
         },
       });
     };
-    return Object.assign(handler, { auth: opts.auth, builder: 'sseRoute' as const });
+    return Object.assign(handler, {
+      auth: opts.auth,
+      builder: 'sseRoute' as const,
+      schemas: { params: opts.params },
+    });
   };
 }
