@@ -1,6 +1,7 @@
+-- migrate:up
 create table app.generation_jobs (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   kind text not null check (kind in ('fake', 'key_piece', 'daily', 'travel', 'travel_looks', 'look_render',
     'avatar_cell', 'wardrobe_analyse', 'stylenotes_analyse', 'receipt_read', 'alternates', 'lookbuild_note',
     'link_import', 'cutout')),
@@ -34,7 +35,7 @@ create index generation_jobs_outbox_idx on app.generation_jobs (status, created_
 create table app.generation_assets (
   id uuid primary key default gen_random_uuid(),
   job_id uuid not null,
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   idx int not null check (idx between 0 and 50),
   role text not null check (role in ('hero', 'still', 'grid', 'render', 'cutout')),
   asset_id uuid,
@@ -52,7 +53,7 @@ select private.track_updates('app.generation_assets');
 create table app.generation_calls (
   id uuid not null default gen_random_uuid(),
   job_id uuid,
-  user_id uuid references auth.users (id) on delete set null,
+  user_id uuid references app.users (id) on delete set null,
   feature text not null,
   model text not null,
   tokens_in int,
@@ -90,7 +91,7 @@ create table app.platform_budget (
 
 create table app.entitlements (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   plan_id text not null references app.plans (id),
   status text not null check (status in ('active', 'trialing', 'past_due', 'canceled')),
   source text not null check (source in ('beta_invite', 'stripe', 'revenuecat', 'manual')),
@@ -105,18 +106,12 @@ create unique index entitlements_one_active on app.entitlements (user_id)
   where status in ('active', 'trialing', 'past_due');
 
 create table app.usage_counters (
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   metric text not null,
   period_start date not null,
   count int not null default 0 check (count >= 0),
   primary key (user_id, metric, period_start)
 );
 
--- Realtime: jobs broadcast on private channel `user:<uid>`; a user may only receive their own.
--- The only Supabase-side authorization rule (ADR-019, CLAUDE.md rule 10).
-create policy receive_own_user_channel on realtime.messages
-  for select to authenticated
-  using (
-    realtime.messages.extension = 'broadcast'
-    and (select realtime.topic()) = 'user:' || (select auth.uid())::text
-  );
+-- migrate:down
+-- Forward-only: fix mistakes with a new migration.

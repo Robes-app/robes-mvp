@@ -14,9 +14,10 @@ catalog:
   tsx: 4.23.15
 
 allowBuilds:
-  supabase: true
+  dbmate: true
   esbuild: true
   sharp: true
+  supabase: set this to true or false
 
 minimumReleaseAgeExclude:
   - '@upstash/ratelimit@2.2.0'

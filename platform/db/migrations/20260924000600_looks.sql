@@ -1,6 +1,7 @@
+-- migrate:up
 create table app.looks (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   name text not null check (char_length(name) between 1 and 120),
   name_provisional boolean not null default true,
   note text check (char_length(note) <= 2000),
@@ -29,7 +30,7 @@ create index looks_origin_idx on app.looks (origin_look_id) where origin_look_id
 
 create table app.look_pieces (
   look_id uuid not null,
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   wardrobe_item_id uuid not null,
   slot text check (char_length(slot) <= 40),
   position smallint not null default 0 check (position between 0 and 50),
@@ -42,7 +43,7 @@ create table app.look_pieces (
 create index look_pieces_item_idx on app.look_pieces (wardrobe_item_id);
 
 create table app.tag_looks (
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   tag_id uuid not null,
   look_id uuid not null,
   source text not null default 'user' check (source in ('inferred', 'user')),
@@ -55,7 +56,7 @@ create index tag_looks_look_idx on app.tag_looks (look_id);
 
 create table app.wears (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   look_id uuid not null,
   worn_on date not null,
   piece_ids uuid[] not null default '{}' check (cardinality(piece_ids) <= 50),
@@ -95,3 +96,6 @@ create view app.wardrobe_item_stats as
   left join app.wears we on we.user_id = w.user_id and w.id = any (we.piece_ids)
   where w.deleted_at is null
   group by w.id, w.user_id, w.price;
+
+-- migrate:down
+-- Forward-only: fix mistakes with a new migration.

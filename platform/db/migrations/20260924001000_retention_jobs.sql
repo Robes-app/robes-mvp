@@ -1,4 +1,5 @@
--- SEC-82 retention, run by pg_cron inside the database.
+-- migrate:up
+-- SEC-82 retention; maintenanceFn runs private.run_maintenance() on an EventBridge schedule.
 
 -- Hard-deletes tombstones older than 30 days in every app table with deleted_at.
 create function private.purge_soft_deleted()
@@ -60,7 +61,19 @@ revoke execute on function private.purge_generation_payloads() from public;
 revoke execute on function private.purge_inbox_bodies() from public;
 revoke execute on function private.expire_ideas() from public;
 
-select cron.schedule('robes-purge-soft-deleted', '15 3 * * *', 'select private.purge_soft_deleted()');
-select cron.schedule('robes-purge-generation-payloads', '30 3 * * *', 'select private.purge_generation_payloads()');
-select cron.schedule('robes-purge-inbox-bodies', '45 3 * * *', 'select private.purge_inbox_bodies()');
-select cron.schedule('robes-expire-ideas', '0 * * * *', 'select private.expire_ideas()');
+create function private.run_maintenance()
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  select private.purge_soft_deleted();
+  select private.purge_generation_payloads();
+  select private.purge_inbox_bodies();
+  select private.expire_ideas();
+$$;
+revoke execute on function private.run_maintenance() from public;
+grant execute on function private.run_maintenance() to robes_app;
+
+-- migrate:down
+-- Forward-only: fix mistakes with a new migration.

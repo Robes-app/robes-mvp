@@ -1,0 +1,25 @@
+{
+  "name": "@robes/db",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./test/fixtures.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test:db": "vitest run",
+    "gen:types": "kysely-codegen --dialect postgres --url postgres://postgres:postgres@127.0.0.1:55432/robes --include-pattern 'app.*' --default-schema app --camel-case --out-file src/database.types.ts"
+  },
+  "dependencies": {
+    "@robes/core": "workspace:*",
+    "kysely": "0.29.6",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "kysely-codegen": "0.20.0",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,7 +1,8 @@
+-- migrate:up
 create table app.assets (
   id uuid primary key default gen_random_uuid(),
   -- null user_id marks a shared catalog asset.
-  user_id uuid references auth.users (id) on delete cascade,
+  user_id uuid references app.users (id) on delete cascade,
   provider text not null default 's3' check (provider in ('s3', 'cloudinary_legacy')),
   bucket_key text check (char_length(bucket_key) <= 512),
   legacy_url text,
@@ -27,7 +28,7 @@ create index assets_user_updated_idx on app.assets (user_id, updated_at);
 create index assets_pending_idx on app.assets (status, created_at) where status = 'pending';
 
 create table app.account_deletion_requests (
-  user_id uuid primary key references auth.users (id) on delete cascade,
+  user_id uuid primary key references app.users (id) on delete cascade,
   requested_at timestamptz not null default now(),
   status text not null default 'requested' check (status in ('requested', 'running', 'completed', 'failed')),
   completed_at timestamptz,
@@ -38,7 +39,7 @@ select private.track_updates('app.account_deletion_requests');
 
 create table app.data_export_requests (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   requested_at timestamptz not null default now(),
   status text not null default 'requested' check (status in ('requested', 'running', 'ready', 'expired', 'failed')),
   asset_key text,
@@ -47,3 +48,6 @@ create table app.data_export_requests (
 );
 select private.track_updates('app.data_export_requests');
 create index data_export_requests_user_idx on app.data_export_requests (user_id, requested_at desc);
+
+-- migrate:down
+-- Forward-only: fix mistakes with a new migration.

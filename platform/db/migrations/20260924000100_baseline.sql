@@ -1,19 +1,19 @@
--- ADR-019: the API and workers are the only path to app data. App tables live in schema `app`,
--- which PostgREST does not expose, and client roles (anon, authenticated) get no privileges.
--- Ownership is enforced in code (packages/db repositories), not by RLS.
+-- migrate:up
+-- ADR-019/020: the API and workers are the only path to app data. App tables live in schema
+-- `app`; only the robes_app role can use it. Ownership is enforced in code (packages/db).
 
+create schema if not exists extensions;
 create extension if not exists citext with schema extensions;
 create extension if not exists pgcrypto with schema extensions;
-create extension if not exists pg_cron;
 
 create schema if not exists app;
-revoke all on schema app from public, anon, authenticated;
+revoke all on schema app from public;
 
 create schema if not exists private;
-revoke all on schema private from public, anon, authenticated;
+revoke all on schema private from public;
 
 -- The API/worker login role. Its password is set per environment out of band
--- (runbooks/environments.md); locally by supabase/seed.sql.
+-- (runbooks/environments.md); locally by db/docker-init.
 do $$
 begin
   if not exists (select 1 from pg_roles where rolname = 'robes_app') then
@@ -28,10 +28,7 @@ alter default privileges in schema app grant select, insert, update, delete on t
 alter default privileges in schema app grant usage, select on sequences to robes_app;
 alter role robes_app set search_path = app, extensions;
 
--- Belt and braces: nothing in public is reachable by client roles either.
-revoke all on all tables in schema public from anon, authenticated;
-alter default privileges in schema public revoke all on tables from anon, authenticated;
-alter default privileges in schema public revoke all on sequences from anon, authenticated;
+revoke create on schema public from public;
 -- EXECUTE-to-PUBLIC is a global default (can't be revoked per schema); every function grant is explicit.
 alter default privileges revoke execute on functions from public;
 
@@ -60,3 +57,6 @@ begin
 end;
 $$;
 revoke execute on function private.track_updates(regclass) from public;
+
+-- migrate:down
+-- Forward-only: fix mistakes with a new migration.

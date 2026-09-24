@@ -4,7 +4,7 @@ export const FEATURE_FLAGS = {
   uploads: { enabled: true, description: 'Direct photo uploads' },
   'wardrobe.analyse': { enabled: true, description: 'AI read of a wardrobe photo' },
   'looks.generate': { enabled: true, description: 'Style a piece' },
-  'today.generate': { enabled: true, description: "Style it for today" },
+  'today.generate': { enabled: true, description: 'Style it for today' },
   signups: { enabled: true, description: 'New account sign-ups' },
 } as const;
 

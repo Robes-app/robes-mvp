@@ -1,6 +1,7 @@
+-- migrate:up
 create table app.artifacts (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   legacy_id bigint,
   type text not null check (type in ('idea', 'key_piece', 'daily_look', 'travel_edit', 'moodboard',
     'weekly_plan_archived')),
@@ -30,7 +31,7 @@ alter table app.generation_jobs
 
 create table app.planned_days (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   day_date date not null,
   source_kind text not null check (source_kind in ('artifact', 'look')),
   artifact_id uuid,
@@ -61,7 +62,7 @@ create index planned_days_user_updated_idx on app.planned_days (user_id, updated
 -- Public snapshots addressed by a ≥128-bit token (SEC-13); served by the API, never PostgREST.
 create table app.shares (
   token text primary key check (char_length(token) >= 22 or legacy_token),
-  owner_id uuid not null references auth.users (id) on delete cascade,
+  owner_id uuid not null references app.users (id) on delete cascade,
   subject_type text not null check (subject_type in ('artifact', 'look')),
   subject_id uuid not null,
   snapshot jsonb not null check (jsonb_typeof(snapshot) = 'object'),
@@ -74,3 +75,6 @@ create table app.shares (
 create index shares_owner_idx on app.shares (owner_id, created_at desc);
 create unique index shares_active_subject on app.shares (owner_id, subject_type, subject_id)
   where revoked_at is null;
+
+-- migrate:down
+-- Forward-only: fix mistakes with a new migration.

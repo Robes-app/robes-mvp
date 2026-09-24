@@ -1,3 +1,4 @@
+-- migrate:up
 create function private.tag_slug(p_label text)
 returns text
 language sql
@@ -24,7 +25,7 @@ grant execute on function private.tag_slug(text) to robes_app;
 
 create table app.wardrobe_items (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   label text not null check (char_length(label) between 1 and 120),
   category text not null default 'Other'
     check (category in ('Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Swimwear', 'Other')),
@@ -64,7 +65,7 @@ create index wardrobe_items_user_created_idx on app.wardrobe_items (user_id, cre
 
 create table app.wishlist_items (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   label text not null check (char_length(label) between 1 and 120),
   category text not null default 'Other'
     check (category in ('Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Swimwear', 'Other')),
@@ -96,7 +97,7 @@ create index wishlist_items_user_updated_idx on app.wishlist_items (user_id, upd
 
 create table app.tags (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   kind text not null check (kind in ('wear_for', 'vibe')),
   label text not null check (char_length(label) between 1 and 40),
   slug text generated always as (private.tag_slug(label)) stored not null,
@@ -111,7 +112,7 @@ select private.track_updates('app.tags');
 create index tags_user_updated_idx on app.tags (user_id, updated_at);
 
 create table app.tag_pieces (
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   tag_id uuid not null,
   wardrobe_item_id uuid not null,
   source text not null default 'user' check (source in ('inferred', 'user')),
@@ -181,14 +182,14 @@ create trigger apply_tag_defaults after insert on app.wardrobe_items
 
 create table app.inbox_addresses (
   address text primary key check (address ~ '^[a-z0-9]{16,40}$'),
-  user_id uuid not null unique references auth.users (id) on delete cascade,
+  user_id uuid not null unique references app.users (id) on delete cascade,
   created_at timestamptz not null default now(),
   revoked_at timestamptz
 );
 
 create table app.wardrobe_inbox (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references app.users (id) on delete cascade,
   source text not null default 'receipt' check (source in ('receipt', 'photo', 'link', 'share')),
   retailer text,
   order_ref text,
@@ -205,3 +206,6 @@ create table app.wardrobe_inbox (
 );
 select private.track_updates('app.wardrobe_inbox');
 create index wardrobe_inbox_user_idx on app.wardrobe_inbox (user_id, status, received_at desc);
+
+-- migrate:down
+-- Forward-only: fix mistakes with a new migration.
