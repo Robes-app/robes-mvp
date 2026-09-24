@@ -120,8 +120,11 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `GEMINI_API_KEY` | only if the API makes sub-3 s model calls; otherwise workers only |
 | `MAIL_FROM`, `SES_CONFIGURATION_SET` | `Robes <hello@staging.mail.byrobes.com>` / `robes-staging-email` (production: `mail.byrobes.com`, `robes-prod-email`) |
 | `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | |
-| `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN` | auth token is build-time (source maps) |
-| `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | `https://eu.i.posthog.com` |
+| `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | required outside dev; the browser DSN is inlined at build time, and its ingest origin is added to CSP `connect-src` |
+| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | build-time only (source-map upload via `withSentryConfig`); token sensitive. Without the token the build skips Sentry's plugin |
+| `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE` | optional; default to `APP_ENV`, `VERCEL_GIT_COMMIT_SHA` (set by Vercel) and `0.1` |
+| `NEXT_PUBLIC_POSTHOG_KEY` | required outside dev; publishable ingest key, read at runtime and passed to the browser |
+| `NEXT_PUBLIC_POSTHOG_HOST` | optional, default `https://eu.i.posthog.com` (https required outside dev); CSP gains it and `https://eu-assets.i.posthog.com` |
 | `MIN_APP_VERSION` | 426 gate for old native builds |
 
 8. Copy the API user's access key into Vercel (after every deploy that changes `api.accessKeys`):
@@ -139,6 +142,8 @@ Local dev (`app/.env.example`) uses MinIO instead: `MEDIA_S3_ENDPOINT=http://loc
 ## 7. Workers (Lambda) environment
 
 Set by CDK; listed so nobody adds them by hand. Plain env: `APP_ENV`, `MEDIA_BUCKET`, and `*_QUEUE_URL` for queues a function may send to. Secrets arrive as ARNs (`<NAME>_SECRET_ARN`) and are read at cold start:
+
+Sentry is off in workers until `SENTRY_DSN` (plus optional `SENTRY_RELEASE`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE`) is added to the function environment. CDK doesn't set it yet: add it together with the Sentry project (§11).
 
 | Function | Secret ARNs |
 |---|---|
@@ -184,7 +189,7 @@ CDK (`EmailStack`) creates the domain identity (Easy DKIM, RSA 2048), MAIL FROM 
 ## 11. Observability and analytics
 
 - **Sentry**: projects `robes-web`, `robes-workers`, `robes-mobile` (plus staging twins, or one project each with `environment` tags). CI auth token (`project:releases`, `org:read`) for source maps.
-- **PostHog**: **EU cloud** projects `Robes Staging` and `Robes Production`; no autocapture of inputs; replay masking on.
+- **PostHog**: **EU cloud** projects `Robes Staging` and `Robes Production`. Project settings: *Discard client IP data* on, autocapture off, replay masking on (inputs, text and images; the web SDK also enforces this). The app loads PostHog only after consent (SEC-84).
 - **Uptime**: Checkly checks on `/api/v1/health` for both environments.
 
 ## 12. Mobile (EAS)
