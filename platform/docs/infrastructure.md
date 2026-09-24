@@ -57,7 +57,7 @@ Env validation (SEC-71): `packages/config` exports `serverEnv`, `publicEnv`, `wo
 - Project `robes-app`, root directory `platform/app`, framework Next.js, Node 24, Fluid compute on, region `dub1` (Dublin — EU users, near Supabase EU region; pick Supabase region `eu-west-1` to match).
 - Ignored build step: `npx turbo-ignore @robes/app` so legacy/mobile-only commits don't deploy.
 - Env: via Vercel encrypted env per environment; secrets not needed at build are `sensitive`.
-- AWS access: **Vercel OIDC federation** → IAM role `VercelApiRole` per account (trust: `oidc.vercel.com/<team>` with `sub` bound to project + environment). Permissions: `sqs:SendMessage` on job queues; `s3:PutObject` on `media-private/uploads/*` (for presigned PUTs); `secretsmanager:GetSecretValue` on the CloudFront signing key. No long-lived AWS keys anywhere (SEC-73).
+- AWS access: **Vercel OIDC federation** → IAM role `VercelApiRole` per account (trust: `oidc.vercel.com/<team>` with `sub` bound to project + environment). Permissions: `sqs:SendMessage` on job queues; `s3:PutObject` + `s3:GetObject` on `uploads/*` in the media bucket (presigned PUTs, and the HEAD in `POST /uploads/:id/complete`); `secretsmanager:GetSecretValue` on the CloudFront signing key. No long-lived AWS keys anywhere (SEC-73).
 - Security: Vercel Firewall rules (rate limit `/api/v1/*` as a coarse outer layer; per-user limits live in Upstash), BotID/Attack Challenge on auth + waitlist, deployment protection on previews.
 - `next/image`: **not used for user media** (cost-research item 11). A custom loader points at CloudFront rendition URLs. Static brand assets may use `next/image`.
 - `maxDuration`: default 30 s for API routes; nothing should approach it.
@@ -93,7 +93,7 @@ All stateful resources `RemovalPolicy.RETAIN` in production; `terminationProtect
 
 - `supabase start` for Postgres/Auth/Realtime.
 - `platform/workers` exposes a `LocalQueue` adapter: in dev, the API's `enqueue()` calls the worker handler in-process (behind `JOBS_TRANSPORT=inline`) so no AWS is needed. Contract tests run the same handler against the SQS event shape.
-- Media: MinIO via docker compose (S3-compatible) + a local rendition watcher, or point at the staging bucket with a `dev/<user>` prefix.
+- Media: MinIO via docker compose (S3-compatible, `pnpm media:setup` creates the buckets). There is no S3 event locally, so `POST /api/v1/uploads/:id/complete` runs the same `processUpload()` as `RenditionFn` in-process via `after()`; images are served as presigned MinIO GETs instead of CloudFront.
 
 ## 5. Media pipeline (replaces Cloudinary) — ADR-005
 
