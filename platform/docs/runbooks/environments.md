@@ -130,6 +130,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `NEXT_PUBLIC_POSTHOG_KEY` | required outside dev; publishable ingest key, read at runtime and passed to the browser |
 | `NEXT_PUBLIC_POSTHOG_HOST` | optional, default `https://eu.i.posthog.com` (https required outside dev); CSP gains it and `https://eu-assets.i.posthog.com` |
 | `MIN_APP_VERSION` | 426 gate for old native builds |
+| `UNSUB_HMAC_KEY` | sensitive; the same value as Secrets Manager `robes-<env>/unsub/hmac-key` (≥32 chars), which notifyFn signs unsubscribe links with. Rotating it voids links in mail already sent |
 
 8. Copy the API user's access key into Vercel (after every deploy that changes `api.accessKeys`):
    ```bash
