@@ -29,6 +29,17 @@ Every paid or risky route declares `flag: '<key>'` in `route()` (`../api.md` §1
   Undo with `put-function-concurrency` back to the configured value (`infra/config/production.ts`) or `cdk deploy`, which restores it.
 - Last resort, the provider: disable the Gemini API key in GCP (Credentials → key → **Disable**). Every generation then fails; users see the generic error.
 
+## Email
+
+All SES mail for a stage goes through one configuration set; pausing it stops sign-in codes and notifications together:
+
+```bash
+aws sesv2 put-configuration-set-sending-options --configuration-set-name robes-prod-email --no-sending-enabled
+# undo: --sending-enabled
+```
+
+To cut off the Vercel API's AWS access entirely (suspected key leak), deactivate its key: `key-rotation.md` → Vercel API access key → **Leak**.
+
 ## Scheduled jobs
 
 Pause a schedule without a deploy:

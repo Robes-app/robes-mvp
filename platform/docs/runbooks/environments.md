@@ -1,6 +1,6 @@
 # Runbook — Environments
 
-What to create, per environment, before the first staging/production deploy. Background: `../infrastructure.md` §1–§3, §7, §11, `../security.md` SEC-70..74, ADR-019 (app data in schema `app`, role `robes_app`) and ADR-020 (managed Postgres + Better Auth; no Supabase). **No secret values go in this file or anywhere in git**: only IDs, names and where each value lives.
+What to create, per environment, before the first staging/production deploy. Background: `../infrastructure.md` §1–§3, §7, §11, `../security.md` SEC-70..74, ADR-019 (app data in schema `app`, role `robes_app`), ADR-020 (managed Postgres + Better Auth; no Supabase) and ADR-021 (Amazon SES for email; the Vercel API uses scoped IAM user keys). **No secret values go in this file or anywhere in git**: only IDs, names and where each value lives.
 
 Environments: `dev` (laptop, no cloud accounts), `staging`, `production`. Each cloud environment gets its **own** account/project in every provider (SEC-70).
 
@@ -13,19 +13,19 @@ Fill in as resources are created. IDs are not secrets; keys and passwords are.
 | Postgres host (Supabase DB-only / Neon / RDS, EU) | `<host>` / `<project-id>` | `<host>` / `<project-id>` (PITR on) | `DATABASE_URL`, `MIGRATION_DATABASE_URL` |
 | AWS account ID | `<stg-account-id>` | `<prod-account-id>` | GitHub env var `AWS_ACCOUNT_ID` |
 | GithubDeployRole ARN | `arn:aws:iam::<stg>:role/robes-staging-github-deploy` | `arn:aws:iam::<prod>:role/robes-prod-github-deploy` | GitHub env var `AWS_DEPLOY_ROLE_ARN` |
-| VercelApiRole ARN | `arn:aws:iam::<stg>:role/robes-staging-vercel-api` | `arn:aws:iam::<prod>:role/robes-prod-vercel-api` | Vercel `AWS_ROLE_ARN` |
+| API IAM user / key secret | `robes-staging-api` / `robes-staging/api/aws-access-key` | `robes-prod-api` / `robes-prod/api/aws-access-key` | Vercel `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (§6) |
 | Media bucket | `robes-staging-media` | `robes-prod-media` | Vercel `MEDIA_BUCKET` |
 | Media domain / CloudFront ID | `media.staging.byrobes.com` / `<dist-id>` | `media.byrobes.com` / `<dist-id>` | Vercel `MEDIA_BASE_URL` |
 | CloudFront public key ID | `<K…>` | `<K…>` | Vercel `CLOUDFRONT_KEY_PAIR_ID` |
 | ACM cert (us-east-1) ARN | `<arn>` | `<arn>` | GitHub env var `MEDIA_CERT_ARN` |
-| Vercel team slug / project ID | `<team>` / `<prj_…>` | same project | GitHub var `VERCEL_TEAM_SLUG` |
+| Vercel project ID | `<prj_…>` | same project | Vercel dashboard |
 | Apple Services ID / Team ID / Key ID | `<com.byrobes.web.staging>` / `<team>` / `<key>` | `<com.byrobes.web>` / `<team>` / `<key>` | Better Auth (§3) |
 | Google OAuth client ID | `<id>.apps.googleusercontent.com` | `<id>.apps.googleusercontent.com` | Better Auth (§3) |
 | Upstash database | `robes-staging` (`eu-west-1`) | `robes-prod` (`eu-west-1`) | Vercel env |
 | GCP project | `robes-staging` | `robes-prod` | Gemini key owner |
 | Sentry projects | `robes-web-staging`, `robes-workers-staging` | `robes-web`, `robes-workers`, `robes-mobile` | DSNs |
 | PostHog (EU) project ID | `<id>` | `<id>` | `NEXT_PUBLIC_POSTHOG_KEY` |
-| Resend domain | `staging.mail.byrobes.com` | `mail.byrobes.com` | `RESEND_FROM`, OTP emails |
+| SES domain / config set | `staging.mail.byrobes.com` / `robes-staging-email` | `mail.byrobes.com` / `robes-prod-email` | `MAIL_FROM`, `SES_CONFIGURATION_SET` (§9) |
 | EAS channel | `preview` | `production` | mobile builds |
 
 ## 2. Postgres (per environment)
@@ -58,7 +58,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
    1. OAuth consent screen: external, app name Robes, support email, scopes `openid email profile`; publish (production).
    2. Credentials → OAuth client ID → *Web application*; authorized JavaScript origin `https://staging.byrobes.com`; redirect URI `https://staging.byrobes.com/api/auth/callback/google` (production: `app.byrobes.com`). Add iOS/Android client IDs for the native app when mobile sign-in lands.
    3. Store `{"clientId":"…","clientSecret":"…"}` in `robes-<env>/auth/google` and Vercel env `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
-5. **Email OTP**: sent through Resend (§9) from `no-reply@<mail domain>`; uses `RESEND_API_KEY` in Vercel.
+5. **Email OTP**: sent through SES (§9) from `MAIL_FROM` with `SES_CONFIGURATION_SET`, using the API user's keys. Locally, the app sends over SMTP to the mail catcher instead.
 6. Allowed callback URLs are exactly `https://<app>/api/auth/callback/{apple,google}`; add a preview-domain callback only if previews must sign in.
 
 ## 4. AWS (Organizations)
@@ -70,18 +70,18 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
    ```bash
    aws sso login --profile robes-staging
    cd platform/infra
-   pnpm exec cdk bootstrap aws://<stg-account-id>/eu-west-1 --profile robes-staging
+   pnpm cdk bootstrap aws://<stg-account-id>/eu-west-1 --profile robes-staging   # a script, not `pnpm exec` (esbuild PATH)
    ```
 4. Request the media certificate in **us-east-1** (ACM → public cert → `media.staging.byrobes.com`), validate by DNS, record the ARN in §1.
 5. Create the CloudFront signing key pair (`key-rotation.md` §CloudFront, steps 1–2) and commit the **public** key as `platform/infra/config/keys/<stage>.cloudfront.pub.pem` (or set GitHub var `CLOUDFRONT_PUBLIC_KEY`). Without it, synth warns and uses a placeholder key, so signed media stays unreadable (fail closed).
-6. First deploy from a laptop (creates the OIDC roles CI needs afterwards):
+6. First deploy from a laptop (creates the GitHub deploy role CI needs afterwards):
    ```bash
-   export ROBES_STAGING_AWS_ACCOUNT_ID=<stg-account-id> ROBES_VERCEL_TEAM_SLUG=<team>
+   export ROBES_STAGING_AWS_ACCOUNT_ID=<stg-account-id>
    export ROBES_STAGING_MEDIA_DOMAIN=media.staging.byrobes.com ROBES_STAGING_MEDIA_CERT_ARN=<arn>
-   pnpm exec cdk deploy --all -c stage=staging --profile robes-staging
+   pnpm cdk deploy --all -c stage=staging --profile robes-staging
    ```
-   If the account already has a GitHub or Vercel OIDC provider, set `ROBES_<STAGE>_GITHUB_OIDC_PROVIDER_ARN` / `ROBES_<STAGE>_VERCEL_OIDC_PROVIDER_ARN` to import it instead.
-7. Set every secret value (`key-rotation.md` §Set a value). Secrets are created with random placeholders, all under `robes-<env>/`: `database/url`, `auth/better-auth-secret`, `auth/apple`, `auth/google`, `gemini/api-key`, `resend/api-key`, `resend/webhook-secret`, `cloudfront/signing-key`, `fal/api-key`, `expo/access-token`, `unsub/hmac-key`.
+   If the account already has a GitHub OIDC provider, set `ROBES_<STAGE>_GITHUB_OIDC_PROVIDER_ARN` to import it instead.
+7. Set every secret value (`key-rotation.md` §Set a value). Secrets are created with random placeholders, all under `robes-<env>/`: `database/url`, `auth/better-auth-secret`, `auth/apple`, `auth/google`, `gemini/api-key`, `cloudfront/signing-key`, `fal/api-key`, `expo/access-token`, `unsub/hmac-key`. The exception is `api/aws-access-key`, which CDK fills with the API user's access key (§6 step 8).
 8. `sharp` layer for RenditionFn: publish a linux-arm64 `sharp` layer and add its ARN to `workers.renditionLayerArns` in `infra/config/<stage>.ts` (unless the media task bundles it instead).
 9. DNS: `media.staging` CNAME → the `MediaDistributionDomain` stack output.
 10. Confirm the SNS email subscription for alerts/budgets (`ROBES_<STAGE>_ALERT_EMAIL`). Optional: AWS Chatbot → Slack `#robes-alerts` subscribed to `robes-<env>-alerts`.
@@ -89,7 +89,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 ## 5. GitHub
 
 1. Settings → Environments: create `staging` and `production`. Production: required reviewer, deployment branches limited to `platform` (later the trunk).
-2. Per environment **variables**: `AWS_ACCOUNT_ID`, `AWS_DEPLOY_ROLE_ARN`, `VERCEL_TEAM_SLUG`, `APP_URL` (`https://staging.byrobes.com` / `https://app.byrobes.com`), `MEDIA_DOMAIN`, `MEDIA_CERT_ARN`, `CLOUDFRONT_PUBLIC_KEY` (optional if committed), `ALERT_EMAIL`, `BUDGET_EMAIL`.
+2. Per environment **variables**: `AWS_ACCOUNT_ID`, `AWS_DEPLOY_ROLE_ARN`, `APP_URL` (`https://staging.byrobes.com` / `https://app.byrobes.com`), `MEDIA_DOMAIN`, `MEDIA_CERT_ARN`, `CLOUDFRONT_PUBLIC_KEY` (optional if committed), `ALERT_EMAIL`, `BUDGET_EMAIL`.
 3. Per environment **secrets**: `MIGRATION_DATABASE_URL` (§2 step 4; migration role, never `robes_app`).
 4. Renovate: install the Renovate app and add a root `renovate.json` containing `{ "extends": ["local>Robes-app/robes-mvp//platform/renovate.json"] }` (Renovate only reads config at the repo root).
 
@@ -98,7 +98,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 1. Project `robes-app`, root directory `platform/app`, framework Next.js, Node 24, Fluid compute on, function region `dub1`.
 2. Ignored build step: `npx turbo-ignore @robes/app`.
 3. Domains: `staging.byrobes.com` → Preview (branch `platform`), `app.byrobes.com` → Production.
-4. Settings → Security → **OIDC Federation: Team issuer**. The IAM trust expects `sub = owner:<team>:project:robes-app:environment:<preview|production>`.
+4. AWS access is by the stage's IAM user keys (ADR-021), not OIDC federation; leave Vercel OIDC Federation off.
 5. Deployment protection on previews; Firewall rate-limit rule on `/api/v1/*`; BotID on auth + waitlist.
 6. Spend management: set a monthly cap and alert.
 7. Env vars per environment (mark every secret **Sensitive**). The zod schemas in `packages/config` are the source of truth; update this table when they change.
@@ -111,15 +111,25 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | §3; private key sensitive |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | §3; secret sensitive |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | token sensitive |
-| `AWS_REGION`, `AWS_ROLE_ARN` | `eu-west-1`, VercelApiRole ARN (OIDC; no access keys) |
+| `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | `eu-west-1`; keys of `robes-<env>-api` from Secrets Manager (step 8); secret key sensitive |
 | `JOBS_INTERACTIVE_QUEUE_URL`, `JOBS_BATCH_QUEUE_URL`, `FETCH_QUEUE_URL` | Queues stack |
 | `MEDIA_BUCKET`, `MEDIA_BASE_URL`, `CLOUDFRONT_KEY_PAIR_ID`, `CLOUDFRONT_SIGNING_KEY_SECRET_ARN` | the private key is read from Secrets Manager at runtime |
 | `GEMINI_API_KEY` | only if the API makes sub-3 s model calls; otherwise workers only |
-| `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_FROM` | OTP + product email |
+| `MAIL_FROM`, `SES_CONFIGURATION_SET` | `Robes <hello@staging.mail.byrobes.com>` / `robes-staging-email` (production: `mail.byrobes.com`, `robes-prod-email`) |
 | `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN` | auth token is build-time (source maps) |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | `https://eu.i.posthog.com` |
 | `MIN_APP_VERSION` | 426 gate for old native builds |
+
+8. Copy the API user's access key into Vercel (after every deploy that changes `api.accessKeys`):
+   ```bash
+   aws secretsmanager get-secret-value --secret-id robes-<env>/api/aws-access-key \
+     --query SecretString --output text | jq -r '"AWS_ACCESS_KEY_ID=\(.accessKeyId)"'
+   # paste the id into Vercel; then the secret, straight to the clipboard (never echo it into logs):
+   aws secretsmanager get-secret-value --secret-id robes-<env>/api/aws-access-key \
+     --query SecretString --output text | jq -r .secretAccessKey | pbcopy
+   ```
+   Set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (Sensitive) and `AWS_REGION=eu-west-1` for the environment, clear the clipboard, and redeploy. The user can only enqueue jobs, PUT/GET `uploads/*`, send SES mail from the stage domain and read the CloudFront signing key; denied calls page `robes-<env>-alerts` (EventBridge rule on CloudTrail, which needs the org trail from §4 step 2). Rotate every 90 days (`key-rotation.md`).
 
 ## 7. Workers (Lambda) environment
 
@@ -129,7 +139,7 @@ Set by CDK; listed so nobody adds them by hand. Plain env: `APP_ENV`, `MEDIA_BUC
 |---|---|
 | generate | `DATABASE_URL`, `GEMINI_API_KEY`, `FAL_API_KEY` |
 | batch | `DATABASE_URL`, `GEMINI_API_KEY` |
-| notify | `DATABASE_URL`, `RESEND_API_KEY`, `EXPO_ACCESS_TOKEN`, `UNSUB_HMAC_KEY` |
+| notify | `DATABASE_URL`, `EXPO_ACCESS_TOKEN`, `UNSUB_HMAC_KEY` (email via SES IAM permission; plain env `MAIL_FROM`, `SES_CONFIGURATION_SET`) |
 | maintenance | `DATABASE_URL` (retention and deletion run here; there is no pg_cron) |
 | rendition | `DATABASE_URL` |
 | fetch | none (SEC-40); results go back via `JOBS_INTERACTIVE_QUEUE_URL` |
@@ -138,11 +148,25 @@ Set by CDK; listed so nobody adds them by hand. Plain env: `APP_ENV`, `MEDIA_BUC
 
 Create Redis databases `robes-staging` and `robes-prod` in **eu-west-1**, TLS on, eviction off. Copy the REST URL/token into Vercel (§6). Set a monthly budget alert.
 
-## 9. Resend
+## 9. Amazon SES
 
-1. Add domains `staging.mail.byrobes.com` and `mail.byrobes.com`; publish SPF, DKIM and DMARC (`p=quarantine` to start).
-2. Inbound: MX for `in.byrobes.com` (receipts) on production only.
-3. One API key per environment with **sending access to its domain only** (used for OTP sign-in codes and product email); one webhook per environment with its own signing secret.
+CDK (`EmailStack`) creates the domain identity (Easy DKIM, RSA 2048), MAIL FROM `bounce.<domain>`, and configuration set `robes-<env>-email` (reputation metrics, TLS required, account suppression for bounces and complaints). Bounce, complaint and reject events go to SNS `robes-<env>-email-events`; `notifyFn` will consume them into `app.email_suppressions`.
+
+1. After the first deploy, read the DNS records from the `<Stg|Prod>-Email` stack outputs:
+   ```bash
+   aws cloudformation describe-stacks --stack-name Stg-Email \
+     --query 'Stacks[0].Outputs[?starts_with(OutputKey, `DkimCname`) || starts_with(OutputKey, `MailFrom`)].OutputValue' --output text
+   ```
+2. At the DNS provider for `byrobes.com`, add:
+   - three DKIM **CNAME**s (`<token>._domainkey.<domain>` → `<token>.dkim.amazonses.com`);
+   - MAIL FROM: **MX** `bounce.<domain>` → `10 feedback-smtp.eu-west-1.amazonses.com` and **TXT** `bounce.<domain>` → `"v=spf1 include:amazonses.com ~all"`;
+   - **DMARC** TXT `_dmarc.<domain>` → `"v=DMARC1; p=quarantine; rua=mailto:dmarc@byrobes.com"` (start at `p=none` for a week if you want reports first).
+3. Wait for SES → Identities → `<domain>` to show **Verified** and DKIM **Successful** (minutes to 72 h), and MAIL FROM **Success**.
+4. **Production access** (per account, manual): SES → Account dashboard → *Request production access*: mail type Transactional, website `https://byrobes.com`, describe sign-in codes and notifications, opt-in only, bounce/complaint handling via the configuration set and suppression list. Until granted the account is in the sandbox (200/day, verified recipients only); for staging, verify test inboxes under Identities instead.
+5. Send a test: `aws sesv2 send-email --from-email-address "hello@<domain>" --destination ToAddresses=<you> --content 'Simple={Subject={Data=test},Body={Text={Data=ok}}}' --configuration-set-name robes-<env>-email`.
+6. Watch reputation: SES → Reputation metrics. Keep bounce < 2 % and complaints < 0.1 %; SES pauses sending at 10 % / 0.5 %.
+7. Inbound receipts (`in.byrobes.com`, previously Resend inbound) are not built yet; SES receiving in `eu-west-1` is the likely path (separate decision).
+8. Local development uses the mail catcher over SMTP (see `platform/README.md`); nothing in dev talks to SES.
 
 ## 10. Google Cloud (Gemini)
 
@@ -167,6 +191,8 @@ EAS project linked to `platform/mobile`; channels `preview` (staging) and `produ
 - [ ] §1 filled in for the environment
 - [ ] Postgres: PITR (prod), migration role + `robes_app` passwords set, URLs stored only in GitHub/Vercel/Secrets Manager
 - [ ] Better Auth: secret, URL, Apple and Google clients with the exact callback URLs
+- [ ] SES: domain verified, DKIM + MAIL FROM + DMARC live, production access granted (prod)
+- [ ] API user key copied into Vercel; no other AWS credentials in Vercel
 - [ ] CDK bootstrapped; first `cdk deploy` from a laptop done; every secret value set
 - [ ] GitHub environment vars/secrets set; deploy workflow green
 - [ ] Vercel env complete; `/api/v1/health` returns `{"ok":true}`
