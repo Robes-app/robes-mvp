@@ -31,17 +31,13 @@ jobs:
       ROBES_PRODUCTION_BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-        with: { package_json_file: platform/package.json }
-      - uses: actions/setup-node@v5
-        with: { node-version-file: platform/.nvmrc, cache: pnpm, cache-dependency-path: platform/pnpm-lock.yaml }
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/platform-setup
       - run: pnpm --filter @robes/infra test
 
       # Migration role URL (owns the schema), never the runtime robes_app URL (ADR-020).
       - name: db migrate
         env:
-          DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          DATABASE_ADMIN_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
         run: pnpm db:migrate
 
       - uses: aws-actions/configure-aws-credentials@v5
