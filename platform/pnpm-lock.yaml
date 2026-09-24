@@ -559,6 +559,9 @@ importers:
       '@robes/ai':
         specifier: workspace:*
         version: link:../ai
+      '@robes/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@robes/copy':
         specifier: workspace:*
         version: link:../copy

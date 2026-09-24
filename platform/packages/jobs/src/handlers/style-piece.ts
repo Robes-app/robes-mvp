@@ -8,10 +8,10 @@ import {
   FEATURE,
   Output,
 } from '@robes/ai/prompts/style-piece';
+import { GenerateLookInput } from '@robes/contracts';
 import type { SystemRepositories } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
-import { z } from 'zod';
 import { JobError, type JobHandler } from '../runtime';
 
 export interface StylePieceDeps {
@@ -23,13 +23,8 @@ export interface StylePieceDeps {
   onGenerated?(key: string): Promise<void>;
 }
 
-export const StylePieceInput = z.object({
-  anchor: z.discriminatedUnion('type', [
-    z.object({ type: z.literal('piece'), pieceId: z.uuid() }),
-    z.object({ type: z.literal('text'), text: z.string().trim().min(2).max(300) }),
-  ]),
-  occasion: z.string().trim().max(120).optional(),
-});
+// The API contract is the job input; the worker re-parses it (never trusts the row).
+export const StylePieceInput = GenerateLookInput;
 
 type Frame = { idx: number; assetId: string | null; status: 'ready' | 'failed' };
 

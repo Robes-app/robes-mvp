@@ -46,7 +46,7 @@ export type Repositories = ReturnType<typeof createRepositories>;
 export type SystemRepositories = ReturnType<typeof createSystemRepositories>;
 export type { AssetKind } from './assets';
 export type { ConsentAnswers } from './consents';
-export type { CreateJobInput } from './jobs';
+export type { CreateJobInput, QuotaCost } from './jobs';
 export type { CallRecord } from './ledger';
 export type { PieceAnalysis } from './piece-analysis';
 export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';

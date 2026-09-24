@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import { EmptyInput, HealthOutput } from './common';
 import { Consents, UpdateConsentsInput } from './consents';
 import { JOB_EVENT, JobIdParams, JobSnapshot, StartJobOutput } from './jobs';
+import { GenerateLookInput, Idea, IdeaList, IdeaParams, ListIdeasInput } from './looks';
 import { Me, OnboardingComplete, UpdateMeInput } from './me';
 import { Asset, AssetParams, CreateUploadInput, CreateUploadOutput, MediaSession } from './media';
 import {
@@ -132,6 +133,45 @@ export const routes = {
     auth: 'user',
     input: BatchPiecesInput,
     output: BatchPiecesOutput,
+  },
+  'looks.generate': {
+    method: 'POST',
+    path: '/looks/generate',
+    auth: 'user',
+    input: GenerateLookInput,
+    output: StartJobOutput,
+    idempotent: true,
+  },
+  'looks.ideas.list': {
+    method: 'GET',
+    path: '/looks/ideas',
+    auth: 'user',
+    input: ListIdeasInput,
+    output: IdeaList,
+  },
+  'looks.ideas.get': {
+    method: 'GET',
+    path: '/looks/ideas/:id',
+    auth: 'user',
+    params: IdeaParams,
+    input: EmptyInput,
+    output: Idea,
+  },
+  'looks.ideas.save': {
+    method: 'POST',
+    path: '/looks/ideas/:id/save',
+    auth: 'user',
+    params: IdeaParams,
+    input: EmptyInput,
+    output: Idea,
+  },
+  'looks.ideas.delete': {
+    method: 'DELETE',
+    path: '/looks/ideas/:id',
+    auth: 'user',
+    params: IdeaParams,
+    input: EmptyInput,
+    output: Deleted,
   },
   'jobs.fake': {
     method: 'POST',

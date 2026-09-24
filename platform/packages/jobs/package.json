@@ -13,6 +13,7 @@
   "dependencies": {
     "@aws-sdk/client-sqs": "3.1138.0",
     "@robes/ai": "workspace:*",
+    "@robes/contracts": "workspace:*",
     "@robes/copy": "workspace:*",
     "@robes/core": "workspace:*",
     "@robes/db": "workspace:*",

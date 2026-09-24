@@ -1,4 +1,4 @@
-import type { AssetRendition } from '@robes/contracts';
+import type { AssetRendition, PieceImage } from '@robes/contracts';
 import { RenditionManifest, renditionKeys } from '@robes/media';
 import type { MediaDelivery } from '@robes/media/delivery';
 
@@ -23,4 +23,27 @@ export async function signedRenditions(
     ),
   ]);
   return { master, renditions };
+}
+
+// The client-facing image of an asset (pieces, idea frames): dimensions, placeholder, signed renditions.
+export async function toImage(
+  delivery: Pick<MediaDelivery, 'url'>,
+  userId: string,
+  asset: {
+    id: string;
+    status: string;
+    renditions: unknown;
+    width: number | null;
+    height: number | null;
+    blurhash: string | null;
+  },
+): Promise<PieceImage> {
+  return {
+    assetId: asset.id,
+    status: asset.status as PieceImage['status'],
+    width: asset.width,
+    height: asset.height,
+    blurhash: asset.blurhash,
+    renditions: (await signedRenditions(delivery, userId, asset)).renditions,
+  };
 }

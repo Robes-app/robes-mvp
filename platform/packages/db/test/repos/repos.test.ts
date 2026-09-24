@@ -111,6 +111,21 @@ describe('jobs', () => {
     expect(jobs).toHaveLength(1);
   });
 
+  it('spends no quota when any of several metrics is over its limit', async () => {
+    const limits = PLAN_LIMITS[DEFAULT_PLAN];
+    const text = { metric: 'generation.text' as const, cost: limits['generation.text'].limit };
+    const image = {
+      metric: 'generation.image' as const,
+      cost: limits['generation.image'].limit + 1,
+    };
+    await expect(
+      repos.jobs.create(alice, { kind: 'fake', input: {}, quota: [text, image] }),
+    ).rejects.toBeInstanceOf(QuotaExceeded);
+    await expect(
+      repos.jobs.create(alice, { kind: 'fake', input: {}, quota: text }),
+    ).resolves.toBeDefined();
+  });
+
   it('claims with a lease, once, and records stages', async () => {
     const { job } = await repos.jobs.create(alice, { kind: 'fake', input: {} });
     const claimed = await system.jobs.claim(job.id, 60);

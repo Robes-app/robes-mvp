@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
 // Configurable so parallel checkouts can run e2e side by side.
-const port = Number(process.env.E2E_PORT ?? 3100);
+const port = Number(process.env.E2E_PORT ?? 3310);
 const baseURL = `http://localhost:${port}`;
 
 export default defineConfig({

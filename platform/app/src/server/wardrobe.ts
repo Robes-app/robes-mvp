@@ -3,7 +3,7 @@ import { ApiError } from '@robes/api';
 import { type BatchPiecesOutput, Piece } from '@robes/contracts';
 import { wardrobe as copy } from '@robes/copy';
 import type { UserId } from '@robes/db';
-import { signedRenditions } from './asset-urls';
+import { toImage } from './asset-urls';
 import { repos } from './db';
 import { createAndEnqueueJob } from './jobs';
 import { mediaDelivery } from './media';
@@ -12,16 +12,7 @@ type PieceRow = NonNullable<Awaited<ReturnType<typeof repos.wardrobe.get>>>;
 type AssetRow = Awaited<ReturnType<typeof repos.assets.getManyForUser>>[number];
 
 async function toPiece(userId: UserId, row: PieceRow, asset: AssetRow | undefined): Promise<Piece> {
-  const image = asset
-    ? {
-        assetId: asset.id,
-        status: asset.status as 'pending' | 'ready' | 'failed',
-        width: asset.width,
-        height: asset.height,
-        blurhash: asset.blurhash,
-        renditions: (await signedRenditions(mediaDelivery, userId, asset)).renditions,
-      }
-    : null;
+  const image = asset ? await toImage(mediaDelivery, userId, asset) : null;
   // Rows never leave as-is (CLAUDE.md rule 8): parse through the contract.
   return Piece.parse({
     id: row.id,

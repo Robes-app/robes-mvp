@@ -4,11 +4,17 @@ import type { Db } from '../client';
 import type { UserId } from '../ids';
 import { usageRepo } from './usage';
 
+export interface QuotaCost {
+  metric: UsageMetric;
+  cost: number;
+}
+
 export interface CreateJobInput {
   kind: JobKind;
   input: Record<string, unknown>;
   idempotencyKey?: string | undefined;
-  quota?: { metric: UsageMetric; cost: number } | undefined;
+  // Every entry is consumed in the job's transaction, so one over-limit metric spends none.
+  quota?: QuotaCost | QuotaCost[] | undefined;
   priority?: number;
   traceId?: string;
 }
@@ -46,8 +52,8 @@ export function jobsRepo(db: Db) {
             .executeTakeFirst();
           if (existing) return { job: existing, replayed: true };
         }
-        if (job.quota) {
-          await usage.consume(userId, job.quota.metric, job.quota.cost, { executor: trx });
+        for (const q of [job.quota ?? []].flat()) {
+          await usage.consume(userId, q.metric, q.cost, { executor: trx });
         }
         const created = await trx
           .insertInto('generationJobs')
