@@ -161,6 +161,21 @@ export const consent = {
   back: 'Back to Today',
 } as const;
 
+// Shared component chrome (@robes/ui, @robes/ui-native).
+export const ui = {
+  loading: 'One moment…',
+  close: 'Close',
+  dismiss: 'Dismiss',
+  undo: 'Undo',
+  notifications: 'Notifications ({hotkey})',
+  progress: {
+    reading: 'Reading your pieces…',
+    styling: 'Styling your pieces…',
+    dressing: 'Dressing each look…',
+    finishing: 'Finishing touches…',
+  },
+} as const;
+
 export const copy = {
   wardrobe,
   errors,
@@ -173,4 +188,5 @@ export const copy = {
   jobs,
   devUpload,
   consent,
+  ui,
 } as const;

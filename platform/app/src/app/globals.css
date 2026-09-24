@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "@robes/tokens/theme.css";
 @import "@robes/tokens/web.css";
+@import "@robes/ui/styles.css";
+
+@source "../../../packages/ui/src";
+@source not "../../../packages/ui/src/**/*.{test,stories}.tsx";
 
 body {
   background: var(--bg);

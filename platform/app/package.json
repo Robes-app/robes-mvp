@@ -25,6 +25,7 @@
     "@robes/media": "workspace:*",
     "@robes/tokens": "workspace:*",
     "@sentry/nextjs": "10.75.2",
+    "@robes/ui": "workspace:*",
     "better-auth": "1.7.5",
     "next": "16.3.6",
     "react": "19.3.0",

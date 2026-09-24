@@ -1,9 +1,9 @@
 'use client';
 
 import { auth as copy } from '@robes/copy';
+import { Button, Eyebrow, Field, Heading, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
-import { Field, PrimaryButton, SecondaryButton } from '@/components/field';
 import { authClient } from '@/lib/auth-client';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,8 +54,8 @@ export function SignInForm({
     return (
       <form onSubmit={verify} className="flex flex-col gap-6">
         <header className="flex flex-col gap-2">
-          <h1 className="font-display text-4xl font-light text-ink">{copy.codeTitle}</h1>
-          <p className="text-ink-muted">{copy.codeSubtitle(email.trim())}</p>
+          <Heading level={1}>{copy.codeTitle}</Heading>
+          <Text tone="muted">{copy.codeSubtitle(email.trim())}</Text>
         </header>
         <Field
           label={copy.codeLabel}
@@ -70,16 +70,22 @@ export function SignInForm({
           onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
           error={error}
         />
-        <PrimaryButton type="submit" disabled={busy || code.length !== 6}>
-          {busy ? copy.verifying : copy.verify}
-        </PrimaryButton>
-        <div className="flex justify-between text-sm text-ink-muted">
-          <button type="button" className="underline underline-offset-4" onClick={() => sendCode()}>
+        <Button
+          variant="primary"
+          type="submit"
+          disabled={code.length !== 6}
+          loading={busy}
+          loadingLabel={copy.verifying}
+        >
+          {copy.verify}
+        </Button>
+        <div className="flex justify-between">
+          <Button variant="quiet" className="-mx-2" onClick={() => sendCode()}>
             {copy.resend}
-          </button>
-          <button
-            type="button"
-            className="underline underline-offset-4"
+          </Button>
+          <Button
+            variant="quiet"
+            className="-mx-2"
             onClick={() => {
               setStep('email');
               setCode('');
@@ -87,7 +93,7 @@ export function SignInForm({
             }}
           >
             {copy.useDifferentEmail}
-          </button>
+          </Button>
         </div>
       </form>
     );
@@ -96,11 +102,11 @@ export function SignInForm({
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-medium uppercase tracking-[0.24em] text-ink-muted">
-          {copy.eyebrow}
-        </p>
-        <h1 className="font-display text-5xl font-light text-ink">{copy.title}</h1>
-        <p className="text-ink-muted">{copy.subtitle}</p>
+        <Eyebrow>{copy.eyebrow}</Eyebrow>
+        <Heading level={1} size="2xl">
+          {copy.title}
+        </Heading>
+        <Text tone="muted">{copy.subtitle}</Text>
       </header>
       <form onSubmit={sendCode} className="flex flex-col gap-6" noValidate>
         <Field
@@ -115,34 +121,32 @@ export function SignInForm({
           onChange={(e) => setEmail(e.target.value)}
           error={error}
         />
-        <PrimaryButton type="submit" disabled={busy}>
-          {busy ? copy.sendingCode : copy.sendCode}
-        </PrimaryButton>
+        <Button variant="primary" type="submit" loading={busy} loadingLabel={copy.sendingCode}>
+          {copy.sendCode}
+        </Button>
       </form>
       {providers.apple || providers.google ? (
         <div className="flex flex-col gap-3">
-          <p className="text-center text-xs uppercase tracking-[0.18em] text-ink-faint">
-            {copy.or}
-          </p>
+          <Eyebrow className="text-center">{copy.or}</Eyebrow>
           {providers.apple ? (
-            <SecondaryButton
-              type="button"
+            <Button
               onClick={() => authClient.signIn.social({ provider: 'apple', callbackURL: next })}
             >
               {copy.apple}
-            </SecondaryButton>
+            </Button>
           ) : null}
           {providers.google ? (
-            <SecondaryButton
-              type="button"
+            <Button
               onClick={() => authClient.signIn.social({ provider: 'google', callbackURL: next })}
             >
               {copy.google}
-            </SecondaryButton>
+            </Button>
           ) : null}
         </div>
       ) : null}
-      <p className="text-xs text-ink-faint">{copy.legal}</p>
+      <Text size="caption" tone="faint">
+        {copy.legal}
+      </Text>
     </div>
   );
 }

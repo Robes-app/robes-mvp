@@ -16,7 +16,8 @@
       "!**/*.types.ts",
       "!docs/reference/tokens.draft.json",
       "!mobile/assets",
-      "!**/uniwind-types.d.ts"
+      "!**/uniwind-types.d.ts",
+      "!**/storybook-static"
     ]
   },
   "formatter": {
@@ -39,5 +40,22 @@
         "noNonNullAssertion": "error"
       }
     }
-  }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["packages/ui/src/styles.css"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noImportantStyles": "off"
+          }
+        }
+      }
+    }
+  ]
 }

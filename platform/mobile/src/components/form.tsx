@@ -1,3 +1,4 @@
+import { palette } from '@robes/tokens';
 import type { ReactNode } from 'react';
 import { Pressable, Text, TextInput, type TextInputProps, View } from 'react-native';
 
@@ -13,7 +14,7 @@ export function Field({
       <TextInput
         {...input}
         accessibilityLabel={label}
-        placeholderTextColor="#74664A"
+        placeholderTextColor={palette.inkFaint}
         className="rounded-crisp border border-border-control bg-surface px-4 py-3 text-base text-ink"
       />
       {error ? (

@@ -3,8 +3,8 @@
 import { StartJobOutput } from '@robes/contracts';
 import { jobs as copy } from '@robes/copy';
 import { isTerminalJobStatus } from '@robes/core/jobs';
+import { Button, Heading, Text } from '@robes/ui';
 import { useState } from 'react';
-import { PrimaryButton } from '@/components/field';
 import { useJob } from '@/lib/use-job';
 
 export function JobConsole({ initialJobId }: { initialJobId: string | null }) {
@@ -36,32 +36,34 @@ export function JobConsole({ initialJobId }: { initialJobId: string | null }) {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex items-center gap-6">
-        <PrimaryButton type="button" onClick={start} disabled={busy || active}>
-          {busy ? copy.dev.starting : copy.dev.start}
-        </PrimaryButton>
+        <Button
+          variant="primary"
+          onClick={start}
+          disabled={active}
+          loading={busy}
+          loadingLabel={copy.dev.starting}
+        >
+          {copy.dev.start}
+        </Button>
         {active ? (
-          <button
-            type="button"
-            onClick={cancel}
-            className="text-sm text-ink-muted underline underline-offset-4 hover:text-ink"
-          >
+          <Button variant="quiet" onClick={cancel}>
             {copy.cancel}
-          </button>
+          </Button>
         ) : null}
       </div>
       {error ? (
-        <p role="alert" className="text-sm text-danger">
+        <Text role="alert" size="small" tone="danger">
           {error}
-        </p>
+        </Text>
       ) : null}
       {job ? (
-        <p role="status" className="text-sm text-ink-muted">
+        <Text role="status" size="small" tone="muted">
           {connection === 'reconnecting' ? copy.connectionLost : copy.status[job.status]}
-        </p>
+        </Text>
       ) : null}
       {job?.output.text ? (
         <article className="flex flex-col gap-3">
-          <h2 className="font-display text-3xl font-light text-ink">{job.output.text.title}</h2>
+          <Heading level={2}>{job.output.text.title}</Heading>
           <ul className="flex flex-col gap-1 text-ink">
             {job.output.text.lines.map((line) => (
               <li key={line}>{line}</li>

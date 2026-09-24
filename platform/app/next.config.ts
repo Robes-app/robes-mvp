@@ -28,11 +28,13 @@ const config: NextConfig = {
     '@robes/copy',
     '@robes/core',
     '@robes/db',
+    '@robes/icons',
     '@robes/jobs',
     '@robes/logger',
     '@robes/mailer',
     '@robes/media',
     '@robes/tokens',
+    '@robes/ui',
   ],
   // Native Node deps stay external to the server bundle.
   serverExternalPackages: [

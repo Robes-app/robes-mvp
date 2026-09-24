@@ -1,0 +1,68 @@
+{
+  "name": "@robes/ui",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css",
+    "./avatar": "./src/avatar.tsx",
+    "./button": "./src/button.tsx",
+    "./button-styles": "./src/button-styles.ts",
+    "./card": "./src/card.tsx",
+    "./dialog": "./src/dialog.tsx",
+    "./empty-state": "./src/empty-state.tsx",
+    "./field": "./src/field.tsx",
+    "./icon-button": "./src/icon-button.tsx",
+    "./image": "./src/image.tsx",
+    "./pill": "./src/pill.tsx",
+    "./progress": "./src/progress.tsx",
+    "./segmented-control": "./src/segmented-control.tsx",
+    "./skeleton": "./src/skeleton.tsx",
+    "./text": "./src/text.tsx",
+    "./toast": "./src/toast.tsx"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build --quiet -o storybook-static"
+  },
+  "peerDependencies": {
+    "react": "^19.2",
+    "react-dom": "^19.2"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "1.1.23",
+    "@radix-ui/react-toast": "1.2.23",
+    "@robes/copy": "workspace:*",
+    "@robes/icons": "workspace:*",
+    "blurhash": "2.0.5"
+  },
+  "devDependencies": {
+    "@robes/tokens": "workspace:*",
+    "@storybook/addon-a11y": "10.6.0",
+    "@storybook/addon-themes": "10.6.0",
+    "@storybook/nextjs-vite": "10.6.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "axe-core": "4.13.0",
+    "jsdom": "30.1.1",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "storybook": "10.6.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "catalog:",
+    "vite": "8.3.0",
+    "vitest": "catalog:"
+  }
+}

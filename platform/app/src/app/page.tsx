@@ -1,4 +1,5 @@
 import { marketing, nav, today } from '@robes/copy';
+import { buttonClasses, Eyebrow, Heading, Text } from '@robes/ui';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { SignOutButton } from '@/components/sign-out-button';
@@ -10,14 +11,14 @@ export default async function Home() {
   if (!profile) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-4 px-6">
-        <p className="text-xs font-medium uppercase tracking-[0.24em] text-ink-muted">
-          {marketing.eyebrow}
-        </p>
-        <h1 className="font-display text-5xl font-light text-ink">{marketing.title}</h1>
-        <p className="text-ink-muted">{marketing.subtitle}</p>
+        <Eyebrow>{marketing.eyebrow}</Eyebrow>
+        <Heading level={1} size="2xl">
+          {marketing.title}
+        </Heading>
+        <Text tone="muted">{marketing.subtitle}</Text>
         <Link
           href="/auth/sign-in"
-          className="mt-4 self-start rounded-pill bg-ink px-6 py-3 text-sm font-medium text-bg"
+          className={`${buttonClasses({ variant: 'primary' })} mt-4 self-start`}
         >
           {marketing.signIn}
         </Link>
@@ -36,11 +37,11 @@ export default async function Home() {
   );
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-4 px-6">
-      <p className="text-xs font-medium uppercase tracking-[0.24em] text-ink-muted">{nav.today}</p>
-      <h1 className="font-display text-5xl font-light text-ink">
+      <Eyebrow>{nav.today}</Eyebrow>
+      <Heading level={1} size="2xl">
         {today.greeting(profile.firstName, hour)}
-      </h1>
-      <p className="text-ink-muted">{today.nextStep}</p>
+      </Heading>
+      <Text tone="muted">{today.nextStep}</Text>
       <div className="mt-6">
         <SignOutButton />
       </div>

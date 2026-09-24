@@ -1,9 +1,9 @@
 'use client';
 
 import { onboarding as copy } from '@robes/copy';
+import { Button, Eyebrow, Field, Heading } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
-import { Field, PrimaryButton } from '@/components/field';
 
 export function OnboardingForm({ initialFirstName }: { initialFirstName: string }) {
   const router = useRouter();
@@ -33,10 +33,8 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
   return (
     <form onSubmit={submit} className="flex flex-col gap-8">
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-medium uppercase tracking-[0.24em] text-ink-muted">
-          {copy.eyebrow}
-        </p>
-        <h1 className="font-display text-4xl font-light text-ink">{copy.title}</h1>
+        <Eyebrow>{copy.eyebrow}</Eyebrow>
+        <Heading level={1}>{copy.title}</Heading>
       </header>
       <Field
         label={copy.firstNameLabel}
@@ -49,9 +47,15 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
         onChange={(e) => setFirstName(e.target.value)}
         error={error}
       />
-      <PrimaryButton type="submit" disabled={busy || firstName.trim().length === 0}>
-        {busy ? copy.saving : copy.continue}
-      </PrimaryButton>
+      <Button
+        variant="primary"
+        type="submit"
+        disabled={firstName.trim().length === 0}
+        loading={busy}
+        loadingLabel={copy.saving}
+      >
+        {copy.continue}
+      </Button>
     </form>
   );
 }
