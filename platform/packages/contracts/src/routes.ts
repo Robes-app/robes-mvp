@@ -36,6 +36,8 @@ import {
 } from './looks';
 import {
   AnalyseStyleInput,
+  DataExport,
+  DataExportStatus,
   DeletionRequest,
   DeletionStatus,
   Me,
@@ -161,6 +163,21 @@ export const routes = {
     auth: 'user',
     input: StyleOverrides,
     output: StyleProfile,
+  },
+  'me.exports.get': {
+    method: 'GET',
+    path: '/me/exports',
+    auth: 'user',
+    input: EmptyInput,
+    output: DataExportStatus,
+  },
+  // Naturally idempotent: a request from the last day is returned instead of a new one.
+  'me.exports.request': {
+    method: 'POST',
+    path: '/me/exports',
+    auth: 'user',
+    input: EmptyInput,
+    output: DataExport,
   },
   'me.consents.get': {
     method: 'GET',

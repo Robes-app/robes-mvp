@@ -34,6 +34,7 @@ describe.each(['staging', 'production'] as const)('%s media', (stageName) => {
         Rules: Match.arrayWith([
           Match.objectLike({ Prefix: 'generated/', ExpirationInDays: 7, Status: 'Enabled' }),
           Match.objectLike({ Prefix: 'uploads/', ExpirationInDays: 30, Status: 'Enabled' }),
+          Match.objectLike({ Prefix: 'exports/', ExpirationInDays: 7, Status: 'Enabled' }),
           Match.objectLike({
             Prefix: 'media/',
             Transitions: [{ StorageClass: 'INTELLIGENT_TIERING', TransitionInDays: 30 }],

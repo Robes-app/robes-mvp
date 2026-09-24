@@ -36,29 +36,49 @@ describe('maintenance handler', () => {
     const sent: string[] = [];
     const transport: JobTransport = { send: async (m) => void sent.push(m.jobId) };
     const queue = [JOB_A];
+    const exportQueue = [{ id: JOB_B, userId: JOB_A }];
     const ctx = {
       system: {
         maintenance: { run: vi.fn(async () => {}) },
         jobs: { stale: vi.fn(async () => [JOB_A]) },
+        dataExport: {
+          claimNext: vi.fn(async () => exportQueue.shift()),
+          collect: vi.fn(async () => ({ assets: [] })),
+          complete: vi.fn(async () => {}),
+          fail: vi.fn(async () => {}),
+        },
         accountDeletion: {
           claimNext: vi.fn(async () => queue.shift()),
           complete: vi.fn(async () => {}),
           fail: vi.fn(async () => {}),
         },
       },
-      storage: storage ? { deletePrefix: vi.fn(async () => 1) } : null,
+      storage: storage
+        ? { deletePrefix: vi.fn(async () => 1), putObject: vi.fn(async () => {}) }
+        : null,
       logger: logger(),
       transport: () => transport,
     } as unknown as Pick<WorkerContext, 'system' | 'storage' | 'logger' | 'transport'>;
     return { ctx, sent };
   }
 
+  it('builds data exports into the bucket', async () => {
+    const { ctx } = context();
+    await createMaintenanceHandler(async () => ctx)({
+      Records: [record('e', { kind: 'data-export' })],
+    });
+    expect(ctx.system.dataExport.complete).toHaveBeenCalledWith(
+      JOB_B,
+      `exports/${JOB_A}/${JOB_B}.json`,
+    );
+  });
+
   it('runs account deletions, and refuses to without the bucket', async () => {
     const { ctx } = context();
     await createMaintenanceHandler(async () => ctx)({
       Records: [record('d', { kind: 'account-deletion' })],
     });
-    expect(ctx.system.accountDeletion.complete).toHaveBeenCalledWith(JOB_A, { objects: 3 });
+    expect(ctx.system.accountDeletion.complete).toHaveBeenCalledWith(JOB_A, { objects: 4 });
 
     const bare = context({ storage: false });
     const res = await createMaintenanceHandler(async () => bare.ctx)({

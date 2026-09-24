@@ -52,6 +52,12 @@ export const SCHEDULES: ScheduleSpec[] = [
     description: 'Self-serve account deletions (SEC-80), minutes after the request',
   },
   {
+    name: 'data-export',
+    expression: scheduler.ScheduleExpression.rate(Duration.minutes(5)),
+    queue: 'maintenance',
+    description: 'Self-serve data exports (SEC-81), minutes after the request',
+  },
+  {
     name: 'batch-poll',
     expression: scheduler.ScheduleExpression.rate(Duration.minutes(5)),
     queue: 'jobs-batch',

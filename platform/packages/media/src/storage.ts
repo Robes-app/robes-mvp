@@ -61,6 +61,8 @@ export interface MediaStorage {
     opts: { contentType: string; cacheControl?: string },
   ): Promise<void>;
   deleteObject(key: string): Promise<void>;
+  // A short-lived GET that downloads as `filename` (data exports; SEC-81).
+  presignDownload(key: string, opts: { filename: string; expiresIn: number }): Promise<string>;
   // Deletes every object under the prefix (account deletion); returns how many went.
   deletePrefix(prefix: string): Promise<number>;
 }
@@ -125,6 +127,19 @@ export function createMediaStorage({ client, bucket }: MediaBucket): MediaStorag
 
     async deleteObject(key) {
       await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    },
+
+    async presignDownload(key, { filename, expiresIn }) {
+      if (!/^[\w.-]+$/.test(filename)) throw new Error('invalid filename');
+      return getSignedUrl(
+        client,
+        new GetObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          ResponseContentDisposition: `attachment; filename="${filename}"`,
+        }),
+        { expiresIn },
+      );
     },
 
     async deletePrefix(prefix) {

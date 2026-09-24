@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { SignOutButton } from '@/components/sign-out-button';
 import { displayName, requireOnboardedProfile } from '@/server/session';
 import { DeleteAccount } from './delete-account';
+import { DownloadData } from './download-data';
 
 const row =
   'flex min-h-12 items-center justify-between gap-4 border-b border-hairline font-sans text-base text-ink hover:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
@@ -51,6 +52,7 @@ export default async function YouPage() {
           <RowLink href="/legal/privacy" label={you.legal.privacyNotice} />
         </ul>
       </section>
+      <DownloadData />
       <div className="flex flex-col items-start gap-4">
         <SignOutButton />
         <DeleteAccount />

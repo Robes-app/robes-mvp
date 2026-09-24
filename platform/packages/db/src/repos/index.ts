@@ -4,6 +4,7 @@ import { adminReadsRepo } from './admin-reads';
 import { assetProcessingRepo, assetsRepo } from './assets';
 import { consentsRepo } from './consents';
 import { accountDeletionRepo, deletionRepo } from './deletion';
+import { dataExportRepo, exportsRepo } from './exports';
 import { flagsRepo } from './flags';
 import { ideasRepo } from './ideas';
 import { jobRunnerRepo, jobsRepo } from './jobs';
@@ -30,6 +31,7 @@ export function createRepositories(db: Db) {
     assets: assetsRepo(db),
     consents: consentsRepo(db),
     deletion: deletionRepo(db),
+    exports: exportsRepo(db),
     flags: flagsRepo(db),
     ideas: ideasRepo(db),
     looks: looksRepo(db),
@@ -52,6 +54,7 @@ export function createRepositories(db: Db) {
 export function createSystemRepositories(db: Db) {
   return {
     accountDeletion: accountDeletionRepo(db),
+    dataExport: dataExportRepo(db),
     assets: assetProcessingRepo(db),
     jobs: jobRunnerRepo(db),
     ledger: ledgerRepo(db),
