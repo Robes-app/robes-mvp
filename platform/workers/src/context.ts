@@ -52,15 +52,15 @@ async function createWorkerContext(): Promise<WorkerContext> {
     env.MEDIA_BUCKET && env.AWS_REGION
       ? createMediaStorage(createMediaBucket({ bucket: env.MEDIA_BUCKET, region: env.AWS_REGION }))
       : null;
+  const ai = storage
+    ? createJobAi({ appEnv: env.APP_ENV, geminiApiKey: await resolveGeminiKey(env) })
+    : null;
+  // Generated frames land as uploads, so the S3 event renders them; no onGenerated here.
   const handlers = createHandlers(
-    storage
+    storage && ai
       ? {
-          wardrobeAnalyse: {
-            ai: createJobAi({ appEnv: env.APP_ENV, geminiApiKey: await resolveGeminiKey(env) }),
-            storage,
-            pieces: system.pieces,
-            ledger: system.ledger,
-          },
+          wardrobeAnalyse: { ai, storage, pieces: system.pieces, ledger: system.ledger },
+          stylePiece: { ai, storage, styling: system.styling, ledger: system.ledger },
         }
       : {},
   );

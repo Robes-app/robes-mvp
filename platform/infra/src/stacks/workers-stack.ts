@@ -51,7 +51,8 @@ export class WorkersStack extends RobesStack {
         sendTo: ['notify'],
         s3: [
           { actions: ['s3:GetObject'], prefixes: ['media/'] },
-          { actions: ['s3:PutObject'], prefixes: ['generated/', 'media/'] },
+          // uploads/: generated frames go through the same S3 event → RenditionFn path as photos.
+          { actions: ['s3:PutObject'], prefixes: ['generated/', 'media/', 'uploads/'] },
         ],
       },
       batch: {

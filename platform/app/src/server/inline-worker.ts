@@ -8,12 +8,16 @@ import { mediaStorage } from './media';
 
 // Dev-only worker pipeline inside the web process (see jobs.ts); never reachable from a route.
 const system = createSystemRepositories(db);
+const ai = createJobAi({ appEnv: env.APP_ENV, geminiApiKey: env.GEMINI_API_KEY });
 const handlers = createHandlers({
-  wardrobeAnalyse: {
-    ai: createJobAi({ appEnv: env.APP_ENV, geminiApiKey: env.GEMINI_API_KEY }),
+  wardrobeAnalyse: { ai, storage: mediaStorage, pieces: system.pieces, ledger: system.ledger },
+  stylePiece: {
+    ai,
     storage: mediaStorage,
-    pieces: system.pieces,
+    styling: system.styling,
     ledger: system.ledger,
+    // Stand-in for the S3 event → RenditionFn, as for uploads.
+    onGenerated: async (key) => (await import('./local-rendition')).renderLocally(key),
   },
 });
 

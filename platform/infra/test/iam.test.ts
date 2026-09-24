@@ -99,6 +99,15 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
     );
   });
 
+  it('generate can write uploads/ so styled frames reach RenditionFn', () => {
+    const fn = functionNamed(s, 'generate');
+    const puts = roleStatements(s, roleOf(s, fn))
+      .filter((st) => list(st.Action).includes('s3:PutObject'))
+      .flatMap((st) => list(st.Resource))
+      .map((r) => JSON.stringify(r));
+    expect(puts.some((r) => r.includes('/uploads/*'))).toBe(true);
+  });
+
   it('workers get exactly the secrets they need', () => {
     const expected: Record<string, string[]> = {
       generate: ['database/url', 'fal/api-key', 'gemini/api-key'],

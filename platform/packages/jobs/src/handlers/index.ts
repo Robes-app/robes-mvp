@@ -17,5 +17,6 @@ export function createHandlers(opts: HandlerDeps = {}): JobHandlers {
     ...(opts.wardrobeAnalyse
       ? { wardrobe_analyse: createWardrobeAnalyseHandler(opts.wardrobeAnalyse) }
       : {}),
+    ...(opts.stylePiece ? { key_piece: createStylePieceHandler(opts.stylePiece) } : {}),
   };
 }
