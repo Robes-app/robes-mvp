@@ -7,12 +7,14 @@ import { flagsRepo } from './flags';
 import { ideasRepo } from './ideas';
 import { jobRunnerRepo, jobsRepo } from './jobs';
 import { ledgerRepo } from './ledger';
+import { looksRepo } from './looks';
 import { maintenanceRepo } from './maintenance';
 import { pieceAnalysisRepo } from './piece-analysis';
 import { profilesRepo } from './profiles';
 import { stylingRepo } from './styling';
 import { usageRepo } from './usage';
 import { wardrobeRepo } from './wardrobe';
+import { wishlistRepo } from './wishlist';
 
 // User-scoped repositories: every method takes the verified UserId first (CLAUDE.md rule 7).
 export function createRepositories(db: Db) {
@@ -23,12 +25,14 @@ export function createRepositories(db: Db) {
     deletion: deletionRepo(db),
     flags: flagsRepo(db),
     ideas: ideasRepo(db),
+    looks: looksRepo(db),
     jobs: jobsRepo(db),
     // Global capacity check only; holds no per-user data.
     capacity: { isExhausted: ledgerRepo(db).isExhausted },
     profiles: profilesRepo(db),
     usage: usageRepo(db),
     wardrobe: wardrobeRepo(db),
+    wishlist: wishlistRepo(db),
   };
 }
 
@@ -50,6 +54,9 @@ export type { AssetKind } from './assets';
 export type { ConsentAnswers } from './consents';
 export type { CreateJobInput, QuotaCost } from './jobs';
 export type { CallRecord } from './ledger';
+export { type LookFields, type LookPieceInput, LookPiecesNotFound, type LookRole } from './looks';
+export { encodeCursor, type Page } from './paging';
 export type { PieceAnalysis } from './piece-analysis';
 export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';
-export { encodeCursor, type ListPiecesQuery, type PieceFields } from './wardrobe';
+export type { ListPiecesQuery, PieceFields } from './wardrobe';
+export type { WishFields } from './wishlist';

@@ -31,6 +31,8 @@ jobs:
       ROBES_STAGING_MEDIA_CERT_ARN: ${{ vars.MEDIA_CERT_ARN }}
       ROBES_STAGING_ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
       ROBES_STAGING_BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
+      ROBES_STAGING_BUDGETS: ${{ vars.BUDGETS }}
+      ROBES_STAGING_GENERATE_RESERVED_CONCURRENCY: ${{ vars.GENERATE_RESERVED_CONCURRENCY }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/platform-setup
@@ -51,7 +53,8 @@ jobs:
       - name: cdk deploy (Staging)
         working-directory: platform/infra
         # A script, not `pnpm exec`: exec puts a relative .bin on PATH and esbuild bundling breaks.
-        run: pnpm cdk deploy --all -c stage=staging --require-approval never --ci
+        # Stacks live inside the Staging Stage, so select them by path; --all only sees top-level stacks.
+        run: pnpm cdk deploy 'Staging/*' -c stage=staging --require-approval never --ci
 
       - name: smoke
         env:

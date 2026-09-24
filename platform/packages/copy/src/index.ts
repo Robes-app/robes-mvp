@@ -280,6 +280,9 @@ export const looks = {
       body: 'Save an idea to keep it.',
     },
   },
+  // Robes' suggested name for an unnamed look; provisional until she names it.
+  suggestedName: (firstPiece: string | null): string =>
+    firstPiece ? `${firstPiece}, styled` : 'A new look',
 } as const;
 
 // You area.

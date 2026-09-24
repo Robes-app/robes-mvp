@@ -28,3 +28,11 @@ export function reservedConcurrency(stage: string, fallback: number): number | u
     throw new Error(`invalid reserved concurrency: ${raw}`);
   return value === 0 ? undefined : value;
 }
+
+// Budgets can only be created in a payer (or standalone) account, not an Organizations member.
+export function budgetsEnabled(stage: string): boolean {
+  const raw = fromEnv(`ROBES_${stage.toUpperCase()}_BUDGETS`);
+  if (raw === undefined || raw === 'on') return true;
+  if (raw === 'off') return false;
+  throw new Error(`invalid budgets flag: ${raw} (on|off)`);
+}
