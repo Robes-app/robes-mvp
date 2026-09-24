@@ -72,7 +72,8 @@ export function SegmentedControl<T extends string>({
               'min-h-11 rounded-pill border px-4 font-sans text-sm font-medium motion-safe:transition-colors motion-safe:duration-150',
               checked
                 ? 'border-hairline bg-bg text-ink'
-                : 'border-transparent text-ink-muted hover:text-ink',
+                : // ink, not ink-muted: muted text on the sunk track is under 4.5:1.
+                  'border-transparent text-ink hover:border-hairline',
               focusRing,
             )}
           >
