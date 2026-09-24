@@ -1,12 +1,37 @@
-create schema if not exists private;
-revoke all on schema private from public, anon;
-grant usage on schema private to authenticated, service_role;
+-- ADR-019: the API and workers are the only path to app data. App tables live in schema `app`,
+-- which PostgREST does not expose, and client roles (anon, authenticated) get no privileges.
+-- Ownership is enforced in code (packages/db repositories), not by RLS.
 
-revoke all on all tables in schema public from anon;
-revoke all on all sequences in schema public from anon;
-alter default privileges in schema public revoke all on tables from anon;
-alter default privileges in schema public revoke all on sequences from anon;
-alter default privileges in schema public revoke execute on functions from public, anon;
+create extension if not exists citext with schema extensions;
+create extension if not exists pgcrypto with schema extensions;
+create extension if not exists pg_cron;
+
+create schema if not exists app;
+revoke all on schema app from public, anon, authenticated;
+
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+
+-- The API/worker login role. Its password is set per environment out of band
+-- (runbooks/environments.md); locally by supabase/seed.sql.
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'robes_app') then
+    create role robes_app nologin noinherit;
+  end if;
+end;
+$$;
+-- postgres (the migration/admin role) may act as robes_app, e.g. in pgTAP tests.
+grant robes_app to postgres;
+grant usage on schema app, private, extensions to robes_app;
+alter default privileges in schema app grant select, insert, update, delete on tables to robes_app;
+alter default privileges in schema app grant usage, select on sequences to robes_app;
+alter role robes_app set search_path = app, extensions;
+
+-- Belt and braces: nothing in public is reachable by client roles either.
+revoke all on all tables in schema public from anon, authenticated;
+alter default privileges in schema public revoke all on tables from anon, authenticated;
+alter default privileges in schema public revoke all on sequences from anon, authenticated;
 -- EXECUTE-to-PUBLIC is a global default (can't be revoked per schema); every function grant is explicit.
 alter default privileges revoke execute on functions from public;
 
@@ -21,3 +46,17 @@ begin
 end;
 $$;
 revoke execute on function private.touch_updated_at() from public;
+
+-- Adds the updated_at trigger; every mutable table calls this so none is forgotten.
+create function private.track_updates(p_table regclass)
+returns void
+language plpgsql
+set search_path = ''
+as $$
+begin
+  execute pg_catalog.format(
+    'create trigger touch_updated_at before update on %s for each row execute function private.touch_updated_at()',
+    p_table);
+end;
+$$;
+revoke execute on function private.track_updates(regclass) from public;

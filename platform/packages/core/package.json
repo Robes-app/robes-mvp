@@ -1,0 +1,21 @@
+{
+  "name": "@robes/core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./taxonomy": "./src/taxonomy/index.ts",
+    "./quotas": "./src/quotas/index.ts",
+    "./flags": "./src/flags/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "gen:sql": "tsx scripts/gen-reference-sql.ts"
+  },
+  "devDependencies": {
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
