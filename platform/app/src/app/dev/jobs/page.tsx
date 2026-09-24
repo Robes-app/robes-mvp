@@ -1,4 +1,5 @@
 import { jobs as copy } from '@robes/copy';
+import { Eyebrow, Heading } from '@robes/ui';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { env } from '@/server/env';
@@ -18,10 +19,8 @@ export default async function DevJobsPage({
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-8 px-6">
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-medium uppercase tracking-[0.24em] text-ink-muted">
-          {copy.dev.eyebrow}
-        </p>
-        <h1 className="font-display text-4xl font-light text-ink">{copy.dev.title}</h1>
+        <Eyebrow>{copy.dev.eyebrow}</Eyebrow>
+        <Heading level={1}>{copy.dev.title}</Heading>
       </header>
       <JobConsole initialJobId={initialJobId} />
     </main>

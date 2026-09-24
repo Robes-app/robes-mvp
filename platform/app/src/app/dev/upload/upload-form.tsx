@@ -2,8 +2,8 @@
 
 import type { Asset, CreateUploadOutput } from '@robes/contracts';
 import { devUpload as copy } from '@robes/copy';
+import { Button, Field, Heading, Text } from '@robes/ui';
 import { type ChangeEvent, useState } from 'react';
-import { Field, SecondaryButton } from '@/components/field';
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
@@ -55,7 +55,7 @@ export function UploadForm() {
   const largest = asset?.renditions.at(-1);
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="font-display text-4xl font-light text-ink">{copy.title}</h1>
+      <Heading level={1}>{copy.title}</Heading>
       <Field
         label={copy.fileLabel}
         name="photo"
@@ -65,19 +65,23 @@ export function UploadForm() {
         onChange={onFile}
         error={error}
       />
-      {busy ? <p className="text-sm text-ink-muted">{copy.uploading}</p> : null}
+      {busy ? (
+        <Text size="small" tone="muted">
+          {copy.uploading}
+        </Text>
+      ) : null}
       {asset?.status === 'pending' ? (
         <div className="flex items-center justify-between gap-4">
-          <p className="text-sm text-ink-muted">{copy.processing}</p>
-          <SecondaryButton type="button" onClick={refresh}>
-            {copy.refresh}
-          </SecondaryButton>
+          <Text size="small" tone="muted">
+            {copy.processing}
+          </Text>
+          <Button onClick={refresh}>{copy.refresh}</Button>
         </div>
       ) : null}
       {asset?.status === 'failed' ? (
-        <p role="alert" className="text-sm text-danger">
+        <Text role="alert" size="small" tone="danger">
           {copy.failed}
-        </p>
+        </Text>
       ) : null}
       {asset?.status === 'ready' && largest ? (
         <figure className="flex flex-col gap-2">
