@@ -1,6 +1,8 @@
 import { Annotations, Match } from 'aws-cdk-lib/assertions';
 import { describe, expect, it } from 'vitest';
-import { buildApp } from '../src/app';
+import { stages } from '../config';
+import { buildApp, FIXTURE_ENTRY_DIR } from '../src/app';
+import { RobesStage } from '../src/stage';
 import { synth, testApp } from './synth';
 
 const STATEFUL = [
@@ -84,5 +86,18 @@ describe('buildApp', () => {
     expect(() => buildApp(testApp({ stage: 'staging', workersEntryDir: '/nonexistent' }))).toThrow(
       /Worker entry not found/,
     );
+  });
+});
+
+describe('budgets flag', () => {
+  it('omits the Budgets stack for a member account', () => {
+    const stage = new RobesStage(
+      testApp(),
+      { ...stages.staging, budget: { ...stages.staging.budget, enabled: false } },
+      { workersEntryDir: FIXTURE_ENTRY_DIR },
+    );
+    expect(stage.budgets).toBeUndefined();
+    expect(stage.stacks.map((st) => st.stackName)).not.toContain('Stg-Budgets');
+    expect(stage.stacks).toHaveLength(8);
   });
 });

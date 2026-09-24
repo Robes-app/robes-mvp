@@ -26,7 +26,7 @@ export class RobesStage extends Stage {
   readonly schedules: SchedulesStack;
   readonly identity: IdentityStack;
   readonly observability: ObservabilityStack;
-  readonly budgets: BudgetsStack;
+  readonly budgets: BudgetsStack | undefined;
 
   constructor(scope: Construct, config: StageConfig, options: RobesStageOptions) {
     super(scope, config.stageId, { env: config.env });
@@ -66,7 +66,9 @@ export class RobesStage extends Stage {
       functions: [...Object.values(this.workers.functions), this.media.rendition],
       apiUserArn: this.identity.apiUser.userArn,
     });
-    this.budgets = new BudgetsStack(this, 'Budgets', { ...base, topic: this.observability.topic });
+    this.budgets = config.budget.enabled
+      ? new BudgetsStack(this, 'Budgets', { ...base, topic: this.observability.topic })
+      : undefined;
   }
 
   get stacks(): RobesStack[] {
@@ -79,7 +81,7 @@ export class RobesStage extends Stage {
       this.schedules,
       this.identity,
       this.observability,
-      this.budgets,
+      ...(this.budgets ? [this.budgets] : []),
     ];
   }
 }

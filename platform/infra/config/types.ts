@@ -40,5 +40,6 @@ export interface StageConfig {
     generateReservedConcurrency?: number;
   };
   alerts: { email?: string };
-  budget: { monthlyUsd: number; email?: string };
+  /** `enabled: false` skips the Budgets stack (member accounts can't create budgets). */
+  budget: { enabled: boolean; monthlyUsd: number; email?: string };
 }
