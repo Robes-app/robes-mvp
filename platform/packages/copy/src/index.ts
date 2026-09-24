@@ -609,6 +609,21 @@ export const you = {
     expired: 'That link has expired.',
     again: 'Prepare a new file',
   },
+  // Forwarded receipts: her private Robes address (M3 task 10).
+  receipts: {
+    title: 'Forward receipts',
+    body: 'Forward an order email here and Robes holds the pieces in your Inbox for a yes or no.',
+    copy: 'Copy address',
+    copied: 'Address copied.',
+    copyFailed: (address: string): string => `Copy this address: ${address}`,
+    regenerate: 'New address',
+    regenerated: 'New address ready. The old one no longer works.',
+    turnOff: 'Turn off',
+    turnedOff: 'Forwarding is off.',
+    turnOn: 'Get an address',
+    // Native: the share sheet carries Copy.
+    share: 'Share address',
+  },
 } as const;
 
 // Plan (M5): the rolling list of days.

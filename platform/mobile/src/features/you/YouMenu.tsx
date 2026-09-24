@@ -32,6 +32,7 @@ export function YouMenu() {
         <Row label={copy.style.title} onPress={() => router.push('/you/style')} />
         <Row label={copy.account.title} onPress={() => router.push('/you/account')} />
         <Row label={copy.notifications.title} onPress={() => router.push('/you/notifications')} />
+        <Row label={copy.receipts.title} onPress={() => router.push('/you/receipts')} />
         <Row label={copy.privacy} onPress={() => router.push('/you/privacy')} />
         <Row
           label={copy.legal.terms}

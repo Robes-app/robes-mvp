@@ -130,6 +130,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `NEXT_PUBLIC_POSTHOG_KEY` | required outside dev; publishable ingest key, read at runtime and passed to the browser |
 | `NEXT_PUBLIC_POSTHOG_HOST` | optional, default `https://eu.i.posthog.com` (https required outside dev); CSP gains it and `https://eu-assets.i.posthog.com` |
 | `MIN_APP_VERSION` | 426 gate for old native builds |
+| `INBOUND_MAIL_DOMAIN` | `in.staging.mail.byrobes.com` / `in.mail.byrobes.com`; the domain of her forwarding address (§9 step 7) |
 | `UNSUB_HMAC_KEY` | sensitive; the same value as Secrets Manager `robes-<env>/unsub/hmac-key` (≥32 chars), which notifyFn signs unsubscribe links with. Rotating it voids links in mail already sent |
 
 8. Copy the API user's access key into Vercel (after every deploy that changes `api.accessKeys`):
@@ -180,8 +181,15 @@ CDK (`EmailStack`) creates the domain identity (Easy DKIM, RSA 2048), MAIL FROM 
 4. **Production access** (per account, manual): SES → Account dashboard → *Request production access*: mail type Transactional, website `https://byrobes.com`, describe sign-in codes and notifications, opt-in only, bounce/complaint handling via the configuration set and suppression list. Until granted the account is in the sandbox (200/day, verified recipients only); for staging, verify test inboxes under Identities instead.
 5. Send a test: `aws sesv2 send-email --from-email-address "hello@<domain>" --destination ToAddresses=<you> --content 'Simple={Subject={Data=test},Body={Text={Data=ok}}}' --configuration-set-name robes-<env>-email`.
 6. Watch reputation: SES → Reputation metrics. Keep bounce < 2 % and complaints < 0.1 %; SES pauses sending at 10 % / 0.5 %.
-7. Inbound receipts (`in.byrobes.com`, previously Resend inbound) are not built yet; SES receiving in `eu-west-1` is the likely path (separate decision).
-8. Local development uses the mail catcher over SMTP (see `platform/README.md`); nothing in dev talks to SES.
+7. **Inbound receipts** (M3 task 10, built): `InboundStack` creates receipt rule set `robes-<env>-inbound` for `in.<domain>` (spam/virus scan, TLS required) that stores raw mail under `inbound/` in the media bucket (7-day lifecycle) and notifies SNS `robes-<env>-inbound-mail` → queue `robes-<env>-inbound` → `inboundFn`. Each person gets a private address `<20 chars>@in.<domain>` (You › Forward receipts; regenerate or turn off any time).
+   - DNS: **MX** `in.<domain>` → `10 inbound-smtp.eu-west-1.amazonaws.com` (the `InboundMx` output of `<Stg|Prod>-Inbound`). The subdomain is covered by the verified parent identity.
+   - Activate the rule set once (SES allows ONE active rule set per account and region, so staging and production sharing an account need a combined set — pick one stage's set, or merge the rules by hand):
+     ```bash
+     aws ses set-active-receipt-rule-set --rule-set-name robes-<env>-inbound
+     ```
+   - Vercel env `INBOUND_MAIL_DOMAIN=in.<domain>` so the app shows the right address (config refuses the dev default outside dev).
+   - Test: forward any order mail to your address from You › Forward receipts; it appears in Wardrobe › Inbox and you get "Robes read your … receipt." Mail that fails SPF, DKIM, spam or virus checks, or goes to an unknown/turned-off address, is dropped (`receipt_dropped` in the `inboundFn` logs).
+8. Local development uses the mail catcher over SMTP (see `platform/README.md`); nothing in dev talks to SES. Forwarded receipts locally: `pnpm receipt:ingest <absolute path to .eml> --to <address from You>`.
 
 ## 10. Google Cloud (Gemini)
 

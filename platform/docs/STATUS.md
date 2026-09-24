@@ -49,7 +49,7 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 
 ## Known gaps (not built yet)
 
-- Forwarded receipts (SES inbound) into the Inbox. (The Inbox and link import via the isolated fetcher are built; product images are kept as metadata only, not proxied or shown.)
+- Receipts: no photo-based re-read of receipt lines (legacy vision pass; would need image fetching); product images kept as metadata only. Activating the SES rule set and the `in.` MX record are ops steps (`runbooks/environments.md` §9).
 - Alternates rail and swapping pieces in a daily draft (secondary frames now render on demand via `look_render`).
 - Avatar/model (`look_waiting`, `borrowing` emails, `model`/`finish` next-step rules depend on it).
 - Overnight daily batch (M5 task 3). Trips: no images, no "more looks from this capsule", trips not drawn as Plan blocks.

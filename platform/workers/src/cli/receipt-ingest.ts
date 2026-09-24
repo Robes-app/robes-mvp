@@ -39,7 +39,8 @@ try {
       },
     }),
   );
-  console.info(JSON.stringify(outcome));
+  // Prefixed so scripts can pick it out from the worker's own JSON log lines.
+  console.info(`RESULT ${JSON.stringify(outcome)}`);
 } finally {
   await ctx.close();
 }
