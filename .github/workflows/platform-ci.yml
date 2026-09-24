@@ -37,6 +37,7 @@ jobs:
       - run: pnpm --filter @robes/tokens build
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm --filter @robes/mobile expo:doctor
       - run: pnpm --filter @robes/app build
 
   database:

@@ -1,6 +1,6 @@
 # Robes Platform — Claude Code Guide
 
-**Current milestone: M0 Foundations (not started).** Plans index: `docs/plans/README.md`.
+**Current milestone: M1 (M0 complete 2026-09-24).** Plans index: `docs/plans/README.md`.
 
 This folder is the rebuild of Robes as a secure, scalable platform: Next.js web (`app/`), Expo app (`mobile/`), Lambda workers (`workers/`), AWS CDK (`infra/`), Supabase migrations (`supabase/`) and shared packages (`packages/*`). The legacy app at the repo root (`server.js`, `public/`, root `supabase/*.sql`) keeps running in production and is **reference only** — never import from it, never edit it from platform work (legacy fixes follow `docs/plans/2026-09-24-p0-legacy-hotfixes.md` on their own branch).
 
@@ -22,7 +22,7 @@ This folder is the rebuild of Robes as a secure, scalable platform: Next.js web 
 ## Toolchain
 Node 24 · pnpm 11.27.1 · Turborepo · TypeScript 6.0.3 · Biome · zod 4 · Vitest · Playwright · Next.js 16.3 (React 19.3) · Tailwind 4.3 · Expo SDK 57 (RN 0.86, React 19.2.3) · Uniwind 1.12 · Supabase CLI · AWS CDK v2. Versions and rationale: `docs/reference/stack-versions.md`. Shared packages declare React as a **peer** dependency.
 
-Common commands (from `platform/`): `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm db:start` · `pnpm db:reset` · `pnpm db:test` · `pnpm --filter @robes/app dev` · `pnpm --filter @robes/mobile exec expo start`.
+Common commands (from `platform/`): `pnpm bootstrap` · `pnpm verify` (lint + typecheck + test + db:test) · `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm db:start` · `pnpm db:reset` · `pnpm db:test` · `pnpm dev:web` · `pnpm dev:mobile` (Expo; ADR 018) · `pnpm --filter @robes/app test:e2e`. Recipes (new package / route / table): `README.md`.
 
 ## Product rules to respect
 Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Today · Wardrobe · Looks · Plan + Create + You (`docs/reference/ux-opportunities.md` §3). P0 UX acceptance criteria UX-01…29: `docs/reference/ux-opportunities.md` §5. One filled (ink) button per screen; no lock language; titles offered, never applied; Wears are immutable.

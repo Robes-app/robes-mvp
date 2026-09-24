@@ -10,6 +10,8 @@
     "dev": "turbo run dev",
     "dev:web": "turbo run dev --filter=@robes/app",
     "dev:mobile": "pnpm --filter @robes/mobile start",
+    "dev:ios": "pnpm --filter @robes/mobile ios",
+    "dev:android": "pnpm --filter @robes/mobile android",
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
