@@ -25,6 +25,16 @@ test('Style it for today: from Today to four steps, then named into a Look', asy
   await expect(page.getByText('Yours').first()).toBeVisible();
   expect(await seriousViolations(page), 'daily look').toEqual([]);
 
+  // Suggested items are pictured on demand (UX-09).
+  const show = page.getByRole('button', { name: /^Show / });
+  const before = await show.count();
+  expect(before).toBeGreaterThan(0);
+  await show.first().click();
+  await expect(page.getByRole('img', { name: /^Robes’ picture of / })).toHaveCount(1, {
+    timeout: 30_000,
+  });
+  await expect(show).toHaveCount(before - 1);
+
   await page.getByLabel('Name it').fill('Studio to dinner');
   await page.getByRole('button', { name: 'Save this look' }).click();
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);

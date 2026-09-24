@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { JobSnapshot } from './jobs';
-import { Idea } from './looks';
+import { FrameStatus, Idea } from './looks';
 import { PlanEntry } from './plan';
 import { Piece, PieceImage } from './wardrobe';
 
@@ -57,8 +57,10 @@ export const DailyItem = z.object({
       pricePoint: z.string(),
     }),
   ),
-  // Robes' frame for this item; only the anchor is rendered up front.
+  // Robes' frame for this item; only the anchor is rendered up front, the rest on demand.
   image: PieceImage.nullable(),
+  imageIndex: z.number().int().min(0),
+  imageStatus: FrameStatus,
 });
 export type DailyItem = z.infer<typeof DailyItem>;
 
@@ -92,3 +94,8 @@ export type DailyLook = z.infer<typeof DailyLook>;
 
 export const DailyLookParams = z.object({ id: z.uuid() });
 export const SaveDailyLookInput = z.object({ name: z.string().trim().min(1).max(120) });
+
+export const DailyItemParams = z.object({
+  id: z.uuid(),
+  idx: z.coerce.number().int().min(0).max(20),
+});

@@ -103,7 +103,8 @@ export function decide(user: Recipient, state: NotifyState, now: Date): Planned[
     const idea = state.latestIdea;
     if (
       idea &&
-      idea.readyFrames >= 3 &&
+      // The hero frame renders up front; the other two only when she asks (UX-09).
+      idea.readyFrames >= 1 &&
       t - idea.createdAt.getTime() <= LOOKS_READY_WINDOW_MS &&
       user.prefs.looksReady &&
       !has('looks_ready', idea.id)

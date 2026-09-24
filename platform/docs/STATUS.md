@@ -50,7 +50,7 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 ## Known gaps (not built yet)
 
 - Wardrobe Inbox, forwarded receipts (SES inbound) and link import (isolated fetch worker, SEC-40).
-- On-demand rendering of secondary frames (style a piece renders all three; daily renders only the anchor and has no way to render the rest), alternates rail, swapping pieces in a draft.
+- Alternates rail and swapping pieces in a daily draft (secondary frames now render on demand via `look_render`).
 - Avatar/model (`look_waiting`, `borrowing` emails, `model`/`finish` next-step rules depend on it).
 - Plan month view, trips (M5 task 6), overnight daily batch (M5 task 3).
 - Legal texts (pages exist, copy "On its way"), "export ready" email, push receipts polling.

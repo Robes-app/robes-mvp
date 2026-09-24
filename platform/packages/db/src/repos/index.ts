@@ -7,6 +7,7 @@ import { dailyLooksRepo } from './daily-looks';
 import { accountDeletionRepo, deletionRepo } from './deletion';
 import { dataExportRepo, exportsRepo } from './exports';
 import { flagsRepo } from './flags';
+import { framesRepo } from './frames';
 import { ideasRepo } from './ideas';
 import { jobRunnerRepo, jobsRepo } from './jobs';
 import { ledgerRepo } from './ledger';
@@ -37,6 +38,7 @@ export function createRepositories(db: Db) {
     deletion: deletionRepo(db),
     exports: exportsRepo(db),
     flags: flagsRepo(db),
+    frames: framesRepo(db),
     ideas: ideasRepo(db),
     looks: looksRepo(db),
     jobs: jobsRepo(db),
@@ -70,6 +72,7 @@ export function createSystemRepositories(db: Db) {
     pushDelivery: pushDeliveryRepo(db),
     pieces: pieceAnalysisRepo(db),
     styleAnalysis: styleAnalysisRepo(db),
+    frames: framesRepo(db),
     styling: stylingRepo(db),
   };
 }
@@ -79,6 +82,7 @@ export type SystemRepositories = ReturnType<typeof createSystemRepositories>;
 export type { AdminActor } from './admin-reads';
 export type { AssetKind } from './assets';
 export type { ConsentAnswers } from './consents';
+export type { FramedType, StoredFrame, StoredFrameStatus } from './frames';
 export type { CreateJobInput, QuotaCost } from './jobs';
 export type { CallRecord } from './ledger';
 export { type LookFields, type LookPieceInput, LookPiecesNotFound, type LookRole } from './looks';

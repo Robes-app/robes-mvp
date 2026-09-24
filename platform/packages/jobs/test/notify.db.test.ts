@@ -18,7 +18,12 @@ let annEmail: string;
 
 async function withIdea(user: UserId): Promise<string> {
   const job = await repos.jobs.create(user, { kind: 'fake', input: {} });
-  const frames = [0, 1, 2].map((idx) => ({ idx, assetId: null, status: 'ready' }));
+  // As style-a-piece writes them now: the hero ready, the other two deferred until asked for.
+  const frames = [0, 1, 2].map((idx) => ({
+    idx,
+    assetId: null,
+    status: idx === 0 ? 'ready' : 'deferred',
+  }));
   return system.styling.createIdea(user, {
     jobId: job.job.id,
     title: 'camel coat',

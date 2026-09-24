@@ -23,7 +23,7 @@ const state = (over: Partial<NotifyState> = {}): NotifyState => ({
 const idea = {
   id: 'i1',
   title: 'Camel coat',
-  readyFrames: 3,
+  readyFrames: 1,
   createdAt: new Date(NOW.getTime() - DAY),
 };
 
@@ -36,12 +36,12 @@ describe('notify rules', () => {
     expect(isoWeek('2027-01-01')).toBe('2026-W53');
   });
 
-  it('sends looks_ready once per idea, only with three frames, only within 48 h', () => {
+  it('sends looks_ready once per idea, once the hero frame is ready, only within 48 h', () => {
     expect(decide(user(), state({ latestIdea: idea }), NOW)[0]).toMatchObject({
       kind: 'looks_ready',
       ref: 'i1',
     });
-    expect(decide(user(), state({ latestIdea: { ...idea, readyFrames: 2 } }), NOW)).toEqual([]);
+    expect(decide(user(), state({ latestIdea: { ...idea, readyFrames: 0 } }), NOW)).toEqual([]);
     const old = { ...idea, createdAt: new Date(NOW.getTime() - 3 * DAY) };
     expect(decide(user(), state({ latestIdea: old }), NOW)).toEqual([]);
     const sent = [{ kind: 'looks_ready', ref: 'i1', sentAt: new Date(NOW.getTime() - 2 * DAY) }];

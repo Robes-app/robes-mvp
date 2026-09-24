@@ -26,7 +26,12 @@ export interface StylePieceDeps {
 // The API contract is the job input; the worker re-parses it (never trusts the row).
 export const StylePieceInput = GenerateLookInput;
 
-type Frame = { idx: number; assetId: string | null; status: 'ready' | 'failed' };
+type Frame = {
+  idx: number;
+  assetId: string | null;
+  status: 'ready' | 'failed' | 'deferred';
+  jobId: string | null;
+};
 
 // Style a piece (legacy /api/style): three looks as text first, then one editorial frame each.
 export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
@@ -112,69 +117,82 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       });
       await ctx.writeStage('text', { ideaId, fallback, wearer, ways });
 
-      // Stage B: one frame per look, generated in parallel; the first look uses the hero model.
-      const frames: Frame[] = await Promise.all(
-        ways.map(async (way, idx): Promise<Frame> => {
-          const capability = idx === 0 ? 'image.hero' : 'image.secondary';
+      // Stage B: only the hero frame renders now; the other looks render when she asks (UX-09,
+      // cost lever 1 — POST /looks/ideas/:id/frames/:idx runs a look_render job).
+      const renderHero = async (way: (typeof ways)[number]): Promise<Frame> => {
+        const idx = 0;
+        const capability = 'image.hero';
+        await deps.styling.trackImage({
+          jobId: ctx.jobId,
+          userId: ctx.userId,
+          idx,
+          role: 'hero',
+          assetId: null,
+          status: 'pending',
+        });
+        try {
+          const { image, usage } = await deps.ai.generateImage({
+            feature: FEATURE,
+            capability,
+            prompt: buildImagePrompt({
+              wearer,
+              pieceLabel,
+              hasPiecePhoto: Boolean(piecePhoto) && !fallback,
+              styleIcons: styleCtx.styleIcons,
+              way,
+            }),
+            ...(piecePhoto && !fallback
+              ? { references: [{ mimeType: 'image/jpeg' as const, data: piecePhoto }] }
+              : {}),
+            aspectRatio: '4:5',
+            signal: ctx.signal,
+          });
+          await record(ctx, usage, 'ok', `${FEATURE}.image`);
+          const assetId = await deps.styling.createGeneratedAsset(ctx.userId);
+          const key = mediaKeys.original(ctx.userId, assetId);
+          await deps.storage.putObject(key, image.data, { contentType: image.mimeType });
+          await deps.onGenerated?.(key);
           await deps.styling.trackImage({
             jobId: ctx.jobId,
             userId: ctx.userId,
             idx,
-            role: idx === 0 ? 'hero' : 'still',
-            assetId: null,
-            status: 'pending',
+            role: 'hero',
+            assetId,
+            status: 'ready',
           });
-          try {
-            const { image, usage } = await deps.ai.generateImage({
-              feature: FEATURE,
-              capability,
-              prompt: buildImagePrompt({
-                wearer,
-                pieceLabel,
-                hasPiecePhoto: Boolean(piecePhoto) && !fallback,
-                styleIcons: styleCtx.styleIcons,
-                way,
-              }),
-              ...(piecePhoto && !fallback
-                ? { references: [{ mimeType: 'image/jpeg' as const, data: piecePhoto }] }
-                : {}),
-              aspectRatio: '4:5',
-              signal: ctx.signal,
-            });
-            await record(ctx, usage, 'ok', `${FEATURE}.image`);
-            const assetId = await deps.styling.createGeneratedAsset(ctx.userId);
-            const key = mediaKeys.original(ctx.userId, assetId);
-            await deps.storage.putObject(key, image.data, { contentType: image.mimeType });
-            await deps.onGenerated?.(key);
-            await deps.styling.trackImage({
-              jobId: ctx.jobId,
-              userId: ctx.userId,
-              idx,
-              role: idx === 0 ? 'hero' : 'still',
-              assetId,
-              status: 'ready',
-            });
-            return { idx, assetId, status: 'ready' };
-          } catch (err) {
-            if (err instanceof AiError) await record(ctx, err.usage, 'error', `${FEATURE}.image`);
-            if (ctx.signal.aborted) throw err;
-            await deps.styling.trackImage({
-              jobId: ctx.jobId,
-              userId: ctx.userId,
-              idx,
-              role: idx === 0 ? 'hero' : 'still',
-              assetId: null,
-              status: 'failed',
-            });
-            // UX-08: one failed frame never sinks the result.
-            return { idx, assetId: null, status: 'failed' };
-          }
-        }),
-      );
+          return { idx, assetId, status: 'ready', jobId: ctx.jobId };
+        } catch (err) {
+          if (err instanceof AiError) await record(ctx, err.usage, 'error', `${FEATURE}.image`);
+          if (ctx.signal.aborted) throw err;
+          await deps.styling.trackImage({
+            jobId: ctx.jobId,
+            userId: ctx.userId,
+            idx,
+            role: 'hero',
+            assetId: null,
+            status: 'failed',
+          });
+          // UX-08: a failed frame never sinks the result; she can ask for it again.
+          return { idx, assetId: null, status: 'failed', jobId: ctx.jobId };
+        }
+      };
+      const [hero] = ways;
+      const frames: Frame[] = [
+        ...(hero ? [await renderHero(hero)] : []),
+        ...ways.slice(1).map(
+          (_, i): Frame => ({
+            idx: i + 1,
+            assetId: null,
+            status: 'deferred',
+            jobId: null,
+          }),
+        ),
+      ];
       await deps.styling.mergeIdeaData(ctx.userId, ideaId, { images: frames });
       await ctx.writeStage('images', { images: frames });
       return {
-        status: frames.every((f) => f.status === 'ready') ? 'succeeded' : 'partial',
+        // Hero ready is a finished idea; the deferred frames are hers to ask for.
+        status: frames[0]?.status === 'ready' ? 'succeeded' : 'partial',
         artifactId: ideaId,
       };
     },

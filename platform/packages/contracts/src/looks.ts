@@ -24,9 +24,13 @@ export const IdeaWay = z.object({
 });
 export type IdeaWay = z.infer<typeof IdeaWay>;
 
+// Only the hero frame renders up front; the others stay `deferred` until she asks (UX-09).
+export const FrameStatus = z.enum(['pending', 'ready', 'failed', 'deferred']);
+export type FrameStatus = z.infer<typeof FrameStatus>;
+
 export const IdeaFrame = z.object({
   idx: z.number().int().min(0),
-  status: z.enum(['pending', 'ready', 'failed']),
+  status: FrameStatus,
   image: PieceImage.nullable(),
 });
 export type IdeaFrame = z.infer<typeof IdeaFrame>;
@@ -136,3 +140,19 @@ export const Wear = z.object({
 export type Wear = z.infer<typeof Wear>;
 
 export const SaveWayInput = z.object({ wayIdx: z.number().int().min(0).max(2) });
+
+export const IdeaFrameParams = z.object({
+  id: z.uuid(),
+  idx: z.coerce.number().int().min(0).max(2),
+});
+
+// look_render job input: one frame of an idea, or one item of a daily look, rendered on demand.
+export const LookRenderInput = z.discriminatedUnion('target', [
+  z.object({ target: z.literal('idea'), ideaId: z.uuid(), idx: z.number().int().min(0).max(2) }),
+  z.object({
+    target: z.literal('daily'),
+    dailyLookId: z.uuid(),
+    itemIdx: z.number().int().min(0).max(20),
+  }),
+]);
+export type LookRenderInput = z.infer<typeof LookRenderInput>;

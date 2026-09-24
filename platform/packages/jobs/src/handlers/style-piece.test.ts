@@ -52,7 +52,7 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fakeOutput('
 }
 
 describe('key_piece handler (style a piece)', () => {
-  it('writes the looks first, then one stored frame per look, and returns the idea', async () => {
+  it('writes the looks first, then only the hero frame; the others wait until she asks', async () => {
     const { run, styling, storage, onGenerated, writeStage } = setup();
     await expect(run()).resolves.toEqual({
       status: 'succeeded',
@@ -64,20 +64,24 @@ describe('key_piece handler (style a piece)', () => {
       USER,
       expect.objectContaining({ title: 'Camel coat' }),
     );
-    expect(storage.putObject).toHaveBeenCalledTimes(3);
+    expect(storage.putObject).toHaveBeenCalledTimes(1);
     expect((storage.putObject.mock.calls[0] as unknown[])[0]).toMatch(/^uploads\/.+\/original$/);
-    expect(onGenerated).toHaveBeenCalledTimes(3);
+    expect(onGenerated).toHaveBeenCalledTimes(1);
+    expect(styling.mergeIdeaData).toHaveBeenCalledWith(USER, expect.any(String), {
+      images: [
+        expect.objectContaining({ idx: 0, status: 'ready' }),
+        { idx: 1, assetId: null, status: 'deferred', jobId: null },
+        { idx: 2, assetId: null, status: 'deferred', jobId: null },
+      ],
+    });
   });
 
-  it('keeps the result when one frame fails (UX-08)', async () => {
+  it('keeps the looks when the hero frame fails (UX-08)', async () => {
     const base = createFakeProvider({ 'looks.style_piece': () => fakeOutput('Camel coat') });
-    let calls = 0;
     const ai = {
       ...base,
-      generateImage: vi.fn(async (req: Parameters<typeof base.generateImage>[0]) => {
-        calls += 1;
-        if (calls === 2) throw new AiError('blocked');
-        return base.generateImage(req);
+      generateImage: vi.fn(async () => {
+        throw new AiError('blocked');
       }),
     };
     const { run, styling } = setup(ai);

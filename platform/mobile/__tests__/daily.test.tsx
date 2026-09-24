@@ -24,6 +24,8 @@ const item = (over: object = {}) => ({
   pricePoint: '€89',
   alternates: [{ name: 'Pleated trousers', brand: 'Arket', retailerHint: '', pricePoint: '€79' }],
   image: null,
+  imageIndex: 1,
+  imageStatus: 'deferred',
   ...over,
 });
 const dailyLook = (over: object = {}) => ({
@@ -38,10 +40,13 @@ const dailyLook = (over: object = {}) => ({
   lookTags: { climate: 'year_round', wearFor: [], vibe: [] },
   weather: { city: 'Dublin', tempRange: '9–14°C', condition: 'Light rain' },
   steps: [
-    { title: 'The Anchor', items: [item({ piece: piece(), name: 'Camel coat' })] },
+    {
+      title: 'The Anchor',
+      items: [item({ piece: piece(), name: 'Camel coat', imageIndex: 0, imageStatus: 'pending' })],
+    },
     { title: 'The Canvas', items: [item()] },
-    { title: 'The Texture', items: [item({ name: 'Cream knit' })] },
-    { title: 'The Accents', items: [item({ name: 'Loafers' })] },
+    { title: 'The Texture', items: [item({ name: 'Cream knit', imageIndex: 2 })] },
+    { title: 'The Accents', items: [item({ name: 'Loafers', imageIndex: 3 })] },
   ],
   savedAt: null,
   expiresAt: '2026-10-24T10:00:00.000Z',
@@ -115,5 +120,37 @@ test('home city saves with the account', async () => {
   await fireEvent.press(screen.getByRole('button', { name: you.account.save }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({ homeCity: 'Dublin' }),
+  );
+});
+
+test('a suggested item is pictured when she asks, and the look refreshes while it renders', async () => {
+  let rendered = false;
+  const calls = mockFetch({
+    [`GET /today/looks/${DAILY_ID}`]: () =>
+      dailyLook(
+        rendered
+          ? {
+              steps: dailyLook().steps.map((s: { title: string; items: object[] }) => ({
+                ...s,
+                items: s.items.map((i) => ({ ...i, imageStatus: 'pending' })),
+              })),
+            }
+          : {},
+      ),
+    [`POST /today/looks/${DAILY_ID}/items/1/render`]: () => {
+      rendered = true;
+      return { jobId: JOB_ID, status: 'queued' };
+    },
+  });
+  await renderWithApi(<DailyLookView id={DAILY_ID} />);
+  const buttons = await screen.findAllByRole('button', { name: today.daily.showItem });
+  // Her own piece and the anchor never offer it: three suggested items do.
+  expect(buttons).toHaveLength(3);
+  await fireEvent.press(buttons[0] as never);
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/items/1/render'))).toBe(true),
+  );
+  await waitFor(() =>
+    expect(screen.queryAllByRole('button', { name: today.daily.showItem })).toHaveLength(0),
   );
 });

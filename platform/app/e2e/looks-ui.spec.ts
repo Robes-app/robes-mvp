@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import { declineConsent, isolateClientIp, signIn, uniqueEmail } from './helpers';
+import { declineConsent, isolateClientIp, seriousViolations, signIn, uniqueEmail } from './helpers';
 
 test.beforeEach(({ context }) => isolateClientIp(context));
 
@@ -9,8 +9,9 @@ async function expectThreeWays(page: Page, title: string): Promise<void> {
   });
   const ways = page.getByRole('list', { name: 'Three ways' }).getByRole('listitem');
   await expect(ways).toHaveCount(3);
-  // Frames render after the job; they replace their skeletons without a reload.
-  await expect(page.getByRole('img', { name: /^A look: / })).toHaveCount(3, { timeout: 30_000 });
+  // Only the first look is pictured up front (UX-09); it replaces its skeleton without a reload.
+  await expect(page.getByRole('img', { name: /^A look: / })).toHaveCount(1, { timeout: 30_000 });
+  await expect(page.getByRole('button', { name: /^Show this look: / })).toHaveCount(2);
 }
 
 test('onboarding’s first piece lands on its styled result', async ({ page }) => {
@@ -30,6 +31,15 @@ test('style a piece from Looks, then save it', async ({ page }) => {
   await start.click();
   await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}$/);
   await expectThreeWays(page, 'navy blazer');
+  expect(await seriousViolations(page), 'idea with deferred frames').toEqual([]);
+
+  // "Show this look" pictures one more look on demand, following its job without a reload.
+  await page
+    .getByRole('button', { name: /^Show this look: / })
+    .first()
+    .click();
+  await expect(page.getByRole('img', { name: /^A look: / })).toHaveCount(2, { timeout: 30_000 });
+  await expect(page.getByRole('button', { name: /^Show this look: / })).toHaveCount(1);
 
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Saved' })).toBeDisabled();

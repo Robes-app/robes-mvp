@@ -8,6 +8,7 @@ import { View } from 'react-native';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { askForPushOnce } from '@/lib/push';
+import { useRenderIdeaFrame } from './frame-render';
 import { IdeaView } from './IdeaView';
 import {
   framesSettled,
@@ -32,6 +33,7 @@ function WithActions({ idea, progress }: { idea: Idea; progress?: React.ReactNod
     toast.show({ message: copy.savedWay });
     router.push(`/look/${lookId}`);
   });
+  const frames = useRenderIdeaFrame(idea.id);
   const remove = useRemoveIdea(() => {
     toast.show({ message: copy.result.removed });
     router.back();
@@ -46,6 +48,8 @@ function WithActions({ idea, progress }: { idea: Idea; progress?: React.ReactNod
       removing={remove.isPending}
       onSaveWay={(wayIdx) => saveWay.mutate({ params: { id: idea.id }, input: { wayIdx } })}
       savingWay={saveWay.isPending ? (saveWay.variables?.input.wayIdx ?? null) : null}
+      onShowFrame={frames.start}
+      showingFrame={frames.renderingIdx}
     />
   );
 }

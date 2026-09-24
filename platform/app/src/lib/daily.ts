@@ -21,3 +21,15 @@ export function anchorPending(look: DailyLook, now = Date.now()): boolean {
   }
   return now - Date.parse(look.createdAt) < 3 * 60_000;
 }
+
+// Items she asked to see: keep refreshing until each picture lands (or fails).
+export function itemsLanding(look: DailyLook, asked: readonly number[]): boolean {
+  if (asked.length === 0) return false;
+  return look.steps.some((s) =>
+    s.items.some(
+      (i) =>
+        asked.includes(i.imageIndex) &&
+        (i.imageStatus === 'pending' || i.imageStatus === 'deferred'),
+    ),
+  );
+}

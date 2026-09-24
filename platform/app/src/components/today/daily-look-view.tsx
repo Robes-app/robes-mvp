@@ -1,21 +1,67 @@
 'use client';
 
-import { useApi, useApiMutation } from '@robes/api-client/react';
+import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { DailyItem } from '@robes/contracts';
 import { today } from '@robes/copy';
 import { Button, Eyebrow, Field, Heading, Image, Skeleton, Text } from '@robes/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
-import { anchorItem, anchorPending, weatherLine } from '@/lib/daily';
+import { anchorItem, anchorPending, itemsLanding, weatherLine } from '@/lib/daily';
 import { errorCopy } from '@/lib/error-copy';
+import { useFrameRender } from '@/lib/frame-render';
 import { imageSources } from '@/lib/image';
 
 const copy = today.daily;
 
-function ItemRow({ item }: { item: DailyItem }) {
+// Robes' picture of a suggested item: rendered on demand (UX-09); the anchor shows above.
+function ItemFrame({ item, busy, onShow }: { item: DailyItem; busy: boolean; onShow: () => void }) {
+  const src = item.image ? imageSources(item.image.renditions) : null;
+  if (item.imageStatus === 'ready' && src) {
+    return (
+      <Image
+        {...src}
+        sizes="80px"
+        alt={copy.itemAlt(item.name)}
+        blurhash={item.image?.blurhash ?? null}
+      />
+    );
+  }
+  if (item.imageStatus === 'deferred' || item.imageStatus === 'failed') {
+    return (
+      <Button
+        variant="quiet"
+        loading={busy}
+        onClick={onShow}
+        aria-label={copy.showItemLabel(item.name)}
+        className="aspect-[4/5] w-full rounded-crisp border border-hairline px-1 text-xs"
+      >
+        {copy.showItem}
+      </Button>
+    );
+  }
+  return <Skeleton data-frame="pending" className="aspect-[4/5]" />;
+}
+
+function ItemRow({
+  item,
+  isAnchor,
+  busy,
+  onShow,
+}: {
+  item: DailyItem;
+  isAnchor: boolean;
+  busy: boolean;
+  onShow: () => void;
+}) {
   const own = item.piece ? imageSources(item.piece.image?.renditions ?? []) : null;
   return (
     <li className="flex gap-4 border-b border-hairline py-4">
+      {!item.piece && !isAnchor ? (
+        <div className="w-20 shrink-0">
+          <ItemFrame item={item} busy={busy} onShow={onShow} />
+        </div>
+      ) : null}
       {item.piece ? (
         <div className="w-20 shrink-0">
           {own ? (
@@ -68,11 +114,20 @@ export function DailyLookSkeleton() {
 // Style it for today, the result: four steps, her pieces where she owns them, saved on naming.
 export function DailyLookView({ id }: { id: string }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const frames = useFrameRender('today.looks.render', id, () => {
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.call('today.looks.get', { params: { id } }),
+    });
+  });
   const query = useApi(
     'today.looks.get',
     { params: { id } },
     {
-      refetchInterval: (q) => (q.state.data && anchorPending(q.state.data) ? 2_000 : false),
+      refetchInterval: (q) =>
+        q.state.data && (anchorPending(q.state.data) || itemsLanding(q.state.data, frames.asked))
+          ? 2_000
+          : false,
     },
   );
   const [name, setName] = useState<string | null>(null);
@@ -130,10 +185,14 @@ export function DailyLookView({ id }: { id: string }) {
             {copy.steps[step.title]}
           </Heading>
           <ul>
-            {step.items.map((item, i) => (
-              // Items are an immutable snapshot of the model's output.
-              // biome-ignore lint/suspicious/noArrayIndexKey: fixed order
-              <ItemRow key={i} item={item} />
+            {step.items.map((item) => (
+              <ItemRow
+                key={item.imageIndex}
+                item={item}
+                isAnchor={item.imageIndex === anchor?.imageIndex}
+                busy={frames.renderingIdx === item.imageIndex}
+                onShow={() => frames.start(item.imageIndex)}
+              />
             ))}
           </ul>
         </section>

@@ -12,6 +12,14 @@ export function ideaNeedsRefresh(idea: Idea | undefined, now = Date.now()): bool
   return young && idea.frames.some((f) => f.status === 'pending');
 }
 
+// Frames she asked for: keep refreshing until each has landed (ready) or failed.
+export function framesLanding(idea: Idea | undefined, asked: readonly number[]): boolean {
+  if (!idea || asked.length === 0) return false;
+  return idea.frames.some(
+    (f) => asked.includes(f.idx) && (f.status === 'pending' || f.status === 'deferred'),
+  );
+}
+
 export function jobProgressStage(job: JobSnapshot | null): ProgressStage {
   if (!job || job.stage === 'queued' || job.stage === 'text') return 'styling';
   if (job.stage === 'images') return 'dressing';
