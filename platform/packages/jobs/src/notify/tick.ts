@@ -4,6 +4,7 @@ import type { SystemRepositories } from '@robes/db';
 import { renderEmail, signUnsub } from '@robes/emails';
 import type { Email, Mailer } from '@robes/mailer';
 import type { JobLogger } from '../logger';
+import { composePush, PUSH_KINDS, type PushSender } from './push';
 import { addDays, decide, type NotifyState, type Planned, type Recipient } from './rules';
 
 export interface NotifyDeps {
@@ -14,6 +15,8 @@ export interface NotifyDeps {
   unsubSecret: string;
   logger: JobLogger;
   pageSize?: number;
+  // Optional second channel: Expo push to her active devices (PUSH_KINDS only).
+  push?: { sender: PushSender; tokens: SystemRepositories['pushDelivery'] } | undefined;
 }
 
 export function composeEmail(
@@ -85,9 +88,34 @@ const groupBy = <T extends { userId: string }>(rows: readonly T[]) => {
   return map;
 };
 
+async function sendPush(
+  deps: NotifyDeps,
+  push: NonNullable<NotifyDeps['push']>,
+  userId: string,
+  mail: Planned,
+  devices: readonly { expoToken: string }[],
+): Promise<number> {
+  if (!(await deps.notifier.claim(userId, mail.kind, mail.ref, 'push'))) return 0;
+  const content = composePush(mail);
+  try {
+    const { deadTokens } = await push.sender.send(
+      devices.map((d) => ({ ...content, to: d.expoToken })),
+    );
+    await push.tokens.revokeTokens(deadTokens);
+    return 1;
+  } catch (err) {
+    await deps.notifier.release(userId, mail.kind, mail.ref, 'push');
+    deps.logger.warn(
+      { kind: mail.kind, reason: err instanceof Error ? err.message : 'unknown' },
+      'notify_push_failed',
+    );
+    return 0;
+  }
+}
+
 // One pass over everyone (notify-tick, every 10 minutes). Never throws for one person's mail.
 export async function notifyTick(deps: NotifyDeps, now = new Date()) {
-  const out = { considered: 0, sent: 0, failed: 0 };
+  const out = { considered: 0, sent: 0, failed: 0, pushed: 0 };
   const pageSize = deps.pageSize ?? 500;
   // Wide enough for every timezone's "today" plus the week ahead.
   const utcToday = now.toISOString().slice(0, 10);
@@ -106,6 +134,9 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
     const pieces = new Map(raw.pieces.map((p) => [p.userId, p]));
     const looks = new Map(raw.looks.map((l) => [l.userId, l.n]));
     const plan = groupBy(raw.plan);
+    const devicesByUser = groupBy(
+      deps.push ? await deps.push.tokens.activeFor(page.map((u) => u.id)) : [],
+    );
 
     for (const row of page) {
       out.considered++;
@@ -133,17 +164,22 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
         plan: plan.get(row.id) ?? [],
       };
       for (const mail of decide(user, state, now)) {
-        if (!(await deps.notifier.claim(user.id, mail.kind, mail.ref))) continue;
-        try {
-          await deps.mailer.send(composeEmail(deps, user, mail));
-          out.sent++;
-        } catch (err) {
-          await deps.notifier.release(user.id, mail.kind, mail.ref);
-          out.failed++;
-          deps.logger.warn(
-            { kind: mail.kind, reason: err instanceof Error ? err.message : 'unknown' },
-            'notify_send_failed',
-          );
+        if (await deps.notifier.claim(user.id, mail.kind, mail.ref)) {
+          try {
+            await deps.mailer.send(composeEmail(deps, user, mail));
+            out.sent++;
+          } catch (err) {
+            await deps.notifier.release(user.id, mail.kind, mail.ref);
+            out.failed++;
+            deps.logger.warn(
+              { kind: mail.kind, reason: err instanceof Error ? err.message : 'unknown' },
+              'notify_send_failed',
+            );
+          }
+        }
+        const devices = devicesByUser.get(user.id) ?? [];
+        if (deps.push && PUSH_KINDS.has(mail.kind) && devices.length > 0) {
+          out.pushed += await sendPush(deps, deps.push, user.id, mail, devices);
         }
       }
     }

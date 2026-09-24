@@ -317,6 +317,9 @@ export const workerEnv = z
     SMTP_URL: z.url().optional(),
     UNSUB_HMAC_KEY: z.string().min(32).optional(),
     UNSUB_HMAC_KEY_SECRET_ARN: z.string().startsWith('arn:').optional(),
+    // Expo push access token (enhanced push security): an ARN in AWS, plain or absent in dev.
+    EXPO_ACCESS_TOKEN: z.string().min(1).optional(),
+    EXPO_ACCESS_TOKEN_SECRET_ARN: z.string().startsWith('arn:').optional(),
     // Local MinIO only (dev), mirroring the app; AWS uses the function role.
     MEDIA_S3_ENDPOINT: z.url().optional(),
     MEDIA_S3_ACCESS_KEY_ID: optionalSecret,
@@ -324,11 +327,11 @@ export const workerEnv = z
     ...sentryEnv.shape,
   })
   .superRefine((env, ctx) => {
-    if (env.APP_ENV !== 'dev' && (env.SMTP_URL || env.UNSUB_HMAC_KEY)) {
+    if (env.APP_ENV !== 'dev' && (env.SMTP_URL || env.UNSUB_HMAC_KEY || env.EXPO_ACCESS_TOKEN)) {
       ctx.addIssue({
         code: 'custom',
         path: ['SMTP_URL'],
-        message: 'SMTP and a plain unsubscribe key are dev only',
+        message: 'SMTP and plain unsubscribe/Expo keys are dev only',
       });
     }
     if (env.APP_ENV !== 'dev' && (env.MEDIA_S3_ENDPOINT || env.MEDIA_S3_ACCESS_KEY_ID)) {

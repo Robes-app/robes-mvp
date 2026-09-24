@@ -4,6 +4,7 @@ import { verifyUnsub } from '@robes/emails';
 import { createMemoryMailer, type Email } from '@robes/mailer';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { JobLogger } from '../src/logger';
+import { createMemoryPushSender, type PushSender } from '../src/notify/push';
 import { notifyTick } from '../src/notify/tick';
 
 const db = createTestDb();
@@ -95,5 +96,45 @@ describe('notify tick (legacy notify.js sequence)', () => {
     const { mailer } = await tick();
     expect(to(mailer.sent, `${other}@test.dev`)).toHaveLength(1);
     await deleteTestUsers(db, other);
+  });
+
+  it('also pushes looks_ready to her devices, once, and drops dead devices', async () => {
+    const dan = await createTestUser(db, 'Dan Notify');
+    await repos.profiles.completeOnboarding(dan);
+    const live = `ExponentPushToken[${crypto.randomUUID()}]`;
+    const dead = `ExponentPushToken[${crypto.randomUUID()}]`;
+    for (const expoToken of [live, dead]) {
+      await repos.pushTokens.register(dan, { expoToken, platform: 'ios' });
+    }
+    const ideaId = await withIdea(dan);
+    const memory = createMemoryPushSender();
+    const sender: PushSender = {
+      async send(messages) {
+        await memory.send(messages);
+        return { deadTokens: [dead] };
+      },
+    };
+    const run = () =>
+      notifyTick({
+        notifier: system.notifier,
+        mailer: createMemoryMailer(),
+        appUrl: 'https://app.test',
+        unsubSecret: SECRET,
+        logger,
+        push: { sender, tokens: system.pushDelivery },
+      });
+    await run();
+    const mine = memory.sent.filter((m) => m.to === live || m.to === dead);
+    expect(mine.map((m) => m.to).sort()).toEqual([live, dead].sort());
+    expect(mine[0]).toMatchObject({
+      title: 'Your three looks are ready.',
+      data: { url: `robes://looks/ideas/${ideaId}` },
+    });
+    expect((await repos.pushTokens.active(dan)).map((t) => t.expoToken)).toEqual([live]);
+
+    const before = memory.sent.length;
+    await run();
+    expect(memory.sent.slice(before).filter((m) => m.to === live)).toEqual([]);
+    await deleteTestUsers(db, dan);
   });
 });

@@ -95,10 +95,15 @@ export function notifierRepo(db: Db) {
     },
 
     // The ledger is written before sending, so a re-run or a second worker can never mail twice.
-    async claim(userId: string, kind: string, ref: string): Promise<boolean> {
+    async claim(
+      userId: string,
+      kind: string,
+      ref: string,
+      channel: 'email' | 'push' = 'email',
+    ): Promise<boolean> {
       const row = await db
         .insertInto('notifications')
-        .values({ userId, kind, ref })
+        .values({ userId, kind, ref, channel })
         .onConflict((oc) => oc.columns(['userId', 'kind', 'ref', 'channel']).doNothing())
         .returning('id')
         .executeTakeFirst();
@@ -106,13 +111,18 @@ export function notifierRepo(db: Db) {
     },
 
     // The transport failed: give the claim back so the next tick retries.
-    async release(userId: string, kind: string, ref: string): Promise<void> {
+    async release(
+      userId: string,
+      kind: string,
+      ref: string,
+      channel: 'email' | 'push' = 'email',
+    ): Promise<void> {
       await db
         .deleteFrom('notifications')
         .where('userId', '=', userId)
         .where('kind', '=', kind)
         .where('ref', '=', ref)
-        .where('channel', '=', 'email')
+        .where('channel', '=', channel)
         .execute();
     },
   };

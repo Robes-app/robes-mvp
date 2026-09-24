@@ -296,6 +296,7 @@ describe('parseEnv(workerEnv)', () => {
     expect(() => parseEnv(workerEnv, { ...aws, UNSUB_HMAC_KEY: 'k'.repeat(40) })).toThrow(
       /SMTP_URL/,
     );
+    expect(() => parseEnv(workerEnv, { ...aws, EXPO_ACCESS_TOKEN: 'x' })).toThrow(/SMTP_URL/);
   });
 
   it('needs exactly one DB source and no plain URL in production', () => {
