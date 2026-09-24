@@ -1,8 +1,8 @@
 import type { UnsubPref } from '@robes/emails';
 
 // The email sequence from legacy notify.js, as pure rules over one person's state.
-// Not ported yet: `look_waiting` (needs the avatar model) and `borrowing` (needs look proposals).
-export const SEQUENCE_KINDS = ['looks_ready', 'five', 'week_empty'] as const;
+// Not ported yet: `borrowing` (needs look proposals).
+export const SEQUENCE_KINDS = ['looks_ready', 'look_waiting', 'five', 'week_empty'] as const;
 export type NotifyKind = (typeof SEQUENCE_KINDS)[number] | 'morning';
 
 const HOUR = 3_600_000;
@@ -28,12 +28,16 @@ export interface NotifyState {
   readyPieces: number;
   fifthPieceAt: Date | null;
   looks: number;
+  // Whether she has filed a model (undefined: unknown, so the model nudge never fires).
+  hasModel?: boolean;
+  newestLook?: { id: string; name: string } | null;
   // Looks pinned from today (her date) for the next week.
   plan: { date: string; lookName: string; activity: string | null; slot: string }[];
 }
 
 export type Planned =
   | { kind: 'looks_ready'; ref: string; pref: UnsubPref; ideaId: string; piece: string }
+  | { kind: 'look_waiting'; ref: string; pref: UnsubPref; look: string }
   | { kind: 'five'; ref: string; pref: UnsubPref }
   | { kind: 'week_empty'; ref: string; pref: UnsubPref }
   | {
@@ -119,6 +123,20 @@ export function decide(user: Recipient, state: NotifyState, now: Date): Planned[
         pref: 'looksReady',
         ideaId: idea.id,
         piece: idea.title,
+      });
+    } else if (
+      // Legacy look_waiting: a day in, a saved look, and no model to wear it — once, ever.
+      user.prefs.nudges &&
+      t - user.createdAt.getTime() >= DAY &&
+      state.hasModel === false &&
+      state.newestLook &&
+      !has('look_waiting')
+    ) {
+      out.push({
+        kind: 'look_waiting',
+        ref: state.newestLook.id,
+        pref: 'nudges',
+        look: state.newestLook.name,
       });
     } else if (
       user.prefs.nudges &&

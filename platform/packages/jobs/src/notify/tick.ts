@@ -37,6 +37,12 @@ export function composeEmail(
           body: copy.looksReady.body(mail.piece.charAt(0).toUpperCase() + mail.piece.slice(1)),
           cta: { label: copy.looksReady.cta, url: link(`/looks/ideas/${mail.ideaId}`) },
         };
+      case 'look_waiting':
+        return {
+          subject: copy.lookWaiting.subject,
+          body: copy.lookWaiting.body(mail.look),
+          cta: { label: copy.lookWaiting.cta, url: link('/you/model') },
+        };
       case 'five':
         return {
           subject: copy.five.subject,
@@ -138,6 +144,10 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
     const ideas = new Map(raw.ideas.map((i) => [i.userId, i]));
     const pieces = new Map(raw.pieces.map((p) => [p.userId, p]));
     const looks = new Map(raw.looks.map((l) => [l.userId, l.n]));
+    const newest = new Map(
+      raw.looks.map((l) => [l.userId, { id: l.newestId, name: l.newestName }]),
+    );
+    const withModel = new Set(raw.models.map((m) => m.userId));
     const plan = groupBy(raw.plan);
     const overnightByUser = groupBy(raw.overnight);
     const devicesByUser = groupBy(
@@ -167,6 +177,8 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
         readyPieces: pieces.get(row.id)?.ready ?? 0,
         fifthPieceAt: pieces.get(row.id)?.fifthAt ?? null,
         looks: looks.get(row.id) ?? 0,
+        hasModel: withModel.has(row.id),
+        newestLook: newest.get(row.id) ?? null,
         plan: plan.get(row.id) ?? [],
         overnight: overnightByUser.get(row.id) ?? [],
       };

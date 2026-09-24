@@ -120,4 +120,27 @@ describe('notify rules', () => {
     const off = user({ prefs: { ...user().prefs, nudges: false, morningCue: false } });
     expect(decide(off, state({ overnight }), NOW)).toEqual([]);
   });
+
+  it('nudges look_waiting once when she has a saved look and no model, after her first day', () => {
+    const waiting = state({
+      looks: 1,
+      hasModel: false,
+      newestLook: { id: 'l1', name: 'Gallery opening' },
+    });
+    expect(decide(user(), waiting, NOW)[0]).toMatchObject({
+      kind: 'look_waiting',
+      ref: 'l1',
+      look: 'Gallery opening',
+    });
+    expect(decide(user(), { ...waiting, hasModel: true }, NOW)[0]?.kind).not.toBe('look_waiting');
+    // Unknown model state never nudges.
+    expect(decide(user(), { ...waiting, hasModel: undefined }, NOW)[0]?.kind).not.toBe(
+      'look_waiting',
+    );
+    const newcomer = user({ createdAt: new Date(NOW.getTime() - 3_600_000) });
+    expect(decide(newcomer, waiting, NOW)[0]?.kind).not.toBe('look_waiting');
+    const sent = [{ kind: 'look_waiting', ref: 'l0', sentAt: new Date(NOW.getTime() - 5 * DAY) }];
+    expect(decide(user(), { ...waiting, ledger: sent }, NOW)[0]?.kind).not.toBe('look_waiting');
+    expect(decide(user({ prefs: { ...user().prefs, nudges: false } }), waiting, NOW)).toEqual([]);
+  });
 });

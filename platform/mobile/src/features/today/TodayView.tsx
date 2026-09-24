@@ -18,6 +18,7 @@ function doorHref(target: NextDoorTarget, t: Today): Href | null {
     newLook: '/looks/new',
     todayLook: look ? `/look/${look.id}` : null,
     plan: '/plan',
+    model: '/you/model',
   };
   return routes[target];
 }

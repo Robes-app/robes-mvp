@@ -14,6 +14,7 @@ export function nextStepCopy(t: Pick<Today, 'nextStep' | 'today'>): {
     newLook: '/looks/new',
     todayLook: look ? `/look/${look.id}` : null,
     plan: '/plan',
+    model: '/you/model',
   };
   const href = routes[door.target];
   return { text, door: href ? { label: door.label, href } : null };

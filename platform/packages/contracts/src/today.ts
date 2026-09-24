@@ -7,8 +7,10 @@ import { Piece, PieceImage } from './wardrobe';
 // Today (M5 task 1): everything the home screen needs in one read.
 export const NextStep = z
   .object({
-    rule: z.enum(['start', 'five', 'build', 'wear', 'week']),
+    rule: z.enum(['start', 'model', 'five', 'build', 'wear', 'week']),
     remaining: z.number().int().min(1).optional(),
+    lookName: z.string().optional(),
+    presence: z.enum(['woman', 'man', 'unspecified']).optional(),
   })
   .nullable();
 export type NextStep = z.infer<typeof NextStep>;
