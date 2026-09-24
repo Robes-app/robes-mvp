@@ -17,7 +17,7 @@ export default function IdeasPage() {
         }
       />
       <LooksSegments current="/looks/ideas" />
-      <IdeaGrid show="ideas" />
+      <IdeaGrid />
     </>
   );
 }

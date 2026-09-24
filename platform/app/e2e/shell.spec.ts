@@ -44,6 +44,8 @@ test('every shell route renders its heading', async ({ page }) => {
     ['/you/account', 'Account'],
     ['/you/notifications', 'Notifications'],
     ['/you/privacy', 'Privacy.'],
+    ['/you/style', 'Your colours and shape'],
+    ['/looks/new', 'Pick the pieces.'],
     ['/soon/trip', 'Plan a trip'],
     ['/legal/terms', 'Terms'],
   ];
@@ -100,6 +102,9 @@ test('P0 routes have no serious accessibility violations', async ({ page }) => {
     '/you',
     '/you/notifications',
     '/you/account',
+    '/you/style',
+    '/looks/new',
+    '/wardrobe/wishlist',
   ]) {
     await page.goto(path);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

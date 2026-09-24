@@ -1,13 +1,17 @@
 import type { ApiClient } from '@robes/api-client';
-import { type Asset, UploadContentType } from '@robes/contracts';
+import { type Asset, UploadContentType, type UploadKind } from '@robes/contracts';
 
 export const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
 
 // Bytes go straight to storage on the presigned URL, never through the API (SEC-20).
-export async function uploadPhoto(api: ApiClient, file: File): Promise<Asset> {
+export async function uploadPhoto(
+  api: ApiClient,
+  file: File,
+  kind: UploadKind = 'wardrobe',
+): Promise<Asset> {
   const contentType = UploadContentType.parse(file.type);
   const { assetId, upload } = await api.call('uploads.create', {
-    input: { kind: 'wardrobe', contentType, bytes: file.size },
+    input: { kind, contentType, bytes: file.size },
   });
   const put = await fetch(upload.url, {
     method: upload.method,

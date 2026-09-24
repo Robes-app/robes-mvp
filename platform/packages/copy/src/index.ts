@@ -299,6 +299,51 @@ export const looks = {
   // Robes' suggested name for an unnamed look; provisional until she names it.
   suggestedName: (firstPiece: string | null): string =>
     firstPiece ? `${firstPiece}, styled` : 'A new look',
+  savedList: {
+    empty: {
+      title: 'Looks you keep live here.',
+      body: 'Save one of Robes’ ideas, or build a look from your pieces.',
+      action: 'New look',
+    },
+    worn: (times: number): string => (times === 1 ? 'Worn once' : `Worn ${times} times`),
+  },
+  saveWay: 'Save this look',
+  savedWay: 'Look saved.',
+  openLook: 'Open',
+  page: {
+    eyebrow: 'Look',
+    suggested: 'Robes’ suggestion',
+    keepName: 'Keep this name',
+    rename: 'Rename',
+    nameLabel: 'Name',
+    saveName: 'Save name',
+    cancel: 'Cancel',
+    note: 'Notes',
+    pieces: 'Pieces',
+    wearToday: 'Wear it today',
+    woreToday: 'Worn today.',
+    wearOnDay: 'Wear on a day',
+    dayLabel: 'Day',
+    addToPlan: 'Add to Plan',
+    addedToPlan: 'Added to Plan.',
+    saveAsNew: 'Save as new',
+    savedAsNew: 'Saved as a new look.',
+    remove: 'Remove',
+    removed: 'Look removed.',
+    imageAlt: (name: string): string => `The look: ${name}`,
+    noPieces: 'No pieces yet.',
+  },
+  composer: {
+    eyebrow: 'New look',
+    title: 'Pick the pieces.',
+    nameLabel: 'Name (optional)',
+    namePlaceholder: 'Gallery opening',
+    selected: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
+    create: 'Save look',
+    creating: 'Saving…',
+    togglePiece: (label: string): string => `Include ${label}`,
+    empty: 'Add a few pieces to your wardrobe first.',
+  },
   look: {
     worn: (times: number): string =>
       times === 0 ? 'Not worn yet' : `Worn ${times} ${times === 1 ? 'time' : 'times'}`,
@@ -343,6 +388,52 @@ export const you = {
     confirm: 'Delete my account',
     requested: 'Your account is being deleted. Robes will email you when it’s done.',
   },
+  style: {
+    title: 'Your colours and shape',
+    link: 'Colours and shape',
+    colourTitle: 'Your colours',
+    colourBody: 'A clear photo of your face in daylight, no filter.',
+    silhouetteTitle: 'Your shape',
+    silhouetteBody: 'A full-length photo, standing straight, in fitted clothes.',
+    choosePhoto: 'Choose a photo',
+    reading: 'Robes is reading your photo…',
+    retake: 'Use another photo',
+    noFace: 'Robes couldn’t see a face clearly. Try another photo.',
+    noPerson: 'Robes couldn’t see your full figure. Try another photo.',
+    failed: 'Robes couldn’t read that photo. Try another.',
+    best: 'Wear',
+    avoid: 'Skip',
+    metals: 'Metals',
+    neutrals: 'Neutrals',
+    traits: 'Your lines',
+    necklines: 'Necklines',
+    silhouettes: 'Shapes that work',
+    tips: 'Tips',
+    lovedLabel: 'Colours you love on you',
+    rejectedLabel: 'Colours you never wear',
+    coloursHint: 'Separate with commas.',
+    saveColours: 'Save',
+    savedColours: 'Saved.',
+  },
+} as const;
+
+// Plan (M5): the rolling list of days.
+export const plan = {
+  title: 'Plan',
+  today: 'Today',
+  tomorrow: 'Tomorrow',
+  emptyDay: 'Free',
+  evening: 'Evening',
+  activityLabel: (date: string): string => `What’s on, ${date}`,
+  activityPlaceholder: 'What’s on',
+  unpin: (name: string): string => `Take ${name} off this day`,
+  unpinned: 'Taken off the day.',
+  empty: {
+    title: 'Your days live here.',
+    body: 'Open a look and choose Wear on a day.',
+    action: 'Go to Looks',
+  },
+  monthSoon: 'Month view is on its way.',
 } as const;
 
 // Public share page and the share action.
@@ -355,6 +446,11 @@ export const share = {
   pieceAlt: (label: string): string => label,
   gone: 'This link has been turned off.',
   metaDescription: 'A look styled with Robes.',
+  action: 'Share',
+  copied: 'Link copied.',
+  copyFailed: (url: string): string => `Copy this link: ${url}`,
+  stop: 'Stop sharing',
+  stopped: 'Link turned off.',
 } as const;
 
 export const copy = {
@@ -373,5 +469,6 @@ export const copy = {
   shell,
   looks,
   you,
+  plan,
   share,
 } as const;

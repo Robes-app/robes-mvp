@@ -1,7 +1,7 @@
 import { looks, shell } from '@robes/copy';
 import { buttonClasses } from '@robes/ui';
 import Link from 'next/link';
-import { IdeaGrid } from '@/components/looks/idea-grid';
+import { LookGrid } from '@/components/looks/look-grid';
 import { LooksSegments } from '@/components/looks/looks-segments';
 import { PageHeader } from '@/components/page-header';
 
@@ -17,7 +17,7 @@ export default function LooksPage() {
         }
       />
       <LooksSegments current="/looks" />
-      <IdeaGrid show="saved" />
+      <LookGrid />
     </>
   );
 }
