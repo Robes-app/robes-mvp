@@ -4,6 +4,7 @@ packages:
   - workers
   - infra
   - packages/*
+  - scripts/migrate
 
 catalog:
   typescript: 6.0.3
