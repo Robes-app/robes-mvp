@@ -452,6 +452,19 @@ export const you = {
     add: 'Add',
     removeColour: (name: string): string => `Remove ${name}`,
   },
+  // SEC-81: her data as one file.
+  dataExport: {
+    title: 'Download your data',
+    body: 'Everything you’ve given Robes, in one file. It takes a few minutes and the link lasts seven days.',
+    request: 'Prepare my data',
+    requesting: 'Asking…',
+    preparing: 'Preparing your file…',
+    ready: 'Your file is ready.',
+    download: 'Download',
+    failed: 'Robes couldn’t prepare your file. It will try again shortly.',
+    expired: 'That link has expired.',
+    again: 'Prepare a new file',
+  },
 } as const;
 
 // Plan (M5): the rolling list of days.

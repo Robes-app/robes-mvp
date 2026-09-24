@@ -108,3 +108,18 @@ export const AnalyseStyleInput = z.object({
   assetId: z.uuid(),
 });
 export type AnalyseStyleInput = z.infer<typeof AnalyseStyleInput>;
+
+// SEC-81: her data as one JSON file, built within minutes; the link lasts 7 days.
+export const DataExport = z.object({
+  id: z.uuid(),
+  status: z.enum(['requested', 'running', 'ready', 'expired', 'failed']),
+  requestedAt: z.iso.datetime(),
+  readyAt: z.iso.datetime().nullable(),
+  expiresAt: z.iso.datetime().nullable(),
+  // Signed for at most an hour; fetch the status again for a fresh one.
+  downloadUrl: z.url().nullable(),
+});
+export type DataExport = z.infer<typeof DataExport>;
+
+export const DataExportStatus = z.object({ export: DataExport.nullable() });
+export type DataExportStatus = z.infer<typeof DataExportStatus>;

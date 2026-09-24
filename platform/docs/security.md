@@ -142,6 +142,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 **SEC-80 — Self-serve account deletion** (web + native, App Store 5.1.1(v)): API endpoint enqueues a deletion job that removes auth user, all rows (FK `on delete cascade` from `profiles`), Cloudinary assets under `users/{id}/`, PostHog person, Resend contact; sends confirmation; completes within 30 days (target: minutes).
 
 **SEC-81 — Data export** (GDPR Art. 20): JSON export of profile, wardrobe, looks, lookbook, plus image URLs, delivered by signed link.
+- As built: `POST/GET /api/v1/me/exports`; maintenanceFn's `data-export` task (5 min; inline in dev) writes one JSON file to `exports/{userId}/` (lifecycle 7 days, deleted with the account). Images are listed by asset id and key, not URLs. The API user may only GET `exports/*` to presign a ≤1 h download with `Content-Disposition: attachment`. Tests: DB (cross-user, claim/retry), processor, IAM, e2e (only her data in the file).
 
 **SEC-82 — Retention.** `generation_log` prompts/responses retained 30 days (then aggregated metrics only); raw request logs 14 days; soft-deleted rows purged after 30 days; inbound receipt emails purged after processing + 7 days.
 
