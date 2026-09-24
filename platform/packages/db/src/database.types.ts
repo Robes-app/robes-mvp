@@ -41,7 +41,7 @@ export interface Accounts {
   accessTokenExpiresAt: Timestamp | null;
   accountId: string;
   createdAt: Generated<Timestamp>;
-  id: string;
+  id: Generated<string>;
   idToken: string | null;
   password: string | null;
   providerId: string;
@@ -367,7 +367,7 @@ export interface PushTokens {
 
 export interface RateLimits {
   count: number;
-  id: string;
+  id: Generated<string>;
   key: string;
   lastRequest: Int8;
 }
@@ -375,7 +375,7 @@ export interface RateLimits {
 export interface Sessions {
   createdAt: Generated<Timestamp>;
   expiresAt: Timestamp;
-  id: string;
+  id: Generated<string>;
   ipAddress: string | null;
   token: string;
   updatedAt: Generated<Timestamp>;
@@ -452,7 +452,7 @@ export interface Users {
   createdAt: Generated<Timestamp>;
   email: string;
   emailVerified: Generated<boolean>;
-  id: string;
+  id: Generated<string>;
   image: string | null;
   name: Generated<string>;
   updatedAt: Generated<Timestamp>;
@@ -469,7 +469,7 @@ export interface UserUiState {
 export interface Verifications {
   createdAt: Generated<Timestamp>;
   expiresAt: Timestamp;
-  id: string;
+  id: Generated<string>;
   identifier: string;
   updatedAt: Generated<Timestamp>;
   value: string;

@@ -156,6 +156,7 @@ Notation: `SEC-nn` = `security.md`; `UX-nn` = `reference/ux-opportunities.md` §
 5. Haptics + motion polish (D21); dark mode enablement (OD-4).
 6. Store compliance (mobile.md §4): in-app deletion, Sign in with Apple, UGC report/block, AI imagery labelling, privacy labels from `docs/data-inventory.md`, permission strings from `packages/copy`.
 7. EAS Build/Submit/Update pipelines; Maestro suite on EAS Workflows; TestFlight + Play internal → staged public release.
+8. Native observability (deferred from M1 Task 6): `@sentry/react-native` needs a dev build, not Expo Go (ADR 018). Add it with the same scrubbing (`@robes/logger/scrub`), plus PostHog React Native behind the same `consents` answers, using the `@robes/analytics` catalogue.
 
 **Exit gates:** Maestro suite green on both platforms; native budgets met (cold start ≤ 2.0 s Pixel 6a); store review passed.
 

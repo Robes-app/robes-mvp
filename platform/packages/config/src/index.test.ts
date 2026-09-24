@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { appServerEnv, parseEnv, workerEnv } from './index';
+import { appServerEnv, parseEnv, workerEnv, workerSentryEnv } from './index';
 
 const base = {
   NODE_ENV: 'production',
+  SENTRY_DSN: 'https://abc@o1.ingest.de.sentry.io/2',
+  NEXT_PUBLIC_SENTRY_DSN: 'https://def@o1.ingest.de.sentry.io/3',
+  NEXT_PUBLIC_POSTHOG_KEY: 'phc_test',
   APP_ENV: 'staging',
   DATABASE_URL: 'postgres://robes_app:pw@db.example.com:5432/robes',
   BETTER_AUTH_SECRET: 'x'.repeat(40),
@@ -38,6 +41,9 @@ function devEnv(overrides: Record<string, string | undefined> = {}) {
     MEDIA_PUBLIC_ORIGIN: _o,
     MEDIA_CLOUDFRONT_KEY_PAIR_ID: _k,
     MEDIA_CLOUDFRONT_PRIVATE_KEY: _p,
+    SENTRY_DSN: _sd,
+    NEXT_PUBLIC_SENTRY_DSN: _bd,
+    NEXT_PUBLIC_POSTHOG_KEY: _pk,
     ...rest
   } = base;
   return {
@@ -178,6 +184,84 @@ describe('media env', () => {
   });
 });
 
+describe('observability env', () => {
+  it('is off in dev unless configured, and adds nothing to the CSP', () => {
+    const { observability } = parseEnv(appServerEnv, devEnv());
+    expect(observability).toEqual({
+      sentry: undefined,
+      browserSentry: undefined,
+      posthog: undefined,
+      connectOrigins: [],
+    });
+  });
+
+  it('defaults PostHog to the EU host and tags Sentry with the environment and git SHA', () => {
+    const { observability } = parseEnv(appServerEnv, {
+      ...base,
+      VERCEL_GIT_COMMIT_SHA: 'abc123',
+      SENTRY_TRACES_SAMPLE_RATE: '0.25',
+    });
+    expect(observability.posthog).toEqual({ key: 'phc_test', host: 'https://eu.i.posthog.com' });
+    expect(observability.sentry).toEqual({
+      dsn: base.SENTRY_DSN,
+      environment: 'staging',
+      release: 'abc123',
+      tracesSampleRate: 0.25,
+    });
+    expect(observability.browserSentry?.dsn).toBe(base.NEXT_PUBLIC_SENTRY_DSN);
+    expect(observability.connectOrigins).toEqual([
+      'https://o1.ingest.de.sentry.io',
+      'https://eu.i.posthog.com',
+      'https://eu-assets.i.posthog.com',
+    ]);
+  });
+
+  it('enables each tool in dev only when its key is set', () => {
+    const env = parseEnv(appServerEnv, devEnv({ NEXT_PUBLIC_POSTHOG_KEY: 'phc_dev' }));
+    expect(env.observability.posthog?.host).toBe('https://eu.i.posthog.com');
+    expect(env.observability.sentry).toBeUndefined();
+    expect(env.observability.connectOrigins).toEqual([
+      'https://eu.i.posthog.com',
+      'https://eu-assets.i.posthog.com',
+    ]);
+    const proxied = parseEnv(
+      appServerEnv,
+      devEnv({
+        NEXT_PUBLIC_POSTHOG_KEY: 'phc_dev',
+        NEXT_PUBLIC_POSTHOG_HOST: 'https://ph.byrobes.com',
+      }),
+    );
+    expect(proxied.observability.connectOrigins).toEqual(['https://ph.byrobes.com']);
+  });
+
+  it('requires Sentry and PostHog outside dev, over https, with a sane sample rate', () => {
+    const { SENTRY_DSN: _s, NEXT_PUBLIC_POSTHOG_KEY: _k, ...rest } = base;
+    expect(() => parseEnv(appServerEnv, rest)).toThrow(/SENTRY_DSN.*NEXT_PUBLIC_POSTHOG_KEY/);
+    expect(() =>
+      parseEnv(appServerEnv, { ...base, NEXT_PUBLIC_POSTHOG_HOST: 'http://ph.example.com' }),
+    ).toThrow(/NEXT_PUBLIC_POSTHOG_HOST/);
+    expect(() => parseEnv(appServerEnv, { ...base, SENTRY_TRACES_SAMPLE_RATE: '2' })).toThrow(
+      /SENTRY_TRACES_SAMPLE_RATE/,
+    );
+  });
+
+  it('configures worker Sentry from the DSN only', () => {
+    expect(parseEnv(workerSentryEnv, { APP_ENV: 'dev' })).toBeUndefined();
+    expect(
+      parseEnv(workerSentryEnv, {
+        APP_ENV: 'production',
+        SENTRY_DSN: base.SENTRY_DSN,
+        SENTRY_RELEASE: 'sha1',
+      }),
+    ).toEqual({
+      dsn: base.SENTRY_DSN,
+      environment: 'production',
+      release: 'sha1',
+      tracesSampleRate: 0.1,
+    });
+  });
+});
+
 describe('parseEnv(workerEnv)', () => {
   const arn = 'arn:aws:secretsmanager:eu-west-1:123456789012:secret:robes-db-AbCdEf';
 
@@ -188,7 +272,13 @@ describe('parseEnv(workerEnv)', () => {
         DATABASE_URL_SECRET_ARN: arn,
         GEMINI_API_KEY_SECRET_ARN: arn,
       }),
-    ).toEqual({ APP_ENV: 'staging', DATABASE_URL_SECRET_ARN: arn, GEMINI_API_KEY_SECRET_ARN: arn });
+    ).toEqual({
+      APP_ENV: 'staging',
+      DATABASE_URL_SECRET_ARN: arn,
+      GEMINI_API_KEY_SECRET_ARN: arn,
+      SENTRY_TRACES_SAMPLE_RATE: 0.1,
+      sentry: undefined,
+    });
     expect(() =>
       parseEnv(workerEnv, { APP_ENV: 'dev', DATABASE_URL: base.DATABASE_URL }),
     ).not.toThrow();

@@ -13,7 +13,8 @@
     "@robes/db": "workspace:*",
     "@robes/jobs": "workspace:*",
     "@robes/logger": "workspace:*",
-    "@robes/media": "workspace:*"
+    "@robes/media": "workspace:*",
+    "@sentry/aws-serverless": "10.75.2"
   },
   "devDependencies": {
     "tsx": "catalog:",

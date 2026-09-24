@@ -1,6 +1,7 @@
 import type { Db } from '../client';
 import { adminRepo } from './admin';
 import { assetProcessingRepo, assetsRepo } from './assets';
+import { consentsRepo } from './consents';
 import { flagsRepo } from './flags';
 import { ideasRepo } from './ideas';
 import { jobRunnerRepo, jobsRepo } from './jobs';
@@ -17,6 +18,7 @@ export function createRepositories(db: Db) {
   return {
     admin: adminRepo(db),
     assets: assetsRepo(db),
+    consents: consentsRepo(db),
     flags: flagsRepo(db),
     ideas: ideasRepo(db),
     jobs: jobsRepo(db),
@@ -43,6 +45,7 @@ export function createSystemRepositories(db: Db) {
 export type Repositories = ReturnType<typeof createRepositories>;
 export type SystemRepositories = ReturnType<typeof createSystemRepositories>;
 export type { AssetKind } from './assets';
+export type { ConsentAnswers } from './consents';
 export type { CreateJobInput } from './jobs';
 export type { CallRecord } from './ledger';
 export type { PieceAnalysis } from './piece-analysis';

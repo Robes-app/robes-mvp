@@ -1,4 +1,5 @@
 export * from './budget';
+export * from './consents';
 export * from './flags';
 export * from './jobs';
 export * from './quotas';

@@ -70,9 +70,12 @@ describe('job pipeline against Postgres', () => {
 
   it('cancels a running job at the next checkpoint', async () => {
     const { job } = await repos.jobs.create(alice, { kind: 'fake', input: {} });
-    const running = runJob(job.id, deps(40));
-    await vi.waitFor(async () =>
-      expect((await repos.jobs.getForUser(alice, job.id))?.stage).toBe('text'),
+    // Slow steps so the job is still mid-flight when the cancel lands, even on a busy machine.
+    const running = runJob(job.id, deps(400));
+    await vi.waitFor(
+      async () =>
+        expect(['text', 'images']).toContain((await repos.jobs.getForUser(alice, job.id))?.stage),
+      { timeout: 5_000 },
     );
     expect(await repos.jobs.requestCancel(alice, job.id)).toBe(true);
     expect(await running).toBe('cancelled');

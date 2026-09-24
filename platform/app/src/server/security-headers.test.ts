@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCsp } from './security-headers';
+import { buildCsp, cspSources } from './security-headers';
 
 describe('buildCsp', () => {
   const csp = buildCsp({ nonce: 'abc', isDev: false });
@@ -44,5 +44,33 @@ describe('buildCsp', () => {
       connectOrigins: ['http://127.0.0.1:59000', 'http://127.0.0.1:59000'],
     });
     expect(local).toContain("connect-src 'self' http://127.0.0.1:59000;");
+  });
+});
+
+describe('cspSources', () => {
+  const media = {
+    deliveryOrigin: 'https://media.byrobes.com',
+    uploadOrigin: 'https://robes-prod-media.s3.eu-west-1.amazonaws.com',
+  };
+
+  it('adds nothing for Sentry or PostHog when they are not configured', () => {
+    const csp = buildCsp({
+      nonce: 'n',
+      isDev: false,
+      ...cspSources(media, { connectOrigins: [] }),
+    });
+    expect(csp).not.toMatch(/sentry|posthog/);
+  });
+
+  it('lets the browser reach the configured Sentry ingest and PostHog EU hosts', () => {
+    const sources = cspSources(media, {
+      connectOrigins: ['https://o1.ingest.de.sentry.io', 'https://eu.i.posthog.com'],
+    });
+    const csp = buildCsp({ nonce: 'n', isDev: false, ...sources });
+    expect(csp).toContain(
+      "connect-src 'self' https://media.byrobes.com https://robes-prod-media.s3.eu-west-1.amazonaws.com https://o1.ingest.de.sentry.io https://eu.i.posthog.com;",
+    );
+    expect(csp).toContain("img-src 'self' data: blob: https://media.byrobes.com;");
+    expect(csp).toContain("script-src 'self' 'nonce-n' 'strict-dynamic';");
   });
 });

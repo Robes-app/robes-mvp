@@ -60,7 +60,11 @@ describe('wardrobe repo', () => {
 
   it('pages with a stable cursor', async () => {
     const user = await createTestUser(db);
-    for (let i = 0; i < 5; i++) await wardrobe.create(user, { label: `Piece ${i}` });
+    // Same-millisecond rows are the case that broke microsecond vs millisecond comparison.
+    await db
+      .insertInto('wardrobeItems')
+      .values(Array.from({ length: 5 }, (_, i) => ({ userId: user, label: `Piece ${i}` })))
+      .execute();
     const first = await wardrobe.list(user, { limit: 2 });
     const second = await wardrobe.list(user, { limit: 2, cursor: first.nextCursor ?? undefined });
     const third = await wardrobe.list(user, { limit: 2, cursor: second.nextCursor ?? undefined });

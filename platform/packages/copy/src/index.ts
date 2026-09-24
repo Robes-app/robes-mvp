@@ -141,6 +141,26 @@ export const wardrobe = {
   segments: { pieces: 'Pieces', wishlist: 'Wishlist', inbox: 'Inbox' },
 } as const;
 
+// SEC-84: two equal choices, asked once analytics is unanswered; changeable in You › Privacy.
+export const consent = {
+  bannerTitle: 'Help shape Robes.',
+  bannerBody:
+    'May Robes count which screens you open and what you tap? It never sees your photos, words or email.',
+  allow: 'Allow',
+  decline: 'Don’t allow',
+  failed: 'Robes couldn’t save that. Try again in a moment.',
+  privacyEyebrow: 'You',
+  privacyTitle: 'Privacy.',
+  analyticsLabel: 'Usage counts',
+  analyticsHint: 'Which screens you open and what you tap, so Robes can get better.',
+  replayLabel: 'Screen recordings',
+  replayHint:
+    'Recordings of how you move through Robes, with every word, photo and typed answer hidden. Needs usage counts.',
+  saving: 'Saving…',
+  saved: 'Saved.',
+  back: 'Back to Today',
+} as const;
+
 export const copy = {
   wardrobe,
   errors,
@@ -152,4 +172,5 @@ export const copy = {
   nav,
   jobs,
   devUpload,
+  consent,
 } as const;

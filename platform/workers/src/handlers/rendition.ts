@@ -1,6 +1,7 @@
 import { processUpload } from '@robes/media/process';
 import { createMediaBucket, createMediaStorage, type MediaStorage } from '@robes/media/storage';
 import { workerContext } from '../context';
+import { withSentry } from '../sentry';
 
 interface S3EventRecord {
   s3: { object: { key: string } };
@@ -26,7 +27,7 @@ export function decodeS3Key(key: string): string {
 
 // S3 ObjectCreated on uploads/ and generated/ (async invoke). Storage/DB errors throw so Lambda
 // retries and then routes the event to the rendition DLQ; bad images are marked failed instead.
-export async function handler(event: S3Event, deps?: { storage: MediaStorage }): Promise<void> {
+async function handleRendition(event: S3Event, deps?: { storage: MediaStorage }): Promise<void> {
   const ctx = await workerContext();
   const store = deps?.storage ?? mediaStorage();
   for (const record of event.Records) {
@@ -35,3 +36,5 @@ export async function handler(event: S3Event, deps?: { storage: MediaStorage }):
     ctx.logger.info({ ...result }, 'rendition');
   }
 }
+
+export const handler = withSentry(handleRendition);

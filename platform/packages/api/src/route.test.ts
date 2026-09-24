@@ -16,6 +16,7 @@ async function setup(
   opts: { admins?: string[]; flags?: Record<string, boolean>; minAppVersion?: string } = {},
 ) {
   const logger = { error: vi.fn() };
+  const captureError = vi.fn();
   const route = createRouteFactory({
     resolveUser: async (req) => {
       const sub = req.headers.get('authorization')?.match(/^Bearer session:(.+)$/)?.[1];
@@ -27,8 +28,9 @@ async function setup(
     rateLimiter: createMemoryRateLimiter(),
     clientIp: () => '203.0.113.9',
     logger,
+    captureError,
   });
-  return { route, sign, logger };
+  return { route, sign, logger, captureError };
 }
 
 const post = (body: unknown, token?: string, raw?: string) =>
@@ -140,8 +142,8 @@ describe('route()', async () => {
     expect(res.status).toBe(413);
   });
 
-  it('hides internal errors behind a generic message and logs them', async () => {
-    const { route, logger } = await setup();
+  it('hides internal errors behind a generic message, logs and reports them', async () => {
+    const { route, logger, captureError } = await setup();
     const GET = route({
       auth: 'public',
       input: z.object({}),
@@ -154,6 +156,21 @@ describe('route()', async () => {
     expect(res.status).toBe(500);
     expect(JSON.stringify(await res.json())).not.toContain('hunter2');
     expect(logger.error).toHaveBeenCalledOnce();
+    expect(captureError).toHaveBeenCalledWith(expect.any(Error), {
+      requestId: res.headers.get('x-request-id'),
+    });
+  });
+
+  it('does not report expected API errors to error monitoring', async () => {
+    const { route, captureError } = await setup();
+    const GET = route({
+      auth: 'user',
+      input: z.object({}),
+      output: z.object({}),
+      handler: async () => ({}),
+    });
+    expect((await GET(new Request('http://x'))).status).toBe(401);
+    expect(captureError).not.toHaveBeenCalled();
   });
 
   it('rate limits per user and sets Retry-After', async () => {

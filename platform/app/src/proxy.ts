@@ -2,9 +2,9 @@ import { getSessionCookie } from 'better-auth/cookies';
 import { type NextRequest, NextResponse } from 'next/server';
 import { env } from './server/env';
 import { isAuthPage, isProtectedPath } from './server/guards';
-import { buildCsp } from './server/security-headers';
+import { buildCsp, cspSources } from './server/security-headers';
 
-const { deliveryOrigin, uploadOrigin } = env.media;
+const sources = cspSources(env.media, env.observability);
 
 function withCsp(response: NextResponse, csp: string): NextResponse {
   response.headers.set('content-security-policy', csp);
@@ -16,8 +16,7 @@ export function proxy(request: NextRequest) {
   const csp = buildCsp({
     nonce,
     isDev: process.env.NODE_ENV !== 'production',
-    imgOrigins: [deliveryOrigin],
-    connectOrigins: [deliveryOrigin, uploadOrigin],
+    ...sources,
   });
   const { pathname, search } = request.nextUrl;
 

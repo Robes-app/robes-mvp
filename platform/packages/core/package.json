@@ -8,7 +8,8 @@
     "./quotas": "./src/quotas/index.ts",
     "./flags": "./src/flags/index.ts",
     "./jobs": "./src/jobs/index.ts",
-    "./budget": "./src/budget/index.ts"
+    "./budget": "./src/budget/index.ts",
+    "./consents": "./src/consents/index.ts"
   },
   "scripts": {
     "test": "vitest run",

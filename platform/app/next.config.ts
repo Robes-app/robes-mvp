@@ -1,3 +1,4 @@
+import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
 
 const staticSecurityHeaders = [
@@ -11,7 +12,15 @@ const staticSecurityHeaders = [
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Browser Sentry settings are inlined at build time; the DSN itself is NEXT_PUBLIC_SENTRY_DSN.
+  env: {
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: process.env.SENTRY_ENVIRONMENT ?? process.env.APP_ENV ?? 'dev',
+    NEXT_PUBLIC_SENTRY_RELEASE:
+      process.env.SENTRY_RELEASE ?? process.env.VERCEL_GIT_COMMIT_SHA ?? '',
+    NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: process.env.SENTRY_TRACES_SAMPLE_RATE ?? '0.1',
+  },
   transpilePackages: [
+    '@robes/analytics',
     '@robes/api',
     '@robes/auth',
     '@robes/config',
@@ -20,6 +29,7 @@ const config: NextConfig = {
     '@robes/core',
     '@robes/db',
     '@robes/jobs',
+    '@robes/logger',
     '@robes/mailer',
     '@robes/media',
     '@robes/tokens',
@@ -37,4 +47,17 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+// Source maps upload only in CI with SENTRY_AUTH_TOKEN; without it the build is unchanged.
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
+
+export default sentryAuthToken
+  ? withSentryConfig(config, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: sentryAuthToken,
+      release: { name: process.env.SENTRY_RELEASE ?? process.env.VERCEL_GIT_COMMIT_SHA },
+      sourcemaps: { deleteSourcemapsAfterUpload: true },
+      telemetry: false,
+      silent: !process.env.CI,
+    })
+  : config;

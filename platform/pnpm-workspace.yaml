@@ -15,6 +15,10 @@ catalog:
 
 allowBuilds:
   '@google/genai': false
+  # Binary comes from its per-platform optional dependency; the postinstall only re-checks it.
+  '@sentry/cli': false
+  # posthog-js dependency; its postinstall only prints a funding banner.
+  core-js: false
   dbmate: true
   # esbuild's postinstall swaps its JS launcher for the native binary, which breaks pnpm .bin shims.
   esbuild: false

@@ -1,5 +1,6 @@
 import { parseJobMessage } from '@robes/jobs';
 import { type WorkerContext, workerContext } from '../context';
+import { withSentry } from '../sentry';
 import { processBatch, type SqsBatchResponse, type SqsEvent } from '../sqs';
 
 export function createGenerateHandler(
@@ -16,4 +17,4 @@ export function createGenerateHandler(
   };
 }
 
-export const handler = createGenerateHandler(workerContext);
+export const handler = withSentry(createGenerateHandler(workerContext));

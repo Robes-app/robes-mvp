@@ -8,6 +8,7 @@ import {
 } from '@robes/api';
 import { sessionUser } from '@robes/auth';
 import { verifiedUserId } from '@robes/db';
+import * as Sentry from '@sentry/nextjs';
 import { auth } from './auth';
 import { clientIp } from './client-ip';
 import { repos } from './db';
@@ -28,6 +29,12 @@ const deps: RouteDeps = {
   rateLimiter,
   clientIp,
   logger,
+  ...(env.observability.sentry
+    ? {
+        captureError: (err: unknown, { requestId }: { requestId: string }) =>
+          void Sentry.captureException(err, { tags: { requestId } }),
+      }
+    : {}),
 };
 
 export const route = createRouteFactory(deps);

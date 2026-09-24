@@ -81,21 +81,21 @@ export function wardrobeRepo(db: Db) {
   return {
     async list(userId: UserId, q: ListPiecesQuery) {
       const cursor = decodeCursor(q.cursor);
+      // Postgres keeps microseconds but the cursor round-trips through a JS Date (milliseconds),
+      // so order and compare at millisecond precision or same-millisecond rows skip or repeat.
+      const createdMs = sql<Date>`date_trunc('milliseconds', created_at)`;
       let query = active()
         .select(PIECE_COLUMNS)
         .where('userId', '=', userId)
-        .orderBy('createdAt', 'desc')
+        .orderBy(createdMs, 'desc')
         .orderBy('id', 'desc')
         .limit(q.limit + 1);
       if (q.category) query = query.where('category', '=', q.category);
       if (q.categoryL2) query = query.where('categoryL2', '=', q.categoryL2);
       if (q.seasonBand) query = query.where('seasonBand', '=', q.seasonBand);
       if (cursor) {
-        query = query.where((eb) =>
-          eb.or([
-            eb('createdAt', '<', new Date(cursor.at)),
-            eb.and([eb('createdAt', '=', new Date(cursor.at)), eb('id', '<', cursor.id)]),
-          ]),
+        query = query.where(
+          sql<boolean>`(date_trunc('milliseconds', created_at), id) < (${cursor.at}::timestamptz, ${cursor.id}::uuid)`,
         );
       }
       const rows = await query.execute();

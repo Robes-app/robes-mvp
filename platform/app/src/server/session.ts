@@ -1,16 +1,24 @@
 import 'server-only';
 import { sessionUser } from '@robes/auth';
+import type { Consents } from '@robes/contracts';
 import { type UserId, verifiedUserId } from '@robes/db';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { cache } from 'react';
 import { auth } from './auth';
+import { getConsents } from './consents';
 import { repos } from './db';
+
+// One session lookup per request, shared by the root layout and the page.
+const currentUserId = cache(async (): Promise<UserId | null> => {
+  const user = await sessionUser(auth, await headers());
+  return user ? verifiedUserId(user.id) : null;
+});
 
 // For server components: the signed-in user's profile, or null.
 export async function currentProfile() {
-  const user = await sessionUser(auth, await headers());
-  if (!user) return null;
-  const id: UserId = verifiedUserId(user.id);
+  const id = await currentUserId();
+  if (!id) return null;
   const profile = await repos.profiles.get(id);
   return profile ? { ...profile, userId: id } : null;
 }
@@ -19,4 +27,11 @@ export async function requireProfile() {
   const profile = await currentProfile();
   if (!profile) redirect('/auth/sign-in');
   return profile;
+}
+
+// The signed-in user's consent answers, for the analytics provider and the banner.
+export async function currentConsents(): Promise<{ userId: UserId; consents: Consents } | null> {
+  const userId = await currentUserId();
+  if (!userId) return null;
+  return { userId, consents: await getConsents(repos, userId) };
 }

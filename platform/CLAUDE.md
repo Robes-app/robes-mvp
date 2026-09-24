@@ -16,6 +16,7 @@ This folder is the rebuild of Robes as a secure, scalable platform: Next.js web 
 - **The API is the only path to app data (ADR-019/020).** See "Data access and security" below — read it before touching `db/`, `packages/db`, `packages/auth` or a route.
 - No `dangerouslySetInnerHTML`, no third-party script CDNs, no raw colours (use tokens), no hard-coded user-facing strings (use `@robes/copy`).
 - No PII or prompts in logs. Provider/model errors never reach users.
+- New personal data (column, table, bucket prefix, log/analytics field or processor) is added to `docs/data-inventory.md` in the same PR (SEC-85). Analytics and replay load only after consent (SEC-84); events come from the `@robes/analytics` catalogue.
 - Model IDs only via the registry in `packages/ai`; prompts are versioned modules with evals.
 
 ## Data access and security (ADR-019/020) — read before changing data code
