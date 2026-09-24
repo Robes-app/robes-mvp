@@ -33,7 +33,7 @@ Postgres is a private database behind the API: no RLS, no client-side queries, n
 6. **All user-data queries go through `@robes/db` repositories whose first argument is a `UserId`** — a branded type only `verifiedUserId()` in the auth layer mints. Every query filters on it. Route handlers never build SQL or import Kysely. A missing row for this user is `not_found` (404), never `forbidden`. Every repository has a cross-user test. Worker-only operations live in `createSystemRepositories` and are never imported by routes.
 7. **Admin = `app.admin_users.role = 'admin'`** (`support`/`analyst` are not admins). Admin routes use `auth: 'admin'` and write `app.audit_log`.
 8. **Never return a DB row as-is.** `route()` parses every response with the `output` schema (zod strips undeclared fields) in every environment. Don't loosen outputs with `.passthrough()`/`z.any()`.
-9. **Job progress is SSE from `/api/v1/jobs/:id/events`**, scoped by the session user like any other route. Don't add a client-side subscription to the database.
+9. **Job progress is SSE from `/api/v1/jobs/:id/events`**, scoped by the session user like any other route. Don't add a client-side subscription to the database. Job handlers (`packages/jobs`) load all context from the DB by the job row's `user_id` (`ctx.userId`); job input carries ids and intent only (SEC-16).
 
 **Auth (Better Auth, `packages/auth`)**
 10. Sessions are server-side rows (`app.sessions`); web uses httpOnly secure cookies, native uses the Expo plugin (SecureStore). Never store tokens in `localStorage`/AsyncStorage.
@@ -60,7 +60,7 @@ Postgres is a private database behind the API: no RLS, no client-side queries, n
 ## Toolchain
 Node 24 · pnpm 11.27.1 · Turborepo · TypeScript 6.0.3 · Biome · zod 4 · Vitest · Playwright · Next.js 16.3 (React 19.3) · Tailwind 4.3 · Expo SDK 57 (RN 0.86, React 19.2.3) · Uniwind 1.12 · Postgres 17 (Docker) · Kysely · dbmate · Better Auth · AWS CDK v2. Versions and rationale: `docs/reference/stack-versions.md`. Shared packages declare React as a **peer** dependency.
 
-Common commands (from `platform/`): `pnpm bootstrap` · `pnpm verify` (lint + typecheck + test + db:test) · `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm services:up` · `pnpm db:reset` · `pnpm db:migrate` · `pnpm db:new <name>` · `pnpm db:types` · `pnpm db:test` · `pnpm dev:web` · `pnpm dev:mobile` (Expo; ADR 018) · `pnpm --filter @robes/app test:e2e`. Recipes (new package / route / table): `README.md`.
+Common commands (from `platform/`): `pnpm bootstrap` · `pnpm verify` (lint + typecheck + test + db:test) · `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm services:up` · `pnpm db:reset` · `pnpm db:migrate` · `pnpm db:new <name>` · `pnpm db:types` · `pnpm db:test` · `pnpm maintenance` · `pnpm dev:web` · `pnpm dev:mobile` (Expo; ADR 018) · `pnpm --filter @robes/app test:e2e`. Recipes (new package / route / table): `README.md`.
 
 ## Product rules to respect
 Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Today · Wardrobe · Looks · Plan + Create + You (`docs/reference/ux-opportunities.md` §3). P0 UX acceptance criteria UX-01…29: `docs/reference/ux-opportunities.md` §5. One filled (ink) button per screen; no lock language; titles offered, never applied; Wears are immutable.

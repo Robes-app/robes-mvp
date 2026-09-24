@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appServerEnv, parseEnv } from './index';
+import { appServerEnv, parseEnv, workerEnv } from './index';
 
 const base = {
   NODE_ENV: 'production',
@@ -12,6 +12,8 @@ const base = {
   AWS_SECRET_ACCESS_KEY: 'secret-value',
   UPSTASH_REDIS_REST_URL: 'https://example.upstash.io',
   UPSTASH_REDIS_REST_TOKEN: 'token-value',
+  JOBS_INTERACTIVE_QUEUE_URL:
+    'https://sqs.eu-west-1.amazonaws.com/123456789012/robes-staging-jobs-interactive',
 };
 
 describe('parseEnv(appServerEnv)', () => {
@@ -50,6 +52,15 @@ describe('parseEnv(appServerEnv)', () => {
     });
   });
 
+  it('requires a job queue outside dev unless inline jobs are explicitly allowed', () => {
+    const { JOBS_INTERACTIVE_QUEUE_URL: _q, ...rest } = base;
+    expect(() => parseEnv(appServerEnv, rest)).toThrow(/JOBS_INTERACTIVE_QUEUE_URL/);
+    expect(() => parseEnv(appServerEnv, { ...rest, JOBS_TRANSPORT_INLINE: '1' })).not.toThrow();
+    expect(() =>
+      parseEnv(appServerEnv, { ...rest, APP_ENV: 'production', JOBS_TRANSPORT_INLINE: '1' }),
+    ).toThrow(/JOBS_TRANSPORT_INLINE/);
+  });
+
   it('rejects a short auth secret and half-configured OAuth', () => {
     expect(() => parseEnv(appServerEnv, { ...base, BETTER_AUTH_SECRET: 'short' })).toThrow(
       /BETTER_AUTH_SECRET/,
@@ -76,5 +87,43 @@ describe('parseEnv(appServerEnv)', () => {
       expect(String(e)).toContain('DATABASE_URL');
       expect(String(e)).not.toContain('SECRET123');
     }
+  });
+});
+
+describe('parseEnv(workerEnv)', () => {
+  const arn = 'arn:aws:secretsmanager:eu-west-1:123456789012:secret:robes-db-AbCdEf';
+
+  it('takes the DB URL from a secret ARN in AWS or directly in dev', () => {
+    expect(parseEnv(workerEnv, { APP_ENV: 'staging', DATABASE_URL_SECRET_ARN: arn })).toEqual({
+      APP_ENV: 'staging',
+      DATABASE_URL_SECRET_ARN: arn,
+    });
+    expect(() =>
+      parseEnv(workerEnv, { APP_ENV: 'dev', DATABASE_URL: base.DATABASE_URL }),
+    ).not.toThrow();
+  });
+
+  it('needs exactly one DB source and no plain URL in production', () => {
+    expect(() => parseEnv(workerEnv, { APP_ENV: 'dev' })).toThrow(/DATABASE_URL/);
+    expect(() =>
+      parseEnv(workerEnv, {
+        APP_ENV: 'staging',
+        DATABASE_URL: base.DATABASE_URL,
+        DATABASE_URL_SECRET_ARN: arn,
+      }),
+    ).toThrow(/exactly one/);
+    expect(() =>
+      parseEnv(workerEnv, { APP_ENV: 'production', DATABASE_URL: base.DATABASE_URL }),
+    ).toThrow(/SECRET_ARN/);
+  });
+
+  it('validates the queue URL', () => {
+    expect(() =>
+      parseEnv(workerEnv, {
+        APP_ENV: 'dev',
+        DATABASE_URL: base.DATABASE_URL,
+        JOBS_INTERACTIVE_QUEUE_URL: 'nope',
+      }),
+    ).toThrow(/JOBS_INTERACTIVE_QUEUE_URL/);
   });
 });

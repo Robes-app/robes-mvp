@@ -37,9 +37,18 @@ export const appServerEnv = z
     ALLOW_PRIVATE_FETCH: z.string().optional(),
     NOTIFY_DEBUG: z.string().optional(),
     JOBS_TRANSPORT_INLINE: z.string().optional(),
+    // SQS jobs-interactive queue; without it jobs run in-process after the response (dev only).
+    JOBS_INTERACTIVE_QUEUE_URL: z.url().optional(),
   })
   .superRefine((env, ctx) => {
     const deployed = env.APP_ENV !== 'dev';
+    if (deployed && !env.JOBS_INTERACTIVE_QUEUE_URL && env.JOBS_TRANSPORT_INLINE === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['JOBS_INTERACTIVE_QUEUE_URL'],
+        message: 'required outside dev',
+      });
+    }
     if (deployed && !(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN)) {
       ctx.addIssue({
         code: 'custom',
@@ -115,6 +124,33 @@ export const appServerEnv = z
   }));
 
 export type AppServerEnv = z.infer<typeof appServerEnv>;
+
+// Lambda workers: infra passes the DB URL as a Secrets Manager ARN; local runs pass it directly.
+export const workerEnv = z
+  .object({
+    APP_ENV: z.enum(['dev', 'staging', 'production']),
+    DATABASE_URL: z.url().optional(),
+    DATABASE_URL_SECRET_ARN: z.string().startsWith('arn:').optional(),
+    JOBS_INTERACTIVE_QUEUE_URL: z.url().optional(),
+  })
+  .superRefine((env, ctx) => {
+    if (!env.DATABASE_URL === !env.DATABASE_URL_SECRET_ARN) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['DATABASE_URL'],
+        message: 'set exactly one of DATABASE_URL or DATABASE_URL_SECRET_ARN',
+      });
+    }
+    if (env.APP_ENV === 'production' && env.DATABASE_URL) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['DATABASE_URL'],
+        message: 'use DATABASE_URL_SECRET_ARN in production',
+      });
+    }
+  });
+
+export type WorkerEnv = z.infer<typeof workerEnv>;
 
 export function parseEnv<T extends z.ZodType>(
   schema: T,

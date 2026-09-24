@@ -7,6 +7,8 @@ import { describe, expect, it } from 'vitest';
 const PUBLIC_ROUTES = new Set(['/api/v1/health']);
 // Handlers delegated to a vetted library with its own protections; keep this list tiny.
 const DELEGATED_ROUTES = new Set(['/api/auth/[...all]']);
+// The builders in @robes/api; each enforces auth, rate limits and schemas before the handler.
+const BUILDERS = ['route', 'sseRoute'];
 const METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const;
 const here = dirname(fileURLToPath(import.meta.url));
 const files = globSync('**/route.ts', { cwd: here });
@@ -26,9 +28,15 @@ describe('route manifest (SEC-01)', () => {
     if (DELEGATED_ROUTES.has(path)) return;
     const mod = (await import(`./${file}`)) as Record<string, unknown>;
     for (const method of METHODS) {
-      const handler = mod[method] as ((req: Request) => Promise<Response>) & { auth?: string };
+      const handler = mod[method] as ((req: Request) => Promise<Response>) & {
+        auth?: string;
+        builder?: string;
+      };
       if (!handler) continue;
-      expect(handler.auth, `${method} ${path} must use route()`).toBeDefined();
+      expect(BUILDERS, `${method} ${path} must use route() or sseRoute()`).toContain(
+        handler.builder,
+      );
+      expect(handler.auth, `${method} ${path} must declare auth`).toBeDefined();
       if (handler.auth === 'public') {
         expect(PUBLIC_ROUTES.has(path), `${method} ${path} is public but not allow-listed`).toBe(
           true,

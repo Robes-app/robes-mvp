@@ -86,7 +86,7 @@ All stateful resources `RemovalPolicy.RETAIN` in production; `terminationProtect
 1. `POST /api/v1/looks/generate` → auth → zod → `consume_quota()` + insert `generation_jobs(status='queued', idempotency_key)` in one transaction → `SendMessage({ jobId })` → `202 { jobId }`.
 2. If `SendMessage` fails, the row stays `queued`; `job-sweeper` re-enqueues after 60 s. Workers treat duplicate deliveries idempotently (`update ... set status='running' where id=$1 and status in ('queued','running' and lease expired)` as a lease).
 3. Worker loads **all context from the DB** (SEC-16), runs the pipeline (text via streaming → persist `output.text` stage → images in parallel → each image uploaded to S3 `generated/` → `generation_assets` row), updates status, creates the artifact row on success.
-4. Clients subscribe to `postgres_changes` on `generation_jobs` / `generation_assets` filtered `id=eq.<jobId>` (RLS enforces ownership). Token-level streaming uses Realtime **Broadcast** on private channel `job:<id>` (authorized via RLS on `realtime.messages`); the DB stages remain the durable truth, so a refresh resumes from the latest stage.
+4. Clients follow `GET /api/v1/jobs/:id/events` (SSE, ADR-020), which the API serves by watching the job row for the session user; each event is the full job snapshot, so a refresh resumes from the latest stage.
 5. Native app backgrounded → `notifyFn` sends Expo push "Your looks are ready" when the job finishes and the client hasn't acked.
 
 ### 4.3 Local development

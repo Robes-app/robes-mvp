@@ -97,6 +97,39 @@ describe('jobs', () => {
       stage: 'done',
       output: { text: { title: 'Hi' } },
     });
+    await system.jobs.finish(job.id, { status: 'failed', error: 'late' });
+    expect((await repos.jobs.getForUser(alice, job.id))?.status).toBe('succeeded');
+  });
+
+  it('cancels a queued job outright and flags a running one', async () => {
+    const queued = await repos.jobs.create(alice, { kind: 'fake', input: {} });
+    await repos.jobs.requestCancel(alice, queued.job.id);
+    expect(await repos.jobs.getForUser(alice, queued.job.id)).toMatchObject({
+      status: 'cancelled',
+      stage: 'done',
+    });
+    expect(await system.jobs.claim(queued.job.id, 60)).toBeUndefined();
+
+    const running = await repos.jobs.create(alice, { kind: 'fake', input: {} });
+    await system.jobs.claim(running.job.id, 60);
+    await repos.jobs.requestCancel(alice, running.job.id);
+    expect((await repos.jobs.getForUser(alice, running.job.id))?.status).toBe('running');
+    expect(await system.jobs.isCancelRequested(running.job.id)).toBe(true);
+  });
+
+  it('finds undelivered queued jobs and running jobs with expired leases', async () => {
+    const fresh = await repos.jobs.create(alice, { kind: 'fake', input: {} });
+    const old = await repos.jobs.create(alice, { kind: 'fake', input: {} });
+    const dead = await repos.jobs.create(alice, { kind: 'fake', input: {} });
+    await db
+      .updateTable('generationJobs')
+      .set({ createdAt: new Date('2000-01-01T00:00:00Z') })
+      .where('id', 'in', [old.job.id, dead.job.id])
+      .execute();
+    await system.jobs.claim(dead.job.id, 0);
+    const stale = await system.jobs.stale(60, 10_000);
+    expect(stale).toEqual(expect.arrayContaining([old.job.id, dead.job.id]));
+    expect(stale).not.toContain(fresh.job.id);
   });
 });
 
@@ -114,5 +147,11 @@ describe('assets', () => {
       .where('id', '=', asset.id)
       .executeTakeFirst();
     expect(row?.sensitive).toBe(true);
+  });
+});
+
+describe('maintenance', () => {
+  it('runs the retention sweep as the app role', async () => {
+    await expect(system.maintenance.run()).resolves.toBeUndefined();
   });
 });

@@ -31,7 +31,7 @@ export const POST = route({
 | Auth | `Authorization: Bearer <supabase access token>` (native) **or** Supabase SSR cookies (web). Verified with `getClaims()` against JWKS. `user.id` from claims only. |
 | Errors | `{ error: { code: string, message: string, details?: unknown, requestId: string } }`. Codes: `unauthenticated` 401, `forbidden` 403, `not_found` 404, `invalid_input` 400, `conflict` 409, `payload_too_large` 413, `rate_limited` 429 (+ `Retry-After`), `quota_exceeded` 429 (+ `resetAt`), `upgrade_required` 426, `capacity` 503, `disabled` 503 (kill switch), `internal` 500. Message text comes from `packages/copy` (product voice), never upstream errors. |
 | Idempotency | All POSTs that create or spend accept `Idempotency-Key` header (UUID). Stored in Upstash 24 h and on `generation_jobs.idempotency_key`; replay returns the original response. Clients always send one (the api-client does it automatically). |
-| Jobs | Long work returns `202 { jobId, status: 'queued' }`. Status via `GET /api/v1/jobs/:id` and Realtime. Cancellation `POST /api/v1/jobs/:id/cancel`. |
+| Jobs | Long work returns `202 { jobId, status: 'queued' }`. Progress streams as Server-Sent Events from `GET /api/v1/jobs/:id/events` (a full job snapshot on connect and on each change; the stream ends when the job is terminal or after 5 min, and clients reconnect). One-off status via `GET /api/v1/jobs/:id`; never poll it. Cancellation `POST /api/v1/jobs/:id/cancel`. |
 | Pagination | Cursor-based: `?cursor=<opaque>&limit=≤100` → `{ items, nextCursor }`. |
 | Sync | `GET /api/v1/sync?since=<cursor>` returns changed rows (incl. tombstones) across user-content tables for offline caches (native). |
 | Versioning | Additive changes only within v1. Breaking change → `/api/v2` route alongside; v1 supported ≥ 6 months after the last app build that uses it. Native sends `X-Robes-App-Version`; server can return `426 upgrade_required`. |
@@ -121,7 +121,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | `POST /style/analyse` (colour + silhouette from own photos) | `/api/stylenotes/analyse` |
 | `POST /style/try-on` (own photo only, SEC-22) | `/api/stylenotes/tryon` |
 | `POST /avatar/render` · `GET /avatar/cells/:key` | `/api/avatar/render`, `/api/avatar/cell` |
-| `GET /jobs/:id` · `POST /jobs/:id/cancel` · `POST /jobs/:id/images/:idx` (generate a deferred image) | `/api/images/:jobId` polling |
+| `GET /jobs/:id` · `GET /jobs/:id/events` (SSE) · `POST /jobs/:id/cancel` · `POST /jobs/:id/images/:idx` (generate a deferred image) · `POST /jobs/fake` (flag `jobs.fake`; platform smoke test) | `/api/images/:jobId` polling |
 
 ### Looks, artifacts, planning
 | New | Legacy |

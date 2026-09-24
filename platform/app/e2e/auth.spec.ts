@@ -1,31 +1,14 @@
 import { expect, test } from '@playwright/test';
+import { isolateClientIp, signIn, uniqueEmail } from './helpers';
 import { latestCodeFor } from './mailpit';
 
-// OTP requests are rate limited per IP (3/min), so each test looks like its own client.
-test.beforeEach(async ({ context }) => {
-  const octet = (): number => Math.floor(Math.random() * 250);
-  await context.setExtraHTTPHeaders({ 'x-forwarded-for': `10.${octet()}.${octet()}.${octet()}` });
-});
+test.beforeEach(({ context }) => isolateClientIp(context));
 
 test('passwordless sign-in, onboarding and sign-out', async ({ page }) => {
-  const email = `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.dev`;
-
   await page.goto('/wardrobe');
   await expect(page).toHaveURL(/\/auth\/sign-in\?next=%2Fwardrobe/);
 
-  await page.goto('/auth/sign-in');
-  await page.getByLabel('Email').fill(email);
-  await page.getByRole('button', { name: 'Email me a code' }).click();
-  await expect(page.getByRole('heading', { name: 'Check your email.' })).toBeVisible();
-
-  await page.getByLabel('Code').fill(await latestCodeFor(email));
-  await page.getByRole('button', { name: 'Continue' }).click();
-
-  await expect(page).toHaveURL(/\/onboarding$/);
-  await page.getByLabel('First name').fill('Ann');
-  await page.getByRole('button', { name: 'Continue' }).click();
-
-  await expect(page.getByRole('heading', { name: /, Ann\.$/ })).toBeVisible();
+  const email = await signIn(page);
   const me = await page.request.get('/api/v1/me');
   expect(await me.json()).toMatchObject({ email, firstName: 'Ann', onboarded: true });
 
@@ -35,7 +18,7 @@ test('passwordless sign-in, onboarding and sign-out', async ({ page }) => {
 });
 
 test('a wrong code is rejected', async ({ page }) => {
-  const email = `e2e-${Date.now()}-bad@test.dev`;
+  const email = uniqueEmail('e2e-bad');
   await page.goto('/auth/sign-in');
   await page.getByLabel('Email').fill(email);
   await page.getByRole('button', { name: 'Email me a code' }).click();

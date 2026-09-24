@@ -10,6 +10,7 @@ export const PROTECTED_PREFIXES = [
   '/day',
   '/trip',
   '/you',
+  '/dev',
 ] as const;
 
 export function isProtectedPath(pathname: string): boolean {
