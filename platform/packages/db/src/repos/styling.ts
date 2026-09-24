@@ -24,7 +24,25 @@ export function stylingRepo(db: Db) {
         .orderBy('w.createdAt', 'desc')
         .limit(60)
         .execute();
+      const dna = await db
+        .selectFrom('styleProfiles')
+        .select(['colorHarmony', 'silhouetteProportions', 'userOverrides'])
+        .where('userId', '=', userId)
+        .executeTakeFirst();
+      const count = await db
+        .selectFrom('wardrobeItems')
+        .select((eb) => eb.fn.countAll<string>().as('n'))
+        .where('userId', '=', userId)
+        .where('deletedAt', 'is', null)
+        .where('status', '=', 'ready')
+        .executeTakeFirst();
       return {
+        styleDna: {
+          color_harmony: dna?.colorHarmony ?? null,
+          silhouette_proportions: dna?.silhouetteProportions ?? null,
+          user_overrides: dna?.userOverrides ?? {},
+        },
+        wardrobeCount: Number(count?.n ?? 0),
         firstName: profile?.firstName ?? null,
         gender: (profile?.genderIdentity ?? 'woman') as 'woman' | 'man' | 'unspecified',
         styleIcons: profile?.styleIcons ?? [],

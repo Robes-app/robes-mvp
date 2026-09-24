@@ -27,6 +27,20 @@ describe('styling + ideas', () => {
     expect(ctx.firstName).toBe('Ann');
     expect(ctx.gender).toBe('woman');
     expect(ctx.closet.map((c) => c.label)).toEqual(['Camel coat']);
+    expect(ctx.wardrobeCount).toBe(1);
+    expect(ctx.styleDna).toEqual({
+      color_harmony: null,
+      silhouette_proportions: null,
+      user_overrides: {},
+    });
+    await db
+      .insertInto('styleProfiles')
+      .values({ userId: ann, colorHarmony: JSON.stringify({ archetype_name: 'Soft Autumn' }) })
+      .execute();
+    expect((await styling.context(ann)).styleDna).toMatchObject({
+      color_harmony: { archetype_name: 'Soft Autumn' },
+    });
+    expect((await styling.context(bea)).styleDna).toMatchObject({ color_harmony: null });
     expect(
       await styling.anchorPiece(
         bea,

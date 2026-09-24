@@ -19,6 +19,7 @@ export function createDb(opts: DbOptions): Db {
   });
   return new Kysely<DB>({
     dialect: new PostgresDialect({ pool }),
-    plugins: [new CamelCasePlugin()],
+    // Columns map snake↔camel; jsonb values stay exactly as stored (style DNA keeps snake_case).
+    plugins: [new CamelCasePlugin({ maintainNestedObjectKeys: true })],
   }).withSchema('app');
 }

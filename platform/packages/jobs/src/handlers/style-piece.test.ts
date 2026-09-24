@@ -16,6 +16,8 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fakeOutput('
       gender: 'woman' as const,
       styleIcons: [],
       closet: [],
+      styleDna: {},
+      wardrobeCount: 0,
     })),
     anchorPiece: vi.fn(async () => ({ id: PIECE, label: 'Camel coat', imageAssetId: ASSET })),
     createGeneratedAsset: vi.fn(async () => `44444444-4444-4444-8444-44444444444${n++}`),
