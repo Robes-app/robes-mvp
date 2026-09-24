@@ -14,6 +14,7 @@ import { notifierRepo } from './notifier';
 import { pieceAnalysisRepo } from './piece-analysis';
 import { planRepo } from './plan';
 import { profilesRepo } from './profiles';
+import { pushDeliveryRepo, pushTokensRepo } from './push-tokens';
 import { publicSharesRepo, sharesRepo } from './shares';
 import { styleAnalysisRepo, styleProfileRepo } from './style-profile';
 import { stylingRepo } from './styling';
@@ -41,6 +42,7 @@ export function createRepositories(db: Db) {
     // Token-addressed public reads (the token is the capability, SEC-13); no user id.
     publicShares: publicSharesRepo(db),
     shares: sharesRepo(db),
+    pushTokens: pushTokensRepo(db),
     styleProfile: styleProfileRepo(db),
     usage: usageRepo(db),
     wardrobe: wardrobeRepo(db),
@@ -57,6 +59,7 @@ export function createSystemRepositories(db: Db) {
     ledger: ledgerRepo(db),
     maintenance: maintenanceRepo(db),
     notifier: notifierRepo(db),
+    pushDelivery: pushDeliveryRepo(db),
     pieces: pieceAnalysisRepo(db),
     styleAnalysis: styleAnalysisRepo(db),
     styling: stylingRepo(db),
@@ -75,6 +78,7 @@ export { encodeCursor, type Page } from './paging';
 export type { PieceAnalysis } from './piece-analysis';
 export type { PlanSlot } from './plan';
 export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';
+export type { PushPlatform } from './push-tokens';
 export { mintShareToken, type ShareSubject } from './shares';
 export type { StyleOverrides } from './style-profile';
 export type { ListPiecesQuery, PieceFields } from './wardrobe';

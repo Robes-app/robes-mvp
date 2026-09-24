@@ -108,3 +108,18 @@ export const AnalyseStyleInput = z.object({
   assetId: z.uuid(),
 });
 export type AnalyseStyleInput = z.infer<typeof AnalyseStyleInput>;
+
+// Native push (M7): an Expo push token for this device.
+export const ExpoPushToken = z
+  .string()
+  .regex(/^(Exponent|Expo)PushToken\[[A-Za-z0-9_-]{10,100}\]$/);
+export const RegisterPushTokenInput = z.object({
+  expoToken: ExpoPushToken,
+  platform: z.enum(['ios', 'android']),
+  appVersion: z
+    .string()
+    .regex(/^\d+(\.\d+)*$/)
+    .max(32)
+    .optional(),
+});
+export const PushTokenParams = z.object({ token: ExpoPushToken });
