@@ -1,0 +1,28 @@
+{
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": { "EXPO_PUBLIC_APP_ENV": "dev" }
+    },
+    "beta": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": { "resourceClass": "m-medium" },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_API_URL": "https://robes-app-codu.vercel.app"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_APP_ENV": "production", "EXPO_PUBLIC_API_URL": "https://app.byrobes.com" }
+    }
+  },
+  "submit": {
+    "beta": { "ios": { "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_APP_ID" } },
+    "production": { "ios": { "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_APP_ID" } }
+  }
+}
