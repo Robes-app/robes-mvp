@@ -343,6 +343,8 @@ export const looks = {
     creating: 'Saving…',
     togglePiece: (label: string): string => `Include ${label}`,
     empty: 'Add a few pieces to your wardrobe first.',
+    // Native: the picker heading under the screen title.
+    pick: 'Choose the pieces',
   },
   look: {
     worn: (times: number): string =>
@@ -351,6 +353,19 @@ export const looks = {
     woreToday: 'Worn today.',
     removed: 'Look removed.',
     pieces: 'Pieces',
+    imageAlt: (name: string): string => `The look: ${name}`,
+    suggested: 'Robes’ suggested name',
+    keepName: 'Keep this name',
+    nameLabel: 'Name this look',
+    saveName: 'Save name',
+    wearOnDay: 'Wear on a day',
+    chooseDay: 'Which day?',
+    pinned: 'On your plan.',
+    saveAsNew: 'Save as new',
+    savedAsNew: 'Saved as a new look.',
+    share: 'Share',
+    stopSharing: 'Stop sharing',
+    sharingStopped: 'Sharing turned off.',
   },
 } as const;
 
@@ -402,7 +417,7 @@ export const you = {
     noPerson: 'Robes couldn’t see your full figure. Try another photo.',
     failed: 'Robes couldn’t read that photo. Try another.',
     best: 'Wear',
-    avoid: 'Skip',
+    avoid: 'Go easy on',
     metals: 'Metals',
     neutrals: 'Neutrals',
     traits: 'Your lines',
@@ -414,6 +429,28 @@ export const you = {
     coloursHint: 'Separate with commas.',
     saveColours: 'Save',
     savedColours: 'Saved.',
+    // Native screen (cards per read, colours edited one at a time).
+    colour: {
+      title: 'Your colouring',
+      body: 'A close-up of your face in daylight, no filter.',
+      add: 'Add a close-up',
+      reading: 'Reading your colouring…',
+      noSubject: 'Robes couldn’t see a face in that photo. Try another.',
+    },
+    silhouette: {
+      title: 'Your shape',
+      body: 'A full-length photo, standing straight, in fitted clothes.',
+      add: 'Add a full-length photo',
+      reading: 'Reading your shape…',
+      noSubject: 'Robes couldn’t see your full figure in that photo. Try another.',
+    },
+    again: 'Try another photo',
+    loved: 'Colours you love',
+    rejected: 'Colours you don’t wear',
+    colourLabel: 'Add a colour',
+    colourPlaceholder: 'Navy',
+    add: 'Add',
+    removeColour: (name: string): string => `Remove ${name}`,
   },
 } as const;
 
@@ -423,9 +460,13 @@ export const plan = {
   today: 'Today',
   tomorrow: 'Tomorrow',
   emptyDay: 'Free',
+  free: 'A free day',
   evening: 'Evening',
   activityLabel: (date: string): string => `What’s on, ${date}`,
-  activityPlaceholder: 'What’s on',
+  // Native: the field label when the day is already shown above it.
+  activityField: 'What’s on',
+  activityPlaceholder: 'Dinner, the office',
+  saveActivity: 'Save',
   unpin: (name: string): string => `Take ${name} off this day`,
   unpinned: 'Taken off the day.',
   empty: {

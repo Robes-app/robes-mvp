@@ -1,6 +1,6 @@
 import type { ApiClient } from '@robes/api-client';
 import { queryKeys, useApiClient } from '@robes/api-client/react';
-import { type BatchPiecesOutput, UploadContentType } from '@robes/contracts';
+import { type BatchPiecesOutput, UploadContentType, type UploadKind } from '@robes/contracts';
 import { wardrobe as copy } from '@robes/copy';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,7 +15,7 @@ export interface PickedPhoto {
 export const MAX_BATCH = 30;
 
 // Re-encoded to JPEG by the picker (quality < 1), so HEIC never reaches the renderer.
-const PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
+export const PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
   mediaTypes: ['images'],
   quality: 0.85,
   exif: false,
@@ -27,11 +27,15 @@ function contentTypeOf(photo: PickedPhoto): UploadContentType {
 }
 
 // Photo → presigned PUT straight to storage (never through the API, SEC-20) → complete.
-export async function uploadPhoto(api: ApiClient, photo: PickedPhoto): Promise<string> {
+export async function uploadPhoto(
+  api: ApiClient,
+  photo: PickedPhoto,
+  kind: UploadKind = 'wardrobe',
+): Promise<string> {
   const body = await (await fetch(photo.uri)).blob();
   const { assetId, upload } = await api.call('uploads.create', {
     input: {
-      kind: 'wardrobe',
+      kind,
       contentType: contentTypeOf(photo),
       bytes: photo.fileSize || body.size,
     },

@@ -1,11 +1,11 @@
-import { nav, shell } from '@robes/copy';
-import { EmptyState } from '@robes/ui-native';
+import { nav } from '@robes/copy';
 import { TabScreen } from '@/components/TabScreen';
+import { PlanView } from '@/features/plan/PlanView';
 
 export default function Plan() {
   return (
     <TabScreen title={nav.plan}>
-      <EmptyState title={shell.soon.title} body={shell.soon.body} />
+      <PlanView />
     </TabScreen>
   );
 }

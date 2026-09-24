@@ -16,7 +16,17 @@ function Frame({ frame, title }: { frame: IdeaFrame | undefined; title: string }
   return <Skeleton width="100%" aspectRatio={4 / 5} />;
 }
 
-function Way({ way, frame }: { way: IdeaWay; frame: IdeaFrame | undefined }) {
+function Way({
+  way,
+  frame,
+  onSave,
+  saving,
+}: {
+  way: IdeaWay;
+  frame: IdeaFrame | undefined;
+  onSave: () => void;
+  saving: boolean;
+}) {
   return (
     <View className="gap-3">
       <Frame frame={frame} title={way.title} />
@@ -39,6 +49,15 @@ function Way({ way, frame }: { way: IdeaWay; frame: IdeaFrame | undefined }) {
           <Text>{way.accessories}</Text>
         </View>
       ) : null}
+      <Button
+        variant="secondary"
+        onPress={onSave}
+        loading={saving}
+        loadingLabel={copy.saveWay}
+        accessibilityHint={way.title}
+      >
+        {copy.saveWay}
+      </Button>
     </View>
   );
 }
@@ -51,9 +70,21 @@ export interface IdeaViewProps {
   saving: boolean;
   onRemove: () => void;
   removing: boolean;
+  onSaveWay: (wayIdx: number) => void;
+  // The way being saved as a look, if any.
+  savingWay: number | null;
 }
 
-export function IdeaView({ idea, progress, onSave, saving, onRemove, removing }: IdeaViewProps) {
+export function IdeaView({
+  idea,
+  progress,
+  onSave,
+  saving,
+  onRemove,
+  removing,
+  onSaveWay,
+  savingWay,
+}: IdeaViewProps) {
   const saved = idea.savedAt !== null;
   return (
     <ScrollView contentContainerClassName="gap-8 px-6 pb-12">
@@ -64,7 +95,13 @@ export function IdeaView({ idea, progress, onSave, saving, onRemove, removing }:
       </View>
       {progress}
       {idea.ways.map((way, idx) => (
-        <Way key={way.title} way={way} frame={idea.frames.find((f) => f.idx === idx)} />
+        <Way
+          key={way.title}
+          way={way}
+          frame={idea.frames.find((f) => f.idx === idx)}
+          onSave={() => onSaveWay(idx)}
+          saving={savingWay === idx}
+        />
       ))}
       <PrimaryScope>
         <View className="gap-3">

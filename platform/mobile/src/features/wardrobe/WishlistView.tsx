@@ -1,7 +1,7 @@
 import { wardrobe as copy, ui } from '@robes/copy';
 import { Button, EmptyState, Field, IconButton, Image, PrimaryScope, Text } from '@robes/ui-native';
 import { useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { FlatList, Keyboard, RefreshControl, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { useAddWish, usePromoteWish, useRemoveWish, useWishes } from './wishlist';
@@ -28,7 +28,11 @@ function AddWish() {
           onPress={() =>
             add
               .mutateAsync({ input: { label: label.trim() } })
-              .then(() => setLabel(''))
+              .then(() => {
+                setLabel('');
+                // Added: put the keyboard away so the list and tab bar are visible again.
+                Keyboard.dismiss();
+              })
               .catch(() => undefined)
           }
         >

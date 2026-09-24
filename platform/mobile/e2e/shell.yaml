@@ -1,4 +1,4 @@
-# Signed in on Today: every tab, the Create modal and You are reachable, then sign out.
+# Signed in on Today: every tab, the Create modal and You are reachable (sign-out is in sign-in.yaml).
 appId: host.exp.Exponent
 ---
 - tapOn:
@@ -13,7 +13,9 @@ appId: host.exp.Exponent
     timeout: 10000
 - tapOn:
     id: 'plan-tab'
-- assertVisible: 'On its way.'
+- extendedWaitUntil:
+    visible: 'Your days live here.'
+    timeout: 10000
 - tapOn:
     id: 'create-tab'
 - extendedWaitUntil:
@@ -33,9 +35,3 @@ appId: host.exp.Exponent
 - tapOn: 'Notifications'
 - assertVisible: 'Gentle nudges to add pieces'
 - tapOn: 'Back'
-- scrollUntilVisible:
-    element: 'Sign out'
-- tapOn: 'Sign out'
-- extendedWaitUntil:
-    visible: 'Email me a code'
-    timeout: 10000
