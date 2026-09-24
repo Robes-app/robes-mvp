@@ -1,6 +1,10 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
     "includes": [
       "**",
@@ -10,16 +14,30 @@
       "!**/node_modules",
       "!**/supabase/.temp",
       "!**/*.types.ts",
-      "!docs/reference/tokens.draft.json"
+      "!docs/reference/tokens.draft.json",
+      "!mobile/assets",
+      "!**/uniwind-types.d.ts"
     ]
   },
-  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
-  "javascript": { "formatter": { "quoteStyle": "single" } },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single"
+    }
+  },
   "linter": {
     "rules": {
       "preset": "recommended",
-      "security": { "noDangerouslySetInnerHtml": "error" },
-      "style": { "noNonNullAssertion": "error" }
+      "security": {
+        "noDangerouslySetInnerHtml": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error"
+      }
     }
   }
 }
