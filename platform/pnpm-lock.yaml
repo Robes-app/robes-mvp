@@ -187,6 +187,9 @@ importers:
       '@expo/ui':
         specifier: ~57.0.19
         version: 57.0.19(01f7df9011d022b898b5516d2b500f6d)
+      '@robes/analytics':
+        specifier: workspace:*
+        version: link:../packages/analytics
       '@robes/api-client':
         specifier: workspace:*
         version: link:../packages/api-client
@@ -199,6 +202,9 @@ importers:
       '@robes/icons':
         specifier: workspace:*
         version: link:../packages/icons
+      '@robes/logger':
+        specifier: workspace:*
+        version: link:../packages/logger
       '@robes/tokens':
         specifier: workspace:*
         version: link:../packages/tokens

@@ -4,6 +4,7 @@ import { Icon } from '@robes/icons/native';
 import { useColor } from '@robes/ui-native';
 import { Redirect, Tabs, useRouter } from 'expo-router';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { AnalyticsSetup } from '@/lib/analytics';
 import { useAuthGate } from '@/lib/use-auth-gate';
 import { PushSetup } from '@/lib/use-push';
 
@@ -27,6 +28,7 @@ export default function TabsLayout() {
   return (
     <>
       <PushSetup />
+      <AnalyticsSetup />
       <Tabs
         screenOptions={{
           headerShown: false,
