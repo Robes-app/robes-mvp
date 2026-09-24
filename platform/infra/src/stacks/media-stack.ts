@@ -45,11 +45,7 @@ export class MediaStack extends RobesStack {
       name: 'rendition',
       spec: RENDITION_WORKER,
       deadLetterQueue: props.renditionDlq,
-      secrets: {
-        DATABASE_URL_SECRET_ARN: props.secrets.databaseUrl,
-        SUPABASE_URL_SECRET_ARN: props.secrets.supabaseUrl,
-        SUPABASE_SERVICE_ROLE_SECRET_ARN: props.secrets.supabaseServiceRole,
-      },
+      secrets: { DATABASE_URL_SECRET_ARN: props.secrets.databaseUrl },
       environment: { MEDIA_BUCKET: bucketName },
       externalModules: ['sharp'],
       layers: config.workers.renditionLayerArns.map((arn, i) =>

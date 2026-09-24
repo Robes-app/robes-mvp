@@ -37,11 +37,7 @@ export class WorkersStack extends RobesStack {
   constructor(scope: Construct, id: string, props: WorkersStackProps) {
     super(scope, id, props);
     const { config, secrets, queues } = props;
-    const db = {
-      DATABASE_URL_SECRET_ARN: secrets.databaseUrl,
-      SUPABASE_URL_SECRET_ARN: secrets.supabaseUrl,
-      SUPABASE_SERVICE_ROLE_SECRET_ARN: secrets.supabaseServiceRole,
-    };
+    const db = { DATABASE_URL_SECRET_ARN: secrets.databaseUrl };
 
     const grants: Record<QueueWorkerName, WorkerGrants> = {
       generate: {

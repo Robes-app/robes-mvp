@@ -83,6 +83,30 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
     );
   });
 
+  it('workers get exactly the secrets they need', () => {
+    const expected: Record<string, string[]> = {
+      generate: ['database/url', 'fal/api-key', 'gemini/api-key'],
+      batch: ['database/url', 'gemini/api-key'],
+      notify: ['database/url', 'expo/access-token', 'resend/api-key', 'unsub/hmac-key'],
+      maintenance: ['database/url'],
+      rendition: ['database/url'],
+      fetch: [],
+    };
+    for (const [name, secrets] of Object.entries(expected)) {
+      const fn = functionNamed(s, name);
+      const granted = roleStatements(s, roleOf(s, fn))
+        .filter((st) => list(st.Action).includes('secretsmanager:GetSecretValue'))
+        .flatMap((st) => list(st.Resource))
+        .map((r) =>
+          String(s.resolve(fn.stack, r)?.properties.Name).replace(
+            `${s.stage.config.namePrefix}/`,
+            '',
+          ),
+        );
+      expect(granted.sort(), name).toEqual(secrets);
+    }
+  });
+
   it('VercelApiRole has only the three listed actions, on the listed resources', () => {
     const role = s
       .resources('AWS::IAM::Role')

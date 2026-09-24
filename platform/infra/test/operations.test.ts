@@ -70,9 +70,12 @@ describe.each(['staging', 'production'] as const)('%s operations', (stageName) =
     }
   });
 
-  it('creates every §4.1 secret with no plaintext value in the template', () => {
+  it('creates every §4.1 / ADR-020 secret with no plaintext value in the template', () => {
     const secrets = s.resources('AWS::SecretsManager::Secret');
     expect(secrets.map((r) => String(r.properties.Name).replace(`${prefix}/`, '')).sort()).toEqual([
+      'auth/apple',
+      'auth/better-auth-secret',
+      'auth/google',
       'cloudfront/signing-key',
       'database/url',
       'expo/access-token',
@@ -80,10 +83,15 @@ describe.each(['staging', 'production'] as const)('%s operations', (stageName) =
       'gemini/api-key',
       'resend/api-key',
       'resend/webhook-secret',
-      'supabase/service-role',
-      'supabase/url',
       'unsub/hmac-key',
     ]);
     for (const r of secrets) expect(r.properties.SecretString).toBeUndefined();
+    const apple = secrets.find((r) => String(r.properties.Name).endsWith('/auth/apple'));
+    const gen = apple?.properties.GenerateSecretString as { SecretStringTemplate: string };
+    expect(Object.keys(JSON.parse(gen.SecretStringTemplate))).toEqual([
+      'clientId',
+      'teamId',
+      'keyId',
+    ]);
   });
 });
