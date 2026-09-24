@@ -104,6 +104,15 @@ export function looksRepo(db: Db) {
         .executeTakeFirst();
     },
 
+    getMany(userId: UserId, ids: readonly string[]) {
+      if (ids.length === 0) return Promise.resolve([]);
+      return active()
+        .select(LOOK_COLUMNS)
+        .where('userId', '=', userId)
+        .where('id', 'in', [...ids])
+        .execute();
+    },
+
     // Pieces for many looks at once, in look order; deleted pieces drop out of the look.
     piecesFor(userId: UserId, lookIds: readonly string[]) {
       if (lookIds.length === 0) return Promise.resolve([]);

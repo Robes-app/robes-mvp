@@ -10,6 +10,7 @@ import { ledgerRepo } from './ledger';
 import { looksRepo } from './looks';
 import { maintenanceRepo } from './maintenance';
 import { pieceAnalysisRepo } from './piece-analysis';
+import { planRepo } from './plan';
 import { profilesRepo } from './profiles';
 import { styleAnalysisRepo, styleProfileRepo } from './style-profile';
 import { stylingRepo } from './styling';
@@ -30,6 +31,7 @@ export function createRepositories(db: Db) {
     jobs: jobsRepo(db),
     // Global capacity check only; holds no per-user data.
     capacity: { isExhausted: ledgerRepo(db).isExhausted },
+    plan: planRepo(db),
     profiles: profilesRepo(db),
     styleProfile: styleProfileRepo(db),
     usage: usageRepo(db),
@@ -60,6 +62,7 @@ export type { CallRecord } from './ledger';
 export { type LookFields, type LookPieceInput, LookPiecesNotFound, type LookRole } from './looks';
 export { encodeCursor, type Page } from './paging';
 export type { PieceAnalysis } from './piece-analysis';
+export type { PlanSlot } from './plan';
 export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';
 export type { StyleOverrides } from './style-profile';
 export type { ListPiecesQuery, PieceFields } from './wardrobe';

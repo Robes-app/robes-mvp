@@ -4,5 +4,6 @@ export * from './jobs';
 export * from './looks';
 export * from './me';
 export * from './media';
+export * from './plan';
 export * from './routes';
 export * from './wardrobe';

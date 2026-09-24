@@ -31,6 +31,15 @@ import {
 } from './me';
 import { Asset, AssetParams, CreateUploadInput, CreateUploadOutput, MediaSession } from './media';
 import {
+  GetPlanInput,
+  PinLookInput,
+  PinnedEntries,
+  Plan,
+  PlanEntry,
+  PlanEntryParams,
+  UpdatePlanEntryInput,
+} from './plan';
+import {
   BatchPiecesInput,
   BatchPiecesOutput,
   CreatePieceInput,
@@ -366,6 +375,40 @@ export const routes = {
     path: '/looks/ideas/:id',
     auth: 'user',
     params: IdeaParams,
+    input: EmptyInput,
+    output: Deleted,
+  },
+  'plan.get': { method: 'GET', path: '/plan', auth: 'user', input: GetPlanInput, output: Plan },
+  // Naturally idempotent: a look already on a day and slot keeps its entry.
+  'plan.pin': {
+    method: 'POST',
+    path: '/plan/looks/:id/days',
+    auth: 'user',
+    params: LookParams,
+    input: PinLookInput,
+    output: PinnedEntries,
+  },
+  'plan.update': {
+    method: 'PATCH',
+    path: '/plan/entries/:id',
+    auth: 'user',
+    params: PlanEntryParams,
+    input: UpdatePlanEntryInput,
+    output: PlanEntry,
+  },
+  'plan.unpin': {
+    method: 'DELETE',
+    path: '/plan/entries/:id',
+    auth: 'user',
+    params: PlanEntryParams,
+    input: EmptyInput,
+    output: Deleted,
+  },
+  'plan.restore': {
+    method: 'POST',
+    path: '/plan/entries/:id/restore',
+    auth: 'user',
+    params: PlanEntryParams,
     input: EmptyInput,
     output: Deleted,
   },

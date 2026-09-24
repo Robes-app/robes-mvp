@@ -37,6 +37,8 @@ describe('looks repo', () => {
     const pieces = await looks.piecesFor(ann, [look.id]);
     expect(pieces.map((p) => p.label)).toEqual(['Straight jeans', 'Camel coat']);
     expect(await looks.get(bea, look.id)).toBeUndefined();
+    expect((await looks.getMany(ann, [look.id])).map((l) => l.id)).toEqual([look.id]);
+    expect(await looks.getMany(bea, [look.id])).toEqual([]);
     expect(await looks.piecesFor(bea, [look.id])).toEqual([]);
     expect(await looks.update(bea, look.id, { name: 'Mine' })).toBeUndefined();
     expect(await looks.remove(bea, look.id)).toBe(false);
