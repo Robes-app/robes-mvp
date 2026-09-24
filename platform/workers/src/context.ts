@@ -4,6 +4,7 @@ import { createDb, createSystemRepositories, type SystemRepositories } from '@ro
 import {
   createHandlers,
   createInlineTransport,
+  createJobAi,
   createSqsTransport,
   type JobLogger,
   type JobTransport,
@@ -11,6 +12,7 @@ import {
   runJob,
 } from '@robes/jobs';
 import { createLogger } from '@robes/logger';
+import { createMediaBucket, createMediaStorage } from '@robes/media/storage';
 
 export interface WorkerContext {
   system: SystemRepositories;
@@ -22,13 +24,19 @@ export interface WorkerContext {
   close(): Promise<void>;
 }
 
-async function resolveDatabaseUrl(env: WorkerEnv): Promise<string> {
-  if (env.DATABASE_URL) return env.DATABASE_URL;
-  const res = await new SecretsManagerClient({}).send(
-    new GetSecretValueCommand({ SecretId: env.DATABASE_URL_SECRET_ARN }),
-  );
-  if (!res.SecretString) throw new Error('database secret has no value');
+async function readSecret(arn: string | undefined): Promise<string> {
+  const res = await new SecretsManagerClient({}).send(new GetSecretValueCommand({ SecretId: arn }));
+  if (!res.SecretString) throw new Error('secret has no value');
   return res.SecretString;
+}
+
+async function resolveDatabaseUrl(env: WorkerEnv): Promise<string> {
+  return env.DATABASE_URL ?? readSecret(env.DATABASE_URL_SECRET_ARN);
+}
+
+async function resolveGeminiKey(env: WorkerEnv): Promise<string | undefined> {
+  if (env.GEMINI_API_KEY) return env.GEMINI_API_KEY;
+  return env.GEMINI_API_KEY_SECRET_ARN ? readSecret(env.GEMINI_API_KEY_SECRET_ARN) : undefined;
 }
 
 async function createWorkerContext(): Promise<WorkerContext> {
@@ -40,7 +48,22 @@ async function createWorkerContext(): Promise<WorkerContext> {
   });
   const system = createSystemRepositories(db);
   const logger = createLogger({ service: 'robes-workers' });
-  const handlers = createHandlers();
+  const storage =
+    env.MEDIA_BUCKET && env.AWS_REGION
+      ? createMediaStorage(createMediaBucket({ bucket: env.MEDIA_BUCKET, region: env.AWS_REGION }))
+      : null;
+  const handlers = createHandlers(
+    storage
+      ? {
+          wardrobeAnalyse: {
+            ai: createJobAi({ appEnv: env.APP_ENV, geminiApiKey: await resolveGeminiKey(env) }),
+            storage,
+            pieces: system.pieces,
+            ledger: system.ledger,
+          },
+        }
+      : {},
+  );
   const run = (jobId: string): Promise<RunOutcome> =>
     runJob(jobId, { jobs: system.jobs, handlers, logger });
   const inline: Promise<void>[] = [];

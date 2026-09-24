@@ -284,6 +284,9 @@ importers:
       '@google/genai':
         specifier: 2.24.0
         version: 2.24.0(supports-color@8.1.1)
+      '@robes/core':
+        specifier: workspace:*
+        version: link:../core
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -459,6 +462,9 @@ importers:
       '@aws-sdk/client-sqs':
         specifier: 3.1138.0
         version: 3.1138.0
+      '@robes/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@robes/copy':
         specifier: workspace:*
         version: link:../copy
@@ -468,6 +474,12 @@ importers:
       '@robes/db':
         specifier: workspace:*
         version: link:../db
+      '@robes/media':
+        specifier: workspace:*
+        version: link:../media
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
       typescript:
         specifier: 'catalog:'

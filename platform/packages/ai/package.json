@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./prompts/wardrobe-analyse": "./src/prompts/wardrobe-analyse/v1.ts"
   },
   "scripts": {
     "test": "vitest run",
@@ -11,6 +12,7 @@
   },
   "dependencies": {
     "@google/genai": "2.24.0",
+    "@robes/core": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

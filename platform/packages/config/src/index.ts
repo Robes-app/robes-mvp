@@ -118,6 +118,8 @@ export const appServerEnv = z
     ALLOW_PRIVATE_FETCH: z.string().optional(),
     NOTIFY_DEBUG: z.string().optional(),
     JOBS_TRANSPORT_INLINE: z.string().optional(),
+    // Only the dev inline worker calls Gemini from the web process; without it the fake is used.
+    GEMINI_API_KEY: optionalSecret,
     // SQS jobs-interactive queue; without it jobs run in-process after the response (dev only).
     JOBS_INTERACTIVE_QUEUE_URL: z.url().optional(),
     ...mediaEnv.shape,
@@ -216,8 +218,20 @@ export const workerEnv = z
     DATABASE_URL: z.url().optional(),
     DATABASE_URL_SECRET_ARN: z.string().startsWith('arn:').optional(),
     JOBS_INTERACTIVE_QUEUE_URL: z.url().optional(),
+    // Gemini: a Secrets Manager ARN in AWS; a plain key (or none → offline fake) in dev.
+    GEMINI_API_KEY: z.string().min(1).optional(),
+    GEMINI_API_KEY_SECRET_ARN: z.string().startsWith('arn:').optional(),
+    MEDIA_BUCKET: z.string().min(3).optional(),
+    AWS_REGION: z.string().optional(),
   })
   .superRefine((env, ctx) => {
+    if (env.APP_ENV !== 'dev' && !env.GEMINI_API_KEY_SECRET_ARN) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['GEMINI_API_KEY_SECRET_ARN'],
+        message: 'required outside dev',
+      });
+    }
     if (!env.DATABASE_URL === !env.DATABASE_URL_SECRET_ARN) {
       ctx.addIssue({
         code: 'custom',

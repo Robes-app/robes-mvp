@@ -182,10 +182,13 @@ describe('parseEnv(workerEnv)', () => {
   const arn = 'arn:aws:secretsmanager:eu-west-1:123456789012:secret:robes-db-AbCdEf';
 
   it('takes the DB URL from a secret ARN in AWS or directly in dev', () => {
-    expect(parseEnv(workerEnv, { APP_ENV: 'staging', DATABASE_URL_SECRET_ARN: arn })).toEqual({
-      APP_ENV: 'staging',
-      DATABASE_URL_SECRET_ARN: arn,
-    });
+    expect(
+      parseEnv(workerEnv, {
+        APP_ENV: 'staging',
+        DATABASE_URL_SECRET_ARN: arn,
+        GEMINI_API_KEY_SECRET_ARN: arn,
+      }),
+    ).toEqual({ APP_ENV: 'staging', DATABASE_URL_SECRET_ARN: arn, GEMINI_API_KEY_SECRET_ARN: arn });
     expect(() =>
       parseEnv(workerEnv, { APP_ENV: 'dev', DATABASE_URL: base.DATABASE_URL }),
     ).not.toThrow();
@@ -198,8 +201,12 @@ describe('parseEnv(workerEnv)', () => {
         APP_ENV: 'staging',
         DATABASE_URL: base.DATABASE_URL,
         DATABASE_URL_SECRET_ARN: arn,
+        GEMINI_API_KEY_SECRET_ARN: arn,
       }),
     ).toThrow(/exactly one/);
+    expect(() => parseEnv(workerEnv, { APP_ENV: 'staging', DATABASE_URL_SECRET_ARN: arn })).toThrow(
+      /GEMINI_API_KEY_SECRET_ARN/,
+    );
     expect(() =>
       parseEnv(workerEnv, { APP_ENV: 'production', DATABASE_URL: base.DATABASE_URL }),
     ).toThrow(/SECRET_ARN/);

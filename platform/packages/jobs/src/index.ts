@@ -1,4 +1,5 @@
-export { createHandlers } from './handlers';
+export { createJobAi } from './ai';
+export { createHandlers, type HandlerDeps } from './handlers';
 export { createFakeHandler } from './handlers/fake';
 export type { JobLogger } from './logger';
 export { type JobMessage, parseJobMessage } from './message';

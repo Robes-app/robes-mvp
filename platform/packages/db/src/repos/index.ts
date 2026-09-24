@@ -5,6 +5,7 @@ import { flagsRepo } from './flags';
 import { jobRunnerRepo, jobsRepo } from './jobs';
 import { ledgerRepo } from './ledger';
 import { maintenanceRepo } from './maintenance';
+import { pieceAnalysisRepo } from './piece-analysis';
 import { profilesRepo } from './profiles';
 import { usageRepo } from './usage';
 import { wardrobeRepo } from './wardrobe';
@@ -31,6 +32,7 @@ export function createSystemRepositories(db: Db) {
     jobs: jobRunnerRepo(db),
     ledger: ledgerRepo(db),
     maintenance: maintenanceRepo(db),
+    pieces: pieceAnalysisRepo(db),
   };
 }
 
@@ -39,5 +41,6 @@ export type SystemRepositories = ReturnType<typeof createSystemRepositories>;
 export type { AssetKind } from './assets';
 export type { CreateJobInput } from './jobs';
 export type { CallRecord } from './ledger';
+export type { PieceAnalysis } from './piece-analysis';
 export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';
 export { encodeCursor, type ListPiecesQuery, type PieceFields } from './wardrobe';
