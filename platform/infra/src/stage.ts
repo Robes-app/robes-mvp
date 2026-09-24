@@ -3,6 +3,7 @@ import type { Construct } from 'constructs';
 import type { StageConfig } from '../config';
 import type { RobesStack } from './lib/robes-stack';
 import { BudgetsStack } from './stacks/budgets-stack';
+import { EmailStack } from './stacks/email-stack';
 import { IdentityStack } from './stacks/identity-stack';
 import { MediaStack } from './stacks/media-stack';
 import { ObservabilityStack } from './stacks/observability-stack';
@@ -19,6 +20,7 @@ export class RobesStage extends Stage {
   readonly config: StageConfig;
   readonly secrets: SecretsStack;
   readonly queues: QueuesStack;
+  readonly email: EmailStack;
   readonly media: MediaStack;
   readonly workers: WorkersStack;
   readonly schedules: SchedulesStack;
@@ -35,6 +37,7 @@ export class RobesStage extends Stage {
     const base = { config };
     this.secrets = new SecretsStack(this, 'Secrets', base);
     this.queues = new QueuesStack(this, 'Queues', base);
+    this.email = new EmailStack(this, 'Email', base);
     this.media = new MediaStack(this, 'Media', {
       ...base,
       secrets: this.secrets.secrets,
@@ -47,17 +50,21 @@ export class RobesStage extends Stage {
       queues: this.queues.queues,
       workersEntryDir: options.workersEntryDir,
     });
+    // SES permissions use literal ARNs; the identity should still exist before anything sends.
+    this.workers.addDependency(this.email);
     this.schedules = new SchedulesStack(this, 'Schedules', { ...base, queues: this.queues.queues });
     this.identity = new IdentityStack(this, 'Identity', {
       ...base,
       queues: this.queues.queues,
       signingKey: this.secrets.secrets.cloudfrontSigningKey,
     });
+    this.identity.addDependency(this.email);
     this.observability = new ObservabilityStack(this, 'Observability', {
       ...base,
       queues: this.queues.queues,
       extraDlqs: { rendition: this.queues.renditionDlq },
       functions: [...Object.values(this.workers.functions), this.media.rendition],
+      apiUserArn: this.identity.apiUser.userArn,
     });
     this.budgets = new BudgetsStack(this, 'Budgets', { ...base, topic: this.observability.topic });
   }
@@ -66,6 +73,7 @@ export class RobesStage extends Stage {
     return [
       this.secrets,
       this.queues,
+      this.email,
       this.media,
       this.workers,
       this.schedules,

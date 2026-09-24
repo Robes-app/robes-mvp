@@ -19,12 +19,12 @@ Accounts from `environments.md` §1 exist (or are recreated first: AWS account v
 2. **AWS**
    - `cdk bootstrap aws://<account>/eu-west-1` (`environments.md` §4 step 3).
    - Stateful resources in production are `RETAIN`: if the old account still exists, the bucket `robes-prod-media` and secrets survive a stack delete. Import them rather than recreate (`cdk import`) or rename in `infra/config/production.ts` if the old ones are gone.
-   - Deploy: `cd platform/infra && pnpm exec cdk deploy --all -c stage=<stage>` (with the `ROBES_<STAGE>_*` env from `environments.md` §4 step 6).
+   - Deploy: `cd platform/infra && pnpm cdk deploy --all -c stage=<stage>` (with the `ROBES_<STAGE>_*` env from `environments.md` §4 step 6).
    - Set all secret values (`key-rotation.md` §Set a value); new CloudFront key pair if the old private key is lost.
    - Media restore (if the bucket was lost and cross-region replication is on): `aws s3 sync s3://<replica> s3://robes-<env>-media`.
 3. **GitHub**: update environment vars (`AWS_ACCOUNT_ID`, `AWS_DEPLOY_ROLE_ARN`) and the `MIGRATION_DATABASE_URL` secret; rerun the deploy workflow; it must be green.
-4. **Vercel**: env vars per `environments.md` §6 (new queue URLs, role ARN, `DATABASE_URL`, Better Auth/Apple/Google values); redeploy; domains still point at the project. Apple/Google callback URLs are unchanged if the app domain is.
-5. **DNS**: `media.<domain>` CNAME to the new CloudFront domain; Resend records unchanged unless the Resend account changed.
+4. **Vercel**: env vars per `environments.md` §6 (new queue URLs, the new API user's access key from `robes-<env>/api/aws-access-key`, `DATABASE_URL`, Better Auth/Apple/Google values); redeploy; domains still point at the project. Apple/Google callback URLs are unchanged if the app domain is.
+5. **DNS**: `media.<domain>` CNAME to the new CloudFront domain; SES DKIM/MAIL FROM records must be re-added from the new `Email` stack outputs (new account = new DKIM tokens), and production SES access requested again (`environments.md` §9).
 6. **Verify**
    - `curl $APP_URL/api/v1/health` → `{"ok":true}`
    - Sign in (OTP, Apple, Google), upload a photo (rendition appears), run a generation end to end, receive the notification email.
@@ -36,7 +36,7 @@ Staging stacks are not termination-protected and use `DESTROY` policies:
 
 ```bash
 aws s3 rm s3://robes-staging-media --recursive   # versioned: also delete versions, or empty via console
-cd platform/infra && pnpm exec cdk destroy --all -c stage=staging
+cd platform/infra && pnpm cdk destroy --all -c stage=staging
 ```
 
 Secrets enter a 7–30 day recovery window; to recreate immediately with the same names, `aws secretsmanager delete-secret --force-delete-without-recovery --secret-id robes-staging/<name>` first.

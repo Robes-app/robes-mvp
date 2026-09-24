@@ -55,7 +55,7 @@ Check it's working: `http://localhost:3300` shows the Robes headline on cream, a
 | `pnpm --filter @robes/tokens build` | Regenerate token CSS after editing `packages/tokens/src/tokens.ts` |
 | `pnpm --filter @robes/infra test` | CDK assertion tests (both stages, stub handlers, no AWS needed) |
 | `pnpm --filter @robes/infra synth` | `cdk synth` of both stages with stub worker handlers, offline |
-| `cd infra && pnpm exec cdk diff -c stage=staging` | Diff against the staging account (needs AWS credentials; see `docs/runbooks/environments.md`) |
+| `pnpm --filter @robes/infra cdk diff -c stage=staging` | Diff against the staging account (needs AWS credentials; see `docs/runbooks/environments.md`) |
 
 ## How the pieces fit
 

@@ -71,12 +71,23 @@ Private key in `robes-$ENV/cloudfront/signing-key`; public key in `infra/config/
 3. `put-secret-value --secret-id robes-$ENV/cloudfront/signing-key --secret-string file://cf.pem`; update Vercel `CLOUDFRONT_KEY_PAIR_ID` to the new public key ID (`MediaStack` → `AWS::CloudFront::PublicKey` physical ID); redeploy.
 4. `shred -u cf.pem` (or `rm -P` on macOS). Verify a signed media URL loads and an unsigned one returns 403.
 
-## Resend API key and webhook secret
+## Vercel API access key (`robes-<env>-api`, ADR-021)
 
-1. Resend → API keys → create a key with sending access to the environment's domain only.
-2. Update Secrets Manager `robes-$ENV/resend/api-key` + Vercel `RESEND_API_KEY`; cold-start `notify`; redeploy Vercel.
-3. Webhook secret: roll it in Resend → Webhooks, update `robes-$ENV/resend/webhook-secret` + Vercel `RESEND_WEBHOOK_SECRET` within the same minute (events in between fail signature and are retried by Resend).
-4. Send a test email; delete the old key.
+Cadence: every **90 days**, on staff departure, or immediately if the AccessDenied alert fires unexpectedly or the key may have leaked. IAM allows two keys per user, which makes this zero-downtime. Keys are declared in `infra/config/<stage>.ts` → `api.accessKeys`; the **last** entry is the one CDK writes to `robes-<env>/api/aws-access-key`.
+
+1. Add a second key: `accessKeys: [{ serial: 1, status: 'Active' }, { serial: 2, status: 'Active' }]`. Deploy (PR → workflow, or `pnpm cdk deploy -c stage=<stage> '*/Identity'`). Both keys now work; the secret holds key 2.
+2. Copy key 2 into Vercel `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (`environments.md` §6 step 8) and **redeploy** the environment.
+3. Confirm the old key is idle: `aws iam get-access-key-last-used --access-key-id <old-id>`. Wait until its `LastUsedDate` stops moving (give in-flight deployments ~1 h).
+4. Deactivate: `{ serial: 1, status: 'Inactive' }` and deploy. If anything breaks, flip it back to `Active` and deploy (the key is unchanged).
+5. After a day with no errors, delete it: remove the `serial: 1` entry and deploy. Record the rotation date.
+
+**Leak (emergency):** skip the waiting. `aws iam update-access-key --user-name robes-<env>-api --access-key-id <leaked> --status Inactive` right away, then do steps 1–2 and 5, and reconcile the config (`status: 'Inactive'`) so the next deploy doesn't re-activate it. Review CloudTrail for calls by that key (`lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=<leaked>`).
+
+Never create keys by hand in the console for this user: CDK would not know about them and the secret would drift. If you must (CDK unavailable), create with `aws iam create-access-key`, put it in Vercel, and bring the config back in line afterwards.
+
+## SES (email)
+
+There is no API key: the API sends with the IAM user above, and `notifyFn` with its role. Easy DKIM rotates its signing keys automatically. If `MAIL_FROM` changes, update Vercel env and `email.fromAddress` in `infra/config/<stage>.ts` together (the IAM condition only allows `*@<email.domain>`).
 
 ## fal, Expo access token, unsubscribe HMAC
 

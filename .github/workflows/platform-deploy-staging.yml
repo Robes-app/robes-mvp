@@ -26,7 +26,6 @@ jobs:
     environment: staging
     env:
       ROBES_STAGING_AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-      ROBES_VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
       ROBES_STAGING_CF_PUBLIC_KEY: ${{ vars.CLOUDFRONT_PUBLIC_KEY }}
       ROBES_STAGING_MEDIA_DOMAIN: ${{ vars.MEDIA_DOMAIN }}
       ROBES_STAGING_MEDIA_CERT_ARN: ${{ vars.MEDIA_CERT_ARN }}
@@ -51,7 +50,8 @@ jobs:
 
       - name: cdk deploy (Staging)
         working-directory: platform/infra
-        run: pnpm exec cdk deploy --all -c stage=staging --require-approval never --ci
+        # A script, not `pnpm exec`: exec puts a relative .bin on PATH and esbuild bundling breaks.
+        run: pnpm cdk deploy --all -c stage=staging --require-approval never --ci
 
       - name: smoke
         env:

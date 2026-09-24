@@ -133,6 +133,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 **SEC-72 — Secrets live in the platform stores.** Vercel encrypted env (web/API), AWS Secrets Manager (workers), EAS secrets (mobile build-time, public values only), Supabase Vault for DB-side secrets. Nothing secret in the repo; `gitleaks` in CI and pre-commit.
 
 **SEC-73 — Least privilege IAM.** One role per Lambda; access only to its queue, its secrets and outbound network. GitHub Actions deploy via OIDC, no long-lived AWS keys.
+- ADR-021 exception: the Vercel API uses scoped IAM user keys (`robes-<stage>-api`, CDK-managed, stored only in Secrets Manager and Vercel sensitive env) instead of OIDC; rotated every 90 days with zero downtime and monitored by an AccessDenied → alerts rule (`runbooks/key-rotation.md`).
 
 **SEC-74 — Supply chain.** Lockfile committed, `pnpm audit --prod` and Dependabot/Renovate; exact versions for runtime deps; `engines` pinned to Node LTS; SBOM generated in CI.
 
