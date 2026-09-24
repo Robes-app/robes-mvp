@@ -1,6 +1,7 @@
 export * from './admin';
 export * from './common';
 export * from './consents';
+export * from './inbox';
 export * from './jobs';
 export * from './looks';
 export * from './me';

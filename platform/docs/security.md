@@ -99,6 +99,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 ### Outbound requests (closes H3, M4, F-12)
 
 **SEC-40 — URL fetching happens only in the isolated fetcher.** A dedicated Lambda outside any VPC, no IAM permissions beyond writing its result, performs: scheme allowlist (https, http→https), DNS resolution with private/loopback/link-local/CGNAT/multicast/IPv4-mapped-IPv6 rejection on the resolved address, connection pinned to the vetted IP, `redirect: 'manual'` with re-validation per hop (max 3), byte cap (2 MB streamed), 8 s timeout, content-type allowlist.
+- As built: `packages/jobs/src/link` (`checkUrl`, `safeFetch`, `isBlockedAddress`) runs in `fetchFn` (no DB, secrets or bucket), which returns only parsed product metadata via jobs-interactive; the API refuses link imports when deployed without `FETCH_QUEUE_URL`. https only (http is refused, not upgraded); IP literals are judged before connecting because Node skips `lookup` for them. Test: the SEC-40 table in `packages/jobs/src/link/sec40.test.ts`. Dev-only `ALLOW_PRIVATE_FETCH` permits http and private addresses for e2e fixtures.
 - Test: unit tests with a table of bypass payloads (redirect to 169.254.169.254, `*.nip.io`, `[::ffff:127.0.0.1]`, decimal IP, userinfo tricks).
 
 **SEC-41 — Third parties never fetch attacker URLs on our behalf.** Only our own Cloudinary cloud URLs are accepted anywhere a URL is stored or forwarded (feedback attachments, share images).

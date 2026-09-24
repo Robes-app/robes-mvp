@@ -47,6 +47,9 @@ importers:
 
   app:
     dependencies:
+      '@aws-sdk/client-sqs':
+        specifier: 3.1138.0
+        version: 3.1138.0
       '@robes/analytics':
         specifier: workspace:*
         version: link:../packages/analytics
@@ -904,6 +907,9 @@ importers:
   workers:
     dependencies:
       '@aws-sdk/client-secrets-manager':
+        specifier: 3.1138.0
+        version: 3.1138.0
+      '@aws-sdk/client-sqs':
         specifier: 3.1138.0
         version: 3.1138.0
       '@robes/config':

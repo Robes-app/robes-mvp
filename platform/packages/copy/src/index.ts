@@ -130,6 +130,8 @@ export const today = {
     showItemLabel: (name: string): string => `Show ${name}`,
     itemAlt: (name: string): string => `Robes’ picture of ${name}`,
   },
+  inbox: (n: number): string =>
+    n === 1 ? 'One piece is waiting in your Inbox.' : `${n} pieces are waiting in your Inbox.`,
 } as const;
 
 // Next step → sentence and door, shared by web and native (each maps `target` to its own route).
@@ -293,6 +295,31 @@ export const wardrobe = {
   photosDenied: 'Allow Robes to see your photos in Settings to add pieces.',
   cameraDenied: 'Allow Robes to use the camera in Settings to photograph pieces.',
   category: 'Category',
+  // Wardrobe › Inbox and Paste a link (M3 tasks 4 + 9).
+  inbox: {
+    from: (retailer: string): string => `From ${retailer}`,
+    keep: (label: string): string => `Keep ${label}`,
+    toWardrobe: 'Add to wardrobe',
+    toWishlist: 'Add to wishlist',
+    skip: 'Skip',
+    filed: 'Filed.',
+    skipped: 'Skipped.',
+  },
+  link: {
+    eyebrow: 'Paste a link',
+    title: 'Add from a shop page.',
+    label: 'Link to the piece',
+    placeholder: 'https://',
+    as: 'Where should it go?',
+    toWardrobe: 'I own it',
+    toWishlist: 'I want it',
+    start: 'Read the page',
+    starting: 'Reading…',
+    reading: 'Robes is reading the page…',
+    done: 'It’s waiting in your Inbox.',
+    openInbox: 'Open the Inbox',
+    failed: 'Robes couldn’t read that page. Check the link, or add the piece by hand.',
+  },
 } as const;
 
 // SEC-84: two equal choices, asked once analytics is unanswered; changeable in You › Privacy.

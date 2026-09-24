@@ -26,6 +26,8 @@ export const Today = z.object({
   // Generation tray: running jobs and ones that finished in the last 15 minutes.
   tray: z.array(JobSnapshot),
   ideas: z.array(Idea),
+  // Held Inbox rows waiting for her (Wardrobe › Inbox).
+  inboxCount: z.number().int().min(0),
 });
 export type Today = z.infer<typeof Today>;
 

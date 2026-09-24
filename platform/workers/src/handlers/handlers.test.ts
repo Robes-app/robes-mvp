@@ -1,6 +1,7 @@
 import type { JobTransport } from '@robes/jobs';
 import { describe, expect, it, vi } from 'vitest';
 import type { WorkerContext } from '../context';
+import { createFetchHandler } from './fetch';
 import { createGenerateHandler } from './generate';
 import { createMaintenanceHandler } from './maintenance';
 import { createNotifyHandler } from './notify';
@@ -17,7 +18,11 @@ describe('generate handler', () => {
       return 'succeeded' as const;
     });
     const log = logger();
-    const handler = createGenerateHandler(async () => ({ run, logger: log }));
+    const handler = createGenerateHandler(async () => ({
+      run,
+      logger: log,
+      system: { jobs: { attachFetched: vi.fn() } } as never,
+    }));
     const res = await handler({
       Records: [
         record('m1', { jobId: JOB_A }),
@@ -28,6 +33,49 @@ describe('generate handler', () => {
     expect(run.mock.calls.map((c) => c[0])).toEqual([JOB_A, JOB_B]);
     expect(res).toEqual({ batchItemFailures: [{ itemIdentifier: 'm2' }] });
     expect(log.warn).toHaveBeenCalledWith({ messageId: 'm3' }, 'job_message_invalid');
+  });
+
+  it('attaches the fetcher’s validated link result, then runs the job; unmatched results drop', async () => {
+    const run = vi.fn(async (_jobId: string) => 'succeeded' as const);
+    const attachFetched = vi.fn(async (jobId: string) => jobId === JOB_A);
+    const log = logger();
+    const handler = createGenerateHandler(async () => ({
+      run,
+      logger: log,
+      system: { jobs: { attachFetched } } as never,
+    }));
+    const linkResult = { ok: false, reason: 'private_address' };
+    await handler({
+      Records: [
+        record('l1', { jobId: JOB_A, linkResult }),
+        record('l2', { jobId: JOB_B, linkResult }),
+        // A forged result that doesn't match the schema is treated as a plain job message.
+        record('l3', { jobId: JOB_A, linkResult: { ok: true, product: { label: '' } } }),
+      ],
+    });
+    expect(attachFetched).toHaveBeenCalledWith(JOB_A, linkResult);
+    expect(attachFetched).toHaveBeenCalledTimes(2);
+    expect(log.warn).toHaveBeenCalledWith({ jobId: JOB_B }, 'link_result_unmatched');
+    expect(run.mock.calls.map((c) => c[0])).toEqual([JOB_A, JOB_A]);
+  });
+});
+
+describe('fetch handler (SEC-40 isolated fetcher)', () => {
+  it('fetches the URL and sends only the parsed result back, keyed by job', async () => {
+    const result = { ok: false as const, reason: 'scheme' };
+    const fetchLink = vi.fn(async () => result);
+    const sendResult = vi.fn(async () => {});
+    const log = logger();
+    const handler = createFetchHandler(() => ({ fetchLink, sendResult, logger: log }));
+    await handler({
+      Records: [
+        record('f1', { jobId: JOB_A, url: 'http://169.254.169.254/' }),
+        record('f2', { url: 'https://shop.example/' }),
+      ],
+    });
+    expect(fetchLink).toHaveBeenCalledWith('http://169.254.169.254/');
+    expect(sendResult).toHaveBeenCalledWith({ jobId: JOB_A, linkResult: result });
+    expect(log.warn).toHaveBeenCalledWith({ messageId: 'f2' }, 'fetch_message_invalid');
   });
 });
 

@@ -116,7 +116,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | §3; secret sensitive |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | token sensitive |
 | `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | `eu-west-1`; keys of `robes-<env>-api` from Secrets Manager (step 8); secret key sensitive |
-| `JOBS_INTERACTIVE_QUEUE_URL`, `JOBS_BATCH_QUEUE_URL`, `FETCH_QUEUE_URL` | Queues stack |
+| `JOBS_INTERACTIVE_QUEUE_URL`, `JOBS_BATCH_QUEUE_URL`, `FETCH_QUEUE_URL` | Queues stack. Without `FETCH_QUEUE_URL` deployed link imports return `disabled` (the API never fetches user URLs itself) |
 | `MEDIA_BUCKET`, `MEDIA_S3_REGION` | `robes-<env>-media`, `eu-west-1`. Uploads are presigned with the `AWS_ROLE_ARN` role; never set `MEDIA_S3_ACCESS_KEY_ID`/`MEDIA_S3_SECRET_ACCESS_KEY` outside dev (config refuses them) |
 | `MEDIA_PUBLIC_ORIGIN` | CloudFront origin, e.g. `https://media.byrobes.com` (https required). Added to CSP `img-src`/`connect-src`; the bucket's regional S3 origin is added to `connect-src` for browser PUTs |
 | `MEDIA_CLOUDFRONT_KEY_PAIR_ID`, `MEDIA_CLOUDFRONT_PRIVATE_KEY` | required outside dev. The private key is sensitive: copy the PEM from `cloudfront/signing-key` (single line with `\n` escapes is fine) |

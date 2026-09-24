@@ -209,6 +209,8 @@ export const appServerEnv = z
     GEMINI_API_KEY: optionalSecret,
     // SQS jobs-interactive queue; without it jobs run in-process after the response (dev only).
     JOBS_INTERACTIVE_QUEUE_URL: z.url().optional(),
+    // The isolated link fetcher's queue (SEC-40); link imports are refused when deployed without it.
+    FETCH_QUEUE_URL: z.url().optional(),
     ...mediaEnv.shape,
     ...observabilityEnv.shape,
   })

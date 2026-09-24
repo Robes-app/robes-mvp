@@ -1,6 +1,14 @@
 import { wardrobe } from '@robes/copy';
-import { WardrobePlaceholder } from '../placeholder';
+import { PageHeader } from '@/components/page-header';
+import { Inbox } from '@/components/wardrobe/inbox';
+import { WardrobeSegments } from '@/components/wardrobe/wardrobe-segments';
 
 export default function InboxPage() {
-  return <WardrobePlaceholder current="/wardrobe/inbox" empty={wardrobe.inboxEmpty} />;
+  return (
+    <>
+      <PageHeader title={wardrobe.title} />
+      <WardrobeSegments current="/wardrobe/inbox" />
+      <Inbox />
+    </>
+  );
 }

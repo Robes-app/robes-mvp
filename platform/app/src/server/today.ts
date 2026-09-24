@@ -25,7 +25,7 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
   const profile = await repos.profiles.get(userId);
   if (!profile) throw new ApiError('not_found');
   const date = todayIn(profile.timezone, now);
-  const [plan, readyPieces, looks, worn, jobs, ideaRows] = await Promise.all([
+  const [plan, readyPieces, looks, worn, jobs, ideaRows, inboxCount] = await Promise.all([
     loadPlan(userId, date, 7),
     repos.wardrobe.countReady(userId),
     repos.looks.count(userId),
@@ -38,6 +38,7 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
       'travel',
     ]),
     repos.ideas.list(userId, 3),
+    repos.inbox.countHeld(userId),
   ]);
   const todayEntries = (plan.days[0]?.entries ?? []).map((entry) => ({
     entry,
@@ -58,5 +59,6 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
     week: plan.days.map((d) => ({ date: d.date, looks: d.entries.length })),
     tray: jobs.map(toJobSnapshot),
     ideas: await toIdeas(userId, ideaRows),
+    inboxCount,
   });
 }

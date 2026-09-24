@@ -9,6 +9,7 @@ import { dataExportRepo, exportsRepo } from './exports';
 import { flagsRepo } from './flags';
 import { framesRepo } from './frames';
 import { ideasRepo } from './ideas';
+import { inboxIntakeRepo, inboxRepo } from './inbox';
 import { jobRunnerRepo, jobsRepo } from './jobs';
 import { ledgerRepo } from './ledger';
 import { looksRepo } from './looks';
@@ -41,6 +42,7 @@ export function createRepositories(db: Db) {
     flags: flagsRepo(db),
     frames: framesRepo(db),
     ideas: ideasRepo(db),
+    inbox: inboxRepo(db),
     looks: looksRepo(db),
     jobs: jobsRepo(db),
     // Global capacity check only; holds no per-user data.
@@ -69,6 +71,7 @@ export function createSystemRepositories(db: Db) {
     assets: assetProcessingRepo(db),
     jobs: jobRunnerRepo(db),
     ledger: ledgerRepo(db),
+    inboxIntake: inboxIntakeRepo(db),
     maintenance: maintenanceRepo(db),
     notifier: notifierRepo(db),
     pushDelivery: pushDeliveryRepo(db),
@@ -85,6 +88,7 @@ export type { AdminActor } from './admin-reads';
 export type { AssetKind } from './assets';
 export type { ConsentAnswers } from './consents';
 export type { FramedType, StoredFrame, StoredFrameStatus } from './frames';
+export { heldItems, type InboxAction, type InboxItem } from './inbox';
 export type { CreateJobInput, QuotaCost } from './jobs';
 export type { CallRecord } from './ledger';
 export { type LookFields, type LookPieceInput, LookPiecesNotFound, type LookRole } from './looks';

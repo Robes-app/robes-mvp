@@ -7,12 +7,13 @@ import {
   SegmentedControl,
   useToast,
 } from '@robes/ui-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { TabScreen } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
 import { useAddPieces } from './add-pieces';
+import { InboxView } from './InboxView';
 import { PieceCard } from './PieceCard';
 import { usePieces } from './pieces';
 import { WishlistView } from './WishlistView';
@@ -97,7 +98,11 @@ function Pieces() {
 }
 
 export function WardrobeView() {
-  const [segment, setSegment] = useState<Segment>('pieces');
+  // `?segment=inbox` opens a segment directly (e.g. after pasting a link).
+  const params = useLocalSearchParams<{ segment?: string }>();
+  const [segment, setSegment] = useState<Segment>(
+    SEGMENTS.some((s) => s.value === params.segment) ? (params.segment as Segment) : 'pieces',
+  );
   return (
     <TabScreen title={nav.wardrobe}>
       <View className="px-6 pb-3">
@@ -110,9 +115,7 @@ export function WardrobeView() {
       </View>
       {segment === 'pieces' ? <Pieces /> : null}
       {segment === 'wishlist' ? <WishlistView /> : null}
-      {segment === 'inbox' ? (
-        <EmptyState title={copy.inboxEmpty.title} body={copy.inboxEmpty.body} />
-      ) : null}
+      {segment === 'inbox' ? <InboxView /> : null}
     </TabScreen>
   );
 }

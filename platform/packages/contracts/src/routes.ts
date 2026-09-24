@@ -16,6 +16,7 @@ import {
 } from './admin';
 import { EmptyInput, HealthOutput } from './common';
 import { Consents, UpdateConsentsInput } from './consents';
+import { DecideInboxInput, ImportLinkInput, InboxDecision, InboxList, InboxParams } from './inbox';
 import { JOB_EVENT, JobIdParams, JobSnapshot, StartJobOutput } from './jobs';
 import {
   CreateLookInput,
@@ -665,6 +666,30 @@ export const routes = {
     auth: 'admin',
     input: ListAuditInput,
     output: AuditPage,
+  },
+  'inbox.list': {
+    method: 'GET',
+    path: '/inbox',
+    auth: 'user',
+    input: EmptyInput,
+    output: InboxList,
+  },
+  // Naturally idempotent: a decided row isn't decided again.
+  'inbox.decide': {
+    method: 'POST',
+    path: '/inbox/:id/decide',
+    auth: 'user',
+    params: InboxParams,
+    input: DecideInboxInput,
+    output: InboxDecision,
+  },
+  'imports.link': {
+    method: 'POST',
+    path: '/imports/link',
+    auth: 'user',
+    input: ImportLinkInput,
+    output: StartJobOutput,
+    idempotent: true,
   },
   'jobs.fake': {
     method: 'POST',

@@ -9,6 +9,7 @@ import {
   createSqsTransport,
   createTripWeather,
   createWeather,
+  fetchLink,
   type JobLogger,
   type JobTransport,
   type NotifyDeps,
@@ -101,9 +102,16 @@ async function createWorkerContext(): Promise<WorkerContext> {
     ? createJobAi({ appEnv: env.APP_ENV, geminiApiKey: await resolveGeminiKey(env) })
     : null;
   // Generated frames land as uploads, so the S3 event renders them; no onGenerated here.
+  // Link imports need no AI or bucket; in AWS the isolated fetcher attaches the page result,
+  // in dev the same SSRF-guarded fetch runs in-process.
+  const linkImport = {
+    intake: system.inboxIntake,
+    ...(env.APP_ENV === 'dev' ? { fetchLink: (url: string) => fetchLink(url) } : {}),
+  };
   const handlers = createHandlers(
     storage && ai
       ? {
+          linkImport,
           wardrobeAnalyse: { ai, storage, pieces: system.pieces, ledger: system.ledger },
           stylePiece: { ai, storage, styling: system.styling, ledger: system.ledger },
           lookRender: {
@@ -129,7 +137,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
             tripWeather: createTripWeather(),
           },
         }
-      : {},
+      : { linkImport },
   );
   const run = (jobId: string): Promise<RunOutcome> =>
     runJob(jobId, { jobs: system.jobs, handlers, logger });

@@ -15,7 +15,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/plan', label: nav.plan, icon: 'plan' },
 ];
 
-export const SOON_SLUGS = ['link', 'receipt', 'ask'] as const;
+export const SOON_SLUGS = ['receipt', 'ask'] as const;
 export type SoonSlug = (typeof SOON_SLUGS)[number];
 
 export interface CreateItem extends NavItem {
@@ -46,7 +46,7 @@ export const CREATE_ITEMS: readonly CreateItem[] = [
     icon: 'looks',
     keywords: 'three ways',
   },
-  { id: 'link', href: '/soon/link', label: shell.create.link, icon: 'link' },
+  { id: 'link', href: '/wardrobe/link', label: shell.create.link, icon: 'link' },
   { id: 'receipt', href: '/soon/receipt', label: shell.create.receipt, icon: 'mail' },
   { id: 'new-look', href: '/looks/new', label: shell.create.newLook, icon: 'plus' },
   { id: 'ask', href: '/soon/ask', label: shell.create.askRobes, icon: 'ask' },
@@ -60,7 +60,6 @@ export const CREATE_ITEMS: readonly CreateItem[] = [
 ];
 
 export const SOON_TITLES: Record<SoonSlug, string> = {
-  link: shell.create.link,
   receipt: shell.create.receipt,
   ask: shell.create.askRobes,
 };
