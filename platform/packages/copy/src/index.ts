@@ -177,6 +177,11 @@ export const wardrobe = {
     removed: 'Removed from your wishlist.',
     remove: (label: string): string => `Remove ${label}`,
   },
+  edit: 'Edit',
+  addFailed: 'Robes couldn’t add those photos. Try again in a moment.',
+  photosDenied: 'Allow Robes to see your photos in Settings to add pieces.',
+  cameraDenied: 'Allow Robes to use the camera in Settings to photograph pieces.',
+  category: 'Category',
 } as const;
 
 // SEC-84: two equal choices, asked once analytics is unanswered; changeable in You › Privacy.
@@ -213,6 +218,8 @@ export const ui = {
     dressing: 'Dressing each look…',
     finishing: 'Finishing touches…',
   },
+  back: 'Back',
+  retry: 'Try again',
 } as const;
 
 // App shell (IA §3.2): nav, Create sheet, command bar, placeholder routes.
@@ -337,6 +344,14 @@ export const looks = {
     togglePiece: (label: string): string => `Include ${label}`,
     empty: 'Add a few pieces to your wardrobe first.',
   },
+  look: {
+    worn: (times: number): string =>
+      times === 0 ? 'Not worn yet' : `Worn ${times} ${times === 1 ? 'time' : 'times'}`,
+    wearToday: 'Wear it today',
+    woreToday: 'Worn today.',
+    removed: 'Look removed.',
+    pieces: 'Pieces',
+  },
 } as const;
 
 // You area.
@@ -421,6 +436,23 @@ export const plan = {
   monthSoon: 'Month view is on its way.',
 } as const;
 
+// Public share page and the share action.
+export const share = {
+  eyebrow: 'A look from Robes',
+  by: (name: string): string => `Styled by ${name}`,
+  pieces: 'The pieces',
+  cta: 'Style your own wardrobe',
+  imageAlt: (name: string): string => `The look: ${name}`,
+  pieceAlt: (label: string): string => label,
+  gone: 'This link has been turned off.',
+  metaDescription: 'A look styled with Robes.',
+  action: 'Share',
+  copied: 'Link copied.',
+  copyFailed: (url: string): string => `Copy this link: ${url}`,
+  stop: 'Stop sharing',
+  stopped: 'Link turned off.',
+} as const;
+
 export const copy = {
   wardrobe,
   errors,
@@ -438,4 +470,5 @@ export const copy = {
   looks,
   you,
   plan,
+  share,
 } as const;

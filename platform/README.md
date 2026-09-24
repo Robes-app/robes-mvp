@@ -117,7 +117,7 @@ Personal data we store and who processes it: `docs/data-inventory.md`.
 
 ## Mobile sign-in (local)
 
-`mobile/.env` sets `EXPO_PUBLIC_API_URL` (default `http://localhost:3300`, fine for the iOS simulator; use your LAN IP for a phone or the Android emulator). Run `pnpm dev:web` and `pnpm dev:mobile`, sign in with any email, then read the code in Mailpit (http://localhost:58025). The session is stored in the device keychain via SecureStore. End-to-end: `pnpm --filter @robes/mobile e2e` runs the Maestro flows (`mobile/e2e`) against a booted simulator (install Maestro 2.10: see `mobile/README.md`).
+`mobile/.env` sets `EXPO_PUBLIC_API_URL` (default `http://localhost:3300`, fine for the iOS simulator; use your LAN IP for a phone or the Android emulator). On a physical phone, also set `MEDIA_S3_ENDPOINT=http://<your-ip>:59000` in `app/.env.local` and restart `pnpm dev:web`: upload and image URLs are presigned against that host, and `localhost` on the phone is the phone. Run `pnpm dev:web` and `pnpm dev:mobile`, sign in with any email, then read the code in Mailpit (http://localhost:58025). The session is stored in the device keychain via SecureStore. End-to-end: `pnpm --filter @robes/mobile e2e` runs the Maestro flows (`mobile/e2e`) against a booted simulator (install Maestro 2.10: see `mobile/README.md`).
 
 ## Troubleshooting
 

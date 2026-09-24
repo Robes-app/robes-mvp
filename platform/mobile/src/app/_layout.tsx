@@ -26,7 +26,9 @@ export default function RootLayout() {
       <ApiClientProvider client={api}>
         <View className="flex-1 bg-bg">
           <ToastProvider>
-            <Stack screenOptions={{ headerShown: false }} />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="create" options={{ presentation: 'modal' }} />
+            </Stack>
           </ToastProvider>
         </View>
       </ApiClientProvider>

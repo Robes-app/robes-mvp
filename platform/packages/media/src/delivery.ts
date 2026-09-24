@@ -22,6 +22,8 @@ export interface SessionCookie {
 export interface MediaDelivery {
   readonly mode: 'cloudfront' | 'local';
   url(key: string, now?: Date): Promise<string>;
+  // Public share pages: short-lived (≤2 h) so a revoked share stops resolving soon after.
+  shareUrl(key: string, now?: Date): Promise<string>;
   // Web: path-scoped cookies for `/media/{userId}/*`; empty where cookies don't apply.
   sessionCookies(userId: string, now?: Date): SessionCookie[];
 }
@@ -30,6 +32,14 @@ export interface MediaDelivery {
 export function dayStableWindow(now: Date): { signedAt: Date; expiresAt: Date } {
   const signedAt = new Date(Math.floor(now.getTime() / DAY_MS) * DAY_MS);
   return { signedAt, expiresAt: new Date(signedAt.getTime() + 2 * DAY_MS) };
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+
+// Signs from the start of the hour for 2 h: stable within the hour for caches, gone soon after revoke.
+export function hourStableWindow(now: Date): { signedAt: Date; expiresAt: Date } {
+  const signedAt = new Date(Math.floor(now.getTime() / HOUR_MS) * HOUR_MS);
+  return { signedAt, expiresAt: new Date(signedAt.getTime() + 2 * HOUR_MS) };
 }
 
 export interface CloudFrontConfig {
@@ -51,6 +61,14 @@ export function createCloudFrontDelivery(config: CloudFrontConfig): MediaDeliver
         keyPairId: config.keyPairId,
         privateKey: config.privateKey,
         dateLessThan: dayStableWindow(now).expiresAt,
+      });
+    },
+    async shareUrl(key, now = new Date()) {
+      return getCloudFrontSignedUrl({
+        url: `${origin}/${key}`,
+        keyPairId: config.keyPairId,
+        privateKey: config.privateKey,
+        dateLessThan: hourStableWindow(now).expiresAt,
       });
     },
     sessionCookies(userId, now = new Date()) {
@@ -82,15 +100,15 @@ export function createCloudFrontDelivery(config: CloudFrontConfig): MediaDeliver
 
 // Local dev: presigned MinIO GETs stand in for CloudFront; the bucket itself stays private.
 export function createLocalDelivery({ client, bucket }: MediaBucket): MediaDelivery {
+  const sign = (key: string, window: { signedAt: Date; expiresAt: Date }) =>
+    getS3SignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), {
+      signingDate: window.signedAt,
+      expiresIn: Math.floor((window.expiresAt.getTime() - window.signedAt.getTime()) / 1000),
+    });
   return {
     mode: 'local',
-    async url(key, now = new Date()) {
-      const { signedAt, expiresAt } = dayStableWindow(now);
-      return getS3SignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), {
-        signingDate: signedAt,
-        expiresIn: Math.floor((expiresAt.getTime() - signedAt.getTime()) / 1000),
-      });
-    },
+    url: (key, now = new Date()) => sign(key, dayStableWindow(now)),
+    shareUrl: (key, now = new Date()) => sign(key, hourStableWindow(now)),
     sessionCookies: () => [],
   };
 }

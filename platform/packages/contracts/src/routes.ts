@@ -40,6 +40,7 @@ import {
   PlanEntryParams,
   UpdatePlanEntryInput,
 } from './plan';
+import { CreateShareInput, Share, SharedLook, ShareParams } from './shares';
 import {
   BatchPiecesInput,
   BatchPiecesOutput,
@@ -421,6 +422,30 @@ export const routes = {
     params: PlanEntryParams,
     input: EmptyInput,
     output: Deleted,
+  },
+  // Naturally idempotent: sharing a look again returns its existing link.
+  'shares.create': {
+    method: 'POST',
+    path: '/shares',
+    auth: 'user',
+    input: CreateShareInput,
+    output: Share,
+  },
+  'shares.revoke': {
+    method: 'DELETE',
+    path: '/shares/:token',
+    auth: 'user',
+    params: ShareParams,
+    input: EmptyInput,
+    output: Deleted,
+  },
+  'public.shares.get': {
+    method: 'GET',
+    path: '/public/shares/:token',
+    auth: 'public',
+    params: ShareParams,
+    input: EmptyInput,
+    output: SharedLook,
   },
   'jobs.fake': {
     method: 'POST',

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import SignIn from '../src/app/sign-in';
+import SignIn from '../src/app/(auth)/sign-in';
 
 const mockSendVerificationOtp = jest.fn(async () => ({ error: null }));
 const mockSignInEmailOtp = jest.fn(async () => ({ error: { message: 'bad' } }));
