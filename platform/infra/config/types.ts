@@ -34,8 +34,6 @@ export interface StageConfig {
   };
   workers: {
     generateReservedConcurrency?: number;
-    /** Layer ARNs providing `sharp` for linux-arm64 (see runbooks/environments.md). */
-    renditionLayerArns: string[];
   };
   alerts: { email?: string };
   budget: { monthlyUsd: number; email?: string };

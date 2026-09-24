@@ -9,6 +9,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import type * as sqs from 'aws-cdk-lib/aws-sqs';
 import type { Construct } from 'constructs';
+import { SHARP_VERSION } from '../lib/native-modules';
 import { RobesStack, type RobesStackProps, removalPolicy } from '../lib/robes-stack';
 import { bucketArn, objectArns } from '../lib/s3-arns';
 import { WorkerFunction } from '../lib/worker-function';
@@ -47,10 +48,7 @@ export class MediaStack extends RobesStack {
       deadLetterQueue: props.renditionDlq,
       secrets: { DATABASE_URL_SECRET_ARN: props.secrets.databaseUrl },
       environment: { MEDIA_BUCKET: bucketName },
-      externalModules: ['sharp'],
-      layers: config.workers.renditionLayerArns.map((arn, i) =>
-        lambda.LayerVersion.fromLayerVersionArn(this, `RenditionLayer${i}`, arn),
-      ),
+      nativeModules: { sharp: SHARP_VERSION },
     });
     this.rendition.role.addToPolicy(
       new iam.PolicyStatement({

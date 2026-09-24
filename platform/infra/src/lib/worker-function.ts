@@ -8,6 +8,7 @@ import type { ISecret } from 'aws-cdk-lib/aws-secretsmanager';
 import type { IQueue } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import type { StageConfig } from '../../config';
+import { linuxArm64Install } from './native-modules';
 import { removalPolicy } from './robes-stack';
 import type { WorkerName, WorkerSpec } from './workers';
 
@@ -24,8 +25,8 @@ export interface WorkerFunctionProps {
   secrets?: Record<string, ISecret>;
   reservedConcurrentExecutions?: number;
   deadLetterQueue?: IQueue;
-  layers?: lambda.ILayerVersion[];
-  externalModules?: string[];
+  /** Native deps (name → exact version) kept out of esbuild and installed for linux-arm64 into the asset. */
+  nativeModules?: Record<string, string>;
 }
 
 export class WorkerFunction extends Construct {
@@ -64,6 +65,7 @@ export class WorkerFunction extends Construct {
       }),
     );
 
+    const nativeModules = props.nativeModules ?? {};
     const secretEnv: Record<string, string> = {};
     for (const [envVar, secret] of Object.entries(props.secrets ?? {})) {
       secretEnv[envVar] = secret.secretArn;
@@ -83,7 +85,6 @@ export class WorkerFunction extends Construct {
       loggingFormat: lambda.LoggingFormat.JSON,
       reservedConcurrentExecutions: props.reservedConcurrentExecutions,
       deadLetterQueue: props.deadLetterQueue,
-      layers: props.layers,
       environment: {
         APP_ENV: config.stage,
         NODE_OPTIONS: '--enable-source-maps',
@@ -95,9 +96,20 @@ export class WorkerFunction extends Construct {
         target: 'node24',
         minify: true,
         sourceMap: true,
-        externalModules: ['@aws-sdk/*', ...(props.externalModules ?? [])],
+        externalModules: ['@aws-sdk/*', ...Object.keys(nativeModules)],
         banner:
           "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
+        ...(Object.keys(nativeModules).length > 0
+          ? {
+              commandHooks: {
+                beforeBundling: () => [],
+                beforeInstall: () => [],
+                afterBundling: (_input: string, outputDir: string) => [
+                  linuxArm64Install(outputDir, nativeModules),
+                ],
+              },
+            }
+          : {}),
       },
     });
   }

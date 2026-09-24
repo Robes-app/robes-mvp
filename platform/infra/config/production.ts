@@ -27,7 +27,7 @@ export const production: StageConfig = {
     certificateArn: fromEnv('ROBES_PRODUCTION_MEDIA_CERT_ARN'),
     signingPublicKeyPem: publicKeyFor('production'),
   },
-  workers: { generateReservedConcurrency: 20, renditionLayerArns: [] },
+  workers: { generateReservedConcurrency: 20 },
   alerts: { email: fromEnv('ROBES_PRODUCTION_ALERT_EMAIL') },
   budget: { monthlyUsd: 1000, email: fromEnv('ROBES_PRODUCTION_BUDGET_EMAIL') },
 };
