@@ -1,7 +1,7 @@
 name: platform-deploy-prod
 
 # Manual only. The `production` GitHub environment requires a reviewer and holds the
-# vars/secrets listed in platform/docs/runbooks/environments.md §GitHub.
+# vars/secrets listed in platform/docs/runbooks/environments.md §5.
 on:
   workflow_dispatch:
 

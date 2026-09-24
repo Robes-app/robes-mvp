@@ -1,7 +1,7 @@
 name: platform-deploy-staging
 
 # Needs the GitHub environment `staging` with the vars/secrets listed in
-# platform/docs/runbooks/environments.md §GitHub.
+# platform/docs/runbooks/environments.md §5.
 on:
   push:
     branches: [platform]
