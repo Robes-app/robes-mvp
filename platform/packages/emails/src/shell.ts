@@ -11,8 +11,9 @@ export interface EmailContent {
   footer?: string;
   // Why she's getting it, shown above the unsubscribe link.
   notice: string;
-  unsubUrl: string;
-  unsubLabel: string;
+  // Omitted for one-off transactional mail (e.g. confirming a waitlist signup).
+  unsubUrl?: string;
+  unsubLabel?: string;
   privacyUrl: string;
   privacyLabel: string;
 }
@@ -62,7 +63,7 @@ ${imageRow}
 ${cta}
 ${footer}
 </table></td></tr>
-<tr><td style="padding:22px 6px 0;font-family:${sans};font-size:11px;line-height:1.6;color:${palette.inkFaint}">${e(c.notice)} <a href="${e(c.unsubUrl)}" style="color:${palette.inkFaint}">${e(c.unsubLabel)}</a> · <a href="${e(c.privacyUrl)}" style="color:${palette.inkFaint}">${e(c.privacyLabel)}</a></td></tr>
+<tr><td style="padding:22px 6px 0;font-family:${sans};font-size:11px;line-height:1.6;color:${palette.inkFaint}">${e(c.notice)} ${c.unsubUrl && c.unsubLabel ? `<a href="${e(c.unsubUrl)}" style="color:${palette.inkFaint}">${e(c.unsubLabel)}</a> · ` : ''}<a href="${e(c.privacyUrl)}" style="color:${palette.inkFaint}">${e(c.privacyLabel)}</a></td></tr>
 </table></td></tr></table></body></html>`;
   const text = [
     c.heading,
@@ -71,7 +72,7 @@ ${footer}
     '',
     ...(c.cta ? [`${c.cta.label}: ${c.cta.url}`, ''] : []),
     ...(c.footer ? [c.footer, ''] : []),
-    `${c.unsubLabel}: ${c.unsubUrl}`,
+    ...(c.unsubUrl && c.unsubLabel ? [`${c.unsubLabel}: ${c.unsubUrl}`] : []),
   ].join('\n');
   return { html, text };
 }

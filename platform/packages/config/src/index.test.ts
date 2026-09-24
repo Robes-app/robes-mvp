@@ -10,6 +10,8 @@ const base = {
   DATABASE_URL: 'postgres://robes_app:pw@db.example.com:5432/robes',
   BETTER_AUTH_SECRET: 'x'.repeat(40),
   UNSUB_HMAC_KEY: 'u'.repeat(40),
+  TURNSTILE_SECRET_KEY: 'turnstile-secret',
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'turnstile-site',
   BETTER_AUTH_URL: 'https://staging.byrobes.com',
   AWS_REGION: 'eu-west-1',
   AWS_ACCESS_KEY_ID: 'AKIAEXAMPLE',
@@ -60,6 +62,18 @@ describe('parseEnv(appServerEnv)', () => {
   it('parses a valid environment and derives trusted origins', () => {
     const env = parseEnv(appServerEnv, { ...base, AUTH_TRUSTED_ORIGINS: 'robes://, exp://x' });
     expect(env.authTrustedOrigins).toEqual(['https://staging.byrobes.com', 'robes://', 'exp://x']);
+  });
+
+  it('requires Turnstile outside dev, as a pair', () => {
+    const { TURNSTILE_SECRET_KEY: _s, NEXT_PUBLIC_TURNSTILE_SITE_KEY: _k, ...none } = base;
+    expect(() => parseEnv(appServerEnv, none)).toThrow(/TURNSTILE_SECRET_KEY/);
+    expect(() => parseEnv(appServerEnv, { ...none, TURNSTILE_SECRET_KEY: 'x' })).toThrow(
+      /TURNSTILE/,
+    );
+    expect(parseEnv(appServerEnv, base).turnstile).toEqual({
+      siteKey: 'turnstile-site',
+      secretKey: 'turnstile-secret',
+    });
   });
 
   it('requires Upstash and SES credentials outside dev, and sends via SES there', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderEmail, signUnsub, verifyUnsub } from './index';
+import { renderEmail, signToken, signUnsub, verifyToken, verifyUnsub } from './index';
 
 const USER = '11111111-1111-4111-8111-111111111111';
 const base = {
@@ -51,5 +51,21 @@ describe('unsubscribe tokens', () => {
     ).toBeNull();
     expect(verifyUnsub('secret', `${token}.x`)).toBeNull();
     expect(verifyUnsub('secret', 'garbage')).toBeNull();
+  });
+});
+
+describe('purpose tokens', () => {
+  it('only verify for the purpose and secret they were minted with', () => {
+    const token = signToken('secret', 'waitlist-confirm', USER);
+    expect(verifyToken('secret', 'waitlist-confirm', token)).toBe(USER);
+    expect(verifyToken('secret', 'something-else', token)).toBeNull();
+    expect(verifyToken('other', 'waitlist-confirm', token)).toBeNull();
+    expect(verifyToken('secret', 'waitlist-confirm', `${token}x`)).toBeNull();
+  });
+
+  it('renders transactional mail without an unsubscribe link', () => {
+    const { html, text } = renderEmail({ ...base, unsubUrl: undefined, unsubLabel: undefined });
+    expect(html).not.toContain('Stop these emails');
+    expect(text).not.toContain('Stop these emails');
   });
 });

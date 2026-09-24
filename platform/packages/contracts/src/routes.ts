@@ -50,7 +50,7 @@ import {
   UpdateMeInput,
 } from './me';
 import { Asset, AssetParams, CreateUploadInput, CreateUploadOutput, MediaSession } from './media';
-import { Ok, OneClickUnsubInput, UnsubParams } from './notify';
+import { JoinWaitlistInput, Ok, OneClickUnsubInput, UnsubParams } from './notify';
 import {
   GetPlanInput,
   PinLookInput,
@@ -523,6 +523,13 @@ export const routes = {
     params: ShareParams,
     input: EmptyInput,
     output: SharedLook,
+  },
+  'public.waitlist.join': {
+    method: 'POST',
+    path: '/public/waitlist',
+    auth: 'public',
+    input: JoinWaitlistInput,
+    output: Ok,
   },
   'public.unsub': {
     method: 'POST',

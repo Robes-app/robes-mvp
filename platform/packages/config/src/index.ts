@@ -187,6 +187,9 @@ export const appServerEnv = z
     SES_CONFIGURATION_SET: optionalSecret,
     // Signs one-click unsubscribe links; the same value as the notify worker's unsub/hmac-key.
     UNSUB_HMAC_KEY: z.string().min(32),
+    // Cloudflare Turnstile on the public waitlist (SEC-60); optional in dev only.
+    TURNSTILE_SECRET_KEY: optionalSecret,
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
     AWS_REGION: z
       .string()
       .regex(/^[a-z]{2}-[a-z]+-\d$/)
@@ -246,6 +249,19 @@ export const appServerEnv = z
         message: 'set SMTP_URL (local mail catcher) in dev',
       });
     }
+    if (Boolean(env.TURNSTILE_SECRET_KEY) !== Boolean(env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['TURNSTILE_SECRET_KEY'],
+        message: 'Turnstile needs the site key and the secret',
+      });
+    } else if (deployed && !env.TURNSTILE_SECRET_KEY) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['TURNSTILE_SECRET_KEY'],
+        message: 'required outside dev',
+      });
+    }
     if (Boolean(env.APPLE_CLIENT_ID) !== Boolean(env.APPLE_CLIENT_SECRET)) {
       ctx.addIssue({
         code: 'custom',
@@ -294,6 +310,10 @@ export const appServerEnv = z
     ],
     media: mediaConfig(env),
     observability: observabilityConfig(env),
+    turnstile:
+      env.TURNSTILE_SECRET_KEY && env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+        ? { siteKey: env.NEXT_PUBLIC_TURNSTILE_SITE_KEY, secretKey: env.TURNSTILE_SECRET_KEY }
+        : null,
   }));
 
 export type AppServerEnv = z.infer<typeof appServerEnv>;

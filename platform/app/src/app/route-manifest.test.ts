@@ -8,6 +8,7 @@ const PUBLIC_ROUTES = new Set([
   '/api/v1/health',
   '/api/v1/public/shares/[token]',
   '/api/v1/public/unsub/[token]',
+  '/api/v1/public/waitlist',
 ]);
 // Handlers delegated to a vetted library with its own protections; keep this list tiny.
 const DELEGATED_ROUTES = new Set(['/api/auth/[...all]']);

@@ -1,11 +1,26 @@
 import { marketing } from '@robes/copy';
 import { buttonClasses, Eyebrow, Heading, Text } from '@robes/ui';
+import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { WaitlistForm } from '@/components/marketing/waitlist-form';
 import { AppShell } from '@/components/shell/app-shell';
 import { TodayView } from '@/components/today/today-view';
+import { env } from '@/server/env';
 import { currentProfile, displayName } from '@/server/session';
 import { loadToday } from '@/server/today';
+
+export const metadata: Metadata = {
+  title: marketing.metaTitle,
+  description: marketing.metaDescription,
+  openGraph: {
+    title: marketing.metaTitle,
+    description: marketing.metaDescription,
+    type: 'website',
+  },
+  twitter: { card: 'summary', title: marketing.metaTitle, description: marketing.metaDescription },
+};
 
 // Signed out: the marketing page. Signed in: Today, inside the app shell.
 export default async function Home() {
@@ -25,6 +40,12 @@ export default async function Home() {
         >
           {marketing.signIn}
         </Link>
+        <div className="mt-12">
+          <WaitlistForm
+            siteKey={env.turnstile?.siteKey ?? null}
+            nonce={(await headers()).get('x-nonce')}
+          />
+        </div>
       </main>
     );
   }

@@ -44,8 +44,7 @@ export const POST = route({
 | Route | Protection |
 |---|---|
 | `GET /api/v1/health` | returns `{ ok: true }` only |
-| `POST /api/v1/waitlist` | Turnstile + IP rate limit + double opt-in |
-| `GET /api/v1/waitlist/confirm` | signed token |
+| `POST /api/v1/public/waitlist` (built) | Turnstile + 5/hour per IP + `signups` kill switch; insert-only (an existing contact is never changed) and the same 202 either way; double opt-in via the `/waitlist/confirm?t=` page (HMAC, purpose-bound token, button confirms) |
 | `GET /api/v1/public/shares/:token` (built) | 128-bit token; whitelisted snapshot projected through `SharedLook`; images signed ≤2 h; IP rate limit |
 | `POST /api/v1/shares/:token/report` | Turnstile + IP rate limit |
 | `POST /api/v1/public/unsub/:token` (built) | HMAC token naming one user + one preference (RFC 8058 one-click, form or JSON body); IP rate limit. The `/unsubscribe?t=` page confirms before acting. |

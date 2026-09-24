@@ -4,7 +4,7 @@ import { env } from './server/env';
 import { isAuthPage, isProtectedPath } from './server/guards';
 import { buildCsp, cspSources } from './server/security-headers';
 
-const sources = cspSources(env.media, env.observability);
+const sources = cspSources(env.media, env.observability, env.turnstile !== null);
 
 function withCsp(response: NextResponse, csp: string): NextResponse {
   response.headers.set('content-security-policy', csp);

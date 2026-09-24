@@ -53,6 +53,21 @@ describe('cspSources', () => {
     uploadOrigin: 'https://robes-prod-media.s3.eu-west-1.amazonaws.com',
   };
 
+  it('frames only itself, plus Cloudflare when Turnstile is on', () => {
+    const off = buildCsp({
+      nonce: 'n',
+      isDev: false,
+      ...cspSources(media, { connectOrigins: [] }),
+    });
+    expect(off).toContain("frame-src 'self';");
+    const on = buildCsp({
+      nonce: 'n',
+      isDev: false,
+      ...cspSources(media, { connectOrigins: [] }, true),
+    });
+    expect(on).toContain("frame-src 'self' https://challenges.cloudflare.com;");
+  });
+
   it('adds nothing for Sentry or PostHog when they are not configured', () => {
     const csp = buildCsp({
       nonce: 'n',

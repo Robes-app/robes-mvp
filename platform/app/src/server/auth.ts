@@ -1,9 +1,7 @@
 import 'server-only';
 import { createAuth } from '@robes/auth';
-import { createMailer } from '@robes/mailer';
 import { env } from './env';
-
-const mailer = createMailer(env.mail);
+import { mailer } from './mailer';
 
 export const auth = createAuth({
   databaseUrl: env.DATABASE_URL,

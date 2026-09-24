@@ -156,6 +156,31 @@ export const marketing = {
   title: 'Your wardrobe, styled.',
   subtitle: 'One piece. Three ways to wear it.',
   signIn: 'Sign in',
+  metaTitle: 'Robes · Your wardrobe, styled.',
+  metaDescription:
+    'Photograph what you own. Robes dresses each piece three ways, plans the week and remembers what you wore.',
+  waitlist: {
+    title: 'Join the waitlist.',
+    body: 'Robes is opening slowly. Leave your email and we’ll let you in.',
+    emailLabel: 'Email',
+    nameLabel: 'First name (optional)',
+    submit: 'Join',
+    submitting: 'Joining…',
+    // The same answer whether or not the address was already listed (no enumeration).
+    done: 'Check your email to confirm your place.',
+    failed: 'Robes couldn’t add you just now. Try again in a moment.',
+    confirmEyebrow: 'Waitlist',
+    confirmTitle: 'Confirm your place?',
+    confirm: 'Confirm',
+    confirmed: 'You’re on the list. We’ll email you when it’s your turn.',
+    invalid: 'This link doesn’t work any more. Join again from the home page.',
+    email: {
+      subject: 'Confirm your place on the Robes waitlist',
+      body: 'Tap below to confirm it’s you. If you didn’t ask to join, ignore this email.',
+      cta: 'Confirm my place',
+      notice: 'You’re getting this because this address was entered on byrobes.com.',
+    },
+  },
 } as const;
 
 export const nav = {
