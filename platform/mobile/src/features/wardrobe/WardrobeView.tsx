@@ -58,6 +58,7 @@ function Pieces() {
   }
   return (
     <FlatList
+      testID="pieces-list"
       data={pieces}
       keyExtractor={(p) => p.id}
       numColumns={2}

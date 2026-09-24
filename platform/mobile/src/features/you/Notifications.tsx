@@ -24,7 +24,9 @@ export function Notifications() {
   });
   if (!me) return <LoadingScreen />;
 
-  function toggle(key: keyof NotificationPrefs, value: boolean) {
+  async function toggle(key: keyof NotificationPrefs, value: boolean) {
+    // A /me fetch still in flight would land after, and undo, the optimistic flip.
+    await queryClient.cancelQueries({ queryKey: meKey });
     queryClient.setQueryData<Me>(meKey, (old) =>
       old ? { ...old, notifications: { ...old.notifications, [key]: value } } : old,
     );
@@ -38,7 +40,7 @@ export function Notifications() {
           key={key}
           label={copy[key]}
           value={me.notifications[key]}
-          onChange={(v) => toggle(key, v)}
+          onChange={(v) => void toggle(key, v)}
         />
       ))}
       {update.isError ? <Text tone="danger">{errorMessage(update.error)}</Text> : null}

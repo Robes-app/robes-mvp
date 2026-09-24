@@ -39,7 +39,7 @@ function PieceChoice({
     <Pressable
       accessibilityRole="radio"
       accessibilityLabel={piece.label}
-      accessibilityState={{ selected }}
+      accessibilityState={{ checked: selected }}
       onPress={onPress}
       style={{ width: 96, minHeight: MIN_TOUCH }}
       className={

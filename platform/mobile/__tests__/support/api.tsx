@@ -37,6 +37,7 @@ function respond(status: number, body: unknown): Response {
     headers: { get: () => null },
     text: async () => JSON.stringify(body),
     json: async () => body,
+    blob: async () => ({ size: 2048 }),
   } as unknown as Response;
 }
 
@@ -71,7 +72,7 @@ class ErrorReply {
 }
 
 export function errorReply(status: number, code: string): ErrorReply {
-  return new ErrorReply(status, { error: { code, message: code } });
+  return new ErrorReply(status, { error: { code, message: code, requestId: 'req-test' } });
 }
 
 export function newQueryClient(): QueryClient {

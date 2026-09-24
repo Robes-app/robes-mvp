@@ -20,7 +20,8 @@ export function Privacy() {
   });
   if (!consents) return <LoadingScreen />;
 
-  function set(answers: Partial<Record<keyof Consents, boolean>>) {
+  async function set(answers: Partial<Record<keyof Consents, boolean>>) {
+    await queryClient.cancelQueries({ queryKey: key });
     queryClient.setQueryData<Consents>(key, (old) => (old ? { ...old, ...answers } : old));
     update.mutate({ input: { source: SOURCE, consents: answers } });
   }
@@ -32,14 +33,14 @@ export function Privacy() {
         hint={copy.analyticsHint}
         value={consents.analytics === true}
         // Recordings need usage counts, so turning counts off withdraws both.
-        onChange={(v) => set(v ? { analytics: true } : { analytics: false, replay: false })}
+        onChange={(v) => void set(v ? { analytics: true } : { analytics: false, replay: false })}
       />
       <ToggleRow
         label={copy.replayLabel}
         hint={copy.replayHint}
         value={consents.replay === true}
         disabled={consents.analytics !== true}
-        onChange={(v) => set({ replay: v })}
+        onChange={(v) => void set({ replay: v })}
       />
       {update.isError ? <Text tone="danger">{errorMessage(update.error)}</Text> : null}
     </ScrollView>
