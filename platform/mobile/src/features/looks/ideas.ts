@@ -29,7 +29,8 @@ export function useIdeas(
   );
 }
 
-// The idea a styling job produced: appears after its text stage, frames fill in after images.
+// The idea a styling job produced: the job names it after its text stage (`output.ideaId`),
+// then its frames fill in after the images stage.
 export function useJobIdea(jobId: string) {
   const job = useApi(
     'jobs.get',
@@ -37,12 +38,19 @@ export function useJobIdea(jobId: string) {
     { refetchInterval: (q) => (isTerminal(q.state.data) ? false : JOB_REFRESH_MS) },
   );
   const failed = job.data?.status === 'failed' || job.data?.status === 'cancelled';
-  const done = (list: IdeaList | undefined): boolean =>
-    failed || (isTerminal(job.data) && framesSettled(list?.items.find((i) => i.jobId === jobId)));
-  const ideas = useIdeas((list) => (done(list) ? false : JOB_REFRESH_MS));
-  const idea = ideas.data?.items.find((i) => i.jobId === jobId);
-  const waiting = !done(ideas.data);
-  return { job, ideas, idea, waiting, failed };
+  const ideaId = job.data?.output.ideaId;
+  const done = (idea: Idea | undefined): boolean =>
+    failed || (isTerminal(job.data) && framesSettled(idea));
+  const query = useApi(
+    'looks.ideas.get',
+    { params: { id: ideaId ?? '' } },
+    {
+      enabled: ideaId !== undefined,
+      refetchInterval: (q) => (done(q.state.data) ? false : JOB_REFRESH_MS),
+    },
+  );
+  const idea = ideaId ? query.data : undefined;
+  return { job, idea, waiting: !done(idea), failed };
 }
 
 export function useSaveIdea() {

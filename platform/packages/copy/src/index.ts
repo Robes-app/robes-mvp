@@ -306,6 +306,30 @@ export const looks = {
     woreToday: 'Worn today.',
     removed: 'Look removed.',
     pieces: 'Pieces',
+    imageAlt: (name: string): string => `The look: ${name}`,
+    suggested: 'Robes’ suggested name',
+    keepName: 'Keep this name',
+    nameLabel: 'Name this look',
+    saveName: 'Save name',
+    wearOnDay: 'Wear on a day',
+    chooseDay: 'Which day?',
+    pinned: 'On your plan.',
+    saveAsNew: 'Save as new',
+    savedAsNew: 'Saved as a new look.',
+    share: 'Share',
+    stopSharing: 'Stop sharing',
+    sharingStopped: 'Sharing turned off.',
+  },
+  // Idea page: one of the three ways kept as a look.
+  saveWay: 'Save this look',
+  savedWay: 'Saved to your looks.',
+  composer: {
+    title: 'New look',
+    pick: 'Choose the pieces',
+    nameLabel: 'Name (optional)',
+    namePlaceholder: 'Gallery opening',
+    create: 'Save look',
+    empty: 'Add a few pieces to your wardrobe first.',
   },
 } as const;
 
@@ -343,6 +367,49 @@ export const you = {
     confirm: 'Delete my account',
     requested: 'Your account is being deleted. Robes will email you when it’s done.',
   },
+  style: {
+    title: 'Style',
+    colour: {
+      title: 'Your colouring',
+      body: 'A close-up of your face in daylight, no filter.',
+      add: 'Add a close-up',
+      reading: 'Reading your colouring…',
+      noSubject: 'Robes couldn’t see a face in that photo. Try another.',
+    },
+    silhouette: {
+      title: 'Your shape',
+      body: 'A full-length photo, standing straight, in fitted clothes.',
+      add: 'Add a full-length photo',
+      reading: 'Reading your shape…',
+      noSubject: 'Robes couldn’t see your full figure in that photo. Try another.',
+    },
+    again: 'Try another photo',
+    best: 'Wear',
+    avoid: 'Go easy on',
+    metals: 'Metals',
+    loved: 'Colours you love',
+    rejected: 'Colours you don’t wear',
+    colourLabel: 'Add a colour',
+    colourPlaceholder: 'Navy',
+    add: 'Add',
+    removeColour: (name: string): string => `Remove ${name}`,
+    failed: 'Robes couldn’t read that photo. Try again in a moment.',
+  },
+} as const;
+
+// Plan tab: the next 30 days and the looks pinned to them.
+export const plan = {
+  free: 'A free day',
+  today: 'Today',
+  activityLabel: 'What’s on',
+  activityPlaceholder: 'Dinner, the office',
+  saveActivity: 'Save',
+  unpin: (name: string): string => `Take ${name} off this day`,
+  unpinned: 'Taken off the day.',
+  empty: {
+    title: 'Your next 30 days.',
+    body: 'Open a look and choose “Wear on a day” to plan it.',
+  },
 } as const;
 
 // Public share page and the share action.
@@ -374,4 +441,5 @@ export const copy = {
   looks,
   you,
   share,
+  plan,
 } as const;

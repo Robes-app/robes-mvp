@@ -56,8 +56,8 @@ test('describing a piece replaces the chosen one; nothing chosen means no start'
 
 test('a running job shows progress, then the three ways once its idea lands', async () => {
   mockFetch({
-    [`GET /jobs/${JOB_ID}`]: job('running', 'images'),
-    'GET /looks/ideas': { items: [idea({ frames: [] })] },
+    [`GET /jobs/${JOB_ID}`]: { ...job('running', 'images'), output: { ideaId: IDEA_ID } },
+    [`GET /looks/ideas/${IDEA_ID}`]: idea({ frames: [] }),
   });
   await renderWithApi(<JobIdeaScreen jobId={JOB_ID} />);
   expect(await screen.findByText('Look 1')).toBeTruthy();
@@ -68,7 +68,6 @@ test('a running job shows progress, then the three ways once its idea lands', as
 test('a failed job with no idea says so', async () => {
   mockFetch({
     [`GET /jobs/${JOB_ID}`]: { ...job('failed', 'text'), error: 'ai_timeout' },
-    'GET /looks/ideas': { items: [] },
   });
   await renderWithApi(<JobIdeaScreen jobId={JOB_ID} />);
   expect(await screen.findByText('Robes couldn’t finish that. Please try again.')).toBeTruthy();
