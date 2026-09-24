@@ -14,6 +14,7 @@ const me = {
   currency: 'EUR',
   homeCity: null,
   onboarded: true,
+  notifications: { looksReady: true, morningCue: true, nudges: false, receipts: true },
 };
 
 test('Today greets her by name and offers sign out', async () => {

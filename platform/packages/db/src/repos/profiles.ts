@@ -52,6 +52,15 @@ export function profilesRepo(db: Db) {
       return this.get(userId);
     },
 
+    // Merged in SQL so two toggles saved at once both stick.
+    async mergeNotificationPrefs(userId: UserId, patch: Record<string, boolean>): Promise<void> {
+      await db
+        .updateTable('profiles')
+        .set({ notificationPrefs: sql`notification_prefs || ${JSON.stringify(patch)}::jsonb` })
+        .where('id', '=', userId)
+        .execute();
+    },
+
     async completeOnboarding(userId: UserId): Promise<Date | null> {
       const row = await db
         .updateTable('profiles')

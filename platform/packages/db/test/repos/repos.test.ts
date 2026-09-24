@@ -40,6 +40,29 @@ describe('profiles', () => {
   });
 });
 
+describe('notification prefs', () => {
+  it('merges keys without dropping the others', async () => {
+    await repos.profiles.mergeNotificationPrefs(alice, { nudges: true });
+    await repos.profiles.mergeNotificationPrefs(alice, { receipts: false });
+    expect((await repos.profiles.get(alice))?.notificationPrefs).toEqual({
+      nudges: true,
+      receipts: false,
+    });
+    expect((await repos.profiles.get(bob))?.notificationPrefs).toEqual({});
+  });
+});
+
+describe('deletion', () => {
+  it('records one request per user and repeats return the first', async () => {
+    expect(await repos.deletion.get(alice)).toBeUndefined();
+    const first = await repos.deletion.request(alice);
+    const again = await repos.deletion.request(alice);
+    expect(first?.status).toBe('requested');
+    expect(again?.requestedAt.getTime()).toBe(first?.requestedAt.getTime());
+    expect(await repos.deletion.get(bob)).toBeUndefined();
+  });
+});
+
 describe('consents', () => {
   it('starts unanswered and keeps each user to their own answers', async () => {
     expect(await repos.consents.current(alice)).toEqual({});

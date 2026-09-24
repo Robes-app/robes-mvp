@@ -21,6 +21,7 @@ const me = {
   currency: 'EUR',
   homeCity: null,
   onboarded: true,
+  notifications: { looksReady: true, morningCue: true, nudges: false, receipts: true },
 };
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {

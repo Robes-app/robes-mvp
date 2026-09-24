@@ -2,6 +2,7 @@ import type { Db } from '../client';
 import { adminRepo } from './admin';
 import { assetProcessingRepo, assetsRepo } from './assets';
 import { consentsRepo } from './consents';
+import { deletionRepo } from './deletion';
 import { flagsRepo } from './flags';
 import { ideasRepo } from './ideas';
 import { jobRunnerRepo, jobsRepo } from './jobs';
@@ -19,6 +20,7 @@ export function createRepositories(db: Db) {
     admin: adminRepo(db),
     assets: assetsRepo(db),
     consents: consentsRepo(db),
+    deletion: deletionRepo(db),
     flags: flagsRepo(db),
     ideas: ideasRepo(db),
     jobs: jobsRepo(db),

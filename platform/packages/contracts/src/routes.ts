@@ -3,7 +3,14 @@ import { EmptyInput, HealthOutput } from './common';
 import { Consents, UpdateConsentsInput } from './consents';
 import { JOB_EVENT, JobIdParams, JobSnapshot, StartJobOutput } from './jobs';
 import { GenerateLookInput, Idea, IdeaList, IdeaParams, ListIdeasInput } from './looks';
-import { Me, OnboardingComplete, UpdateMeInput } from './me';
+import {
+  DeletionRequest,
+  DeletionStatus,
+  Me,
+  OnboardingComplete,
+  RequestDeletionInput,
+  UpdateMeInput,
+} from './me';
 import { Asset, AssetParams, CreateUploadInput, CreateUploadOutput, MediaSession } from './media';
 import {
   BatchPiecesInput,
@@ -65,6 +72,21 @@ export const routes = {
     auth: 'user',
     input: EmptyInput,
     output: OnboardingComplete,
+  },
+  'me.deletion.get': {
+    method: 'GET',
+    path: '/me/deletion',
+    auth: 'user',
+    input: EmptyInput,
+    output: DeletionStatus,
+  },
+  // Naturally idempotent: a repeat request returns the first one.
+  'me.deletion.request': {
+    method: 'POST',
+    path: '/me/deletion',
+    auth: 'user',
+    input: RequestDeletionInput,
+    output: DeletionRequest,
   },
   'me.consents.get': {
     method: 'GET',

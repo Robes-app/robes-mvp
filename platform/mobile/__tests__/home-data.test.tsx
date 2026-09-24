@@ -28,6 +28,7 @@ const me = {
   currency: 'EUR',
   homeCity: null,
   onboarded: true,
+  notifications: { looksReady: true, morningCue: true, nudges: false, receipts: true },
 };
 
 function respond(body: unknown) {

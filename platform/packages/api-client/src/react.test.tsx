@@ -25,6 +25,7 @@ const me: Me = {
   currency: 'EUR',
   homeCity: null,
   onboarded: false,
+  notifications: { looksReady: true, morningCue: true, nudges: false, receipts: true },
 };
 const JOB_ID = '6f1d7e38-5a55-4f43-9d6b-6f0c4d7f2a10';
 const failure = { error: { code: 'internal', message: 'nope', requestId: 'r1' } };

@@ -61,10 +61,9 @@ test('a piece described in words can be styled; others cannot see the idea', asy
   expect(started.status()).toBe(202);
   const { jobId } = await started.json();
   await expect
-    .poll(
-      async () => (await (await page.request.get(`/api/v1/jobs/${jobId}`)).json()).status,
-      { timeout: 30_000 },
-    )
+    .poll(async () => (await (await page.request.get(`/api/v1/jobs/${jobId}`)).json()).status, {
+      timeout: 30_000,
+    })
     .toMatch(/succeeded|partial/);
   const { items } = await (await page.request.get('/api/v1/looks/ideas')).json();
   const idea = items.find((i: { jobId: string }) => i.jobId === jobId);

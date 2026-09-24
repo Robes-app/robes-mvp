@@ -1,5 +1,5 @@
 import { ApiError } from '@robes/api';
-import { EmptyInput, Me, UpdateMeInput } from '@robes/contracts';
+import { EmptyInput, Me, NotificationPrefs, UpdateMeInput } from '@robes/contracts';
 import { verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';
 import { route } from '@/server/route';
@@ -18,6 +18,7 @@ async function loadMe(id: string) {
     currency: profile.currency,
     homeCity: profile.homeCity,
     onboarded: profile.onboardedAt !== null,
+    notifications: NotificationPrefs.parse(profile.notificationPrefs ?? {}),
   };
 }
 
@@ -34,7 +35,10 @@ export const PATCH = route({
   output: Me,
   rateLimit: { key: 'me.update', limit: 30, windowSeconds: 60 },
   handler: async ({ user, input }) => {
-    await repos.profiles.update(verifiedUserId(user.id), input);
+    const userId = verifiedUserId(user.id);
+    const { notifications, ...fields } = input;
+    await repos.profiles.update(userId, fields);
+    if (notifications) await repos.profiles.mergeNotificationPrefs(userId, notifications);
     return loadMe(user.id);
   },
 });
