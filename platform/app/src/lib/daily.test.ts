@@ -1,6 +1,6 @@
 import type { DailyLook } from '@robes/contracts';
 import { describe, expect, it } from 'vitest';
-import { anchorPending, weatherLine } from './daily';
+import { anchorPending, itemsLanding, weatherLine } from './daily';
 
 const look = (image: unknown, createdAt = new Date().toISOString()) =>
   ({
@@ -23,5 +23,17 @@ describe('daily helpers', () => {
     expect(anchorPending(look({ status: 'pending' }))).toBe(true);
     expect(anchorPending(look({ status: 'ready' }))).toBe(false);
     expect(anchorPending(look(null, new Date(Date.now() - 10 * 60_000).toISOString()))).toBe(false);
+  });
+});
+
+describe('itemsLanding', () => {
+  const withItems = (...items: { imageIndex: number; imageStatus: string }[]) =>
+    ({ steps: [{ title: 'The Canvas', items }] }) as never;
+  it('refreshes only while an item she asked for is still on its way', () => {
+    const pending = withItems({ imageIndex: 1, imageStatus: 'pending' });
+    expect(itemsLanding(pending, [])).toBe(false);
+    expect(itemsLanding(pending, [1])).toBe(true);
+    expect(itemsLanding(withItems({ imageIndex: 1, imageStatus: 'ready' }), [1])).toBe(false);
+    expect(itemsLanding(withItems({ imageIndex: 1, imageStatus: 'failed' }), [1])).toBe(false);
   });
 });

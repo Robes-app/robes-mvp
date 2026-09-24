@@ -124,6 +124,10 @@ export const today = {
     nameLabel: 'Name it',
     saved: 'Look saved.',
     failed: 'Robes couldn’t style today. Try again in a moment.',
+    // Items beyond the anchor render when she asks (UX-09).
+    showItem: 'Show it',
+    showItemLabel: (name: string): string => `Show ${name}`,
+    itemAlt: (name: string): string => `Robes’ picture of ${name}`,
   },
 } as const;
 
@@ -387,6 +391,10 @@ export const looks = {
     outfit: 'The look',
     details: 'Details',
     accessories: 'Finish with',
+    // Only the first look is pictured up front; the others when she asks (UX-09).
+    showLook: 'Show this look',
+    showLookLabel: (title: string): string => `Show this look: ${title}`,
+    renderFailed: 'Robes couldn’t picture that one. Try again.',
   },
   ideas: {
     empty: {

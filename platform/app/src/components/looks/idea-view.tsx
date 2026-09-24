@@ -7,7 +7,8 @@ import { Button, Eyebrow, Heading, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { errorCopy } from '@/lib/error-copy';
-import { ideaNeedsRefresh } from '@/lib/looks';
+import { useFrameRender } from '@/lib/frame-render';
+import { framesLanding, ideaNeedsRefresh } from '@/lib/looks';
 import { IdeaFrame } from './idea-frame';
 
 const copy = looks.result;
@@ -17,10 +18,20 @@ export function IdeaView({ ideaId }: { ideaId: string }) {
   const router = useRouter();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const refreshIdea = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.call('looks.ideas.get', { params: { id: ideaId } }),
+    });
+  const frames = useFrameRender('looks.ideas.render', ideaId, () => void refreshIdea());
   const query = useApi(
     'looks.ideas.get',
     { params: { id: ideaId } },
-    { refetchInterval: (q) => (ideaNeedsRefresh(q.state.data) ? REFRESH_MS : false) },
+    {
+      refetchInterval: (q) =>
+        ideaNeedsRefresh(q.state.data) || framesLanding(q.state.data, frames.asked)
+          ? REFRESH_MS
+          : false,
+    },
   );
   const refreshLists = () =>
     queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.ideas.list') });
@@ -67,6 +78,8 @@ export function IdeaView({ ideaId }: { ideaId: string }) {
       onRemove={() => remove.mutate({ params: { id: idea.id } })}
       onSaveWay={(wayIdx) => saveWay.mutate({ params: { id: idea.id }, input: { wayIdx } })}
       savingWay={saveWay.isPending ? (saveWay.variables?.input.wayIdx ?? null) : null}
+      onShowFrame={frames.start}
+      showingFrame={frames.renderingIdx}
       saving={save.isPending}
       removing={remove.isPending}
     />
@@ -79,6 +92,8 @@ function IdeaBody({
   onRemove,
   onSaveWay,
   savingWay,
+  onShowFrame,
+  showingFrame,
   saving,
   removing,
 }: {
@@ -87,6 +102,8 @@ function IdeaBody({
   onRemove: () => void;
   onSaveWay: (wayIdx: number) => void;
   savingWay: number | null;
+  onShowFrame: (idx: number) => void;
+  showingFrame: number | null;
   saving: boolean;
   removing: boolean;
 }) {
@@ -123,6 +140,12 @@ function IdeaBody({
               alt={copy.frameAlt(way.title)}
               priority={idx === 0}
               sizes="(min-width: 768px) 33vw, 100vw"
+              show={{
+                label: copy.showLook,
+                ariaLabel: copy.showLookLabel(way.title),
+                busy: showingFrame === idx,
+                onShow: () => onShowFrame(idx),
+              }}
             />
             <div className="flex flex-col gap-2">
               <Eyebrow>{way.eyebrow}</Eyebrow>

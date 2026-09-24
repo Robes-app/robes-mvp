@@ -1,6 +1,6 @@
 import type { Idea, JobSnapshot } from '@robes/contracts';
 import { describe, expect, it } from 'vitest';
-import { daysLeft, ideaNeedsRefresh, jobProgressStage } from './looks';
+import { daysLeft, framesLanding, ideaNeedsRefresh, jobProgressStage } from './looks';
 
 const NOW = Date.parse('2026-09-24T12:00:00Z');
 function idea(frames: Idea['frames'], createdAt = '2026-09-24T11:59:00Z'): Idea {
@@ -47,5 +47,20 @@ describe('daysLeft', () => {
   it('rounds up and never goes negative', () => {
     expect(daysLeft('2026-09-25T00:00:00Z', NOW)).toBe(1);
     expect(daysLeft('2026-09-20T00:00:00Z', NOW)).toBe(0);
+  });
+});
+
+describe('framesLanding', () => {
+  const frame = (idx: number, status: 'ready' | 'pending' | 'deferred' | 'failed') => ({
+    idx,
+    status,
+    image: null,
+  });
+  it('keeps refreshing only for frames she asked for until they land or fail', () => {
+    const idea = { frames: [frame(0, 'ready'), frame(1, 'pending'), frame(2, 'deferred')] };
+    expect(framesLanding(idea as never, [])).toBe(false);
+    expect(framesLanding(idea as never, [1])).toBe(true);
+    expect(framesLanding({ frames: [frame(1, 'failed')] } as never, [1])).toBe(false);
+    expect(framesLanding({ frames: [frame(1, 'ready')] } as never, [1])).toBe(false);
   });
 });
