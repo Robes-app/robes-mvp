@@ -59,12 +59,17 @@ const SIL = {
 const SIL_DNA = { body_type: 'Hourglass', geometric_ratios: { shoulder_to_waist: 1.35, hip_to_waist: 1.32, shoulder_to_hip: 1.02 } };
 
 // profile: 'empty' | 'colour' | 'both' | 'kept'   updateMode: 'ok' | 'nocol'
-async function open(vp, profile = 'empty', updateMode = 'ok', hash = '') {
+async function open(vp, profile = 'empty', updateMode = 'ok', hash = '', { frames = false } = {}) {
   const ctx = await browser.newContext({ viewport: vp });
   const p = await ctx.newPage();
   const errs = [];
   const cellPosts = [];
   p.on('pageerror', e => errs.push(String(e)));
+  // the deck's frames: a manifest of hosted stills (Cloudinary answers a
+  // 1px PNG below), or the 404 a checkout without one serves
+  await p.route('**/images/archetypes/manifest.json', r => frames
+    ? r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ Minimal: ['https://res.cloudinary.com/x/image/upload/v1/robes/archetypes/a.png', 'https://res.cloudinary.com/x/image/upload/v1/robes/archetypes/b.png'] }) })
+    : r.fulfill({ status: 404, body: '' }));
   // the CDN copy must never overwrite the stub
   await p.route('**cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'application/javascript', body: '/* stubbed */' }));
   // the photographed model: the cell endpoint answers instantly with a
@@ -372,7 +377,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
 // under the chapter chrome, then the summary. Both breakpoints.
 for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
   console.log(`\n\x1b[1m== ${label} · the chapters ==\x1b[0m`);
-  const { ctx, p, errs } = await open(vp, 'empty', 'ok', '?begin=1');
+  const withFrames = vp.width < 768;   // one breakpoint with the generated stills, one with the tones alone
+  const { ctx, p, errs } = await open(vp, 'empty', 'ok', '?begin=1', { frames: withFrames });
   await p.waitForTimeout(500);
   ok(await p.locator('#sn-ch-wrap').isVisible(), '?begin=1 opens the chapters');
   ok(!/begin=1/.test(p.url()), 'and the param is stripped');
@@ -396,12 +402,19 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok(/does this\s+feel like you\?/i.test((await p.locator('#sn-ch-wrap .snc-h').innerText()).replace(/\s+/g, ' ')), 'Does this feel like you?');
   ok((await p.locator('#snc-card .name').innerText()) === 'Minimal', 'the deck opens on Minimal');
   ok(await p.locator('#snc-card .tile').count() === 2, 'two tiles do the explaining');
-  ok(await p.locator('#snc-card img').count() === 0, 'tone tiles, no photographs (no faces, no marks)');
+  if (withFrames) {
+    ok(await p.locator('#snc-card .tile img').count() === 2, 'the manifest’s two stills fill the tiles');
+    const fsrc = await p.locator('#snc-card .tile img').first().getAttribute('src');
+    ok(/\/upload\/w_640,q_auto,f_auto\//.test(fsrc || ''), 'a Cloudinary still takes the deck’s own size, got ' + fsrc);
+  } else {
+    ok(await p.locator('#snc-card img').count() === 0, 'no manifest → the tone tiles stand');
+  }
   ok(/1 of 10/.test(await p.locator('.snc-count').innerText()), 'the count reads 1 of 10');
   const reacts = (await p.locator('.snc-react button').allTextContents()).map(t => t.trim());
   ok(JSON.stringify(reacts) === JSON.stringify(['Not me', 'Sometimes', 'Very me']), 'Not me · Sometimes · Very me, got ' + JSON.stringify(reacts));
   await p.click('.snc-react button[data-v="very"]'); await p.waitForTimeout(300);
   ok((await p.locator('#snc-card .name').innerText()) === 'Bohemian', 'a reaction advances the deck');
+  ok(await p.locator('#snc-card img').count() === 0, 'an archetype the manifest lacks keeps its tones');
   await p.click('.snc-react button[data-v="no"]'); await p.waitForTimeout(300);
   await p.click('.snc-react button[data-v="very"]'); await p.waitForTimeout(300);     // Classic
   await p.click('.snc-react button[data-v="some"]'); await p.waitForTimeout(300);     // Romantic
@@ -421,10 +434,18 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   const firstTile = await p.locator('.snc-tile .nm').first().innerText();
   ok(firstTile === 'The Row', 'the pool seeds from her archetypes (Minimal → The Row first), got ' + firstTile);
   ok((await p.locator('.snc-poolhead .k').textContent()).trim() === 'Popular among stylists', 'pool label');
+  ok(await p.locator('.snc-chip').count() === 0, 'no pills while nothing is kept');
+  const gridN = await p.locator('.snc-tile').count();
   await p.locator('.snc-tile').first().click(); await p.waitForTimeout(150);
-  ok(await p.locator('.snc-tile.on').count() === 1 && (await p.locator('.snc-tile.on .ck').innerText()) === '✓', 'a tapped tile takes the warm state with a ✓');
-  const tileBg = await p.locator('.snc-tile.on .im').evaluate(el => getComputedStyle(el).borderColor);
-  ok(tileBg === 'rgb(201, 188, 166)', 'the selected border is the app-wide warm one, got ' + tileBg);
+  ok((await p.locator('.snc-chip').allInnerTexts()).some(t => /The Row/.test(t)) && await p.locator('.snc-chip').count() === 1, 'a tapped tile becomes a pill under the field');
+  ok(await p.locator('.snc-tile[data-v="The Row"]').count() === 0 && (await p.locator('.snc-tile .nm').first().innerText()) !== 'The Row', 'the kept name leaves the grid');
+  ok(await p.locator('.snc-tile').count() === gridN && await p.locator('.snc-tile.in').count() === 1, 'the next name cycles into the grid — the count holds, one tile enters');
+  ok(await p.locator('.snc-tile.on, .snc-tile .ck').count() === 0, 'no ticked tiles — the pill is the selection');
+  const chipBg = await p.locator('.snc-chip').first().evaluate(el => getComputedStyle(el).borderColor);
+  ok(chipBg === 'rgb(201, 188, 166)', 'the pill wears the app-wide warm selected state, got ' + chipBg);
+  await p.locator('.snc-chip button').first().click(); await p.waitForTimeout(150);
+  ok(await p.locator('.snc-chip').count() === 0 && (await p.locator('.snc-tile .nm').first().innerText()) === 'The Row', 'the pill’s × returns the name to the grid');
+  await p.locator('.snc-tile').first().click(); await p.waitForTimeout(150);
   const cont = await p.locator('#snc-cont').boundingBox();
   ok(cont && cont.y + cont.height <= vp.height + 1, 'Continue is pinned on screen');
   // typing swaps the grid for matches in place
@@ -435,7 +456,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   await p.locator('.snc-resrow[data-v="Phoebe Philo"]').click(); await p.waitForTimeout(150);
   ok(await p.locator('.snc-resrow[data-v="Phoebe Philo"].on').count() === 1, 'a match toggles on in place');
   await p.fill('#snc-q', 'Some Designer'); await p.keyboard.press('Enter'); await p.waitForTimeout(150);
-  ok(await p.locator('.snc-tile').count() >= 9, 'Enter keeps the typed name and returns to the grid');
+  ok(await p.locator('.snc-tile').count() >= 9 && (await p.locator('.snc-chip').allInnerTexts()).some(t => /Some Designer/.test(t)), 'Enter keeps the typed name as a pill and returns to the grid');
+  ok(await p.locator('.snc-tile[data-v="Phoebe Philo"]').count() === 0, 'a name kept while typing is off the grid too');
   await p.click('#snc-cont'); await p.waitForTimeout(400);
   const icUp = await p.evaluate(() => window.__updates.filter(u => u.style_icons).pop());
   ok(!!icUp && JSON.stringify(icUp.style_icons) === JSON.stringify(['The Row', 'Phoebe Philo', 'Some Designer']), 'style_icons carries the three picks, got ' + JSON.stringify(icUp && icUp.style_icons));
@@ -463,7 +485,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok((await p.locator('#snc-create').textContent()).trim() === 'Create a look →' && (await p.locator('#snc-done').textContent()).trim() === 'Done for now', 'Create a look → · Done for now');   // textContent: the CTA is CSS-uppercased
   // a row reopens its chapter
   await p.click('#snc-r-icons'); await p.waitForTimeout(300);
-  ok((await p.locator('#sn-ch-wrap .snc-name').textContent()).trim() === 'Icons & brands' && await p.locator('.snc-tile.on').count() >= 1, 'a summary row reopens its chapter with her picks intact');
+  ok((await p.locator('#sn-ch-wrap .snc-name').textContent()).trim() === 'Icons & brands' && await p.locator('.snc-chip').count() >= 1, 'a summary row reopens its chapter with her picks intact');
   await p.click('#snc-cont'); await p.waitForTimeout(300); await p.click('#snb-next'); await p.waitForTimeout(300);
   // Create a look → the homepage prompt
   await p.click('#snc-create');

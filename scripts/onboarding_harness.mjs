@@ -87,11 +87,16 @@ async function open(vp, analyse = 'ok', name = 'Annie', { linkMode = 'ok', style
     if (linkMode === 'unreachable') return route.fulfill({ status: 422, contentType: 'application/json', body: '{"error":"unreachable"}' });
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
       label: 'Pink barrel-leg jeans', category: 'Bottoms', color: 'Pale pink', brand: 'FRAME', price: 340, currency: 'GBP',
-      image_url: 'http://localhost:' + PORT + '/piece.png',
+      image_url: linkMode === 'dead' ? 'http://localhost:' + PORT + '/missing.jpg' : linkMode === 'noimage' ? null : 'http://localhost:' + PORT + '/piece.png',
       item_dna: { display: { editorial_color_name: 'Pale pink' }, structural_dna: { silhouette_fit: ['Barrel-leg'] }, source: { kind: 'url', url: 'https://shop.example/jeans', site: 'shop.example' } },
     }) });
   });
-  await p.route('**/api/wardrobe/upload', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"url":"http://localhost:' + PORT + '/piece.png"}' }));
+  const uploads = [];
+  await p.route('**/api/wardrobe/upload', r => {
+    uploads.push(r.request().postDataJSON());
+    if (linkMode === 'dead') return r.fulfill({ status: 502, contentType: 'application/json', body: '{"error":"upload_failed"}' });
+    r.fulfill({ status: 200, contentType: 'application/json', body: '{"url":"http://localhost:' + PORT + '/piece.png"}' });
+  });
   await p.route('**/api/style', async r => {
     styleCalls.push(JSON.parse(r.request().postData() || '{}'));
     await new Promise(res => setTimeout(res, styleDelay));
@@ -101,7 +106,7 @@ async function open(vp, analyse = 'ok', name = 'Annie', { linkMode = 'ok', style
   await p.goto(`http://localhost:${PORT}/onboarding`);
   await p.waitForTimeout(900);
   await p.click('body'); await p.waitForTimeout(450);          // splash → name
-  return { ctx, p, errs, styleCalls, inserts };
+  return { ctx, p, errs, styleCalls, inserts, uploads };
 }
 async function toPiece(p, typeName) {
   if (typeName) await p.fill('#ob-name-input', typeName);
@@ -270,6 +275,33 @@ console.log('\n\x1b[1m== paste a link from a shop ==\x1b[0m');
   ok(/wouldn’t open for Robes/.test(await p.locator('#kp-err').innerText()), 'a shop that shuts the door is named, the field kept');
   ok(await p.locator('#kp-link').count() === 1 && (await p.inputValue('#kp-link')) === 'https://shop.example/jeans', 'her link stays in the field');
   ok(await p.locator('#ob-skip').isVisible(), 'skip returns with nothing filed');
+  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+// A retailer photograph the reader could not host: the well asks the
+// upload door to re-host it (a server-side fetch, never hot-link blocked)
+// and, when even that fails and the browser cannot load it, settles on a
+// monogram — never the Add-photo empty state on a piece already filed.
+{
+  const { ctx, p, errs, inserts, uploads } = await open({ width: 1280, height: 900 }, 'ok', 'Annie', { linkMode: 'dead' });
+  await toPiece(p);
+  await p.click('#kp-linkopen'); await p.fill('#kp-link', 'https://shop.example/jeans'); await p.click('#kp-linkgo');
+  ok(await waitFiled(p), 'the page files as a piece');
+  await p.waitForTimeout(600);
+  ok(uploads.some(u => u && u.url === 'http://localhost:' + PORT + '/missing.jpg'), 'an unhosted retailer image is sent to the upload door to re-host');
+  ok(await p.locator('#kp-well .kp-mono').count() === 1 && (await p.locator('#kp-well .kp-mono').textContent()) === 'P', 'a picture that will not load settles on the monogram');
+  ok(await p.locator('#kp-add').count() === 0 && await p.locator('.kp-banner').count() === 1, 'never the Add-photo state on a filed piece — the banner stands');
+  ok(inserts.length === 1 && /missing\.jpg$/.test(inserts[0].image_url || ''), 'the row keeps the retailer link (the copy failed)');
+  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+{
+  const { ctx, p, errs, uploads } = await open({ width: 1280, height: 900 }, 'ok', 'Annie', { linkMode: 'noimage' });
+  await toPiece(p);
+  await p.click('#kp-linkopen'); await p.fill('#kp-link', 'https://shop.example/jeans'); await p.click('#kp-linkgo');
+  ok(await waitFiled(p), 'a page with no photograph still files');
+  ok(await p.locator('#kp-well .kp-mono').count() === 1 && await p.locator('#kp-add').count() === 0, 'no photograph → the monogram holds the well');
+  ok(uploads.length === 0, 'nothing to re-host');
   ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
   await ctx.close();
 }

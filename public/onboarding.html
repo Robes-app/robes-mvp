@@ -136,6 +136,7 @@
     .kp-linkin::placeholder { color: var(--cream-500); }
     .kp-img { position: absolute; inset: 0; display: flex; justify-content: center; }
     .kp-img img { height: 100%; width: 100%; object-fit: contain; }
+    .kp-mono { align-self: center; font-family: var(--font-serif); font-weight: 300; font-size: 96px; line-height: 1; color: var(--cream-500); }
     .kp-scan {
       position: absolute; left: 0; right: 0; top: 0; height: 2px; z-index: 4;
       background: var(--rose); box-shadow: 0 0 14px 4px rgba(142,112,119,0.35);
@@ -549,9 +550,13 @@
       if (!body) return;
       const filed = !!P.tag && !P.revealing && !P.busy;
       document.querySelectorAll('.ob-seg')[2].classList.toggle('on', !!P.tag);
-      const hasImg = !!(P.img || P.url);
+      const hasImg = !!(P.img || P.url) || !!P.tag;
+      const src = P.renderable === false ? (P.url || P.img) : (P.img || P.url);
+      const mono = (P.tag && P.tag.label ? P.tag.label : 'R').trim().charAt(0).toUpperCase();
       const wellInner = hasImg
-        ? `<div class="kp-img"><img src="${esc(P.renderable === false ? (P.url || P.img) : (P.img || P.url))}" alt=""></div>
+        ? `<div class="kp-img">${src && !P.imgDead
+              ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer" onerror="window.__kpImgErr && window.__kpImgErr()">`
+              : `<span class="kp-mono">${esc(mono)}</span>`}</div>
            ${P.busy ? '<div class="kp-scan"></div>' : ''}
            <div class="kp-tags" id="kp-tags"></div>
            ${!P.busy ? '<button type="button" class="kp-retake" id="kp-retake">↻ Retake</button>' : ''}
@@ -591,6 +596,7 @@
           ? `<span class="ob-wait" id="ob-wait">Robes is reading your piece…</span>`
           : `<button class="ob-skip" id="ob-skip">Skip for now</button>`;
 
+      window.__kpImgErr = () => { if (P.imgDead) return; P.imgDead = true; swapWellImage(); };
       const fileInput = document.getElementById('kp-file');
       const pick = () => fileInput.click();
       const addBtn = document.getElementById('kp-add');
@@ -599,7 +605,7 @@
       if (retake) retake.onclick = () => {
         // a retake un-files nothing already written — it only starts the
         // read again on a new photograph (the row, if any, stays hers)
-        P.img = ''; P.data = ''; P.url = ''; P.err = ''; P.tag = null; P.renderable = true; P.link = false;
+        P.img = ''; P.data = ''; P.url = ''; P.err = ''; P.tag = null; P.renderable = true; P.link = false; P.imgDead = false;
         P.saved = false; P.savePromise = null;
         paint(); pick();
       };
@@ -637,6 +643,7 @@
       P.data = payload.data;
       P.mimeType = payload.mimeType;
       P.renderable = payload.renderable !== false;
+      P.imgDead = false;
       P.url = '';
       P.err = '';
       P.link = false; P.linkOpen = false;
@@ -679,8 +686,47 @@
       P.img = '';
       P.data = '';
       P.renderable = true;
+      P.imgDead = false;
       P.linkOpen = false;
       file(out);
+      hostLinkImage(out);
+    }
+
+    // The reader hosts the page's photograph on Cloudinary when it can; a
+    // retailer link it had to leave in place is tried once more through the
+    // upload door (server-side fetch — the browser's own request can be
+    // refused by a Referer check). Best effort: the label already filed.
+    function hostLinkImage(out) {
+      const u = out && out.image_url;
+      if (!u || /res\.cloudinary\.com/.test(u)) return;
+      fetch('/api/wardrobe/upload', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: u }),
+      }).then(r => r.ok ? r.json() : null).then(up => {
+        if (!up || !up.url || P.url !== u) return;
+        P.url = up.url; P.imgDead = false;
+        swapWellImage();
+        writeHandoff();
+        // the filed row carried the retailer's link — point it at the copy
+        Promise.resolve(P.savePromise).then(ok => {
+          if (!ok || !st.uid) return;
+          try {
+            const q = sbClient.from('wardrobe_items');
+            if (q && q.update) q.update({ image_url: up.url }).eq('user_id', st.uid).eq('image_url', u).then(() => {}, () => {});
+          } catch (_) { /* best effort */ }
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+
+    // Swaps only the picture inside the well — never a full paint, which
+    // would take the popping tags out from under the ledger reveal.
+    function swapWellImage() {
+      const box = document.querySelector('#kp-well .kp-img');
+      if (!box || st.stage !== i) return;
+      const src = P.renderable === false ? (P.url || P.img) : (P.img || P.url);
+      const mono = (P.tag && P.tag.label ? P.tag.label : 'R').trim().charAt(0).toUpperCase();
+      box.innerHTML = src && !P.imgDead
+        ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer" onerror="window.__kpImgErr && window.__kpImgErr()">`
+        : `<span class="kp-mono">${esc(mono)}</span>`;
     }
 
     async function catalogue() {

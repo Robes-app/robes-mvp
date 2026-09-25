@@ -177,8 +177,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       JSON.stringify([state.learnVisible, state.cardsVisible, state.headVisible, state.filedRow]));
   }
   // Style Notes only at the last milestone
-  check(`n=${n} · style notes ${n >= 15 ? 'introduced' : 'absent'}`,
-    state.styleNotes === (n >= 15), `got ${state.styleNotes}`);
+  check(`n=${n} · the 15-piece Style notes card is retired`,
+    state.styleNotes === false, `got ${state.styleNotes}`);
 
   // Rail stays glued to the prompt, which leads the page at every count;
   // the concierge follows the rail, ahead of the Lookbook row (its slot is

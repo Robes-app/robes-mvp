@@ -24561,8 +24561,18 @@ body>*:not(#tv-result-page){display:none !important}
       // introduction reads as an arrival rather than another nudge. Gated on
       // style_dna (already in the boot select) and dismissible per user.
       // Re-run from _waSyncCounts because the count lands async.
+      // RETIRED 2026-09-25 (Annie, off the onboarding split): the Style notes
+      // chapters are the door now — the dashed #rb-notes-door on first-run
+      // home, the summary on /stylenotes. The card never renders; the body
+      // survives below for one release, unreachable. A hard return, not a
+      // flag: _waSyncCounts calls this long before execution reaches this
+      // block, so a `var` here would read undefined on that first call (the
+      // hoisted-var trap) and the card would paint.
       setTimeout(_rbSilPrompt, 1200);
       function _rbSilPrompt() {
+        const stale = document.getElementById('rb-sil-prompt');
+        if (stale) stale.remove();
+        return;
         try {
           const card0 = document.getElementById('rb-sil-prompt');
           if (_waItems.length < _MS_UNLOCKS[_MS_UNLOCKS.length - 1].at) {

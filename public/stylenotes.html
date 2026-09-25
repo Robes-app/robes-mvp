@@ -420,6 +420,9 @@
     .snc-card .tile { border-radius: 3px; display: flex; align-items: flex-end; padding: 10px; font: italic 300 13px/1 'Cormorant', Georgia, serif; color: rgba(32,32,33,0.38); }
     .snc-card .tile:first-child { border-radius: 14px 3px 3px 3px; }
     .snc-card .tile:last-child { border-radius: 3px 14px 3px 3px; }
+    .snc-card .tile { position: relative; overflow: hidden; }
+    .snc-card .tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; animation: sncFrameIn .4s ease both; }
+    @keyframes sncFrameIn { from { opacity: 0; } to { opacity: 1; } }
     .snc-card .cap { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; }
     .snc-card .name { font: 400 30px/1 'Cormorant', Georgia, serif; }
     .snc-card .desc { font: 300 13px/1.5 'Inter'; color: var(--ink-soft); }
@@ -435,7 +438,11 @@
     .snc-search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font: 300 15px/1 'Inter'; color: var(--ink); }
     .snc-search input::placeholder { color: var(--ink-faint); }
     .snc-search .clr { background: none; border: 0; padding: 0; font: 300 16px/1 'Inter'; color: var(--ink-faint); cursor: pointer; }
-    .snc-chips { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 14px; flex: none; }
+    .snc-chips { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 14px; flex: none; align-items: center; }
+    .snc-chips-k { font: 400 9px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint); margin-right: 4px; }
+    .snc-tile.in { animation: sncTileIn .32s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+    @keyframes sncTileIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .snc-tile.in { animation: none; } }
     .snc-chip { border: 1px solid #C9BCA6; background: #F3EFE6; border-radius: 100px; padding: 8px 13px; font: 400 12px/1 'Inter'; display: inline-flex; gap: 8px; align-items: center; color: var(--ink); }
     .snc-chip button { background: none; border: 0; padding: 0; color: var(--ink-faint); font: 300 14px/1 'Inter'; cursor: pointer; }
     .snc-poolhead { display: flex; justify-content: space-between; align-items: baseline; padding: 20px 0 10px; flex: none; }
@@ -2019,7 +2026,34 @@
       Romantic: ['#EAD6D2', '#D8B4AE'], Sculptural: ['#D7D3CD', '#3F3D3B'], Utility: ['#C9C3AE', '#7D7A62'],
       Heritage: ['#D6C7AE', '#6E5A44'], Eclectic: ['#E5C9A8', '#B95C5C'], 'Off-duty': ['#DEDCD6', '#8E9AA0'], 'Avant-garde': ['#CFCBC6', '#202021'],
     };
-    const ch = { stage: null, k: 0, very: [], some: [], notme: [], q: '', from: '', open: false };
+    const ch = { stage: null, k: 0, very: [], some: [], notme: [], q: '', from: '', open: false, shown: null };
+    // The deck's frames: two garment stills per archetype, generated once
+    // by scripts/gen_archetype_tiles.mjs into images/archetypes/manifest.json
+    // (Cloudinary URLs, or local files under --local). Fetched once when the
+    // chapters open; absent → the tone tiles stand, as they did before.
+    let chFrames = null;
+    function chFramesLoad() {
+      if (chFrames !== null) return Promise.resolve(chFrames);
+      return fetch('/images/archetypes/manifest.json', { cache: 'force-cache' })
+        .then(r => r.ok ? r.json() : {}).catch(() => ({}))
+        .then(m => { chFrames = (m && typeof m === 'object') ? m : {}; return chFrames; });
+    }
+    function chFrameUrl(name, t) {
+      const u = chFrames && Array.isArray(chFrames[name]) ? chFrames[name][t] : '';
+      if (!u || typeof u !== 'string') return '';
+      // a Cloudinary URL takes the deck's own size; a local file is served as is
+      return /res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(u) && !/\/upload\/[a-z]_/.test(u)
+        ? u.replace('/image/upload/', '/image/upload/w_640,q_auto,f_auto/') : u;
+    }
+    function chFrameImg(name, t) {
+      const u = chFrameUrl(name, t);
+      return u ? '<img src="' + esc(u) + '" alt="" loading="eager" onerror="this.remove()">' : '';
+    }
+    function chFramesWarm(k) {   // the next card's frames, fetched ahead of the tap
+      const a = ARCHETYPES[k]; if (!a) return;
+      [0, 1].forEach(t => { const u = chFrameUrl(a.name, t); if (u) { const im = new Image(); im.src = u; } });
+    }
+    const CH_GRID_N = 18;   // the grid's constant count — a kept name leaves it, the next cycles in
     const chNorm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
     function chBegun() { return !!(ch.very.length || ch.some.length || st.icons.length || st.model.kept); }
     function chSegs(n) { return '<div class="snc-segs" aria-hidden="true">' + [1, 2, 3].map(i => '<span class="snc-seg' + (i <= n ? ' on' : '') + '"></span>').join('') + '</div>'; }
@@ -2044,6 +2078,11 @@
     }
     function chOpen(stage) {
       ch.stage = stage; ch.open = true;
+      if (stage === 'type' && chFrames === null) {
+        // the frames arrive once; a card already on screen takes them
+        const k0 = ch.k;
+        chFramesLoad().then(() => { if (ch.stage === 'type' && ch.k === k0 && Object.keys(chFrames).length) chPaint(); });
+      }
       const wrap = document.getElementById('sn-ch-wrap');
       document.body.classList.remove('sn-chapter');
       if (stage === 'model') {
@@ -2092,7 +2131,7 @@
         wrap.innerHTML = '<div class="snc-frame">' + chBar('Style type', 'Skip') + chSegs(1) +
           '<div class="snc-body"><h2 class="snc-h">Does this <em>feel like you?</em></h2>' +
           '<div class="snc-deck"><div class="snc-ghost g2"></div><div class="snc-ghost g1"></div>' +
-            '<div class="snc-card" id="snc-card"><div class="tiles"><div class="tile" style="background:' + tones[0] + '"></div><div class="tile" style="background:' + tones[1] + '"></div></div>' +
+            '<div class="snc-card" id="snc-card"><div class="tiles">' + [0, 1].map(t => '<div class="tile" style="background:' + tones[t] + '">' + chFrameImg(a.name, t) + '</div>').join('') + '</div>' +
             '<div class="cap"><span class="name">' + esc(a.name) + '</span><span class="desc">' + esc(a.desc) + '</span></div></div></div>' +
           '<div class="snc-count">' + (ch.k + 1) + ' of ' + ARCHETYPES.length + '</div></div>' +
           '<div class="snc-react">' +
@@ -2100,6 +2139,7 @@
             '<button type="button" data-v="some"' + (verdict === 'some' ? ' class="on"' : '') + '>Sometimes</button>' +
             '<button type="button" data-v="very"' + (verdict === 'very' ? ' class="on"' : '') + '>' + (verdict === 'very' ? '✓ ' : '') + 'Very me</button>' +
           '</div></div>';
+        chFramesWarm(ch.k + 1);
         wrap.querySelectorAll('.snc-react button').forEach(b => {
           b.onclick = () => {
             const v = b.dataset.v;
@@ -2115,6 +2155,7 @@
         return;
       }
       if (ch.stage === 'icons') {
+        ch.shown = null;
         wrap.innerHTML = '<div class="snc-frame">' + chBar('Icons & brands', 'Skip') + chSegs(2) +
           '<div class="snc-body" style="padding-top:22px"><h2 class="snc-h" style="font-size:30px">Whose taste <em>runs close to yours?</em></h2>' +
           '<div class="snc-search"><span class="q">⌕</span><input id="snc-q" type="text" placeholder="Search or type a name" autocomplete="off"><button class="clr" id="snc-clr" hidden aria-label="Clear">×</button></div>' +
@@ -2187,21 +2228,32 @@
       if (!host) return;
       const q = chNorm(ch.q);
       const clr = document.getElementById('snc-clr'); if (clr) clr.hidden = !q;
+      const chips = st.icons.length
+        ? '<div class="snc-chips"><span class="snc-chips-k">Yours</span>' + st.icons.map(n => '<span class="snc-chip">' + esc(n) + ' <button type="button" data-v="' + esc(n) + '" aria-label="Remove ' + esc(n) + '">×</button></span>').join('') + '</div>'
+        : '';
       if (!q) {
-        // the grid: selected tiles carry the warm state and a ✓ (4a)
-        host.innerHTML = '<div class="snc-poolhead"><span class="k">Popular among stylists</span><span class="h">Tap the ones you love</span></div>' +
-          '<div class="snc-grid">' + chPool().slice(0, 18).map(n => {
-            const on = chIconIsSel(n);
-            return '<button type="button" class="snc-tile' + (on ? ' on' : '') + '" data-v="' + esc(n) + '" aria-pressed="' + on + '"><span class="im">' + esc(n[0]) + (on ? '<span class="ck">✓</span>' : '') + '</span><span class="nm">' + esc(n) + '</span></button>';
+        // The grid holds only names she has NOT kept: a tap lifts the name
+        // into a pill under the field and the next name in the pool cycles
+        // into its place (Annie, 2026-09-25 — a ticked tile beside a typed
+        // chip read as two different answers). The count stays constant.
+        const shown = chPool().filter(n => !chIconIsSel(n)).slice(0, CH_GRID_N);
+        const prev = ch.shown || [];
+        host.innerHTML = chips +
+          '<div class="snc-poolhead"><span class="k">Popular among stylists</span><span class="h">' + (st.icons.length ? 'Tap another to keep it' : 'Tap a name to keep it') + '</span></div>' +
+          '<div class="snc-grid">' + shown.map(n => {
+            const fresh = prev.length && !prev.includes(n);
+            return '<button type="button" class="snc-tile' + (fresh ? ' in' : '') + '" data-v="' + esc(n) + '"><span class="im">' + esc(n[0]) + '</span><span class="nm">' + esc(n) + '</span></button>';
           }).join('') + '</div>';
+        ch.shown = shown;
         host.querySelectorAll('.snc-tile').forEach(b => { b.onclick = () => chIconToggle(b.dataset.v); });
+        host.querySelectorAll('.snc-chip button').forEach(b => { b.onclick = () => chIconToggle(b.dataset.v); });
         return;
       }
       // typing swaps the grid for matches in place (4b); kept names show as
       // chips under the field so clearing the search returns her picks intact
       const matches = chPool().filter(n => chNorm(n).includes(q)).slice(0, 6);
       const exact = chPool().some(n => chNorm(n) === q) || chIconIsSel(ch.q.trim());
-      host.innerHTML = '<div class="snc-chips">' + st.icons.map(n => '<span class="snc-chip">' + esc(n) + ' <button type="button" data-v="' + esc(n) + '" aria-label="Remove">×</button></span>').join('') + '</div>' +
+      host.innerHTML = chips +
         '<div class="snc-res">' + matches.map(n => {
           const on = chIconIsSel(n);
           return '<button type="button" class="snc-resrow' + (on ? ' on' : '') + '" data-v="' + esc(n) + '"><span class="l"><span class="mono">' + esc(n[0]) + '</span><span class="nm">' + esc(n) + '</span></span><span class="add">' + (on ? '✓' : '+') + '</span></button>';
@@ -2216,6 +2268,7 @@
     // nothing has been answered, the summary once anything has.
     function chBoot() {
       try {
+        chFramesLoad();
         const dna = st.styleDna || {};
         ch.very = Array.isArray(dna.style_archetypes) ? dna.style_archetypes.slice() : [];
         ch.some = Array.isArray(dna.style_archetypes_soft) ? dna.style_archetypes_soft.slice() : [];

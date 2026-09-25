@@ -72,3 +72,13 @@ C1 text-then-home, capped at 20s, the real titles tick. C2 the CTA "Style it thr
 **C10, explained**: `_rbSilPrompt` is the dark card that appears on home at fifteen filed pieces when the colour or silhouette photographs have not been read, headed "Style notes · newly available". With style notes now offered on day one, "newly available" at fifteen reads oddly. It still does a job the chapters do not name explicitly (the two photographs), so it stands; retire or re-word it whenever you decide.
 
 Harnesses: `onboarding_harness` 140/140 (rewritten), `ftue_harness` 180/180, `stylenotes_model_harness` 356/356 (+108, the chapters at both breakpoints), `looks_harness` 402/402, `inspiration_smoke` 80/80, `nav_chrome_smoke` 38/38.
+
+## G · Off the live run (Annie, same day, second pass)
+
+| # | Feedback | Built |
+|---|---|---|
+| 3 | The shop link's thumbnail did not render (the looks built fine) | The retailer's image is re-hosted through the upload door, the well loads it with no referrer, and a picture that still will not load settles on a monogram — never the Add-photo state on a filed piece |
+| 10 | "Lets retire" | `_rbSilPrompt` (the 15-piece dark card) never renders again; the chapters are the door |
+| 13 | "Without imagery it's very strange — can you generate images" | `scripts/gen_archetype_tiles.mjs` + a manifest the deck reads; tone tiles remain the fallback. Needs the Railway keys to run (`railway run node scripts/gen_archetype_tiles.mjs`) |
+| — | Icons & brands: a selected tile should become a pill, and the grid should cycle more examples in | Picks are pills under the field in both modes; the grid holds only unkept names at a constant count and the next name cycles in |
+
