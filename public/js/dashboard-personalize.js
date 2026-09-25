@@ -12014,6 +12014,7 @@ button.rb-lk-live{cursor:pointer}
    (Annie's design, 2026-09-21). Edit & resave keeps its own sentence
    case there: the caps register belongs to the label beside it. */
 .rb-lk-rackhead-read{border-bottom:1px solid var(--rule);padding-bottom:10px;margin-bottom:16px}
+.rb-lk-emptyadd{background:none;border:0;padding:0;font:inherit;font-style:normal;font-family:var(--font-sans,inherit);font-size:12px;color:var(--ink);text-decoration:underline;text-decoration-color:var(--rule-mid);text-underline-offset:3px;cursor:pointer}
 .rb-lk-rackhead-read .rb-lk-editbtn{text-transform:none;letter-spacing:.01em;font-size:11.5px;font-weight:400;color:var(--ink-soft)}
 .rb-lk-rackhead-read .rb-lk-editbtn:hover{color:var(--ink)}
 /* Swap has a space of its own, between the head and the rack: what is not
@@ -13231,13 +13232,16 @@ button.rb-lk-live{cursor:pointer}
           : '';
         h += '<div class="rb-lk-sec rb-lk-rackhead rb-lk-rackhead-read"><span>The rack · ' + _lkN(ids.length, 'piece') + '</span><span style="flex:1"></span>' +
           (trip && !rackEmpty ? '<button type="button" class="rb-lk-sort rb-lk-editbtn rb-lk-packall" onclick="window.__lkTripPackAll()">Pack this look</button>' : '') +
-          (rackEmpty ? '' :
-            '<button type="button" class="rb-lk-sort rb-lk-editbtn" onclick="window.__lkEditToggle()">Edit &amp; resave</button>') +
+          // The edit door stands on an EMPTY rack too (Annie, 2026-09-25): a
+          // look saved from her photograph with only a name is exactly the
+          // one she comes back to, to hang the pieces she wore.
+          '<button type="button" class="rb-lk-sort rb-lk-editbtn" onclick="window.__lkEditToggle()">Edit &amp; resave</button>' +
           '</div>' +
           fillDoor +
           '<div class="rbc-rack">' +
           (rackEmpty
-            ? '<div class="rb-lk-wornempty" style="margin-top:0">Nothing hangs here yet.</div>'
+            ? '<div class="rb-lk-wornempty" style="margin-top:0">Nothing hangs here yet. ' +
+                '<button type="button" class="rb-lk-emptyadd" onclick="window.__lkEditToggle()">Add the pieces you wore →</button></div>'
             : _rbRackRolesHtml(rackItems, { onRoleDrop: '__lkDRoleDrop', onPiece: '__lkPieceOpen' }, propEmpties)) +
           '</div>';
 

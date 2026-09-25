@@ -3762,6 +3762,61 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await ctx.close();
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// A look saved from her photograph with only a name (Annie, 2026-09-25):
+// the rack is empty, and Edit & resave must still stand — plus the empty
+// line's own door — so she can hang the pieces she wore afterwards.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs, writes } = await boot(browser, {
+    pics: 6, seed: false,
+    init: () => {
+      localStorage.setItem('rb_looks__u-test', JSON.stringify([
+        { id: 'lk-photo', name: 'Rose garden', name_provisional: false, note: '', photo_url: 'https://img.test/hers-garden.jpg',
+          render_url: null, render_key: null, source: 'manual', origin_look_id: null, created_at: '2026-09-20T10:00:00.000Z',
+          proposals: [], pieces: [], wears: [] }]));
+    },
+    pre: async (page) => {
+      await page.route('**/api/avatar/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+      await page.route('**img.test/**', (r) => r.abort());
+    },
+  });
+  await page.evaluate(() => window.__lkOpen('lk-photo'));
+  await page.waitForTimeout(700);
+  const r0 = await page.evaluate(() => {
+    const head = document.querySelector('#rb-lk-body .rb-lk-rackhead-read');
+    return {
+      edit: Array.from(head?.querySelectorAll('.rb-lk-editbtn') || []).map((b) => b.textContent.trim()),
+      empty: document.querySelector('#rb-lk-body .rb-lk-wornempty')?.textContent.trim() || '',
+      door: !!document.querySelector('#rb-lk-body .rb-lk-emptyadd'),
+    };
+  });
+  check('photo-only look · the empty rack still carries Edit & resave', r0.edit.includes('Edit & resave'), JSON.stringify(r0));
+  check('photo-only look · the empty line carries its own add door', r0.door && /Nothing hangs here yet/.test(r0.empty), JSON.stringify(r0));
+  await page.evaluate(() => document.querySelector('#rb-lk-body .rb-lk-emptyadd').click());
+  await page.waitForTimeout(400);
+  const r1 = await page.evaluate(() => ({
+    editing: !!document.querySelector('#rb-lk-body .rb-lk-editing'),
+    add: !!document.querySelector('#rb-lk-body [onclick*="__lkDAddOpen"]'),
+  }));
+  check('photo-only look · the door opens the editor with + Add a piece', r1.editing && r1.add, JSON.stringify(r1));
+  await page.evaluate(() => {
+    window.__lkDAddPiece('w-top1');
+  });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => { window.__lkResave(); });
+  await page.waitForTimeout(900);
+  const r2 = await page.evaluate(() => {
+    const l = JSON.parse(localStorage.getItem('rb_looks__u-test') || '[]').find((x) => x.id === 'lk-photo');
+    return { pieces: l ? l.pieces.length : -1, photo: l && l.photo_url };
+  });
+  const lp = writes.filter((w) => /^look_pieces\b/.test(w.url) && w.method === 'POST');
+  check('photo-only look · Update hangs the piece and keeps her photograph',
+    r2.pieces === 1 && r2.photo === 'https://img.test/hers-garden.jpg' && lp.length > 0, JSON.stringify([r2, lp.length]));
+  check('photo-only look · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
 await browser.close();
 
 server.kill();
