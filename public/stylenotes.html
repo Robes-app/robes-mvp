@@ -355,6 +355,118 @@
       .mv-status { order: 3; }
     }
 
+
+    /* ── Style notes, the chapters (design 2026-09-25, 3a–3g) ───────
+       Three short chapters opened from home's dashed card (?begin=1):
+       01 Style type as a tap-to-react deck, 02 Icons & brands as one
+       browse-and-search page, 03 the model page as it stands with the
+       chapter chrome over it. Every chapter can be left and resumed; the
+       summary shows what Robes has read. The overlay is cream over the
+       page; the intro reads as a bottom sheet on the phone. */
+    #sn-ch-wrap { position: fixed; inset: 0; z-index: 400; background: var(--cream); overflow: auto; -webkit-overflow-scrolling: touch; }
+    #sn-ch-wrap[hidden] { display: none; }
+    .snc-frame { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; }
+    .snc-bar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex: none; }
+    .snc-x { background: none; border: 0; padding: 0; width: 48px; text-align: left; font: 300 22px/1 'Inter'; color: var(--ink-soft); cursor: pointer; }
+    .snc-x:hover { color: var(--ink); }
+    .snc-name { font: 400 10px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink); }
+    .snc-skip { background: none; border: 0; padding: 0; width: 48px; text-align: right; font: 300 13px/1 'Inter'; color: var(--ink-faint); cursor: pointer; }
+    .snc-skip:hover { color: var(--ink); }
+    .snc-segs { display: flex; gap: 4px; padding: 0 24px; flex: none; }
+    .snc-seg { flex: 1; height: 1px; background: var(--cream-400); }
+    .snc-seg.on { background: var(--ink); }
+    .snc-body { flex: 1; display: flex; flex-direction: column; padding: 26px 24px 0; }
+    .snc-ey { font: 400 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--rose); }
+    .snc-h { margin: 0; font: 300 32px/1.08 'Cormorant', Georgia, serif; color: var(--ink); }
+    .snc-h em { font-style: italic; }
+    .snc-foot { margin-top: auto; padding: 14px 24px 40px; display: flex; flex-direction: column; gap: 14px; align-items: center; flex: none; }
+    .snc-foot.pinned { position: sticky; bottom: 0; background: var(--cream); border-top: 1px solid var(--rule); }
+    .snc-cta { width: 100%; height: 50px; background: #fff; color: var(--ink); border: 1px solid var(--cream-400); border-radius: 100px; font: 500 11px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; cursor: pointer; transition: border-color .2s; }
+    .snc-cta:hover { border-color: var(--ink); }
+    .snc-link { background: none; border: 0; padding: 0; font: 300 13px/1 'Inter'; color: var(--ink-faint); cursor: pointer; }
+    .snc-link:hover { color: var(--ink); }
+    /* the intro (3a) and the summary (3g) share the numbered hairline rows */
+    .snc-intro .snc-body { padding-top: 36px; gap: 10px; }
+    .snc-intro h2 { margin: 0; font: 300 38px/1.06 'Cormorant', Georgia, serif; }
+    .snc-intro h2 em { font-style: italic; }
+    .snc-intro p { margin: 0; font: 300 14px/1.6 'Inter'; color: var(--ink-soft); text-wrap: pretty; }
+    .snc-list { margin-top: 24px; display: flex; flex-direction: column; }
+    .snc-row { display: flex; align-items: baseline; gap: 16px; border: 0; border-top: 1px solid var(--rule-mid); padding: 14px 0; background: none; text-align: left; cursor: default; width: 100%; font-family: inherit; color: var(--ink); }
+    .snc-row:last-child { border-bottom: 1px solid var(--rule-mid); }
+    .snc-row.tap { cursor: pointer; }
+    .snc-row .n { font: 300 15px/1 'Cormorant', Georgia, serif; color: var(--ink-faint); width: 20px; flex: none; }
+    .snc-row .t { font: 400 20px/1 'Cormorant', Georgia, serif; flex: 1; }
+    .snc-row.sum { flex-direction: column; gap: 6px; align-items: stretch; }
+    .snc-row.sum .k { font: 400 9px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-soft); }
+    .snc-row.sum .v { font: 400 21px/1.2 'Cormorant', Georgia, serif; color: var(--ink); }
+    .snc-row.sum .v em { font-style: italic; }
+    .snc-row.sum .v.none { font-style: italic; font-weight: 300; font-size: 17px; color: var(--ink-faint); }
+    .snc-sub { font: 300 13px/1.5 'Inter'; color: var(--ink-soft); }
+    .snc-grab { width: 36px; height: 4px; border-radius: 4px; background: var(--cream-400); align-self: center; margin-top: 10px; display: none; }
+    @media (max-width: 767px) {
+      #sn-ch-wrap.snc-intro { background: #8E8B86; }
+      #sn-ch-wrap.snc-intro .snc-frame { position: absolute; left: 0; right: 0; bottom: 0; top: 120px; min-height: 0; background: var(--cream); border-radius: 22px 22px 0 0; animation: mvnSheetUp 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+      #sn-ch-wrap.snc-intro .snc-grab { display: block; }
+      #sn-ch-wrap.snc-intro .snc-body { padding-top: 26px; }
+    }
+    /* 01 · the deck (3b) */
+    .snc-deck { position: relative; height: 430px; margin: 24px 0 0; flex: none; }
+    .snc-ghost { position: absolute; border: 1px solid var(--rule); border-radius: var(--rad-lg); }
+    .snc-ghost.g2 { inset: 14px 18px -14px 18px; background: var(--cream-200); }
+    .snc-ghost.g1 { inset: 7px 9px -7px 9px; background: var(--cream-100); }
+    .snc-card { position: absolute; inset: 0; background: #fff; border: 1px solid var(--rule-mid); border-radius: var(--rad-lg); overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 6px 20px rgba(32,32,33,0.06); animation: sncCardIn .32s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+    @keyframes sncCardIn { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+    .snc-card .tiles { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; }
+    .snc-card .tile { border-radius: 3px; display: flex; align-items: flex-end; padding: 10px; font: italic 300 13px/1 'Cormorant', Georgia, serif; color: rgba(32,32,33,0.38); }
+    .snc-card .tile:first-child { border-radius: 14px 3px 3px 3px; }
+    .snc-card .tile:last-child { border-radius: 3px 14px 3px 3px; }
+    .snc-card .cap { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; }
+    .snc-card .name { font: 400 30px/1 'Cormorant', Georgia, serif; }
+    .snc-card .desc { font: 300 13px/1.5 'Inter'; color: var(--ink-soft); }
+    .snc-count { font: italic 300 13px/1 'Cormorant', Georgia, serif; color: var(--ink-faint); margin-top: 12px; text-align: center; }
+    .snc-react { margin-top: auto; padding: 18px 24px 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex: none; }
+    .snc-react button { height: 50px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); cursor: pointer; transition: border-color .2s, background .2s; }
+    .snc-react button:hover { border-color: var(--ink); }
+    .snc-react button.on { border-color: #C9BCA6; background: #F3EFE6; }
+    /* 02 · icons and brands (4a/4b) */
+    .snc-search { margin-top: 18px; height: 48px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; display: flex; align-items: center; padding: 0 18px; gap: 10px; flex: none; }
+    .snc-search:focus-within { border-color: var(--ink); }
+    .snc-search .q { font: 300 15px/1 'Inter'; color: var(--ink-faint); }
+    .snc-search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font: 300 15px/1 'Inter'; color: var(--ink); }
+    .snc-search input::placeholder { color: var(--ink-faint); }
+    .snc-search .clr { background: none; border: 0; padding: 0; font: 300 16px/1 'Inter'; color: var(--ink-faint); cursor: pointer; }
+    .snc-chips { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 14px; flex: none; }
+    .snc-chip { border: 1px solid #C9BCA6; background: #F3EFE6; border-radius: 100px; padding: 8px 13px; font: 400 12px/1 'Inter'; display: inline-flex; gap: 8px; align-items: center; color: var(--ink); }
+    .snc-chip button { background: none; border: 0; padding: 0; color: var(--ink-faint); font: 300 14px/1 'Inter'; cursor: pointer; }
+    .snc-poolhead { display: flex; justify-content: space-between; align-items: baseline; padding: 20px 0 10px; flex: none; }
+    .snc-poolhead .k { font: 400 9px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--rose); }
+    .snc-poolhead .h { font: italic 300 13px/1 'Cormorant', Georgia, serif; color: var(--ink-soft); }
+    .snc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; padding-bottom: 24px; }
+    .snc-tile { display: flex; flex-direction: column; gap: 7px; min-width: 0; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; font-family: inherit; color: var(--ink); }
+    .snc-tile .im { height: 118px; border-radius: var(--rad-sm); position: relative; background: var(--cream-200); border: 1px solid transparent; display: flex; align-items: center; justify-content: center; font: 300 34px/1 'Cormorant', Georgia, serif; color: var(--ink-faint); transition: background .2s, border-color .2s; }
+    .snc-tile.on .im { background: var(--cream-300); border-color: #C9BCA6; }
+    .snc-tile .ck { position: absolute; top: 7px; right: 7px; width: 20px; height: 20px; border-radius: 50%; background: #F3EFE6; border: 1px solid #C9BCA6; display: flex; align-items: center; justify-content: center; font: 500 10px/1 'Inter'; color: var(--ink); }
+    .snc-tile .nm { font: 400 15px/1.1 'Cormorant', Georgia, serif; }
+    .snc-res { display: flex; flex-direction: column; padding-top: 14px; }
+    .snc-resrow { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--rule-mid); padding: 12px 0; background: none; border-left: 0; border-right: 0; border-bottom: 0; width: 100%; text-align: left; cursor: pointer; font-family: inherit; color: var(--ink); }
+    .snc-resrow:last-child { border-bottom: 1px solid var(--rule-mid); }
+    .snc-resrow .l { display: flex; align-items: center; gap: 12px; }
+    .snc-resrow .mono { width: 36px; height: 44px; border-radius: 6px; background: var(--cream-200); flex: none; display: flex; align-items: center; justify-content: center; font: 300 18px/1 'Cormorant', Georgia, serif; color: var(--ink-faint); }
+    .snc-resrow .nm { font: 400 18px/1 'Cormorant', Georgia, serif; }
+    .snc-resrow .add { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--cream-400); display: flex; align-items: center; justify-content: center; font: 300 16px/1 'Inter'; flex: none; }
+    .snc-resrow.on .add { background: #F3EFE6; border-color: #C9BCA6; font: 500 11px/1 'Inter'; }
+    .snc-resrow.keep .k { font: 300 14px/1 'Inter'; color: var(--ink-soft); }
+    .snc-resrow.keep .ret { font: 300 16px/1 'Inter'; color: var(--ink-faint); }
+    /* 03 · the chapter chrome over the model page: replaces the topbar on
+       the phone, sits beneath it on the desktop (C17). */
+    #sn-ch-bar { display: none; background: var(--cream); border-bottom: 1px solid var(--rule); }
+    #sn-ch-bar .snc-frame { min-height: 0; }
+    body.sn-chapter #sn-ch-bar { display: block; }
+    @media (max-width: 767px) {
+      body.sn-chapter .topbar, body.sn-chapter #rb-dock { display: none; }
+      body.sn-chapter #sn-ch-bar { position: sticky; top: 0; z-index: 50; }
+    }
+
 /* a11y: keyboard focus + no-zoom-needed input sizing (Wave 2) */
 :focus-visible{outline:2px solid var(--ink,var(--ink));outline-offset:2px}
 @media (max-width:820px){input:not([type=checkbox]):not([type=radio]):not([type=color]),select,textarea{font-size:16px !important}}
@@ -399,6 +511,15 @@
       </div>
     </div>
   </header>
+
+  <!-- Chapter 03 chrome over the model page (Style notes chapters) -->
+  <div id="sn-ch-bar"><div class="snc-frame">
+    <div class="snc-bar"><button class="snc-x" id="snb-x" aria-label="Close">×</button><span class="snc-name">Your model</span><button class="snc-skip" id="snb-next">Skip</button></div>
+    <div class="snc-segs" aria-hidden="true"><span class="snc-seg on"></span><span class="snc-seg on"></span><span class="snc-seg on"></span></div>
+  </div></div>
+
+  <!-- The chapters overlay: intro · 01 Style type · 02 Icons & brands · summary -->
+  <div id="sn-ch-wrap" hidden></div>
 
   <main>
 
@@ -812,7 +933,7 @@
       colour: null,
       sil: null,
       styleDna: {},
-      icons: ['Totême', 'Sienna Miller'],
+      icons: [],   // never a placeholder: the chapters read an icon as an answer
       tiers: ['Contemporary'],
       splurge: ['Shoes', 'Bags'],
       spend: '€500–1,500',
@@ -1300,6 +1421,7 @@
       st.model.kept = true;
       mvPersist();
       renderModel();
+      if (typeof chBarSync === 'function') chBarSync();
       if (firstFiling) snTrack('model_filed', { by: (st.colour || st.color || st.sil) ? 'photo' : 'hand', gender: st.model.gender || st.gender || null });
       const filed = document.getElementById('mv-filed');
       filed.classList.remove('flash');
@@ -1833,8 +1955,287 @@
       }, () => {});
     })();
 
+
+    /* ── Style notes, the chapters (2026-09-25) ──────────────────────
+       Opened from home's dashed card (/stylenotes?begin=1) — the intro
+       sheet, then 01 Style type (a tap-to-react deck over the ten
+       archetypes), 02 Icons & brands (browse and search on one page), 03
+       Your model (this page, under the chapter chrome), then the summary.
+       Archetypes persist on profiles.style_dna: `style_archetypes` is her
+       "very me", `style_archetypes_soft` her "sometimes" — both read by
+       styleDnaPromptBlock, so every look after this sits in her register.
+       Icons write style_icons, the same column the Taste & budget view
+       edits — the two stay in step through st.icons. */
+    const ROBES_ICONS = [
+      'Chanel', 'Carolyn Bessette-Kennedy', 'The Row', 'Miu Miu', 'Totême',
+      'Alaïa', 'Jane Birkin', 'Dôen', 'Khaite', 'Cou Cou', 'Sézane',
+      'Olivia Dean', 'Hailey Bieber', 'Zoë Kravitz', 'Acne Studios',
+      'Sienna Miller', 'Isabel Marant', 'Sophia Loren', 'Jacquemus',
+      'Phoebe Philo', 'The Frankie Shop', 'Audrey Hepburn', 'Lauren Hutton',
+      'Caroline de Maigret', 'Charlotte Gainsbourg', 'Lemaire',
+      'Carolina Herrera', 'Grace Kelly', 'Lee Radziwill',
+    ];
+    
+    // Archetype-first (design 2026-09-01): the ten style archetypes are the
+    // step's first decision; a card prints its descriptor only once selected.
+    const ARCHETYPES = [
+      { name: 'Minimal', desc: 'Clean lines, few decisions, nothing loud.' },
+      { name: 'Bohemian', desc: 'Loose shapes, print and texture worn together.' },
+      { name: 'Classic', desc: 'Tailoring, good shoes, nothing that dates.' },
+      { name: 'Romantic', desc: 'Soft volume, lace, colour that flatters.' },
+      { name: 'Sculptural', desc: 'Architectural cuts. The volume is the point.' },
+      { name: 'Utility', desc: 'Workwear roots, pockets, honest hardware.' },
+      { name: 'Heritage', desc: 'Collars, knits, a little of the old school.' },
+      { name: 'Eclectic', desc: 'Nothing matches. It works anyway.' },
+      { name: 'Off-duty', desc: 'Technical fabric, worn like it is not.' },
+      { name: 'Avant-garde', desc: 'Asymmetry, black, the unfamiliar shape.' },
+    ];
+    
+    // A picked archetype seeds the "popular" pool with names that live in its
+    // world — the refinement follows the decision, so the chips stay relevant.
+    const ARCH_SEED = {
+      Minimal: ['The Row', 'Phoebe Philo', 'Lemaire'],
+      Bohemian: ['Dôen', 'Jane Birkin', 'Chloé'],
+      Classic: ['Carolyn Bessette-Kennedy', 'Max Mara', 'Grace Kelly'],
+      Romantic: ['Simone Rocha', 'Sofia Coppola'],
+      Sculptural: ['Totême', 'Khaite', 'Alaïa'],
+      Utility: ['Margot Robbie', 'Arket'],
+      Heritage: ['Loro Piana', 'Diane Keaton'],
+      Eclectic: ['Miu Miu', 'Marni', 'Iris Apfel'],
+      'Off-duty': ['Auralee', 'Zoë Kravitz'],
+      'Avant-garde': ['Rick Owens', 'Tilda Swinton'],
+    };
+    
+    // NO photos of her in onboarding: the silhouette step went first (a
+    // full-length body photo minutes into a first session was the likeliest
+    // bail point) and the colour face scan followed (beta feedback) — both
+    // now live in Style Notes, invited by the dashboard's quiet Style Note
+    // prompt card (_rbSilPrompt in __robes_personalize).
+    // Slice 7 (option A, 2026-09-21): the piece comes FIRST — the spark
+    // two tones per archetype — the card's imagery until real frames exist
+    // (no faces, no houses' marks: tone tiles, deliberately)
+    const CH_TONES = {
+      Minimal: ['#E9E4DA', '#CBC5BA'], Bohemian: ['#D9C4A5', '#B48A6A'], Classic: ['#DCD5C6', '#8F8A7E'],
+      Romantic: ['#EAD6D2', '#D8B4AE'], Sculptural: ['#D7D3CD', '#3F3D3B'], Utility: ['#C9C3AE', '#7D7A62'],
+      Heritage: ['#D6C7AE', '#6E5A44'], Eclectic: ['#E5C9A8', '#B95C5C'], 'Off-duty': ['#DEDCD6', '#8E9AA0'], 'Avant-garde': ['#CFCBC6', '#202021'],
+    };
+    const ch = { stage: null, k: 0, very: [], some: [], notme: [], q: '', from: '', open: false };
+    const chNorm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    function chBegun() { return !!(ch.very.length || ch.some.length || st.icons.length || st.model.kept); }
+    function chSegs(n) { return '<div class="snc-segs" aria-hidden="true">' + [1, 2, 3].map(i => '<span class="snc-seg' + (i <= n ? ' on' : '') + '"></span>').join('') + '</div>'; }
+    function chBar(name, skipLabel) {
+      return '<div class="snc-bar"><button class="snc-x" id="snc-x" aria-label="Close">×</button><span class="snc-name">' + name + '</span>' +
+        (skipLabel ? '<button class="snc-skip" id="snc-skip">' + skipLabel + '</button>' : '<span style="width:48px"></span>') + '</div>';
+    }
+    function chSaveArch() {
+      const prev = st.styleDna || {};
+      if (!ch.very.length && !ch.some.length && !(prev.style_archetypes || []).length && !(prev.style_archetypes_soft || []).length) return;
+      st.styleDna = Object.assign({}, prev, { style_archetypes: ch.very.slice(), style_archetypes_soft: ch.some.slice() });
+      save({ style_dna: st.styleDna });
+    }
+    function chSaveIcons() { renderIcons(); save({ style_icons: st.icons }); }
+    // Leaving a chapter — × on any of them — keeps what she answered.
+    function chExit() {
+      chSaveArch(); chSaveIcons();
+      ch.open = false;
+      document.getElementById('sn-ch-wrap').hidden = true;
+      document.body.classList.remove('sn-chapter');
+      if (ch.from === 'home') { window.location.href = '/dashboard'; return; }
+    }
+    function chOpen(stage) {
+      ch.stage = stage; ch.open = true;
+      const wrap = document.getElementById('sn-ch-wrap');
+      document.body.classList.remove('sn-chapter');
+      if (stage === 'model') {
+        wrap.hidden = true;
+        setView('model');
+        document.body.classList.add('sn-chapter');
+        chBarSync();
+        window.scrollTo(0, 0);
+        return;
+      }
+      wrap.className = stage === 'intro' ? 'snc-intro' : '';
+      wrap.hidden = false;
+      wrap.scrollTop = 0;
+      chPaint();
+    }
+    function chBarSync() {
+      const b = document.getElementById('snb-next');
+      if (b) b.textContent = st.model.kept ? 'Next' : 'Skip';
+    }
+    document.getElementById('snb-x').addEventListener('click', () => { document.body.classList.remove('sn-chapter'); ch.open = false; if (ch.from === 'home') window.location.href = '/dashboard'; });
+    document.getElementById('snb-next').addEventListener('click', () => { snTrack('style_chapter_done', { chapter: 'model', filed: !!st.model.kept }); chOpen('summary'); });
+
+    function chPaint() {
+      const wrap = document.getElementById('sn-ch-wrap');
+      const first = (document.getElementById('sn-av-name').textContent || '').trim();
+      if (ch.stage === 'intro') {
+        wrap.innerHTML = '<div class="snc-frame"><div class="snc-grab"></div><div class="snc-body">' +
+          '<span class="snc-ey">Style notes</span>' +
+          '<h2>Let Robes<br><em>get to know you.</em></h2>' +
+          '<p>Three short chapters. React to what you see, and every look after this is dressed with you in mind.</p>' +
+          '<div class="snc-list">' +
+            '<div class="snc-row"><span class="n">01</span><span class="t">Style type</span></div>' +
+            '<div class="snc-row"><span class="n">02</span><span class="t">Icons &amp; brands</span></div>' +
+            '<div class="snc-row"><span class="n">03</span><span class="t">Your model</span></div>' +
+          '</div></div>' +
+          '<div class="snc-foot"><button class="snc-cta" id="snc-begin">Begin</button><button class="snc-link" id="snc-later">Later</button></div></div>';
+        document.getElementById('snc-begin').onclick = () => { ch.k = 0; chOpen('type'); };
+        document.getElementById('snc-later').onclick = () => { ch.open = false; if (ch.from === 'home') window.location.href = '/dashboard'; else wrap.hidden = true; };
+        return;
+      }
+      if (ch.stage === 'type') {
+        const a = ARCHETYPES[ch.k];
+        if (!a) { chSaveArch(); snTrack('style_chapter_done', { chapter: 'type', very: ch.very.length, some: ch.some.length }); chOpen('icons'); return; }
+        const tones = CH_TONES[a.name] || ['#E9E4DA', '#CBC5BA'];
+        const verdict = ch.very.includes(a.name) ? 'very' : ch.some.includes(a.name) ? 'some' : ch.notme.includes(a.name) ? 'no' : '';
+        wrap.innerHTML = '<div class="snc-frame">' + chBar('Style type', 'Skip') + chSegs(1) +
+          '<div class="snc-body"><h2 class="snc-h">Does this <em>feel like you?</em></h2>' +
+          '<div class="snc-deck"><div class="snc-ghost g2"></div><div class="snc-ghost g1"></div>' +
+            '<div class="snc-card" id="snc-card"><div class="tiles"><div class="tile" style="background:' + tones[0] + '"></div><div class="tile" style="background:' + tones[1] + '"></div></div>' +
+            '<div class="cap"><span class="name">' + esc(a.name) + '</span><span class="desc">' + esc(a.desc) + '</span></div></div></div>' +
+          '<div class="snc-count">' + (ch.k + 1) + ' of ' + ARCHETYPES.length + '</div></div>' +
+          '<div class="snc-react">' +
+            '<button type="button" data-v="no"' + (verdict === 'no' ? ' class="on"' : '') + '>Not me</button>' +
+            '<button type="button" data-v="some"' + (verdict === 'some' ? ' class="on"' : '') + '>Sometimes</button>' +
+            '<button type="button" data-v="very"' + (verdict === 'very' ? ' class="on"' : '') + '>' + (verdict === 'very' ? '✓ ' : '') + 'Very me</button>' +
+          '</div></div>';
+        wrap.querySelectorAll('.snc-react button').forEach(b => {
+          b.onclick = () => {
+            const v = b.dataset.v;
+            ['very', 'some', 'notme'].forEach(k => { ch[k] = ch[k].filter(x => x !== a.name); });
+            (v === 'very' ? ch.very : v === 'some' ? ch.some : ch.notme).push(a.name);
+            snTrack('archetype_reacted', { name: a.name, verdict: v });
+            b.classList.add('on');
+            setTimeout(() => { ch.k++; chPaint(); }, 180);
+          };
+        });
+        document.getElementById('snc-x').onclick = chExit;
+        document.getElementById('snc-skip').onclick = () => { chSaveArch(); snTrack('style_chapter_done', { chapter: 'type', skipped: true }); chOpen('icons'); };
+        return;
+      }
+      if (ch.stage === 'icons') {
+        wrap.innerHTML = '<div class="snc-frame">' + chBar('Icons & brands', 'Skip') + chSegs(2) +
+          '<div class="snc-body" style="padding-top:22px"><h2 class="snc-h" style="font-size:30px">Whose taste <em>runs close to yours?</em></h2>' +
+          '<div class="snc-search"><span class="q">⌕</span><input id="snc-q" type="text" placeholder="Search or type a name" autocomplete="off"><button class="clr" id="snc-clr" hidden aria-label="Clear">×</button></div>' +
+          '<div id="snc-icons"></div></div>' +
+          '<div class="snc-foot pinned"><button class="snc-cta" id="snc-cont">Continue</button></div></div>';
+        const input = document.getElementById('snc-q');
+        input.value = ch.q;
+        input.oninput = () => { ch.q = input.value; chIconsPaint(); };
+        input.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); chIconAdd(input.value); } };
+        document.getElementById('snc-clr').onclick = () => { ch.q = ''; input.value = ''; chIconsPaint(); input.focus(); };
+        document.getElementById('snc-cont').onclick = () => { chSaveIcons(); snTrack('style_chapter_done', { chapter: 'icons', n: st.icons.length }); chOpen('model'); };
+        document.getElementById('snc-x').onclick = chExit;
+        document.getElementById('snc-skip').onclick = () => { chSaveIcons(); snTrack('style_chapter_done', { chapter: 'icons', skipped: true }); chOpen('model'); };
+        chIconsPaint();
+        return;
+      }
+      if (ch.stage === 'summary') {
+        const typeV = ch.very.length || ch.some.length
+          ? ch.very.map(esc).concat(ch.some.map(x => '<em>' + esc(x) + '</em>')).join(' · ')
+          : null;
+        const modelV = st.model.kept ? ((st.colour || st.sil) ? 'Read from your photographs' : 'Shaped by hand') : null;
+        wrap.innerHTML = '<div class="snc-frame"><div class="snc-body" style="padding-top:30px;gap:8px">' +
+          '<span class="snc-ey">Style notes</span>' +
+          '<h2 class="snc-h" style="font-size:38px">' + (first ? esc(first) + ', ' : '') + '<em>on paper.</em></h2>' +
+          '<span class="snc-sub">Robes reads these every time it dresses you.</span>' +
+          '<div class="snc-list" style="margin-top:22px">' +
+            '<button type="button" class="snc-row sum tap" id="snc-r-type"><span class="k">Style type</span><span class="v' + (typeV ? '' : ' none') + '">' + (typeV || 'Not yet') + '</span></button>' +
+            '<button type="button" class="snc-row sum tap" id="snc-r-icons"><span class="k">Icons &amp; brands</span><span class="v' + (st.icons.length ? '' : ' none') + '">' + (st.icons.length ? st.icons.map(esc).join(', ') : 'Not yet') + '</span></button>' +
+            '<button type="button" class="snc-row sum tap" id="snc-r-model"><span class="k">Model</span><span class="v' + (modelV ? '' : ' none') + '" style="' + (modelV ? 'font-style:italic;font-weight:300;font-size:17px;color:var(--ink-faint)' : '') + '">' + (modelV || 'Not yet') + '</span></button>' +
+          '</div></div>' +
+          '<div class="snc-foot"><button class="snc-cta" id="snc-create">Create a look →</button><button class="snc-link" id="snc-done">Done for now</button></div></div>';
+        document.getElementById('snc-r-type').onclick = () => { ch.k = 0; chOpen('type'); };
+        document.getElementById('snc-r-icons').onclick = () => chOpen('icons');
+        document.getElementById('snc-r-model').onclick = () => chOpen('model');
+        // Create a look → the homepage prompt (C16), the model on file
+        // reading into every generation as ever.
+        document.getElementById('snc-create').onclick = () => {
+          try { sessionStorage.setItem('rb_model_build', '1'); sessionStorage.removeItem('rb_model_open_look'); } catch (e) {}
+          snTrack('style_notes_done', { to: 'prompt' });
+          window.location.href = '/dashboard';
+        };
+        document.getElementById('snc-done').onclick = () => { snTrack('style_notes_done', { to: 'home' }); window.location.href = '/dashboard'; };
+        return;
+      }
+    }
+    function chIconIsSel(n) { return st.icons.some(x => chNorm(x) === chNorm(n)); }
+    function chIconAdd(raw) {
+      const n = (raw || '').trim();
+      if (!n || chIconIsSel(n)) return;
+      st.icons.push(n);
+      ch.q = ''; const input = document.getElementById('snc-q'); if (input) input.value = '';
+      chIconsPaint();
+    }
+    function chIconToggle(n) {
+      const at = st.icons.findIndex(x => chNorm(x) === chNorm(n));
+      if (at >= 0) st.icons.splice(at, 1); else st.icons.push(n);
+      chIconsPaint();
+    }
+    // The pool leads with names seeded by her archetypes, then the house
+    // list — the refinement follows the decision.
+    function chPool() {
+      const out = [];
+      const push = n => { if (!out.some(x => chNorm(x) === chNorm(n))) out.push(n); };
+      ch.very.concat(ch.some).forEach(a => (ARCH_SEED[a] || []).forEach(push));
+      ROBES_ICONS.forEach(push);
+      return out;
+    }
+    function chIconsPaint() {
+      const host = document.getElementById('snc-icons');
+      if (!host) return;
+      const q = chNorm(ch.q);
+      const clr = document.getElementById('snc-clr'); if (clr) clr.hidden = !q;
+      if (!q) {
+        // the grid: selected tiles carry the warm state and a ✓ (4a)
+        host.innerHTML = '<div class="snc-poolhead"><span class="k">Popular among stylists</span><span class="h">Tap the ones you love</span></div>' +
+          '<div class="snc-grid">' + chPool().slice(0, 18).map(n => {
+            const on = chIconIsSel(n);
+            return '<button type="button" class="snc-tile' + (on ? ' on' : '') + '" data-v="' + esc(n) + '" aria-pressed="' + on + '"><span class="im">' + esc(n[0]) + (on ? '<span class="ck">✓</span>' : '') + '</span><span class="nm">' + esc(n) + '</span></button>';
+          }).join('') + '</div>';
+        host.querySelectorAll('.snc-tile').forEach(b => { b.onclick = () => chIconToggle(b.dataset.v); });
+        return;
+      }
+      // typing swaps the grid for matches in place (4b); kept names show as
+      // chips under the field so clearing the search returns her picks intact
+      const matches = chPool().filter(n => chNorm(n).includes(q)).slice(0, 6);
+      const exact = chPool().some(n => chNorm(n) === q) || chIconIsSel(ch.q.trim());
+      host.innerHTML = '<div class="snc-chips">' + st.icons.map(n => '<span class="snc-chip">' + esc(n) + ' <button type="button" data-v="' + esc(n) + '" aria-label="Remove">×</button></span>').join('') + '</div>' +
+        '<div class="snc-res">' + matches.map(n => {
+          const on = chIconIsSel(n);
+          return '<button type="button" class="snc-resrow' + (on ? ' on' : '') + '" data-v="' + esc(n) + '"><span class="l"><span class="mono">' + esc(n[0]) + '</span><span class="nm">' + esc(n) + '</span></span><span class="add">' + (on ? '✓' : '+') + '</span></button>';
+        }).join('') +
+        (!exact ? '<button type="button" class="snc-resrow keep" id="snc-keep"><span class="k">Keep “' + esc(ch.q.trim()) + '” as typed</span><span class="ret">↵</span></button>' : '') +
+        '</div>';
+      host.querySelectorAll('.snc-chip button').forEach(b => { b.onclick = () => chIconToggle(b.dataset.v); });
+      host.querySelectorAll('.snc-resrow[data-v]').forEach(b => { b.onclick = () => chIconToggle(b.dataset.v); });
+      const keep = document.getElementById('snc-keep'); if (keep) keep.onclick = () => chIconAdd(ch.q);
+    }
+    // ?begin=1 is home's door (the dashed Style-notes card): the intro when
+    // nothing has been answered, the summary once anything has.
+    function chBoot() {
+      try {
+        const dna = st.styleDna || {};
+        ch.very = Array.isArray(dna.style_archetypes) ? dna.style_archetypes.slice() : [];
+        ch.some = Array.isArray(dna.style_archetypes_soft) ? dna.style_archetypes_soft.slice() : [];
+        const u = new URL(window.location.href);
+        if (u.searchParams.get('begin') !== '1') return;
+        ch.from = 'home';
+        u.searchParams.delete('begin');
+        history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);
+        snTrack('style_notes_opened', { from: 'home', begun: chBegun() });
+        chOpen(chBegun() ? 'summary' : 'intro');
+      } catch (e) {}
+    }
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape' || !ch.open) return;
+      if (ch.stage === 'model') return;
+      chExit();
+    });
+
     renderAll();
-    init();
+    init().then(chBoot);
     // Deep links: #taste is Taste & budget's own entry point; legacy
     // #silhouette (the dashboard's "complete your silhouette" prompt)
     // lands on the model page like everything else.

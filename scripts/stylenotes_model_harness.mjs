@@ -113,7 +113,7 @@ async function open(vp, profile = 'empty', updateMode = 'ok', hash = '') {
       }),
     }) };
   }, { profile, updateMode, COLOUR, COLOUR_DNA, SIL, SIL_DNA });
-  await p.goto(`http://localhost:${PORT}/stylenotes${hash}`);
+  await p.goto(`http://localhost:${PORT}/stylenotes${hash}`);   // hash may carry a ?query too
   await p.waitForTimeout(600);
   return { ctx, p, errs, cellPosts };
 }
@@ -364,6 +364,135 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(await p.locator('#view-model').isVisible(), 'legacy #silhouette deep link lands on the model page');
     await ctx.close();
   }
+}
+
+// ── Style notes, the chapters (design 2026-09-25, 3a–3g) ──────────────
+// /stylenotes?begin=1 is home's door: the intro sheet, 01 Style type as a
+// tap-to-react deck, 02 Icons & brands browse-and-search, 03 the model page
+// under the chapter chrome, then the summary. Both breakpoints.
+for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
+  console.log(`\n\x1b[1m== ${label} · the chapters ==\x1b[0m`);
+  const { ctx, p, errs } = await open(vp, 'empty', 'ok', '?begin=1');
+  await p.waitForTimeout(500);
+  ok(await p.locator('#sn-ch-wrap').isVisible(), '?begin=1 opens the chapters');
+  ok(!/begin=1/.test(p.url()), 'and the param is stripped');
+  ok(/let robes\s+get to know you\./i.test((await p.locator('#sn-ch-wrap h2').innerText()).replace(/\s+/g, ' ')), 'the intro: Let Robes get to know you.');
+  ok(await p.locator('#sn-ch-wrap .snc-row').count() === 3, 'three numbered hairline rows');
+  const rows = (await p.locator('#sn-ch-wrap .snc-row .t').allInnerTexts()).map(t => t.trim());
+  ok(JSON.stringify(rows) === JSON.stringify(['Style type', 'Icons & brands', 'Your model']), 'Style type · Icons & brands · Your model, got ' + JSON.stringify(rows));
+  ok(!/minute|estimate|\d+ questions/i.test(await p.locator('#sn-ch-wrap').innerText()), 'no time estimate, no counts');
+  const beginBg = await p.locator('#snc-begin').evaluate(el => getComputedStyle(el).backgroundColor);
+  ok(beginBg === 'rgb(255, 255, 255)', 'Begin is the hairline pill — got ' + beginBg);
+  ok(await p.locator('#snc-later').count() === 1, 'and Later beside it');
+  if (vp.width < 768) {
+    const fr = await p.locator('#sn-ch-wrap .snc-frame').boundingBox();
+    ok(fr.y >= 100, 'on the phone the intro is a sheet from the foot, got y=' + Math.round(fr.y));
+  }
+
+  // 01 · the deck
+  await p.click('#snc-begin'); await p.waitForTimeout(300);
+  ok((await p.locator('#sn-ch-wrap .snc-name').textContent()).trim() === 'Style type', 'chapter 01 chrome: Style type');
+  ok(await p.locator('#sn-ch-wrap .snc-seg.on').count() === 1, 'one segment lit');
+  ok(/does this\s+feel like you\?/i.test((await p.locator('#sn-ch-wrap .snc-h').innerText()).replace(/\s+/g, ' ')), 'Does this feel like you?');
+  ok((await p.locator('#snc-card .name').innerText()) === 'Minimal', 'the deck opens on Minimal');
+  ok(await p.locator('#snc-card .tile').count() === 2, 'two tiles do the explaining');
+  ok(await p.locator('#snc-card img').count() === 0, 'tone tiles, no photographs (no faces, no marks)');
+  ok(/1 of 10/.test(await p.locator('.snc-count').innerText()), 'the count reads 1 of 10');
+  const reacts = (await p.locator('.snc-react button').allTextContents()).map(t => t.trim());
+  ok(JSON.stringify(reacts) === JSON.stringify(['Not me', 'Sometimes', 'Very me']), 'Not me · Sometimes · Very me, got ' + JSON.stringify(reacts));
+  await p.click('.snc-react button[data-v="very"]'); await p.waitForTimeout(300);
+  ok((await p.locator('#snc-card .name').innerText()) === 'Bohemian', 'a reaction advances the deck');
+  await p.click('.snc-react button[data-v="no"]'); await p.waitForTimeout(300);
+  await p.click('.snc-react button[data-v="very"]'); await p.waitForTimeout(300);     // Classic
+  await p.click('.snc-react button[data-v="some"]'); await p.waitForTimeout(300);     // Romantic
+  // Skip the rest of the deck
+  await p.click('#snc-skip'); await p.waitForTimeout(400);
+  const dnaUp = await p.evaluate(() => window.__updates.filter(u => u.style_dna).pop());
+  ok(!!dnaUp && JSON.stringify(dnaUp.style_dna.style_archetypes) === JSON.stringify(['Minimal', 'Classic'])
+    && JSON.stringify(dnaUp.style_dna.style_archetypes_soft) === JSON.stringify(['Romantic']),
+    'style_dna carries very-me and sometimes as two lists, got ' + JSON.stringify(dnaUp && dnaUp.style_dna));
+
+  // 02 · icons and brands
+  ok((await p.locator('#sn-ch-wrap .snc-name').textContent()).trim() === 'Icons & brands', 'chapter 02 chrome');
+  ok(await p.locator('#sn-ch-wrap .snc-seg.on').count() === 2, 'two segments lit');
+  ok(/whose taste\s+runs close to yours\?/i.test((await p.locator('#sn-ch-wrap .snc-h').innerText()).replace(/\s+/g, ' ')), 'Whose taste runs close to yours?');
+  ok(await p.locator('.snc-tile').count() >= 9, 'a grid of tiles');
+  ok(await p.locator('.snc-tile img').count() === 0, 'monogram tiles, no portraits');
+  const firstTile = await p.locator('.snc-tile .nm').first().innerText();
+  ok(firstTile === 'The Row', 'the pool seeds from her archetypes (Minimal → The Row first), got ' + firstTile);
+  ok((await p.locator('.snc-poolhead .k').textContent()).trim() === 'Popular among stylists', 'pool label');
+  await p.locator('.snc-tile').first().click(); await p.waitForTimeout(150);
+  ok(await p.locator('.snc-tile.on').count() === 1 && (await p.locator('.snc-tile.on .ck').innerText()) === '✓', 'a tapped tile takes the warm state with a ✓');
+  const tileBg = await p.locator('.snc-tile.on .im').evaluate(el => getComputedStyle(el).borderColor);
+  ok(tileBg === 'rgb(201, 188, 166)', 'the selected border is the app-wide warm one, got ' + tileBg);
+  const cont = await p.locator('#snc-cont').boundingBox();
+  ok(cont && cont.y + cont.height <= vp.height + 1, 'Continue is pinned on screen');
+  // typing swaps the grid for matches in place
+  await p.fill('#snc-q', 'Phoe'); await p.waitForTimeout(150);
+  ok(await p.locator('.snc-tile').count() === 0 && await p.locator('.snc-resrow[data-v]').count() >= 1, 'typing swaps the grid for matches, no new layer');
+  ok((await p.locator('.snc-chip').allInnerTexts()).some(t => /The Row/.test(t)), 'kept names show as chips under the field');
+  ok(/Keep “Phoe” as typed/.test(await p.locator('#snc-keep').innerText()), 'Keep as typed for free text');
+  await p.locator('.snc-resrow[data-v="Phoebe Philo"]').click(); await p.waitForTimeout(150);
+  ok(await p.locator('.snc-resrow[data-v="Phoebe Philo"].on').count() === 1, 'a match toggles on in place');
+  await p.fill('#snc-q', 'Some Designer'); await p.keyboard.press('Enter'); await p.waitForTimeout(150);
+  ok(await p.locator('.snc-tile').count() >= 9, 'Enter keeps the typed name and returns to the grid');
+  await p.click('#snc-cont'); await p.waitForTimeout(400);
+  const icUp = await p.evaluate(() => window.__updates.filter(u => u.style_icons).pop());
+  ok(!!icUp && JSON.stringify(icUp.style_icons) === JSON.stringify(['The Row', 'Phoebe Philo', 'Some Designer']), 'style_icons carries the three picks, got ' + JSON.stringify(icUp && icUp.style_icons));
+
+  // 03 · the model page under the chapter chrome
+  ok(await p.locator('#sn-ch-wrap').isHidden() && await p.locator('#view-model').isVisible(), 'chapter 03 is the model page itself');
+  ok(await p.locator('#sn-ch-bar').isVisible(), 'under the chapter chrome');
+  ok((await p.locator('#sn-ch-bar .snc-name').textContent()).trim() === 'Your model' && await p.locator('#sn-ch-bar .snc-seg.on').count() === 3, 'Your model · three segments lit');
+  ok((await p.locator('#snb-next').innerText()).trim() === 'Skip', 'the right control reads Skip with nothing filed');
+  const topbarHidden = await p.locator('.topbar').evaluate(el => getComputedStyle(el).display === 'none');
+  ok(vp.width < 768 ? topbarHidden === true : topbarHidden === false, 'the chrome replaces the topbar on the phone only (C17), topbar hidden=' + topbarHidden);
+  ok(await p.locator('#mv-shape-rows').isVisible(), 'the by-hand rows stand open beneath, as today');
+  // shape her by hand: a pick files the model, the control flips to Next
+  await p.locator('[data-axis="skin"]').nth(3).click(); await p.waitForTimeout(300);
+  ok((await p.locator('#snb-next').innerText()).trim() === 'Next', 'a filed model turns Skip into Next');
+  await p.click('#snb-next'); await p.waitForTimeout(400);
+
+  // the summary
+  ok(await p.locator('#sn-ch-wrap').isVisible() && await p.locator('#sn-ch-bar').isHidden(), 'Next opens the summary, the chapter chrome gone');
+  ok(/Annie,\s+on paper\./.test((await p.locator('#sn-ch-wrap .snc-h').innerText()).replace(/\s+/g, ' ')), 'Annie, on paper.');
+  const sumType = (await p.locator('#snc-r-type .v').innerText()).replace(/\s+/g, ' ').trim();
+  ok(sumType === 'Minimal · Classic · Romantic' && await p.locator('#snc-r-type .v em').count() === 1, 'Style type reads very-me then sometimes in italic, got ' + sumType);
+  ok(/The Row, Phoebe Philo, Some Designer/.test(await p.locator('#snc-r-icons .v').innerText()), 'Icons & brands lists her picks');
+  ok((await p.locator('#snc-r-model .v').innerText()).trim() === 'Shaped by hand', 'Model reads Shaped by hand');
+  ok((await p.locator('#snc-create').textContent()).trim() === 'Create a look →' && (await p.locator('#snc-done').textContent()).trim() === 'Done for now', 'Create a look → · Done for now');   // textContent: the CTA is CSS-uppercased
+  // a row reopens its chapter
+  await p.click('#snc-r-icons'); await p.waitForTimeout(300);
+  ok((await p.locator('#sn-ch-wrap .snc-name').textContent()).trim() === 'Icons & brands' && await p.locator('.snc-tile.on').count() >= 1, 'a summary row reopens its chapter with her picks intact');
+  await p.click('#snc-cont'); await p.waitForTimeout(300); await p.click('#snb-next'); await p.waitForTimeout(300);
+  // Create a look → the homepage prompt
+  await p.click('#snc-create');
+  await p.waitForURL('**/dashboard', { timeout: 5000 }).catch(() => {});
+  ok(p.url().endsWith('/dashboard'), 'Create a look lands on the dashboard');
+  const flags = await p.evaluate(() => ({ build: sessionStorage.getItem('rb_model_build'), look: sessionStorage.getItem('rb_model_open_look') }));
+  ok(flags.build === '1' && flags.look === null, 'with the prompt flag set and never the look-landing one (C16)');
+  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+// A return to ?begin=1 once anything is answered lands on the summary; the
+// plain page never opens the chapters; Later from the intro goes home.
+{
+  console.log('\n\x1b[1m== the chapters · doors ==\x1b[0m');
+  const { ctx, p, errs } = await open({ width: 1280, height: 900 }, 'kept', 'ok', '?begin=1');
+  await p.waitForTimeout(500);
+  ok(await p.locator('#sn-ch-wrap').isVisible() && /on paper\./.test(await p.locator('#sn-ch-wrap').innerText()), 'a filed model → ?begin=1 opens the summary, not the intro');
+  ok((await p.locator('#snc-r-model .v').innerText()).trim() === 'Read from your photographs', 'Model reads Read from your photographs');
+  await ctx.close();
+  const b = await open({ width: 1280, height: 900 }, 'empty');
+  ok(await b.p.locator('#sn-ch-wrap').isHidden() && await b.p.locator('#sn-ch-bar').isHidden(), 'the plain page opens no chapter');
+  await b.ctx.close();
+  const c = await open({ width: 390, height: 844 }, 'empty', 'ok', '?begin=1');
+  await c.p.waitForTimeout(400);
+  await c.p.click('#snc-later');
+  await c.p.waitForURL('**/dashboard', { timeout: 5000 }).catch(() => {});
+  ok(c.p.url().endsWith('/dashboard'), 'Later from the intro goes home');
+  ok(errs.length === 0 && b.errs.length === 0 && c.errs.length === 0, 'no page errors');
+  await c.ctx.close();
 }
 
 // mobile-only: the stage leads the page full-width (design 1a)

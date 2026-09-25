@@ -74,7 +74,7 @@ async function boot(browser, n, width = 1280, { looks = true, pics = 0 } = {}) {
 
   await page.addInitScript((count) => {
     window.__TEST_PROFILE = {
-      first_name: 'Annie', last_name: '', mobile: '', style_icons: [], budget: null,
+      first_name: 'Annie', last_name: '', mobile: '', style_icons: JSON.parse(localStorage.getItem('rb_test_icons') || '[]'), budget: null,
       wardrobe_description: '', style_dna: {}, wardrobe_items_count: count,
       onboarded_at: '2026-07-01', gender_identity: 'woman',
       notification_prefs: window.__TEST_PREFS || {},
@@ -574,9 +574,11 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 
-// The styled card (W01/O1): one goal, one filled button. "See the full
-// looks" is the single CTA; the piece count is a caption, never a second
-// ask; the rows start closed beneath it.
+// The styled card — the first home, one door (design 2a, 2026-09-25): the
+// setup screen holds the card ("See the full looks" full-width under the
+// looks, the one ink), the dashed Style-notes door beneath it, and nothing
+// else — no rows, no prompt, no rail, no band. The prompt and the rows
+// return the moment the card collapses.
 {
   const { ctx, page, errs } = await boot(browser, 1, 1280, { looks: false });
   await page.evaluate(() => {
@@ -593,49 +595,56 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   const s = await page.evaluate(() => {
     const card = document.getElementById('rb-styled');
     const open = document.getElementById('rb-styled-open');
+    const vis = (el) => !!el && el.offsetParent !== null;
     const filled = Array.from(document.querySelectorAll('#dash button'))
       .filter((btn) => btn.offsetParent !== null)
       .filter((btn) => {
         const bg = getComputedStyle(btn).backgroundColor;
         return bg === 'rgb(32, 32, 33)' || bg === 'rgb(0, 0, 0)';
       }).map((btn) => btn.textContent.trim());
+    const door = document.getElementById('rb-notes-door');
+    const pill = door?.querySelector('.rb-pill');
     return {
+      mode: document.getElementById('dash').getAttribute('data-home'),
       cardFirst: document.querySelector('.dash-mast')?.nextElementSibling?.id,
-      rowsNext: card?.nextElementSibling?.id,
-      title: card?.querySelector('div div div')?.textContent || card?.textContent.slice(0, 120),
+      doorNext: card?.nextElementSibling?.id,
       openFilled: open ? getComputedStyle(open).backgroundColor === 'rgb(32, 32, 33)' : false,
+      openUnderTiles: open?.previousElementSibling?.id === 'rb-styled-tiles',
+      openWide: open && card ? Math.abs(open.getBoundingClientRect().width - document.getElementById('rb-styled-tiles').getBoundingClientRect().width) < 2 : false,
       addNext: !!document.getElementById('rb-styled-addnext'),
-      foot: document.getElementById('rb-styled-foot')?.textContent,
+      foot: !!document.getElementById('rb-styled-foot'),
       filledButtons: filled,
       echo: document.querySelector('.dash-echo')?.textContent,
-      open: Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id),
-      mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
-      rowIds: Array.from(document.querySelectorAll('.rb-ftu-row')).map((r) => r.id),
-      concInStyleRow: !!document.querySelector('#rb-ftu-body-style .concierge'),
-      servicesHidden: document.querySelector('.services')?.offsetParent === null,
+      rows: !!document.getElementById('rb-ftu-rows'),
+      promptHidden: !vis(document.getElementById('cb-ta')),
+      railHidden: !vis(document.getElementById('rb-rail')),
+      servicesHidden: !vis(document.querySelector('.services')),
+      modelDoor: !!document.getElementById('rb-model-door'),
+      doorEy: door?.querySelector('.ey')?.textContent,
+      doorH: door?.querySelector('h3')?.textContent.replace(/\s+/g, ' ').trim(),
+      doorDashed: door ? getComputedStyle(door).borderTopStyle : null,
+      pillText: pill?.textContent.trim(),
+      pillInk: pill ? getComputedStyle(pill).backgroundColor === 'rgb(32, 32, 33)' : null,
+      pillGo: pill?.getAttribute('onclick'),
     };
   });
   check('styled card · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('styled card · the hero leads, the rows fall in beneath it',
-    s.cardFirst === 'rb-styled' && s.rowsNext === 'rb-ftu-rows', JSON.stringify([s.cardFirst, s.rowsNext]));
-  check('styled card · "See the full looks" is the one filled button, no add-next CTA',
-    s.openFilled === true && s.addNext === false
+  check('styled card · the hero leads, the Style-notes door beneath it, the mode zero',
+    s.mode === 'zero' && s.cardFirst === 'rb-styled' && s.doorNext === 'rb-notes-door', JSON.stringify([s.mode, s.cardFirst, s.doorNext]));
+  check('styled card · "See the full looks" is the one filled button, full-width under the looks, no add-next CTA',
+    s.openFilled === true && s.openUnderTiles === true && s.openWide === true && s.addNext === false
       && s.filledButtons.length === 1 && /See the full looks/i.test(s.filledButtons[0] || ''),
-    JSON.stringify([s.openFilled, s.addNext, s.filledButtons]));
-  check('styled card · the piece count is a caption, and it borrows honestly',
-    s.foot === 'One piece filed. Every look borrows the rest until you photograph your own.', s.foot);
+    JSON.stringify([s.openFilled, s.openUnderTiles, s.openWide, s.addNext, s.filledButtons]));
+  check('styled card · no piece-count caption on the card (the composing screen said it)', s.foot === false, String(s.foot));
   check('styled card · the masthead answers the state',
     s.echo === 'Your first piece is filed.', s.echo);
-  check('styled card · every row starts closed — the card is the CTA',
-    s.open.length === 0, JSON.stringify(s.open));
-  check('styled card · all three rows stand, the prompt waiting behind its row',
-    s.mode === 'zero'
-      && JSON.stringify(s.rowIds) === JSON.stringify(['rb-ftu-row-build', 'rb-ftu-row-style', 'rb-ftu-row-week'])
-      && s.concInStyleRow === true, JSON.stringify([s.mode, s.rowIds, s.concInStyleRow]));
-  // Load rules (2026-08-19): the concierge waits ONLY while the styled
-  // card is the hero — the click through to the full looks brings it in.
-  check('styled card · the concierge waits behind the hero',
-    s.servicesHidden === true, String(s.servicesHidden));
+  check('styled card · the setup screen holds nothing else — no rows, no prompt, no rail, no band, no model door',
+    s.rows === false && s.promptHidden === true && s.railHidden === true && s.servicesHidden === true && s.modelDoor === false,
+    JSON.stringify([s.rows, s.promptHidden, s.railHidden, s.servicesHidden, s.modelDoor]));
+  check('styled card · the dashed Style-notes door: eyebrow, the serif line, a hairline Begin → the chapters',
+    s.doorDashed === 'dashed' && s.doorEy === 'Next · Style notes' && s.doorH === 'Let Robes get to know you.'
+      && s.pillText === 'Begin' && s.pillInk === false && /__rbNotesGo/.test(s.pillGo || ''),
+    JSON.stringify([s.doorDashed, s.doorEy, s.doorH, s.pillText, s.pillInk, s.pillGo]));
   // The saved key piece IS the hero card — the Inspiration row would be a
   // second copy of it, so it stands down only while the card is up.
   const inspWhileCard = await page.evaluate(() =>
@@ -643,23 +652,6 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       || !document.getElementById('rb-insp-row')?.textContent.trim());
   check('styled card · the Inspiration row yields to the hero (one copy of the piece)',
     inspWhileCard === true, String(inspWhileCard));
-
-  // Opening a row compacts the card to its header line (O1b), and the
-  // composer's fallback points back at the three looks, never a fresh
-  // generation.
-  const c = await page.evaluate(async () => {
-    window.__rbFtuToggle('build');
-    await new Promise((r) => setTimeout(r, 250));
-    return {
-      compact: document.getElementById('rb-styled')?.classList.contains('rb-styled-compact'),
-      tilesHidden: document.getElementById('rb-styled-tiles')?.offsetParent === null,
-      door: document.querySelector('#rb-lkhome .rb-lk-robesdoor')?.textContent,
-    };
-  });
-  check('styled card · an open row compacts it to the header line',
-    c.compact === true && c.tilesHidden === true, JSON.stringify(c));
-  check('styled card · the rack carries no Robes door (2026-09-03)',
-    c.door === undefined, String(c.door));
 
   // Opening the looks retires the card — home re-decides, and the prompt
   // steps out to lead the page (never a bare index with no door).
@@ -693,6 +685,11 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check('styled card · once it retires the prompt steps out to lead',
     after.styledGone === true && after.mode === 'zero-lead' && after.concLeads === true,
     JSON.stringify([after.styledGone, after.mode, after.concLeads]));
+  // The Style-notes door follows her: under the prompt now, before the rows.
+  const doorAfter = await page.evaluate(() => Array.from(document.getElementById('dash').children)
+    .map((e) => e.id || e.className.split(' ')[0]).filter((id) => ['concierge', 'rb-notes-door', 'rb-ftu-rows'].includes(id)));
+  check('styled card · the Style-notes door sits under the prompt once the card retires',
+    JSON.stringify(doorAfter) === JSON.stringify(['concierge', 'rb-notes-door', 'rb-ftu-rows']), JSON.stringify(doorAfter));
   check('styled card · the concierge loads the moment she clicks through',
     after.servicesShown === true, String(after.servicesShown));
   check('kp first landing · no guide band; card 01 carries the ONE filled Build this look',
@@ -1223,16 +1220,34 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await page.waitForTimeout(2600);
   const o = await page.evaluate(() => ({
     door: !!document.getElementById('rb-model-door'),
+    notes: !!document.getElementById('rb-notes-door'),
     mode: document.getElementById('dash').getAttribute('data-home'),
     rows: !!document.getElementById('rb-ftu-rows'),
     servicesHidden: document.querySelector('.services')?.style.display === 'none',
     order: Array.from(document.getElementById('dash').children).map((e) => e.id || e.className.split(' ')[0])
-      .filter((id) => ['concierge', 'rb-firstlook', 'rb-model-door', 'rb-ftu-rows'].includes(id)),
+      .filter((id) => ['concierge', 'rb-firstlook', 'rb-model-door', 'rb-notes-door', 'rb-ftu-rows'].includes(id)),
   }));
-  check('model door · first-look posture: after "Your looks", no rows, no band beneath',
-    o.door && o.mode === 'look' && o.rows === false && o.servicesHidden === true
-      && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-model-door']),
+  check('model door · first-look posture with no notes begun: the Style-notes door after "Your looks", never the model door',
+    !o.door && o.mode === 'look' && o.rows === false && o.servicesHidden === true
+      && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-notes-door']),
     JSON.stringify(o));
+  // An icon on file = a chapter answered: the notes door retires and the
+  // model door takes its slot — never both together (Annie, 2026-09-25).
+  await page.evaluate(() => localStorage.setItem('rb_test_icons', JSON.stringify(['The Row'])));
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const o2 = await page.evaluate(() => ({
+    door: !!document.getElementById('rb-model-door'),
+    notes: !!document.getElementById('rb-notes-door'),
+    order: Array.from(document.getElementById('dash').children).map((e) => e.id || e.className.split(' ')[0])
+      .filter((id) => ['concierge', 'rb-firstlook', 'rb-model-door', 'rb-notes-door'].includes(id)),
+    echo: document.querySelector('.dash-echo')?.textContent,
+  }));
+  check('model door · once notes begin (an icon on file) the notes door retires and the model door opens after "Your looks"',
+    o2.door && !o2.notes && JSON.stringify(o2.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-model-door'])
+      && /Build your model/.test(o2.echo || ''),
+    JSON.stringify(o2));
+  await page.evaluate(() => localStorage.removeItem('rb_test_icons'));
   check('model door · no page errors (postures)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -1271,11 +1286,11 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       line: ask ? ask.textContent.replace(/\s+/g, ' ').trim() : '',
       btn: btn ? btn.textContent.trim() : '', btnBg: btn ? getComputedStyle(btn).backgroundColor : '',
       filled,
-      afterFoot: !!ask && ask.previousElementSibling?.id === 'rb-styled-foot',
+      afterOpen: !!ask && ask.previousElementSibling?.id === 'rb-styled-open',
       pulsing: /rbStyPulse/.test(document.getElementById('rb-styled-img-0')?.style.animation || ''),
     };
   });
-  check('email ask · renders under the pulsing tiles, after the piece-count caption', a.ask && a.inCard && a.afterFoot && a.pulsing, JSON.stringify(a));
+  check('email ask · renders under the pulsing tiles, after the See-the-full-looks door', a.ask && a.inCard && a.afterOpen && a.pulsing, JSON.stringify(a));
   check('email ask · the line, the text door and the consent sub-line',
     /^Robes is composing your three looks\. Email me when they’re ready →\s*and the odd note when your wardrobe’s ready for more$/.test(a.line) && a.btn === 'Email me when they’re ready →', a.line);
   check('email ask · the door is text, never a fill — See the full looks stays the one ink button',

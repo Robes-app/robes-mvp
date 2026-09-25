@@ -559,8 +559,20 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   const dna = styleDna && typeof styleDna === 'object' ? styleDna : {};
   const ch = dna.color_harmony;
   const sp = dna.silhouette_proportions;
-  if (!ch && !sp && !icons.length) return '';
+  // Style type (the archetype chapter, 2026-09-25): `style_archetypes` is
+  // what she called "very me", `style_archetypes_soft` her "sometimes".
+  // Written by the Style notes chapters; before this line nothing read them.
+  const strs = a => Array.isArray(a) ? a.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, 10) : [];
+  const arch = strs(dna.style_archetypes);
+  const soft = strs(dna.style_archetypes_soft).filter(s => !arch.includes(s));
+  if (!ch && !sp && !icons.length && !arch.length && !soft.length) return '';
   const lines = [];
+  // Her style type steers taste the way the icons do — a register, never a
+  // constraint on colour or line.
+  if (arch.length || soft.length) {
+    lines.push(`STYLE TYPE — the user placed their own style${arch.length ? ': ' + arch.join(', ') : ''}${soft.length ? (arch.length ? '; sometimes ' : ': sometimes ') + soft.join(', ') : ''}.`);
+    lines.push('Every look should sit in this register: the types named first lead, a "sometimes" type is a mood to reach for on occasion, never the default. Like the style icons, this steers taste; it never overrides the colour or silhouette rules below.');
+  }
   // Style icons are the user's declared taste — they steer the aesthetic of
   // every downstream recommendation, layered over the photo-verified DNA.
   if (icons.length) {

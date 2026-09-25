@@ -1,6 +1,6 @@
 # Onboarding split — design review against the four-session funnel brief
 
-**Date**: 2026-09-25 · **Design**: `Onboarding_Flow.dc.html` (1a–1e onboarding, 2a first home, 3a–3g style notes) · **Brief**: `docs/four-session-funnel-brief.md` · **Status**: review only, nothing built
+**Date**: 2026-09-25 · **Design**: `Onboarding_Flow.dc.html` (1a–1e onboarding, 2a first home, 3a–3g style notes) · **Brief**: `docs/four-session-funnel-brief.md` · **Status**: decided and built the same day — see section F
 
 The design splits the first run into two things: onboarding becomes name → piece → composing → home (the Style step leaves onboarding), and style notes become a three-chapter sheet opened from a dashed card on first-run home. Below: what conflicts with the brief or the live build, what the brief already settles, and the questions that change what gets built.
 
@@ -62,3 +62,13 @@ The design splits the first run into two things: onboarding becomes name → pie
 ## E · Recommended defaults, if no answer comes back
 
 A1 accept; A3/A4 keep the prompt off first-run home only while the styled card is the hero, and keep "See the full looks" as the one ink; A5 no Back on the name. C1 text-then-home; C2 opens Composing; C3 cut the link line for now; C4 cut; C5 zero-lead; C6 keep; C7/C8/C9 as recommended; C10 retire `_rbSilPrompt`; C11 on `/stylenotes`; C12 two lists + one prompt line; C13 no faces, tone tiles; C14 names only; C15 summary beside the existing taste view, not replacing it; C16 same handler; C17 chapter chrome on mobile only.
+
+## F · Decisions (Annie, 2026-09-25) and what was built
+
+A1 accepted (the brief's slice 7 note amended). A2 built: `styleDnaPromptBlock` reads `style_archetypes` (very me) and `style_archetypes_soft` (sometimes) as a STYLE TYPE block beside the icons. A3: first-run home is the setup screen — the prompt and the welcome rows return once the three looks are viewed (the card collapses). A4: See the full looks keeps its ink, full-width under the looks. A5: no Back on the name. A6: the cream name screen as designed.
+
+C1 text-then-home, capped at 20s, the real titles tick. C2 the CTA "Style it three ways →" stays and opens Composing. C3 the shop link is in onboarding (`POST /api/wardrobe/read-url`, the page's photograph rides the prefire). C4 "Edit the details" cut. C5 a skipped piece lands in zero-lead. C6 the two-tap skip stays. C7/C8/C9 as recommended, with the added rule: when the notes door retires the model door opens, never both together. C10 was not understood — `_rbSilPrompt` (the 15-piece dark "Style notes · newly available" card) is left exactly as it was; see the note below. C11 on `/stylenotes?begin=1`. C12 two lists + one prompt line. C13 tone tiles and monograms, no faces. C14 names only. C15 the summary ships beside the existing Taste & budget view (the view is untouched). C16 Create a look → the homepage prompt (`rb_model_build`, never `rb_model_open_look`). C17 the chapter chrome replaces the topbar on the phone only.
+
+**C10, explained**: `_rbSilPrompt` is the dark card that appears on home at fifteen filed pieces when the colour or silhouette photographs have not been read, headed "Style notes · newly available". With style notes now offered on day one, "newly available" at fifteen reads oddly. It still does a job the chapters do not name explicitly (the two photographs), so it stands; retire or re-word it whenever you decide.
+
+Harnesses: `onboarding_harness` 140/140 (rewritten), `ftue_harness` 180/180, `stylenotes_model_harness` 356/356 (+108, the chapters at both breakpoints), `looks_harness` 402/402, `inspiration_smoke` 80/80, `nav_chrome_smoke` 38/38.

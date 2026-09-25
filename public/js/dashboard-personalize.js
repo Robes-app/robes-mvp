@@ -1048,6 +1048,10 @@
         // (after "Your looks" in the first-look posture) and before the
         // concierge band.
         const door = document.getElementById('rb-model-door');
+        // The Style-notes door (2026-09-25): after the styled card in
+        // zero, under the prompt in zero-lead, after Your looks in the
+        // first-look posture.
+        const notes = document.getElementById('rb-notes-door');
         // FTU simplification (2026-08-18): while the quiet index rows carry
         // home, the modules they demote live INSIDE the rows and are never
         // resequenced at dash level. Zero looks (W01/O1) → styled card +
@@ -1063,8 +1067,8 @@
           // rows from the first session (load rules 2026-08-19; it is
           // hidden in 'zero' anyway, while the styled card is the hero).
           const seq0 = (ftuRows.getAttribute('data-mode') === 'zero'
-            ? [styled, ftuRows, svc0]
-            : [conc, firstlook, door, ftuRows, svc0]).filter(Boolean);
+            ? [styled, notes, ftuRows, svc0]
+            : [conc, notes, firstlook, door, ftuRows, svc0]).filter(Boolean);
           seq0.forEach((el, i) => {
             const prev = i === 0 ? mast : seq0[i - 1];
             if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
@@ -1080,8 +1084,8 @@
         // (only while a day is planned) and the model door after it.
         const firstlook = document.getElementById('rb-firstlook');
         const seq = (n < _MS_UNLOCKS[0].at
-          ? [styled, conc, firstlook, rail, door, svc]
-          : [conc, firstlook, rail, door, styled, svc]).filter(Boolean);
+          ? (styled ? [styled, notes, conc, firstlook, rail, door, svc] : [conc, firstlook, notes, rail, door, svc])
+          : [conc, firstlook, notes, rail, door, styled, svc]).filter(Boolean);
         seq.forEach((el, i) => {
           const prev = i === 0 ? mast : seq[i - 1];
           if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
@@ -13513,6 +13517,7 @@ button.rb-lk-live{cursor:pointer}
             // The home model door (slice 2) stands or retires on the id —
             // then takes its slot in the sequence.
             if (document.getElementById('dash') && typeof _rbModelDoorSync === 'function') {
+              if (typeof _rbNotesDoorSync === 'function') _rbNotesDoorSync();
               _rbModelDoorSync();
               if (typeof _rbFtueOrder === 'function') _rbFtueOrder((_waItems || []).length);
             }
@@ -15578,14 +15583,22 @@ button.rb-lk-live{cursor:pointer}
         const concEy = document.getElementById('rb-conc-ey');
         _rbHomeMode = mode || null;
         dash.setAttribute('data-home', mode || 'standard');
+        // The first landing is setup (design 2a, 2026-09-25): while "Your
+        // piece, styled" is the hero the prompt box stands down — "from
+        // here, it's about building a look" (Annie) — and the page holds
+        // the card, the dashed Style-notes door and nothing else. The
+        // prompt and the rows return the moment the card collapses (See the
+        // full looks tapped, or a returning session): the zero-lead posture.
+        if (conc) conc.style.display = mode === 'zero' ? 'none' : '';
         // The first-look posture carries NO rows (Annie, 2026-09-18 — the
         // home cut: fourteen doors on a page with one look). Build your
         // own goes (the prompt and the Lookbook's composer cover it); the
         // week ahead IS the rail, shown only once a day is planned; the
         // concierge band stands down (_rbGateConcierge). What stays: the
         // greeting + next line, the prompt + its three pills, Your looks,
-        // the model door, the Inspiration row.
-        if (!mode || mode === 'look') {
+        // the model door, the Inspiration row. Zero (the styled card as
+        // hero) carries no rows either since 2026-09-25.
+        if (!mode || mode === 'look' || mode === 'zero') {
           if (el) {
             // Hand the demoted modules back to the dash flow before the
             // rows go — _rbFtueOrder re-sequences them as cards.
@@ -15594,8 +15607,8 @@ button.rb-lk-live{cursor:pointer}
             el.remove();
             _rbFtuOpen = {};
             _rbFtuWeekAutoDone = false;
-            if (echo) echo.textContent = _RB_FTU_ECHO;
           }
+          if (echo) echo.textContent = (mode === 'zero' && _waItems.length) ? 'Your first piece is filed.' : _RB_FTU_ECHO;
           if (concEy) concEy.remove();
           _rbGateConcierge(_waItems.length);
           _rbLookRailSync();
@@ -15729,8 +15742,13 @@ button.rb-lk-live{cursor:pointer}
       // must unfurl the Style-something row first, or it writes into a
       // closed drawer (_cbSetIntent, the rail's day scoping).
       function _rbFtuRevealPrompt() {
-        // Only the zero state keeps the prompt behind a row — once the
-        // first look exists the prompt already leads the page as a card.
+        // Zero hides the prompt behind the styled card (2026-09-25) — a
+        // deliberate arming brings it back.
+        if (_rbHomeMode === 'zero') {
+          const conc = document.querySelector('#dash .concierge');
+          if (conc) conc.style.display = '';
+          return;
+        }
         if (!document.getElementById('rb-ftu-row-style') || _rbFtuOpen.style) return;
         _rbFtuOpen.style = true;
         _rbFtuPaint();
@@ -15752,7 +15770,10 @@ button.rb-lk-live{cursor:pointer}
           const today = _pdLocalISO();
           _rbLookRailPlanned = slots.filter(sl => sl.date >= today && (sl.moments || []).length).length;
         }
-        rail.style.display = (_rbHomeMode === 'look' && !_rbLookRailPlanned) ? 'none' : '';
+        // The week ahead waits behind the first look (the look posture) and
+        // behind the three looks (zero: the setup screen holds nothing but
+        // the styled card and the Style-notes door).
+        rail.style.display = ((_rbHomeMode === 'look' && !_rbLookRailPlanned) || _rbHomeMode === 'zero') ? 'none' : '';
       }
       function _rbFtuWeekAuto(slots) {
         _rbLookRailSync(slots);
@@ -15863,15 +15884,16 @@ button.rb-lk-live{cursor:pointer}
         _rbNextPaint();
       }
       function _rbNextLine() {
-        const rows = document.getElementById('rb-ftu-rows');
-        if (rows && rows.getAttribute('data-mode') === 'zero') return { key: 'styled' };
+        if (_rbHomeMode === 'zero') return { key: 'styled' };
         const looks = (_lkLooks || []).filter(l => l && !l._draft);
         const pics = (_waItems || []).filter(w => _pdHttp(w.image_url)).length;
         // The model id lands late — ask, and _lkModelEnsure's deferred
         // callback repaints; `undefined` (not asked) never fires a rule.
         if (_lkModel === undefined && typeof _lkModelEnsure === 'function') _lkModelEnsure();
         const nm = l => '<em class="rb-echo-name">' + _waEsc(l.name || 'your look') + '</em>';
-        if (_lkModel === null && looks.length) {
+        // The Style-notes door names the model too — never both at once
+        // (Annie, 2026-09-25): the door wins while it stands.
+        if (_lkModel === null && looks.length && !_rbNotesDoorWants()) {
           const pro = _lkModelPro();
           return { key: 'model', text: 'Build your model and ' + pro.shell + ' wear ' + nm(looks[0]) + '.',
             doorLabel: 'Build your model', door: 'model' };
@@ -15992,9 +16014,64 @@ button.rb-lk-live{cursor:pointer}
           return t > 0 && (Date.now() - t) < _RB_MODEL_DOOR_SNOOZE;
         } catch (_) { return false; }
       }
+      // ── The Style-notes door on home (design 2a, 2026-09-25) ────────
+      // First-run home's one invitation after the looks: a dashed card,
+      // "Next · Style notes / Let Robes get to know you. / Begin" →
+      // /stylenotes?begin=1 (the chapters). It stands in the three FTU
+      // postures (zero · zero-lead · look) until ANY chapter holds an
+      // answer — an archetype, an icon, or a model — then never returns;
+      // the model door takes over from there, never both together.
+      function _rbNotesBegun() {
+        const prof = window.__robes_profile || {};
+        const dna = (prof.style_dna && typeof prof.style_dna === 'object') ? prof.style_dna : {};
+        const n = a => Array.isArray(a) ? a.length : 0;
+        if (n(dna.style_archetypes) || n(dna.style_archetypes_soft) || n(prof.style_icons)) return true;
+        return !!(_lkModel && typeof _lkModel === 'object');
+      }
+      function _rbNotesDoorWants() {
+        if (!(_rbHomeMode === 'zero' || _rbHomeMode === 'zero-lead' || _rbHomeMode === 'look')) return false;
+        if (_lkModel === undefined) { _lkModelEnsure(); return false; }   // not asked yet — never guess
+        return !_rbNotesBegun();
+      }
+      function _rbNotesDoorCss() {
+        if (document.getElementById('rb-notes-door-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-notes-door-style';
+        st.textContent =
+          '#rb-notes-door{margin:0 0 40px;border:1px dashed var(--cream-400,#D8CFBE);border-radius:var(--rad-card,14px);padding:16px;display:flex;align-items:center;gap:14px}' +
+          '#rb-notes-door .l{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}' +
+          '#rb-notes-door .ey{font-size:9px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
+          '#rb-notes-door h3{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:300;font-size:20px;line-height:1.15;margin:0;color:var(--ink,#202021)}' +
+          '#rb-notes-door h3 em{font-style:italic}' +
+          '#rb-notes-door .rb-pill{flex:none;margin:0;padding:10px 16px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink,#202021);border-color:var(--cream-400,#D8CFBE)}';
+        document.head.appendChild(st);
+      }
+      var _rbNotesDoorShown = false;
+      function _rbNotesDoorSync() {
+        const dash = document.getElementById('dash');
+        let el = document.getElementById('rb-notes-door');
+        if (!dash) return;
+        if (!_rbNotesDoorWants()) { if (el) el.remove(); return; }
+        _rbNotesDoorCss();
+        if (!el) {
+          el = document.createElement('section');
+          el.id = 'rb-notes-door';
+          el.innerHTML = '<div class="l"><div class="ey">Next · Style notes</div><h3>Let Robes <em>get to know you.</em></h3></div>' +
+            '<button type="button" class="rb-pill" onclick="window.__rbNotesGo()">Begin</button>';
+          const mast = dash.querySelector('.dash-mast');
+          if (mast && mast.nextSibling) dash.insertBefore(el, mast.nextSibling); else dash.appendChild(el);
+        }
+        if (!_rbNotesDoorShown) { _rbNotesDoorShown = true; _rbTrack('notes_door_shown', { mode: _rbHomeMode }); }
+      }
+      window._rbNotesDoorSync = _rbNotesDoorSync;
+      window.__rbNotesGo = function() {
+        _rbTrack('notes_door_tapped', { mode: _rbHomeMode });
+        window.location.href = '/stylenotes?begin=1';
+      };
       function _rbModelDoorWants() {
         if (_lkModel === undefined) { _lkModelEnsure(); return false; }   // not asked yet — never guess
         if (_lkModel !== null) return false;
+        if (_rbNotesDoorWants()) return false;   // the Style-notes door stands — never both
         if (!(_lkLooks || []).some(l => l && !l._draft)) return false;
         if (document.getElementById('rb-styled')) return false;
         return !_rbModelDoorSnoozed();
@@ -16063,6 +16140,7 @@ button.rb-lk-live{cursor:pointer}
         if (trk) trk.style.display = 'none';
         if (typeof _rbRenderStyleNotes === 'function') _rbRenderStyleNotes();
         if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow();
+        _rbNotesDoorSync();
         _rbModelDoorSync();
         if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length);
         _rbNextPaint();
@@ -22888,7 +22966,8 @@ body>*:not(#tv-result-page){display:none !important}
         // the FTU states too, standing down only while the styled card is
         // the hero — the card IS that key piece, and two copies of it on
         // one screen is the clutter the pass removes.
-        if (document.getElementById('rb-ftu-rows') && document.getElementById('rb-styled')) {
+        // (zero carries no rows since 2026-09-25 — the mode is the guard)
+        if (_rbHomeMode === 'zero' && document.getElementById('rb-styled')) {
           el.innerHTML = '';
           el.style.display = 'none';
           return;
@@ -27303,7 +27382,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
               '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">' + photoThumb +
                 '<div style="flex:1;min-width:200px">' +
                   '<div style="font-family:' + serif + ';font-size:24px;font-weight:300;color:#202021;line-height:1.15">' + title + '</div>' +
-                  '<div style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-top:4px">' + sub + '</div>' +
+                  (sub ? '<div style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-top:4px">' + sub + '</div>' : '') +
                 '</div>' + (ctaRow || '') +
               '</div>' +
               (tiles ? '<div id="rb-styled-tiles" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">' + tiles + '</div>' : '') +
@@ -27410,14 +27489,21 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             : (nCat === 1 ? 'One piece' : nCat + ' pieces') + ' filed. Every look borrows the rest until you photograph your own.';
           const allIn = imgs.filter(s => typeof s === 'string' && s.indexOf('http') === 0).length >= 3;
           if (allIn || !pending) mailAskDone = true;
+          // Design 2a (2026-09-25): the one action sits full-width UNDER
+          // the looks, above the fold, and keeps its ink — the one
+          // commitment on the setup screen (Annie: "keep it full ink").
+          // The piece-count nudge is gone from the card (the composing
+          // screen already said it); `nudge` survives for the caption
+          // the design may bring back.
+          void nudge;
           const footer =
-            '<div id="rb-styled-foot" style="margin-top:18px;padding-top:16px;border-top:0.5px solid rgba(32,32,33,0.10);font-size:12.5px;color:#6E6A64;line-height:1.4">' + nudge + '</div>' +
+            '<button id="rb-styled-open" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-top:16px;padding:14px 22px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:10.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;cursor:pointer">See the full looks <span style="font-size:13px">→</span></button>' +
             mailAskHtml();
           card.innerHTML = shell(
             'Your ' + _waEsc(pieceName.toLowerCase()) + ', <em>worn three ways.</em>',
-            'Three complete looks, built and waiting.',
+            '',
             tiles,
-            '<button id="rb-styled-open" style="flex-shrink:0;padding:12px 22px;border-radius:100px;border:none;background:#202021;color:#fff;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">See the full looks →</button>',
+            '',
             footer);
           mount();
           if (!cardSaveId) {
