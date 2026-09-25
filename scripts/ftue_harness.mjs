@@ -134,42 +134,24 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       learnVisible: vis(document.getElementById('rb-svc-learn')),
       cardsVisible: Array.from(document.querySelectorAll('.services-grid .svc')).filter(vis).length,
       styleNotes: !!document.getElementById('rb-sil-prompt'),
-      // The merged header meter (2a): eyebrow + count + line + one caption
+      // The banner (Felix's review, 2026-09-25): the wardrobe tracker alone
       learnEy: document.querySelector('#rb-svc-learn .ey')?.textContent || '',
       learnN: document.querySelector('#rb-svc-learn .n')?.textContent || '',
-      learnCap: document.querySelector('#rb-svc-learn .cap')?.textContent || '',
-      learnFill: document.querySelector('#rb-svc-learn .rb-ms-fill')?.style.width || '',
-      learnTicks: Array.from(document.querySelectorAll('#rb-svc-learn .rb-ms-tick')).map((t) => [t.style.left, t.classList.contains('on')]),
-      learnCols: Array.from(document.querySelectorAll('#rb-svc-learn .rb-ms-col')).map((c) => [c.querySelector('.rb-ms-at')?.textContent, c.querySelector('.rb-ms-lbl')?.textContent, c.classList.contains('on')]),
-      learnStill: !!document.querySelector('#rb-svc-learn .rb-ms.still'),
-      secMeta: !!document.querySelector('.services .sec-meta'),
-      bandTint: (() => {
-        const el = document.querySelector('.services');
+      learnFill: document.querySelector('#rb-svc-learn .fill')?.style.width || '',
+      learnMarks: Array.from(document.querySelectorAll('#rb-svc-learn .mk')).map((t) => [t.style.left, t.classList.contains('on')]),
+      learnCols: Array.from(document.querySelectorAll('#rb-svc-learn .col')).map((c) => [c.querySelector('.at')?.textContent, c.querySelector('.lbl')?.textContent, c.classList.contains('on')]),
+      learnCta: document.querySelector('#rb-svc-learn .cta')?.textContent || '',
+      learnText: document.getElementById('rb-svc-learn')?.textContent || '',
+      bannerTint: (() => {
+        const el = document.getElementById('rb-svc-learn');
         return el ? getComputedStyle(el).backgroundColor : '';
       })(),
-      dailyImg: document.querySelector('.svc-daily .svc-img img')?.getAttribute('src') || '',
-      filledInBand: Array.from(document.querySelectorAll('.services button, .services .svc-cta, #rb-svc-filed .cta'))
+      headVisible: vis(document.querySelector('.services > .sec-head')),
+      filedRow: !!document.getElementById('rb-svc-filed'),
+      filledInBand: Array.from(document.querySelectorAll('.services button'))
         .filter((el) => el.offsetParent !== null)
         .filter((el) => getComputedStyle(el).backgroundColor === 'rgb(32, 32, 33)').length,
-      pill: document.querySelector('.services .rb-lock-pill')?.textContent || '',
-      // Card captions — the specific version of "filing buys quality"
-      notes: Array.from(document.querySelectorAll('.services-grid .svc')).map((c) => ({
-        title: c.querySelector('.svc-title')?.textContent,
-        note: c.querySelector('.rb-svc-note')?.textContent || '',
-      })),
-      // The filed-piece row — a receipt, not a wardrobe
-      filed: (() => {
-        const r = document.getElementById('rb-svc-filed');
-        if (!r) return null;
-        return {
-          thumbs: r.querySelectorAll('.th').length,
-          nm: r.querySelector('.nm')?.textContent || '',
-          meta: r.querySelector('.meta')?.textContent || '',
-          all: r.querySelector('.all')?.textContent || '',
-          note: r.querySelector('.note')?.textContent || '',
-          cta: r.querySelector('.cta')?.textContent || '',
-        };
-      })(),
+      bannerH: document.getElementById('rb-svc-learn')?.getBoundingClientRect().height || 0,
       railAfterConcierge: (() => {
         const c = dash?.querySelector('.concierge');
         return !!c && c.nextElementSibling?.id === 'rb-rail';
@@ -189,13 +171,11 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   // filed pieces and the band has said everything it can.
   check(`n=${n} · concierge ${n < 15 ? 'shown (no piece floor)' : 'retired at fifteen'}`,
     state.servicesVisible === (n < 15), String(state.servicesVisible));
-  if (n === 0) {
-    check('n=0 · the band paints with an empty receipt (CTA only, no thumb)',
-      !!state.filed && state.filed.thumbs === 0 && state.filed.nm === ''
-        && /Catalogue what you’re wearing now/.test(state.filed.cta),
-      JSON.stringify(state.filed));
+  if (n > 0 && n < 15) {
+    check(`n=${n} · the concierge is the banner alone — no cards, no header, no receipt row`,
+      state.learnVisible && state.cardsVisible === 0 && !state.headVisible && !state.filedRow,
+      JSON.stringify([state.learnVisible, state.cardsVisible, state.headVisible, state.filedRow]));
   }
-
   // Style Notes only at the last milestone
   check(`n=${n} · style notes ${n >= 15 ? 'introduced' : 'absent'}`,
     state.styleNotes === (n >= 15), `got ${state.styleNotes}`);
@@ -221,77 +201,23 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       JSON.stringify([state.learnVisible, state.cardsVisible]));
   }
   if (n >= 3 && n < 15) {
-    check(`n=${n} · header meter reads "Robes is learning · N pieces filed"`,
+    check(`n=${n} · banner reads "Robes is learning · N pieces filed"`,
       state.learnEy === 'Robes is learning'
-        && new RegExp(`^${n}\\s*pieces? filed$`, 'i').test(state.learnN.trim())
-        && state.secMeta === false,
-      JSON.stringify([state.learnEy, state.learnN, state.secMeta]));
-    // 4a: no caption line under the meter — the eyebrow, rail and count
-    // carry the header; the card captions carry the borrowed-piece claim.
-    check(`n=${n} · no title or caption line on the band header`,
-      state.learnCap === '', state.learnCap);
-    // Slice 3 (2026-09-18): the meter IS the ladder — 5 / 10 / 15, the
-    // fill walking the ticks (piecewise), never reading full (15 → 78%),
-    // no transition on the band.
-    const pts = [[0, 0], [5, 25], [10, 50], [15, 78], [20, 100]];
-    let want = 100;
-    for (let i = 1; i < pts.length; i++) {
-      if (n <= pts[i][0]) { const [a, b] = [pts[i - 1], pts[i]]; want = a[1] + ((n - a[0]) / (b[0] - a[0])) * (b[1] - a[1]); break; }
-    }
-    check(`n=${n} · meter fill ${want.toFixed(1)}% (through the 5 / 10 / 15 ticks)`,
-      Math.abs(parseFloat(state.learnFill) - want) < 0.6, `got ${state.learnFill}`);
-    check(`n=${n} · the band's ladder reads 5 / 10 / 15 — builds a daily look · plans a week of outfits · knows your taste`,
-      JSON.stringify(state.learnTicks) === JSON.stringify([['25%', n >= 5], ['50%', n >= 10], ['78%', n >= 15]])
-        && JSON.stringify(state.learnCols.map((c) => [c[0], c[1]])) === JSON.stringify([['05', 'Builds a daily look'], ['10', 'Plans a week of outfits'], ['15', 'Knows your taste']])
-        && state.learnStill,
-      JSON.stringify([state.learnTicks, state.learnCols, state.learnStill]));
-    // The tinted band (4a): #F2EEE7, exactly one per screen, and no filled
-    // dark button inside it (R3 — the prompt keeps the only one).
-    check(`n=${n} · the concierge is the tinted band, no filled button inside`,
-      state.bandTint === 'rgb(242, 238, 231)' && state.filledInBand === 0,
-      JSON.stringify([state.bandTint, state.filledInBand]));
-    check(`n=${n} · the cards carry the look photography`,
-      /looks\/look1\.jpg/.test(state.dailyImg), state.dailyImg);
-    check(`n=${n} · no denominator, no lock language anywhere on the module`,
-      !/\/\s*\d|of 15|unlock|lock/i.test(state.learnN + ' ' + state.learnCap
-        + ' ' + state.notes.map((x) => x.note).join(' ')),
-      state.learnN);
-
-    // NOTHING GATED: the progress pill is gone; each card carries its
-    // one-line caption instead.
-    check(`n=${n} · no progress pill on any card`, state.pill === '', state.pill);
-    const noteFor = (t) => (state.notes.find((x) => x.title === t) || {}).note;
-    const W = ['no', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
-    const more = (k) => `${W[k]} more piece${k === 1 ? '' : 's'}`;
-    const wantDaily = n >= 15
-      ? 'Today’s look: styled entirely from your wardrobe.'
-      : n >= 5
-        ? 'Today’s look: built from your pieces first, gaps borrowed.'
-        : `${more(5 - n)} and Robes builds a daily look from yours.`;
-    const wantWeekly = n >= 10
-      ? 'A week of outfits, each day from your own wardrobe.'
-      : `${more(10 - n)} and Robes plans a week of outfits.`;
-    check(`n=${n} · card captions read the ladder (five builds a daily look, ten plans a week)`,
-      noteFor('Daily outfit') === wantDaily
-        && noteFor('Weekly planner') === wantWeekly
-        && noteFor('Travel edit') === 'Tell Robes where and how long.',
-      JSON.stringify(state.notes));
-
-    // The filed-piece row: one thumbnail always, the caption flipping from
-    // "your first filed piece" to "last filed" + a way into the wardrobe.
-    check(`n=${n} · filed row is a one-thumb receipt with the add door`,
-      !!state.filed && state.filed.thumbs === 1
-        && state.filed.nm === 'Piece 1'
-        && state.filed.note === 'One photo files four pieces.'
-        && /Catalogue what you’re wearing now/.test(state.filed.cta),
-      JSON.stringify(state.filed));
-    check(`n=${n} · filed row caption ${n === 1 ? 'names the first' : 'reads last filed + count'}`,
-      n === 1
-        ? (/Your first filed piece/i.test(state.filed.meta) && state.filed.all === '')
-        : (/Last filed/i.test(state.filed.meta)
-          && state.filed.all.indexOf(n + ' pieces in your wardrobe') === 0
-          && /See all/.test(state.filed.all)),
-      JSON.stringify(state.filed));
+        && new RegExp(`^${n}\\s*pieces? filed$`, 'i').test(state.learnN.trim()),
+      JSON.stringify([state.learnEy, state.learnN]));
+    check(`n=${n} · banner fill ${(n / 15 * 100).toFixed(1)}% along the 5 / 10 / 15 ladder`,
+      Math.abs(parseFloat(state.learnFill) - n / 15 * 100) < 0.6, `got ${state.learnFill}`);
+    const P = (x) => Math.round(x / 15 * 100);
+    check(`n=${n} · the ladder reads 5 / 10 / 15 — builds a daily look · plans a week of outfits · knows your taste`,
+      JSON.stringify(state.learnMarks.map((m) => [Math.round(parseFloat(m[0])), m[1]])) === JSON.stringify([[P(5), n >= 5], [P(10), n >= 10], [P(15), false]])
+        && JSON.stringify(state.learnCols.map((c) => [c[0], c[1]])) === JSON.stringify([['05', 'Builds a daily look'], ['10', 'Plans a week of outfits'], ['15', 'Knows your taste']]),
+      JSON.stringify([state.learnMarks, state.learnCols]));
+    check(`n=${n} · the banner is tinted, its one door a hairline pill (no filled button)`,
+      state.bannerTint === 'rgb(242, 238, 231)' && state.filledInBand === 0 && /Catalogue a piece/i.test(state.learnCta),
+      JSON.stringify([state.bannerTint, state.filledInBand, state.learnCta]));
+    check(`n=${n} · no denominator, no lock language on the banner`,
+      !/\/\s*\d|of 15|unlock|lock/i.test(state.learnText), state.learnText);
+    check(`n=${n} · the banner is one compact row (≤150px)`, state.bannerH > 0 && state.bannerH <= 150, String(state.bannerH));
   }
 
   await ctx.close();
@@ -990,8 +916,10 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     errsFree: true,
   }));
   check('concierge retires · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('concierge retires · one of each live edit made — the module falls away whole',
-    r.services === false, JSON.stringify(r));
+  // 2026-09-25: the band is the wardrobe tracker alone — making one of each
+  // edit no longer retires it; only the ladder's last rung does.
+  check('concierge · one of each live edit made — the tracker banner stands',
+    r.services === true, JSON.stringify(r));
   await ctx.close();
 }
 
@@ -1022,7 +950,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     return { imgH, wkCta, daily, weekly };
   });
   check('concierge doors · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('concierge doors · the image window is 260px', c.imgH === 260, String(c.imgH));
+  // The cards are hidden on home since 2026-09-25 (the banner is the band) —
+  // their handlers still stand for the Lookbook's ways-to-fill clones.
   check('concierge doors · the weekly CTA promises the day-chip reality (audit 7.1)',
     c.wkCta === 'Start with tomorrow', c.wkCta);
   check('concierge doors · Style today scopes the prompt to TODAY, in focus',

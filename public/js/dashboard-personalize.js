@@ -1130,12 +1130,16 @@
       }
       window.__rbSvcAll = function() { if (window.App && App.showWardrobe) App.showWardrobe(); };
       window.__rbSvcSnap = function() { _wtrkOpenAdd(); };
-      // "Robes is learning" merged INTO the concierge (2a): a quiet header
-      // meter with ONE job — filing replaces borrowed pieces with her own,
-      // the only honest reason to catalogue when access isn't the reward —
-      // and a filed-piece RECEIPT row (one thumbnail, always: the most
-      // recent piece, never a growing strip that duplicates the Wardrobe
-      // tab) closing the module with the one add door.
+      // The concierge is ONE banner now (Felix's UX review, 2026-09-25 —
+      // "the weekly planner and travel edit behave and look like blog
+      // entries, not app functions"): the three photographic cards and the
+      // filed-piece receipt row are gone from home, and what stays is the
+      // wardrobe tracker — "Robes is learning · N pieces filed", the 5 /
+      // 10 / 15 ladder (slice 3) and the one add door. The cards stay in
+      // the DOM, hidden, because the empty Lookbook's ways-to-fill state
+      // clones them (_snPaintWays); the prompt's three pills carry every
+      // edit on home. Never a denominator, never a lock; the banner
+      // retires at fifteen (3.3), so the track never reads full.
       function _rbConciergeSync(n) {
         const svc = document.querySelector('.services');
         if (!svc) return;
@@ -1143,116 +1147,68 @@
           const st = document.createElement('style');
           st.id = 'rb-svc-style';
           st.textContent =
-            // ── The tinted band (4a): full-bleed within the shell frame —
-            // negative gutters mirror .dash's own padding at each
-            // breakpoint, so the inner content stays on the page grid.
-            // Exactly ONE band per screen; #F2EEE7 with #E1DACB as its
-            // hairline (cream-300 disappears against the tint).
-            '.services{--rb-bleed:var(--s6,80px);margin:6px calc(var(--rb-bleed) * -1) 48px;padding:48px var(--rb-bleed);background:#F2EEE7;border-top:1px solid var(--rule,#E7E0CF);border-bottom:1px solid var(--rule,#E7E0CF)}' +
-            'body[data-density="compact"] .services{--rb-bleed:36px}' +
-            '@media(max-width:920px){.services{--rb-bleed:26px;padding-top:36px;padding-bottom:36px}}' +
-            '@media(max-width:560px){.services{--rb-bleed:20px;padding-top:32px;padding-bottom:32px}}' +
-            // R1 header on the band: eyebrow ink, the meter beside it, one
-            // hairline under the pair. No title line.
-            '.services .sec-head{align-items:baseline;flex-wrap:wrap;row-gap:10px;padding-bottom:14px;border-bottom:1px solid var(--rule-mid,#D8CFC0);margin-bottom:24px}' +
-            '.services .sec-ey{font-weight:400;color:var(--ink,#202021)}' +
-            // The ladder sits right of the eyebrow: count line over the
-            // shared milestone bar (ticks 5 / 10 / 15 + the capability
-            // columns), 440px on the web, the row on a phone.
-            '#rb-svc-learn{margin-left:auto;display:flex;flex-direction:column;gap:10px;width:min(440px,100%)}' +
-            '#rb-svc-learn .row{display:flex;align-items:baseline;justify-content:space-between;gap:14px}' +
-            '#rb-svc-learn .ey{font-size:10px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A9082);white-space:nowrap}' +
-            '#rb-svc-learn .n{font-size:11px;font-weight:300;color:var(--ink-soft,#6E665C);white-space:nowrap}' +
-            '#rb-svc-learn .n b{font-weight:400;color:var(--ink,#202021)}' +
-            '#rb-svc-learn .rb-ms-track{background:#E1DACB}' +
-            '#rb-svc-learn .rb-ms-tick{background:#C4B8A4}#rb-svc-learn .rb-ms-tick.on{background:var(--ink-soft,#6E665C)}' +
-            // Cards on the band (4a): white, 4px, 160px photography with a
-            // quiet serif ordinal; status caption over its own hairline;
-            // text CTA only — never a filled button (R3).
-            '.services .svc{border:1px solid var(--rule,#E7E0CF);border-radius:4px}' +
-            '.services .svc:hover{border-color:var(--rule-mid,#D8CFC0)}' +
-            '.services .svc-img{aspect-ratio:auto;height:260px}' +
-            '.services .svc-num{top:10px;left:12px;font-size:15px;color:rgba(250,248,245,0.86);text-shadow:0 1px 8px rgba(32,32,33,0.35)}' +
-            '.services .svc-body{padding:14px 16px;gap:7px}' +
-            '.services .svc-title{font-size:22px;margin-bottom:0}' +
-            '.services .svc-desc{font-size:12px;line-height:1.5;margin-bottom:0}' +
-            '.services .svc-cta{gap:8px;font-size:10px;letter-spacing:.2em}' +
-            '.services .svc-cta svg{width:15px;height:15px;stroke-width:1.4}' +
-            '.rb-svc-note{font-size:11px;font-weight:300;color:var(--ink-faint,#9A9082);line-height:1.4;margin:0;padding-bottom:11px;border-bottom:1px solid var(--cream-200,#EFE9DC)}' +
-            // The filed-piece row (R4): a receipt, not a wardrobe.
-            '#rb-svc-filed{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:24px;padding-top:22px;border-top:1px solid var(--rule-mid,#D8CFC0)}' +
-            '#rb-svc-filed .th{flex:none;width:40px;height:50px;border-radius:2px;border:1px solid #E1DACB;overflow:hidden;background:var(--cream-100,#F5F0E8)}' +
-            '#rb-svc-filed .th img{width:100%;height:100%;object-fit:cover;display:block}' +
-            '#rb-svc-filed .th .mono{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-size:17px;color:var(--ink-faint,#9A9082)}' +
-            '#rb-svc-filed .txt{display:flex;flex-direction:column;gap:3px;min-width:0}' +
-            '#rb-svc-filed .nm{font-size:12px;font-weight:400;color:var(--ink,#202021)}' +
-            '#rb-svc-filed .meta{font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#9A9082)}' +
-            '#rb-svc-filed .all{background:none;border:none;border-left:1px solid var(--rule-mid,#D8CFC0);padding:4px 0 4px 14px;margin-left:0;font-family:inherit;font-size:12px;font-weight:300;color:var(--ink-soft,#6E665C);cursor:pointer;text-align:left}' +
-            '#rb-svc-filed .all span{color:var(--ink,#202021);margin-left:6px}' +
-            '#rb-svc-filed .sp{flex:1}' +
-            '#rb-svc-filed .note{font-size:12px;font-weight:300;color:var(--ink-faint,#9A9082);white-space:nowrap}' +
-            '#rb-svc-filed .cta{flex:none;padding:16px 28px;border:1px solid var(--rule-mid,#D8CFC0);border-radius:2px;background:transparent;font-family:inherit;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink,#202021);cursor:pointer;transition:all .2s}' +
-            '#rb-svc-filed .cta:hover{border-color:var(--ink,#202021);background:rgba(32,32,33,0.02)}' +
-            // R1 — one header rule for every section on home: eyebrow left,
-            // its one action right, a hairline under the pair.
+            // The section itself is a plain slot; the banner is the card.
+            '.services{margin:6px 0 48px;padding:0;background:none;border:0}' +
+            '.services > .sec-head,.services > .services-grid,#rb-svc-filed{display:none!important}' +
+            '#rb-svc-learn{display:grid;grid-template-columns:minmax(150px,auto) minmax(0,1fr) auto;align-items:center;gap:40px;' +
+              'padding:26px 28px;background:#F2EEE7;border:1px solid #E1DACB;border-radius:var(--rad-lg,12px)}' +
+            '#rb-svc-learn .hd{display:flex;flex-direction:column;gap:6px;min-width:0}' +
+            '#rb-svc-learn .ey{font-size:9.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink,#202021)}' +
+            '#rb-svc-learn .n{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-size:30px;font-weight:400;line-height:1.05;color:var(--ink,#202021);white-space:nowrap}' +
+            // The ladder: a hairline with a marker per rung, evenly spaced,
+            // the fill walking to the rung she has reached.
+            '#rb-svc-learn .lad{position:relative;padding:0 44px 0 0;min-width:0}' +
+            '#rb-svc-learn .trk{position:relative;height:1.5px;background:#E1DACB;margin:8px 0 0}' +
+            '#rb-svc-learn .fill{position:absolute;left:0;top:0;bottom:0;background:var(--sage,#7E7C5A)}' +
+            '#rb-svc-learn .mk{position:absolute;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:#F2EEE7;border:1px solid #C9C39E;box-sizing:border-box}' +
+            '#rb-svc-learn .mk.on{background:var(--sage,#7E7C5A);border-color:var(--sage,#7E7C5A)}' +
+            '#rb-svc-learn .cols{position:relative;height:30px;margin-top:10px}' +
+            '#rb-svc-learn .col{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;white-space:nowrap}' +
+            '#rb-svc-learn .col .at{font-size:9.5px;color:var(--ink-faint,#9A9082)}' +
+            '#rb-svc-learn .col .lbl{font-size:10.5px;font-weight:300;color:var(--ink-faint,#9A9082)}' +
+            '#rb-svc-learn .col.on .at,#rb-svc-learn .col.on .lbl{color:var(--ink,#202021)}' +
+            '#rb-svc-learn .cta{flex:none;padding:13px 26px;border:1px solid #E1DACB;border-radius:100px;background:transparent;font-family:inherit;font-size:9.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink,#202021);cursor:pointer;white-space:nowrap;transition:border-color .2s}' +
+            '#rb-svc-learn .cta:hover{border-color:var(--ink-soft,#6E665C)}' +
+            // R1 — one header rule for every section on home.
             '#rb-rail .rb-rail-head{padding-bottom:14px;border-bottom:1px solid var(--rule,#E7E0CF);margin-bottom:16px}' +
             '#rb-rail .rb-rail-ey{font-weight:400;letter-spacing:.24em;color:var(--ink-faint,#9A9082)}' +
             '#rb-sn .rb-sec-head,#rb-insp-row .rb-sec-head{padding-bottom:14px;border-bottom:1px solid var(--rule,#E7E0CF)}' +
             '#rb-sn .rb-sec-ey,#rb-insp-row .rb-sec-ey{font-weight:400;letter-spacing:.24em;color:var(--ink-faint,#9A9082)}' +
+            // Mobile (2b): the banner stacks — header, the ladder with the
+            // rung numerals in the serif and two-line capabilities, then
+            // the add door full width.
             '@media(max-width:767px){' +
-              '.services .sec-head{flex-direction:column;align-items:stretch}' +
-              '#rb-svc-learn{margin-left:0;width:100%}' +
-              '#rb-svc-filed .note{display:none}#rb-svc-filed .cta{flex:1 1 100%;min-height:48px;text-align:center}}';
+              '#rb-svc-learn{grid-template-columns:minmax(0,1fr);gap:22px;padding:22px 18px 18px}' +
+              '#rb-svc-learn .lad{padding:0 26px 0 6px}' +
+              '#rb-svc-learn .cols{height:44px}' +
+              '#rb-svc-learn .col{white-space:normal;width:74px}' +
+              '#rb-svc-learn .col .at{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-size:15px}' +
+              '#rb-svc-learn .col .lbl{font-size:10px;line-height:1.3}' +
+              '#rb-svc-learn .cta{width:100%;min-height:48px;margin-top:10px}}';
           document.head.appendChild(st);
         }
-        // Header: the eyebrow and the meter carry it — the static
-        // "Specialised edits, on request" meta yields its slot.
-        const head = svc.querySelector('.sec-head');
-        if (head) {
-          const meta = head.querySelector('.sec-meta');
-          if (meta) meta.remove();
-          let learn = document.getElementById('rb-svc-learn');
-          // The meter stops at the last rung (3.3) — a ladder she has
-          // climbed has nothing left to say, whatever else keeps the band.
-          if (n >= _WA_TARGET) { if (learn) learn.remove(); return; }
-          if (!learn) {
-            learn = document.createElement('div');
-            learn.id = 'rb-svc-learn';
-            head.appendChild(learn);
-          }
-          // The meter IS the ladder (Annie, 2026-09-18 — funnel slice 3:
-          // "5 builds a daily look, 10 plans a week of outfits, 15 knows
-          // your taste"): the shared milestone bar, ticks at 5 / 10 / 15,
-          // its three capability columns beneath, the bare count beside
-          // the eyebrow. Never a denominator, never a lock; the fill walks
-          // the ticks and never reads full (15 → 78%). `still`: the band
-          // never animates in place (R6's one surviving clause).
-          learn.innerHTML = '<span class="row"><span class="ey">Robes is learning</span>' +
-            '<span class="n"><b>' + n + '</b> piece' + (n === 1 ? '' : 's') + ' filed</span></span>' +
-            _msBarHtml(n, { still: true });
+        let learn = document.getElementById('rb-svc-learn');
+        if (n >= _WA_TARGET) { if (learn) learn.remove(); return; }
+        if (!learn) {
+          learn = document.createElement('div');
+          learn.id = 'rb-svc-learn';
+          svc.appendChild(learn);
         }
-        // The filed-piece row — a receipt, not a wardrobe: one thumbnail,
-        // fixed height, the CTA never pushed off the row.
-        let row = document.getElementById('rb-svc-filed');
-        if (!row) {
-          row = document.createElement('div');
-          row.id = 'rb-svc-filed';
-          svc.appendChild(row);
-        }
-        const it = _waItems[0] || null;
-        const receipt = it
-          ? '<span class="th">' + (it.image_url
-              ? '<img src="' + _waEsc(it.image_url) + '" alt="">'
-              : '<span class="mono">' + _waEsc((it.label || '?').charAt(0).toUpperCase()) + '</span>') + '</span>' +
-            '<span class="txt"><span class="nm">' + _waEsc(it.label || 'A piece') + '</span>' +
-            '<span class="meta">' + _waEsc(it.category || 'Piece') + ' · ' + (n === 1 ? 'Your first filed piece' : 'Last filed') + '</span></span>'
-          : '';
-        const all = n >= 2
-          ? '<button type="button" class="all" onclick="window.__rbSvcAll()">' + n + ' pieces in your wardrobe ·<span>See all →</span></button>'
-          : '';
-        row.innerHTML = receipt + all + '<span class="sp"></span>' +
-          '<span class="note">One photo files four pieces.</span>' +
-          '<button type="button" class="cta" onclick="window.__rbSvcSnap()">Catalogue what you’re wearing now</button>';
+        const rungs = _MS_UNLOCKS;
+        const last = rungs[rungs.length - 1].at;
+        const pos = u => (u.at / last) * 100;
+        const pct = Math.min(100, (n / last) * 100);
+        const marks = rungs.map(u => '<span class="mk' + (n >= u.at ? ' on' : '') + '" style="left:' + pos(u) + '%"></span>').join('');
+        const cols = rungs.map(u => '<span class="col' + (n >= u.at ? ' on' : '') + '" style="left:' + pos(u) + '%">' +
+          '<span class="at">' + String(u.at).padStart(2, '0') + '</span><span class="lbl">' + u.cap + '</span></span>').join('');
+        learn.innerHTML =
+          '<div class="hd"><span class="ey">Robes is learning</span>' +
+            '<span class="n">' + n + ' piece' + (n === 1 ? '' : 's') + ' filed</span></div>' +
+          '<div class="lad"><div class="trk"><span class="fill" style="width:' + pct + '%"></span>' + marks + '</div>' +
+            '<div class="cols">' + cols + '</div></div>' +
+          '<button type="button" class="cta" onclick="window.__rbSvcSnap()">Catalogue a piece</button>';
+        const old = document.getElementById('rb-svc-filed');
+        if (old) old.remove();
       }
       function _rbGateConcierge(n) {
         const svc = document.querySelector('.services');
@@ -1270,7 +1226,10 @@
         // 3.3 (2026-09-21): at the ladder's last rung the module has said
         // everything it can — the band retires at fifteen filed pieces as
         // it does once she has made one of each edit.
-        const show = !document.getElementById('rb-styled') && !_rbConciergeDone() && _rbHomeMode !== 'look' && n < _WA_TARGET;
+        // 2026-09-25: the band is the wardrobe tracker alone now, so it no
+        // longer retires once she has made a daily look and a travel edit —
+        // only at the ladder's last rung.
+        const show = !document.getElementById('rb-styled') && _rbHomeMode !== 'look' && n < _WA_TARGET;
         svc.style.display = show ? '' : 'none';
         if (show) {
           _rbConciergeSync(n);
