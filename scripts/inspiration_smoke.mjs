@@ -1,6 +1,8 @@
-// Inspiration smoke — the "Style a key piece" modal journey: Inspiration "Style a key piece" modal → kp result →
-// "Build this look" → the composer IN SITU on the kp page → save → Filed; the model park/return; the dressed canvas;
-// per-look feedback (the hairline line) + the build pill; the modal's wardrobe / wishlist doors + the upload scan.
+// Inspiration smoke — the "Style a key piece" modal journey: Inspiration "Style a key piece" modal → kp result
+// (Worn three ways, 2026-09-28: the 4:5 cards with the swatch pill, the pager on the phone, the piece-by-piece
+// sheet) → "Build this look" → the composer IN SITU on the kp page (the builder's header, the bar) → save → the saved
+// view with the toast; the model park/return; the dressed canvas; the thumbs + feedback sheet; the modal's wardrobe /
+// wishlist doors + the upload scan.
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 
@@ -40,7 +42,13 @@ window.supabase = {
 
 const STYLE_RESP = {
   ways: [
-    { eyebrow: 'Sporty cool', title: 'Urbane Weekend', outfit: 'Umbro shorts, a white ribbed tank, and a camel overshirt worn open.', details: 'Half-tuck the tank.', accessories: 'Flat leather slides, tortoise sunglasses, one gold hoop.' },
+    { eyebrow: 'Sporty cool', title: 'Urbane Weekend', outfit: 'Umbro shorts, a white ribbed tank, and a camel overshirt worn open.', details: 'Half-tuck the tank.', accessories: 'Flat leather slides, tortoise sunglasses, one gold hoop.',
+      pieces: [
+        { name: 'White ribbed tank', category: 'Tops', color: 'white', color_hex: '#F1EEE7', role: 'The Canvas', wardrobe_match: null, brand: 'COS', retailer_hint: 'COS', price_point: '€45' },
+        { name: 'Umbro shorts', category: 'Bottoms', color: 'navy', color_hex: '#2F3748', role: 'The Anchor', wardrobe_match: { id: 'w-kp', label: 'Umbro shorts', image_url: 'https://res.cloudinary.com/demo/piece.jpg', color: 'Navy' }, brand: '', retailer_hint: '', price_point: '' },
+        { name: 'Camel overshirt', category: 'Outerwear', color: 'camel', color_hex: '#B98A5E', role: 'The Texture', wardrobe_match: null, brand: 'Arket', retailer_hint: 'Arket', price_point: '€129' },
+        { name: 'Flat leather slides', category: 'Shoes', color: 'tan', color_hex: '#9A6B45', role: 'The Exclamation Point', wardrobe_match: null, brand: 'Sézane', retailer_hint: 'Sézane', price_point: '€165' },
+      ] },
     { eyebrow: 'Refined athletic', title: 'Coffee Run', outfit: 'Umbro shorts, an olive long-sleeve tee.', details: 'Sleeves knotted.', accessories: 'White sneakers, raffia tote.' },
     { eyebrow: 'Elevated leisure', title: 'Park Hangout', outfit: 'Umbro shorts, a white linen tank.', details: 'Three tones only.', accessories: 'Espadrilles, straw bag.' },
   ],
@@ -146,7 +154,7 @@ check('three ways rendered', kpTxt.includes('Urbane Weekend') && kpTxt.includes(
 // prompt use paints into #kp-build-host — no new page, nothing written
 // until she saves. With no model on file the NO MODEL YET band closes the
 // page.
-const buildBtns = page.locator('#kp-result-page button:has-text("Build this look")');
+const buildBtns = page.locator('#kp-ways .kp-build-btn');
 check('Build this look on every look card', await buildBtns.count() === 3);
 const bandBefore = await page.locator('#kp-model-band .kp-model-band').count();
 // Slice 1.3 (2026-09-18): no START HERE band; card 01's Build this look is the
@@ -299,21 +307,34 @@ check('gaps ride the kept look as proposals, her product photo on the key piece 
 check('look card photograph is the way’s original kp frame',
   keptLook && keptLook.body.photo_url === 'https://res.cloudinary.com/demo/way3.jpg',
   JSON.stringify(keptLook && keptLook.body.photo_url || null));
-check('filed IN PLACE: the host reads Filed with the look one tap away, the kp page still on top; the strip’s name field settles to text',
+check('filed IN PLACE (2026-09-28): she stays in the builder — the saved view holds the host, the header’s name field settles to text, the kp page still on top',
   await page.locator('#kp-result-page').isVisible() && await page.locator('#kp-build-host .kp-build-filed').isVisible()
   && await page.locator('#kp-build .kp-build-title-set').count() === 1 && await page.locator('#kp-build input#rb-lk-newtitle').count() === 0
-  && /Park Hangout/.test(await page.locator('#kp-build-host .kp-build-filed').innerText())
+  && /Park Hangout/.test(await page.locator('#kp-build').innerText())
   && !(await page.locator('#sn-page').isVisible()) && await page.locator('#kp-build .kp-build-other, #kp-build .kp-build-all').count() === 0);
-// Slice 1.2 (2026-09-18): the Filed card's forward line — no model on file and
-// proposals travelled, so it names the model and the pieces to photograph.
+// The bar reads Filed under X + ✓ Saved, its line the forward sentence
+// (slice 1.2: no model on file and proposals travelled, so it names the
+// model and the pieces to photograph); the toast carries Open the look;
+// the saved rows read ✓ Saved (they went to the wishlist at the keep); the
+// calendar circle stands on the hero now that there is a look to pin.
 const filedNext = await page.evaluate(() => ({
-  line: document.querySelector('#kp-build-host .kp-filed-next')?.textContent || '',
-  doors: document.querySelectorAll('#kp-build-host .kp-build-filed button').length,
+  kicker: document.querySelector('#kp-build-bar .k')?.textContent || '',
+  line: document.querySelector('#kp-build-bar .t')?.textContent || '',
+  saved: document.querySelector('#kp-build-bar .kp-bar-save')?.textContent.trim(),
+  savedDisabled: !!document.querySelector('#kp-build-bar .kp-bar-save')?.disabled,
+  toast: (document.getElementById('kp-build-toast')?.textContent || '').replace(/\s+/g, ' ').trim(),
+  rows: document.querySelectorAll('#kp-build-host .kp-prow').length,
+  savedRows: document.querySelectorAll('#kp-build-host .rbc-act.done').length,
+  calendar: !!document.querySelector('#kp-build-host .kp-hcirc.l'),
+  noSwap: document.querySelectorAll('#kp-build-host .rbc-act:not(.done)').length === 0,
+  genericToast: /saved to Looks/.test(document.getElementById('toast')?.textContent || '') && document.getElementById('toast')?.classList.contains('show'),
   firstUnfilled: getComputedStyle(document.getElementById('kp-build-btn-0')).backgroundColor !== 'rgb(32, 32, 33)',
 }));
-check('filed · the forward line names the model and the borrowed pieces; Open the look stays the one door; card 01 stands down',
-  /^Build your model and she’ll wear it\. Photograph the \d+ pieces? that (aren’t|isn’t) yours yet and swap them in\.$/.test(filedNext.line)
-    && filedNext.doors === 1 && filedNext.firstUnfilled === true, JSON.stringify(filedNext));
+check('filed · the bar reads FILED UNDER Park Hangout + ✓ Saved (inert), the forward line names the model and the borrowed pieces, the toast carries Open the look, the four rows read ✓ Saved with no Swap, the calendar circle stands; one toast, not two; card 01 stands down',
+  filedNext.kicker === 'Filed under Park Hangout' && filedNext.saved === '✓ Saved' && filedNext.savedDisabled
+    && /^Build your model and she’ll wear it\. Photograph the \d+ pieces? that (aren’t|isn’t) yours yet and swap them in\.$/.test(filedNext.line)
+    && /^Filed under Park Hangout\.\s*Open the look$/.test(filedNext.toast) && filedNext.rows === 4 && filedNext.savedRows === 4
+    && filedNext.calendar && filedNext.noSwap && !filedNext.genericToast && filedNext.firstUnfilled === true, JSON.stringify(filedNext));
 await page.locator('#kp-build-host button:has-text("Open the look")').click();
 await page.waitForTimeout(600);
 check('Open the look lands on the saved look page, Key piece as its way back',
@@ -383,7 +404,7 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(600);
 check('model on file: no NO MODEL YET band on the three-up page', await page.locator('#kp-result-page').isVisible() && await page.locator('#kp-model-band .kp-model-band').count() === 0);
-await page.locator('#kp-result-page button:has-text("Build this look")').first().click();
+await page.locator('#kp-ways .kp-build-btn').first().click();
 await page.waitForTimeout(3600);
 const modelState = await page.evaluate(() => ({
   stage: document.querySelectorAll('#kp-build-host .rb-lkm-stage').length,
@@ -424,121 +445,204 @@ const youSide = await page.evaluate(() => ({
 check('You shows the way’s frame, her render steps aside',
   youSide.frame === 'https://res.cloudinary.com/demo/way1.jpg' && youSide.render === 0, JSON.stringify(youSide));
 
-// 9 · Look feedback (design Look_Feedback, 2026-09-17): per look, the
-// hairline line — never one verdict across the three; Build this look is
-// the design's hairline pill.
+// 9 · The cards and the sheets (Worn three ways, 2026-09-28): each way is a
+// 4:5 frame with the swatch pill, eyebrow + title, Build this look beside
+// the two thumbs; a card's tap opens the piece-by-piece sheet; a thumb opens
+// the feedback sheet — one verdict PER look, the same cloud row as before.
 await page.route('**/api/feedback', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
 await page.evaluate(() => {
   const it = JSON.parse(localStorage.getItem('robes_style_notes__u-test') || '[]').find((i) => i.type === 'key-piece');
   window.__snOpenItem(it.id);
 });
 await page.waitForTimeout(600);
-const fbShape = await page.evaluate(() => {
-  const pg = document.getElementById('kp-result-page');
+const cardShape = await page.evaluate(() => {
   const b = document.getElementById('kp-build-btn-1');
   const cs = getComputedStyle(b);
   const card = b.closest('.kp-look-card');
-  const more = getComputedStyle(document.getElementById('kp-look-more-1'));
+  const acts = card.querySelector('.kp-look-acts');
+  const up = document.getElementById('kp1-fb-up'), ucs = getComputedStyle(up);
+  const img = document.getElementById('kp-look-imgwrap-1');
   return {
-    blocks: ['kp0', 'kp1', 'kp2'].map((p) => !!document.getElementById(p + '-fb')),
-    perLook: (pg.textContent.match(/How was this one\?/g) || []).length,
-    pageLevel: /How were these looks\?/.test(pg.textContent),
-    emoji: /👍/.test(pg.textContent),
-    resting: ['kp0', 'kp1', 'kp2'].every((p) => document.getElementById(p + '-fb-up') && document.getElementById(p + '-fb-dn') && !document.getElementById(p + '-fb-text')),
-    thumbs: (() => { const u = document.getElementById('kp0-fb-up'), t = document.querySelector('#kp0-fb .rb-fb-title'); const cs = getComputedStyle(u); return { round: cs.borderRadius, w: u.getBoundingClientRect().width, svg: !!u.querySelector('svg'), noWords: u.textContent.trim() === '', sameLine: Math.abs(u.getBoundingClientRect().top + u.getBoundingClientRect().height / 2 - (t.getBoundingClientRect().top + t.getBoundingClientRect().height / 2)) < 6 }; })(),
-    pillFont: cs.fontSize, pillTracking: cs.letterSpacing, pillCase: cs.textTransform, pillBg: cs.backgroundColor,
-    pillBorder: cs.borderTopWidth, pillRadius: cs.borderTopLeftRadius, pillWidth: b.getBoundingClientRect().width, cardWidth: card.getBoundingClientRect().width,
-    arrow: !!b.querySelector('.arr'), moreCentred: more.alignSelf,
+    cards: document.querySelectorAll('#kp-ways .kp-look-card').length,
+    thumbsPerCard: ['kp0', 'kp1', 'kp2'].every((p) => document.getElementById(p + '-fb-up') && document.getElementById(p + '-fb-dn')),
+    noLine: !document.querySelector('#kp-result-page .rb-fb'), noMore: !document.querySelector('#kp-result-page .kp-look-more'), noDetail: !document.querySelector('#kp-result-page .kp-look-detail'),
+    pill0: document.querySelector('#kp-look-imgwrap-0 .kp-pill')?.textContent.trim(), sw0: document.querySelectorAll('#kp-look-imgwrap-0 .kp-pill .sw span').length,
+    pill1: !!document.querySelector('#kp-look-imgwrap-1 .kp-pill'),
+    ratio: Math.round(img.getBoundingClientRect().width / img.getBoundingClientRect().height * 100) / 100,
+    ey: document.querySelector('#kp-result-page .rb-tb-ey')?.textContent, thumb: !!document.querySelector('#kp-choose-head .kp-thumb img'),
+    pillFont: cs.fontSize, pillTracking: cs.letterSpacing, pillCase: cs.textTransform, pillBg: cs.backgroundColor, pillH: Math.round(b.getBoundingClientRect().height), pillRadius: cs.borderTopLeftRadius, arrow: !!b.querySelector('.arr'),
+    actsW: Math.round(acts.getBoundingClientRect().width), cardW: Math.round(card.getBoundingClientRect().width),
+    thumbW: Math.round(up.getBoundingClientRect().width), thumbRound: ucs.borderRadius, thumbSvg: !!up.querySelector('svg'), thumbWords: up.textContent.trim(),
+    actrow: getComputedStyle(document.getElementById('kp-actrow')).display, dots: getComputedStyle(document.getElementById('kp-dots')).display,
     firstFilled: getComputedStyle(document.getElementById('kp-build-btn-0')).backgroundColor,
   };
 });
-check('feedback · one hairline line PER look, the page-level block and its emoji gone',
-  fbShape.blocks.every(Boolean) && fbShape.perLook === 3 && !fbShape.pageLevel && !fbShape.emoji && fbShape.resting, JSON.stringify(fbShape));
-check('feedback · the verdict is two thumb circles on the question’s own line, no words (Annie’s iteration)',
-  fbShape.thumbs.svg && fbShape.thumbs.noWords && fbShape.thumbs.round === '50%' && fbShape.thumbs.w === 28 && fbShape.thumbs.sameLine, JSON.stringify(fbShape.thumbs));
-// Both the prose and the verdict are HELD cards inside the way's card
-// (Annie, 2026-09-21: "the text is missing a border … put How was this one
-// in its own card") — the verdict is about the look, never part of it.
-const heldCards = await page.evaluate(() => {
-  window.__kpMore(0);
-  const d = document.getElementById('kp-look-detail-0');
-  const f = document.getElementById('kp0-fb');
-  const pick = (el) => { const c = getComputedStyle(el); return { bg: c.backgroundColor, border: c.borderTopWidth, style: c.borderTopStyle, radius: c.borderTopLeftRadius, pad: c.paddingTop }; };
-  return {
-    open: d.hidden === false,
-    detail: pick(d),
-    fb: pick(f),
-    // the three sections are ruled apart inside the card, not merely gapped
-    ruled: getComputedStyle(d.children[1]).borderTopWidth,
-    // a CARD is bordered all round — the retired treatment was a lone
-    // border-top with nothing beneath it
-    fbBottomRule: getComputedStyle(f).borderBottomWidth,
-  };
-});
-check('key piece · the expanded prose is a held white card on a hairline, its sections ruled apart',
-  heldCards.open && heldCards.detail.bg === 'rgb(255, 255, 255)' && heldCards.detail.border === '1px'
-    && heldCards.detail.style === 'solid' && parseFloat(heldCards.detail.radius) >= 6
-    && parseFloat(heldCards.detail.pad) >= 14 && heldCards.ruled === '1px',
-  JSON.stringify(heldCards));
-if (process.env.SHOT_DIR) {
-  await page.screenshot({ path: process.env.SHOT_DIR + '/kp-open-1280.png' }).catch(() => {});
-  await page.setViewportSize({ width: 390, height: 900 });
-  await page.waitForTimeout(400);
-  await page.evaluate(() => { const d = document.getElementById('kp-look-detail-0'); if (d && d.hidden) window.__kpMore(0); });
-  await page.waitForTimeout(500);
-  await page.evaluate(() => { const d = document.getElementById('kp-look-detail-0'); if (d) d.scrollIntoView({ block: 'center' }); });
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: process.env.SHOT_DIR + '/kp-open-390.png' }).catch(() => {});
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.waitForTimeout(400);
-}
-check('key piece · "How was this one?" is its OWN card, not a line hanging off a hairline',
-  heldCards.fb.bg === 'rgb(255, 255, 255)' && heldCards.fb.border === '1px'
-    && parseFloat(heldCards.fb.radius) >= 6 && parseFloat(heldCards.fb.pad) >= 12
-    && heldCards.fbBottomRule === '1px',
-  JSON.stringify(heldCards.fb));
-check('build this look · the design’s hairline pill (9.5px, .2em, uppercase, transparent, full card width, arrow, More detail centred)',
-  fbShape.pillFont === '9.5px' && /^1\.9/.test(fbShape.pillTracking) && fbShape.pillCase === 'uppercase'
-    && fbShape.pillBg === 'rgba(0, 0, 0, 0)' && fbShape.pillBorder === '1px' && Math.abs(fbShape.pillWidth - fbShape.cardWidth) < 1
-    && fbShape.arrow && fbShape.moreCentred === 'center' && fbShape.firstFilled === 'rgba(0, 0, 0, 0)', JSON.stringify(fbShape));
+check('cards · three 4:5 frames; way 01 carries the swatch pill ("4 pieces · 1 yours", four swatches), a way without pieces none; the piece thumb + "Key piece · yours" head the page; no hairline line, no More detail, no prose card',
+  cardShape.cards === 3 && cardShape.ratio === 0.8 && cardShape.pill0 === '4 pieces · 1 yours' && cardShape.sw0 === 4 && !cardShape.pill1
+    && cardShape.ey === 'Key piece · yours' && cardShape.thumb && cardShape.noLine && cardShape.noMore && cardShape.noDetail, JSON.stringify(cardShape));
+check('cards · Build this look is the design’s pill (10px / .2em / uppercase / 48px / 100px radius / arrow) beside two 48px thumb circles, the row filling the card; card 01 stands down once a way is built; on the web the pager’s dots and shared action row are hidden',
+  cardShape.thumbsPerCard && cardShape.pillFont === '10px' && /^2/.test(cardShape.pillTracking) && cardShape.pillCase === 'uppercase' && cardShape.pillBg === 'rgba(0, 0, 0, 0)'
+    && cardShape.pillH === 48 && cardShape.pillRadius === '100px' && cardShape.arrow && Math.abs(cardShape.actsW - cardShape.cardW) < 1
+    && cardShape.thumbW === 48 && cardShape.thumbRound === '100px' && cardShape.thumbSvg && cardShape.thumbWords === ''
+    && cardShape.actrow === 'none' && cardShape.dots === 'none' && cardShape.firstFilled === 'rgba(0, 0, 0, 0)', JSON.stringify(cardShape));
+// The piece-by-piece sheet: way 0 carries pieces (and is built — its CTA
+// opens the look); way 1 has none and reads its prose instead.
+await page.evaluate(() => window.__kpCardTap(0));
+await page.waitForTimeout(500);
+const sheet0 = await page.evaluate(() => ({
+  open: !!document.querySelector('#kp-sheet.on'), rows: document.querySelectorAll('#kp-sheet .kp-prow').length,
+  first: (document.querySelector('#kp-sheet .kp-prow .k')?.textContent || '').replace(/\s+/g, ' ').trim(),
+  own: document.querySelectorAll('#kp-sheet .kp-prow .own').length, ownImg: !!document.querySelector('#kp-sheet .kp-prow .own')?.closest('.kp-prow')?.querySelector('.th img'),
+  names: Array.from(document.querySelectorAll('#kp-sheet .kp-prow .n')).map((n) => n.textContent),
+  sub: document.querySelector('#kp-sheet .sub')?.textContent, cta: document.querySelector('#kp-sheet .kp-sheet-cta')?.textContent.trim(),
+  title: document.querySelector('#kp-sheet .h')?.textContent, ey: document.querySelector('#kp-sheet .ey')?.textContent,
+}));
+check('piece by piece · a card’s tap opens the sheet: eyebrow + title + "piece by piece.", one row per piece (category · brand price, ✓ In your wardrobe with her photograph on the piece she owns), Open the look on a built way',
+  sheet0.open && sheet0.rows === 4 && sheet0.first === 'Top · COS €45' && sheet0.own === 1 && sheet0.ownImg && sheet0.names[1] === 'Umbro shorts'
+    && sheet0.sub === 'piece by piece.' && sheet0.cta === 'Open the look' && sheet0.title === 'Urbane Weekend' && sheet0.ey === 'Sporty cool', JSON.stringify(sheet0));
+await page.evaluate(() => window.__kpSheetClose('kp-sheet'));
+await page.waitForTimeout(400);
+await page.evaluate(() => window.__kpCardTap(1));
+await page.waitForTimeout(500);
+const sheet1 = await page.evaluate(() => ({
+  open: !!document.querySelector('#kp-sheet.on'), rows: document.querySelectorAll('#kp-sheet .kp-prow').length,
+  prose: document.querySelectorAll('#kp-sheet .kp-prose > div').length, txt: document.querySelector('#kp-sheet .kp-prose')?.textContent || '',
+  cta: document.querySelector('#kp-sheet .kp-sheet-cta')?.textContent.trim(),
+}));
+check('piece by piece · a way saved without pieces reads its prose (outfit / details / accessories) in the sheet, Build this look at its foot',
+  sheet1.open && sheet1.rows === 0 && sheet1.prose === 3 && /Sleeves knotted/.test(sheet1.txt) && sheet1.cta === 'Build this look', JSON.stringify(sheet1));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(400);
+check('piece by piece · Escape closes the sheet', (await page.locator('#kp-sheet').count()) === 0);
+// The thumbs.
 const fbBefore = writes.filter((w) => w.url === 'feedback').length;
 await page.locator('#kp1-fb-dn').click();
-await page.waitForTimeout(200);
+await page.waitForTimeout(600);
 const fbPicked = await page.evaluate(() => ({
   on: document.getElementById('kp1-fb-dn')?.classList.contains('on') && document.getElementById('kp1-fb-dn').getAttribute('aria-pressed') === 'true' && !!document.getElementById('kp1-fb-dn').querySelector('svg'),
   onBg: getComputedStyle(document.getElementById('kp1-fb-dn')).backgroundColor,
   offOther: !document.getElementById('kp1-fb-up')?.classList.contains('on'),
-  input: document.getElementById('kp1-fb-text')?.placeholder,
-  focused: document.activeElement?.id,
-  send: document.querySelector('#kp1-fb .rb-fb-send')?.textContent.trim(),
-  sendBg: getComputedStyle(document.querySelector('#kp1-fb .rb-fb-send')).backgroundColor,
-  othersStill: !document.getElementById('kp0-fb-text') && !document.getElementById('kp2-fb-text'),
+  sheet: !!document.querySelector('#kp-fbsheet.on'),
+  ey: document.querySelector('#kp-fbsheet .ey')?.textContent, heading: document.querySelector('#kp-fbsheet .h')?.textContent,
+  sub: document.querySelector('#kp-fbsheet .sub2')?.textContent,
+  input: document.getElementById('kp1-fb-text')?.placeholder, focused: document.activeElement?.id,
+  send: document.querySelector('#kp-fbsheet .kp-fbrow button')?.textContent.trim(), sendBg: getComputedStyle(document.querySelector('#kp-fbsheet .kp-fbrow button')).backgroundColor,
+  othersStill: !document.getElementById('kp0-fb-dn')?.classList.contains('on') && !document.getElementById('kp2-fb-dn')?.classList.contains('on'),
 }));
-check('feedback · thumbs down: warm fill, the note opens focused ("the note is the point"), Send is a hairline pill, the other two looks untouched',
-  fbPicked.on && fbPicked.onBg === 'rgb(243, 239, 230)' && fbPicked.offOther && fbPicked.input === 'What would have made it better?'
-    && fbPicked.focused === 'kp1-fb-text' && fbPicked.send === 'Send' && fbPicked.sendBg === 'rgba(0, 0, 0, 0)' && fbPicked.othersStill, JSON.stringify(fbPicked));
-await page.locator('#kp1-fb-up').click();
-await page.waitForTimeout(150);
-check('feedback · Loved it flips the placeholder (a note optional)', await page.locator('#kp1-fb-text').getAttribute('placeholder') === 'Anything you want more of?');
+check('feedback · thumbs down: the circle takes the warm fill and the sheet opens — the way’s title, "Not quite right.", the note focused, Send a hairline pill; the other two looks untouched',
+  fbPicked.on && fbPicked.onBg === 'rgb(243, 239, 230)' && fbPicked.offOther && fbPicked.sheet && fbPicked.ey === 'Coffee Run' && fbPicked.heading === 'Not quite right.'
+    && fbPicked.sub === 'Your taste shapes what comes next.' && fbPicked.input === 'What would have made it better?' && fbPicked.focused === 'kp1-fb-text'
+    && fbPicked.send === 'Send' && fbPicked.sendBg === 'rgb(255, 255, 255)' && fbPicked.othersStill, JSON.stringify(fbPicked));
+await page.evaluate(() => window.__kpFb(1, 1));
+await page.waitForTimeout(400);
+check('feedback · thumbs up flips the sheet ("Glad this one landed.", "What worked for you?") and the fill moves',
+  (await page.evaluate(() => document.querySelector('#kp-fbsheet .h')?.textContent)) === 'Glad this one landed.'
+    && await page.locator('#kp1-fb-text').getAttribute('placeholder') === 'What worked for you?'
+    && await page.evaluate(() => document.getElementById('kp1-fb-up').classList.contains('on') && !document.getElementById('kp1-fb-dn').classList.contains('on')));
 await page.fill('#kp1-fb-text', 'more of the olive');
-await page.locator('#kp1-fb .rb-fb-send').click();
+await page.locator('#kp-fbsheet .kp-fbrow button').click();
 await page.waitForTimeout(400);
 const fbSent = await page.evaluate(() => ({
   line: document.getElementById('kp1-fb-done')?.textContent.trim(),
-  pillsGone: !document.getElementById('kp1-fb-up'),
-  others: !!document.getElementById('kp0-fb-up') && !!document.getElementById('kp2-fb-up'),
+  upOn: document.getElementById('kp1-fb-up')?.classList.contains('on'),
+  others: !!document.getElementById('kp0-fb-up') && !!document.getElementById('kp2-fb-up') && !document.getElementById('kp0-fb-up').classList.contains('on'),
 }));
 const fbRows = writes.filter((w) => w.url === 'feedback').slice(fbBefore);
-check('feedback · sent collapses to one line; the other looks still ask',
-  fbSent.line === 'Noted — filed for next time.' && fbSent.pillsGone && fbSent.others, JSON.stringify(fbSent));
+check('feedback · sent reads "Noted. The next ones will lean that way."; the thumb keeps its fill; the other looks still ask',
+  fbSent.line === 'Noted. The next ones will lean that way.' && fbSent.upOn && fbSent.others, JSON.stringify(fbSent));
 check('feedback · ONE feedback row, at look level: the way’s title leads the note, the kp entry is the item',
   fbRows.length === 1 && fbRows[0].body.track === 'key-piece' && fbRows[0].body.rating === 1
     && fbRows[0].body.note === 'Coffee Run — more of the olive' && fbRows[0].body.lookbook_item_id != null, JSON.stringify(fbRows));
-// A reopen of the same result keeps the sent line (state keyed on the data).
+await page.waitForTimeout(1600);
+check('feedback · the sheet closes itself after the note', (await page.locator('#kp-fbsheet').count()) === 0);
+// A reopen of the same result keeps the verdict (state keyed on the data).
 await page.evaluate(() => window.__kpRenderResult(window.__lastKpData, 'Umbro shorts', { intent: 'style', skipSave: true, savedId: null }));
 await page.waitForTimeout(300);
-check('feedback · a re-render of the same result keeps the sent line, the others still resting',
-  (await page.locator('#kp1-fb-done').count()) === 1 && (await page.locator('#kp0-fb-up').count()) === 1);
+check('feedback · a re-render of the same result keeps the verdict (the thumb still filled), the others resting',
+  await page.evaluate(() => document.getElementById('kp1-fb-up').classList.contains('on') && !document.getElementById('kp0-fb-up').classList.contains('on') && !document.getElementById('kp2-fb-up').classList.contains('on')));
+// The phone: the pager — one card centred at a time, the dots and the
+// shared action row following it, a neighbour's tap scrolling it into place.
+await page.setViewportSize({ width: 390, height: 844 });
+await page.waitForTimeout(300);
+await page.evaluate(() => window.__kpRenderResult(window.__lastKpData, 'Umbro shorts', { intent: 'style', skipSave: true, savedId: null }));
+await page.waitForTimeout(500);
+const pager0 = await page.evaluate(() => {
+  const pg = document.getElementById('kp-result-page');
+  const c0 = document.querySelector('#kp-ways .kp-look-card');
+  return {
+    display: getComputedStyle(document.getElementById('kp-ways')).display, cur: window._kpCur,
+    curCls: c0.classList.contains('cur'), width: Math.round(c0.getBoundingClientRect().width),
+    centred: Math.abs(c0.getBoundingClientRect().left + c0.getBoundingClientRect().width / 2 - 195) < 3,
+    actrow: getComputedStyle(document.getElementById('kp-actrow')).display, dots: document.querySelectorAll('#kp-dots button').length,
+    dotOn: Array.from(document.querySelectorAll('#kp-dots button')).map((b) => b.classList.contains('on')).join(','),
+    cardActs: getComputedStyle(document.querySelector('#kp-ways .kp-look-acts')).display,
+    actBuild: document.getElementById('kp-actrow-build')?.textContent.trim(), actBg: getComputedStyle(document.getElementById('kp-actrow-build')).backgroundColor,
+    actUpOn: document.getElementById('kp-actrow-up')?.classList.contains('on'),
+    // (the pager's active dot is a 5px ink button — a marker, not a fill)
+    inks: Array.from(document.querySelectorAll('#kp-result-page button')).filter((b) => b.offsetParent !== null && b.getBoundingClientRect().height > 20 && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
+    overflowX: pg.scrollWidth > pg.clientWidth,
+  };
+});
+check('phone · the three cards are a centred scroll-snap pager (330px at 390), the dots and ONE action row under it — the card’s own row hidden; the row’s Build is the page’s one ink; no horizontal page overflow',
+  pager0.display === 'flex' && pager0.cur === 0 && pager0.curCls && pager0.width === 330 && pager0.centred && pager0.actrow === 'flex' && pager0.dots === 3
+    && pager0.dotOn === 'true,false,false' && pager0.cardActs === 'none' && pager0.actBuild === 'Open the look' && pager0.actBg === 'rgb(32, 32, 33)'
+    && pager0.actUpOn === false && pager0.inks === 1 && !pager0.overflowX, JSON.stringify(pager0));
+await page.evaluate(() => window.__kpCardTap(1));
+await page.waitForTimeout(700);
+const pager1 = await page.evaluate(() => ({
+  cur: window._kpCur, dotOn: Array.from(document.querySelectorAll('#kp-dots button')).map((b) => b.classList.contains('on')).join(','),
+  sheet: !!document.getElementById('kp-sheet'), actBuild: document.getElementById('kp-actrow-build')?.textContent.trim(),
+  actUpOn: document.getElementById('kp-actrow-up')?.classList.contains('on'),
+  curCls: Array.from(document.querySelectorAll('#kp-ways .kp-look-card')).map((c) => c.classList.contains('cur')).join(','),
+}));
+check('phone · a neighbour’s tap scrolls it into place (no sheet): the dots, the current class, the action row’s label and the thumbs follow the card',
+  pager1.cur === 1 && pager1.dotOn === 'false,true,false' && !pager1.sheet && pager1.actBuild === 'Build this look' && pager1.actUpOn === true && pager1.curCls === 'false,true,false', JSON.stringify(pager1));
+await page.evaluate(() => window.__kpCardTap(1));
+await page.waitForTimeout(500);
+check('phone · the current card’s tap opens the sheet as a bottom sheet', await page.evaluate(() => {
+  const w = document.querySelector('#kp-sheet.on'); const sh = w && w.querySelector('.kp-sheet');
+  return !!sh && Math.round(sh.getBoundingClientRect().bottom) === 844 && Math.round(sh.getBoundingClientRect().width) === 390 && getComputedStyle(sh.querySelector('.grab')).display === 'block';
+}));
+await page.evaluate(() => window.__kpSheetClose('kp-sheet'));
+await page.waitForTimeout(400);
+await page.evaluate(() => window.__kpBuildLook(1));
+await page.waitForTimeout(1600);
+const phoneBuild = await page.evaluate(() => {
+  const strip = document.querySelector('#kp-build .kp-build-strip'), bar = document.getElementById('kp-build-bar');
+  const pg = document.getElementById('kp-result-page');
+  const row = document.querySelector('#kp-build-host .rbc-row');
+  return {
+    sticky: getComputedStyle(strip).position, back: !!document.getElementById('kp-build-back'),
+    barFixed: getComputedStyle(bar).position, barBottom: Math.round(bar.getBoundingClientRect().bottom), barTxt: bar.innerText.replace(/\n/g, ' | '),
+    building: pg.classList.contains('kp-building'), actrow: getComputedStyle(document.getElementById('kp-actrow')).display,
+    thumbW: Math.round(row.querySelector('.rbc-vp').getBoundingClientRect().width), rowSave: getComputedStyle(row.querySelector('.rbc-act.save')).backgroundColor,
+    hostSaveHidden: getComputedStyle(document.querySelector('#kp-build-host .rb-lk-save')).display === 'none',
+    overflowX: pg.scrollWidth > pg.clientWidth,
+  };
+});
+check('phone · the builder: a sticky header with the back circle, the bar fixed at the foot (kicker · line · Save this look), the host’s own Save gone, 64px thumbs on white rows with a hairline Save, the pager’s row hidden; no horizontal overflow',
+  phoneBuild.sticky === 'sticky' && phoneBuild.back && phoneBuild.barFixed === 'fixed' && phoneBuild.barBottom === 844 && /SAVE THIS LOOK/i.test(phoneBuild.barTxt) && /Worn this way\./.test(phoneBuild.barTxt)
+    && phoneBuild.building && phoneBuild.actrow === 'none' && phoneBuild.thumbW === 64 && phoneBuild.rowSave === 'rgb(255, 255, 255)' && phoneBuild.hostSaveHidden && !phoneBuild.overflowX, JSON.stringify(phoneBuild));
+// Back to looks: untouched → straight back; a change → the one-line confirm.
+await page.evaluate(() => window.__kpBuildBackAsk());
+await page.waitForTimeout(300);
+check('phone · Back to looks on an untouched draft returns to the cards without asking',
+  !(await page.locator('#rb-del-modal').count()) && await page.locator('#kp-ways').isVisible() && !(await page.locator('#kp-build').isVisible()));
+await page.evaluate(() => window.__kpBuildLook(1));
+await page.waitForTimeout(1600);
+await page.evaluate(() => window.__lkNewTitleInput('The Coffee One'));
+await page.evaluate(() => window.__kpBuildBackAsk());
+await page.waitForTimeout(300);
+const askBack = await page.evaluate(() => ({ modal: !!document.getElementById('rb-del-modal'), txt: (document.getElementById('rb-del-modal')?.textContent || '').replace(/\s+/g, ' ') }));
+check('phone · Back to looks after a change asks first ("Leave this look?"), the draft still standing',
+  askBack.modal && /Leave this look\?/.test(askBack.txt) && /Nothing is saved yet/.test(askBack.txt) && await page.locator('#kp-build-host .rb-lk-composer').count() === 1, JSON.stringify(askBack));
+await page.evaluate(() => document.getElementById('rb-del-modal')?.remove());
+await page.evaluate(() => window.__kpBuildBack());
+await page.waitForTimeout(300);
+await page.setViewportSize({ width: 1280, height: 1200 });
+await page.waitForTimeout(300);
+await page.evaluate(() => window.__kpRenderResult(window.__lastKpData, 'Umbro shorts', { intent: 'style', skipSave: true, savedId: null }));
+await page.waitForTimeout(400);
 // The composer (a way built in situ) carries the same line under Save / Try another
 // (way 1 — ways 0 and 2 were built in earlier sections, so their buttons open saved looks).
 await page.locator('#kp-build-btn-1').click();

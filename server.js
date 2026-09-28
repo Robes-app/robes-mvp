@@ -512,13 +512,70 @@ const STYLE_SCHEMA = {
           details:     { type: 'string' },
           accessories: { type: 'string' },
           tags:        { type: 'array', items: { type: 'string' } },
+          // The look itemised (Worn_Three_Ways native design, 2026-09-28):
+          // the result page reads each way piece by piece BEFORE a build —
+          // the swatch pill ("4 pieces · 1 yours") and the piece sheet
+          // both read this. wardrobe_index points at the numbered closet
+          // block for a piece she owns; -1 for one she would find.
+          pieces: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name:           { type: 'string' },
+                category:       { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Swimwear', 'Other'] },
+                color:          { type: 'string' },
+                color_hex:      { type: 'string' },
+                role:           { type: 'string', enum: ['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'] },
+                wardrobe_index: { type: 'integer' },
+                brand:          { type: 'string' },
+                retailer_hint:  { type: 'string' },
+                price_point:    { type: 'string' },
+              },
+              required: ['name', 'category', 'color', 'color_hex', 'role', 'wardrobe_index'],
+            },
+          },
         },
-        required: ['eyebrow', 'title', 'outfit', 'details', 'accessories', 'tags'],
+        required: ['eyebrow', 'title', 'outfit', 'details', 'accessories', 'tags', 'pieces'],
       },
     },
   },
   required: ['fallback', 'wearer', 'ways'],
 };
+
+// The itemised pieces of a styled way, made safe for the client: a valid
+// hex, a known role, at most six, and the closet index resolved into the
+// same wardrobe_match shape /api/daily hands back (id/label/image_url/
+// color) so the page can show her own photograph on a piece she owns.
+function normStylePieces(way, closetItems) {
+  const rows = Array.isArray(way && way.pieces) ? way.pieces : [];
+  const roles = ['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'];
+  const out = [];
+  rows.forEach(p => {
+    if (!p || typeof p !== 'object' || !String(p.name || '').trim()) return;
+    const idx = Number.isInteger(p.wardrobe_index) ? p.wardrobe_index : -1;
+    const owned = idx >= 0 && idx < closetItems.length ? closetItems[idx] : null;
+    const hex = /^#[0-9A-Fa-f]{6}$/.test(String(p.color_hex || '')) ? String(p.color_hex) : null;
+    const role = roles.find(r => r.toLowerCase() === String(p.role || '').toLowerCase()) || null;
+    out.push({
+      name: String(p.name).trim().slice(0, 80),
+      category: String(p.category || 'Other'),
+      color: String(p.color || '').slice(0, 40),
+      color_hex: hex,
+      role,
+      brand: owned ? String(owned.brand || '') : String(p.brand || '').slice(0, 60),
+      retailer_hint: owned ? '' : String(p.retailer_hint || '').slice(0, 60),
+      price_point: owned ? '' : String(p.price_point || '').slice(0, 20),
+      wardrobe_match: owned ? {
+        id: owned.id != null ? owned.id : null,
+        label: String(owned.label || ''),
+        image_url: owned.image_url || null,
+        color: String(owned.color || ''),
+      } : null,
+    });
+  });
+  return out.slice(0, 6);
+}
 
 app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
   const { photo, link, prompt, name, pieceName, styleDna, styleIcons, wardrobeCount, wardrobeItems, intent, context: rtContext, gender } = req.body;
@@ -536,9 +593,11 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
   const dnaBlock = styleDnaPromptBlock(styleDna, Number(wardrobeCount) || 0, styleIcons);
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
+  // Numbered, so a way's `pieces[].wardrobe_index` can point at the exact
+  // owned piece it uses (the client resolves it back to the row).
   const closetBlock = closetItems.length
-    ? `THE USER'S DIGITISED WARDROBE (${closetItems.length} pieces): ${closetItems.map(i =>
-        `${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
+    ? `THE USER'S DIGITISED WARDROBE (${closetItems.length} pieces, numbered from 0): ${closetItems.map((i, n) =>
+        `[${n}] ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
       ).join('; ')}.`
     : '';
   const closetDirective = closetItems.length >= 15
@@ -549,7 +608,9 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
 
   const formulaBlock = `Every look follows the four-tier layer formula: 1) THE ANCHOR — the weather/agenda hero piece; 2) THE CANVAS — premium supporting basics; 3) THE TEXTURE — one depth-adding element; 4) THE EXCLAMATION POINT — the accessories, footwear and hardware that inject identity. Never give generic output like "jeans and a top" — name exact cuts, fabrications and styling techniques (e.g. "French-tuck a heavyweight silk button-down into high-waisted, wide-leg wool trousers").
 
-STYLING SANITY CHECK: every styling move must be something a respected stylist would actually shoot on the street — honour the key piece's natural register. Sporty and athletic pieces stay in an elevated-casual register: never belt knitwear or cardigans over athletic shorts, never force waist-cinching or hourglass tricks onto a sporty silhouette, never layer formal tailoring over gym wear. Any silhouette or body-architecture rules below govern WHAT pieces you select — they are never a licence to contort HOW a piece is worn. If a styling trick needs explaining to look intentional, drop it: effortless always beats clever.`;
+STYLING SANITY CHECK: every styling move must be something a respected stylist would actually shoot on the street — honour the key piece's natural register. Sporty and athletic pieces stay in an elevated-casual register: never belt knitwear or cardigans over athletic shorts, never force waist-cinching or hourglass tricks onto a sporty silhouette, never layer formal tailoring over gym wear. Any silhouette or body-architecture rules below govern WHAT pieces you select — they are never a licence to contort HOW a piece is worn. If a styling trick needs explaining to look intentional, drop it: effortless always beats clever.
+
+THE PIECES: alongside the prose, itemise every look in "pieces" — three to six entries, each one garment, shoe, bag or accessory the prose names, in the order Canvas → Anchor → Texture → Exclamation Point (one "role" each, from those four; the key piece is always one of them). "name" is the piece as worn ("Ivory silk shirt", "Tan leather loafers"); "category" one of Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other; "color" a plain colour word and "color_hex" one representative hex for it. "wardrobe_index" is the number of the owned piece from the wardrobe list above when the piece IS that piece (use its exact label as the name), else -1. Only a piece she would have to find carries "brand", "retailer_hint" and "price_point" (a realistic EUR figure like "€89"); leave them empty on an owned piece.`;
 
   const brief = daily
     ? `The user is dressing for a real day, happening now. You build three complete, wearable outfits for that day — each a distinct mood or register, all appropriate to the occasion and the real-time weather context provided.`
@@ -624,7 +685,9 @@ Style this key piece three ways. Make each look genuinely distinct — different
           responseMimeType: 'application/json',
           responseSchema: STYLE_SCHEMA,
           thinkingConfig: { thinkingBudget: 0 },
-          maxOutputTokens: 2000,
+          // The itemised pieces ride the same call (2026-09-28) — room for
+          // three ways × up to six rows on top of the prose.
+          maxOutputTokens: 3400,
         },
       })),
       photoMatch ? cloudinaryUpload(photoMatch[2], photoMatch[1]) : Promise.resolve(null),
@@ -633,7 +696,7 @@ Style this key piece three ways. Make each look genuinely distinct — different
     const textMs = Date.now() - t0;
     const parsed = deEscDeep(JSON.parse(textResponse.text));
     const fallback = parsed.fallback === true;
-    const ways = parsed.ways;
+    const ways = (Array.isArray(parsed.ways) ? parsed.ways : []).map(w => Object.assign({}, w, { pieces: normStylePieces(w, closetItems) }));
     logAI({ feature: 'style', stage: 'text', model: 'gemini-2.5-flash', ms: textMs, fallback });
 
     // Create image job and respond immediately — images generate in background

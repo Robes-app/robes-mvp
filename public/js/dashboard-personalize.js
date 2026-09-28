@@ -7036,7 +7036,7 @@
               genId,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
               wardrobeCount: _waItems.length,
-              wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })),
+              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand || '', image_url: i.image_url || null, times_worn: i.times_worn })),
               intent: 'style',
               context: null,
             }),
@@ -7509,7 +7509,7 @@
               const res = await fetch('/api/style', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, photo: photoData, userId: _waUid() || undefined, genId, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(), wardrobeCount: _waItems.length, wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })), intent: 'style' }),
+                body: JSON.stringify({ prompt, photo: photoData, userId: _waUid() || undefined, genId, styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(), wardrobeCount: _waItems.length, wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand || '', image_url: i.image_url || null, times_worn: i.times_worn })), intent: 'style' }),
               });
               clearInterval(msgInterval);
               overlay.style.display = 'none';
@@ -7708,68 +7708,99 @@
           const kis = document.createElement('style');
           kis.id = 'kp-img-style';
           kis.textContent = '@keyframes kpPhPulse{0%,100%{opacity:1}50%{opacity:.55}}' +
-            // Mobile: the single-column card gives the image a short landscape
-            // box (min-height) — a cover-fit portrait image loses head + feet
-            // to the crop. Let the image flow at its natural ratio instead;
-            // min-height only backstops the pending-placeholder state.
-            // The three-up reveal (design Key_Piece_Reveal, 2026-09-16): three
-            // image-led cards on the web, a scroll-snap row on the phone; the
-            // prose lives behind "More detail".
-            '.kp-headrow{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap}' +
-            '.kp-headrow .kp-head{flex:1 1 320px;min-width:0}' +
-            '.kp-yours{display:flex;align-items:flex-end;gap:14px;margin-bottom:12px}' +
-            '.kp-yours-t{text-align:right;padding-bottom:4px}' +
-            '.kp-yours .ey{font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink,#202021)}' +
-            '.kp-yours .n{font-size:12px;color:var(--ink-soft,#55524E);margin-top:6px;max-width:200px}' +
-            '.kp-yours-img{width:104px;height:132px;object-fit:cover;border-radius:3px;background:var(--cream-200,#EDE9E2);display:block;flex:none}' +
-            '.kp-ways{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:36px}' +
-            '.kp-look-card{display:flex;flex-direction:column;gap:14px;min-width:0}' +
-            '.kp-look-imgwrap{position:relative;aspect-ratio:3/4;border-radius:3px;overflow:hidden;background:#EDE9E2;cursor:pointer}' +
-            '.kp-look-imgwrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 12%;display:block}' +
-            '.kp-look-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--rule,rgba(32,32,33,0.1))}' +
-            '.kp-look-ey{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint,#9C9891)}' +
-            '.kp-look-title{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:26px;line-height:1.15;margin:8px 0 0;color:var(--ink,#202021);cursor:pointer}' +
-            '.kp-look-line{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-weight:300;font-size:14px;line-height:1.5;color:var(--ink-soft,#55524E);margin:-4px 0 0}' +
-            // Build this look (design Look_Feedback 2b, 2026-09-17): a
-            // full-width hairline pill — 9.5px/.2em uppercase ink label,
-            // the arrow ink-faint at the right edge, the border going ink
-            // on hover; More detail centred beneath it as a quiet link.
-            '.kp-look-acts{display:flex;flex-direction:column;align-items:stretch;gap:10px}' +
-            '.kp-build-btn{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;box-sizing:border-box;background:transparent;border:1px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:100px;padding:13px 18px;cursor:pointer;font-family:inherit;font-size:9.5px;font-weight:500;line-height:1;letter-spacing:.2em;text-transform:uppercase;color:var(--ink,#202021);transition:border-color .18s}' +
+            // Worn three ways (native design, 2026-09-28): the header is the
+            // piece's thumb beside its eyebrow + the italic wink; the three
+            // looks are image-led 4:5 cards — a 3-up grid on the web, a
+            // centred scroll-snap PAGER on the phone with dots and ONE
+            // action row (Build this look + the two thumbs) for the card in
+            // view. A card's tap opens the piece-by-piece sheet.
+            '.kp-wrap{width:100%;max-width:1100px;margin:0 auto;padding:0 32px 80px;box-sizing:border-box}' +
+            '.kp-head2{display:flex;align-items:center;gap:16px;padding-top:30px}' +
+            '.kp-head2 .rb-tb.bare{padding-top:0;flex:1 1 auto;min-width:0}' +
+            '.kp-thumb{width:46px;height:58px;flex:none;border-radius:8px;overflow:hidden;background:var(--cream-200,#EDE9E2);border:1px solid #C9BCA6}' +
+            '.kp-thumb img{width:100%;height:100%;object-fit:cover;display:block}' +
+            '.kp-head .rb-tb-title{font-size:26px;line-height:1.12}' +
+            '.kp-head .rb-tb-title em{font-style:italic;color:var(--ink-soft,#55524E)}' +
+            '.kp-ways{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:30px}' +
+            '.kp-look-card{display:flex;flex-direction:column;min-width:0}' +
+            '.kp-look-imgwrap{position:relative;aspect-ratio:4/5;border-radius:var(--rad-card,12px);overflow:hidden;background:var(--cream-200,#EDE9E2);cursor:pointer}' +
+            '.kp-look-imgwrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;display:block}' +
+            '.kp-pill{position:absolute;left:12px;bottom:12px;z-index:2;display:flex;align-items:center;gap:8px;background:rgba(250,248,245,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:100px;padding:8px 12px 8px 10px;pointer-events:none}' +
+            '.kp-pill .sw{display:flex;gap:3px}.kp-pill .sw span{width:9px;height:9px;border-radius:50%;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.15)}' +
+            '.kp-pill .m{font-size:11px;line-height:1;color:var(--ink,#202021);white-space:nowrap}' +
+            '.kp-look-head{padding:14px 4px 0;cursor:pointer}' +
+            '.kp-look-ey{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
+            '.kp-look-title{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:26px;line-height:1.15;margin:7px 0 0;color:var(--ink,#202021)}' +
+            '.kp-look-acts{display:flex;align-items:center;gap:8px;margin-top:14px}' +
+            '.kp-build-btn{flex:1;min-width:0;height:48px;box-sizing:border-box;border-radius:100px;border:1px solid var(--rule-mid,rgba(32,32,33,.14));background:transparent;color:var(--ink,#202021);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 22px;font-family:inherit;font-size:10px;font-weight:500;line-height:1;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:border-color .18s;white-space:nowrap}' +
             '.kp-build-btn:hover{border-color:var(--ink,#202021)}' +
             '.kp-build-btn .arr{flex:none;color:var(--ink-faint,#9C9891)}' +
-            '.kp-look-more{align-self:center;background:none;border:0;padding:0 0 2px;font-family:inherit;font-size:11px;font-weight:300;color:var(--ink-faint,#9C9891);border-bottom:1px solid var(--rule-mid,rgba(32,32,33,0.14));cursor:pointer}' +
-            '.kp-look-more:hover{color:var(--ink,#202021)}' +
-            // The prose is HELD (Annie, 2026-09-21: "missing a border, and the
-            // content feels very compressed") — a white card on a hairline in
-            // the app's own card register, with room to read: the three
-            // sections separated by their own rules rather than a bare gap.
-            '.kp-look-detail{display:flex;flex-direction:column;gap:16px;background:#fff;border:1px solid var(--rule-mid,rgba(32,32,33,.12));border-radius:var(--rad-sm,8px);padding:18px}' +
-            '.kp-look-detail[hidden]{display:none}' +
-            '.kp-look-detail>div+div{border-top:1px solid var(--rule,rgba(32,32,33,.075));padding-top:16px}' +
-            '.kp-look-detail .lab{font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#B8A898;margin-bottom:7px}' +
-            '.kp-look-detail p{font-size:13.5px;line-height:1.72;color:var(--ink-soft,#55524E);margin:0}' +
-            '@media(max-width:700px){' +
-              '.kp-headrow{flex-wrap:nowrap;gap:16px}' +
-              '.kp-yours{flex-direction:column;align-items:center;gap:8px;margin-bottom:12px}' +
-              '.kp-yours-t{text-align:center;order:2;padding:0}.kp-yours .n{display:none}' +
-              '.kp-yours-img{width:66px;height:84px}' +
-              '.kp-ways{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;margin:26px -32px 0;padding:0 32px 6px;scrollbar-width:none}' +
+            // Card 01's Build this look is the page's ONE filled button on the
+            // web until a way is built (slice 1.3); on the phone the action
+            // row's Build IS the card's button, so it carries the fill.
+            '.kp-build-btn.kp-build-first,.kp-build-btn.ink{background:#202021;color:#FAF8F5;border-color:#202021}' +
+            '.kp-build-btn.kp-build-first .arr,.kp-build-btn.ink .arr{color:#FAF8F5}' +
+            '.kp-fb{width:48px;height:48px;flex:none;padding:0;border-radius:100px;border:1px solid var(--rule-mid,rgba(32,32,33,.14));background:#fff;color:var(--ink,#202021);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s,border-color .2s}' +
+            '.kp-fb svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.3;stroke-linejoin:round;display:block}' +
+            '.kp-fb.dn svg{transform:rotate(180deg)}' +
+            '.kp-fb.on{background:#F3EFE6;border-color:#C9BCA6}' +
+            '.kp-dots{display:none}' +
+            '#kp-actrow{display:none}' +
+            '@media(max-width:767px){' +
+              '.kp-wrap{padding:0 20px 80px}' +
+              '.kp-head2{gap:14px;padding-top:22px}' +
+              '.kp-head .rb-tb-title{font-size:22px;line-height:1.1}' +
+              '.kp-ways{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:22px -20px 0;padding:0 calc((100vw - min(342px,100vw - 60px)) / 2) 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}' +
               '.kp-ways::-webkit-scrollbar{display:none}' +
-              '.kp-look-card{flex:none;width:250px;scroll-snap-align:start;transition:width .22s ease}' +
-              '.kp-look-card.kp-open{width:min(84vw,340px)}' +
-              '.kp-look-detail{padding:15px;gap:14px}' +
-              '.kp-look-detail>div+div{padding-top:14px}' +
-              '.rb-fb.stack{padding:14px}' +
-              '.kp-look-title{font-size:22px}' +
+              '.kp-look-card{flex:none;width:min(342px,calc(100vw - 60px));scroll-snap-align:center;transform:scale(.94);opacity:.55;transition:transform .35s ease,opacity .35s ease}' +
+              '.kp-look-card.cur{transform:none;opacity:1}' +
+              '.kp-look-card .kp-look-acts{display:none}' +
+              '.kp-dots{display:flex;justify-content:center;gap:6px;margin-top:18px}' +
+              '.kp-dots button{width:5px;height:5px;border-radius:100px;border:0;padding:0;background:var(--cream-400,#D8CFBE);cursor:pointer;transition:width .3s,background .3s}' +
+              '.kp-dots button.on{width:18px;background:var(--ink,#202021)}' +
+              '#kp-actrow{display:flex;align-items:center;gap:8px;margin-top:14px}' +
+              '@media(prefers-reduced-motion:reduce){.kp-look-card{transition:none}}' +
             '}' +
-            '.kp-head{margin-bottom:12px;padding-top:34px}' +
             '#kp-choose-head[hidden]{display:none}' +
-            // Card 01's Build this look is the page's ONE filled button until a
-            // way is built (slice 1.3, 2026-09-18 — the guide band that used to
-            // switch this on is gone; the fill is the default now).
-            '.kp-build-btn.kp-build-first{background:#202021;color:#fff;border-color:#202021}' +
-            '.kp-build-btn.kp-build-first .arr{color:#fff}';
+            // The sheets (piece by piece · feedback): a bottom sheet on the
+            // phone, a centred dialog on the web — one shell, one register.
+            '.kp-sheet-wrap{position:fixed;inset:0;z-index:955;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}' +
+            '.kp-sheet-scrim{position:absolute;inset:0;background:rgba(32,32,33,.28);opacity:0;transition:opacity .3s}' +
+            '.kp-sheet{position:relative;z-index:1;width:100%;max-width:480px;max-height:86vh;overflow-y:auto;box-sizing:border-box;background:#FAF8F5;border-radius:20px;padding:22px 24px 26px;box-shadow:0 24px 60px -12px rgba(32,32,33,.28);transform:translateY(12px);opacity:0;transition:transform .35s cubic-bezier(.2,.7,.2,1),opacity .3s;font-family:inherit}' +
+            '.kp-sheet-wrap.on .kp-sheet-scrim{opacity:1}.kp-sheet-wrap.on .kp-sheet{transform:none;opacity:1}' +
+            '.kp-sheet .grab{display:none}' +
+            '.kp-sheet .x{position:absolute;top:18px;right:16px;width:32px;height:32px;border-radius:100px;border:1px solid var(--rule,rgba(32,32,33,.1));background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;color:var(--ink,#202021)}' +
+            '.kp-sheet .x svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:1.3;stroke-linecap:round}' +
+            '.kp-sheet .ey{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077);padding-right:44px}' +
+            '.kp-sheet .h{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:28px;line-height:1.1;margin:7px 0 0;color:var(--ink,#202021);padding-right:44px}' +
+            '.kp-sheet .sub{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-weight:400;font-size:17px;line-height:1.3;color:var(--ink-soft,#55524E);margin-top:4px}' +
+            '.kp-sheet .sub2{font-size:11px;line-height:1.3;color:var(--ink-soft,#55524E);margin-top:6px}' +
+            '.kp-prows{display:flex;flex-direction:column;gap:8px;margin-top:18px}' +
+            '.kp-prow{display:flex;align-items:center;gap:14px;padding:10px;background:#fff;border:1px solid var(--rule,rgba(32,32,33,.1));border-radius:var(--rad-card,12px)}' +
+            '.kp-prow .th{width:48px;height:56px;flex:none;border-radius:10px;overflow:hidden;background:var(--cream-200,#EDE9E2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px}' +
+            '.kp-prow .th img{width:100%;height:100%;object-fit:cover;display:block}' +
+            '.kp-prow .th .dot{width:9px;height:9px;border-radius:50%;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.15)}' +
+            '.kp-prow .th .c{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft,#55524E)}' +
+            '.kp-prow .b{flex:1;min-width:0}' +
+            '.kp-prow .k{display:flex;align-items:center;gap:6px;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft,#55524E);flex-wrap:wrap}' +
+            '.kp-prow .k .own{color:var(--sage,#7E7C5A)}' +
+            '.kp-prow .n{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:18px;line-height:1.15;margin-top:6px;color:var(--ink,#202021)}' +
+            '.kp-prose{display:flex;flex-direction:column;gap:14px;margin-top:18px;background:#fff;border:1px solid var(--rule,rgba(32,32,33,.1));border-radius:var(--rad-card,12px);padding:16px}' +
+            '.kp-prose>div+div{border-top:1px solid var(--rule,rgba(32,32,33,.075));padding-top:14px}' +
+            '.kp-prose .lab{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft,#55524E);margin-bottom:6px}' +
+            '.kp-prose p{font-size:13.5px;line-height:1.65;color:var(--ink-soft,#55524E);margin:0}' +
+            '.kp-sheet-cta{margin-top:18px;width:100%;height:48px;border-radius:100px;border:0;background:#202021;color:#FAF8F5;font-family:inherit;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;cursor:pointer}' +
+            '.kp-fbrow{display:flex;align-items:center;gap:10px;margin-top:18px}' +
+            '.kp-fbrow input{flex:1;min-width:0;border:0;border-bottom:1px solid var(--ink,#202021);border-radius:0;background:transparent;padding:10px 0;font-family:inherit;font-size:14px;line-height:1.2;color:var(--ink,#202021);outline:none;box-shadow:none}' +
+            '.kp-fbrow input::placeholder{color:var(--ink-faint,#9C9891)}' +
+            '.kp-fbrow button{flex:none;height:40px;border-radius:100px;border:1px solid var(--rule,rgba(32,32,33,.1));background:#fff;padding:0 18px;font-family:inherit;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink,#202021);cursor:pointer}' +
+            '.kp-fbdone{margin-top:16px;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-weight:400;font-size:17px;line-height:1.3;color:var(--ink-soft,#55524E)}' +
+            '@media(max-width:767px){' +
+              '.kp-sheet-wrap{align-items:flex-end;padding:0}' +
+              '.kp-sheet{max-width:none;max-height:88dvh;border-radius:var(--rad-lg,16px) var(--rad-lg,16px) 0 0;padding:10px 20px calc(30px + env(safe-area-inset-bottom));transform:translateY(105%);opacity:1}' +
+              '.kp-sheet .grab{display:block;width:36px;height:4px;border-radius:100px;background:var(--cream-400,#D8CFBE);margin:0 auto 18px}' +
+            '}' +
+            '@media(prefers-reduced-motion:reduce){.kp-sheet,.kp-sheet-scrim{transition:none}}';
           document.head.appendChild(kis);
         }
         const imagesPending = !!data.jobId;
@@ -7808,7 +7839,9 @@
           : (kpIsPiece && kpPiece ? 'Your ' + kpPiece : (kpPiece || kpAsk || 'Your piece')));
         const kpTitleBlock = _rbTitleHtml({
           bare: true, cls: 'kp-head',
-          eyebrow: kpDaily ? 'Your day' : 'Key piece',
+          // "Key piece · yours" (native design): the thumb beside it is
+          // the piece she photographed or picked.
+          eyebrow: kpDaily ? 'Your day' : ((photoUrl || kpIsPiece) ? 'Key piece · yours' : 'Key piece'),
           // The request's own words lead the title (her rename first, else
           // the prompt), so the italic wink still lands (design 11).
           titleHtml: kpDaily
@@ -7816,30 +7849,38 @@
             : _waEsc(kpLead) + ',<br><em>worn three ways.</em>',
           titleId: 'kp-headline',
         });
+        const kpArrow = '<svg class="arr" width="14" height="10" viewBox="0 0 14 10" fill="none" aria-hidden="true"><path d="M1 5h12M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+        // The two thumbs beside Build (native design): hairline circles,
+        // the picked one on the warm fill. Same state as the hairline line
+        // they replace here (_rbFbState['kp'+i]) — one cloud row per look.
+        const kpFbBtns = (i, ids) => {
+          const st = _rbFbState['kp' + i] || {};
+          return '<button type="button" class="kp-fb up' + (st.rating === 1 ? ' on' : '') + '" id="' + ids[0] + '" aria-label="More like this" aria-pressed="' + (st.rating === 1 ? 'true' : 'false') + '" onclick="window.__kpFb(' + i + ',1)">' + _KP_THUMB_SVG + '</button>' +
+            '<button type="button" class="kp-fb dn' + (st.rating === 0 ? ' on' : '') + '" id="' + ids[1] + '" aria-label="Less like this" aria-pressed="' + (st.rating === 0 ? 'true' : 'false') + '" onclick="window.__kpFb(' + i + ',0)">' + _KP_THUMB_SVG + '</button>';
+        };
         try { kpResultPage.innerHTML = `
           ${kpBand}
-          <div style="width:100%;max-width:1100px;margin:0 auto;padding:0 32px 80px;box-sizing:border-box">
+          <div class="kp-wrap">
             <div id="kp-choose-head">
-            <div class="kp-headrow">
+            <div class="kp-head2">
+              ${(!kpDaily && photoUrl) ? `<div class="kp-thumb"><img src="${_waEsc(photoUrl)}" alt=""></div>` : ''}
               ${kpTitleBlock}
-              ${(!kpDaily && photoUrl) ? `<div class="kp-yours"><div class="kp-yours-t"><div class="ey">Yours</div><div class="n">${_waEsc(kpPiece || pieceName)}</div></div><img class="kp-yours-img" src="${_waEsc(photoUrl)}" alt=""></div>` : ''}
             </div>
-            ${(fallback || kpDaily) ? `<p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:0 0 24px">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.'}</p>` : ''}
+            ${(fallback || kpDaily) ? `<p style="font-size:14px;line-height:1.7;color:#6E6A64;max-width:560px;margin:14px 0 0">${fallback ? "We didn't recognise your request, so we've styled a Balmain waistcoat for you instead." : 'Three complete outfits for today — weather-checked, built from anchor to exclamation point.'}</p>` : ''}
 
             ${kpDaily && kpCtx && (kpCtx.city || kpCtx.tempRange) ? `
-            <div style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#6E6A64;letter-spacing:.04em;border:0.5px solid rgba(32,32,33,0.12);border-radius:40px;padding:9px 18px;margin:0 0 28px;background:#fff">
+            <div style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#6E6A64;letter-spacing:.04em;border:0.5px solid rgba(32,32,33,0.12);border-radius:40px;padding:9px 18px;margin:18px 0 0;background:#fff">
               <span>🌤</span>
               <strong style="font-weight:500;color:#202021">${_waEsc([kpCtx.city, kpCtx.month].filter(Boolean).join(' · '))}</strong>
               ${kpCtx.tempRange ? `<span style="color:rgba(32,32,33,0.2)">|</span><span>${_waEsc(kpCtx.tempRange)}</span>` : ''}
               ${kpCtx.hint ? `<span style="color:rgba(32,32,33,0.2)">|</span><span style="font-style:italic">${_waEsc(kpCtx.hint)}</span>` : ''}
             </div>` : ''}
 
-            ${kpDaily ? `<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:var(--rad);background:#fff;max-width:400px;margin-bottom:40px">
+            ${kpDaily ? `<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:0.5px solid rgba(32,32,33,0.15);border-radius:var(--rad);background:#fff;max-width:400px;margin-top:18px">
               ${photoUrl ? `<img src="${_waEsc(photoUrl)}" style="width:64px;height:80px;border-radius:4px;object-fit:cover;flex-shrink:0" alt="">` : ''}
               <div>
-                <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px">${kpDaily ? "Today's brief" : 'Your piece'}</div>
-                ${kpDaily ? `<div style="font-family:${serif};font-size:22px;font-weight:400;color:#202021;line-height:1.1">${_waEsc(pieceName)}</div>` : ''}
-                ${photoUrl ? '<div style="font-size:12px;color:var(--ink-faint);margin-top:4px">✓ The one you uploaded</div>' : ''}
+                <div style="font-size:9.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px">Today's brief</div>
+                <div style="font-family:${serif};font-size:22px;font-weight:400;color:#202021;line-height:1.1">${_waEsc(pieceName)}</div>
               </div>
             </div>` : ''}
             </div>
@@ -7850,32 +7891,30 @@
                 const phInner = imagesPending
                   ? `<span style="font-family:${serif};font-style:italic;font-size:15px;color:var(--ink-faint);text-align:center;padding:0 24px">Creating your editorial image…</span>`
                   : `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C8BCAE" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+                const built = _kpBuiltLookId(i) != null;
                 return `
-                <div class="kp-look-card">
-                  <div class="kp-look-imgwrap" id="kp-look-imgwrap-${i}" role="button" aria-label="Build ${_waEsc(w.title || 'this look')}" onclick="window.__kpBuildLook(${i})">
+                <div class="kp-look-card${i === 0 ? ' cur' : ''}" data-kp="${i}">
+                  <div class="kp-look-imgwrap" id="kp-look-imgwrap-${i}" role="button" aria-label="${_waEsc(w.title || 'This look')}, piece by piece" onclick="window.__kpCardTap(${i})">
                     ${genImg
                       ? `<img src="${_waEsc(genImg)}" alt="">`
                       : `<div class="kp-img-ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${imagesPending ? 'animation:kpPhPulse 1.8s ease-in-out infinite' : ''}">${phInner}</div>`}
+                    ${_kpPillHtml(w)}
                   </div>
-                  <div class="kp-look-head">
-                    <div style="min-width:0">
-                      <div class="kp-look-ey">${_waEsc(w.eyebrow || '')}</div>
-                      <h3 class="kp-look-title" onclick="window.__kpBuildLook(${i})">${_waEsc(w.title || '')}</h3>
-                    </div>
+                  <div class="kp-look-head" onclick="window.__kpCardTap(${i})">
+                    <div class="kp-look-ey">${_waEsc(w.eyebrow || '')}</div>
+                    <h3 class="kp-look-title">${_waEsc(w.title || '')}</h3>
                   </div>
-                  <p class="kp-look-line">See it piece by piece — what's yours, what would finish it.</p>
                   <div class="kp-look-acts">
-                    <button id="kp-build-btn-${i}" class="kp-build-btn${i === 0 && !kpDaily && !ways.some((_, j) => _kpBuiltLookId(j) != null) ? ' kp-build-first' : ''}${_kpBuiltLookId(i) != null ? ' kp-built' : ''}" onclick="window.__kpBuildLook(${i})">${_kpBuiltLookId(i) != null ? 'Open the look' : 'Build this look'}<svg class="arr" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
-                    <button type="button" class="kp-look-more" id="kp-look-more-${i}" aria-expanded="false" onclick="window.__kpMore(${i})">More detail</button>
+                    <button id="kp-build-btn-${i}" class="kp-build-btn${i === 0 && !kpDaily && !ways.some((_, j) => _kpBuiltLookId(j) != null) ? ' kp-build-first' : ''}${built ? ' kp-built' : ''}" onclick="window.__kpBuildLook(${i})">${built ? 'Open the look' : 'Build this look'}${kpArrow}</button>
+                    ${kpFbBtns(i, ['kp' + i + '-fb-up', 'kp' + i + '-fb-dn'])}
                   </div>
-                  <div class="kp-look-detail" id="kp-look-detail-${i}" hidden>
-                    <div><div class="lab">The outfit</div><p>${_waEsc(w.outfit || '')}</p></div>
-                    <div><div class="lab">Key details</div><p>${_waEsc(w.details || '')}</p></div>
-                    <div><div class="lab">Accessories</div><p>${_waEsc(w.accessories || '')}</p></div>
-                  </div>
-                  ${_rbFeedbackBlock('kp' + i, { title: 'How was this one?', stack: true })}
                 </div>`;
               }).join('')}
+            </div>
+            <div class="kp-dots" id="kp-dots">${ways.map((w, i) => `<button type="button"${i === 0 ? ' class="on"' : ''} aria-label="${_waEsc(w.title || 'Look ' + (i + 1))}" onclick="window.__kpGo(${i})"></button>`).join('')}</div>
+            <div id="kp-actrow">
+              <button type="button" class="kp-build-btn ink" id="kp-actrow-build" onclick="window.__kpBuildLook(window._kpCur || 0)">${_kpBuiltLookId(0) != null ? 'Open the look' : 'Build this look'}${kpArrow}</button>
+              ${kpFbBtns(0, ['kp-actrow-up', 'kp-actrow-dn']).replace(/__kpFb\(0,/g, '__kpFb(window._kpCur||0,')}
             </div>
             <div id="kp-build" class="kp-build" hidden></div>
             <div id="kp-model-band"></div>
@@ -7885,11 +7924,15 @@
         }
 
         kpResultPage.style.display = 'block';
+        kpResultPage.classList.remove('kp-building');
         kpResultPage.scrollTo({ top: 0 });
+        _kpSheetCloseAll();
         // What "Build this look" needs to open the composer IN SITU, and
         // the no-model band at the foot of the page (design Key_Piece_Reveal,
         // 2026-09-16).
-        _kpBuildCtx = { ways, pieceName, promptText: promptText || '', photoUrl: photoUrl || null, daily: kpDaily };
+        _kpBuildCtx = { ways, pieceName, promptText: promptText || '', photoUrl: photoUrl || null, daily: kpDaily, piece: kpPiece || '' };
+        _kpPagerInit();
+        _kpCurSync();
         _kpModelBandSync();
 
         // Images generate in the background on the server — poll and slot them in
@@ -7966,25 +8009,195 @@
         t = t.replace(/\s*,?\s*(three|3)\s+ways\b.*$/i, '');
         return t.replace(/[.\s]+$/, '').trim();
       }
-      window.__kpMore = function(i) {
-        const d = document.getElementById('kp-look-detail-' + i);
-        const b = document.getElementById('kp-look-more-' + i);
-        if (!d) return;
-        d.hidden = !d.hidden;
-        if (b) { b.textContent = d.hidden ? 'More detail' : 'Less detail'; b.setAttribute('aria-expanded', d.hidden ? 'false' : 'true'); }
-        // 250px is the width for CHOOSING between three ways, not for
-        // reading three paragraphs (Annie, 2026-09-21: "very compressed").
-        // The open card takes the room it needs on the phone and scrolls
-        // itself back into view; the CSS that widens it is mobile-only, so
-        // this class does nothing on the web.
-        const card = d.closest ? d.closest('.kp-look-card') : null;
-        if (card) {
-          card.classList.toggle('kp-open', !d.hidden);
-          if (!d.hidden && card.scrollIntoView) {
-            const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            try { card.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'nearest', inline: 'center' }); } catch (_) {}
-          }
+      // ── The results screen's own handlers (Worn three ways, 2026-09-28) ──
+      var _KP_THUMB_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4v-9h3zm0 0l4-8c1.4 0 2.3 1 2 2.4L12.4 9H19a2 2 0 012 2.3l-1.2 7A2 2 0 0117.8 20H7"></path></svg>';
+      var _KP_X_SVG = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 1l8 8M9 1l-8 8"></path></svg>';
+      var _kpEscWired = false;
+      window._kpCur = 0;
+      function _kpIsPager() { return !!(window.matchMedia && window.matchMedia('(max-width:767px)').matches); }
+      // The frosted pill on a card: one swatch per piece (her own piece's
+      // tone where she owns it, the model's hex otherwise) and the count.
+      // A way saved before the pieces existed carries no pill.
+      function _kpPillHtml(w) {
+        const pieces = Array.isArray(w && w.pieces) ? w.pieces : [];
+        if (!pieces.length) return '';
+        const sw = pieces.map(p => {
+          const m = p.wardrobe_match;
+          const wi = m && m.id != null ? _waItems.find(x => String(x.id) === String(m.id)) : null;
+          return (wi && _ltToneOf(wi)) || (/^#[0-9A-Fa-f]{6}$/.test(String(p.color_hex || '')) ? p.color_hex : null);
+        }).filter(Boolean).slice(0, 5);
+        const yours = pieces.filter(p => p.wardrobe_match).length;
+        const meta = pieces.length + ' pieces' + (yours ? ' · ' + yours + ' yours' : '');
+        return '<div class="kp-pill">' + (sw.length ? '<div class="sw">' + sw.map(h => '<span style="background:' + _waEsc(h) + '"></span>').join('') + '</div>' : '') +
+          '<span class="m">' + _waEsc(meta) + '</span></div>';
+      }
+      // The pager: on the phone the card nearest the centre is the current
+      // one — the dots and the action row follow it. Wired on every render
+      // (the pager is rebuilt each time).
+      function _kpPagerInit() {
+        const el = document.getElementById('kp-ways');
+        if (!el) return;
+        window._kpCur = 0;
+        let raf = null;
+        el.addEventListener('scroll', function() {
+          if (raf) return;
+          raf = requestAnimationFrame(function() { raf = null; _kpCurFromScroll(); });
+        }, { passive: true });
+        try { el.scrollLeft = 0; } catch (_) {}
+        if (!_kpEscWired) {
+          _kpEscWired = true;
+          document.addEventListener('keydown', function(e) { if (e.key === 'Escape') _kpSheetCloseAll(); });
         }
+      }
+      function _kpCurFromScroll() {
+        const el = document.getElementById('kp-ways');
+        if (!el || !_kpIsPager()) return;
+        const cards = el.querySelectorAll('.kp-look-card');
+        if (!cards.length) return;
+        const er = el.getBoundingClientRect();
+        const mid = er.left + el.clientWidth / 2;
+        let best = 0, bd = Infinity;
+        cards.forEach((c, k) => {
+          const r = c.getBoundingClientRect();
+          const d = Math.abs(r.left + r.width / 2 - mid);
+          if (d < bd) { bd = d; best = k; }
+        });
+        if (best !== (window._kpCur || 0)) { window._kpCur = best; _kpCurSync(); }
+      }
+      window.__kpGo = function(i) {
+        const el = document.getElementById('kp-ways');
+        const cards = el ? el.querySelectorAll('.kp-look-card') : [];
+        const c = cards[i];
+        if (!el || !c) return;
+        if (!_kpIsPager()) { window._kpCur = i; _kpCurSync(); return; }
+        const r = c.getBoundingClientRect(), er = el.getBoundingClientRect();
+        const left = el.scrollLeft + (r.left - er.left) + r.width / 2 - el.clientWidth / 2;
+        const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        try { el.scrollTo({ left: Math.max(0, left), behavior: calm ? 'auto' : 'smooth' }); } catch (_) { el.scrollLeft = Math.max(0, left); }
+        window._kpCur = i;
+        _kpCurSync();
+      };
+      function _kpCurSync() {
+        const i = window._kpCur || 0;
+        document.querySelectorAll('#kp-ways .kp-look-card').forEach((el, k) => el.classList.toggle('cur', k === i));
+        document.querySelectorAll('#kp-dots button').forEach((b, k) => b.classList.toggle('on', k === i));
+        const bb = document.getElementById('kp-actrow-build');
+        if (bb && bb.firstChild && bb.firstChild.nodeType === 3) bb.firstChild.textContent = _kpBuiltLookId(i) != null ? 'Open the look' : 'Build this look';
+        _kpFbSync(i);
+      }
+      // A card's tap: on the phone a card beside the current one scrolls
+      // into place first; the current card (and every card on the web)
+      // opens the piece-by-piece sheet.
+      window.__kpCardTap = function(i) {
+        if (_kpIsPager() && i !== (window._kpCur || 0)) { window.__kpGo(i); return; }
+        window.__kpSheet(i);
+      };
+      // The sheet shell — scrim + sheet, Escape and the scrim close it.
+      function _kpSheetOpen(id, inner) {
+        document.getElementById(id)?.remove();
+        const w = document.createElement('div');
+        w.id = id;
+        w.className = 'kp-sheet-wrap';
+        w.innerHTML = '<div class="kp-sheet-scrim" onclick="window.__kpSheetClose(\'' + id + '\')"></div>' +
+          '<div class="kp-sheet" role="dialog" aria-modal="true"><div class="grab"></div>' +
+          '<button type="button" class="x" aria-label="Close" onclick="window.__kpSheetClose(\'' + id + '\')">' + _KP_X_SVG + '</button>' +
+          inner + '</div>';
+        document.body.appendChild(w);
+        requestAnimationFrame(function() { requestAnimationFrame(function() { w.classList.add('on'); }); });
+        return w;
+      }
+      window.__kpSheetClose = function(id) {
+        const w = document.getElementById(id);
+        if (!w) return;
+        w.classList.remove('on');
+        setTimeout(function() { w.remove(); }, 320);
+      };
+      function _kpSheetCloseAll() { ['kp-sheet', 'kp-fbsheet'].forEach(id => document.getElementById(id)?.remove()); }
+      // One row of the piece-by-piece sheet: her photograph where she owns
+      // the piece, else the swatch + category; "✓ In your wardrobe" or the
+      // brand and price; the serif name.
+      function _kpPieceRowHtml(p) {
+        const m = p.wardrobe_match;
+        const wi = m && m.id != null ? _waItems.find(x => String(x.id) === String(m.id)) : null;
+        const img = _pdHttp(m && m.image_url) || (wi && _pdHttp(wi.image_url)) || null;
+        const hex = (wi && _ltToneOf(wi)) || (/^#[0-9A-Fa-f]{6}$/.test(String(p.color_hex || '')) ? p.color_hex : null);
+        const cat = _dlSlot(p).l;
+        const th = img
+          ? '<div class="th"><img src="' + _waEsc(img) + '" alt=""></div>'
+          : '<div class="th">' + (hex ? '<span class="dot" style="background:' + _waEsc(hex) + '"></span>' : '') + '<span class="c">' + _waEsc(cat) + '</span></div>';
+        const src = m ? '<span class="own">✓ In your wardrobe</span>'
+          : _waEsc([_rbDeEsc(p.brand || p.retailer_hint || ''), _rbcPrice(p.price_point || '')].filter(Boolean).join(' '));
+        return '<div class="kp-prow">' + th + '<div class="b"><div class="k"><span>' + _waEsc(cat) + (src ? ' ·' : '') + '</span>' + (src ? ' ' + (m ? src : '<span>' + src + '</span>') : '') + '</div>' +
+          '<div class="n">' + _waEsc(p.name || '') + '</div></div></div>';
+      }
+      // Piece by piece: the look as a list, and Build this look at its foot.
+      // A way saved before the pieces existed shows its prose instead.
+      window.__kpSheet = function(i) {
+        const c = _kpBuildCtx;
+        const w = c && c.ways && c.ways[i];
+        if (!w) return;
+        const pieces = Array.isArray(w.pieces) ? w.pieces : [];
+        const rows = pieces.length
+          ? '<div class="kp-prows">' + pieces.map(_kpPieceRowHtml).join('') + '</div>'
+          : '<div class="kp-prose">' +
+              '<div><div class="lab">The outfit</div><p>' + _waEsc(w.outfit || '') + '</p></div>' +
+              '<div><div class="lab">Key details</div><p>' + _waEsc(w.details || '') + '</p></div>' +
+              '<div><div class="lab">Accessories</div><p>' + _waEsc(w.accessories || '') + '</p></div></div>';
+        const built = _kpBuiltLookId(i) != null;
+        _kpSheetOpen('kp-sheet',
+          '<div class="ey">' + _waEsc(w.eyebrow || '') + '</div>' +
+          '<div class="h">' + _waEsc(String(w.title || '').replace(/\.$/, '')) + '</div>' +
+          '<div class="sub">piece by piece.</div>' + rows +
+          '<button type="button" class="kp-sheet-cta" onclick="window.__kpSheetClose(\'kp-sheet\');window.__kpBuildLook(' + i + ')">' + (built ? 'Open the look' : 'Build this look') + '</button>');
+        _rbTrack('kp_sheet_opened', { way: String(i), pieces: pieces.length });
+      };
+      window.__kpMore = window.__kpSheet;
+      // The thumbs: a tap records the verdict on the look and opens the
+      // feedback sheet for a note; the same thumb again withdraws it (a
+      // sent verdict reopens its Noted line instead).
+      function _kpFbSync(i) {
+        const st = _rbFbState['kp' + i] || {};
+        const set = (el, on) => { if (!el) return; el.classList.toggle('on', !!on); el.setAttribute('aria-pressed', on ? 'true' : 'false'); };
+        set(document.getElementById('kp' + i + '-fb-up'), st.rating === 1);
+        set(document.getElementById('kp' + i + '-fb-dn'), st.rating === 0);
+        if (i === (window._kpCur || 0)) {
+          set(document.getElementById('kp-actrow-up'), st.rating === 1);
+          set(document.getElementById('kp-actrow-dn'), st.rating === 0);
+        }
+      }
+      window.__kpFb = function(i, val) {
+        const p = 'kp' + i;
+        if (!_rbFbState[p]) _rbFbState[p] = { rating: null, text: '', sent: false };
+        const st = _rbFbState[p];
+        if (st.rating === val && !st.sent) { st.rating = null; _kpFbSync(i); window.__kpSheetClose('kp-fbsheet'); return; }
+        if (st.rating !== val) { st.rating = val; st.sent = false; }
+        _kpFbSync(i);
+        _kpFbSheet(i);
+      };
+      function _kpFbSheet(i) {
+        const c = _kpBuildCtx;
+        const w = c && c.ways && c.ways[i] || {};
+        const st = _rbFbState['kp' + i] || {};
+        const down = st.rating === 0;
+        const body = st.sent
+          ? '<div class="kp-fbdone" id="kp' + i + '-fb-done">Noted. The next ones will lean that way.</div>'
+          : '<div class="kp-fbrow"><input type="text" id="kp' + i + '-fb-text" placeholder="' + (down ? 'What would have made it better?' : 'What worked for you?') + '" value="' + _waEsc(st.text || '') + '" oninput="window.__rbFbNote(\'kp' + i + '\',this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();window.__kpFbSend(' + i + ')}">' +
+            '<button type="button" onclick="window.__kpFbSend(' + i + ')">Send</button></div>';
+        _kpSheetOpen('kp-fbsheet',
+          '<div class="ey">' + _waEsc(String(w.title || '').replace(/\.$/, '')) + '</div>' +
+          '<div class="h">' + (down ? 'Not quite right.' : 'Glad this one landed.') + '</div>' +
+          '<div class="sub2">Your taste shapes what comes next.</div>' + body);
+        if (!st.sent) setTimeout(function() { const t = document.getElementById('kp' + i + '-fb-text'); if (t) { try { t.focus(); } catch (_) {} } }, 380);
+      }
+      window.__kpFbSend = function(i) {
+        const st = _rbFbState['kp' + i];
+        if (!st) return;
+        const t = document.getElementById('kp' + i + '-fb-text');
+        if (t) st.text = t.value;
+        window.__rbFbSubmit('kp' + i);
+        _kpFbSync(i);
+        _kpFbSheet(i);
+        setTimeout(function() { window.__kpSheetClose('kp-fbsheet'); }, 1400);
       };
       function _kpBuildToks(s) {
         return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
@@ -8098,6 +8311,7 @@
             eyebrow: String(w.eyebrow || '').trim(),
             again: () => _kpBuildLookRun(w, kp),
           });
+          _kpBuildSig = _kpBuildSigNow();
           _kpBuildScroll();
         } catch (err) {
           guard.done();
@@ -8124,35 +8338,135 @@
       // Filed with the look one tap away. With no model on file the
       // NO MODEL YET band closes the page; Build your model parks the
       // draft and comes back here.
-      var _kpBuildCtx = null;   // {ways, pieceName, promptText, photoUrl, daily} for the page on screen
+      var _kpBuildCtx = null;   // {ways, pieceName, promptText, photoUrl, daily, piece} for the page on screen
       var _kpBuildWay = null;   // which of the three is being built
+      // The plain-word asides under the builder's role heads (native
+      // design): Canvas · the base / Anchor · the key piece / Texture ·
+      // depth & layers / Exclamation point · the one note. Anchor keeps
+      // its name (Annie, 2026-09-28) — one vocabulary across the app.
+      var _KP_ROLE_HINTS = {
+        'The Canvas': 'the base',
+        'The Anchor': 'the key piece',
+        'The Texture': 'depth & layers',
+        'The Exclamation Point': 'the one note',
+      };
       function _kpBuildCss() {
         if (document.getElementById('kp-build-style')) return;
         const st = document.createElement('style');
         st.id = 'kp-build-style';
         st.textContent =
           '.kp-build[hidden]{display:none}' +
-          '.kp-build-strip{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:30px 0 16px;border-bottom:1px solid var(--rule,rgba(32,32,33,0.1));margin-bottom:24px}' +
-          '.kp-build-l{flex:1 1 auto;min-width:0}' +
-          '.kp-build-ey{font-size:9px;font-weight:500;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077);margin-bottom:6px}' +
-          '#kp-build .kp-build-title{display:block;width:100%;max-width:560px;margin:0;padding:0;border:0;background:none;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:31px;line-height:1.1;color:var(--ink,#202021);outline:none}' +
+          // The builder's ONE header (native design): a back circle, the
+          // way's eyebrow over the look's name (the composer's own name
+          // field, editable in place), a spacer. On the phone it sticks
+          // under the nav on a blurred cream band.
+          '.kp-build-strip{display:grid;grid-template-columns:40px minmax(0,1fr) 40px;align-items:center;gap:12px;padding:26px 0 14px;border-bottom:1px solid var(--rule,rgba(32,32,33,0.1));margin-bottom:22px}' +
+          '.kp-circ{width:40px;height:40px;border-radius:100px;border:1px solid var(--rule,rgba(32,32,33,0.1));background:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;color:var(--ink,#202021);flex:none}' +
+          '.kp-circ svg{width:9px;height:15px;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;display:block}' +
+          '.kp-build-l{min-width:0;text-align:center}' +
+          '.kp-build-ey{font-size:9px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077);margin-bottom:4px}' +
+          '#kp-build .kp-build-title{display:block;width:100%;margin:0;padding:0;border:0;border-bottom:1px solid transparent;background:none;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:26px;line-height:1.1;color:var(--ink,#202021);outline:none;text-align:center;text-overflow:ellipsis}' +
+          '#kp-build input.kp-build-title:focus{border-bottom-color:var(--rule-mid,rgba(32,32,33,.14))}' +
           '#kp-build .kp-build-title::placeholder{color:var(--ink-faint,#9C9891);font-style:italic}' +
-          '.kp-build-wait{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:-8px 0 18px;font-size:12px;color:var(--ink-faint,#9C9891);letter-spacing:.04em}' +
+          '.kp-build-wait{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin:-8px 0 18px;font-size:12px;color:var(--ink-faint,#9C9891);letter-spacing:.04em}' +
           '.kp-build-wait .bar{width:90px;height:1px;background:rgba(32,32,33,0.1);position:relative;overflow:hidden}' +
           '.kp-build-wait .bar i{position:absolute;inset:0;background:#202021;transform:translateX(-100%);animation:kpLoadBar 2.5s ease-in-out infinite}' +
           '.kp-build-wait #kp-load-cancel{margin-top:0!important}' +
-          // The composer at the reading measure: 392px canvas | the rack.
+          // The composer at the reading measure: 392px canvas | the rack —
+          // flat on the cream (the design's builder is not a held card):
+          // the hero frame, the note, the tag chips, then the rows.
+          '#kp-build-host .rb-lk-composer{background:transparent;border:0;padding:0;box-shadow:none;border-radius:0}' +
           '#kp-build-host .rb-lk-con{grid-template-columns:392px minmax(0,1fr);gap:28px}' +
-          '@media(max-width:1080px){#kp-build-host .rb-lk-con{grid-template-columns:minmax(0,1fr);gap:24px}}' +
-          // Filed: the look is in the Lookbook, one tap away.
-          '.kp-build-filed{background:#fff;border:0.5px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:var(--rad-lg,12px);padding:28px 26px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}' +
-          '.kp-build-filed .ey{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
-          '.kp-build-filed h3{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:26px;line-height:1.15;margin:8px 0 0;color:var(--ink,#202021)}' +
-          '.kp-build-filed h3 em{font-style:italic}' +
-          '.kp-build-filed .sub{font-size:12.5px;color:var(--ink-soft,#55524E);margin-top:8px}' +
-          '.kp-build-filed .acts{display:flex;align-items:center;gap:18px;flex-wrap:wrap}' +
+          '@media(max-width:1080px){#kp-build-host .rb-lk-con{grid-template-columns:minmax(0,1fr);gap:22px}}' +
+          '#kp-build-host .rbc-panel{border:0;padding:0;background:transparent;border-radius:0;box-shadow:none}' +
+          '#kp-build-host .rbc-panel .rbc-lhead{display:none}' +
+          '#kp-build-host .rb-lkm-canvas{border-radius:var(--rad-card,12px);border:0}' +
+          '#kp-build-host .rbc-panel>div[style*="aspect-ratio"]{border-radius:var(--rad-card,12px)!important}' +
+          '#kp-build-host .rbc-quote{margin:16px 6px 0;padding:0;border-left:0;font-size:16px;line-height:1.4;color:var(--ink-soft,#55524E);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;cursor:pointer}' +
+          '#kp-build-host .rbc-quote.open{-webkit-line-clamp:unset}' +
+          '#kp-build-host .rbc-tags{border-top:0;padding:14px 6px 0;margin-top:0;justify-content:flex-start;gap:6px;flex-wrap:wrap}' +
+          '#kp-build-host .rbc-tags .tgs{gap:6px}' +
+          '#kp-build-host .rbc-tags .tg{background:var(--sage-bg,#E9ECDD);color:var(--ink,#202021);padding:7px 12px;font-size:11px}' +
+          '#kp-build-host .rbc-tags .tnone{font-size:12px}' +
+          '#kp-build-host .rbc-tags .tedit{border:1px dashed var(--cream-400,#D8CFBE);border-radius:100px;padding:6px 12px;font-size:11px;letter-spacing:0;text-transform:none;font-weight:400;color:var(--ink-soft,#55524E)}' +
+          '#kp-build-host .rb-lk-quiet{margin:12px 6px 0}' +
+          // The rows, grouped under their role: label + plain-word aside
+          // as the section head; a white card per piece — 64×72 thumb,
+          // category · source, the serif name, Swap + Save at the right.
+          '#kp-build-host .rbc-rolestrip{margin:22px 0 8px;padding:0 6px;gap:8px;align-items:baseline}' +
+          '#kp-build-host .rbc-rolestrip span{font-size:9px;letter-spacing:.24em;color:var(--ink-soft,#55524E)}' +
+          '#kp-build-host .rbc-rolestrip.ghost span{color:var(--ink-faint,#9C9891)}' +
+          '#kp-build-host .rbc-rolestrip span[data-hint]::after{font-size:14px;color:var(--ink-faint,#9C9891);margin-left:8px}' +
+          '#kp-build-host .rbc-rolestrip i{display:none}' +
+          '#kp-build-host .rbc-rolestrip .rbc-stripadd{margin-left:auto}' +
+          '#kp-build-host .rbc-rack{gap:8px}' +
+          '#kp-build-host .rbc-row{grid-template-columns:64px minmax(0,1fr);gap:14px;padding:12px;border:1px solid var(--rule,rgba(32,32,33,0.1));border-radius:var(--rad-card,12px);align-items:start}' +
+          '#kp-build-host .rbc-row.rbc-rghost{display:flex;padding:14px 16px;border-style:dashed;border-color:var(--cream-400,#D8CFBE)}' +
+          '#kp-build-host .rbc-vp{aspect-ratio:64/72;border-radius:10px}' +
+          '#kp-build-host .rbc-vp .vslot,#kp-build-host .rbc-vp .vcount{display:none}' +
+          '#kp-build-host .rbc-body{padding:0}' +
+          '#kp-build-host .rbc-body>div:first-child{display:flex;flex-direction:column}' +
+          '#kp-build-host .rbc-sub{order:-1;margin:0 0 6px;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft,#55524E);gap:6px}' +
+          '#kp-build-host .rbc-sub .rbc-mslot{display:inline}' +
+          '#kp-build-host .rbc-sub .brand{font-family:inherit;font-style:normal;font-size:9px}' +
+          '#kp-build-host .rbc-sub .price{font-size:9px}' +
+          '#kp-build-host .rbc-sub .owned{font-size:9px;letter-spacing:.2em;color:var(--sage,#7E7C5A)}' +
+          '#kp-build-host .rbc-sub .owned svg{display:none}' +
+          '#kp-build-host .rbc-name{font-size:20px;line-height:1.15}' +
+          '#kp-build-host .rbc-hownote{display:none}' +
+          '#kp-build-host .rbc-foot{justify-content:flex-end;margin-top:10px}' +
+          '#kp-build-host .rbc-foot>span:first-child{display:none}' +
+          '#kp-build-host .rbc-act{height:36px;padding:0 15px;font-size:13px;color:var(--ink,#202021);border:1px solid var(--rule,rgba(32,32,33,0.1));background:#fff}' +
+          '#kp-build-host .rbc-act.save{background:#fff;color:var(--ink,#202021);border-color:var(--rule,rgba(32,32,33,0.1))}' +
+          '#kp-build-host .rbc-act.save:hover{opacity:1;border-color:var(--ink,#202021)}' +
+          '#kp-build-host .rbc-act.done{background:#F3EFE6;border-color:#C9BCA6;color:var(--ink,#202021);height:36px;padding:0 16px;font-size:13px;display:inline-flex;align-items:center;gap:6px}' +
+          '#kp-build-host .rbc-act.done svg{display:none}' +
+          '#kp-build-host .rbc-addpiece{height:52px;margin-top:10px;border:1px dashed var(--cream-400,#D8CFBE);border-radius:var(--rad-card,12px);font-size:12px;color:var(--ink-soft,#55524E)}' +
+          // Save and its note live in the BAR now; Try another and the
+          // feedback line stay under the rack.
+          '#kp-build-host .rb-lk-save,#kp-build-host .rb-lk-savenote{display:none}' +
+          '#kp-build-host .rb-lk-saverow{border-top:0;padding-top:6px;margin-top:14px;justify-content:center}' +
+          '#kp-build-host .rb-lk-saverow.built .rb-lk-buildfoot{justify-content:center}' +
+          // The bar: kicker + line, Save this look — in flow on the web,
+          // fixed above the dock on the phone.
+          '#kp-build-bar{display:flex;align-items:center;gap:10px;margin-top:22px;padding:14px 16px;background:rgba(250,248,245,.92);border-top:1px solid var(--rule,rgba(32,32,33,0.1))}' +
+          '#kp-build-bar[hidden]{display:none}' +
+          '#kp-build-bar .l{flex:1;min-width:0}' +
+          '#kp-build-bar .k{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft,#55524E);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+          '#kp-build-bar .t{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:15px;line-height:1.2;margin-top:4px;color:var(--ink,#202021)}' +
+          '#kp-build-bar .t.door{cursor:pointer;text-decoration:underline;text-decoration-color:var(--rule-mid,rgba(32,32,33,.14));text-underline-offset:3px}' +
+          '#kp-build-bar .kp-bar-save{flex:none;height:48px;border-radius:100px;border:0;background:#202021;color:#FAF8F5;padding:0 22px;font-family:inherit;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:background .25s,color .25s;white-space:nowrap}' +
+          '#kp-build-bar .kp-bar-save.saved{background:#F3EFE6;color:var(--ink,#202021);border:1px solid #C9BCA6;cursor:default}' +
+          // Filed: "Filed under X." with the look one tap away.
+          '#kp-build-toast{position:fixed;left:50%;top:calc(var(--nav-h,64px) + 14px);z-index:9;transform:translate(-50%,-12px);opacity:0;transition:transform .35s cubic-bezier(.2,.7,.2,1),opacity .35s;display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--rule,rgba(32,32,33,0.1));border-radius:100px;padding:10px 16px;white-space:nowrap;box-shadow:0 6px 20px rgba(32,32,33,.06);pointer-events:none;max-width:calc(100vw - 32px);box-sizing:border-box}' +
+          '#kp-build-toast.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}' +
+          '#kp-build-toast .t{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-size:16px;line-height:1;color:var(--ink,#202021);overflow:hidden;text-overflow:ellipsis}' +
+          '#kp-build-toast a{font-size:11px;line-height:1;color:var(--ink-soft,#55524E);border-bottom:1px solid var(--rule,rgba(32,32,33,0.1));padding-bottom:2px;cursor:pointer;flex:none}' +
+          // The saved view: the same anatomy, read-only, the calendar
+          // circle on the hero.
+          '.kp-sv-hero{position:relative;aspect-ratio:4/5;border-radius:var(--rad-card,12px);overflow:hidden;background:var(--cream-200,#EDE9E2)}' +
+          '.kp-sv-hero img{width:100%;height:100%;object-fit:cover;object-position:50% 18%;display:block}' +
+          '.kp-sv-hero .kp-hcirc{position:absolute;bottom:12px;width:36px;height:36px;border-radius:100px;border:0;background:rgba(250,248,245,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;color:var(--ink,#202021)}' +
+          '.kp-sv-hero .kp-hcirc svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}' +
+          '.kp-sv-hero .kp-hcirc.l{left:12px}.kp-sv-hero .kp-hcirc.r{right:12px}' +
+          '.kp-sv-sec{margin-top:22px}' +
+          '.kp-sv-h{display:flex;align-items:baseline;gap:8px;padding:0 6px 8px}' +
+          '.kp-sv-h span{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-soft,#55524E)}' +
+          '.kp-sv-h i{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-size:14px;color:var(--ink-faint,#9C9891)}' +
+          '.kp-sv-rows{display:flex;flex-direction:column;gap:8px}' +
+          '.kp-sv-rows .kp-prow{padding:12px;align-items:flex-start}' +
+          '.kp-sv-rows .kp-prow .th{width:64px;height:72px}' +
+          '.kp-sv-rows .kp-prow .n{font-size:20px}' +
+          '.kp-sv-rows .kp-prow .acts{display:flex;justify-content:flex-end;margin-top:10px}' +
+          '@media(max-width:767px){' +
+            '.kp-build-strip{position:sticky;top:0;z-index:6;margin:0 -20px 18px;padding:10px 16px 12px;background:rgba(250,248,245,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}' +
+            '#kp-build .kp-build-title{font-size:19px;white-space:nowrap;overflow:hidden}' +
+            '#kp-build-bar{position:fixed;left:0;right:0;bottom:0;z-index:47;margin:0;padding:12px 16px calc(94px + env(safe-area-inset-bottom));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}' +
+            '#kp-result-page.kp-building .kp-wrap{padding-bottom:230px}' +
+            '#kp-build-toast{top:calc(var(--nav-h,64px) + 66px)}' +
+          '}' +
           // The NO MODEL YET band — the page's foot when no model is on file.
-          '.kp-model-band{margin-top:36px;border:1px dashed var(--cream-400,#D8CFBE);border-radius:var(--rad,6px);padding:22px 28px;display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap}' +
+          '.kp-model-band{margin-top:36px;border:1px dashed var(--cream-400,#D8CFBE);border-radius:var(--rad-card,12px);padding:22px 28px;display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap}' +
           '.kp-model-band .l{display:flex;align-items:center;gap:20px}' +
           '.kp-model-band .fig{width:40px;height:56px;border:1px dashed var(--cream-400,#D8CFBE);border-radius:20px 20px 3px 3px;flex:none}' +
           '.kp-model-band .ey{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
@@ -8160,7 +8474,7 @@
           '.kp-model-band h3 em{font-style:italic}' +
           '.kp-model-band .rb-lkm-build,.kp-model-band .rb-pill{flex:none;margin:0}' +
           '.kp-model-band .rb-pill{padding:13px 22px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink,#202021);border-color:rgba(32,32,33,0.28)}' +
-          '@media(max-width:700px){.kp-model-band{flex-direction:column;align-items:stretch;padding:20px 18px;gap:14px}.kp-model-band .rb-lkm-build,.kp-model-band .rb-pill{width:100%;justify-content:center}.kp-build-filed{padding:20px 18px}.kp-build-strip{padding-top:22px}#kp-build .kp-build-title{font-size:26px}}';
+          '@media(max-width:700px){.kp-model-band{flex-direction:column;align-items:stretch;padding:20px 18px;gap:14px}.kp-model-band .rb-lkm-build,.kp-model-band .rb-pill{width:100%;justify-content:center}.kp-model-band h3{font-size:18px}}';
         document.head.appendChild(st);
       }
       // The Build step's ONE header (Annie, 2026-09-16 — "one header per
@@ -8182,11 +8496,15 @@
         const w = c.ways[i] || {};
         const title = String(w.title || '').replace(/\.$/, '').trim();
         const namePh = (typeof _lkLooks !== 'undefined' && _lkLooks && _lkLooks.length) ? 'Name your Look' : 'Name your first look';
+        // Back to looks (native design, 2026-09-28): the door is back — a
+        // circle, and a one-line confirm when something on the draft has
+        // changed (the 21 Sep cut was of the SILENT drop).
         return '<div class="kp-build-strip">' +
+          '<button type="button" class="kp-circ" id="kp-build-back" aria-label="Back to looks" title="Back to looks" onclick="window.__kpBuildBackAsk()"><svg viewBox="0 0 9 15"><path d="M7.5 1.5l-6 6 6 6"></path></svg></button>' +
           '<div class="kp-build-l">' +
             (w.eyebrow ? '<div class="kp-build-ey">' + _waEsc(w.eyebrow) + '</div>' : '') +
             '<input id="rb-lk-newtitle" class="rb-lk-title-in kp-build-title" value="' + _waEsc(title) + '" placeholder="' + namePh + '" aria-label="Name your look" oninput="window.__lkNewTitleInput(this.value)">' +
-          '</div></div>';
+          '</div><span></span></div>';
       }
       // The strip's title IS the draft's name field: repaints of the host
       // leave it alone (it lives outside the host), so only a draft landing
@@ -8211,9 +8529,65 @@
         if (head) head.hidden = true;
         build.innerHTML = _kpBuildStripHtml(i) +
           '<div id="kp-build-wait" class="kp-build-wait"><span id="kp-build-msg">Reading the look</span><span class="bar"><i></i></span></div>' +
-          '<div id="kp-build-host"></div>';
+          '<div id="kp-build-host"></div>' +
+          '<div id="kp-build-bar" hidden></div>';
         build.hidden = false;
+        ['kp-dots', 'kp-actrow'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+        const pg = document.getElementById('kp-result-page');
+        if (pg) pg.classList.add('kp-building');
+        _kpSheetCloseAll();
+        // The note is clamped to two lines; a tap opens it (the design's
+        // description).
+        const host = document.getElementById('kp-build-host');
+        if (host) host.addEventListener('click', function(e) {
+          const q = e.target && e.target.closest ? e.target.closest('.rbc-quote') : null;
+          if (q) q.classList.toggle('open');
+        });
+        _kpBuildSig = null;
         _kpBuildScroll();
+      }
+      // What the draft looked like when it landed — the back door asks
+      // only when this has moved (a swap, a saved piece, a rename).
+      var _kpBuildSig = null;
+      function _kpBuildSigNow() {
+        try {
+          return _lkUsed().map(String).join(',') + '|' + _lkShop.map(r => (r.oi || 0) + ':' + (r.saved ? 1 : 0)).join(',') + '|' + String(_lkNewTitleDraft || '').trim();
+        } catch (_) { return null; }
+      }
+      window.__kpBuildBackAsk = function() {
+        const live = _lkKpHost && _lkBuilt && !_lkBuilding;
+        const dirty = live && _kpBuildSig != null && _kpBuildSigNow() !== _kpBuildSig;
+        if (!dirty) { window.__kpBuildBack(); return; }
+        window._rbConfirmDelete('Leave this look?', function() { window.__kpBuildBack(); },
+          { sub: 'Nothing is saved yet — the changes you made go with it.', yes: 'Leave' });
+      };
+      // The bar under the builder (native design): what she is building,
+      // in one line, and Save this look. Repainted with every host paint
+      // (a wishlist save changes the kicker); the name gate's copy rides
+      // the line in place through __lkNewTitleInput.
+      function _kpBuildBarSync() {
+        const bar = document.getElementById('kp-build-bar');
+        if (!bar) return;
+        if (!_lkKpHost || _lkBuilding || !document.querySelector('#kp-build-host .rb-lk-composer')) { bar.hidden = true; return; }
+        const c = _kpBuildCtx || {};
+        const saved = _lkShop.filter(r => r.saved).length;
+        const named = !!String(_lkNewTitleDraft || '').trim();
+        const piece = c.piece ? 'Your ' + c.piece : (c.daily ? 'Your day' : 'Your key piece');
+        bar.innerHTML = '<div class="l"><div class="k">' + _waEsc(saved ? saved + ' on your wishlist' : piece) + '</div>' +
+          '<div class="t" id="kp-bar-line">' + (named ? 'Worn this way.' : 'Name your look and it is yours to keep.') + '</div></div>' +
+          '<button type="button" class="kp-bar-save" onclick="window.__lkSaveAsk()">Save this look</button>';
+        bar.hidden = false;
+      }
+      function _kpToast(html, ms) {
+        document.getElementById('kp-build-toast')?.remove();
+        const pg = document.getElementById('kp-result-page');
+        if (!pg) return;
+        const t = document.createElement('div');
+        t.id = 'kp-build-toast';
+        t.innerHTML = html;
+        pg.appendChild(t);
+        requestAnimationFrame(function() { requestAnimationFrame(function() { t.classList.add('on'); }); });
+        setTimeout(function() { t.classList.remove('on'); setTimeout(function() { t.remove(); }, 400); }, ms || 4500);
       }
       function _kpBuildScroll() {
         const build = document.getElementById('kp-build');
@@ -8232,9 +8606,15 @@
         const build = document.getElementById('kp-build');
         if (build) { build.hidden = true; build.innerHTML = ''; }
         if (ways) ways.style.display = '';
+        ['kp-dots', 'kp-actrow'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
         const head = document.getElementById('kp-choose-head');
         if (head) head.hidden = false;
+        const pg = document.getElementById('kp-result-page');
+        if (pg) pg.classList.remove('kp-building');
+        document.getElementById('kp-build-toast')?.remove();
         _kpBuildWay = null;
+        _kpBuildSig = null;
+        _kpCurSync();
         _kpModelBandSync();
       };
       // A kp draft dies with its page: every re-render and close drops it,
@@ -8284,25 +8664,76 @@
         }
         // The forward line (four-session funnel brief, slice 1.2 · 2026-09-18):
         // one derived sentence that names Session 2 — the model, and the
-        // pieces this look borrows — written by this look's own outcome. No
-        // new door: Open the look stays the one.
+        // pieces this look borrows — written by this look's own outcome.
         const props = Array.isArray(l.proposals) ? l.proposals.length : 0;
         const pro = _lkModelPro();
         const next = _lkModel === null
           ? ('Build your model and ' + pro.shell + ' wear it.' + (props ? ' Photograph the ' + props + ' piece' + (props === 1 ? '' : 's') + ' that ' + (props === 1 ? 'isn’t' : 'aren’t') + ' yours yet and swap them in.' : ''))
           : (props ? props + ' of these ' + (props === 1 ? 'isn’t' : 'aren’t') + ' yours yet — photograph yours and Robes swaps ' + (props === 1 ? 'it' : 'them') + ' in.' : '');
-        host.innerHTML = '<div class="kp-build-filed">' +
-          '<div><div class="ey">Filed</div>' +
-            '<h3>' + _waEsc(l.name || 'Your look') + ' <em>is in your Lookbook.</em></h3>' +
-            '<div class="sub">' + (props
-              ? 'The pieces you don’t own yet are on your wishlist.'
-              : 'Wear it, plan it, or build the next one.') + '</div>' +
-            (next ? '<div class="sub kp-filed-next">' + next + '</div>' : '') + '</div>' +
-          '<div class="acts">' +
-            '<button type="button" class="rb-pill" onclick="window.__kpBuildOpenLook()">Open the look</button>' +
-          '</div></div>';
+        // She stays in the builder (native design, 2026-09-28): the look
+        // as saved, read-only, the calendar on the hero, the bar reading
+        // Filed under X with ✓ Saved, and the toast carrying the door.
+        host.innerHTML = _kpSavedViewHtml(l);
+        const bar = document.getElementById('kp-build-bar');
+        if (bar) {
+          bar.innerHTML = '<div class="l"><div class="k">' + _waEsc('Filed under ' + (l.name || 'your look')) + '</div>' +
+            '<div class="t' + (next ? '' : ' door') + '"' + (next ? '' : ' onclick="window.__kpBuildOpenLook()"') + '>' + _waEsc(next || 'In your Lookbook — open the look →') + '</div></div>' +
+            '<button type="button" class="kp-bar-save saved" disabled>✓ Saved</button>';
+          bar.hidden = false;
+        }
+        _kpToast('<span class="t">Filed under ' + _waEsc(l.name || 'your look') + '.</span><a onclick="window.__kpBuildOpenLook()">Open the look</a>');
+        _kpBuildSig = null;
+        _kpCurSync();
         _kpModelBandSync();
       }
+      // The look as saved, in the builder's own anatomy — the hero (its
+      // render, else the way's frame), the note, the tags, the rows by
+      // role with "✓ Saved" on every proposal (they went to the wishlist
+      // at the keep). Editing a saved look is the look page's job, so no
+      // Swap here: the calendar and the line are the doors.
+      function _kpSavedViewHtml(l) {
+        const hero = _lkHeroUrl(l);
+        const hints = _KP_ROLE_HINTS;
+        const owned = (l.pieces || []).map(p => {
+          const wi = _waItems.find(w => String(w.id) === String(p.id));
+          if (!wi) return null;
+          return { role: _rbRoleNorm(p.role) || _rbRoleGuess(_dlSlot(wi).l, wi.label), p: { name: wi.label, category: wi.category, color_hex: _ltToneOf(wi), wardrobe_match: { id: wi.id, image_url: wi.image_url || null } } };
+        }).filter(Boolean);
+        const props = (l.proposals || []).map(r => {
+          const a = (r.opts && r.opts[r.oi || 0]) || {};
+          const still = (r.img_oi == null || r.img_oi === (r.oi || 0)) ? _pdHttp(r.image_url) : null;
+          return { role: _rbRoleNorm(r.role) || 'The Canvas', saved: true,
+            p: { name: a.name || r.chip || 'Piece', category: (r.cats || [])[0] || r.chip || 'Other', brand: a.brand || a.retailer_hint || '', price_point: a.price_point || '', wardrobe_match: null, _still: still } };
+        });
+        const rows = owned.concat(props);
+        const secs = _RB_ROLES.map(role => {
+          const mine = rows.filter(x => x.role === role);
+          if (!mine.length) return '';
+          return '<div class="kp-sv-sec"><div class="kp-sv-h"><span>' + _waEsc(role) + '</span><i>' + _waEsc(hints[role] || '') + '</i></div><div class="kp-sv-rows">' +
+            mine.map(x => {
+              let row = _kpPieceRowHtml(x.p);
+              if (x.p._still) row = row.replace(/<div class="th">[\s\S]*?<\/div>/, '<div class="th"><img src="' + _waEsc(x.p._still) + '" alt=""></div>');
+              return x.saved
+                ? row.replace(/<\/div><\/div>$/, '<div class="acts"><span class="rbc-act done">✓ Saved</span></div></div></div>')
+                : row;
+            }).join('') + '</div></div>';
+        }).join('');
+        const tags = typeof _lkTagsOf === 'function' ? _lkTagsOf(l) : (l.tags || null);
+        return '<div class="kp-build-filed rb-lk-composer rb-lk-kpcomposer"><div class="rb-lk-con"><div>' +
+            '<div class="kp-sv-hero">' + (hero ? '<img src="' + _waEsc(hero) + '" alt="' + _waEsc(l.name || 'This look') + '">' : '') +
+              '<button type="button" class="kp-hcirc l" aria-label="Put this look in the diary" title="Put this look in the diary" onclick="window.__kpSavedDiary()"><svg viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M12 13v4M10 15h4"></path></svg></button>' +
+              '<button type="button" class="kp-hcirc r" aria-label="Open the look" title="Open the look" onclick="window.__kpBuildOpenLook()"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>' +
+            '</div>' +
+            (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
+            (tags ? _rbTagsRowHtml(tags, '__kpBuildOpenLook') : '') +
+          '</div><div>' + secs +
+            '<div class="rb-lk-saverow"><div class="rb-lk-buildfoot"><button type="button" class="rb-lk-quiet" onclick="window.__kpBuildOpenLook()">Open the look</button></div></div>' +
+          '</div></div></div>';
+      }
+      window.__kpSavedDiary = function() {
+        window.__kpBuildOpenLook();
+        setTimeout(function() { if (window.__lkDiaryOpen) window.__lkDiaryOpen(); }, 450);
+      };
       var _kpBuildFiledId = null;
       window.__kpBuildOpenLook = function() {
         const id = _kpBuildFiledId;
@@ -8376,6 +8807,7 @@
               _kpBuildShow(d.kp.wayIdx);
               const wait = document.getElementById('kp-build-wait'); if (wait) wait.remove();
               window.__lkDraftRestore(d, 'kp');
+              _kpBuildSig = _kpBuildSigNow();
             }, 120);
           }
         })();
@@ -9122,8 +9554,10 @@
         // piece can join it without drag-and-drop (Annie's beta pass
         // 2026-08-20 — DnD is web-only and undiscoverable; the empty role's
         // definition row already carries its own + Add).
+        // cfg.roleHintMap: a surface's own asides (the key piece builder's).
+        const hints = cfg.roleHintMap || _RB_ROLE_HINTS;
         const stripHtml = (role, ghost, withAdd) =>
-          `<div class="rbc-rolestrip${ghost ? ' ghost' : ''}"${cfg.onRoleDrop ? ` data-roledrop="${_waEsc(role)}" data-rolefn="${cfg.onRoleDrop}"${ctxAttr}` : ''}><span${cfg.roleHints && _RB_ROLE_HINTS[role] ? ` data-hint="· ${_waEsc(_RB_ROLE_HINTS[role])}"` : ''}>${_waEsc(role)}</span><i></i>${withAdd ? `<button type="button" class="rbc-stripadd" title="Add another piece here" aria-label="Add another ${_waEsc(role)} piece" onclick="event.stopPropagation();window.${cfg.onRoleAdd}('${_waEsc(role)}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>` : ''}</div>`;
+          `<div class="rbc-rolestrip${ghost ? ' ghost' : ''}"${cfg.onRoleDrop ? ` data-roledrop="${_waEsc(role)}" data-rolefn="${cfg.onRoleDrop}"${ctxAttr}` : ''}><span${cfg.roleHints && hints[role] ? ` data-hint="· ${_waEsc(hints[role])}"` : ''}>${_waEsc(role)}</span><i></i>${withAdd ? `<button type="button" class="rbc-stripadd" title="Add another piece here" aria-label="Add another ${_waEsc(role)} piece" onclick="event.stopPropagation();window.${cfg.onRoleAdd}('${_waEsc(role)}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>` : ''}</div>`;
         const rowHtml = x => cfg.onRoleDrop
           ? `<div class="rbc-dragrow" draggable="true" data-roledrag="${x.i}" data-rolefn="${cfg.onRoleDrop}" data-rolehome="${_waEsc(x.role)}"${ctxAttr}>${_rbcRow(x.it, cfg)}</div>`
           : _rbcRow(x.it, cfg);
@@ -12273,6 +12707,7 @@ button.rb-lk-live{cursor:pointer}
             host.innerHTML = _lkNewHtml({ kp: true });
             body.innerHTML = '';
             if (typeof _kpBuildTitleSync === 'function') _kpBuildTitleSync();
+            if (typeof _kpBuildBarSync === 'function') _kpBuildBarSync();
             return;
           }
           _lkKpHost = false; _lkResetComposer(); _lkView = 'grid'; _lkActive = null;
@@ -13481,7 +13916,7 @@ button.rb-lk-live{cursor:pointer}
       function _lkBuildEmpties() {
         const out = [];
         _lkShop.forEach((row, i) => {
-          out.push({ role: row.role, html: _lkPropRowHtml(row, i, _lkShopFrame(i, row.chip), { swap: '__lkShopSwap', save: '__lkShopSave' }) });
+          out.push({ role: row.role, html: _lkPropRowHtml(row, i, _lkShopFrame(i, row.chip), { swap: _lkKpHost ? '__kpShopSwap' : '__lkShopSwap', save: '__lkShopSave' }) });
         });
         // A slot Robes could fill from nothing — say so, and offer the way in.
         _lkBuildGaps.forEach(role => {
@@ -14083,6 +14518,7 @@ button.rb-lk-live{cursor:pointer}
           ? { onSwap: '__lkCSwap', onRoleDrop: '__lkCRoleDrop', onRoleAdd: home ? '__lkHomeSnap' : '__lkAddOpen', allStrips: true, roleHints: true, onPiece: '__lkCPieceOpen' }
           : { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop',
               onRoleAdd: home ? '__lkHomeSnap' : '__lkAddOpen', allStrips: true, roleHints: true, onPiece: '__lkCPieceOpen' };
+        if (kp) rowCfg.roleHintMap = _KP_ROLE_HINTS;
         const empties = _lkBuilt ? _lkBuildEmpties() : [];
         // No slot-bound empty rows (founder call 2026-08-07: her trousers
         // can anchor, her top can be the exclamation — a slot must never
@@ -15391,6 +15827,72 @@ button.rb-lk-live{cursor:pointer}
             { imageUrl: (row.img_oi == null || row.img_oi === (row.oi || 0)) ? row.image_url : null });
         }
       };
+      // The key piece builder's Swap on a proposal (native design): the
+      // shared swap sheet — her wardrobe's same-category pieces, "Or from
+      // Robes" (the row's suggestions, one tap each, More from Robes for a
+      // fresh pair), Snap mine, Save to wishlist. Picking a piece of hers
+      // hangs it on the rack in the proposal's role and the proposal goes.
+      var _kpShopSwapIdx = null;
+      window.__kpShopSwap = function(i) {
+        const row = _lkShop[i];
+        if (!row) return;
+        const a = row.opts[row.oi] || {};
+        _kpShopSwapIdx = i;
+        const alts = (row.opts || []).map((o, n) => {
+          const on = n === (row.oi || 0);
+          return '<button type="button" class="kp-alt' + (on ? ' on' : '') + '" onclick="window.__kpShopAlt(' + i + ',' + n + ')">' +
+            '<div class="sw">' + (on ? '<span class="tick">✓</span>' : '') + '</div>' +
+            '<div class="k">' + _waEsc([_rbDeEsc(o.brand || o.retailer_hint || ''), _rbcPrice(o.price_point || '')].filter(Boolean).join(' ')) + '</div>' +
+            '<div class="n">' + _waEsc(o.name || '') + '</div></button>';
+        }).join('');
+        const altsHtml = '<div class="kp-alts-h">Or from Robes</div><div class="kp-alts">' + alts + '</div>' +
+          '<button type="button" class="kp-alts-more" onclick="window.__kpShopMore(' + i + ')">More from Robes</button>';
+        _rbSwapModal({
+          name: a.name || row.chip, brand: a.brand || '',
+          category: (row.cats || [])[0] || row.chip,
+          retailer_hint: a.retailer_hint || '', price_point: a.price_point || '',
+          wishlisted: !!row.saved,
+        }, { id: 'rb-kpshop-swap', applyName: '__kpShopSwapApply', snapName: '__kpShopSnap', idx: i, afterWish: '__kpShopWishSync', altsHtml, sheet: true });
+      };
+      window.__kpShopAlt = function(i, n) {
+        const row = _lkShop[i];
+        if (!row || !row.opts || !row.opts[n]) return;
+        document.getElementById('rb-kpshop-swap')?.remove();
+        if (n !== (row.oi || 0)) { row.oi = n; row.saved = false; _lkShopImages(); }
+        _lkPaint();
+      };
+      window.__kpShopMore = function(i) {
+        const row = _lkShop[i];
+        document.getElementById('rb-kpshop-swap')?.remove();
+        if (!row) return;
+        row.oi = Math.max(0, (row.opts || []).length - 1);
+        window.__lkShopSwap(i);
+      };
+      window.__kpShopSwapApply = function(i, wid) {
+        const row = _lkShop[i];
+        const wi = _waItems.find(w => String(w.id) === String(wid));
+        if (!row || !wi) return;
+        document.getElementById('rb-kpshop-swap')?.remove();
+        _lkShop.splice(i, 1);
+        _lkShopImgs.splice(i, 1);
+        if (_lkPlaceQuiet(wi.id) && row.role) _lkNewRoles[String(wi.id)] = _rbRoleNorm(row.role) || null;
+        if (_lkShop.length) _lkShopImages();
+        _lkPaint();
+        _waShowToast(wi.label + ' takes its place ✓');
+        _rbTrack('piece_swapped', { surface: 'kp-build', item: String(wid) });
+      };
+      window.__kpShopSnap = function() {
+        const i = _kpShopSwapIdx;
+        document.getElementById('rb-kpshop-swap')?.remove();
+        if (i == null) return;
+        _waEditId = null;
+        _waAfterAdd = function(newId) { window.__kpShopSwapApply(i, newId); };
+        if (window.WA && WA.open) WA.open();
+      };
+      window.__kpShopWishSync = function() {
+        const row = _kpShopSwapIdx != null ? _lkShop[_kpShopSwapIdx] : null;
+        if (row) { row.saved = true; _lkPaint(); }
+      };
       // Save keeps it — the wishlist is where a piece she doesn't own lives.
       window.__lkShopSave = function(i) {
         const row = _lkShop[i];
@@ -16475,6 +16977,8 @@ button.rb-lk-live{cursor:pointer}
         if (btn) btn.classList.toggle('unnamed', !named);
         const gate = document.getElementById('rb-lk-namegate');
         if (gate) gate.textContent = named ? 'Filed under ' + String(v).trim() + '.' : 'Name your look and it is yours to keep.';
+        const bl = document.getElementById('kp-bar-line');
+        if (bl) bl.textContent = named ? 'Worn this way.' : 'Name your look and it is yours to keep.';
       };
       window.__lkNewTagsEdit = function() {
         window.__rbTagSheet(_lkNewTags || _rbInheritLookTags(_lkUsed()), '__lkNewTagsApply', 'New look');
@@ -16718,7 +17222,9 @@ button.rb-lk-live{cursor:pointer}
         }
         _lkPaint();
         _waV2Sync();
-        if (kpHosted && typeof _kpBuildSaved === 'function') _kpBuildSaved(l);
+        // The kp host carries its own "Filed under X." toast with the
+        // look one tap away — the generic line would double it.
+        if (kpHosted && typeof _kpBuildSaved === 'function') { _kpBuildSaved(l); return; }
         _waShowToast(l.name + ' saved to Looks ✓');
       };
 
@@ -18803,12 +19309,31 @@ button.rb-lk-live{cursor:pointer}
           }
         }
 
+        // ≤767px the modal is a bottom sheet (native design, 2026-09-28) —
+        // one stylesheet, the wrapper classes are the hook.
+        if (!document.getElementById('rb-swap-style')) {
+          const ss = document.createElement('style');
+          ss.id = 'rb-swap-style';
+          ss.textContent =
+            '.kp-alts-h{font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px}' +
+            '.kp-alts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}' +
+            '.kp-alt{text-align:left;padding:8px;border-radius:var(--rad,6px);border:1px solid var(--rule,rgba(32,32,33,.1));background:#fff;cursor:pointer;font-family:inherit;color:var(--ink);transition:background .2s,border-color .2s}' +
+            '.kp-alt.on{background:#F3EFE6;border-color:#C9BCA6}' +
+            '.kp-alt .sw{position:relative;height:64px;border-radius:8px;background:var(--cream-200,#EDE9E2);box-shadow:inset 0 0 0 .5px rgba(0,0,0,.08)}' +
+            '.kp-alt .tick{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;background:#F3EFE6;border:1px solid #C9BCA6;display:flex;align-items:center;justify-content:center;font-size:10px}' +
+            '.kp-alt .k{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);margin-top:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+            '.kp-alt .n{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-size:15px;line-height:1.15;margin-top:4px}' +
+            '.kp-alts-more{display:block;margin:0 0 20px;background:none;border:0;padding:0 0 2px;font-family:inherit;font-size:11px;color:var(--ink-soft);border-bottom:1px solid var(--rule-mid,rgba(32,32,33,.14));cursor:pointer}' +
+            '@media(max-width:767px){.rb-swap-wrap.rb-swap-sheet{align-items:flex-end!important;padding:0!important}.rb-swap-wrap.rb-swap-sheet .rb-swap-card{max-width:none!important;border-radius:20px 20px 0 0!important;max-height:88dvh!important;padding-bottom:env(safe-area-inset-bottom)}}';
+          document.head.appendChild(ss);
+        }
         const modal = document.createElement('div');
         modal.id = cfg.id;
+        modal.className = 'rb-swap-wrap' + (cfg.sheet ? ' rb-swap-sheet' : '');
         modal.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
         modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
         modal.innerHTML = `
-          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28)">
+          <div class="rb-swap-card" style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28)">
             <div style="position:sticky;top:0;background:#FAF8F5;padding:20px 20px 0;z-index:2">
               <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px">
                 <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">Swap this piece</p>
@@ -18820,7 +19345,7 @@ button.rb-lk-live{cursor:pointer}
               <div style="height:1px;background:rgba(32,32,33,0.08);margin:0 -20px 20px"></div>
             </div>
             <div style="padding:0 20px 32px">
-              ${wardrobeSection}${adoptSection}
+              ${wardrobeSection}${adoptSection}${cfg.altsHtml || ''}
               <div style="display:grid;grid-template-columns:${item.wardrobe_match ? '1fr' : '1fr 1fr'};gap:10px;margin-bottom:${(retailer || price) ? '10px' : '0'}">
                 <button onclick="window.${cfg.snapName}()" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:500;color:#202021;background:#EDE8E0;border:none;border-radius:100px;padding:14px 16px;cursor:pointer;letter-spacing:.01em">
                   ${cameraSvg} Snap mine
@@ -23446,7 +23971,7 @@ body>*:not(#tv-result-page){display:none !important}
               genId,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
               wardrobeCount: _waItems.length,
-              wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })),
+              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand || '', image_url: i.image_url || null, times_worn: i.times_worn })),
               intent,
               context,
             }),
@@ -27585,7 +28110,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
                 genId,
                 styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
                 wardrobeCount: Math.max(1, _waItems.length),
-                wardrobeItems: _waItems.map(i => ({ label: i.label, category: i.category, color: i.color, times_worn: i.times_worn })),
+                wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand || '', image_url: i.image_url || null, times_worn: i.times_worn })),
                 intent: 'style',
               }),
             });
