@@ -26018,11 +26018,18 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 .rb-mv-cal{gap:5px}
 .rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip{padding-top:5px;border-color:transparent;background:transparent}
 .rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip.dc-now{border-color:transparent}
-.dc-tripband{left:-5px;right:-5px;top:0;height:22px;padding:0}
-.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip-a .dc-tripband{left:0}
-.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip-z .dc-tripband{right:0}
+/* The design's trip day is the WHOLE tile in mauve (Day_Planning 1c), not
+   a strip: the band fills the cell top to bottom, the numeral and the
+   dots sit inside it, the gutters between the run's cells are filled so
+   the run is one even tile, and only the run's outer corners round. */
+.dc-tripband{left:-5px;right:-5px;top:0;bottom:0;height:auto;padding:0;border-radius:0}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip-a .dc-tripband{left:0;border-radius:var(--rad-sm,8px) 0 0 var(--rad-sm,8px)}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip-z .dc-tripband{right:0;border-radius:0 var(--rad-sm,8px) var(--rad-sm,8px) 0}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip-a.dc-trip-z .dc-tripband{border-radius:var(--rad-sm,8px)}
+/* Today keeps its hairline INSIDE the band (the design outlines the cell). */
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip.dc-now::after{content:'';position:absolute;inset:0;border:1px solid var(--ink,#202021);border-radius:var(--rad-sm,8px);z-index:3;pointer-events:none}
 .dc-tripname,.dc-triprange{display:none}
-.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip .dc-ey{padding-left:4px}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip .dc-ey{padding-left:0}
 }
 /* ── Diary list view (phase 3) ── */
 .rb-mv-seg{display:inline-flex;gap:3px;padding:3px;background:var(--cream-100,#F5F0E8);border-radius:100px;margin-right:4px}
