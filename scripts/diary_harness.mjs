@@ -472,7 +472,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // 4 · The day page (Annie, 2026-09-09) — a diary day opens on its own page:
 // the date, its name, every look on it as a card. The list row is the door.
 {
-  const { ctx, page, errs } = await boot(browser);
+  const { ctx, page, errs, writes } = await boot(browser);
   await page.evaluate(() => window.__rbNavGo('diary'));
   await page.waitForTimeout(900);
   const d = await page.evaluate(async (TOM) => {
@@ -584,9 +584,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   check('day page · a month cell opens the day directly — no peek; the return pill names the month',
     mc.cell && mc.peek === false && mc.visible && mc.grid && mc.title === 'Golf Club Event' && /^[A-Z][a-z]+ \d{4}$/.test(mc.back || ''), JSON.stringify(mc));
   // The empty day's other two doors: the composer takes the day (Save to
-  // {weekday}); Robes styles one keeps the standing route — the home
-  // prompt, scoped to the date, her name for the day as the brief.
+  // {weekday}); Robes styles one opens the BRIEF sheet (2026-09-29) — the
+  // date, "What's on?" chips, her name for the day as the words — and the
+  // CTA hands the brief to the standing route: __dlSubmit with the date →
+  // /api/daily → the composer with the day attached. Nothing is filed.
+  const dailyPosts = [];
+  await page.route('**/api/daily', (r) => {
+    try { dailyPosts.push(r.request().postDataJSON()); } catch (_) { dailyPosts.push(null); }
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ headline: 'A dinner look.', occasion_label: 'Dinner out', stylist_summary: 'Ease.', look_tags: { climate: 'year_round', wear_for: ['evening'], vibe: ['chic'] },
+      steps: [{ title: 'The Canvas', items: [{ name: 'Cream silk shirt', category: 'Tops', wardrobe_match: { id: 'w0', label: 'Cream silk shirt', image_url: null, color: '' } }, { name: 'Barrel-leg jeans', category: 'Bottoms', wardrobe_match: { id: 'w1', label: 'Barrel-leg jeans', image_url: null, color: '' } }] }] }) });
+  });
   const doors = await page.evaluate(async (d) => {
+    window.__rbCtx = { city: 'Dublin', tempRange: '12–16°C', condition: 'cloudy', hint: 'A light layer' };
     window.__rbNavGo('diary'); await new Promise((r) => setTimeout(r, 600));
     document.querySelector('#sn-cal .dy-r[data-date="' + d + '"]')?.click();
     await new Promise((r) => setTimeout(r, 700));
@@ -601,18 +610,40 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const sn = document.getElementById('sn-page');
     r.composer = !!sn && sn.style.display !== 'none' && !!sn.querySelector('.rb-lk-composer');
     r.save = (sn?.textContent || '').match(/Save to [A-Z][a-z]+day/)?.[0] || null;
-    // back to the day, then the Robes door
+    // back to the day, then the Robes door → the sheet
     window.__rbDayOpen(d, { from: 'diary' }); await new Promise((r2) => setTimeout(r2, 600));
     document.querySelector('#dl-result-page .dyp-door')?.click();
-    await new Promise((r2) => setTimeout(r2, 900));
-    r.chip = document.getElementById('rb-scopechip')?.textContent.replace(/\s+/g, ' ').trim() || null;
-    r.prompt = document.getElementById('cb-ta')?.value || '';
-    r.home = document.getElementById('dl-result-page')?.style.display === 'none' && document.getElementById('sn-page')?.style.display !== 'block';
+    await new Promise((r2) => setTimeout(r2, 400));
+    const rs = document.getElementById('rb-mv-robes');
+    const wd = new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' });
+    r.sheet = !!rs;
+    r.ey = rs?.querySelector('.rs-ey')?.textContent || null;
+    r.chips = Array.from(rs?.querySelectorAll('.rs-chip') || []).map((b) => b.textContent);
+    r.chipOn = rs?.querySelector('.rs-chip.on')?.textContent || null;   // "Lunch out" is a chip — it lights, the input stays empty
+    r.input = rs?.querySelector('#rb-mv-rs-in')?.value;
+    r.cta = rs?.querySelector('.rs-cta')?.textContent || null;
+    r.ctaWord = 'Style ' + wd + ' →';
+    r.dayStill = document.getElementById('dl-result-page')?.style.display !== 'none';
+    r.ink = Array.from(rs?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length;
+    // swap the chip, add words, go
+    Array.from(rs.querySelectorAll('.rs-chip')).find((b) => b.textContent === 'Dinner out')?.click();
+    await new Promise((r2) => setTimeout(r2, 100));
+    const rin = document.getElementById('rb-mv-rs-in'); rin.value = 'with Mary in town'; rin.dispatchEvent(new Event('input'));
+    document.querySelector('#rb-mv-robes .rs-cta')?.click();
+    await new Promise((r2) => setTimeout(r2, 2600));
+    r.sheetGone = !document.getElementById('rb-mv-robes');
+    const sn2 = document.getElementById('sn-page');
+    r.composer2 = !!sn2 && sn2.style.display !== 'none' && !!sn2.querySelector('.rb-lk-composer');
+    r.save2 = (sn2?.textContent || '').match(/Save to [A-Z][a-z]+day/)?.[0] || null;
+    r.back2 = sn2?.querySelector('.rb-ret .rb-ret-pill .lab')?.textContent || null;
+    r.backWord = new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short' }) + ' ' + Number(d.slice(8, 10));
     return r;
   }, expBare[2]);
   check('day page · Create a new look opens the composer with the day attached (Save to {weekday})', doors.doors === 3 && doors.composer && !!doors.save, JSON.stringify(doors));
-  check('day page · Robes styles one keeps the standing route: home, the prompt scoped to the day, her name as the brief',
-    doors.home && !!doors.chip && doors.prompt === 'Lunch out', JSON.stringify(doors));
+  check('day page · Robes styles one opens the brief sheet OVER the day: the date as eyebrow, the five What\'s-on chips, her name for the day lit as its chip, Style {weekday} → the one ink',
+    doors.sheet && doors.dayStill && /\d/.test(doors.ey || '') && JSON.stringify(doors.chips) === JSON.stringify(['Work', 'School run', 'Lunch out', 'Dinner out', 'Weekend']) && doors.chipOn === 'Lunch out' && doors.input === '' && doors.cta === doors.ctaWord && doors.ink === 1, JSON.stringify(doors));
+  check('day page · Style → hands the brief (chip — her words) to /api/daily with the date, and lands in the composer with the day attached (Save to {weekday}, ‹ the day) — nothing written',
+    doors.sheetGone && dailyPosts.length === 1 && dailyPosts[0]?.prompt === 'Dinner out — with Mary in town' && doors.composer2 && !!doors.save2 && doors.back2 && doors.back2.indexOf(doors.backWord) === 0 && !writes.some((w) => /planned_days|lookbook_items|looks\b/.test(w.url) && w.method === 'POST' && JSON.stringify(w.body).includes('Dinner out')), JSON.stringify([doors, dailyPosts[0]?.prompt, dailyPosts[0]?.anchorDate]));
   check('day page · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }

@@ -334,6 +334,14 @@ const titleTop = (page) => page.evaluate(() => {
     m.depth && m.pill === 'Lookbook' && /^[12] of 2$/.test(m.pos) && m.wm === 'none' && m.av === 'none' && m.inPage === 'none' && m.dock, JSON.stringify(m));
   await page.locator('#rb-backpill').click(); await page.waitForTimeout(500);
   check('mobile · the pill climbs back and the wordmark returns', await page.locator('#rb-lk-grid').isVisible() && await page.locator('#nav-wordmark').isVisible() && !(await page.locator('.nav.rb-depth').count()));
+  // The Diary ROOT rides the Lookbook's #sn-page with #rb-lk-wrap hidden
+  // beneath it — the hidden Lookbook band must not collapse the bar
+  // (pre-existing "‹ Lookbook" on the Diary root, fixed 2026-09-29).
+  await page.evaluate(() => window.__rbNavGo('diary')); await page.waitForTimeout(700);
+  const dr = await page.evaluate(() => ({ depth: document.querySelector('.nav').classList.contains('rb-depth'), pill: getComputedStyle(document.getElementById('rb-backpill')).display, wm: getComputedStyle(document.getElementById('nav-wordmark')).display, dock: !!document.querySelector('#rb-dock-diary.active') }));
+  check('mobile · the Diary root is a root: wordmark, no pill, no depth, Diary lit on the dock', !dr.depth && dr.pill === 'none' && dr.wm !== 'none' && dr.dock, JSON.stringify(dr));
+  await page.evaluate(() => window.__dySetMode('month')); await page.waitForTimeout(500);
+  check('mobile · the Diary month is a root too', !(await page.locator('.nav.rb-depth').count()) && !(await page.locator('#rb-backpill').isVisible()));
   check('mobile · no horizontal overflow', await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
   check('no page errors (mobile)', errs.length === 0, errs.join(' | '));
   await ctx.close();

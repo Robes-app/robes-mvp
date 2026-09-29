@@ -4878,7 +4878,23 @@
         for (let i = 0; i < ids.length; i++) {
           const el = document.getElementById(ids[i]);
           if (!el || el.style.display === 'none') continue;
-          return el.querySelector('.rb-ret');
+          // The band must actually be on screen: the Diary rides the
+          // Lookbook's #sn-page with #rb-lk-wrap CSS-hidden beneath it, so
+          // a bare querySelector found the Lookbook's "‹ Lookbook" band and
+          // the phone's nav collapsed to depth on the Diary ROOT
+          // (pre-existing, fixed 2026-09-29). A band whose ANCESTOR is
+          // hidden is no band — the band itself is display:none ≤767px by
+          // design (the nav bar carries it there), so the test walks the
+          // parents up to the page, never the band's own box.
+          const bands = el.querySelectorAll('.rb-ret');
+          for (let j = 0; j < bands.length; j++) {
+            let hid = false;
+            for (let a = bands[j].parentElement; a && a !== el; a = a.parentElement) {
+              if (a.style.display === 'none' || getComputedStyle(a).display === 'none') { hid = true; break; }
+            }
+            if (!hid) return bands[j];
+          }
+          return null;
         }
         return null;
       }
@@ -11206,7 +11222,23 @@
           inner += chipHtml + rowsBlock();
           if (d.modifier === 'packed') inner += `<div class="dc-sp"></div><div class="dc-foot"><span class="dc-status">Packed ✓</span></div>`;
         }
-        return `<div class="${cls.join(' ')}"${body}>${inner}${dotsHtml}</div>`;
+        // The trip band lives IN the cell (2026-09-29, Annie: "the band
+        // should read as one even colour instead of showing lines between
+        // days"): one mauve strip behind the numeral row, bleeding into the
+        // gutters so a run of trip days reads as ONE band, rounded only at
+        // the run's ends. The first cell of each week's run carries the
+        // name (a continuation reads ↳); the phone hides the name — the
+        // Trips list under the grid names it there.
+        const tb = compact && opts.tripBand ? opts.tripBand : null;
+        if (tb) {
+          cls.push('dc-trip');
+          if (tb.first) cls.push('dc-trip-a');
+          if (tb.last) cls.push('dc-trip-z');
+        }
+        const tbHtml = tb
+          ? `<span class="dc-tripband"${tb.open ? ` onclick="${stop}${tb.open}" role="button" tabindex="0"` : ''} title="${_waEsc(tb.title + (tb.range ? ' · ' + tb.range : ''))}">${tb.first ? `<span class="dc-tripname">${tb.cont ? '↳ ' : ''}${_waEsc(tb.title)}</span>${(!tb.cont && tb.range) ? `<span class="dc-triprange">${_waEsc(tb.range)}</span>` : ''}` : ''}</span>`
+          : '';
+        return `<div class="${cls.join(' ')}"${body}>${tbHtml}${inner}${dotsHtml}</div>`;
       }
 
       // ── The ring's shared handler (§2.3): what the strip body USED to
@@ -25924,6 +25956,21 @@ body>*:not(#tv-result-page){display:none !important}
 .rb-mv-dow div{font-size:9px;font-weight:400;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);padding-left:2px}
 .rb-mv-cal{display:flex;flex-direction:column;gap:8px}
 .rb-mw{position:relative}
+/* The trip band, in the cells (2026-09-29): one --mauve strip across
+   the run's cells, bleeding into the gutters (and over the hairlines) so
+   the days read as ONE even colour; rounded at the run's ends only. On
+   the web it sits above the numeral and carries the name + range in the
+   first cell of each week's run; on the phone it sits BEHIND the numeral
+   and the Trips list under the grid names it. */
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip{overflow:visible!important;position:relative;padding-top:44px}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip > :not(.dc-tripband){position:relative;z-index:2}
+.dc-tripband{position:absolute;z-index:1!important;left:-9px;right:-9px;top:-1px;height:28px;background:var(--mauve,#D4C8C4);display:flex;align-items:center;gap:8px;padding:0 12px;box-sizing:border-box;cursor:pointer;white-space:nowrap;overflow:visible}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip-a .dc-tripband{left:-1px;border-radius:100px 0 0 100px}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip-z .dc-tripband{right:-1px;border-radius:0 100px 100px 0}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip-a.dc-trip-z .dc-tripband{border-radius:100px}
+.dc-tripband:hover .dc-tripname{text-decoration:underline;text-underline-offset:2px}
+.dc-tripname{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:14px;line-height:1.1;color:var(--ink,#202021);position:relative;z-index:3}
+.dc-triprange{font-size:9px;font-weight:400;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft,#5C574F);position:relative;z-index:3}
 /* Fix 07 - every week row runs on the same 132px floor with its
    cells stretched to it, so the calendar's horizontals line up down
    the page (week one used to run 178px against week two's 160px). */
@@ -25946,13 +25993,6 @@ body>*:not(#tv-result-page){display:none !important}
 .rb-mc.is-fut .act{color:var(--ink-soft)}
 .rb-mc-strip{display:flex;gap:3px;margin-top:6px;flex:none}
 .rb-mc-strip img{flex:1;min-width:0;height:16px;object-fit:cover;border-radius:2px;display:block}
-.rb-mband{position:absolute;height:28px;border:1px solid var(--rule,#EDE6D8);border-radius:100px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 14px;font-family:inherit;box-sizing:border-box;cursor:pointer;overflow:hidden;text-align:left;transition:border-color .15s}
-.rb-mband:hover{border-color:rgba(32,32,33,0.4)}
-.rb-mband .bt{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:14px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.rb-mband .bd{flex:none;font-size:9px;font-weight:400;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#9A9082)}
-.rb-mband.week{background:var(--sage-bg,rgba(155,161,123,0.16));color:#5F6247}
-.rb-mband.trip{background:var(--sage-bg,rgba(155,161,123,0.16));color:var(--ink,#202021)}
-.rb-mband.cont .bt{opacity:.72}
 .rb-mv-more{position:absolute;right:0;top:0;font-size:9px;color:var(--ink-faint)}
 button.rb-mv-morebtn{border:none;background:transparent;cursor:pointer;font-family:inherit;color:#8E6A7C;letter-spacing:.08em;text-transform:uppercase;padding:2px 4px}
 button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
@@ -25967,20 +26007,22 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 /* ── The phone's column grid (2026-09-17, design Month_View_Fixes) ──
    Fix 03: the weekday label belongs to its COLUMN, not to the gutter, so
    it centres and shares the cells' 4px gutter — 8px gutters cost a
-   seventh of the row at 393px. Fix 04: the trip ribbon is --mauve, not
-   the sage/cream it shared with the toggle track, so a stretch of days
-   cannot read as another piece of chrome; and it takes the height it
-   actually occupies, which closes the dead band the 32px lane reserve
-   left under a 20px ribbon (fix 07). */
+   seventh of the row at 393px. The trip band (2026-09-29) sits BEHIND
+   the numeral here — a 22px --mauve strip across the run, no name (the
+   Trips list under the grid carries it), the cell's own box gone so
+   nothing draws a line between the days. */
 @media(max-width:767px){.rb-mc{aspect-ratio:1;padding:5px;border-radius:var(--rad-sm)}.rb-mc .n{font-size:13px}.rb-mc .act{font-size:10px}
 .rb-mcells{grid-auto-rows:auto;gap:4px}
 .rb-mv-dow{gap:4px;margin-bottom:6px}
 .rb-mv-dow div{text-align:center;padding-left:0;letter-spacing:.1em}
 .rb-mv-cal{gap:5px}
-.rb-mband{padding:0 9px;height:24px;gap:6px}
-.rb-mband .bt{font-size:11px}
-.rb-mband .bd,.rb-mband .bc{display:none}
-.rb-mband.week,.rb-mband.trip{background:var(--mauve,#D4C8C4);border-color:transparent;color:var(--ink,#202021)}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip{padding-top:5px;border-color:transparent;background:transparent}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip.dc-now{border-color:transparent}
+.dc-tripband{left:-5px;right:-5px;top:0;height:22px;padding:0}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip-a .dc-tripband{left:0}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip-z .dc-tripband{right:0}
+.dc-tripname,.dc-triprange{display:none}
+.rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip .dc-ey{padding-left:4px}
 }
 /* ── Diary list view (phase 3) ── */
 .rb-mv-seg{display:inline-flex;gap:3px;padding:3px;background:var(--cream-100,#F5F0E8);border-radius:100px;margin-right:4px}
@@ -26337,9 +26379,6 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             </div>`;
         }
         var _mvLooksCache = {};
-        // The trip ribbon's own height + its gap — one constant, read by
-        // the per-week reserve and by each segment's top offset.
-        var _MV_LANE_H = 32;
         function _mvPaint(g, rows, sources) {
           const today = _pdLocalISO();
           if (_dyMode === 'list') { cal.innerHTML = _dyHeadHtml(g, rows) + _dyListHtml(g, rows, sources, today); return; }
@@ -26351,46 +26390,41 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           // (audit D-08 latent gap: assignment used to run in source
           // discovery order, so a later-fetched early-starting band could
           // lose a lane it should have won).
-          const laneEnd = [], weekLanes = [], weekMore = [], weekHidden = [];
-          for (let w = 0; w < g.weeks; w++) { laneEnd.push([-1, -1]); weekLanes.push(0); weekMore.push(0); weekHidden.push([]); }
+          // ONE lane, and it lives inside the cells (2026-09-29): a trip's
+          // days carry the band themselves (_dcCard opts.tripBand), so
+          // there is no ribbon row above the week and no lane reserve. A
+          // second trip overlapping the first on a week falls to the
+          // "+N more" popover — the Trips list under the grid names every
+          // trip in the month regardless.
+          const laneEnd = [], weekMore = [], weekHidden = [];
+          for (let w = 0; w < g.weeks; w++) { laneEnd.push(-1); weekMore.push(0); weekHidden.push([]); }
           const segList = [];
           bands.forEach(band => band.segs.forEach((sg, si) => segList.push({ band, sg, si })));
           segList.sort((a, b) => a.sg.week - b.sg.week || a.sg.start_col - b.sg.start_col || b.sg.span - a.sg.span);
-          const placed = [];
+          const cellBand = {};
           segList.forEach(p => {
             const sg = p.sg;
-            const le = laneEnd[sg.week];
-            let lane = le[0] < sg.start_col ? 0 : (le[1] < sg.start_col ? 1 : -1);
-            if (lane === -1) {
+            if (laneEnd[sg.week] >= sg.start_col) {
               weekMore[sg.week]++;
               weekHidden[sg.week].push({ sid: p.band.sid, type: p.band.type, title: p.band.title });
               return;
             }
-            le[lane] = sg.start_col + sg.span - 1;
-            weekLanes[sg.week] = Math.max(weekLanes[sg.week], lane + 1);
-            placed.push({ band: p.band, sg, si: p.si, lane });
+            laneEnd[sg.week] = sg.start_col + sg.span - 1;
+            const cont = !(p.si === 0 && sg.is_start);
+            const open = `window.__mvBand('${String(p.band.sid).replace(/'/g, '')}','${p.band.type}')`;
+            for (let c = sg.start_col; c < sg.start_col + sg.span; c++) {
+              cellBand[_pdAddISO(g.gridStart, sg.week * 7 + c)] = {
+                title: p.band.title, range: p.band.range, cont, open,
+                first: c === sg.start_col, last: c === sg.start_col + sg.span - 1,
+              };
+            }
           });
           _mvHidden = weekHidden;
           let html = _dyHeadHtml(g, rows) + `
             <div class="rb-mv-dow">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => '<div>' + d + '</div>').join('')}</div>
             <div class="rb-mv-cal">`;
           for (let w = 0; w < g.weeks; w++) {
-            const lanes = weekLanes[w];
-            // DayCard path: EVERY row reserves the same two band lanes, so
-            // band-carrying weeks no longer sit taller than band-free ones
-            // — the month grid holds vertical rhythm (spec §11.2; the
-            // "blank hero slot" the audit dismissed was this reservation
-            // varying per row).
-            const padTop = lanes ? 4 + lanes * _MV_LANE_H : 0;
-            html += `<div class="rb-mw" style="padding-top:${padTop}px">`;
-            placed.filter(p => p.sg.week === w).forEach(p => {
-              // First VISIBLE segment carries the label only when the band
-              // genuinely starts there; anything else is a continuation.
-              const cont = !(p.si === 0 && p.sg.is_start);
-              const label = cont ? '↳ ' + _waEsc(p.band.title) + '<span class="bc">, continued</span>' : _waEsc(p.band.title);
-              const range = (!cont && p.band.range) ? `<span class="bd">${_waEsc(p.band.range)}</span>` : '';
-              html += `<button class="rb-mband ${p.band.type === 'travel' ? 'trip' : 'week'}${cont ? ' cont' : ''}" style="left:${(p.sg.start_col / 7 * 100).toFixed(4)}%;width:${(p.sg.span / 7 * 100).toFixed(4)}%;top:${2 + p.lane * _MV_LANE_H}px" onclick="window.__mvBand('${String(p.band.sid).replace(/'/g, '')}','${p.band.type}')" title="${_waEsc(p.band.title + (p.band.range ? ' · ' + p.band.range : ''))}"><span class="bt">${label}</span>${range}</button>`;
-            });
+            html += `<div class="rb-mw">`;
             if (weekMore[w]) {
               // +N more gets a designed reveal (spec §11.1) — a popover of
               // the hidden bands, each opening its artifact.
@@ -26436,6 +26470,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
                   lookOpen: j => `window.__mvLookOpen('${date}',${j})`,
                   add: inMonth ? `window.__mvWear('${date}')` : null,
                   wear: inMonth ? `window.__mvWore('${date}')` : null,
+                  tripBand: cellBand[date] || null,
                 });
                 continue;
               }
@@ -27082,24 +27117,92 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           _mvWearCtx = { date, target: null, title: _pdDayTitle(here) || '' };
           window.__mvRobes(date);
         };
-        // The Robes door: every route lands on the home prompt, scoped to
-        // the date — the Diary itself never creates a look.
+        // ── The Robes sheet (design Day_Planning.dc.html, held decision 3
+        // resolved 2026-09-29 — Annie: "build brief to existing composer
+        // path"): "Robes styles one" opens a sheet over the day — the date
+        // as eyebrow, "What's on?" as five chips, one line for anything
+        // else (her name for the day prefilled), Style {day} →. The sheet is
+        // the BRIEF and nothing more: the CTA hands it to __dlSubmit with
+        // the date attached, which is the existing route (the generation
+        // overlay → /api/daily → the composer with the day on it, Save to
+        // {weekday}). Nothing is filed until she names and saves — the
+        // design's auto-filed look was the part held, and stays held.
+        // A trip day keeps its own door (__mvPkRobesTrip → the trip).
+        var _mvRs = null;
+        var _MV_RS_CHIPS = ['Work', 'School run', 'Lunch out', 'Dinner out', 'Weekend'];
+        var _MV_RS_CSS = `
+#rb-mv-robes{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px}
+#rb-mv-robes .rs{background:#FAF8F5;border:1px solid var(--rule,#E3DDD2);border-radius:14px;width:100%;max-width:480px;box-sizing:border-box;box-shadow:0 18px 40px rgba(32,32,33,.12);font-family:inherit;color:var(--ink,#202021);padding:22px 24px 24px}
+#rb-mv-robes .rs-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+#rb-mv-robes .rs-ey{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A958E)}
+#rb-mv-robes .rs-x{background:none;border:0;cursor:pointer;color:var(--ink-faint,#9A958E);font-size:18px;line-height:1;padding:0 2px;margin-top:-4px}
+#rb-mv-robes .rs-h{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:28px;line-height:1.15;margin:12px 0 0}
+#rb-mv-robes .rs-h em{font-style:italic}
+#rb-mv-robes .rs-sub{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:15px;color:var(--ink-soft,#4A4744);margin:4px 0 0}
+#rb-mv-robes .rs-lab{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#9A958E);margin:22px 0 0}
+#rb-mv-robes .rs-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+#rb-mv-robes .rs-chip{background:#fff;border:1px solid var(--rule-mid,#CFC7B9);border-radius:100px;padding:8px 13px;font-size:11.5px;color:var(--ink-soft,#4A4744);cursor:pointer;font-family:inherit}
+#rb-mv-robes .rs-chip.on{background:#F3EFE6;border-color:#C9BCA6;color:var(--ink,#202021)}
+#rb-mv-robes .rs-in{display:block;width:100%;box-sizing:border-box;margin-top:9px;border:0;border-bottom:1px solid var(--rule-mid,#CFC7B9);background:transparent;padding:6px 0 8px;font-family:'Cormorant',Georgia,serif;font-size:19px;font-weight:300;color:var(--ink,#202021);outline:none;border-radius:0}
+#rb-mv-robes .rs-in::placeholder{color:var(--ink-faint,#9A958E);font-style:italic}
+#rb-mv-robes .rs-in:focus{border-bottom-color:var(--ink,#202021)}
+#rb-mv-robes .rs-cta{width:100%;height:50px;border-radius:100px;background:var(--ink,#202021);color:#FAF8F5;border:0;font:500 11px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.22em;text-transform:uppercase;cursor:pointer;font-family:inherit;margin-top:22px}
+#rb-mv-robes .rs-note{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:13px;color:var(--ink-faint,#9A958E);text-align:center;margin:12px 0 0}
+@media(max-width:767px){#rb-mv-robes{align-items:flex-end;padding:0}#rb-mv-robes .rs{max-width:none;border-radius:18px 18px 0 0;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}#rb-mv-robes .rs::before{content:'';display:block;width:36px;height:4px;border-radius:2px;background:var(--rule-mid,#CFC7B9);margin:-6px auto 14px}}`;
+        function _mvRsCss() {
+          if (document.getElementById('rb-mv-rs-style')) return;
+          const st = document.createElement('style'); st.id = 'rb-mv-rs-style'; st.textContent = _MV_RS_CSS; document.head.appendChild(st);
+        }
+        function _mvRsPaint() {
+          const c = _mvRs, host = document.getElementById('rb-mv-robes');
+          if (!c || !host) return;
+          const dayWord = _mvPkDayWord(c.date);
+          const chips = _MV_RS_CHIPS.map(ch => `<button type="button" class="rs-chip${c.chip === ch ? ' on' : ''}" onclick="window.__mvRsChip('${_waEsc(ch)}')">${_waEsc(ch)}</button>`).join('');
+          host.innerHTML = `<div class="rs" role="dialog" aria-label="Robes styles one">
+            <div class="rs-head"><span class="rs-ey">${_waEsc(_mvPkDateLabel(c.date))}</span><button type="button" class="rs-x" onclick="window.__mvRsClose()" aria-label="Close">×</button></div>
+            <h3 class="rs-h">Robes styles <em>one.</em></h3>
+            <p class="rs-sub">a fresh look for ${_waEsc(dayWord)}</p>
+            <div class="rs-lab">What’s on?</div>
+            <div class="rs-chips">${chips}</div>
+            <div class="rs-lab">Anything else?</div>
+            <input class="rs-in" id="rb-mv-rs-in" value="${_waEsc(c.text || '')}" placeholder="Where, who with, the vibe" maxlength="140" autocomplete="off" oninput="window.__mvRsText(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();window.__mvRsGo()}">
+            <button type="button" class="rs-cta" onclick="window.__mvRsGo()">Style ${_waEsc(dayWord)} →</button>
+            <p class="rs-note">You name it and save it before it goes in the diary.</p>
+          </div>`;
+        }
+        window.__mvRsChip = function(ch) { if (!_mvRs) return; _mvRs.chip = _mvRs.chip === ch ? null : ch; _mvRsPaint(); };
+        window.__mvRsText = function(v) { if (_mvRs) _mvRs.text = String(v || ''); };
+        window.__mvRsClose = function() { document.getElementById('rb-mv-robes')?.remove(); _mvRs = null; };
+        // The brief: the chip, then her words — "Dinner out — with Mary in
+        // town"; either alone stands; nothing at all asks for an outfit for
+        // the day. Then the standing route: __dlSubmit with the date.
+        window.__mvRsGo = function() {
+          const c = _mvRs;
+          if (!c) return;
+          const text = String(c.text || '').trim();
+          const brief = c.chip && text ? c.chip + ' — ' + text : (c.chip || text || ('An outfit for ' + _mvPkDayWord(c.date)));
+          window.__mvRsClose();
+          _rbTrack('day_robes_brief', { date: c.date, chip: c.chip || null, typed: !!text });
+          if (!window.__dlSubmit) return;
+          try { window.__dlSubmit(brief, { anchorDate: c.date }); }
+          catch (e) { _waShowToast('Robes couldn’t start that look — please try again.'); }
+        };
+        // The Robes door: the sheet, over whatever is under it (the day
+        // page, the Diary, the picker). Her name for the day rides in as
+        // the chip when it is one, else as her words.
         window.__mvRobes = function(date) {
-          document.getElementById('rb-mv-wear')?.remove();
-          // The Diary OR the day page may be under the door — either way
-          // she lands on home with the prompt (2026-09-29: from the day
-          // page the prompt was being scoped underneath the still-open day).
-          const dayEl = document.getElementById('dl-result-page');
-          const pageOpen = (snPage && snPage.style.display !== 'none') || (dayEl && dayEl.style.display !== 'none');
-          if (pageOpen && window.__rbNavGo) window.__rbNavGo('home');
-          const title = (_mvWearCtx && _mvWearCtx.date === date && _mvWearCtx.title) || '';
-          setTimeout(() => {
-            if (typeof window._ikScopeDay === 'function') window._ikScopeDay(date, null);
-            // Her name for the day is the brief — it lands in the prompt
-            const ta = document.getElementById('cb-ta');
-            if (ta && title && !ta.value.trim()) { ta.value = title; ta.dispatchEvent(new Event('input')); if (typeof _cbAutoGrow === 'function') _cbAutoGrow(ta); }
-            _rbTrack('day_robes_door', { date });
-          }, pageOpen ? 340 : 0);
+          document.getElementById('rb-mv-wear')?.remove(); _mvPk = null;
+          window.__mvRsClose();
+          _mvRsCss();
+          const title = String((_mvWearCtx && _mvWearCtx.date === date && _mvWearCtx.title) || '').trim();
+          const chip = _MV_RS_CHIPS.find(ch => ch.toLowerCase() === title.toLowerCase()) || null;
+          _mvRs = { date, chip, text: chip ? '' : title };
+          const modal = document.createElement('div');
+          modal.id = 'rb-mv-robes';
+          modal.onclick = function(e) { if (e.target === modal) window.__mvRsClose(); };
+          document.body.appendChild(modal);
+          _mvRsPaint();
+          _rbTrack('day_robes_door', { date, named: !!title });
         };
         // Rename in the picker: the headline swaps to an input in place;
         // commit runs the shared _rbDayRename and repaints every surface.
