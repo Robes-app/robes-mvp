@@ -5699,9 +5699,14 @@
         v = String(v || '').trim().slice(0, 60);
         const sid = 'day:' + date;
         if (_pdDown || !date || !_waUid() || !_waToken()) return false;
-        if (!v) { _pdDeleteSource(sid); return true; }
+        // The cache carries the name at once (the rail's and the day page's
+        // soft repaints read it, and a refetch that lands before the
+        // debounced upsert keeps a recent row — 2026-09-29).
+        const rest = _pdCacheRead().filter(r => !(r.day_date === date && r.source_type === 'day'));
+        if (!v) { _pdCacheWrite(rest); _pdDeleteSource(sid); return true; }
         const row = { user_id: _waUid(), source_type: 'day', source_id: sid, day_index: 0, slot: 'day', day_date: date,
           status: 'planned', activity: v, headline: null, thumb_urls: [], item_ids: [], pinned: false };
+        _pdCacheWrite(rest.concat([_pdDayRow(date, v)]));
         _pdWrite({ rows: [row], totalDays: 1 }, sid);
         return true;
       }
@@ -10822,6 +10827,7 @@
    vanishes at 6px on white. That is the whole vocabulary. */
 .rb-mcells .rb-dc.dc-v4.dc-compact .dc-dots{display:flex;flex:none;gap:4px;margin-top:auto}
 .rb-mcells .rb-dc.dc-v4.dc-compact .dc-dots i{width:6px;height:6px;border-radius:50%;background:var(--rose,#8E7077)}
+.rb-mcells .rb-dc.dc-v4.dc-compact .dc-dots i.fut{background:var(--ink,#202021)}
 /* Fix 06 — today is a small ink dot beside the numeral. The rose hairline
    is a card-scale treatment: at cell scale it read as a third undefined
    state and fought the rose dots right beneath it. */
@@ -11157,8 +11163,10 @@
         // Fix 05 — a month cell says HOW MANY looks, never which colours: the
         // swatches needed a legend nobody has. One rose dot for a filed day,
         // two for a day holding more than one. Compact only, shown ≤767px.
+        // 2026-09-29 (the native strip's rule, shared): one dot per look,
+        // three at most — rose up to today, ink for a day still ahead.
         const dotsHtml = (compact && !isVoid && looks.length)
-          ? `<span class="dc-dots" title="${looks.length > 1 ? looks.length + ' looks filed' : 'One look filed'}">${looks.length > 1 ? '<i></i><i></i>' : '<i></i>'}</span>` : '';
+          ? `<span class="dc-dots" title="${looks.length > 1 ? looks.length + ' looks filed' : 'One look filed'}">${Array(Math.min(3, looks.length)).fill(`<i${d.when === 'future' ? ' class="fut"' : ''}></i>`).join('')}</span>` : '';
         if (isVoid) {
           // outside the month — a numeral and nothing else
         } else if (stage === 'naming') {
@@ -18289,6 +18297,25 @@ button.rb-lk-live{cursor:pointer}
 #dl-result-page .dyp-add-l{font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase}
 #dl-result-page .dyp-add-s{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:14px;color:var(--ink-faint)}
 #dl-result-page .dyp-none{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:16px;color:var(--ink-faint);margin:0 0 18px}
+/* The native day (2026-09-29): weather as a line + an italic layer hint, the trip as a soft rose button, three doors on an empty day */
+#dl-result-page .dyp-wx.dlm-wx{display:block;padding:0;background:none;border:0;border-radius:0;font-size:12.5px;color:var(--ink-soft);margin-top:14px}
+#dl-result-page .dyp-wxtip{font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:17px;line-height:1.2;color:var(--ink-soft);margin-top:3px}
+#dl-result-page .dyp-trip.dlm-lksrc{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;max-width:620px;box-sizing:border-box;margin-top:14px;padding:12px 14px;background:var(--rose-bg,#F1E9EA);border:0;border-radius:var(--rad,10px);cursor:pointer;text-align:left;font-family:inherit;font-size:12px;color:var(--ink-soft);transition:background .15s}
+#dl-result-page .dyp-trip.dlm-lksrc:hover{background:#EBE0E2}
+#dl-result-page .dyp-trip em{font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:16px;color:var(--ink)}
+#dl-result-page .dyp-trip .r{white-space:nowrap;color:var(--ink);font-size:12px}
+#dl-result-page .dyp-grid.empty{display:block}
+#dl-result-page .dyp-doors{max-width:620px;background:#fff;border:1px solid var(--rule);border-radius:var(--rad-card,14px);overflow:hidden}
+#dl-result-page .dyp-door{display:flex;align-items:center;gap:14px;width:100%;box-sizing:border-box;padding:16px;background:none;border:0;border-top:1px solid var(--rule);cursor:pointer;text-align:left;font-family:inherit;color:var(--ink);transition:background .15s}
+#dl-result-page .dyp-door:first-child{border-top:0}
+#dl-result-page .dyp-door:hover{background:var(--cream-100)}
+#dl-result-page .dyp-door .ic{flex:none;width:34px;height:34px;border-radius:50%;background:var(--cream-200,#F1EDE6);display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:13px}
+#dl-result-page .dyp-door .ic.robes{background:var(--rose-bg,#F1E9EA);color:var(--rose,#8E7077)}
+#dl-result-page .dyp-door .ic svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+#dl-result-page .dyp-door .b{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+#dl-result-page .dyp-door .l{font-size:14px;font-weight:400}
+#dl-result-page .dyp-door .s{font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:15px;line-height:1.2;color:var(--ink-soft)}
+#dl-result-page .dyp-door .ar{flex:none;font-size:18px;color:var(--ink-faint)}
 @media(max-width:767px){#dl-result-page .dyp-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}#dl-result-page .dyp-add{min-height:220px}#dl-result-page .dyp-name{font-size:19px}#dl-result-page .dyp-body{padding:12px 12px 14px}}
 #dl-result-page .dlm-console{display:grid;grid-template-columns:360px minmax(0,1fr);gap:34px;align-items:start}
 /* One held container (Annie, 2026-08-13: the prompt-built look sat loose on
@@ -18973,11 +19000,27 @@ button.rb-lk-live{cursor:pointer}
         const titleInputHtml = _dyPgNaming
           ? `<input id="dyp-name-in" class="rb-tb-title-in dyp-name-in" value="${_waEsc(title)}" maxlength="60" placeholder="Name the day" onkeydown="window.__rbDayNameKey(event)" onblur="window.__rbDayNameCommit()">`
           : (title ? null : `<button type="button" class="rb-tb-title it dlm-title dyp-title-none" onclick="window.__rbDayNameEdit()">Name the day</button>`);
-        const pen = (_dyPgNaming || !title) ? '' :
-          _rbTbBtn({ cls: 'dyp-pen', title: 'Rename the day', onclick: 'window.__rbDayNameEdit()', svg: _RB_PENCIL_SVG });
-        const wxHtml = wx ? `<div class="dlm-meta-row"><div class="dlm-wx"><span>🌤</span><strong>${_waEsc([wx.city, wx.condition].filter(Boolean).join(' · '))}</strong>${wx.tempRange ? `<span class="div"></span><span>${_waEsc(wx.tempRange)}</span>` : ''}${wx.hint ? `<span class="div"></span><span>${_waEsc(wx.hint)}</span>` : ''}</div></div>` : '';
-        const tripHtml = tvIt ? `<div class="dlm-lksrc">Part of <em>${_waEsc(tvIt.title || 'a travel edit')}</em> — <button onclick="window._rbOpenMoment(window._dyPgTrip())">Open the travel edit →</button></div>` : '';
-        const add = `<button type="button" class="dyp-add" onclick="window.__mvWear('${date}')"><span class="dyp-add-plus">+</span><span class="dyp-add-l">Add a look</span><span class="dyp-add-s">${n ? 'another moment in the day' : 'the first moment of the day'}</span></button>`;
+        // The pencil stands beside the title named OR unnamed (the design's
+        // day screen, 2026-09-29) — naming lives on this page now.
+        const pen = _dyPgNaming ? '' :
+          _rbTbBtn({ cls: 'dyp-pen', title: title ? 'Rename the day' : 'Name the day', onclick: 'window.__rbDayNameEdit()', svg: _RB_PENCIL_SVG });
+        // The design's header (Day_Planning.dc.html, 2026-09-29): the
+        // weather as one plain line with its layer hint in italic serif
+        // beneath, then the trip as a soft rose button. A past day carries
+        // no forecast (the design's rule — nothing to dress for).
+        const wxLine = wx ? [wx.city, wx.condition, wx.tempRange].filter(Boolean).join(' · ') : '';
+        const wxHtml = (wx && date >= today) ? `<div class="dyp-wx dlm-wx">${_waEsc(wxLine)}</div>${wx.hint ? `<div class="dyp-wxtip">${_waEsc(wx.hint)}</div>` : ''}` : '';
+        const tripHtml = tvIt ? `<button type="button" class="dyp-trip dlm-lksrc" onclick="window._rbOpenMoment(window._dyPgTrip())"><span>Part of <em>${_waEsc(tvIt.title || 'a travel edit')}</em></span><span class="r">Travel edit ›</span></button>` : '';
+        // With looks on the day the dashed card adds another; an empty day
+        // carries the picker's three doors right on the page (the design's
+        // empty state — one tap fewer than opening the sheet to find them).
+        const add = n
+          ? `<button type="button" class="dyp-add" onclick="window.__mvWear('${date}')"><span class="dyp-add-plus">+</span><span class="dyp-add-l">Add a look</span><span class="dyp-add-s">another moment in the day</span></button>`
+          : `<div class="dyp-doors">` +
+              `<button type="button" class="dyp-door" onclick="window.__mvRobesFor('${date}')"><span class="ic robes">✦</span><span class="b"><span class="l">Robes styles one</span><span class="s">a fresh look for this day</span></span><span class="ar">›</span></button>` +
+              `<button type="button" class="dyp-door" onclick="window.__lkNew&&window.__lkNew({day:'${date}'})"><span class="ic">${_RB_PENCIL_SVG}</span><span class="b"><span class="l">Create a new look</span><span class="s">opens the composer</span></span><span class="ar">›</span></button>` +
+              `<button type="button" class="dyp-door" onclick="window.__mvWear('${date}')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M4 5h16v14H4zM12 5v14"></path></svg></span><span class="b"><span class="l">Choose from your looks</span><span class="s">pick one or several</span></span><span class="ar">›</span></button>` +
+            `</div>`;
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Diary' }]);
         // Band two: ‹ the month the day lives in (or Home, when the rail
         // opened it) — returning restores the view she left.
@@ -18997,8 +19040,7 @@ button.rb-lk-live{cursor:pointer}
               ${dypTitle}
             </header>
             <div class="dyp-sec"><span class="dyp-sec-l">${secLabel}</span><span class="dyp-sec-r">${_waEsc(stat)}</span></div>
-            ${n ? '' : `<p class="dyp-none">Nothing filed ${date === today ? 'yet today' : date < today ? 'that day' : 'yet'}.</p>`}
-            <div class="dyp-grid">${looks.map((m, i) => _dyPgCard(m, i, n)).join('')}${add}</div>
+            <div class="dyp-grid${n ? '' : ' empty'}">${looks.map((m, i) => _dyPgCard(m, i, n)).join('')}${add}</div>
           </div>`;
         dlResultPage.style.display = 'block';
         if (_dyPgNaming) {
@@ -25226,7 +25268,18 @@ body>*:not(#tv-result-page){display:none !important}
 #rb-rail .rb-upnext .m{font-size:11px;color:var(--ink-faint);white-space:nowrap}
 #rb-rail .rb-upnext .cta{margin-left:auto;flex:none;font-size:9px;font-weight:400;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
 #rb-rail .rb-upnext:hover .cta{color:var(--ink,#202021)}
+#rb-rail .rb-rail-row.rb-rail-strip{gap:4px;align-items:stretch}
+#rb-rail .rb-wk{appearance:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;height:72px;padding:0;margin:0;background:transparent;border:1px solid transparent;border-radius:12px;cursor:pointer;color:var(--ink,#202021);font-family:inherit;transition:background .15s,border-color .15s;min-width:0}
+#rb-rail .rb-wk:hover{background:#fff;border-color:var(--rule,#EDE6D8)}
+#rb-rail .rb-wk.is-today{background:#fff;border-color:var(--rule-mid,rgba(32,32,33,0.14))}
+#rb-rail .rb-wk-l{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint,#9A9082);line-height:1;white-space:nowrap}
+#rb-rail .rb-wk.is-today .rb-wk-l{color:var(--rose,#8E7077)}
+#rb-rail .rb-wk-n{font-family:'Cormorant',Georgia,serif;font-weight:400;font-size:20px;line-height:1;color:var(--ink,#202021)}
+#rb-rail .rb-wk-dots{display:flex;gap:3px;height:4px}
+#rb-rail .rb-wk-dots i{width:4px;height:4px;border-radius:50%;background:var(--ink,#202021)}
+#rb-rail .rb-wk-dots i.now{background:var(--rose,#8E7077)}
 @media(max-width:999px){
+  #rb-rail .rb-rail-row.rb-rail-strip{display:grid;overflow:visible;padding-bottom:0}
   #rb-rail .rb-rail-row{display:flex;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   #rb-rail .rb-rail-row::-webkit-scrollbar{display:none}
   #rb-rail .rb-rc{flex:none;width:158px;scroll-snap-align:center}
@@ -25371,8 +25424,27 @@ body>*:not(#tv-result-page){display:none !important}
           });
         }
 
+        // The native strip (design Day_Planning.dc.html, 2026-09-29): a
+        // day is a compact CELL — its label, its numeral, one dot per look
+        // (three at most) — and every cell opens the day page. The card's
+        // doors (inline naming, the +, the look avatars, the sparkle) all
+        // live on the day page now; the strip is the index the native app
+        // draws, today first (yesterday lives on Month).
+        function cardStrip(slot, i) {
+          const today = slot.date === _railToday, past = slot.date < _railToday;
+          const looks = Array.isArray(slot.looks) ? slot.looks : [];
+          const n = Math.min(3, looks.length);
+          const dots = n ? `<span class="rb-wk-dots">${Array(n).fill(`<i class="${past || today ? 'now' : 'fut'}"></i>`).join('')}</span>` : '<span class="rb-wk-dots"></span>';
+          const d = new Date(slot.date + 'T00:00:00');
+          const lab = today ? 'Today' : d.toLocaleDateString('en-GB', { weekday: 'short' });
+          const long = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+          const tip = looks.length ? long + ' · ' + _lkN(looks.length, 'look') : long;
+          return `<button type="button" class="rb-wk${today ? ' is-today' : ''}${past ? ' is-past' : ''}${looks.length ? ' has-looks' : ''}" data-date="${slot.date}" onclick="window.__rbRailOpen(${i})" title="${_waEsc(tip)}" aria-label="${_waEsc('Open ' + long)}">` +
+            `<span class="rb-wk-l">${_waEsc(lab)}</span><span class="rb-wk-n">${+slot.date.slice(8, 10)}</span>${dots}</button>`;
+        }
+
         function cardHtml(slot, i) {
-          if (_rbDayCardOn()) return cardV2(slot, i);
+          if (_rbDayCardOn()) return cardStrip(slot, i);
           const state = cardState(slot);
           const dayMoment = slot.moments.find(m => (m.slot || 'day') === 'day') || slot.moments[0];
           const eveMoment = slot.moments.find(m => m.slot === 'evening');
@@ -25426,9 +25498,9 @@ body>*:not(#tv-result-page){display:none !important}
           // COPY: needs sign-off (eyebrow + hint)
           host.innerHTML =
             '<div class="rb-rail-head"><span class="rb-rail-ey">The week ahead</span>' +
-            '<button type="button" class="rb-rail-open" onclick="window.__rbDiaryOpen&&window.__rbDiaryOpen()">Open the diary →</button>' +
+            '<button type="button" class="rb-rail-open" onclick="window.__rbDiaryOpen&&window.__rbDiaryOpen()">Diary ›</button>' +
             '</div>' +
-            '<div class="rb-rail-row">' + slots.map((s, i) => cardHtml(s, i)).join('') + '</div>' +
+            '<div class="rb-rail-row' + (_rbDayCardOn() ? ' rb-rail-strip' : '') + '">' + slots.map((s, i) => cardHtml(s, i)).join('') + '</div>' +
             '<div id="rb-rail-up"></div>';
           // Mobile: the strip only works if today is in view on mount
           const row = host.querySelector('.rb-rail-row');
@@ -25447,12 +25519,16 @@ body>*:not(#tv-result-page){display:none !important}
         function comingUp() {
           const holder = document.getElementById('rb-rail-up');
           if (!holder || _pdDown || !_waUid() || !_waToken()) return;
-          _waFetch('GET', 'planned_days?user_id=eq.' + _waUid() + '&day_date=gt.' + _pdAddISO(_railToday, 5)
+          _waFetch('GET', 'planned_days?user_id=eq.' + _waUid() + '&day_date=gt.' + _pdAddISO(_railToday, _rbDayCardOn() ? 6 : 5)
             + '&order=day_date.asc&limit=60&select=source_id,source_type,day_date,updated_at')
             .then(rows => {
               // Same-plan supersession (F4/D-08): a rescheduled plan's
               // stale twin must not win the Coming-up slot.
               rows = Array.isArray(rows) ? _pdSupersede(rows) : rows;
+              // Belt: only what lies BEYOND the strip (the query says so;
+              // a stubbed read may not honour it).
+              const beyond = _pdAddISO(_railToday, _rbDayCardOn() ? 6 : 5);
+              if (Array.isArray(rows)) rows = rows.filter(r => r.day_date > beyond);
               if (!Array.isArray(rows) || !rows.length) { holder.innerHTML = ''; return; }
               const first = rows[0];
               const mine = rows.filter(r => r.source_id === first.source_id).map(r => r.day_date);
@@ -25482,7 +25558,10 @@ body>*:not(#tv-result-page){display:none !important}
 
         function refresh() {
           _railToday = _pdLocalISO();
-          _pdRail(_pdAddISO(_railToday, -1), _pdAddISO(_railToday, 5), paint);
+          // The native strip runs today → +6 (yesterday lives on Month);
+          // the legacy card rail keeps its yesterday.
+          if (_rbDayCardOn()) _pdRail(_railToday, _pdAddISO(_railToday, 6), paint);
+          else _pdRail(_pdAddISO(_railToday, -1), _pdAddISO(_railToday, 5), paint);
         }
         window._rbRailPaint = refresh;
         // Soft repaint from the slots already in hand — the peek's
@@ -25624,7 +25703,14 @@ body>*:not(#tv-result-page){display:none !important}
         // Tap a populated card → open the day inside its parent plan
         window.__rbRailOpen = function(i) {
           const slot = _railSlots && _railSlots[i];
-          if (!slot || !slot.moments.length) return;
+          if (!slot) return;
+          // An EMPTY day opens its page too (the native strip, 2026-09-29):
+          // the day page is where it gets named and dressed.
+          if (!slot.moments.length) {
+            _rbTrack('day_opened_from_rail', { source_type: null, state: cardState(slot) });
+            if (window.__rbDayOpen) window.__rbDayOpen(slot.date, { from: 'home' });
+            return;
+          }
           const m = slot.moments.find(x => (x.slot || 'day') === 'day' && x.source_type !== 'day') || slot.moments.find(x => (x.slot || 'day') === 'day') || slot.moments[0];
           _rbTrack('day_opened_from_rail', { source_type: m.source_type, state: cardState(slot) });
           window._rbOpenPlannedDay(m, { from: 'home' });
@@ -25995,7 +26081,58 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 .dy-empty h3{font-family:'Cormorant',Georgia,serif;font-size:32px;font-weight:300;line-height:1.15;margin:0;color:var(--ink,#202021)}
 .dy-empty p{font-size:13px;line-height:1.7;color:var(--ink-soft,#6E6A64);margin:16px 0 0;max-width:300px}
 .dy-empty-cta{margin-top:28px;background:var(--ink,#202021);color:#fff;border:none;border-radius:100px;padding:14px 28px;cursor:pointer;font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-family:inherit;font-weight:500}
-@media(max-width:767px){.dy-list{max-width:none}.dy-row{gap:12px}.dy-tday{padding:12px 12px 12px 10px}.rb-mv-head{gap:10px}.rb-mv-nav{gap:8px;flex-wrap:wrap}}`;
+/* ── Month: the trips list under the grid (2026-09-29) ── */
+.rb-mv-trips{margin-top:22px;max-width:760px}
+.rb-mv-trips-h{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A9082);margin:0 0 12px}
+.rb-mv-trip{display:flex;align-items:center;gap:14px;width:100%;box-sizing:border-box;background:#fff;border:1px solid var(--rule,#EDE6D8);border-radius:var(--rad-card,14px);padding:12px 14px;margin-bottom:10px;cursor:pointer;text-align:left;font-family:inherit;color:var(--ink,#202021);box-shadow:0 1px 3px rgba(32,32,33,.04);transition:border-color .15s}
+.rb-mv-trip:hover{border-color:rgba(32,32,33,.35)}
+.rb-mv-trip-d{flex:none;width:46px;height:50px;border-radius:10px;background:var(--rose-bg,#F1E9EA);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.rb-mv-trip-d .mo{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--rose,#8E7077);line-height:1}
+.rb-mv-trip-d .dd{font-family:'Cormorant',Georgia,serif;font-size:20px;line-height:1}
+.rb-mv-trip-b{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.rb-mv-trip-b .t{font-family:'Cormorant',Georgia,serif;font-size:19px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-mv-trip-b .m{font-size:11.5px;color:var(--ink-soft,#6E6A64)}
+.rb-mv-trip-ar{flex:none;font-size:18px;color:var(--ink-faint,#9A9082)}
+/* ── The native list (2026-09-29): summary rows, week blocks ── */
+.dy-native{gap:16px}
+.dy-native .dy-wk{background:#fff;border:1px solid var(--rule,#EDE6D8);border-radius:var(--rad-card,14px);overflow:hidden}
+.dy-native .dy-row.dy-triprow{padding:0;display:block}
+.dy-native .dy-trip{flex:none;border-color:var(--rule,#EDE6D8)}
+.dy-wk-h{padding:12px 16px 10px;border-bottom:1px solid var(--rule,#EDE6D8);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#9A9082);line-height:1}
+.dy-trip-hd{display:flex;flex-direction:column;gap:6px;width:100%;box-sizing:border-box;padding:14px 16px;background:var(--cream-200,#F1EDE6);border:0;border-bottom:1px solid var(--rule,#EDE6D8);cursor:pointer;text-align:left;font-family:inherit;color:var(--ink,#202021);transition:background .15s}
+.dy-trip-hd:hover{background:var(--cream-300,#E7E0CF)}
+.dy-trip-hd-l{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}
+.dy-trip-hd-l h3{flex:1;min-width:0;font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:400;line-height:1.1;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dy-trip-hd .dy-trip-d{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint,#9A9082);white-space:nowrap}
+.dy-trip-hd-m{font-size:11.5px;line-height:1.3;color:var(--ink-soft,#6E6A64)}
+.dy-trip-hd-m em{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:13px}
+.dy-r{display:flex;align-items:center;gap:14px;padding:12px 14px 12px 16px;border-top:1px solid var(--rule,#EDE6D8);cursor:pointer;transition:background .15s;min-height:44px}
+.dy-r.first{border-top:0}
+.dy-r:hover{background:var(--cream-100,#F7F4EE)}
+.dy-r.today{box-shadow:inset 3px 0 0 var(--rose,#8E7077)}
+.dy-r-g{flex:none;width:34px;text-align:center;display:flex;flex-direction:column;align-items:center}
+.dy-r-l{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint,#9A9082);line-height:1}
+.dy-r-l.now{color:var(--rose,#8E7077)}
+.dy-r-n{font-family:'Cormorant',Georgia,serif;font-size:22px;font-weight:400;line-height:1;margin-top:4px;color:var(--ink,#202021)}
+.dy-r-th{flex:none;display:flex}
+.dy-r-th .dy-th{width:34px;height:44px;border-radius:5px;border:1.5px solid #fff;box-shadow:0 0 0 1px var(--rule,#EDE6D8);background:var(--cream-300,#E7E0CF)}
+.dy-r-th .dy-th+.dy-th{margin-left:-12px}
+.dy-r-b{flex:1;min-width:0}
+.dy-r-t{font-family:'Cormorant',Georgia,serif;font-size:18px;font-weight:400;line-height:1.15;color:var(--ink,#202021);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dy-r-t.none{font-style:italic;color:var(--ink-faint,#9A9082)}
+.dy-r-m{font-size:11px;color:var(--ink-faint,#9A9082);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dy-r-worn{color:var(--ink-soft,#6E6A64)}
+.dy-r-ar{flex:none;font-size:18px;line-height:1;color:var(--ink-faint,#9A9082)}
+@media(max-width:767px){.dy-list{max-width:none}.dy-row{gap:12px}.dy-tday{padding:12px 12px 12px 10px}.rb-mv-head{gap:10px}.rb-mv-nav{gap:8px;flex-wrap:wrap}
+  /* The phone's head is the design's: the List | Month pill as a full track beside the +, the window's name as an eyebrow beneath */
+  .rb-mv-head.rb-mast{flex-direction:column-reverse;align-items:stretch;gap:18px}
+  .rb-mv-head .rb-mv-nav{display:flex;flex-wrap:nowrap;align-items:center;gap:10px}
+  .rb-mv-head .rb-mv-seg{flex:1;display:grid;grid-template-columns:1fr 1fr;margin-right:0;padding:3px;background:var(--cream-200,#F1EDE6)}
+  .rb-mv-head .rb-mv-seg button{height:32px;font-size:10px;letter-spacing:.2em}
+  .rb-mv-head .rb-mv-seg button.on{font-weight:500}
+  .rb-mv-head .rb-circ{width:40px;height:40px;flex:none}
+  .rb-mv-head .rb-mast-l{margin-top:0}
+}`;
           document.head.appendChild(st);
         }
 
@@ -26125,8 +26262,17 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const w = _dyWindow();
           const from = _dyMode === 'list' ? _pdAddISO(w.from, -1) : _pdAddISO(g.gridStart, -7);
           const to = _dyMode === 'list' ? _pdAddISO(w.to, 1) : _pdAddISO(g.gridEnd, 7);
+          const t0 = Date.now();
           _pdMonth(from, to).then(res => {
-            _mvRows = _mvFresh(res.rows || []);
+            const rows = res.rows || [];
+            // A row written optimistically in the last moments (a name or a
+            // pin from the day page whose upsert is still on its way) stays
+            // until the server knows it — the rail's and the day page's rule
+            // (2026-09-29: the list used to read "Name the day" straight
+            // after she named it on the day page).
+            const has = r => rows.some(x => x.source_type === r.source_type && String(x.source_id) === String(r.source_id) && (x.slot || 'day') === (r.slot || 'day') && (x.day_index || 0) === (r.day_index || 0));
+            const keep = _pdCacheRead().filter(r => r.day_date >= from && r.day_date <= to && !has(r) && (t0 - new Date(r.updated_at || 0).getTime()) < 15000);
+            _mvRows = _mvFresh(rows.concat(keep));
             _mvSources = res.sources || {};
             _mvPaint(g, _mvRows, _mvSources);
           }).catch(() => {});
@@ -26317,8 +26463,41 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             }
             html += `</div></div>`;
           }
-          html += `</div><p class="rb-mv-cap">Month reads the shape of it. List is where you plan.</p>`;
+          html += `</div>`;
+          const tripsHtml = _mvTripsHtml(g, rows, sources);
+          html += tripsHtml || `<p class="rb-mv-cap">Month reads the shape of it. List is where you plan.</p>`;
           cal.innerHTML = html;
+        }
+        // The month's trips as a list beneath the grid (design
+        // Day_Planning.dc.html, 2026-09-29): the ribbon says WHERE the trip
+        // sits, this says which trip it is — start-date tile, name, range ·
+        // N days · N looks; a tap opens the travel edit.
+        function _mvTripsHtml(g, rows, sources) {
+          const bySrc = {};
+          (rows || []).forEach(r => {
+            if (r.source_type !== 'travel') return;
+            (bySrc[r.source_id] = bySrc[r.source_id] || []).push(r);
+          });
+          const trips = Object.keys(bySrc).map(sid => {
+            const mine = bySrc[sid];
+            const dates = mine.map(r => r.day_date).sort();
+            if (dates[dates.length - 1] < g.first || dates[0] > g.last) return null;
+            const parent = sources[sid] || _pdParent(sid);
+            const it = snLoad().find(x => String(x.id) === String(sid));
+            const tv = (it && it.tvData) || {};
+            const from = tv.dateFrom || dates[0], to = tv.dateTo || dates[dates.length - 1];
+            const nDays = Math.max(1, Math.round((Date.parse(to + 'T00:00:00Z') - Date.parse(from + 'T00:00:00Z')) / 86400000) + 1);
+            const seen = {};
+            let nLooks = 0;
+            mine.forEach(r => { if (r.status === 'free' || !r.headline) return; const k = r.day_date + '|' + (r.slot || 'day'); if (!seen[k]) { seen[k] = 1; nLooks++; } });
+            return { sid, title: (parent && parent.title) || (it && it.title) || 'A trip', from, range: _rbDateRange(from, to), nDays, nLooks };
+          }).filter(Boolean).sort((a, b) => a.from < b.from ? -1 : 1);
+          if (!trips.length) return '';
+          return `<div class="rb-mv-trips"><div class="rb-mv-trips-h">Trips</div>` + trips.map(t =>
+            `<button type="button" class="rb-mv-trip" onclick="window.__mvBand('${String(t.sid).replace(/'/g, '')}','travel')">` +
+              `<span class="rb-mv-trip-d"><span class="mo">${_waEsc(_rbMon3(t.from))}</span><span class="dd">${+String(t.from).slice(8, 10)}</span></span>` +
+              `<span class="rb-mv-trip-b"><span class="t">${_waEsc(t.title)}</span><span class="m">${_waEsc([t.range, _lkN(t.nDays, 'day'), t.nLooks ? _lkN(t.nLooks, 'look') : ''].filter(Boolean).join(' · '))}</span></span>` +
+              `<span class="rb-mv-trip-ar" aria-hidden="true">›</span></button>`).join('') + `</div>`;
         }
 
         window.__dySetMode = function(m) {
@@ -26424,6 +26603,46 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const worn = dc.modifier === 'worn' || looks.some(m => m.status === 'worn');
           return `<div class="dy-tday past tap" data-date="${date}" role="button" tabindex="0" onclick="window.__dyOpenDay('${date}')">${_dyGutter(date, true, true)}<div class="dy-tday-b"><button type="button" class="dy-past" onclick="event.stopPropagation();window.__dyOpen('${k}')">${_dyThumb(lead)}<span class="dy-past-b"><span class="dy-past-n">${_waEsc(nm)}</span><span class="dy-past-m">Filed${n ? ' · ' + _waEsc(_lkN(n, 'piece')) : ''}${looks.length > 1 ? ' · ' + _lkN(looks.length, 'look') : ''}</span></span>${worn ? '<span class="dy-worn">Worn</span>' : ''}<span class="dy-look-ar">\u2192</span></button></div></div>`;
         }
+        // ── The native list (design Day_Planning.dc.html, 2026-09-29) ──
+        // Every row is a SUMMARY of the day and opens it: the weekday + the
+        // numeral, up to two look thumbs, her title (else the one look's
+        // name, else "N looks", else the faint invitation), "N looks · N
+        // pieces", and the disclosure chevron. Naming, adding and the look
+        // rows all live on the day page now. Days group by WEEK ("Rest of
+        // this week", then "6–12 Oct"); a trip is pulled out as its own
+        // block wherever its dates fall.
+        function _dyRow(date, here, looks, today, opts) {
+          opts = opts || {};
+          const d = new Date(date + 'T00:00:00');
+          const isToday = date === today;
+          const nm = _pdDayTitle(here);
+          const ls = looks || [];
+          const oneName = ls.length === 1 ? (_dyLookName(ls[0]) || _dcTitleOf(ls[0]) || 'A look') : '';
+          const title = nm || (ls.length ? (ls.length === 1 ? oneName : _lkN(ls.length, 'look')) : 'Name the day');
+          const bare = !nm && !ls.length;
+          const pieces = ls.reduce((a, m) => a + (_dcPieceTotal(m) || (m.item_ids || []).length), 0);
+          const meta = ls.length ? _lkN(ls.length, 'look') + (pieces ? ' · ' + _lkN(pieces, 'piece') : '') : '';
+          const thumbs = ls.slice(0, 2).map(m => _dyThumb(m)).join('');
+          ls.forEach(m => _dyRemember(m));
+          const worn = ls.some(m => m.status === 'worn');
+          return `<div class="dy-r${isToday ? ' today' : ''}${opts.first ? ' first' : ''}" data-date="${date}" role="button" tabindex="0" onclick="window.__dyOpenDay('${date}')">` +
+            `<div class="dy-r-g"><span class="dy-r-l${isToday ? ' now' : ''}">${isToday ? 'Today' : _waEsc(d.toLocaleDateString('en-GB', { weekday: 'short' }))}</span><span class="dy-r-n">${+date.slice(8, 10)}</span></div>` +
+            (thumbs ? `<div class="dy-r-th">${thumbs}</div>` : '') +
+            `<div class="dy-r-b"><div class="dy-r-t${bare ? ' none' : ''}">${_waEsc(title)}</div>${meta ? `<div class="dy-r-m">${_waEsc(meta)}${worn ? ' · <span class="dy-r-worn">Worn</span>' : ''}</div>` : ''}</div>` +
+            `<span class="dy-r-ar" aria-hidden="true">›</span></div>`;
+        }
+        function _dyWeekLabel(first, last, today) {
+          if (first === today) {
+            const dow = new Date(today + 'T00:00:00').getDay();
+            return dow === 1 ? 'This week' : 'Rest of this week';
+          }
+          return _dyRange(first, last) || _dyMon(first);
+        }
+        function _dyMondayOf(date) {
+          const d = new Date(date + 'T00:00:00');
+          const back = (d.getDay() + 6) % 7;
+          return _pdAddISO(date, -back);
+        }
         function _dyTripBlock(sid, datesFrom, rows, sources, today) {
           const it = snLoad().find(x => String(x.id) === String(sid));
           const tv = (it && it.tvData) || {};
@@ -26436,73 +26655,59 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const mine = d => rows.some(r => r.day_date === d && String(r.source_id) === String(sid));
           const run = [];
           for (const d of datesFrom) { if (!mine(d)) break; run.push(d); }
-          const days = run.map(date => {
+          const days = run.map((date, i) => {
             const here = rows.filter(r => r.day_date === date);
             const tvr = here.find(r => String(r.source_id) === String(sid) && (r.slot || 'day') === 'day') || here.find(r => String(r.source_id) === String(sid));
+            if (tvr) _dyRemember(tvr);
             const looks = _pdDayLooksAll(_pdFreshest(here));
-            const past = date < today;
-            const k = _dyRemember(tvr);
-            const t = String(tvr.activity || '').trim();
-            const naming = _dyNaming === date;
-            const titleHtml = naming ? _dyNameInput(t)
-              : t ? `<button type="button" class="dy-tday-t" onclick="event.stopPropagation();window.__dyRename('${date}','${k}')" title="Rename the day">${_waEsc(t)}</button>`
-              : (past ? '' : `<button type="button" class="dy-tday-t none" onclick="event.stopPropagation();window.__dyRename('${date}','${k}')">Name the day</button>`);
-            return `<div class="dy-tday tap${past ? ' past' : ''}" data-date="${date}" role="button" tabindex="0" onclick="window.__dyOpenDay('${date}')">${_dyGutter(date, true, past)}<div class="dy-tday-b"><div class="dy-tday-h">${titleHtml || '<span class="dy-tday-t none">&nbsp;</span>'}${past ? '' : _dyAddSlot(`window.__dyOpenTrip('${k}')`, !looks.length)}</div>${looks.map((m, i) => _dyLookRow(m, i, looks.length)).join('')}</div></div>`;
+            return _dyRow(date, here, looks, today, { first: i === 0 });
           }).join('');
-          return `<div class="dy-row dy-triprow" data-trip="${_waEsc(String(sid))}"><div class="dy-trip"><button type="button" class="dy-trip-h" onclick="window.__snOpenItem(${Number(sid)})">${_DY_SVG.bag}<h3>${_waEsc(title)}</h3>${range ? `<span class="dy-trip-d">${_waEsc(range)}</span>` : ''}</button>${wxLine ? `<div class="dy-trip-wx">${_DY_SVG.pin}<span>${wxLine}</span></div>` : ''}${days}</div></div>`;
+          // The block's head names the trip (tap → the travel edit); its
+          // rows are days, and open as days.
+          return `<div class="dy-row dy-triprow" data-trip="${_waEsc(String(sid))}"><div class="dy-trip dy-wk">` +
+            `<button type="button" class="dy-trip-hd" onclick="window.__snOpenItem(${Number(sid)})"><span class="dy-trip-hd-l"><h3>${_waEsc(title)}</h3>${range ? `<span class="dy-trip-d">${_waEsc(range)}</span>` : ''}</span>${wxLine ? `<span class="dy-trip-hd-m">${wxLine}</span>` : ''}</button>` +
+            days + `</div></div>`;
         }
         function _dyListHtml(g, rows, sources, today) {
           _dyMoments = {};
           void g;
           // The rolling window, today first — every day in it renders, so
-          // an empty Thursday three weeks out still offers its invitation
-          // (Annie, 2026-09-10: the list showed only filled days).
+          // an empty Thursday three weeks out is still a row (Annie,
+          // 2026-09-10: the list showed only filled days).
           const win = _dyWindow();
           const inWindow = rows.filter(r => r.day_date >= win.from && r.day_date <= win.to);
-          // Consecutive diary days ride ONE bordered block, exactly as the
-          // trip page's Travel diary does — the day rows are its rows, not
-          // free-floating cards (Annie, 2026-09-10).
-          const parts = [];
-          const pushDay = h => {
-            const last = parts[parts.length - 1];
-            if (last && last.k === 'days') last.h += h; else parts.push({ k: 'days', h });
-          };
-          const pushBlock = h => parts.push({ k: 'block', h });
-          let html = '<div class="dy-list">';
+          let html = '<div class="dy-list dy-native">';
           if (!inWindow.length) {
             // The design's empty state — nothing planned in the window.
             // "Plan a trip" is the one commitment on the screen; the
-            // invitations still follow beneath.
+            // days still follow beneath.
             html += `<div class="dy-empty"><h3>Nothing planned<br><em>yet.</em></h3><p>Name a day, or pack for somewhere. The diary keeps the dates; the lookbook keeps the looks.</p><button type="button" class="dy-empty-cta" onclick="window.__lkNewHoliday()">Plan a trip</button></div>`;
           }
           const dates = _pdDateList(win.from, win.to);
           const done = {};
+          const groups = [];
+          let cur = null;
           for (let i = 0; i < dates.length; i++) {
             const date = dates[i];
             const here = rows.filter(r => r.day_date === date);
-            const past = date < today;
             const tvRow = here.find(r => r.source_type === 'travel');
             if (tvRow) {
               if (!done[tvRow.source_id]) {
                 done[tvRow.source_id] = true;
-                pushBlock(_dyTripBlock(tvRow.source_id, dates.slice(i), rows, sources, today));
+                cur = null;
+                groups.push({ k: 'trip', h: _dyTripBlock(tvRow.source_id, dates.slice(i), rows, sources, today) });
               }
               continue;
             }
-            const dayW = _pdWinner(here.filter(r => (r.slot || 'day') === 'day'));
-            const eveW = _pdWinner(here.filter(r => (r.slot || 'day') === 'evening'));
+            const wk = _dyMondayOf(date);
+            if (!cur || cur.wk !== wk) { cur = { k: 'week', wk, first: date, last: date, rows: [] }; groups.push(cur); }
+            cur.last = date;
             const looks = _pdDayLooks(here);
-            const dc = _dcMoments(dayW, eveW, { date, today, looks });
-            if (dc.stage === 'empty' && !looks.length) {
-              if (!past) pushDay(_dyInviteRow(date, today));
-              continue;
-            }
-            pushDay(past ? _dyPastRow(date, here, looks, dc) : _dyDayCard(date, here, looks, dc, today));
+            cur.rows.push(_dyRow(date, here, looks, today, { first: !cur.rows.length }));
           }
-          html += parts.map(p2 => p2.k === 'days' ? `<div class="dy-block">${p2.h}</div>` : p2.h).join('');
-          // The window ends where Month begins — the tail is the door to
-          // it, not a month-by-month page turn.
-          html += `<div class="dy-tail"><p>That's the next ${_DY_LIST_DAYS} days.</p><button type="button" onclick="window.__dySetMode('month')"><span>Month view</span></button></div></div>`;
+          html += groups.map(gr => gr.k === 'trip' ? gr.h
+            : `<div class="dy-wk" data-week="${gr.wk}"><div class="dy-wk-h">${_waEsc(_dyWeekLabel(gr.first, gr.last, today))}</div>${gr.rows.join('')}</div>`).join('');
+          html += '</div>';
           return html;
         }
         // Openers + writes — the list never invents a path: a look row
@@ -26626,7 +26831,18 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         // unpinned pool): picks import through the trip's own path.
         var _mvPk = null;
         var _MV_PK_CSS = `
-#rb-mv-wear .pk{background:#FAF8F5;border:1px solid var(--rule,#E3DDD2);border-radius:14px;width:100%;max-width:560px;max-height:86vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 18px 40px rgba(32,32,33,.12);font-family:inherit;color:var(--ink,#202021)}
+#rb-mv-wear .pk{background:#FAF8F5;border:1px solid var(--rule,#E3DDD2);border-radius:14px;width:100%;max-width:560px;max-height:86vh;overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;box-shadow:0 18px 40px rgba(32,32,33,.12);font-family:inherit;color:var(--ink,#202021)}
+#rb-mv-wear .pk-body{flex:1;min-height:0;overflow-y:auto}
+#rb-mv-wear .pk-foot{flex:none;padding:12px 20px 16px;border-top:0.5px solid var(--rule-mid,#CFC7B9);background:rgba(250,248,245,.96)}
+#rb-mv-wear .pk-foot:empty{display:none}
+#rb-mv-wear .pk-cta{width:100%;height:50px;border-radius:100px;background:var(--ink,#202021);color:#FAF8F5;border:0;font:500 11px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.22em;text-transform:uppercase;cursor:pointer;font-family:inherit}
+#rb-mv-wear .pk-hint{height:50px;border-radius:100px;border:1px solid var(--rule-mid,#CFC7B9);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-faint,#9A958E)}
+#rb-mv-wear .pk-tile{position:relative}
+#rb-mv-wear .pk-tile .pk-tick{position:absolute;top:12px;right:12px;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.85);border:1px solid var(--rule-mid,#CFC7B9);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink,#202021);z-index:2}
+#rb-mv-wear .pk-tile.on{background:var(--rose-mid,#E9DEE0);border-color:var(--mauve,#D4C8C4)}
+#rb-mv-wear .pk-tile.on .pk-tick{background:var(--rose-mid,#E9DEE0);border-color:var(--mauve,#D4C8C4)}
+#rb-mv-wear .pk-tile.had{opacity:.45;cursor:default}
+#rb-mv-wear .pk-tile.had:hover{border-color:var(--rule,#E3DDD2)}
 #rb-mv-wear .pk-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:22px 24px 0}
 #rb-mv-wear .pk-ey{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A958E)}
 #rb-mv-wear .pk-x{background:none;border:0;cursor:pointer;color:var(--ink-faint,#9A958E);font-size:18px;line-height:1;padding:0 2px;margin-top:-4px}
@@ -26667,7 +26883,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-mv-wear .pk-none h4{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:24px;line-height:1.25;margin:0}
 #rb-mv-wear .pk-none p{font-size:13px;line-height:1.6;color:var(--ink-soft,#4A4744);margin:10px auto 0;max-width:30ch}
 #rb-mv-wear .pk-ink{display:inline-block;margin-top:20px;background:var(--ink,#202021);color:#FAF8F5;border:0;border-radius:100px;padding:11px 22px;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;font-family:inherit}
-@media(max-width:640px){#rb-mv-wear{align-items:flex-end!important;padding:0!important}#rb-mv-wear .pk{border-radius:14px 14px 0 0;max-height:92dvh}}`;
+@media(max-width:767px){#rb-mv-wear{align-items:flex-end!important;padding:0!important}#rb-mv-wear .pk{border-radius:18px 18px 0 0;max-height:92dvh}#rb-mv-wear .pk-foot{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}}`;
         function _mvPkCss() {
           if (document.getElementById('rb-mv-pk-style')) return;
           const st = document.createElement('style'); st.id = 'rb-mv-pk-style'; st.textContent = _MV_PK_CSS; document.head.appendChild(st);
@@ -26743,8 +26959,18 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             const w = _lkLastWorn(l);
             return esc(moment + ' · ' + (w ? 'last ' + _lkFmt(String(w).slice(0, 10)) : 'never worn'));
           };
+          // Multi-select (design Day_Planning.dc.html, 2026-09-29): a tap
+          // ticks a tile, the foot adds one or several at once; a look
+          // already on the day is shown but not offered again.
+          const picks = c.picks || [];
+          const onDay = c.onDay || [];
+          const tileHtml = l => {
+            const id = String(l.id);
+            const had = onDay.indexOf(id) > -1, on = picks.indexOf(id) > -1;
+            return `<button type="button" class="pk-tile${on ? ' on' : ''}${had ? ' had' : ''}" data-look="${esc(id)}" onclick="window.__mvPkToggleLook('${esc(id)}')"${had ? ' aria-disabled="true"' : ''}>${lt.mosaic(lt.cells(_lkPieceIds(l)), { photo: _lkHeroUrl(l) || undefined, alt: l.name || 'Saved look' })}<span class="pk-tick" aria-hidden="true">${on ? '✓' : ''}</span><div class="t">${esc(l.name || 'A look')}</div><div class="m">${had ? 'Already on this day' : tileMeta(l)}</div></button>`;
+          };
           const gridHtml = list.length
-            ? `<div class="pk-grid">${list.slice(0, 80).map(l => `<button type="button" class="pk-tile" onclick="window.__mvWearPick('${c.date || ''}','${esc(String(l.id))}')">${lt.mosaic(lt.cells(_lkPieceIds(l)), { photo: _lkHeroUrl(l) || undefined, alt: l.name || 'Saved look' })}<div class="t">${esc(l.name || 'A look')}</div><div class="m">${tileMeta(l)}</div></button>`).join('')}</div>`
+            ? `<div class="pk-grid">${list.slice(0, 80).map(tileHtml).join('')}</div>`
             : (pool.length
               ? `<div class="pk-none"><h4>Nothing tagged ${esc(sel.map(x => String(_rbTagLabel(x.axis, x.v)).toLowerCase()).join(' and ') || 'that')}.</h4><p>The composer starts one from the pieces you own${c.date ? ', and files it to ' + esc(new Date(c.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' })) + ' on save' : ''}.</p><button type="button" class="pk-ink" onclick="${doorNew}">Open the composer</button></div>`
               : `<div class="pk-none"><h4>Nothing in the Lookbook <em>yet.</em></h4><p>The composer starts one from the pieces you own${c.date ? ', and files it to ' + esc(new Date(c.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' })) + ' on save' : ''}.</p><button type="button" class="pk-ink" onclick="${doorNew}">Open the composer</button></div>`);
@@ -26756,7 +26982,10 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             if (rows.length) tripOwn = `<div class="pk-bar" style="margin-top:18px"><span class="k">This trip's looks</span><span class="n">${esc(_lkN(rows.length, 'look'))}</span></div>
               <div class="pk-grid" style="padding-bottom:6px">${rows.map(x => `<button type="button" class="pk-tile pk-triptile" onclick="window.__tvDayPickApply(${x.li},${trip.di})"><div class="t">${esc(x.l.title || x.l.occasion || 'The look')}</div><div class="m">${esc(x.l.occasion || 'in this trip')}</div></button>`).join('')}</div>`;
           }
-          host.innerHTML = `<div class="pk" role="dialog" aria-modal="true">
+          const footHtml = picks.length
+            ? `<button type="button" class="pk-cta" onclick="window.__mvPkAdd()">Add ${esc(_lkN(picks.length, 'look'))}</button>`
+            : `<div class="pk-hint">Tap looks to add one or several</div>`;
+          host.innerHTML = `<div class="pk" role="dialog" aria-modal="true"><div class="pk-body">
             <div class="pk-head"><span class="pk-ey">Add a look${dateLbl ? ' · ' + esc(dateLbl) : ''}</span><button type="button" class="pk-x" onclick="window.__mvPkClose()" aria-label="Close">×</button></div>
             <h3 class="pk-h" id="rb-mv-wear-ttl">${esc(title)}${c.target ? `<button type="button" class="pen" onclick="window.__mvWearRename()" title="Rename the day" aria-label="Rename the day">${_DC_PEN_SVG}</button>` : ''}</h3>
             <div class="pk-doors">
@@ -26771,7 +27000,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             ${refineHtml}
             ${gridHtml}
             ${tripOwn}
-          </div>`;
+          </div><div class="pk-foot">${(list.length || (trip && tripOwn)) ? footHtml : ''}</div></div>`;
           if (c.open && c.focusSearch) {
             c.focusSearch = false;
             const q = document.getElementById('rb-mv-pk-q');
@@ -26794,7 +27023,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             dayTitle = String((window.__lastTvData.dayTitles || {})[trip.di] || '');
             renameT = null;
           }
-          _mvPk = { date: date || null, trip, title: dayTitle, target: renameT, q: '', refine: { climate: [], wear: [], vibe: [] }, open: false, sortDesc: true };
+          // The saved looks already on this date — shown, never offered twice
+          const onDay = (!trip && date) ? hereAll.filter(r => r.source_type === 'look').map(r => String(r.source_id)) : [];
+          _mvPk = { date: date || null, trip, title: dayTitle, target: renameT, q: '', refine: { climate: [], wear: [], vibe: [] }, open: false, sortDesc: true, picks: [], onDay };
           _mvWearCtx = { date, target: renameT, title: dayTitle };
           const modal = document.createElement('div');
           modal.id = 'rb-mv-wear';
@@ -26844,11 +27075,22 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const di = c.trip.di;
           window.__tvStyleLooks(Number.isInteger(di) ? { pinTo: di, preset: c.title ? [c.title] : [] } : {});
         };
+        // The day page's own Robes door (2026-09-29): the day's name is the
+        // brief, exactly as the picker's door hands it over.
+        window.__mvRobesFor = function(date) {
+          const here = (_mvRows || []).some(r => r.day_date === date) ? (_mvRows || []).filter(r => r.day_date === date) : _dyPgRows(date);
+          _mvWearCtx = { date, target: null, title: _pdDayTitle(here) || '' };
+          window.__mvRobes(date);
+        };
         // The Robes door: every route lands on the home prompt, scoped to
         // the date — the Diary itself never creates a look.
         window.__mvRobes = function(date) {
           document.getElementById('rb-mv-wear')?.remove();
-          const pageOpen = snPage && snPage.style.display !== 'none';
+          // The Diary OR the day page may be under the door — either way
+          // she lands on home with the prompt (2026-09-29: from the day
+          // page the prompt was being scoped underneath the still-open day).
+          const dayEl = document.getElementById('dl-result-page');
+          const pageOpen = (snPage && snPage.style.display !== 'none') || (dayEl && dayEl.style.display !== 'none');
           if (pageOpen && window.__rbNavGo) window.__rbNavGo('home');
           const title = (_mvWearCtx && _mvWearCtx.date === date && _mvWearCtx.title) || '';
           setTimeout(() => {
@@ -26894,24 +27136,57 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           }
           if (_mvPk) _mvPkPaint(); else window.__mvWear(c.date);
         };
-        window.__mvWearPick = function(date, id) {
-          const trip = _mvPk && _mvPk.trip;
+        // A tile tap ticks the look; the foot commits the set.
+        window.__mvPkToggleLook = function(id) {
+          if (!_mvPk) return;
+          id = String(id);
+          if ((_mvPk.onDay || []).indexOf(id) > -1) return;
+          const k = _mvPk.picks.indexOf(id);
+          if (k > -1) _mvPk.picks.splice(k, 1); else _mvPk.picks.push(id);
+          _mvPkPaint();
+        };
+        window.__mvPkAdd = function() {
+          const c = _mvPk;
+          if (!c || !c.picks.length) return;
+          _mvPkCommit(c.date, c.picks.slice(), c.trip);
+        };
+        function _mvPkDayWord(date) {
+          const t = _pdLocalISO();
+          if (date === t) return 'today';
+          if (date === _pdAddISO(t, 1)) return 'tomorrow';
+          return new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' });
+        }
+        function _mvPkCommit(date, ids, trip) {
           window.__mvPkClose();
           if (trip) {
             // A trip look imports whole and pins to the day (the trip's
             // own apply, unchanged); di null = the trip's unpinned pool.
-            if (window.__tvAddSavedLookPick) window.__tvAddSavedLookPick(id, Number.isInteger(trip.di) ? trip.di : null);
+            if (window.__tvAddSavedLookPick) ids.forEach(id => window.__tvAddSavedLookPick(id, Number.isInteger(trip.di) ? trip.di : null));
             return;
           }
-          const l = (typeof _lkFind === 'function') ? _lkFind(id) : null;
-          if (!l || typeof _lkPin !== 'function') return;
-          // A named day hands its name to the look it now wears
-          _lkPin(l.id, date, (_mvWearCtx && _mvWearCtx.date === date && _mvWearCtx.title) || undefined);
-          _rbTrack('look_worn_from_calendar', { look: String(l.id) });
-          _waShowToast('“' + (l.name || 'Your look') + '” — wearing it ' + _lkFmt(date));
+          if (typeof _lkFind !== 'function' || typeof _lkPin !== 'function') return;
+          const title = (_mvWearCtx && _mvWearCtx.date === date && _mvWearCtx.title) || undefined;
+          const done = [];
+          ids.forEach(id => {
+            const l = _lkFind(id);
+            if (!l) return;
+            // A named day hands its name to the look it now wears
+            _lkPin(l.id, date, title);
+            _rbTrack('look_worn_from_calendar', { look: String(l.id), batch: ids.length });
+            done.push(l);
+          });
+          if (!done.length) return;
+          _waShowToast(done.length === 1
+            ? '“' + (done[0].name || 'Your look') + '” — wearing it ' + _lkFmt(date)
+            : _lkN(done.length, 'look') + ' added to ' + _mvPkDayWord(date));
           if (window.__rbDayRefresh) window.__rbDayRefresh(date);
           if (_mvY != null) _mvLoad();
           if (window._rbRailPaint) setTimeout(window._rbRailPaint, 700);
+        }
+        // One look, straight in — the programmatic path (harnesses, and
+        // any surface that already knows which look).
+        window.__mvWearPick = function(date, id) {
+          _mvPkCommit(date, [String(id)], _mvPk && _mvPk.trip);
         };
         // The +N reveal (spec §11.1): a small popover listing the bands
         // the two lanes couldn't hold — each row opens its artifact.

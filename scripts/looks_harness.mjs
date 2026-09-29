@@ -2559,7 +2559,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const niso = nxt.getFullYear() + '-' + p(nxt.getMonth() + 1) + '-' + p(nxt.getDate());
     window.__mvWear(niso);
     const modal = document.getElementById('rb-mv-wear');
-    const tiles = modal ? modal.querySelectorAll('.pk-tile[onclick*="__mvWearPick"]').length : 0;
+    // multi-select (2026-09-29): a tile ticks, the foot commits
+    const tiles = modal ? modal.querySelectorAll('.pk-tile[onclick*="__mvPkToggleLook"]').length : 0;
     const head = modal ? modal.textContent : '';
     window.__mvWearPick(niso, 'lk-1');
     await new Promise((r) => setTimeout(r, 200));
@@ -3165,7 +3166,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   }, iso);
   const d1 = await readDay();
   check('day page · opening a day lands on its page: the date, "Name the day", Looks filed today + the count',
-    d1.visible && /^[A-Z][a-z]+day \d+ [A-Z]/.test(d1.eyebrow || '') && d1.title === 'Name the day' && d1.titleIsDoor && !d1.pen
+    d1.visible && /^[A-Z][a-z]+day \d+ [A-Z]/.test(d1.eyebrow || '') && d1.title === 'Name the day' && d1.titleIsDoor && d1.pen /* the pencil stands unnamed too (2026-09-29) */
       && d1.sec === 'Looks filed today' && d1.stat === '1 look · 4 pieces filed' && d1.console === false,
     JSON.stringify(d1));
   check('day page · the day carries a door back to where she came from (Home from the rail; Diary from the Diary)',

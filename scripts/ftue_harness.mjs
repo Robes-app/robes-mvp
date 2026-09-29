@@ -459,7 +459,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     await new Promise((r) => setTimeout(r, 350));
     const allOpen = Array.from(document.querySelectorAll('.rb-ftu-row.open')).map((r) => r.id);
     const rackStays = !!document.querySelector('#rb-ftu-body-build #rb-lkhome');
-    const railCards = document.querySelectorAll('#rb-ftu-body-week #rb-rail .rb-dc, #rb-ftu-body-week #rb-rail .rb-rc').length;
+    const railCards = document.querySelectorAll('#rb-ftu-body-week #rb-rail .rb-wk, #rb-ftu-body-week #rb-rail .rb-dc, #rb-ftu-body-week #rb-rail .rb-rc').length;
     const railHeadHidden = (() => {
       const hd = document.querySelector('#rb-rail .rb-rail-head');
       return !hd || getComputedStyle(hd).display === 'none';
@@ -814,11 +814,12 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       atDash: rail?.parentNode?.id === 'dash',
       head: rail?.querySelector('.rb-rail-ey')?.textContent,
       door: rail?.querySelector('.rb-rail-open')?.textContent,
-      planned: !!rail?.querySelector('.rb-dc .dc-title'),
+      // the native strip (2026-09-29): a planned day is a dotted cell
+      planned: !!rail?.querySelector('.rb-wk.has-looks .rb-wk-dots i'),
     };
   });
   check('O7 · a planned day brings the week-ahead rail in, with the diary door',
-    wk.railVisible === true && wk.atDash === true && wk.head === 'The week ahead' && wk.door === 'Open the diary →' && wk.planned === true,
+    wk.railVisible === true && wk.atDash === true && wk.head === 'The week ahead' && wk.door === 'Diary ›' && wk.planned === true,
     JSON.stringify(wk));
   await ctx.close();
 }
