@@ -7448,6 +7448,21 @@
           }
         }
 
+        // In your words — the brief chapter's standing door (slice A, 2026-09-30)
+        if (avMenu && !document.getElementById('av-brief')) {
+          const brBtn = document.createElement('button');
+          brBtn.id = 'av-brief';
+          brBtn.className = 'av-item';
+          brBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"></path><path d="M6 16l10.5-10.5a2.1 2.1 0 0 1 3 3L9 19l-4 1z"></path></svg>In your words`;
+          brBtn.onclick = () => { avMenu.classList.remove('open'); window.location.href = '/stylenotes?chapter=brief'; };
+          const tbItem = document.getElementById('av-taste');
+          if (tbItem && tbItem.parentNode === avMenu) {
+            avMenu.insertBefore(brBtn, tbItem.nextSibling);
+          } else {
+            avMenu.appendChild(brBtn);
+          }
+        }
+
         // Add Log out item at the bottom of av-menu
         if (avMenu && !document.getElementById('av-logout')) {
           const loBtn = document.createElement('button');

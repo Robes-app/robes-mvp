@@ -645,6 +645,18 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok((await b.p.locator('#snb-done').innerText()).trim().toLowerCase() === 'later', 'from home with nothing kept the foot reads Later');
   ok(a.errs.length === 0 && b.errs.length === 0, 'no page errors');
   await b.ctx.close();
+  // the standing door: the plain page's avatar menu opens the chapter
+  // (a returning account has passed ?begin=1 and may never meet the next
+  // line's rule — without this the brief was unreachable)
+  const c = await open({ width: 1280, height: 900 }, 'empty', 'ok', '', { evidence: { wardrobe_items: [], looks: [] } });
+  await c.p.waitForTimeout(300);
+  ok(await c.p.locator('#sn-ch-wrap').isHidden(), 'the plain page opens no chapter');
+  await c.p.locator('#sn-avatar').click(); await c.p.waitForTimeout(150);
+  ok((await c.p.locator('#sn-av-brief').innerText()).trim() === 'In your words', 'the avatar menu carries In your words');
+  await c.p.locator('#sn-av-brief').click(); await c.p.waitForTimeout(500);
+  ok(await c.p.locator('#sn-ch-wrap').isVisible() && c.briefPosts.length === 1, 'it opens the brief chapter and drafts');
+  ok(c.errs.length === 0, 'no page errors');
+  await c.ctx.close();
 }
 
 // mobile-only: the stage leads the page full-width (design 1a)
