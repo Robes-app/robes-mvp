@@ -1417,6 +1417,114 @@ ${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}`;
   }
 });
 
+/* ── the brief, drafted (In your words — the fourth Style notes chapter, 2026-09-30) ──
+// Xue's steps 2 + 3 as one call: read the evidence through the eight
+// lenses, find the patterns, and hand back LINES SHE CAN KEEP OR STRIKE —
+// never a line without evidence, never a conclusion about her stated as a
+// fact. Every input is client-compiled from her own profile row, wardrobe
+// and looks (the userId in the body is attribution only — never a key to
+// read another user's rows). The standing brief rides in as `current`
+// and only NEW lines come back: an edited line is hers, never redrafted.
+const BRIEF_LINE = { type: 'object', properties: { text: { type: 'string' }, because: { type: 'string' } }, required: ['text', 'because'] };
+const BRIEF_SCHEMA = {
+  type: 'object',
+  properties: {
+    loves:  { type: 'array', items: BRIEF_LINE },
+    avoids: { type: 'array', items: BRIEF_LINE },
+    rules:  { type: 'array', items: BRIEF_LINE },
+    notes:  { type: 'string' },
+    colours: { type: 'object', properties: { loved: { type: 'array', items: { type: 'string' } }, rejected: { type: 'array', items: { type: 'string' } } } },
+  },
+  required: ['loves', 'avoids', 'rules', 'notes'],
+};
+const BRIEF_LENSES = `THE LENSES (read every piece and every wear through these before you write a line): LINE — vertical, diagonal, interrupted; where the eye travels and where it stalls. PROPORTION — what carries the weight; deliberate or accidental. SILHOUETTE — sculpted, columnar, dropped, slouched; waist defined, displaced or absent. COLOUR — what recedes, what advances; the level of contrast she reaches for. TEXTURE — matte or shine, smooth or dimensional, one register or layered. MOVEMENT — pieces with life or pieces that sit dead on the frame. TENSION — structure against fluidity, hard against soft. VIBE — intentional, playful, polished, or given up at 8am.`;
+function briefStr(v, n) { return typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, n) : ''; }
+function briefLinesOf(a, max) {
+  return (Array.isArray(a) ? a : [])
+    .map(x => (x && typeof x === 'object') ? { text: briefStr(x.text, 160), because: briefStr(x.because, 200) } : { text: briefStr(x, 160), because: '' })
+    .filter(x => x.text).slice(0, max);
+}
+app.post('/api/stylenotes/brief', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
+  const { styleDna, styleIcons, gender, name, current, wardrobe, looks, memory } = req.body || {};
+  const g = normGender(gender);
+  const pieces = (Array.isArray(wardrobe) ? wardrobe : []).slice(0, 80).map(w => w && typeof w === 'object' ? w : {}).filter(w => briefStr(w.label, 120));
+  const lookList = (Array.isArray(looks) ? looks : []).slice(0, 30).map(l => l && typeof l === 'object' ? l : {}).filter(l => briefStr(l.name, 80));
+  const mem = (Array.isArray(memory) ? memory : []).slice(0, 40).map(m => briefStr(m, 220)).filter(Boolean);
+  const cur = current && typeof current === 'object' ? current : {};
+  const curLines = ['loves', 'avoids', 'rules'].flatMap(k => briefLinesOf(cur[k], 12).map(x => x.text));
+  const wearsN = lookList.reduce((n, l) => n + (Number(l.wears) || 0), 0);
+  const thin = pieces.length < 3 && wearsN === 0 && mem.length === 0;
+  const dnaBlock = styleDnaPromptBlock(styleDna, pieces.length, styleIcons);
+
+  const pieceLine = w => {
+    const fit = Array.isArray(w.fit) ? w.fit.filter(x => typeof x === 'string').slice(0, 4).join('/') : '';
+    const bits = [
+      briefStr(w.category, 30), briefStr(w.color, 30), briefStr(w.brand, 40),
+      fit, Number(w.times_worn) > 0 ? `worn ${Number(w.times_worn)}×` : 'never worn',
+      w.hero ? 'HERO' : '', w.sentiment ? `sentiment: ${briefStr(w.sentiment, 20)}` : '',
+      w.fit_confidence ? `fit: ${briefStr(w.fit_confidence, 20)}` : '',
+      Array.isArray(w.occasions) && w.occasions.length ? `for: ${w.occasions.slice(0, 4).map(o => briefStr(o, 20)).join('/')}` : '',
+      briefStr(w.notes, 140) ? `her note: "${briefStr(w.notes, 140)}"` : '',
+    ].filter(Boolean);
+    return `- ${briefStr(w.label, 120)} (${bits.join(', ')})`;
+  };
+  const lookLine = l => `- "${briefStr(l.name, 80)}": ${(Array.isArray(l.pieces) ? l.pieces : []).slice(0, 8).map(x => briefStr(x, 60)).filter(Boolean).join(', ') || 'no pieces'}${Number(l.wears) > 0 ? ` — worn ${Number(l.wears)}×` : ' — not yet worn'}`;
+
+  const systemInstruction = `You are Robes' head stylist, and an editor with nothing to sell. ${genderDirective(g)} You are drafting ${name ? name + '’s' : 'her'} PERSONAL STYLE BRIEF from evidence — what she owns, what she wears, what she has said — so that she can keep, strike or edit each line. The brief is HERS: you draft, she decides.
+${BRIEF_LENSES}
+WHAT TO RETURN:
+- "loves": what works on her — 1 to 6 lines. "avoids": what does not — 0 to 5 lines. "rules": hard rules she seems to live by or should — 0 to 4 lines ("No more button-ups — six is plenty", "Loafers only with a cropped trouser"). Each line ≤ 14 words, written in the SECOND PERSON as an observation she can accept or strike ("You reach for a defined waist"), never a command.
+- Every line carries "because": the evidence in one clause, naming her actual pieces or wears ("your three most-worn tops all have an open neckline"). A line you cannot trace to evidence is not written.
+- "notes": 30–60 words, second person, the one paragraph that says how she dresses well — the pattern under the lines. Warm, direct, no flattery. Empty string when the evidence is thin.
+- "colours": "loved" = colours her most-worn pieces share (plain colour words, ≤ 4); "rejected" = colours she owns but never wears, only when the pattern is clear (≤ 3). Empty arrays otherwise.
+- The uncomfortable finding is the useful one: if what she wears most contradicts what she claims to like, say so plainly and kindly. Most-worn beats most-owned; a piece she marked irreplaceable or a hero outranks one she never wears.
+- Never restate a line already in her brief (listed below) — return only what is NEW. Never mention "AI", "data", "analysis" or "algorithm". Never comment on her body — only on the clothes.
+${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}`;
+
+  const userText = [
+    thin ? 'EVIDENCE IS THIN — she has filed almost nothing yet. Draft from her style type and icons alone, at most two "loves" lines and no rules, and say so in "because".' : '',
+    pieces.length ? `HER WARDROBE (${pieces.length} pieces):\n${pieces.map(pieceLine).join('\n')}` : 'HER WARDROBE: nothing filed yet.',
+    lookList.length ? `HER LOOKS:\n${lookList.map(lookLine).join('\n')}` : '',
+    mem.length ? `WHAT SHE HAS TOLD ROBES (newest first):\n${mem.map(m => '- ' + m).join('\n')}` : '',
+    curLines.length ? `ALREADY IN HER BRIEF (never repeat these):\n${curLines.map(m => '- ' + m).join('\n')}` : '',
+    'Find the patterns. What actually works, what fails, and why. Draft the lines.',
+  ].filter(Boolean).join('\n\n');
+
+  try {
+    const t0 = Date.now();
+    const r = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: BRIEF_SCHEMA,
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: 1600,
+      },
+    });
+    const parsed = deEscDeep(JSON.parse(r.text));
+    const seen = new Set(curLines.map(x => x.toLowerCase()));
+    const fresh = a => a.filter(x => { const k = x.text.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+    const colour = a => (Array.isArray(a) ? a : []).map(x => briefStr(x, 24)).filter(Boolean).slice(0, 4);
+    const out = {
+      loves: fresh(briefLinesOf(parsed.loves, 6)),
+      avoids: fresh(briefLinesOf(parsed.avoids, 5)),
+      rules: fresh(briefLinesOf(parsed.rules, 4)),
+      notes: briefStr(parsed.notes, 600),
+      colours: { loved: colour(parsed.colours && parsed.colours.loved), rejected: colour(parsed.colours && parsed.colours.rejected).slice(0, 3) },
+      thin,
+      read_from: { pieces: pieces.length, looks: lookList.length, wears: wearsN, memory: mem.length },
+    };
+    logAI({ feature: 'stylenotes', stage: 'brief', model: 'gemini-2.5-flash', ms: Date.now() - t0, pieces: pieces.length, lines: out.loves.length + out.avoids.length + out.rules.length });
+    res.json(out);
+  } catch (err) {
+    logAI({ feature: 'stylenotes', stage: 'brief', success: false, reason: err.message });
+    console.error('[stylenotes/brief] Gemini error:', err.message);
+    res.status(500).json({ error: 'brief_failed' });
+  }
+});
+
 /* ── intent classifier (Diary Phase 1 — the prompt as single entry) ── */
 // Routes a free-typed prompt to a track. Structured JSON only; the two
 // non-negotiables: it NEVER invents a destination or a date (a guessed

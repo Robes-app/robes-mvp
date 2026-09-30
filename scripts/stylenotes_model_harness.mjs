@@ -59,7 +59,7 @@ const SIL = {
 const SIL_DNA = { body_type: 'Hourglass', geometric_ratios: { shoulder_to_waist: 1.35, hip_to_waist: 1.32, shoulder_to_hip: 1.02 } };
 
 // profile: 'empty' | 'colour' | 'both' | 'kept'   updateMode: 'ok' | 'nocol'
-async function open(vp, profile = 'empty', updateMode = 'ok', hash = '', { frames = false } = {}) {
+async function open(vp, profile = 'empty', updateMode = 'ok', hash = '', { frames = false, brief = null, evidence = null, briefResp = null } = {}) {
   const ctx = await browser.newContext({ viewport: vp });
   const p = await ctx.newPage();
   const errs = [];
@@ -88,7 +88,14 @@ async function open(vp, profile = 'empty', updateMode = 'ok', hash = '', { frame
       kind === 'colour' ? { ...COLOUR, style_dna: COLOUR_DNA } : { ...SIL, style_dna: SIL_DNA }) });
   });
   await p.route('**/api/wardrobe/upload', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"url":"https://res.cloudinary.com/x/image/upload/p.jpg"}' }));
-  await p.addInitScript(({ profile, updateMode, COLOUR, COLOUR_DNA, SIL, SIL_DNA }) => {
+  // the brief's draft endpoint (slice A): the stub records every POST body
+  const briefPosts = [];
+  await p.route('**/api/stylenotes/brief', async route => {
+    briefPosts.push(route.request().postDataJSON());
+    await new Promise(r => setTimeout(r, 150));
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(briefResp || { loves: [], avoids: [], rules: [], notes: '', colours: { loved: [], rejected: [] }, thin: true }) });
+  });
+  await p.addInitScript(({ profile, updateMode, COLOUR, COLOUR_DNA, SIL, SIL_DNA, brief, evidence }) => {
     const row = { id: 'u1', first_name: 'Annie' };
     if (profile === 'colour' || profile === 'both' || profile === 'kept') {
       row.colour_analysis = COLOUR;
@@ -100,14 +107,21 @@ async function open(vp, profile = 'empty', updateMode = 'ok', hash = '', { frame
       row.style_dna = { ...row.style_dna, silhouette_proportions: SIL_DNA };
     }
     if (profile === 'kept') row.avatar_prefs = { skin: 2, hair: 0, nudges: {}, kept: true, v: 1 };
+    if (brief) row.style_dna = { ...(row.style_dna || {}), brief };
     window.__updates = [];
+    const tables = evidence || {};
     window.supabase = { createClient: () => ({
       auth: {
         getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }),
         signOut: async () => ({}),
       },
-      from: () => ({
-        select: () => ({ eq: () => ({ single: async () => ({ data: row }) }) }),
+      from: (table) => ({
+        // profiles answer .single(); wardrobe_items / looks answer an awaited list
+        select: () => ({ eq: () => {
+          const list = { data: Array.isArray(tables[table]) ? tables[table] : [] };
+          return { single: async () => ({ data: row }), then: (res) => res(list) };
+        } }),
+        insert: () => ({ then: (res) => res({}) }),
         update: (patch) => ({ eq: async () => {
           window.__updates.push(patch);
           if (updateMode === 'nocol' && (patch.avatar_id !== undefined || patch.avatar_prefs !== undefined)) {
@@ -117,10 +131,10 @@ async function open(vp, profile = 'empty', updateMode = 'ok', hash = '', { frame
         } }),
       }),
     }) };
-  }, { profile, updateMode, COLOUR, COLOUR_DNA, SIL, SIL_DNA });
+  }, { profile, updateMode, COLOUR, COLOUR_DNA, SIL, SIL_DNA, brief, evidence });
   await p.goto(`http://localhost:${PORT}/stylenotes${hash}`);   // hash may carry a ?query too
   await p.waitForTimeout(600);
-  return { ctx, p, errs, cellPosts };
+  return { ctx, p, errs, cellPosts, briefPosts };
 }
 
 for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
@@ -515,6 +529,119 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok(c.p.url().endsWith('/dashboard'), 'Later from the intro goes home');
   ok(errs.length === 0 && b.errs.length === 0 && c.errs.length === 0, 'no page errors');
   await c.ctx.close();
+}
+
+// ── 04 · In your words — the brief (docs/style-memory-brief.md, slice A) ──
+// Robes drafts from her rows, she keeps / strikes / edits, the document
+// files itself, the next read never repeats a kept or struck line.
+const EVIDENCE = {
+  wardrobe_items: [
+    { id: 'w1', label: 'Black wool blazer', category: 'Outerwear', color: 'Black', brand: 'Totême', times_worn: 11, hero_position: 1, notes: 'the sharp one', occasions: ['Work'], item_dna: { structural_dna: { silhouette_fit: ['Structured', 'Single-breasted'] } } },
+    { id: 'w2', label: 'Ivory silk shirt', category: 'Tops', color: 'Ivory', brand: '', times_worn: 6, item_dna: {} },
+    { id: 'w3', label: 'Camel trench', category: 'Outerwear', color: 'Camel', brand: 'Burberry', times_worn: 0, sentiment: 'irreplaceable', item_dna: {} },
+  ],
+  looks: [
+    { id: 'lk1', name: 'The Thursday one', note: '', look_pieces: [{ wardrobe_item_id: 'w1' }, { wardrobe_item_id: 'w2' }], wears: [{ worn_on: '2026-09-01' }, { worn_on: '2026-09-08' }] },
+  ],
+};
+const DRAFT = {
+  loves: [{ text: 'You reach for a defined waist', because: 'your two most-worn tops sit at the natural waist' }, { text: 'An open neckline does the work', because: 'the ivory silk shirt, worn six times' }],
+  avoids: [{ text: 'Anything that reads polite', because: 'the pieces you never wear are the safest ones' }],
+  rules: [{ text: 'Loafers only with a cropped trouser', because: 'every wear of the loafers was with the cropped wool' }],
+  notes: 'You dress well when the structure is already there — a sharp shoulder, a waist, one thing that disrupts the line.',
+  colours: { loved: ['black', 'ivory'], rejected: ['camel'] },
+  thin: false,
+};
+for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
+  console.log(`\n\x1b[1m== ${label} · in your words — the brief ==\x1b[0m`);
+  const { ctx, p, errs, briefPosts } = await open(vp, 'kept', 'ok', '?chapter=brief', { evidence: EVIDENCE, briefResp: DRAFT });
+  await p.waitForTimeout(500);
+  ok(await p.locator('#sn-ch-wrap').isVisible() && (await p.locator('#sn-ch-wrap .snc-name').textContent()).trim() === 'In your words', '?chapter=brief opens the chapter');
+  ok(!/chapter=/.test(p.url()), 'and the param is stripped');
+  ok(briefPosts.length === 1, 'an empty brief drafts once on open');
+  const body = briefPosts[0] || {};
+  ok(Array.isArray(body.wardrobe) && body.wardrobe.length === 3 && body.wardrobe[0].label === 'Black wool blazer' && body.wardrobe[0].hero === true && body.wardrobe[0].fit.length === 2 && body.wardrobe[2].sentiment === 'irreplaceable',
+    'the POST carries her pieces with the fields the closet line drops (hero, fit, sentiment, notes)');
+  ok(Array.isArray(body.looks) && body.looks[0].name === 'The Thursday one' && body.looks[0].wears === 2 && body.looks[0].pieces.join('|') === 'Black wool blazer|Ivory silk shirt', 'and her looks with their pieces resolved and their wear count');
+  ok(body.current && body.current.loves.length === 0 && body.userId === 'u1', 'an empty current brief rides in');
+  ok(/for you to keep or strike\./.test((await p.locator('#sn-ch-wrap .snc-h').innerText()).replace(/\s+/g, ' ')), 'the drafting headline');
+  ok(await p.locator('#snb-drafted .snb-card').count() === 6, 'six cards: four lines, the paragraph, the colour read');
+  const card0 = p.locator('#snb-drafted .snb-card').first();
+  ok((await card0.locator('.k').innerText()).trim().toLowerCase() === 'works' && /defined waist/.test(await card0.locator('.t').innerText()) && /most-worn tops/.test(await card0.locator('.b').innerText()), 'a card: the list, the line, the evidence');
+  ok((await card0.locator('.snb-verbs button').allInnerTexts()).map(t => t.trim().toLowerCase()).join(',') === 'keep,strike,edit', 'Keep · Strike · Edit');
+  ok(await p.locator('#snb-doc').count() === 0, 'no document before anything is kept');
+  const inkFills = await p.locator('#sn-ch-wrap button').evaluateAll(bs => bs.filter(b => { const c = getComputedStyle(b).backgroundColor; return /rgb\(32, 32, 33\)/.test(c); }).length);
+  ok(inkFills === 0, 'no ink fill anywhere on the chapter');
+  // Keep
+  await card0.locator('button[data-v="keep"]').click(); await p.waitForTimeout(150);
+  let up = await p.evaluate(() => window.__updates.slice(-1)[0]);
+  ok(up && up.style_dna && up.style_dna.brief && up.style_dna.brief.loves.length === 1 && up.style_dna.brief.loves[0].text === 'You reach for a defined waist' && up.style_dna.brief.loves[0].source === 'drafted', 'Keep files the line as drafted, merged over style_dna');
+  ok(up.style_dna.color_harmony && up.style_dna.silhouette_proportions, 'and the DNA fragments survive the merge');
+  ok(await p.locator('#snb-drafted .snb-card').count() === 5 && await p.locator('#snb-doc .snb-sec[data-list="loves"] .l').count() === 1, 'the card leaves the draft and the line stands in the document');
+  ok(await p.locator('#snb-filed').isVisible() && /Filed/.test(await p.locator('#snb-filed').innerText()), 'the filed line');
+  // Strike
+  await p.locator('#snb-drafted .snb-card').first().locator('button[data-v="strike"]').click(); await p.waitForTimeout(150);
+  up = await p.evaluate(() => window.__updates.slice(-1)[0]);
+  ok(up.style_dna.brief.struck[0] === 'An open neckline does the work' && up.style_dna.brief.loves.length === 1, 'Strike records the struck line and keeps nothing');
+  // Edit
+  const av = p.locator('#snb-drafted .snb-card[data-list="avoids"]').first();
+  await av.locator('button[data-v="edit"]').click(); await p.waitForTimeout(100);
+  ok(await p.locator('#snb-edit').count() === 1 && (await p.locator('#snb-edit').inputValue()) === 'Anything that reads polite', 'Edit opens the line as an input, prefilled');
+  await p.locator('#snb-edit').fill('Anything that reads polite — I avoid pastels, not colour');
+  await p.locator('#snb-edit').press('Enter'); await p.waitForTimeout(150);
+  up = await p.evaluate(() => window.__updates.slice(-1)[0]);
+  ok(up.style_dna.brief.avoids.length === 1 && up.style_dna.brief.avoids[0].source === 'edited' && /pastels/.test(up.style_dna.brief.avoids[0].text) && up.style_dna.brief.source === 'edited', 'an edited line files as edited, and the brief reads edited');
+  // notes + colours
+  await p.locator('#snb-drafted .snb-card[data-list="notes"] button[data-v="keep"]').click(); await p.waitForTimeout(150);
+  await p.locator('#snb-drafted .snb-card[data-list="colours"] button[data-v="keep"]').click(); await p.waitForTimeout(150);
+  up = await p.evaluate(() => window.__updates.slice(-1)[0]);
+  ok(/structure is already there/.test(up.style_dna.brief.notes) && up.style_dna.brief.colours.loved.join(',') === 'black,ivory' && up.style_dna.brief.colours.rejected.join(',') === 'camel', 'the paragraph and the colours file');
+  ok(await p.locator('#snb-notes').count() === 1 && await p.locator('#snb-drafted .snb-card').count() === 1, 'the notes stand as a textarea; one card (the rule) still drafted');
+  // a line of her own
+  await p.locator('#snb-doc input[data-add="rules"]').fill('No more button-ups — six is plenty');
+  await p.locator('#snb-doc input[data-add="rules"]').press('Enter'); await p.waitForTimeout(150);
+  up = await p.evaluate(() => window.__updates.slice(-1)[0]);
+  ok(up.style_dna.brief.rules.length === 1 && up.style_dna.brief.rules[0].source === 'typed', 'a line of her own files as typed');
+  ok(await p.locator('#snb-doc .snb-sec[data-list="rules"] .l .t.typed').count() === 1, 'and reads italic in the document');
+  // strike a kept line from the document
+  await p.locator('#snb-doc .snb-sec[data-list="loves"] .l .x').first().click(); await p.waitForTimeout(150);
+  up = await p.evaluate(() => window.__updates.slice(-1)[0]);
+  ok(up.style_dna.brief.loves.length === 0 && up.style_dna.brief.struck.includes('You reach for a defined waist'), '× on a kept drafted line strikes it');
+  // read again: the current brief rides in, a repeated line never returns
+  await p.click('#snb-again'); await p.waitForTimeout(500);
+  ok(briefPosts.length === 2 && briefPosts[1].current.rules[0] === 'No more button-ups — six is plenty' && /pastels/.test(briefPosts[1].current.avoids[0]), 'Read again sends the standing brief as current');
+  ok(await p.locator('#snb-drafted .snb-card').count() === 1 && /Loafers only/.test(await p.locator('#snb-drafted .snb-card .t').first().innerText()), 'the stub repeats every line; only the never-kept, never-struck rule comes back as a card');
+  // the summary
+  await p.click('#snb-done'); await p.waitForTimeout(250);
+  ok(/on paper\./.test(await p.locator('#sn-ch-wrap').innerText()) && await p.locator('#snc-r-brief').count() === 1, 'Done lands on the summary with the fourth row');
+  ok(/2 lines · in your words/.test((await p.locator('#snc-r-brief .v').innerText())), 'the row counts her lines and says they are hers');
+  await p.click('#snc-r-brief'); await p.waitForTimeout(250);
+  ok(/in your words\./.test((await p.locator('#sn-ch-wrap .snc-h').innerText()).replace(/\s+/g, ' ')) && await p.locator('#snb-doc').count() === 1, 'the row reopens the document');
+  if (label === 'mobile') {
+    const over = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+    ok(!over, 'no horizontal overflow at 390');
+  }
+  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+{
+  console.log('\n\x1b[1m== the brief · doors and the empty read ==\x1b[0m');
+  // a kept brief and nothing else answered → ?begin=1 lands on the summary
+  const a = await open({ width: 1280, height: 900 }, 'empty', 'ok', '?begin=1', { brief: { loves: [{ text: 'A sharp shoulder', source: 'typed' }], source: 'edited' } });
+  await a.p.waitForTimeout(300);
+  ok(await a.p.locator('#sn-ch-wrap').isVisible() && /on paper\./.test(await a.p.locator('#sn-ch-wrap').innerText()), 'a brief on file counts as begun — ?begin=1 opens the summary');
+  ok(a.briefPosts.length === 0, 'and nothing drafts on its own');
+  ok(/One line · in your words/.test(await a.p.locator('#snc-r-brief .v').innerText()), 'the row reads One line · in your words');
+  await a.ctx.close();
+  // nothing to read: the thin answer with no lines
+  const b = await open({ width: 1280, height: 900 }, 'empty', 'ok', '?chapter=brief', { evidence: { wardrobe_items: [], looks: [] } });
+  await b.p.waitForTimeout(500);
+  ok(/Nothing to read yet\./.test(await b.p.locator('#sn-ch-wrap').innerText()), 'a thin read with no lines says so');
+  ok(await b.p.locator('#snb-doc input[data-add]').count() >= 3, 'and every list still offers a line of her own');
+  ok(b.briefPosts[0] && b.briefPosts[0].wardrobe.length === 0, 'the POST carried an empty wardrobe');
+  ok((await b.p.locator('#snb-done').innerText()).trim().toLowerCase() === 'later', 'from home with nothing kept the foot reads Later');
+  ok(a.errs.length === 0 && b.errs.length === 0, 'no page errors');
+  await b.ctx.close();
 }
 
 // mobile-only: the stage leads the page full-width (design 1a)

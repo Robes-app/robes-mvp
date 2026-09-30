@@ -16457,6 +16457,13 @@ button.rb-lk-live{cursor:pointer}
           return { key: 'robes', text: _msWord(_LK_ROBES_AT) + ' pieces filed. Robes can build from yours now.',
             doorLabel: 'Let Robes build one', door: 'robes' };
         }
+        // The brief (slice A): once there is behaviour to read — five
+        // photographed pieces and three worn days — and nothing kept in her
+        // words yet, the line offers the read. Never before the evidence.
+        if (pics >= _LK_ROBES_AT && _rbWearsTotal() >= 3 && !_rbBriefLines() && !_rbNotesDoorWants()) {
+          return { key: 'brief', text: 'Robes has noticed a few things about how you dress.',
+            doorLabel: 'Read them', door: 'brief' };
+        }
         if (_rbNextSlots && looks.length) {
           const today = _pdLocalISO();
           const ahead = _rbNextSlots.filter(sl => sl && sl.date >= today);
@@ -16511,6 +16518,8 @@ button.rb-lk-live{cursor:pointer}
           if (window.__lkRobesBuild) window.__lkRobesBuild({ door: 'next' });
         } else if (nx.door === 'week') {
           if (window.__rbDiaryOpen) window.__rbDiaryOpen();
+        } else if (nx.door === 'brief') {
+          window.location.assign('/stylenotes?chapter=brief');
         } else if (nx.door === 'wear') {
           if (window.__rbDayOpen) window.__rbDayOpen(nx.date, { from: 'home' });
         }
@@ -16563,11 +16572,24 @@ button.rb-lk-live{cursor:pointer}
       // postures (zero · zero-lead · look) until ANY chapter holds an
       // answer — an archetype, an icon, or a model — then never returns;
       // the model door takes over from there, never both together.
+      // The brief in her words (style_dna.brief — docs/style-memory-brief.md,
+      // slice A): how many lines she has kept. Read off the profile row.
+      function _rbBriefLines() {
+        const prof = window.__robes_profile || {};
+        const b = prof.style_dna && prof.style_dna.brief;
+        if (!b || typeof b !== 'object') return 0;
+        const n = a => Array.isArray(a) ? a.filter(x => x && (typeof x === 'string' ? x.trim() : String(x.text || '').trim())).length : 0;
+        return n(b.loves) + n(b.avoids) + n(b.rules) + ((typeof b.notes === 'string' && b.notes.trim()) ? 1 : 0);
+      }
+      function _rbWearsTotal() {
+        return (_lkLooks || []).reduce((t, l) => t + ((l && Array.isArray(l.wears)) ? l.wears.length : 0), 0);
+      }
       function _rbNotesBegun() {
         const prof = window.__robes_profile || {};
         const dna = (prof.style_dna && typeof prof.style_dna === 'object') ? prof.style_dna : {};
         const n = a => Array.isArray(a) ? a.length : 0;
         if (n(dna.style_archetypes) || n(dna.style_archetypes_soft) || n(prof.style_icons)) return true;
+        if (_rbBriefLines() > 0) return true;   // a kept line in her brief is an answer too (slice A)
         return !!(_lkModel && typeof _lkModel === 'object');
       }
       function _rbNotesDoorWants() {

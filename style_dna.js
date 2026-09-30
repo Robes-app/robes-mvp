@@ -554,6 +554,66 @@ export function buildSilhouette(x) {
 
 // ── Downstream prompt injection (PRD §6) ──────────────────────────────
 
+// The brief (style_dna.brief): {loves[], avoids[], rules[], notes, colours:{loved[], rejected[]}}
+// — each list entry a string, or {text, source} where source ∈ drafted|edited|typed.
+const BRIEF_LINE_MAX = 160;
+const BRIEF_LIST_MAX = 8;
+export function briefList(a) {
+  if (!Array.isArray(a)) return [];
+  return a.map(x => (x && typeof x === 'object') ? x.text : x)
+    .filter(t => typeof t === 'string' && t.trim())
+    .map(t => t.trim().replace(/\s+/g, ' ').slice(0, BRIEF_LINE_MAX))
+    .slice(0, BRIEF_LIST_MAX);
+}
+export function briefIsEmpty(b) {
+  if (!b || typeof b !== 'object') return true;
+  return !briefList(b.loves).length && !briefList(b.avoids).length && !briefList(b.rules).length
+    && !(typeof b.notes === 'string' && b.notes.trim());
+}
+function styleBriefLines(b) {
+  if (briefIsEmpty(b)) return [];
+  const loves = briefList(b.loves), avoids = briefList(b.avoids), rules = briefList(b.rules);
+  const notes = typeof b.notes === 'string' ? b.notes.trim().replace(/\s+/g, ' ').slice(0, 600) : '';
+  const out = ['HER STYLE BRIEF — in her own words. These lines outrank every rule below; a look that breaks one is wrong however well it photographs.'];
+  if (loves.length) out.push(`Works: ${loves.join(' · ')}.`);
+  if (avoids.length) out.push(`Never: ${avoids.join(' · ')}.`);
+  if (rules.length) out.push(`Rules: ${rules.join(' · ')}.`);
+  if (notes) out.push(`In her words: ${notes}`);
+  out.push('A rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.');
+  return out;
+}
+// user_overrides merged with the brief's colours — the brief is the door
+// the override slots never had.
+function briefOverrides(dna) {
+  const uo = Object.assign({}, dna.user_overrides || {});
+  const c = dna.brief && typeof dna.brief === 'object' && dna.brief.colours && typeof dna.brief.colours === 'object' ? dna.brief.colours : {};
+  const merge = (a, b) => {
+    const out = [];
+    [].concat(Array.isArray(a) ? a : [], Array.isArray(b) ? b : []).forEach(x => {
+      const t = typeof x === 'string' ? x.trim() : '';
+      if (t && !out.some(y => y.toLowerCase() === t.toLowerCase())) out.push(t);
+    });
+    return out.slice(0, 12);
+  };
+  uo.loved_colors = merge(uo.loved_colors, c.loved);
+  uo.rejected_colors = merge(uo.rejected_colors, c.rejected);
+  return uo;
+}
+function overrideLines(uo) {
+  const lines = [];
+  if (Array.isArray(uo.loved_colors) && uo.loved_colors.length) {
+    lines.push(`The user has personally confirmed these colours work on them (they override the avoid list on conflict): ${uo.loved_colors.join(', ')}.`);
+  }
+  if (Array.isArray(uo.rejected_colors) && uo.rejected_colors.length) {
+    lines.push(`The user has personally rejected these colours — never style them in: ${uo.rejected_colors.join(', ')}.`);
+  }
+  if (uo.measurements && typeof uo.measurements === 'object') {
+    const m = Object.entries(uo.measurements).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(', ');
+    if (m) lines.push(`Exact measurements supplied by the user — trust these over any photo estimate: ${m}.`);
+  }
+  return lines;
+}
+
 export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []) {
   const icons = Array.isArray(styleIcons) ? styleIcons.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, 12) : [];
   const dna = styleDna && typeof styleDna === 'object' ? styleDna : {};
@@ -565,8 +625,14 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   const strs = a => Array.isArray(a) ? a.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, 10) : [];
   const arch = strs(dna.style_archetypes);
   const soft = strs(dna.style_archetypes_soft).filter(s => !arch.includes(s));
-  if (!ch && !sp && !icons.length && !arch.length && !soft.length) return '';
+  const briefLines = styleBriefLines(dna.brief);
+  if (!ch && !sp && !icons.length && !arch.length && !soft.length && !briefLines.length) return '';
   const lines = [];
+  // Her brief, in her own words (the In-your-words chapter, 2026-09-30):
+  // rendered FIRST and said to outrank every rule beneath it — a line she
+  // wrote or kept beats a rule a photograph produced. Empty when she has
+  // kept nothing yet.
+  if (briefLines.length) lines.push(...briefLines);
   // Her style type steers taste the way the icons do — a register, never a
   // constraint on colour or line.
   if (arch.length || soft.length) {
@@ -579,7 +645,13 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
     lines.push(`STYLE ICONS — the user named these as their taste references: ${icons.join(', ')}.`);
     lines.push('Follow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.');
   }
-  if (!ch && !sp) return lines.join('\n');
+  // Colours she confirmed or refused on the brief ride the same override
+  // slots the DNA engine has always honoured.
+  const uo = briefOverrides(dna);
+  if (!ch && !sp) {
+    lines.push(...overrideLines(uo));
+    return lines.join('\n');
+  }
   lines.push('STYLE DNA — verified styling constraints for this user:');
   if (ch) {
     const sub = ch.functional_sub_palettes || {};
@@ -595,17 +667,7 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
     if (ar.styling_maxims) lines.push(`Styling maxims: ${ar.styling_maxims.join(' ')}`);
   }
   // User corrections always outrank the photo-derived profile.
-  const uo = dna.user_overrides || {};
-  if (Array.isArray(uo.loved_colors) && uo.loved_colors.length) {
-    lines.push(`The user has personally confirmed these colours work on them (they override the avoid list on conflict): ${uo.loved_colors.join(', ')}.`);
-  }
-  if (Array.isArray(uo.rejected_colors) && uo.rejected_colors.length) {
-    lines.push(`The user has personally rejected these colours — never style them in: ${uo.rejected_colors.join(', ')}.`);
-  }
-  if (uo.measurements && typeof uo.measurements === 'object') {
-    const m = Object.entries(uo.measurements).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(', ');
-    if (m) lines.push(`Exact measurements supplied by the user — trust these over any photo estimate: ${m}.`);
-  }
+  lines.push(...overrideLines(uo));
   lines.push(wardrobeCount >= 15
     ? `SYSTEM DIRECTIVE: The user has a mature digital closet (${wardrobeCount} items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that obey the silhouette maxims above.`
     : wardrobeCount > 0

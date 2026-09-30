@@ -431,6 +431,38 @@
     .snc-react button { height: 50px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); cursor: pointer; transition: border-color .2s, background .2s; }
     .snc-react button:hover { border-color: var(--ink); }
     .snc-react button.on { border-color: #C9BCA6; background: #F3EFE6; }
+    /* 04 · In your words — the brief (2026-09-30): drafted cards she keeps or strikes, then a document she edits in place */
+    .snb-list { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+    .snb-card { background: #fff; border: 1px solid var(--rule-mid); border-radius: var(--rad-lg); padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .snb-card .k { font: 400 9px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--rose); }
+    .snb-card .t { font: 400 21px/1.2 'Cormorant', Georgia, serif; color: var(--ink); }
+    .snb-card .b { font: italic 300 13.5px/1.5 'Cormorant', Georgia, serif; color: var(--ink-soft); }
+    .snb-card .t input, .snb-doc .l input, .snb-add input { width: 100%; border: 0; border-bottom: 1px solid var(--ink); background: transparent; padding: 4px 0; font: 400 21px/1.2 'Cormorant', Georgia, serif; color: var(--ink); outline: none; }
+    .snb-verbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
+    .snb-verbs button { height: 40px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); cursor: pointer; transition: border-color .2s, background .2s; }
+    .snb-verbs button:hover { border-color: var(--ink); }
+    .snb-verbs button.on { border-color: #C9BCA6; background: #F3EFE6; }
+    .snb-doc { display: flex; flex-direction: column; gap: 22px; margin-top: 20px; }
+    .snb-sec .h { font: 400 9px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-soft); padding-bottom: 8px; border-bottom: 1px solid var(--rule-mid); }
+    .snb-doc .l { display: flex; align-items: baseline; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--rule); }
+    .snb-doc .l .t { flex: 1; font: 400 20px/1.25 'Cormorant', Georgia, serif; color: var(--ink); cursor: text; }
+    .snb-doc .l .t.typed { font-style: italic; }
+    .snb-doc .l .x { background: none; border: 0; padding: 0 2px; font: 300 18px/1 'Inter'; color: var(--ink-faint); cursor: pointer; }
+    .snb-doc .l .x:hover { color: var(--ink); }
+    .snb-add { display: flex; align-items: baseline; gap: 10px; padding: 10px 0 0; }
+    .snb-add .plus { font: 300 16px/1 'Inter'; color: var(--ink-faint); }
+    .snb-add input { border-bottom-color: var(--cream-400); font-size: 17px; font-style: italic; }
+    .snb-add input:focus { border-bottom-color: var(--ink); }
+    .snb-notes { width: 100%; min-height: 96px; border: 1px solid var(--rule-mid); border-radius: var(--rad-sm); background: #fff; padding: 12px 14px; font: italic 300 16px/1.55 'Cormorant', Georgia, serif; color: var(--ink); resize: vertical; outline: none; }
+    .snb-notes:focus { border-color: var(--ink); }
+    .snb-empty { font: italic 300 17px/1.5 'Cormorant', Georgia, serif; color: var(--ink-faint); margin-top: 16px; }
+    .snb-wait { display: flex; align-items: center; gap: 12px; margin-top: 22px; font: italic 300 16px/1.4 'Cormorant', Georgia, serif; color: var(--ink-soft); }
+    .snb-wait i { width: 14px; height: 14px; border: 1px solid var(--cream-400); border-top-color: var(--ink); border-radius: 50%; animation: snbSpin .9s linear infinite; flex: none; }
+    @keyframes snbSpin { to { transform: rotate(360deg); } }
+    .snb-filed { font: 400 11px/1 'Inter'; letter-spacing: 0.06em; color: var(--secondary, #7F8B5C); }
+    .snb-again { align-self: flex-start; height: 34px; padding: 0 16px; border: 1px solid var(--cream-400); background: transparent; border-radius: 100px; font: 500 9.5px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); cursor: pointer; margin-top: 8px; }
+    .snb-again:hover { border-color: var(--ink); }
+    .snb-again[disabled] { opacity: .45; cursor: default; }
     /* 02 · icons and brands (4a/4b) */
     .snc-search { margin-top: 18px; height: 48px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; display: flex; align-items: center; padding: 0 18px; gap: 10px; flex: none; }
     .snc-search:focus-within { border-color: var(--ink); }
@@ -2055,7 +2087,7 @@
     }
     const CH_GRID_N = 18;   // the grid's constant count — a kept name leaves it, the next cycles in
     const chNorm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
-    function chBegun() { return !!(ch.very.length || ch.some.length || st.icons.length || st.model.kept); }
+    function chBegun() { return !!(ch.very.length || ch.some.length || st.icons.length || st.model.kept || !chBriefEmpty()); }
     function chSegs(n) { return '<div class="snc-segs" aria-hidden="true">' + [1, 2, 3].map(i => '<span class="snc-seg' + (i <= n ? ' on' : '') + '"></span>').join('') + '</div>'; }
     function chBar(name, skipLabel) {
       return '<div class="snc-bar"><button class="snc-x" id="snc-x" aria-label="Close">×</button><span class="snc-name">' + name + '</span>' +
@@ -2097,6 +2129,7 @@
       wrap.hidden = false;
       wrap.scrollTop = 0;
       chPaint();
+      if (stage === 'brief') chBriefOpen();
     }
     function chBarSync() {
       const b = document.getElementById('snb-next');
@@ -2172,6 +2205,7 @@
         chIconsPaint();
         return;
       }
+      if (ch.stage === 'brief') { chBriefPaint(); return; }
       if (ch.stage === 'summary') {
         const typeV = ch.very.length || ch.some.length
           ? ch.very.map(esc).concat(ch.some.map(x => '<em>' + esc(x) + '</em>')).join(' · ')
@@ -2185,11 +2219,13 @@
             '<button type="button" class="snc-row sum tap" id="snc-r-type"><span class="k">Style type</span><span class="v' + (typeV ? '' : ' none') + '">' + (typeV || 'Not yet') + '</span></button>' +
             '<button type="button" class="snc-row sum tap" id="snc-r-icons"><span class="k">Icons &amp; brands</span><span class="v' + (st.icons.length ? '' : ' none') + '">' + (st.icons.length ? st.icons.map(esc).join(', ') : 'Not yet') + '</span></button>' +
             '<button type="button" class="snc-row sum tap" id="snc-r-model"><span class="k">Model</span><span class="v' + (modelV ? '' : ' none') + '" style="' + (modelV ? 'font-style:italic;font-weight:300;font-size:17px;color:var(--ink-faint)' : '') + '">' + (modelV || 'Not yet') + '</span></button>' +
+            '<button type="button" class="snc-row sum tap" id="snc-r-brief"><span class="k">In your words</span><span class="v' + (chBriefEmpty() ? ' none' : '') + '">' + (chBriefEmpty() ? 'Not yet' : esc(chBriefSummary())) + '</span></button>' +
           '</div></div>' +
           '<div class="snc-foot"><button class="snc-cta" id="snc-create">Create a look →</button><button class="snc-link" id="snc-done">Done for now</button></div></div>';
         document.getElementById('snc-r-type').onclick = () => { ch.k = 0; chOpen('type'); };
         document.getElementById('snc-r-icons').onclick = () => chOpen('icons');
         document.getElementById('snc-r-model').onclick = () => chOpen('model');
+        document.getElementById('snc-r-brief').onclick = () => chOpen('brief');
         // Create a look → the homepage prompt (C16), the model on file
         // reading into every generation as ever.
         document.getElementById('snc-create').onclick = () => {
@@ -2264,6 +2300,343 @@
       host.querySelectorAll('.snc-resrow[data-v]').forEach(b => { b.onclick = () => chIconToggle(b.dataset.v); });
       const keep = document.getElementById('snc-keep'); if (keep) keep.onclick = () => chIconAdd(ch.q);
     }
+    // ── 04 · In your words — the brief (docs/style-memory-brief.md, slice A) ──
+    // Robes drafts lines from evidence (what she owns, wears and has said);
+    // she keeps, strikes or edits each one. Nothing enters the brief
+    // without her Keep. Filed immediately, like the model — no Save button.
+    // Shape: style_dna.brief = {loves[], avoids[], rules[], notes, colours:{loved,rejected}, struck[], source, updated_at}
+    // — a list entry is {text, source: drafted|edited|typed}.
+    const CH_BRIEF_LISTS = [['loves', 'Works', 'What works on you'], ['avoids', 'Never', 'What never does'], ['rules', 'Rules', 'The rules you live by']];
+    const chB = { drafted: null, loading: false, err: '', editing: null, adding: null, everRead: false };
+    function chBrief() {
+      const b = (st.styleDna && st.styleDna.brief && typeof st.styleDna.brief === 'object') ? st.styleDna.brief : {};
+      const list = a => (Array.isArray(a) ? a : []).map(x => (x && typeof x === 'object') ? { text: String(x.text || '').trim(), source: x.source || 'drafted', from: x.from ? String(x.from) : '' } : { text: String(x || '').trim(), source: 'typed', from: '' }).filter(x => x.text);
+      return {
+        loves: list(b.loves), avoids: list(b.avoids), rules: list(b.rules),
+        notes: typeof b.notes === 'string' ? b.notes : '',
+        colours: { loved: Array.isArray(b.colours && b.colours.loved) ? b.colours.loved.slice() : [], rejected: Array.isArray(b.colours && b.colours.rejected) ? b.colours.rejected.slice() : [] },
+        struck: Array.isArray(b.struck) ? b.struck.slice(0, 30) : [],
+        source: b.source || 'drafted',
+      };
+    }
+    function chBriefEmpty() {
+      const b = chBrief();
+      return !b.loves.length && !b.avoids.length && !b.rules.length && !b.notes.trim();
+    }
+    function chBriefSummary() {
+      const b = chBrief();
+      const n = b.loves.length + b.avoids.length + b.rules.length;
+      return (n === 1 ? 'One line' : n + ' lines') + (b.source === 'edited' ? ' · in your words' : '');
+    }
+    function chSaveBrief(b) {
+      const prev = st.styleDna || {};
+      const clean = a => a.slice(0, 8).map(x => Object.assign({ text: x.text.slice(0, 160), source: x.source }, x.from ? { from: x.from.slice(0, 160) } : {}));
+      const brief = {
+        loves: clean(b.loves), avoids: clean(b.avoids), rules: clean(b.rules),
+        notes: (b.notes || '').trim().slice(0, 600),
+        colours: { loved: b.colours.loved.slice(0, 8), rejected: b.colours.rejected.slice(0, 8) },
+        struck: b.struck.slice(0, 30),
+        source: b.source, updated_at: new Date().toISOString(),
+      };
+      st.styleDna = Object.assign({}, prev, { brief });
+      save({ style_dna: st.styleDna });
+      const f = document.getElementById('snb-filed');
+      if (f) { f.style.opacity = '1'; setTimeout(() => { if (f.isConnected) f.style.opacity = '.55'; }, 1400); }
+      if (window.__rbBriefSaved) try { window.__rbBriefSaved(brief); } catch (e) {}
+    }
+    // The evidence, compiled from her own rows — the standing pattern
+    // (never a server-side read keyed on a body userId).
+    async function chEvidence() {
+      const out = { wardrobe: [], looks: [], memory: [] };
+      try {
+        const r = await sbClient.from('wardrobe_items').select('*').eq('user_id', st.uid);
+        const rows = Array.isArray(r && r.data) ? r.data : [];
+        out.wardrobe = rows.slice(0, 80).map(w => ({
+          id: w.id, label: w.label, category: w.category, l2: w.category_l2 || '', color: w.color, brand: w.brand || '',
+          notes: w.notes || '', sentiment: w.sentiment || '', fit_confidence: w.fit_confidence || '',
+          occasions: Array.isArray(w.occasions) ? w.occasions : [], seasons: Array.isArray(w.seasons) ? w.seasons : [],
+          times_worn: Number(w.times_worn) || 0, price: w.price || null, hero: w.hero_position != null,
+          fit: (w.item_dna && w.item_dna.structural_dna && Array.isArray(w.item_dna.structural_dna.silhouette_fit)) ? w.item_dna.structural_dna.silhouette_fit : [],
+        }));
+      } catch (e) {}
+      try {
+        const r = await sbClient.from('looks').select('id,name,note,look_pieces(wardrobe_item_id),wears(worn_on)').eq('user_id', st.uid);
+        const rows = Array.isArray(r && r.data) ? r.data : [];
+        const byId = {}; out.wardrobe.forEach(w => { byId[String(w.id)] = w.label; });
+        out.looks = rows.slice(0, 30).map(l => ({
+          name: l.name,
+          pieces: (Array.isArray(l.look_pieces) ? l.look_pieces : []).map(p => byId[String(p.wardrobe_item_id)]).filter(Boolean),
+          wears: Array.isArray(l.wears) ? l.wears.length : 0,
+        }));
+      } catch (e) {}
+      try {
+        const m = st.styleDna && st.styleDna.memory && Array.isArray(st.styleDna.memory.entries) ? st.styleDna.memory.entries : [];
+        out.memory = m.slice(0, 40).map(e => chMemoryLine(e)).filter(Boolean);
+      } catch (e) {}
+      return out;
+    }
+    function chMemoryLine(e) {
+      if (!e || typeof e !== 'object') return '';
+      const d = e.t ? String(e.t).slice(0, 10) : '';
+      if (e.k === 'verdict') return d + ' · rated "' + (e.on || 'a look') + '" ' + (e.v === 1 ? 'loved it' : 'not quite') + (e.text ? ': "' + e.text + '"' : '');
+      if (e.k === 'swap') return d + ' · swapped out ' + (e.out || 'a piece') + (e.in ? ' for her ' + e.in : '');
+      if (e.k === 'wear') return d + ' · wore "' + (e.look || 'a look') + '"';
+      if (e.k === 'strike') return d + ' · struck a line Robes drafted: ' + (e.text || '');
+      return e.text ? d + ' · ' + e.text : '';
+    }
+    // the standing lines as the endpoint's "never repeat" list — an edited
+    // line contributes both its words and the draft it came from
+    function chBriefCur(a) { return a.flatMap(x => [x.text, x.from]).filter(Boolean); }
+    async function chBriefDraft() {
+      if (chB.loading) return;
+      chB.loading = true; chB.err = ''; chBriefPaint();
+      const b = chBrief();
+      try {
+        const ev = await chEvidence();
+        chB.everRead = true;
+        const res = await fetch('/api/stylenotes/brief', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: st.uid, name: (document.getElementById('sn-av-name').textContent || '').trim(),
+            styleDna: st.styleDna || {}, styleIcons: st.icons, gender: st.gender || 'woman',
+            current: { loves: chBriefCur(b.loves), avoids: chBriefCur(b.avoids), rules: chBriefCur(b.rules) },
+            wardrobe: ev.wardrobe, looks: ev.looks, memory: ev.memory,
+          }),
+        });
+        if (!res.ok) throw new Error('brief_failed');
+        const d = await res.json();
+        const struck = new Set(b.struck.map(x => String(x).toLowerCase()));
+        // a kept line, and the drafted line an edited one came from, never return
+        const have = new Set(b.loves.concat(b.avoids, b.rules).flatMap(x => [x.text, x.from]).filter(Boolean).map(x => x.toLowerCase()));
+        const lines = a => (Array.isArray(a) ? a : []).filter(x => x && x.text && !struck.has(String(x.text).toLowerCase()) && !have.has(String(x.text).toLowerCase()));
+        chB.drafted = {
+          loves: lines(d.loves), avoids: lines(d.avoids), rules: lines(d.rules),
+          notes: (!b.notes.trim() && typeof d.notes === 'string') ? d.notes.trim() : '',
+          colours: {
+            loved: (Array.isArray(d.colours && d.colours.loved) ? d.colours.loved : []).filter(c => !b.colours.loved.some(x => x.toLowerCase() === c.toLowerCase())),
+            rejected: (Array.isArray(d.colours && d.colours.rejected) ? d.colours.rejected : []).filter(c => !b.colours.rejected.some(x => x.toLowerCase() === c.toLowerCase())),
+          },
+          thin: !!d.thin,
+        };
+        snTrack('brief_drafted', { lines: chB.drafted.loves.length + chB.drafted.avoids.length + chB.drafted.rules.length, thin: !!d.thin, pieces: ev.wardrobe.length });
+      } catch (e) {
+        chB.err = 'Robes couldn’t read your wardrobe just now — try again in a moment.';
+      }
+      chB.loading = false; chBriefPaint();
+    }
+    function chBriefVerb(list, i, verb) {
+      const d = chB.drafted; if (!d) return;
+      const b = chBrief();
+      const src = list === 'notes' ? null : (d[list] || [])[i];
+      if (list === 'notes') {
+        if (verb === 'keep') { b.notes = d.notes; d.notes = ''; chSaveBrief(b); }
+        else if (verb === 'strike') { b.struck.unshift(d.notes.slice(0, 120)); d.notes = ''; chSaveBrief(b); }
+        else { chB.editing = { list: 'notes', draft: true }; }
+        snTrack('brief_line', { verb, list: 'notes' }); chBriefPaint(); return;
+      }
+      if (list === 'colours') {
+        const c = d.colours; 
+        if (verb === 'keep') { b.colours.loved = b.colours.loved.concat(c.loved); b.colours.rejected = b.colours.rejected.concat(c.rejected); }
+        d.colours = { loved: [], rejected: [] };
+        chSaveBrief(b); snTrack('brief_line', { verb, list: 'colours' }); chBriefPaint(); return;
+      }
+      if (!src) return;
+      if (verb === 'keep') { b[list].push({ text: src.text, source: 'drafted' }); d[list].splice(i, 1); chSaveBrief(b); }
+      else if (verb === 'strike') { b.struck.unshift(src.text); d[list].splice(i, 1); chSaveBrief(b); chStrikeMemory(src.text); }
+      else { chB.editing = { list, i, draft: true }; }
+      snTrack('brief_line', { verb, list });
+      chBriefPaint();
+    }
+    // A struck observation is evidence too — slice B's memory reads it.
+    function chStrikeMemory(text) {
+      try { if (window.__rbMemoryPush) window.__rbMemoryPush({ k: 'strike', text: String(text).slice(0, 160) }); } catch (e) {}
+    }
+    function chBriefCommitEdit(value) {
+      const ed = chB.editing; if (!ed) return;
+      const v = String(value || '').trim().replace(/\s+/g, ' ').slice(0, 160);
+      const b = chBrief();
+      chB.editing = null;
+      if (ed.list === 'notes') {
+        if (ed.draft) { if (chB.drafted) chB.drafted.notes = ''; }
+        if (v) { b.notes = v; b.source = 'edited'; chSaveBrief(b); }
+        chBriefPaint(); return;
+      }
+      if (ed.draft) {
+        const orig = chB.drafted && chB.drafted[ed.list][ed.i] ? String(chB.drafted[ed.list][ed.i].text || '') : '';
+        if (chB.drafted) chB.drafted[ed.list].splice(ed.i, 1);
+        if (v) { b[ed.list].push({ text: v, source: 'edited', from: orig }); b.source = 'edited'; chSaveBrief(b); }
+      } else {
+        if (v) { b[ed.list][ed.i] = { text: v, source: 'edited' }; b.source = 'edited'; }
+        else b[ed.list].splice(ed.i, 1);
+        chSaveBrief(b);
+      }
+      snTrack('brief_line', { verb: 'edit', list: ed.list });
+      chBriefPaint();
+    }
+    function chBriefAdd(list, value) {
+      const v = String(value || '').trim().replace(/\s+/g, ' ').slice(0, 160);
+      if (!v) return;
+      const b = chBrief();
+      if (b[list].some(x => x.text.toLowerCase() === v.toLowerCase())) return;
+      b[list].push({ text: v, source: 'typed' }); b.source = 'edited';
+      chSaveBrief(b); snTrack('brief_line', { verb: 'add', list });
+      chB.adding = list; chBriefPaint();
+    }
+    function chBriefStrikeKept(list, i) {
+      const b = chBrief();
+      const x = b[list][i]; if (!x) return;
+      b[list].splice(i, 1);
+      if (x.source === 'drafted') { b.struck.unshift(x.text); chStrikeMemory(x.text); }
+      chSaveBrief(b); snTrack('brief_line', { verb: 'strike', list, kept: true }); chBriefPaint();
+    }
+    function chBriefPaint() {
+      const wrap = document.getElementById('sn-ch-wrap');
+      if (ch.stage !== 'brief') return;
+      const first = (document.getElementById('sn-av-name').textContent || '').trim();
+      const b = chBrief();
+      const d = chB.drafted;
+      const empty = chBriefEmpty();
+      const draftedN = d ? d.loves.length + d.avoids.length + d.rules.length + (d.notes ? 1 : 0) + ((d.colours.loved.length || d.colours.rejected.length) ? 1 : 0) : 0;
+      const ed = chB.editing;
+      const inputHtml = (val) => '<input id="snb-edit" type="text" value="' + esc(val) + '" maxlength="160" autocomplete="off">';
+      let html = '<div class="snc-frame">' + chBar('In your words', '') +
+        '<div class="snc-body" style="padding-top:22px;gap:8px">' +
+        '<span class="snc-ey">In your words</span>';
+      if (empty && !draftedN) {
+        html += '<h2 class="snc-h">What Robes has noticed, <em>for you to keep or strike.</em></h2>';
+      } else if (!empty) {
+        html += '<h2 class="snc-h">' + (first ? esc(first) + ', ' : '') + '<em>in your words.</em></h2>' +
+          '<span class="snc-sub">Robes reads this first, every time it dresses you. Yours to change.</span>';
+      } else {
+        html += '<h2 class="snc-h">What Robes has noticed, <em>for you to keep or strike.</em></h2>' +
+          '<span class="snc-sub">Each line is traced to something you own or wore. Strike anything that isn’t you.</span>';
+      }
+      // the drafted cards
+      if (chB.loading) {
+        html += '<div class="snb-wait"><i></i>Robes is reading your wardrobe…</div>';
+      } else if (chB.err) {
+        html += '<div class="snb-empty">' + esc(chB.err) + '</div>';
+      } else if (draftedN) {
+        html += '<div class="snb-list" id="snb-drafted">';
+        CH_BRIEF_LISTS.forEach(([key, lab]) => {
+          (d[key] || []).forEach((x, i) => {
+            const editing = ed && ed.draft && ed.list === key && ed.i === i;
+            html += '<div class="snb-card" data-list="' + key + '" data-i="' + i + '"><span class="k">' + lab + '</span>' +
+              '<div class="t">' + (editing ? inputHtml(x.text) : esc(x.text)) + '</div>' +
+              (x.because ? '<div class="b">' + esc(x.because) + '</div>' : '') +
+              (editing ? '' : '<div class="snb-verbs"><button type="button" data-v="keep">Keep</button><button type="button" data-v="strike">Strike</button><button type="button" data-v="edit">Edit</button></div>') +
+              '</div>';
+          });
+        });
+        if (d.notes) {
+          const editing = ed && ed.draft && ed.list === 'notes';
+          html += '<div class="snb-card" data-list="notes" data-i="0"><span class="k">How you dress well</span>' +
+            '<div class="t" style="font-size:18px;line-height:1.35">' + (editing ? '<textarea class="snb-notes" id="snb-edit">' + esc(d.notes) + '</textarea>' : esc(d.notes)) + '</div>' +
+            (editing ? '' : '<div class="snb-verbs"><button type="button" data-v="keep">Keep</button><button type="button" data-v="strike">Strike</button><button type="button" data-v="edit">Edit</button></div>') +
+            '</div>';
+        }
+        if (d.colours.loved.length || d.colours.rejected.length) {
+          html += '<div class="snb-card" data-list="colours" data-i="0"><span class="k">Colour</span>' +
+            '<div class="t">' + (d.colours.loved.length ? 'You reach for ' + esc(d.colours.loved.join(', ')) + '.' : '') + (d.colours.rejected.length ? ' You own ' + esc(d.colours.rejected.join(', ')) + ' and leave ' + (d.colours.rejected.length > 1 ? 'them' : 'it') + ' on the rail.' : '') + '</div>' +
+            '<div class="b">Read from what you wear most, and what you never do.</div>' +
+            '<div class="snb-verbs"><button type="button" data-v="keep">Keep</button><button type="button" data-v="strike">Strike</button><span></span></div>' +
+            '</div>';
+        }
+        html += '</div>';
+      } else if (empty && chB.everRead) {
+        html += '<div class="snb-empty">Nothing to read yet. A few pieces and a few worn days and Robes will have something to say. Or write a line of your own below.</div>';
+      }
+      // the document
+      if (!empty || chB.adding || (chB.everRead && !chB.loading && !draftedN)) {
+        html += '<div class="snb-doc" id="snb-doc">';
+        CH_BRIEF_LISTS.forEach(([key, lab, head]) => {
+          const rows = b[key];
+          if (!rows.length && chB.adding !== key && !(!empty)) { /* an empty list on an empty brief still offers its add line below */ }
+          html += '<div class="snb-sec" data-list="' + key + '"><div class="h">' + head + '</div>';
+          rows.forEach((x, i) => {
+            const editing = ed && !ed.draft && ed.list === key && ed.i === i;
+            html += '<div class="l" data-i="' + i + '">' +
+              (editing ? '<div class="t">' + inputHtml(x.text) + '</div>' : '<div class="t' + (x.source === 'typed' ? ' typed' : '') + '" role="button" tabindex="0" title="Edit">' + esc(x.text) + '</div><button type="button" class="x" aria-label="Strike">×</button>') +
+              '</div>';
+          });
+          html += '<div class="snb-add"><span class="plus">+</span><input type="text" data-add="' + key + '" placeholder="' + (rows.length ? 'Add a line of your own' : 'A line of your own — ' + lab.toLowerCase()) + '" maxlength="160" autocomplete="off"></div></div>';
+        });
+        const notesEditing = ed && !ed.draft && ed.list === 'notes';
+        html += '<div class="snb-sec"><div class="h">How you dress well</div>' +
+          (b.notes.trim() || notesEditing
+            ? '<textarea class="snb-notes" id="snb-notes" placeholder="In your own words">' + esc(b.notes) + '</textarea>'
+            : '<div class="snb-add"><span class="plus">+</span><input type="text" data-add="notes" placeholder="A paragraph in your own words" maxlength="600" autocomplete="off"></div>') +
+          '</div>';
+        if (b.colours.loved.length || b.colours.rejected.length) {
+          html += '<div class="snb-sec"><div class="h">Colour</div><div class="l"><div class="t">' +
+            (b.colours.loved.length ? 'Works: ' + esc(b.colours.loved.join(', ')) + '. ' : '') +
+            (b.colours.rejected.length ? 'Never: ' + esc(b.colours.rejected.join(', ')) + '.' : '') +
+            '</div><button type="button" class="x" data-colours="1" aria-label="Strike">×</button></div></div>';
+        }
+        html += '</div>';
+      }
+      html += '<button type="button" class="snb-again" id="snb-again"' + (chB.loading ? ' disabled' : '') + '>' + (chB.everRead || !empty ? 'Read my wardrobe again' : 'Read my wardrobe') + '</button>';
+      html += '</div>' +
+        '<div class="snc-foot">' +
+          (!empty ? '<span class="snb-filed" id="snb-filed" style="opacity:.55">✓ Filed · Robes reads it from here on</span>' : '') +
+          '<button class="snc-cta" id="snb-done">' + (ch.from === 'home' && empty ? 'Later' : 'Done') + '</button>' +
+        '</div></div>';
+      wrap.innerHTML = html;
+      wrap.scrollTop = wrap.scrollTop;   // keep her place
+      // wiring
+      document.getElementById('snc-x').onclick = chExit;
+      document.getElementById('snb-done').onclick = () => { snTrack('style_chapter_done', { chapter: 'brief', lines: b.loves.length + b.avoids.length + b.rules.length }); chOpen('summary'); };
+      document.getElementById('snb-again').onclick = () => { snTrack('brief_read_again', {}); chBriefDraft(); };
+      wrap.querySelectorAll('#snb-drafted .snb-card .snb-verbs button').forEach(btn => {
+        btn.onclick = () => { const c = btn.closest('.snb-card'); chBriefVerb(c.dataset.list, Number(c.dataset.i), btn.dataset.v); };
+      });
+      wrap.querySelectorAll('#snb-doc .l .t[role="button"]').forEach(t => {
+        const open = () => { const sec = t.closest('.snb-sec'); chB.editing = { list: sec.dataset.list, i: Number(t.closest('.l').dataset.i), draft: false }; chBriefPaint(); };
+        t.onclick = open; t.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
+      });
+      wrap.querySelectorAll('#snb-doc .l .x').forEach(x => {
+        x.onclick = () => {
+          if (x.dataset.colours) { const bb = chBrief(); bb.colours = { loved: [], rejected: [] }; chSaveBrief(bb); chBriefPaint(); return; }
+          const sec = x.closest('.snb-sec'); chBriefStrikeKept(sec.dataset.list, Number(x.closest('.l').dataset.i));
+        };
+      });
+      wrap.querySelectorAll('input[data-add]').forEach(inp => {
+        if (chB.adding === inp.dataset.add) { inp.focus(); chB.adding = null; }
+        inp.onkeydown = e => {
+          if (e.key !== 'Enter') return;
+          e.preventDefault();
+          if (inp.dataset.add === 'notes') { const bb = chBrief(); bb.notes = inp.value.trim().slice(0, 600); bb.source = 'edited'; if (bb.notes) { chSaveBrief(bb); chBriefPaint(); } return; }
+          chBriefAdd(inp.dataset.add, inp.value);
+        };
+      });
+      const edit = document.getElementById('snb-edit');
+      if (edit) {
+        edit.focus();
+        if (edit.tagName === 'INPUT') edit.setSelectionRange(edit.value.length, edit.value.length);
+        edit.onkeydown = e => {
+          if (e.key === 'Enter' && edit.tagName === 'INPUT') { e.preventDefault(); chBriefCommitEdit(edit.value); }
+          if (e.key === 'Escape') { e.stopPropagation(); chB.editing = null; chBriefPaint(); }
+        };
+        edit.onblur = () => { if (chB.editing) chBriefCommitEdit(edit.value); };
+      }
+      const notes = document.getElementById('snb-notes');
+      if (notes) {
+        if (notesEditingFocus()) notes.focus();
+        notes.onblur = () => {
+          const bb = chBrief(); const v = notes.value.trim().slice(0, 600);
+          if (v === bb.notes) return;
+          bb.notes = v; bb.source = 'edited'; chSaveBrief(bb);
+          snTrack('brief_line', { verb: v ? 'edit' : 'strike', list: 'notes' });
+          if (!v) chBriefPaint();
+        };
+      }
+      function notesEditingFocus() { const e2 = chB.editing; if (e2 && !e2.draft && e2.list === 'notes') { chB.editing = null; return true; } return false; }
+    }
+    // The chapter opens on the draft whenever the brief is empty and nothing
+    // has been read this session — the first screen is Robes' observations.
+    function chBriefOpen() {
+      if (chBriefEmpty() && !chB.drafted && !chB.everRead && !chB.loading) chBriefDraft();
+    }
     // ?begin=1 is home's door (the dashed Style-notes card): the intro when
     // nothing has been answered, the summary once anything has.
     function chBoot() {
@@ -2273,6 +2646,15 @@
         ch.very = Array.isArray(dna.style_archetypes) ? dna.style_archetypes.slice() : [];
         ch.some = Array.isArray(dna.style_archetypes_soft) ? dna.style_archetypes_soft.slice() : [];
         const u = new URL(window.location.href);
+        const chapter = u.searchParams.get('chapter');
+        if (chapter === 'brief') {
+          ch.from = 'home';
+          u.searchParams.delete('chapter');
+          history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);
+          snTrack('style_notes_opened', { from: 'home', begun: chBegun(), chapter: 'brief' });
+          chOpen('brief');
+          return;
+        }
         if (u.searchParams.get('begin') !== '1') return;
         ch.from = 'home';
         u.searchParams.delete('begin');

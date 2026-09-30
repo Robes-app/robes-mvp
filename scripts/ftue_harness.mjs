@@ -75,7 +75,7 @@ async function boot(browser, n, width = 1280, { looks = true, pics = 0 } = {}) {
   await page.addInitScript((count) => {
     window.__TEST_PROFILE = {
       first_name: 'Annie', last_name: '', mobile: '', style_icons: JSON.parse(localStorage.getItem('rb_test_icons') || '[]'), budget: null,
-      wardrobe_description: '', style_dna: {}, wardrobe_items_count: count,
+      wardrobe_description: '', style_dna: JSON.parse(localStorage.getItem('rb_test_dna') || '{}'), wardrobe_items_count: count,
       onboarded_at: '2026-07-01', gender_identity: 'woman',
       notification_prefs: window.__TEST_PREFS || {},
     };
@@ -1083,6 +1083,31 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     return { open: !!sn && sn.style.display !== 'none', cal: !!sn?.classList.contains('rb-cal-on') };
   });
   check('next line · the week door opens the Diary', diary.open === true && diary.cal === true, JSON.stringify(diary));
+  // The brief rule (docs/style-memory-brief.md, slice A): five photographed
+  // pieces, three worn days, nothing kept in her words → "Read them";
+  // a kept line retires it and the week rule returns.
+  await page.evaluate(() => {
+    const looks = JSON.parse(localStorage.getItem('rb_looks__u-test'));
+    looks[0].wears = [
+      { id: 'we1', worn_on: '2026-09-01', piece_ids: ['w0', 'w1'], source: 'looks', source_id: null },
+      { id: 'we2', worn_on: '2026-09-08', piece_ids: ['w0', 'w1'], source: 'looks', source_id: null },
+      { id: 'we3', worn_on: '2026-09-15', piece_ids: ['w0', 'w1'], source: 'looks', source_id: null }];
+    localStorage.setItem('rb_looks__u-test', JSON.stringify(looks));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const br = await page.evaluate(() => {
+    const echo = document.querySelector('.dash-echo');
+    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: echo?.querySelector('.rb-echo-door')?.textContent, key: window.__rbNextDoorKey };
+  });
+  check('next line · at the rung with three worn days and nothing in her words → the brief rule, "Read them"',
+    /^Robes has noticed a few things about how you dress\./.test(br.text) && br.door === 'Read them →', JSON.stringify(br));
+  await page.evaluate(() => localStorage.setItem('rb_test_dna', JSON.stringify({ brief: { loves: [{ text: 'A sharp shoulder', source: 'typed' }], source: 'edited' } })));
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const br2 = await page.evaluate(() => document.querySelector('.dash-echo')?.textContent.replace(/\s+/g, ' ').trim());
+  check('next line · a kept line in her brief retires the rule; the week rule returns', /^Nothing planned this week\./.test(br2 || ''), br2);
+  await page.evaluate(() => localStorage.removeItem('rb_test_dna'));
   await ctx.close();
 }
 {
@@ -1249,6 +1274,14 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       && /Build your model/.test(o2.echo || ''),
     JSON.stringify(o2));
   await page.evaluate(() => localStorage.removeItem('rb_test_icons'));
+  // A kept line in her brief is an answer too (slice A): the notes door
+  // retires on it exactly as on an icon.
+  await page.evaluate(() => localStorage.setItem('rb_test_dna', JSON.stringify({ brief: { rules: [{ text: 'No more button-ups', source: 'drafted' }] } })));
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const o3 = await page.evaluate(() => ({ door: !!document.getElementById('rb-model-door'), notes: !!document.getElementById('rb-notes-door') }));
+  check('model door · a kept line in her brief retires the notes door and opens the model door', o3.door && !o3.notes, JSON.stringify(o3));
+  await page.evaluate(() => localStorage.removeItem('rb_test_dna'));
   check('model door · no page errors (postures)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
