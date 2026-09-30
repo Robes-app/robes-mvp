@@ -1,7 +1,7 @@
 // The prompt block's brief slice (docs/style-memory-brief.md, slice A):
 // the brief renders FIRST, its colours reach the override slots, and an
 // empty brief renders nothing. `node scripts/style_dna_block_test.mjs`.
-import { styleDnaPromptBlock, briefList, briefIsEmpty } from '../style_dna.js';
+import { styleDnaPromptBlock, briefList, briefIsEmpty, memoryEntries, MEMORY_MAX } from '../style_dna.js';
 
 let passes = 0, fails = 0;
 const ok = (c, m) => { if (c) passes++; else { fails++; console.log('  \x1b[31m✗\x1b[0m ' + m); } };
@@ -41,6 +41,34 @@ ok(briefList(Array.from({ length: 12 }, (_, i) => 'line ' + i)).length === 8, 'l
 ok(briefList(['a'.repeat(400)])[0].length === 160, 'a line caps at 160 characters');
 const legacy = styleDnaPromptBlock({ color_harmony: dnaFull.color_harmony }, 3, []);
 ok(/STYLE DNA/.test(legacy) && !/HER STYLE BRIEF/.test(legacy), 'a profile with no brief key is byte-for-byte the old block shape');
+
+// The memory (slice B): beneath the brief, above the type; a pattern, not a
+// transcript.
+const memory = { v: 1, entries: [
+  { t: '2026-09-30T10:00:00Z', k: 'verdict', v: 0, on: 'The Thursday one', text: 'too much black' },
+  { t: '2026-09-29T10:00:00Z', k: 'swap', out: 'loafers', in: 'white sandals', cat: 'Shoes' },
+  { t: '2026-09-28T10:00:00Z', k: 'swap', out: 'brogues', in: 'trainers', cat: 'shoes' },
+  { t: '2026-09-27T10:00:00Z', k: 'swap', out: 'block heels', in: 'sandals', cat: 'Shoes' },
+  { t: '2026-09-26T10:00:00Z', k: 'swap', out: 'a wool blazer', in: 'denim jacket', cat: 'outerwear' },
+  { t: '2026-09-25T10:00:00Z', k: 'wear', look: 'Office armour', pieces: 4 },
+  { t: '2026-09-24T10:00:00Z', k: 'strike', text: 'You reach for black' },
+  { t: '2026-09-23T10:00:00Z', k: 'nonsense', text: 'dropped' },
+] };
+const mem = styleDnaPromptBlock({ brief, memory, style_archetypes: ['Sculptural'] }, 6, []);
+ok(mem.indexOf('HER STYLE BRIEF') === 0 && mem.indexOf('WHAT SHE HAS TOLD ROBES RECENTLY') > 0 && mem.indexOf('WHAT SHE HAS TOLD ROBES RECENTLY') < mem.indexOf('STYLE TYPE'), 'memory renders after the brief and before the style type');
+ok(/Not quite — The Thursday one: "too much black"/.test(mem), 'a verdict carries what it was about and her words');
+ok(/Struck from her brief[^\n]*You reach for black/.test(mem), 'a strike reads as Robes having it wrong');
+ok(/Has swapped out shoes three times/.test(mem) && !/Swapped out loafers/.test(mem), 'three swaps of one category fold into one pattern line, the three events gone');
+ok(/Swapped out a wool blazer for her denim jacket \(outerwear\)/.test(mem), 'a lone swap names out, in and category');
+ok(/Wore "Office armour" \(4 pieces\)/.test(mem), 'a wear names the look she reaches for');
+ok(/not proposed again unless she names it/.test(mem), 'the closing rule stands');
+ok(!/dropped/.test(mem), 'an unknown kind never reaches the prompt');
+ok(styleDnaPromptBlock({ memory: { entries: [] } }, 0, []) === '' && styleDnaPromptBlock({ memory: null }, 0, []) === '', 'an empty memory renders nothing');
+const memOnly = styleDnaPromptBlock({ memory: { entries: [{ k: 'verdict', v: 1, on: 'Sunday lunch' }] } }, 0, []);
+ok(/Loved — Sunday lunch\./.test(memOnly) && !/STYLE DNA/.test(memOnly), 'a memory alone renders, no DNA header');
+const many = { entries: Array.from({ length: 40 }, (_, i) => ({ k: 'verdict', v: 1, on: 'look ' + i })) };
+ok(styleDnaPromptBlock({ memory: many }, 0, []).split('\n').length === 14, 'the memory never exceeds twelve lines plus its two frames');
+ok(memoryEntries(Array.from({ length: 80 }, () => ({ k: 'wear', look: 'x' }))).length === MEMORY_MAX, 'memoryEntries caps at MEMORY_MAX');
 
 console.log(`\n\x1b[1m${passes} passed, ${fails} failed\x1b[0m`);
 process.exit(fails ? 1 : 0);

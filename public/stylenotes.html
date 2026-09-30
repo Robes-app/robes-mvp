@@ -2419,6 +2419,9 @@
           thin: !!d.thin,
         };
         snTrack('brief_drafted', { lines: chB.drafted.loves.length + chB.drafted.avoids.length + chB.drafted.rules.length, thin: !!d.thin, pieces: ev.wardrobe.length });
+        // The read consumed the memory to date — home's "noticed more"
+        // line counts what lands after this stamp.
+        try { const m = snMemory(); m.read_at = new Date().toISOString(); st.styleDna = Object.assign({}, st.styleDna || {}, { memory: m }); save({ style_dna: st.styleDna }); } catch (e) {}
       } catch (e) {
         chB.err = 'Robes couldn’t read your wardrobe just now — try again in a moment.';
       }
@@ -2442,14 +2445,25 @@
       }
       if (!src) return;
       if (verb === 'keep') { b[list].push({ text: src.text, source: 'drafted' }); d[list].splice(i, 1); chSaveBrief(b); }
-      else if (verb === 'strike') { b.struck.unshift(src.text); d[list].splice(i, 1); chSaveBrief(b); chStrikeMemory(src.text); }
+      else if (verb === 'strike') { b.struck.unshift(src.text); d[list].splice(i, 1); chStrikeMemory(src.text); chSaveBrief(b); }
       else { chB.editing = { list, i, draft: true }; }
       snTrack('brief_line', { verb, list });
       chBriefPaint();
     }
     // A struck observation is evidence too — slice B's memory reads it.
+    // This page never loads personalize, so it writes the memory itself:
+    // the same shape, newest first, capped at 60, riding the next save.
+    function snMemory() {
+      const m = st.styleDna && st.styleDna.memory && typeof st.styleDna.memory === 'object' ? st.styleDna.memory : {};
+      return Object.assign({ v: 1 }, m, { entries: Array.isArray(m.entries) ? m.entries.slice() : [] });
+    }
+    function snMemoryPush(entry) {
+      const m = snMemory();
+      m.entries = [Object.assign({ t: new Date().toISOString() }, entry)].concat(m.entries).slice(0, 60);
+      st.styleDna = Object.assign({}, st.styleDna || {}, { memory: m });
+    }
     function chStrikeMemory(text) {
-      try { if (window.__rbMemoryPush) window.__rbMemoryPush({ k: 'strike', text: String(text).slice(0, 160) }); } catch (e) {}
+      try { snMemoryPush({ k: 'strike', surface: 'brief', text: String(text).slice(0, 160) }); } catch (e) {}
     }
     function chBriefCommitEdit(value) {
       const ed = chB.editing; if (!ed) return;

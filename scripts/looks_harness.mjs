@@ -1955,6 +1955,10 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     adopted.picked === true && adopted.props === 3 && adopted.ownedRows === 1
       && adopted.acts === 1 && adopted.modalGone === true,
     JSON.stringify(adopted));
+  const propMem = writes.filter((w) => w.method === 'PATCH' && /^profiles\?/.test(w.url) && w.body?.style_dna?.memory).pop();
+  check('nothing owned · the adoption lands on the memory as a swap (out → her piece, with the category)',
+    propMem?.body?.style_dna?.memory?.entries?.[0]?.k === 'swap' && !!propMem.body.style_dna.memory.entries[0].out && !!propMem.body.style_dna.memory.entries[0].in && propMem.body.style_dna.memory.entries[0].surface === 'look-proposal',
+    JSON.stringify(propMem && propMem.body.style_dna.memory.entries[0]));
   check('nothing owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
@@ -3815,6 +3819,92 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('photo-only look · Update hangs the piece and keeps her photograph',
     r2.pieces === 1 && r2.photo === 'https://img.test/hers-garden.jpg' && lp.length > 0, JSON.stringify([r2, lp.length]));
   check('photo-only look · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// The memory (docs/style-memory-brief.md, slice B · 2026-09-30): a verdict,
+// a swap, a wear and an undo each land on profiles.style_dna.memory — the
+// SAME jsonb every generation ships — newest first, capped at 60. Nothing
+// is read server-side by userId; the next POST simply carries it.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs, writes } = await boot(browser, {
+    pics: 5, seed: true, avatar: 'w-s5-h2-hg',
+    pre: async (page) => {
+      await page.route('**/api/avatar/cell', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/cell.jpg' }) }));
+      await page.route('**/api/avatar/render', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'rj-mem' }) }));
+      await page.route('**/api/images/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [], done: false }) }));
+      await page.route('**/api/alternates', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ alternates: [{ name: 'A found piece', brand: 'Robes', retailer_hint: 'Net-a-Porter', price_point: '€90', how: 'Worn open.' }, { name: 'Another', brand: 'Robes', retailer_hint: 'ASOS', price_point: '€40', how: 'Tucked.' }] }) }));
+      await page.route('**/api/lookbuild/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: null, note: 'A quiet build.', look_tags: null, palette: [] }) }));
+      await page.route('**/api/feedback', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+      await page.route('**img.test/**', (r) => r.abort());
+    },
+  });
+  const memWrites = () => writes.filter((w) => w.method === 'PATCH' && /^profiles\?/.test(w.url) && w.body && w.body.style_dna && w.body.style_dna.memory);
+  const lastMem = () => (memWrites().pop() || {}).body?.style_dna?.memory?.entries || null;
+  // A wear on a saved look → one wear entry; the undo takes it out again.
+  await openLooks(page);
+  await page.evaluate(async () => { window.__lkOpen('lk-1'); await new Promise((r) => setTimeout(r, 300)); window.__lkWearToday(); await new Promise((r) => setTimeout(r, 400)); });
+  const m1 = lastMem();
+  check('memory · a wear lands as the newest entry, naming the look',
+    Array.isArray(m1) && m1[0]?.k === 'wear' && m1[0].look === 'The Thursday one' && m1[0].lookId === 'lk-1' && typeof m1[0].t === 'string' && m1[0].pieces >= 1,
+    JSON.stringify(m1 && m1[0]));
+  check('memory · the wear rides the profile the next generation reads',
+    await page.evaluate(() => (window.__robes_profile.style_dna.memory.entries[0] || {}).k) === 'wear');
+  await page.evaluate(async () => { window.__lkUndoToday(); await new Promise((r) => setTimeout(r, 400)); });
+  const m2 = lastMem();
+  check('memory · undoing the wear takes it out of the memory — the ledger stays clean',
+    Array.isArray(m2) && !m2.some((e) => e.k === 'wear' && e.lookId === 'lk-1'), JSON.stringify(m2));
+  // A verdict on a Robes build → her words, what it was about.
+  const before = memWrites().length;
+  const v = await page.evaluate(async () => {
+    window.__lkNew();
+    await new Promise((r) => setTimeout(r, 200));
+    document.querySelector('.rb-lk-robesdoor').click();
+    await new Promise((r) => setTimeout(r, 2200));
+    const inp = document.getElementById('rb-lk-newtitle');
+    const block = document.getElementById('lk-fb');
+    window.__rbFbRate('lk', 0);
+    window.__rbFbNote('lk', 'too polished for a Tuesday');
+    window.__rbFbSubmit('lk');
+    await new Promise((r) => setTimeout(r, 400));
+    return { block: !!block, title: inp?.value || '' };
+  });
+  const m3 = lastMem();
+  check('memory · a verdict on the composer’s Robes build lands with her words and what it was about',
+    v.block && memWrites().length > before && m3?.[0]?.k === 'verdict' && m3[0].v === 0 && m3[0].text === 'too polished for a Tuesday' && m3[0].on === v.title && m3[0].surface === 'look',
+    JSON.stringify([v, m3 && m3[0]]));
+  check('memory · the verdict still writes its feedback row',
+    writes.some((w) => w.method === 'POST' && /^feedback\b/.test(w.url) && w.body?.rating === 0), JSON.stringify(writes.filter((w) => /^feedback\b/.test(w.url)).map((w) => w.body?.note)));
+  // A swap in the composer → out / in / category on the memory AND the event.
+  const sw = await page.evaluate(async () => {
+    window.__lkNew();
+    window.__lkRowPick('r1', 'w-top1');
+    await new Promise((r) => setTimeout(r, 200));
+    const row = document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-name')?.textContent;
+    window.__lkCSwapApply(0, 'w-top2');
+    await new Promise((r) => setTimeout(r, 400));
+    return { before: row, after: document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-name')?.textContent };
+  });
+  const m4 = lastMem();
+  const ev = writes.filter((w) => w.method === 'POST' && /^events\b/.test(w.url) && w.body?.event_type === 'piece_swapped').pop();
+  check('memory · a composer swap lands as out → in with the category',
+    m4?.[0]?.k === 'swap' && m4[0].out === sw.before && m4[0].in === sw.after && m4[0].in === 'Ribbed white tank' && !!m4[0].cat && m4[0].surface === 'look-compose',
+    JSON.stringify([sw, m4 && m4[0]]));
+  check('memory · the piece_swapped event carries the same out / in / cat',
+    !!ev && ev.body?.metadata?.out === sw.before && ev.body?.metadata?.in === sw.after && !!ev.body?.metadata?.cat, JSON.stringify(ev && ev.body && ev.body.metadata));
+  // The cap: sixty stand, the sixty-first pushes the oldest out.
+  const cap = await page.evaluate(async () => {
+    window.__robes_profile.style_dna.memory.entries = Array.from({ length: 60 }, (_, i) => ({ t: '2026-01-01T00:00:00Z', k: 'wear', look: 'old ' + i, lookId: 'x' + i }));
+    await window.__rbMemoryPush({ k: 'verdict', v: 1, on: 'the newest' });
+    const e = window.__robes_profile.style_dna.memory.entries;
+    return { n: e.length, first: e[0].on, lastOld: e[e.length - 1].look };
+  });
+  check('memory · capped at sixty, newest first, the oldest dropped', cap.n === 60 && cap.first === 'the newest' && cap.lastOld === 'old 58', JSON.stringify(cap));
+  check('memory · every generation POST would carry it (styleDna no longer gates on a photo analysis)',
+    await page.evaluate(() => { const d = window.__robes_profile.style_dna; return !d.color_harmony && !d.silhouette_proportions && !!d.memory; }));
+  check('memory · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 

@@ -1107,6 +1107,27 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await page.waitForTimeout(2600);
   const br2 = await page.evaluate(() => document.querySelector('.dash-echo')?.textContent.replace(/\s+/g, ' ').trim());
   check('next line · a kept line in her brief retires the rule; the week rule returns', /^Nothing planned this week\./.test(br2 || ''), br2);
+  // The memory consolidates (slice B): twenty entries since the brief was
+  // last read → "noticed more" with its own door; a read stamps them consumed.
+  const mem = (n, readAt) => ({ brief: { loves: [{ text: 'A sharp shoulder', source: 'typed' }] }, memory: { v: 1, read_at: readAt || null, entries: Array.from({ length: n }, (_, i) => ({ t: '2026-09-2' + (i % 9) + 'T10:00:00Z', k: 'wear', look: 'x' + i })) } });
+  await page.evaluate((d) => localStorage.setItem('rb_test_dna', JSON.stringify(d)), mem(19));
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const br3 = await page.evaluate(() => document.querySelector('.dash-echo')?.textContent.replace(/\s+/g, ' ').trim());
+  check('next line · nineteen entries in the memory → not yet (the week rule)', /^Nothing planned this week\./.test(br3 || ''), br3);
+  await page.evaluate((d) => localStorage.setItem('rb_test_dna', JSON.stringify(d)), mem(20));
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const br4 = await page.evaluate(() => {
+    const echo = document.querySelector('.dash-echo');
+    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: echo?.querySelector('.rb-echo-door')?.textContent };
+  });
+  check('next line · twenty entries since the last read → "Robes has noticed more about how you dress." · Read it', /^Robes has noticed more about how you dress\./.test(br4.text || '') && br4.door === 'Read it →', JSON.stringify(br4));
+  await page.evaluate((d) => localStorage.setItem('rb_test_dna', JSON.stringify(d)), mem(20, '2026-09-30T00:00:00Z'));
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const br5 = await page.evaluate(() => document.querySelector('.dash-echo')?.textContent.replace(/\s+/g, ' ').trim());
+  check('next line · a read stamps the memory consumed; the rule stands down', /^Nothing planned this week\./.test(br5 || ''), br5);
   await page.evaluate(() => localStorage.removeItem('rb_test_dna'));
   await ctx.close();
 }

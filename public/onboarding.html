@@ -862,7 +862,7 @@
         body: JSON.stringify({
           prompt,
           photo: photo || null,
-          styleDna: (st.styleDna && (st.styleDna.color_harmony || st.styleDna.silhouette_proportions)) ? st.styleDna : null,
+          styleDna: (st.styleDna && typeof st.styleDna === 'object' && Object.keys(st.styleDna).length) ? st.styleDna : null,
           styleIcons: st.icons || [],
           wardrobeCount: 1,
           wardrobeItems: t.label ? [{ label: t.label, category: t.category || '', color: t.color || '', times_worn: 0 }] : [],

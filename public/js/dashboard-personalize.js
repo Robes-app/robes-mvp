@@ -18,9 +18,14 @@
         const ic = (window.__robes_profile || {}).style_icons;
         return Array.isArray(ic) && ic.length ? ic : [];
       };
+      // Sent on every generation POST. Used to gate on a photo analysis, which
+      // silently withheld her style type (2026-09-25), her brief (slice A) and
+      // the memory (slice B) from every prompt until a photograph was read —
+      // any key styleDnaPromptBlock reads is enough now.
+      const _RB_DNA_KEYS = ['color_harmony', 'silhouette_proportions', 'style_archetypes', 'style_archetypes_soft', 'user_overrides', 'brief', 'memory'];
       const _rbStyleDna = () => {
         const dna = (window.__robes_profile || {}).style_dna;
-        return dna && typeof dna === 'object' && (dna.color_harmony || dna.silhouette_proportions) ? dna : null;
+        return dna && typeof dna === 'object' && _RB_DNA_KEYS.some(k => dna[k]) ? dna : null;
       };
       // profiles.gender_identity (migration 13) — 'woman' is the default for
       // every signup AND the normalisation fallback, so a pre-migration
@@ -729,6 +734,60 @@
       }
       window._rbNotifyPrefs = _rbNotifyPrefs;
       window._rbNotifyPatch = _rbNotifyPatch;
+      // ── The memory (style memory, slice B · 2026-09-30) ─────────────────
+      // Every verdict, swap, wear and struck line lands as ONE entry on
+      // profiles.style_dna.memory — the same jsonb every generation already
+      // ships as `styleDna`, so styleDnaPromptBlock reads it on the very
+      // next call and the server never reads a memory keyed on the body's
+      // unverified userId. Newest first, capped at 60; writes serialise like
+      // the prefs so two beats can never replace each other's entries. The
+      // profile copy is updated optimistically so the next generation reads
+      // the entry before the PATCH lands.
+      var _RB_MEMORY_MAX = 60;
+      var _rbMemoryChain = Promise.resolve();
+      function _rbMemoryEntries() {
+        const dna = (window.__robes_profile || {}).style_dna;
+        const m = dna && typeof dna === 'object' ? dna.memory : null;
+        return m && typeof m === 'object' && Array.isArray(m.entries) ? m.entries : [];
+      }
+      function _rbMemoryWrite(mutate) {
+        const run = () => {
+          const uid = _waUid();
+          if (!uid || !_waToken()) return false;
+          const next = mutate(_rbMemoryEntries().slice());
+          if (!next) return false;
+          const prof = window.__robes_profile || (window.__robes_profile = {});
+          const dna = Object.assign({}, prof.style_dna && typeof prof.style_dna === 'object' ? prof.style_dna : {});
+          const cur = Object.assign({ v: 1 }, dna.memory && typeof dna.memory === 'object' ? dna.memory : {});
+          cur.entries = next.slice(0, _RB_MEMORY_MAX);
+          dna.memory = cur;
+          prof.style_dna = dna;
+          return _waFetch('PATCH', 'profiles?id=eq.' + uid, { style_dna: dna })
+            .then(() => true)
+            .catch((e) => { console.warn('[robes] memory write failed:', String(e && e.message || e).slice(0, 120)); return false; });
+        };
+        const p = _rbMemoryChain.then(run, run);
+        _rbMemoryChain = p.then(() => {}, () => {});
+        return p;
+      }
+      // entry: {k: verdict|swap|wear|strike, v, on, surface, text, out, in, cat, look, pieces}
+      function _rbMemoryPush(entry) {
+        if (!entry || typeof entry !== 'object' || !entry.k) return Promise.resolve(false);
+        const e = {};
+        Object.keys(entry).forEach(k => { const v = entry[k]; if (v !== undefined && v !== null && v !== '') e[k] = typeof v === 'string' ? v.trim().slice(0, 200) : v; });
+        e.t = new Date().toISOString();
+        return _rbMemoryWrite(list => [e].concat(list));
+      }
+      function _rbMemoryDrop(pred) {
+        return _rbMemoryWrite(list => { const n = list.filter(e => !pred(e)); return n.length === list.length ? null : n; });
+      }
+      // A swap is one line: what went out, what of hers came in, the category.
+      function _rbMemorySwap(surface, out, inLabel, cat) {
+        const o = String(out || '').trim(), i = String(inLabel || '').trim();
+        if (!o && !i) return;
+        _rbMemoryPush({ k: 'swap', surface, out: o, in: i, cat: String(cat || '').trim().toLowerCase() });
+      }
+      window.__rbMemoryPush = _rbMemoryPush;
       // Her timezone, written once when empty — the morning cue compares
       // against HER clock, and the server has no other way to learn it.
       (function _rbNotifyTzInit() {
@@ -7853,6 +7912,7 @@
               prompt: promptText || '',
               looksOutput: JSON.stringify({ surface: kpDaily ? 'daily-look' : 'key-piece', intent: kpIntent, context: kpCtx, way: i, title: w.title || '', ts: new Date().toISOString() }),
               note: note ? title + ' — ' + note : title,
+              on: title,
             };
           }, { key: data, track: kpDaily ? 'daily' : 'key-piece', itemId: () => _kpActiveSaveId });
         });
@@ -12071,6 +12131,8 @@
           }
         });
         _rbTrack('wear_confirmed', { source: w.source, pieces: w.piece_ids.length });
+        // A wear is memory too (slice B) — the look she reaches for.
+        _rbMemoryPush({ k: 'wear', look: String(l.name || '').slice(0, 120), lookId: String(l.id), on: date, pieces: w.piece_ids.length, surface: w.source });
         return w;
       }
       // Undo is a DELETE — the only correction path a wear has (B4).
@@ -12088,6 +12150,8 @@
           }
         });
         _rbTrack('wear_undone', {});
+        // Undo takes the wear out of the memory as well — the ledger stays clean.
+        _rbMemoryDrop(e => e.k === 'wear' && String(e.lookId) === String(l.id) && String(e.on) === String(date));
       }
 
       // ── Accrual (rule 03, rewritten 2026-08-17) ─────────────────────────
@@ -14631,6 +14695,7 @@ button.rb-lk-live{cursor:pointer}
           const kind = (_lkDraftSrc && _lkDraftSrc.kind) || 'robes';
           _rbFeedbackArm('lk', () => ({
             prompt: String(_lkNewTitleDraft || '').trim(),
+            on: String(_lkNewTitleDraft || '').trim(),
             looksOutput: JSON.stringify({ surface: 'composer', kind, headline: _lkNewTitleDraft || '', owned: _lkUsed().length, proposed: _lkShop.length, day: !!_lkDay, ts: new Date().toISOString() }),
           }), { key: _lkBuildSeq, track: kind === 'kp' ? 'key-piece' : kind === 'daily' ? 'daily' : 'look', itemId: () => (kind === 'kp' ? _kpActiveSaveId : null) });
           rackHtml += _rbFeedbackBlock('lk', { title: 'How was this look?' });
@@ -15765,6 +15830,12 @@ button.rb-lk-live{cursor:pointer}
       // its role), the proposal comes off the rack, the composition
       // persists. The per-row Swap (one gap, one piece) and slice 4's
       // briefed batch (every gap, one pass) both land here.
+      // The name a proposal row is currently showing — what a swap takes OUT.
+      function _lkPropName(p) {
+        if (!p) return '';
+        const o = Array.isArray(p.opts) ? p.opts[Math.max(0, Math.min(p.opts.length - 1, Number(p.oi) || 0))] : null;
+        return String((o && o.name) || p.name || p.chip || '').trim();
+      }
       function _lkPropAdopt(l, i, wi) {
         const row = l && Array.isArray(l.proposals) ? l.proposals[i] : null;
         if (!row || !wi) return false;
@@ -15784,10 +15855,12 @@ button.rb-lk-live{cursor:pointer}
         const wi = _waItems.find(w => String(w.id) === String(wid));
         if (!l || !wi) return;
         document.getElementById('rb-lkprop-swap')?.remove();
+        const out = _lkPropName(l.proposals && l.proposals[i]);
         if (!_lkPropAdopt(l, i, wi)) return;
         _lkPaint();
         _waShowToast(wi.label + ' takes its place ✓');
-        _rbTrack('piece_swapped', { surface: 'look-proposal' });
+        _rbTrack('piece_swapped', { surface: 'look-proposal', out, in: wi.label, cat: wi.category || '' });
+        _rbMemorySwap('look-proposal', out, wi.label, wi.category);
       };
 
       // ── Slice 4: the add flow takes a brief ─────────────────────────────
@@ -15826,10 +15899,12 @@ button.rb-lk-live{cursor:pointer}
         if (i < 0) return null;
         const chip = l.proposals[i].chip || '';
         const cats = (l.proposals[i].cats || []).slice();
+        const out = _lkPropName(l.proposals[i]);
         if (!_lkPropAdopt(l, i, row)) return null;
         const g = (brief.gaps || []).find(g => !g.done && ((g.chip && g.chip === chip) || g.cats.some(c => cats.indexOf(c) !== -1)));
         if (g) g.done = true;
-        _rbTrack('piece_swapped', { surface: 'look-fill' });
+        _rbTrack('piece_swapped', { surface: 'look-fill', out, in: row.label || '', cat: cat });
+        _rbMemorySwap('look-fill', out, row.label, cat);
         return l;
       }
       // The door: a saved look's rack head (every borrowed piece in one
@@ -15913,13 +15988,15 @@ button.rb-lk-live{cursor:pointer}
         const wi = _waItems.find(w => String(w.id) === String(wid));
         if (!row || !wi) return;
         document.getElementById('rb-kpshop-swap')?.remove();
+        const out = _lkPropName(row);
         _lkShop.splice(i, 1);
         _lkShopImgs.splice(i, 1);
         if (_lkPlaceQuiet(wi.id) && row.role) _lkNewRoles[String(wi.id)] = _rbRoleNorm(row.role) || null;
         if (_lkShop.length) _lkShopImages();
         _lkPaint();
         _waShowToast(wi.label + ' takes its place ✓');
-        _rbTrack('piece_swapped', { surface: 'kp-build', item: String(wid) });
+        _rbTrack('piece_swapped', { surface: 'kp-build', item: String(wid), out, in: wi.label, cat: wi.category || '' });
+        _rbMemorySwap('kp-build', out, wi.label, wi.category);
       };
       window.__kpShopSnap = function() {
         const i = _kpShopSwapIdx;
@@ -16464,6 +16541,12 @@ button.rb-lk-live{cursor:pointer}
           return { key: 'brief', text: 'Robes has noticed a few things about how you dress.',
             doorLabel: 'Read them', door: 'brief' };
         }
+        // The memory consolidates (slice B): twenty things told since the
+        // brief was last read → the read is offered again, never forced.
+        if (_rbBriefLines() > 0 && _rbMemoryUnread() >= _RB_MEMORY_FOLD) {
+          return { key: 'memory', text: 'Robes has noticed more about how you dress.',
+            doorLabel: 'Read it', door: 'brief' };
+        }
         if (_rbNextSlots && looks.length) {
           const today = _pdLocalISO();
           const ahead = _rbNextSlots.filter(sl => sl && sl.date >= today);
@@ -16580,6 +16663,16 @@ button.rb-lk-live{cursor:pointer}
         if (!b || typeof b !== 'object') return 0;
         const n = a => Array.isArray(a) ? a.filter(x => x && (typeof x === 'string' ? x.trim() : String(x.text || '').trim())).length : 0;
         return n(b.loves) + n(b.avoids) + n(b.rules) + ((typeof b.notes === 'string' && b.notes.trim()) ? 1 : 0);
+      }
+      // Entries that landed after the brief's last read (memory.read_at is
+      // stamped by the chapter's draft; none = everything is unread).
+      var _RB_MEMORY_FOLD = 20;
+      function _rbMemoryUnread() {
+        const prof = window.__robes_profile || {};
+        const m = prof.style_dna && prof.style_dna.memory;
+        if (!m || typeof m !== 'object' || !Array.isArray(m.entries)) return 0;
+        const since = typeof m.read_at === 'string' ? m.read_at : '';
+        return m.entries.filter(e => e && typeof e === 'object' && (!since || String(e.t || '') > since)).length;
       }
       function _rbWearsTotal() {
         return (_lkLooks || []).reduce((t, l) => t + ((l && Array.isArray(l.wears)) ? l.wears.length : 0), 0);
@@ -16784,10 +16877,12 @@ button.rb-lk-live{cursor:pointer}
         const row = _lkRowByIdx(idx);
         if (!row) return;
         document.getElementById('lk-swap-modal')?.remove();
+        const prev = _waItems.find(w => String(w.id) === String(row.piece));
         window.__lkRowPick(row.key, wardrobeId);
         const wi = _waItems.find(w => String(w.id) === String(wardrobeId));
         if (wi) _waShowToast(wi.label + ' swapped in');
-        _rbTrack('piece_swapped', { surface: 'look-compose', item: String(wardrobeId) });
+        _rbTrack('piece_swapped', { surface: 'look-compose', item: String(wardrobeId), out: prev ? prev.label : '', in: wi ? wi.label : '', cat: (wi && wi.category) || '' });
+        if (wi && prev && String(prev.id) !== String(wi.id)) _rbMemorySwap('look-compose', prev.label, wi.label, wi.category);
       };
       window.__lkCSnapMine = function() {
         // Post-add hook: the piece she's about to snap lands in the row the
@@ -17528,6 +17623,8 @@ button.rb-lk-live{cursor:pointer}
         // prefixes the way's title so a rating without words still says
         // which of the three it was about).
         _rbFbCloud(track, itemId != null ? itemId : null, st.rating, typeof p.note === 'string' ? p.note : comment);
+        // The verdict is memory (slice B): what it was about, her words.
+        _rbMemoryPush({ k: 'verdict', v: st.rating, surface: track, on: String(p.on || p.prompt || '').slice(0, 120), text: comment });
         st.sent = true;
         _rbFbRepaint(prefix);
       };
@@ -18863,6 +18960,7 @@ button.rb-lk-live{cursor:pointer}
 
         _rbFeedbackArm('dl', () => ({
           prompt: promptText || '',
+          on: data.headline || data.occasion_label || promptText || '',
           looksOutput: JSON.stringify({ surface: 'daily-look', origin: data.origin || '', occasion: data.occasion_label || '', headline: data.headline || '', owned, total, context: ctx, ts: new Date().toISOString() }),
         }), { key: data, track: 'daily', itemId: () => _dlActiveSaveId });
       };
@@ -19479,10 +19577,11 @@ button.rb-lk-live{cursor:pointer}
       window.__dlWishSync = function() { try { _dlRerender(); } catch (_) {} };
 
       window.__dlSwapApply = function(idx, wardrobeId) {
-        _rbTrack('piece_swapped', { surface: 'daily', item: String(wardrobeId) });
         const wi = _waItems.find(i => i.id === wardrobeId);
         const item = window.__dlCurrentItems && window.__dlCurrentItems[idx];
+        _rbTrack('piece_swapped', { surface: 'daily', item: String(wardrobeId), out: (item && item.name) || '', in: wi ? wi.label : '', cat: (item && item.category) || (wi && wi.category) || '' });
         if (!wi || !item || !window.__lastDlData) return;
+        if (String(item.name || '') !== String(wi.label)) _rbMemorySwap('daily', item.name, wi.label, item.category || wi.category);
         item.wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
         item.name = wi.label;
         item.brand = wi.brand || '';
@@ -21849,6 +21948,7 @@ body>*:not(#tv-result-page){display:none !important}
 
         _rbFeedbackArm('tv', () => ({
           prompt: [data.destination, data.dateLine, data.brief].filter(Boolean).join(' · '),
+          on: 'the trip to ' + (data.destination || 'somewhere'),
           looksOutput: JSON.stringify({ surface: 'travel-edit', destination: data.destination || '', trip_label: data.trip_label || '', owned: data.capsule.filter(c => c.wardrobe_match).length, total, packed: data.capsule.filter(c => c.packed).length, looks: lookCount, pinned: data.looks.filter(l => (l.pins || []).length).length, ts: new Date().toISOString() }),
         }), { key: data, track: 'travel', itemId: () => _tvActiveSaveId });
       };
@@ -22470,7 +22570,14 @@ body>*:not(#tv-result-page){display:none !important}
           (l.pins || []).forEach(di => { if (l.overrides && l.overrides[di]) delete l.overrides[di][ctx.fi]; });
           _waShowToast(label + ' — swapped across ' + ((l.pins || []).length > 1 ? 'all ' + l.pins.length + ' pinned days' : 'the look'));
         }
-        _rbTrack('piece_swapped', { surface: ctx.di != null && ctx.scope === 'day' ? 'travel-day' : 'travel-look', item: String(ci2) });
+        {
+          const surf = ctx.di != null && ctx.scope === 'day' ? 'travel-day' : 'travel-look';
+          const prevCi = ctx.addIdx != null ? null : _tvEffCi(l, ctx.fi, ctx.di);
+          const prev = Number.isInteger(prevCi) && prevCi !== ci2 ? data.capsule[prevCi] : null;
+          const out = prev ? String(prev.name || '') : '';
+          _rbTrack('piece_swapped', { surface: surf, item: String(ci2), out, in: label || '', cat: (data.capsule[ci2] && data.capsule[ci2].category) || '' });
+          if (out) _rbMemorySwap(surf, out, label, data.capsule[ci2].category);
+        }
         document.getElementById('tv-swap-modal')?.remove();
         _tvSwapCtx = null;
         const savedId = _tvActiveSaveId;
@@ -22536,10 +22643,11 @@ body>*:not(#tv-result-page){display:none !important}
       };
 
       window.__tvSwapApply = function(idx, wardrobeId) {
-        _rbTrack('piece_swapped', { surface: 'travel', item: String(wardrobeId) });
         const wi = _waItems.find(i => i.id === wardrobeId);
         const item = window.__lastTvData && window.__lastTvData.capsule[idx];
+        _rbTrack('piece_swapped', { surface: 'travel', item: String(wardrobeId), out: (item && item.name) || '', in: wi ? wi.label : '', cat: (item && item.category) || (wi && wi.category) || '' });
         if (!wi || !item) return;
+        if (String(item.name || '') !== String(wi.label)) _rbMemorySwap('travel', item.name, wi.label, item.category || wi.category);
         item.wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
         item.name = wi.label;
         item.brand = wi.brand || '';
@@ -24923,9 +25031,11 @@ body>*:not(#tv-result-page){display:none !important}
       };
 
       window.__mbSwapApply = function(lookIdx, wardrobeId) {
-        _rbTrack('piece_swapped', { surface: 'moodboard', item: String(wardrobeId) });
         const wi = _waItems.find(i => i.id === wardrobeId);
-        if (!wi || !window.__mbCurrentLook?.[lookIdx]) return;
+        const cur = window.__mbCurrentLook?.[lookIdx];
+        _rbTrack('piece_swapped', { surface: 'moodboard', item: String(wardrobeId), out: (cur && cur.name) || '', in: wi ? wi.label : '', cat: (cur && cur.category) || (wi && wi.category) || '' });
+        if (!wi || !cur) return;
+        if (String(cur.name || '') !== String(wi.label)) _rbMemorySwap('moodboard', cur.name, wi.label, cur.category || wi.category);
         window.__mbCurrentLook[lookIdx].wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
         document.getElementById('mb-swap-modal')?.remove();
         _mbCommitLook();

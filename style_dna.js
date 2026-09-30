@@ -582,6 +582,63 @@ function styleBriefLines(b) {
   out.push('A rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.');
   return out;
 }
+// The memory (style_dna.memory, slice B 2026-09-30): {entries: [...], v: 1},
+// newest first, capped at MEMORY_MAX. An entry is one thing she told Robes
+// through the app — {t (ISO), k: verdict|swap|wear|strike, v (1 loved / 0
+// not quite, verdicts only), on (what it was about), surface, text (her
+// words), out / in / cat (a swap's pieces + category), look, pieces (a
+// wear's count), folded (a swap already summarised by the fold)}.
+export const MEMORY_MAX = 60;
+const MEMORY_LINES_MAX = 12;
+const MEMORY_KINDS = ['verdict', 'swap', 'wear', 'strike'];
+const memStr = (v, n) => typeof v === 'string' && v.trim() ? v.trim().replace(/\s+/g, ' ').slice(0, n) : '';
+export function memoryEntries(m) {
+  const a = m && typeof m === 'object' && Array.isArray(m.entries) ? m.entries : (Array.isArray(m) ? m : []);
+  return a.filter(e => e && typeof e === 'object' && MEMORY_KINDS.includes(e.k))
+    .slice(0, MEMORY_MAX);
+}
+// What she has told Robes lately, read as a pattern: verdicts and strikes
+// first (they carry her words), then swaps (a category swapped out three
+// times folds to one line), then wears. Never more than twelve lines — the
+// memory steers the next look, it is not a transcript.
+function memoryLines(m) {
+  const all = memoryEntries(m);
+  if (!all.length) return [];
+  const verdicts = all.filter(e => e.k === 'verdict' || e.k === 'strike');
+  const swaps = all.filter(e => e.k === 'swap' && !e.folded);
+  const wears = all.filter(e => e.k === 'wear');
+  const out = [];
+  verdicts.forEach(e => {
+    if (e.k === 'strike') { const t = memStr(e.text, 160); if (t) out.push(`Struck from her brief (Robes had it wrong): "${t}".`); return; }
+    const on = memStr(e.on, 90) || memStr(e.look, 90);
+    const t = memStr(e.text, 200);
+    const verdict = e.v === 1 ? 'Loved' : e.v === 0 ? 'Not quite' : '';
+    if (!verdict && !t) return;
+    out.push(`${verdict || 'Said'}${on ? ` — ${on}` : ''}${t ? `: "${t}"` : '.'}`);
+  });
+  // Swaps: three or more of one category read as a pattern, not three events.
+  const byCat = {};
+  swaps.forEach(e => { const c = memStr(e.cat, 40).toLowerCase(); if (c) byCat[c] = (byCat[c] || 0) + 1; });
+  const folded = new Set(Object.keys(byCat).filter(c => byCat[c] >= 3));
+  folded.forEach(c => out.push(`Has swapped out ${c} ${byCat[c] === 3 ? 'three' : byCat[c] === 4 ? 'four' : byCat[c]} times — read that as a rule, not a coincidence.`));
+  swaps.forEach(e => {
+    const c = memStr(e.cat, 40).toLowerCase();
+    if (c && folded.has(c)) return;
+    const o = memStr(e.out, 90), i = memStr(e.in, 90);
+    if (!o && !i) return;
+    out.push(`Swapped ${o ? `out ${o}` : 'a piece'}${i ? ` for her ${i}` : ''}${c ? ` (${c})` : ''}.`);
+  });
+  wears.slice(0, 4).forEach(e => {
+    const l = memStr(e.look, 90);
+    if (l) out.push(`Wore "${l}"${e.pieces ? ` (${e.pieces} pieces)` : ''} — a look she reaches for.`);
+  });
+  if (!out.length) return [];
+  return [
+    'WHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):',
+    ...out.slice(0, MEMORY_LINES_MAX),
+    'A piece she has swapped out twice is not proposed again unless she names it; a move she called "not quite" is not repeated in another colour.',
+  ];
+}
 // user_overrides merged with the brief's colours — the brief is the door
 // the override slots never had.
 function briefOverrides(dna) {
@@ -626,13 +683,17 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   const arch = strs(dna.style_archetypes);
   const soft = strs(dna.style_archetypes_soft).filter(s => !arch.includes(s));
   const briefLines = styleBriefLines(dna.brief);
-  if (!ch && !sp && !icons.length && !arch.length && !soft.length && !briefLines.length) return '';
+  const memLines = memoryLines(dna.memory);
+  if (!ch && !sp && !icons.length && !arch.length && !soft.length && !briefLines.length && !memLines.length) return '';
   const lines = [];
   // Her brief, in her own words (the In-your-words chapter, 2026-09-30):
   // rendered FIRST and said to outrank every rule beneath it — a line she
   // wrote or kept beats a rule a photograph produced. Empty when she has
   // kept nothing yet.
   if (briefLines.length) lines.push(...briefLines);
+  // What she told Robes lately (the memory, slice B): beneath her brief,
+  // above every rule a photograph produced.
+  if (memLines.length) lines.push(...memLines);
   // Her style type steers taste the way the icons do — a register, never a
   // constraint on colour or line.
   if (arch.length || soft.length) {

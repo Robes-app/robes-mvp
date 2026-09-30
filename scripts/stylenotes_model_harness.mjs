@@ -583,6 +583,9 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   await p.locator('#snb-drafted .snb-card').first().locator('button[data-v="strike"]').click(); await p.waitForTimeout(150);
   up = await p.evaluate(() => window.__updates.slice(-1)[0]);
   ok(up.style_dna.brief.struck[0] === 'An open neckline does the work' && up.style_dna.brief.loves.length === 1, 'Strike records the struck line and keeps nothing');
+  // slice B: the strike is memory too, written by this page itself
+  ok(up.style_dna.memory && up.style_dna.memory.entries[0] && up.style_dna.memory.entries[0].k === 'strike' && up.style_dna.memory.entries[0].text === 'An open neckline does the work' && !!up.style_dna.memory.entries[0].t, 'the strike lands on style_dna.memory as its newest entry');
+  ok(typeof up.style_dna.memory.read_at === 'string', 'the draft stamped memory.read_at — home’s "noticed more" line counts from here');
   // Edit
   const av = p.locator('#snb-drafted .snb-card[data-list="avoids"]').first();
   await av.locator('button[data-v="edit"]').click(); await p.waitForTimeout(100);
