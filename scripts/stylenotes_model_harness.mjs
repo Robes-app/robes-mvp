@@ -653,6 +653,9 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok(await c.p.locator('#sn-ch-wrap').isHidden(), 'the plain page opens no chapter');
   await c.p.locator('#sn-avatar').click(); await c.p.waitForTimeout(150);
   ok((await c.p.locator('#sn-av-brief').innerText()).trim() === 'In your words', 'the avatar menu carries In your words');
+  const items = (await c.p.locator('#sn-av-menu .sn-av-item').allInnerTexts()).map(t => t.trim());
+  ok(items.join(' · ') === 'Account details · Style notes · Taste & budget · In your words · Log out', 'the menu mirrors the dashboard’s — no Dashboard / Wardrobe / Lookbook rows: ' + items.join(' · '));
+  ok(!/Founding Stylist/i.test(await c.p.locator('#sn-av-menu').innerText()), 'and no Founding Stylist label');
   await c.p.locator('#sn-av-brief').click(); await c.p.waitForTimeout(500);
   ok(await c.p.locator('#sn-ch-wrap').isVisible() && c.briefPosts.length === 1, 'it opens the brief chapter and drafts');
   ok(c.errs.length === 0, 'no page errors');

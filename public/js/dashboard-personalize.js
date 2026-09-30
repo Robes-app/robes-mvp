@@ -119,6 +119,16 @@
         </div>`;
       document.body.appendChild(acctModal);
       acctModal.addEventListener('click', (e) => { if (e.target === acctModal) acctModal.style.display = 'none'; });
+      // /dashboard?account=1 — the Style notes menu's Account details door
+      // (the modal lives here; stripped so a reload never reopens it).
+      try {
+        const u = new URL(window.location.href);
+        if (u.searchParams.get('account') === '1') {
+          u.searchParams.delete('account');
+          history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);
+          setTimeout(() => { if (window.__rbAcctEmailsSync) window.__rbAcctEmailsSync(); acctModal.style.display = 'flex'; }, 400);
+        }
+      } catch (_) {}
 
       // The Emails switches read the profile's prefs on every open (the
       // styled card's ask may have flipped them since boot). Missing keys
