@@ -1417,7 +1417,7 @@ ${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}`;
   }
 });
 
-/* ── the brief, drafted (In your words — the fourth Style notes chapter, 2026-09-30) ──
+// ── the brief, drafted (In your words — the fourth Style notes chapter, 2026-09-30) ──
 // Xue's steps 2 + 3 as one call: read the evidence through the eight
 // lenses, find the patterns, and hand back LINES SHE CAN KEEP OR STRIKE —
 // never a line without evidence, never a conclusion about her stated as a
@@ -1474,7 +1474,7 @@ app.post('/api/stylenotes/brief', rateLimit({ windowMs: 60_000, max: 10 }), asyn
 ${BRIEF_LENSES}
 WHAT TO RETURN:
 - "loves": what works on her — 1 to 6 lines. "avoids": what does not — 0 to 5 lines. "rules": hard rules she seems to live by or should — 0 to 4 lines ("No more button-ups — six is plenty", "Loafers only with a cropped trouser"). Each line ≤ 14 words, written in the SECOND PERSON as an observation she can accept or strike ("You reach for a defined waist"), never a command.
-- Every line carries "because": the evidence in one clause, naming her actual pieces or wears ("your three most-worn tops all have an open neckline"). A line you cannot trace to evidence is not written.
+- Every line carries "because": the evidence in ONE clause of at most 20 words, naming her actual pieces or wears ("your three most-worn tops all have an open neckline"). A line you cannot trace to evidence is not written.
 - "notes": 30–60 words, second person, the one paragraph that says how she dresses well — the pattern under the lines. Warm, direct, no flattery. Empty string when the evidence is thin.
 - "colours": "loved" = colours her most-worn pieces share (plain colour words, ≤ 4); "rejected" = colours she owns but never wears, only when the pattern is clear (≤ 3). Empty arrays otherwise.
 - The uncomfortable finding is the useful one: if what she wears most contradicts what she claims to like, say so plainly and kindly. Most-worn beats most-owned; a piece she marked irreplaceable or a hero outranks one she never wears.
@@ -1490,20 +1490,59 @@ ${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}`;
     'Find the patterns. What actually works, what fails, and why. Draft the lines.',
   ].filter(Boolean).join('\n\n');
 
-  try {
-    const t0 = Date.now();
-    const r = await ai.models.generateContent({
+  // A 73-piece wardrobe writes every line the schema allows, each with an
+  // evidence clause — 1600 tokens cut the JSON mid-object and the parse
+  // threw (the analyse endpoint's truncation class). The budget now fits a
+  // full read; a cut answer (MAX_TOKENS, or a parse failure) is retried
+  // ONCE on a compact evidence set — heroes and the most-worn pieces —
+  // rather than surfacing as "couldn't read". Every attempt races 75s.
+  const compactUser = () => {
+    const ranked = pieces.slice().sort((a, b) => (b.hero ? 1 : 0) - (a.hero ? 1 : 0) || (Number(b.times_worn) || 0) - (Number(a.times_worn) || 0)).slice(0, 36);
+    return [
+      `HER WARDROBE (${ranked.length} of ${pieces.length} pieces — her heroes and most-worn):\n${ranked.map(pieceLine).join('\n')}`,
+      lookList.length ? `HER LOOKS:\n${lookList.slice(0, 15).map(lookLine).join('\n')}` : '',
+      mem.length ? `WHAT SHE HAS TOLD ROBES (newest first):\n${mem.slice(0, 20).map(m => '- ' + m).join('\n')}` : '',
+      curLines.length ? `ALREADY IN HER BRIEF (never repeat these):\n${curLines.map(m => '- ' + m).join('\n')}` : '',
+      'Find the patterns. What actually works, what fails, and why. Draft the lines — keep every "because" short.',
+    ].filter(Boolean).join('\n\n');
+  };
+  const attempt = (text, budget) => Promise.race([
+    ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      contents: [{ role: 'user', parts: [{ text }] }],
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
         responseSchema: BRIEF_SCHEMA,
         thinkingConfig: { thinkingBudget: 0 },
-        maxOutputTokens: 1600,
+        maxOutputTokens: budget,
       },
-    });
-    const parsed = deEscDeep(JSON.parse(r.text));
+    }),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 75_000)),
+  ]);
+  const readAttempt = async (text, budget) => {
+    const r = await attempt(text, budget);
+    const finishReason = r.candidates?.[0]?.finishReason;
+    const raw = String(r.text || '');
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      console.error('[stylenotes/brief] JSON parse failed —', { finishReason, textLength: raw.length, tail: raw.slice(-120) });
+      throw new Error('truncated_response:' + (finishReason || 'unknown'));
+    }
+  };
+
+  try {
+    const t0 = Date.now();
+    let raw;
+    try {
+      raw = await readAttempt(userText, 3200);
+    } catch (e1) {
+      if (!/truncated_response|timeout/.test(String(e1 && e1.message))) throw e1;
+      console.warn('[stylenotes/brief] first read failed (' + e1.message + ') — retrying on the compact evidence set');
+      raw = await readAttempt(compactUser(), 4000);
+    }
+    const parsed = deEscDeep(raw);
     const seen = new Set(curLines.map(x => x.toLowerCase()));
     const fresh = a => a.filter(x => { const k = x.text.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
     const colour = a => (Array.isArray(a) ? a : []).map(x => briefStr(x, 24)).filter(Boolean).slice(0, 4);
@@ -1519,9 +1558,9 @@ ${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}`;
     logAI({ feature: 'stylenotes', stage: 'brief', model: 'gemini-2.5-flash', ms: Date.now() - t0, pieces: pieces.length, lines: out.loves.length + out.avoids.length + out.rules.length });
     res.json(out);
   } catch (err) {
-    logAI({ feature: 'stylenotes', stage: 'brief', success: false, reason: err.message });
+    logAI({ feature: 'stylenotes', stage: 'brief', success: false, reason: err.message, pieces: pieces.length });
     console.error('[stylenotes/brief] Gemini error:', err.message);
-    res.status(500).json({ error: 'brief_failed' });
+    res.status(err.message === 'timeout' ? 504 : 500).json({ error: 'brief_failed', reason: String(err.message || '').slice(0, 200) });
   }
 });
 

@@ -2412,7 +2412,11 @@
             wardrobe: ev.wardrobe, looks: ev.looks, memory: ev.memory,
           }),
         });
-        if (!res.ok) throw new Error('brief_failed');
+        if (!res.ok) {
+          let reason = ''; try { reason = (await res.json()).reason || ''; } catch (e) {}
+          console.warn('[stylenotes/brief] failed', res.status, reason);
+          throw new Error('brief_failed');
+        }
         const d = await res.json();
         const struck = new Set(b.struck.map(x => String(x).toLowerCase()));
         // a kept line, and the drafted line an edited one came from, never return

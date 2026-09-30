@@ -258,6 +258,14 @@ try {
   check('server · a bad token 400s without touching anything', bad.status === 400);
   const oneClick = await fetch(BASE + '/api/notify/unsub?t=' + encodeURIComponent(notifier.unsubToken('aaaaaaaa-0000-4000-8000-000000000006', 'nudges')), { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'List-Unsubscribe=One-Click' });
   check('server · one-click POST unsubscribes too', oneClick.status === 200 && db.profiles[5].notification_prefs.nudges === false);
+  // Route-mount pins: every generation route the page harnesses STUB must
+  // actually exist on the real server. The brief shipped inside an
+  // unclosed /* header (2026-09-30) — node --check passed, the stubbed
+  // harness passed, and the live page got a 404 ("couldn't read").
+  for (const route of ['/api/stylenotes/brief', '/api/lookbuild/note', '/api/alternates', '/api/intent', '/api/daily', '/api/style']) {
+    const r = await fetch(BASE + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    check('server · ' + route + ' is mounted (never a 404)', r.status !== 404, String(r.status));
+  }
   const tickR = await (await fetch(BASE + '/api/notify/tick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ now: '2026-09-23T06:30:00Z' }) })).json();
   check('server · the debug tick door runs a tick at the given instant', tickR && Array.isArray(tickR.sent) && !tickR.error, JSON.stringify(tickR).slice(0, 200));
 } catch (e) {
