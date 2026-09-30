@@ -86,12 +86,22 @@ await page.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => {
 });
 await page.route('**nominatim**', (r) => r.abort());
 await page.route('**open-meteo**', (r) => r.abort());
-let styleCalls = 0; let dailyCalls = 0; let dailyBodies = [];
+let styleCalls = 0; let dailyCalls = 0; let dailyBodies = []; const refineBodies = [];
+const REFINED_WAY = { eyebrow: 'Evening athletic', title: 'Coffee Run, after dark', outfit: 'Umbro shorts, a black silk shirt.', details: 'Buttoned to the collar.', accessories: 'Black loafers, one cuff.',
+  pieces: [{ name: 'Black silk shirt', category: 'Tops', color: 'black', color_hex: '#1A1A1A', role: 'The Canvas', wardrobe_match: null, brand: 'COS', retailer_hint: 'COS', price_point: '€120' }] };
 await page.route('**/api/style', async (r) => {
+  let body = null; try { body = r.request().postDataJSON(); } catch (_) {}
+  // Slice C: a refine ask answers ONE way at its index + one frame at that slot
+  if (body && body.refine) {
+    refineBodies.push(body);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ way: REFINED_WAY, wayIndex: body.wayIndex, ways: [REFINED_WAY], jobId: 'rf1', photoUrl: STYLE_RESP.photoUrl, fallback: false }) });
+  }
   styleCalls++;
   await new Promise((res) => setTimeout(res, 1200)); // let the scan state show
   r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(STYLE_RESP) });
 });
+await page.route('**/api/images/rf1', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [null, 'https://res.cloudinary.com/demo/way2b.jpg', null], done: true }) }));
+await page.route('**res.cloudinary.com/demo/piece.jpg', (r) => r.abort());
 await page.route('**/api/daily', async (r) => {
   dailyCalls++;
   try { dailyBodies.push(r.request().postDataJSON()); } catch (_) { dailyBodies.push(null); }
@@ -514,6 +524,55 @@ check('piece by piece · a way saved without pieces reads its prose (outfit / de
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
 check('piece by piece · Escape closes the sheet', (await page.locator('#kp-sheet').count()) === 0);
+// Style it another way (slice C): the sheet's quiet door on an UNBUILT way
+// only; the ask re-writes that one way, the other two untouched.
+await page.evaluate(() => window.__kpCardTap(0));
+await page.waitForTimeout(400);
+const quiet0 = await page.locator('#kp-sheet .kp-sheet-quiet').count();
+await page.evaluate(() => window.__kpSheetClose('kp-sheet'));
+await page.waitForTimeout(300);
+await page.evaluate(() => window.__kpCardTap(1));
+await page.waitForTimeout(400);
+const askKp = await page.evaluate(async () => {
+  const q = document.querySelector('#kp-sheet .kp-sheet-quiet');
+  const out = { door: q?.textContent.trim() };
+  q?.click();
+  await new Promise((r) => setTimeout(r, 200));
+  const a = document.getElementById('rb-ask');
+  out.sheetGone = !document.querySelector('#kp-sheet.on');
+  out.open = !!a; out.ey = a?.querySelector('.rs-ey')?.textContent; out.chips = Array.from(a?.querySelectorAll('.rs-chip') || []).map((b) => b.textContent);
+  out.note = a?.querySelector('.rs-note')?.textContent;
+  out.ink = Array.from(a?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length;
+  return out;
+});
+check('style another way · the door stands on an unbuilt way alone (a built way keeps its look), and opens the ask sheet named for that way — its chips, "The other two looks stay.", one ink',
+  quiet0 === 0 && askKp.door === 'Style it another way →' && askKp.sheetGone && askKp.open && askKp.ey === 'Coffee Run'
+    && JSON.stringify(askKp.chips) === JSON.stringify(['Dressier', 'Easier', 'Colder day', 'For the evening']) && askKp.note === 'The other two looks stay.' && askKp.ink === 1, JSON.stringify([quiet0, askKp]));
+const lbBefore = writes.filter((w) => w.method === 'PATCH' && /^lookbook_items/.test(w.url)).length;
+const styleCallsBefore = styleCalls;
+const refined = await page.evaluate(async () => {
+  Array.from(document.querySelectorAll('#rb-ask .rs-chip')).find((b) => b.textContent === 'For the evening')?.click();
+  await new Promise((r) => setTimeout(r, 80));
+  document.querySelector('#rb-ask .rs-cta')?.click();
+  await new Promise((r) => setTimeout(r, 6500));
+  const d = window.__lastKpData;
+  return {
+    titles: d.ways.map((w) => w.title), imgs: d.generatedImages, built0: d.builtLooks && d.builtLooks[0] != null,
+    card1: document.querySelectorAll('#kp-ways .kp-look-card')[1]?.querySelector('.kp-look-title, .t, h3')?.textContent || document.querySelectorAll('#kp-ways .kp-look-card')[1]?.textContent,
+    cards: document.querySelectorAll('#kp-ways .kp-look-card').length, ask: !!document.getElementById('rb-ask'),
+  };
+});
+const rb = refineBodies[0] || {};
+check('style another way · /api/style takes refine + wayIndex + the way as it stands (its title, the other two titles), never a fresh three-way ask',
+  refineBodies.length === 1 && rb.refine === 'For the evening' && rb.wayIndex === 1 && rb.current?.title === 'Coffee Run'
+    && JSON.stringify(rb.current?.others) === JSON.stringify(['Urbane Weekend', 'Park Hangout']) && styleCalls === styleCallsBefore, JSON.stringify([rb.refine, rb.wayIndex, rb.current, styleCalls]));
+check('style another way · ONE way is re-written on the same page — 02 reads the new title and its fresh frame, 01 and 03 keep their titles and frames, the built way keeps its look',
+  !refined.ask && refined.cards === 3 && JSON.stringify(refined.titles) === JSON.stringify(['Urbane Weekend', 'Coffee Run, after dark', 'Park Hangout'])
+    && refined.imgs[0] === 'https://res.cloudinary.com/demo/way1.jpg' && refined.imgs[1] === 'https://res.cloudinary.com/demo/way2b.jpg' && refined.imgs[2] === 'https://res.cloudinary.com/demo/way3.jpg'
+    && refined.built0 === true && /Coffee Run, after dark/.test(refined.card1 || ''), JSON.stringify(refined));
+const lbPatch = writes.filter((w) => w.method === 'PATCH' && /^lookbook_items/.test(w.url)).slice(lbBefore).find((w) => /Coffee Run, after dark/.test(JSON.stringify(w.body || {})));
+check('style another way · the saved key piece is patched with the re-written way, not a new entry',
+  !!lbPatch && !writes.some((w) => w.method === 'POST' && /^lookbook_items/.test(w.url) && /Coffee Run, after dark/.test(JSON.stringify(w.body || {}))), JSON.stringify(lbPatch?.body?.data?.kpData?.ways?.map((w) => w.title)));
 // The thumbs.
 const fbBefore = writes.filter((w) => w.url === 'feedback').length;
 await page.locator('#kp1-fb-dn').click();
@@ -530,7 +589,7 @@ const fbPicked = await page.evaluate(() => ({
   othersStill: !document.getElementById('kp0-fb-dn')?.classList.contains('on') && !document.getElementById('kp2-fb-dn')?.classList.contains('on'),
 }));
 check('feedback · thumbs down: the circle takes the warm fill and the sheet opens — the way’s title, "Not quite right.", the note focused, Send a hairline pill; the other two looks untouched',
-  fbPicked.on && fbPicked.onBg === 'rgb(243, 239, 230)' && fbPicked.offOther && fbPicked.sheet && fbPicked.ey === 'Coffee Run' && fbPicked.heading === 'Not quite right.'
+  fbPicked.on && fbPicked.onBg === 'rgb(243, 239, 230)' && fbPicked.offOther && fbPicked.sheet && fbPicked.ey === 'Coffee Run, after dark' && fbPicked.heading === 'Not quite right.'
     && fbPicked.sub === 'Your taste shapes what comes next.' && fbPicked.input === 'What would have made it better?' && fbPicked.focused === 'kp1-fb-text'
     && fbPicked.send === 'Send' && fbPicked.sendBg === 'rgb(255, 255, 255)' && fbPicked.othersStill, JSON.stringify(fbPicked));
 await page.evaluate(() => window.__kpFb(1, 1));
@@ -552,7 +611,7 @@ check('feedback · sent reads "Noted. The next ones will lean that way."; the th
   fbSent.line === 'Noted. The next ones will lean that way.' && fbSent.upOn && fbSent.others, JSON.stringify(fbSent));
 check('feedback · ONE feedback row, at look level: the way’s title leads the note, the kp entry is the item',
   fbRows.length === 1 && fbRows[0].body.track === 'key-piece' && fbRows[0].body.rating === 1
-    && fbRows[0].body.note === 'Coffee Run — more of the olive' && fbRows[0].body.lookbook_item_id != null, JSON.stringify(fbRows));
+    && fbRows[0].body.note === 'Coffee Run, after dark — more of the olive' && fbRows[0].body.lookbook_item_id != null, JSON.stringify(fbRows));
 await page.waitForTimeout(1600);
 check('feedback · the sheet closes itself after the note', (await page.locator('#kp-fbsheet').count()) === 0);
 // A reopen of the same result keeps the verdict (state keyed on the data).

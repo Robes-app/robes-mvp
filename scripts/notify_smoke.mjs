@@ -262,7 +262,7 @@ try {
   // actually exist on the real server. The brief shipped inside an
   // unclosed /* header (2026-09-30) — node --check passed, the stubbed
   // harness passed, and the live page got a 404 ("couldn't read").
-  for (const route of ['/api/stylenotes/brief', '/api/lookbuild/note', '/api/alternates', '/api/intent', '/api/daily', '/api/style']) {
+  for (const route of ['/api/stylenotes/brief', '/api/lookbuild/note', '/api/alternates', '/api/intent', '/api/daily', '/api/style', '/api/look/refine']) {
     const r = await fetch(BASE + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
     check('server · ' + route + ' is mounted (never a 404)', r.status !== 404, String(r.status));
   }

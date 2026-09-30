@@ -399,7 +399,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     JSON.stringify([tripInMonth, month.trips, month.cap]));
   // The dot rule the home strip shares: one per look (three at most), rose up to today, ink ahead
   check('month · a filed day carries one dot per look — rose up to today, ink for a day still ahead',
-    month.dots.length >= 2 && month.dots.some((d) => /^\d:0$/.test(d)) && month.dots.some((d) => /^(\d):\1$/.test(d)), JSON.stringify(month.dots));
+    month.dots.length >= 2 && month.dots.some((d) => /^\d:0$/.test(d)) && (!tripInMonth || month.dots.some((d) => /^(\d):\1$/.test(d))), JSON.stringify([tripInMonth, month.dots]));   // the ahead-dot only when a fixture day still ahead falls in this month (the fixture runs 2 days out — a month end moves it out of the grid)
   // ‹ › are the MONTH's (Annie, 2026-09-10): the list scrolls a rolling
   // window, so paging only exists where it means something.
   check('month · the month names itself and ‹ › page it — the pair the list does not carry',
@@ -614,13 +614,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     window.__rbDayOpen(d, { from: 'diary' }); await new Promise((r2) => setTimeout(r2, 600));
     document.querySelector('#dl-result-page .dyp-door')?.click();
     await new Promise((r2) => setTimeout(r2, 400));
-    const rs = document.getElementById('rb-mv-robes');
+    const rs = document.getElementById('rb-ask');
     const wd = new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' });
     r.sheet = !!rs;
     r.ey = rs?.querySelector('.rs-ey')?.textContent || null;
     r.chips = Array.from(rs?.querySelectorAll('.rs-chip') || []).map((b) => b.textContent);
     r.chipOn = rs?.querySelector('.rs-chip.on')?.textContent || null;   // "Lunch out" is a chip — it lights, the input stays empty
-    r.input = rs?.querySelector('#rb-mv-rs-in')?.value;
+    r.input = rs?.querySelector('#rb-ask-in')?.value;
     r.cta = rs?.querySelector('.rs-cta')?.textContent || null;
     r.ctaWord = 'Style ' + wd + ' →';
     r.dayStill = document.getElementById('dl-result-page')?.style.display !== 'none';
@@ -628,10 +628,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     // swap the chip, add words, go
     Array.from(rs.querySelectorAll('.rs-chip')).find((b) => b.textContent === 'Dinner out')?.click();
     await new Promise((r2) => setTimeout(r2, 100));
-    const rin = document.getElementById('rb-mv-rs-in'); rin.value = 'with Mary in town'; rin.dispatchEvent(new Event('input'));
-    document.querySelector('#rb-mv-robes .rs-cta')?.click();
+    const rin = document.getElementById('rb-ask-in'); rin.value = 'with Mary in town'; rin.dispatchEvent(new Event('input'));
+    document.querySelector('#rb-ask .rs-cta')?.click();
     await new Promise((r2) => setTimeout(r2, 2600));
-    r.sheetGone = !document.getElementById('rb-mv-robes');
+    r.sheetGone = !document.getElementById('rb-ask');
     const sn2 = document.getElementById('sn-page');
     r.composer2 = !!sn2 && sn2.style.display !== 'none' && !!sn2.querySelector('.rb-lk-composer');
     r.save2 = (sn2?.textContent || '').match(/Save to [A-Z][a-z]+day/)?.[0] || null;

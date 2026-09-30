@@ -213,6 +213,8 @@ Read the adjustment against her brief and her recent verdicts above — "more me
 
 **Copy (transactional register: plain, short).** Door: "Adjust with words". Sheet line: "What would you change?" Placeholder: "Warmer, sharper, not the loafers…". CTA: "Adjust →" (day: "Restyle Wednesday →"). Constraint line: "Anchored pieces stay." **Rejected**: "Chat with Robes" (a persona); "Refine with AI"; "Tell Robes what's wrong" (it may be right — she wants a variation).
 
+**As built (2026-09-30).** Built as specified with three deliberate deviations, each recorded in CLAUDE.md's slice C delta: (1) `locked` on `/api/daily` stays = the ANCHORED pieces alone — the refine block itself says an owned piece stays unless the adjustment names it, and sending owned pieces as locked would make "swap the shoes" impossible on shoes she owns; the current composition rides as `current` (owned marked "hers", anchored marked KEEP). (2) The piece page's "Ask Robes about it" and the wishlist's "Robes' read" are NOT built here — they are slices E and D's endpoints and land with them. (3) The trip look's ask is `held: true` server-side (`new_item_needed` always false) and the refined look never touches the trip blob until Save — a Robes-styled trip look rebuilds its DRAFT from the refined formula, an imported saved look lands it on the edit draft and Update re-points the trip formula through `_lkTripRelink`.
+
 ---
 
 ## Slice D · The pause — the wishlist, evaluated

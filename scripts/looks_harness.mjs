@@ -1739,8 +1739,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // on it cannot offer to REPLACE one.
   check('build · the photo door reads Add your photograph while the look has none',
     b.photo === 'Add your photograph', b.photo);
-  check('build · Save leads; Try another and Wear it today follow',
-    b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today']),
+  check('build · Save leads; Try another, Wear it today and Adjust with words follow',
+    b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today', 'Adjust with words']),
     JSON.stringify([b.saveDisabled, b.foot]));
   check('build · nothing is written until she saves',
     !writes.some((w) => w.method === 'POST' && /^looks/.test(w.url)),
@@ -1999,7 +1999,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('aspirational · the title comes from her icons, not the pieces',
     a.title === 'Margot Robbie meets Chanel.', a.title);
   check('aspirational · Wear it today is withheld; the exit is Build from mine only',
-    JSON.stringify(a.foot) === JSON.stringify(['Try another', 'Build from mine only']),
+    JSON.stringify(a.foot) === JSON.stringify(['Try another', 'Build from mine only', 'Adjust with words']),
     JSON.stringify(a.foot));
   const mine = await page.evaluate(async () => {
     window.__lkBuildMineOnly();
@@ -2015,7 +2015,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       && mine.gaps.every((g) => /Nothing in your wardrobe fits here yet/.test(g)),
     JSON.stringify(mine));
   check('aspirational · …and Wear it today returns with it',
-    JSON.stringify(mine.foot) === JSON.stringify(['Try another', 'Wear it today']), JSON.stringify(mine.foot));
+    JSON.stringify(mine.foot) === JSON.stringify(['Try another', 'Wear it today', 'Adjust with words']), JSON.stringify(mine.foot));
   await ctx.close();
 }
 
@@ -3242,7 +3242,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       // The head's own type register, so the lighter Edit & resave can't
       // silently go back to the uppercase pill (Annie, 2026-09-21).
       editBtn: (function () {
-        const b = document.querySelector('#rb-lk-wrap .rb-lk-rackhead-read .rb-lk-editbtn');
+        // Adjust with words (slice C) stands before it in the same register — read the resave door by name
+        const b = Array.from(document.querySelectorAll('#rb-lk-wrap .rb-lk-rackhead-read .rb-lk-editbtn')).find((x) => /Edit & resave/.test(x.textContent));
         if (!b) return null;
         const c = getComputedStyle(b);
         return { t: b.textContent.trim(), tt: c.textTransform, fw: c.fontWeight, fs: c.fontSize };
@@ -3905,6 +3906,179 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('memory · every generation POST would carry it (styleDna no longer gates on a photo analysis)',
     await page.evaluate(() => { const d = window.__robes_profile.style_dna; return !d.color_harmony && !d.silhouette_proportions && !!d.memory; }));
   check('memory · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 13 · THE ASK SHEET (style memory slice C, 2026-09-30) — "Adjust with
+// words" on the composer and on the saved look. One component, one ink
+// inside it, the words go to the generator behind the surface, and nothing
+// is written until she saves or updates.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  // 13a · the composer: a Robes build's Adjust with words → the daily engine
+  // with the rack as it stands + her words; the answer repaints the draft.
+  const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 6 });
+  await page.route('**/api/alternates', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));
+  await routeBuildNote(page);
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  await page.route('**/api/lookbuild/images', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'aj1' }) }));
+  await page.route('**/api/images/aj*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [null], done: true }) }));
+  const dailyPosts = [];
+  const own = (id, label, category) => ({ name: label, category, wardrobe_match: { id, label, image_url: null, color: '' } });
+  await page.route('**/api/daily', (r) => {
+    try { dailyPosts.push(r.request().postDataJSON()); } catch (_) { dailyPosts.push(null); }
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+      headline: 'Warmer, as asked.', occasion_label: 'Office day',
+      stylist_summary: 'The silk shirt holds; a wool coat over it now.',
+      look_tags: { climate: 'cold', wear_for: ['work'], vibe: ['soft'] },
+      steps: [
+        { title: 'The Canvas', items: [own('w-top1', 'Cream silk shirt', 'Tops'), own('w-bot1', 'Barrel-leg jeans', 'Bottoms')] },
+        { title: 'The Texture', items: [{ name: 'Camel wool coat', category: 'Outerwear', brand: 'Toteme', retailer_hint: 'Toteme', price_point: '€890' }] },
+        { title: 'The Exclamation Point', items: [own('w-sho1', 'Flat leather sandals', 'Shoes')] },
+      ],
+    }) });
+  });
+  await openLooks(page);
+  await page.evaluate(() => { window.__rbCtx = { city: 'Dublin', tempRange: '12–16°C', condition: 'cloudy', hint: 'A light layer' }; window.__lkRobesBuild(); });
+  await page.waitForTimeout(2800);
+  const sheet = await page.evaluate(async () => {
+    document.querySelector('.rb-lk-buildfoot .rb-lk-askdoor')?.click();
+    await new Promise((r) => setTimeout(r, 150));
+    const a = document.getElementById('rb-ask');
+    const ink = (root) => Array.from(root?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length;
+    return {
+      open: !!a, ey: a?.querySelector('.rs-ey')?.textContent, h: a?.querySelector('.rs-h')?.textContent,
+      chips: Array.from(a?.querySelectorAll('.rs-chip') || []).map((b) => b.textContent),
+      ph: a?.querySelector('#rb-ask-in')?.getAttribute('placeholder'), cta: a?.querySelector('.rs-cta')?.textContent,
+      note: a?.querySelector('.rs-note')?.textContent, ink: ink(a), z: a && getComputedStyle(a).zIndex,
+      writesBefore: 0,
+    };
+  });
+  check('ask · composer: Adjust with words opens the sheet — the look’s name as eyebrow, "What would you change?", the composer chips + the shoe chip (a shoe is on the rack), the placeholder, Adjust →, the constraint line',
+    sheet.open && sheet.h === 'What would you change?' && sheet.ph === 'Warmer, sharper, not the loafers…' && sheet.cta === 'Adjust →'
+      && JSON.stringify(sheet.chips) === JSON.stringify(['Warmer', 'Softer', 'Sharper', 'More me', 'Less polite', 'Swap the shoes'])
+      && sheet.note === 'Your own pieces stay unless you name them.' && sheet.z === '955', JSON.stringify(sheet));
+  check('ask · one ink inside the sheet — the CTA', sheet.ink === 1, String(sheet.ink));
+  const empty = await page.evaluate(async () => {
+    document.querySelector('#rb-ask .rs-cta')?.click();
+    await new Promise((r) => setTimeout(r, 120));
+    return { still: !!document.getElementById('rb-ask'), focused: document.activeElement?.id };
+  });
+  check('ask · an empty send goes nowhere — the sheet stays, the line takes focus', empty.still && empty.focused === 'rb-ask-in' && dailyPosts.length === 0, JSON.stringify(empty));
+  const sent = await page.evaluate(async () => {
+    Array.from(document.querySelectorAll('#rb-ask .rs-chip')).find((b) => b.textContent === 'Warmer')?.click();
+    await new Promise((r) => setTimeout(r, 80));
+    const on = document.querySelector('#rb-ask .rs-chip.on')?.textContent;
+    const inp = document.getElementById('rb-ask-in'); inp.value = 'not the jacket'; inp.dispatchEvent(new Event('input'));
+    document.querySelector('#rb-ask .rs-cta')?.click();
+    await new Promise((r) => setTimeout(r, 2600));
+    return {
+      on, gone: !document.getElementById('rb-ask'),
+      composer: !!document.querySelector('#sn-page .rb-lk-composer'),
+      rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
+      shop: Array.from(document.querySelectorAll('.rb-lk-prop .rbc-name')).map((n) => n.textContent),
+      quote: document.querySelector('.rbc-quote')?.textContent,
+      title: document.getElementById('rb-lk-newtitle')?.value,
+      foot: Array.from(document.querySelectorAll('.rb-lk-buildfoot button')).map((x) => x.textContent),
+    };
+  });
+  const post = dailyPosts[0] || {};
+  check('ask · the words reach /api/daily as `refine` (chip — her words) with the rack as `current` — owned pieces marked hers, the proposal not, none KEEP',
+    dailyPosts.length === 1 && post.refine === 'Warmer — not the jacket' && Array.isArray(post.current?.pieces)
+      && post.current.pieces.filter((p) => p.owned).length === 3 && post.current.pieces.some((p) => !p.owned && /Boucl/.test(p.name))
+      && post.current.pieces.every((p) => p.keep === false), JSON.stringify([post.refine, post.current]));
+  check('ask · the answer repaints the SAME composer — her pieces on the rack, the new proposal in the gap, the fresh note, the door still there',
+    sent.on === 'Warmer' && sent.gone && sent.composer && sent.rows.length === 3 && JSON.stringify(sent.shop) === JSON.stringify(['Camel wool coat'])
+      && /wool coat/.test(sent.quote || '') && sent.foot.includes('Adjust with words'), JSON.stringify(sent));
+  check('ask · nothing is written by an adjustment', !writes.some((w) => w.method === 'POST' && /^looks/.test(w.url)), JSON.stringify(writes.map((w) => w.method + ' ' + w.url)));
+  check('ask · composer: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  // 13b · the saved look: Adjust with words → /api/look/refine → the look
+  // opens EDITING as a draft with the change bar naming her words; Discard
+  // writes nothing, Update commits pieces + proposals + note.
+  const { ctx, page, errs, writes } = await boot(browser, { pics: 4 });
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  const refinePosts = [];
+  await page.route('**/api/look/refine', (r) => {
+    try { refinePosts.push(r.request().postDataJSON()); } catch (_) { refinePosts.push(null); }
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+      headline: 'The Thursday one, sharper.', stylist_summary: 'The shirt and jeans hold; a pointed flat and a structured bag sharpen the line.',
+      palette: ['#F1E9DA', '#2C3145'], look_tags: { climate: 'year_round', wear_for: ['work'], vibe: ['sharp'] },
+      steps: [
+        { title: 'The Canvas', items: [{ name: 'Cream silk shirt', category: 'Tops', wardrobe_match: { id: 'w-top1', label: 'Cream silk shirt', image_url: null, color: '' } }, { name: 'Barrel-leg jeans', category: 'Bottoms', wardrobe_match: { id: 'w-bot1', label: 'Barrel-leg jeans', image_url: null, color: '' } }] },
+        { title: 'The Exclamation Point', items: [{ name: 'Pointed leather flats', category: 'Shoes', brand: 'Aeyde', retailer_hint: 'Aeyde', price_point: '€295', how: 'A sharper point under the wide leg' }, { name: 'Woven straw tote', category: 'Bags', wardrobe_match: { id: 'w-bag1', label: 'Woven straw tote', image_url: null, color: '' } }] },
+      ],
+      itemCount: 4,
+    }) });
+  });
+  await openLooks(page);
+  await page.evaluate(() => window.__lkOpen('lk-1'));
+  await page.waitForTimeout(600);
+  const door = await page.evaluate(() => {
+    const head = document.querySelector('#sn-page .rb-lk-rackhead-read');
+    return { door: Array.from(head?.querySelectorAll('button') || []).map((b) => b.textContent.trim()), editing: !!document.querySelector('#sn-page .rb-lk-page.editing') };
+  });
+  check('ask · saved look: the reading rack head carries Adjust with words before Edit & resave', JSON.stringify(door.door) === JSON.stringify(['Adjust with words', 'Edit & resave']) && !door.editing, JSON.stringify(door));
+  const wb = writes.length;
+  const look = await page.evaluate(async () => {
+    document.querySelector('#sn-page .rb-lk-rackhead-read .rb-lk-askdoor')?.click();
+    await new Promise((r) => setTimeout(r, 150));
+    const a = document.getElementById('rb-ask');
+    const out = { ey: a?.querySelector('.rs-ey')?.textContent, chips: Array.from(a?.querySelectorAll('.rs-chip') || []).map((b) => b.textContent), note: a?.querySelector('.rs-note')?.textContent };
+    Array.from(a.querySelectorAll('.rs-chip')).find((b) => b.textContent === 'Sharper')?.click();
+    await new Promise((r) => setTimeout(r, 80));
+    document.querySelector('#rb-ask .rs-cta')?.click();
+    await new Promise((r) => setTimeout(r, 1200));
+    const pg = document.querySelector('#sn-page');
+    out.editing = !!pg.querySelector('.rb-lk-page.editing');
+    out.bar = pg.querySelector('.rb-lk-editbar')?.textContent.replace(/\s+/g, ' ').trim();
+    out.rows = Array.from(pg.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent);
+    out.props = Array.from(pg.querySelectorAll('.rb-lk-prop .rbc-name')).map((n) => n.textContent);
+    out.acts = Array.from(pg.querySelectorAll('.rb-lk-editbar .acts button')).map((b) => b.textContent.trim());
+    out.draftDoor = !!pg.querySelector('.rb-lk-askdoor');
+    return out;
+  });
+  check('ask · the sheet names the look, offers the look chips (the fixture holds sandals — Swap the shoes, never "Not the loafers") and says nothing changes until she updates',
+    look.ey === 'The Thursday one' && JSON.stringify(look.chips) === JSON.stringify(['Warmer', 'Softer', 'Sharper', 'More me', 'Less polite', 'Swap the shoes'])
+      && look.note === 'Nothing changes until you update or save.', JSON.stringify(look));
+  const rp = refinePosts[0] || {};
+  check('ask · /api/look/refine takes the look as it stands + her words', refinePosts.length === 1 && rp.refine === 'Sharper' && rp.lookName === 'The Thursday one'
+      && rp.pieces?.length === 4 && rp.pieces.every((p) => p.owned), JSON.stringify([rp.refine, rp.lookName, rp.pieces]));
+  check('ask · the answer opens the look EDITING — her three kept pieces on the rack, the flats as a proposal, the change bar naming her words with Discard · Save as a new look · Update',
+    look.editing && look.rows.length === 3 && !look.rows.includes('Flat leather sandals') && JSON.stringify(look.props) === JSON.stringify(['Pointed leather flats'])
+      && /Adjusted — “Sharper”/.test(look.bar || '') && look.acts.includes('Discard') && look.acts.includes('Save as a new look') && look.acts.includes('Update this look'),
+    JSON.stringify(look));
+  const rowWrites = () => writes.slice(wb).filter((w) => !/^events/.test(w.url));   // the ask's events are telemetry, not a write to the look
+  check('ask · nothing is written by the adjustment itself', rowWrites().length === 0, JSON.stringify(rowWrites().map((w) => w.method + ' ' + w.url)));
+  const disc = await page.evaluate(async () => {
+    window.__lkDraftDiscard();
+    await new Promise((r) => setTimeout(r, 300));
+    return { editing: !!document.querySelector('#sn-page .rb-lk-page.editing'), rows: Array.from(document.querySelectorAll('#sn-page .rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent), props: document.querySelectorAll('#sn-page .rb-lk-prop').length };
+  });
+  check('ask · Discard hands the saved look back untouched — four pieces, no proposal, nothing written',
+    !disc.editing && disc.rows.length === 4 && disc.props === 0 && rowWrites().length === 0, JSON.stringify(disc));
+  // Adjust again, then Update: pieces, proposals and the note all commit.
+  const upd = await page.evaluate(async () => {
+    document.querySelector('#sn-page .rb-lk-rackhead-read .rb-lk-askdoor')?.click();
+    await new Promise((r) => setTimeout(r, 150));
+    const inp = document.getElementById('rb-ask-in'); inp.value = 'sharper shoes'; inp.dispatchEvent(new Event('input'));
+    document.querySelector('#rb-ask .rs-cta')?.click();
+    await new Promise((r) => setTimeout(r, 1200));
+    window.__lkResave();
+    await new Promise((r) => setTimeout(r, 900));
+    const l = window._lkFind ? null : null;
+    return { editing: !!document.querySelector('#sn-page .rb-lk-page.editing'), rows: Array.from(document.querySelectorAll('#sn-page .rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent), props: Array.from(document.querySelectorAll('#sn-page .rb-lk-prop .rbc-name')).map((n) => n.textContent), note: document.querySelector('#sn-page .rbc-quote')?.textContent };
+  });
+  const patches = writes.slice(wb).filter((w) => w.method === 'PATCH' && /^looks\?/.test(w.url));
+  check('ask · Update commits the adjusted composition — the sandals off, the flats as a saved proposal, the fresh note on the look',
+    !upd.editing && upd.rows.length === 3 && JSON.stringify(upd.props) === JSON.stringify(['Pointed leather flats']) && /sharpen the line/.test(upd.note || ''), JSON.stringify(upd));
+  check('ask · …and the writes carry proposals and note beside the pieces', patches.some((w) => Array.isArray(w.body?.proposals) && w.body.proposals.length === 1 && !('_ci' in w.body.proposals[0]))
+      && patches.some((w) => /sharpen the line/.test(w.body?.note || '')) && writes.slice(wb).some((w) => w.method === 'POST' && /^look_pieces/.test(w.url)), JSON.stringify(patches.map((w) => w.body)));
+  check('ask · saved look: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 

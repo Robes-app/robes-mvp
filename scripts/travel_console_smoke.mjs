@@ -283,6 +283,30 @@ ok(await page.locator('#sn-page .rb-lk-editbar button', { hasText: 'Save as a ne
 const lives = page.locator('#sn-page .rb-lk-lives .rb-lk-live');
 ok(await lives.count() === 2 && !(await lives.nth(0).evaluate(e => e.classList.contains('on'))) && /Joins it the moment you save/.test(await lives.nth(0).innerText()), 'Where it lives: the lookbook, once she saves');
 ok(await lives.nth(1).evaluate(e => e.classList.contains('on')) && /travel edit/i.test(await lives.nth(1).innerText()) && /Packs with the trip/.test(await lives.nth(1).innerText()), 'Where it lives: the travel edit, packed with it');
+// ── 3c. Adjust with words on the trip draft (slice C) — held to the case ──
+// The words go to /api/travel/looks with the capsule alone and held:true;
+// the draft rebuilds from the refined formula; the blob is untouched until Save.
+const tlPosts = [];
+await page.route('**/api/travel/looks', (r) => {
+  let b = null; try { b = r.request().postDataJSON(); } catch (_) {}
+  tlPosts.push(b);
+  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ looks: [
+    { occasion: 'Night out', title: 'Coast after dark, warmer', how: 'The shell over the silk, sandals swapped for the slides.',
+      formula: [ { role: 'The Anchor', item_index: 0, note: 'Worn open' }, { role: 'The Canvas', item_index: 2, note: 'Rolled once' }, { role: 'The Texture', item_index: 5, note: 'Over everything' }, { role: 'The Exclamation Point', item_index: 4, note: 'Bare ankle' } ] },
+  ] }) });
+});
+ok(await page.locator('#sn-page .rb-lk-rackhead .rb-lk-askdoor', { hasText: 'Adjust with words' }).count() === 1, 'the draft’s editing head carries Adjust with words');
+await page.locator('#sn-page .rb-lk-rackhead .rb-lk-askdoor').click();
+await page.waitForTimeout(200);
+ok(await page.locator('#rb-ask').count() === 1 && /Coast after dark/i.test(await page.locator('#rb-ask .rs-ey').innerText()) && /Held to the case/.test(await page.locator('#rb-ask .rs-note').innerText()), 'the sheet names the look and says it is held to the case');
+ok(JSON.stringify(await page.locator('#rb-ask .rs-chip').allInnerTexts()) === JSON.stringify(['Warmer', 'Cooler', 'Dressier', 'Fewer pieces', 'Swap the shoes']), 'the trip chips + the shoe chip (the look holds slides)');
+await page.locator('#rb-ask .rs-chip', { hasText: 'Warmer' }).click();
+await page.locator('#rb-ask .rs-cta').click();
+await page.waitForTimeout(1200);
+const caseN = await page.evaluate(() => window.__lastTvData.capsule.length);   // the case as it stands (an earlier section adopted a piece into it)
+ok(tlPosts.length === 1 && tlPosts[0].refine === 'Warmer' && tlPosts[0].held === true && tlPosts[0].capsule.length === caseN && tlPosts[0].capsule.every((c) => 'owned' in c) && JSON.stringify(tlPosts[0].occasions) === JSON.stringify(['Night out']) && tlPosts[0].current.pieces.length === 4, 'the words go to /api/travel/looks with the case alone, held, the look as it stands');
+ok(await page.locator('#sn-page .rb-lk-page.editing').count() === 1 && (await page.locator('#sn-page #rb-lk-title').innerText()).includes('Coast after dark, warmer') && await page.locator('#sn-page .rbc-rack .rbc-row:not(.rbc-rghost)').count() === 4 && await page.locator('#sn-page .rb-lk-prop').count() === 1 && /Over everything/.test(await page.locator('#sn-page .rb-lk-prop').innerText()), 'the draft rebuilds from the refined formula — still a draft, the shell still a proposal, the new note on its row');
+ok(await page.evaluate(() => window.__lastTvData.looks[0].title === 'Coast after dark' && window.__lastTvData.looks[0].formula.length === 4 && window.__lastTvData.looks[0].formula.every((f) => f.item_index !== 4 || f.role === 'The Exclamation Point')), 'the trip blob is untouched by the adjustment — nothing written until Save');
 await page.evaluate(() => window.__lkTripDraftDiscard());
 await page.waitForTimeout(500);
 ok(await page.locator('#tv-result-page').isVisible() && !(await page.locator('#sn-page').isVisible()) && !(await page.locator('#tv-look-page').isVisible()), 'Discard hands her back to the trip, nothing open');
