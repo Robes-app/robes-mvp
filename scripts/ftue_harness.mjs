@@ -1436,6 +1436,54 @@ for (const prefs of [{ nudges: true }, null]) {
   await ctx.close();
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// The draft on the next line (look prompt brief, phase 1 · 2026-10-01): a
+// parked draft outranks every rule Robes derives — a thing SHE started
+// comes first — and yields the moment the park is gone.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs } = await boot(browser, 6, 1280, { looks: true, pics: 6 });
+  await page.evaluate(() => {
+    localStorage.setItem('rb_lk_draft__u-test', JSON.stringify({
+      v: 2, id: 'dftue', at: '2026-10-01T09:00:00.000Z',
+      rows: [{ key: 'r1', slot: 'Top', piece: 'w0' }, { key: 'r2', slot: 'Bottom', piece: 'w1' }, { key: 'r3', slot: 'Shoe', piece: null }, { key: 'r4', slot: 'Bag', piece: null }],
+      seq: 4, name: 'The Friday one', tags: null, roles: {}, photo: null, home: false,
+      shop: [], shopImgs: [], note: null, palette: [], built: false, aspirational: false, gaps: [], mine: false, day: null, src: null, was: {}, styled: {},
+    }));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const readNext = () => page.evaluate(() => {
+    const echo = document.querySelector('.dash-echo');
+    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), name: echo?.querySelector('.rb-echo-name')?.textContent, door: echo?.querySelector('.rb-echo-door')?.textContent,
+      doorInk: echo?.querySelector('.rb-echo-door') ? getComputedStyle(echo.querySelector('.rb-echo-door')).backgroundColor : null };
+  });
+  const d = await readNext();
+  check('draft line · a parked draft leads the next line — her look\'s name, “is waiting, unsaved.”, Open it as a text door',
+    /is waiting, unsaved\./.test(d.text || '') && d.name === 'The Friday one' && /^Open it/.test(d.door || '') && d.doorInk !== 'rgb(32, 32, 33)', JSON.stringify(d));
+  const opened = await page.evaluate(async () => {
+    document.querySelector('.dash-echo .rb-echo-door')?.click();
+    await new Promise((r) => setTimeout(r, 800));
+    return { page: document.getElementById('sn-page')?.style.display !== 'none', composer: !!document.querySelector('#rb-lk-body .rb-lk-composer'), title: document.getElementById('rb-lk-newtitle')?.value,
+      rows: document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name').length };
+  });
+  check('draft line · Open it lands on the composer holding the draft', opened.page && opened.composer && opened.title === 'The Friday one' && opened.rows === 2, JSON.stringify(opened));
+  const gone = await page.evaluate(async () => {
+    window.__lkComposerDiscard();
+    await new Promise((r) => setTimeout(r, 150));
+    document.getElementById('rb-del-yes')?.click();
+    await new Promise((r) => setTimeout(r, 500));
+    window.__rbNavGo('home');
+    await new Promise((r) => setTimeout(r, 400));
+    const echo = document.querySelector('.dash-echo');
+    return { park: localStorage.getItem('rb_lk_draft__u-test'), text: echo?.textContent.replace(/\s+/g, ' ').trim() };
+  });
+  check('draft line · once the draft is let go the line yields to the next rule', gone.park == null && !/is waiting, unsaved/.test(gone.text || ''), JSON.stringify(gone));
+  check('draft line · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
 await browser.close();
 server.kill();
 

@@ -1739,8 +1739,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // on it cannot offer to REPLACE one.
   check('build · the photo door reads Add your photograph while the look has none',
     b.photo === 'Add your photograph', b.photo);
-  check('build · Save leads; Try another, Wear it today and Adjust with words follow',
-    b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today', 'Adjust with words']),
+  check('build · Save leads; Try another, Wear it today, Adjust with words and Discard follow',
+    b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today', 'Adjust with words', 'Discard']),
     JSON.stringify([b.saveDisabled, b.foot]));
   check('build · nothing is written until she saves',
     !writes.some((w) => w.method === 'POST' && /^looks/.test(w.url)),
@@ -1999,7 +1999,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('aspirational · the title comes from her icons, not the pieces',
     a.title === 'Margot Robbie meets Chanel.', a.title);
   check('aspirational · Wear it today is withheld; the exit is Build from mine only',
-    JSON.stringify(a.foot) === JSON.stringify(['Try another', 'Build from mine only', 'Adjust with words']),
+    JSON.stringify(a.foot) === JSON.stringify(['Try another', 'Build from mine only', 'Adjust with words', 'Discard']),
     JSON.stringify(a.foot));
   const mine = await page.evaluate(async () => {
     window.__lkBuildMineOnly();
@@ -2015,7 +2015,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       && mine.gaps.every((g) => /Nothing in your wardrobe fits here yet/.test(g)),
     JSON.stringify(mine));
   check('aspirational · …and Wear it today returns with it',
-    JSON.stringify(mine.foot) === JSON.stringify(['Try another', 'Wear it today', 'Adjust with words']), JSON.stringify(mine.foot));
+    JSON.stringify(mine.foot) === JSON.stringify(['Try another', 'Wear it today', 'Adjust with words', 'Discard']), JSON.stringify(mine.foot));
   await ctx.close();
 }
 
@@ -3432,6 +3432,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // how _avRenderKick has rendered a saved build since 2026-08-25.
   await page.evaluate(async () => {
     window.__dlSubmit('Style me for the office');
+    // The school-run draft stands — a fresh generation asks first (phase 1).
+    await new Promise((r) => setTimeout(r, 300));
+    document.getElementById('rb-del-yes')?.click();
     await new Promise((r) => setTimeout(r, 2800));
   });
   const gapped = await page.evaluate(() => {
@@ -4079,6 +4082,214 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('ask · …and the writes carry proposals and note beside the pieces', patches.some((w) => Array.isArray(w.body?.proposals) && w.body.proposals.length === 1 && !('_ci' in w.body.proposals[0]))
       && patches.some((w) => /sharpen the line/.test(w.body?.note || '')) && writes.slice(wb).some((w) => w.method === 'POST' && /^look_pieces/.test(w.url)), JSON.stringify(patches.map((w) => w.body)));
   check('ask · saved look: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 14 · THE DRAFT (look prompt brief, phase 1 · 2026-10-01) — one standing
+// draft per user, parked in localStorage on every composer mutation. It
+// survives a navigation and a reload, is named by the home next line and
+// the Lookbook's draft tile, is let go only on Save, Discard or the
+// confirm a new look interposes, and nothing is written until she saves.
+// ─────────────────────────────────────────────────────────────────────────
+const DRAFT_KEY = 'rb_lk_draft__u-test';
+const dailyStub = (headline) => (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+  headline, occasion_label: 'Date night',
+  stylist_summary: 'The silk shirt leads; the coat does the finishing.',
+  look_tags: { climate: 'cold', wear_for: ['evening'], vibe: ['chic'] },
+  steps: [
+    { title: 'The Canvas', items: [
+      { name: 'Cream silk shirt', category: 'Tops', wardrobe_match: { id: 'w-top1', label: 'Cream silk shirt', image_url: null, color: '' } },
+      { name: 'Barrel-leg jeans', category: 'Bottoms', wardrobe_match: { id: 'w-bot1', label: 'Barrel-leg jeans', image_url: null, color: '' } }] },
+    { title: 'The Texture', items: [{ name: 'Camel wool coat', category: 'Outerwear', brand: 'Toteme', retailer_hint: 'Toteme', price_point: '€890' }] },
+    { title: 'The Exclamation Point', items: [{ name: 'Flat leather sandals', category: 'Shoes', wardrobe_match: { id: 'w-sho1', label: 'Flat leather sandals', image_url: null, color: '' } }] },
+  ],
+}) });
+const composerRead = () => ({
+  open: document.getElementById('sn-page')?.style.display !== 'none' && !!document.querySelector('#rb-lk-body .rb-lk-composer'),
+  rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
+  shop: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-prop .rbc-name')).map((n) => n.textContent),
+  title: document.getElementById('rb-lk-newtitle')?.value,
+  meta: document.querySelector('.rb-lk-newmast .rb-lk-draftmeta')?.textContent,
+  foot: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-buildfoot button')).map((x) => x.textContent),
+  park: JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null'),
+  modal: document.querySelector('#rb-del-modal p')?.textContent || null,
+});
+{
+  // 14a · a prompted draft survives: the park, the masthead, home's next
+  // line and its door, a reload, the Lookbook tile, Try another on the
+  // same draft without a confirm.
+  const { ctx, page, errs, writes } = await boot(browser, { pics: 4, init: 'window.__cr = ' + composerRead.toString() + ';' });
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  await page.route('**/api/lookbuild/images', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'dj1' }) }));
+  await page.route('**/api/images/dj*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: ['https://res.cloudinary.com/demo/image/upload/coat.jpg'], done: true }) }));
+  const dailyPosts = [];
+  await page.route('**/api/daily', (r) => { try { dailyPosts.push(r.request().postDataJSON()); } catch (_) { dailyPosts.push(null); } dailyStub('Date night.')(r); });
+  await page.evaluate(() => { window.__rbCtx = { city: 'Dublin', tempRange: '12–16°C', condition: 'cloudy', hint: 'A light layer' }; });
+  await page.evaluate(() => window.__dlSubmit('A chic outfit for a date night', { loose: true }));
+  await page.waitForTimeout(2600);
+  const a = await page.evaluate(composerRead);
+  check('draft · a prompted look lands on the composer as a draft and parks itself — rows, the proposal, the name, the ask it came from',
+    a.open && a.rows.length === 3 && JSON.stringify(a.shop) === JSON.stringify(['Camel wool coat']) && a.title === 'Date night'
+      && a.park && a.park.v === 2 && !!a.park.id && a.park.name === 'Date night' && (a.park.rows || []).filter((r) => r.piece).length === 3
+      && Array.isArray(a.park.shop) && a.park.shop.length === 1 && a.park.src?.kind === 'daily' && a.park.src?.prompt === 'A chic outfit for a date night'
+      && a.park.src?.opts?.sameDraft === true && a.park.built === true,
+    JSON.stringify({ open: a.open, rows: a.rows, shop: a.shop, title: a.title, park: a.park && { id: a.park.id, name: a.park.name, src: a.park.src, built: a.park.built } }));
+  check('draft · the masthead reads Draft · not saved yet, and the foot carries Discard beside Try another',
+    a.meta === 'Draft · not saved yet' && a.foot.includes('Try another') && a.foot.includes('Discard'), JSON.stringify([a.meta, a.foot]));
+  check('draft · nothing is written by the draft', !writes.some((w) => w.method === 'POST' && /^(looks|lookbook_items|planned_days)/.test(w.url)), JSON.stringify(writes.map((w) => w.method + ' ' + w.url)));
+  // Home: the next line names the draft, first.
+  const h = await page.evaluate(async () => {
+    window.__rbNavGo('home');
+    await new Promise((r) => setTimeout(r, 500));
+    const echo = document.querySelector('.dash-echo');
+    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), name: echo?.querySelector('.rb-echo-name')?.textContent, door: echo?.querySelector('.rb-echo-door')?.textContent };
+  });
+  check('draft · home\'s next line leads with the draft — “{name} is waiting, unsaved.” · Open it',
+    /is waiting, unsaved\./.test(h.text || '') && h.name === 'Date night' && /^Open it/.test(h.door || ''), JSON.stringify(h));
+  const back = await page.evaluate(async () => {
+    document.querySelector('.dash-echo .rb-echo-door')?.click();
+    await new Promise((r) => setTimeout(r, 700));
+    return window.__cr();
+  });
+  check('draft · Open it lands on the composer with the draft whole', back.open && back.rows.length === 3 && JSON.stringify(back.shop) === JSON.stringify(['Camel wool coat']) && back.title === 'Date night', JSON.stringify({ open: back.open, rows: back.rows, shop: back.shop, title: back.title }));
+  // A reload: the park outlives the page.
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2800);
+  const r1 = await page.evaluate(() => {
+    const echo = document.querySelector('.dash-echo');
+    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: echo?.querySelector('.rb-echo-door')?.textContent, park: !!localStorage.getItem('rb_lk_draft__u-test') };
+  });
+  check('draft · a reload keeps the draft — the next line still names it', r1.park && /Date night is waiting, unsaved\./.test(r1.text || '') && /^Open it/.test(r1.door || ''), JSON.stringify(r1));
+  await openLooks(page);
+  const tile = await page.evaluate(() => {
+    const t = document.getElementById('rb-lk-drafttile');
+    const first = document.querySelector('#rb-lk-grid > *');
+    return { there: !!t, leads: first === t, name: t?.querySelector('.rb-add-serif')?.textContent, hint: t?.querySelector('.rb-add-hint')?.textContent, dashed: t ? getComputedStyle(t).borderTopStyle : null, mosaic: !!t?.querySelector('.rb-lk-mos'), lookCards: document.querySelectorAll('#rb-lk-grid .lt-card').length };
+  });
+  check('draft · the Lookbook grid leads with a dashed Draft tile in the add-card register — the name, “Draft · not saved”, the owned pieces as a mosaic; the looks beneath',
+    tile.there && tile.leads && tile.name === 'Date night' && tile.hint === 'Draft · not saved' && tile.dashed === 'dashed' && tile.mosaic && tile.lookCards === 2, JSON.stringify(tile));
+  const fromTile = await page.evaluate(async () => {
+    document.getElementById('rb-lk-drafttile')?.click();
+    await new Promise((r) => setTimeout(r, 700));
+    return window.__cr();
+  });
+  check('draft · the tile opens the composer with the draft where she left it, after a reload', fromTile.open && fromTile.rows.length === 3 && JSON.stringify(fromTile.shop) === JSON.stringify(['Camel wool coat']) && fromTile.title === 'Date night' && fromTile.meta === 'Draft · not saved yet',
+    JSON.stringify({ open: fromTile.open, rows: fromTile.rows, shop: fromTile.shop, title: fromTile.title }));
+  const n0 = dailyPosts.length;
+  const again = await page.evaluate(async () => {
+    window.__lkTryAnother();
+    await new Promise((r) => setTimeout(r, 1800));
+    return window.__cr();
+  });
+  check('draft · Try another after a reload re-runs the SAME ask on the same draft — one more /api/daily, no confirm',
+    dailyPosts.length === n0 + 1 && dailyPosts[n0]?.prompt === 'A chic outfit for a date night' && again.modal == null && again.open && again.rows.length === 3,
+    JSON.stringify({ n: dailyPosts.length - n0, prompt: dailyPosts[n0]?.prompt, modal: again.modal }));
+  // 14b · let it go: a new look asks once; cancel keeps the draft, yes
+  // drops it before the new one lands. Discard on the composer drops it.
+  const ask1 = await page.evaluate(async () => {
+    const ret = window.__lkNew();
+    await new Promise((r) => setTimeout(r, 200));
+    const out = window.__cr(); out.ret = ret;
+    document.getElementById('rb-del-cancel')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    out.after = window.__cr();
+    return out;
+  });
+  check('draft · + New look over a standing draft asks “Let the draft go?” — Cancel keeps the draft and the composer untouched',
+    ask1.ret === false && /Let the draft go\?/.test(ask1.modal || '') && ask1.after.modal == null && !!ask1.after.park && ask1.after.park.name === 'Date night' && ask1.after.rows.length === 3,
+    JSON.stringify({ ret: ask1.ret, modal: ask1.modal, after: { park: !!ask1.after.park, rows: ask1.after.rows } }));
+  const ask2 = await page.evaluate(async () => {
+    window.__lkNew();
+    await new Promise((r) => setTimeout(r, 200));
+    document.getElementById('rb-del-yes')?.click();
+    await new Promise((r) => setTimeout(r, 700));
+    return window.__cr();
+  });
+  check('draft · Let it go drops the park and opens an empty composer', ask2.park == null && ask2.open && ask2.rows.length === 0 && ask2.shop.length === 0 && !ask2.title && ask2.meta == null, JSON.stringify({ park: ask2.park, rows: ask2.rows, title: ask2.title, meta: ask2.meta }));
+  const n1 = dailyPosts.length;
+  const gen1 = await page.evaluate(async () => {
+    window.__dlSubmit('A park day', { loose: true });
+    await new Promise((r) => setTimeout(r, 2200));
+    return window.__cr();
+  });
+  check('draft · a fresh generation with no draft standing asks nothing and parks', dailyPosts.length === n1 + 1 && gen1.modal == null && !!gen1.park, JSON.stringify({ n: dailyPosts.length - n1, modal: gen1.modal, park: !!gen1.park }));
+  const gen2 = await page.evaluate(async () => {
+    window.__dlSubmit('Something else entirely', { loose: true });
+    await new Promise((r) => setTimeout(r, 300));
+    const out = window.__cr();
+    document.getElementById('rb-del-yes')?.click();
+    await new Promise((r) => setTimeout(r, 2200));
+    out.after = window.__cr();
+    return out;
+  });
+  check('draft · a second generation asks first; yes lets the draft go, then the new one lands and parks under a new id',
+    /Let the draft go\?/.test(gen2.modal || '') && dailyPosts.length === n1 + 2 && dailyPosts[n1 + 1]?.prompt === 'Something else entirely'
+      && !!gen2.after.park && gen2.after.park.id !== gen1.park.id && gen2.after.park.src?.prompt === 'Something else entirely',
+    JSON.stringify({ modal: gen2.modal, n: dailyPosts.length - n1, ids: [gen1.park?.id, gen2.after.park?.id] }));
+  const disc = await page.evaluate(async () => {
+    Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-discard')).find((b) => b.textContent === 'Discard')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const out = { modal: document.querySelector('#rb-del-modal p')?.textContent };
+    document.getElementById('rb-del-yes')?.click();
+    await new Promise((r) => setTimeout(r, 600));
+    out.park = localStorage.getItem('rb_lk_draft__u-test');
+    out.grid = document.getElementById('rb-lk-grid')?.style.display;
+    out.tile = !!document.getElementById('rb-lk-drafttile');
+    const echo = document.querySelector('.dash-echo');
+    out.next = echo?.textContent.replace(/\s+/g, ' ').trim();
+    return out;
+  });
+  check('draft · Discard asks, then drops the park — the grid returns with no tile and the next line moves on',
+    /Let this draft go\?/.test(disc.modal || '') && disc.park == null && disc.grid === 'grid' && !disc.tile && !/is waiting, unsaved/.test(disc.next || ''), JSON.stringify(disc));
+  // 14c · Save drops the park: the draft is a look now.
+  const wb = writes.length;
+  const saved = await page.evaluate(async () => {
+    window.__dlSubmit('A chic outfit for a date night', { loose: true });
+    await new Promise((r) => setTimeout(r, 2200));
+    window.__lkSaveAsk();
+    await new Promise((r) => setTimeout(r, 250));
+    document.getElementById('rb-lksave-yes')?.click();
+    await new Promise((r) => setTimeout(r, 900));
+    return { park: localStorage.getItem('rb_lk_draft__u-test'), tile: !!document.getElementById('rb-lk-drafttile'), cards: document.querySelectorAll('#rb-lk-grid .lt-card').length };
+  });
+  check('draft · Save turns the draft into a look and drops the park — the tile gone, the look on the grid',
+    saved.park == null && !saved.tile && saved.cards === 3 && writes.slice(wb).some((w) => w.method === 'POST' && /^looks/.test(w.url)), JSON.stringify(saved));
+  check('draft · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  // 14d · the park's full shape round-trips (`was` / `styled` ride it for
+  // phase 2), and an empty Lookbook arms the composer ON the parked draft.
+  const seededPark = {
+    v: 2, id: 'dseed', at: '2026-10-01T09:00:00.000Z',
+    rows: [{ key: 'r1', slot: 'Top', piece: 'w-top1' }, { key: 'r2', slot: 'Bottom', piece: 'w-bot1' }, { key: 'r3', slot: 'Shoe', piece: null }, { key: 'r4', slot: 'Bag', piece: null }],
+    seq: 4, name: 'Seeded draft', tags: null, roles: {}, photo: null, home: false,
+    shop: [], shopImgs: [], note: null, palette: [], built: false, aspirational: false, gaps: [], mine: false, day: null, src: null,
+    was: { 1: { id: 'w-bot2', name: 'Linen shorts' } }, styled: { 0: 'tucked at the front' },
+  };
+  const { ctx, page, errs } = await boot(browser, { seed: false, pics: 4, init: 'window.__cr = ' + composerRead.toString() + ';' + ((p) => `localStorage.setItem('rb_lk_draft__u-test', ${JSON.stringify(JSON.stringify(p))});`)(seededPark) });
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  await openLooks(page);
+  await page.waitForTimeout(900);
+  const rt = await page.evaluate(composerRead);
+  check('draft · an empty Lookbook arms the composer on the parked draft itself — its pieces and name on the rack',
+    rt.open && JSON.stringify(rt.rows) === JSON.stringify(['Cream silk shirt', 'Barrel-leg jeans']) && rt.title === 'Seeded draft' && rt.meta === 'Draft · not saved yet', JSON.stringify({ open: rt.open, rows: rt.rows, title: rt.title }));
+  check('draft · the re-park keeps the id and carries `was` and `styled` through untouched',
+    rt.park && rt.park.id === 'dseed' && JSON.stringify(rt.park.was) === JSON.stringify(seededPark.was) && JSON.stringify(rt.park.styled) === JSON.stringify(seededPark.styled),
+    JSON.stringify(rt.park && { id: rt.park.id, was: rt.park.was, styled: rt.park.styled }));
+  // Emptying the draft herself lets it go — a fresh composer never
+  // touches a park it did not come from.
+  const emptied = await page.evaluate(async () => {
+    window.__lkNewTitleInput('');
+    window.__lkCRemove(0);
+    await new Promise((r) => setTimeout(r, 250));
+    window.__lkCRemove(0);
+    await new Promise((r) => setTimeout(r, 900));
+    return { rows: window.__cr().rows, park: localStorage.getItem('rb_lk_draft__u-test') };
+  });
+  check('draft · emptying the draft by hand lets it go', emptied.rows.length === 0 && emptied.park == null, JSON.stringify(emptied));
+  check('draft · seeded park: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 

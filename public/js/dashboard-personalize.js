@@ -5433,7 +5433,7 @@
           if (newRobes && !_lkDraftBack) {
             let tries = 0;
             const tick = () => {
-              if (_lkLoaded && _waLoaded && window.__lkNew && window.__lkRobesBuild) { window.__lkNew(); window.__lkRobesBuild({ door: 'email' }); return; }
+              if (_lkLoaded && _waLoaded && window.__lkNew && window.__lkRobesBuild) { window.__lkNew({ then: () => window.__lkRobesBuild({ door: 'email' }) }); return; }
               if (++tries < 40) setTimeout(tick, 300);
             };
             tick();
@@ -6742,8 +6742,7 @@
         window.__rbPieceHide();
         _pcCtx = null;
         _rbTrack('piece_build_look', {});
-        if (window.__lkNew) window.__lkNew();
-        setTimeout(function() { if (window.__lkApplyNew) window.__lkApplyNew(id); }, 60);
+        if (window.__lkNew) window.__lkNew({ then: function() { setTimeout(function() { if (window.__lkApplyNew) window.__lkApplyNew(id); }, 60); } });
       };
       // The one full-width commitment: Style it three ways, arriving with
       // the piece attached and Robes' own words already in the prompt.
@@ -8505,6 +8504,15 @@
       }
       async function _kpBuildLookRun(w, kp) {
         if (typeof _lkCreate !== 'function' || typeof window.__lkOpen !== 'function') return;
+        // Building a way replaces the standing draft — unless the draft IS
+        // this way (its park names the key piece and the way): then it is
+        // a rebuild of the same draft (phase 1).
+        if (!kp._letGo) {
+          const parked = _lkDraftParked();
+          const wi = Number.isInteger(kp.wayIdx) ? kp.wayIdx : null;
+          const same = parked && parked.kp && parked.kp.savedId != null && String(parked.kp.savedId) === String(_kpActiveSaveId) && parked.kp.wayIdx === wi;
+          if (parked && !same) { _lkDraftLetGo(() => _kpBuildLookRun(w, Object.assign({}, kp, { _letGo: true }))); return; }
+        }
         // IN SITU (design Key_Piece_Reveal, 2026-09-16): the three cards
         // give way to the build strip + the composer's own "building" state
         // on THIS page — no full-screen takeover, no new page. The wait
@@ -8927,6 +8935,12 @@
         _lkKpHost = false;
         _lkResetComposer();
         _lkView = 'grid';
+        // The kp draft's park goes with it (phase 1): Back to looks already
+        // confirms the loss when the draft is dirty, so a second "Let the
+        // draft go?" on the next build would ask the same question twice.
+        // A kp draft survives a reload and the model trip, not a leave.
+        const p = _lkDraftParked();
+        if (p && p.kp && Number.isInteger(p.kp.wayIdx)) _lkDraftDrop();
       }
       // Save (through __lkSave, the one write) lands here: the host reads
       // Filed, the look one tap away, the other two looks still in the
@@ -9413,6 +9427,13 @@
       }
 
       window.__dlSubmit = async function(prompt, opts) {
+        // A fresh generation replaces the standing draft — ask first
+        // (phase 1). Try another and a refine of the draft itself carry
+        // sameDraft; the confirm's yes re-enters with the draft let go.
+        if (!(opts && (opts.sameDraft || opts._letGo)) && _lkDraftStands()) {
+          const again = Object.assign({}, opts || {}, { _letGo: true });
+          return new Promise(res => _lkDraftLetGo(() => res(window.__dlSubmit(prompt, again)), () => res()));
+        }
         const locked = (opts && Array.isArray(opts.locked)) ? opts.locked : null;
         // origin === 'key-piece': this look is being built from a styled key
         // piece (kp result "Build this look") — the console adapts its
@@ -9548,10 +9569,14 @@
           // piece) takes no day. The daily console no longer renders a
           // fresh generation.
           if (dlResultPage) dlResultPage.style.display = 'none';
-          const submitOpts = Object.assign({}, opts || {}, { savedId: undefined });
+          // sameDraft: a re-run of this ask edits the draft it made — never
+          // the let-it-go confirm. The prompt and its options ride the park
+          // as `src`, so Try another survives a reload (phase 1).
+          const submitOpts = Object.assign({}, opts || {}, { savedId: undefined, _letGo: undefined, sameDraft: true });
           _lkDraftFromDaily({ ...data, context }, {
             kind: 'daily',
             day: data._dlLoose ? null : data.anchor_date,
+            src: { prompt, opts: submitOpts },
             // Try another re-runs the ask as it stands — a refined draft
             // re-runs the REFINED ask (submitOpts carries her words).
             again: () => window.__dlSubmit(prompt, submitOpts),
@@ -11918,6 +11943,15 @@
       // and a sequence token so a stale response can't write over a newer
       // build or a reset composer.
       var _lkBuildNote = null, _lkBuildPalette = [], _lkBuildSeq = 0;
+      // THE DRAFT (look prompt brief, phase 1 · 2026-10-01): the composer's
+      // look is one standing draft per user, parked in localStorage on every
+      // mutation and surfaced by the home next line and the Lookbook's
+      // draft tile until she saves it or lets it go. `_lkDraftId` names the
+      // parked draft this composer IS (null = fresh, never parked);
+      // `_lkDraftWas` holds the original piece per changed rack row and
+      // `_lkDraftStyled` the how-it's-worn note per row — phase 2 (the box)
+      // writes both; phase 1 round-trips them through the park.
+      var _lkDraftId = null, _lkDraftWas = {}, _lkDraftStyled = {}, _lkDraftParkT = null;
       // Composer tags (spec F3, "built by hand · inherited"): null means
       // derived live from the pieces on every paint; set once she edits.
       var _lkNewTags = null;
@@ -12741,6 +12775,10 @@ button.rb-lk-live{cursor:pointer}
 #rb-lk-hol{margin:6px 0 30px}
 /* New look — the same footprint as the cards beside it (1b) */
 #rb-lk-grid .rb-add-card{aspect-ratio:auto;min-height:340px;background:#F7F4EE;border:1px solid var(--rule);border-radius:3px}
+#rb-lk-grid .rb-lk-drafttile{border:1.5px dashed var(--rule-mid);background:var(--cream-100)}
+.rb-lk-drafttile .rb-lk-draftmos{width:104px;margin-bottom:6px}
+.rb-lk-drafttile .rb-lk-draftmos .rb-lk-mos{border-radius:3px}
+.rb-lk-draftmeta{margin-top:4px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
 .rb-lk-pick{display:flex;gap:10px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
 .rb-lk-pick::-webkit-scrollbar{width:0;height:0}
 .rb-lk-opt{flex:none;width:92px;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);overflow:hidden;cursor:pointer;background:#fff;padding:0;font-family:inherit;text-align:left;transition:border-color .15s}
@@ -13017,7 +13055,14 @@ button.rb-lk-live{cursor:pointer}
           // Arm it — but a draft in progress is HERS: the home module and
           // this page render one shared draft, so landing here (e.g. via
           // __snOpen, which resets the view to 'grid') must never wipe it.
-          if (!_lkUsed().length) _lkResetComposer(); else _lkView = 'new';
+          // A parked draft on a fresh composer comes back here (phase 1) —
+          // the empty Lookbook IS the composer, and the composer IS the
+          // draft. A kp draft waits for its own page.
+          const parked = _lkDraftParked();
+          if (!_lkUsed().length) {
+            if (parked && !(parked.kp && Number.isInteger(parked.kp.wayIdx)) && _lkDraftId == null) _lkDraftLoad(parked);
+            else _lkResetComposer();
+          } else _lkView = 'new';
           _rbTrack('look_compose_opened', { door: 'empty-lookbook' });
         }
         // Claim the shelf — the page-level empty state must never sit over
@@ -13129,7 +13174,10 @@ button.rb-lk-live{cursor:pointer}
             .map(i => ({ ts: Number(i.id) || 0, html: _lkItemCard(i) })));
         entries.sort((a, b) => _lkSortDesc ? b.ts - a.ts : a.ts - b.ts);
         _lkHomeSync();
-        grid.innerHTML = noneHtml + entries.map(e => e.html).join('') +
+        // The draft leads the grid as a dashed tile in the add-card
+        // register (phase 1) — never a look card: it is not a look yet.
+        const parkedTile = (typeof _lkDraftParked === 'function') ? _lkDraftParked() : null;
+        grid.innerHTML = (parkedTile ? _lkDraftTileHtml(parkedTile) : '') + noneHtml + entries.map(e => e.html).join('') +
         // The way in stays on the grid — the same amplified add card the
         // pieces grid carries (Annie, 2026-07-30: the CTA vanished once a
         // look existed; only the empty state offered one).
@@ -14579,11 +14627,12 @@ button.rb-lk-live{cursor:pointer}
         // The key piece page on top (2026-09-16): she comes back to the
         // result — and to the draft, mid-build — not to the Lookbook.
         const kp = (typeof _kpBuildPark === 'function') ? _kpBuildPark() : null;
+        // The park is the draft's own snapshot (phase 1) — the model trip
+        // is one more navigation the draft survives; the sessionStorage
+        // copy is what the Style notes page reads for "Back to your look".
+        _lkDraftPark();
         try {
-          sessionStorage.setItem('rb_lk_draft', JSON.stringify({
-            rows: _lkRows, seq: _lkRowSeq, name: _lkNewTitleDraft, tags: _lkNewTags, roles: _lkNewRoles,
-            photo: (_lkPhoto && _lkPhoto.url) ? { url: _lkPhoto.url, frame: !!_lkPhoto.frame } : null, home, kp: kp || undefined,
-          }));
+          sessionStorage.setItem('rb_lk_draft', JSON.stringify(_lkDraftSnapshot()));
           sessionStorage.setItem('rb_model_return', kp ? 'inspiration' : home ? 'home' : 'lookbook');
         } catch (_) {}
         _rbTrack('look_model_build', { home, kp: !!kp });
@@ -14602,9 +14651,116 @@ button.rb-lk-live{cursor:pointer}
         _rbTrack('model_door_tapped', { from: from || 'door' });
         window.location.href = '/stylenotes';
       };
-      window.__lkDraftRestore = function(d, where) {
-        if (!d || typeof d !== 'object') return;
+      // ── THE DRAFT (look prompt brief, phase 1 · 2026-10-01) ─────────────
+      // A draft is a look Robes composed or she started that she has not
+      // yet saved. ONE per user, held in localStorage (rb_lk_draft__<uid>
+      // — per user, the __anon lesson) so it survives navigation and a
+      // reload; nothing is written to a row until she saves (rule 04).
+      // Parked on every composer paint (debounced) and on pagehide; dropped
+      // on Save, Discard and the let-it-go confirm — never by a reset. The
+      // park's shape is the model-trip park's, plus everything a draft
+      // needs to come back whole: the proposals and their stills, the note,
+      // the day, a re-runnable `src` for Try another, and the box's `was` /
+      // `styled` (phase 2 writes them).
+      function _lkDraftKey() { const u = _waUid(); return u ? 'rb_lk_draft__' + u : null; }
+      function _lkDraftParked() {
+        try {
+          const k = _lkDraftKey(); if (!k) return null;
+          const raw = localStorage.getItem(k); if (!raw) return null;
+          const d = JSON.parse(raw);
+          return d && typeof d === 'object' && d.v === 2 && d.id ? d : null;
+        } catch (_) { return null; }
+      }
+      window._lkDraftParked = _lkDraftParked;
+      function _lkDraftStands() { return !!_lkDraftParked(); }
+      function _lkDraftEmptyNow() {
+        return !_lkUsed().length && !_lkShop.length && !(_lkPhoto && _lkPhoto.url) && !String(_lkNewTitleDraft || '').trim();
+      }
+      function _lkDraftSnapshot() {
+        const kp = (_lkKpHost && typeof _kpBuildPark === 'function') ? _kpBuildPark() : null;
+        const s = _lkDraftSrc;
+        const src = s ? { kind: s.kind || null, eyebrow: s.eyebrow || '', prompt: s.src ? s.src.prompt : null, opts: s.src ? s.src.opts : null } : null;
+        return {
+          v: 2, id: _lkDraftId, at: new Date().toISOString(),
+          rows: _lkRows, seq: _lkRowSeq, name: _lkNewTitleDraft, tags: _lkNewTags, roles: _lkNewRoles,
+          photo: (_lkPhoto && _lkPhoto.url) ? { url: _lkPhoto.url, frame: !!_lkPhoto.frame } : null,
+          home: !!document.querySelector('.rb-lkh-composer'), kp: kp || undefined,
+          shop: _lkShop, shopImgs: _lkShopImgs, note: _lkBuildNote, palette: _lkBuildPalette,
+          built: !!_lkBuilt, aspirational: !!_lkAspirational, gaps: _lkBuildGaps, mine: !!_lkBuildMine,
+          day: _lkDay ? { date: _lkDay.date || null, trip: _lkDay.trip || null } : null,
+          src, was: _lkDraftWas, styled: _lkDraftStyled,
+        };
+      }
+      function _lkDraftPark() {
+        if (_lkDraftParkT) { clearTimeout(_lkDraftParkT); _lkDraftParkT = null; }
+        const k = _lkDraftKey();
+        if (!k || _lkBuilding) return;
+        if (_lkDraftEmptyNow()) {
+          // She emptied THIS draft herself — it goes. A fresh, untouched
+          // composer never touches a park it did not come from.
+          const cur = _lkDraftParked();
+          if (_lkDraftId && cur && cur.id === _lkDraftId) _lkDraftDrop();
+          return;
+        }
+        if (!_lkDraftId) _lkDraftId = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        try { localStorage.setItem(k, JSON.stringify(_lkDraftSnapshot())); } catch (_) {}
+        _lkDraftSurfacesSync();
+      }
+      function _lkDraftParkSoon() {
+        if (_lkDraftParkT) clearTimeout(_lkDraftParkT);
+        _lkDraftParkT = setTimeout(_lkDraftPark, 400);
+      }
+      function _lkDraftDrop() {
+        if (_lkDraftParkT) { clearTimeout(_lkDraftParkT); _lkDraftParkT = null; }
+        try { const k = _lkDraftKey(); if (k) localStorage.removeItem(k); } catch (_) {}
+        _lkDraftId = null; _lkDraftWas = {}; _lkDraftStyled = {};
+        _lkDraftSurfacesSync();
+      }
+      // The two surfaces that name the draft — the home next line and the
+      // Lookbook's draft tile — follow the park, never a repaint of the
+      // whole page.
+      function _lkDraftSurfacesSync() {
+        try { if (typeof _rbNextPaint === 'function') _rbNextPaint(); } catch (_) {}
+        try { _lkDraftTileSync(); } catch (_) {}
+      }
+      function _lkDraftTileHtml(d) {
+        const ids = (d.rows || []).map(r => r && r.piece).filter(Boolean);
+        const nm = String(d.name || '').trim();
+        return '<div class="rb-add-card rb-lk-drafttile" id="rb-lk-drafttile" onclick="window.__lkDraftOpen()" role="button" tabindex="0" aria-label="Open the draft">' +
+          '<div class="rb-lk-draftmos">' + _ltMosaicHtml(_ltCells(ids), {}) + '</div>' +
+          '<span class="rb-add-serif">' + _waEsc(nm || 'A look you started') + '</span>' +
+          '<span class="rb-add-hint">Draft · not saved</span>' +
+        '</div>';
+      }
+      function _lkDraftTileSync() {
+        const grid = document.getElementById('rb-lk-grid');
+        if (!grid || grid.style.display === 'none') return;
+        const d = _lkDraftParked();
+        const cur = document.getElementById('rb-lk-drafttile');
+        if (!d) { if (cur) cur.remove(); return; }
+        const html = _lkDraftTileHtml(d);
+        if (cur) { if (cur.outerHTML !== html) cur.outerHTML = html; return; }
+        grid.insertAdjacentHTML('afterbegin', html);
+      }
+      // Starting a NEW look while a draft stands asks once (the kp builder's
+      // Back confirm) — yes lets the draft go before the new one lands, so
+      // an abandoned empty composer can never let the old draft resurface.
+      function _lkDraftLetGo(onYes, onNo) {
+        const d = _lkDraftParked();
+        if (!d) { onYes(); return; }
+        const nm = String(d.name || '').trim();
+        window._rbConfirmDelete('Let the draft go?', function() { _lkDraftDrop(); onYes(); },
+          { sub: (nm ? '“' + nm + '”' : 'The look you started') + ' isn’t saved. A new look replaces it.', yes: 'Let it go' });
+        const c = document.getElementById('rb-del-cancel');
+        if (c && typeof onNo === 'function') { const prev = c.onclick; c.onclick = function() { if (prev) prev(); onNo(); }; }
+      }
+      // The park, back onto the composer: state only. A kp draft is
+      // restored through _kpBuildReturn (its page must be open first).
+      function _lkDraftLoad(d) {
         _lkResetComposer();
+        _lkDraftId = d.id || null;
+        _lkDraftWas = (d.was && typeof d.was === 'object') ? d.was : {};
+        _lkDraftStyled = (d.styled && typeof d.styled === 'object') ? d.styled : {};
         if (Array.isArray(d.rows) && d.rows.length) _lkRows = d.rows.map(r => Object.assign({}, r));
         if (Number.isInteger(d.seq)) _lkRowSeq = d.seq;
         _lkNewTitleDraft = d.name || null;
@@ -14613,15 +14769,68 @@ button.rb-lk-live{cursor:pointer}
         _lkNewRoles = (d.roles && typeof d.roles === 'object') ? d.roles : {};
         _lkPhoto = (d.photo && d.photo.url) ? { url: d.photo.url, frame: !!d.photo.frame } : null;
         _lkShowPhoto = false;
+        const kp = d.kp || null;
+        _lkShop = Array.isArray(d.shop) ? d.shop : (kp && Array.isArray(kp.shop) ? kp.shop : []);
+        _lkShopImgs = Array.isArray(d.shopImgs) ? d.shopImgs : (kp && Array.isArray(kp.shopImgs) ? kp.shopImgs : []);
+        _lkBuildNote = d.note != null ? d.note : (kp ? kp.note || null : null);
+        _lkBuildPalette = Array.isArray(d.palette) ? d.palette : (kp && Array.isArray(kp.palette) ? kp.palette : []);
+        _lkBuilt = !!(d.built || (kp && Number.isInteger(kp.wayIdx)) || _lkShop.length);
+        _lkAspirational = !!d.aspirational;
+        _lkBuildGaps = Array.isArray(d.gaps) ? d.gaps : [];
+        _lkBuildMine = !!d.mine;
+        if (d.day && (d.day.date || d.day.trip)) _lkDay = { date: d.day.date || null, trip: d.day.trip || null };
+        _lkBuildSeq++;
+        // Try another re-runs the ask the draft came from — a closure cannot
+        // survive a reload, so the prompt and its options ride the park.
+        const src = d.src || null;
+        if (src && src.kind === 'daily' && src.prompt != null) {
+          const p = src.prompt, so = Object.assign({}, src.opts || {}, { savedId: undefined, sameDraft: true });
+          _lkDraftSrc = { kind: 'daily', eyebrow: String(src.eyebrow || ''), src: { prompt: p, opts: src.opts || null },
+            again: () => window.__dlSubmit(p, so),
+            refine: (words, current) => window.__dlSubmit(p, Object.assign({}, so, { refine: words, current })) };
+        } else if (src && src.kind && src.kind !== 'kp') {
+          _lkDraftSrc = { kind: src.kind, eyebrow: String(src.eyebrow || ''), again: null, refine: null };
+        }
+        // A still that never landed died with its job — re-shoot the
+        // missing ones, keeping every still that did land.
+        if (_lkShop.length && _lkShop.some((r, i) => !_lkShopImgs[i])) _lkShopImages(true);
+      }
+      // The next line's and the tile's door: the draft, where it was. A kp
+      // draft reopens its key piece first (the builder lives on that page).
+      window.__lkDraftOpen = function() {
+        const d = _lkDraftParked();
+        if (!d) return;
+        _rbTrack('draft_opened', { kp: !!(d.kp && Number.isInteger(d.kp.wayIdx)), built: !!d.built });
+        if (d.kp && Number.isInteger(d.kp.wayIdx) && d.kp.savedId != null && typeof _kpBuildReturn === 'function') { _kpBuildReturn(d); return; }
+        if (window.__snOpen) window.__snOpen();
+        window.__lkDraftRestore(d, 'lookbook');
+      };
+      // Discard on the composer: the draft goes, the surface it stood on
+      // takes its empty state back.
+      window.__lkComposerDiscard = function() {
+        if (_lkBuilding) return;
+        const nm = String(_lkNewTitleDraft || '').trim();
+        window._rbConfirmDelete('Let this draft go?', function() {
+          _rbTrack('draft_discarded', { built: !!_lkBuilt, pieces: _lkUsed().length, proposed: _lkShop.length });
+          _lkDraftDrop();
+          const kpHosted = _lkKpHost, home = !!document.querySelector('.rb-lkh-composer');
+          _lkResetComposer();
+          if (kpHosted && window.__kpBuildBack) { window.__kpBuildBack(); return; }
+          if (home) { _lkRepaint(); return; }
+          _lkView = 'grid'; _lkActive = null;
+          _lkPaint();
+        }, { sub: (nm ? '“' + nm + '”' : 'This look') + ' isn’t saved — nothing is kept.', yes: 'Let it go' });
+      };
+      // Leaving the tab mid-draft: flush the debounce so the park is current.
+      try { window.addEventListener('pagehide', function() { if (_lkDraftParkT) _lkDraftPark(); }); } catch (_) {}
+      window.__lkDraftRestore = function(d, where) {
+        if (!d || typeof d !== 'object') return;
+        _lkDraftLoad(d);
         if (where === 'kp' && d.kp) {
           // The kp build comes back whole — proposals, their stills and the
           // note ride the park, so nothing is generated twice.
           _lkKpHost = true; _lkView = 'new';
           _lkBuilt = true; _lkBuilding = false; _lkBuildSeq++;
-          _lkShop = Array.isArray(d.kp.shop) ? d.kp.shop : [];
-          _lkShopImgs = Array.isArray(d.kp.shopImgs) ? d.kp.shopImgs : [];
-          _lkBuildNote = d.kp.note || null;
-          _lkBuildPalette = Array.isArray(d.kp.palette) ? d.kp.palette : [];
           _lkNewTitleTouched = false;
           const wi = d.kp.wayIdx;
           _lkDraftSrc = { kind: 'kp', eyebrow: String(d.kp.eyebrow || ''), again: function() { if (window.__kpBuildLook) window.__kpBuildLook(wi); } };
@@ -14646,6 +14855,10 @@ button.rb-lk-live{cursor:pointer}
 
       function _lkNewHtml(opts) {
         const home = !!(opts && opts.home);
+        // Every composer paint parks the draft (phase 1) — a mutation
+        // always repaints; the one that doesn't (typing the name) parks on
+        // its own.
+        if (!_lkBuilding) _lkDraftParkSoon();
         // kp: hosted on the key piece page (2026-09-16) — that page carries
         // the return band, so the composer's masthead is the way's eyebrow
         // over the name alone.
@@ -14844,8 +15057,10 @@ button.rb-lk-live{cursor:pointer}
         // On the kp page the strip above the host IS the header (eyebrow +
         // the name field) — the composer paints none of its own, so the
         // panel opens on the style note.
+        // The masthead says what the draft is (phase 1): not saved yet.
+        const draftMeta = (!_lkBuilding && !_lkDraftEmptyNow()) ? '<div class="rb-lk-draftmeta">Draft · not saved yet</div>' : '';
         const mastHtml = (home || kp) ? ''
-          : _rbRetHtml({ key: 'look', label: _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast">' + titleHtml + '</div>';
+          : _rbRetHtml({ key: 'look', label: _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast">' + titleHtml + draftMeta + '</div>';
 
         // The Rack — the formula strips name themselves, so no second
         // header sits above them (the masthead already names the look).
@@ -14915,8 +15130,13 @@ button.rb-lk-live{cursor:pointer}
               // her words re-run the generator behind it with the look as
               // it stands; nothing is written until she saves.
               '<span class="sep"></span><button type="button" class="rb-lk-quiet rb-lk-askdoor" onclick="window.__lkAskOpen(\'composer\')">Adjust with words</button>' +
+              '<span class="sep"></span><button type="button" class="rb-lk-quiet rb-lk-discard" onclick="window.__lkComposerDiscard()">Discard</button>' +
             '</div>'
-          : '';
+          : (!_lkBuilding && !_lkDraftEmptyNow()
+            // A hand-built draft has no foot — Discard stands alone beside
+            // Save, the one way to let an unsaved look go (phase 1).
+            ? '<div class="rb-lk-buildfoot"><button type="button" class="rb-lk-quiet rb-lk-discard" onclick="window.__lkComposerDiscard()">Discard</button></div>'
+            : '');
         // The save note says what the pill cannot (a title attribute is
         // invisible on touch): the name is the gate. __lkNewTitleInput
         // rewrites it in place so typing never repaints.
@@ -15872,19 +16092,32 @@ button.rb-lk-live{cursor:pointer}
         _lkNewTitleDraft = null; _lkNewTitleTouched = false;
         _lkNewTags = null; _lkNewRoles = {};
         _lkDay = null; _lkDraftSrc = null; _lkKpHost = false;
+        // A reset never drops the PARK — only Save, Discard and the
+        // let-it-go confirm do. It only forgets which draft this composer was.
+        if (_lkDraftParkT) { clearTimeout(_lkDraftParkT); _lkDraftParkT = null; }
+        _lkDraftId = null; _lkDraftWas = {}; _lkDraftStyled = {};
       }
       // opts.day (ISO) attaches a day: the return band reads the date, the
       // filing chip says where it lands, Save reads "Save to {weekday}",
       // and the saved look lands on that day. opts.trip = {di} files into
       // a trip instead. opts.tags pre-fills the tag row (her Refine picks).
+      // opts.then runs once the composer is open — callers that chain a
+      // build or a placed piece pass it, since a standing draft interposes
+      // the let-it-go confirm first (phase 1).
       window.__lkNew = function(opts) {
         opts = opts || {};
+        if (!opts._letGo && _lkDraftStands()) {
+          _lkDraftLetGo(function() { window.__lkNew(Object.assign({}, opts, { _letGo: true })); });
+          return false;
+        }
         _lkShelfOpen();
         _lkResetComposer();
         if (opts.day || opts.trip) _lkDay = { date: opts.day || null, trip: opts.trip || null };
         if (opts.tags) _lkNewTags = opts.tags;
         _lkPaint();
         _rbTrack('look_compose_opened', { day: !!_lkDay });
+        if (typeof opts.then === 'function') { try { opts.then(); } catch (e) { console.warn('[robes] __lkNew then:', e && e.message); } }
+        return true;
       };
       function _lkDayWeekday(iso) {
         return iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' }) : '';
@@ -16291,9 +16524,11 @@ button.rb-lk-live{cursor:pointer}
       };
       // A proposed piece has no wardrobe photograph, so Robes shoots one —
       // the same still-life job the travel capsule uses.
-      function _lkShopImages() {
+      // keep: re-shoot only the stills that never landed (a restored draft
+      // whose job died with the page) — every landed still stays.
+      function _lkShopImages(keep) {
         if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
-        _lkShopImgs = [];
+        if (!keep) _lkShopImgs = [];
         const pieces = _lkShop.map(row => {
           const a = row.opts[row.oi] || {};
           return { name: a.name, brand: a.brand, category: row.cats[0] };
@@ -16336,7 +16571,7 @@ button.rb-lk-live{cursor:pointer}
             if (_lkDraftSrc && typeof _lkDraftSrc.refine === 'function') { _lkDraftSrc.refine(r.words, cur); return; }
             const prompt = String(_lkNewTitleDraft || '').trim() || 'A look from my wardrobe';
             const day = _lkDay && _lkDay.date ? _lkDay.date : null;
-            window.__dlSubmit(prompt, { refine: r.words, current: cur, loose: !day, anchorDate: day || undefined });
+            window.__dlSubmit(prompt, { refine: r.words, current: cur, loose: !day, anchorDate: day || undefined, sameDraft: true });
           },
         });
       };
@@ -16584,6 +16819,13 @@ button.rb-lk-live{cursor:pointer}
       function _lkHomePaint() {
         const el = document.getElementById('rb-lkhome');
         if (!el) return;
+        // The home composer IS the composer in this posture — a parked
+        // draft on a fresh rack comes back onto it (phase 1), or the rack
+        // would paint empty under a line saying a look is waiting.
+        if (_lkDraftId == null && !_lkUsed().length && !_lkBuilt) {
+          const parked = _lkDraftParked();
+          if (parked && !(parked.kp && Number.isInteger(parked.kp.wayIdx))) { _lkDraftLoad(parked); _lkView = 'new'; }
+        }
         const n = _lkUsed().length;
         // The Build-your-own row titles the module now — the head carries
         // only the rack count (FTU simplification 2026-08-18).
@@ -16992,6 +17234,14 @@ button.rb-lk-live{cursor:pointer}
       }
       function _rbNextLine() {
         if (_rbHomeMode === 'zero') return { key: 'styled' };
+        // The draft (phase 1): a thing SHE started outranks a thing Robes
+        // noticed — unless the home composer is on screen holding it.
+        const parked = (typeof _lkDraftParked === 'function') ? _lkDraftParked() : null;
+        if (parked && !document.getElementById('rb-lkhome')) {
+          const dn = String(parked.name || '').trim();
+          return { key: 'draft', text: (dn ? '<em class="rb-echo-name">' + _waEsc(dn) + '</em>' : 'A look you started') + ' is waiting, unsaved.',
+            doorLabel: 'Open it', door: 'draft' };
+        }
         const looks = (_lkLooks || []).filter(l => l && !l._draft);
         const pics = (_waItems || []).filter(w => _pdHttp(w.image_url)).length;
         // The model id lands late — ask, and _lkModelEnsure's deferred
@@ -17085,8 +17335,9 @@ button.rb-lk-live{cursor:pointer}
         } else if (nx.door === 'robes') {
           // The composer, filled by Robes — the same rack, nothing saved
           // until she does.
-          if (window.__lkNew) window.__lkNew();
-          if (window.__lkRobesBuild) window.__lkRobesBuild({ door: 'next' });
+          if (window.__lkNew) window.__lkNew({ then: () => { if (window.__lkRobesBuild) window.__lkRobesBuild({ door: 'next' }); } });
+        } else if (nx.door === 'draft') {
+          if (window.__lkDraftOpen) window.__lkDraftOpen();
         } else if (nx.door === 'week') {
           if (window.__rbDiaryOpen) window.__rbDiaryOpen();
         } else if (nx.door === 'brief') {
@@ -17421,7 +17672,8 @@ button.rb-lk-live{cursor:pointer}
         if (o.day) _lkDay = { date: o.day, trip: null };
         _lkBuilt = true; _lkBuilding = false; _lkBuildSeq++;
         _lkDraftSrc = { kind: o.kind || 'daily', eyebrow: String(o.eyebrow || '').trim(), again: typeof o.again === 'function' ? o.again : null,
-          refine: typeof o.refine === 'function' ? o.refine : null };
+          refine: typeof o.refine === 'function' ? o.refine : null,
+          src: (o.src && typeof o.src === 'object') ? o.src : null };
         flat.filter(it => it.wardrobe_match).forEach(it => {
           const id = it.wardrobe_match.id;
           if (_lkPlaceQuiet(id) && it.role) _lkNewRoles[String(id)] = _rbRoleNorm(it.role) || null;
@@ -17615,6 +17867,7 @@ button.rb-lk-live{cursor:pointer}
       window.__lkNewTitleInput = function(v) {
         _lkNewTitleDraft = v;
         _lkNewTitleTouched = String(v || '').trim().length > 0;
+        _lkDraftParkSoon();
         // The name is the gate on Save (rule 02) — flip the button in place
         // rather than repainting, which would take the caret out of the
         // field she is typing into.
@@ -17820,6 +18073,8 @@ button.rb-lk-live{cursor:pointer}
             roles: _lkNewRoles,
           });
         } finally { _lkBusy = false; }
+        // Saved: the draft is a look now, the park goes (phase 1).
+        if (l) _lkDraftDrop();
         // Proposals travel to the wishlist on save — nothing Robes offered
         // is lost, and the look grows as she acquires them.
         if (_lkShop.length && typeof _wlSaveFromItem === 'function') {
