@@ -1065,15 +1065,16 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
         }
         const wp = document.querySelector('.wardrobe-panel');
         if (wp && wp.classList.contains('visible')) return hb ? Object.assign(fresh(), { key: 'wardrobe' }) : null;
-        // Home: the field on the page carries the words; the slot stands
-        // down while that row is on screen and takes over once she has
-        // scrolled past it.
+        // Home carries the sparkle too (Annie, 2026-10-01): the field on
+        // the page says the words while its row is on screen, so the slot
+        // is the bare sparkle at rest; once she has scrolled past the row
+        // the pill takes the words.
         if (!hb) return null;
         const row = document.getElementById('rb-hb-row');
         if (!row) return null;
         const r = row.getBoundingClientRect();
-        if (r.bottom > 0 && r.top < window.innerHeight) return null;
-        return { key: 'home', words: _RB_LP_COPY.doorNew, go: () => window.__rbHbOpen && window.__rbHbOpen() };
+        const rowOn = r.bottom > 0 && r.top < window.innerHeight;
+        return { key: 'home', words: rowOn ? null : _RB_LP_COPY.doorNew, go: () => window.__rbHbOpen && window.__rbHbOpen() };
       }
       function _rbLpSlotSync() {
         let el = document.getElementById('rb-lp-slot');

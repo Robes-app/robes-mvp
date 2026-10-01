@@ -366,8 +366,8 @@ const titleTop = (page) => page.evaluate(() => {
   });
   const h = await page.evaluate(() => { const row = document.querySelector('#rb-hb .rb-hb-row'); const r = row.getBoundingClientRect(); return { pos: getComputedStyle(row).position, inView: r.top >= 0 && r.bottom <= window.innerHeight, label: document.querySelector('#rb-hb .ph')?.textContent, conc: getComputedStyle(document.querySelector('#dash .concierge')).display, overflow: document.documentElement.scrollWidth <= window.innerWidth + 1, plus: !!document.querySelector('#rb-hb .hp-add') }; });
   const s0 = await slotRead();
-  check('mobile home · the field sits IN FLOW under the greeting with its + (no dock), the card hidden, no overflow; the slot stands down while the row is on screen',
-    h.pos === 'static' && h.inView && h.label === 'A new look for…' && h.conc === 'none' && h.overflow && h.plus && !s0.on, JSON.stringify([h, s0]));
+  check('mobile home · the field sits IN FLOW under the greeting with its + (no dock), the card hidden, no overflow; the slot is the bare sparkle while the row is on screen',
+    h.pos === 'static' && h.inView && h.label === 'A new look for…' && h.conc === 'none' && h.overflow && h.plus && s0.on && s0.bare && !s0.wordsVis && s0.gap === 12, JSON.stringify([h, s0]));
   if (SHOT) await page.screenshot({ path: SHOT + 'slot-home-top.png' });
   await page.evaluate(() => window.scrollTo(0, 900)); await page.waitForTimeout(120);
   const s1 = await slotRead();
