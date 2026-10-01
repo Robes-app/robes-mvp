@@ -364,10 +364,10 @@ const titleTop = (page) => page.evaluate(() => {
       gap: r ? Math.round(dk.top - r.bottom) : null, right: r ? Math.round(window.innerWidth - r.right) : null, w: r ? Math.round(r.width) : null, h: r ? Math.round(r.height) : null,
       wordsVis: !!(b && b.querySelector('.w').getBoundingClientRect().width > 10), ink: b ? getComputedStyle(b).backgroundColor : '' };
   });
-  const h = await page.evaluate(() => { const row = document.querySelector('#rb-hb .rb-hb-row'); const r = row.getBoundingClientRect(); return { pos: getComputedStyle(row).position, inView: r.top >= 0 && r.bottom <= window.innerHeight, label: document.querySelector('#rb-hb .ph')?.textContent, conc: getComputedStyle(document.querySelector('#dash .concierge')).display, overflow: document.documentElement.scrollWidth <= window.innerWidth + 1, plus: !!document.querySelector('#rb-hb .hp-add') }; });
+  const h = await page.evaluate(() => { const row = document.querySelector('#rb-hb .rb-hb-row'); const r = row.getBoundingClientRect(); return { pos: getComputedStyle(row).position, inView: r.top >= 0 && r.bottom <= window.innerHeight, label: document.querySelector('#rb-hb #rb-lp-in')?.placeholder, inline: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), conc: getComputedStyle(document.querySelector('#dash .concierge')).display, overflow: document.documentElement.scrollWidth <= window.innerWidth + 1, plus: !!document.querySelector('#rb-hb .hp-add') }; });
   const s0 = await slotRead();
-  check('mobile home · the field sits IN FLOW under the greeting with its + (no dock), the card hidden, no overflow; the slot is the bare sparkle while the row is on screen',
-    h.pos === 'static' && h.inView && h.label === 'A new look for…' && h.conc === 'none' && h.overflow && h.plus && s0.on && s0.bare && !s0.wordsVis && s0.gap === 12, JSON.stringify([h, s0]));
+  check('mobile home · the box sits IN FLOW under the greeting with its + (no dock), inline in the row, the card hidden, no overflow; the slot is the bare sparkle while the row is on screen',
+    h.pos === 'static' && h.inView && h.inline && h.label === 'A new look for…' && h.conc === 'none' && h.overflow && h.plus && s0.on && s0.bare && !s0.wordsVis && s0.gap === 12, JSON.stringify([h, s0]));
   if (SHOT) await page.screenshot({ path: SHOT + 'slot-home-top.png' });
   await page.evaluate(() => window.scrollTo(0, 900)); await page.waitForTimeout(120);
   const s1 = await slotRead();
@@ -377,11 +377,12 @@ const titleTop = (page) => page.evaluate(() => {
     s1.on && s1.folded && s2.on && !s2.folded && s2.words === 'A new look for…' && s2.wordsVis && s2.gap === 12 && s2.right === 12 && s2.h === 44 && !s2.bare, JSON.stringify([s1, s2]));
   if (SHOT) await page.screenshot({ path: SHOT + 'slot-home-pill.png' });
   await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(400);
-  const o = await page.evaluate(() => { const dk = document.getElementById('rb-dock').getBoundingClientRect(); const sl = document.getElementById('rb-lp-slot'); return { box: !!document.getElementById('rb-lp'), ttl: document.querySelector('#rb-lp .ttl')?.textContent, dockGone: dk.top >= window.innerHeight, slotGone: !sl || getComputedStyle(sl).display === 'none', sheetBottom: Math.round(document.querySelector('#rb-lp .rb-lp').getBoundingClientRect().bottom), inner: window.innerHeight }; });
-  check('mobile home · the pill opens the new-look box from the bottom edge; the menu slides away and the slot hides — never together', o.box && o.ttl === 'A new look' && o.dockGone && o.slotGone && o.sheetBottom === o.inner, JSON.stringify(o));
-  await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(500);
+  await page.waitForTimeout(700);
+  const o = await page.evaluate(() => { const dk = document.getElementById('rb-dock').getBoundingClientRect(); const row = document.querySelector('#rb-hb .rb-hb-row').getBoundingClientRect(); return { inline: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), noSheet: !document.querySelector('#rb-lp.rb-lp-dock') && !document.querySelector('.rb-lp-scrim'), focused: document.activeElement?.id, dockStays: dk.top < window.innerHeight, rowOn: row.bottom > 0 && row.top < window.innerHeight, focusCls: !!document.querySelector('#rb-hb .rb-lp.focus') }; });
+  check('mobile home · the pill brings the row back into view and focuses the box IN PLACE — no sheet, no shade, the menu stays', o.inline && o.noSheet && o.focused === 'rb-lp-in' && o.dockStays && o.rowOn && o.focusCls, JSON.stringify(o));
+  await page.evaluate(() => document.getElementById('rb-lp-in')?.blur()); await page.waitForTimeout(400);
   const c = await slotRead();
-  check('mobile home · closing the box brings the menu and the slot back, no dot (nothing was said)', c.on && !c.held && (await page.evaluate(() => document.getElementById('rb-dock').getBoundingClientRect().top < window.innerHeight)), JSON.stringify(c));
+  check('mobile home · leaving the field keeps the box in the row (it is the field) and the slot stands as the bare sparkle, no dot (nothing was said)', c.on && c.bare && !c.held && (await page.evaluate(() => !!document.querySelector('#rb-hb #rb-lp') && document.getElementById('rb-dock').getBoundingClientRect().top < window.innerHeight)), JSON.stringify(c));
   // The grids: the sparkle alone, never words over tiles.
   await page.evaluate(() => window.__rbNavGo('lookbook')); await page.waitForTimeout(700);
   const g1 = await slotRead();
@@ -397,11 +398,15 @@ const titleTop = (page) => page.evaluate(() => {
   await page.locator('#rb-lk-grid .rb-lk-tile').first().click(); await page.waitForTimeout(800);
   const l1 = await slotRead();
   const dockGone = await page.evaluate(() => { const f = document.querySelector('#sn-page .rb-lk-held .rb-lp-field.rb-lp-dock'); return !!f && getComputedStyle(f).display === 'none'; });
-  check('mobile look · the pill reads "Change this look…" and the full-width docked field stands down on the phone', l1.on && !l1.bare && l1.words === 'Change this look…' && l1.gap === 12 && dockGone, JSON.stringify([l1, dockGone]));
+  // Inline since 2026-10-01: a look carries the BARE sparkle (the floating
+  // "Change this look…" pill is gone — the box holds the words).
+  check('mobile look · the slot is the bare sparkle (no floating pill) and the full-width docked field stands down on the phone', l1.on && l1.bare && !l1.wordsVis && l1.gap === 12 && dockGone, JSON.stringify([l1, dockGone]));
   if (SHOT) await page.screenshot({ path: SHOT + 'slot-look.png' });
   await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(400);
-  const lb = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), ttl: document.querySelector('#rb-lp .ttl')?.textContent, page: document.getElementById('rb-lk-title')?.textContent.trim(), opener: document.querySelector('#rb-lp .robes')?.textContent }));
-  check('mobile look · the pill opens the look’s own box (look mode, titled with the look)', lb.box && lb.ttl && lb.ttl === lb.page && lb.opener === 'What would you change?', JSON.stringify(lb));
+  const lb = await page.evaluate(() => { const w = document.getElementById('rb-lp'); const b = w && w.querySelector('.rb-lp'); const dk = document.getElementById('rb-dock').getBoundingClientRect(); const sl = document.getElementById('rb-lp-slot'); return { box: !!w, dock: !!(w && w.classList.contains('rb-lp-dock')), scrim: !!document.querySelector('.rb-lp-scrim'), name: b && b.getAttribute('aria-label'), page: document.getElementById('rb-lk-title')?.textContent.trim(), ph: document.getElementById('rb-lp-in')?.placeholder, foot: w ? Math.round(window.innerHeight - w.getBoundingClientRect().bottom) : null, dockGone: dk.top >= window.innerHeight, slotGone: !sl || getComputedStyle(sl).display === 'none', lookVis: !!document.querySelector('#rb-lk-body .rb-lk-held') && getComputedStyle(document.querySelector('#rb-lk-body .rb-lk-held')).display !== 'none' }; });
+  if (SHOT) await page.screenshot({ path: SHOT + 'slot-look-box.png' });
+  check('mobile look · the sparkle turns the foot into the field: the box docks 12px off the bottom with no shade, named for the look, reading “Change this look…”; the menu slides away, the slot hides, the look stays visible above',
+    lb.box && lb.dock && !lb.scrim && lb.name === lb.page && lb.ph === 'Change this look…' && lb.foot === 12 && lb.dockGone && lb.slotGone && lb.lookVis, JSON.stringify(lb));
   // Close mid-thread → the dot; reopen → the thread comes back and the dot clears.
   await page.evaluate(() => { const ta = document.getElementById('rb-lp-in'); ta.value = 'Not the jeans'; ta.dispatchEvent(new Event('input', { bubbles: true })); });
   await page.route('**/api/look/ask', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ intent: 'clarify', reply: 'Which jeans — the barrel-leg?', swaps: [], back: [], styled: [] }) }));
@@ -409,25 +414,25 @@ const titleTop = (page) => page.evaluate(() => {
   await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(500);
   const d1 = await slotRead();
   await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(400);
-  const d2 = await page.evaluate(() => ({ her: Array.from(document.querySelectorAll('#rb-lp .her')).map((e) => e.textContent), robes: document.querySelectorAll('#rb-lp .robes').length }));
+  const d2 = await page.evaluate(() => ({ her: Array.from(document.querySelectorAll('#rb-lp .her')).map((e) => e.textContent), robes: document.querySelectorAll('#rb-lp .robes').length, x: !!document.getElementById('rb-lp-x') && getComputedStyle(document.getElementById('rb-lp-x')).display !== 'none' }));
   await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(400);
   const d3 = await slotRead();
-  check('mobile look · closed mid-thread the sparkle carries the rose dot; reopening brings the thread back, and leaving it unanswered lets it go',
-    d1.on && d1.held && JSON.stringify(d2.her) === JSON.stringify(['Not the jeans']) && d2.robes === 2 && !d3.held, JSON.stringify([d1, d2, d3]));
+  check('mobile look · × folds the box to the sparkle and KEEPS the thread (the rose dot); reopening brings it back, and leaving it unanswered lets it go',
+    d1.on && d1.held && JSON.stringify(d2.her) === JSON.stringify(['Not the jeans']) && d2.robes === 1 && d2.x && !d3.held, JSON.stringify([d1, d2, d3]));
   // A Diary day and a trip: their own verbs.
   await page.evaluate(() => window.__rbDayOpen('2026-07-23', { from: 'diary' })); await page.waitForTimeout(800);
   const dy = await slotRead();
   await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(400);
-  const dyb = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), ttl: document.querySelector('#rb-lp .ttl')?.textContent, meta: document.querySelector('#rb-lp .meta')?.textContent }));
+  const dyb = await page.evaluate(() => ({ box: !!document.querySelector('#rb-lp.rb-lp-dock'), ph: document.getElementById('rb-lp-in')?.placeholder, scrim: !!document.querySelector('.rb-lp-scrim') }));
   await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(200);
-  check('mobile day page · the pill reads "Dress this day…" and opens the new-look box ON that date', dy.on && dy.words === 'Dress this day…' && dyb.box && dyb.ttl === 'A new look' && /^Thu 23 Jul/.test(dyb.meta || ''), JSON.stringify([dy, dyb]));
+  check('mobile day page · the pill reads "Dress this day…" and opens the new-look box ON that date (docked, reading the day)', dy.on && dy.words === 'Dress this day…' && dyb.box && !dyb.scrim && dyb.ph === 'Dress Thu 23 Jul…', JSON.stringify([dy, dyb]));
   await page.evaluate((fx) => window.__tvRenderResult(fx), TRIP); await page.waitForTimeout(900);
   const tv = await slotRead();
   await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(400);
-  const tvb = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), ttl: document.querySelector('#rb-lp .ttl')?.textContent, meta: document.querySelector('#rb-lp .meta')?.textContent, opener: document.querySelector('#rb-lp .robes')?.textContent }));
+  const tvb = await page.evaluate(() => ({ box: !!document.querySelector('#rb-lp.rb-lp-dock'), name: document.querySelector('#rb-lp .rb-lp')?.getAttribute('aria-label'), ph: document.getElementById('rb-lp-in')?.placeholder, scrim: !!document.querySelector('.rb-lp-scrim') }));
   await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(200);
-  check('mobile trip · the pill reads "Pack for this trip…" and opens the box over the trip (its name, the destination and dates, "What’s the plan?")',
-    tv.on && tv.words === 'Pack for this trip…' && tvb.box && tvb.ttl === 'A trip to Lahinch' && tvb.meta === 'Trip to Lahinch · 31 Jul – 3 Aug' && tvb.opener === 'What’s the plan?', JSON.stringify([tv, tvb]));
+  check('mobile trip · the pill reads "Pack for this trip…" and opens the box over the trip (docked, named for the trip, asking for the plan)',
+    tv.on && tv.words === 'Pack for this trip…' && tvb.box && !tvb.scrim && tvb.name === 'A trip to Lahinch' && /beach day/.test(tvb.ph || ''), JSON.stringify([tv, tvb]));
   // The web keeps its dock: the slot is the phone's alone.
   await page.evaluate(() => window.__rbNavGo('lookbook')); await page.waitForTimeout(400);
   await page.locator('#rb-lk-grid .rb-lk-tile').first().click(); await page.waitForTimeout(600);

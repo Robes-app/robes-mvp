@@ -820,150 +820,229 @@
       // The thread is NOT a chat: dropped on close, never persisted, never
       // shown anywhere else; each line she sends lands in the memory.
       // Supersedes the ask sheet (slice C, 2026-09-30) and its chips.
+      // ── INLINE since 2026-10-01 (design Inline_Prompt, Annie: "the field
+      // is the box — it opens where it sits"): no shade, no sheet, no
+      // second title. The box renders IN PLACE — into a host element where
+      // a page carries the field (home's row, a key piece's card) or docked
+      // where the bar sits (a look surface's foot: the phone's save bar, the
+      // web's 24px dock) — and the page stays visible around it. A thread
+      // grows ABOVE the field (her words on a hairline, Robes' reply in
+      // serif, one italic busy line); on home the DRAFT lands BELOW it
+      // (the row, Save look, the week to file it to, one confirmation
+      // line). × folds the box to the sparkle and KEEPS the thread.
       var _rbLp = null;
+      var _RB_LP_SPARK = '<svg class="sp" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M11 3c.5 4.2 2.8 6.5 7 7-4.2.5-6.5 2.8-7 7-.5-4.2-2.8-6.5-7-7 4.2-.5 6.5-2.8 7-7z" fill="currentColor"/><path d="M18.5 15c.2 1.7 1.1 2.6 2.8 2.8-1.7.2-2.6 1.1-2.8 2.8-.2-1.7-1.1-2.6-2.8-2.8 1.7-.2 2.6-1.1 2.8-2.8z" fill="var(--rose,#8E7077)"/></svg>';
       var _RB_LP_CSS = `
-.rb-lp-wrap{position:fixed;inset:0;z-index:955;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
-.rb-lp-scrim{position:absolute;inset:0;background:rgba(32,32,33,.28)}
-.rb-lp{position:relative;z-index:1;width:100%;max-width:480px;max-height:86vh;display:flex;flex-direction:column;box-sizing:border-box;background:#fff;border-radius:18px;border-top:0.5px solid var(--rule-mid,#CFC7B9);padding:22px 24px 22px;box-shadow:0 -10px 30px rgba(32,32,33,.07),0 24px 60px -12px rgba(32,32,33,.22);font-family:inherit;color:var(--ink,#202021)}
-.rb-lp .grab{display:none}
-.rb-lp .x{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:100px;border:1px solid var(--rule,rgba(32,32,33,.1));background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink,#202021);font-family:inherit;font-size:16px;line-height:1}
-.rb-lp .ttl{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-weight:300;font-size:24px;line-height:1.1;padding-right:44px}
-.rb-lp .meta{font-size:11.5px;font-weight:300;color:var(--ink-faint,#9A958E);margin-top:4px;padding-bottom:12px;border-bottom:0.5px solid var(--rule,rgba(32,32,33,.1))}
-.rb-lp .thread{display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:230px;padding:14px 0 4px;flex:1 1 auto;min-height:0}
-.rb-lp .robes{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-weight:400;font-size:18px;line-height:1.32;color:var(--ink,#202021)}
-.rb-lp .her{align-self:flex-end;max-width:86%;font-size:14px;font-weight:300;line-height:1.45;color:var(--ink,#202021);border-left:0.5px solid #C9BCA6;padding-left:12px}
-.rb-lp .filed{font-size:11px;font-weight:300;color:var(--ink-faint,#9A958E);font-style:italic;font-family:var(--font-serif,'Cormorant',Georgia,serif);font-size:14px}
-.rb-lp .reading{display:flex;align-items:center;gap:10px}
-.rb-lp .reading .dots{display:inline-flex;gap:4px}.rb-lp .reading .dots i{width:5px;height:5px;border-radius:50%;background:var(--rose,#8E7077);animation:rbLpDot 1.2s ease-in-out infinite}
-.rb-lp .reading .dots i:nth-child(2){animation-delay:.2s}.rb-lp .reading .dots i:nth-child(3){animation-delay:.4s}
-.rb-lp .reading .line{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:15px;color:var(--ink-faint,#9A958E)}
-@keyframes rbLpDot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-2px)}}
-.rb-lp .fieldrow{display:flex;align-items:flex-end;gap:10px;margin-top:12px}
-.rb-lp textarea{flex:1;min-width:0;resize:none;box-sizing:border-box;background:var(--cream,#FAF8F5);border:0.5px solid var(--rule-mid,#CFC7B9);border-radius:18px;padding:11px 16px;font-family:var(--font-serif,'Cormorant',Georgia,serif);font-size:17px;font-weight:400;line-height:1.3;color:var(--ink,#202021);outline:none;max-height:92px;overflow-y:auto}
-.rb-lp textarea::placeholder{font-style:italic;color:var(--ink-faint,#9A958E)}
-.rb-lp textarea.drafted{border-color:#C9BCA6;background:#FBF8F1}
+#rb-lp{box-sizing:border-box;font-family:inherit;color:var(--ink,#202021)}
+#rb-lp.rb-lp-in{position:relative;width:100%}
+#rb-lp.rb-lp-dock{position:fixed;z-index:955;left:50%;transform:translateX(-50%);bottom:24px;width:min(620px,calc(100vw - 48px))}
+#rb-lp.rb-lp-dock .rb-lp{box-shadow:0 6px 20px rgba(32,32,33,.08)}
+.rb-lp{position:relative;background:#fff;border:0.5px solid var(--rule-mid,#CFC7B9);border-radius:100px;overflow:hidden;transition:border-color .2s ease,border-radius .2s ease}
+.rb-lp.open{border-radius:18px}
+.rb-lp.focus,.rb-lp.drafted{border-color:#C9BCA6}
+.rb-lp.drafted{background:#FBF8F1}
+.rb-lp .x{position:absolute;top:8px;right:8px;z-index:1;width:28px;height:28px;border-radius:100px;border:0.5px solid var(--rule-mid,#CFC7B9);background:#fff;color:var(--ink-soft,#55524E);font-size:13px;line-height:1;cursor:pointer;padding:0;font-family:inherit;display:flex;align-items:center;justify-content:center}
+.rb-lp .thread{max-height:190px;overflow-y:auto;scrollbar-width:none;padding:14px 44px 10px 14px;display:flex;flex-direction:column;gap:12px;border-bottom:0.5px solid var(--rule-mid,#CFC7B9)}
+.rb-lp .thread::-webkit-scrollbar{display:none}
+.rb-lp.focus .thread{max-height:230px}
+.rb-lp .her{padding:1px 0 1px 12px;border-left:0.5px solid #C9BCA6;font-size:13px;font-weight:300;line-height:1.45;color:var(--ink,#202021);text-wrap:pretty}
+.rb-lp .robes{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-weight:400;font-size:17px;line-height:1.3;color:var(--ink,#202021);text-wrap:pretty}
+.rb-lp .filed{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:14px;color:var(--ink-faint,#9A958E)}
+.rb-lp .reading{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:16px;line-height:1.3;color:var(--ink-soft,#55524E)}
+.rb-lp .fieldrow{display:flex;align-items:center;gap:10px;min-height:46px;padding:5px 5px 5px 14px;box-sizing:border-box}
+.rb-lp .fieldrow .sp{flex:none;width:20px;height:20px;display:block;color:var(--ink,#202021)}
+.rb-lp textarea{flex:1;min-width:0;resize:none;border:0;outline:none;background:transparent;margin:0;padding:0;font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:16px;line-height:1.3;color:var(--ink,#202021);max-height:84px;overflow-y:auto}
+.rb-lp textarea::placeholder{color:var(--ink-faint,#9A958E)}
 .rb-lp textarea:disabled{opacity:.6}
-.rb-lp .send{flex:none;width:36px;height:36px;border-radius:50%;border:0.5px solid var(--rule-mid,#CFC7B9);background:var(--cream-200,#EDE9E2);color:var(--ink,#202021);display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;font-size:15px;line-height:1;transition:background .15s,color .15s}
+.rb-lp .send{flex:none;width:36px;height:36px;border-radius:100px;border:0.5px solid var(--rule-mid,#CFC7B9);background:var(--cream-200,#EDE9E2);color:var(--ink,#202021);display:none;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;font-size:15px;line-height:1;padding:0;transition:background .15s,color .15s}
+.rb-lp.focus .send,.rb-lp.has .send,.rb-lp.reading .send{display:flex}
 .rb-lp .send.ink{background:var(--ink,#202021);color:var(--cream,#FAF8F5);border-color:var(--ink,#202021)}
 .rb-lp .send:disabled{cursor:default;opacity:.55}
-.rb-lp .helper{font-size:11px;font-weight:300;color:var(--ink-faint,#9A958E);text-align:center;margin-top:9px}
+.rb-lpd{display:flex;flex-direction:column;gap:12px;padding:10px;border-top:0.5px solid var(--rule-mid,#CFC7B9)}
+.rb-lpd-busy{padding:0 4px 2px;font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:15px;line-height:1.3;color:var(--ink-soft,#55524E)}
+.rb-lpd-row{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;background:none;border:0;padding:0;margin:0;cursor:pointer;text-align:left;font-family:inherit;color:var(--ink,#202021)}
+.rb-lpd-row .th{width:52px;height:62px;border-radius:6px;background:var(--cream-200,#EDE9E2) center/cover no-repeat;overflow:hidden;position:relative}
+.rb-lpd-row .th .rb-lk-mos{position:absolute;inset:0;height:100%;aspect-ratio:auto}
+.rb-lpd-row .tx{min-width:0;display:flex;flex-direction:column}
+.rb-lpd-row .tx span{display:block}
+.rb-lpd-row .ey{font-size:8.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--rose,#8E7077);line-height:1}
+.rb-lpd-row .nm{margin-top:5px;font-family:var(--font-serif,'Cormorant',Georgia,serif);font-weight:400;font-size:18px;line-height:1.05;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rb-lpd-row .m{margin-top:4px;font-size:10.5px;font-weight:300;line-height:1.2;color:var(--ink-soft,#55524E)}
+.rb-lpd-row .ar{font-size:16px;font-weight:300;line-height:1;color:var(--ink,#202021)}
+.rb-lpd-save{height:40px;width:100%;border:0;border-radius:100px;background:var(--ink,#202021);color:var(--cream,#FAF8F5);font-family:inherit;font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
+.rb-lpd-date{display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:0.5px solid var(--rule-mid,#CFC7B9)}
+.rb-lpd-date .lab{font-size:8px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#9A958E)}
+.rb-lpd-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.rb-lpd-days button{padding:6px 0;border:1px dashed var(--cream-400,#D8CFBE);border-radius:8px;background:transparent;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-family:inherit;margin:0}
+.rb-lpd-days button:hover,.rb-lpd-days button.hint{background:#F3EFE6}
+.rb-lpd-days button.hint{border-style:solid;border-color:#C9BCA6}
+.rb-lpd-days .dw{font-size:7px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint,#9A958E);line-height:1}
+.rb-lpd-days .n{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-weight:400;font-size:15px;line-height:1;color:var(--ink,#202021)}
+.rb-lpd-done{display:flex;justify-content:space-between;gap:8px;padding:9px 12px;background:#F3EFE6;border:0.5px solid #C9BCA6;border-radius:8px;font-size:11.5px;font-weight:300;line-height:1.3;color:var(--ink,#202021)}
+.rb-lpd-done .ch{border:0;background:none;padding:0;margin:0;font:inherit;color:inherit;border-bottom:0.5px solid var(--ink-soft,#55524E);cursor:pointer;flex:none}
 .rb-lp-busy{opacity:.55;pointer-events:none;transition:opacity .2s}
 .rb-lp-field{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;box-sizing:border-box;margin-top:14px;padding:11px 10px 11px 18px;border-radius:100px;border:0.5px solid var(--rule-mid,#CFC7B9);background:var(--cream,#FAF8F5);cursor:text;font-family:inherit;text-align:left;color:var(--ink,#202021)}
-.rb-lp-field .ph{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:16px;color:var(--ink-faint,#9A958E);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rb-lp-field .ph{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:16px;color:var(--ink-faint,#9A958E);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
 .rb-lp-field .ar{flex:none;width:30px;height:30px;border-radius:50%;border:0.5px solid var(--rule-mid,#CFC7B9);background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ink,#202021)}
+.rb-lp-field .sp{flex:none;width:20px;height:20px;display:block;color:var(--ink,#202021)}
+.rb-lp-field.spark{justify-content:flex-start;gap:10px;padding:12px 14px;background:#fff}
 .rb-lp-field:hover{border-color:var(--ink-faint,#9A958E)}
 .rb-lp-field.rb-lp-dock{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:47;width:min(620px,calc(100vw - 48px));margin:0;background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 32px rgba(32,32,33,.14),0 1px 2px rgba(32,32,33,.06)}
 .rb-lp-field.rb-lp-dock .ph{font-size:17px}
-body:has(#rb-lp) .rb-lp-field.rb-lp-dock{visibility:hidden}
+body:has(#rb-lp.rb-lp-dock) .rb-lp-field.rb-lp-dock{visibility:hidden}
 #sn-page:has(.rb-lp-dock) #rb-lk-wrap,#kp-result-page:has(.rb-lp-dock) .kp-wrap,#dl-result-page:has(.rb-lp-dock) .dlm-wrap{padding-bottom:132px}
 @media(max-width:767px){.rb-lp-field.rb-lp-dock{display:none}#sn-page:has(.rb-lp-dock) #rb-lk-wrap,#kp-result-page:has(.rb-lp-dock) .kp-wrap,#dl-result-page:has(.rb-lp-dock) .dlm-wrap{padding-bottom:120px}}
 #rb-lp-slot{display:none;position:fixed;right:12px;bottom:calc(100px + env(safe-area-inset-bottom,0px));z-index:47}
 @media(max-width:767px){#rb-lp-slot.on{display:block}}
-body:has(#rb-lp) #rb-lp-slot{display:none!important}
-#rb-lp-slot .rb-lps{position:relative;display:flex;align-items:center;gap:0;height:44px;max-width:calc(100vw - 24px);box-sizing:border-box;padding:0 0 0 13px;border-radius:100px;border:0.5px solid var(--rule-mid,#CFC7B9);background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 32px rgba(32,32,33,.14),0 1px 2px rgba(32,32,33,.06);cursor:pointer;font-family:inherit;color:var(--ink,#202021);transition:padding .22s ease}
-#rb-lp-slot .rb-lps .sp{flex:none;width:17px;height:17px;display:block;color:var(--ink,#202021)}
+body:has(#rb-lp.rb-lp-dock) #rb-lp-slot{display:none!important}
+#rb-lp-slot .rb-lps{position:relative;display:flex;align-items:center;gap:0;height:44px;max-width:calc(100vw - 24px);box-sizing:border-box;padding:0 0 0 12px;border-radius:100px;border:0.5px solid var(--rule-mid,#CFC7B9);background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 32px rgba(32,32,33,.14),0 1px 2px rgba(32,32,33,.06);cursor:pointer;font-family:inherit;color:var(--ink,#202021);transition:padding .22s ease}
+#rb-lp-slot .rb-lps .sp{flex:none;width:19px;height:19px;display:block;color:var(--ink,#202021)}
 #rb-lp-slot .rb-lps .w{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:16px;color:var(--ink-soft,#55524E);white-space:nowrap;overflow:hidden;max-width:260px;padding:0 18px 0 9px;opacity:1;transition:max-width .22s ease,opacity .16s ease,padding .22s ease}
 #rb-lp-slot .rb-lps.folded .w,#rb-lp-slot .rb-lps.bare .w{max-width:0;padding:0;opacity:0}
-#rb-lp-slot .rb-lps.folded,#rb-lp-slot .rb-lps.bare{padding:0 13px}
+#rb-lp-slot .rb-lps.folded,#rb-lp-slot .rb-lps.bare{padding:0 12px}
 #rb-lp-slot .rb-lps .dot{display:none;position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--rose,#8E7077)}
 #rb-lp-slot .rb-lps.held .dot{display:block}
 @media(prefers-reduced-motion:reduce){#rb-lp-slot .rb-lps,#rb-lp-slot .rb-lps .w{transition:none}}
 .rbc-hownote.rb-lp-was{color:var(--rose,#8E7077);font-style:normal;font-family:inherit;font-size:10.5px;letter-spacing:.04em}
 .rbc-hownote.rb-lp-styled{color:var(--ink-soft,#4A4744)}
-@media(max-width:767px){.rb-lp-wrap{align-items:flex-end;padding:0}.rb-lp{max-width:none;max-height:88dvh;border-radius:18px 18px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom,0px))}.rb-lp .grab{display:block;width:36px;height:4px;border-radius:2px;background:var(--rule-mid,#CFC7B9);margin:0 auto 14px}.rb-lp .thread{max-height:170px}}
+@media(max-width:767px){#rb-lp.rb-lp-dock{left:14px;right:14px;width:auto;transform:none;bottom:calc(12px + env(safe-area-inset-bottom,0px))}body:has(#rb-lp.rb-lp-dock) #kp-build-bar{visibility:hidden}}
 #rb-dock{transition:transform .22s ease}
-body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
-@media(prefers-reduced-motion:reduce){.rb-lp .reading .dots i{animation:none;opacity:.7}#rb-dock{transition:none}}`;
+body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
+@media(prefers-reduced-motion:reduce){#rb-dock{transition:none}.rb-lp{transition:none}}`;
       function _rbLpCss() {
         if (document.getElementById('rb-lp-style')) return;
         const st = document.createElement('style'); st.id = 'rb-lp-style'; st.textContent = _RB_LP_CSS; document.head.appendChild(st);
       }
       var _RB_LP_COPY = {
         doorLook: 'Change this look…', doorNew: 'A new look for…', doorAfter: 'Anything else, or put something back…',
-        openerLook: 'What would you change?', openerNew: 'What’s it for?',
-        phLook: 'Restyle it, or swap the red shoes for black…', phAfter: 'Anything else, or put something back…', phNew: 'A travel day, lots of walking, nothing white…',
-        helperLook: 'Changes land on the look as you go. Ask for anything back.', helperDrafted: 'Robes wrote this from your words. Edit it, or press Enter.', helperNew: 'Robes builds it from your wardrobe.',
-        readingLook: 'reading it against the look', readingNew: 'reading it against your brief',
+        phDraft: 'Change this draft…',
+        busyBuild: 'Building a draft from your wardrobe…', busyChange: 'Changing the look…', busyNote: 'Noting it…', busyRead: 'Reading it…',
         doneNone: 'Nothing has changed yet, so there’s nothing to put back.',
       };
-      // The closed door: a pill-shaped field under the look. o.mode 'new'
-      // reads "A new look for…"; o.changed flips the look door to the
-      // after-a-change line.
+      // The closed door: a pill-shaped field reading the page's verb; a
+      // tap opens the box where the field sits. o.mode 'new' reads "A new
+      // look for…"; o.changed flips the look door to the after-a-change
+      // line; o.spark leads with the sparkle (the design's resting field)
+      // instead of closing with the arrow.
       function _rbLpFieldHtml(o) {
         o = o || {};
         _rbLpCss();
         const label = o.label || (o.mode === 'new' ? _RB_LP_COPY.doorNew : (o.changed ? _RB_LP_COPY.doorAfter : _RB_LP_COPY.doorLook));
-        // o.dock: the field FLOATS above the navigation (Annie, 2026-10-01 —
-        // the design's placement on every look surface), never a slot in
-        // the page; the host pads its foot so nothing hides under it.
-        return '<button type="button" class="rb-lp-field' + (o.dock ? ' rb-lp-dock' : '') + (o.cls ? ' ' + o.cls : '') + '" onclick="' + o.onclick + '" aria-label="' + _waEsc(label) + '"><span class="ph">' + _waEsc(label) + '</span><span class="ar">→</span></button>';
+        // o.dock: the field FLOATS above the navigation (the web's placement
+        // on every look surface), never a slot in the page; the host pads
+        // its foot so nothing hides under it.
+        return '<button type="button" class="rb-lp-field' + (o.dock ? ' rb-lp-dock' : '') + (o.spark ? ' spark' : '') + (o.cls ? ' ' + o.cls : '') + '" onclick="' + o.onclick + '" aria-label="' + _waEsc(label) + '">' +
+          (o.spark ? _RB_LP_SPARK : '') + '<span class="ph">' + _waEsc(label) + '</span>' + (o.spark ? '' : '<span class="ar">→</span>') + '</button>';
       }
       function _rbLpThreadHtml() {
         const s = _rbLp;
-        const opener = s.opener || (s.mode === 'new' ? _RB_LP_COPY.openerNew : _RB_LP_COPY.openerLook);
-        let h = '<div class="robes">' + _waEsc(opener) + '</div>';
+        let h = '';
         s.thread.forEach(t => {
           if (t.who === 'her') h += '<div class="her">' + _waEsc(t.text) + '</div>';
           else if (t.who === 'filed') h += '<div class="filed">' + _waEsc(t.text) + '</div>';
           else h += '<div class="robes">' + _waEsc(t.text) + '</div>';
         });
-        if (s.reading) h += '<div class="reading"><span class="dots"><i></i><i></i><i></i></span><span class="line">' + _waEsc(s.mode === 'new' ? _RB_LP_COPY.readingNew : _RB_LP_COPY.readingLook) + '</span></div>';
+        // The busy line reads in the thread — unless the build's own line
+        // stands in the result slot beneath the field (home).
+        if (s.reading && !s.building) h += '<div class="reading">' + _waEsc(s.readingText || (s.mode === 'new' ? _RB_LP_COPY.busyRead : _RB_LP_COPY.busyChange)) + '</div>';
         return h;
+      }
+      function _rbLpPlaceholder(s) {
+        if (s.placeholder) return s.placeholder;
+        if (s.mode === 'new') return _RB_LP_COPY.doorNew;
+        return s.applied ? _RB_LP_COPY.doorAfter : _RB_LP_COPY.doorLook;
       }
       function _rbLpPaint() {
         const s = _rbLp, host = document.getElementById('rb-lp');
         if (!s || !host) return;
-        const ph = s.placeholder || (s.mode === 'new' ? _RB_LP_COPY.phNew : (s.applied ? _RB_LP_COPY.phAfter : _RB_LP_COPY.phLook));
-        host.innerHTML = '<div class="rb-lp-scrim" onclick="window.__rbLpClose()"></div><div class="rb-lp" role="dialog" aria-modal="true" aria-label="' + _waEsc(s.title || 'Change this look') + '">' +
-          '<div class="grab"></div><button type="button" class="x" onclick="window.__rbLpClose()" aria-label="Close">×</button>' +
-          '<div class="ttl">' + _waEsc(s.title || '') + '</div>' +
-          '<div class="meta">' + _waEsc(s.meta || '') + '</div>' +
-          '<div class="thread" id="rb-lp-thread">' + _rbLpThreadHtml() + '</div>' +
-          '<div class="fieldrow"><textarea id="rb-lp-in" rows="1" maxlength="240" placeholder="' + _waEsc(ph) + '" oninput="window.__rbLpText(this.value)" onkeydown="window.__rbLpKey(event)"></textarea>' +
-          '<button type="button" class="send" id="rb-lp-send" onclick="window.__rbLpSend()" aria-label="Send">→</button></div>' +
-          '<div class="helper" id="rb-lp-helper"></div></div>';
+        host.innerHTML = '<div class="rb-lp" role="group" aria-label="' + _waEsc(s.name || s.title || 'Change this look') + '">' +
+          '<button type="button" class="x" id="rb-lp-x" onclick="window.__rbLpClose()" aria-label="Close">×</button>' +
+          '<div class="thread" id="rb-lp-thread"></div>' +
+          '<div class="fieldrow">' + _RB_LP_SPARK +
+            '<textarea id="rb-lp-in" rows="1" maxlength="240" oninput="window.__rbLpText(this.value)" onkeydown="window.__rbLpKey(event)" onfocus="window.__rbLpFocus(true)" onblur="window.__rbLpFocus(false)"></textarea>' +
+            '<button type="button" class="send" id="rb-lp-send" onclick="window.__rbLpSend()" aria-label="Send">→</button></div>' +
+          '<div class="rb-lpd" id="rb-lp-result"></div></div>';
         _rbLpSync(true);
       }
-      // Repaint the thread, the field's state and the helper in place —
-      // never the whole box, which would take the caret out of the field.
+      // The result slot alone (home: the draft row, Save, the week, the
+      // line) — repainted when the draft moves under the box.
+      function _rbLpResultSync() {
+        const s = _rbLp, res = document.getElementById('rb-lp-result');
+        if (!s || !res) return '';
+        let rh = '';
+        try { rh = typeof s.resultHtml === 'function' ? (s.resultHtml(s) || '') : ''; } catch (e) { console.error('[Robes] box result', e); rh = ''; }
+        res.innerHTML = rh;
+        res.style.display = rh ? '' : 'none';
+        return rh;
+      }
+      // Repaint the thread, the result, the field's state — never the whole
+      // box, which would take the caret out of the field.
       function _rbLpSync(setValue) {
         const s = _rbLp; if (!s) return;
+        const box = document.querySelector('#rb-lp .rb-lp'); if (!box) return;
+        const lines = s.thread.length > 0;
         const th = document.getElementById('rb-lp-thread');
-        if (th) { th.innerHTML = _rbLpThreadHtml(); th.scrollTop = th.scrollHeight; }
+        if (th) { th.innerHTML = _rbLpThreadHtml(); th.style.display = (lines || (s.reading && !s.building)) ? '' : 'none'; th.scrollTop = th.scrollHeight; }
+        const rh = _rbLpResultSync();
+        const x = document.getElementById('rb-lp-x');
+        if (x) x.style.display = lines ? '' : 'none';
+        box.classList.toggle('open', lines || !!s.reading || !!rh);
+        box.classList.toggle('reading', !!s.reading);
         const ta = document.getElementById('rb-lp-in');
         if (ta) {
           if (setValue || s.draft) ta.value = s.text || '';
-          ta.classList.toggle('drafted', !!s.draft);
+          box.classList.toggle('drafted', !!s.draft); ta.classList.toggle('drafted', !!s.draft);
           ta.disabled = !!s.reading;
-          ta.placeholder = s.placeholder || (s.mode === 'new' ? _RB_LP_COPY.phNew : (s.applied ? _RB_LP_COPY.phAfter : _RB_LP_COPY.phLook));
-          try { ta.style.height = 'auto'; ta.style.height = Math.min(92, ta.scrollHeight) + 'px'; } catch (_) {}
+          ta.placeholder = _rbLpPlaceholder(s);
+          try { ta.style.height = 'auto'; ta.style.height = Math.min(84, ta.scrollHeight) + 'px'; } catch (_) {}
         }
+        const txt = !!String(s.text || '').trim();
+        box.classList.toggle('has', txt);
         const send = document.getElementById('rb-lp-send');
-        if (send) { send.classList.toggle('ink', !!String(s.text || '').trim()); send.disabled = !!s.reading; }
-        const help = document.getElementById('rb-lp-helper');
-        if (help) help.textContent = s.helper || (s.draft ? _RB_LP_COPY.helperDrafted : s.mode === 'new' ? _RB_LP_COPY.helperNew : _RB_LP_COPY.helperLook);
+        if (send) { send.classList.toggle('ink', txt); send.disabled = !!s.reading; }
       }
       window.__rbLpText = function(v) {
         const s = _rbLp; if (!s) return;
         s.text = String(v || '').slice(0, 240);
+        const box = document.querySelector('#rb-lp .rb-lp');
         // Editing Robes' wording clears the warm border — it is hers now.
-        if (s.draft && s.text !== s.draftText) { s.draft = false; const ta = document.getElementById('rb-lp-in'); if (ta) ta.classList.remove('drafted'); const help = document.getElementById('rb-lp-helper'); if (help) help.textContent = s.mode === 'new' ? _RB_LP_COPY.helperNew : _RB_LP_COPY.helperLook; }
+        if (s.draft && s.text !== s.draftText) { s.draft = false; if (box) box.classList.remove('drafted'); const ta0 = document.getElementById('rb-lp-in'); if (ta0) ta0.classList.remove('drafted'); }
+        const txt = !!s.text.trim();
+        if (box) box.classList.toggle('has', txt);
         const send = document.getElementById('rb-lp-send');
-        if (send) send.classList.toggle('ink', !!s.text.trim());
+        if (send) send.classList.toggle('ink', txt);
         const ta = document.getElementById('rb-lp-in');
-        if (ta) { try { ta.style.height = 'auto'; ta.style.height = Math.min(92, ta.scrollHeight) + 'px'; } catch (_) {} }
+        if (ta) { try { ta.style.height = 'auto'; ta.style.height = Math.min(84, ta.scrollHeight) + 'px'; } catch (_) {} }
       };
       window.__rbLpKey = function(e) {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.__rbLpSend(); }
+        if (e.key === 'Escape' && _rbLp && _rbLp.persist) { try { e.target.blur(); } catch (_) {} }
       };
-      // ≤767px the sheet rides the keyboard: the wrap takes the VISUAL
-      // viewport's box (phase 3, the spec's section E) so the field never
-      // hides behind the keys on iOS, where the layout viewport stands still.
+      // The send arrow shows while she is in the field or has words in it.
+      // A docked box she leaves with nothing said (no thread, no words)
+      // folds back to the sparkle on its own.
+      window.__rbLpFocus = function(on) {
+        const s = _rbLp;
+        const box = document.querySelector('#rb-lp .rb-lp');
+        if (box) box.classList.toggle('focus', !!on);
+        if (s) s.focused = !!on;
+        if (!on && s && !s.persist) {
+          setTimeout(() => {
+            const c = _rbLp; if (!c || c !== s || c.persist || c.reading) return;
+            const w = document.getElementById('rb-lp'); if (!w || w.contains(document.activeElement)) return;
+            if (!c.thread.length && !String(c.text || '').trim()) window.__rbLpClose();
+          }, 140);
+        }
+      };
+      // ≤767px the DOCKED box rides the keyboard: its foot follows the
+      // visual viewport's bottom so the field never hides behind the keys
+      // on iOS, where the layout viewport stands still.
       function _rbLpViewport() {
         const w = document.getElementById('rb-lp'), vv = window.visualViewport;
-        if (!w || !vv) return;
-        if (!window.matchMedia('(max-width:767px)').matches) { w.style.top = ''; w.style.height = ''; w.style.bottom = ''; return; }
-        w.style.top = Math.max(0, vv.offsetTop) + 'px'; w.style.height = vv.height + 'px'; w.style.bottom = 'auto';
+        if (!w || !vv || !w.classList.contains('rb-lp-dock')) return;
+        if (!window.matchMedia('(max-width:767px)').matches) { w.style.bottom = ''; return; }
+        const gap = Math.max(0, Math.round(window.innerHeight - (vv.offsetTop + vv.height)));
+        w.style.bottom = gap > 2 ? (gap + 12) + 'px' : '';
       }
       function _rbLpViewportOn(on) {
         const vv = window.visualViewport; if (!vv) return;
@@ -972,13 +1051,20 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
       }
       // A box closed MID-THREAD (her lines on it) is held, one at a time,
       // keyed on the slot it was opened from: the sparkle carries a rose
-      // dot and the thread comes back the next time she opens that box
-      // (the closed-state design, 2026-10-01). A reopen clears the hold.
+      // dot and the thread comes back the next time she opens that box.
+      // A reopen she leaves without adding a line lets it go.
       var _rbLpHeld = null;
+      var _rbLpOpening = false;   // a box is being opened — the slot's home-box ensure stands down
       window.__rbLpClose = function() {
         const s = _rbLp;
         _rbLpViewportOn(false);
-        document.getElementById('rb-lp')?.remove();
+        const w = document.getElementById('rb-lp');
+        if (w) {
+          // An inline box hands its host back what it held (the closed
+          // field); a docked box simply goes.
+          if (s && s.hostEl && s.hostEl.isConnected && s.hostEl.contains(w)) s.hostEl.innerHTML = s.hostPrev || '';
+          else w.remove();
+        }
         document.querySelectorAll('.rb-lp-busy').forEach(el => el.classList.remove('rb-lp-busy'));
         if (s) _rbTrack('look_prompt_closed', { surface: s.surface, turns: s.turns || 0, applied_count: s.applied || 0, saved: false });
         // Held only while the thread is HERS and live: a thread she
@@ -990,18 +1076,37 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
         _rbLp = null;
         if (typeof _rbLpSlotSync === 'function') _rbLpSlotSync();
       };
-      document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && _rbLp) window.__rbLpClose(); });
-      // cfg: {mode: 'look'|'new'|'way', surface, title, meta, name, text,
+      document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && _rbLp && !_rbLp.persist) window.__rbLpClose(); });
+      // A tap outside a docked box that holds nothing yet folds it away —
+      // the page is still the page around it. (A thread, or words in the
+      // field, keep it open; × is the way out then.)
+      document.addEventListener('pointerdown', function(e) {
+        const s = _rbLp; if (!s || s.persist || s.reading) return;
+        const w = document.getElementById('rb-lp'); if (!w || w.contains(e.target)) return;
+        if (e.target && e.target.closest && e.target.closest('#rb-lp-slot, .rb-lp-field, #rb-del-modal, .kp-sheet-wrap')) return;
+        if (!s.thread.length && !String(s.text || '').trim()) window.__rbLpClose();
+      }, true);
+      // cfg: {mode: 'look'|'new'|'way', surface, name, text, placeholder,
+      //       host (an element or its id — the box renders INLINE there,
+      //       the host's content restored on close), persist (never
+      //       closes on its own — home), noFocus,
       //       rack(), pool(), context(), apply(j, sent) → n, onRule(rule),
-      //       changed() → n, onNew(text), onRegen(text), opener, placeholder, helper}
+      //       changed() → n, onAsk(text, s) → {reply|go|build}, onBuilt(s),
+      //       resultHtml(s), onWay(text, s) → {reply, regen, filed},
+      //       onRegen(text), reopen(), onNew(text), key}
       function _rbLookPrompt(cfg) {
+        cfg = cfg || {};
+        _rbLpOpening = true;
+        try { _rbLookPromptOpen(cfg); } finally { _rbLpOpening = false; }
+      }
+      function _rbLookPromptOpen(cfg) {
         window.__rbLpClose();
         _rbLpCss();
         // The slot this box belongs to (read BEFORE the box is in the DOM):
         // the key a held thread comes back on.
-        let key = (cfg && cfg.key) || null;
+        let key = cfg.key || null;
         if (!key) { try { const c = _rbLpSlotCtx(); key = c ? c.key : null; } catch (_) {} }
-        _rbLp = Object.assign({ mode: 'look', thread: [], text: '', draft: false, draftText: null, reading: false, applied: 0, turns: 0 }, cfg || {}, { key });
+        _rbLp = Object.assign({ mode: 'look', thread: [], text: '', draft: false, draftText: null, reading: false, applied: 0, turns: 0 }, cfg, { key });
         if (_rbLpHeld && key && _rbLpHeld.key === key) {
           _rbLp.thread = _rbLpHeld.thread.slice();
           if (_rbLpHeld.pending !== undefined) _rbLp.hbPending = _rbLpHeld.pending;
@@ -1010,39 +1115,49 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
           _rbLpHeld = null;
         }
         if (_rbLp.mode === 'look' && typeof _rbLp.changed === 'function') { try { _rbLp.applied = _rbLp.changed() || 0; } catch (_) {} }
+        const hostEl = cfg.host ? (typeof cfg.host === 'string' ? document.getElementById(cfg.host) : cfg.host) : null;
         const w = document.createElement('div');
-        w.id = 'rb-lp'; w.className = 'rb-lp-wrap';
-        document.body.appendChild(w);
+        w.id = 'rb-lp';
+        if (hostEl) {
+          _rbLp.hostEl = hostEl; _rbLp.hostPrev = hostEl.innerHTML;
+          hostEl.innerHTML = ''; hostEl.appendChild(w);
+          w.className = 'rb-lp-wrap rb-lp-in';
+        } else {
+          w.className = 'rb-lp-wrap rb-lp-dock';
+          document.body.appendChild(w);
+        }
         _rbLpPaint();
-        _rbLpViewportOn(true);
+        _rbLpViewportOn(!hostEl);
         _rbLpSlotSync();
-        try { const ta = document.getElementById('rb-lp-in'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } } catch (_) {}
-        _rbTrack('look_prompt_opened', { surface: _rbLp.surface, mode: _rbLp.mode, look_id: _rbLp.lookId || null });
+        if (!cfg.noFocus) { try { const ta = document.getElementById('rb-lp-in'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } } catch (_) {} }
+        _rbTrack('look_prompt_opened', { surface: _rbLp.surface, mode: _rbLp.mode, look_id: _rbLp.lookId || null, inline: !!hostEl });
       }
       window._rbLookPrompt = _rbLookPrompt;
-      // ── The closed state (≤767px): ONE slot, 12px above the menu on the
-      // right, on every page. A page with one subject Robes can act on
-      // carries the pill with its verb (folding to the sparkle while she
-      // scrolls, unfolding 700ms after she stops); a grid of many things
-      // carries the sparkle alone. Tapping either opens the same box.
-      // The web keeps the docked field (the pill is the phone's).
-      var _RB_LPS_SPARK = '<svg class="sp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 6.1L20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9z"/><path d="M19 3v3M17.5 4.5h3M5 17v3M3.5 18.5h3"/></svg>';
+      // ── The closed state (≤767px): ONE slot, 12px above the menu (or
+      // above a surface's fixed save bar) on the right, on every page. A
+      // page whose field is on the page (home's row) carries the sparkle
+      // while the row is on screen and the pill once she has scrolled past
+      // it; a LOOK surface carries the bare sparkle (the design: the
+      // floating "Change this look…" pill is gone — the box holds the
+      // words); a day page and a trip carry their verb; a grid of many
+      // things carries the sparkle alone. Tapping any opens the same box.
+      // The web keeps the docked field (the slot is the phone's).
       var _rbLpsFoldT = null, _rbLpsFolded = false, _rbLpsLast = '';
-      function _rbLpSlotCtx() {
-        if (document.getElementById('rb-lp')) return null;
+      function _rbLpSlotCtx(force) {
+        const lp = document.getElementById('rb-lp');
+        if (lp && !force && !(_rbLp && _rbLp.persist)) return null;
         const vis = id => { const el = document.getElementById(id); return !!el && el.style.display !== 'none' && getComputedStyle(el).display !== 'none'; };
         const hb = typeof _rbHbOn === 'function' && _rbHbOn();
         const fresh = (el) => ({ key: 'new', words: null, go: () => window.__rbHbOpen && window.__rbHbOpen() });
         // A surface carrying the look prompt's docked field: the slot reads
-        // it — its words, its door — so every look surface (the composer,
-        // the saved look, the trip look, the day console, the kp builder)
-        // needs nothing of its own.
+        // it — its door — so every look surface (the composer, the saved
+        // look, the trip look, the day console, the kp builder) needs
+        // nothing of its own. The words stay in the box.
         const mirror = (root, keyBase) => {
           const f = root.querySelector('.rb-lp-field.rb-lp-dock');
           if (!f) return null;
           for (let a = f.parentElement; a && a !== root; a = a.parentElement) { if (a.style.display === 'none') return null; }
-          const ph = f.querySelector('.ph');
-          return { key: keyBase, words: ph ? ph.textContent : _RB_LP_COPY.doorLook, go: () => f.click() };
+          return { key: keyBase, words: null, go: () => f.click() };
         };
         if (vis('rb-piece-page')) return null;
         const sn = document.getElementById('sn-page');
@@ -1074,10 +1189,10 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
         }
         const wp = document.querySelector('.wardrobe-panel');
         if (wp && wp.classList.contains('visible')) return hb ? Object.assign(fresh(), { key: 'wardrobe' }) : null;
-        // Home carries the sparkle too (Annie, 2026-10-01): the field on
-        // the page says the words while its row is on screen, so the slot
-        // is the bare sparkle at rest; once she has scrolled past the row
-        // the pill takes the words.
+        // Home carries the sparkle too: the field on the page says the
+        // words while its row is on screen, so the slot is the bare
+        // sparkle at rest; once she has scrolled past the row the pill
+        // takes the words and its tap brings the field back into view.
         if (!hb) return null;
         const row = document.getElementById('rb-hb-row');
         if (!row) return null;
@@ -1088,11 +1203,14 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
       function _rbLpSlotSync() {
         let el = document.getElementById('rb-lp-slot');
         const ctx = (() => { try { return _rbLpSlotCtx(); } catch (_) { return null; } })();
+        // Home's own box lives IN the row (persistent, inline) — make sure
+        // it stands whenever home is the page on top.
+        if (ctx && ctx.key === 'home' && !_rbLpOpening && typeof _rbHbBoxEnsure === 'function') { try { _rbHbBoxEnsure(); } catch (_) {} }
         if (!ctx) { if (el) el.classList.remove('on'); _rbLpsLast = ''; return; }
         if (!el) {
           _rbLpCss();
           el = document.createElement('div'); el.id = 'rb-lp-slot';
-          el.innerHTML = '<button type="button" class="rb-lps" onclick="window.__rbLpSlotTap()">' + _RB_LPS_SPARK + '<span class="w"></span><span class="dot"></span></button>';
+          el.innerHTML = '<button type="button" class="rb-lps" onclick="window.__rbLpSlotTap()">' + _RB_LP_SPARK + '<span class="w"></span><span class="dot"></span></button>';
           document.body.appendChild(el);
         }
         el._ctx = ctx;
@@ -1103,7 +1221,18 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
         b.classList.toggle('bare', !ctx.words);
         b.classList.toggle('folded', !!ctx.words && _rbLpsFolded);
         b.classList.toggle('held', !!(_rbLpHeld && _rbLpHeld.key === ctx.key));
-        b.setAttribute('aria-label', ctx.words || 'A new look');
+        b.setAttribute('aria-label', ctx.words || (String(ctx.key).indexOf('look') === 0 || ctx.key === 'composer' || ctx.key === 'kp-build' || String(ctx.key).indexOf('day:') === 0 ? _RB_LP_COPY.doorLook : 'A new look'));
+        // The sparkle floats 12px above a surface's FIXED save bar when one
+        // stands (the kp builder's), else 12px above the menu.
+        let bottom = '';
+        try {
+          const bar = document.getElementById('kp-build-bar');
+          if (bar && !bar.hidden && getComputedStyle(bar).position === 'fixed' && bar.offsetParent !== null) {
+            const top = bar.getBoundingClientRect().top;
+            if (top > 0 && top < window.innerHeight) bottom = Math.round(window.innerHeight - top + 12) + 'px';
+          }
+        } catch (_) {}
+        el.style.bottom = bottom;
         el.classList.add('on');
       }
       window._rbLpSlotSync = _rbLpSlotSync;
@@ -1137,23 +1266,37 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
         if (!text) { try { document.getElementById('rb-lp-in')?.focus(); } catch (_) {} return; }
         const fromDraft = !!s.draft && text === s.draftText;
         s.turns = (s.turns || 0) + 1;
-        // mode 'new' with onAsk (the home field, phase 3): the box holds —
-        // her line lands on the thread, Robes reads it, and the answer is
-        // either a REPLY (the thread continues: "A day, a trip, or a
-        // piece?") or a GO (the box closes, the route runs). Never a dead
-        // end: a failed read answers with the question.
+        const refocus = () => { try { const ta = document.getElementById('rb-lp-in'); if (ta && (s.focused || document.activeElement === ta || document.activeElement === document.body)) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } } catch (_) {} };
+        // mode 'new' with onAsk (the home field): the box holds — her line
+        // lands on the thread, Robes reads it, and the answer is a REPLY
+        // (the thread continues), a GO (the box closes, the route runs —
+        // a trip's intake, a piece's three ways) or a BUILD (the draft is
+        // built IN the box: one busy line, then the draft lands beneath
+        // the field). Never a dead end: a failed read answers in words.
         if (s.mode === 'new' && typeof s.onAsk === 'function') {
           _rbTrack('look_prompt_sent', { surface: s.surface, intent: 'new', chars: text.length, from_draft: false });
           s.thread.push({ who: 'her', text });
-          s.text = ''; s.draft = false; s.draftText = null; s.reading = true;
+          s.text = ''; s.draft = false; s.draftText = null; s.reading = true; s.readingText = _RB_LP_COPY.busyRead;
           _rbLpSync(true);
           let r = null;
           try { r = await s.onAsk(text, s); } catch (e) { console.error('[Robes] home box', e); r = { reply: 'Robes couldn’t read that — a day, a trip, or a piece?' }; }
           if (_rbLp !== s) return;
-          s.reading = false;
+          if (r && typeof r.build === 'function') {
+            s.thread = [];   // the ask becomes the draft — nothing to echo
+            s.building = true; s.readingText = _RB_LP_COPY.busyBuild;
+            _rbLpSync(true);
+            let ok = false;
+            try { const out = await r.build(); ok = !(out && out.ok === false); } catch (e) { console.error('[Robes] box build', e); ok = false; }
+            if (_rbLp !== s) return;
+            s.reading = false; s.building = false; s.readingText = null;
+            if (ok && typeof s.onBuilt === 'function') { try { s.onBuilt(s); } catch (e) { console.error('[Robes] box built', e); } }
+            _rbLpSync(true);
+            return;
+          }
+          s.reading = false; s.readingText = null;
           if (r && typeof r.go === 'function') {
             s.thread = [];   // the ask is answered — nothing to hold
-            window.__rbLpClose();
+            if (s.persist) { _rbLpSync(true); } else window.__rbLpClose();
             try { r.go(); } catch (e) { console.error('[Robes] home box route', e); _waShowToast('Robes couldn’t start that look — please try again.'); }
             return;
           }
@@ -1161,7 +1304,7 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
           if (r && r.pending !== undefined) s.hbPending = r.pending;
           if (r && r.placeholder) s.placeholder = r.placeholder;
           _rbLpSync(true);
-          try { document.getElementById('rb-lp-in')?.focus(); } catch (_) {}
+          refocus();
           return;
         }
         if (s.mode === 'new') {
@@ -1170,14 +1313,54 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
           try { if (typeof fn === 'function') fn(text); } catch (e) { console.error('[Robes] look prompt new', e); _waShowToast('Robes couldn’t start that look — please try again.'); }
           return;
         }
+        // mode 'way' (a key piece's look): the box holds a running
+        // conversation for THIS look. Her line is read first (onWay): a
+        // verdict is noted — it shapes the next looks — and a change
+        // re-writes the way (onRegen) while the box says so. The page
+        // re-renders under the box when a way is re-written, so the thread
+        // is held and the box comes back on the fresh card (reopen).
         if (s.mode === 'way') {
-          _rbTrack('look_prompt_sent', { surface: s.surface, intent: 'regen', chars: text.length, from_draft: false });
-          const fn = s.onRegen; window.__rbLpClose();
-          try { if (typeof fn === 'function') fn(text); } catch (e) { console.error('[Robes] look prompt way', e); }
+          _rbTrack('look_prompt_sent', { surface: s.surface, intent: 'way', chars: text.length, from_draft: false });
+          if (typeof s.onWay !== 'function') {
+            const fn = s.onRegen; window.__rbLpClose();
+            try { if (typeof fn === 'function') fn(text); } catch (e) { console.error('[Robes] look prompt way', e); }
+            return;
+          }
+          s.thread.push({ who: 'her', text });
+          s.text = ''; s.draft = false; s.draftText = null; s.reading = true; s.readingText = _RB_LP_COPY.busyNote;
+          _rbLpSync(true);
+          let r = null;
+          try { r = await s.onWay(text, s); } catch (e) { console.error('[Robes] way read', e); r = null; }
+          if (_rbLp !== s) return;
+          if (r && r.regen && typeof s.onRegen === 'function') {
+            s.readingText = _RB_LP_COPY.busyChange;
+            _rbLpSync(true);
+            let done = false;
+            try { done = (await s.onRegen(text)) !== false; } catch (e) { console.error('[Robes] way regen', e); done = false; }
+            if (_rbLp !== s) return;
+            s.reading = false; s.readingText = null;
+            s.thread.push({ who: 'robes', text: done ? (r.reply || 'Done — that look is re-written. The other two stay.') : 'Robes couldn’t re-style that look just now — say it again in a moment.' });
+            const w = document.getElementById('rb-lp');
+            if (!w || !w.isConnected) {
+              // The page re-rendered under the box: hold the thread, come
+              // back on the fresh card.
+              _rbLpHeld = { key: s.key, thread: s.thread.slice(), pending: undefined, placeholder: s.placeholder || null, at: Date.now() };
+              _rbLp = null;
+              if (typeof s.reopen === 'function') { try { s.reopen(); } catch (e) { console.error('[Robes] way reopen', e); } }
+              return;
+            }
+            _rbLpSync(true);
+            return;
+          }
+          s.reading = false; s.readingText = null;
+          s.thread.push({ who: 'robes', text: (r && r.reply) || 'Noted — the next ones will lean that way.' });
+          if (r && r.filed) s.thread.push({ who: 'filed', text: 'Filed to your style notes.' });
+          _rbLpSync(true);
+          refocus();
           return;
         }
         s.thread.push({ who: 'her', text });
-        s.text = ''; s.draft = false; s.draftText = null; s.reading = true;
+        s.text = ''; s.draft = false; s.draftText = null; s.reading = true; s.readingText = _RB_LP_COPY.busyChange;
         _rbLpSync(true);
         _rbLpDim(true);
         let j = null;
@@ -1206,7 +1389,8 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
           console.error('[Robes] /api/look/ask error:', err && err.message);
           j = null;
         }
-        s.reading = false;
+        if (_rbLp !== s) return;
+        s.reading = false; s.readingText = null;
         _rbLpDim(false);
         if (!j || typeof j !== 'object') {
           s.thread.push({ who: 'robes', text: 'Robes couldn’t take that just now — say it again in a moment.' });
@@ -1237,8 +1421,13 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
         // Every line is a verdict (the brief) — it lands in the memory with
         // the look it was about.
         try { _rbMemoryPush({ k: 'ask', on: String(s.name || s.title || '').slice(0, 120), surface: s.surface, text }); } catch (_) {}
-        _rbLpSync(true);
-        try { const ta = document.getElementById('rb-lp-in'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } } catch (_) {}
+        // The box's own tail (home: the draft row follows the change).
+        if (_rbLp === s) {
+          // A persistent box re-reads the page under it after an edit.
+          if (s.mode === 'look' && s.persist && typeof s.afterApply === 'function') { try { s.afterApply(s); } catch (_) {} }
+          _rbLpSync(true);
+          refocus();
+        }
       };
       // The rack row's note under the box: "Just changed · was {old}" in
       // rose until she saves or puts it back, and how the piece is worn.
@@ -8382,8 +8571,10 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
             '.kp-look-head{padding:14px 4px 0;cursor:pointer}' +
             '.kp-look-ey{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
             '.kp-look-title{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:26px;line-height:1.15;margin:7px 0 0;color:var(--ink,#202021)}' +
-            '.kp-look-acts{display:flex;align-items:center;gap:8px;margin-top:14px}' +
-            '.kp-build-btn{flex:1;min-width:0;height:48px;box-sizing:border-box;border-radius:100px;border:1px solid var(--rule-mid,rgba(32,32,33,.14));background:transparent;color:var(--ink,#202021);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 22px;font-family:inherit;font-size:10px;font-weight:500;line-height:1;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:border-color .18s;white-space:nowrap}' +
+            '.kp-look-acts{display:flex;flex-direction:column;align-items:stretch;gap:10px;margin-top:14px}' +
+            '.kp-lp-host{width:100%}.kp-lp-host[hidden]{display:none}.kp-lp-host .rb-lp-field{margin:0;width:100%}.kp-lp-host .rb-lp-field .ph{font-size:15px}' +
+            '.kp-lp-host #rb-lp .rb-lp textarea{font-size:15px}.kp-lp-host #rb-lp .rb-lp .fieldrow{min-height:42px;padding:3px 4px 3px 14px}.kp-lp-host #rb-lp .rb-lp .send{width:34px;height:34px}' +
+            '.kp-build-btn{flex:none;width:100%;min-width:0;height:48px;box-sizing:border-box;border-radius:100px;border:1px solid var(--rule-mid,rgba(32,32,33,.14));background:transparent;color:var(--ink,#202021);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 22px;font-family:inherit;font-size:10px;font-weight:500;line-height:1;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:border-color .18s;white-space:nowrap}' +
             '.kp-build-btn:hover{border-color:var(--ink,#202021)}' +
             '.kp-build-btn .arr{flex:none;color:var(--ink-faint,#9C9891)}' +
             // Card 01's Build this look is the page's ONE filled button on the
@@ -8409,7 +8600,7 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
               '.kp-dots{display:flex;justify-content:center;gap:6px;margin-top:18px}' +
               '.kp-dots button{width:5px;height:5px;border-radius:100px;border:0;padding:0;background:var(--cream-400,#D8CFBE);cursor:pointer;transition:width .3s,background .3s}' +
               '.kp-dots button.on{width:18px;background:var(--ink,#202021)}' +
-              '#kp-actrow{display:flex;align-items:center;gap:8px;margin-top:14px}' +
+              '#kp-actrow{display:flex;flex-direction:column;align-items:stretch;gap:10px;margin-top:14px}' +
               '@media(prefers-reduced-motion:reduce){.kp-look-card{transition:none}}' +
             '}' +
             '#kp-choose-head[hidden]{display:none}' +
@@ -8503,14 +8694,12 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
           titleId: 'kp-headline',
         });
         const kpArrow = '<svg class="arr" width="14" height="10" viewBox="0 0 14 10" fill="none" aria-hidden="true"><path d="M1 5h12M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
-        // The two thumbs beside Build (native design): hairline circles,
-        // the picked one on the warm fill. Same state as the hairline line
-        // they replace here (_rbFbState['kp'+i]) — one cloud row per look.
-        const kpFbBtns = (i, ids) => {
-          const st = _rbFbState['kp' + i] || {};
-          return '<button type="button" class="kp-fb up' + (st.rating === 1 ? ' on' : '') + '" id="' + ids[0] + '" aria-label="More like this" aria-pressed="' + (st.rating === 1 ? 'true' : 'false') + '" onclick="window.__kpFb(' + i + ',1)">' + _KP_THUMB_SVG + '</button>' +
-            '<button type="button" class="kp-fb dn' + (st.rating === 0 ? ' on' : '') + '" id="' + ids[1] + '" aria-label="Less like this" aria-pressed="' + (st.rating === 0 ? 'true' : 'false') + '" onclick="window.__kpFb(' + i + ',0)">' + _KP_THUMB_SVG + '</button>';
-        };
+        // ONE free-form field above Build this look, scoped to the look
+        // (design Inline_Prompt 4c, 2026-10-01) — the thumbs are gone: what
+        // she says in the box shapes the next looks, and she can ask Robes
+        // to change this one. On a built way the look itself is the door.
+        const kpField = (i, host) => _rbLpFieldHtml({ spark: true, label: 'Change this look…', cls: 'kp-lp-field',
+          onclick: 'window.__kpLpOpen(' + (i === 'cur' ? '(window._kpCur||0)' : i) + ',\'' + host + '\')' });
         try { kpResultPage.innerHTML = `
           ${kpBand}
           <div class="kp-wrap">
@@ -8558,16 +8747,16 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
                     <h3 class="kp-look-title">${_waEsc(w.title || '')}</h3>
                   </div>
                   <div class="kp-look-acts">
+                    <div class="kp-lp-host" id="kp-lp-host-${i}"${built ? ' hidden' : ''}>${built ? '' : kpField(i, 'kp-lp-host-' + i)}</div>
                     <button id="kp-build-btn-${i}" class="kp-build-btn${i === 0 && !kpDaily && !ways.some((_, j) => _kpBuiltLookId(j) != null) ? ' kp-build-first' : ''}${built ? ' kp-built' : ''}" onclick="window.__kpBuildLook(${i})">${built ? 'Open the look' : 'Build this look'}${kpArrow}</button>
-                    ${kpFbBtns(i, ['kp' + i + '-fb-up', 'kp' + i + '-fb-dn'])}
                   </div>
                 </div>`;
               }).join('')}
             </div>
             <div class="kp-dots" id="kp-dots">${ways.map((w, i) => `<button type="button"${i === 0 ? ' class="on"' : ''} aria-label="${_waEsc(w.title || 'Look ' + (i + 1))}" onclick="window.__kpGo(${i})"></button>`).join('')}</div>
             <div id="kp-actrow">
+              <div class="kp-lp-host" id="kp-lp-host-act"${_kpBuiltLookId(0) != null ? ' hidden' : ''}>${kpField('cur', 'kp-lp-host-act')}</div>
               <button type="button" class="kp-build-btn ink" id="kp-actrow-build" onclick="window.__kpBuildLook(window._kpCur || 0)">${_kpBuiltLookId(0) != null ? 'Open the look' : 'Build this look'}${kpArrow}</button>
-              ${kpFbBtns(0, ['kp-actrow-up', 'kp-actrow-dn']).replace(/__kpFb\(0,/g, '__kpFb(window._kpCur||0,')}
             </div>
             <div id="kp-build" class="kp-build" hidden></div>
             <div id="kp-model-band"></div>
@@ -8736,6 +8925,10 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
         document.querySelectorAll('#kp-dots button').forEach((b, k) => b.classList.toggle('on', k === i));
         const bb = document.getElementById('kp-actrow-build');
         if (bb && bb.firstChild && bb.firstChild.nodeType === 3) bb.firstChild.textContent = _kpBuiltLookId(i) != null ? 'Open the look' : 'Build this look';
+        // The action row's field is the current card's — a built way has none
+        // (the look is the door); an open box in it stays with its way.
+        const ah = document.getElementById('kp-lp-host-act');
+        if (ah && !ah.querySelector('#rb-lp')) ah.hidden = _kpBuiltLookId(i) != null;
         _kpFbSync(i);
       }
       // A card's tap: on the phone a card beside the current one scrolls
@@ -8810,10 +9003,12 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
       // ONE way re-written: /api/style with refine + wayIndex answers one
       // way and one frame at that way's slot; the other two ride untouched,
       // the kp entry is patched, and the page re-renders on the same row.
-      async function _kpAskRefine(i, words, cur) {
+      async function _kpAskRefine(i, words, cur, o) {
         const c = _kpBuildCtx;
-        if (!c) return;
+        if (!c) return false;
         const overlay = _rbAskOverlay('Adjusting<br><em>that look…</em>');
+        // quiet: the box says "Changing the look…" — no overlay over the page.
+        if (o && o.quiet) overlay.style.display = 'none';
         const guard = _rbOverlayGuard(overlay);
         const genId = _rbGenId();
         try {
@@ -8852,11 +9047,13 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
           }
           _rbTrack('look_refined', { surface: 'key-piece', way: String(i) });
           try { if (window.__kpGo) window.__kpGo(i); } catch (e) {}
+          return true;
         } catch (err) {
           guard.done(); overlay.style.display = 'none';
-          if (guard.userCancelled) return;
+          if (guard.userCancelled) return false;
           console.error('[Robes] /api/style refine error:', err.message);
-          _waShowToast(guard.timedOut ? 'That took longer than it should — please try again.' : 'Robes couldn’t re-style that look — please try again in a moment.');
+          if (!(o && o.quiet)) _waShowToast(guard.timedOut ? 'That took longer than it should — please try again.' : 'Robes couldn’t re-style that look — please try again in a moment.');
+          return false;
         }
       }
       window.__kpMore = window.__kpSheet;
@@ -9853,6 +10050,9 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
           || (opts && opts.savedId && window.__lastDlData && window.__lastDlData.origin) || null;
         const kpSourceId = (opts && opts.kpSourceId)
           || (origin && window.__lastDlData && window.__lastDlData.kpSourceId) || null;
+        // quiet (the inline box, 2026-10-01): no overlay, no navigation —
+        // the box shows its own busy line and the draft lands beneath it.
+        const quiet = !!(opts && opts.quiet);
         let overlay = document.getElementById('kp-loading-overlay');
         if (!overlay) {
           overlay = document.createElement('div');
@@ -9875,7 +10075,7 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
           : origin === 'key-piece'
             ? 'Building your look,<br><em>piece by piece…</em>'
             : 'One prompt.<br><em>Dressed for anything.</em>';
-        overlay.style.display = 'flex';
+        overlay.style.display = quiet ? 'none' : 'flex';
         const msgs = origin === 'key-piece'
           ? ['Reading the look', 'Checking your wardrobe…', 'Naming the gaps…', 'Almost ready…']
           : ['Reading the day’s context', 'Building anchor to accents…', 'Balancing the proportions…', 'Almost ready…'];
@@ -9983,7 +10183,7 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
           // as `src`, so Try another survives a reload (phase 1).
           const submitOpts = Object.assign({}, opts || {}, { savedId: undefined, _letGo: undefined, sameDraft: true });
           _lkDraftFromDaily({ ...data, context }, {
-            kind: 'daily',
+            kind: 'daily', quiet,
             day: data._dlLoose ? null : data.anchor_date,
             dateHint: (data._dlLoose && opts && opts.dateHint) ? opts.dateHint : null,
             src: { prompt, opts: submitOpts },
@@ -9992,15 +10192,17 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
             again: () => window.__dlSubmit(prompt, submitOpts),
             refine: (words, current) => window.__dlSubmit(prompt, Object.assign({}, submitOpts, { refine: words, current })),
           });
+          return { ok: true };
         } catch (err) {
           guard.done();
           clearInterval(msgInterval);
           overlay.style.display = 'none';
           console.error('[Robes] /api/daily error:', err.message);
-          if (guard.userCancelled) return;
+          if (guard.userCancelled) return { ok: false };
           _waShowToast(guard.timedOut
             ? 'That took longer than it should — please try again.'
             : 'Robes couldn’t finish that look — please try again in a moment.');
+          return { ok: false };
         }
       };
 
@@ -13488,7 +13690,9 @@ button.rb-lk-live{cursor:pointer}
           // draft. A kp draft waits for its own page.
           const parked = _lkDraftParked();
           if (!_lkUsed().length) {
-            if (parked && !(parked.kp && Number.isInteger(parked.kp.wayIdx)) && _lkDraftId == null) _lkDraftLoad(parked);
+            // A park the composer already holds (the box built it with the
+            // page closed) stays — never reset from under it.
+            if (parked && !(parked.kp && Number.isInteger(parked.kp.wayIdx))) { if (_lkDraftId !== parked.id) _lkDraftLoad(parked); else _lkView = 'new'; }
             else _lkResetComposer();
           } else _lkView = 'new';
           _rbTrack('look_compose_opened', { door: 'empty-lookbook' });
@@ -14813,6 +15017,8 @@ button.rb-lk-live{cursor:pointer}
       function _lkRepaint() {
         _lkPaint();
         if (document.getElementById('rb-lkhome')) _lkHomePaint();
+        // The box's draft row (home) follows every repaint of the draft.
+        try { if (_rbLp && typeof _rbLp.resultHtml === 'function' && typeof _rbLpResultSync === 'function') _rbLpResultSync(); } catch (_) {}
       }
       // Pronouns follow the model on file, else the profile.
       function _lkModelPro() {
@@ -15616,15 +15822,10 @@ button.rb-lk-live{cursor:pointer}
         // draft, a key piece's way built in situ, a Robes build. Keyed on
         // the build, so the composer's every-flick repaint keeps her pick
         // and her note; a hand-built look asks nothing.
-        if (_lkBuilt && !_lkBuilding) {
-          const kind = (_lkDraftSrc && _lkDraftSrc.kind) || 'robes';
-          _rbFeedbackArm('lk', () => ({
-            prompt: String(_lkNewTitleDraft || '').trim(),
-            on: String(_lkNewTitleDraft || '').trim(),
-            looksOutput: JSON.stringify({ surface: 'composer', kind, headline: _lkNewTitleDraft || '', owned: _lkUsed().length, proposed: _lkShop.length, day: !!_lkDay, ts: new Date().toISOString() }),
-          }), { key: _lkBuildSeq, track: kind === 'kp' ? 'key-piece' : kind === 'daily' ? 'daily' : 'look', itemId: () => (kind === 'kp' ? _kpActiveSaveId : null) });
-          rackHtml += _rbFeedbackBlock('lk', { title: 'How was this look?' });
-        }
+        // The thumbs line a Robes build carried under its foot is GONE
+        // (design Inline_Prompt 4d, 2026-10-01): the box holds the running
+        // conversation for this look, and every line she sends lands in the
+        // memory as a verdict on it.
 
         // The zero-piece stand-in stretches to the rack's height; the model
         // canvas keeps its own 4:5 frame.
@@ -17357,10 +17558,50 @@ button.rb-lk-live{cursor:pointer}
           changed: () => (window.__dlCurrentItems || []).filter(it => it._lpWas).length,
         });
       };
-      // The key-piece way (phase 2): the same box, mode 'way' — her words
-      // re-write that one way through the standing /api/style refine; the
-      // other two stay.
-      window.__kpLpOpen = function(i) {
+      // The key-piece way (design Inline_Prompt 4c): ONE free-form field
+      // above Build this look, scoped to this look, inline on the card (the
+      // phone's action row carries it for the current card). The box holds
+      // a running conversation for the look: what she says is READ first —
+      // a verdict ("not my colours") is noted and shapes the next looks (the
+      // feedback row the thumbs used to write, plus the memory), a change
+      // ("for the evening", "not the trousers") re-writes this one way
+      // through the standing /api/style refine while the other two stay.
+      // The page re-renders under the box when a way is re-written; the
+      // thread comes back on the fresh card.
+      async function _kpLpRead(i, text, cur, pieces) {
+        const rack = (pieces.length ? pieces : [{ name: cur.title || 'This look', category: '', owned: false }]).map((p, k) => ({ i: k, name: p.name, category: p.category || '', owned: !!p.owned, keep: false }));
+        let j = null;
+        try {
+          const ctrl = new AbortController();
+          const tm = setTimeout(() => ctrl.abort(), 30000);
+          const rc = window.__rbCtx || {};
+          const res = await fetch('/api/look/ask', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
+            body: JSON.stringify({
+              mode: 'look', surface: 'way', name: cur.title || 'This look',
+              rack, pool: _rbLpPoolWardrobe(), thread: [], text,
+              context: { occasion: cur.eyebrow || undefined, weather: [rc.tempRange, rc.condition].filter(Boolean).join(', ') || undefined },
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
+              userId: _waUid() || undefined, genId: _rbGenId(),
+            }),
+          });
+          clearTimeout(tm);
+          if (res.ok) j = await res.json();
+        } catch (_) { j = null; }
+        const intent = j && j.intent;
+        const change = intent === 'swap' || intent === 'back' || intent === 'styled' || intent === 'draft';
+        try { _rbMemoryPush({ k: 'ask', on: String(cur.title || '').slice(0, 120), surface: 'way', text }); } catch (_) {}
+        if (change) return { regen: true, reply: 'Done — ' + (cur.title || 'that look') + ' is re-written. The other two stay.' };
+        // A verdict: the look's feedback row (the thumbs' cloud row, the
+        // way's title leading her words) and, when she stated a rule, her
+        // brief.
+        try { _rbFbCloud('key-piece', _kpActiveSaveId, null, (cur.title ? cur.title + ' — ' : '') + text); } catch (_) {}
+        let filed = false;
+        if (j && j.rule) { try { filed = !!_rbBriefRulePush(String(j.rule)); } catch (_) {} }
+        _rbTrack('kp_way_noted', { way: String(i), filed });
+        return { reply: filed ? (String(j.reply || '').trim() || 'Noted.') : 'Noted — the next ones will lean that way. Want this one changed too?', filed };
+      }
+      window.__kpLpOpen = function(i, hostId) {
         const c = _kpBuildCtx, w = c && c.ways && c.ways[i];
         if (!w) return;
         const pieces = (Array.isArray(w.pieces) ? w.pieces : []).map(p => ({ name: p.name, category: p.category || '', owned: !!p.wardrobe_match, keep: false }));
@@ -17368,12 +17609,18 @@ button.rb-lk-live{cursor:pointer}
           title: String(w.title || '').replace(/\.$/, ''), eyebrow: String(w.eyebrow || ''), pieces,
           others: c.ways.filter((x, j) => j !== i).map(x => String(x.title || '').replace(/\.$/, '')),
         };
+        // The field on the card, else the action row's (the phone hides the
+        // cards' own rows); a host that is off screen yields to the other.
+        const shown = el => !!el && el.isConnected && el.offsetParent !== null;
+        const cardHost = document.getElementById('kp-lp-host-' + i), actHost = document.getElementById('kp-lp-host-act');
+        let host = hostId ? document.getElementById(hostId) : null;
+        if (!shown(host)) host = shown(cardHost) ? cardHost : (shown(actHost) ? actHost : (cardHost || actHost || null));
         _rbLookPrompt({
-          mode: 'way', surface: 'way', title: cur.title || 'This look', name: cur.title,
-          meta: 'Key piece' + (c.pieceName || c.piece ? ' · ' + String(c.pieceName || c.piece) : ''),
-          placeholder: 'Dressier, or for the evening, or not the trousers…',
-          helper: 'That look is re-written. The other two stay.',
-          onRegen: text => _kpAskRefine(i, text, cur),
+          mode: 'way', surface: 'way', name: cur.title || 'This look', key: 'kp:' + i, host: host || undefined,
+          placeholder: _RB_LP_COPY.doorLook,
+          onWay: text => _kpLpRead(i, text, cur, pieces),
+          onRegen: text => _kpAskRefine(i, text, cur, { quiet: true }),
+          reopen: () => window.__kpLpOpen(i, hostId),
         });
       };
       // Update on a refined imported look re-points the trip's formula at
@@ -17875,7 +18122,7 @@ button.rb-lk-live{cursor:pointer}
         // The draft (phase 1): a thing SHE started outranks a thing Robes
         // noticed — unless the home composer is on screen holding it.
         const parked = (typeof _lkDraftParked === 'function') ? _lkDraftParked() : null;
-        if (parked && !document.getElementById('rb-lkhome')) {
+        if (parked && !document.getElementById('rb-lkhome') && !document.querySelector('#rb-hb #rb-lp .rb-lpd-row')) {
           const dn = String(parked.name || '').trim();
           return { key: 'draft', text: (dn ? '<em class="rb-echo-name">' + _waEsc(dn) + '</em>' : 'A look you started') + ' is waiting, unsaved.',
             doorLabel: 'Open it', door: 'draft' };
@@ -18310,7 +18557,9 @@ button.rb-lk-live{cursor:pointer}
         // o.host === 'kp': the draft is hosted IN SITU on the key piece page
         // (2026-09-16) — no Lookbook page opens; _lkPaint routes there.
         const kpHost = o.host === 'kp';
-        if (!kpHost) _lkShelfOpen();
+        // o.quiet: the draft lands under the box that asked for it — no page
+        // opens, no paint; the park carries it (the box reads the park).
+        if (!kpHost && !o.quiet) _lkShelfOpen();
         _lkResetComposer();
         _lkKpHost = kpHost;
         if (o.day) _lkDay = { date: o.day, trip: null };
@@ -18345,7 +18594,13 @@ button.rb-lk-live{cursor:pointer}
         // look opens dressed, as a prompt look does — and it never earns
         // the You / Model switch (it is not her).
         if (o.photoUrl && _pdHttp(o.photoUrl)) _lkPhoto = { url: o.photoUrl, frame: o.kind === 'kp' };
-        _lkPaint();
+        if (o.quiet) {
+          // The Lookbook open on its grid keeps the grid — the draft tile
+          // takes the draft; a closed page waits in 'new' for the open.
+          const snEl = document.getElementById('sn-page');
+          if (snEl && snEl.style.display === 'block') _lkView = 'grid';
+          _lkDraftPark();
+        } else _lkPaint();
         // Proposed pieces get their stills (the same job the Robes build
         // uses); a key piece she photographed keeps her photograph.
         if (_lkShop.length) {
@@ -18607,7 +18862,7 @@ button.rb-lk-live{cursor:pointer}
       // Saving a look that holds pieces she doesn't own tells her where they
       // go BEFORE it happens — the wishlist is the only place a piece she
       // doesn't own can live (look_pieces references wardrobe_items).
-      window.__lkSaveAsk = function() {
+      window.__lkSaveAsk = function(o) {
         // Rule 02 answers OUT LOUD (Annie's beta pass 2026-08-20): an
         // unnamed save focuses the name field and says what it needs —
         // before any wishlist confirm can stack on top.
@@ -18620,7 +18875,7 @@ button.rb-lk-live{cursor:pointer}
           _waShowToast('Name your look and it’s yours to keep');
           return;
         }
-        if (!_lkShop.length) { window.__lkSave(); return; }
+        if (!_lkShop.length) { window.__lkSave(o); return; }
         const n = _lkShop.length;
         document.getElementById('rb-del-modal')?.remove();
         const modal = document.createElement('div');
@@ -18641,9 +18896,13 @@ button.rb-lk-live{cursor:pointer}
           '</div>';
         document.body.appendChild(modal);
         modal.querySelector('#rb-lksave-cancel').onclick = function() { modal.remove(); };
-        modal.querySelector('#rb-lksave-yes').onclick = function() { modal.remove(); window.__lkSave(); };
+        modal.querySelector('#rb-lksave-yes').onclick = function() { modal.remove(); window.__lkSave(o); };
       };
-      window.__lkSave = function() {
+      // o.stay (the inline box, 2026-10-01): save and STAY — no landing, no
+      // sheet, no toast; o.then(l) gets the look. Returns the look.
+      window.__lkSave = function(o) {
+        o = o || {};
+        const stay = !!o.stay, then = typeof o.then === 'function' ? o.then : null;
         const used = _lkUsed();
         // No piece floor (2026-09-03): the name is the one gate — a look
         // saves with whatever stands on the rack, an empty rack included.
@@ -18767,15 +19026,19 @@ button.rb-lk-live{cursor:pointer}
           _waShowToast(l.name + ' · filed to ' + _lkDayWeekday(day.date) + ' ✓');
           _rbTrack('look_saved_to_day', {});
           _waV2Sync();
+          if (then) then(l);
+          if (stay) return l;
           if (window.__rbDayOpen) window.__rbDayOpen(day.date, { from: 'diary' });
           else if (window.__rbDiaryOpen) window.__rbDiaryOpen();
           return;
         }
         _lkPaint();
         _waV2Sync();
+        if (then) then(l);
+        if (stay) return l;
         // The kp host carries its own "Filed under X." toast with the
         // look one tap away — the generic line would double it.
-        if (kpHosted && typeof _kpBuildSaved === 'function') { _kpBuildSaved(l); return; }
+        if (kpHosted && typeof _kpBuildSaved === 'function') { _kpBuildSaved(l); return l; }
         // Save, then the date (phase 3): a loose look from the home field
         // is filed first, then the Put-in-the-Diary sheet rises on the
         // look's own page with the day her words named preselected.
@@ -18785,9 +19048,10 @@ button.rb-lk-live{cursor:pointer}
           setTimeout(() => { try { window.__lkDiaryOpen(dateHint); } catch (_) {} }, 60);
           _rbTrack('look_saved_then_dated', { hint: dateHint });
           _waShowToast(l.name + ' saved to Looks ✓');
-          return;
+          return l;
         }
         _waShowToast(l.name + ' saved to Looks ✓');
+        return l;
       };
 
       // Grid + shelf entry points used elsewhere in the app — always the
@@ -29785,9 +30049,13 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
       var _HB_CSS = `
 body.rb-hb-on #dash .concierge{display:none!important}
 #rb-hb{margin:0 0 44px;max-width:760px}
-#rb-hb .rb-hb-row{display:flex;align-items:center;gap:10px}
+#rb-hb .rb-hb-row{display:flex;align-items:flex-start;gap:10px}
+#rb-hb .rb-hb-row .hp-add-wrap{margin-top:8px}
 #rb-hb .rb-hb-row .rb-lp-field{flex:1;min-width:0;margin:0;background:#fff;padding:13px 10px 13px 20px}
 #rb-hb .rb-hb-row .rb-lp-field .ph{font-size:17px}
+#rb-hb .rb-hb-row #rb-lp{flex:1;min-width:0;width:auto}
+#rb-hb #rb-lp .rb-lp .fieldrow{min-height:50px;padding:6px 7px 6px 18px}
+#rb-hb #rb-lp .rb-lp textarea{font-size:17px}
 #rb-hb .rb-hb-row .hp-add-wrap{flex:none}
 #rb-hb .hp-add{width:34px;height:34px}
 #rb-hb .hp-addmenu{top:calc(100% + 8px);bottom:auto;min-width:200px}
@@ -29807,6 +30075,8 @@ body.rb-hb-on #dash .concierge{display:none!important}
 #rb-hb{margin-bottom:22px}
 #rb-hb .rb-hb-row .rb-lp-field{padding:12px 8px 12px 16px}
 #rb-hb .rb-hb-row .rb-lp-field .ph{font-size:16px}
+#rb-hb #rb-lp .rb-lp .fieldrow{min-height:46px;padding:5px 5px 5px 14px}
+#rb-hb #rb-lp .rb-lp textarea{font-size:16px}
 }`;
       function _rbHbCss() {
         if (document.getElementById('rb-hb-style') || !_HB_CSS) return;
@@ -29890,18 +30160,217 @@ body.rb-hb-on #dash .concierge{display:none!important}
         // "Change today's look…" read wrong for planning) — it reads
         // "A new look for…" and opens the box; the card above is the door
         // to today's look.
+        // The field IS the box (design Inline_Prompt 4a, 2026-10-01): home's
+        // row carries the look prompt itself, persistent and inline — a tap
+        // focuses it in place, the keyboard rises under it, and the draft
+        // her words build lands BENEATH the field in the same box. The
+        // closed pill stands in only while another box holds the screen
+        // (the box comes back the moment home is the page on top).
         const slot = document.getElementById('rb-hb-fieldslot');
-        if (slot && !slot.querySelector('.rb-lp-field')) slot.innerHTML = _rbLpFieldHtml({ mode: 'new', onclick: 'window.__rbHbOpen()', cls: 'rb-hb-field' });
+        if (slot && !slot.querySelector('#rb-lp') && !slot.querySelector('.rb-lp-field')) slot.innerHTML = _rbLpFieldHtml({ mode: 'new', onclick: 'window.__rbHbOpen()', cls: 'rb-hb-field', spark: true });
+        _rbHbBoxEnsure();
       }
       window._rbHbSync = _rbHbSync;
-      // The date her words named, if any: the classifier's date_start,
-      // else today — only ever a hint on a loose draft.
+      // ── The box's tail on home: the draft, then the saved look, then the
+      // day (one box, every step inside it). The draft is the composer's
+      // standing state (or the park it left) — never a copy; Save is the
+      // composer's own save; the week files the saved look to a date
+      // through _lkPin — the Diary's own write.
+      var _rbHbStage = null;   // {step:'saved'|'dated', lookId, date, hint} once a look is saved from the box
+      function _rbHbOnTop() {
+        try { const c = _rbLpSlotCtx(true); return !!c && c.key === 'home'; } catch (_) { return false; }
+      }
+      function _rbHbParked() {
+        const d = (typeof _lkDraftParked === 'function') ? _lkDraftParked() : null;
+        return (d && !(d.kp && Number.isInteger(d.kp.wayIdx))) ? d : null;
+      }
+      // The draft as the box reads it: the composer's live state when it
+      // holds this draft, else the park (a reload, or a draft the Lookbook
+      // composer parked and left).
+      function _rbHbDraft() {
+        const d = _rbHbParked();
+        const live = _lkView === 'new' && !_lkKpHost && _lkDraftId && (!d || d.id === _lkDraftId) && (_lkUsed().length || _lkShop.length || String(_lkNewTitleDraft || '').trim());
+        if (live) {
+          const ids = _lkUsed().map(String);
+          return { id: _lkDraftId, name: String(_lkNewTitleDraft || '').trim(), ids, props: _lkShop.length, stills: _lkShopImgs.filter(Boolean), day: _lkDay && _lkDay.date ? _lkDay.date : null, live: true };
+        }
+        if (!d) return null;
+        const ids = (d.rows || []).map(r => r && r.piece).filter(Boolean).map(String);
+        return { id: d.id, name: String(d.name || '').trim(), ids, props: Array.isArray(d.shop) ? d.shop.length : 0, stills: (d.shopImgs || []).filter(Boolean), day: d.day && d.day.date ? d.day.date : null, live: false };
+      }
+      // The composer takes the parked draft back before anything edits or
+      // saves it — one state, never a copy.
+      function _rbHbEnsureDraftLoaded() {
+        const d = _rbHbParked();
+        if (d && _lkDraftId !== d.id) _lkDraftLoad(d);
+        return !!_rbHbDraft();
+      }
+      // While a draft stands under the field, the field works ON the draft
+      // ("Change this draft…" — the composer's own edit loop); once it is
+      // saved, or gone, the field asks for a new look again.
+      function _rbHbDraftMode() {
+        const s = _rbLp; if (!s || (s.surface !== 'home' && s.surface !== 'day')) return;
+        let d = (!_rbHbStage || !_rbHbStage.lookId) ? _rbHbDraft() : null;
+        // A dated box works only on a draft made FOR that day — the standing
+        // draft elsewhere is not this day's.
+        if (d && s.hbDate && d.day !== s.hbDate) d = null;
+        if (d) {
+          s.mode = 'look'; s.name = d.name || 'This look'; s.placeholder = _RB_LP_COPY.phDraft;
+          s.rack = () => { _rbHbEnsureDraftLoaded(); return _lkLpRackComposer(); };
+          s.pool = _rbLpPoolWardrobe;
+          s.context = () => _rbLpContext({ date: d.day || undefined, occasion: _lkDraftSrc && _lkDraftSrc.src ? _lkDraftSrc.src.prompt : null });
+          s.apply = (j, sent) => { _rbHbEnsureDraftLoaded(); const n = _lkLpApplyComposer(j, sent); try { _lkDraftPark(); } catch (_) {} return n; };
+          s.onRule = _rbBriefRulePush;
+          s.changed = () => Object.keys(_lkDraftWas).length;
+          s.afterApply = () => {};
+          try { s.applied = s.changed() || 0; } catch (_) {}
+        } else {
+          s.mode = 'new'; s.name = 'A new look'; s.placeholder = s.hbDate ? ('Dress ' + _lkFmtDay(s.hbDate) + '…') : null;
+          s.rack = s.pool = s.apply = s.changed = s.afterApply = null;
+          s.applied = 0;
+        }
+      }
+      // Home's own box: in the row, persistent, never focused on its own.
+      // Only while home is the page on top and no other box holds the
+      // thread (a docked box elsewhere is hers until she closes it).
+      // What the box's tail reads — the draft (or the saved look) as it
+      // stands; a change re-reads the box's mode and repaints the tail
+      // without touching what she is typing.
+      function _rbHbSig() {
+        const st = _rbHbStage;
+        if (st && st.lookId) return 'saved:' + st.lookId + ':' + st.step + ':' + (st.date || '');
+        let d = _rbHbDraft();
+        if (d && _rbLp && _rbLp.hbDate && d.day !== _rbLp.hbDate) d = null;
+        return d ? 'draft:' + d.id + ':' + d.name + ':' + d.ids.join(',') + ':' + d.props + ':' + d.stills.length + ':' + (d.day || '') : 'none';
+      }
+      function _rbHbBoxSync(s) {
+        if (!s || s.reading) return;
+        let sig = 'none'; try { sig = _rbHbSig(); } catch (_) {}
+        if (s._hbSig === sig) return;
+        s._hbSig = sig;
+        _rbHbDraftMode();
+        _rbLpSync(false);
+        try { if (typeof _rbNextPaint === 'function') _rbNextPaint(); } catch (_) {}
+      }
+      function _rbHbBoxEnsure() {
+        const slot = document.getElementById('rb-hb-fieldslot');
+        if (!slot) return null;
+        if (_rbLp && _rbLp.persist && _rbLp.surface === 'home' && slot.querySelector('#rb-lp')) { _rbHbBoxSync(_rbLp); return _rbLp; }
+        if (!_rbHbOn() || !_rbHbOnTop()) return null;
+        if (_rbLp && !_rbLp.persist) return null;
+        _rbLookPrompt({ mode: 'new', surface: 'home', name: 'A new look', key: 'home', host: slot, persist: true, noFocus: true,
+          onAsk: _rbHbAsk, onBuilt: _rbHbBuilt, resultHtml: _rbHbResultHtml });
+        _rbHbDraftMode();
+        try { _rbLp._hbSig = _rbHbSig(); } catch (_) {}
+        _rbLpSync(true);
+        try { if (typeof _rbNextPaint === 'function') _rbNextPaint(); } catch (_) {}
+        return _rbLp;
+      }
+      function _rbHbRowHtml(o) {
+        const ids = o.ids || [];
+        const wi = ids.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean);
+        const thumb = (wi.map(w => _pdHttp(w.image_url)).find(Boolean)) || (o.stills || []).map(u => _pdHttp(u)).find(Boolean) || null;
+        let mosaic = '';
+        if (!thumb && ids.length && typeof _ltMosaicHtml === 'function') { try { mosaic = _ltMosaicHtml(_ltCells(ids)); } catch (_) { mosaic = ''; } }
+        const n = ids.length + (o.props || 0);
+        const meta = n ? (_lkN(n, 'piece') + ' · ' + (o.props ? (ids.length ? ids.length + ' yours' : 'none yours yet') : 'all yours')) : 'Nothing on it yet';
+        return '<button type="button" class="rb-lpd-row" onclick="' + o.onclick + '" aria-label="' + _waEsc(o.name || 'The look') + '">' +
+          '<span class="th"' + (thumb ? ' style="background-image:url(\'' + _waEsc(thumb) + '\')"' : '') + '>' + (thumb ? '' : mosaic) + '</span>' +
+          '<span class="tx"><span class="ey">' + _waEsc(o.ey) + '</span><span class="nm">' + _waEsc(o.name || 'A new look') + '</span><span class="m">' + _waEsc(meta) + '</span></span>' +
+          '<span class="ar">→</span></button>';
+      }
+      // Today → +6, one cell each: the week she can file the look to.
+      function _rbHbDaysHtml(st) {
+        const today = _pdLocalISO();
+        let h = '<div class="rb-lpd-date"><span class="lab">Add it to a date</span><div class="rb-lpd-days">';
+        for (let k = 0; k < 7; k++) {
+          const iso = _pdAddISO(today, k);
+          const d = new Date(iso + 'T00:00:00');
+          const dw = k === 0 ? 'Today' : d.toLocaleDateString('en-GB', { weekday: 'short' });
+          h += '<button type="button"' + (st.hint === iso ? ' class="hint"' : '') + ' onclick="window.__rbHbDate(\'' + iso + '\')" aria-label="' + _waEsc(_lkFmtDay(iso)) + '"><span class="dw">' + _waEsc(dw) + '</span><span class="n">' + d.getDate() + '</span></button>';
+        }
+        return h + '</div></div>';
+      }
+      function _rbHbDayLabel(iso) {
+        const today = _pdLocalISO();
+        return (iso === today ? 'today, ' : '') + _lkFmtDay(iso);
+      }
+      function _rbHbResultHtml(s) {
+        if (s.building) return '<div class="rb-lpd-busy">' + _waEsc(_RB_LP_COPY.busyBuild) + '</div>';
+        const st = _rbHbStage;
+        if (st && st.lookId) {
+          const l = _lkFind(st.lookId);
+          if (!l) { _rbHbStage = null; }
+          else {
+            const row = _rbHbRowHtml({ ey: 'Saved to your lookbook', name: l.name, ids: _lkPieceIds(l), props: Array.isArray(l.proposals) ? l.proposals.length : 0,
+              stills: (l.proposals || []).map(r => r.image_url), onclick: 'window.__rbHbOpenLook()' });
+            if (st.step === 'dated' && st.date) {
+              return row + '<div class="rb-lpd-done"><span>✓ In your diary for ' + _waEsc(_rbHbDayLabel(st.date)) + '.</span><button type="button" class="ch" onclick="window.__rbHbRePick()">Change</button></div>';
+            }
+            return row + _rbHbDaysHtml(st);
+          }
+        }
+        const d = _rbHbDraft();
+        if (!d || (s.hbDate && d.day !== s.hbDate)) return '';
+        return _rbHbRowHtml({ ey: 'Draft look · ' + (d.day ? _lkFmtDay(d.day) : 'not saved yet'), name: d.name, ids: d.ids, props: d.props, stills: d.stills, onclick: 'window.__rbHbOpenDraft()' }) +
+          '<button type="button" class="rb-lpd-save" onclick="window.__rbHbSave()">Save look</button>';
+      }
+      // The draft landed under the field: the field turns to it.
+      function _rbHbBuilt(s) {
+        _rbHbStage = null;
+        _rbHbDraftMode();
+        try { s._hbSig = _rbHbSig(); } catch (_) {}
+        try { if (typeof _rbNextPaint === 'function') _rbNextPaint(); } catch (_) {}
+        _rbTrack('home_box_draft_landed', { surface: s.surface, pieces: _lkUsed().length, proposed: _lkShop.length, dated: !!(_lkDay && _lkDay.date) });
+      }
+      window.__rbHbOpenDraft = function() {
+        if (window.__lkDraftOpen) window.__lkDraftOpen();
+      };
+      window.__rbHbOpenLook = function() {
+        const st = _rbHbStage;
+        if (!st || !st.lookId || !window.__lkOpen) return;
+        window.__lkOpen(st.lookId, { from: { label: 'Home', go: function() { window.__rbNavGo && window.__rbNavGo('home'); } } });
+      };
+      // Save look — the composer's own save, staying in the box: the row
+      // reads saved and the week appears beneath it.
+      window.__rbHbSave = function() {
+        if (!_rbHbEnsureDraftLoaded()) return;
+        if (!String(_lkNewTitleDraft || '').trim()) { const d = _rbHbDraft(); _lkNewTitleDraft = (d && d.name) || 'A new look'; _lkNewTitleTouched = false; }
+        const hint = _lkDateHint || null;
+        const day = _lkDay && _lkDay.date ? _lkDay.date : null;
+        window.__lkSaveAsk({ stay: true, then: function(l) {
+          if (!l) return;
+          _rbHbStage = day ? { step: 'dated', lookId: l.id, date: day, hint: null } : { step: 'saved', lookId: l.id, date: null, hint };
+          _rbTrack('home_box_saved', { dated: !!day, hint: !!hint });
+          const s = _rbLp;
+          if (s && typeof s.resultHtml === 'function') { _rbHbDraftMode(); try { s._hbSig = _rbHbSig(); } catch (_) {} _rbLpSync(true); }
+          try { if (typeof _rbNextPaint === 'function') _rbNextPaint(); } catch (_) {}
+        } });
+      };
+      window.__rbHbDate = function(iso) {
+        const st = _rbHbStage;
+        if (!st || !st.lookId || !/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ''))) return;
+        if (st.date && st.date !== iso && typeof _lkUnpin === 'function') _lkUnpin(st.lookId, st.date);
+        if (st.date !== iso) _lkPin(st.lookId, iso);
+        st.date = iso; st.step = 'dated';
+        _rbTrack('look_saved_then_dated', { hint: iso, from: 'box' });
+        _rbLpSync(true);
+      };
+      window.__rbHbRePick = function() {
+        const st = _rbHbStage;
+        if (!st) return;
+        st.step = 'saved';
+        _rbLpSync(true);
+      };
+      // The route her words take: a dated door lands ON the day; else a
+      // LOOSE draft carrying the classifier's date as a hint. Either way the
+      // draft is built IN the box — no overlay, no navigation.
       function _rbHbRoute(prompt, seed, s) {
         const today = _pdLocalISO();
         const date = s.hbDate || null;
-        if (date) return () => { window.__dlSubmit(prompt, { anchorDate: date }); };
         const hint = (seed && /^\d{4}-\d{2}-\d{2}$/.test(String(seed.date_start || ''))) ? seed.date_start : today;
-        return () => { window.__dlSubmit(prompt, { loose: true, dateHint: hint }); };
+        const o = date ? { anchorDate: date, quiet: true } : { loose: true, dateHint: hint, quiet: true };
+        return { build: () => window.__dlSubmit(prompt, o) };
       }
       function _rbHbAsk(text, s) {
         const t0 = Date.now();
@@ -29934,20 +30403,20 @@ body.rb-hb-on #dash .concierge{display:none!important}
         }
         // A dated door (the rail, the Diary, Style today): the words land
         // ON the day, no classifier — a Diary-dated draft skips the sheet.
-        if (s.hbDate) { track('daily', { dated: true }); return { go: _rbHbRoute(prompt, null, s) }; }
+        if (s.hbDate) { track('daily', { dated: true }); return _rbHbRoute(prompt, null, s); }
         // "dress me …" needs no model round-trip (the card's fast path).
-        if (/\bdress me\b/i.test(prompt)) { track('daily'); return { go: _rbHbRoute(prompt, null, s) }; }
+        if (/\bdress me\b/i.test(prompt)) { track('daily'); return _rbHbRoute(prompt, null, s); }
         // Her answer to "A day, a trip, or a piece?"
         if (s.hbPending) {
           const first = s.hbPending;
-          if (/^\s*(a |the )?(day|today|tomorrow|outfit|look)\b/i.test(prompt)) { s.hbPending = null; track('daily', { from_ask: true }); return { go: _rbHbRoute(first, null, s) }; }
+          if (/^\s*(a |the )?(day|today|tomorrow|outfit|look)\b/i.test(prompt)) { s.hbPending = null; track('daily', { from_ask: true }); return _rbHbRoute(first, null, s); }
           if (/^\s*(a |the )?(trip|travel|holiday|pack)/i.test(prompt)) { s.hbPending = null; track('travel', { from_ask: true }); return { go: () => { _cbReset(); window.__tvOpen({ brief: first }); } }; }
           if (/^\s*(a |the )?(piece|key piece|item)\b/i.test(prompt)) { s.hbPending = null; track('style', { from_ask: true }); return { go: () => { _cbReset(); _cbStyleSubmit(first, null, { intent: 'style' }); } }; }
           prompt = first + ' — ' + prompt;
         }
         return _ikClassify(prompt).then(seed => {
           const conf = seed && seed.confidence >= 0.6 && seed.intent !== 'unclear';
-          if (conf && seed.intent === 'daily') { track('daily'); return { go: _rbHbRoute(prompt, seed, s) }; }
+          if (conf && seed.intent === 'daily') { track('daily'); return _rbHbRoute(prompt, seed, s); }
           if (conf && seed.intent === 'travel') {
             track('travel');
             // The intake, prefilled from the classifier — never a place
@@ -29959,37 +30428,52 @@ body.rb-hb-on #dash .concierge{display:none!important}
           // then assigns to a day from the sheet. The classifier's date
           // still rides as the hint when it heard one.
           track('daily', { defaulted: true, read: (seed && seed.intent) || 'unclear' });
-          return { go: _rbHbRoute(prompt, seed, s) };
+          return _rbHbRoute(prompt, seed, s);
         }).catch(() => {
           _rbTrack('prompt_submitted', { intent: 'daily', scope: 'none', source: 'box', ok: true, latency_ms: Date.now() - t0, defaulted: true, read: 'error' });
-          return { go: _rbHbRoute(prompt, null, s) };
+          return _rbHbRoute(prompt, null, s);
         });
       }
-      // o: {text, date}. A date (a dated door: the rail, the Diary, Style
-      // today) is the meta line and attaches the words to the day.
+      // o: {text, date}. On home the box is already in the row: this
+      // focuses it (with the words a door wrote, the piece a photo or a
+      // wardrobe pick attached, the look the + menu handed over). A dated
+      // door (the rail, the Diary's day page, Style today), or a page that
+      // carries no field (a grid, a trip), opens the SAME box docked at
+      // the foot — no sheet, no shade, the page visible around it.
       window.__rbHbOpen = function(o) {
         o = o || {};
         document.getElementById('cb-addmenu')?.classList.remove('open');
-        const today = _pdLocalISO();
         const date = (o.date && /^\d{4}-\d{2}-\d{2}$/.test(o.date)) ? o.date : null;
-        const rc = window.__rbCtx || {};
-        const wx = (!date || date === today) ? [rc.tempRange, rc.condition].filter(Boolean).join(', ') : '';
-        // Months by table (the standing rule — newer ICU prints "Sept").
-        const dl = iso => { const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('en-GB', { weekday: 'short' }) + ' ' + d.getDate() + ' ' + _rbMon3(iso); };
-        let meta = dl(date || today);
-        if (wx) meta += ' · ' + wx;
         let lkName = null;
         if (_cbLookId) { const lk = _lkFind(_cbLookId); lkName = lk ? (lk.name || 'Your look') : null; }
-        if (lkName) meta = 'Pin “' + lkName + '” · name the day';
-        else if (_cbPhotoData) meta = 'Your piece · styled three ways';
-        _rbLookPrompt({
-          mode: 'new', surface: 'home', title: 'A new look', name: 'A new look', meta,
-          text: o.text || '', hbDate: date, onAsk: _rbHbAsk,
-          opener: lkName ? 'What’s the day?' : undefined,
-          placeholder: lkName ? 'Dinner with Mary…' : (_cbPhotoData ? 'Style this piece three ways…' : undefined),
-          helper: lkName ? 'Enter pins the look to the day.' : (_cbPhotoData ? 'Robes styles it three ways.' : undefined),
-        });
-        _rbTrack('home_box_opened', { today: !!_rbHbTodayLook(), dated: !!date, photo: !!_cbPhotoData, look: !!lkName });
+        const attached = !!(lkName || _cbPhotoData);
+        const home = !date && _rbHbOnTop();
+        let s = null;
+        if (home) { s = _rbHbBoxEnsure(); if (s) s.hbDate = null; }
+        if (!s) {
+          _rbLookPrompt({ mode: 'new', surface: date ? 'day' : 'home', name: 'A new look', hbDate: date,
+            onAsk: _rbHbAsk, onBuilt: _rbHbBuilt, resultHtml: _rbHbResultHtml });
+          s = _rbLp;
+          if (!s) return;
+          _rbHbDraftMode();
+          try { s._hbSig = _rbHbSig(); } catch (_) {}
+        }
+        // A piece or a look attached from + is always the NEW-look ask,
+        // whatever stands under the field: Enter styles the piece three
+        // ways, or pins the look to the day her words name.
+        if (attached) {
+          s.mode = 'new'; s.name = 'A new look';
+          s.rack = s.pool = s.apply = s.changed = s.afterApply = null; s.applied = 0;
+          s.placeholder = lkName ? ('The day for “' + lkName + '”…') : 'Style this piece three ways…';
+          _rbHbStage = null;
+        } else if (date) s.placeholder = 'Dress ' + _lkFmtDay(date) + '…';
+        if (o.text) s.text = String(o.text).slice(0, 240);
+        _rbLpSync(true);
+        try {
+          const ta = document.getElementById('rb-lp-in');
+          if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); if (home) ta.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+        } catch (_) {}
+        _rbTrack('home_box_opened', { today: !!_rbHbTodayLook(), dated: !!date, photo: !!_cbPhotoData, look: !!lkName, inline: home });
       };
       // Today's look: the field opens the look ITSELF with the box on it —
       // a saved look's page (its box in look mode), a generated day's

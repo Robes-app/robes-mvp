@@ -100,6 +100,12 @@ await page.route('**/api/style', async (r) => {
   await new Promise((res) => setTimeout(res, 1200)); // let the scan state show
   r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(STYLE_RESP) });
 });
+// The way's box reads her line first (/api/look/ask): a change asks for the
+// re-write, anything else is a verdict on the look.
+const askPosts = [];
+await page.route('**/api/look/ask', (r) => { let b = null; try { b = r.request().postDataJSON(); } catch (_) {} askPosts.push(b);
+  const change = /evening|swap|change|not the/i.test(String(b?.text || ''));
+  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(change ? { intent: 'swap', reply: 'Done.', swaps: [{ i: 0, to: { name: 'Black silk shirt', category: 'Tops' } }], back: [], styled: [] } : { intent: 'none', reply: 'Noted.', swaps: [], back: [], styled: [] }) }); });
 await page.route('**/api/images/rf1', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [null, 'https://res.cloudinary.com/demo/way2b.jpg', null], done: true }) }));
 await page.route('**res.cloudinary.com/demo/piece.jpg', (r) => r.abort());
 await page.route('**/api/daily', async (r) => {
@@ -470,11 +476,13 @@ const cardShape = await page.evaluate(() => {
   const cs = getComputedStyle(b);
   const card = b.closest('.kp-look-card');
   const acts = card.querySelector('.kp-look-acts');
-  const up = document.getElementById('kp1-fb-up'), ucs = getComputedStyle(up);
+  const host = document.getElementById('kp-lp-host-1'), field = host && host.querySelector('.rb-lp-field');
   const img = document.getElementById('kp-look-imgwrap-1');
   return {
     cards: document.querySelectorAll('#kp-ways .kp-look-card').length,
-    thumbsPerCard: ['kp0', 'kp1', 'kp2'].every((p) => document.getElementById(p + '-fb-up') && document.getElementById(p + '-fb-dn')),
+    noThumbs: !document.querySelector('#kp-result-page .kp-fb'),
+    fieldOnUnbuilt: !!document.querySelector('#kp-lp-host-1 .rb-lp-field'), fieldOnBuilt: !!document.querySelector('#kp-lp-host-0 .rb-lp-field, #kp-lp-host-2 .rb-lp-field'),
+    fieldLabel: field?.querySelector('.ph')?.textContent, fieldSpark: !!field?.querySelector('.sp'), fieldAbove: !!(host && (host.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)), fieldW: field ? Math.round(field.getBoundingClientRect().width) : 0,
     noLine: !document.querySelector('#kp-result-page .rb-fb'), noMore: !document.querySelector('#kp-result-page .kp-look-more'), noDetail: !document.querySelector('#kp-result-page .kp-look-detail'),
     pill0: document.querySelector('#kp-look-imgwrap-0 .kp-pill')?.textContent.trim(), sw0: document.querySelectorAll('#kp-look-imgwrap-0 .kp-pill .sw span').length,
     pill1: !!document.querySelector('#kp-look-imgwrap-1 .kp-pill'),
@@ -482,7 +490,6 @@ const cardShape = await page.evaluate(() => {
     ey: document.querySelector('#kp-result-page .rb-tb-ey')?.textContent, thumb: !!document.querySelector('#kp-choose-head .kp-thumb img'),
     pillFont: cs.fontSize, pillTracking: cs.letterSpacing, pillCase: cs.textTransform, pillBg: cs.backgroundColor, pillH: Math.round(b.getBoundingClientRect().height), pillRadius: cs.borderTopLeftRadius, arrow: !!b.querySelector('.arr'),
     actsW: Math.round(acts.getBoundingClientRect().width), cardW: Math.round(card.getBoundingClientRect().width),
-    thumbW: Math.round(up.getBoundingClientRect().width), thumbRound: ucs.borderRadius, thumbSvg: !!up.querySelector('svg'), thumbWords: up.textContent.trim(),
     actrow: getComputedStyle(document.getElementById('kp-actrow')).display, dots: getComputedStyle(document.getElementById('kp-dots')).display,
     firstFilled: getComputedStyle(document.getElementById('kp-build-btn-0')).backgroundColor,
   };
@@ -490,10 +497,11 @@ const cardShape = await page.evaluate(() => {
 check('cards · three 4:5 frames; way 01 carries the swatch pill ("4 pieces · 1 yours", four swatches), a way without pieces none; the piece thumb + "Key piece · yours" head the page; no hairline line, no More detail, no prose card',
   cardShape.cards === 3 && cardShape.ratio === 0.8 && cardShape.pill0 === '4 pieces · 1 yours' && cardShape.sw0 === 4 && !cardShape.pill1
     && cardShape.ey === 'Key piece · yours' && cardShape.thumb && cardShape.noLine && cardShape.noMore && cardShape.noDetail, JSON.stringify(cardShape));
-check('cards · Build this look is the design’s pill (10px / .2em / uppercase / 48px / 100px radius / arrow) beside two 48px thumb circles, the row filling the card; card 01 stands down once a way is built; on the web the pager’s dots and shared action row are hidden',
-  cardShape.thumbsPerCard && cardShape.pillFont === '10px' && /^2/.test(cardShape.pillTracking) && cardShape.pillCase === 'uppercase' && cardShape.pillBg === 'rgba(0, 0, 0, 0)'
+// Inline since 2026-10-01: ONE free-form field above Build this look on an
+// unbuilt way (the thumbs are gone); a built way carries the look as its door.
+check('cards · Build this look is the design’s pill (10px / .2em / uppercase / 48px / 100px radius / arrow), the field (“Change this look…”, the sparkle) ABOVE it on the unbuilt way and none on the built ones, no thumbs; card 01 stands down once a way is built; on the web the pager’s dots and shared action row are hidden',
+  cardShape.noThumbs && cardShape.fieldOnUnbuilt && !cardShape.fieldOnBuilt && cardShape.fieldLabel === 'Change this look…' && cardShape.fieldSpark && cardShape.fieldAbove && Math.abs(cardShape.fieldW - cardShape.cardW) < 1 && cardShape.pillFont === '10px' && /^2/.test(cardShape.pillTracking) && cardShape.pillCase === 'uppercase' && cardShape.pillBg === 'rgba(0, 0, 0, 0)'
     && cardShape.pillH === 48 && cardShape.pillRadius === '100px' && cardShape.arrow && Math.abs(cardShape.actsW - cardShape.cardW) < 1
-    && cardShape.thumbW === 48 && cardShape.thumbRound === '100px' && cardShape.thumbSvg && cardShape.thumbWords === ''
     && cardShape.actrow === 'none' && cardShape.dots === 'none' && cardShape.firstFilled === 'rgba(0, 0, 0, 0)', JSON.stringify(cardShape));
 // The piece-by-piece sheet: way 0 carries pieces (and is built — its CTA
 // opens the look); way 1 has none and reads its prose instead.
@@ -540,14 +548,15 @@ const askKp = await page.evaluate(async () => {
   await new Promise((r) => setTimeout(r, 200));
   const a = document.getElementById('rb-lp');
   out.sheetGone = !document.querySelector('#kp-sheet.on');
-  out.open = !!a; out.title = a?.querySelector('.ttl')?.textContent; out.meta = a?.querySelector('.meta')?.textContent;
-  out.helper = a?.querySelector('#rb-lp-helper')?.textContent;
+  out.open = !!a; out.inline = !!(a && a.classList.contains('rb-lp-in') && a.closest('#kp-lp-host-1')); out.scrim = !!document.querySelector('.rb-lp-scrim');
+  out.name = a?.querySelector('.rb-lp')?.getAttribute('aria-label'); out.ph = document.getElementById('rb-lp-in')?.placeholder; out.focused = document.activeElement?.id;
   out.ink = Array.from(a?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length;
   return out;
 });
-check('style another way · the field stands on an unbuilt way alone (a built way keeps its look), no chips, and opens the box named for that way — Key piece on the meta line, “The other two stay.”, no ink inside',
-  quiet0 === 0 && /Change this look/.test(askKp.door || '') && askKp.chips === 0 && askKp.sheetGone && askKp.open && askKp.title === 'Coffee Run'
-    && /Key piece/.test(askKp.meta || '') && /other two stay/.test(askKp.helper || '') && askKp.ink === 0, JSON.stringify([quiet0, askKp]));
+if (process.env.KP_SHOTS) await page.screenshot({ path: process.env.KP_SHOTS + 'kp-field-box-1280.png' });
+check('style another way · the sheet’s field stands on an unbuilt way alone (a built way keeps its look), no chips, and opens the box INLINE in that card’s own field — named for the way, “Change this look…”, no sheet, no ink inside',
+  quiet0 === 0 && /Change this look/.test(askKp.door || '') && askKp.chips === 0 && askKp.sheetGone && askKp.open && askKp.inline && !askKp.scrim && askKp.name === 'Coffee Run'
+    && askKp.ph === 'Change this look…' && askKp.focused === 'rb-lp-in' && askKp.ink === 0, JSON.stringify([quiet0, askKp]));
 const lbBefore = writes.filter((w) => w.method === 'PATCH' && /^lookbook_items/.test(w.url)).length;
 const styleCallsBefore = styleCalls;
 const refined = await page.evaluate(async () => {
@@ -560,65 +569,56 @@ const refined = await page.evaluate(async () => {
     titles: d.ways.map((w) => w.title), imgs: d.generatedImages, built0: d.builtLooks && d.builtLooks[0] != null,
     card1: document.querySelectorAll('#kp-ways .kp-look-card')[1]?.querySelector('.kp-look-title, .t, h3')?.textContent || document.querySelectorAll('#kp-ways .kp-look-card')[1]?.textContent,
     cards: document.querySelectorAll('#kp-ways .kp-look-card').length, ask: !!document.getElementById('rb-lp'),
+    boxOnCard: !!document.querySelector('#kp-lp-host-1 #rb-lp'), thread: Array.from(document.querySelectorAll('#rb-lp-thread > div')).map((d) => d.className + ':' + d.textContent.trim()),
   };
 });
 const rb = refineBodies[0] || {};
-check('style another way · /api/style takes refine + wayIndex + the way as it stands (its title, the other two titles), never a fresh three-way ask',
-  refineBodies.length === 1 && rb.refine === 'For the evening' && rb.wayIndex === 1 && rb.current?.title === 'Coffee Run'
+check('style another way · her line is READ first (/api/look/ask, the way as the rack) and, being a change, /api/style takes refine + wayIndex + the way as it stands (its title, the other two titles) — never a fresh three-way ask',
+  askPosts.length === 1 && askPosts[0].surface === 'way' && askPosts[0].name === 'Coffee Run' && askPosts[0].text === 'For the evening' && refineBodies.length === 1 && rb.refine === 'For the evening' && rb.wayIndex === 1 && rb.current?.title === 'Coffee Run'
     && JSON.stringify(rb.current?.others) === JSON.stringify(['Urbane Weekend', 'Park Hangout']) && styleCalls === styleCallsBefore, JSON.stringify([rb.refine, rb.wayIndex, rb.current, styleCalls]));
-check('style another way · ONE way is re-written on the same page — 02 reads the new title and its fresh frame, 01 and 03 keep their titles and frames, the built way keeps its look',
-  !refined.ask && refined.cards === 3 && JSON.stringify(refined.titles) === JSON.stringify(['Urbane Weekend', 'Coffee Run, after dark', 'Park Hangout'])
+check('style another way · ONE way is re-written on the same page — 02 reads the new title and its fresh frame, 01 and 03 keep their titles and frames, the built way keeps its look; the box comes back on the fresh card with its thread (her line, Robes’ Done)',
+  refined.ask && refined.boxOnCard && JSON.stringify(refined.thread) === JSON.stringify(['her:For the evening', 'robes:Done — Coffee Run is re-written. The other two stay.']) && refined.cards === 3 && JSON.stringify(refined.titles) === JSON.stringify(['Urbane Weekend', 'Coffee Run, after dark', 'Park Hangout'])
     && refined.imgs[0] === 'https://res.cloudinary.com/demo/way1.jpg' && refined.imgs[1] === 'https://res.cloudinary.com/demo/way2b.jpg' && refined.imgs[2] === 'https://res.cloudinary.com/demo/way3.jpg'
     && refined.built0 === true && /Coffee Run, after dark/.test(refined.card1 || ''), JSON.stringify(refined));
 const lbPatch = writes.filter((w) => w.method === 'PATCH' && /^lookbook_items/.test(w.url)).slice(lbBefore).find((w) => /Coffee Run, after dark/.test(JSON.stringify(w.body || {})));
 check('style another way · the saved key piece is patched with the re-written way, not a new entry',
   !!lbPatch && !writes.some((w) => w.method === 'POST' && /^lookbook_items/.test(w.url) && /Coffee Run, after dark/.test(JSON.stringify(w.body || {}))), JSON.stringify(lbPatch?.body?.data?.kpData?.ways?.map((w) => w.title)));
-// The thumbs.
+// A verdict in the field: noted — the look's feedback row (the thumbs' cloud
+// row, her words led by the way's title), the memory — and the box asks
+// whether to change this one too. × folds the box back to the field and
+// keeps the thread.
 const fbBefore = writes.filter((w) => w.url === 'feedback').length;
-await page.locator('#kp1-fb-dn').click();
-await page.waitForTimeout(600);
-const fbPicked = await page.evaluate(() => ({
-  on: document.getElementById('kp1-fb-dn')?.classList.contains('on') && document.getElementById('kp1-fb-dn').getAttribute('aria-pressed') === 'true' && !!document.getElementById('kp1-fb-dn').querySelector('svg'),
-  onBg: getComputedStyle(document.getElementById('kp1-fb-dn')).backgroundColor,
-  offOther: !document.getElementById('kp1-fb-up')?.classList.contains('on'),
-  sheet: !!document.querySelector('#kp-fbsheet.on'),
-  ey: document.querySelector('#kp-fbsheet .ey')?.textContent, heading: document.querySelector('#kp-fbsheet .h')?.textContent,
-  sub: document.querySelector('#kp-fbsheet .sub2')?.textContent,
-  input: document.getElementById('kp1-fb-text')?.placeholder, focused: document.activeElement?.id,
-  send: document.querySelector('#kp-fbsheet .kp-fbrow button')?.textContent.trim(), sendBg: getComputedStyle(document.querySelector('#kp-fbsheet .kp-fbrow button')).backgroundColor,
-  othersStill: !document.getElementById('kp0-fb-dn')?.classList.contains('on') && !document.getElementById('kp2-fb-dn')?.classList.contains('on'),
-}));
-check('feedback · thumbs down: the circle takes the warm fill and the sheet opens — the way’s title, "Not quite right.", the note focused, Send a hairline pill; the other two looks untouched',
-  fbPicked.on && fbPicked.onBg === 'rgb(243, 239, 230)' && fbPicked.offOther && fbPicked.sheet && fbPicked.ey === 'Coffee Run, after dark' && fbPicked.heading === 'Not quite right.'
-    && fbPicked.sub === 'Your taste shapes what comes next.' && fbPicked.input === 'What would have made it better?' && fbPicked.focused === 'kp1-fb-text'
-    && fbPicked.send === 'Send' && fbPicked.sendBg === 'rgb(255, 255, 255)' && fbPicked.othersStill, JSON.stringify(fbPicked));
-await page.evaluate(() => window.__kpFb(1, 1));
-await page.waitForTimeout(400);
-check('feedback · thumbs up flips the sheet ("Glad this one landed.", "What worked for you?") and the fill moves',
-  (await page.evaluate(() => document.querySelector('#kp-fbsheet .h')?.textContent)) === 'Glad this one landed.'
-    && await page.locator('#kp1-fb-text').getAttribute('placeholder') === 'What worked for you?'
-    && await page.evaluate(() => document.getElementById('kp1-fb-up').classList.contains('on') && !document.getElementById('kp1-fb-dn').classList.contains('on')));
-await page.fill('#kp1-fb-text', 'more of the olive');
-await page.locator('#kp-fbsheet .kp-fbrow button').click();
-await page.waitForTimeout(400);
-const fbSent = await page.evaluate(() => ({
-  line: document.getElementById('kp1-fb-done')?.textContent.trim(),
-  upOn: document.getElementById('kp1-fb-up')?.classList.contains('on'),
-  others: !!document.getElementById('kp0-fb-up') && !!document.getElementById('kp2-fb-up') && !document.getElementById('kp0-fb-up').classList.contains('on'),
-}));
+const noted = await page.evaluate(async () => {
+  window.__rbLpText('not my colours');
+  document.getElementById('rb-lp-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await new Promise((r) => setTimeout(r, 900));
+  return {
+    thread: Array.from(document.querySelectorAll('#rb-lp-thread > div')).map((d) => d.className + ':' + d.textContent.trim()),
+    titles: window.__lastKpData.ways.map((w) => w.title), cards: document.querySelectorAll('#kp-ways .kp-look-card').length,
+    ink: Array.from(document.querySelectorAll('#kp-lp-host-1 button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
+    x: !!document.getElementById('rb-lp-x') && getComputedStyle(document.getElementById('rb-lp-x')).display !== 'none',
+  };
+});
 const fbRows = writes.filter((w) => w.url === 'feedback').slice(fbBefore);
-check('feedback · sent reads "Noted. The next ones will lean that way."; the thumb keeps its fill; the other looks still ask',
-  fbSent.line === 'Noted. The next ones will lean that way.' && fbSent.upOn && fbSent.others, JSON.stringify(fbSent));
-check('feedback · ONE feedback row, at look level: the way’s title leads the note, the kp entry is the item',
-  fbRows.length === 1 && fbRows[0].body.track === 'key-piece' && fbRows[0].body.rating === 1
-    && fbRows[0].body.note === 'Coffee Run, after dark — more of the olive' && fbRows[0].body.lookbook_item_id != null, JSON.stringify(fbRows));
-await page.waitForTimeout(1600);
-check('feedback · the sheet closes itself after the note', (await page.locator('#kp-fbsheet').count()) === 0);
-// A reopen of the same result keeps the verdict (state keyed on the data).
-await page.evaluate(() => window.__kpRenderResult(window.__lastKpData, 'Umbro shorts', { intent: 'style', skipSave: true, savedId: null }));
-await page.waitForTimeout(300);
-check('feedback · a re-render of the same result keeps the verdict (the thumb still filled), the others resting',
-  await page.evaluate(() => document.getElementById('kp1-fb-up').classList.contains('on') && !document.getElementById('kp0-fb-up').classList.contains('on') && !document.getElementById('kp2-fb-up').classList.contains('on')));
+check('field · a verdict (“not my colours”) is noted in the thread — the look untouched, no re-write — and Robes asks whether to change this one too; no ink inside the box',
+  noted.thread.length === 4 && noted.thread[2] === 'her:not my colours' && /^robes:Noted — the next ones will lean that way/.test(noted.thread[3]) && refineBodies.length === 1
+    && JSON.stringify(noted.titles) === JSON.stringify(['Urbane Weekend', 'Coffee Run, after dark', 'Park Hangout']) && noted.cards === 3 && noted.ink === 0 && noted.x, JSON.stringify(noted));
+check('field · ONE feedback row, at look level: the way’s title leads her words, the kp entry is the item, no thumbs rating',
+  fbRows.length === 1 && fbRows[0].body.track === 'key-piece' && fbRows[0].body.rating === null
+    && fbRows[0].body.note === 'Coffee Run, after dark — not my colours' && fbRows[0].body.lookbook_item_id != null, JSON.stringify(fbRows));
+const folded = await page.evaluate(async () => {
+  document.getElementById('rb-lp-x').click();
+  await new Promise((r) => setTimeout(r, 200));
+  const out = { box: !!document.getElementById('rb-lp'), field: document.querySelector('#kp-lp-host-1 .rb-lp-field .ph')?.textContent };
+  document.querySelector('#kp-lp-host-1 .rb-lp-field').click();
+  await new Promise((r) => setTimeout(r, 200));
+  out.thread = document.querySelectorAll('#rb-lp-thread > div').length;
+  window.__rbLpClose();
+  await new Promise((r) => setTimeout(r, 150));
+  out.gone = !document.getElementById('rb-lp');
+  return out;
+});
+check('field · × folds the box back to the field and keeps the thread; the field brings it back whole', !folded.box && folded.field === 'Change this look…' && folded.thread === 4 && folded.gone, JSON.stringify(folded));
 // The phone: the pager — one card centred at a time, the dots and the
 // shared action row following it, a neighbour's tap scrolling it into place.
 await page.setViewportSize({ width: 390, height: 844 });
@@ -636,7 +636,7 @@ const pager0 = await page.evaluate(() => {
     dotOn: Array.from(document.querySelectorAll('#kp-dots button')).map((b) => b.classList.contains('on')).join(','),
     cardActs: getComputedStyle(document.querySelector('#kp-ways .kp-look-acts')).display,
     actBuild: document.getElementById('kp-actrow-build')?.textContent.trim(), actBg: getComputedStyle(document.getElementById('kp-actrow-build')).backgroundColor,
-    actUpOn: document.getElementById('kp-actrow-up')?.classList.contains('on'),
+    actField: !!document.querySelector('#kp-lp-host-act .rb-lp-field'), actFieldHidden: document.getElementById('kp-lp-host-act')?.hidden,
     // (the pager's active dot is a 5px ink button — a marker, not a fill)
     inks: Array.from(document.querySelectorAll('#kp-result-page button')).filter((b) => b.offsetParent !== null && b.getBoundingClientRect().height > 20 && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
     overflowX: pg.scrollWidth > pg.clientWidth,
@@ -645,17 +645,17 @@ const pager0 = await page.evaluate(() => {
 check('phone · the three cards are a centred scroll-snap pager (330px at 390), the dots and ONE action row under it — the card’s own row hidden; the row’s Build is the page’s one ink; no horizontal page overflow',
   pager0.display === 'flex' && pager0.cur === 0 && pager0.curCls && pager0.width === 330 && pager0.centred && pager0.actrow === 'flex' && pager0.dots === 3
     && pager0.dotOn === 'true,false,false' && pager0.cardActs === 'none' && pager0.actBuild === 'Open the look' && pager0.actBg === 'rgb(32, 32, 33)'
-    && pager0.actUpOn === false && pager0.inks === 1 && !pager0.overflowX, JSON.stringify(pager0));
+    && pager0.actField && pager0.actFieldHidden === true && pager0.inks === 1 && !pager0.overflowX, JSON.stringify(pager0));
 await page.evaluate(() => window.__kpCardTap(1));
 await page.waitForTimeout(700);
 const pager1 = await page.evaluate(() => ({
   cur: window._kpCur, dotOn: Array.from(document.querySelectorAll('#kp-dots button')).map((b) => b.classList.contains('on')).join(','),
   sheet: !!document.getElementById('kp-sheet'), actBuild: document.getElementById('kp-actrow-build')?.textContent.trim(),
-  actUpOn: document.getElementById('kp-actrow-up')?.classList.contains('on'),
+  actFieldHidden: document.getElementById('kp-lp-host-act')?.hidden,
   curCls: Array.from(document.querySelectorAll('#kp-ways .kp-look-card')).map((c) => c.classList.contains('cur')).join(','),
 }));
-check('phone · a neighbour’s tap scrolls it into place (no sheet): the dots, the current class, the action row’s label and the thumbs follow the card',
-  pager1.cur === 1 && pager1.dotOn === 'false,true,false' && !pager1.sheet && pager1.actBuild === 'Build this look' && pager1.actUpOn === true && pager1.curCls === 'false,true,false', JSON.stringify(pager1));
+check('phone · a neighbour’s tap scrolls it into place (no sheet): the dots, the current class, the action row’s label and its field follow the card (the field shows on an unbuilt way)',
+  pager1.cur === 1 && pager1.dotOn === 'false,true,false' && !pager1.sheet && pager1.actBuild === 'Build this look' && pager1.actFieldHidden === false && pager1.curCls === 'false,true,false', JSON.stringify(pager1));
 await page.evaluate(() => window.__kpCardTap(1));
 await page.waitForTimeout(500);
 check('phone · the current card’s tap opens the sheet as a bottom sheet', await page.evaluate(() => {
@@ -702,34 +702,17 @@ await page.setViewportSize({ width: 1280, height: 1200 });
 await page.waitForTimeout(300);
 await page.evaluate(() => window.__kpRenderResult(window.__lastKpData, 'Umbro shorts', { intent: 'style', skipSave: true, savedId: null }));
 await page.waitForTimeout(400);
-// The composer (a way built in situ) carries the same line under Save / Try another
-// (way 1 — ways 0 and 2 were built in earlier sections, so their buttons open saved looks).
+// The composer (a way built in situ) carries NO thumbs line any more (design
+// Inline_Prompt 4d, 2026-10-01): the box holds the conversation for the look.
 await page.locator('#kp-build-btn-1').click();
 await page.waitForTimeout(3200);
 const lkFb = await page.evaluate(() => {
   const host = document.getElementById('kp-build-host');
-  const fb = host?.querySelector('#lk-fb');
-  const save = host?.querySelector('.rb-lk-saverow');
-  return {
-    present: !!fb, afterSave: !!(fb && save && (save.compareDocumentPosition(fb) & Node.DOCUMENT_POSITION_FOLLOWING)),
-    title: fb?.querySelector('.rb-fb-title')?.textContent.trim(), sub: fb?.querySelector('.rb-fb-sub')?.textContent.trim(),
-    // (a proposal row's own Save-to-wishlist pill is ink by the 2026-08-13
-    // rule — the feedback line itself must add no ink fill)
-    inkFills: Array.from(host.querySelectorAll('button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.textContent.trim()).filter((t) => t !== 'Save'),
-    fbInk: Array.from(fb.querySelectorAll('button')).some((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)'),
-  };
+  return { composer: !!host?.querySelector('.rb-lk-composer'), line: !!host?.querySelector('#lk-fb, .rb-fb'), field: !!host?.querySelector('.rb-lp-field'),
+    inkFills: Array.from(host.querySelectorAll('button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.textContent.trim()).filter((t) => t !== 'Save') };
 });
-check('feedback · the in-situ composer carries the line under its foot; Save this look stays the one ink fill (the line adds none)',
-  lkFb.present && lkFb.afterSave && lkFb.title === 'How was this look?' && lkFb.sub === 'Your taste shapes what comes next'
-    && lkFb.inkFills.length === 1 && /Save this look/.test(lkFb.inkFills[0]) && !lkFb.fbInk, JSON.stringify(lkFb));
-const lkBefore = writes.filter((w) => w.url === 'feedback').length;
-await page.locator('#lk-fb-up').click();
-await page.waitForTimeout(150);
-await page.locator('#lk-fb .rb-fb-send').click();
-await page.waitForTimeout(300);
-const lkRows = writes.filter((w) => w.url === 'feedback').slice(lkBefore);
-check('feedback · the composer’s line files against the key piece with no note required',
-  (await page.locator('#lk-fb-done').count()) === 1 && lkRows.length === 1 && lkRows[0].body.track === 'key-piece' && lkRows[0].body.rating === 1 && lkRows[0].body.note === null, JSON.stringify(lkRows));
+check('composer · the in-situ composer carries no feedback line; the look prompt’s field is its one door to words; Save this look stays the one ink fill',
+  lkFb.composer && !lkFb.line && lkFb.field && lkFb.inkFills.length === 1 && /Save this look/.test(lkFb.inkFills[0]), JSON.stringify(lkFb));
 
 check('no page errors', errs.length === 0, errs.join(' | '));
 

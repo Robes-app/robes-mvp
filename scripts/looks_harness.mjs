@@ -3552,11 +3552,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await page.waitForTimeout(1200);
   const fall = await page.evaluate(() => {
     const sn = document.getElementById('sn-page');
-    return { snOpen: !!sn && getComputedStyle(sn).display !== 'none', box: document.querySelector('#rb-lp .ttl')?.textContent.trim() || null, focused: document.activeElement?.id };
+    return { snOpen: !!sn && getComputedStyle(sn).display !== 'none', box: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), ph: document.getElementById('rb-lp-in')?.placeholder, focused: document.activeElement?.id };
   });
-  // The home box is the prompt now (phase 3, default on since 2026-10-01):
-  // the landing opens it in new mode with the field focused.
-  check('model-build landing · no undressed look → the home box opens ("A new look"), focused', !fall.snOpen && fall.box === 'A new look' && fall.focused === 'rb-lp-in' && errs.length === 0, JSON.stringify([fall, errs.slice(0, 1)]));
+  // The home box is the prompt now (inline in the row since 2026-10-01):
+  // the landing focuses it in place, in new mode.
+  check('model-build landing · no undressed look → the home box (inline, "A new look for…") takes the focus', !fall.snOpen && fall.box && fall.ph === 'A new look for…' && fall.focused === 'rb-lp-in' && errs.length === 0, JSON.stringify([fall, errs.slice(0, 1)]));
   await ctx.close();
 }
 
@@ -3845,6 +3845,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       await page.route('**/api/alternates', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ alternates: [{ name: 'A found piece', brand: 'Robes', retailer_hint: 'Net-a-Porter', price_point: '€90', how: 'Worn open.' }, { name: 'Another', brand: 'Robes', retailer_hint: 'ASOS', price_point: '€40', how: 'Tucked.' }] }) }));
       await page.route('**/api/lookbuild/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: null, note: 'A quiet build.', look_tags: null, palette: [] }) }));
       await page.route('**/api/feedback', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+      await page.route('**/api/look/ask', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ intent: 'none', reply: 'Noted.', swaps: [], back: [], styled: [], draft: '', rule: '' }) }));
       await page.route('**img.test/**', (r) => r.abort());
     },
   });
@@ -3871,19 +3872,22 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     document.querySelector('.rb-lk-robesdoor').click();
     await new Promise((r) => setTimeout(r, 2200));
     const inp = document.getElementById('rb-lk-newtitle');
+    // The thumbs line is gone from the composer (2026-10-01): a verdict is a
+    // line in the look's box, and it lands in the memory as what she said.
     const block = document.getElementById('lk-fb');
-    window.__rbFbRate('lk', 0);
-    window.__rbFbNote('lk', 'too polished for a Tuesday');
-    window.__rbFbSubmit('lk');
-    await new Promise((r) => setTimeout(r, 400));
-    return { block: !!block, title: inp?.value || '' };
+    window.__lkLpOpen('composer');
+    await new Promise((r) => setTimeout(r, 200));
+    window.__rbLpText('too polished for a Tuesday');
+    document.getElementById('rb-lp-in')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await new Promise((r) => setTimeout(r, 900));
+    const out = { block: !!block, title: inp?.value || '', box: !!document.getElementById('rb-lp') };
+    window.__rbLpClose();
+    return out;
   });
   const m3 = lastMem();
-  check('memory · a verdict on the composer’s Robes build lands with her words and what it was about',
-    v.block && memWrites().length > before && m3?.[0]?.k === 'verdict' && m3[0].v === 0 && m3[0].text === 'too polished for a Tuesday' && m3[0].on === v.title && m3[0].surface === 'look',
+  check('memory · a verdict typed into the composer’s box lands with her words and what it was about (no thumbs line on the composer)',
+    !v.block && v.box && memWrites().length > before && m3?.[0]?.k === 'ask' && m3[0].text === 'too polished for a Tuesday' && m3[0].on === v.title && m3[0].surface === 'composer',
     JSON.stringify([v, m3 && m3[0]]));
-  check('memory · the verdict still writes its feedback row',
-    writes.some((w) => w.method === 'POST' && /^feedback\b/.test(w.url) && w.body?.rating === 0), JSON.stringify(writes.filter((w) => /^feedback\b/.test(w.url)).map((w) => w.body?.note)));
   // A swap in the composer → out / in / category on the memory AND the event.
   const sw = await page.evaluate(async () => {
     window.__lkNew();
@@ -3949,7 +3953,7 @@ const lpRead = () => {
   const a = document.getElementById('rb-lp');
   const ink = (root) => Array.from(root?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length;
   return {
-    open: !!a, title: a?.querySelector('.ttl')?.textContent, meta: a?.querySelector('.meta')?.textContent,
+    open: !!a, title: a?.querySelector('.ttl')?.textContent, meta: a?.querySelector('.meta')?.textContent, dock: !!a?.classList.contains('rb-lp-dock'), inline: !!a?.classList.contains('rb-lp-in'), scrim: !!a?.querySelector('.rb-lp-scrim'), name: a?.querySelector('.rb-lp')?.getAttribute('aria-label'),
     chips: a ? a.querySelectorAll('.rs-chip, .rb-lp-chip').length : 0,
     thread: Array.from(a?.querySelectorAll('#rb-lp-thread > div') || []).map((d) => d.className + ':' + d.textContent.trim()),
     value: a?.querySelector('#rb-lp-in')?.value, drafted: !!a?.querySelector('#rb-lp-in.drafted'), ph: a?.querySelector('#rb-lp-in')?.getAttribute('placeholder'),
@@ -3996,9 +4000,11 @@ const lpSend = async (text, wait) => {
     await new Promise((r) => setTimeout(r, 200));
     return window.__lpRead();
   });
-  check('box · the box opens titled with the look’s name and one meta line, the opener, no chips, an empty field, a hairline send, no ink inside it',
-    opened.open && opened.title && opened.meta === 'Draft · not saved yet' && opened.chips === 0 && opened.thread.length === 1 && /What would you change\?/.test(opened.thread[0])
-      && opened.value === '' && !opened.sendInk && opened.ink === 0 && opened.ph === 'Restyle it, or swap the red shoes for black…' && /Changes land on the look as you go/.test(opened.helper || ''), JSON.stringify(opened));
+  // Inline since 2026-10-01: no sheet, no shade, no second title — the box
+  // docks where the field sat, one field reading the page's verb.
+  check('box · the box opens DOCKED where the field sat — no shade, no title, no opener, no chips, an empty field reading “Change this look…”, a hairline send, no ink inside it',
+    opened.open && opened.dock && !opened.scrim && !opened.title && !opened.meta && opened.chips === 0 && opened.thread.length === 0
+      && opened.value === '' && !opened.sendInk && opened.ink === 0 && opened.ph === 'Change this look…' && opened.name === 'The shirt one', JSON.stringify(opened));
   const wb = writes.length;
   const sw = await page.evaluate(async () => {
     const mid = await window.__lpSend('swap the sandals for the slides', 900);
@@ -4017,7 +4023,7 @@ const lpSend = async (text, wait) => {
     JSON.stringify([sw.midInk, askPosts.length, a0.mode, a0.surface, a0.text, a0.rack, a0.pool?.kind, a0.pool?.items?.length]));
   check('box · a clear swap changes the look behind on Enter — the slides on the rack, the sandals gone, the row reading “Just changed · was Flat leather sandals” — and the thread carries her turn and Robes’ Done',
     sw.rows.includes('Tan leather slides') && !sw.rows.includes('Flat leather sandals') && JSON.stringify(sw.was) === JSON.stringify(['Just changed · was Flat leather sandals'])
-      && sw.thread.length === 3 && /^her:swap the sandals/.test(sw.thread[1]) && /^robes:Done\./.test(sw.thread[2]) && sw.value === '' && !sw.drafted, JSON.stringify(sw));
+      && sw.thread.length === 2 && /^her:swap the sandals/.test(sw.thread[0]) && /^robes:Done\./.test(sw.thread[1]) && sw.value === '' && !sw.drafted, JSON.stringify(sw));
   check('box · the door and the placeholder flip to “Anything else, or put something back…”; the park carries `was`',
     sw.door === 'Anything else, or put something back…' && sw.ph === 'Anything else, or put something back…' && sw.park && Object.keys(sw.park.was || {}).length === 1, JSON.stringify([sw.door, sw.ph, sw.park && sw.park.was]));
   const vague = await page.evaluate(async () => {
@@ -4026,9 +4032,9 @@ const lpSend = async (text, wait) => {
     out.rows = Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent);
     return out;
   });
-  check('box · a vague ask changes NOTHING — Robes says what it would change and writes the swap into her field with the warm border and the drafted helper',
+  check('box · a vague ask changes NOTHING — Robes says what it would change and writes the swap into her field with the warm border',
     vague.rows.includes('Cream silk shirt') && vague.rows.includes('Tan leather slides') && vague.value === 'Change the cream silk shirt for the ribbed white tank' && vague.drafted
-      && /Robes wrote this from your words/.test(vague.helper || '') && /^robes:It’s the silk shirt/.test(vague.thread[vague.thread.length - 1]), JSON.stringify(vague));
+      && /^robes:It’s the silk shirt/.test(vague.thread[vague.thread.length - 1]), JSON.stringify(vague));
   const fromDraft = await page.evaluate(async () => {
     const ta = document.getElementById('rb-lp-in');
     ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
@@ -4071,7 +4077,7 @@ const lpSend = async (text, wait) => {
     return out;
   });
   check('box · with no piece named every change goes back; the door reads “Change this look…” again',
-    backAll.rows.includes('Cream silk shirt') && !backAll.rows.includes('Ribbed white tank') && backAll.was === 0 && backAll.ph === 'Restyle it, or swap the red shoes for black…', JSON.stringify(backAll));
+    backAll.rows.includes('Cream silk shirt') && !backAll.rows.includes('Ribbed white tank') && backAll.was === 0 && backAll.ph === 'Change this look…', JSON.stringify(backAll));
   // The closed-state rule (2026-10-01): a thread closed MID-WAY is held
   // and comes back on the next open; left there without a new line, it
   // is let go — the open after THAT shows the opener alone.
@@ -4090,8 +4096,8 @@ const lpSend = async (text, wait) => {
     out.door = document.querySelector('#rb-lk-body .rb-lp-field .ph')?.textContent;
     return out;
   });
-  check('box · Escape closes it; the thread comes back once on reopen, and a reopen she leaves unanswered lets it go — only the opener stands after that',
-    closed.gone && closed.held > 1 && closed.open && closed.thread.length === 1 && closed.door === 'Change this look…', JSON.stringify(closed));
+  check('box · Escape closes it; the thread comes back once on reopen, and a reopen she leaves unanswered lets it go — the field stands alone after that',
+    closed.gone && closed.held > 1 && closed.open && closed.thread.length === 0 && closed.door === 'Change this look…', JSON.stringify(closed));
   check('box · nothing is written by any of it — no look, no row; the brief write and the events are the only PATCHes',
     !writes.slice(wb).some((w) => w.method === 'POST' && /^(looks|look_pieces|lookbook_items|planned_days)/.test(w.url)), JSON.stringify(writes.slice(wb).map((w) => w.method + ' ' + w.url)));
   check('box · composer: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
@@ -4126,7 +4132,7 @@ const lpSend = async (text, wait) => {
   });
   const a0 = askPosts[0] || {};
   check('box · the box names the saved look; a swap opens it EDITING — the slides on the rack marked, the change bar naming her words with Discard · Save as a new look · Update',
-    sw.title === 'The Thursday one' && sw.meta === 'Saved look · 4 pieces' && a0.surface === 'saved' && a0.rack?.length === 4 && sw.editing && sw.rows.includes('Tan leather slides') && !sw.rows.includes('Flat leather sandals')
+    a0.name === 'The Thursday one' && a0.surface === 'saved' && a0.rack?.length === 4 && sw.editing && sw.rows.includes('Tan leather slides') && !sw.rows.includes('Flat leather sandals')
       && JSON.stringify(sw.was) === JSON.stringify(['Just changed · was Flat leather sandals']) && /Adjusted — “swap the sandals for the slides”/.test(sw.bar || '') && sw.acts.includes('Discard') && sw.acts.includes('Update this look'), JSON.stringify(sw));
   const rowWrites = () => writes.slice(wb).filter((w) => !/^events/.test(w.url) && !/^profiles/.test(w.url));
   check('box · nothing is written by the swap itself', rowWrites().length === 0, JSON.stringify(rowWrites().map((w) => w.method + ' ' + w.url)));
@@ -4192,7 +4198,7 @@ const lpSend = async (text, wait) => {
   });
   const a0 = askPosts[0] || {};
   check('box · the day console: the field under the look replaces ↻ Restyle; the box names the look; a swap lands on this day’s pieces and put back restores them',
-    day.field && !/Restyle/.test(day.restyle) && day.title === 'Built around the linen shirt' && a0.surface === 'look' && a0.rack?.length === 3
+    day.field && !/Restyle/.test(day.restyle) && a0.name === 'Built around the linen shirt' && a0.surface === 'look' && a0.rack?.length === 3
       && day.items.includes('Tan leather slides') && JSON.stringify(day.was) === JSON.stringify(['Just changed · was Flat leather sandals']) && day.items2.includes('Flat leather sandals') && day.was2 === 0, JSON.stringify([day, a0.surface, a0.rack?.length]));
   check('box · day console: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
@@ -4330,12 +4336,17 @@ const composerRead = () => ({
     window.__rbNavGo('home');
     await new Promise((r) => setTimeout(r, 500));
     const echo = document.querySelector('.dash-echo');
-    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), name: echo?.querySelector('.rb-echo-name')?.textContent, door: echo?.querySelector('.rb-echo-door')?.textContent };
+    const row = document.querySelector('#rb-hb #rb-lp .rb-lpd-row');
+    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), row: !!row, ey: row?.querySelector('.ey')?.textContent, name: row?.querySelector('.nm')?.textContent, meta: row?.querySelector('.m')?.textContent,
+      save: document.querySelector('#rb-hb #rb-lp .rb-lpd-save')?.textContent.trim(), ph: document.querySelector('#rb-hb #rb-lp-in')?.placeholder };
   });
-  check('draft · home\'s next line leads with the draft — “{name} is waiting, unsaved.” · Open it',
-    /is waiting, unsaved\./.test(h.text || '') && h.name === 'Date night' && /^Open it/.test(h.door || ''), JSON.stringify(h));
+  // Inline since 2026-10-01: home's box carries the draft beneath its field
+  // (the row, Save look, the field working on the draft); the next line
+  // moves on while the box shows it.
+  check('draft · home\'s box carries the draft under the field — “Draft look · not saved yet”, its name and pieces, Save look, the field reading “Change this draft…” — and the next line moves on',
+    h.row && h.ey === 'Draft look · not saved yet' && h.name === 'Date night' && /^4 pieces · 3 yours$/.test(h.meta || '') && h.save === 'Save look' && h.ph === 'Change this draft…' && !/is waiting, unsaved/.test(h.text || ''), JSON.stringify(h));
   const back = await page.evaluate(async () => {
-    document.querySelector('.dash-echo .rb-echo-door')?.click();
+    document.querySelector('#rb-hb #rb-lp .rb-lpd-row')?.click();
     await new Promise((r) => setTimeout(r, 700));
     return window.__cr();
   });
@@ -4344,10 +4355,10 @@ const composerRead = () => ({
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2800);
   const r1 = await page.evaluate(() => {
-    const echo = document.querySelector('.dash-echo');
-    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: echo?.querySelector('.rb-echo-door')?.textContent, park: !!localStorage.getItem('rb_lk_draft__u-test') };
+    const row = document.querySelector('#rb-hb #rb-lp .rb-lpd-row');
+    return { name: row?.querySelector('.nm')?.textContent, ey: row?.querySelector('.ey')?.textContent, park: !!localStorage.getItem('rb_lk_draft__u-test') };
   });
-  check('draft · a reload keeps the draft — the next line still names it', r1.park && /Date night is waiting, unsaved\./.test(r1.text || '') && /^Open it/.test(r1.door || ''), JSON.stringify(r1));
+  check('draft · a reload keeps the draft — the box still carries it', r1.park && r1.name === 'Date night' && r1.ey === 'Draft look · not saved yet', JSON.stringify(r1));
   await openLooks(page);
   const tile = await page.evaluate(() => {
     const t = document.getElementById('rb-lk-drafttile');

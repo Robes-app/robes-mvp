@@ -1555,8 +1555,13 @@ const hbRead = (page) => page.evaluate(() => {
     conc: vis(dash.querySelector('.concierge')),
     pills: Array.from(document.querySelectorAll('#rb-sugg button')).filter(vis).length,
     hb: vis(hb),
-    fields: hb ? hb.querySelectorAll('.rb-lp-field').length : 0,
-    label: hb?.querySelector('.rb-lp-field .ph')?.textContent || '',
+    fields: hb ? hb.querySelectorAll('#rb-lp, .rb-lp-field').length : 0,
+    inline: !!hb?.querySelector('#rb-lp.rb-lp-in'),
+    label: hb?.querySelector('#rb-lp-in')?.placeholder || hb?.querySelector('.rb-lp-field .ph')?.textContent || '',
+    row: hb?.querySelector('#rb-lp .rb-lpd-row .nm')?.textContent || '', rowEy: hb?.querySelector('#rb-lp .rb-lpd-row .ey')?.textContent || '', rowMeta: hb?.querySelector('#rb-lp .rb-lpd-row .m')?.textContent || '',
+    save: hb?.querySelector('#rb-lp .rb-lpd-save')?.textContent.trim() || '', busy: hb?.querySelector('#rb-lp .rb-lpd-busy')?.textContent || '',
+    days: hb ? hb.querySelectorAll('#rb-lp .rb-lpd-days button').length : 0, hint: hb?.querySelector('#rb-lp .rb-lpd-days button.hint .n')?.textContent || '',
+    done: hb?.querySelector('#rb-lp .rb-lpd-done')?.textContent.replace(/\s+/g, ' ').trim() || '',
     plusRows: Array.from(document.querySelectorAll('#rb-hb #cb-addmenu .hp-addopt')).map((b) => b.textContent.trim().split('\n')[0].replace(/Where are we.*$/, '').trim()),
     inkInHb: hb ? Array.from(hb.querySelectorAll('button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length : 0,
     today: document.querySelector('#rb-today .nm')?.textContent || '',
@@ -1584,8 +1589,8 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
       check(`home field · ${posture} · card · the prompt card and its three pills stand, no field`,
         modeOk && h.conc === true && h.pills === 3 && h.hb === false && h.bodyOn === false, JSON.stringify(h));
     } else {
-      check(`home field · ${posture} · ${flag} · the card and the pills stand down; ONE field under the greeting reads "A new look for…", in flow on the web`,
-        modeOk && h.conc === false && h.pills === 0 && h.hb === true && h.fields === 1 && h.label === 'A new look for…'
+      check(`home field · ${posture} · ${flag} · the card and the pills stand down; ONE box under the greeting — inline in the row, no sheet — reads "A new look for…", in flow on the web`,
+        modeOk && h.conc === false && h.pills === 0 && h.hb === true && h.fields === 1 && h.inline && h.label === 'A new look for…'
           && h.order[0] === 'dash-mast' && h.order[1] === 'rb-hb' && h.rowPos === 'static', JSON.stringify(h));
       check(`home field · ${posture} · ${flag} · the + keeps its five rows, no ink inside the field's row`,
         JSON.stringify(h.plusRows) === JSON.stringify(HB_ROWS) && h.inkInHb === 0, JSON.stringify([h.plusRows, h.inkInHb]));
@@ -1624,22 +1629,22 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   check('home field · today · the look leads the page and the field stays neutral — "A new look for…"',
     t.today === 'The office one' && t.label === 'A new look for…' && t.fields === 1 && t.more === '', JSON.stringify(t));
   const neutral = await page.evaluate(async () => {
-    document.querySelector('#rb-hb .rb-lp-field').click();
+    window.__rbHbOpen();
     await new Promise((r) => setTimeout(r, 300));
-    const out = { sn: document.getElementById('sn-page')?.style.display === 'block', box: !!document.getElementById('rb-lp'), ttl: document.querySelector('#rb-lp .ttl')?.textContent, opener: document.querySelector('#rb-lp .robes')?.textContent };
-    window.__rbLpClose();
+    const out = { sn: document.getElementById('sn-page')?.style.display === 'block', box: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), sheet: !!document.querySelector('#rb-lp.rb-lp-dock, .rb-lp-scrim'), ph: document.getElementById('rb-lp-in')?.placeholder, focused: document.activeElement?.id };
+    document.getElementById('rb-lp-in')?.blur();
     return out;
   });
-  check('home field · today · the field opens the NEW-look box (a day to plan, a trip, a piece), never today’s look',
-    !neutral.sn && neutral.box && neutral.ttl === 'A new look' && neutral.opener === 'What’s it for?', JSON.stringify(neutral));
+  check('home field · today · the field is the NEW-look box, focused in place (a day to plan, a trip, a piece) — never today’s look, never a sheet',
+    !neutral.sn && neutral.box && !neutral.sheet && neutral.ph === 'A new look for…' && neutral.focused === 'rb-lp-in', JSON.stringify(neutral));
   const opened = await page.evaluate(async () => {
     document.querySelector('#rb-today .rb-today-main').click();
     await new Promise((r) => setTimeout(r, 700));
-    return { sn: document.getElementById('sn-page')?.style.display === 'block', box: !!document.getElementById('rb-lp'), ttl: document.querySelector('#rb-lp .ttl')?.textContent,
-      mode: document.querySelector('#rb-lp .robes')?.textContent, band: document.querySelector('#rb-lk-body .rb-ret .lab')?.textContent };
+    return { sn: document.getElementById('sn-page')?.style.display === 'block', box: !!document.querySelector('#rb-lp.rb-lp-dock'), name: document.querySelector('#rb-lp .rb-lp')?.getAttribute('aria-label'),
+      ph: document.getElementById('rb-lp-in')?.placeholder, band: document.querySelector('#rb-lk-body .rb-ret .lab')?.textContent };
   });
-  check('home field · today · the card opens the look itself with its box titled with the look, ‹ Home as the way back',
-    opened.sn && opened.box && opened.ttl === 'The office one' && opened.mode === 'What would you change?' && opened.band === 'Home', JSON.stringify(opened));
+  check('home field · today · the card opens the look itself with its box docked on it (named for the look, “Change this look…”), ‹ Home as the way back',
+    opened.sn && opened.box && opened.name === 'The office one' && opened.ph === 'Change this look…' && opened.band === 'Home', JSON.stringify(opened));
   check('home field · today · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -1647,33 +1652,48 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
 {
   const { ctx, page, errs, posts } = await boot(browser, 6, 1280, { looks: true, pics: 6, prompt: 'box', intent: { intent: 'daily', confidence: 0.9, date_start: HB_TOMORROW } });
   await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(200);
-  const b = await page.evaluate(() => ({ ttl: document.querySelector('#rb-lp .ttl')?.textContent, meta: document.querySelector('#rb-lp .meta')?.textContent, opener: document.querySelector('#rb-lp .robes')?.textContent,
-    chips: document.querySelectorAll('#rb-lp .rs-chip').length, ph: document.getElementById('rb-lp-in')?.placeholder, helper: document.getElementById('rb-lp-helper')?.textContent,
-    rowHidden: getComputedStyle(document.querySelector('#rb-hb .rb-hb-row')).visibility }));
-  check('home field · the box: "A new look", the date as meta, "What’s it for?", no chips, the brief placeholder',
-    b.ttl === 'A new look' && /^\w{3} \d{1,2} \w{3}/.test(b.meta || '') && b.opener === 'What’s it for?' && b.chips === 0 && /travel day/.test(b.ph || '') && /from your wardrobe/.test(b.helper || ''), JSON.stringify(b));
+  const b = await hbRead(page);
+  const b2 = await page.evaluate(() => ({ chips: document.querySelectorAll('#rb-lp .rs-chip').length, thread: document.querySelectorAll('#rb-lp-thread > div').length, sheet: !!document.querySelector('#rb-lp.rb-lp-dock, .rb-lp-scrim'), send: getComputedStyle(document.getElementById('rb-lp-send')).display, sendInk: document.getElementById('rb-lp-send').classList.contains('ink'), focused: document.activeElement?.id }));
+  check('home field · the box is the field: inline, focused, "A new look for…", no title, no chips, no thread, the send arrow showing while she is in the field (hairline until she types)',
+    b.inline && b.label === 'A new look for…' && b2.chips === 0 && b2.thread === 0 && !b2.sheet && b2.send === 'flex' && !b2.sendInk && b2.focused === 'rb-lp-in' && b.inkInHb === 0, JSON.stringify([b, b2]));
   await page.evaluate(() => window.__rbLpText('Dinner with Mary tomorrow'));
-  await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(2600);
-  const d = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), composer: !!document.querySelector('#rb-lk-body .rb-lk-composer'), title: document.getElementById('rb-lk-newtitle')?.value,
-    day: !!document.querySelector('.rb-lk-daychip'), save: document.querySelector('.rb-lk-save')?.textContent.trim() }));
-  check('home field · route 1 · a day ask → the classifier → a LOOSE composer draft (no day attached, Save reads Save this look)',
-    posts.intent.length === 1 && posts.intent[0].prompt === 'Dinner with Mary tomorrow' && posts.daily.length === 1 && posts.daily[0].prompt === 'Dinner with Mary tomorrow'
-      && !d.box && d.composer && d.title === 'Soft office armour' && d.save === 'Save this look', JSON.stringify([posts.intent.length, posts.daily.length, d]));
-  const sv = await page.evaluate(async () => {
-    window.__lkSave();
-    await new Promise((r) => setTimeout(r, 900));
-    return { sheet: !!document.getElementById('rb-lkdy'), picked: document.querySelector('#rb-lkdy .c.sel .n')?.textContent, pick: document.querySelector('#rb-lkdy .pick')?.textContent,
-      detail: !!document.querySelector('#rb-lk-body .rb-lk-held'), band: document.querySelector('#rb-lk-body .rb-ret .lab')?.textContent, pins: (JSON.parse(localStorage.getItem('rb_looks__u-test') || '[]').length) };
-  });
-  check('home field · Save, then the date: the look is filed, its page opens with ‹ Home, and the diary sheet rises on the day her words named (tomorrow)',
-    sv.sheet && sv.picked === String(Number(HB_TOMORROW.slice(8, 10))) && sv.detail && sv.band === 'Home' && sv.pins === 3, JSON.stringify([sv, HB_TOMORROW]));
-  const closed = await page.evaluate(async () => { window.__lkDiaryClose(); await new Promise((r) => setTimeout(r, 200)); return { sheet: !!document.getElementById('rb-lkdy'), strip: document.querySelectorAll('.rb-lk-pinstrip').length, day: !!document.getElementById('dl-result-page') && document.getElementById('dl-result-page').style.display === 'block' }; });
-  check('home field · closing the sheet leaves the look dated nothing', !closed.sheet && closed.strip === 0 && !closed.day, JSON.stringify(closed));
+  const typing = await page.evaluate(() => ({ ink: document.getElementById('rb-lp-send').classList.contains('ink') }));
+  // The live build takes seconds; the stub answers in milliseconds — hold it
+  // long enough for the busy line to be seen.
+  await page.route('**/api/daily', async (r) => { try { posts.daily.push(r.request().postDataJSON()); } catch (_) { posts.daily.push(null); } await new Promise((res) => setTimeout(res, 700)); r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(HB_DAILY) }); });
+  await page.locator('#rb-lp-in').press('Enter');
+  const busySeen = await page.waitForSelector('#rb-hb .rb-lpd-busy', { timeout: 4000 }).then(() => true).catch(() => false);
+  const mid = { busy: busySeen ? await page.evaluate(() => document.querySelector('#rb-hb .rb-lpd-busy')?.textContent || '') : '' };
+  await page.waitForTimeout(2600);
+  if (process.env.HB_SHOTS) await page.screenshot({ path: process.env.HB_SHOTS + 'hb-draft-1280.png' });
+  const d = await hbRead(page);
+  const d2 = await page.evaluate(() => ({ sn: document.getElementById('sn-page')?.style.display === 'block', overlay: document.getElementById('kp-loading-overlay')?.style.display, thread: document.querySelectorAll('#rb-lp-thread > div').length, park: JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null')?.name }));
+  check('home field · route 1 · a day ask → the classifier → the draft is built IN the box: typing turns the send ink, one busy line while it builds (no overlay, no navigation), then the draft row lands under the field',
+    typing.ink && posts.intent.length === 1 && posts.intent[0].prompt === 'Dinner with Mary tomorrow' && posts.daily.length === 1 && posts.daily[0].prompt === 'Dinner with Mary tomorrow' && posts.daily[0].name !== undefined
+      && mid.busy === 'Building a draft from your wardrobe…' && d2.overlay !== 'flex' && !d2.sn && d.inline && d.row === 'Soft office armour' && d.rowEy === 'Draft look · not saved yet' && d.rowMeta === '2 pieces · all yours' && d.save === 'Save look'
+      && d.label === 'Change this draft…' && d2.thread === 0 && d2.park === 'Soft office armour', JSON.stringify([typing, mid.busy, d, d2]));
+  const sv0 = await page.evaluate(async () => { document.querySelector('#rb-hb .rb-lpd-save').click(); await new Promise((r) => setTimeout(r, 900)); return { sheet: !!document.getElementById('rb-lkdy'), sn: document.getElementById('sn-page')?.style.display === 'block', looks: JSON.parse(localStorage.getItem('rb_looks__u-test') || '[]').length, park: !!localStorage.getItem('rb_lk_draft__u-test') }; });
+  if (process.env.HB_SHOTS) await page.screenshot({ path: process.env.HB_SHOTS + 'hb-saved-1280.png' });
+  const sv = await hbRead(page);
+  check('home field · Save look saves it IN the box: the row reads Saved to your lookbook, the week appears beneath it (seven days, the day her words named marked), the field asks for a new look again — no sheet, no page',
+    !sv0.sheet && !sv0.sn && sv0.looks === 3 && !sv0.park && sv.rowEy === 'Saved to your lookbook' && sv.row === 'Soft office armour' && sv.days === 7 && sv.hint === String(Number(HB_TOMORROW.slice(8, 10))) && sv.save === '' && sv.label === 'A new look for…', JSON.stringify([sv0, sv, HB_TOMORROW]));
+  await page.evaluate((iso) => window.__rbHbDate(iso), HB_TOMORROW); await page.waitForTimeout(400);
+  if (process.env.HB_SHOTS) await page.screenshot({ path: process.env.HB_SHOTS + 'hb-dated-1280.png' });
+  const dated = await hbRead(page);
+  const pinned = await page.evaluate((iso) => { const rows = JSON.parse(localStorage.getItem('robes_planned_days__u-test') || '[]'); return rows.filter((r) => r.day_date === iso && r.source_type === 'look').length; }, HB_TOMORROW);
+  check('home field · a day picked files the look to it — one confirmation line in the box (“✓ In your diary for …”, Change) and the pin on the day',
+    /^✓ In your diary for \w{3} \d{1,2} \w{3}\.\s*Change$/.test(dated.done) && dated.days === 0 && pinned >= 1, JSON.stringify([dated.done, pinned]));
+  await page.evaluate(() => window.__rbHbRePick()); await page.waitForTimeout(200);
+  const re = await hbRead(page);
+  check('home field · Change brings the week back', re.days === 7 && re.done === '', JSON.stringify(re));
+  const opened2 = await page.evaluate(async () => { document.querySelector('#rb-hb .rb-lpd-row').click(); await new Promise((r) => setTimeout(r, 700)); return { sn: document.getElementById('sn-page')?.style.display === 'block', detail: !!document.querySelector('#rb-lk-body .rb-lk-held'), band: document.querySelector('#rb-lk-body .rb-ret .lab')?.textContent }; });
+  check('home field · the saved row opens the look’s page with ‹ Home', opened2.sn && opened2.detail && opened2.band === 'Home', JSON.stringify(opened2));
   // Route 3 — a piece: a named piece in her words goes to the piece track.
   await page.evaluate(() => { window.__rbNavGo('home'); }); await page.waitForTimeout(400);
   await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(150);
   await page.evaluate(() => window.__rbLpText('Style my cream blazer three ways'));
   await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(1500);
+
   check('home field · route 3 · a named piece → the piece track (/api/style), the classifier never asked',
     posts.style.length === 1 && posts.style[0].intent === 'style' && posts.intent.length === 1, JSON.stringify([posts.style.length, posts.intent.length]));
   check('home field · routes · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
@@ -1685,7 +1705,7 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   await page.evaluate(() => window.__rbLpText('Four days in Lisbon from tomorrow'));
   await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(1200);
   const tv = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), modal: !!document.getElementById('tv-brief-modal'), dest: document.getElementById('tv-dest')?.value }));
-  check('home field · route 2 · a trip → the travel intake, prefilled from the classifier (Lisbon)', posts.intent.length === 1 && !tv.box && tv.modal && tv.dest === 'Lisbon', JSON.stringify(tv));
+  check('home field · route 2 · a trip → the travel intake, prefilled from the classifier (Lisbon)', posts.intent.length === 1 && tv.modal && tv.dest === 'Lisbon', JSON.stringify(tv));
   await page.evaluate(() => document.getElementById('tv-brief-modal')?.remove());
   // Unclear → the box never questions her: it DEFAULTS to a new look (a
   // loose draft), the day assigned afterwards from the sheet.
@@ -1693,15 +1713,14 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(150);
   await page.evaluate(() => window.__rbLpText('Something for Saturday'));
   await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(2200);
-  const u = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), composer: !!document.querySelector('#rb-lk-body .rb-lk-composer'), day: !!document.querySelector('.rb-lk-daychip'), save: document.querySelector('.rb-lk-save')?.textContent.trim() }));
-  check('home field · unclear → no question: a NEW look (a loose draft) by default, Save reads Save this look',
-    !u.box && u.composer && !u.day && u.save === 'Save this look' && posts.daily.length === 1 && posts.daily[0].prompt === 'Something for Saturday', JSON.stringify([u, posts.daily.map((x) => x && x.prompt)]));
+  const u = await hbRead(page);
+  check('home field · unclear → no question: a NEW look (a loose draft) by default, landing in the box with Save look',
+    u.inline && u.row === 'Soft office armour' && u.rowEy === 'Draft look · not saved yet' && u.save === 'Save look' && posts.daily.length === 1 && posts.daily[0].prompt === 'Something for Saturday', JSON.stringify([u, posts.daily.map((x) => x && x.prompt)]));
   // A completed ask never holds its thread — the next open is clean.
   await page.evaluate(() => { window.__rbNavGo('home'); }); await page.waitForTimeout(400);
   await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(150);
   const a = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), thread: Array.from(document.querySelectorAll('#rb-lp-thread > div')).map((x) => x.className + ':' + x.textContent) }));
-  await page.evaluate(() => window.__rbLpClose());
-  check('home field · the box reopens clean after a completed ask (no held thread)', a.box && JSON.stringify(a.thread) === JSON.stringify(['robes:What’s it for?']), JSON.stringify(a));
+  check('home field · the box holds no thread after a completed ask', a.box && a.thread.length === 0, JSON.stringify(a));
   check('home field · routes 2 + ask · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -1710,15 +1729,15 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
 {
   const { ctx, page, errs, posts } = await boot(browser, 6, 1280, { looks: true, pics: 6, prompt: 'box' });
   await page.evaluate((iso) => window._ikScopeDay(iso), HB_TOMORROW); await page.waitForTimeout(200);
-  const m = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), meta: document.querySelector('#rb-lp .meta')?.textContent, chip: document.getElementById('rb-scopechip')?.className || '' }));
-  check('home field · a dated door opens the box on the date (no chip under the flag)', m.box && /^\w{3} \d{1,2} \w{3}$/.test(m.meta || '') && !/on/.test(m.chip), JSON.stringify(m));
+  const m = await page.evaluate(() => ({ box: !!document.querySelector('#rb-lp.rb-lp-dock'), scrim: !!document.querySelector('.rb-lp-scrim'), ph: document.getElementById('rb-lp-in')?.placeholder, chip: document.getElementById('rb-scopechip')?.className || '' }));
+  check('home field · a dated door opens the box docked ON the date (reading the day, no shade, no chip under the flag)', m.box && !m.scrim && /^Dress \w{3} \d{1,2} \w{3}…$/.test(m.ph || '') && !/on/.test(m.chip), JSON.stringify(m));
   await page.evaluate(() => window.__rbLpText('The office, then drinks'));
   await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(2600);
-  const dd = await page.evaluate(() => ({ composer: !!document.querySelector('#rb-lk-body .rb-lk-composer'), save: document.querySelector('.rb-lk-save')?.textContent.trim() }));
-  check('home field · dated · the words go straight to the day (no classifier) and the draft carries it',
-    posts.intent.length === 0 && posts.daily.length === 1 && posts.daily[0].prompt === 'The office, then drinks' && dd.composer && /^Save to /.test(dd.save || ''), JSON.stringify([posts.intent.length, dd]));
-  const s2 = await page.evaluate(async () => { window.__lkSave(); await new Promise((r) => setTimeout(r, 900)); return { sheet: !!document.getElementById('rb-lkdy'), day: document.getElementById('dl-result-page')?.style.display === 'block' }; });
-  check('home field · dated · Save files to the day and skips the date sheet', !s2.sheet && s2.day, JSON.stringify(s2));
+  const dd = await page.evaluate(() => ({ row: document.querySelector('#rb-lp .rb-lpd-row .nm')?.textContent, ey: document.querySelector('#rb-lp .rb-lpd-row .ey')?.textContent, save: document.querySelector('#rb-lp .rb-lpd-save')?.textContent.trim(), sn: document.getElementById('sn-page')?.style.display === 'block' }));
+  check('home field · dated · the words go straight to the day (no classifier) and the draft lands in the box carrying the day',
+    posts.intent.length === 0 && posts.daily.length === 1 && posts.daily[0].prompt === 'The office, then drinks' && !dd.sn && dd.row === 'Soft office armour' && /^Draft look · \w{3} \d{1,2} \w{3}$/.test(dd.ey || '') && dd.save === 'Save look', JSON.stringify([posts.intent.length, dd]));
+  const s2 = await page.evaluate(async () => { document.querySelector('#rb-lp .rb-lpd-save').click(); await new Promise((r) => setTimeout(r, 900)); return { sheet: !!document.getElementById('rb-lkdy'), done: document.querySelector('#rb-lp .rb-lpd-done')?.textContent.replace(/\s+/g, ' ').trim(), days: document.querySelectorAll('#rb-lp .rb-lpd-days button').length, looks: JSON.parse(localStorage.getItem('rb_looks__u-test') || '[]').length }; });
+  check('home field · dated · Save files to the day in the box — the confirmation line, no week to pick, no sheet', !s2.sheet && /^✓ In your diary for \w{3} \d{1,2} \w{3}\.\s*Change$/.test(s2.done || '') && s2.days === 0 && s2.looks === 3, JSON.stringify(s2));
   check('home field · dated · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
