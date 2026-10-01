@@ -590,7 +590,7 @@ function styleBriefLines(b) {
 // wear's count), folded (a swap already summarised by the fold)}.
 export const MEMORY_MAX = 60;
 const MEMORY_LINES_MAX = 12;
-const MEMORY_KINDS = ['verdict', 'swap', 'wear', 'strike'];
+const MEMORY_KINDS = ['verdict', 'swap', 'wear', 'strike', 'ask'];
 const memStr = (v, n) => typeof v === 'string' && v.trim() ? v.trim().replace(/\s+/g, ' ').slice(0, n) : '';
 export function memoryEntries(m) {
   const a = m && typeof m === 'object' && Array.isArray(m.entries) ? m.entries : (Array.isArray(m) ? m : []);
@@ -604,12 +604,14 @@ export function memoryEntries(m) {
 function memoryLines(m) {
   const all = memoryEntries(m);
   if (!all.length) return [];
-  const verdicts = all.filter(e => e.k === 'verdict' || e.k === 'strike');
+  const verdicts = all.filter(e => e.k === 'verdict' || e.k === 'strike' || e.k === 'ask');
   const swaps = all.filter(e => e.k === 'swap' && !e.folded);
   const wears = all.filter(e => e.k === 'wear');
   const out = [];
   verdicts.forEach(e => {
     if (e.k === 'strike') { const t = memStr(e.text, 160); if (t) out.push(`Struck from her brief (Robes had it wrong): "${t}".`); return; }
+    // What she asked of a look in the box (the look prompt) — her words, verbatim.
+    if (e.k === 'ask') { const t = memStr(e.text, 200), on = memStr(e.on, 90); if (t) out.push(`Asked${on ? ` — ${on}` : ''}: "${t}".`); return; }
     const on = memStr(e.on, 90) || memStr(e.look, 90);
     const t = memStr(e.text, 200);
     const verdict = e.v === 1 ? 'Loved' : e.v === 0 ? 'Not quite' : '';

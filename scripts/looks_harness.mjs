@@ -1739,8 +1739,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // on it cannot offer to REPLACE one.
   check('build · the photo door reads Add your photograph while the look has none',
     b.photo === 'Add your photograph', b.photo);
-  check('build · Save leads; Try another, Wear it today, Adjust with words and Discard follow',
-    b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today', 'Adjust with words', 'Discard']),
+  check('build · Save leads; Try another, Wear it today and Discard follow',
+    b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today', 'Discard']),
     JSON.stringify([b.saveDisabled, b.foot]));
   check('build · nothing is written until she saves',
     !writes.some((w) => w.method === 'POST' && /^looks/.test(w.url)),
@@ -1999,7 +1999,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('aspirational · the title comes from her icons, not the pieces',
     a.title === 'Margot Robbie meets Chanel.', a.title);
   check('aspirational · Wear it today is withheld; the exit is Build from mine only',
-    JSON.stringify(a.foot) === JSON.stringify(['Try another', 'Build from mine only', 'Adjust with words', 'Discard']),
+    JSON.stringify(a.foot) === JSON.stringify(['Try another', 'Build from mine only', 'Discard']),
     JSON.stringify(a.foot));
   const mine = await page.evaluate(async () => {
     window.__lkBuildMineOnly();
@@ -2015,7 +2015,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       && mine.gaps.every((g) => /Nothing in your wardrobe fits here yet/.test(g)),
     JSON.stringify(mine));
   check('aspirational · …and Wear it today returns with it',
-    JSON.stringify(mine.foot) === JSON.stringify(['Try another', 'Wear it today', 'Adjust with words', 'Discard']), JSON.stringify(mine.foot));
+    JSON.stringify(mine.foot) === JSON.stringify(['Try another', 'Wear it today', 'Discard']), JSON.stringify(mine.foot));
   await ctx.close();
 }
 
@@ -2827,6 +2827,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       keep: !!document.querySelector('#dl-result-page .rbc-action.keep'),
       panelHead: document.querySelector('#dl-result-page .rbc-lhead .lab')?.textContent,
       restyle: Array.from(document.querySelectorAll('#dl-result-page .rbc-hbtn')).map((x) => x.textContent).join('|'),
+      lpField: !!document.querySelector('#dl-result-page .dl-lpfield'),
     };
   });
   await page.waitForTimeout(1000);
@@ -2838,7 +2839,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     loose.eyebrow === 'Your look' && loose.title === 'Built around the linen shirt.'
       && loose.wearing === false && loose.offer === false && loose.dayPencil === false
       && loose.cta === 'Save this look' && loose.keep === true
-      && loose.panelHead === 'The look' && /Restyle it/.test(loose.restyle),
+      && loose.panelHead === 'The look' && !/Restyle/.test(loose.restyle || '') && loose.lpField === true,
     JSON.stringify(loose));
   // Both suggestions carry stored AI alternates. The shirt has owned peers
   // (her tops) so it flicks — through HER tops only, the alternate never
@@ -3242,7 +3243,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       // The head's own type register, so the lighter Edit & resave can't
       // silently go back to the uppercase pill (Annie, 2026-09-21).
       editBtn: (function () {
-        // Adjust with words (slice C) stands before it in the same register — read the resave door by name
+        // the look prompt's field sits under the card now (phase 2) — read the resave door by name
         const b = Array.from(document.querySelectorAll('#rb-lk-wrap .rb-lk-rackhead-read .rb-lk-editbtn')).find((x) => /Edit & resave/.test(x.textContent));
         if (!b) return null;
         const c = getComputedStyle(b);
@@ -3913,175 +3914,277 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// 13 · THE ASK SHEET (style memory slice C, 2026-09-30) — "Adjust with
-// words" on the composer and on the saved look. One component, one ink
-// inside it, the words go to the generator behind the surface, and nothing
-// is written until she saves or updates.
+// 13 · THE LOOK PROMPT (look prompt brief, phase 2 · 2026-10-01) — one box
+// on every look: the look's name and one meta line, no chips, one field.
+// Her words change the look behind it on Enter through ONE endpoint
+// (/api/look/ask) that returns an EDIT; a vague ask comes back as Robes'
+// wording in her field; "put it back" reverses; a rule files to her brief;
+// the thread is dropped on close; nothing is written until she saves.
 // ─────────────────────────────────────────────────────────────────────────
+// The endpoint, stubbed: answers by her words, resolving names against the
+// rack and the pool the client sent — exactly what the live route does.
+const askStub = (askPosts) => (r) => {
+  let b = null; try { b = r.request().postDataJSON(); } catch (_) {}
+  askPosts.push(b);
+  const t = String(b?.text || '').toLowerCase();
+  const rack = b?.rack || [], pool = b?.pool?.items || [];
+  const rowOf = (re) => rack.findIndex((x) => re.test(String(x.name || '').toLowerCase()));
+  const poolOf = (re) => pool.findIndex((x) => re.test(String(x.label || '').toLowerCase()));
+  const base = { intent: 'clarify', reply: 'Do you mean the shoes, or the whole look? Say which and Robes will do it.', swaps: [], back: [], styled: [], draft: '', rule: '' };
+  let out = base;
+  if (/sandals for the slides/.test(t)) out = { ...base, intent: 'swap', reply: 'Done. Your tan leather slides are on the look. Say if you want anything back.', swaps: [{ i: rowOf(/sandals/), to: { pool_index: poolOf(/slides/) } }] };
+  else if (/silk shirt for the ribbed white tank/.test(t)) out = { ...base, intent: 'swap', reply: 'Done. The ribbed white tank is on the look. Say if you want anything back.', swaps: [{ i: rowOf(/silk shirt/), to: { pool_index: poolOf(/ribbed white tank/) } }] };
+  else if (/jeans for a black trouser/.test(t)) out = { ...base, intent: 'swap', reply: 'Done. A black tailored trouser is on the look. Say if you want anything back.', swaps: [{ i: rowOf(/jeans/), to: { name: 'Black tailored trouser', brand: 'COS', retailer_hint: 'COS', price_point: '€120', category: 'Bottoms' } }] };
+  else if (/too dressy/.test(t)) out = { ...base, intent: 'draft', reply: 'It’s the silk shirt making it feel that way. Robes would change it. It’s written below; edit it, or press Enter.', draft: 'Change the cream silk shirt for the ribbed white tank' };
+  else if (/tuck/.test(t)) out = { ...base, intent: 'styled', reply: 'Done. The tank is tucked at the front so the waist shows.', styled: [{ i: rowOf(/tank/) >= 0 ? rowOf(/tank/) : rowOf(/shirt/), note: 'tucked at the front' }] };
+  else if (/remember|don.t like grey/.test(t)) out = { ...base, intent: 'rule', reply: 'Noted. Robes will keep grey out from now on.', rule: 'No grey' };
+  else if (/everything back|all back/.test(t)) out = { ...base, intent: 'back', reply: 'Done. The look is back as it was.', back: [] };
+  else if (/sandals back/.test(t)) out = { ...base, intent: 'back', reply: 'Done. The flat leather sandals are back on the look.', back: [rowOf(/slides/)] };
+  else if (/raincoat/.test(t)) out = { ...base, intent: 'draft', reply: 'There’s no raincoat in the case. The nearest is the linen shirt from the case. Change it for that?', draft: 'Change the sandals for the linen shirt' };
+  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(out) });
+};
+const lpRead = () => {
+  const a = document.getElementById('rb-lp');
+  const ink = (root) => Array.from(root?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length;
+  return {
+    open: !!a, title: a?.querySelector('.ttl')?.textContent, meta: a?.querySelector('.meta')?.textContent,
+    chips: a ? a.querySelectorAll('.rs-chip, .rb-lp-chip').length : 0,
+    thread: Array.from(a?.querySelectorAll('#rb-lp-thread > div') || []).map((d) => d.className + ':' + d.textContent.trim()),
+    value: a?.querySelector('#rb-lp-in')?.value, drafted: !!a?.querySelector('#rb-lp-in.drafted'), ph: a?.querySelector('#rb-lp-in')?.getAttribute('placeholder'),
+    helper: a?.querySelector('#rb-lp-helper')?.textContent, sendInk: !!a?.querySelector('#rb-lp-send.ink'), ink: ink(a), z: a && getComputedStyle(a).zIndex,
+    disabled: !!a?.querySelector('#rb-lp-in:disabled'),
+  };
+};
+const lpSend = async (text, wait) => {
+  const ta = document.getElementById('rb-lp-in');
+  if (!ta) return null;
+  ta.value = text; ta.dispatchEvent(new Event('input'));
+  const mid = { sendInk: !!document.querySelector('#rb-lp-send.ink') };
+  ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await new Promise((r) => setTimeout(r, wait || 700));
+  return mid;
+};
 {
-  // 13a · the composer: a Robes build's Adjust with words → the daily engine
-  // with the rack as it stands + her words; the answer repaints the draft.
-  const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 6 });
+  // 13a · the composer: a Robes build. The field under Save, the box's
+  // anatomy, a clear swap, a vague ask, the draft sent unedited, how it's
+  // worn, a rule, put back one and all, the thread dropped on close.
+  const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 6, init: 'window.__lpRead = ' + lpRead.toString() + '; window.__lpSend = ' + lpSend.toString() + ';' });
   await page.route('**/api/alternates', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));
   await routeBuildNote(page);
   await page.route('**res.cloudinary.com/**', (r) => r.abort());
   await page.route('**/api/lookbuild/images', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'aj1' }) }));
   await page.route('**/api/images/aj*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [null], done: true }) }));
-  const dailyPosts = [];
-  const own = (id, label, category) => ({ name: label, category, wardrobe_match: { id, label, image_url: null, color: '' } });
-  await page.route('**/api/daily', (r) => {
-    try { dailyPosts.push(r.request().postDataJSON()); } catch (_) { dailyPosts.push(null); }
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-      headline: 'Warmer, as asked.', occasion_label: 'Office day',
-      stylist_summary: 'The silk shirt holds; a wool coat over it now.',
-      look_tags: { climate: 'cold', wear_for: ['work'], vibe: ['soft'] },
-      steps: [
-        { title: 'The Canvas', items: [own('w-top1', 'Cream silk shirt', 'Tops'), own('w-bot1', 'Barrel-leg jeans', 'Bottoms')] },
-        { title: 'The Texture', items: [{ name: 'Camel wool coat', category: 'Outerwear', brand: 'Toteme', retailer_hint: 'Toteme', price_point: '€890' }] },
-        { title: 'The Exclamation Point', items: [own('w-sho1', 'Flat leather sandals', 'Shoes')] },
-      ],
-    }) });
-  });
+  const askPosts = [];
+  await page.route('**/api/look/ask', askStub(askPosts));
   await openLooks(page);
   await page.evaluate(() => { window.__rbCtx = { city: 'Dublin', tempRange: '12–16°C', condition: 'cloudy', hint: 'A light layer' }; window.__lkRobesBuild(); });
   await page.waitForTimeout(2800);
-  const sheet = await page.evaluate(async () => {
-    document.querySelector('.rb-lk-buildfoot .rb-lk-askdoor')?.click();
+  const door = await page.evaluate(() => {
+    const con = document.querySelector('#rb-lk-body');
+    const f = con?.querySelector('.rb-lp-field');
+    return { field: !!f, label: f?.querySelector('.ph')?.textContent, afterSave: !!f && !!f.previousElementSibling?.classList.contains('rb-lk-saverow'),
+      old: con?.querySelectorAll('.rb-lk-askdoor').length, foot: Array.from(con?.querySelectorAll('.rb-lk-buildfoot button') || []).map((x) => x.textContent),
+      rows: Array.from(con?.querySelectorAll('.rbc-rack .rbc-name') || []).map((n) => n.textContent) };
+  });
+  check('box · the door is a pill-shaped field under Save reading “Change this look…” — Adjust with words is gone from the foot',
+    door.field && door.label === 'Change this look…' && door.afterSave && door.old === 0 && !door.foot.includes('Adjust with words') && door.rows.includes('Flat leather sandals'), JSON.stringify(door));
+  const opened = await page.evaluate(async () => {
+    document.querySelector('#rb-lk-body .rb-lp-field')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    return window.__lpRead();
+  });
+  check('box · the box opens titled with the look’s name and one meta line, the opener, no chips, an empty field, a hairline send, no ink inside it',
+    opened.open && opened.title && opened.meta === 'Draft · not saved yet' && opened.chips === 0 && opened.thread.length === 1 && /What would you change\?/.test(opened.thread[0])
+      && opened.value === '' && !opened.sendInk && opened.ink === 0 && opened.ph === 'Restyle it, or swap the red shoes for black…' && /Changes land on the look as you go/.test(opened.helper || ''), JSON.stringify(opened));
+  const wb = writes.length;
+  const sw = await page.evaluate(async () => {
+    const mid = await window.__lpSend('swap the sandals for the slides', 900);
+    const out = window.__lpRead(); out.midInk = mid.sendInk;
+    const con = document.querySelector('#rb-lk-body');
+    out.rows = Array.from(con.querySelectorAll('.rbc-rack .rbc-name')).map((n) => n.textContent);
+    out.was = Array.from(con.querySelectorAll('.rb-lp-was')).map((n) => n.textContent);
+    out.door = con.querySelector('.rb-lp-field .ph')?.textContent;
+    out.park = JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null');
+    return out;
+  });
+  const a0 = askPosts[0] || {};
+  check('box · typing turns the send ink; Enter sends her words with the rack (owned marked, the proposal not), the wardrobe as the pool, and the context',
+    sw.midInk && askPosts.length === 1 && a0.mode === 'look' && a0.surface === 'composer' && a0.text === 'swap the sandals for the slides'
+      && Array.isArray(a0.rack) && a0.rack.filter((x) => x.owned).length === 3 && a0.rack.some((x) => !x.owned) && a0.pool?.kind === 'wardrobe' && a0.pool.items.length === 10 && a0.rack.every((x) => x.keep === false),
+    JSON.stringify([sw.midInk, askPosts.length, a0.mode, a0.surface, a0.text, a0.rack, a0.pool?.kind, a0.pool?.items?.length]));
+  check('box · a clear swap changes the look behind on Enter — the slides on the rack, the sandals gone, the row reading “Just changed · was Flat leather sandals” — and the thread carries her turn and Robes’ Done',
+    sw.rows.includes('Tan leather slides') && !sw.rows.includes('Flat leather sandals') && JSON.stringify(sw.was) === JSON.stringify(['Just changed · was Flat leather sandals'])
+      && sw.thread.length === 3 && /^her:swap the sandals/.test(sw.thread[1]) && /^robes:Done\./.test(sw.thread[2]) && sw.value === '' && !sw.drafted, JSON.stringify(sw));
+  check('box · the door and the placeholder flip to “Anything else, or put something back…”; the park carries `was`',
+    sw.door === 'Anything else, or put something back…' && sw.ph === 'Anything else, or put something back…' && sw.park && Object.keys(sw.park.was || {}).length === 1, JSON.stringify([sw.door, sw.ph, sw.park && sw.park.was]));
+  const vague = await page.evaluate(async () => {
+    await window.__lpSend('too dressy for walking', 900);
+    const out = window.__lpRead();
+    out.rows = Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent);
+    return out;
+  });
+  check('box · a vague ask changes NOTHING — Robes says what it would change and writes the swap into her field with the warm border and the drafted helper',
+    vague.rows.includes('Cream silk shirt') && vague.rows.includes('Tan leather slides') && vague.value === 'Change the cream silk shirt for the ribbed white tank' && vague.drafted
+      && /Robes wrote this from your words/.test(vague.helper || '') && /^robes:It’s the silk shirt/.test(vague.thread[vague.thread.length - 1]), JSON.stringify(vague));
+  const fromDraft = await page.evaluate(async () => {
+    const ta = document.getElementById('rb-lp-in');
+    ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await new Promise((r) => setTimeout(r, 900));
+    const out = window.__lpRead();
+    out.rows = Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent);
+    out.was = Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-was')).map((n) => n.textContent);
+    return out;
+  });
+  check('box · Enter on the draft unedited applies exactly the swap it names — the tank in, the shirt out and marked',
+    askPosts.length === 3 && askPosts[2].text === 'Change the cream silk shirt for the ribbed white tank' && fromDraft.rows.includes('Ribbed white tank') && !fromDraft.rows.includes('Cream silk shirt')
+      && fromDraft.was.includes('Just changed · was Cream silk shirt') && !fromDraft.drafted && fromDraft.value === '', JSON.stringify(fromDraft));
+  const styled = await page.evaluate(async () => {
+    await window.__lpSend('tuck the tank in', 900);
+    return { styled: Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-styled')).map((n) => n.textContent), rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent).length, park: JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null') };
+  });
+  check('box · how it’s worn: the same pieces, the note on the row, the park carrying `styled`',
+    JSON.stringify(styled.styled) === JSON.stringify(['tucked at the front']) && styled.rows === 4 && styled.park && Object.keys(styled.park.styled || {}).length === 1, JSON.stringify([styled.styled, styled.rows, styled.park && styled.park.styled]));
+  const rule = await page.evaluate(async () => {
+    await window.__lpSend('remember that I don’t like grey', 900);
+    const out = window.__lpRead();
+    out.rules = ((((window.__robes_profile || {}).style_dna || {}).brief || {}).rules || []).map((r) => r.text + '|' + r.source);
+    out.rows = Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent).length;
+    return out;
+  });
+  const ruleWrite = writes.slice(wb).find((w) => w.method === 'PATCH' && /^profiles/.test(w.url) && JSON.stringify(w.body).includes('No grey'));
+  check('box · a standing rule is filed to her brief (source typed) with the quiet line, the look untouched',
+    JSON.stringify(rule.rules) === JSON.stringify(['No grey|typed']) && !!ruleWrite && rule.thread.some((t) => /^filed:Filed to your style notes/.test(t)) && rule.rows === 4, JSON.stringify([rule.rules, !!ruleWrite, rule.thread.slice(-2)]));
+  const back1 = await page.evaluate(async () => {
+    await window.__lpSend('put the sandals back', 900);
+    return { rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent), was: Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-was')).map((n) => n.textContent) };
+  });
+  check('box · “put the sandals back” reverts that row alone — the sandals return, the tank stays changed',
+    back1.rows.includes('Flat leather sandals') && !back1.rows.includes('Tan leather slides') && back1.rows.includes('Ribbed white tank') && JSON.stringify(back1.was) === JSON.stringify(['Just changed · was Cream silk shirt']), JSON.stringify(back1));
+  const backAll = await page.evaluate(async () => {
+    await window.__lpSend('put everything back', 900);
+    const out = window.__lpRead();
+    out.rows = Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent);
+    out.was = document.querySelectorAll('#rb-lk-body .rb-lp-was').length;
+    return out;
+  });
+  check('box · with no piece named every change goes back; the door reads “Change this look…” again',
+    backAll.rows.includes('Cream silk shirt') && !backAll.rows.includes('Ribbed white tank') && backAll.was === 0 && backAll.ph === 'Restyle it, or swap the red shoes for black…', JSON.stringify(backAll));
+  const closed = await page.evaluate(async () => {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await new Promise((r) => setTimeout(r, 150));
-    const a = document.getElementById('rb-ask');
-    const ink = (root) => Array.from(root?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length;
-    return {
-      open: !!a, ey: a?.querySelector('.rs-ey')?.textContent, h: a?.querySelector('.rs-h')?.textContent,
-      chips: Array.from(a?.querySelectorAll('.rs-chip') || []).map((b) => b.textContent),
-      ph: a?.querySelector('#rb-ask-in')?.getAttribute('placeholder'), cta: a?.querySelector('.rs-cta')?.textContent,
-      note: a?.querySelector('.rs-note')?.textContent, ink: ink(a), z: a && getComputedStyle(a).zIndex,
-      writesBefore: 0,
-    };
+    const gone = !document.getElementById('rb-lp');
+    document.querySelector('#rb-lk-body .rb-lp-field')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const out = window.__lpRead(); out.gone = gone;
+    out.door = document.querySelector('#rb-lk-body .rb-lp-field .ph')?.textContent;
+    return out;
   });
-  check('ask · composer: Adjust with words opens the sheet — the look’s name as eyebrow, "What would you change?", the composer chips + the shoe chip (a shoe is on the rack), the placeholder, Adjust →, the constraint line',
-    sheet.open && sheet.h === 'What would you change?' && sheet.ph === 'Warmer, sharper, not the loafers…' && sheet.cta === 'Adjust →'
-      && JSON.stringify(sheet.chips) === JSON.stringify(['Warmer', 'Softer', 'Sharper', 'More me', 'Less polite', 'Swap the shoes'])
-      && sheet.note === 'Your own pieces stay unless you name them.' && sheet.z === '955', JSON.stringify(sheet));
-  check('ask · one ink inside the sheet — the CTA', sheet.ink === 1, String(sheet.ink));
-  const empty = await page.evaluate(async () => {
-    document.querySelector('#rb-ask .rs-cta')?.click();
-    await new Promise((r) => setTimeout(r, 120));
-    return { still: !!document.getElementById('rb-ask'), focused: document.activeElement?.id };
-  });
-  check('ask · an empty send goes nowhere — the sheet stays, the line takes focus', empty.still && empty.focused === 'rb-ask-in' && dailyPosts.length === 0, JSON.stringify(empty));
-  const sent = await page.evaluate(async () => {
-    Array.from(document.querySelectorAll('#rb-ask .rs-chip')).find((b) => b.textContent === 'Warmer')?.click();
-    await new Promise((r) => setTimeout(r, 80));
-    const on = document.querySelector('#rb-ask .rs-chip.on')?.textContent;
-    const inp = document.getElementById('rb-ask-in'); inp.value = 'not the jacket'; inp.dispatchEvent(new Event('input'));
-    document.querySelector('#rb-ask .rs-cta')?.click();
-    await new Promise((r) => setTimeout(r, 2600));
-    return {
-      on, gone: !document.getElementById('rb-ask'),
-      composer: !!document.querySelector('#sn-page .rb-lk-composer'),
-      rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
-      shop: Array.from(document.querySelectorAll('.rb-lk-prop .rbc-name')).map((n) => n.textContent),
-      quote: document.querySelector('.rbc-quote')?.textContent,
-      title: document.getElementById('rb-lk-newtitle')?.value,
-      foot: Array.from(document.querySelectorAll('.rb-lk-buildfoot button')).map((x) => x.textContent),
-    };
-  });
-  const post = dailyPosts[0] || {};
-  check('ask · the words reach /api/daily as `refine` (chip — her words) with the rack as `current` — owned pieces marked hers, the proposal not, none KEEP',
-    dailyPosts.length === 1 && post.refine === 'Warmer — not the jacket' && Array.isArray(post.current?.pieces)
-      && post.current.pieces.filter((p) => p.owned).length === 3 && post.current.pieces.some((p) => !p.owned && /Boucl/.test(p.name))
-      && post.current.pieces.every((p) => p.keep === false), JSON.stringify([post.refine, post.current]));
-  check('ask · the answer repaints the SAME composer — her pieces on the rack, the new proposal in the gap, the fresh note, the door still there',
-    sent.on === 'Warmer' && sent.gone && sent.composer && sent.rows.length === 3 && JSON.stringify(sent.shop) === JSON.stringify(['Camel wool coat'])
-      && /wool coat/.test(sent.quote || '') && sent.foot.includes('Adjust with words'), JSON.stringify(sent));
-  check('ask · nothing is written by an adjustment', !writes.some((w) => w.method === 'POST' && /^looks/.test(w.url)), JSON.stringify(writes.map((w) => w.method + ' ' + w.url)));
-  check('ask · composer: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  check('box · Escape closes it and the thread is dropped — reopened, only the opener stands',
+    closed.gone && closed.open && closed.thread.length === 1 && closed.door === 'Change this look…', JSON.stringify(closed));
+  check('box · nothing is written by any of it — no look, no row; the brief write and the events are the only PATCHes',
+    !writes.slice(wb).some((w) => w.method === 'POST' && /^(looks|look_pieces|lookbook_items|planned_days)/.test(w.url)), JSON.stringify(writes.slice(wb).map((w) => w.method + ' ' + w.url)));
+  check('box · composer: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 {
-  // 13b · the saved look: Adjust with words → /api/look/refine → the look
-  // opens EDITING as a draft with the change bar naming her words; Discard
-  // writes nothing, Update commits pieces + proposals + note.
-  const { ctx, page, errs, writes } = await boot(browser, { pics: 4 });
+  // 13b · the saved look: the field under the card in reading mode, no
+  // Adjust door on the head; a swap opens the look EDITING with the change
+  // bar; Discard hands it back; a tuck + Update commits looks.styling.
+  const { ctx, page, errs, writes } = await boot(browser, { pics: 4, init: 'window.__lpRead = ' + lpRead.toString() + '; window.__lpSend = ' + lpSend.toString() + ';' });
   await page.route('**res.cloudinary.com/**', (r) => r.abort());
-  const refinePosts = [];
-  await page.route('**/api/look/refine', (r) => {
-    try { refinePosts.push(r.request().postDataJSON()); } catch (_) { refinePosts.push(null); }
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-      headline: 'The Thursday one, sharper.', stylist_summary: 'The shirt and jeans hold; a pointed flat and a structured bag sharpen the line.',
-      palette: ['#F1E9DA', '#2C3145'], look_tags: { climate: 'year_round', wear_for: ['work'], vibe: ['sharp'] },
-      steps: [
-        { title: 'The Canvas', items: [{ name: 'Cream silk shirt', category: 'Tops', wardrobe_match: { id: 'w-top1', label: 'Cream silk shirt', image_url: null, color: '' } }, { name: 'Barrel-leg jeans', category: 'Bottoms', wardrobe_match: { id: 'w-bot1', label: 'Barrel-leg jeans', image_url: null, color: '' } }] },
-        { title: 'The Exclamation Point', items: [{ name: 'Pointed leather flats', category: 'Shoes', brand: 'Aeyde', retailer_hint: 'Aeyde', price_point: '€295', how: 'A sharper point under the wide leg' }, { name: 'Woven straw tote', category: 'Bags', wardrobe_match: { id: 'w-bag1', label: 'Woven straw tote', image_url: null, color: '' } }] },
-      ],
-      itemCount: 4,
-    }) });
-  });
+  const askPosts = [];
+  await page.route('**/api/look/ask', askStub(askPosts));
   await openLooks(page);
   await page.evaluate(() => window.__lkOpen('lk-1'));
   await page.waitForTimeout(600);
   const door = await page.evaluate(() => {
-    const head = document.querySelector('#sn-page .rb-lk-rackhead-read');
-    return { door: Array.from(head?.querySelectorAll('button') || []).map((b) => b.textContent.trim()), editing: !!document.querySelector('#sn-page .rb-lk-page.editing') };
-  });
-  check('ask · saved look: the reading rack head carries Adjust with words before Edit & resave', JSON.stringify(door.door) === JSON.stringify(['Adjust with words', 'Edit & resave']) && !door.editing, JSON.stringify(door));
-  const wb = writes.length;
-  const look = await page.evaluate(async () => {
-    document.querySelector('#sn-page .rb-lk-rackhead-read .rb-lk-askdoor')?.click();
-    await new Promise((r) => setTimeout(r, 150));
-    const a = document.getElementById('rb-ask');
-    const out = { ey: a?.querySelector('.rs-ey')?.textContent, chips: Array.from(a?.querySelectorAll('.rs-chip') || []).map((b) => b.textContent), note: a?.querySelector('.rs-note')?.textContent };
-    Array.from(a.querySelectorAll('.rs-chip')).find((b) => b.textContent === 'Sharper')?.click();
-    await new Promise((r) => setTimeout(r, 80));
-    document.querySelector('#rb-ask .rs-cta')?.click();
-    await new Promise((r) => setTimeout(r, 1200));
     const pg = document.querySelector('#sn-page');
-    out.editing = !!pg.querySelector('.rb-lk-page.editing');
-    out.bar = pg.querySelector('.rb-lk-editbar')?.textContent.replace(/\s+/g, ' ').trim();
-    out.rows = Array.from(pg.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent);
-    out.props = Array.from(pg.querySelectorAll('.rb-lk-prop .rbc-name')).map((n) => n.textContent);
-    out.acts = Array.from(pg.querySelectorAll('.rb-lk-editbar .acts button')).map((b) => b.textContent.trim());
-    out.draftDoor = !!pg.querySelector('.rb-lk-askdoor');
-    return out;
+    const head = pg.querySelector('.rb-lk-rackhead-read');
+    return { heads: Array.from(head?.querySelectorAll('button') || []).map((b) => b.textContent.trim()), field: !!pg.querySelector('.rb-lk-held .rb-lp-field'), label: pg.querySelector('.rb-lk-held .rb-lp-field .ph')?.textContent, editing: !!pg.querySelector('.rb-lk-page.editing') };
   });
-  check('ask · the sheet names the look, offers the look chips (the fixture holds sandals — Swap the shoes, never "Not the loafers") and says nothing changes until she updates',
-    look.ey === 'The Thursday one' && JSON.stringify(look.chips) === JSON.stringify(['Warmer', 'Softer', 'Sharper', 'More me', 'Less polite', 'Swap the shoes'])
-      && look.note === 'Nothing changes until you update or save.', JSON.stringify(look));
-  const rp = refinePosts[0] || {};
-  check('ask · /api/look/refine takes the look as it stands + her words', refinePosts.length === 1 && rp.refine === 'Sharper' && rp.lookName === 'The Thursday one'
-      && rp.pieces?.length === 4 && rp.pieces.every((p) => p.owned), JSON.stringify([rp.refine, rp.lookName, rp.pieces]));
-  check('ask · the answer opens the look EDITING — her three kept pieces on the rack, the flats as a proposal, the change bar naming her words with Discard · Save as a new look · Update',
-    look.editing && look.rows.length === 3 && !look.rows.includes('Flat leather sandals') && JSON.stringify(look.props) === JSON.stringify(['Pointed leather flats'])
-      && /Adjusted — “Sharper”/.test(look.bar || '') && look.acts.includes('Discard') && look.acts.includes('Save as a new look') && look.acts.includes('Update this look'),
-    JSON.stringify(look));
-  const rowWrites = () => writes.slice(wb).filter((w) => !/^events/.test(w.url));   // the ask's events are telemetry, not a write to the look
-  check('ask · nothing is written by the adjustment itself', rowWrites().length === 0, JSON.stringify(rowWrites().map((w) => w.method + ' ' + w.url)));
+  check('box · saved look: the field sits under the card and the rack head carries Edit & resave alone', door.field && door.label === 'Change this look…' && JSON.stringify(door.heads) === JSON.stringify(['Edit & resave']) && !door.editing, JSON.stringify(door));
+  const wb = writes.length;
+  const sw = await page.evaluate(async () => {
+    document.querySelector('#sn-page .rb-lk-held .rb-lp-field')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const o = window.__lpRead();
+    await window.__lpSend('swap the sandals for the slides', 900);
+    const pg = document.querySelector('#sn-page');
+    return { title: o.title, meta: o.meta, editing: !!pg.querySelector('.rb-lk-page.editing'), rows: Array.from(pg.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
+      was: Array.from(pg.querySelectorAll('.rb-lp-was')).map((n) => n.textContent), bar: pg.querySelector('.rb-lk-editbar')?.textContent.replace(/\s+/g, ' ').trim(), acts: Array.from(pg.querySelectorAll('.rb-lk-editbar .acts button')).map((b) => b.textContent.trim()) };
+  });
+  const a0 = askPosts[0] || {};
+  check('box · the box names the saved look; a swap opens it EDITING — the slides on the rack marked, the change bar naming her words with Discard · Save as a new look · Update',
+    sw.title === 'The Thursday one' && sw.meta === 'Saved look · 4 pieces' && a0.surface === 'saved' && a0.rack?.length === 4 && sw.editing && sw.rows.includes('Tan leather slides') && !sw.rows.includes('Flat leather sandals')
+      && JSON.stringify(sw.was) === JSON.stringify(['Just changed · was Flat leather sandals']) && /Adjusted — “swap the sandals for the slides”/.test(sw.bar || '') && sw.acts.includes('Discard') && sw.acts.includes('Update this look'), JSON.stringify(sw));
+  const rowWrites = () => writes.slice(wb).filter((w) => !/^events/.test(w.url) && !/^profiles/.test(w.url));
+  check('box · nothing is written by the swap itself', rowWrites().length === 0, JSON.stringify(rowWrites().map((w) => w.method + ' ' + w.url)));
   const disc = await page.evaluate(async () => {
+    window.__rbLpClose();
     window.__lkDraftDiscard();
     await new Promise((r) => setTimeout(r, 300));
-    return { editing: !!document.querySelector('#sn-page .rb-lk-page.editing'), rows: Array.from(document.querySelectorAll('#sn-page .rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent), props: document.querySelectorAll('#sn-page .rb-lk-prop').length };
+    const pg = document.querySelector('#sn-page');
+    return { editing: !!pg.querySelector('.rb-lk-page.editing'), rows: Array.from(pg.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent), was: pg.querySelectorAll('.rb-lp-was').length };
   });
-  check('ask · Discard hands the saved look back untouched — four pieces, no proposal, nothing written',
-    !disc.editing && disc.rows.length === 4 && disc.props === 0 && rowWrites().length === 0, JSON.stringify(disc));
-  // Adjust again, then Update: pieces, proposals and the note all commit.
+  check('box · Discard hands the saved look back untouched', !disc.editing && disc.rows.length === 4 && disc.rows.includes('Flat leather sandals') && disc.was === 0 && rowWrites().length === 0, JSON.stringify(disc));
   const upd = await page.evaluate(async () => {
-    document.querySelector('#sn-page .rb-lk-rackhead-read .rb-lk-askdoor')?.click();
-    await new Promise((r) => setTimeout(r, 150));
-    const inp = document.getElementById('rb-ask-in'); inp.value = 'sharper shoes'; inp.dispatchEvent(new Event('input'));
-    document.querySelector('#rb-ask .rs-cta')?.click();
-    await new Promise((r) => setTimeout(r, 1200));
+    document.querySelector('#sn-page .rb-lk-held .rb-lp-field')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    await window.__lpSend('tuck the shirt in', 900);
+    const pg = document.querySelector('#sn-page');
+    const out = { styledNote: Array.from(pg.querySelectorAll('.rb-lp-styled')).map((n) => n.textContent), editing: !!pg.querySelector('.rb-lk-page.editing') };
+    window.__rbLpClose();
     window.__lkResave();
     await new Promise((r) => setTimeout(r, 900));
-    const l = window._lkFind ? null : null;
-    return { editing: !!document.querySelector('#sn-page .rb-lk-page.editing'), rows: Array.from(document.querySelectorAll('#sn-page .rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent), props: Array.from(document.querySelectorAll('#sn-page .rb-lk-prop .rbc-name')).map((n) => n.textContent), note: document.querySelector('#sn-page .rbc-quote')?.textContent };
+    out.after = Array.from(document.querySelectorAll('#sn-page .rb-lp-styled')).map((n) => n.textContent);
+    out.editingAfter = !!document.querySelector('#sn-page .rb-lk-page.editing');
+    return out;
   });
-  const patches = writes.slice(wb).filter((w) => w.method === 'PATCH' && /^looks\?/.test(w.url));
-  check('ask · Update commits the adjusted composition — the sandals off, the flats as a saved proposal, the fresh note on the look',
-    !upd.editing && upd.rows.length === 3 && JSON.stringify(upd.props) === JSON.stringify(['Pointed leather flats']) && /sharpen the line/.test(upd.note || ''), JSON.stringify(upd));
-  check('ask · …and the writes carry proposals and note beside the pieces', patches.some((w) => Array.isArray(w.body?.proposals) && w.body.proposals.length === 1 && !('_ci' in w.body.proposals[0]))
-      && patches.some((w) => /sharpen the line/.test(w.body?.note || '')) && writes.slice(wb).some((w) => w.method === 'POST' && /^look_pieces/.test(w.url)), JSON.stringify(patches.map((w) => w.body)));
-  check('ask · saved look: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  const stPatch = writes.slice(wb).find((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && w.body && w.body.styling);
+  check('box · how it’s worn on a saved look: the note on the row while editing, and Update commits looks.styling by piece id — the note stays on the saved rack',
+    JSON.stringify(upd.styledNote) === JSON.stringify(['tucked at the front']) && upd.editing && !!stPatch && stPatch.body.styling['w-top1'] === 'tucked at the front' && !upd.editingAfter && JSON.stringify(upd.after) === JSON.stringify(['tucked at the front']),
+    JSON.stringify([upd, stPatch && stPatch.body]));
+  check('box · saved look: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  // 13c · the day console: the field replaces ↻ Restyle; her words change
+  // this day's pieces in place; put back restores.
+  const { ctx, page, errs } = await boot(browser, { pics: 4, init: 'window.__lpRead = ' + lpRead.toString() + '; window.__lpSend = ' + lpSend.toString() + ';' });
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  const askPosts = [];
+  await page.route('**/api/look/ask', askStub(askPosts));
+  const day = await page.evaluate(async () => {
+    window.__rbCtx = { city: 'Dublin', tempRange: '12–16°C', condition: 'cloudy', hint: 'A light layer' };
+    const data = {
+      _dlLoose: true, headline: 'Built around the linen shirt.', occasion_label: '', stylist_summary: 'The shirt leads.',
+      steps: [
+        { title: 'The Canvas', items: [{ name: 'Cream silk shirt', category: 'Tops', wardrobe_match: { id: 'w-top1', label: 'Cream silk shirt', image_url: null, color: '' } }] },
+        { title: 'The Anchor', items: [{ name: 'Barrel-leg jeans', category: 'Bottoms', wardrobe_match: { id: 'w-bot1', label: 'Barrel-leg jeans', image_url: null, color: '' } }] },
+        { title: 'The Exclamation Point', items: [{ name: 'Flat leather sandals', category: 'Shoes', wardrobe_match: { id: 'w-sho1', label: 'Flat leather sandals', image_url: null, color: '' } }] },
+      ],
+    };
+    window.__dlRenderResult(data, 'A look built around my linen shirt');
+    await new Promise((r) => setTimeout(r, 500));
+    const pg = document.getElementById('dl-result-page');
+    const out = { field: !!pg.querySelector('.rbc-panel + .rb-lp-field, .dl-lpfield'), restyle: Array.from(pg.querySelectorAll('.rbc-hbtn')).map((b) => b.textContent).join('|') };
+    pg.querySelector('.dl-lpfield')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const o = window.__lpRead(); out.title = o.title; out.meta = o.meta;
+    await window.__lpSend('swap the sandals for the slides', 900);
+    out.items = (window.__dlCurrentItems || []).map((it) => it.name);
+    out.was = Array.from(pg.querySelectorAll('.rb-lp-was')).map((n) => n.textContent);
+    await window.__lpSend('put the sandals back', 900);
+    out.items2 = (window.__dlCurrentItems || []).map((it) => it.name);
+    out.was2 = pg.querySelectorAll('.rb-lp-was').length;
+    return out;
+  });
+  const a0 = askPosts[0] || {};
+  check('box · the day console: the field under the look replaces ↻ Restyle; the box names the look; a swap lands on this day’s pieces and put back restores them',
+    day.field && !/Restyle/.test(day.restyle) && day.title === 'Built around the linen shirt' && a0.surface === 'look' && a0.rack?.length === 3
+      && day.items.includes('Tan leather slides') && JSON.stringify(day.was) === JSON.stringify(['Just changed · was Flat leather sandals']) && day.items2.includes('Flat leather sandals') && day.was2 === 0, JSON.stringify([day, a0.surface, a0.rack?.length]));
+  check('box · day console: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 

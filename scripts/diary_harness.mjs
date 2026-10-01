@@ -614,24 +614,20 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     window.__rbDayOpen(d, { from: 'diary' }); await new Promise((r2) => setTimeout(r2, 600));
     document.querySelector('#dl-result-page .dyp-door')?.click();
     await new Promise((r2) => setTimeout(r2, 400));
-    const rs = document.getElementById('rb-ask');
-    const wd = new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' });
+    const rs = document.getElementById('rb-lp');
     r.sheet = !!rs;
-    r.ey = rs?.querySelector('.rs-ey')?.textContent || null;
-    r.chips = Array.from(rs?.querySelectorAll('.rs-chip') || []).map((b) => b.textContent);
-    r.chipOn = rs?.querySelector('.rs-chip.on')?.textContent || null;   // "Lunch out" is a chip — it lights, the input stays empty
-    r.input = rs?.querySelector('#rb-ask-in')?.value;
-    r.cta = rs?.querySelector('.rs-cta')?.textContent || null;
-    r.ctaWord = 'Style ' + wd + ' →';
+    r.title = rs?.querySelector('.ttl')?.textContent || null;
+    r.meta = rs?.querySelector('.meta')?.textContent || null;
+    r.chips = rs?.querySelectorAll('.rs-chip, .rb-lp-chip').length ?? null;   // no chips in the box — ever
+    r.input = rs?.querySelector('#rb-lp-in')?.value;
     r.dayStill = document.getElementById('dl-result-page')?.style.display !== 'none';
     r.ink = Array.from(rs?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length;
-    // swap the chip, add words, go
-    Array.from(rs.querySelectorAll('.rs-chip')).find((b) => b.textContent === 'Dinner out')?.click();
-    await new Promise((r2) => setTimeout(r2, 100));
-    const rin = document.getElementById('rb-ask-in'); rin.value = 'with Mary in town'; rin.dispatchEvent(new Event('input'));
-    document.querySelector('#rb-ask .rs-cta')?.click();
+    // her words replace the prefill; Enter sends
+    window.__rbLpText('Dinner out with Mary in town');
+    const rin = document.getElementById('rb-lp-in'); rin.value = 'Dinner out with Mary in town';
+    rin.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await new Promise((r2) => setTimeout(r2, 2600));
-    r.sheetGone = !document.getElementById('rb-ask');
+    r.sheetGone = !document.getElementById('rb-lp');
     const sn2 = document.getElementById('sn-page');
     r.composer2 = !!sn2 && sn2.style.display !== 'none' && !!sn2.querySelector('.rb-lk-composer');
     r.save2 = (sn2?.textContent || '').match(/Save to [A-Z][a-z]+day/)?.[0] || null;
@@ -640,10 +636,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     return r;
   }, expBare[2]);
   check('day page · Create a new look opens the composer with the day attached (Save to {weekday})', doors.doors === 3 && doors.composer && !!doors.save, JSON.stringify(doors));
-  check('day page · Robes styles one opens the brief sheet OVER the day: the date as eyebrow, the five What\'s-on chips, her name for the day lit as its chip, Style {weekday} → the one ink',
-    doors.sheet && doors.dayStill && /\d/.test(doors.ey || '') && JSON.stringify(doors.chips) === JSON.stringify(['Work', 'School run', 'Lunch out', 'Dinner out', 'Weekend']) && doors.chipOn === 'Lunch out' && doors.input === '' && doors.cta === doors.ctaWord && doors.ink === 1, JSON.stringify(doors));
-  check('day page · Style → hands the brief (chip — her words) to /api/daily with the date, and lands in the composer with the day attached (Save to {weekday}, ‹ the day) — nothing written',
-    doors.sheetGone && dailyPosts.length === 1 && dailyPosts[0]?.prompt === 'Dinner out — with Mary in town' && doors.composer2 && !!doors.save2 && doors.back2 && doors.back2.indexOf(doors.backWord) === 0 && !writes.some((w) => /planned_days|lookbook_items|looks\b/.test(w.url) && w.method === 'POST' && JSON.stringify(w.body).includes('Dinner out')), JSON.stringify([doors, dailyPosts[0]?.prompt, dailyPosts[0]?.anchorDate]));
+  check('day page · Robes styles one opens the look prompt box OVER the day in its new-look mode: “A new look”, the date as the meta line, NO chips, her name for the day prefilled in the one field, the send arrow lit by it (the one ink)',
+    doors.sheet && doors.dayStill && doors.title === 'A new look' && /\d/.test(doors.meta || '') && doors.chips === 0 && doors.input === 'Lunch out' && doors.ink === 1, JSON.stringify(doors));
+  check('day page · Enter hands her words to /api/daily with the date, and lands in the composer with the day attached (Save to {weekday}, ‹ the day) — nothing written',
+    doors.sheetGone && dailyPosts.length === 1 && dailyPosts[0]?.prompt === 'Dinner out with Mary in town' && doors.composer2 && !!doors.save2 && doors.back2 && doors.back2.indexOf(doors.backWord) === 0 && !writes.some((w) => /planned_days|lookbook_items|looks\b/.test(w.url) && w.method === 'POST' && JSON.stringify(w.body).includes('Dinner out')), JSON.stringify([doors, dailyPosts[0]?.prompt, dailyPosts[0]?.anchorDate]));
   check('day page · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }

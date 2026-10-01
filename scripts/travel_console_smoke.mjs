@@ -283,30 +283,51 @@ ok(await page.locator('#sn-page .rb-lk-editbar button', { hasText: 'Save as a ne
 const lives = page.locator('#sn-page .rb-lk-lives .rb-lk-live');
 ok(await lives.count() === 2 && !(await lives.nth(0).evaluate(e => e.classList.contains('on'))) && /Joins it the moment you save/.test(await lives.nth(0).innerText()), 'Where it lives: the lookbook, once she saves');
 ok(await lives.nth(1).evaluate(e => e.classList.contains('on')) && /travel edit/i.test(await lives.nth(1).innerText()) && /Packs with the trip/.test(await lives.nth(1).innerText()), 'Where it lives: the travel edit, packed with it');
-// ── 3c. Adjust with words on the trip draft (slice C) — held to the case ──
-// The words go to /api/travel/looks with the capsule alone and held:true;
-// the draft rebuilds from the refined formula; the blob is untouched until Save.
-const tlPosts = [];
-await page.route('**/api/travel/looks', (r) => {
+// ── 3c. The look prompt on the trip draft (phase 2) — held to the case ──
+// The field sits under the look; her words go to /api/look/ask with the
+// CASE as the pool (never the wardrobe); a swap lands on the draft's rack
+// from the case; the blob is untouched until Save.
+const askPosts = [];
+await page.route('**/api/look/ask', (r) => {
   let b = null; try { b = r.request().postDataJSON(); } catch (_) {}
-  tlPosts.push(b);
-  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ looks: [
-    { occasion: 'Night out', title: 'Coast after dark, warmer', how: 'The shell over the silk, sandals swapped for the slides.',
-      formula: [ { role: 'The Anchor', item_index: 0, note: 'Worn open' }, { role: 'The Canvas', item_index: 2, note: 'Rolled once' }, { role: 'The Texture', item_index: 5, note: 'Over everything' }, { role: 'The Exclamation Point', item_index: 4, note: 'Bare ankle' } ] },
-  ] }) });
+  askPosts.push(b);
+  const t = String(b?.text || '').toLowerCase();
+  const rack = b?.rack || [], pool = b?.pool?.items || [];
+  const rowOf = (re) => rack.findIndex((x) => re.test(String(x.name || '').toLowerCase()));
+  const poolOf = (re) => pool.findIndex((x) => re.test(String(x.label || '').toLowerCase()));
+  let out = { intent: 'clarify', reply: 'Say which piece and Robes will do it.', swaps: [], back: [], styled: [], draft: '', rule: '' };
+  if (/slides for the sandals/.test(t)) out = { ...out, intent: 'swap', reply: 'Done. The flat leather sandals are on the look, from your case.', swaps: [{ i: rowOf(/slides/), to: { pool_index: poolOf(/sandals/) } }] };
+  else if (/raincoat/.test(t)) out = { ...out, intent: 'draft', reply: 'Nothing in the case is a raincoat — the storm shell is the nearest. Robes would wear it over the shirt; it’s written below.', draft: 'Wear the storm shell jacket over the shirt' };
+  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(out) });
 });
-ok(await page.locator('#sn-page .rb-lk-rackhead .rb-lk-askdoor', { hasText: 'Adjust with words' }).count() === 1, 'the draft’s editing head carries Adjust with words');
-await page.locator('#sn-page .rb-lk-rackhead .rb-lk-askdoor').click();
-await page.waitForTimeout(200);
-ok(await page.locator('#rb-ask').count() === 1 && /Coast after dark/i.test(await page.locator('#rb-ask .rs-ey').innerText()) && /Held to the case/.test(await page.locator('#rb-ask .rs-note').innerText()), 'the sheet names the look and says it is held to the case');
-ok(JSON.stringify(await page.locator('#rb-ask .rs-chip').allInnerTexts()) === JSON.stringify(['Warmer', 'Cooler', 'Dressier', 'Fewer pieces', 'Swap the shoes']), 'the trip chips + the shoe chip (the look holds slides)');
-await page.locator('#rb-ask .rs-chip', { hasText: 'Warmer' }).click();
-await page.locator('#rb-ask .rs-cta').click();
-await page.waitForTimeout(1200);
+ok(await page.locator('#sn-page .rb-lk-held .rb-lp-field').count() === 1 && await page.locator('#sn-page .rb-lk-askdoor').count() === 0, 'the draft’s editing page carries the look prompt field under the look — no Adjust-with-words pill on the head');
+await page.locator('#sn-page .rb-lk-held .rb-lp-field').click();
+await page.waitForTimeout(250);
+ok(await page.locator('#rb-lp').count() === 1 && /Coast after dark/i.test(await page.locator('#rb-lp .ttl').innerText()) && /Lahinch/.test(await page.locator('#rb-lp .meta').innerText()) && await page.locator('#rb-lp .rs-chip').count() === 0, 'the box names the look, the meta line names the trip, no chips');
+await page.evaluate(async () => {
+  window.__rbLpText('swap the slides for the sandals');
+  const ta = document.getElementById('rb-lp-in'); ta.value = 'swap the slides for the sandals';
+  ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await new Promise((r) => setTimeout(r, 900));
+});
 const caseN = await page.evaluate(() => window.__lastTvData.capsule.length);   // the case as it stands (an earlier section adopted a piece into it)
-ok(tlPosts.length === 1 && tlPosts[0].refine === 'Warmer' && tlPosts[0].held === true && tlPosts[0].capsule.length === caseN && tlPosts[0].capsule.every((c) => 'owned' in c) && JSON.stringify(tlPosts[0].occasions) === JSON.stringify(['Night out']) && tlPosts[0].current.pieces.length === 4, 'the words go to /api/travel/looks with the case alone, held, the look as it stands');
-ok(await page.locator('#sn-page .rb-lk-page.editing').count() === 1 && (await page.locator('#sn-page #rb-lk-title').innerText()).includes('Coast after dark, warmer') && await page.locator('#sn-page .rbc-rack .rbc-row:not(.rbc-rghost)').count() === 4 && await page.locator('#sn-page .rb-lk-prop').count() === 1 && /Over everything/.test(await page.locator('#sn-page .rb-lk-prop').innerText()), 'the draft rebuilds from the refined formula — still a draft, the shell still a proposal, the new note on its row');
-ok(await page.evaluate(() => window.__lastTvData.looks[0].title === 'Coast after dark' && window.__lastTvData.looks[0].formula.length === 4 && window.__lastTvData.looks[0].formula.every((f) => f.item_index !== 4 || f.role === 'The Exclamation Point')), 'the trip blob is untouched by the adjustment — nothing written until Save');
+const a0 = askPosts[0] || {};
+ok(askPosts.length === 1 && a0.surface === 'trip' && a0.pool?.kind === 'capsule' && a0.pool.items.length === caseN && a0.pool.items.every((c, i) => c.ci === i) && a0.rack?.length === 4 && a0.rack.some((x) => /slides/i.test(x.name)), 'the words go to /api/look/ask with the CASE as the pool (each piece carrying its capsule index), the look as it stands as the rack');
+const rackNow = await page.locator('#sn-page .rbc-rack .rbc-name').allInnerTexts();
+ok(rackNow.includes('Flat leather sandals') && !rackNow.includes('Tan leather slides') && await page.locator('#sn-page .rb-lk-page.editing').count() === 1 && await page.locator('#sn-page .rb-lk-prop').count() === 1, 'the sandals land on the draft’s rack from the case — still a draft, the shell still a proposal');
+ok(JSON.stringify(await page.locator('#sn-page .rb-lp-was').allInnerTexts()) === JSON.stringify(['Just changed · was Tan leather slides']) && /swap the slides for the sandals/.test(await page.locator('#sn-page .rb-lk-draftbar').innerText()), 'the row says what it was; the bar names her words');
+await page.evaluate(async () => {
+  window.__rbLpText('a raincoat');
+  const ta = document.getElementById('rb-lp-in'); ta.value = 'a raincoat';
+  ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await new Promise((r) => setTimeout(r, 900));
+});
+const rackAfter = await page.locator('#sn-page .rbc-rack .rbc-name').allInnerTexts();
+ok(askPosts.length === 2 && JSON.stringify(rackAfter) === JSON.stringify(rackNow) && (await page.locator('#rb-lp-in').inputValue()) === 'Wear the storm shell jacket over the shirt' && await page.locator('#rb-lp-in.drafted').count() === 1, 'an ask the case cannot answer changes NOTHING — Robes’ wording lands in her field, drafted, nothing new comes in');
+ok(await page.evaluate(() => window.__lastTvData.looks[0].title === 'Coast after dark' && window.__lastTvData.looks[0].formula.length === 4 && window.__lastTvData.looks[0].formula.some((f) => f.item_index === 4)), 'the trip blob is untouched by the adjustment — nothing written until Save');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+ok(await page.locator('#rb-lp').count() === 0, 'Escape closes the box');
 await page.evaluate(() => window.__lkTripDraftDiscard());
 await page.waitForTimeout(500);
 ok(await page.locator('#tv-result-page').isVisible() && !(await page.locator('#sn-page').isVisible()) && !(await page.locator('#tv-look-page').isVisible()), 'Discard hands her back to the trip, nothing open');

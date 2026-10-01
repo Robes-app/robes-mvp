@@ -799,102 +799,289 @@
       }
       window.__rbMemoryPush = _rbMemoryPush;
 
-      // ── The ask sheet (style memory slice C, 2026-09-30) ─────────────────
-      // ONE component, opened from every surface that holds a look, a day, a
-      // trip or a key piece: the surface's name for the thing as eyebrow, a
-      // serif line, single-select chips that fit the surface, one underlined
-      // line, one ink CTA, and under it the quiet constraint that holds. The
-      // Diary's "Robes styles one" sheet (2026-09-29) is its first consumer.
-      // The sheet writes nothing — the words go to the generator the door
-      // names, which lands on the standing draft path (rule 04).
-      var _rbAskCfg = null;
-      var _RB_ASK_CSS = `
-#rb-ask{position:fixed;inset:0;z-index:955;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
-#rb-ask .rs{background:#FAF8F5;border:1px solid var(--rule,#E3DDD2);border-radius:14px;width:100%;max-width:480px;box-sizing:border-box;box-shadow:0 18px 40px rgba(32,32,33,.12);font-family:inherit;color:var(--ink,#202021);padding:22px 24px 24px;max-height:90vh;overflow-y:auto}
-#rb-ask .rs-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
-#rb-ask .rs-ey{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A958E);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#rb-ask .rs-x{background:none;border:0;cursor:pointer;color:var(--ink-faint,#9A958E);font-size:18px;line-height:1;padding:0 2px;margin-top:-4px;flex:none}
-#rb-ask .rs-h{font-family:'Cormorant',Georgia,serif;font-weight:300;font-size:28px;line-height:1.15;margin:12px 0 0}
-#rb-ask .rs-h em{font-style:italic}
-#rb-ask .rs-sub{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:15px;color:var(--ink-soft,#4A4744);margin:4px 0 0}
-#rb-ask .rs-lab{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint,#9A958E);margin:22px 0 0}
-#rb-ask .rs-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
-#rb-ask .rs-lab+.rs-chips{margin-top:9px}
-#rb-ask .rs-h+.rs-chips,#rb-ask .rs-sub+.rs-chips{margin-top:18px}
-#rb-ask .rs-chip{background:#fff;border:1px solid var(--rule-mid,#CFC7B9);border-radius:100px;padding:8px 13px;font-size:11.5px;color:var(--ink-soft,#4A4744);cursor:pointer;font-family:inherit}
-#rb-ask .rs-chip.on{background:#F3EFE6;border-color:#C9BCA6;color:var(--ink,#202021)}
-#rb-ask .rs-in{display:block;width:100%;box-sizing:border-box;margin-top:14px;border:0;border-bottom:1px solid var(--rule-mid,#CFC7B9);background:transparent;padding:6px 0 8px;font-family:'Cormorant',Georgia,serif;font-size:19px;font-weight:300;color:var(--ink,#202021);outline:none;border-radius:0}
-#rb-ask .rs-lab+.rs-in{margin-top:9px}
-#rb-ask .rs-in::placeholder{color:var(--ink-faint,#9A958E);font-style:italic}
-#rb-ask .rs-in:focus{border-bottom-color:var(--ink,#202021)}
-#rb-ask .rs-cta{width:100%;height:50px;border-radius:100px;background:var(--ink,#202021);color:#FAF8F5;border:0;font:500 11px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.22em;text-transform:uppercase;cursor:pointer;font-family:inherit;margin-top:22px}
-#rb-ask .rs-note{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:13px;color:var(--ink-faint,#9A958E);text-align:center;margin:12px 0 0}
-@media(max-width:767px){#rb-ask{align-items:flex-end;padding:0}#rb-ask .rs{max-width:none;border-radius:18px 18px 0 0;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}#rb-ask .rs::before{content:'';display:block;width:36px;height:4px;border-radius:2px;background:var(--rule-mid,#CFC7B9);margin:-6px auto 14px}}`;
-      function _rbAskCss() {
-        if (document.getElementById('rb-ask-style')) return;
-        const st = document.createElement('style'); st.id = 'rb-ask-style'; st.textContent = _RB_ASK_CSS; document.head.appendChild(st);
+      // ── THE LOOK PROMPT (docs/look-prompt-brief.md, phase 2 · 2026-10-01) ──
+      // ONE box on every look: the look's own name and one meta line, Robes'
+      // opener, a thread that lives only while the box is open, one field,
+      // one send. Her words change the look behind it on Enter (a swap, a
+      // put-back, how a piece is worn), file a standing rule to her brief,
+      // or — when they are vague — come back as Robes' wording in her field
+      // for her to edit or press Enter on. Nothing is written until the
+      // surface's own Save. Off a look (mode 'new') the same box makes a
+      // new one; on a key-piece way (mode 'way') it re-writes that way.
+      // The thread is NOT a chat: dropped on close, never persisted, never
+      // shown anywhere else; each line she sends lands in the memory.
+      // Supersedes the ask sheet (slice C, 2026-09-30) and its chips.
+      var _rbLp = null;
+      var _RB_LP_CSS = `
+.rb-lp-wrap{position:fixed;inset:0;z-index:955;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
+.rb-lp-scrim{position:absolute;inset:0;background:rgba(32,32,33,.28)}
+.rb-lp{position:relative;z-index:1;width:100%;max-width:480px;max-height:86vh;display:flex;flex-direction:column;box-sizing:border-box;background:#fff;border-radius:18px;border-top:0.5px solid var(--rule-mid,#CFC7B9);padding:22px 24px 22px;box-shadow:0 -10px 30px rgba(32,32,33,.07),0 24px 60px -12px rgba(32,32,33,.22);font-family:inherit;color:var(--ink,#202021)}
+.rb-lp .grab{display:none}
+.rb-lp .x{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:100px;border:1px solid var(--rule,rgba(32,32,33,.1));background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink,#202021);font-family:inherit;font-size:16px;line-height:1}
+.rb-lp .ttl{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-weight:300;font-size:24px;line-height:1.1;padding-right:44px}
+.rb-lp .meta{font-size:11.5px;font-weight:300;color:var(--ink-faint,#9A958E);margin-top:4px;padding-bottom:12px;border-bottom:0.5px solid var(--rule,rgba(32,32,33,.1))}
+.rb-lp .thread{display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:230px;padding:14px 0 4px;flex:1 1 auto;min-height:0}
+.rb-lp .robes{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-weight:400;font-size:18px;line-height:1.32;color:var(--ink,#202021)}
+.rb-lp .her{align-self:flex-end;max-width:86%;font-size:14px;font-weight:300;line-height:1.45;color:var(--ink,#202021);border-left:0.5px solid #C9BCA6;padding-left:12px}
+.rb-lp .filed{font-size:11px;font-weight:300;color:var(--ink-faint,#9A958E);font-style:italic;font-family:var(--font-serif,'Cormorant',Georgia,serif);font-size:14px}
+.rb-lp .reading{display:flex;align-items:center;gap:10px}
+.rb-lp .reading .dots{display:inline-flex;gap:4px}.rb-lp .reading .dots i{width:5px;height:5px;border-radius:50%;background:var(--rose,#8E7077);animation:rbLpDot 1.2s ease-in-out infinite}
+.rb-lp .reading .dots i:nth-child(2){animation-delay:.2s}.rb-lp .reading .dots i:nth-child(3){animation-delay:.4s}
+.rb-lp .reading .line{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:15px;color:var(--ink-faint,#9A958E)}
+@keyframes rbLpDot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-2px)}}
+.rb-lp .fieldrow{display:flex;align-items:flex-end;gap:10px;margin-top:12px}
+.rb-lp textarea{flex:1;min-width:0;resize:none;box-sizing:border-box;background:var(--cream,#FAF8F5);border:0.5px solid var(--rule-mid,#CFC7B9);border-radius:18px;padding:11px 16px;font-family:var(--font-serif,'Cormorant',Georgia,serif);font-size:17px;font-weight:400;line-height:1.3;color:var(--ink,#202021);outline:none;max-height:92px;overflow-y:auto}
+.rb-lp textarea::placeholder{font-style:italic;color:var(--ink-faint,#9A958E)}
+.rb-lp textarea.drafted{border-color:#C9BCA6;background:#FBF8F1}
+.rb-lp textarea:disabled{opacity:.6}
+.rb-lp .send{flex:none;width:36px;height:36px;border-radius:50%;border:0.5px solid var(--rule-mid,#CFC7B9);background:var(--cream-200,#EDE9E2);color:var(--ink,#202021);display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;font-size:15px;line-height:1;transition:background .15s,color .15s}
+.rb-lp .send.ink{background:var(--ink,#202021);color:var(--cream,#FAF8F5);border-color:var(--ink,#202021)}
+.rb-lp .send:disabled{cursor:default;opacity:.55}
+.rb-lp .helper{font-size:11px;font-weight:300;color:var(--ink-faint,#9A958E);text-align:center;margin-top:9px}
+.rb-lp-busy{opacity:.55;pointer-events:none;transition:opacity .2s}
+.rb-lp-field{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;box-sizing:border-box;margin-top:14px;padding:11px 10px 11px 18px;border-radius:100px;border:0.5px solid var(--rule-mid,#CFC7B9);background:var(--cream,#FAF8F5);cursor:text;font-family:inherit;text-align:left;color:var(--ink,#202021)}
+.rb-lp-field .ph{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:16px;color:var(--ink-faint,#9A958E);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rb-lp-field .ar{flex:none;width:30px;height:30px;border-radius:50%;border:0.5px solid var(--rule-mid,#CFC7B9);background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ink,#202021)}
+.rb-lp-field:hover{border-color:var(--ink-faint,#9A958E)}
+.rbc-hownote.rb-lp-was{color:var(--rose,#8E7077);font-style:normal;font-family:inherit;font-size:10.5px;letter-spacing:.04em}
+.rbc-hownote.rb-lp-styled{color:var(--ink-soft,#4A4744)}
+@media(max-width:767px){.rb-lp-wrap{align-items:flex-end;padding:0}.rb-lp{max-width:none;max-height:88dvh;border-radius:18px 18px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom,0px))}.rb-lp .grab{display:block;width:36px;height:4px;border-radius:2px;background:var(--rule-mid,#CFC7B9);margin:0 auto 14px}.rb-lp .thread{max-height:170px}}
+@media(prefers-reduced-motion:reduce){.rb-lp .reading .dots i{animation:none;opacity:.7}}`;
+      function _rbLpCss() {
+        if (document.getElementById('rb-lp-style')) return;
+        const st = document.createElement('style'); st.id = 'rb-lp-style'; st.textContent = _RB_LP_CSS; document.head.appendChild(st);
       }
-      // The words the surface receives: the chip, then hers — "Dinner out —
-      // with Mary in town"; either alone stands.
-      function _rbAskWords(c) {
-        const t = String(c.text || '').trim();
-        return c.chip && t ? c.chip + ' — ' + t : (c.chip || t);
-      }
-      function _rbAskPaint() {
-        const c = _rbAskCfg, host = document.getElementById('rb-ask');
-        if (!c || !host) return;
-        const chips = (c.chips || []).map((ch, i) => `<button type="button" class="rs-chip${c.chip === ch ? ' on' : ''}" onclick="window.__rbAskChip(${i})">${_waEsc(ch)}</button>`).join('');
-        host.innerHTML = `<div class="rs" role="dialog" aria-modal="true" aria-label="${_waEsc(c.aria || 'Adjust with words')}">
-          <div class="rs-head"><span class="rs-ey">${_waEsc(c.eyebrow || '')}</span><button type="button" class="rs-x" onclick="window.__rbAskClose()" aria-label="Close">×</button></div>
-          <h3 class="rs-h">${c.titleHtml || _waEsc(c.title || 'What would you change?')}</h3>
-          ${c.sub ? `<p class="rs-sub">${_waEsc(c.sub)}</p>` : ''}
-          ${chips ? `${c.chipLabel ? `<div class="rs-lab">${_waEsc(c.chipLabel)}</div>` : ''}<div class="rs-chips">${chips}</div>` : ''}
-          ${c.inputLabel ? `<div class="rs-lab">${_waEsc(c.inputLabel)}</div>` : ''}
-          <input class="rs-in" id="rb-ask-in" value="${_waEsc(c.text || '')}" placeholder="${_waEsc(c.placeholder || 'Warmer, sharper, not the loafers…')}" maxlength="200" autocomplete="off" oninput="window.__rbAskText(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();window.__rbAskGo()}">
-          <button type="button" class="rs-cta" onclick="window.__rbAskGo()">${_waEsc(c.cta || 'Adjust →')}</button>
-          ${c.note ? `<p class="rs-note">${_waEsc(c.note)}</p>` : ''}
-        </div>`;
-      }
-      window.__rbAskChip = function(i) {
-        const c = _rbAskCfg; if (!c) return;
-        const ch = (c.chips || [])[i];
-        c.chip = c.chip === ch ? null : ch;
-        _rbAskPaint();
+      var _RB_LP_COPY = {
+        doorLook: 'Change this look…', doorNew: 'A new look for…', doorAfter: 'Anything else, or put something back…',
+        openerLook: 'What would you change?', openerNew: 'What’s it for?',
+        phLook: 'Restyle it, or swap the red shoes for black…', phAfter: 'Anything else, or put something back…', phNew: 'A travel day, lots of walking, nothing white…',
+        helperLook: 'Changes land on the look as you go. Ask for anything back.', helperDrafted: 'Robes wrote this from your words. Edit it, or press Enter.', helperNew: 'Robes builds it from your wardrobe.',
+        readingLook: 'reading it against the look', readingNew: 'reading it against your brief',
+        doneNone: 'Nothing has changed yet, so there’s nothing to put back.',
       };
-      window.__rbAskText = function(v) { if (_rbAskCfg) _rbAskCfg.text = String(v || ''); };
-      window.__rbAskClose = function() { document.getElementById('rb-ask')?.remove(); _rbAskCfg = null; };
-      window.__rbAskGo = function() {
-        const c = _rbAskCfg; if (!c) return;
-        const text = String(c.text || '').trim();
-        const words = _rbAskWords(c);
-        if (!words && !c.allowEmpty) { try { document.getElementById('rb-ask-in')?.focus(); } catch (e) {} return; }
-        window.__rbAskClose();
-        _rbTrack('ask_sent', { surface: c.surface, chip: c.chip || null, typed: !!text });
-        try { c.onSend({ chip: c.chip || null, text, words }); }
-        catch (e) { console.error('[Robes] ask', e); _waShowToast('Robes couldn’t take that just now — please try again.'); }
+      // The closed door: a pill-shaped field under the look. o.mode 'new'
+      // reads "A new look for…"; o.changed flips the look door to the
+      // after-a-change line.
+      function _rbLpFieldHtml(o) {
+        o = o || {};
+        _rbLpCss();
+        const label = o.label || (o.mode === 'new' ? _RB_LP_COPY.doorNew : (o.changed ? _RB_LP_COPY.doorAfter : _RB_LP_COPY.doorLook));
+        return '<button type="button" class="rb-lp-field' + (o.cls ? ' ' + o.cls : '') + '" onclick="' + o.onclick + '" aria-label="' + _waEsc(label) + '"><span class="ph">' + _waEsc(label) + '</span><span class="ar">→</span></button>';
+      }
+      function _rbLpThreadHtml() {
+        const s = _rbLp;
+        const opener = s.opener || (s.mode === 'new' ? _RB_LP_COPY.openerNew : _RB_LP_COPY.openerLook);
+        let h = '<div class="robes">' + _waEsc(opener) + '</div>';
+        s.thread.forEach(t => {
+          if (t.who === 'her') h += '<div class="her">' + _waEsc(t.text) + '</div>';
+          else if (t.who === 'filed') h += '<div class="filed">' + _waEsc(t.text) + '</div>';
+          else h += '<div class="robes">' + _waEsc(t.text) + '</div>';
+        });
+        if (s.reading) h += '<div class="reading"><span class="dots"><i></i><i></i><i></i></span><span class="line">' + _waEsc(s.mode === 'new' ? _RB_LP_COPY.readingNew : _RB_LP_COPY.readingLook) + '</span></div>';
+        return h;
+      }
+      function _rbLpPaint() {
+        const s = _rbLp, host = document.getElementById('rb-lp');
+        if (!s || !host) return;
+        const ph = s.placeholder || (s.mode === 'new' ? _RB_LP_COPY.phNew : (s.applied ? _RB_LP_COPY.phAfter : _RB_LP_COPY.phLook));
+        host.innerHTML = '<div class="rb-lp-scrim" onclick="window.__rbLpClose()"></div><div class="rb-lp" role="dialog" aria-modal="true" aria-label="' + _waEsc(s.title || 'Change this look') + '">' +
+          '<div class="grab"></div><button type="button" class="x" onclick="window.__rbLpClose()" aria-label="Close">×</button>' +
+          '<div class="ttl">' + _waEsc(s.title || '') + '</div>' +
+          '<div class="meta">' + _waEsc(s.meta || '') + '</div>' +
+          '<div class="thread" id="rb-lp-thread">' + _rbLpThreadHtml() + '</div>' +
+          '<div class="fieldrow"><textarea id="rb-lp-in" rows="1" maxlength="240" placeholder="' + _waEsc(ph) + '" oninput="window.__rbLpText(this.value)" onkeydown="window.__rbLpKey(event)"></textarea>' +
+          '<button type="button" class="send" id="rb-lp-send" onclick="window.__rbLpSend()" aria-label="Send">→</button></div>' +
+          '<div class="helper" id="rb-lp-helper"></div></div>';
+        _rbLpSync(true);
+      }
+      // Repaint the thread, the field's state and the helper in place —
+      // never the whole box, which would take the caret out of the field.
+      function _rbLpSync(setValue) {
+        const s = _rbLp; if (!s) return;
+        const th = document.getElementById('rb-lp-thread');
+        if (th) { th.innerHTML = _rbLpThreadHtml(); th.scrollTop = th.scrollHeight; }
+        const ta = document.getElementById('rb-lp-in');
+        if (ta) {
+          if (setValue || s.draft) ta.value = s.text || '';
+          ta.classList.toggle('drafted', !!s.draft);
+          ta.disabled = !!s.reading;
+          ta.placeholder = s.placeholder || (s.mode === 'new' ? _RB_LP_COPY.phNew : (s.applied ? _RB_LP_COPY.phAfter : _RB_LP_COPY.phLook));
+          try { ta.style.height = 'auto'; ta.style.height = Math.min(92, ta.scrollHeight) + 'px'; } catch (_) {}
+        }
+        const send = document.getElementById('rb-lp-send');
+        if (send) { send.classList.toggle('ink', !!String(s.text || '').trim()); send.disabled = !!s.reading; }
+        const help = document.getElementById('rb-lp-helper');
+        if (help) help.textContent = s.helper || (s.draft ? _RB_LP_COPY.helperDrafted : s.mode === 'new' ? _RB_LP_COPY.helperNew : _RB_LP_COPY.helperLook);
+      }
+      window.__rbLpText = function(v) {
+        const s = _rbLp; if (!s) return;
+        s.text = String(v || '').slice(0, 240);
+        // Editing Robes' wording clears the warm border — it is hers now.
+        if (s.draft && s.text !== s.draftText) { s.draft = false; const ta = document.getElementById('rb-lp-in'); if (ta) ta.classList.remove('drafted'); const help = document.getElementById('rb-lp-helper'); if (help) help.textContent = s.mode === 'new' ? _RB_LP_COPY.helperNew : _RB_LP_COPY.helperLook; }
+        const send = document.getElementById('rb-lp-send');
+        if (send) send.classList.toggle('ink', !!s.text.trim());
+        const ta = document.getElementById('rb-lp-in');
+        if (ta) { try { ta.style.height = 'auto'; ta.style.height = Math.min(92, ta.scrollHeight) + 'px'; } catch (_) {} }
       };
-      function _rbAsk(cfg) {
-        window.__rbAskClose();
-        _rbAskCss();
-        _rbAskCfg = Object.assign({ chips: [], chip: null, text: '' }, cfg || {});
-        if (_rbAskCfg.chip && _rbAskCfg.chips.indexOf(_rbAskCfg.chip) < 0) _rbAskCfg.chip = null;
+      window.__rbLpKey = function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.__rbLpSend(); }
+      };
+      window.__rbLpClose = function() {
+        const s = _rbLp;
+        document.getElementById('rb-lp')?.remove();
+        document.querySelectorAll('.rb-lp-busy').forEach(el => el.classList.remove('rb-lp-busy'));
+        if (s) _rbTrack('look_prompt_closed', { surface: s.surface, turns: s.turns || 0, applied_count: s.applied || 0, saved: false });
+        _rbLp = null;
+      };
+      document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && _rbLp) window.__rbLpClose(); });
+      // cfg: {mode: 'look'|'new'|'way', surface, title, meta, name, text,
+      //       rack(), pool(), context(), apply(j, sent) → n, onRule(rule),
+      //       changed() → n, onNew(text), onRegen(text), opener, placeholder, helper}
+      function _rbLookPrompt(cfg) {
+        window.__rbLpClose();
+        _rbLpCss();
+        _rbLp = Object.assign({ mode: 'look', thread: [], text: '', draft: false, draftText: null, reading: false, applied: 0, turns: 0 }, cfg || {});
+        if (_rbLp.mode === 'look' && typeof _rbLp.changed === 'function') { try { _rbLp.applied = _rbLp.changed() || 0; } catch (_) {} }
         const w = document.createElement('div');
-        w.id = 'rb-ask'; w.className = 'rb-ask-wrap';
-        w.onclick = function(e) { if (e.target === w) window.__rbAskClose(); };
+        w.id = 'rb-lp'; w.className = 'rb-lp-wrap';
         document.body.appendChild(w);
-        _rbAskPaint();
-        _rbTrack('ask_opened', { surface: _rbAskCfg.surface });
+        _rbLpPaint();
+        try { const ta = document.getElementById('rb-lp-in'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } } catch (_) {}
+        _rbTrack('look_prompt_opened', { surface: _rbLp.surface, mode: _rbLp.mode, look_id: _rbLp.lookId || null });
       }
-      document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && _rbAskCfg) window.__rbAskClose(); });
-      window._rbAsk = _rbAsk;
-      // A chip never says a fact only she has: the shoe chip renders only
-      // when the look on screen holds a shoe, and names loafers only when
-      // it holds loafers.
-      function _rbAskChipsFor(pieces, base) {
-        const chips = base.slice();
-        const shoe = (pieces || []).find(p => /shoe/i.test(p.category || '') || /loafer|boot|sandal|sneaker|trainer|heel|mule|pump/i.test(p.name || ''));
-        if (shoe) chips.push(/loafer/i.test(shoe.name || '') ? 'Not the loafers' : 'Swap the shoes');
-        return chips;
+      window._rbLookPrompt = _rbLookPrompt;
+      function _rbLpDim(on) {
+        document.querySelectorAll('.rbc-rack, .rb-lk-rack').forEach(el => el.classList.toggle('rb-lp-busy', !!on));
+      }
+      window.__rbLpSend = async function() {
+        const s = _rbLp; if (!s || s.reading) return;
+        const text = String(s.text || '').trim().slice(0, 240);
+        if (!text) { try { document.getElementById('rb-lp-in')?.focus(); } catch (_) {} return; }
+        const fromDraft = !!s.draft && text === s.draftText;
+        s.turns = (s.turns || 0) + 1;
+        if (s.mode === 'new') {
+          _rbTrack('look_prompt_sent', { surface: s.surface, intent: 'new', chars: text.length, from_draft: false });
+          const fn = s.onNew; window.__rbLpClose();
+          try { if (typeof fn === 'function') fn(text); } catch (e) { console.error('[Robes] look prompt new', e); _waShowToast('Robes couldn’t start that look — please try again.'); }
+          return;
+        }
+        if (s.mode === 'way') {
+          _rbTrack('look_prompt_sent', { surface: s.surface, intent: 'regen', chars: text.length, from_draft: false });
+          const fn = s.onRegen; window.__rbLpClose();
+          try { if (typeof fn === 'function') fn(text); } catch (e) { console.error('[Robes] look prompt way', e); }
+          return;
+        }
+        s.thread.push({ who: 'her', text });
+        s.text = ''; s.draft = false; s.draftText = null; s.reading = true;
+        _rbLpSync(true);
+        _rbLpDim(true);
+        let j = null;
+        const sent = { rack: [], pool: { kind: 'wardrobe', items: [] } };
+        try {
+          try { sent.rack = s.rack() || []; } catch (_) { sent.rack = []; }
+          try { sent.pool = s.pool() || sent.pool; } catch (_) {}
+          let context = {}; try { context = (typeof s.context === 'function' ? s.context() : s.context) || {}; } catch (_) {}
+          const ctrl = new AbortController();
+          const tm = setTimeout(() => ctrl.abort(), 45000);
+          const rc = window.__rbCtx || {};
+          const res = await fetch('/api/look/ask', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
+            body: JSON.stringify({
+              mode: 'look', surface: s.surface, name: s.name || s.title || '',
+              rack: sent.rack, pool: sent.pool, thread: s.thread.slice(0, -1).slice(-6), text,
+              context: Object.assign({ weather: [rc.tempRange, rc.condition].filter(Boolean).join(', ') || undefined }, context),
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
+              userId: _waUid() || undefined, genId: _rbGenId(),
+            }),
+          });
+          clearTimeout(tm);
+          if (!res.ok) throw new Error(await res.text());
+          j = await res.json();
+        } catch (err) {
+          console.error('[Robes] /api/look/ask error:', err && err.message);
+          j = null;
+        }
+        s.reading = false;
+        _rbLpDim(false);
+        if (!j || typeof j !== 'object') {
+          s.thread.push({ who: 'robes', text: 'Robes couldn’t take that just now — say it again in a moment.' });
+          _rbLpSync(true);
+          return;
+        }
+        const reply = String(j.reply || '').trim() || 'Robes couldn’t read that — say it another way.';
+        let applied = 0;
+        const wantsEdit = (Array.isArray(j.swaps) && j.swaps.length) || (Array.isArray(j.back) && j.back.length) || (Array.isArray(j.styled) && j.styled.length) || j.intent === 'back';
+        if (typeof s.onWords === 'function') { try { s.onWords(text); } catch (_) {} }
+        if (wantsEdit && typeof s.apply === 'function') {
+          try { applied = Number(s.apply(j, sent)) || 0; }
+          catch (e) { console.error('[Robes] look prompt apply', e); }
+        }
+        s.thread.push({ who: 'robes', text: (j.intent === 'back' && !applied) ? _RB_LP_COPY.doneNone : reply });
+        if (j.rule && typeof s.onRule === 'function') {
+          let filed = false;
+          try { filed = !!s.onRule(String(j.rule)); } catch (e) { console.error('[Robes] look prompt rule', e); }
+          if (filed) { s.thread.push({ who: 'filed', text: 'Filed to your style notes.' }); _rbTrack('look_prompt_rule_filed', { rule_text: String(j.rule).slice(0, 160) }); }
+        }
+        if (j.draft && String(j.draft).trim()) { s.text = String(j.draft).trim().slice(0, 240); s.draftText = s.text; s.draft = true; }
+        // The placeholder follows what STANDS changed — a put-back that
+        // restores everything hands the opener's line back.
+        let standing = null; if (typeof s.changed === 'function') { try { standing = s.changed() || 0; } catch (_) { standing = null; } }
+        s.applied = standing === null ? (s.applied || 0) + applied : standing;
+        if (applied) _rbTrack('look_prompt_applied', { surface: s.surface, intent: j.intent || null, slots: applied });
+        _rbTrack('look_prompt_sent', { surface: s.surface, intent: j.intent || null, chars: text.length, from_draft: fromDraft });
+        // Every line is a verdict (the brief) — it lands in the memory with
+        // the look it was about.
+        try { _rbMemoryPush({ k: 'ask', on: String(s.name || s.title || '').slice(0, 120), surface: s.surface, text }); } catch (_) {}
+        _rbLpSync(true);
+        try { const ta = document.getElementById('rb-lp-in'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } } catch (_) {}
+      };
+      // The rack row's note under the box: "Just changed · was {old}" in
+      // rose until she saves or puts it back, and how the piece is worn.
+      function _rbLpNoteHtml(key, was, styled) {
+        let h = '';
+        const w = was && key != null ? was[key] : null;
+        if (w && w.name) h += '<div class="rbc-hownote rb-lp-was">Just changed · was ' + _waEsc(w.name) + '</div>';
+        const st = styled && key != null ? styled[key] : null;
+        if (st) h += '<div class="rbc-hownote rb-lp-styled">' + _waEsc(st) + '</div>';
+        return h;
+      }
+      // A standing rule she typed ("remember that I don't like grey") files
+      // straight to her brief's rules — her own words need no confirm
+      // (source 'typed', slice A's data); the next generation reads it.
+      function _rbBriefRulePush(text) {
+        const t = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+        if (!t || !_waUid() || !_waToken()) return false;
+        const prof = window.__robes_profile || (window.__robes_profile = {});
+        const dna = Object.assign({}, prof.style_dna && typeof prof.style_dna === 'object' ? prof.style_dna : {});
+        const brief = Object.assign({ loves: [], avoids: [], rules: [], notes: '', colours: { loved: [], rejected: [] }, struck: [], source: 'drafted' }, dna.brief && typeof dna.brief === 'object' ? dna.brief : {});
+        const rules = Array.isArray(brief.rules) ? brief.rules.slice() : [];
+        const txt = r => String((r && typeof r === 'object') ? r.text : r || '').trim().toLowerCase();
+        if (rules.some(r => txt(r) === t.toLowerCase())) return true;
+        rules.push({ text: t, source: 'typed', at: new Date().toISOString() });
+        brief.rules = rules.slice(-8);
+        brief.source = 'edited';
+        brief.updated_at = new Date().toISOString();
+        dna.brief = brief;
+        prof.style_dna = dna;
+        _waFetch('PATCH', 'profiles?id=eq.' + _waUid(), { style_dna: dna })
+          .catch(e => console.warn('[robes] brief rule write failed:', String(e && e.message || e).slice(0, 120)));
+        _rbTrack('brief_line', { verb: 'add', list: 'rules', source: 'prompt' });
+        return true;
+      }
+      window._rbBriefRulePush = _rbBriefRulePush;
+      // The wardrobe as a pool the endpoint swaps from — compact, capped.
+      function _rbLpPoolWardrobe() {
+        return { kind: 'wardrobe', items: (_waItems || []).slice(0, 80).map(w => ({ id: String(w.id), label: w.label, category: w.category || '', color: w.color || '', brand: w.brand || '' })) };
+      }
+      function _rbLpContext(o) {
+        const rc = window.__rbCtx || {};
+        const out = {};
+        if (o && o.date) { out.date = o.date; try { out.day = new Date(o.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }); } catch (_) {} }
+        const wx = o && o.weather ? o.weather : [rc.tempRange, rc.condition].filter(Boolean).join(', ');
+        if (wx) out.weather = wx;
+        if (o && o.occasion) out.occasion = String(o.occasion).slice(0, 80);
+        if (o && o.trip) out.trip = String(o.trip).slice(0, 80);
+        return out;
       }
       // The wait behind an adjustment — the generation overlay every
       // submit already uses, titled for the ask.
@@ -8379,24 +8566,8 @@
           '<button type="button" class="kp-sheet-cta" onclick="window.__kpSheetClose(\'kp-sheet\');window.__kpBuildLook(' + i + ')">' + (built ? 'Open the look' : 'Build this look') + '</button>' +
           // Style it another way (slice C): her words re-write THIS way
           // alone; a way already built into a look keeps its look.
-          (!built ? '<button type="button" class="kp-sheet-quiet" onclick="window.__kpSheetClose(\'kp-sheet\');window.__kpAskOpen(' + i + ')">Style it another way →</button>' : ''));
+          (!built ? _rbLpFieldHtml({ onclick: "window.__kpSheetClose('kp-sheet');window.__kpLpOpen(" + i + ")", cls: 'kp-sheet-field' }) : ''));
         _rbTrack('kp_sheet_opened', { way: String(i), pieces: pieces.length });
-      };
-      window.__kpAskOpen = function(i) {
-        const c = _kpBuildCtx, w = c && c.ways && c.ways[i];
-        if (!w) return;
-        const pieces = (Array.isArray(w.pieces) ? w.pieces : []).map(p => ({ name: p.name, category: p.category || '', owned: !!p.wardrobe_match, keep: false }));
-        const cur = {
-          title: String(w.title || '').replace(/\.$/, ''), eyebrow: String(w.eyebrow || ''), pieces,
-          others: c.ways.filter((x, j) => j !== i).map(x => String(x.title || '').replace(/\.$/, '')),
-        };
-        _rbAsk({
-          surface: 'key-piece',
-          eyebrow: cur.title || 'This look',
-          chips: _rbAskChipsFor(pieces, ['Dressier', 'Easier', 'Colder day', 'For the evening']),
-          note: 'The other two looks stay.',
-          onSend: function(r) { _kpAskRefine(i, r.words, cur); },
-        });
       };
       // ONE way re-written: /api/style with refine + wayIndex answers one
       // way and one frame at that way's slot; the other two ride untouched,
@@ -12008,6 +12179,7 @@
               note: l.note || '', photo_url: l.photo_url || null,
               render_url: l.render_url || null, render_key: l.render_key || null,
               proposals: Array.isArray(l.proposals) ? l.proposals : null,
+              styling: (l.styling && typeof l.styling === 'object') ? l.styling : null,
               source: l.source || 'wear', origin_look_id: l.origin_look_id || null,
               created_at: l.created_at, pieces: [], wears: [],
             };
@@ -12137,6 +12309,9 @@
       // build's proposals live in the local cache only (the _lkRoleCol
       // degrade family).
       var _lkPropCol = true;
+      // looks.styling (migration 24, phase 2) — how a piece is worn, by
+      // piece id; stripped on PGRST204 until the column exists.
+      var _lkStylingCol = true;
       function _lkPushCloud(l) {
         if (_lkDown || !_waUid()) return;
         const mk = withProps => {
@@ -12162,6 +12337,11 @@
         };
         _waFetch('POST', 'looks', mk(_lkPropCol)).then(after).catch(e => {
           const t = String(e && e.message || e);
+          if (/PGRST204/.test(t) && /styling/.test(t)) {
+            _lkStylingCol = false;
+            _waFetch('POST', 'looks', mk(_lkPropCol)).then(after).catch(e2 => _lkGuard(e2, 'create'));
+            return;
+          }
           if (/PGRST204/.test(t) && /proposals/.test(t)) {
             _lkPropCol = false;
             _waFetch('POST', 'looks', mk(false)).then(after).catch(e2 => _lkGuard(e2, 'create'));
@@ -12203,6 +12383,7 @@
         if (_lkDown || !_waUid() || (l && l._draft)) return;
         const body = Object.assign({ updated_at: new Date().toISOString() }, patch);
         if (!_lkPropCol) delete body.proposals;
+        if (!_lkStylingCol) delete body.styling;
         if (!_lkRenderCol) { delete body.render_url; delete body.render_key; }
         _waFetch('PATCH', 'looks?id=eq.' + l.id + '&user_id=eq.' + _waUid(), body)
           .catch(e => {
@@ -12213,6 +12394,11 @@
               _waFetch('PATCH', 'looks?id=eq.' + l.id + '&user_id=eq.' + _waUid(), retry)
                 .catch(e2 => _lkGuard(e2, 'patch'));
             };
+            if (/PGRST204/.test(t) && /styling/.test(t)) {
+              _lkStylingCol = false;
+              retryWithout(['styling']);
+              return;
+            }
             if (/PGRST204/.test(t) && /proposals/.test(t)) {
               _lkPropCol = false;
               retryWithout(['proposals']);
@@ -12287,12 +12473,13 @@
           // ride as references, so an aspirational look (1 yours, 3 to
           // find) still gets her photograph.
           const props = _lkLookPropGarments(l);
+          const styling = (l.styling && typeof l.styling === 'object') ? l.styling : {};
           const key = avatarId + '|' + (l.pieces || []).map(p => String(p.id)).sort().join(',') +
-            (props.length ? '|p:' + _lkmPKey(props) : '');
+            (props.length ? '|p:' + _lkmPKey(props) : '') + _lkmStyledSig(styling);
           if (l.render_key === key && l.render_url) return;
           const garments = (l.pieces || []).map(p => {
             const wi = (_waItems || []).find(w => String(w.id) === String(p.id));
-            return wi ? { name: wi.label, category: wi.category, color: wi.color, brand: wi.brand, image_url: _pdHttp(wi.image_url) } : null;
+            return wi ? { name: wi.label, category: wi.category, color: wi.color, brand: wi.brand, image_url: _pdHttp(wi.image_url), styled: styling[String(p.id)] || undefined } : null;
           }).filter(Boolean).concat(props);
           if (garments.length < 1 || garments.length > 12) return;
           _avBusy[l.id] = true;
@@ -12346,6 +12533,7 @@
           render_url: o.render_url || null,
           render_key: o.render_key || null,
           proposals: o.proposals || null,
+          styling: (o.styling && typeof o.styling === 'object' && Object.keys(o.styling).length) ? o.styling : null,
           tags: o.tags || null,
           // ADR-002: climate is a column, derived-with-override. A new look
           // starts 'derived' so it re-derives as her pieces get banded.
@@ -12778,6 +12966,7 @@ button.rb-lk-live{cursor:pointer}
 #rb-lk-grid .rb-lk-drafttile{border:1.5px dashed var(--rule-mid);background:var(--cream-100)}
 .rb-lk-drafttile .rb-lk-draftmos{width:104px;margin-bottom:6px}
 .rb-lk-drafttile .rb-lk-draftmos .rb-lk-mos{border-radius:3px}
+.rb-lk-lpfield{margin-top:16px}
 .rb-lk-draftmeta{margin-top:4px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
 .rb-lk-pick{display:flex;gap:10px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
 .rb-lk-pick::-webkit-scrollbar{width:0;height:0}
@@ -13522,7 +13711,14 @@ button.rb-lk-live{cursor:pointer}
                 : `<div style="width:100%;height:100%;background:${_waEsc(tone || 'var(--cream-200)')}"></div>`,
             },
             subHtml: _rbcProvenance({ wardrobe_match: true }),
-            noteHtml: '',
+            // The box's notes: a change not yet saved (rose), how the piece
+            // is worn (the draft's, else the look's own styling).
+            noteHtml: (() => {
+              const d = (_lkDraft && String(_lkDraft.lookId) === String(l.id)) ? _lkDraft : null;
+              if (d) return _rbLpNoteHtml((entries[idx] || {}).key, d.was, d.styled);
+              const st = l.styling && typeof l.styling === 'object' ? l.styling[String(wi.id)] : null;
+              return st ? '<div class="rbc-hownote rb-lp-styled">' + _waEsc(st) + '</div>' : '';
+            })(),
             count: { cur: Math.max(0, opts.findIndex(o => String(o.id) === String(id))), len: Math.max(1, opts.length) },
           };
         });
@@ -13985,9 +14181,14 @@ button.rb-lk-live{cursor:pointer}
           // No flick on a proposal (Annie, 2026-08-17: the cluster is
           // reserved for pieces she owns — a suggestion is never flicked
           // into another suggestion). Swap stays the one way out.
-          html: _lkPropRowHtml(row, i, _lkPropDetailFrame(row), { swap: '__lkPropSwap', save: '__lkPropSave' }),
+          html: _lkPropRowHtml(row, i, _lkPropDetailFrame(row), { swap: '__lkPropSwap', save: '__lkPropSave' },
+            (_lkDraft && String(_lkDraft.lookId) === String(l.id)) ? { was: _lkDraft.was, styled: _lkDraft.styled } : null),
         }));
         const rackEmpty = ownedNone && !props.length;
+        // The look prompt's door (phase 2): the field under the look, in
+        // both moods — every edit it makes lands on the draft.
+        const lpDraft = (_lkDraft && String(_lkDraft.lookId) === String(l.id)) ? _lkDraft : null;
+        const lpField = rackEmpty ? '' : _rbLpFieldHtml({ onclick: "window.__lkLpOpen('look')", changed: !!(lpDraft && lpDraft.was && Object.keys(lpDraft.was).length), cls: 'rb-lk-lpfield' });
 
         if (editing) {
           // ── EDITING — the composer's frame (Robes_Create_Edit_Look_IA).
@@ -13998,19 +14199,16 @@ button.rb-lk-live{cursor:pointer}
             onRoleAdd: '__lkDAddOpen', allStrips: true, roleHints: true, onPiece: '__lkPieceOpen' };
           const line = draft
             ? (dirty
-                ? (dirty === 1 ? 'One change' : dirty + ' changes') + ' to this look, not yet saved. Save it and the trip wears it as it stands here.'
+                ? ((_lkDraft && _lkDraft.refined) ? 'Adjusted — “' + _lkDraft.refined + '”. Not yet saved — save it and the trip wears it as it stands here.'
+                  : (dirty === 1 ? 'One change' : dirty + ' changes') + ' to this look, not yet saved. Save it and the trip wears it as it stands here.')
                 : 'Not in your Lookbook yet. Save it and it keeps its wears; discard and the trip keeps the look as Robes styled it.')
             : (_lkDraft && String(_lkDraft.lookId) === String(l.id) && _lkDraft.refined)
             ? 'Adjusted — “' + _lkDraft.refined + '”.' + (n ? ' Its ' + _lkN(n, 'wear') + ' stay with it if you update.' : ' Update to keep it, or discard.')
             : dirty
             ? (dirty === 1 ? 'One change' : dirty + ' changes') + ' to this look.' + (n ? ' Its ' + _lkN(n, 'wear') + ' stay with it if you update.' : '')
             : 'No changes yet. Swap, add or take a piece out and this line tells you what happens to its wear.';
-          h += '<div class="rb-lk-held rb-lk-editing"><div class="rb-lk-con"><div>' + lookPanel + '</div><div>' +
-            '<div class="rb-lk-sec rb-lk-rackhead"><span>The rack · ' + _lkN(ids.length, 'piece') + '</span>' +
-              // A trip draft only ever edits, so its ask door sits on the
-              // editing head (the reading head never renders for it).
-              (draft && !rackEmpty ? '<span style="flex:1"></span><button type="button" class="rb-lk-sort rb-lk-editbtn rb-lk-askdoor" onclick="window.__lkAskOpen(\'look\')">Adjust with words</button>' : '') +
-            '</div>' +
+          h += '<div class="rb-lk-held rb-lk-editing"><div class="rb-lk-con"><div>' + lookPanel + lpField + '</div><div>' +
+            '<div class="rb-lk-sec rb-lk-rackhead"><span>The rack · ' + _lkN(ids.length, 'piece') + '</span></div>' +
             '<div class="rbc-rack">' + _rbRackRolesHtml(items, rackCfg, propEmpties) + '</div>' +
             '<button class="rbc-addpiece" onclick="window.__lkDAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>' +
             _lkLivesHtml(l) +
@@ -14039,7 +14237,7 @@ button.rb-lk-live{cursor:pointer}
           : '';
         // The look and the rack in ONE held card — the composer's and the
         // day's container (Annie, 2026-09-08: the loose columns read broken).
-        h += '<div class="rb-lk-held"><div class="rb-lk-con"><div>' + lookPanel + photoNote + '</div><div>';
+        h += '<div class="rb-lk-held"><div class="rb-lk-con"><div>' + lookPanel + photoNote + lpField + '</div><div>';
         // The rack READS: each row carries the piece's own wear count where
         // the flick cluster and Swap sit once she asks to edit. The wear
         // count is INFORMATION, not an action — its own class.
@@ -14074,7 +14272,6 @@ button.rb-lk-live{cursor:pointer}
           // The edit door stands on an EMPTY rack too (Annie, 2026-09-25): a
           // look saved from her photograph with only a name is exactly the
           // one she comes back to, to hang the pieces she wore.
-          (!rackEmpty ? '<button type="button" class="rb-lk-sort rb-lk-editbtn rb-lk-askdoor" onclick="window.__lkAskOpen(\'look\')">Adjust with words</button>' : '') +
           '<button type="button" class="rb-lk-sort rb-lk-editbtn" onclick="window.__lkEditToggle()">Edit &amp; resave</button>' +
           '</div>' +
           fillDoor +
@@ -14218,7 +14415,7 @@ button.rb-lk-live{cursor:pointer}
                 : `<div style="width:100%;height:100%;background:${_waEsc(tone || 'var(--cream-200)')}"></div>`,
             },
             subHtml: _rbcProvenance({ wardrobe_match: true }),
-            noteHtml: '',
+            noteHtml: _rbLpNoteHtml(r.key, _lkDraftWas, _lkDraftStyled),
             // No image carousel on an unsaved Robes build — it belongs to
             // the saved card, so the row offers one option: this piece.
             count: _lkBuilt ? { cur: 0, len: 1 } : { cur, len: Math.max(1, opts.length) },
@@ -14279,7 +14476,7 @@ button.rb-lk-live{cursor:pointer}
       // (icon included) and Save cluster, provenance in the same register
       // (Annie, 2026-08-13 second pass: "a template following the exact
       // same rules as the prompt generated"). Never a bespoke shop card.
-      function _lkPropRowHtml(row, i, frameInner, fns) {
+      function _lkPropRowHtml(row, i, frameInner, fns, lp) {
         const a = row.opts[row.oi] || {};
         return _rbcRow({
           idx: i,
@@ -14289,7 +14486,7 @@ button.rb-lk-live{cursor:pointer}
           owned: false, anchored: false, isNew: true,
           frame: { pollAttr: '', inner: frameInner },
           subHtml: _rbcProvenance(a),
-          noteHtml: a.how ? '<div class="rbc-hownote">' + _waEsc(a.how) + '</div>' : '',
+          noteHtml: (a.how ? '<div class="rbc-hownote">' + _waEsc(a.how) + '</div>' : '') + _rbLpNoteHtml(row.key, lp && lp.was, lp && lp.styled),
           thirdHtml: row.saved
             ? '<span class="rbc-act done">' + _rbcCheckSvg + ' Saved</span>'
             : '<button class="rbc-act save" onclick="window.' + fns.save + '(' + i + ')">Save</button>',
@@ -14317,7 +14514,7 @@ button.rb-lk-live{cursor:pointer}
       function _lkBuildEmpties() {
         const out = [];
         _lkShop.forEach((row, i) => {
-          out.push({ role: row.role, html: _lkPropRowHtml(row, i, _lkShopFrame(i, row.chip), { swap: _lkKpHost ? '__kpShopSwap' : '__lkShopSwap', save: '__lkShopSave' }) });
+          out.push({ role: row.role, html: _lkPropRowHtml(row, i, _lkShopFrame(i, row.chip), { swap: _lkKpHost ? '__kpShopSwap' : '__lkShopSwap', save: '__lkShopSave' }, { was: _lkDraftWas, styled: _lkDraftStyled }) });
         });
         // A slot Robes could fill from nothing — say so, and offer the way in.
         _lkBuildGaps.forEach(role => {
@@ -14394,7 +14591,9 @@ button.rb-lk-live{cursor:pointer}
       function _lkmPKey(props) { return (props && props.length) ? props.map(o => o.name).sort().join('~') : ''; }
       function _lkmKey(ids, props) {
         const pk = _lkmPKey(props);
-        return (_lkModel ? _lkModel.id : '') + '|' + ids.map(String).sort().join(',') + (pk ? '|p:' + pk : '');
+        // How a piece is worn is part of the composition (phase 2): a tuck
+        // re-renders once, like a swap.
+        return (_lkModel ? _lkModel.id : '') + '|' + ids.map(String).sort().join(',') + (pk ? '|p:' + pk : '') + _lkmStyledSig(_lkLpStyledById(ids));
       }
       // One reader of a proposal row, whatever holds it — the composer's
       // _lkShop (stills in _lkShopImgs) or a saved look's looks.proposals
@@ -14432,7 +14631,8 @@ button.rb-lk-live{cursor:pointer}
         if (!_lkmShown) _lkmShown = url;
       }
       function _lkmGarments(items) {
-        return items.map(wi => ({ name: wi.label, category: wi.category, color: wi.color, brand: wi.brand, image_url: _pdHttp(wi.image_url) }))
+        const sm = _lkLpStyledById(items.map(wi => wi.id));
+        return items.map(wi => ({ name: wi.label, category: wi.category, color: wi.color, brand: wi.brand, image_url: _pdHttp(wi.image_url), styled: sm[String(wi.id)] || undefined }))
           .filter(g => g.name);
       }
       // Poll the standard image job: first read at once, then every 4s, 180s ceiling.
@@ -15129,7 +15329,6 @@ button.rb-lk-live{cursor:pointer}
               // Adjust with words (slice C): the ask sheet over the draft —
               // her words re-run the generator behind it with the look as
               // it stands; nothing is written until she saves.
-              '<span class="sep"></span><button type="button" class="rb-lk-quiet rb-lk-askdoor" onclick="window.__lkAskOpen(\'composer\')">Adjust with words</button>' +
               '<span class="sep"></span><button type="button" class="rb-lk-quiet rb-lk-discard" onclick="window.__lkComposerDiscard()">Discard</button>' +
             '</div>'
           : (!_lkBuilding && !_lkDraftEmptyNow()
@@ -15158,7 +15357,10 @@ button.rb-lk-live{cursor:pointer}
           '<button type="button" class="rb-lk-save' + (named ? '' : ' unnamed') + '" onclick="window.__lkSaveAsk()"' +
             (canSave ? '' : ' disabled') + '>' + (_lkDay ? 'Save to ' + _waEsc(_lkDay.date ? _lkDayWeekday(_lkDay.date) : 'the trip') : 'Save this look') + '</button>' +
           foot + robesDoor +
-          '</div>';
+          '</div>' +
+          // The look prompt's door (phase 2): the field under Save — the one
+          // way to change the draft in words. Never while it is building.
+          ((!_lkBuilding && !_lkDraftEmptyNow()) ? _rbLpFieldHtml({ onclick: "window.__lkLpOpen('composer')", changed: Object.keys(_lkDraftWas).length, cls: 'rb-lk-lpfield' }) : '');
         // A look Robes generated carries the feedback line under its foot
         // (design Look_Feedback 2a, 2026-09-17) — a prompted /api/daily
         // draft, a key piece's way built in situ, a Robes build. Keyed on
@@ -15349,7 +15551,8 @@ button.rb-lk-live{cursor:pointer}
         const t = _lkTripCtx(l);
         const pieces = _lkDraftPieces(l).map((p, i) => ({ id: p.id, slot: p.slot || null, position: i, role: p.role || null }));
         const ids = pieces.map(p => p.id);
-        const props = Array.isArray(l.proposals) ? l.proposals : [];
+        const props = (_lkDraft && String(_lkDraft.lookId) === String(l.id) && Array.isArray(_lkDraft.proposals))
+          ? _lkDraft.proposals : (Array.isArray(l.proposals) ? l.proposals : []);
         if (!ids.length && !props.length) { _waShowToast('Add a piece and this look is yours to keep'); return; }
         const name = String((_lkTitleDraft != null ? _lkTitleDraft : l.name) || '').trim() || l.name;
         const slots = {}, roles = {};
@@ -15951,6 +16154,12 @@ button.rb-lk-live{cursor:pointer}
           _lkPatch(l.id, { proposals: l.proposals });
         }
         _lkCommitPieces(l, draft.pieces);
+        if (draft.styled && Object.keys(draft.styled).length) {
+          const st = Object.assign({}, (l.styling && typeof l.styling === 'object') ? l.styling : {});
+          draft.pieces.forEach(p => { if (p.key && draft.styled[p.key]) st[String(p.id)] = draft.styled[p.key]; });
+          l.styling = st;
+          _lkPatch(l.id, { styling: st });
+        }
         if (draft.note) { l.note = draft.note; _lkPatch(l.id, { note: l.note }); }
         const tctx = _lkTripCtx(l);
         if (tctx && !l._draft && draft.refined) _lkTripRelink(tctx, l, draft.proposals || []);
@@ -16546,201 +16755,375 @@ button.rb-lk-live{cursor:pointer}
         window.__lkRobesBuild({ mineOnly: !!_lkBuildMine, door: 'again' });
       };
 
-      // ── Adjust with words (style memory slice C, 2026-09-30) ──────────
-      // The composer's draft: the ask re-runs the generator behind it (the
-      // daily engine for a prompted look or a kp way, through the draft's
-      // own `refine` hook) with the look as it stands and her words. A Robes
-      // build has no generator behind it — the daily engine takes the rack
-      // with her words and lands back here (loose unless the draft has a
-      // day). Nothing is written until she saves.
-      function _lkComposerCurrent() {
-        const pieces = _lkUsed().map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean)
-          .map(w => ({ name: w.label, category: w.category || '', owned: true, keep: false }));
-        _lkShop.forEach(row => { const nm = _lkPropName(row); if (nm) pieces.push({ name: nm, category: (row.cats || [])[0] || row.chip || '', owned: false, keep: false }); });
-        return { pieces };
-      }
-      window.__lkAskOpen = function(kind) {
-        if (kind === 'look') return _lkAskLookOpen();
-        const cur = _lkComposerCurrent();
-        _rbAsk({
-          surface: 'composer',
-          eyebrow: String(_lkNewTitleDraft || '').trim() || 'This look',
-          chips: _rbAskChipsFor(cur.pieces, ['Warmer', 'Softer', 'Sharper', 'More me', 'Less polite']),
-          note: 'Your own pieces stay unless you name them.',
-          onSend: function(r) {
-            if (_lkDraftSrc && typeof _lkDraftSrc.refine === 'function') { _lkDraftSrc.refine(r.words, cur); return; }
-            const prompt = String(_lkNewTitleDraft || '').trim() || 'A look from my wardrobe';
-            const day = _lkDay && _lkDay.date ? _lkDay.date : null;
-            window.__dlSubmit(prompt, { refine: r.words, current: cur, loose: !day, anchorDate: day || undefined, sameDraft: true });
-          },
+      // ── The look prompt on the composer and the saved look (phase 2) ──
+      // The rack as the endpoint reads it: one entry per row, in order,
+      // keyed so an edit can land on the row it names. The composer's rows
+      // are _lkRows (owned) then _lkShop (proposals); a proposal row earns
+      // a key the first time it is read.
+      var _lkPropSeq = 0;
+      function _lkLpRackComposer() {
+        const out = [];
+        _lkVisibleRows().forEach(r => {
+          if (!r.piece) return;
+          const wi = _waItems.find(w => String(w.id) === String(r.piece));
+          if (!wi) return;
+          out.push({ key: r.key, name: wi.label, category: wi.category || '', owned: true, id: String(wi.id), keep: false,
+            was: _lkDraftWas[r.key] ? _lkDraftWas[r.key].name : undefined, styled: _lkDraftStyled[r.key] || undefined });
         });
-      };
-      // The saved look page: the words go to /api/look/refine (or, on a
-      // trip, to /api/travel/looks held to the case) and the answer lands as
-      // the look's EDIT DRAFT — the change bar (Discard · Save as a new look
-      // · Update) is the way out, exactly as a hand edit.
-      function _lkLookCurrent(l) {
-        const pieces = _lkDraftPieces(l).map(p => _waItems.find(w => String(w.id) === String(p.id))).filter(Boolean)
-          .map(w => ({ name: w.label, category: w.category || '', owned: true, keep: false }));
-        const props = (_lkDraft && String(_lkDraft.lookId) === String(l.id) && Array.isArray(_lkDraft.proposals))
-          ? _lkDraft.proposals : (Array.isArray(l.proposals) ? l.proposals : []);
-        props.forEach(row => { const nm = _lkPropName(row); if (nm) pieces.push({ name: nm, category: (row.cats || [])[0] || row.chip || '', owned: false, keep: false }); });
-        return { pieces };
+        _lkShop.forEach(row => {
+          if (!row.key) row.key = 'p' + (++_lkPropSeq) + Date.now().toString(36);
+          const a = row.opts[row.oi] || {};
+          if (!a.name) return;
+          out.push({ key: row.key, name: a.name, category: (row.cats || [])[0] || row.chip || '', owned: false, keep: false,
+            was: _lkDraftWas[row.key] ? _lkDraftWas[row.key].name : undefined, styled: _lkDraftStyled[row.key] || undefined });
+        });
+        return out.map((e, i) => Object.assign({ i }, e));
       }
-      function _lkAskLookOpen() {
+      function _lkSlotForCat(cat) {
+        return Object.keys(_LK_SLOTS).find(s => (_LK_SLOTS[s].cats || []).indexOf(cat) > -1) || 'Accessory';
+      }
+      // Resolve a swap target the endpoint named: a pool piece by index
+      // (owned → {id}; a capsule entry she does not own → {prop, ci}), or a
+      // new piece with its provenance.
+      function _lkLpResolve(to, pool) {
+        if (!to) return null;
+        if (Number.isInteger(to.pool_index) && to.pool_index >= 0) {
+          const it = ((pool && pool.items) || [])[to.pool_index];
+          if (!it) return null;
+          if (it.id) return { id: String(it.id), label: it.label, category: it.category || '' };
+          return { prop: { name: it.label, brand: it.brand || '', retailer_hint: it.retailer_hint || '', price_point: it.price_point || '', how: '' }, ci: it.ci, category: it.category || '' };
+        }
+        if (to.name) return { prop: { name: String(to.name), brand: to.brand || '', retailer_hint: to.retailer_hint || '', price_point: to.price_point || '', how: '' }, category: to.category || '' };
+        return null;
+      }
+      function _lkLpApplyComposer(j, sent) {
+        const rack = (sent && sent.rack) || [], pool = sent && sent.pool;
+        let n = 0;
+        const owned = () => _lkUsed().map(String);
+        const propA = p => ({ name: p.name, brand: p.brand || '', retailer_hint: p.retailer_hint || '', price_point: p.price_point || '', how: p.how || '' });
+        (Array.isArray(j.swaps) ? j.swaps : []).forEach(sw => {
+          const e = rack[sw.i]; if (!e || e.keep) return;
+          const to = _lkLpResolve(sw.to, pool); if (!to) return;
+          if (to.id) {
+            const wi = _waItems.find(w => String(w.id) === to.id); if (!wi) return;
+            if (owned().indexOf(to.id) > -1) return;
+            if (e.owned) {
+              const row = _lkRows.find(r => r.key === e.key); if (!row) return;
+              if (!_lkDraftWas[e.key]) _lkDraftWas[e.key] = { id: e.id, name: e.name };
+              row.piece = wi.id;
+              if (_lkNewRoles[e.id] && !_lkNewRoles[String(wi.id)]) _lkNewRoles[String(wi.id)] = _lkNewRoles[e.id];
+            } else {
+              const k = _lkShop.findIndex(r => r.key === e.key); if (k < 0) return;
+              const srow = _lkShop[k];
+              if (!_lkDraftWas[e.key]) _lkDraftWas[e.key] = { prop: srow.opts[srow.oi], name: e.name, role: srow.role, chip: srow.chip, cats: srow.cats };
+              _lkShop.splice(k, 1); _lkShopImgs.splice(k, 1);
+              let row = _lkRows.find(r => !r.piece && (_LK_SLOTS[r.slot] || _LK_SLOTS.Accessory).cats.indexOf(wi.category) > -1);
+              if (row) { row.key = e.key; row.piece = wi.id; }
+              else _lkRows.push({ key: e.key, slot: _lkSlotForCat(wi.category), piece: wi.id });
+              if (srow.role) _lkNewRoles[String(wi.id)] = srow.role;
+            }
+            _rbMemorySwap('look-prompt', e.name, wi.label, wi.category);
+            _rbTrack('piece_swapped', { surface: 'look-prompt', item: String(wi.id), out: e.name, in: wi.label, cat: wi.category || '' });
+            n++;
+          } else if (to.prop) {
+            const a = propA(to.prop);
+            const cat = to.category || e.category || 'Other';
+            if (e.owned) {
+              const row = _lkRows.find(r => r.key === e.key); if (!row) return;
+              if (!_lkDraftWas[e.key]) _lkDraftWas[e.key] = { id: e.id, name: e.name, slot: row.slot };
+              row.piece = null;
+              _lkShop.push({ key: e.key, role: _lkNewRoles[e.id] || 'The Canvas', chip: _dlSlot({ category: cat }).l, cats: [cat], opts: [a], oi: 0, saved: false, _ci: to.ci });
+              _lkShopImgs.push(null);
+            } else {
+              const k = _lkShop.findIndex(r => r.key === e.key); if (k < 0) return;
+              const srow = _lkShop[k];
+              if (!_lkDraftWas[e.key]) _lkDraftWas[e.key] = { prop: srow.opts[srow.oi], name: e.name, role: srow.role, chip: srow.chip, cats: srow.cats };
+              srow.opts = [a].concat(srow.opts); srow.oi = 0; srow._ci = to.ci;
+              _lkShopImgs[k] = null;
+            }
+            n++;
+          }
+        });
+        const backKeys = (j.intent === 'back' && !(Array.isArray(j.back) && j.back.length))
+          ? Object.keys(_lkDraftWas)
+          : (Array.isArray(j.back) ? j.back : []).map(i => rack[i] && rack[i].key).filter(Boolean);
+        backKeys.forEach(key => {
+          const w = _lkDraftWas[key]; if (!w) return;
+          if (w.id) {
+            const k = _lkShop.findIndex(r => r.key === key); if (k >= 0) { _lkShop.splice(k, 1); _lkShopImgs.splice(k, 1); }
+            if (owned().indexOf(String(w.id)) < 0) {
+              const row = _lkRows.find(r => r.key === key);
+              if (row) row.piece = w.id; else _lkRows.push({ key, slot: w.slot || _lkSlotForCat((_waItems.find(x => String(x.id) === String(w.id)) || {}).category), piece: w.id });
+            }
+          } else if (w.prop) {
+            const row = _lkRows.find(r => r.key === key); if (row) row.piece = null;
+            const sr = _lkShop.find(r => r.key === key);
+            if (sr) { sr.opts = [w.prop].concat(sr.opts.filter(o => o !== w.prop)); sr.oi = 0; _lkShopImgs[_lkShop.indexOf(sr)] = null; }
+            else { _lkShop.push({ key, role: w.role || 'The Canvas', chip: w.chip || 'Piece', cats: w.cats || ['Other'], opts: [w.prop], oi: 0, saved: false }); _lkShopImgs.push(null); }
+          }
+          delete _lkDraftWas[key];
+          n++;
+        });
+        if (backKeys.length) _rbTrack('look_prompt_reversed', { surface: 'composer', slots: backKeys.length });
+        (Array.isArray(j.styled) ? j.styled : []).forEach(st => {
+          const e = rack[st.i]; if (!e || !st.note) return;
+          _lkDraftStyled[e.key] = String(st.note).slice(0, 120); n++;
+        });
+        if (_lkShop.length && !_lkBuilt) _lkBuilt = true;
+        if (_lkShop.some((r, i) => !_lkShopImgs[i])) _lkShopImages(true);
+        _lkRepaint();
+        return n;
+      }
+      // How-it's-worn by piece id, for the render — the composer's draft,
+      // a saved look's edit draft, or the saved look's own styling.
+      function _lkLpStyledById(ids) {
+        const out = {};
+        const want = (ids || []).map(String);
+        try {
+          if (_lkView === 'new' && Object.keys(_lkDraftStyled).length) {
+            _lkRows.forEach(r => { if (r.piece && _lkDraftStyled[r.key] && want.indexOf(String(r.piece)) > -1) out[String(r.piece)] = _lkDraftStyled[r.key]; });
+            return out;
+          }
+          const l = _lkView !== 'new' && _lkActive != null ? _lkFind(_lkActive) : null;
+          if (l && _lkDraft && String(_lkDraft.lookId) === String(l.id) && _lkDraft.styled) {
+            (_lkDraft.pieces || []).forEach(p => { if (p.key && _lkDraft.styled[p.key] && want.indexOf(String(p.id)) > -1) out[String(p.id)] = _lkDraft.styled[p.key]; });
+            return out;
+          }
+          if (l && l.styling && typeof l.styling === 'object') want.forEach(id => { if (l.styling[id]) out[id] = l.styling[id]; });
+        } catch (_) {}
+        return out;
+      }
+      function _lkmStyledSig(map) {
+        const keys = Object.keys(map || {}).sort();
+        return keys.length ? '|s:' + keys.map(k => k + '=' + String(map[k]).slice(0, 60)).join('~') : '';
+      }
+      function _lkLpOpenComposer() {
+        if (_lkBuilding) return;
+        const name = String(_lkNewTitleDraft || '').trim() || 'This look';
+        _rbLookPrompt({
+          mode: 'look', surface: 'composer', title: name, name,
+          meta: 'Draft · not saved yet' + (_lkDay && _lkDay.date ? ' · ' + _lkFmtDay(_lkDay.date) : ''),
+          rack: _lkLpRackComposer, pool: _rbLpPoolWardrobe,
+          context: () => _rbLpContext({ date: _lkDay && _lkDay.date, occasion: _lkDraftSrc && _lkDraftSrc.src ? _lkDraftSrc.src.prompt : null }),
+          apply: _lkLpApplyComposer, onRule: _rbBriefRulePush,
+          changed: () => Object.keys(_lkDraftWas).length,
+        });
+      }
+      window.__lkLpOpen = function(kind) {
+        if (kind === 'look') return _lkLpOpenLook();
+        _lkLpOpenComposer();
+      };
+      // The saved look (and a trip's look): edits land on the EDIT DRAFT —
+      // the page opens editing on the first change, and the change bar
+      // (Discard · Save as a new look · Update) is the way out.
+      function _lkLpDraftArm(l) {
+        _lkDraftArm(l);
+        if (!Array.isArray(_lkDraft.proposals)) _lkDraft.proposals = (Array.isArray(l.proposals) ? l.proposals : []).map(r => Object.assign({}, r));
+        if (!_lkDraft.was) _lkDraft.was = {};
+        if (!_lkDraft.styled) _lkDraft.styled = {};
+        _lkDraft.pieces.forEach(p => { if (!p.key) p.key = 'o' + (++_lkPropSeq) + Date.now().toString(36); });
+        _lkDraft.proposals.forEach(r => { if (!r.key) r.key = 'p' + (++_lkPropSeq) + Date.now().toString(36); });
+        return _lkDraft;
+      }
+      function _lkLpRackLook(l) {
+        const d = _lkLpDraftArm(l);
+        const out = [];
+        d.pieces.forEach(p => {
+          const wi = _waItems.find(w => String(w.id) === String(p.id)); if (!wi) return;
+          out.push({ key: p.key, name: wi.label, category: wi.category || '', owned: true, id: String(wi.id), keep: false,
+            was: d.was[p.key] ? d.was[p.key].name : undefined, styled: d.styled[p.key] || (l.styling && l.styling[String(wi.id)]) || undefined });
+        });
+        d.proposals.forEach(r => {
+          const nm = _lkPropName(r); if (!nm) return;
+          out.push({ key: r.key, name: nm, category: (r.cats || [])[0] || r.chip || '', owned: false, keep: false,
+            was: d.was[r.key] ? d.was[r.key].name : undefined, styled: d.styled[r.key] || undefined });
+        });
+        return out.map((e, i) => Object.assign({ i }, e));
+      }
+      // On a trip the pool is the case alone — never the wardrobe.
+      function _lkLpPoolCapsule(t) {
+        return { kind: 'capsule', items: (t.data.capsule || []).map((c, ci) => ({
+          ci, id: c.wardrobe_match ? String(c.wardrobe_match.id) : null, label: c.name, category: c.category || '', color: (c.wardrobe_match && c.wardrobe_match.color) || '',
+          brand: c.brand || '', retailer_hint: c.retailer_hint || '', price_point: c.price_point || '', packed: !!c.packed,
+        })) };
+      }
+      function _lkLpApplyLook(l, j, sent, words) {
+        const rack = (sent && sent.rack) || [], pool = sent && sent.pool;
+        const d = _lkLpDraftArm(l);
+        let n = 0;
+        const ownedIds = () => d.pieces.map(p => String(p.id));
+        const propA = p => ({ name: p.name, brand: p.brand || '', retailer_hint: p.retailer_hint || '', price_point: p.price_point || '', how: p.how || '' });
+        (Array.isArray(j.swaps) ? j.swaps : []).forEach(sw => {
+          const e = rack[sw.i]; if (!e || e.keep) return;
+          const to = _lkLpResolve(sw.to, pool); if (!to) return;
+          if (to.id) {
+            const wi = _waItems.find(w => String(w.id) === to.id); if (!wi || ownedIds().indexOf(to.id) > -1) return;
+            if (e.owned) {
+              const p = d.pieces.find(x => x.key === e.key); if (!p) return;
+              if (!d.was[e.key]) d.was[e.key] = { id: e.id, name: e.name, slot: p.slot, role: p.role };
+              p.id = wi.id;
+            } else {
+              const k = d.proposals.findIndex(r => r.key === e.key); if (k < 0) return;
+              const r = d.proposals[k];
+              if (!d.was[e.key]) d.was[e.key] = { prop: r.opts[r.oi || 0], name: e.name, role: r.role, chip: r.chip, cats: r.cats, _ci: r._ci };
+              d.proposals.splice(k, 1);
+              d.pieces.push({ key: e.key, id: wi.id, slot: r.chip || wi.category || null, role: r.role || null });
+            }
+            _rbMemorySwap('look-prompt', e.name, wi.label, wi.category);
+            _rbTrack('piece_swapped', { surface: 'look-prompt', item: String(wi.id), out: e.name, in: wi.label, cat: wi.category || '' });
+            n++;
+          } else if (to.prop) {
+            const a = propA(to.prop);
+            const cat = to.category || e.category || 'Other';
+            if (e.owned) {
+              const k = d.pieces.findIndex(x => x.key === e.key); if (k < 0) return;
+              const p = d.pieces[k];
+              if (!d.was[e.key]) d.was[e.key] = { id: e.id, name: e.name, slot: p.slot, role: p.role };
+              d.pieces.splice(k, 1);
+              d.proposals.push({ key: e.key, role: p.role || 'The Canvas', chip: _dlSlot({ category: cat }).l, cats: [cat], opts: [a], oi: 0, img_oi: 0, saved: false, image_url: null, _ci: to.ci });
+            } else {
+              const r = d.proposals.find(x => x.key === e.key); if (!r) return;
+              if (!d.was[e.key]) d.was[e.key] = { prop: r.opts[r.oi || 0], name: e.name, role: r.role, chip: r.chip, cats: r.cats, _ci: r._ci };
+              r.opts = [a].concat(r.opts || []); r.oi = 0; r.img_oi = 0; r.image_url = null; r._ci = to.ci;
+            }
+            n++;
+          }
+        });
+        const backKeys = (j.intent === 'back' && !(Array.isArray(j.back) && j.back.length))
+          ? Object.keys(d.was)
+          : (Array.isArray(j.back) ? j.back : []).map(i => rack[i] && rack[i].key).filter(Boolean);
+        backKeys.forEach(key => {
+          const w = d.was[key]; if (!w) return;
+          if (w.id) {
+            const k = d.proposals.findIndex(r => r.key === key); if (k >= 0) d.proposals.splice(k, 1);
+            const p = d.pieces.find(x => x.key === key);
+            if (p) p.id = w.id; else if (ownedIds().indexOf(String(w.id)) < 0) d.pieces.push({ key, id: w.id, slot: w.slot || null, role: w.role || null });
+          } else if (w.prop) {
+            const k = d.pieces.findIndex(x => x.key === key); if (k >= 0) d.pieces.splice(k, 1);
+            const r = d.proposals.find(x => x.key === key);
+            if (r) { r.opts = [w.prop].concat((r.opts || []).filter(o => o !== w.prop)); r.oi = 0; r.img_oi = 0; r.image_url = null; r._ci = w._ci; }
+            else d.proposals.push({ key, role: w.role || 'The Canvas', chip: w.chip || 'Piece', cats: w.cats || ['Other'], opts: [w.prop], oi: 0, img_oi: 0, saved: false, image_url: null, _ci: w._ci });
+          }
+          delete d.was[key];
+          n++;
+        });
+        if (backKeys.length) _rbTrack('look_prompt_reversed', { surface: 'look', slots: backKeys.length });
+        (Array.isArray(j.styled) ? j.styled : []).forEach(st => {
+          const e = rack[st.i]; if (!e || !st.note) return;
+          d.styled[e.key] = String(st.note).slice(0, 120); n++;
+        });
+        if (n) { d.refined = String(words || '').slice(0, 120) || d.refined || 'in your words'; _lkEditMode = true; }
+        if (!_lkDraftChanges(l) && !Object.keys(d.styled).length && !Object.keys(d.was).length) { /* nothing stands — leave the draft armed, the bar reads no changes */ }
+        _lkPaint();
+        return n;
+      }
+      function _lkLpOpenLook() {
         const l = _lkFind(_lkActive);
         if (!l) return;
         const t = _lkTripCtx(l);
-        const cur = _lkLookCurrent(l);
-        if (!cur.pieces.length) { _waShowToast('Add a piece first — there is nothing to adjust yet'); return; }
-        const nm = String((_lkTitleDraft != null ? _lkTitleDraft : l.name) || '').trim();
-        if (t) {
-          _rbAsk({
-            surface: 'trip-look',
-            eyebrow: nm || String(t.l.occasion || 'This look'),
-            chips: _rbAskChipsFor(cur.pieces, ['Warmer', 'Cooler', 'Dressier', 'Fewer pieces']),
-            note: 'Held to the case — nothing outside what you packed.',
-            onSend: function(r) { _lkAskTrip(l, t, r.words, cur); },
-          });
-          return;
-        }
-        _rbAsk({
-          surface: 'look',
-          eyebrow: nm || 'Saved look',
-          chips: _rbAskChipsFor(cur.pieces, ['Warmer', 'Softer', 'Sharper', 'More me', 'Less polite']),
-          note: 'Nothing changes until you update or save.',
-          onSend: function(r) { _lkAskLook(l, r.words, cur); },
+        const nm = String((_lkTitleDraft != null ? _lkTitleDraft : l.name) || '').trim() || 'Saved look';
+        const d = _lkLpDraftArm(l);
+        const nPieces = d.pieces.length + d.proposals.length;
+        let lastWords = '';
+        _rbLookPrompt({
+          mode: 'look', surface: t ? 'trip' : 'saved', title: nm, name: nm, lookId: l.id,
+          meta: t ? ('Trip to ' + (t.data.destination || 'the trip') + (t.di != null && typeof _tvDayShort === 'function' ? ' · ' + _tvDayShort(t.di) : '')) : (l._draft ? 'Draft · not saved yet' : 'Saved look · ' + _lkN(nPieces, 'piece')),
+          rack: () => _lkLpRackLook(l),
+          pool: t ? () => _lkLpPoolCapsule(t) : _rbLpPoolWardrobe,
+          context: () => _rbLpContext(t ? { trip: t.data.destination, weather: t.data.weather && (t.data.weather.temp || t.data.weather.summary) ? [t.data.weather.temp, t.data.weather.condition || t.data.weather.summary].filter(Boolean).join(', ') : undefined, occasion: t.l && t.l.occasion } : {}),
+          apply: (j, sent) => _lkLpApplyLook(l, j, sent, lastWords),
+          onRule: _rbBriefRulePush,
+          changed: () => Object.keys((d.was) || {}).length,
+          onWords: w => { lastWords = w; },
         });
       }
-      async function _lkAskLook(l, words, cur) {
-        const overlay = _rbAskOverlay('Adjusting<br><em>as you asked…</em>');
-        const guard = _rbOverlayGuard(overlay);
-        const genId = _rbGenId();
-        try {
-          const rc = window.__rbCtx || {};
-          const res = await fetch('/api/look/refine', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: guard.signal,
-            body: JSON.stringify({
-              lookName: l.name, pieces: cur.pieces, refine: words, name,
-              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(), vibes: _rbVibeVocab(),
-              wardrobeItems: _rbAskWardrobe(),
-              context: { city: rc.city || '', month: new Date().toLocaleDateString('en-GB', { month: 'long' }), tempRange: rc.tempRange || '', condition: rc.condition || '', hint: rc.hint || '' },
-              userId: _waUid() || undefined, genId,
-            }),
-          });
-          guard.done(); overlay.style.display = 'none';
-          if (!res.ok) throw new Error(await res.text());
-          const data = await res.json();
-          _lkRefineToDraft(l, data, words);
-        } catch (err) {
-          guard.done(); overlay.style.display = 'none';
-          if (guard.userCancelled) return;
-          console.error('[Robes] /api/look/refine error:', err.message);
-          _waShowToast(guard.timedOut ? 'That took longer than it should — please try again.' : 'Robes couldn’t adjust that look — please try again in a moment.');
-        }
+      // ── The look prompt on the day console (phase 2) ────────────────────
+      // Replaces ↻ Restyle this day: her words change THIS day's pieces in
+      // place (a swap, a put-back, how a piece is worn) through the console's
+      // own data — the rules-05/06 change bar reads the difference as ever.
+      function _dlLpRack() {
+        return (window.__dlCurrentItems || []).map((it, i) => ({
+          i, key: i, name: it.name || '', category: it.category || '', owned: !!it.wardrobe_match,
+          id: it.wardrobe_match ? String(it.wardrobe_match.id) : undefined, keep: !!it.anchored,
+          was: it._lpWas ? it._lpWas.name : undefined, styled: it.styled || undefined,
+        }));
       }
-      function _lkRefineToDraft(l, data, words) {
-        const flat = [];
-        (data.steps || []).forEach(st => (st.items || []).forEach(it => { if (!it.role) it.role = st.title; flat.push(it); }));
-        const oldProps = Array.isArray(l.proposals) ? l.proposals : [];
-        const pieces = [], props = [];
-        flat.forEach(it => {
-          const wm = it.wardrobe_match, wi = wm && _waItems.find(w => String(w.id) === String(wm.id));
-          if (wi) { if (!pieces.some(p => String(p.id) === String(wi.id))) pieces.push({ id: wi.id, slot: _dlSlot(it).l, role: _rbRoleNorm(it.role) || null }); return; }
-          if (!it.name) return;
-          // A proposal that survived the adjustment keeps its still.
-          const prev = oldProps.find(r => String(_lkPropName(r)).toLowerCase() === String(it.name).toLowerCase());
-          props.push({
-            role: _rbRoleNorm(it.role) || 'The Canvas', chip: _dlSlot(it).l, cats: [it.category || 'Other'],
-            opts: [{ name: it.name, brand: it.brand || '', retailer_hint: it.retailer_hint || '', price_point: it.price_point || '', how: it.how || '' }],
-            oi: 0, img_oi: 0, saved: false, image_url: (prev && _pdHttp(prev.image_url)) || null,
-          });
+      function _dlLpApply(j, sent) {
+        const flat = window.__dlCurrentItems || [];
+        const rack = (sent && sent.rack) || [], pool = sent && sent.pool;
+        let n = 0;
+        const snap = it => ({ name: it.name, brand: it.brand || '', retailer_hint: it.retailer_hint || '', price_point: it.price_point || '', wardrobe_match: it.wardrobe_match || null, image_index: it.image_index, how: it.how || '', category: it.category || '' });
+        (Array.isArray(j.swaps) ? j.swaps : []).forEach(sw => {
+          const e = rack[sw.i]; const it = flat[sw.i]; if (!e || !it || it.anchored) return;
+          const to = _lkLpResolve(sw.to, pool); if (!to) return;
+          if (to.id) {
+            const wi = _waItems.find(w => String(w.id) === to.id); if (!wi) return;
+            if (flat.some(x => x.wardrobe_match && String(x.wardrobe_match.id) === to.id)) return;
+            if (!it._lpWas) it._lpWas = snap(it);
+            if (String(it.name || '') !== String(wi.label)) _rbMemorySwap('look-prompt', it.name, wi.label, it.category || wi.category);
+            it.wardrobe_match = { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' };
+            it.name = wi.label; it.brand = wi.brand || ''; it.retailer_hint = ''; it.price_point = ''; it.how = ''; it.category = wi.category || it.category;
+            _rbTrack('piece_swapped', { surface: 'look-prompt', item: String(wi.id), out: e.name, in: wi.label, cat: wi.category || '' });
+            n++;
+          } else if (to.prop) {
+            if (!it._lpWas) it._lpWas = snap(it);
+            it.wardrobe_match = null;
+            it.name = to.prop.name; it.brand = to.prop.brand || ''; it.retailer_hint = to.prop.retailer_hint || ''; it.price_point = to.prop.price_point || ''; it.how = ''; it.image_index = undefined;
+            if (to.category) it.category = to.category;
+            n++;
+          }
         });
-        if (!pieces.length && !props.length) { _waShowToast('Robes couldn’t read that back — please try again.'); return; }
-        _lkDraft = { lookId: String(l.id), pieces, proposals: props, note: String(data.stylist_summary || '').trim() || null, refined: words };
-        _lkEditMode = true;
-        _rbTrack('look_refined', { surface: 'look', owned: pieces.length, proposed: props.length });
-        _lkPaint();
-        _waShowToast('Adjusted — update the look to keep it, or discard');
-      }
-      // On a trip the ask is held to the case: /api/travel/looks re-styles
-      // the ONE look from the capsule with her words. A Robes-styled trip
-      // look (the draft) rebuilds its draft from the refined formula — the
-      // refined look is swapped into the trip data only for the read and
-      // swapped straight back, so the blob is untouched until Save; an
-      // imported saved look lands the formula on its edit draft.
-      async function _lkAskTrip(l, t, words, cur) {
-        const data = t.data, tl = t.l;
-        const cap = (data.capsule || []).map(c => ({ name: c.name, category: c.category, brand: c.brand, tier: c.tier, owned: !!c.wardrobe_match }));
-        if (!cap.length) { _waShowToast('Pack a piece first — Robes styles from the case'); return; }
-        const overlay = _rbAskOverlay('Adjusting<br><em>from the case…</em>');
-        const guard = _rbOverlayGuard(overlay);
-        try {
-          const res = await fetch('/api/travel/looks', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: guard.signal,
-            body: JSON.stringify({
-              destination: data.destination || '', brief: data.brief || '', vibe: data.vibe || '',
-              occasions: [String(tl.occasion || l.name || 'this look').slice(0, 60)],
-              weather: data.weather || null, userId: _waUid() || undefined, name,
-              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
-              capsule: cap, refine: words, current: cur, held: true,
-            }),
-          });
-          guard.done(); overlay.style.display = 'none';
-          if (!res.ok) throw new Error(await res.text());
-          const out = await res.json();
-          const fresh = out && Array.isArray(out.looks) ? out.looks[0] : null;
-          const formula = fresh ? (Array.isArray(fresh.formula) ? fresh.formula : []).map(f => Object.assign({}, f))
-            .filter(f => Number.isInteger(f.item_index) && f.item_index >= 0 && f.item_index < (data.capsule || []).length) : [];
-          if (!formula.length) throw new Error('empty looks');
-          _lkTripRefineLand(l, t, fresh, formula, words);
-        } catch (err) {
-          guard.done(); overlay.style.display = 'none';
-          if (guard.userCancelled) return;
-          console.error('[Robes] /api/travel/looks refine error:', err.message);
-          _waShowToast(guard.timedOut ? 'That took longer than it should — please try again.' : 'Robes couldn’t adjust that look — please try again in a moment.');
-        }
-      }
-      function _lkTripRefineLand(l, t, fresh, formula, words) {
-        const data = t.data, li = t.li, di = t.di;
-        const prev = data.looks[li];
-        const refined = Object.assign({}, prev, {
-          title: fresh.title || prev.title, how: fresh.how || prev.how, look_tags: fresh.look_tags || prev.look_tags,
-          formula, overrides: {}, slotOverrides: {}, dayAdds: {}, dayDrops: {},
+        const backIdx = (j.intent === 'back' && !(Array.isArray(j.back) && j.back.length))
+          ? flat.map((it, i) => it._lpWas ? i : -1).filter(i => i >= 0)
+          : (Array.isArray(j.back) ? j.back : []).filter(i => flat[i] && flat[i]._lpWas);
+        backIdx.forEach(i => {
+          const it = flat[i], w = it._lpWas;
+          it.name = w.name; it.brand = w.brand; it.retailer_hint = w.retailer_hint; it.price_point = w.price_point; it.wardrobe_match = w.wardrobe_match; it.image_index = w.image_index; it.how = w.how; it.category = w.category || it.category;
+          delete it._lpWas;
+          n++;
         });
-        if (l._draft) {
-          let d = null;
-          data.looks[li] = refined;
-          try { d = _lkTripDraftFrom(data, li, di); } finally { data.looks[li] = prev; }
-          if (!d) return;
-          _lkTripDraft = d; _lkDraft = null;
-          _rbTrack('look_refined', { surface: 'trip-look', draft: true, owned: d.pieces.length, proposed: (d.proposals || []).length });
-          _lkPaint();
-          _waShowToast('Adjusted — save the look to keep it, or discard');
-          return;
-        }
-        let entries = [];
-        data.looks[li] = refined;
-        try { entries = _tvLookEntries(li, di); } finally { data.looks[li] = prev; }
-        const pieces = [], props = [];
-        entries.forEach(x => {
-          const wm = x.it && x.it.wardrobe_match;
-          const wi = wm && _waItems.find(w => String(w.id) === String(wm.id));
-          if (wi) { if (!pieces.some(p => String(p.id) === String(wi.id))) pieces.push({ id: wi.id, slot: null, role: _rbRoleNorm(x.f && x.f.role) || null }); return; }
-          if (!x.it || !x.it.name) return;
-          props.push({
-            role: _rbRoleNorm(x.f && x.f.role) || 'The Canvas', chip: _dlSlot(x.it).l, cats: [x.it.category || 'Other'],
-            opts: [{ name: x.it.name, brand: x.it.brand || '', retailer_hint: x.it.retailer_hint || '', price_point: x.it.price_point || '', how: (x.f && x.f.note) || '' }],
-            oi: 0, img_oi: 0, saved: false, image_url: _pdHttp(_tvImgOf(x.it)) || null, _ci: x.ci,
-          });
+        if (backIdx.length) _rbTrack('look_prompt_reversed', { surface: 'day', slots: backIdx.length });
+        (Array.isArray(j.styled) ? j.styled : []).forEach(st => {
+          const it = flat[st.i]; if (!it || !st.note) return;
+          it.styled = String(st.note).slice(0, 120); n++;
         });
-        if (!pieces.length && !props.length) { _waShowToast('Robes couldn’t read that back — please try again.'); return; }
-        _lkDraft = { lookId: String(l.id), pieces, proposals: props, note: String(fresh.how || '').trim() || null, refined: words };
-        _lkEditMode = true;
-        _rbTrack('look_refined', { surface: 'trip-look', draft: false, owned: pieces.length, proposed: props.length });
-        _lkPaint();
-        _waShowToast('Adjusted — update the look to keep it, or discard');
+        if (n) _dlRerender();
+        return n;
       }
+      window.__dlLpOpen = function() {
+        const data = window.__lastDlData || {};
+        const loose = !!data._dlLoose;
+        const name = String(data.headline || data.occasion_label || '').replace(/\.$/, '').trim() || 'This look';
+        const date = !loose && data.anchor_date ? data.anchor_date : null;
+        const wx = data.context ? [data.context.tempRange, data.context.condition].filter(Boolean).join(', ') : '';
+        _rbLookPrompt({
+          mode: 'look', surface: loose ? 'look' : 'day', title: name, name,
+          meta: date ? (_lkFmtLong(date) + (wx ? ' · ' + wx : '')) : 'Your look',
+          rack: _dlLpRack, pool: _rbLpPoolWardrobe,
+          context: () => _rbLpContext({ date, weather: wx || undefined, occasion: data.occasion_label || data.headline }),
+          apply: _dlLpApply, onRule: _rbBriefRulePush,
+          changed: () => (window.__dlCurrentItems || []).filter(it => it._lpWas).length,
+        });
+      };
+      // The key-piece way (phase 2): the same box, mode 'way' — her words
+      // re-write that one way through the standing /api/style refine; the
+      // other two stay.
+      window.__kpLpOpen = function(i) {
+        const c = _kpBuildCtx, w = c && c.ways && c.ways[i];
+        if (!w) return;
+        const pieces = (Array.isArray(w.pieces) ? w.pieces : []).map(p => ({ name: p.name, category: p.category || '', owned: !!p.wardrobe_match, keep: false }));
+        const cur = {
+          title: String(w.title || '').replace(/\.$/, ''), eyebrow: String(w.eyebrow || ''), pieces,
+          others: c.ways.filter((x, j) => j !== i).map(x => String(x.title || '').replace(/\.$/, '')),
+        };
+        _rbLookPrompt({
+          mode: 'way', surface: 'way', title: cur.title || 'This look', name: cur.title,
+          meta: 'Key piece' + (c.pieceName || c.piece ? ' · ' + String(c.pieceName || c.piece) : ''),
+          placeholder: 'Dressier, or for the evening, or not the trousers…',
+          helper: 'That look is re-written. The other two stay.',
+          onRegen: text => _kpAskRefine(i, text, cur),
+        });
+      };
       // Update on a refined imported look re-points the trip's formula at
       // the case (owned pieces through _tvCapsuleIndexFor, proposals through
       // the capsule index they came with) so packing stays truthful.
@@ -18047,7 +18430,11 @@ button.rb-lk-live{cursor:pointer}
           // renders her twice.
           const canvasKey = _lkModel ? _lkmKey(used.map(String), _lkShopGarments()) : null;
           const canvasUrl = canvasKey ? _pdHttp(_lkmRenders[canvasKey]) : null;
+          // How each piece is worn (the box's notes) rides the saved look.
+          const styling = {};
+          _lkRows.forEach(r => { if (r.piece && _lkDraftStyled[r.key]) styling[String(r.piece)] = _lkDraftStyled[r.key]; });
           l = _lkCreate({
+            styling,
             // Robes' name left as offered stays provisional (rule 01) — a
             // name she typed or touched is hers.
             pieces: used, name: typed || _lkOfferName(used, null), name_provisional: !typed || (_lkBuilt && !_lkNewTitleTouched),
@@ -18550,24 +18937,6 @@ button.rb-lk-live{cursor:pointer}
       // fit the day (Rain only when the day's forecast says so), one line,
       // Restyle {weekday} →. An empty send is the standing restyle, byte
       // for byte; her words ride as `refine` with the look as it stands.
-      window.__dlAskRestyle = function() {
-        const data = window.__lastDlData || {};
-        const flat = window.__dlCurrentItems || [];
-        const loose = !!data._dlLoose;
-        const cur = { pieces: flat.map(it => ({ name: it.name, category: it.category || '', owned: !!it.wardrobe_match, keep: !!it.anchored })) };
-        const cond = String((data.context && data.context.condition) || (window.__rbCtx && window.__rbCtx.condition) || '').toLowerCase();
-        const chips = ['Work', 'Dinner'].concat(/rain|shower|drizzle|wet/.test(cond) ? ['Rain'] : []).concat(['Warmer', 'Less effort']);
-        const day = !loose && data.anchor_date ? _lkDayWeekday(data.anchor_date) : null;
-        const anchored = flat.some(it => it.anchored);
-        _rbAsk({
-          surface: loose ? 'look' : 'day',
-          eyebrow: day ? _lkFmtLong(data.anchor_date) : (String(data.headline || '').replace(/\.$/, '') || 'This look'),
-          chips, allowEmpty: true,
-          cta: day ? 'Restyle ' + day + ' →' : 'Restyle it →',
-          note: anchored ? 'Anchored pieces stay.' : 'Leave it empty and Robes restyles it fresh.',
-          onSend: function(r) { window.__dlRestyle(r.words ? { refine: r.words, current: cur } : null); },
-        });
-      };
       window.__dlRestyle = function(extra) {
         const flat = window.__dlCurrentItems || [];
         const locked = flat.filter(it => it.anchored).map(it => ({
@@ -19506,7 +19875,9 @@ button.rb-lk-live{cursor:pointer}
             rowClass: localRow ? ' dl-localrow' : '',
             count: { cur: _dlOptIndex(it, list), len: list.length },
             subHtml: _rbcProvenance(it),
-            noteHtml: localHtml || (it.how ? `<div class="rbc-hownote">${_waEsc(it.how)}</div>` : ''),
+            noteHtml: (it._lpWas ? `<div class="rbc-hownote rb-lp-was">Just changed · was ${_waEsc(it._lpWas.name || '')}</div>` : '') +
+              (it.styled ? `<div class="rbc-hownote rb-lp-styled">${_waEsc(it.styled)}</div>` : '') +
+              (it._lpWas ? '' : localHtml || (it.how ? `<div class="rbc-hownote">${_waEsc(it.how)}</div>` : '')),
             thirdHtml: it.wardrobe_match ? '' : (it.wishlisted
               ? `<span class="rbc-act done">${_rbcCheckSvg} Saved</span>`
               : `<button class="rbc-act save" onclick="window.__dlSaveWishlist(${fi})">Save</button>`),
@@ -19561,10 +19932,13 @@ button.rb-lk-live{cursor:pointer}
           tagsHtml: dayLook ? _rbTagsRowHtml(_lkTagsOf(dayLook), '__dlLookTagsEdit') : _rbTagsRowHtml(data.look_tags, '__dlTagsEdit'),
           rackLabel: `The rack · ${total} pieces`,
           headButtonsHtml: (data && data.worn)
-            ? `<span class="rbc-hbtn" style="opacity:.55;pointer-events:none">Worn ✓</span><button class="rbc-hbtn" onclick="window.__dlAskRestyle()" title="A fresh look — anchored pieces stay">↻ ${dlLoose ? 'Restyle it' : 'Restyle this day'}</button>`
+            ? `<span class="rbc-hbtn" style="opacity:.55;pointer-events:none">Worn ✓</span>`
             // "Wore it" logs wears on OWNED pieces — with none in the look
             // it is a button that does nothing, so it waits for one.
-            : `${owned > 0 ? `<button class="rbc-hbtn" id="dl-wear-btn" onclick="window.__dlWear()" title="Log these pieces as worn — wear counts feed cost-per-wear">✓ Wore it</button>` : ''}<button class="rbc-hbtn" onclick="window.__dlAskRestyle()" title="A fresh look — anchored pieces stay">↻ ${dlLoose ? 'Restyle it' : 'Restyle this day'}</button>`,
+            : `${owned > 0 ? `<button class="rbc-hbtn" id="dl-wear-btn" onclick="window.__dlWear()" title="Log these pieces as worn — wear counts feed cost-per-wear">✓ Wore it</button>` : ''}`,
+          // The look prompt's door (phase 2) replaces ↻ Restyle this day: the
+          // field under the look; her words change this day's pieces in place.
+          panelExtraHtml: _rbLpFieldHtml({ onclick: 'window.__dlLpOpen()', changed: flat.some(it => it._lpWas), cls: 'dl-lpfield' }),
           onFlip: '__dlFlip', onSwap: '__dlSwap', onAnchor: '__dlAnchor', onRemove: '__dlRemove', onPiece: '__dlPieceOpen',
           onRoleDrop: '__dlRoleDrop',
           addPieceFn: '__dlAddPiece',
@@ -28037,32 +28411,25 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         // A trip day keeps its own door (__mvPkRobesTrip → the trip).
         // Slice C (2026-09-30): the sheet is the shared ask component
         // (_rbAsk) — this door only names its chips and composes its brief.
-        var _MV_RS_CHIPS = ['Work', 'School run', 'Lunch out', 'Dinner out', 'Weekend'];
-        window.__mvRsClose = function() { window.__rbAskClose(); };
+        // The look prompt, off a look (phase 2): "A new look" with the date
+        // as its meta line — what's it for? — and the words go to the
+        // standing route: __dlSubmit with the date → the composer with the
+        // day attached. Her name for the day prefills the field. The chips
+        // retired with the sheet (no chips anywhere in the box).
+        window.__mvRsClose = function() { window.__rbLpClose(); };
         window.__mvRobes = function(date) {
           document.getElementById('rb-mv-wear')?.remove(); _mvPk = null;
           const title = String((_mvWearCtx && _mvWearCtx.date === date && _mvWearCtx.title) || '').trim();
-          const chip = _MV_RS_CHIPS.find(ch => ch.toLowerCase() === title.toLowerCase()) || null;
-          const dayWord = _mvPkDayWord(date);
-          _rbAsk({
-            surface: 'day-brief', aria: 'Robes styles one',
-            eyebrow: _mvPkDateLabel(date),
-            titleHtml: 'Robes styles <em>one.</em>',
-            sub: 'a fresh look for ' + dayWord,
-            chipLabel: 'What’s on?', chips: _MV_RS_CHIPS, chip,
-            inputLabel: 'Anything else?', placeholder: 'Where, who with, the vibe', text: chip ? '' : title,
-            cta: 'Style ' + dayWord + ' →',
-            note: 'You name it and save it before it goes in the diary.',
-            allowEmpty: true,
-            // The brief: the chip, then her words — "Dinner out — with Mary
-            // in town"; either alone stands; nothing at all asks for an
-            // outfit for the day. Then the standing route: __dlSubmit with
-            // the date. Nothing is filed until she names and saves.
-            onSend: function(r) {
-              const brief = r.words || ('An outfit for ' + dayWord);
-              _rbTrack('day_robes_brief', { date, chip: r.chip, typed: !!r.text });
+          const rc = window.__rbCtx || {};
+          const wx = date === _pdLocalISO() ? [rc.tempRange, rc.condition].filter(Boolean).join(', ') : '';
+          _rbLookPrompt({
+            mode: 'new', surface: 'diary', title: 'A new look', name: 'A new look',
+            meta: _mvPkDateLabel(date) + (wx ? ' · ' + wx : ''),
+            text: title,
+            onNew: function(text) {
+              _rbTrack('day_robes_brief', { date, chip: null, typed: true });
               if (!window.__dlSubmit) return;
-              try { window.__dlSubmit(brief, { anchorDate: date }); }
+              try { window.__dlSubmit(text, { anchorDate: date }); }
               catch (e) { _waShowToast('Robes couldn’t start that look — please try again.'); }
             },
           });

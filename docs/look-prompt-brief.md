@@ -1,6 +1,6 @@
 # The look prompt — one box on every look, and the draft it edits (build brief)
 
-**Date**: 2026-10-01 · **Branch**: `beta` · **Status**: brief; phase 1 in build
+**Date**: 2026-10-01 · **Branch**: `beta` · **Status**: phases 1 and 2 built (2026-10-01); phase 3 pending
 **Supersedes**: slice C of `docs/style-memory-brief.md` as built on 2026-09-30 (the ask sheet). Slices A and B stand; D, E and F are unchanged.
 **Sources**: the beta feedback corpus (Sinead's and Liberty's 👎 notes, 14–28 Sep), `Look_Prompt_Spec.dc.html` (1 Oct) and `Home.dc.html` (1 Oct) from Annie's Claude Design project.
 

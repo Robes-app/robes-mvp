@@ -52,12 +52,14 @@ const memory = { v: 1, entries: [
   { t: '2026-09-26T10:00:00Z', k: 'swap', out: 'a wool blazer', in: 'denim jacket', cat: 'outerwear' },
   { t: '2026-09-25T10:00:00Z', k: 'wear', look: 'Office armour', pieces: 4 },
   { t: '2026-09-24T10:00:00Z', k: 'strike', text: 'You reach for black' },
+  { t: '2026-09-24T09:00:00Z', k: 'ask', on: 'Harbour Dinner', surface: 'composer', text: 'not the loafers again' },
   { t: '2026-09-23T10:00:00Z', k: 'nonsense', text: 'dropped' },
 ] };
 const mem = styleDnaPromptBlock({ brief, memory, style_archetypes: ['Sculptural'] }, 6, []);
 ok(mem.indexOf('HER STYLE BRIEF') === 0 && mem.indexOf('WHAT SHE HAS TOLD ROBES RECENTLY') > 0 && mem.indexOf('WHAT SHE HAS TOLD ROBES RECENTLY') < mem.indexOf('STYLE TYPE'), 'memory renders after the brief and before the style type');
 ok(/Not quite — The Thursday one: "too much black"/.test(mem), 'a verdict carries what it was about and her words');
 ok(/Struck from her brief[^\n]*You reach for black/.test(mem), 'a strike reads as Robes having it wrong');
+ok(/Asked — Harbour Dinner: "not the loafers again"/.test(mem), 'a line sent to the look prompt reads as what she asked of the look');
 ok(/Has swapped out shoes three times/.test(mem) && !/Swapped out loafers/.test(mem), 'three swaps of one category fold into one pattern line, the three events gone');
 ok(/Swapped out a wool blazer for her denim jacket \(outerwear\)/.test(mem), 'a lone swap names out, in and category');
 ok(/Wore "Office armour" \(4 pieces\)/.test(mem), 'a wear names the look she reaches for');

@@ -1535,6 +1535,154 @@ ${refineBlock(words, cur)}`;
   }
 });
 
+// ── The look prompt (docs/look-prompt-brief.md, phase 2 · 2026-10-01) ─────
+// ONE endpoint behind the box on every look: her words, the rack as it
+// stands and the pool the surface may draw from go in; an EDIT comes back —
+// never a new look. The intent order is the beta feedback corpus sorted
+// (put back → standing rule → how it's worn → a clear swap → two readings →
+// vague); a vague ask never changes the look, it comes back as Robes'
+// wording of named swaps for her to edit or press Enter on. A held pool
+// (a trip's case) never proposes a new piece. Mode 'new' never reaches
+// here — a new look is the generators' job.
+const ASK_INTENTS = ['swap', 'back', 'rule', 'styled', 'clarify', 'draft', 'none'];
+const ASK_SCHEMA = {
+  type: 'object',
+  properties: {
+    intent: { type: 'string', enum: ASK_INTENTS },
+    reply: { type: 'string' },
+    swaps: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          i: { type: 'integer' },
+          pool_index: { type: 'integer' },
+          name: { type: 'string' },
+          brand: { type: 'string' },
+          retailer_hint: { type: 'string' },
+          price_point: { type: 'string' },
+          category: { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Other'] },
+        },
+        required: ['i', 'pool_index', 'name', 'brand', 'retailer_hint', 'price_point', 'category'],
+      },
+    },
+    back: { type: 'array', items: { type: 'integer' } },
+    styled: { type: 'array', items: { type: 'object', properties: { i: { type: 'integer' }, note: { type: 'string' } }, required: ['i', 'note'] } },
+    draft: { type: 'string' },
+    rule: { type: 'string' },
+  },
+  required: ['intent', 'reply', 'swaps', 'back', 'styled', 'draft', 'rule'],
+};
+const ASK_RACK_MAX = 14, ASK_POOL_MAX = 80, ASK_THREAD_MAX = 6;
+function askRack(rack) {
+  return (Array.isArray(rack) ? rack : []).slice(0, ASK_RACK_MAX).map((r, i) => ({
+    i, name: String(r && r.name || '').slice(0, 80), category: String(r && r.category || '').slice(0, 24),
+    owned: !!(r && r.owned), keep: !!(r && r.keep),
+    was: r && r.was ? String(r.was).slice(0, 80) : '', styled: r && r.styled ? String(r.styled).slice(0, 100) : '',
+  })).filter(r => r.name);
+}
+function askPool(pool) {
+  const kind = pool && pool.kind === 'capsule' ? 'capsule' : 'wardrobe';
+  const items = (pool && Array.isArray(pool.items) ? pool.items : []).slice(0, ASK_POOL_MAX).map((p, idx) => ({
+    idx, label: String(p && p.label || '').slice(0, 80), category: String(p && p.category || '').slice(0, 24),
+    color: String(p && p.color || '').slice(0, 30), brand: String(p && p.brand || '').slice(0, 40), owned: !!(p && p.id),
+  })).filter(p => p.label);
+  return { kind, items };
+}
+app.post('/api/look/ask', rateLimit({ windowMs: 60_000, max: 30 }), async (req, res) => {
+  const { surface, name, rack, pool, thread, text, context: ctx, styleDna, styleIcons, gender } = req.body;
+  const g = normGender(gender);
+  const words = refineText(text);
+  const rows = askRack(rack);
+  const pl = askPool(pool);
+  if (!words) return res.status(400).json({ error: 'Say what to change.' });
+  if (!rows.length) return res.status(400).json({ error: 'Nothing on the look to change.' });
+  const held = pl.kind === 'capsule';
+  const turns = (Array.isArray(thread) ? thread : []).slice(-ASK_THREAD_MAX)
+    .map(t => t && t.text ? `${t.who === 'her' ? 'SHE SAID' : 'ROBES SAID'}: ${String(t.text).slice(0, 240)}` : '').filter(Boolean);
+  const dnaBlock = styleDnaPromptBlock(styleDna, pl.kind === 'wardrobe' ? pl.items.length : 0, styleIcons);
+  const rackBlock = rows.map(r => `[${r.i}] ${r.name}${r.category ? ' [' + r.category + ']' : ''}${r.keep ? ' — KEEP (anchored, never changes)' : r.owned ? ' (hers)' : ' (a piece Robes proposed, not hers yet)'}${r.was ? ` — just changed; was: ${r.was}` : ''}${r.styled ? ` — worn: ${r.styled}` : ''}`).join('\n');
+  const poolBlock = pl.items.length
+    ? pl.items.map(p => `[${p.idx}] ${p.label}${p.category ? ' [' + p.category + ']' : ''}${p.color ? ', ' + p.color : ''}${p.brand ? ', ' + p.brand : ''}${held && !p.owned ? ' (in the case, not hers)' : ''}`).join('\n')
+    : '(nothing)';
+  const ctxLines = [];
+  if (ctx && typeof ctx === 'object') {
+    if (ctx.day) ctxLines.push(`The day: ${String(ctx.day).slice(0, 40)}.`);
+    if (ctx.weather) ctxLines.push(`The weather: ${String(ctx.weather).slice(0, 60)}.`);
+    if (ctx.occasion) ctxLines.push(`What it is for: ${String(ctx.occasion).slice(0, 80)}.`);
+    if (ctx.trip) ctxLines.push(`The trip: ${String(ctx.trip).slice(0, 60)}.`);
+  }
+  const systemInstruction = `You are Robes — a stylist editing ONE look she already has, in her own words. ${genderDirective(g)} You answer in sentences, as Robes, in the third person ("Robes would change both"). Never "I", never "AI", never "assistant". Name pieces as she would ("the grey merino", "the wide-leg trouser", "her black pointed flats") — never role names. No exclamation marks. One or two sentences. Lead an applied change with "Done." then what is on the look now. Never flatter her, never judge her. ${BANNED_CONSTRUCTIONS_RULE}
+
+THE LOOK AS IT STANDS (indexed; "hers" = a piece she owns; KEEP = anchored, it never changes; "worn:" = how it is styled):
+${rackBlock}
+
+THE POOL SHE CAN SWAP FROM (indexed by pool_index)${held ? ' — THIS IS THE CASE SHE PACKED. ONLY these pieces may go on the look; never propose a piece outside it. If nothing in the case fits, say so plainly, offer the nearest piece in the case as a draft, and change nothing.' : ' — her wardrobe. Prefer a piece she owns whenever one fits; otherwise propose ONE new piece with a real brand, a retailer and a realistic EUR price (pool_index -1).'}:
+${poolBlock}
+${ctxLines.length ? '\nCONTEXT:\n' + ctxLines.join('\n') + '\n' : ''}${turns.length ? '\nEARLIER IN THIS EXCHANGE (newest last):\n' + turns.join('\n') + '\n' : ''}
+READ HER WORDS IN THIS ORDER — the first that matches decides the intent:
+1. PUT BACK ("back", "undo", "as it was", "put the X back"): intent "back". "back" lists the indexes of the rows she names among those marked "just changed"; names none → an EMPTY list means every changed row. Reply: "Done. The {piece} is back on the look." Nothing changed on the look → intent "none", reply that nothing has changed yet so there is nothing to put back.
+2. A STANDING RULE ("remember", "don't like", "never", "always", "from now on", "in future"): intent "rule". "rule" is the rule in a few words, in the second person as she would write it in her own style notes ("No grey", "A sock with cropped trousers, always"). Nothing changes on the look. Reply: note it is filed ("Noted. Robes will keep grey out from now on."), and if the rule touches a piece on the look now, offer the fix as "draft" (a concrete swap sentence she can press Enter on), naming it in the reply.
+3. HOW IT'S WORN ("tuck", "untucked", "sock", "roll", "sleeve", "cuff", "under the", "over the", "open", "belted", "knotted"): intent "styled". "styled" holds {i, note} per piece — a short styling note ("tucked at the front", "worn over the jeans"). Same pieces. Reply: "Done." then how it is worn now.
+4. A CLEAR SWAP (a piece named to change, and what for — "for / with / to / instead", or a plain "not the loafers", "lose the scarf", "add a jacket"): intent "swap". One entry per change: "i" the row, "pool_index" a pool piece that fits, else -1 with a real "name", "brand", "retailer_hint", "price_point" (EUR, like "€120") and "category". A piece she names to REMOVE with nothing in its place: swap it for the plainest pool piece that fits, or if none, for a new simple piece — never leave a hole. A piece to ADD: swap the weakest non-KEEP row of that category, or if the look has no row of it, reply that Robes would need a slot and write the add as a draft. Reply: "Done. {piece(s)} on the look now. Say if you want anything back." — then one short reason at most.
+5. TWO READINGS (an "or" with no piece Robes can resolve, or two things that cannot both be true): intent "clarify". One plain question. Nothing changes.
+6. ANYTHING VAGUE ("too dressy", "restyle the whole day", "more me", "not casual enough", "too warm", "doesn't match", "boring", "something fun"): intent "draft". NOTHING changes. Decide which pieces make it feel that way and what Robes would swap them for (from the pool first), say so in the reply in one sentence, then write the change as "draft": one plain sentence naming each swap explicitly ("Change the wide-leg trouser for the dark straight jean, and the grey merino for the camel cardigan"). Read "me" against her brief and her recent verdicts above. On a trip the draft names case pieces only.
+A KEEP row is never changed, never put in a draft. Never invent a piece in the pool. Unused fields: "swaps" [], "back" [], "styled" [], "draft" "", "rule" "".
+${dnaBlock ? '\n' + dnaBlock : ''}`;
+  const userText = `The look is "${String(name || '').slice(0, 80) || 'this look'}"${surface ? ` (on the ${String(surface).slice(0, 20)})` : ''}. She says: "${words}"`;
+  try {
+    const t0 = Date.now();
+    const r = await Promise.race([
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: userText }] }],
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: ASK_SCHEMA,
+          temperature: 0.2,
+          thinkingConfig: { thinkingBudget: 0 },
+          maxOutputTokens: 900,
+        },
+      }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 40000)),
+    ]);
+    const parsed = deEscDeep(JSON.parse(r.text));
+    const intent = ASK_INTENTS.includes(parsed.intent) ? parsed.intent : 'clarify';
+    const byI = {}; rows.forEach(x => { byI[x.i] = x; });
+    let swaps = (Array.isArray(parsed.swaps) ? parsed.swaps : []).map(s => {
+      const row = byI[s && s.i];
+      if (!row || row.keep) return null;
+      const pi = Number.isInteger(s.pool_index) ? s.pool_index : -1;
+      if (pi >= 0 && pi < pl.items.length) return { i: row.i, to: { pool_index: pi } };
+      if (held) return null;   // the case alone — a new piece never enters a trip look here
+      const nm = String(s.name || '').trim().slice(0, 120);
+      if (!nm) return null;
+      return { i: row.i, to: { name: nm, brand: String(s.brand || '').slice(0, 60), retailer_hint: String(s.retailer_hint || '').slice(0, 60), price_point: String(s.price_point || '').slice(0, 20), category: s.category || row.category || 'Other' } };
+    }).filter(Boolean);
+    const seen = new Set(); swaps = swaps.filter(s => seen.has(s.i) ? false : (seen.add(s.i), true));
+    const back = (Array.isArray(parsed.back) ? parsed.back : []).filter(i => Number.isInteger(i) && byI[i]);
+    const styled = (Array.isArray(parsed.styled) ? parsed.styled : []).map(s => s && byI[s.i] && s.note ? { i: s.i, note: String(s.note).trim().slice(0, 120) } : null).filter(Boolean);
+    const out = {
+      intent,
+      reply: String(parsed.reply || '').replace(/\s+/g, ' ').trim().slice(0, 400),
+      swaps: intent === 'swap' || intent === 'rule' ? swaps : [],
+      back: intent === 'back' ? back : [],
+      styled: intent === 'styled' || intent === 'swap' ? styled : [],
+      draft: intent === 'draft' || intent === 'rule' || intent === 'clarify' ? String(parsed.draft || '').replace(/\s+/g, ' ').trim().slice(0, 240) : '',
+      rule: intent === 'rule' ? String(parsed.rule || '').replace(/\s+/g, ' ').trim().slice(0, 160) : '',
+    };
+    // A rule never changes the look on its own — its fix rides as a draft.
+    if (intent === 'rule') out.swaps = [];
+    logAI({ feature: 'look-ask', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, intent, swaps: out.swaps.length, back: out.back.length, styled: out.styled.length, held });
+    res.json(out);
+  } catch (err) {
+    logAI({ feature: 'look-ask', stage: 'text', success: false, reason: err.message });
+    console.error('[look/ask] Gemini error:', err.message);
+    res.status(err.message === 'timeout' ? 504 : 500).json({ error: 'ask_failed', reason: String(err.message || '').slice(0, 200) });
+  }
+});
+
 // The client-side Robes build picks pieces deterministically (the fifth-pass
 // decision stands: no LLM decides the pieces), but the assembled look was
 // arriving mute — no panel note, no tags — where the prompt-built daily look
@@ -3509,6 +3657,8 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (
     color: String(p && p.color || '').slice(0, 40),
     brand: String(p && p.brand || '').slice(0, 60),
     image_url: typeof (p && p.image_url) === 'string' ? p.image_url : null,
+    // How the piece is worn (the look prompt, phase 2): "tucked at the front".
+    styled: String(p && p.styled || '').replace(/\s+/g, ' ').trim().slice(0, 120),
   })).filter(p => p.name);
   if (clean.length < 1) return res.status(400).json({ error: 'pieces must be named' });
 
@@ -3538,9 +3688,9 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (
         if (ref) {
           imgN += 1;
           parts.push({ inlineData: { mimeType: ref.mimeType, data: ref.data } });
-          lines.push(`- IMAGE ${imgN}: the ${p.name}${detail ? ' (' + detail + ')' : ''} — reproduce this exact garment faithfully: its true colour, cut, fabric and details.`);
+          lines.push(`- IMAGE ${imgN}: the ${p.name}${detail ? ' (' + detail + ')' : ''} — reproduce this exact garment faithfully: its true colour, cut, fabric and details.${p.styled ? ' Worn: ' + p.styled + '.' : ''}`);
         } else {
-          lines.push(`- the ${p.name}${detail ? ' (' + detail + ')' : ''}.`);
+          lines.push(`- the ${p.name}${detail ? ' (' + detail + ')' : ''}.${p.styled ? ' Worn: ' + p.styled + '.' : ''}`);
         }
       }
       const cellMan = parseAvatarId(avatarId).gender === 'man';

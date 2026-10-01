@@ -524,42 +524,42 @@ check('piece by piece · a way saved without pieces reads its prose (outfit / de
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
 check('piece by piece · Escape closes the sheet', (await page.locator('#kp-sheet').count()) === 0);
-// Style it another way (slice C): the sheet's quiet door on an UNBUILT way
-// only; the ask re-writes that one way, the other two untouched.
+// Style it another way (the look prompt, phase 2): the sheet's field on an
+// UNBUILT way only; her words re-write that one way, the other two untouched.
 await page.evaluate(() => window.__kpCardTap(0));
 await page.waitForTimeout(400);
-const quiet0 = await page.locator('#kp-sheet .kp-sheet-quiet').count();
+const quiet0 = await page.locator('#kp-sheet .kp-sheet-field').count();
 await page.evaluate(() => window.__kpSheetClose('kp-sheet'));
 await page.waitForTimeout(300);
 await page.evaluate(() => window.__kpCardTap(1));
 await page.waitForTimeout(400);
 const askKp = await page.evaluate(async () => {
-  const q = document.querySelector('#kp-sheet .kp-sheet-quiet');
-  const out = { door: q?.textContent.trim() };
+  const q = document.querySelector('#kp-sheet .kp-sheet-field');
+  const out = { door: q?.textContent.trim(), chips: document.querySelectorAll('#kp-sheet .rs-chip').length };
   q?.click();
   await new Promise((r) => setTimeout(r, 200));
-  const a = document.getElementById('rb-ask');
+  const a = document.getElementById('rb-lp');
   out.sheetGone = !document.querySelector('#kp-sheet.on');
-  out.open = !!a; out.ey = a?.querySelector('.rs-ey')?.textContent; out.chips = Array.from(a?.querySelectorAll('.rs-chip') || []).map((b) => b.textContent);
-  out.note = a?.querySelector('.rs-note')?.textContent;
+  out.open = !!a; out.title = a?.querySelector('.ttl')?.textContent; out.meta = a?.querySelector('.meta')?.textContent;
+  out.helper = a?.querySelector('#rb-lp-helper')?.textContent;
   out.ink = Array.from(a?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length;
   return out;
 });
-check('style another way · the door stands on an unbuilt way alone (a built way keeps its look), and opens the ask sheet named for that way — its chips, "The other two looks stay.", one ink',
-  quiet0 === 0 && askKp.door === 'Style it another way →' && askKp.sheetGone && askKp.open && askKp.ey === 'Coffee Run'
-    && JSON.stringify(askKp.chips) === JSON.stringify(['Dressier', 'Easier', 'Colder day', 'For the evening']) && askKp.note === 'The other two looks stay.' && askKp.ink === 1, JSON.stringify([quiet0, askKp]));
+check('style another way · the field stands on an unbuilt way alone (a built way keeps its look), no chips, and opens the box named for that way — Key piece on the meta line, “The other two stay.”, no ink inside',
+  quiet0 === 0 && /Change this look/.test(askKp.door || '') && askKp.chips === 0 && askKp.sheetGone && askKp.open && askKp.title === 'Coffee Run'
+    && /Key piece/.test(askKp.meta || '') && /other two stay/.test(askKp.helper || '') && askKp.ink === 0, JSON.stringify([quiet0, askKp]));
 const lbBefore = writes.filter((w) => w.method === 'PATCH' && /^lookbook_items/.test(w.url)).length;
 const styleCallsBefore = styleCalls;
 const refined = await page.evaluate(async () => {
-  Array.from(document.querySelectorAll('#rb-ask .rs-chip')).find((b) => b.textContent === 'For the evening')?.click();
-  await new Promise((r) => setTimeout(r, 80));
-  document.querySelector('#rb-ask .rs-cta')?.click();
+  window.__rbLpText('For the evening');
+  const ta = document.getElementById('rb-lp-in'); ta.value = 'For the evening';
+  ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
   await new Promise((r) => setTimeout(r, 6500));
   const d = window.__lastKpData;
   return {
     titles: d.ways.map((w) => w.title), imgs: d.generatedImages, built0: d.builtLooks && d.builtLooks[0] != null,
     card1: document.querySelectorAll('#kp-ways .kp-look-card')[1]?.querySelector('.kp-look-title, .t, h3')?.textContent || document.querySelectorAll('#kp-ways .kp-look-card')[1]?.textContent,
-    cards: document.querySelectorAll('#kp-ways .kp-look-card').length, ask: !!document.getElementById('rb-ask'),
+    cards: document.querySelectorAll('#kp-ways .kp-look-card').length, ask: !!document.getElementById('rb-lp'),
   };
 });
 const rb = refineBodies[0] || {};
