@@ -4188,6 +4188,80 @@ const lpSend = async (text, wait) => {
   await ctx.close();
 }
 
+{
+  // 13d · her model wears the change (Annie, 2026-10-01: "instead of
+  // rendering change on avatar, it turned to the mosaic"): a saved look
+  // that keeps its wishlisted proposals and already has a render must
+  // open EDITING on the canvas — the render leads, the next frame is asked
+  // for the swapped composition WITH the proposal — never the board. And
+  // the field floats above the navigation (the design), hidden under the
+  // open box, with the page padded so nothing hides beneath it.
+  const renders = [];
+  const { ctx, page, errs } = await boot(browser, {
+    avatar: 'w-s5-h2-hg', pics: 6, seed: false,
+    init: 'window.__lpRead = ' + lpRead.toString() + '; window.__lpSend = ' + lpSend.toString() + ';' + (() => {
+      localStorage.setItem('rb_looks__u-test', JSON.stringify([
+        { id: 'lk-kept', name: 'The kept one', name_provisional: false, note: 'Silk over denim.', photo_url: null,
+          render_url: 'https://img.test/render-kept.jpg', render_key: 'w-s5-h2-hg|w-bot1,w-sho1,w-top1|p:Camel leather clutch', source: 'daily', origin_look_id: null, created_at: '2026-09-02T10:00:00.000Z',
+          proposals: [{ role: 'The Exclamation Point', chip: 'Bag', cats: ['Bags'], opts: [{ name: 'Camel leather clutch', brand: 'Robes' }], oi: 0, saved: true, image_url: 'https://img.test/still-bag.jpg' }],
+          pieces: [{ id: 'w-top1', slot: 'Top', position: 0, role: null }, { id: 'w-bot1', slot: 'Bottom', position: 1, role: null }, { id: 'w-sho1', slot: 'Shoe', position: 2, role: null }], wears: [] }]));
+    }).toString().replace(/^\(\) => \{|\}$/g, ''),
+    pre: async (page) => {
+      await page.route('**/api/avatar/cell', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/cell.jpg' }) }));
+      await page.route('**/api/avatar/render', (r) => {
+        renders.push(r.request().postDataJSON().pieces.map((x) => x.name));
+        r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'rk' + renders.length }) });
+      });
+      await page.route('**/api/images/rk*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: ['https://img.test/render-next.jpg'], done: true }) }));
+      await page.route('**img.test/**', (r) => r.abort());
+    },
+  });
+  const askPosts = [];
+  await page.route('**/api/look/ask', askStub(askPosts));
+  await openLooks(page);
+  await page.evaluate(() => window.__lkOpen('lk-kept'));
+  await page.waitForTimeout(700);
+  const rd = await page.evaluate(() => {
+    const pg = document.querySelector('#sn-page');
+    const f = pg.querySelector('.rb-lk-held .rb-lp-field');
+    const cs = f && getComputedStyle(f);
+    return { render: pg.querySelector('.rb-lkm-canvas img.rb-lkm-img')?.getAttribute('src'), board: !!pg.querySelector('.rbc-board'),
+      dock: !!(f && f.classList.contains('rb-lp-dock')), pos: cs && cs.position, vis: cs && cs.visibility, bottom: f && Math.round(window.innerHeight - f.getBoundingClientRect().bottom),
+      pad: parseInt(getComputedStyle(document.getElementById('rb-lk-wrap')).paddingBottom, 10) };
+  });
+  check('box · the saved look opens on its render; the field is a fixed dock floating 24px off the foot on the web, and the page is padded under it',
+    rd.render === 'https://img.test/render-kept.jpg' && !rd.board && rd.dock && rd.pos === 'fixed' && rd.vis === 'visible' && rd.bottom === 24 && rd.pad >= 120, JSON.stringify(rd));
+  const rBefore = renders.length;
+  const ed = await page.evaluate(async () => {
+    document.querySelector('#sn-page .rb-lk-held .rb-lp-field')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const f = document.querySelector('#sn-page .rb-lk-held .rb-lp-field');
+    const hidden = getComputedStyle(f).visibility === 'hidden';
+    await window.__lpSend('swap the sandals for the slides', 900);
+    await new Promise((r) => setTimeout(r, 2200));
+    const pg = document.querySelector('#sn-page');
+    const st = pg.querySelector('.rb-lkm-stage');
+    return { hidden, editing: !!pg.querySelector('.rb-lk-page.editing'), stage: !!st, ids: st && st.getAttribute('data-ids'), pn: st && st.getAttribute('data-pn'),
+      board: !!pg.querySelector('.rbc-board'), head: pg.querySelector('.rbc-lhead .lab')?.textContent,
+      rows: Array.from(pg.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent), props: pg.querySelectorAll('.rb-lk-prop').length };
+  });
+  check('box · the dock hides under the open box; a swap through it keeps her MODEL on the canvas — the stage holds the slides and the proposal, no board',
+    ed.hidden && ed.editing && ed.stage && !ed.board && String(ed.ids).split(',').includes('w-sho2') && !String(ed.ids).includes('w-sho1') && /Camel leather clutch/.test(ed.pn || '')
+      && ed.rows.includes('Tan leather slides') && ed.props === 1 && /1 to find/.test(ed.head || ''), JSON.stringify(ed));
+  check('box · …and the next frame is asked for the swapped composition WITH the proposal, once',
+    renders.length === rBefore + 1 && renders[renders.length - 1].includes('Tan leather slides') && renders[renders.length - 1].includes('Camel leather clutch') && !renders[renders.length - 1].includes('Flat leather sandals'), JSON.stringify(renders.slice(rBefore)));
+  if (process.env.RB_SHOTS) {
+    await page.evaluate(() => window.__rbLpClose());
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: process.env.RB_SHOTS + '/lp-dock-1280.png' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: process.env.RB_SHOTS + '/lp-dock-390.png' });
+  }
+  check('box · canvas + dock: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // 14 · THE DRAFT (look prompt brief, phase 1 · 2026-10-01) — one standing
 // draft per user, parked in localStorage on every composer mutation. It

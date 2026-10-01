@@ -843,6 +843,11 @@
 .rb-lp-field .ph{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:16px;color:var(--ink-faint,#9A958E);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rb-lp-field .ar{flex:none;width:30px;height:30px;border-radius:50%;border:0.5px solid var(--rule-mid,#CFC7B9);background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ink,#202021)}
 .rb-lp-field:hover{border-color:var(--ink-faint,#9A958E)}
+.rb-lp-field.rb-lp-dock{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:47;width:min(620px,calc(100vw - 48px));margin:0;background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 32px rgba(32,32,33,.14),0 1px 2px rgba(32,32,33,.06)}
+.rb-lp-field.rb-lp-dock .ph{font-size:17px}
+body:has(#rb-lp) .rb-lp-field.rb-lp-dock{visibility:hidden}
+#sn-page:has(.rb-lp-dock) #rb-lk-wrap,#kp-result-page:has(.rb-lp-dock) .kp-wrap,#dl-result-page:has(.rb-lp-dock) .dlm-wrap{padding-bottom:132px}
+@media(max-width:767px){.rb-lp-field.rb-lp-dock{bottom:calc(98px + env(safe-area-inset-bottom,0px));width:calc(100vw - 24px)}#kp-result-page.kp-building .rb-lp-field.rb-lp-dock{bottom:calc(172px + env(safe-area-inset-bottom,0px))}#sn-page:has(.rb-lp-dock) #rb-lk-wrap,#kp-result-page:has(.rb-lp-dock) .kp-wrap,#dl-result-page:has(.rb-lp-dock) .dlm-wrap{padding-bottom:190px}}
 .rbc-hownote.rb-lp-was{color:var(--rose,#8E7077);font-style:normal;font-family:inherit;font-size:10.5px;letter-spacing:.04em}
 .rbc-hownote.rb-lp-styled{color:var(--ink-soft,#4A4744)}
 @media(max-width:767px){.rb-lp-wrap{align-items:flex-end;padding:0}.rb-lp{max-width:none;max-height:88dvh;border-radius:18px 18px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom,0px))}.rb-lp .grab{display:block;width:36px;height:4px;border-radius:2px;background:var(--rule-mid,#CFC7B9);margin:0 auto 14px}.rb-lp .thread{max-height:170px}}
@@ -866,7 +871,10 @@
         o = o || {};
         _rbLpCss();
         const label = o.label || (o.mode === 'new' ? _RB_LP_COPY.doorNew : (o.changed ? _RB_LP_COPY.doorAfter : _RB_LP_COPY.doorLook));
-        return '<button type="button" class="rb-lp-field' + (o.cls ? ' ' + o.cls : '') + '" onclick="' + o.onclick + '" aria-label="' + _waEsc(label) + '"><span class="ph">' + _waEsc(label) + '</span><span class="ar">→</span></button>';
+        // o.dock: the field FLOATS above the navigation (Annie, 2026-10-01 —
+        // the design's placement on every look surface), never a slot in
+        // the page; the host pads its foot so nothing hides under it.
+        return '<button type="button" class="rb-lp-field' + (o.dock ? ' rb-lp-dock' : '') + (o.cls ? ' ' + o.cls : '') + '" onclick="' + o.onclick + '" aria-label="' + _waEsc(label) + '"><span class="ph">' + _waEsc(label) + '</span><span class="ar">→</span></button>';
       }
       function _rbLpThreadHtml() {
         const s = _rbLp;
@@ -12966,7 +12974,7 @@ button.rb-lk-live{cursor:pointer}
 #rb-lk-grid .rb-lk-drafttile{border:1.5px dashed var(--rule-mid);background:var(--cream-100)}
 .rb-lk-drafttile .rb-lk-draftmos{width:104px;margin-bottom:6px}
 .rb-lk-drafttile .rb-lk-draftmos .rb-lk-mos{border-radius:3px}
-.rb-lk-lpfield{margin-top:16px}
+.rb-lk-lpfield:not(.rb-lp-dock){margin-top:16px}
 .rb-lk-draftmeta{margin-top:4px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
 .rb-lk-pick{display:flex;gap:10px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
 .rb-lk-pick::-webkit-scrollbar{width:0;height:0}
@@ -13897,6 +13905,25 @@ button.rb-lk-live{cursor:pointer}
             tail + actionHtml +
             '</div>';
         }
+        // EDITING dresses her model live (Annie, 2026-09-09: "live edits on
+        // the avatar instead of the mosaic") — the composer's canvas, seeded
+        // with the saved look's own photograph so nothing flickers, then
+        // re-rendered a beat after each change (_lkmSync's debounce + key
+        // cache). The proposals are WORN too (the render has carried them
+        // since 2026-08-25) — a look keeping its wishlisted rows used to
+        // fall to the mosaic the moment the box changed a piece (Annie,
+        // 2026-10-01). Without a model on file the board carries the edit.
+        if (o.editing && _lkModel) {
+          _lkmSeedFromLook(l);
+          return _lkModelPanelHtml({
+            saved: true,
+            items: ids.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean),
+            props: _lkPropGarments(props, pr => (pr.img_oi == null || pr.img_oi === (pr.oi || 0)) ? pr.image_url : null),
+            headLabel: props.length ? 'The look · ' + ids.length + ' yours, ' + props.length + ' to find' : headLabel,
+            tailHtml: tail + actionHtml,
+            canvasExtraHtml: acts + shareBadge,
+          });
+        }
         if (props.length && !_pdHttp(l.render_url)) {
           const propBoard = props.map((row, i) => {
             const a = row.opts[row.oi] || {};
@@ -13921,21 +13948,6 @@ button.rb-lk-live{cursor:pointer}
             rackLabel: 'The Rack',
             onFlip: '__lkDFlip', onSwap: '__lkDSwap',
           }, items).lookHtml;
-        }
-        // EDITING dresses her model live (Annie, 2026-09-09: "live edits on
-        // the avatar instead of the mosaic") — the composer's canvas, seeded
-        // with the saved look's own photograph so nothing flickers, then
-        // re-rendered a beat after each change (_lkmSync's debounce + key
-        // cache). Without a model on file the board still carries the edit.
-        if (o.editing && _lkModel && !props.length) {
-          _lkmSeedFromLook(l);
-          return _lkModelPanelHtml({
-            saved: true,
-            items: ids.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean),
-            headLabel,
-            tailHtml: tail + actionHtml,
-            canvasExtraHtml: acts + shareBadge,
-          });
         }
         if (o.dPhoto && o.dView === 'photo' && !o.dirty) {
           // Her photograph of the look — the record, with the model a
@@ -14188,7 +14200,7 @@ button.rb-lk-live{cursor:pointer}
         // The look prompt's door (phase 2): the field under the look, in
         // both moods — every edit it makes lands on the draft.
         const lpDraft = (_lkDraft && String(_lkDraft.lookId) === String(l.id)) ? _lkDraft : null;
-        const lpField = rackEmpty ? '' : _rbLpFieldHtml({ onclick: "window.__lkLpOpen('look')", changed: !!(lpDraft && lpDraft.was && Object.keys(lpDraft.was).length), cls: 'rb-lk-lpfield' });
+        const lpField = rackEmpty ? '' : _rbLpFieldHtml({ onclick: "window.__lkLpOpen('look')", changed: !!(lpDraft && lpDraft.was && Object.keys(lpDraft.was).length), cls: 'rb-lk-lpfield', dock: true });
 
         if (editing) {
           // ── EDITING — the composer's frame (Robes_Create_Edit_Look_IA).
@@ -15360,7 +15372,7 @@ button.rb-lk-live{cursor:pointer}
           '</div>' +
           // The look prompt's door (phase 2): the field under Save — the one
           // way to change the draft in words. Never while it is building.
-          ((!_lkBuilding && !_lkDraftEmptyNow()) ? _rbLpFieldHtml({ onclick: "window.__lkLpOpen('composer')", changed: Object.keys(_lkDraftWas).length, cls: 'rb-lk-lpfield' }) : '');
+          ((!_lkBuilding && !_lkDraftEmptyNow()) ? _rbLpFieldHtml({ onclick: "window.__lkLpOpen('composer')", changed: Object.keys(_lkDraftWas).length, cls: 'rb-lk-lpfield', dock: true }) : '');
         // A look Robes generated carries the feedback line under its foot
         // (design Look_Feedback 2a, 2026-09-17) — a prompted /api/daily
         // draft, a key piece's way built in situ, a Robes build. Keyed on
@@ -19938,7 +19950,7 @@ button.rb-lk-live{cursor:pointer}
             : `${owned > 0 ? `<button class="rbc-hbtn" id="dl-wear-btn" onclick="window.__dlWear()" title="Log these pieces as worn — wear counts feed cost-per-wear">✓ Wore it</button>` : ''}`,
           // The look prompt's door (phase 2) replaces ↻ Restyle this day: the
           // field under the look; her words change this day's pieces in place.
-          panelExtraHtml: _rbLpFieldHtml({ onclick: 'window.__dlLpOpen()', changed: flat.some(it => it._lpWas), cls: 'dl-lpfield' }),
+          panelExtraHtml: _rbLpFieldHtml({ onclick: 'window.__dlLpOpen()', changed: flat.some(it => it._lpWas), cls: 'dl-lpfield', dock: true }),
           onFlip: '__dlFlip', onSwap: '__dlSwap', onAnchor: '__dlAnchor', onRemove: '__dlRemove', onPiece: '__dlPieceOpen',
           onRoleDrop: '__dlRoleDrop',
           addPieceFn: '__dlAddPiece',
